@@ -70,6 +70,7 @@ void OmahaResponseHandlerAction::PerformAction() {
         kPrefsUpdateCheckResponseHash, response.hash))
         << "Unable to save the update check response hash.";
   }
+  install_plan_.is_full_update = !response.is_delta_payload;
 
   TEST_AND_RETURN(GetInstallDev(
       (!boot_device_.empty() ? boot_device_ : utils::BootDevice()),

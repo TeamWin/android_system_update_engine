@@ -848,8 +848,8 @@ string CodeToString(ErrorCode code) {
       return "kErrorCodeFilesystemCopierError";
     case kErrorCodePostinstallRunnerError:
       return "kErrorCodePostinstallRunnerError";
-    case kErrorCodeSetBootableFlagError:
-      return "kErrorCodeSetBootableFlagError";
+    case kErrorCodePayloadMismatchedType:
+      return "kErrorCodePayloadMismatchedType";
     case kErrorCodeInstallDeviceOpenError:
       return "kErrorCodeInstallDeviceOpenError";
     case kErrorCodeKernelDeviceOpenError:

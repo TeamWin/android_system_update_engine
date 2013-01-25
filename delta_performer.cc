@@ -383,6 +383,11 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
     if (result == kMetadataParseInsufficientData) {
       return true;
     }
+
+    // Checks the integrity of the payload manifest.
+    if ((*error = ValidateManifest()) != kErrorCodeSuccess)
+      return false;
+
     // Remove protobuf and header info from buffer_, so buffer_ contains
     // just data blobs
     DiscardBufferHeadBytes(manifest_metadata_size_);
@@ -828,6 +833,30 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   }
 
   LOG(INFO) << "Manifest signature matches expected value in Omaha response";
+  return kErrorCodeSuccess;
+}
+
+ErrorCode DeltaPerformer::ValidateManifest() {
+  // Ensure that a full update does not contain old partition hashes, which is
+  // indicative of a delta.
+  //
+  // TODO(garnold) in general, the presence of an old partition hash should be
+  // the sole indicator for a delta update, as we would generally like update
+  // payloads to be self contained and not assume an Omaha response to tell us
+  // that. However, since this requires some massive reengineering of the update
+  // flow (making filesystem copying happen conditionally only *after*
+  // downloading and parsing of the update manifest) we'll put it off for now.
+  // See chromium-os:7597 for further discussion.
+  if (install_plan_->is_full_update &&
+      (manifest_.has_old_kernel_info() || manifest_.has_old_rootfs_info())) {
+    LOG(ERROR) << "Purported full payload contains old partition "
+                  "hash(es), aborting update";
+    return kErrorCodePayloadMismatchedType;
+  }
+
+  // TODO(garnold) we should be adding more and more manifest checks, such as
+  // partition boundaries etc (see chromium-os:37661).
+
   return kErrorCodeSuccess;
 }
 
