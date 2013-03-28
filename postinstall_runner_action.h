@@ -29,7 +29,9 @@ class ActionTraits<PostinstallRunnerAction> {
 
 class PostinstallRunnerAction : public Action<PostinstallRunnerAction> {
  public:
-  PostinstallRunnerAction() {}
+  PostinstallRunnerAction()
+    : powerwash_marker_created_(false) {}
+
   typedef ActionTraits<PostinstallRunnerAction>::InputObjectType
       InputObjectType;
   typedef ActionTraits<PostinstallRunnerAction>::OutputObjectType
@@ -51,6 +53,10 @@ class PostinstallRunnerAction : public Action<PostinstallRunnerAction> {
                                         void* p);
 
   std::string temp_rootfs_dir_;
+
+  // True if Powerwash Marker was created before invoking post-install script.
+  // False otherwise. Used for cleaning up if post-install fails.
+  bool powerwash_marker_created_;
 
   DISALLOW_COPY_AND_ASSIGN(PostinstallRunnerAction);
 };

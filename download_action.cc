@@ -77,7 +77,7 @@ void DownloadAction::PerformAction() {
 
 void DownloadAction::TerminateProcessing() {
   if (writer_) {
-    LOG_IF(WARNING, writer_->Close() != 0) << "Error closing the writer.";
+    writer_->Close();
     writer_ = NULL;
   }
   if (delegate_) {

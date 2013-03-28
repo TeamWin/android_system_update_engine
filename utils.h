@@ -300,6 +300,14 @@ void SendErrorCodeToUma(SystemState* system_state, ActionExitCode code);
 // error codes or the bit flags) for logging purposes.
 std::string CodeToString(ActionExitCode code);
 
+// Creates the powerwash marker file with the appropriate commands in it.
+// Returns true if successfully created. False otherwise.
+bool CreatePowerwashMarkerFile();
+
+// Deletes the marker file used to trigger Powerwash using clobber-state.
+// Returns true if successfully deleted. False otherwise.
+bool DeletePowerwashMarkerFile();
+
 }  // namespace utils
 
 

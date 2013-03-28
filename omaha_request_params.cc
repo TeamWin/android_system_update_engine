@@ -50,6 +50,7 @@ const char* kChannelsByStability[] = {
 bool OmahaRequestParams::Init(const std::string& in_app_version,
                               const std::string& in_update_url,
                               bool in_interactive) {
+  LOG(INFO) << "Initializing parameters for this update attempt";
   InitFromLsbValue();
   bool stateful_override = !ShouldLockDown();
   os_platform_ = OmahaRequestParams::kOsPlatform;
@@ -104,34 +105,11 @@ bool OmahaRequestParams::Init(const std::string& in_app_version,
 bool OmahaRequestParams::SetTargetChannel(const std::string& new_target_channel,
                                           bool is_powerwash_allowed) {
   LOG(INFO) << "SetTargetChannel called with " << new_target_channel
-            << ". Is Powerwash Allowed = "
-            << utils::ToString(is_powerwash_allowed);
-
-  // Ignore duplicate calls so we can make the method succeed and be
-  // idempotent so as not to surface unnecessary errors to the UI.
-  if (new_target_channel == target_channel_ &&
-      is_powerwash_allowed == is_powerwash_allowed_) {
-    if (new_target_channel == current_channel_) {
-      // Return true to make such calls no-op and idempotent.
-      LOG(INFO) << "SetTargetChannel: Already on " << current_channel_;
-      return true;
-    }
-
-    LOG(INFO) << "SetTargetChannel: Target channel has already been set";
-    return true;
-  }
-
-  // See if there's a channel change already in progress. If so, don't honor
-  // a new channel change until the existing request is fulfilled.
-  if (current_channel_ != target_channel_) {
-    // Avoid dealing with multiple pending channels as they cause a lot of
-    // edge cases that's not worth adding the complexity for.
-    LOG(ERROR) << "Cannot change to " << new_target_channel
-               << " now as we're currently in " << current_channel_
-               << " and the request to change to " << target_channel_
-               << " is pending";
-    return false;
-  }
+            << ", Is Powerwash Allowed = "
+            << utils::ToString(is_powerwash_allowed)
+            << ". Current channel = " << current_channel_
+            << ", existing target channel = " << target_channel_
+            << ", download channel = " << download_channel_;
 
   if (current_channel_ == "canary-channel") {
     // TODO(jaysri): chromium-os:39751: We don't have the UI warnings yet. So,
@@ -171,7 +149,7 @@ bool OmahaRequestParams::SetTargetChannel(const std::string& new_target_channel,
 void OmahaRequestParams::SetTargetChannelFromLsbValue() {
   string target_channel_new_value = GetLsbValue(
       kUpdateChannelKey,
-      "",
+      current_channel_,
       &chromeos_update_engine::OmahaRequestParams::IsValidChannel,
       true);  // stateful_override
 
@@ -185,7 +163,7 @@ void OmahaRequestParams::SetTargetChannelFromLsbValue() {
 void OmahaRequestParams::SetCurrentChannelFromLsbValue() {
   string current_channel_new_value = GetLsbValue(
       kUpdateChannelKey,
-      "",
+      current_channel_,
       NULL,  // No need to validate the read-only rootfs channel.
       false);  // stateful_override is false so we get the current channel.
 
@@ -211,10 +189,18 @@ void OmahaRequestParams::SetIsPowerwashAllowedFromLsbValue() {
   }
 }
 
+void OmahaRequestParams::UpdateDownloadChannel() {
+  if (download_channel_ != target_channel_) {
+    download_channel_ = target_channel_;
+    LOG(INFO) << "Download channel for this attempt = " << download_channel_;
+  }
+}
+
 void OmahaRequestParams::InitFromLsbValue() {
-  SetTargetChannelFromLsbValue();
   SetCurrentChannelFromLsbValue();
+  SetTargetChannelFromLsbValue();
   SetIsPowerwashAllowedFromLsbValue();
+  UpdateDownloadChannel();
 }
 
 string OmahaRequestParams::GetLsbValue(const string& key,
@@ -286,9 +272,9 @@ int OmahaRequestParams::GetChannelIndex(const std::string& channel) const {
 
 bool OmahaRequestParams::to_more_stable_channel() const {
   int current_channel_index = GetChannelIndex(current_channel_);
-  int target_channel_index = GetChannelIndex(target_channel_);
+  int download_channel_index = GetChannelIndex(download_channel_);
 
-  return target_channel_index > current_channel_index;
+  return download_channel_index > current_channel_index;
 }
 
 }  // namespace chromeos_update_engine

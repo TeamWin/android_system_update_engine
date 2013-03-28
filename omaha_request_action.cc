@@ -113,7 +113,7 @@ string GetPingXml(int ping_active_days, int ping_roll_call_days) {
 // Returns an XML that goes into the body of the <app> element of the Omaha
 // request based on the given parameters.
 string GetAppBody(const OmahaEvent* event,
-                  const OmahaRequestParams& params,
+                  OmahaRequestParams* params,
                   bool ping_only,
                   int ping_active_days,
                   int ping_roll_call_days,
@@ -130,7 +130,7 @@ string GetAppBody(const OmahaEvent* event,
       app_body += StringPrintf(
           "        <updatecheck targetversionprefix=\"%s\""
           "></updatecheck>\n",
-          XmlEncode(params.target_version_prefix()).c_str());
+          XmlEncode(params->target_version_prefix()).c_str());
 
       // If this is the first update check after a reboot following a previous
       // update, generate an event containing the previous version number. If
@@ -171,7 +171,7 @@ string GetAppBody(const OmahaEvent* event,
 // Returns an XML that corresponds to the entire <app> node of the Omaha
 // request based on the given parameters.
 string GetAppXml(const OmahaEvent* event,
-                 const OmahaRequestParams& params,
+                 OmahaRequestParams* params,
                  bool ping_only,
                  int ping_active_days,
                  int ping_roll_call_days,
@@ -183,34 +183,35 @@ string GetAppXml(const OmahaEvent* event,
   // If we are upgrading to a more stable channel and we are allowed to do
   // powerwash, then pass 0.0.0.0 as the version. This is needed to get the
   // highest-versioned payload on the destination channel.
-  if (params.to_more_stable_channel() && params.is_powerwash_allowed()) {
+  if (params->to_more_stable_channel() && params->is_powerwash_allowed()) {
     LOG(INFO) << "Passing OS version as 0.0.0.0 as we are set to powerwash "
               << "on downgrading to the version in the more stable channel";
     app_versions = "version=\"0.0.0.0\" from_version=\"" +
-      XmlEncode(params.app_version()) + "\" ";
+      XmlEncode(params->app_version()) + "\" ";
   } else {
-    app_versions = "version=\"" + XmlEncode(params.app_version()) + "\" ";
+    app_versions = "version=\"" + XmlEncode(params->app_version()) + "\" ";
   }
 
-  string app_channels = "track=\"" + XmlEncode(params.target_channel()) + "\" ";
-  if (params.current_channel() != params.target_channel())
+  string download_channel = params->download_channel();
+  string app_channels = "track=\"" + XmlEncode(download_channel) + "\" ";
+  if (params->current_channel() != download_channel)
      app_channels +=
-       "from_track=\"" + XmlEncode(params.current_channel()) + "\" ";
+       "from_track=\"" + XmlEncode(params->current_channel()) + "\" ";
 
-  string delta_okay_str = params.delta_okay() ? "true" : "false";
+  string delta_okay_str = params->delta_okay() ? "true" : "false";
 
   // Use the default app_id only if we're asking for an update on the
   // canary-channel. Otherwise, use the board's app_id.
   string request_app_id =
-      (params.target_channel() == "canary-channel" ?
-       params.app_id() : params.board_app_id());
+      (download_channel == "canary-channel" ?
+       params->app_id() : params->board_app_id());
   string app_xml =
       "    <app appid=\"" + XmlEncode(request_app_id) + "\" " +
                 app_versions +
                 app_channels +
-                "lang=\"" + XmlEncode(params.app_lang()) + "\" " +
-                "board=\"" + XmlEncode(params.os_board()) + "\" " +
-                "hardware_class=\"" + XmlEncode(params.hwid()) + "\" " +
+                "lang=\"" + XmlEncode(params->app_lang()) + "\" " +
+                "board=\"" + XmlEncode(params->os_board()) + "\" " +
+                "hardware_class=\"" + XmlEncode(params->hwid()) + "\" " +
                 "delta_okay=\"" + delta_okay_str + "\" "
                 ">\n" +
                    app_body +
@@ -221,11 +222,11 @@ string GetAppXml(const OmahaEvent* event,
 
 // Returns an XML that corresponds to the entire <os> node of the Omaha
 // request based on the given parameters.
-string GetOsXml(const OmahaRequestParams& params) {
+string GetOsXml(OmahaRequestParams* params) {
   string os_xml =
-      "    <os version=\"" + XmlEncode(params.os_version()) + "\" " +
-               "platform=\"" + XmlEncode(params.os_platform()) + "\" " +
-               "sp=\"" + XmlEncode(params.os_sp()) + "\">"
+      "    <os version=\"" + XmlEncode(params->os_version()) + "\" " +
+               "platform=\"" + XmlEncode(params->os_platform()) + "\" " +
+               "sp=\"" + XmlEncode(params->os_sp()) + "\">"
           "</os>\n";
   return os_xml;
 }
@@ -233,7 +234,7 @@ string GetOsXml(const OmahaRequestParams& params) {
 // Returns an XML that corresponds to the entire Omaha request based on the
 // given parameters.
 string GetRequestXml(const OmahaEvent* event,
-                     const OmahaRequestParams& params,
+                     OmahaRequestParams* params,
                      bool ping_only,
                      int ping_active_days,
                      int ping_roll_call_days,
@@ -243,7 +244,7 @@ string GetRequestXml(const OmahaEvent* event,
                              ping_roll_call_days, system_state);
 
   string install_source = StringPrintf("installsource=\"%s\" ",
-      (params.interactive() ? "ondemandupdate" : "scheduler"));
+      (params->interactive() ? "ondemandupdate" : "scheduler"));
 
   string request_xml =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
@@ -334,7 +335,7 @@ void OmahaRequestAction::PerformAction() {
     return;
   }
   string request_post(GetRequestXml(event_.get(),
-                                    *params_,
+                                    params_,
                                     ping_only_,
                                     ping_active_days_,
                                     ping_roll_call_days_,

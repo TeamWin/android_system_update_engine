@@ -31,6 +31,7 @@
 #include <google/protobuf/stubs/common.h>
 #include <rootdev/rootdev.h>
 
+#include "update_engine/constants.h"
 #include "update_engine/file_writer.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/subprocess.h"
@@ -52,7 +53,6 @@ namespace {
 // one second.
 const int kUnmountMaxNumOfRetries = 5;
 const int kUnmountRetryIntervalInMicroseconds = 200 * 1000;  // 200 ms
-
 }  // namespace
 
 namespace utils {
@@ -873,6 +873,8 @@ string CodeToString(ActionExitCode code) {
       return "kActionCodeOmahaUpdateDeferredForBackoff";
     case kActionCodePostinstallPowerwashError:
       return "kActionCodePostinstallPowerwashError";
+    case kActionCodeUpdateCanceledByChannelChange:
+      return "kActionCodeUpdateCanceledByChannelChange";
     case kActionCodeUmaReportedMax:
       return "kActionCodeUmaReportedMax";
     case kActionCodeOmahaRequestHTTPResponseBase:
@@ -892,6 +894,34 @@ string CodeToString(ActionExitCode code) {
   }
 
   return "Unknown error: " + base::UintToString(static_cast<unsigned>(code));
+}
+
+bool CreatePowerwashMarkerFile() {
+  bool result = utils::WriteFile(kPowerwashMarkerFile,
+                                 kPowerwashCommand,
+                                 strlen(kPowerwashCommand));
+  if (result)
+    LOG(INFO) << "Created " << kPowerwashMarkerFile
+              << " to powerwash on next reboot";
+  else
+    PLOG(ERROR) << "Error in creating powerwash marker file: "
+                << kPowerwashMarkerFile;
+
+  return result;
+}
+
+bool DeletePowerwashMarkerFile() {
+  const FilePath kPowerwashMarkerPath(kPowerwashMarkerFile);
+  bool result = file_util::Delete(kPowerwashMarkerPath, false);
+
+  if (result)
+    LOG(INFO) << "Successfully deleted the powerwash marker file : "
+              << kPowerwashMarkerFile;
+  else
+    PLOG(ERROR) << "Could not delete the powerwash marker file : "
+                << kPowerwashMarkerFile;
+
+  return result;
 }
 
 }  // namespace utils

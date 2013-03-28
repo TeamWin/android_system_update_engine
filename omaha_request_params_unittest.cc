@@ -467,9 +467,29 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
   EXPECT_EQ("beta-channel", params_.target_channel());
 
   // When set to a valid value while a change is already pending, it should
-  // fail.
+  // succeed.
   params_.Init("", "", false);
-  EXPECT_FALSE(params_.SetTargetChannel("stable-channel", true));
+  EXPECT_TRUE(params_.SetTargetChannel("stable-channel", true));
+  EXPECT_EQ("stable-channel", params_.target_channel());
+
+  // Set a different channel in stateful LSB release.
+  ASSERT_TRUE(WriteFileString(
+      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      "CHROMEOS_RELEASE_TRACK=stable-channel\n"
+      "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"));
+
+  // When set to a valid value while a change is already pending, it should
+  // succeed.
+  params_.Init("", "", false);
+  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true));
+  // The target channel should reflect the change, but the download channel
+  // should continue to retain the old value ...
+  EXPECT_EQ("beta-channel", params_.target_channel());
+  EXPECT_EQ("stable-channel", params_.download_channel());
+
+  // ... until we update the download channel explicitly.
+  params_.UpdateDownloadChannel();
+  EXPECT_EQ("beta-channel", params_.download_channel());
   EXPECT_EQ("beta-channel", params_.target_channel());
 }
 

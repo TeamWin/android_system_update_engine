@@ -7,6 +7,7 @@
 #include <string>
 
 #include <base/logging.h>
+#include <policy/device_policy.h>
 
 #include "update_engine/marshal.glibmarshal.h"
 #include "update_engine/omaha_request_params.h"
@@ -145,7 +146,17 @@ gboolean update_engine_service_set_track(UpdateEngineService* self,
                                          gchar* track,
                                          GError **error) {
   // track == target channel.
-  return update_engine_service_set_channel(self, track, false, error);
+  // TODO(jaysri): Remove this method once chromium:219292 is fixed.
+  // Since UI won't be ready for now, preserve the existing
+  // behavior for set_track by calling SetTargetChannel directly without the
+  // policy checks instead of calling update_engine_service_set_channel.
+  LOG(INFO) << "Setting destination track to: " << track;
+  if (!self->system_state_->request_params()->SetTargetChannel(track, false)) {
+    *error = NULL;
+    return FALSE;
+  }
+
+  return TRUE;
 }
 
 gboolean update_engine_service_get_track(UpdateEngineService* self,
@@ -162,18 +173,16 @@ gboolean update_engine_service_set_channel(UpdateEngineService* self,
   if (!target_channel)
     return FALSE;
 
-  if (!self->system_state_->device_policy()) {
+  const policy::DevicePolicy* device_policy =
+      self->system_state_->device_policy();
+  if (!device_policy) {
     LOG(INFO) << "Cannot set target channel until device policy/settings are "
                  "known";
     return FALSE;
   }
 
   bool delegated = false;
-  self->system_state_->device_policy()->GetReleaseChannelDelegated(&delegated);
-  if (!delegated) {
-    // Note: This message will appear in UE logs with the current UI code
-    // because UI hasn't been modified to call this method only if
-    // delegated is set to true. chromium-os:219292 tracks this work item.
+  if (!(device_policy->GetReleaseChannelDelegated(&delegated) && delegated)) {
     LOG(INFO) << "Cannot set target channel explicitly when channel "
                  "policy/settings is not delegated";
     return FALSE;

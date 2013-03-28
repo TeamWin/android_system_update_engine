@@ -3,9 +3,12 @@
 // found in the LICENSE file.
 
 #include "update_engine/postinstall_runner_action.h"
+
 #include <sys/mount.h>
 #include <stdlib.h>
 #include <vector>
+
+#include "update_engine/constants.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
 
@@ -16,9 +19,6 @@ using std::vector;
 
 namespace {
 const char kPostinstallScript[] = "/postinst";
-const char kPowerwashMarkerFile[] =
-  "/mnt/stateful_partition/factory_install_reset";
-const char kPowerwashCommand[] = "safe fast\n";
 }
 
 void PostinstallRunnerAction::PerformAction() {
@@ -55,6 +55,15 @@ void PostinstallRunnerAction::PerformAction() {
   temp_dir_remover.set_should_remove(false);
   completer.set_should_complete(false);
 
+  if (install_plan.powerwash_required) {
+    if (utils::CreatePowerwashMarkerFile()) {
+      powerwash_marker_created_ = true;
+    } else {
+      completer.set_code(kActionCodePostinstallPowerwashError);
+      return;
+    }
+  }
+
   // Runs the postinstall script asynchronously to free up the main loop while
   // it's running.
   vector<string> command;
@@ -70,6 +79,11 @@ void PostinstallRunnerAction::CompletePostinstall(int return_code) {
   ScopedTempUnmounter temp_unmounter(temp_rootfs_dir_);
   if (return_code != 0) {
     LOG(ERROR) << "Postinst command failed with code: " << return_code;
+
+    // Undo any changes done to trigger Powerwash using clobber-state.
+    if (powerwash_marker_created_)
+      utils::DeletePowerwashMarkerFile();
+
     if (return_code == 3) {
       // This special return code means that we tried to update firmware,
       // but couldn't because we booted from FW B, and we need to reboot
@@ -82,18 +96,6 @@ void PostinstallRunnerAction::CompletePostinstall(int return_code) {
   LOG(INFO) << "Postinst command succeeded";
   CHECK(HasInputObject());
   const InstallPlan install_plan = GetInputObject();
-
-  if (install_plan.powerwash_required) {
-    if (utils::WriteFile(kPowerwashMarkerFile,
-                         kPowerwashCommand,
-                         strlen(kPowerwashCommand))) {
-      LOG(INFO) << "Configured clobber-state to do powerwash on next reboot";
-    } else {
-      LOG(ERROR) << "Error in configuring clobber-state to do powerwash";
-      completer.set_code(kActionCodePostinstallPowerwashError);
-      return;
-    }
-  }
 
   if (HasOutputPipe())
     SetOutputObject(install_plan);

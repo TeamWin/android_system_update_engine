@@ -184,6 +184,24 @@ void UpdateAttempter::Update(const string& app_version,
   UpdateBootFlags();
 }
 
+void UpdateAttempter::RefreshDevicePolicy() {
+  // Lazy initialize the policy provider, or reload the latest policy data.
+  if (!policy_provider_.get())
+    policy_provider_.reset(new policy::PolicyProvider());
+  policy_provider_->Reload();
+
+  const policy::DevicePolicy* device_policy = NULL;
+  if (policy_provider_->device_policy_is_loaded())
+    device_policy = &policy_provider_->GetDevicePolicy();
+
+  if (device_policy)
+    LOG(INFO) << "Device policies/settings present";
+  else
+    LOG(INFO) << "No device policies/settings present.";
+
+  system_state_->set_device_policy(device_policy);
+}
+
 bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             const string& omaha_url,
                                             bool obey_proxies,
@@ -193,31 +211,20 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
 
   // Set the test mode flag for the current update attempt.
   is_test_mode_ = is_test_mode;
-
-  // Lazy initialize the policy provider, or reload the latest policy data.
-  if (!policy_provider_.get())
-    policy_provider_.reset(new policy::PolicyProvider());
-  policy_provider_->Reload();
-
-  if (policy_provider_->device_policy_is_loaded()) {
-    LOG(INFO) << "Device policies/settings present";
-
-    const policy::DevicePolicy& device_policy =
-                                policy_provider_->GetDevicePolicy();
-
+  RefreshDevicePolicy();
+  const policy::DevicePolicy* device_policy = system_state_->device_policy();
+  if (device_policy) {
     bool update_disabled = false;
-    device_policy.GetUpdateDisabled(&update_disabled);
-    omaha_request_params_->set_update_disabled(update_disabled);
+    if (device_policy->GetUpdateDisabled(&update_disabled))
+      omaha_request_params_->set_update_disabled(update_disabled);
 
     string target_version_prefix;
-    device_policy.GetTargetVersionPrefix(&target_version_prefix);
-    omaha_request_params_->set_target_version_prefix(target_version_prefix);
-
-    system_state_->set_device_policy(&device_policy);
+    if (device_policy->GetTargetVersionPrefix(&target_version_prefix))
+      omaha_request_params_->set_target_version_prefix(target_version_prefix);
 
     set<string> allowed_types;
     string allowed_types_str;
-    if (device_policy.GetAllowedConnectionTypesForUpdate(&allowed_types)) {
+    if (device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
       set<string>::const_iterator iter;
       for (iter = allowed_types.begin(); iter != allowed_types.end(); ++iter)
         allowed_types_str += *iter + " ";
@@ -225,9 +232,6 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
 
     LOG(INFO) << "Networks over which updates are allowed per policy : "
               << (allowed_types_str.empty() ? "all" : allowed_types_str);
-  } else {
-    LOG(INFO) << "No device policies/settings present.";
-    system_state_->set_device_policy(NULL);
   }
 
   CalculateScatteringParams(interactive);
@@ -242,31 +246,37 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   if (!omaha_request_params_->Init(app_version,
                                    omaha_url_to_use,
                                    interactive)) {
-    LOG(ERROR) << "Unable to initialize Omaha request device params.";
+    LOG(ERROR) << "Unable to initialize Omaha request params.";
     return false;
   }
 
   // Set the target channel iff ReleaseChannelDelegated policy is set to
   // false and a non-empty ReleaseChannel policy is present. If delegated
   // is true, we'll ignore ReleaseChannel policy value.
-  if (system_state_->device_policy()) {
+  if (device_policy) {
     bool delegated = false;
-    system_state_->device_policy()->GetReleaseChannelDelegated(&delegated);
-    if (delegated) {
+    if (device_policy->GetReleaseChannelDelegated(&delegated) && delegated) {
       LOG(INFO) << "Channel settings are delegated to user by policy. "
                    "Ignoring ReleaseChannel policy value";
     }
     else {
       LOG(INFO) << "Channel settings are not delegated to the user by policy";
       string target_channel;
-      system_state_->device_policy()->GetReleaseChannel(&target_channel);
-      if (target_channel.empty()) {
-        LOG(INFO) << "No ReleaseChannel specified in policy";
-      } else {
+      if (device_policy->GetReleaseChannel(&target_channel) &&
+          !target_channel.empty()) {
         // Pass in false for powerwash_allowed until we add it to the policy
         // protobuf.
         LOG(INFO) << "Setting target channel from ReleaseChannel policy value";
         omaha_request_params_->SetTargetChannel(target_channel, false);
+
+        // Since this is the beginning of a new attempt, update the download
+        // channel. The download channel won't be updated until the next
+        // attempt, even if target channel changes meanwhile, so that how we'll
+        // know if we should cancel the current download attempt if there's
+        // such a change in target channel.
+        omaha_request_params_->UpdateDownloadChannel();
+      } else {
+        LOG(INFO) << "No ReleaseChannel specified in policy";
       }
     }
   }
@@ -756,14 +766,18 @@ bool UpdateAttempter::ResetStatus() {
       return true;
 
     case UPDATE_STATUS_UPDATED_NEED_REBOOT:  {
+      bool ret_value = true;
       status_ = UPDATE_STATUS_IDLE;
       LOG(INFO) << "Reset Successful";
 
-      // also remove the reboot marker so that if the machine is rebooted
+      // Remove the reboot marker so that if the machine is rebooted
       // after resetting to idle state, it doesn't go back to
       // UPDATE_STATUS_UPDATED_NEED_REBOOT state.
       const FilePath kUpdateCompletedMarkerPath(kUpdateCompletedMarker);
-      return file_util::Delete(kUpdateCompletedMarkerPath, false);
+      if (!file_util::Delete(kUpdateCompletedMarkerPath, false))
+        ret_value = false;
+
+      return ret_value;
     }
 
     default:
@@ -854,6 +868,22 @@ uint32_t UpdateAttempter::GetErrorCodeFlags()  {
     flags |= kActionCodeTestOmahaUrlFlag;
 
   return flags;
+}
+
+bool UpdateAttempter::ShouldCancel(ActionExitCode* cancel_reason) {
+  // Check if the channel we're attempting to update to is the same as the
+  // target channel currently chosen by the user.
+  OmahaRequestParams* params = system_state_->request_params();
+  if (params->download_channel() != params->target_channel()) {
+    LOG(ERROR) << "Aborting download as target channel: "
+               << params->target_channel()
+               << " is different from the download channel: "
+               << params->download_channel();
+    *cancel_reason = kActionCodeUpdateCanceledByChannelChange;
+    return true;
+  }
+
+  return false;
 }
 
 void UpdateAttempter::SetStatusAndNotify(UpdateStatus status,
@@ -1115,5 +1145,4 @@ bool UpdateAttempter::DecrementUpdateCheckCount() {
   prefs_->Delete(kPrefsUpdateCheckCount);
   return false;
 }
-
 }  // namespace chromeos_update_engine

@@ -27,6 +27,7 @@
 #include "update_engine/prefs_interface.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/terminator.h"
+#include "update_engine/update_attempter.h"
 
 using std::min;
 using std::string;
@@ -262,10 +263,9 @@ int DeltaPerformer::Close() {
   fd_ = -2;  // Set to invalid so that calls to Open() will fail.
   path_ = "";
   if (!buffer_.empty()) {
-    LOG(ERROR) << "Called Close() while buffer not empty!";
-    if (err >= 0) {
+    LOG(INFO) << "Discarding " << buffer_.size() << " unused downloaded bytes";
+    if (err >= 0)
       err = 1;
-    }
   }
   return -err;
 }
@@ -457,6 +457,12 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
   }
 
   while (next_operation_num_ < num_total_operations_) {
+    // Check if we should cancel the current attempt for any reason.
+    // In this case, *error will have already been populated with the reason
+    // why we're cancelling.
+    if (system_state_->update_attempter()->ShouldCancel(error))
+      return false;
+
     const bool is_kernel_partition =
         (next_operation_num_ >= num_rootfs_operations_);
     const DeltaArchiveManifest_InstallOperation &op =

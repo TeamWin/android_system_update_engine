@@ -67,10 +67,10 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.kernel_install_path =
       utils::BootKernelDevice(install_plan_.install_path);
 
-  if (system_state_->request_params()->to_more_stable_channel() &&
-      system_state_->request_params()->is_powerwash_allowed()) {
+  OmahaRequestParams* params = system_state_->request_params();
+  if (params->to_more_stable_channel() && params->is_powerwash_allowed())
     install_plan_.powerwash_required = true;
-  }
+
 
   TEST_AND_RETURN(HasOutputPipe());
   if (HasOutputPipe())

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/postinstall_runner_action.h"
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -9,11 +11,12 @@
 #include <string>
 #include <vector>
 
+#include <base/file_util.h>
 #include <base/string_util.h>
 #include <base/stringprintf.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/postinstall_runner_action.h"
+#include "update_engine/constants.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -32,7 +35,9 @@ gboolean StartProcessorInRunLoop(gpointer data) {
 
 class PostinstallRunnerActionTest : public ::testing::Test {
  public:
-  void DoTest(bool do_losetup, int err_code);
+  // DoTest with various combinations of do_losetup, err_code and
+  // powerwash_required.
+  void DoTest(bool do_losetup, int err_code, bool powerwash_required);
 };
 
 class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
@@ -61,27 +66,37 @@ class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootSimpleTest) {
   ASSERT_EQ(0, getuid());
-  DoTest(true, 0);
+  DoTest(true, 0, false);
+}
+
+TEST_F(PostinstallRunnerActionTest, RunAsRootPowerwashRequiredTest) {
+  ASSERT_EQ(0, getuid());
+  DoTest(true, 0, true);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootCantMountTest) {
   ASSERT_EQ(0, getuid());
-  DoTest(false, 0);
+  DoTest(false, 0, true);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootErrScriptTest) {
   ASSERT_EQ(0, getuid());
-  DoTest(true, 1);
+  DoTest(true, 1, false);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootFirmwareBErrScriptTest) {
   ASSERT_EQ(0, getuid());
-  DoTest(true, 3);
+  DoTest(true, 3, false);
 }
 
-void PostinstallRunnerActionTest::DoTest(bool do_losetup, int err_code) {
+void PostinstallRunnerActionTest::DoTest(
+    bool do_losetup,
+    int err_code,
+    bool powerwash_required) {
   ASSERT_EQ(0, getuid()) << "Run me as root. Ideally don't run other tests "
                          << "as root, tho.";
+  // True if the post-install action is expected to succeed.
+  bool should_succeed = do_losetup && !err_code;
 
   const string mountpoint(string(utils::kStatefulPartition) +
                           "/au_destination");
@@ -136,6 +151,7 @@ void PostinstallRunnerActionTest::DoTest(bool do_losetup, int err_code) {
   ObjectFeederAction<InstallPlan> feeder_action;
   InstallPlan install_plan;
   install_plan.install_path = dev;
+  install_plan.powerwash_required = powerwash_required;
   feeder_action.set_obj(install_plan);
   PostinstallRunnerAction runner_action;
   BondActions(&feeder_action, &runner_action);
@@ -155,18 +171,27 @@ void PostinstallRunnerActionTest::DoTest(bool do_losetup, int err_code) {
   ASSERT_FALSE(processor.IsRunning());
 
   EXPECT_TRUE(delegate.code_set_);
-  EXPECT_EQ(do_losetup && !err_code, delegate.code_ == kActionCodeSuccess);
-  EXPECT_EQ(do_losetup && !err_code,
-            !collector_action.object().install_path.empty());
-  if (do_losetup && !err_code) {
+  EXPECT_EQ(should_succeed, delegate.code_ == kActionCodeSuccess);
+  EXPECT_EQ(should_succeed, !collector_action.object().install_path.empty());
+  if (should_succeed)
     EXPECT_TRUE(install_plan == collector_action.object());
+
+  const FilePath kPowerwashMarkerPath(kPowerwashMarkerFile);
+  string actual_cmd;
+  if (should_succeed && powerwash_required) {
+    EXPECT_TRUE(file_util::ReadFileToString(kPowerwashMarkerPath, &actual_cmd));
+    EXPECT_EQ(kPowerwashCommand, actual_cmd);
+  } else {
+    EXPECT_FALSE(
+        file_util::ReadFileToString(kPowerwashMarkerPath, &actual_cmd));
   }
+
   if (err_code == 2)
     EXPECT_EQ(kActionCodePostinstallBootedFromFirmwareB, delegate.code_);
 
   struct stat stbuf;
   int rc = lstat((string(cwd) + "/postinst_called").c_str(), &stbuf);
-  if (do_losetup && !err_code)
+  if (should_succeed)
     ASSERT_EQ(0, rc);
   else
     ASSERT_LT(rc, 0);
@@ -176,6 +201,7 @@ void PostinstallRunnerActionTest::DoTest(bool do_losetup, int err_code) {
   }
   ASSERT_EQ(0, System(string("rm -f ") + cwd + "/postinst_called"));
   ASSERT_EQ(0, System(string("rm -f ") + cwd + "/image.dat"));
+  utils::DeletePowerwashMarkerFile();
 }
 
 // Death tests don't seem to be working on Hardy

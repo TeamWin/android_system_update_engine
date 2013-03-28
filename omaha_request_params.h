@@ -105,6 +105,7 @@ class OmahaRequestParams {
 
   inline std::string current_channel() const { return current_channel_; }
   inline std::string target_channel() const { return target_channel_; }
+  inline std::string download_channel() const { return download_channel_; }
 
   // Can client accept a delta ?
   inline void set_delta_okay(bool ok) { delta_okay_ = ok; }
@@ -193,6 +194,14 @@ class OmahaRequestParams {
   // all such cases.
   bool SetTargetChannel(const std::string& channel, bool is_powerwash_allowed);
 
+  // Updates the download channel for this particular attempt from the current
+  // value of target channel.  This method takes a "snapshot" of the current
+  // value of target channel and uses it for all subsequent Omaha requests for
+  // this attempt (i.e. initial request as well as download progress/error
+  // event requests). The snapshot will be updated only when either this method
+  // or Init is called again.
+  void UpdateDownloadChannel();
+
   bool is_powerwash_allowed() const { return is_powerwash_allowed_; }
 
   // For unit-tests.
@@ -266,10 +275,26 @@ class OmahaRequestParams {
   std::string app_version_;
   std::string app_lang_;
 
-  // Current channel and target channel. Usually there are same, except when
-  // there's a pending channel change.
+  // The three channel values we deal with.
+  // Current channel: is always the channel from /etc/lsb-release. It never
+  // changes. It's just read in during initialization.
   std::string current_channel_;
+
+  // Target channel: It starts off with the value of current channel. But if
+  // the user changes the channel, then it'll have a different value. If the
+  // user changes multiple times, target channel will always contain the most
+  // recent change and is updated immediately to the user-selected value even
+  // if we're in the middle of a download (as opposed to download channel
+  // which gets updated only at the start of next download)
   std::string target_channel_;
+
+  // The channel from which we're downloading the payload. This should normally
+  // be the same as target channel. But if the user made another channel change
+  // we started the download, then they'd be different, in which case, we'd
+  // detect elsewhere that the target channel has been changed and cancel the
+  // current download attempt.
+  std::string download_channel_;
+
   std::string hwid_;  // Hardware Qualification ID of the client
   bool delta_okay_;  // If this client can accept a delta
   bool interactive_;   // Whether this is a user-initiated update check

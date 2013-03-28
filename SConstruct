@@ -246,6 +246,7 @@ sources = Split("""action_processor.cc
                    chrome_browser_proxy_resolver.cc
                    chrome_proxy_resolver.cc
                    connection_manager.cc
+                   constants.cc
                    cycle_breaker.cc
                    dbus_service.cc
                    delta_diff_generator.cc
