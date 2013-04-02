@@ -89,7 +89,7 @@ TEST_F(OmahaRequestParamsTest, SimpleTest) {
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("0.2.2.3_") + GetMachineType(), out.os_sp());
   EXPECT_EQ("arm-generic", out.os_board());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_EQ("", out.hwid());
@@ -113,7 +113,7 @@ TEST_F(OmahaRequestParamsTest, AppIDTest) {
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("0.2.2.3_") + GetMachineType(), out.os_sp());
   EXPECT_EQ("arm-generic", out.os_board());
-  EXPECT_EQ("{58c35cef-9d30-476e-9098-ce20377d535d}", out.app_id());
+  EXPECT_EQ("{58c35cef-9d30-476e-9098-ce20377d535d}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_EQ("", out.hwid());
@@ -133,7 +133,7 @@ TEST_F(OmahaRequestParamsTest, MissingChannelTest) {
   EXPECT_TRUE(DoTest(&out, "", ""));
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("0.2.2.3_") + GetMachineType(), out.os_sp());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_EQ("", out.target_channel());
@@ -150,7 +150,7 @@ TEST_F(OmahaRequestParamsTest, ConfusingReleaseTest) {
   EXPECT_TRUE(DoTest(&out, "", ""));
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("0.2.2.3_") + GetMachineType(), out.os_sp());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_EQ("", out.target_channel());
@@ -168,7 +168,7 @@ TEST_F(OmahaRequestParamsTest, MissingVersionTest) {
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("_") + GetMachineType(), out.os_sp());
   EXPECT_EQ("arm-generic", out.os_board());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_TRUE(out.delta_okay());
@@ -187,7 +187,7 @@ TEST_F(OmahaRequestParamsTest, ForceVersionTest) {
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("ForcedVersion_") + GetMachineType(), out.os_sp());
   EXPECT_EQ("arm-generic", out.os_board());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("ForcedVersion", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_TRUE(out.delta_okay());
@@ -207,7 +207,7 @@ TEST_F(OmahaRequestParamsTest, ForcedURLTest) {
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("0.2.2.3_") + GetMachineType(), out.os_sp());
   EXPECT_EQ("arm-generic", out.os_board());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_TRUE(out.delta_okay());
@@ -228,7 +228,7 @@ TEST_F(OmahaRequestParamsTest, MissingURLTest) {
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("0.2.2.3_") + GetMachineType(), out.os_sp());
   EXPECT_EQ("arm-generic", out.os_board());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_TRUE(out.delta_okay());
@@ -268,7 +268,7 @@ TEST_F(OmahaRequestParamsTest, OverrideTest) {
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("0.2.2.3_") + GetMachineType(), out.os_sp());
   EXPECT_EQ("x86-generic", out.os_board());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_EQ("", out.hwid());
@@ -295,7 +295,7 @@ TEST_F(OmahaRequestParamsTest, OverrideLockDownTest) {
   OmahaRequestParams out(&mock_system_state);
   EXPECT_TRUE(DoTest(&out, "", ""));
   EXPECT_EQ("arm-generic", out.os_board());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("", out.hwid());
   EXPECT_FALSE(out.delta_okay());
@@ -319,7 +319,7 @@ TEST_F(OmahaRequestParamsTest, OverrideSameChannelTest) {
   OmahaRequestParams out(&mock_system_state);
   EXPECT_TRUE(DoTest(&out, "", ""));
   EXPECT_EQ("x86-generic", out.os_board());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("", out.hwid());
   EXPECT_TRUE(out.delta_okay());
@@ -427,7 +427,7 @@ TEST_F(OmahaRequestParamsTest, ValidChannelTest) {
   EXPECT_EQ("Chrome OS", out.os_platform());
   EXPECT_EQ(string("0.2.2.3_") + GetMachineType(), out.os_sp());
   EXPECT_EQ("arm-generic", out.os_board());
-  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.app_id());
+  EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_EQ("", out.hwid());
@@ -533,6 +533,47 @@ TEST_F(OmahaRequestParamsTest, ToMoreStableChannelFlagTest) {
 
 TEST_F(OmahaRequestParamsTest, ShouldLockDownTest) {
   EXPECT_FALSE(params_.ShouldLockDown());
+}
+
+TEST_F(OmahaRequestParamsTest, BoardAppIdUsedForNonCanaryChannelTest) {
+  ASSERT_TRUE(WriteFileString(
+      kTestDir + "/etc/lsb-release",
+      "CHROMEOS_RELEASE_APPID=r\n"
+      "CHROMEOS_BOARD_APPID=b\n"
+      "CHROMEOS_CANARY_APPID=c\n"
+      "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
+  MockSystemState mock_system_state;
+  OmahaRequestParams out(&mock_system_state);
+  EXPECT_TRUE(DoTest(&out, "", ""));
+  EXPECT_EQ("stable-channel", out.download_channel());
+  EXPECT_EQ("b", out.GetAppId());
+}
+
+TEST_F(OmahaRequestParamsTest, CanaryAppIdUsedForCanaryChannelTest) {
+  ASSERT_TRUE(WriteFileString(
+      kTestDir + "/etc/lsb-release",
+      "CHROMEOS_RELEASE_APPID=r\n"
+      "CHROMEOS_BOARD_APPID=b\n"
+      "CHROMEOS_CANARY_APPID=c\n"
+      "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
+  MockSystemState mock_system_state;
+  OmahaRequestParams out(&mock_system_state);
+  EXPECT_TRUE(DoTest(&out, "", ""));
+  EXPECT_EQ("canary-channel", out.download_channel());
+  EXPECT_EQ("c", out.GetAppId());
+}
+
+TEST_F(OmahaRequestParamsTest, ReleaseAppIdUsedAsDefaultTest) {
+  ASSERT_TRUE(WriteFileString(
+      kTestDir + "/etc/lsb-release",
+      "CHROMEOS_RELEASE_APPID=r\n"
+      "CHROMEOS_CANARY_APPID=c\n"
+      "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
+  MockSystemState mock_system_state;
+  OmahaRequestParams out(&mock_system_state);
+  EXPECT_TRUE(DoTest(&out, "", ""));
+  EXPECT_EQ("stable-channel", out.download_channel());
+  EXPECT_EQ("r", out.GetAppId());
 }
 
 }  // namespace chromeos_update_engine

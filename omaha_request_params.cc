@@ -63,14 +63,18 @@ bool OmahaRequestParams::Init(const std::string& in_app_version,
                           "",
                           NULL,
                           stateful_override);
-  app_id_ = GetLsbValue("CHROMEOS_RELEASE_APPID",
-                        OmahaRequestParams::kAppId,
-                        NULL,
-                        stateful_override);
+  string release_app_id = GetLsbValue("CHROMEOS_RELEASE_APPID",
+                                      OmahaRequestParams::kAppId,
+                                      NULL,
+                                      stateful_override);
   board_app_id_ = GetLsbValue("CHROMEOS_BOARD_APPID",
-                              app_id_,
+                              release_app_id,
                               NULL,
                               stateful_override);
+  canary_app_id_ = GetLsbValue("CHROMEOS_CANARY_APPID",
+                               release_app_id,
+                               NULL,
+                               stateful_override);
   app_lang_ = "en-US";
   hwid_ = utils::GetHardwareClass();
 
@@ -275,6 +279,10 @@ bool OmahaRequestParams::to_more_stable_channel() const {
   int download_channel_index = GetChannelIndex(download_channel_);
 
   return download_channel_index > current_channel_index;
+}
+
+string OmahaRequestParams::GetAppId() const {
+  return download_channel_ == "canary-channel" ? canary_app_id_ : board_app_id_;
 }
 
 }  // namespace chromeos_update_engine

@@ -33,8 +33,8 @@ class OmahaRequestParams {
       : system_state_(system_state),
         os_platform_(kOsPlatform),
         os_version_(kOsVersion),
-        app_id_(kAppId),
         board_app_id_(kAppId),
+        canary_app_id_(kAppId),
         delta_okay_(true),
         interactive_(false),
         update_disabled_(false),
@@ -68,8 +68,8 @@ class OmahaRequestParams {
         os_version_(in_os_version),
         os_sp_(in_os_sp),
         os_board_(in_os_board),
-        app_id_(in_app_id),
         board_app_id_(in_app_id),
+        canary_app_id_(in_app_id),
         app_version_(in_app_version),
         app_lang_(in_app_lang),
         current_channel_(in_target_channel),
@@ -93,8 +93,8 @@ class OmahaRequestParams {
   inline std::string os_version() const { return os_version_; }
   inline std::string os_sp() const { return os_sp_; }
   inline std::string os_board() const { return os_board_; }
-  inline std::string app_id() const { return app_id_; }
   inline std::string board_app_id() const { return board_app_id_; }
+  inline std::string canary_app_id() const { return canary_app_id_; }
   inline std::string app_lang() const { return app_lang_; }
   inline std::string hwid() const { return hwid_; }
 
@@ -167,6 +167,10 @@ class OmahaRequestParams {
   // True if we're trying to update to a more stable channel.
   // i.e. index(target_channel) > index(current_channel).
   bool to_more_stable_channel() const;
+
+  // Returns the app id corresponding to the current value of the
+  // download channel.
+  std::string GetAppId() const;
 
   // Suggested defaults
   static const char* const kAppId;
@@ -265,12 +269,12 @@ class OmahaRequestParams {
   std::string os_sp_;
   std::string os_board_;
 
-  // The app_id identifies the board except when we're on canary-channel.
-  // Whereas the board_app_id always identifies the board irrespective of the
-  // channel we are on. They are required the facilitate the switching from
-  // canary to a non-canary channel.
-  std::string app_id_;
+  // The board app id identifies the app id for the board irrespective of the
+  // channel that we're on. The canary app id identifies the app id to be used
+  // iff we're in the canary-channel. These values could be different depending
+  // on how the release tools are implemented.
   std::string board_app_id_;
+  std::string canary_app_id_;
 
   std::string app_version_;
   std::string app_lang_;
