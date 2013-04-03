@@ -76,6 +76,8 @@ class DeltaDiffGenerator {
                                       const std::string& private_key_path,
                                       off_t chunk_size,
                                       size_t rootfs_partition_size,
+                                      const ImageInfo* old_image_info,
+                                      const ImageInfo* new_image_info,
                                       uint64_t* metadata_size);
 
   // These functions are public so that the unit tests can access them:

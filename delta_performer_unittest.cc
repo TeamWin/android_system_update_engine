@@ -269,6 +269,26 @@ static void GenerateDeltaFile(bool full_kernel,
       state->image_size + 1024 * 1024 - 1)));
   EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->a_img));
 
+  // Create ImageInfo A & B
+  ImageInfo old_image_info;
+  ImageInfo new_image_info;
+
+  if (!full_rootfs) {
+    old_image_info.set_channel("src-channel");
+    old_image_info.set_board("src-board");
+    old_image_info.set_version("src-version");
+    old_image_info.set_key("src-key");
+    old_image_info.set_build_channel("src-build-channel");
+    old_image_info.set_build_version("src-build-version");
+  }
+
+  new_image_info.set_channel("test-channel");
+  new_image_info.set_board("test-board");
+  new_image_info.set_version("test-version");
+  new_image_info.set_key("test-key");
+  new_image_info.set_build_channel("test-build-channel");
+  new_image_info.set_build_version("test-build-version");
+
   // Make some changes to the A image.
   {
     string a_mnt;
@@ -311,6 +331,7 @@ static void GenerateDeltaFile(bool full_kernel,
   if (noop) {
     EXPECT_TRUE(file_util::CopyFile(FilePath(state->a_img),
                                     FilePath(state->b_img)));
+    old_image_info = new_image_info;
   } else {
     CreateExtImageAtPath(state->b_img, NULL);
     EXPECT_EQ(0, System(base::StringPrintf(
@@ -424,6 +445,8 @@ static void GenerateDeltaFile(bool full_kernel,
             private_key,
             chunk_size,
             kRootFSPartitionSize,
+            full_rootfs ? NULL : &old_image_info,
+            &new_image_info,
             &state->metadata_size));
   }
 
@@ -453,6 +476,8 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                                            &manifest,
                                            &state->metadata_size));
     LOG(INFO) << "Metadata size: " << state->metadata_size;
+
+
 
     if (signature_test == kSignatureNone) {
       EXPECT_FALSE(manifest.has_signatures_offset());
@@ -498,8 +523,41 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       EXPECT_FALSE(manifest.old_kernel_info().hash().empty());
     }
 
+    EXPECT_EQ(manifest.new_image_info().channel(), "test-channel");
+    EXPECT_EQ(manifest.new_image_info().board(), "test-board");
+    EXPECT_EQ(manifest.new_image_info().version(), "test-version");
+    EXPECT_EQ(manifest.new_image_info().key(), "test-key");
+    EXPECT_EQ(manifest.new_image_info().build_channel(), "test-build-channel");
+    EXPECT_EQ(manifest.new_image_info().build_version(), "test-build-version");
+
+    if (!full_rootfs) {
+
+      if (noop) {
+        EXPECT_EQ(manifest.old_image_info().channel(), "test-channel");
+        EXPECT_EQ(manifest.old_image_info().board(), "test-board");
+        EXPECT_EQ(manifest.old_image_info().version(), "test-version");
+        EXPECT_EQ(manifest.old_image_info().key(), "test-key");
+        EXPECT_EQ(manifest.old_image_info().build_channel(),
+                  "test-build-channel");
+        EXPECT_EQ(manifest.old_image_info().build_version(),
+                  "test-build-version");
+      } else {
+        EXPECT_EQ(manifest.old_image_info().channel(), "src-channel");
+        EXPECT_EQ(manifest.old_image_info().board(), "src-board");
+        EXPECT_EQ(manifest.old_image_info().version(), "src-version");
+        EXPECT_EQ(manifest.old_image_info().key(), "src-key");
+        EXPECT_EQ(manifest.old_image_info().build_channel(),
+                  "src-build-channel");
+        EXPECT_EQ(manifest.old_image_info().build_version(),
+                  "src-build-version");
+      }
+    }
+
+
     if (full_rootfs) {
       EXPECT_FALSE(manifest.has_old_rootfs_info());
+      EXPECT_FALSE(manifest.has_old_image_info());
+      EXPECT_TRUE(manifest.has_new_image_info());
     } else {
       EXPECT_EQ(state->image_size, manifest.old_rootfs_info().size());
       EXPECT_FALSE(manifest.old_rootfs_info().hash().empty());
@@ -653,9 +711,9 @@ void VerifyPayloadResult(DeltaPerformer* performer,
   uint64_t new_rootfs_size;
   vector<char> new_rootfs_hash;
   EXPECT_TRUE(performer->GetNewPartitionInfo(&new_kernel_size,
-                                            &new_kernel_hash,
-                                            &new_rootfs_size,
-                                            &new_rootfs_hash));
+                                             &new_kernel_hash,
+                                             &new_rootfs_size,
+                                             &new_rootfs_hash));
   EXPECT_EQ(kDefaultKernelSize, new_kernel_size);
   vector<char> expected_new_kernel_hash;
   EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(state->new_kernel_data,
@@ -695,6 +753,7 @@ void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
   DeltaPerformer *performer;
   GenerateDeltaFile(full_kernel, full_rootfs, noop, chunk_size,
                     signature_test, &state);
+
   ScopedPathUnlinker a_img_unlinker(state.a_img);
   ScopedPathUnlinker b_img_unlinker(state.b_img);
   ScopedPathUnlinker delta_unlinker(state.delta_path);

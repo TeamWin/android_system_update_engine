@@ -1387,6 +1387,8 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     const string& private_key_path,
     off_t chunk_size,
     size_t rootfs_partition_size,
+    const ImageInfo* old_image_info,
+    const ImageInfo* new_image_info,
     uint64_t* metadata_size) {
   TEST_AND_RETURN_FALSE(chunk_size == -1 || chunk_size % kBlockSize == 0);
   int old_image_block_count = 0, old_image_block_size = 0;
@@ -1401,6 +1403,12 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     TEST_AND_RETURN_FALSE(old_image_block_size == new_image_block_size);
     LOG_IF(WARNING, old_image_block_count != new_image_block_count)
         << "Old and new images have different block counts.";
+
+    // If new_image_info is present, old_image_info must but be present.
+    TEST_AND_RETURN_FALSE((bool)old_image_info == (bool)new_image_info);
+  } else {
+    // old_image_info must not be present for a full update.
+    TEST_AND_RETURN_FALSE(!old_image_info);
   }
 
   // Sanity checks for the partition size.
@@ -1521,6 +1529,13 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 
   // Convert to protobuf Manifest object
   DeltaArchiveManifest manifest;
+
+  if (old_image_info)
+    *(manifest.mutable_old_image_info()) = *old_image_info;
+
+  if (new_image_info)
+    *(manifest.mutable_new_image_info()) = *new_image_info;
+
   OperationNameMap op_name_map;
   CheckGraph(graph);
   InstallOperationsToManifest(graph,

@@ -90,6 +90,25 @@ message PartitionInfo {
   optional bytes hash = 2;
 }
 
+// Describe an image we are based on in a human friendly way.
+// Examples:
+//   dev-channel, x86-alex, 1.2.3, mp-v3
+//   nplusone-channel, x86-alex, 1.2.4, mp-v3, dev-channel, 1.2.3
+//
+// All fields will be set, if this message is present.
+message ImageInfo {
+  optional string board = 1;
+  optional string key = 2;
+  optional string channel = 3;
+  optional string version = 4;
+
+  // If these values aren't present, they should be assumed to match
+  // the equivalent value above. They are normally only different for
+  // special image types such as nplusone images.
+  optional string build_channel = 5;
+  optional string build_version = 6;
+}
+
 message DeltaArchiveManifest {
   message InstallOperation {
     enum Type {
@@ -144,4 +163,9 @@ message DeltaArchiveManifest {
   optional PartitionInfo new_kernel_info = 7;
   optional PartitionInfo old_rootfs_info = 8;
   optional PartitionInfo new_rootfs_info = 9;
+
+  // old_image_info will only be present for delta images.
+  optional ImageInfo old_image_info = 10;
+
+  optional ImageInfo new_image_info = 11;
 }
