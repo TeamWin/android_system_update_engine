@@ -721,6 +721,11 @@ bool DeltaPerformer::PerformBsdiffOperation(
         utils::WriteAll(fd, &buffer_[0], operation.data_length()));
   }
 
+  // Update the buffer to release the patch data memory as soon as the patch
+  // file is written out.
+  buffer_offset_ += operation.data_length();
+  DiscardBufferHeadBytes(operation.data_length());
+
   int fd = is_kernel_partition ? kernel_fd_ : fd_;
   const string& path = StringPrintf("/dev/fd/%d", fd);
 
@@ -760,10 +765,6 @@ bool DeltaPerformer::PerformBsdiffOperation(
     TEST_AND_RETURN_FALSE(
         utils::PWriteAll(fd, &zeros[0], end_byte - begin_byte, begin_byte));
   }
-
-  // Update buffer.
-  buffer_offset_ += operation.data_length();
-  DiscardBufferHeadBytes(operation.data_length());
   return true;
 }
 
@@ -1101,7 +1102,10 @@ bool DeltaPerformer::VerifySourcePartitions() {
 
 void DeltaPerformer::DiscardBufferHeadBytes(size_t count) {
   hash_calculator_.Update(&buffer_[0], count);
-  buffer_.erase(buffer_.begin(), buffer_.begin() + count);
+  // Copy the remainder data into a temporary vector first to ensure that any
+  // unused memory in the updated |buffer_| will be released.
+  vector<char> temp(buffer_.begin() + count, buffer_.end());
+  buffer_.swap(temp);
 }
 
 bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
