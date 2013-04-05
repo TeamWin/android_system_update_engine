@@ -71,7 +71,7 @@ struct OmahaEvent {
 
 class NoneType;
 class OmahaRequestAction;
-struct OmahaRequestParams;
+class OmahaRequestParams;
 class PrefsInterface;
 
 template<>

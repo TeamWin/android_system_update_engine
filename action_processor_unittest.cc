@@ -23,7 +23,8 @@ class ActionTraits<ActionProcessorTestAction> {
 };
 
 // This is a simple Action class for testing.
-struct ActionProcessorTestAction : public Action<ActionProcessorTestAction> {
+class ActionProcessorTestAction : public Action<ActionProcessorTestAction> {
+ public:
   typedef string InputObjectType;
   typedef string OutputObjectType;
   ActionPipe<string>* in_pipe() { return in_pipe_.get(); }

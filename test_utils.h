@@ -185,7 +185,7 @@ class ActionTraits<ObjectFeederAction<T> > {
 // This is a simple Action class for testing. It feeds an object into
 // another action.
 template<typename T>
-struct ObjectFeederAction : public Action<ObjectFeederAction<T> > {
+class ObjectFeederAction : public Action<ObjectFeederAction<T> > {
  public:
   typedef NoneType InputObjectType;
   typedef T OutputObjectType;
@@ -219,7 +219,7 @@ class ActionTraits<ObjectCollectorAction<T> > {
 // This is a simple Action class for testing. It receives an object from
 // another action.
 template<typename T>
-struct ObjectCollectorAction : public Action<ObjectCollectorAction<T> > {
+class ObjectCollectorAction : public Action<ObjectCollectorAction<T> > {
  public:
   typedef T InputObjectType;
   typedef NoneType OutputObjectType;
