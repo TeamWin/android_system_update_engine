@@ -15,34 +15,6 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-const char kPrefsCertificateReportToSendDownload[] =
-    "certificate-report-to-send-download";
-const char kPrefsCertificateReportToSendUpdate[] =
-    "certificate-report-to-send-update";
-const char kPrefsDeltaUpdateFailures[] = "delta-update-failures";
-const char kPrefsLastActivePingDay[] = "last-active-ping-day";
-const char kPrefsLastRollCallPingDay[] = "last-roll-call-ping-day";
-const char kPrefsManifestMetadataSize[] = "manifest-metadata-size";
-const char kPrefsPreviousVersion[] = "previous-version";
-const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";
-const char kPrefsUpdateCheckResponseHash[] = "update-check-response-hash";
-const char kPrefsUpdateServerCertificate[] = "update-server-cert";
-const char kPrefsUpdateStateNextDataOffset[] = "update-state-next-data-offset";
-const char kPrefsUpdateStateNextOperation[] = "update-state-next-operation";
-const char kPrefsUpdateStateSHA256Context[] = "update-state-sha-256-context";
-const char kPrefsUpdateStateSignatureBlob[] = "update-state-signature-blob";
-const char kPrefsUpdateStateSignedSHA256Context[] =
-    "update-state-signed-sha-256-context";
-const char kPrefsUpdateCheckCount[] = "update-check-count";
-const char kPrefsWallClockWaitPeriod[] = "wall-clock-wait-period";
-const char kPrefsUpdateFirstSeenAt[] = "update-first-seen-at";
-
-const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
-const char kPrefsCurrentResponseSignature[] = "current-response-signature";
-const char kPrefsCurrentUrlIndex[] = "current-url-index";
-const char kPrefsCurrentUrlFailureCount[] = "current-url-failure-count";
-const char kPrefsBackoffExpiryTime[] = "backoff-expiry-time";
-
 bool Prefs::Init(const FilePath& prefs_dir) {
   prefs_dir_ = prefs_dir;
   return true;

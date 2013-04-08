@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "update_engine/constants.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/mock_system_state.h"
 #include "update_engine/test_utils.h"

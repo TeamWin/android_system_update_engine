@@ -15,6 +15,7 @@
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
 
+#include "update_engine/constants.h"
 #include "update_engine/prefs_interface.h"
 #include "update_engine/utils.h"
 

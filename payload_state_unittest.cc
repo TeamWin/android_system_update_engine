@@ -8,6 +8,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include "update_engine/constants.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/payload_state.h"
 #include "update_engine/prefs_mock.h"

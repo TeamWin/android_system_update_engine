@@ -9,30 +9,6 @@
 
 namespace chromeos_update_engine {
 
-extern const char kPrefsCertificateReportToSendDownload[];
-extern const char kPrefsCertificateReportToSendUpdate[];
-extern const char kPrefsDeltaUpdateFailures[];
-extern const char kPrefsLastActivePingDay[];
-extern const char kPrefsLastRollCallPingDay[];
-extern const char kPrefsManifestMetadataSize[];
-extern const char kPrefsPreviousVersion[];
-extern const char kPrefsResumedUpdateFailures[];
-extern const char kPrefsUpdateCheckResponseHash[];
-extern const char kPrefsUpdateServerCertificate[];
-extern const char kPrefsUpdateStateNextDataOffset[];
-extern const char kPrefsUpdateStateNextOperation[];
-extern const char kPrefsUpdateStateSHA256Context[];
-extern const char kPrefsUpdateStateSignatureBlob[];
-extern const char kPrefsUpdateStateSignedSHA256Context[];
-extern const char kPrefsUpdateCheckCount[];
-extern const char kPrefsWallClockWaitPeriod[];
-extern const char kPrefsUpdateFirstSeenAt[];
-extern const char kPrefsPayloadAttemptNumber[];
-extern const char kPrefsCurrentResponseSignature[];
-extern const char kPrefsCurrentUrlIndex[];
-extern const char kPrefsCurrentUrlFailureCount[];
-extern const char kPrefsBackoffExpiryTime[];
-
 // The prefs interface allows access to a persistent preferences
 // store. The two reasons for providing this as an interface are
 // testing as well as easier switching to a new implementation in the

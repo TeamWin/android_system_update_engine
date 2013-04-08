@@ -12,6 +12,7 @@
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/certificate_checker_mock.h"
+#include "update_engine/constants.h"
 #include "update_engine/mock_system_state.h"
 #include "update_engine/prefs_mock.h"
 

@@ -16,6 +16,7 @@
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/constants.h"
 #include "update_engine/delta_diff_generator.h"
 #include "update_engine/delta_performer.h"
 #include "update_engine/extent_ranges.h"

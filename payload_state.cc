@@ -9,7 +9,7 @@
 #include <base/logging.h>
 #include <base/stringprintf.h>
 
-#include "update_engine/prefs.h"
+#include "update_engine/constants.h"
 #include "update_engine/utils.h"
 
 using base::Time;

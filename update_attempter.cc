@@ -22,6 +22,7 @@
 #include <policy/device_policy.h>
 
 #include "update_engine/certificate_checker.h"
+#include "update_engine/constants.h"
 #include "update_engine/dbus_service.h"
 #include "update_engine/download_action.h"
 #include "update_engine/filesystem_copier_action.h"

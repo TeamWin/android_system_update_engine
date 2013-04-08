@@ -18,6 +18,7 @@
 #include <google/protobuf/repeated_field.h>
 
 #include "update_engine/bzip_extent_writer.h"
+#include "update_engine/constants.h"
 #include "update_engine/delta_diff_generator.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/extent_writer.h"

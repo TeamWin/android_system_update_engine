@@ -19,6 +19,7 @@
 #include <libxml/xpathInternals.h>
 
 #include "update_engine/action_pipe.h"
+#include "update_engine/constants.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/prefs_interface.h"
