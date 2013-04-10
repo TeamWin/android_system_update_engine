@@ -1479,7 +1479,7 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   const string kTestDir = "omaha_request_action-test";
   ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
   ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
-                        utils::kStatefulPartition + "/etc"));
+                      kStatefulPartition + "/etc"));
   vector<char> post_data;
   NiceMock<PrefsMock> prefs;
   ASSERT_TRUE(WriteFileString(
@@ -1488,7 +1488,7 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
       "CHROMEOS_BOARD_APPID={22222222-2222-2222-2222-222222222222}\n"
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      kTestDir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   OmahaRequestParams params = kDefaultTestParams;
@@ -1519,7 +1519,7 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   const string kTestDir = "omaha_request_action-test";
   ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
   ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
-                        utils::kStatefulPartition + "/etc"));
+                      kStatefulPartition + "/etc"));
   vector<char> post_data;
   NiceMock<PrefsMock> prefs;
   ASSERT_TRUE(WriteFileString(
@@ -1528,7 +1528,7 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
       "CHROMEOS_BOARD_APPID={22222222-2222-2222-2222-222222222222}\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      kTestDir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   OmahaRequestParams params = kDefaultTestParams;
   params.set_root(string("./") + kTestDir);

@@ -40,6 +40,9 @@ class PayloadStateInterface {
   // able to make forward progress with the current URL.
   virtual void DownloadProgress(size_t count) = 0;
 
+  // This method should be called every time we resume an update attempt.
+  virtual void UpdateResumed() = 0;
+
   // This method should be called every time we begin a new update. This method
   // should not be called when we resume an update from the previously
   // downloaded point. This is used to reset the metrics for each new update.
@@ -99,6 +102,9 @@ class PayloadStateInterface {
   // source since the the last successful update. This is used to compute the
   // overhead we incur.
   virtual uint64_t GetTotalBytesDownloaded(DownloadSource source) = 0;
+
+  // Returns the reboot count for this update attempt.
+  virtual uint32_t GetNumReboots() = 0;
  };
 
 }  // namespace chromeos_update_engine

@@ -98,7 +98,7 @@ void PostinstallRunnerActionTest::DoTest(
   // True if the post-install action is expected to succeed.
   bool should_succeed = do_losetup && !err_code;
 
-  const string mountpoint(string(utils::kStatefulPartition) +
+  const string mountpoint(string(kStatefulPartition) +
                           "/au_destination");
 
   string cwd;

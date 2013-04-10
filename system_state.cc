@@ -5,6 +5,7 @@
 #include <base/file_util.h>
 
 #include "update_engine/real_system_state.h"
+#include "update_engine/utils.h"
 
 namespace chromeos_update_engine {
 
@@ -14,7 +15,8 @@ static const char kPrefsDirectory[] = "/var/lib/update_engine/prefs";
 RealSystemState::RealSystemState()
     : device_policy_(NULL),
       connection_manager_(this),
-      request_params_(this) {}
+      request_params_(this),
+      system_rebooted_(false) {}
 
 bool RealSystemState::Initialize(bool enable_gpio) {
   metrics_lib_.Init();
@@ -22,6 +24,14 @@ bool RealSystemState::Initialize(bool enable_gpio) {
   if (!prefs_.Init(FilePath(kPrefsDirectory))) {
     LOG(ERROR) << "Failed to initialize preferences.";
     return false;
+  }
+
+  if (!utils::FileExists(kSystemRebootedMarkerFile)) {
+    if (!utils::WriteFile(kSystemRebootedMarkerFile, "", 0)) {
+      LOG(ERROR) << "Could not create reboot marker file";
+      return false;
+    }
+    system_rebooted_ = true;
   }
 
   if (!payload_state_.Initialize(this))

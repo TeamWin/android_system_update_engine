@@ -9,7 +9,11 @@ namespace chromeos_update_engine {
 const char kPowerwashMarkerFile[] =
   "/mnt/stateful_partition/factory_install_reset";
 
+const char kSystemRebootedMarkerFile[] = "/tmp/update_engine_update_recorded";
+
 const char kPowerwashCommand[] = "safe fast\n";
+
+const char kStatefulPartition[] = "/mnt/stateful_partition";
 
 // Constants defining keys for the persisted state of update engine.
 const char kPrefsBackoffExpiryTime[] = "backoff-expiry-time";
@@ -25,6 +29,7 @@ const char kPrefsDeltaUpdateFailures[] = "delta-update-failures";
 const char kPrefsLastActivePingDay[] = "last-active-ping-day";
 const char kPrefsLastRollCallPingDay[] = "last-roll-call-ping-day";
 const char kPrefsManifestMetadataSize[] = "manifest-metadata-size";
+const char kPrefsNumReboots[] = "num-reboots";
 const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";

@@ -4,6 +4,8 @@
 
 #include <glib.h>
 
+#include "base/file_path.h"
+#include "base/file_util.h"
 #include "base/stringprintf.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -99,6 +101,7 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
     .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0)).Times(AtLeast(1));
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
   payload_state.SetResponse(response);
@@ -143,6 +146,8 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
     .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0))
+      .Times(AtLeast(1));
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
   payload_state.SetResponse(response);
@@ -185,6 +190,8 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
     .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0))
+      .Times(AtLeast(1));
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
   payload_state.SetResponse(response);
@@ -218,6 +225,9 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, _)).Times(AtLeast(2));
+
+  // Reboots will be set
+  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, _)).Times(AtLeast(1));
 
   // Url index should go from 0 to 1 twice.
   EXPECT_CALL(*prefs, SetInt64(kPrefsCurrentUrlIndex, 0)).Times(AtLeast(1));
@@ -325,6 +335,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kTotalBytesDownloadedFromHttp, progress_bytes))
     .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0))
+      .Times(AtLeast(1));
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
 
@@ -638,6 +650,9 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_EQ(https_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 
+  // Don't care about other metrics in this test.
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      _,_,_,_,_)).Times(AtLeast(0));
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.SuccessfulMBsDownloadedFromHttpServer",
       http_chunk / kNumBytesInOneMiB, _, _, _));
@@ -696,6 +711,32 @@ TEST(PayloadStateTest, RestartingUpdateResetsMetrics) {
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
 }
 
+TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
+  MockSystemState mock_system_state;
+  PayloadState payload_state;
 
+  NiceMock<PrefsMock>* prefs = mock_system_state.mock_prefs();
+  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AtLeast(0));
+  EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 1)).Times(AtLeast(1));
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+
+  payload_state.UpdateRestarted();
+  EXPECT_EQ(0, payload_state.GetNumReboots());
+
+  EXPECT_CALL(mock_system_state, system_rebooted()).WillOnce(Return(true));
+  payload_state.UpdateResumed();
+  // Num reboots should be incremented because system rebooted detected.
+  EXPECT_EQ(1, payload_state.GetNumReboots());
+
+  EXPECT_CALL(mock_system_state, system_rebooted()).WillOnce(Return(false));
+  payload_state.UpdateResumed();
+  // Num reboots should now be 1 as reboot was not detected.
+  EXPECT_EQ(1, payload_state.GetNumReboots());
+
+  // Restart the update again to verify we set the num of reboots back to 0.
+  payload_state.UpdateRestarted();
+  EXPECT_EQ(0, payload_state.GetNumReboots());
+}
 
 }

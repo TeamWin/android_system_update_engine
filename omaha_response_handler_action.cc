@@ -53,7 +53,9 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.hash_checks_mandatory = AreHashChecksMandatory(response);
   install_plan_.is_resume =
       DeltaPerformer::CanResumeUpdate(system_state_->prefs(), response.hash);
-  if (!install_plan_.is_resume) {
+  if (install_plan_.is_resume) {
+    system_state_->payload_state()->UpdateResumed();
+  } else {
     system_state_->payload_state()->UpdateRestarted();
     LOG_IF(WARNING, !DeltaPerformer::ResetUpdateProgress(
         system_state_->prefs(), false))
@@ -84,7 +86,7 @@ void OmahaResponseHandlerAction::PerformAction() {
   // hacky solution but should be OK for now.
   //
   // TODO(petkov): Rearchitect this to avoid communication through a
-  // file. Ideallly, we would include this information in D-Bus's GetStatus
+  // file. Ideally, we would include this information in D-Bus's GetStatus
   // method and UpdateStatus signal. A potential issue is that update_engine may
   // be unresponsive during an update download.
   utils::WriteFile(kDeadlineFile,

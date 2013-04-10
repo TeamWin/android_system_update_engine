@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <vector>
 
-#include "update_engine/constants.h"
+#include "update_engine/action_processor.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
 

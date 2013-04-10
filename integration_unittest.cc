@@ -7,6 +7,7 @@
 #include <glib.h>
 #include <pthread.h>
 #include <gtest/gtest.h>
+#include "update_engine/constants.h"
 #include "update_engine/download_action.h"
 #include "update_engine/install_action.h"
 #include "update_engine/libcurl_http_fetcher.h"
@@ -134,7 +135,7 @@ TEST(IntegrationTest, DISABLED_RunAsRootFullInstallTest) {
   ASSERT_EQ(0, system("rm -f /tmp/update_engine_test_postinst_out.txt"));
   ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
   ASSERT_EQ(0, system((string("mkdir -p ") + kTestDir +
-                       utils::kStatefulPartition +
+                       kStatefulPartition +
                        "/etc").c_str()));
   ASSERT_TRUE(WriteFileString(string(kTestDir) + "/etc/lsb-release",
                               "GOOGLE_RELEASE=0.2.0.0\n"

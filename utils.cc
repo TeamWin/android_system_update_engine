@@ -59,7 +59,6 @@ const int kUnmountRetryIntervalInMicroseconds = 200 * 1000;  // 200 ms
 namespace utils {
 
 static const char kDevImageMarker[] = "/root/.dev_mode";
-const char* const kStatefulPartition = "/mnt/stateful_partition";
 
 // Cgroup container is created in update-engine's upstart script located at
 // /etc/init/update-engine.conf.

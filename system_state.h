@@ -64,6 +64,11 @@ class SystemState {
   // Returns a pointer to the object that stores the parameters that are
   // common to all Omaha requests.
   virtual OmahaRequestParams* request_params() = 0;
+
+  // If true, this is the first instance of the update engine since the system
+  // restarted. Important for tracking whether you are running instance of the
+  // update engine on first boot or due to a crash/restart.
+  virtual bool system_rebooted() = 0;
 };
 
 }  // namespace chromeos_update_engine

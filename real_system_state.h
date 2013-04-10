@@ -64,6 +64,10 @@ public:
     return &request_params_;
   }
 
+  virtual inline bool system_rebooted(){
+    return system_rebooted_;
+  }
+
   // Initializes this concrete object. Other methods should be invoked only
   // if the object has been initialized successfully.
   bool Initialize(bool enable_gpio);
@@ -101,6 +105,11 @@ private:
 
   // Common parameters for all Omaha requests.
   OmahaRequestParams request_params_;
+
+  // If true, this is the first instance of the update engine since the system
+  // rebooted. Important for tracking whether you are running instance of the
+  // update engine on first boot or due to a crash/restart.
+  bool system_rebooted_;
 };
 
 }  // namespace chromeos_update_engine

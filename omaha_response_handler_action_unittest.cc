@@ -240,12 +240,12 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   const string kTestDir = "omaha_response_handler_action-test";
   ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
   ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
-                        utils::kStatefulPartition + "/etc"));
+                      kStatefulPartition + "/etc"));
   ASSERT_TRUE(WriteFileString(
       kTestDir + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      kTestDir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
 
@@ -277,12 +277,12 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   const string kTestDir = "omaha_response_handler_action-test";
   ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
   ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
-                        utils::kStatefulPartition + "/etc"));
+                      kStatefulPartition + "/etc"));
   ASSERT_TRUE(WriteFileString(
       kTestDir + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      kTestDir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
 
   MockSystemState mock_system_state;

@@ -35,6 +35,7 @@ class PayloadState : public PayloadStateInterface {
   virtual void SetResponse(const OmahaResponse& response);
   virtual void DownloadComplete();
   virtual void DownloadProgress(size_t count);
+  virtual void UpdateResumed();
   virtual void UpdateRestarted();
   virtual void UpdateSucceeded();
   virtual void UpdateFailed(ActionExitCode error);
@@ -76,6 +77,10 @@ class PayloadState : public PayloadStateInterface {
     return source < kNumDownloadSources ? total_bytes_downloaded_[source] : 0;
   }
 
+  virtual inline uint32_t GetNumReboots() {
+    return num_reboots_;
+  }
+
  private:
   // Increments the payload attempt number which governs the backoff behavior
   // at the time of the next update check.
@@ -111,6 +116,9 @@ class PayloadState : public PayloadStateInterface {
 
   // Reports the metric related to number of URL switches.
   void ReportUpdateUrlSwitchesMetric();
+
+  // Reports the various metrics related to rebooting during an update.
+  void ReportRebootMetrics();
 
   // Resets all the persisted state values which are maintained relative to the
   // current response signature. The response signature itself is not reset.
@@ -235,6 +243,18 @@ class PayloadState : public PayloadStateInterface {
   // The global state of the system.
   SystemState* system_state_;
 
+  // Initializes |num_reboots_| from the persisted state.
+  void LoadNumReboots();
+
+  // Sets |num_reboots| for the update attempt. Also persists the
+  // value being set so that we resume from the same value in case of a process
+  // restart.
+  void SetNumReboots(uint32_t num_reboots);
+
+  // Checks to see if the device rebooted since the last call and if so
+  // increments num_reboots.
+  void UpdateNumReboots();
+
   // Interface object with which we read/write persisted state. This must
   // be set by calling the Initialize method before calling any other method.
   PrefsInterface* prefs_;
@@ -275,6 +295,11 @@ class PayloadState : public PayloadStateInterface {
   // We're storing this so as not to recompute this on every few bytes of
   // data we read from the socket.
   DownloadSource current_download_source_;
+
+  // The number of system reboots during an update attempt. Technically since
+  // we don't go out of our way to not update it when not attempting an update,
+  // also records the number of reboots before the next update attempt starts.
+  uint32_t num_reboots_;
 
   // The timestamp until which we've to wait before attempting to download the
   // payload again, so as to backoff repeated downloads.

@@ -639,6 +639,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
     prefs_->Delete(kPrefsUpdateTimestampStart);
     prefs_->Delete(kPrefsUpdateDurationUptime);
+    LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
     SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT,
                        kUpdateNoticeUnspecified);

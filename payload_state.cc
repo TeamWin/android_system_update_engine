@@ -58,6 +58,7 @@ bool PayloadState::Initialize(SystemState* system_state) {
     LoadCurrentBytesDownloaded(source);
     LoadTotalBytesDownloaded(source);
   }
+  LoadNumReboots();
   return true;
 }
 
@@ -124,9 +125,15 @@ void PayloadState::DownloadProgress(size_t count) {
   SetUrlFailureCount(0);
 }
 
+void PayloadState::UpdateResumed() {
+  LOG(INFO) << "Resuming an update that was previously started.";
+  UpdateNumReboots();
+}
+
 void PayloadState::UpdateRestarted() {
   LOG(INFO) << "Starting a new update";
   ResetDownloadSourcesOnNewUpdate();
+  SetNumReboots(0);
 }
 
 void PayloadState::UpdateSucceeded() {
@@ -135,6 +142,7 @@ void PayloadState::UpdateSucceeded() {
   SetUpdateTimestampEnd(Time::Now());
   ReportBytesDownloadedMetrics();
   ReportUpdateUrlSwitchesMetric();
+  ReportRebootMetrics();
 }
 
 void PayloadState::UpdateFailed(ActionExitCode error) {
@@ -435,6 +443,39 @@ void PayloadState::ReportUpdateUrlSwitchesMetric() {
        kNumDefaultUmaBuckets);
 }
 
+void PayloadState::ReportRebootMetrics() {
+  // Report the number of num_reboots.
+  string metric = "Installer.UpdateNumReboots";
+  uint32_t num_reboots = GetNumReboots();
+  LOG(INFO) << "Uploading reboot count of " << num_reboots << " for metric "
+            <<  metric;
+  system_state_->metrics_lib()->SendToUMA(
+      metric,
+      static_cast<int>(num_reboots),  // sample
+      0,  // min = 0.
+      50,  // max
+      25);  // buckets
+  SetNumReboots(0);
+}
+
+void PayloadState::UpdateNumReboots() {
+  // We only update the reboot count when the system has been detected to have
+  // been rebooted.
+  if (!system_state_->system_rebooted()) {
+    return;
+  }
+
+  SetNumReboots(GetNumReboots() + 1);
+}
+
+void PayloadState::SetNumReboots(uint32_t num_reboots) {
+  CHECK(prefs_);
+  num_reboots_ = num_reboots;
+  prefs_->SetInt64(kPrefsNumReboots, num_reboots);
+  LOG(INFO) << "Number of Reboots during current update attempt = "
+            << num_reboots_;
+}
+
 void PayloadState::ResetPersistedState() {
   SetPayloadAttemptNumber(0);
   SetUrlIndex(0);
@@ -684,6 +725,10 @@ void PayloadState::LoadUpdateDurationUptime() {
   }
 
   SetUpdateDurationUptime(stored_delta);
+}
+
+void PayloadState::LoadNumReboots() {
+  SetNumReboots(GetPersistedValue(kPrefsNumReboots));
 }
 
 void PayloadState::SetUpdateDurationUptimeExtended(const TimeDelta& value,

@@ -15,6 +15,7 @@
 #include <base/file_util.h>
 #include <policy/device_policy.h>
 
+#include "update_engine/constants.h"
 #include "update_engine/simple_key_value_store.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
@@ -132,7 +133,7 @@ bool OmahaRequestParams::SetTargetChannel(const std::string& new_target_channel,
   }
 
   TEST_AND_RETURN_FALSE(IsValidChannel(new_target_channel));
-  FilePath kFile(root_ + utils::kStatefulPartition + "/etc/lsb-release");
+  FilePath kFile(root_ + kStatefulPartition + "/etc/lsb-release");
   string file_data;
   map<string, string> data;
   if (file_util::ReadFileToString(kFile, &file_data)) {
@@ -213,7 +214,7 @@ string OmahaRequestParams::GetLsbValue(const string& key,
                                        bool stateful_override) const {
   vector<string> files;
   if (stateful_override) {
-    files.push_back(string(utils::kStatefulPartition) + "/etc/lsb-release");
+    files.push_back(string(kStatefulPartition) + "/etc/lsb-release");
   }
   files.push_back("/etc/lsb-release");
   for (vector<string>::const_iterator it = files.begin();

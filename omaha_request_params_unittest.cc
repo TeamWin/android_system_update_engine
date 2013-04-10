@@ -8,6 +8,7 @@
 
 #include "base/file_util.h"
 #include "gtest/gtest.h"
+#include "update_engine/constants.h"
 #include "update_engine/install_plan.h"
 #include "update_engine/mock_system_state.h"
 #include "update_engine/omaha_request_params.h"
@@ -31,7 +32,7 @@ class OmahaRequestParamsTest : public ::testing::Test {
   virtual void SetUp() {
     ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
     ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
-                        utils::kStatefulPartition + "/etc"));
+                        kStatefulPartition + "/etc"));
     // Create a fresh copy of the params for each test, so there's no
     // unintended reuse of state across tests.
     MockSystemState mock_system_state;
@@ -258,7 +259,7 @@ TEST_F(OmahaRequestParamsTest, OverrideTest) {
       "CHROMEOS_RELEASE_TRACK=dev-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      kTestDir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=beta-channel\n"
       "CHROMEOS_AUSERVER=https://www.google.com"));
@@ -286,7 +287,7 @@ TEST_F(OmahaRequestParamsTest, OverrideLockDownTest) {
       "CHROMEOS_RELEASE_TRACK=dev-channel\n"
       "CHROMEOS_AUSERVER=https://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      kTestDir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
@@ -312,7 +313,7 @@ TEST_F(OmahaRequestParamsTest, OverrideSameChannelTest) {
       "CHROMEOS_RELEASE_TRACK=dev-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      kTestDir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=dev-channel"));
   MockSystemState mock_system_state;
@@ -474,7 +475,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
 
   // Set a different channel in stateful LSB release.
   ASSERT_TRUE(WriteFileString(
-      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      kTestDir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"
       "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"));
 
@@ -518,7 +519,7 @@ TEST_F(OmahaRequestParamsTest, ToMoreStableChannelFlagTest) {
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + utils::kStatefulPartition + "/etc/lsb-release",
+      kTestDir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"
       "CHROMEOS_AUSERVER=https://www.google.com"));

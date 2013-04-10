@@ -32,6 +32,7 @@ class MockSystemState : public SystemState {
 
   MOCK_METHOD1(set_device_policy, void(const policy::DevicePolicy*));
   MOCK_CONST_METHOD0(device_policy, const policy::DevicePolicy*());
+  MOCK_METHOD0(system_rebooted, bool());
 
   inline virtual ConnectionManager* connection_manager() {
     return connection_manager_;
