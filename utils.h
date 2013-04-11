@@ -27,6 +27,13 @@ class SystemState;
 
 namespace utils {
 
+// Returns monotonic time since some unspecified starting point. It is
+// not increased when the system is sleeping nor is it affected by
+// NTP or the user changing the time.
+//
+// (This is a simple wrapper around clock_gettime(2) / CLOCK_MONOTONIC_RAW.)
+base::Time GetMonotonicTime();
+
 // Returns true if this is an official Chrome OS build, false otherwise.
 bool IsOfficialBuild();
 

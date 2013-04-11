@@ -21,6 +21,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD1(SetResponse, void(const OmahaResponse& response));
   MOCK_METHOD0(DownloadComplete, void());
   MOCK_METHOD1(DownloadProgress, void(size_t count));
+  MOCK_METHOD0(UpdateSucceeded, void());
   MOCK_METHOD1(UpdateFailed, void(ActionExitCode error));
   MOCK_METHOD0(ShouldBackoffDownload, bool());
 
@@ -30,6 +31,8 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD0(GetUrlIndex, uint32_t());
   MOCK_METHOD0(GetUrlFailureCount, uint32_t());
   MOCK_METHOD0(GetBackoffExpiryTime, base::Time());
+  MOCK_METHOD0(GetUpdateDuration, base::TimeDelta());
+  MOCK_METHOD0(GetUpdateDurationUptime, base::TimeDelta());
 };
 
 }  // namespace chromeos_update_engine

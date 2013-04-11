@@ -4,12 +4,6 @@
 
 #include "update_engine/update_attempter.h"
 
-// From 'man clock_gettime': feature test macro: _POSIX_C_SOURCE >= 199309L
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 199309L
-#endif  // _POSIX_C_SOURCE
-#include <time.h>
-
 #include <string>
 #include <tr1/memory>
 #include <vector>
@@ -610,6 +604,27 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
                       omaha_request_params_->app_version());
     DeltaPerformer::ResetUpdateProgress(prefs_, false);
 
+    system_state_->payload_state()->UpdateSucceeded();
+
+    if (!fake_update_success_) {
+      // Get the time it took to update the system
+      TimeDelta duration = system_state_->payload_state()->GetUpdateDuration();
+      TimeDelta duration_uptime =
+        system_state_->payload_state()->GetUpdateDurationUptime();
+      system_state_->metrics_lib()->SendToUMA(
+           "Installer.UpdateDuration",
+           static_cast<int>(duration.InSeconds()),  // sample
+           1,  // min = 1 second
+           20 * 60,  // max = 20 minutes
+           50);  // buckets
+      system_state_->metrics_lib()->SendToUMA(
+           "Installer.UpdateDurationUptime",
+           static_cast<int>(duration_uptime.InSeconds()),  // sample
+           1,  // min = 1 second
+           20 * 60,  // max = 20 minutes
+           50);  // buckets
+    }
+
     // Since we're done with scattering fully at this point, this is the
     // safest point delete the state files, as we're sure that the status is
     // set to reboot (which means no more updates will be applied until reboot)
@@ -622,20 +637,12 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     prefs_->Delete(kPrefsUpdateCheckCount);
     prefs_->Delete(kPrefsWallClockWaitPeriod);
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
+    prefs_->Delete(kPrefsUpdateTimestampStart);
+    prefs_->Delete(kPrefsUpdateDurationUptime);
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
     SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT,
                        kUpdateNoticeUnspecified);
-
-    // Report the time it took to update the system.
-    int64_t update_time = time(NULL) - last_checked_time_;
-    if (!fake_update_success_)
-      system_state_->metrics_lib()->SendToUMA(
-          "Installer.UpdateTime",
-           static_cast<int>(update_time),  // sample
-           1,  // min = 1 second
-           20 * 60,  // max = 20 minutes
-           50);  // buckets
 
     // Also report the success code so that the percentiles can be
     // interpreted properly for the remaining error codes in UMA.

@@ -22,6 +22,7 @@ using testing::_;
 using testing::NiceMock;
 using testing::Return;
 using testing::SetArgumentPointee;
+using testing::AtLeast;
 
 namespace chromeos_update_engine {
 
@@ -76,6 +77,8 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   EXPECT_CALL(prefs, SetInt64(kPrefsBackoffExpiryTime, 0));
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlIndex, 0));
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateTimestampStart, _)).Times(AtLeast(1));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateDurationUptime, _)).Times(AtLeast(1));
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&prefs));
   payload_state.SetResponse(response);
@@ -105,6 +108,8 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   EXPECT_CALL(prefs, SetInt64(kPrefsBackoffExpiryTime, 0));
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlIndex, 0));
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateTimestampStart, _)).Times(AtLeast(1));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateDurationUptime, _)).Times(AtLeast(1));
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&prefs));
   payload_state.SetResponse(response);
@@ -136,6 +141,8 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   EXPECT_CALL(prefs, SetInt64(kPrefsBackoffExpiryTime, 0));
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlIndex, 0));
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateTimestampStart, _)).Times(AtLeast(1));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateDurationUptime, _)).Times(AtLeast(1));
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&prefs));
   payload_state.SetResponse(response);
@@ -164,6 +171,10 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   EXPECT_CALL(prefs, SetInt64(kPrefsPayloadAttemptNumber, 0)).Times(1);
   EXPECT_CALL(prefs, SetInt64(kPrefsPayloadAttemptNumber, 1)).Times(1);
   EXPECT_CALL(prefs, SetInt64(kPrefsBackoffExpiryTime, _)).Times(2);
+
+  // Durations will be set
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateTimestampStart, _)).Times(AtLeast(1));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateDurationUptime, _)).Times(AtLeast(1));
 
   // Url index should go from 0 to 1 twice.
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlIndex, 0)).Times(2);
@@ -234,6 +245,9 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0)).Times(7);
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlFailureCount, 1)).Times(2);
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlFailureCount, 2)).Times(1);
+
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateTimestampStart, _)).Times(AtLeast(1));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateDurationUptime, _)).Times(AtLeast(1));
 
   EXPECT_TRUE(payload_state.Initialize(&prefs));
 
@@ -321,6 +335,9 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDownload) {
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlIndex, 0)).Times(1);
   EXPECT_CALL(prefs, SetInt64(kPrefsCurrentUrlFailureCount, 0)).Times(1);
 
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateTimestampStart, _)).Times(AtLeast(1));
+  EXPECT_CALL(prefs, SetInt64(kPrefsUpdateDurationUptime, _)).Times(AtLeast(1));
+
   EXPECT_TRUE(payload_state.Initialize(&prefs));
 
   SetupPayloadStateWith2Urls("Hash8593", &payload_state, &response);
@@ -360,6 +377,8 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_CALL(prefs2, GetInt64(kPrefsCurrentUrlIndex, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(2), Return(true)));
   EXPECT_CALL(prefs2, GetInt64(kPrefsCurrentUrlFailureCount, _));
+  EXPECT_CALL(prefs2, GetInt64(kPrefsUpdateTimestampStart, _));
+  EXPECT_CALL(prefs2, GetInt64(kPrefsUpdateDurationUptime, _));
 
   // Note: This will be a different payload object, but the response should
   // have the same hash as before so as to not trivially reset because the

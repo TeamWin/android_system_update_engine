@@ -19,6 +19,8 @@ using std::string;
 
 namespace chromeos_update_engine {
 
+const TimeDelta PayloadState::kDurationSlack = TimeDelta::FromSeconds(600);
+
 // We want to upperbound backoffs to 16 days
 static const uint32_t kMaxBackoffDays = 16;
 
@@ -33,6 +35,10 @@ bool PayloadState::Initialize(PrefsInterface* prefs) {
   LoadUrlIndex();
   LoadUrlFailureCount();
   LoadBackoffExpiryTime();
+  LoadUpdateTimestampStart();
+  // The LoadUpdateDurationUptime() method relies on LoadUpdateTimestampStart()
+  // being called before it. Don't reorder.
+  LoadUpdateDurationUptime();
   return true;
 }
 
@@ -75,6 +81,8 @@ void PayloadState::DownloadProgress(size_t count) {
   if (count == 0)
     return;
 
+  CalculateUpdateDurationUptime();
+
   // We've received non-zero bytes from a recent download operation.  Since our
   // URL failure count is meant to penalize a URL only for consecutive
   // failures, downloading bytes successfully means we should reset the failure
@@ -90,6 +98,11 @@ void PayloadState::DownloadProgress(size_t count) {
   LOG(INFO) << "Resetting failure count of Url" << GetUrlIndex()
             << " to 0 as we received " << count << " bytes successfully";
   SetUrlFailureCount(0);
+}
+
+void PayloadState::UpdateSucceeded() {
+  CalculateUpdateDurationUptime();
+  SetUpdateTimestampEnd(Time::Now());
 }
 
 void PayloadState::UpdateFailed(ActionExitCode error) {
@@ -320,6 +333,9 @@ void PayloadState::ResetPersistedState() {
   SetUrlIndex(0);
   SetUrlFailureCount(0);
   UpdateBackoffExpiryTime(); // This will reset the backoff expiry time.
+  SetUpdateTimestampStart(Time::Now());
+  SetUpdateTimestampEnd(Time()); // Set to null time
+  SetUpdateDurationUptime(TimeDelta::FromSeconds(0));
 }
 
 string PayloadState::CalculateResponseSignature() {
@@ -455,6 +471,126 @@ void PayloadState::SetBackoffExpiryTime(const Time& new_time) {
             << utils::ToString(backoff_expiry_time_);
   prefs_->SetInt64(kPrefsBackoffExpiryTime,
                    backoff_expiry_time_.ToInternalValue());
+}
+
+TimeDelta PayloadState::GetUpdateDuration() {
+  Time end_time = update_timestamp_end_.is_null() ? Time::Now() :
+                                                    update_timestamp_end_;
+  return end_time - update_timestamp_start_;
+}
+
+void PayloadState::LoadUpdateTimestampStart() {
+  int64_t stored_value;
+  Time stored_time;
+
+  CHECK(prefs_);
+
+  Time now = Time::Now();
+
+  if (!prefs_->Exists(kPrefsUpdateTimestampStart)) {
+    // The preference missing is not unexpected - in that case, just
+    // use the current time as start time
+    stored_time = now;
+  } else if (!prefs_->GetInt64(kPrefsUpdateTimestampStart, &stored_value)) {
+    LOG(ERROR) << "Invalid UpdateTimestampStart value. Resetting.";
+    stored_time = now;
+  } else {
+    stored_time = Time::FromInternalValue(stored_value);
+  }
+
+  // Sanity check: If the time read from disk is in the future
+  // (modulo some slack to account for possible NTP drift
+  // adjustments), something is fishy and we should report and
+  // reset.
+  TimeDelta duration_according_to_stored_time = now - stored_time;
+  if (duration_according_to_stored_time < -kDurationSlack) {
+    LOG(ERROR) << "The UpdateTimestampStart value ("
+               << utils::ToString(stored_time)
+               << ") in persisted state is "
+               << duration_according_to_stored_time.InSeconds()
+               << " seconds in the future. Resetting.";
+    stored_time = now;
+  }
+
+  SetUpdateTimestampStart(stored_time);
+}
+
+void PayloadState::SetUpdateTimestampStart(const Time& value) {
+  CHECK(prefs_);
+  update_timestamp_start_ = value;
+  prefs_->SetInt64(kPrefsUpdateTimestampStart,
+                   update_timestamp_start_.ToInternalValue());
+  LOG(INFO) << "Update Timestamp Start = "
+            << utils::ToString(update_timestamp_start_);
+}
+
+void PayloadState::SetUpdateTimestampEnd(const Time& value) {
+  update_timestamp_end_ = value;
+  LOG(INFO) << "Update Timestamp End = "
+            << utils::ToString(update_timestamp_end_);
+}
+
+TimeDelta PayloadState::GetUpdateDurationUptime() {
+  return update_duration_uptime_;
+}
+
+void PayloadState::LoadUpdateDurationUptime() {
+  int64_t stored_value;
+  TimeDelta stored_delta;
+
+  CHECK(prefs_);
+
+  if (!prefs_->Exists(kPrefsUpdateDurationUptime)) {
+    // The preference missing is not unexpected - in that case, just
+    // we'll use zero as the delta
+  } else if (!prefs_->GetInt64(kPrefsUpdateDurationUptime, &stored_value)) {
+    LOG(ERROR) << "Invalid UpdateDurationUptime value. Resetting.";
+    stored_delta = TimeDelta::FromSeconds(0);
+  } else {
+    stored_delta = TimeDelta::FromInternalValue(stored_value);
+  }
+
+  // Sanity-check: Uptime can never be greater than the wall-clock
+  // difference (modulo some slack). If it is, report and reset
+  // to the wall-clock difference.
+  TimeDelta diff = GetUpdateDuration() - stored_delta;
+  if (diff < -kDurationSlack) {
+    LOG(ERROR) << "The UpdateDurationUptime value ("
+               << stored_delta.InSeconds() << " seconds"
+               << ") in persisted state is "
+               << diff.InSeconds()
+               << " seconds larger than the wall-clock delta. Resetting.";
+    stored_delta = update_duration_current_;
+  }
+
+  SetUpdateDurationUptime(stored_delta);
+}
+
+void PayloadState::SetUpdateDurationUptimeExtended(const TimeDelta& value,
+                                                   const Time& timestamp,
+                                                   bool use_logging) {
+  CHECK(prefs_);
+  update_duration_uptime_ = value;
+  update_duration_uptime_timestamp_ = timestamp;
+  prefs_->SetInt64(kPrefsUpdateDurationUptime,
+                   update_duration_uptime_.ToInternalValue());
+  if (use_logging) {
+    LOG(INFO) << "Update Duration Uptime = "
+              << update_duration_uptime_.InSeconds()
+              << " seconds";
+  }
+}
+
+void PayloadState::SetUpdateDurationUptime(const TimeDelta& value) {
+  SetUpdateDurationUptimeExtended(value, utils::GetMonotonicTime(), true);
+}
+
+void PayloadState::CalculateUpdateDurationUptime() {
+  Time now = utils::GetMonotonicTime();
+  TimeDelta uptime_since_last_update = now - update_duration_uptime_timestamp_;
+  TimeDelta new_uptime = update_duration_uptime_ + uptime_since_last_update;
+  // We're frequently called so avoid logging this write
+  SetUpdateDurationUptimeExtended(new_uptime, now, false);
 }
 
 }  // namespace chromeos_update_engine

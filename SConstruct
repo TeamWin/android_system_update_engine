@@ -191,6 +191,7 @@ env['CCFLAGS'] = ' '.join("""-g
                              -Wuninitialized
                              -D__STDC_FORMAT_MACROS=1
                              -D_FILE_OFFSET_BITS=64
+                             -D_POSIX_C_SOURCE=199309L
                              -I/usr/include/libxml2""".split());
 env['CCFLAGS'] += (' ' + ' '.join(env['CFLAGS']))
 
@@ -208,6 +209,7 @@ env['LIBS'] = Split("""bz2
                        protobuf
                        pthread
                        rootdev
+                       rt
                        ssl
                        udev
                        xml2""" % BASE_VER)

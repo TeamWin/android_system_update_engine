@@ -39,5 +39,7 @@ const char kPrefsUpdateStateSignatureBlob[] = "update-state-signature-blob";
 const char kPrefsUpdateStateSignedSHA256Context[] =
     "update-state-signed-sha-256-context";
 const char kPrefsWallClockWaitPeriod[] = "wall-clock-wait-period";
+const char kPrefsUpdateTimestampStart[] = "update-timestamp-start";
+const char kPrefsUpdateDurationUptime[] = "update-duration-uptime";
 
 }

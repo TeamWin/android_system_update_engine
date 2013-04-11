@@ -40,6 +40,7 @@ class PayloadState : public PayloadStateInterface {
   virtual void SetResponse(const OmahaResponse& response);
   virtual void DownloadComplete();
   virtual void DownloadProgress(size_t count);
+  virtual void UpdateSucceeded();
   virtual void UpdateFailed(ActionExitCode error);
   virtual bool ShouldBackoffDownload();
 
@@ -62,6 +63,10 @@ class PayloadState : public PayloadStateInterface {
   virtual inline base::Time GetBackoffExpiryTime() {
     return backoff_expiry_time_;
   }
+
+  virtual base::TimeDelta GetUpdateDuration();
+
+  virtual base::TimeDelta GetUpdateDurationUptime();
 
  private:
   // Increments the payload attempt number which governs the backoff behavior
@@ -132,6 +137,36 @@ class PayloadState : public PayloadStateInterface {
   // restart.
   void SetBackoffExpiryTime(const base::Time& new_time);
 
+  // Initializes |update_timestamp_start_| from the persisted state.
+  void LoadUpdateTimestampStart();
+
+  // Sets |update_timestamp_start_| to the given value and persists the value.
+  void SetUpdateTimestampStart(const base::Time& value);
+
+  // Sets |update_timestamp_end_| to the given value. This is not persisted
+  // as it happens at the end of the update process where state is deleted
+  // anyway.
+  void SetUpdateTimestampEnd(const base::Time& value);
+
+  // Initializes |update_duration_uptime_| from the persisted state.
+  void LoadUpdateDurationUptime();
+
+  // Helper method used in SetUpdateDurationUptime() and
+  // CalculateUpdateDurationUptime().
+  void SetUpdateDurationUptimeExtended(const base::TimeDelta& value,
+                                       const base::Time& timestamp,
+                                       bool use_logging);
+
+  // Sets |update_duration_uptime_| to the given value and persists
+  // the value and sets |update_duration_uptime_timestamp_| to the
+  // current monotonic time.
+  void SetUpdateDurationUptime(const base::TimeDelta& value);
+
+  // Adds the difference between current monotonic time and
+  // |update_duration_uptime_timestamp_| to |update_duration_uptime_| and
+  // sets |update_duration_uptime_timestamp_| to current monotonic time.
+  void CalculateUpdateDurationUptime();
+
   // Interface object with which we read/write persisted state. This must
   // be set by calling the Initialize method before calling any other method.
   PrefsInterface* prefs_;
@@ -168,12 +203,33 @@ class PayloadState : public PayloadStateInterface {
   // payload again, so as to backoff repeated downloads.
   base::Time backoff_expiry_time_;
 
+  // The most recently calculated value of the update duration.
+  base::TimeDelta update_duration_current_;
+
+  // The point in time (wall-clock) that the update was started.
+  base::Time update_timestamp_start_;
+
+  // The point in time (wall-clock) that the update ended. If the update
+  // is still in progress, this is set to the Epoch (e.g. 0).
+  base::Time update_timestamp_end_;
+
+  // The update duration uptime
+  base::TimeDelta update_duration_uptime_;
+
+  // The monotonic time when |update_duration_uptime_| was last set
+  base::Time update_duration_uptime_timestamp_;
+
   // Returns the number of URLs in the current response.
   // Note: This value will be 0 if this method is called before we receive
   // the first valid Omaha response in this process.
   uint32_t GetNumUrls() {
     return response_.payload_urls.size();
   }
+
+  // A small timespan used when comparing wall-clock times for coping
+  // with the fact that clocks drift and consequently are adjusted
+  // (either forwards or backwards) via NTP.
+  static const base::TimeDelta kDurationSlack;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };

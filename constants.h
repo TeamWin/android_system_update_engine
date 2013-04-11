@@ -38,6 +38,8 @@ extern const char kPrefsUpdateStateSHA256Context[];
 extern const char kPrefsUpdateStateSignatureBlob[];
 extern const char kPrefsUpdateStateSignedSHA256Context[];
 extern const char kPrefsWallClockWaitPeriod[];
+extern const char kPrefsUpdateTimestampStart[];
+extern const char kPrefsUpdateDurationUptime[];
 
 }  // namespace chromeos_update_engine
 

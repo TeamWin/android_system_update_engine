@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -922,6 +923,20 @@ bool DeletePowerwashMarkerFile() {
                 << kPowerwashMarkerFile;
 
   return result;
+}
+
+
+Time GetMonotonicTime() {
+  struct timespec now_ts;
+  if (clock_gettime(CLOCK_MONOTONIC_RAW, &now_ts) != 0) {
+    // Avoid logging this as an error as call-sites may call this very
+    // often and we don't want to fill up the disk...
+    return Time();
+  }
+  struct timeval now_tv;
+  now_tv.tv_sec = now_ts.tv_sec;
+  now_tv.tv_usec = now_ts.tv_nsec/Time::kNanosecondsPerMicrosecond;
+  return Time::FromTimeVal(now_tv);
 }
 
 }  // namespace utils

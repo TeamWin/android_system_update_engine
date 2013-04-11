@@ -39,6 +39,9 @@ class PayloadStateInterface {
   // able to make forward progress with the current URL.
   virtual void DownloadProgress(size_t count) = 0;
 
+  // This method should be called whenever an update attempt succeeds.
+  virtual void UpdateSucceeded() = 0;
+
   // This method should be called whenever an update attempt fails with the
   // given error code. We use this notification to update the payload state
   // depending on the type of the error that happened.
@@ -63,6 +66,16 @@ class PayloadStateInterface {
 
   // Returns the expiry time for the current backoff period.
   virtual base::Time GetBackoffExpiryTime() = 0;
+
+  // Returns the elapsed time used for this update, including time
+  // where the device is powered off and sleeping. If the
+  // update has not completed, returns the time spent so far.
+  virtual base::TimeDelta GetUpdateDuration() = 0;
+
+  // Returns the time used for this update not including time when
+  // the device is powered off or sleeping. If the update has not
+  // completed, returns the time spent so far.
+  virtual base::TimeDelta GetUpdateDurationUptime() = 0;
  };
 
 }  // namespace chromeos_update_engine
