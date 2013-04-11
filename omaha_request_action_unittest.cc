@@ -312,7 +312,6 @@ TEST(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_EQ("http://more/info", response.more_info_url);
   EXPECT_EQ("HASH1234=", response.hash);
   EXPECT_EQ(123, response.size);
-  EXPECT_FALSE(response.needs_admin);
   EXPECT_TRUE(response.prompt);
   EXPECT_EQ("20101020", response.deadline);
 }
@@ -761,7 +760,6 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
   EXPECT_EQ("", response.more_info_url);
   EXPECT_EQ("lkq34j5345", response.hash);
   EXPECT_EQ(587, response.size);
-  EXPECT_TRUE(response.needs_admin);
   EXPECT_FALSE(response.prompt);
   EXPECT_TRUE(response.deadline.empty());
 }

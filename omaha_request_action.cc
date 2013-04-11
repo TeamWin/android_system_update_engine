@@ -44,7 +44,7 @@ static const char* kTagMaxDaysToScatter = "MaxDaysToScatter";
 static const char* kTagMetadataSignatureRsa = "MetadataSignatureRsa";
 static const char* kTagMetadataSize = "MetadataSize";
 static const char* kTagMoreInfo = "MoreInfo";
-static const char* kTagNeedsAdmin = "needsadmin";
+// Deprecated: "NeedsAdmin"
 static const char* kTagPrompt = "Prompt";
 static const char* kTagSha256 = "sha256";
 
@@ -666,8 +666,6 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
       ParseInt(XmlGetProperty(pie_action_node, kTagMetadataSize));
   output_object->metadata_signature =
       XmlGetProperty(pie_action_node, kTagMetadataSignatureRsa);
-  output_object->needs_admin =
-      XmlGetProperty(pie_action_node, kTagNeedsAdmin) == "true";
   output_object->prompt = XmlGetProperty(pie_action_node, kTagPrompt) == "true";
   output_object->deadline = XmlGetProperty(pie_action_node, kTagDeadline);
   output_object->max_days_to_scatter =

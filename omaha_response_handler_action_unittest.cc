@@ -112,7 +112,6 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.more_info_url = "http://more/info";
     in.hash = "HASH+";
     in.size = 12;
-    in.needs_admin = true;
     in.prompt = false;
     in.deadline = "20101020";
     InstallPlan install_plan;
@@ -139,7 +138,6 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.more_info_url = "http://more/info";
     in.hash = "HASHj+";
     in.size = 12;
-    in.needs_admin = true;
     in.prompt = true;
     InstallPlan install_plan;
     EXPECT_TRUE(DoTest(in, "/dev/sda5", &install_plan));
@@ -159,7 +157,6 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.more_info_url = "http://more/info";
     in.hash = "HASHj+";
     in.size = 12;
-    in.needs_admin = true;
     in.prompt = true;
     in.deadline = "some-deadline";
     InstallPlan install_plan;
