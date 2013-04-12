@@ -307,7 +307,8 @@ class ActionTraits<DownloadActionTestAction> {
 };
 
 // This is a simple Action class for testing.
-struct DownloadActionTestAction : public Action<DownloadActionTestAction> {
+class DownloadActionTestAction : public Action<DownloadActionTestAction> {
+ public:
   DownloadActionTestAction() : did_run_(false) {}
   typedef InstallPlan InputObjectType;
   typedef InstallPlan OutputObjectType;

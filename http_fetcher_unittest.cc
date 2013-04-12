@@ -322,6 +322,8 @@ class HttpFetcherTest : public ::testing::Test {
  private:
   static void TypeConstraint(T *a) {
     AnyHttpFetcherTest *b = a;
+    if (b == 0) // Silence compiler warning of unused variable.
+      *b = a;
   }
 };
 
