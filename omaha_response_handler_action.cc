@@ -54,6 +54,7 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.is_resume =
       DeltaPerformer::CanResumeUpdate(system_state_->prefs(), response.hash);
   if (!install_plan_.is_resume) {
+    system_state_->payload_state()->UpdateRestarted();
     LOG_IF(WARNING, !DeltaPerformer::ResetUpdateProgress(
         system_state_->prefs(), false))
         << "Unable to reset the update progress.";

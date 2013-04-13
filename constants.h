@@ -18,6 +18,7 @@ extern const char kPowerwashCommand[];
 extern const char kPrefsBackoffExpiryTime[];
 extern const char kPrefsCertificateReportToSendDownload[];
 extern const char kPrefsCertificateReportToSendUpdate[];
+extern const char kPrefsCurrentBytesDownloaded[];
 extern const char kPrefsCurrentResponseSignature[];
 extern const char kPrefsCurrentUrlFailureCount[];
 extern const char kPrefsCurrentUrlIndex[];
@@ -28,6 +29,7 @@ extern const char kPrefsManifestMetadataSize[];
 extern const char kPrefsPayloadAttemptNumber[];
 extern const char kPrefsPreviousVersion[];
 extern const char kPrefsResumedUpdateFailures[];
+extern const char kPrefsTotalBytesDownloaded[];
 extern const char kPrefsUpdateCheckCount[];
 extern const char kPrefsUpdateCheckResponseHash[];
 extern const char kPrefsUpdateFirstSeenAt[];
@@ -40,6 +42,23 @@ extern const char kPrefsUpdateStateSignedSHA256Context[];
 extern const char kPrefsWallClockWaitPeriod[];
 extern const char kPrefsUpdateTimestampStart[];
 extern const char kPrefsUpdateDurationUptime[];
+
+// A download source is any combination of protocol and server (that's of
+// interest to us when looking at UMA metrics) using which we may download
+// the payload.
+typedef enum {
+  kDownloadSourceHttpsServer, // UMA Binary representation: 0001
+  kDownloadSourceHttpServer,  // UMA Binary representation: 0010
+
+  // Note: Add new sources only above this line.
+  kNumDownloadSources
+} DownloadSource;
+
+// The default number of UMA buckets for metrics.
+const int kNumDefaultUmaBuckets = 50;
+
+// General constants
+const int kNumBytesInOneMiB = 1024 * 1024;
 
 }  // namespace chromeos_update_engine
 

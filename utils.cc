@@ -718,6 +718,18 @@ string ToString(bool b) {
   return (b ? "true" : "false");
 }
 
+std::string ToString(DownloadSource source) {
+  switch (source) {
+    case kDownloadSourceHttpsServer: return "HttpsServer";
+    case kDownloadSourceHttpServer:  return "HttpServer";
+    case kNumDownloadSources:        return "Unknown";
+    // Don't add a default case to let the compiler warn about newly added
+    // download sources which should be added here.
+  }
+
+  return "Unknown";
+}
+
 ActionExitCode GetBaseErrorCode(ActionExitCode code) {
   // Ignore the higher order bits in the code by applying the mask as
   // we want the enumerations to be in the small contiguous range

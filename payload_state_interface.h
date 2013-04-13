@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "update_engine/constants.h"
 #include "update_engine/action_processor.h"
 #include "update_engine/omaha_response.h"
 
@@ -39,7 +40,14 @@ class PayloadStateInterface {
   // able to make forward progress with the current URL.
   virtual void DownloadProgress(size_t count) = 0;
 
-  // This method should be called whenever an update attempt succeeds.
+  // This method should be called every time we begin a new update. This method
+  // should not be called when we resume an update from the previously
+  // downloaded point. This is used to reset the metrics for each new update.
+  virtual void UpdateRestarted() = 0;
+
+  // This method should be called once after an update attempt succeeds. This
+  // is when the relevant UMA metrics that are tracked on a per-update-basis
+  // are uploaded to the UMA server.
   virtual void UpdateSucceeded() = 0;
 
   // This method should be called whenever an update attempt fails with the
@@ -76,6 +84,17 @@ class PayloadStateInterface {
   // the device is powered off or sleeping. If the update has not
   // completed, returns the time spent so far.
   virtual base::TimeDelta GetUpdateDurationUptime() = 0;
+
+  // Returns the number of bytes that have been downloaded for each source for
+  // each new update attempt. If we resume an update, we'll continue from the
+  // previous value, but if we get a new response or if the previous attempt
+  // failed, we'll reset this to 0 to start afresh.
+  virtual uint64_t GetCurrentBytesDownloaded(DownloadSource source) = 0;
+
+  // Returns the total number of bytes that have been downloaded for each
+  // source since the the last successful update. This is used to compute the
+  // overhead we incur.
+  virtual uint64_t GetTotalBytesDownloaded(DownloadSource source) = 0;
  };
 
 }  // namespace chromeos_update_engine

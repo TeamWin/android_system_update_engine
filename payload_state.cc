@@ -7,9 +7,12 @@
 #include <algorithm>
 
 #include <base/logging.h>
+#include "base/string_util.h"
 #include <base/stringprintf.h>
 
 #include "update_engine/constants.h"
+#include "update_engine/prefs.h"
+#include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
 using base::Time;
@@ -27,9 +30,18 @@ static const uint32_t kMaxBackoffDays = 16;
 // We want to randomize retry attempts after the backoff by +/- 6 hours.
 static const uint32_t kMaxBackoffFuzzMinutes = 12 * 60;
 
-bool PayloadState::Initialize(PrefsInterface* prefs) {
-  CHECK(prefs);
-  prefs_ = prefs;
+PayloadState::PayloadState()
+    : prefs_(NULL),
+      payload_attempt_number_(0),
+      url_index_(0),
+      url_failure_count_(0) {
+ for (int i = 0; i <= kNumDownloadSources; i++)
+  total_bytes_downloaded_[i] = current_bytes_downloaded_[i] = 0;
+}
+
+bool PayloadState::Initialize(SystemState* system_state) {
+  system_state_ = system_state;
+  prefs_ = system_state_->prefs();
   LoadResponseSignature();
   LoadPayloadAttemptNumber();
   LoadUrlIndex();
@@ -39,6 +51,11 @@ bool PayloadState::Initialize(PrefsInterface* prefs) {
   // The LoadUpdateDurationUptime() method relies on LoadUpdateTimestampStart()
   // being called before it. Don't reorder.
   LoadUpdateDurationUptime();
+  for (int i = 0; i < kNumDownloadSources; i++) {
+    DownloadSource source = static_cast<DownloadSource>(i);
+    LoadCurrentBytesDownloaded(source);
+    LoadTotalBytesDownloaded(source);
+  }
   return true;
 }
 
@@ -70,6 +87,10 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
     ResetPersistedState();
     return;
   }
+
+  // Update the current download source which depends on the latest value of
+  // the response.
+  UpdateCurrentDownloadSource();
 }
 
 void PayloadState::DownloadComplete() {
@@ -82,6 +103,7 @@ void PayloadState::DownloadProgress(size_t count) {
     return;
 
   CalculateUpdateDurationUptime();
+  UpdateBytesDownloaded(count);
 
   // We've received non-zero bytes from a recent download operation.  Since our
   // URL failure count is meant to penalize a URL only for consecutive
@@ -100,9 +122,16 @@ void PayloadState::DownloadProgress(size_t count) {
   SetUrlFailureCount(0);
 }
 
+void PayloadState::UpdateRestarted() {
+  LOG(INFO) << "Starting a new update";
+  ResetDownloadSourcesOnNewUpdate();
+}
+
 void PayloadState::UpdateSucceeded() {
+  // Send the relevant metrics that are tracked in this class to UMA.
   CalculateUpdateDurationUptime();
   SetUpdateTimestampEnd(Time::Now());
+  ReportBytesDownloadedMetrics();
 }
 
 void PayloadState::UpdateFailed(ActionExitCode error) {
@@ -328,6 +357,64 @@ void PayloadState::UpdateBackoffExpiryTime() {
   SetBackoffExpiryTime(Time::Now() + next_backoff_interval);
 }
 
+void PayloadState::UpdateCurrentDownloadSource() {
+  current_download_source_ = kNumDownloadSources;
+
+  if (GetUrlIndex() < response_.payload_urls.size())  {
+    string current_url = response_.payload_urls[GetUrlIndex()];
+    if (StartsWithASCII(current_url, "https://", false))
+      current_download_source_ = kDownloadSourceHttpsServer;
+    else if (StartsWithASCII(current_url, "http://", false))
+      current_download_source_ = kDownloadSourceHttpServer;
+  }
+
+  LOG(INFO) << "Current download source: "
+            << utils::ToString(current_download_source_);
+}
+
+void PayloadState::UpdateBytesDownloaded(size_t count) {
+  SetCurrentBytesDownloaded(
+      current_download_source_,
+      GetCurrentBytesDownloaded(current_download_source_) + count,
+      false);
+  SetTotalBytesDownloaded(
+      current_download_source_,
+      GetTotalBytesDownloaded(current_download_source_) + count,
+      false);
+}
+
+void PayloadState::ReportBytesDownloadedMetrics() {
+  // Report metrics collected from all known download sources to UMA.
+  // The reported data is in Megabytes in order to represent a larger
+  // sample range.
+  for (int i = 0; i < kNumDownloadSources; i++) {
+    DownloadSource source = static_cast<DownloadSource>(i);
+    const int kMaxMiBs = 10240; // Anything above 10GB goes in the last bucket.
+
+    string metric = "Installer.SuccessfulMBsDownloadedFrom" +
+      utils::ToString(source);
+    uint64_t mbs = GetCurrentBytesDownloaded(source) / kNumBytesInOneMiB;
+    LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " <<  metric;
+    system_state_->metrics_lib()->SendToUMA(metric,
+                                            mbs,
+                                            0,  // min
+                                            kMaxMiBs,
+                                            kNumDefaultUmaBuckets);
+    SetCurrentBytesDownloaded(source, 0, true);
+
+    metric = "Installer.TotalMBsDownloadedFrom" + utils::ToString(source);
+    mbs = GetTotalBytesDownloaded(source) / kNumBytesInOneMiB;
+    LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " <<  metric;
+    system_state_->metrics_lib()->SendToUMA(metric,
+                                            mbs,
+                                            0,  // min
+                                            kMaxMiBs,
+                                            kNumDefaultUmaBuckets);
+
+    SetTotalBytesDownloaded(source, 0, true);
+  }
+}
+
 void PayloadState::ResetPersistedState() {
   SetPayloadAttemptNumber(0);
   SetUrlIndex(0);
@@ -336,6 +423,35 @@ void PayloadState::ResetPersistedState() {
   SetUpdateTimestampStart(Time::Now());
   SetUpdateTimestampEnd(Time()); // Set to null time
   SetUpdateDurationUptime(TimeDelta::FromSeconds(0));
+  ResetDownloadSourcesOnNewUpdate();
+}
+
+void PayloadState::ResetDownloadSourcesOnNewUpdate() {
+  for (int i = 0; i < kNumDownloadSources; i++) {
+    DownloadSource source = static_cast<DownloadSource>(i);
+    SetCurrentBytesDownloaded(source, 0, true);
+    // Note: Not resetting the TotalBytesDownloaded as we want that metric
+    // to count the bytes downloaded across various update attempts until
+    // we have successfully applied the update.
+  }
+}
+
+int64_t PayloadState::GetPersistedValue(const string& key) {
+  CHECK(prefs_);
+  if (!prefs_->Exists(key))
+    return 0;
+
+  int64_t stored_value;
+  if (!prefs_->GetInt64(key, &stored_value))
+    return 0;
+
+  if (stored_value < 0) {
+    LOG(ERROR) << key << ": Invalid value (" << stored_value
+               << ") in persisted state. Defaulting to 0";
+    return 0;
+  }
+
+  return stored_value;
 }
 
 string PayloadState::CalculateResponseSignature() {
@@ -372,7 +488,7 @@ void PayloadState::LoadResponseSignature() {
   }
 }
 
-void PayloadState::SetResponseSignature(string response_signature) {
+void PayloadState::SetResponseSignature(const string& response_signature) {
   CHECK(prefs_);
   response_signature_ = response_signature;
   LOG(INFO) << "Current Response Signature = \n" << response_signature_;
@@ -380,17 +496,7 @@ void PayloadState::SetResponseSignature(string response_signature) {
 }
 
 void PayloadState::LoadPayloadAttemptNumber() {
-  CHECK(prefs_);
-  int64_t stored_value;
-  if (prefs_->Exists(kPrefsPayloadAttemptNumber) &&
-      prefs_->GetInt64(kPrefsPayloadAttemptNumber, &stored_value)) {
-    if (stored_value < 0) {
-      LOG(ERROR) << "Invalid payload attempt number (" << stored_value
-                 << ") in persisted state. Defaulting to 0";
-      stored_value = 0;
-    }
-    SetPayloadAttemptNumber(stored_value);
-  }
+  SetPayloadAttemptNumber(GetPersistedValue(kPrefsPayloadAttemptNumber));
 }
 
 void PayloadState::SetPayloadAttemptNumber(uint32_t payload_attempt_number) {
@@ -401,19 +507,7 @@ void PayloadState::SetPayloadAttemptNumber(uint32_t payload_attempt_number) {
 }
 
 void PayloadState::LoadUrlIndex() {
-  CHECK(prefs_);
-  int64_t stored_value;
-  if (prefs_->Exists(kPrefsCurrentUrlIndex) &&
-      prefs_->GetInt64(kPrefsCurrentUrlIndex, &stored_value)) {
-    // We only check for basic sanity value here. Detailed check will be
-    // done in SetResponse once the first response comes in.
-    if (stored_value < 0) {
-      LOG(ERROR) << "Invalid URL Index (" << stored_value
-                 << ") in persisted state. Defaulting to 0";
-      stored_value = 0;
-    }
-    SetUrlIndex(stored_value);
-  }
+  SetUrlIndex(GetPersistedValue(kPrefsCurrentUrlIndex));
 }
 
 void PayloadState::SetUrlIndex(uint32_t url_index) {
@@ -421,20 +515,14 @@ void PayloadState::SetUrlIndex(uint32_t url_index) {
   url_index_ = url_index;
   LOG(INFO) << "Current URL Index = " << url_index_;
   prefs_->SetInt64(kPrefsCurrentUrlIndex, url_index_);
+
+  // Also update the download source, which is purely dependent on the
+  // current URL index alone.
+  UpdateCurrentDownloadSource();
 }
 
 void PayloadState::LoadUrlFailureCount() {
-  CHECK(prefs_);
-  int64_t stored_value;
-  if (prefs_->Exists(kPrefsCurrentUrlFailureCount) &&
-      prefs_->GetInt64(kPrefsCurrentUrlFailureCount, &stored_value)) {
-    if (stored_value < 0) {
-      LOG(ERROR) << "Invalid URL Failure count (" << stored_value
-                 << ") in persisted state. Defaulting to 0";
-      stored_value = 0;
-    }
-    SetUrlFailureCount(stored_value);
-  }
+  SetUrlFailureCount(GetPersistedValue(kPrefsCurrentUrlFailureCount));
 }
 
 void PayloadState::SetUrlFailureCount(uint32_t url_failure_count) {
@@ -591,6 +679,59 @@ void PayloadState::CalculateUpdateDurationUptime() {
   TimeDelta new_uptime = update_duration_uptime_ + uptime_since_last_update;
   // We're frequently called so avoid logging this write
   SetUpdateDurationUptimeExtended(new_uptime, now, false);
+}
+
+string PayloadState::GetPrefsKey(const string& prefix, DownloadSource source) {
+  return prefix + "-from-" + utils::ToString(source);
+}
+
+void PayloadState::LoadCurrentBytesDownloaded(DownloadSource source) {
+  string key = GetPrefsKey(kPrefsCurrentBytesDownloaded, source);
+  SetCurrentBytesDownloaded(source, GetPersistedValue(key), true);
+}
+
+void PayloadState::SetCurrentBytesDownloaded(
+    DownloadSource source,
+    uint64_t current_bytes_downloaded,
+    bool log) {
+  CHECK(prefs_);
+
+  if (source >= kNumDownloadSources)
+    return;
+
+  // Update the in-memory value.
+  current_bytes_downloaded_[source] = current_bytes_downloaded;
+
+  string prefs_key = GetPrefsKey(kPrefsCurrentBytesDownloaded, source);
+  prefs_->SetInt64(prefs_key, current_bytes_downloaded);
+  LOG_IF(INFO, log) << "Current bytes downloaded for "
+                    << utils::ToString(source) << " = "
+                    << GetCurrentBytesDownloaded(source);
+}
+
+void PayloadState::LoadTotalBytesDownloaded(DownloadSource source) {
+  string key = GetPrefsKey(kPrefsTotalBytesDownloaded, source);
+  SetTotalBytesDownloaded(source, GetPersistedValue(key), true);
+}
+
+void PayloadState::SetTotalBytesDownloaded(
+    DownloadSource source,
+    uint64_t total_bytes_downloaded,
+    bool log) {
+  CHECK(prefs_);
+
+  if (source >= kNumDownloadSources)
+    return;
+
+  // Update the in-memory value.
+  total_bytes_downloaded_[source] = total_bytes_downloaded;
+
+  // Persist.
+  string prefs_key = GetPrefsKey(kPrefsTotalBytesDownloaded, source);
+  prefs_->SetInt64(prefs_key, total_bytes_downloaded);
+  LOG_IF(INFO, log) << "Total bytes downloaded for "
+                    << utils::ToString(source) << " = "
+                    << GetTotalBytesDownloaded(source);
 }
 
 }  // namespace chromeos_update_engine

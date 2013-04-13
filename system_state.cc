@@ -24,7 +24,7 @@ bool RealSystemState::Initialize(bool enable_gpio) {
     return false;
   }
 
-  if (!payload_state_.Initialize(&prefs_))
+  if (!payload_state_.Initialize(this))
     return false;
 
   // Initialize the GPIO handler as instructed.

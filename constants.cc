@@ -11,13 +11,13 @@ const char kPowerwashMarkerFile[] =
 
 const char kPowerwashCommand[] = "safe fast\n";
 
-
 // Constants defining keys for the persisted state of update engine.
 const char kPrefsBackoffExpiryTime[] = "backoff-expiry-time";
 const char kPrefsCertificateReportToSendDownload[] =
     "certificate-report-to-send-download";
 const char kPrefsCertificateReportToSendUpdate[] =
     "certificate-report-to-send-update";
+const char kPrefsCurrentBytesDownloaded[] = "current-bytes-downloaded";
 const char kPrefsCurrentResponseSignature[] = "current-response-signature";
 const char kPrefsCurrentUrlFailureCount[] = "current-url-failure-count";
 const char kPrefsCurrentUrlIndex[] = "current-url-index";
@@ -28,6 +28,7 @@ const char kPrefsManifestMetadataSize[] = "manifest-metadata-size";
 const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";
+const char kPrefsTotalBytesDownloaded[] = "total-bytes-downloaded";
 const char kPrefsUpdateCheckCount[] = "update-check-count";
 const char kPrefsUpdateCheckResponseHash[] = "update-check-response-hash";
 const char kPrefsUpdateFirstSeenAt[] = "update-first-seen-at";

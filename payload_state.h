@@ -12,6 +12,8 @@
 
 namespace chromeos_update_engine {
 
+class SystemState;
+
 // Encapsulates all the payload state required for download. This includes the
 // state necessary for handling multiple URLs in Omaha response, the backoff
 // state, etc. All state is persisted so that we use the most recently saved
@@ -20,26 +22,20 @@ namespace chromeos_update_engine {
 // state even when there's any issue in reading/writing from the file system.
 class PayloadState : public PayloadStateInterface {
  public:
-  PayloadState()
-      : prefs_(NULL),
-        payload_attempt_number_(0),
-        url_index_(0),
-        url_failure_count_(0) {}
-
+  PayloadState();
   virtual ~PayloadState() {}
 
-  // Initializes a payload state object using |prefs| for storing the
-  // persisted state. It also performs the initial loading of all persisted
-  // state into memory and dumps the initial state for debugging purposes.
-  // Note: the other methods should be called only after calling Initialize
-  // on this object.
-  bool Initialize(PrefsInterface* prefs);
-
+  // Initializes a payload state object using the given global system state.
+  // It performs the initial loading of all persisted state into memory and
+  // dumps the initial state for debugging purposes.  Note: the other methods
+  // should be called only after calling Initialize on this object.
+  bool Initialize(SystemState* system_state);
 
   // Implementation of PayloadStateInterface methods.
   virtual void SetResponse(const OmahaResponse& response);
   virtual void DownloadComplete();
   virtual void DownloadProgress(size_t count);
+  virtual void UpdateRestarted();
   virtual void UpdateSucceeded();
   virtual void UpdateFailed(ActionExitCode error);
   virtual bool ShouldBackoffDownload();
@@ -68,6 +64,14 @@ class PayloadState : public PayloadStateInterface {
 
   virtual base::TimeDelta GetUpdateDurationUptime();
 
+  virtual inline uint64_t GetCurrentBytesDownloaded(DownloadSource source) {
+    return source < kNumDownloadSources ? current_bytes_downloaded_[source] : 0;
+  }
+
+  virtual inline uint64_t GetTotalBytesDownloaded(DownloadSource source) {
+    return source < kNumDownloadSources ? total_bytes_downloaded_[source] : 0;
+  }
+
  private:
   // Increments the payload attempt number which governs the backoff behavior
   // at the time of the next update check.
@@ -88,9 +92,29 @@ class PayloadState : public PayloadStateInterface {
   // payload attempt number.
   void UpdateBackoffExpiryTime();
 
+  // Updates the value of current download source based on the current URL
+  // index. If the download source is not one of the known sources, it's set
+  // to kNumDownloadSources.
+  void UpdateCurrentDownloadSource();
+
+  // Updates the various metrics corresponding with the given number of bytes
+  // that were downloaded recently.
+  void UpdateBytesDownloaded(size_t count);
+
+  // Reports the various metrics related to the number of bytes downloaded.
+  void ReportBytesDownloadedMetrics();
+
   // Resets all the persisted state values which are maintained relative to the
   // current response signature. The response signature itself is not reset.
   void ResetPersistedState();
+
+  // Resets the appropriate state related to download sources that need to be
+  // reset on a new update.
+  void ResetDownloadSourcesOnNewUpdate();
+
+  // Returns the persisted value for the given key. It also validates that
+  // the value returned is non-negative.
+  int64_t GetPersistedValue(const std::string& key);
 
   // Calculates the response "signature", which is basically a string composed
   // of the subset of the fields in the current response that affect the
@@ -103,7 +127,7 @@ class PayloadState : public PayloadStateInterface {
   // Sets the response signature to the given value. Also persists the value
   // being set so that we resume from the save value in case of a process
   // restart.
-  void SetResponseSignature(std::string response_signature);
+  void SetResponseSignature(const std::string& response_signature);
 
   // Initializes the payload attempt number from the persisted state.
   void LoadPayloadAttemptNumber();
@@ -167,6 +191,36 @@ class PayloadState : public PayloadStateInterface {
   // sets |update_duration_uptime_timestamp_| to current monotonic time.
   void CalculateUpdateDurationUptime();
 
+  // Returns the full key for a download source given the prefix.
+  std::string GetPrefsKey(const std::string& prefix, DownloadSource source);
+
+  // Loads the number of bytes that have been currently downloaded through the
+  // previous attempts from the persisted state for the given source. It's
+  // reset to 0 everytime we begin a full update and is continued from previous
+  // attempt if we're resuming the update.
+  void LoadCurrentBytesDownloaded(DownloadSource source);
+
+  // Sets the number of bytes that have been currently downloaded for the
+  // given source. This value is also persisted.
+  void SetCurrentBytesDownloaded(DownloadSource source,
+                                 uint64_t current_bytes_downloaded,
+                                 bool log);
+
+  // Loads the total number of bytes that have been downloaded (since the last
+  // successful update) from the persisted state for the given source. It's
+  // reset to 0 everytime we successfully apply an update and counts the bytes
+  // downloaded for both successful and failed attempts since then.
+  void LoadTotalBytesDownloaded(DownloadSource source);
+
+  // Sets the total number of bytes that have been downloaded so far for the
+  // given source. This value is also persisted.
+  void SetTotalBytesDownloaded(DownloadSource source,
+                               uint64_t total_bytes_downloaded,
+                               bool log);
+
+  // The global state of the system.
+  SystemState* system_state_;
+
   // Interface object with which we read/write persisted state. This must
   // be set by calling the Initialize method before calling any other method.
   PrefsInterface* prefs_;
@@ -199,6 +253,12 @@ class PayloadState : public PayloadStateInterface {
   // persisted so we resume from the same value in case of a process restart.
   int64_t url_failure_count_;
 
+  // The current download source based on the current URL. This value is
+  // not persisted as it can be recomputed everytime we update the URL.
+  // We're storing this so as not to recompute this on every few bytes of
+  // data we read from the socket.
+  DownloadSource current_download_source_;
+
   // The timestamp until which we've to wait before attempting to download the
   // payload again, so as to backoff repeated downloads.
   base::Time backoff_expiry_time_;
@@ -218,6 +278,23 @@ class PayloadState : public PayloadStateInterface {
 
   // The monotonic time when |update_duration_uptime_| was last set
   base::Time update_duration_uptime_timestamp_;
+
+  // The number of bytes that have been downloaded for each source for each new
+  // update attempt. If we resume an update, we'll continue from the previous
+  // value, but if we get a new response or if the previous attempt failed,
+  // we'll reset this to 0 to start afresh. Each update to this value is
+  // persisted so we resume from the same value in case of a process restart.
+  // The extra index in the array is to no-op accidental access in case the
+  // return value from GetCurrentDownloadSource is used without validation.
+  uint64_t current_bytes_downloaded_[kNumDownloadSources + 1];
+
+  // The number of bytes that have been downloaded for each source since the
+  // the last successful update. This is used to compute the overhead we incur.
+  // Each update to this value is persisted so we resume from the same value in
+  // case of a process restart.
+  // The extra index in the array is to no-op accidental access in case the
+  // return value from GetCurrentDownloadSource is used without validation.
+  uint64_t total_bytes_downloaded_[kNumDownloadSources + 1];
 
   // Returns the number of URLs in the current response.
   // Note: This value will be 0 if this method is called before we receive

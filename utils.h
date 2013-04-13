@@ -19,6 +19,7 @@
 #include "metrics/metrics_library.h"
 
 #include "update_engine/action.h"
+#include "update_engine/constants.h"
 #include "update_engine/action_processor.h"
 
 namespace chromeos_update_engine {
@@ -157,6 +158,9 @@ std::string ToString(const base::Time utc_time);
 
 // Returns true or false depending on the value of b.
 std::string ToString(bool b);
+
+// Returns a string representation of the given enum.
+std::string ToString(DownloadSource source);
 
 enum BootLoader {
   BootLoader_SYSLINUX = 0,

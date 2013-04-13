@@ -639,10 +639,10 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
     prefs_->Delete(kPrefsUpdateTimestampStart);
     prefs_->Delete(kPrefsUpdateDurationUptime);
-    LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
     SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT,
                        kUpdateNoticeUnspecified);
+    LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
     // Also report the success code so that the percentiles can be
     // interpreted properly for the remaining error codes in UMA.
