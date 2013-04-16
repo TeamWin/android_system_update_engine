@@ -70,6 +70,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveSmallTest) {
   DeltaArchiveManifest_InstallOperation op;
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                  new_path(),
+                                                 0,  // chunk_offset
+                                                 -1,  // chunk_size
                                                  true, // bsdiff_allowed
                                                  &data,
                                                  &op,
@@ -100,6 +102,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffSmallTest) {
   DeltaArchiveManifest_InstallOperation op;
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                  new_path(),
+                                                 0,  // chunk_offset
+                                                 -1,  // chunk_size
                                                  true, // bsdiff_allowed
                                                  &data,
                                                  &op,
@@ -131,6 +135,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedTest) {
 
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                  new_path(),
+                                                 0,  // chunk_offset
+                                                 -1,  // chunk_size
                                                  false, // bsdiff_allowed
                                                  &data,
                                                  &op,
@@ -155,6 +161,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedMoveTest) {
 
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                  new_path(),
+                                                 0,  // chunk_offset
+                                                 -1,  // chunk_size
                                                  false, // bsdiff_allowed
                                                  &data,
                                                  &op,
@@ -180,6 +188,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootReplaceSmallTest) {
     DeltaArchiveManifest_InstallOperation op;
     EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                    new_path(),
+                                                   0,  // chunk_offset
+                                                   -1,  // chunk_size
                                                    true, // bsdiff_allowed
                                                    &data,
                                                    &op,
@@ -212,6 +222,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNoGatherExtentsSmallTest) {
   DeltaArchiveManifest_InstallOperation op;
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                  new_path(),
+                                                 0,  // chunk_offset
+                                                 -1,  // chunk_size
                                                  true, // bsdiff_allowed
                                                  &data,
                                                  &op,

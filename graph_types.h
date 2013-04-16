@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,21 +25,26 @@ struct EdgeProperties {
   // node pointed to before the pointing node runs (presumably b/c it
   // overwrites these blocks).
   std::vector<Extent> extents;
-  
+
   // Write before extents. I.e., blocks in |write_extents| must be written
   // by the node pointed to before the pointing node runs (presumably
   // b/c it reads the data written by the other node).
   std::vector<Extent> write_extents;
-  
+
   bool operator==(const EdgeProperties& that) const {
     return extents == that.extents && write_extents == that.write_extents;
   }
 };
 
 struct Vertex {
-  Vertex() : valid(true), index(-1), lowlink(-1) {}
+  Vertex() :
+      valid(true),
+      index(-1),
+      lowlink(-1),
+      chunk_offset(0),
+      chunk_size(-1) {}
   bool valid;
-  
+
   typedef std::map<std::vector<Vertex>::size_type, EdgeProperties> EdgeMap;
   EdgeMap out_edges;
 
@@ -57,6 +62,8 @@ struct Vertex {
   // Other Vertex properties:
   DeltaArchiveManifest_InstallOperation op;
   std::string file_name;
+  off_t chunk_offset;
+  off_t chunk_size;
 
   typedef std::vector<Vertex>::size_type Index;
   static const Vertex::Index kInvalidIndex = -1;

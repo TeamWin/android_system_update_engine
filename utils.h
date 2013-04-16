@@ -62,9 +62,12 @@ bool PReadAll(int fd, void* buf, size_t count, off_t offset,
 // Opens |path| for reading and appends its entire content to the container
 // pointed to by |out_p|. Returns true upon successfully reading all of the
 // file's content, false otherwise, in which case the state of the output
-// container is unknown.
+// container is unknown. ReadFileChunk starts reading the file from |offset|; if
+// |size| is not -1, only up to |size| bytes are read in.
 bool ReadFile(const std::string& path, std::vector<char>* out_p);
 bool ReadFile(const std::string& path, std::string* out_p);
+bool ReadFileChunk(const std::string& path, off_t offset, off_t size,
+                   std::vector<char>* out_p);
 
 // Invokes |cmd| in a pipe and appends its stdout to the container pointed to by
 // |out_p|. Returns true upon successfully reading all of the output, false

@@ -177,25 +177,56 @@ static void AppendBytes(const char* buf, size_t nbytes,
 
 // Reads from an open file |fp|, appending the read content to the container
 // pointer to by |out_p|.  Returns true upon successful reading all of the
-// file's content, false otherwise.
+// file's content, false otherwise. If |size| is not -1, reads up to |size|
+// bytes.
 template <class T>
-static bool Read(FILE* fp, T* out_p) {
+static bool Read(FILE* fp, off_t size, T* out_p) {
   CHECK(fp);
+  CHECK(size == -1 || size >= 0);
   char buf[1024];
-  while (size_t nbytes = fread(buf, 1, sizeof(buf), fp))
+  while (size == -1 || size > 0) {
+    off_t bytes_to_read = sizeof(buf);
+    if (size > 0 && bytes_to_read > size) {
+      bytes_to_read = size;
+    }
+    size_t nbytes = fread(buf, 1, bytes_to_read, fp);
+    if (!nbytes) {
+      break;
+    }
     AppendBytes(buf, nbytes, out_p);
-  return feof(fp) && !ferror(fp);
+    if (size != -1) {
+      CHECK(size >= static_cast<off_t>(nbytes));
+      size -= nbytes;
+    }
+  }
+  if (ferror(fp)) {
+    return false;
+  }
+  return size == 0 || feof(fp);
 }
 
-// Opens a file |path| for reading, then uses |append_func| to append its
-// content to a container |out_p|.
+// Opens a file |path| for reading and appends its the contents to a container
+// |out_p|. Starts reading the file from |offset|. If |offset| is beyond the end
+// of the file, returns success. If |size| is not -1, reads up to |size| bytes.
 template <class T>
-static bool ReadFileAndAppend(const std::string& path, T* out_p) {
-  FILE* fp = fopen(path.c_str(), "r");
-  if (!fp)
+static bool ReadFileChunkAndAppend(const std::string& path,
+                                   off_t offset,
+                                   off_t size,
+                                   T* out_p) {
+  CHECK_GE(offset, 0);
+  CHECK(size == -1 || size >= 0);
+  file_util::ScopedFILE fp(fopen(path.c_str(), "r"));
+  if (!fp.get())
     return false;
-  bool success = Read(fp, out_p);
-  return (success && !fclose(fp));
+  if (offset) {
+    // Return success without appending any data if a chunk beyond the end of
+    // the file is requested.
+    if (offset >= FileSize(path)) {
+      return true;
+    }
+    TEST_AND_RETURN_FALSE_ERRNO(fseek(fp.get(), offset, SEEK_SET) == 0);
+  }
+  return Read(fp.get(), size, out_p);
 }
 
 // Invokes a pipe |cmd|, then uses |append_func| to append its stdout to a
@@ -205,24 +236,29 @@ static bool ReadPipeAndAppend(const std::string& cmd, T* out_p) {
   FILE* fp = popen(cmd.c_str(), "r");
   if (!fp)
     return false;
-  bool success = Read(fp, out_p);
+  bool success = Read(fp, -1, out_p);
   return (success && pclose(fp) >= 0);
 }
 
 
-bool ReadFile(const std::string& path, std::vector<char>* out_p) {
-  return ReadFileAndAppend(path, out_p);
+bool ReadFile(const string& path, vector<char>* out_p) {
+  return ReadFileChunkAndAppend(path, 0, -1, out_p);
 }
 
-bool ReadFile(const std::string& path, std::string* out_p) {
-  return ReadFileAndAppend(path, out_p);
+bool ReadFile(const string& path, string* out_p) {
+  return ReadFileChunkAndAppend(path, 0, -1, out_p);
 }
 
-bool ReadPipe(const std::string& cmd, std::vector<char>* out_p) {
+bool ReadFileChunk(const string& path, off_t offset, off_t size,
+                   vector<char>* out_p) {
+  return ReadFileChunkAndAppend(path, offset, size, out_p);
+}
+
+bool ReadPipe(const string& cmd, vector<char>* out_p) {
   return ReadPipeAndAppend(cmd, out_p);
 }
 
-bool ReadPipe(const std::string& cmd, std::string* out_p) {
+bool ReadPipe(const string& cmd, string* out_p) {
   return ReadPipeAndAppend(cmd, out_p);
 }
 

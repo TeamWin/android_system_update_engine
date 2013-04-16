@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -155,9 +155,10 @@ void DumpGraph(const Graph& graph) {
         type_str = "REPLACE_BZ";
         break;
     }
-    LOG(INFO) << i 
+    LOG(INFO) << i
               << (graph[i].valid ? "" : "-INV")
               << ": " << graph[i].file_name
+              << " " << graph[i].chunk_size << "@" << graph[i].chunk_offset
               << ": " << type_str;
     LOG(INFO) << "  src_extents:";
     DumpExtents(graph[i].op.src_extents(), 4);

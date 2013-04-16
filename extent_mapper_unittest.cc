@@ -28,18 +28,18 @@ TEST(ExtentMapperTest, RunAsRootSimpleTest) {
   // In lieu of this, we do a weak test: make sure the extents of the unittest
   // executable are consistent and they match with the size of the file.
   const string kFilename = "/proc/self/exe";
-  
+
   uint32_t block_size = 0;
   EXPECT_TRUE(extent_mapper::GetFilesystemBlockSize(kFilename, &block_size));
   EXPECT_GT(block_size, 0);
-    
+
   vector<Extent> extents;
-  
+
   ASSERT_TRUE(extent_mapper::ExtentsForFileFibmap(kFilename, &extents));
-  
+
   EXPECT_FALSE(extents.empty());
   set<uint64_t> blocks;
-  
+
   for (vector<Extent>::const_iterator it = extents.begin();
        it != extents.end(); ++it) {
     for (uint64_t block = it->start_block();
@@ -49,10 +49,25 @@ TEST(ExtentMapperTest, RunAsRootSimpleTest) {
       blocks.insert(block);
     }
   }
-  
+
   struct stat stbuf;
   EXPECT_EQ(0, stat(kFilename.c_str(), &stbuf));
   EXPECT_EQ(blocks.size(), (stbuf.st_size + block_size - 1)/block_size);
+
+  // Map a 2-block chunk at offset |block_size|.
+  vector<Extent> chunk_extents;
+  ASSERT_TRUE(
+      extent_mapper::ExtentsForFileChunkFibmap(kFilename,
+                                               block_size,
+                                               block_size + 1,
+                                               &chunk_extents));
+  EXPECT_FALSE(chunk_extents.empty());
+  int chunk_blocks = 0;
+  for (vector<Extent>::const_iterator it = chunk_extents.begin();
+       it != chunk_extents.end(); ++it) {
+    chunk_blocks += it->num_blocks();
+  }
+  EXPECT_EQ(2, chunk_blocks);
 }
 
 TEST(ExtentMapperTest, RunAsRootSparseFileTest) {

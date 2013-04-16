@@ -60,6 +60,7 @@ DEFINE_string(signature_file, "",
               "e.g. /path/to/sig:/path/to/next:/path/to/last_sig . Each "
               "signature will be assigned a client version, starting from "
               "kSignatureOriginalVersion.");
+DEFINE_int32(chunk_size, -1, "Payload chunk size (-1 -- no limit/default)");
 
 // This file contains a simple program that takes an old path, a new path,
 // and an output file as arguments and the path to an output file and
@@ -272,6 +273,7 @@ int Main(int argc, char** argv) {
                                                    FLAGS_new_kernel,
                                                    FLAGS_out_file,
                                                    FLAGS_private_key,
+                                                   FLAGS_chunk_size,
                                                    &metadata_size)) {
     return 1;
   }

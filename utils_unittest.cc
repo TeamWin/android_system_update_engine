@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include <base/file_path.h>
+#include <base/file_util.h>
 #include <base/string_util.h>
 #include <base/stringprintf.h>
 #include <gtest/gtest.h>
@@ -67,6 +69,27 @@ TEST(UtilsTest, NormalizePathTest) {
 TEST(UtilsTest, ReadFileFailure) {
   vector<char> empty;
   EXPECT_FALSE(utils::ReadFile("/this/doesn't/exist", &empty));
+}
+
+TEST(UtilsTest, ReadFileChunk) {
+  FilePath file;
+  EXPECT_TRUE(file_util::CreateTemporaryFile(&file));
+  ScopedPathUnlinker unlinker(file.value());
+  vector<char> data;
+  const size_t kSize = 1024 * 1024;
+  for (size_t i = 0; i < kSize; i++) {
+    data.push_back(i % 255);
+  }
+  EXPECT_TRUE(utils::WriteFile(file.value().c_str(), &data[0], data.size()));
+  vector<char> in_data;
+  EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), kSize, 10, &in_data));
+  EXPECT_TRUE(in_data.empty());
+  EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), 0, -1, &in_data));
+  EXPECT_TRUE(data == in_data);
+  in_data.clear();
+  EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), 10, 20, &in_data));
+  EXPECT_TRUE(vector<char>(data.begin() + 10, data.begin() + 10 + 20) ==
+              in_data);
 }
 
 TEST(UtilsTest, ErrnoNumberAsStringTest) {

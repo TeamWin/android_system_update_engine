@@ -17,8 +17,11 @@
 #include <utility>
 #include <vector>
 
+#include <base/file_path.h>
+#include <base/file_util.h>
 #include <base/logging.h>
 #include <base/memory/scoped_ptr.h>
+#include <base/string_number_conversions.h>
 #include <base/string_util.h>
 #include <base/stringprintf.h>
 #include <bzlib.h>
@@ -53,7 +56,7 @@ namespace chromeos_update_engine {
 
 typedef DeltaDiffGenerator::Block Block;
 typedef map<const DeltaArchiveManifest_InstallOperation*,
-            const string*> OperationNameMap;
+            string> OperationNameMap;
 
 namespace {
 const size_t kBlockSize = 4096;  // bytes
@@ -74,9 +77,13 @@ static const char* kInstallOperationTypes[] = {
 
 // Stores all Extents for a file into 'out'. Returns true on success.
 bool GatherExtents(const string& path,
+                   off_t chunk_offset,
+                   off_t chunk_size,
                    google::protobuf::RepeatedPtrField<Extent>* out) {
   vector<Extent> extents;
-  TEST_AND_RETURN_FALSE(extent_mapper::ExtentsForFileFibmap(path, &extents));
+  TEST_AND_RETURN_FALSE(
+      extent_mapper::ExtentsForFileChunkFibmap(
+          path, chunk_offset, chunk_size, &extents));
   DeltaDiffGenerator::StoreExtents(extents, out);
   return true;
 }
@@ -95,6 +102,8 @@ bool DeltaReadFile(Graph* graph,
                    const string& old_root,
                    const string& new_root,
                    const string& path,  // within new_root
+                   off_t chunk_offset,
+                   off_t chunk_size,
                    int data_fd,
                    off_t* data_file_size) {
   vector<char> data;
@@ -114,6 +123,8 @@ bool DeltaReadFile(Graph* graph,
 
   TEST_AND_RETURN_FALSE(DeltaDiffGenerator::ReadFileToDiff(old_path,
                                                            new_root + path,
+                                                           chunk_offset,
+                                                           chunk_size,
                                                            bsdiff_allowed,
                                                            &data,
                                                            &operation,
@@ -137,6 +148,8 @@ bool DeltaReadFile(Graph* graph,
   (*graph)[vertex].op = operation;
   CHECK((*graph)[vertex].op.has_type());
   (*graph)[vertex].file_name = path;
+  (*graph)[vertex].chunk_offset = chunk_offset;
+  (*graph)[vertex].chunk_size = chunk_size;
 
   if (blocks)
     TEST_AND_RETURN_FALSE(DeltaDiffGenerator::AddInstallOpToBlocksVector(
@@ -154,6 +167,7 @@ bool DeltaReadFiles(Graph* graph,
                     vector<Block>* blocks,
                     const string& old_root,
                     const string& new_root,
+                    off_t chunk_size,
                     int data_fd,
                     off_t* data_file_size) {
   set<ino_t> visited_inodes;
@@ -169,7 +183,8 @@ bool DeltaReadFiles(Graph* graph,
     if (utils::SetContainsKey(visited_inodes, fs_iter.GetStat().st_ino))
       continue;
     visited_inodes.insert(fs_iter.GetStat().st_ino);
-    if (fs_iter.GetStat().st_size == 0)
+    off_t dst_size = fs_iter.GetStat().st_size;
+    if (dst_size == 0)
       continue;
 
     LOG(INFO) << "Encoding file " << fs_iter.GetPartialPath();
@@ -193,16 +208,25 @@ bool DeltaReadFiles(Graph* graph,
       visited_src_inodes.insert(src_stbuf.st_ino);
     }
 
-    TEST_AND_RETURN_FALSE(DeltaReadFile(graph,
-                                        Vertex::kInvalidIndex,
-                                        blocks,
-                                        (should_diff_from_source ?
-                                         old_root :
-                                         kNonexistentPath),
-                                        new_root,
-                                        fs_iter.GetPartialPath(),
-                                        data_fd,
-                                        data_file_size));
+    off_t size = chunk_size == -1 ? dst_size : chunk_size;
+    off_t step = size;
+    for (off_t offset = 0; offset < dst_size; offset += step) {
+      if (offset + size >= dst_size) {
+        size = -1;  // Read through the end of the file.
+      }
+      TEST_AND_RETURN_FALSE(DeltaReadFile(graph,
+                                          Vertex::kInvalidIndex,
+                                          blocks,
+                                          (should_diff_from_source ?
+                                           old_root :
+                                           kNonexistentPath),
+                                          new_root,
+                                          fs_iter.GetPartialPath(),
+                                          offset,
+                                          size,
+                                          data_fd,
+                                          data_file_size));
+    }
   }
   return true;
 }
@@ -372,7 +396,18 @@ void InstallOperationsToManifest(
     DeltaArchiveManifest_InstallOperation* op =
         out_manifest->add_install_operations();
     *op = add_op;
-    (*out_op_name_map)[op] = &vertex.file_name;
+    string name = vertex.file_name;
+    if (vertex.chunk_offset || vertex.chunk_size != -1) {
+      string offset = base::Int64ToString(vertex.chunk_offset);
+      if (vertex.chunk_size != -1) {
+        name += " [" + offset + ", " +
+            base::Int64ToString(vertex.chunk_offset + vertex.chunk_size - 1) +
+            "]";
+      } else {
+        name += " [" + offset + ", end]";
+      }
+    }
+    (*out_op_name_map)[op] = name;
   }
   for (vector<DeltaArchiveManifest_InstallOperation>::const_iterator it =
            kernel_ops.begin(); it != kernel_ops.end(); ++it) {
@@ -412,6 +447,8 @@ bool DeltaCompressKernelPartition(
   TEST_AND_RETURN_FALSE(
       DeltaDiffGenerator::ReadFileToDiff(old_kernel_part,
                                          new_kernel_part,
+                                         0,  // chunk_offset
+                                         -1,  // chunk_size
                                          true, // bsdiff_allowed
                                          &data,
                                          op,
@@ -454,7 +491,7 @@ void ReportPayloadUsage(const DeltaArchiveManifest& manifest,
   for (int i = 0; i < manifest.install_operations_size(); ++i) {
     const DeltaArchiveManifest_InstallOperation& op =
         manifest.install_operations(i);
-    objects.push_back(DeltaObject(*op_name_map.find(&op)->second,
+    objects.push_back(DeltaObject(op_name_map.find(&op)->second,
                                   op.type(),
                                   op.data_length()));
     total_size += op.data_length();
@@ -495,15 +532,20 @@ void ReportPayloadUsage(const DeltaArchiveManifest& manifest,
 bool DeltaDiffGenerator::ReadFileToDiff(
     const string& old_filename,
     const string& new_filename,
+    off_t chunk_offset,
+    off_t chunk_size,
     bool bsdiff_allowed,
     vector<char>* out_data,
     DeltaArchiveManifest_InstallOperation* out_op,
     bool gather_extents) {
   // Read new data in
   vector<char> new_data;
-  TEST_AND_RETURN_FALSE(utils::ReadFile(new_filename, &new_data));
+  TEST_AND_RETURN_FALSE(
+      utils::ReadFileChunk(new_filename, chunk_offset, chunk_size, &new_data));
 
   TEST_AND_RETURN_FALSE(!new_data.empty());
+  TEST_AND_RETURN_FALSE(chunk_size == -1 ||
+                        static_cast<off_t>(new_data.size()) <= chunk_size);
 
   vector<char> new_data_bz;
   TEST_AND_RETURN_FALSE(BzipCompress(new_data, &new_data_bz));
@@ -532,21 +574,36 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     original = false;
   }
 
+  vector<char> old_data;
   if (original) {
     // Read old data
-    vector<char> old_data;
-    TEST_AND_RETURN_FALSE(utils::ReadFile(old_filename, &old_data));
+    TEST_AND_RETURN_FALSE(
+        utils::ReadFileChunk(
+            old_filename, chunk_offset, chunk_size, &old_data));
     if (old_data == new_data) {
       // No change in data.
       operation.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
       current_best_size = 0;
       data.clear();
-    } else if (bsdiff_allowed) {
+    } else if (!old_data.empty() && bsdiff_allowed) {
       // If the source file is considered bsdiff safe (no bsdiff bugs
       // triggered), see if BSDIFF encoding is smaller.
+      FilePath old_chunk;
+      TEST_AND_RETURN_FALSE(file_util::CreateTemporaryFile(&old_chunk));
+      ScopedPathUnlinker old_unlinker(old_chunk.value());
+      TEST_AND_RETURN_FALSE(
+          utils::WriteFile(old_chunk.value().c_str(),
+                           &old_data[0], old_data.size()));
+      FilePath new_chunk;
+      TEST_AND_RETURN_FALSE(file_util::CreateTemporaryFile(&new_chunk));
+      ScopedPathUnlinker new_unlinker(new_chunk.value());
+      TEST_AND_RETURN_FALSE(
+          utils::WriteFile(new_chunk.value().c_str(),
+                           &new_data[0], new_data.size()));
+
       vector<char> bsdiff_delta;
       TEST_AND_RETURN_FALSE(
-          BsdiffFiles(old_filename, new_filename, &bsdiff_delta));
+          BsdiffFiles(old_chunk.value(), new_chunk.value(), &bsdiff_delta));
       CHECK_GT(bsdiff_delta.size(), static_cast<vector<char>::size_type>(0));
       if (bsdiff_delta.size() < current_best_size) {
         operation.set_type(DeltaArchiveManifest_InstallOperation_Type_BSDIFF);
@@ -563,19 +620,25 @@ bool DeltaDiffGenerator::ReadFileToDiff(
       operation.type() == DeltaArchiveManifest_InstallOperation_Type_BSDIFF) {
     if (gather_extents) {
       TEST_AND_RETURN_FALSE(
-          GatherExtents(old_filename, operation.mutable_src_extents()));
+          GatherExtents(old_filename,
+                        chunk_offset,
+                        chunk_size,
+                        operation.mutable_src_extents()));
     } else {
       Extent* src_extent = operation.add_src_extents();
       src_extent->set_start_block(0);
       src_extent->set_num_blocks(
           (old_stbuf.st_size + kBlockSize - 1) / kBlockSize);
     }
-    operation.set_src_length(old_stbuf.st_size);
+    operation.set_src_length(old_data.size());
   }
 
   if (gather_extents) {
     TEST_AND_RETURN_FALSE(
-        GatherExtents(new_filename, operation.mutable_dst_extents()));
+        GatherExtents(new_filename,
+                      chunk_offset,
+                      chunk_size,
+                      operation.mutable_dst_extents()));
   } else {
     Extent* dst_extent = operation.add_dst_extents();
     dst_extent->set_start_block(0);
@@ -1221,6 +1284,8 @@ bool DeltaDiffGenerator::ConvertCutToFullOp(Graph* graph,
                                         kNonexistentPath,
                                         new_root,
                                         (*graph)[cut.old_dst].file_name,
+                                        (*graph)[cut.old_dst].chunk_offset,
+                                        (*graph)[cut.old_dst].chunk_size,
                                         data_fd,
                                         data_file_size));
 
@@ -1321,7 +1386,9 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     const string& new_kernel_part,
     const string& output_path,
     const string& private_key_path,
+    off_t chunk_size,
     uint64_t* metadata_size) {
+  TEST_AND_RETURN_FALSE(chunk_size == -1 || chunk_size % kBlockSize == 0);
   int old_image_block_count = 0, old_image_block_size = 0;
   int new_image_block_count = 0, new_image_block_size = 0;
   TEST_AND_RETURN_FALSE(utils::GetFilesystemSize(new_image,
@@ -1373,6 +1440,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
                                            &blocks,
                                            old_root,
                                            new_root,
+                                           chunk_size,
                                            fd,
                                            &data_file_size));
       LOG(INFO) << "done reading normal files";

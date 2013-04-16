@@ -61,6 +61,8 @@ class DeltaDiffGenerator {
   // private_key_path points to a private key used to sign the update.
   // Pass empty string to not sign the update.
   // output_path is the filename where the delta update should be written.
+  // If |chunk_size| is not -1, the delta payload is generated based on
+  // |chunk_size| chunks rather than whole files.
   // Returns true on success. Also writes the size of the metadata into
   // |metadata_size|.
   static bool GenerateDeltaUpdateFile(const std::string& old_root,
@@ -71,6 +73,7 @@ class DeltaDiffGenerator {
                                       const std::string& new_kernel_part,
                                       const std::string& output_path,
                                       const std::string& private_key_path,
+                                      off_t chunk_size,
                                       uint64_t* metadata_size);
 
   // These functions are public so that the unit tests can access them:
@@ -98,9 +101,13 @@ class DeltaDiffGenerator {
   // operation. If there is a change, or the old file doesn't exist,
   // the smallest of REPLACE, REPLACE_BZ, or BSDIFF wins.
   // new_filename must contain at least one byte.
+  // |new_filename| is read starting at |chunk_offset|.
+  // If |chunk_size| is not -1, only up to |chunk_size| bytes are diffed.
   // Returns true on success.
   static bool ReadFileToDiff(const std::string& old_filename,
                              const std::string& new_filename,
+                             off_t chunk_offset,
+                             off_t chunk_size,
                              bool bsdiff_allowed,
                              std::vector<char>* out_data,
                              DeltaArchiveManifest_InstallOperation* out_op,

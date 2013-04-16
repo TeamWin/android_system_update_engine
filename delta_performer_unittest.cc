@@ -253,6 +253,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
 static void GenerateDeltaFile(bool full_kernel,
                               bool full_rootfs,
                               bool noop,
+                              off_t chunk_size,
                               SignatureTest signature_test,
                               DeltaState *state) {
   EXPECT_TRUE(utils::MakeTempFile("/tmp/a_img.XXXXXX", &state->a_img, NULL));
@@ -273,10 +274,17 @@ static void GenerateDeltaFile(bool full_kernel,
     string a_mnt;
     ScopedLoopMounter b_mounter(state->a_img, &a_mnt, 0);
 
+    vector<char> hardtocompress;
+    while (hardtocompress.size() < 3 * kBlockSize) {
+      hardtocompress.insert(hardtocompress.end(),
+                            kRandomString,
+                            kRandomString + sizeof(kRandomString) - 1);
+    }
     EXPECT_TRUE(utils::WriteFile(StringPrintf("%s/hardtocompress",
                                               a_mnt.c_str()).c_str(),
-                                 reinterpret_cast<const char*>(kRandomString),
-                                 sizeof(kRandomString) - 1));
+                                 &hardtocompress[0],
+                                 hardtocompress.size()));
+
     // Write 1 MiB of 0xff to try to catch the case where writing a bsdiff
     // patch fails to zero out the final block.
     vector<char> ones(1024 * 1024, 0xff);
@@ -322,10 +330,17 @@ static void GenerateDeltaFile(bool full_kernel,
     EXPECT_EQ(0, system(StringPrintf("rm %s/boguslink && "
                                      "echo foobar > %s/boguslink",
                                      b_mnt.c_str(), b_mnt.c_str()).c_str()));
+
+    vector<char> hardtocompress;
+    while (hardtocompress.size() < 3 * kBlockSize) {
+      hardtocompress.insert(hardtocompress.end(),
+                            kRandomString,
+                            kRandomString + sizeof(kRandomString));
+    }
     EXPECT_TRUE(utils::WriteFile(StringPrintf("%s/hardtocompress",
                                               b_mnt.c_str()).c_str(),
-                                 reinterpret_cast<const char*>(kRandomString),
-                                 sizeof(kRandomString)));
+                                 &hardtocompress[0],
+                                 hardtocompress.size()));
   }
 
   string old_kernel;
@@ -378,6 +393,7 @@ static void GenerateDeltaFile(bool full_kernel,
             state->new_kernel,
             state->delta_path,
             private_key,
+            chunk_size,
             &state->metadata_size));
   }
 
@@ -642,11 +658,13 @@ void VerifyPayload(DeltaPerformer* performer,
 }
 
 void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
+                      off_t chunk_size,
                       SignatureTest signature_test,
                       bool hash_checks_mandatory) {
   DeltaState state;
   DeltaPerformer *performer;
-  GenerateDeltaFile(full_kernel, full_rootfs, noop, signature_test, &state);
+  GenerateDeltaFile(full_kernel, full_rootfs, noop, chunk_size,
+                    signature_test, &state);
   ScopedPathUnlinker a_img_unlinker(state.a_img);
   ScopedPathUnlinker b_img_unlinker(state.b_img);
   ScopedPathUnlinker delta_unlinker(state.delta_path);
@@ -706,7 +724,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
   // Using kSignatureNone since it doesn't affect the results of our test.
   // If we've to use other signature options, then we'd have to get the
   // metadata size again after adding the signing operation to the manifest.
-  GenerateDeltaFile(true, true, false, signature_test, &state);
+  GenerateDeltaFile(true, true, false, -1, signature_test, &state);
 
   ScopedPathUnlinker a_img_unlinker(state.a_img);
   ScopedPathUnlinker b_img_unlinker(state.b_img);
@@ -794,7 +812,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
 void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
                                  bool hash_checks_mandatory) {
   DeltaState state;
-  GenerateDeltaFile(true, true, false, kSignatureGenerated, &state);
+  GenerateDeltaFile(true, true, false, -1, kSignatureGenerated, &state);
   ScopedPathUnlinker a_img_unlinker(state.a_img);
   ScopedPathUnlinker b_img_unlinker(state.b_img);
   ScopedPathUnlinker delta_unlinker(state.delta_path);
@@ -831,61 +849,67 @@ TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageTest) {
   bool hash_checks_mandatory = false;
-  DoSmallImageTest(false, false, false, kSignatureGenerator,
+  DoSmallImageTest(false, false, false, -1, kSignatureGenerator,
+                   hash_checks_mandatory);
+}
+
+TEST(DeltaPerformerTest, RunAsRootSmallImageChunksTest) {
+  bool hash_checks_mandatory = false;
+  DoSmallImageTest(false, false, false, kBlockSize, kSignatureGenerator,
                    hash_checks_mandatory);
 }
 
 TEST(DeltaPerformerTest, RunAsRootFullKernelSmallImageTest) {
   bool hash_checks_mandatory = false;
-  DoSmallImageTest(true, false, false, kSignatureGenerator,
+  DoSmallImageTest(true, false, false, -1, kSignatureGenerator,
                    hash_checks_mandatory);
 }
 
 TEST(DeltaPerformerTest, RunAsRootFullSmallImageTest) {
   bool hash_checks_mandatory = true;
-  DoSmallImageTest(true, true, false, kSignatureGenerator,
+  DoSmallImageTest(true, true, false, -1, kSignatureGenerator,
                    hash_checks_mandatory);
 }
 
 TEST(DeltaPerformerTest, RunAsRootNoopSmallImageTest) {
   bool hash_checks_mandatory = false;
-  DoSmallImageTest(false, false, true, kSignatureGenerator,
+  DoSmallImageTest(false, false, true, -1, kSignatureGenerator,
                    hash_checks_mandatory);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignNoneTest) {
   bool hash_checks_mandatory = false;
-  DoSmallImageTest(false, false, false, kSignatureNone,
+  DoSmallImageTest(false, false, false, -1, kSignatureNone,
                    hash_checks_mandatory);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedTest) {
   bool hash_checks_mandatory = true;
-  DoSmallImageTest(false, false, false, kSignatureGenerated,
+  DoSmallImageTest(false, false, false, -1, kSignatureGenerated,
                    hash_checks_mandatory);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellTest) {
   bool hash_checks_mandatory = false;
-  DoSmallImageTest(false, false, false, kSignatureGeneratedShell,
+  DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShell,
                    hash_checks_mandatory);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellBadKeyTest) {
   bool hash_checks_mandatory = false;
-  DoSmallImageTest(false, false, false, kSignatureGeneratedShellBadKey,
+  DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellBadKey,
                    hash_checks_mandatory);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellRotateCl1Test) {
   bool hash_checks_mandatory = false;
-  DoSmallImageTest(false, false, false, kSignatureGeneratedShellRotateCl1,
+  DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellRotateCl1,
                    hash_checks_mandatory);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellRotateCl2Test) {
   bool hash_checks_mandatory = false;
-  DoSmallImageTest(false, false, false, kSignatureGeneratedShellRotateCl2,
+  DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellRotateCl2,
                    hash_checks_mandatory);
 }
 
