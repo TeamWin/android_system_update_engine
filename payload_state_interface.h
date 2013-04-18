@@ -72,6 +72,10 @@ class PayloadStateInterface {
   // Returns the current URL's failure count.
   virtual uint32_t GetUrlFailureCount() = 0;
 
+  // Returns the total number of times a new URL has been switched to
+  // for the current response.
+  virtual uint32_t GetUrlSwitchCount() = 0;
+
   // Returns the expiry time for the current backoff period.
   virtual base::Time GetBackoffExpiryTime() = 0;
 

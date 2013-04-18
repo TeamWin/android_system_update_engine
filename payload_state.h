@@ -56,6 +56,10 @@ class PayloadState : public PayloadStateInterface {
     return url_failure_count_;
   }
 
+  virtual inline uint32_t GetUrlSwitchCount() {
+    return url_switch_count_;
+  }
+
   virtual inline base::Time GetBackoffExpiryTime() {
     return backoff_expiry_time_;
   }
@@ -80,7 +84,8 @@ class PayloadState : public PayloadStateInterface {
   // Advances the current URL index to the next available one. If all URLs have
   // been exhausted during the current payload download attempt (as indicated
   // by the payload attempt number), then it will increment the payload attempt
-  // number and wrap around again with the first URL in the list.
+  // number and wrap around again with the first URL in the list. This also
+  // updates the URL switch count, if needed.
   void IncrementUrlIndex();
 
   // Increments the failure count of the current URL. If the configured max
@@ -103,6 +108,9 @@ class PayloadState : public PayloadStateInterface {
 
   // Reports the various metrics related to the number of bytes downloaded.
   void ReportBytesDownloadedMetrics();
+
+  // Reports the metric related to number of URL switches.
+  void ReportUpdateUrlSwitchesMetric();
 
   // Resets all the persisted state values which are maintained relative to the
   // current response signature. The response signature itself is not reset.
@@ -152,6 +160,12 @@ class PayloadState : public PayloadStateInterface {
   // value being set so that we resume from the same value in case of a process
   // restart.
   void SetUrlFailureCount(uint32_t url_failure_count);
+
+  // Sets |url_switch_count_| to the given value and persists the value.
+  void SetUrlSwitchCount(uint32_t url_switch_count);
+
+  // Initializes |url_switch_count_| from the persisted stae.
+  void LoadUrlSwitchCount();
 
   // Initializes the backoff expiry time from the persisted state.
   void LoadBackoffExpiryTime();
@@ -252,6 +266,9 @@ class PayloadState : public PayloadStateInterface {
   // the current URL (specified by url_index_).  Each update to this value is
   // persisted so we resume from the same value in case of a process restart.
   int64_t url_failure_count_;
+
+  // The number of times we've switched URLs.
+  int32_t url_switch_count_;
 
   // The current download source based on the current URL. This value is
   // not persisted as it can be recomputed everytime we update the URL.

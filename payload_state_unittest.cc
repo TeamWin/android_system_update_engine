@@ -114,6 +114,7 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   EXPECT_EQ(expected_response_sign, stored_response_sign);
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
@@ -158,6 +159,7 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   EXPECT_EQ(expected_response_sign, stored_response_sign);
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
@@ -200,6 +202,7 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   EXPECT_EQ(expected_response_sign, stored_response_sign);
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
@@ -244,6 +247,9 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   // Verify that on the next error, it again advances to 1.
   payload_state.UpdateFailed(error);
   EXPECT_EQ(1, payload_state.GetUrlIndex());
+
+  // Verify that we switched URLs three times
+  EXPECT_EQ(3, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, NewResponseResetsPayloadState) {
@@ -260,6 +266,7 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
   ActionExitCode error = kActionCodeDownloadMetadataSignatureMismatch;
   payload_state.UpdateFailed(error);
   EXPECT_EQ(1, payload_state.GetUrlIndex());
+  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
 
   // Now, slightly change the response and set it again.
   SetupPayloadStateWith2Urls("Hash8225", &payload_state, &response);
@@ -267,6 +274,7 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
   // Make sure the url index was reset to 0 because of the new response.
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
   EXPECT_EQ(0,
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(0,
@@ -327,18 +335,21 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
 
   // This should advance the failure count only.
   payload_state.UpdateFailed(kActionCodeDownloadTransferError);
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(1, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
 
   // This should advance the failure count only.
   payload_state.UpdateFailed(kActionCodeDownloadTransferError);
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(2, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
 
   // This should advance the URL index as we've reached the
   // max failure count and reset the failure count for the new URL index.
@@ -348,6 +359,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(2, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // This should advance the URL index.
@@ -355,6 +367,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(3, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // This should advance the URL index and payload attempt number due to
@@ -363,6 +376,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(2, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(4, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // This HTTP error code should only increase the failure count.
@@ -371,6 +385,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(2, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(1, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(4, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // And that failure count should be reset when we download some bytes
@@ -379,6 +394,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(2, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(4, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // Now, slightly change the response and set it again.
@@ -388,6 +404,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
   EXPECT_FALSE(payload_state.ShouldBackoffDownload());
 }
 
@@ -421,6 +438,7 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDownload) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
@@ -439,6 +457,7 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(1, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
 
   // Now, simulate a corrupted url index on persisted store which gets
   // loaded when update_engine restarts. Using a different prefs object
@@ -453,6 +472,8 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
       .WillRepeatedly(DoAll(SetArgumentPointee<1>(2), Return(true)));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsCurrentUrlFailureCount, _))
     .Times(AtLeast(1));
+  EXPECT_CALL(*prefs2, GetInt64(kPrefsUrlSwitchCount, _))
+    .Times(AtLeast(1));
 
   // Note: This will be a different payload object, but the response should
   // have the same hash as before so as to not trivially reset because the
@@ -466,6 +487,7 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, NoBackoffForDeltaPayloads) {
@@ -628,6 +650,9 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.TotalMBsDownloadedFromHttpsServer",
       https_total / kNumBytesInOneMiB, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.UpdateURLSwitches",
+      2, _, _, _));
 
   payload_state.UpdateSucceeded();
 

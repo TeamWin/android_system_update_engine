@@ -32,6 +32,7 @@ extern const char kPrefsResumedUpdateFailures[];
 extern const char kPrefsTotalBytesDownloaded[];
 extern const char kPrefsUpdateCheckCount[];
 extern const char kPrefsUpdateCheckResponseHash[];
+extern const char kPrefsUpdateDurationUptime[];
 extern const char kPrefsUpdateFirstSeenAt[];
 extern const char kPrefsUpdateServerCertificate[];
 extern const char kPrefsUpdateStateNextDataOffset[];
@@ -39,9 +40,9 @@ extern const char kPrefsUpdateStateNextOperation[];
 extern const char kPrefsUpdateStateSHA256Context[];
 extern const char kPrefsUpdateStateSignatureBlob[];
 extern const char kPrefsUpdateStateSignedSHA256Context[];
-extern const char kPrefsWallClockWaitPeriod[];
 extern const char kPrefsUpdateTimestampStart[];
-extern const char kPrefsUpdateDurationUptime[];
+extern const char kPrefsUrlSwitchCount[];
+extern const char kPrefsWallClockWaitPeriod[];
 
 // A download source is any combination of protocol and server (that's of
 // interest to us when looking at UMA metrics) using which we may download

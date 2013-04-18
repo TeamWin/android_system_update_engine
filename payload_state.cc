@@ -34,7 +34,8 @@ PayloadState::PayloadState()
     : prefs_(NULL),
       payload_attempt_number_(0),
       url_index_(0),
-      url_failure_count_(0) {
+      url_failure_count_(0),
+      url_switch_count_(0) {
  for (int i = 0; i <= kNumDownloadSources; i++)
   total_bytes_downloaded_[i] = current_bytes_downloaded_[i] = 0;
 }
@@ -46,6 +47,7 @@ bool PayloadState::Initialize(SystemState* system_state) {
   LoadPayloadAttemptNumber();
   LoadUrlIndex();
   LoadUrlFailureCount();
+  LoadUrlSwitchCount();
   LoadBackoffExpiryTime();
   LoadUpdateTimestampStart();
   // The LoadUpdateDurationUptime() method relies on LoadUpdateTimestampStart()
@@ -132,6 +134,7 @@ void PayloadState::UpdateSucceeded() {
   CalculateUpdateDurationUptime();
   SetUpdateTimestampEnd(Time::Now());
   ReportBytesDownloadedMetrics();
+  ReportUpdateUrlSwitchesMetric();
 }
 
 void PayloadState::UpdateFailed(ActionExitCode error) {
@@ -304,6 +307,10 @@ void PayloadState::IncrementUrlIndex() {
     IncrementPayloadAttemptNumber();
   }
 
+  // If we have multiple URLs, record that we just switched to another one
+  if (GetNumUrls() > 1)
+    SetUrlSwitchCount(url_switch_count_ + 1);
+
   // Whenever we update the URL index, we should also clear the URL failure
   // count so we can start over fresh for the new URL.
   SetUrlFailureCount(0);
@@ -415,10 +422,24 @@ void PayloadState::ReportBytesDownloadedMetrics() {
   }
 }
 
+void PayloadState::ReportUpdateUrlSwitchesMetric() {
+  string metric = "Installer.UpdateURLSwitches";
+  int value = static_cast<int>(url_switch_count_);
+
+  LOG(INFO) << "Uploading " << value << " (count) for metric " <<  metric;
+  system_state_->metrics_lib()->SendToUMA(
+       metric,
+       value,
+       0,    // min value
+       100,  // max value
+       kNumDefaultUmaBuckets);
+}
+
 void PayloadState::ResetPersistedState() {
   SetPayloadAttemptNumber(0);
   SetUrlIndex(0);
   SetUrlFailureCount(0);
+  SetUrlSwitchCount(0);
   UpdateBackoffExpiryTime(); // This will reset the backoff expiry time.
   SetUpdateTimestampStart(Time::Now());
   SetUpdateTimestampEnd(Time()); // Set to null time
@@ -519,6 +540,17 @@ void PayloadState::SetUrlIndex(uint32_t url_index) {
   // Also update the download source, which is purely dependent on the
   // current URL index alone.
   UpdateCurrentDownloadSource();
+}
+
+void PayloadState::LoadUrlSwitchCount() {
+  SetUrlSwitchCount(GetPersistedValue(kPrefsUrlSwitchCount));
+}
+
+void PayloadState::SetUrlSwitchCount(uint32_t url_switch_count) {
+  CHECK(prefs_);
+  url_switch_count_ = url_switch_count;
+  LOG(INFO) << "URL Switch Count = " << url_switch_count_;
+  prefs_->SetInt64(kPrefsUrlSwitchCount, url_switch_count_);
 }
 
 void PayloadState::LoadUrlFailureCount() {

@@ -31,6 +31,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD0(GetPayloadAttemptNumber, uint32_t());
   MOCK_METHOD0(GetUrlIndex, uint32_t());
   MOCK_METHOD0(GetUrlFailureCount, uint32_t());
+  MOCK_METHOD0(GetUrlSwitchCount, uint32_t());
   MOCK_METHOD0(GetBackoffExpiryTime, base::Time());
   MOCK_METHOD0(GetUpdateDuration, base::TimeDelta());
   MOCK_METHOD0(GetUpdateDurationUptime, base::TimeDelta());

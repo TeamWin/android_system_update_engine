@@ -31,6 +31,7 @@ const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";
 const char kPrefsTotalBytesDownloaded[] = "total-bytes-downloaded";
 const char kPrefsUpdateCheckCount[] = "update-check-count";
 const char kPrefsUpdateCheckResponseHash[] = "update-check-response-hash";
+const char kPrefsUpdateDurationUptime[] = "update-duration-uptime";
 const char kPrefsUpdateFirstSeenAt[] = "update-first-seen-at";
 const char kPrefsUpdateServerCertificate[] = "update-server-cert";
 const char kPrefsUpdateStateNextDataOffset[] = "update-state-next-data-offset";
@@ -39,8 +40,8 @@ const char kPrefsUpdateStateSHA256Context[] = "update-state-sha-256-context";
 const char kPrefsUpdateStateSignatureBlob[] = "update-state-signature-blob";
 const char kPrefsUpdateStateSignedSHA256Context[] =
     "update-state-signed-sha-256-context";
-const char kPrefsWallClockWaitPeriod[] = "wall-clock-wait-period";
 const char kPrefsUpdateTimestampStart[] = "update-timestamp-start";
-const char kPrefsUpdateDurationUptime[] = "update-duration-uptime";
+const char kPrefsUrlSwitchCount[] = "url-switch-count";
+const char kPrefsWallClockWaitPeriod[] = "wall-clock-wait-period";
 
 }
