@@ -606,25 +606,6 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
     system_state_->payload_state()->UpdateSucceeded();
 
-    if (!fake_update_success_) {
-      // Get the time it took to update the system
-      TimeDelta duration = system_state_->payload_state()->GetUpdateDuration();
-      TimeDelta duration_uptime =
-        system_state_->payload_state()->GetUpdateDurationUptime();
-      system_state_->metrics_lib()->SendToUMA(
-           "Installer.UpdateDuration",
-           static_cast<int>(duration.InSeconds()),  // sample
-           1,  // min = 1 second
-           20 * 60,  // max = 20 minutes
-           50);  // buckets
-      system_state_->metrics_lib()->SendToUMA(
-           "Installer.UpdateDurationUptime",
-           static_cast<int>(duration_uptime.InSeconds()),  // sample
-           1,  // min = 1 second
-           20 * 60,  // max = 20 minutes
-           50);  // buckets
-    }
-
     // Since we're done with scattering fully at this point, this is the
     // safest point delete the state files, as we're sure that the status is
     // set to reboot (which means no more updates will be applied until reboot)
@@ -637,9 +618,6 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     prefs_->Delete(kPrefsUpdateCheckCount);
     prefs_->Delete(kPrefsWallClockWaitPeriod);
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
-    prefs_->Delete(kPrefsUpdateTimestampStart);
-    prefs_->Delete(kPrefsUpdateDurationUptime);
-    LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
     SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT,
                        kUpdateNoticeUnspecified);

@@ -286,4 +286,42 @@ TEST(UtilsTest, ScheduleCrashReporterUploadTest) {
   g_main_loop_unref(loop);
 }
 
+TEST(UtilsTest, FormatTimeDeltaTest) {
+  // utils::FormatTimeDelta() is not locale-aware (it's only used for logging
+  // which is not localized) so we only need to test the C locale
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromMilliseconds(100)),
+            "0.1s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(0)),
+            "0s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(1)),
+            "1s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(59)),
+            "59s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(60)),
+            "1m0s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(61)),
+            "1m1s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(90)),
+            "1m30s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(1205)),
+            "20m5s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(3600)),
+            "1h0m0s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(3601)),
+            "1h0m1s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(3661)),
+            "1h1m1s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(7261)),
+            "2h1m1s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(86400)),
+            "1d0h0m0s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(86401)),
+            "1d0h0m1s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(200000)),
+            "2d7h33m20s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(200000) +
+                                   base::TimeDelta::FromMilliseconds(1)),
+            "2d7h33m20.001s");
+}
+
 }  // namespace chromeos_update_engine

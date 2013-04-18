@@ -668,6 +668,12 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.UpdateURLSwitches",
       2, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.UpdateDurationMinutes",
+      _, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.UpdateDurationUptimeMinutes",
+      _, _, _, _));
 
   payload_state.UpdateSucceeded();
 

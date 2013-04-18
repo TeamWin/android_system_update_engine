@@ -143,6 +143,7 @@ void PayloadState::UpdateSucceeded() {
   ReportBytesDownloadedMetrics();
   ReportUpdateUrlSwitchesMetric();
   ReportRebootMetrics();
+  ReportDurationMetrics();
 }
 
 void PayloadState::UpdateFailed(ActionExitCode error) {
@@ -668,8 +669,8 @@ void PayloadState::LoadUpdateTimestampStart() {
     LOG(ERROR) << "The UpdateTimestampStart value ("
                << utils::ToString(stored_time)
                << ") in persisted state is "
-               << duration_according_to_stored_time.InSeconds()
-               << " seconds in the future. Resetting.";
+               << utils::FormatTimeDelta(duration_according_to_stored_time)
+               << " in the future. Resetting.";
     stored_time = now;
   }
 
@@ -717,10 +718,10 @@ void PayloadState::LoadUpdateDurationUptime() {
   TimeDelta diff = GetUpdateDuration() - stored_delta;
   if (diff < -kDurationSlack) {
     LOG(ERROR) << "The UpdateDurationUptime value ("
-               << stored_delta.InSeconds() << " seconds"
+               << utils::FormatTimeDelta(stored_delta)
                << ") in persisted state is "
-               << diff.InSeconds()
-               << " seconds larger than the wall-clock delta. Resetting.";
+               << utils::FormatTimeDelta(diff)
+               << " larger than the wall-clock delta. Resetting.";
     stored_delta = update_duration_current_;
   }
 
@@ -741,8 +742,7 @@ void PayloadState::SetUpdateDurationUptimeExtended(const TimeDelta& value,
                    update_duration_uptime_.ToInternalValue());
   if (use_logging) {
     LOG(INFO) << "Update Duration Uptime = "
-              << update_duration_uptime_.InSeconds()
-              << " seconds";
+              << utils::FormatTimeDelta(update_duration_uptime_);
   }
 }
 
@@ -756,6 +756,35 @@ void PayloadState::CalculateUpdateDurationUptime() {
   TimeDelta new_uptime = update_duration_uptime_ + uptime_since_last_update;
   // We're frequently called so avoid logging this write
   SetUpdateDurationUptimeExtended(new_uptime, now, false);
+}
+
+void PayloadState::ReportDurationMetrics() {
+  TimeDelta duration = GetUpdateDuration();
+  TimeDelta duration_uptime = GetUpdateDurationUptime();
+  string metric;
+
+  metric = "Installer.UpdateDurationMinutes";
+  system_state_->metrics_lib()->SendToUMA(
+       metric,
+       static_cast<int>(duration.InMinutes()),
+       1,             // min: 1 minute
+       365*24*60,     // max: 1 year (approx)
+       kNumDefaultUmaBuckets);
+  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(duration)
+            << " for metric " <<  metric;
+
+  metric = "Installer.UpdateDurationUptimeMinutes";
+  system_state_->metrics_lib()->SendToUMA(
+       metric,
+       static_cast<int>(duration_uptime.InMinutes()),
+       1,             // min: 1 minute
+       30*24*60,      // max: 1 month (approx)
+       kNumDefaultUmaBuckets);
+  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(duration_uptime)
+            << " for metric " <<  metric;
+
+  prefs_->Delete(kPrefsUpdateTimestampStart);
+  prefs_->Delete(kPrefsUpdateDurationUptime);
 }
 
 string PayloadState::GetPrefsKey(const string& prefix, DownloadSource source) {

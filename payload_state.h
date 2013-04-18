@@ -120,6 +120,9 @@ class PayloadState : public PayloadStateInterface {
   // Reports the various metrics related to rebooting during an update.
   void ReportRebootMetrics();
 
+  // Reports the various metrics related to update duration.
+  void ReportDurationMetrics();
+
   // Resets all the persisted state values which are maintained relative to the
   // current response signature. The response signature itself is not reset.
   void ResetPersistedState();
