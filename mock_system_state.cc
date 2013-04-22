@@ -12,6 +12,7 @@ namespace chromeos_update_engine {
 MockSystemState::MockSystemState()
   : default_request_params_(this),
     prefs_(&mock_prefs_) {
+  clock_ = &default_clock_;
   request_params_ = &default_request_params_;
   mock_payload_state_.Initialize(this);
   mock_gpio_handler_ = new testing::NiceMock<MockGpioHandler>();

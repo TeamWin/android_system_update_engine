@@ -13,6 +13,7 @@
 #include "update_engine/mock_dbus_interface.h"
 #include "update_engine/mock_gpio_handler.h"
 #include "update_engine/mock_payload_state.h"
+#include "update_engine/clock.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/system_state.h"
 
@@ -33,6 +34,10 @@ class MockSystemState : public SystemState {
   MOCK_METHOD1(set_device_policy, void(const policy::DevicePolicy*));
   MOCK_CONST_METHOD0(device_policy, const policy::DevicePolicy*());
   MOCK_METHOD0(system_rebooted, bool());
+
+  inline virtual ClockInterface* clock() {
+    return clock_;
+  }
 
   inline virtual ConnectionManager* connection_manager() {
     return connection_manager_;
@@ -69,6 +74,10 @@ class MockSystemState : public SystemState {
     return &mock_metrics_lib_;
   }
 
+  inline void set_clock(ClockInterface* clock) {
+    clock_ = clock;
+  }
+
   inline void set_prefs(PrefsInterface* prefs) {
     prefs_ = prefs;
   }
@@ -95,9 +104,11 @@ class MockSystemState : public SystemState {
   MockDbusGlib dbus_;
 
   // These are the other object we own.
+  Clock default_clock_;
   OmahaRequestParams default_request_params_;
 
   // These are pointers to objects which caller can override.
+  ClockInterface* clock_;
   PrefsInterface* prefs_;
   ConnectionManager* connection_manager_;
   OmahaRequestParams* request_params_;

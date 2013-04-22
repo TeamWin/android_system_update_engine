@@ -10,6 +10,7 @@
 #include "base/string_util.h"
 #include <base/stringprintf.h>
 
+#include "update_engine/clock.h"
 #include "update_engine/constants.h"
 #include "update_engine/prefs.h"
 #include "update_engine/system_state.h"
@@ -139,7 +140,7 @@ void PayloadState::UpdateRestarted() {
 void PayloadState::UpdateSucceeded() {
   // Send the relevant metrics that are tracked in this class to UMA.
   CalculateUpdateDurationUptime();
-  SetUpdateTimestampEnd(Time::Now());
+  SetUpdateTimestampEnd(system_state_->clock()->GetWallclockTime());
   ReportBytesDownloadedMetrics();
   ReportUpdateUrlSwitchesMetric();
   ReportRebootMetrics();
@@ -483,7 +484,7 @@ void PayloadState::ResetPersistedState() {
   SetUrlFailureCount(0);
   SetUrlSwitchCount(0);
   UpdateBackoffExpiryTime(); // This will reset the backoff expiry time.
-  SetUpdateTimestampStart(Time::Now());
+  SetUpdateTimestampStart(system_state_->clock()->GetWallclockTime());
   SetUpdateTimestampEnd(Time()); // Set to null time
   SetUpdateDurationUptime(TimeDelta::FromSeconds(0));
   ResetDownloadSourcesOnNewUpdate();
@@ -636,8 +637,9 @@ void PayloadState::SetBackoffExpiryTime(const Time& new_time) {
 }
 
 TimeDelta PayloadState::GetUpdateDuration() {
-  Time end_time = update_timestamp_end_.is_null() ? Time::Now() :
-                                                    update_timestamp_end_;
+  Time end_time = update_timestamp_end_.is_null()
+    ? system_state_->clock()->GetWallclockTime() :
+      update_timestamp_end_;
   return end_time - update_timestamp_start_;
 }
 
@@ -647,7 +649,7 @@ void PayloadState::LoadUpdateTimestampStart() {
 
   CHECK(prefs_);
 
-  Time now = Time::Now();
+  Time now = system_state_->clock()->GetWallclockTime();
 
   if (!prefs_->Exists(kPrefsUpdateTimestampStart)) {
     // The preference missing is not unexpected - in that case, just
@@ -747,11 +749,12 @@ void PayloadState::SetUpdateDurationUptimeExtended(const TimeDelta& value,
 }
 
 void PayloadState::SetUpdateDurationUptime(const TimeDelta& value) {
-  SetUpdateDurationUptimeExtended(value, utils::GetMonotonicTime(), true);
+  Time now = system_state_->clock()->GetMonotonicTime();
+  SetUpdateDurationUptimeExtended(value, now, true);
 }
 
 void PayloadState::CalculateUpdateDurationUptime() {
-  Time now = utils::GetMonotonicTime();
+  Time now = system_state_->clock()->GetMonotonicTime();
   TimeDelta uptime_since_last_update = now - update_duration_uptime_timestamp_;
   TimeDelta new_uptime = update_duration_uptime_ + uptime_since_last_update;
   // We're frequently called so avoid logging this write

@@ -7,6 +7,7 @@
 
 #include <update_engine/system_state.h>
 
+#include <update_engine/clock.h>
 #include <update_engine/connection_manager.h>
 #include <update_engine/gpio_handler.h>
 #include <update_engine/payload_state.h>
@@ -32,6 +33,10 @@ public:
 
   virtual inline const policy::DevicePolicy* device_policy() const {
     return device_policy_;
+  }
+
+  virtual inline ClockInterface* clock() {
+    return &clock_;
   }
 
   virtual inline ConnectionManager* connection_manager() {
@@ -73,6 +78,9 @@ public:
   bool Initialize(bool enable_gpio);
 
 private:
+  // Interface for the clock.
+  Clock clock_;
+
   // The latest device policy object from the policy provider.
   const policy::DevicePolicy* device_policy_;
 

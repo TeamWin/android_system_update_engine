@@ -11,9 +11,11 @@
 #include "gtest/gtest.h"
 
 #include "update_engine/constants.h"
+#include "update_engine/fake_clock.h"
 #include "update_engine/mock_system_state.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/payload_state.h"
+#include "update_engine/prefs.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
@@ -743,6 +745,71 @@ TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
   // Restart the update again to verify we set the num of reboots back to 0.
   payload_state.UpdateRestarted();
   EXPECT_EQ(0, payload_state.GetNumReboots());
+}
+
+TEST(PayloadStateTest, DurationsAreCorrect) {
+  OmahaResponse response;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  FakeClock fake_clock;
+  Prefs prefs;
+  string temp_dir;
+
+  // Set the clock to a well-known time - 1 second on the wall-clock
+  // and 2 seconds on the monotonic clock
+  fake_clock.SetWallclockTime(Time::FromInternalValue(1000000));
+  fake_clock.SetMonotonicTime(Time::FromInternalValue(2000000));
+
+  // We need persistent preferences for this test
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateDurationTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+
+  mock_system_state.set_clock(&fake_clock);
+  mock_system_state.set_prefs(&prefs);
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+
+  // Check that durations are correct for a successful update where
+  // time has advanced 7 seconds on the wall clock and 4 seconds on
+  // the monotonic clock.
+  SetupPayloadStateWith2Urls("Hash8593", &payload_state, &response);
+  fake_clock.SetWallclockTime(Time::FromInternalValue(8000000));
+  fake_clock.SetMonotonicTime(Time::FromInternalValue(6000000));
+  payload_state.UpdateSucceeded();
+  EXPECT_EQ(payload_state.GetUpdateDuration().InMicroseconds(), 7000000);
+  EXPECT_EQ(payload_state.GetUpdateDurationUptime().InMicroseconds(), 4000000);
+
+  // Check that durations are reset when a new response comes in.
+  SetupPayloadStateWith2Urls("Hash8594", &payload_state, &response);
+  EXPECT_EQ(payload_state.GetUpdateDuration().InMicroseconds(), 0);
+  EXPECT_EQ(payload_state.GetUpdateDurationUptime().InMicroseconds(), 0);
+
+  // Advance time a bit (10 secs), simulate download progress and
+  // check that durations are updated.
+  fake_clock.SetWallclockTime(Time::FromInternalValue(18000000));
+  fake_clock.SetMonotonicTime(Time::FromInternalValue(16000000));
+  payload_state.DownloadProgress(10);
+  EXPECT_EQ(payload_state.GetUpdateDuration().InMicroseconds(), 10000000);
+  EXPECT_EQ(payload_state.GetUpdateDurationUptime().InMicroseconds(), 10000000);
+
+  // Now simulate a reboot by resetting monotonic time (to 5000) and
+  // creating a new PayloadState object and check that we load the
+  // durations correctly (e.g. they are the same as before).
+  fake_clock.SetMonotonicTime(Time::FromInternalValue(5000));
+  PayloadState payload_state2;
+  EXPECT_TRUE(payload_state2.Initialize(&mock_system_state));
+  EXPECT_EQ(payload_state2.GetUpdateDuration().InMicroseconds(), 10000000);
+  EXPECT_EQ(payload_state2.GetUpdateDurationUptime().InMicroseconds(),10000000);
+
+  // Advance wall-clock by 7 seconds and monotonic clock by 6 seconds
+  // and check that the durations are increased accordingly.
+  fake_clock.SetWallclockTime(Time::FromInternalValue(25000000));
+  fake_clock.SetMonotonicTime(Time::FromInternalValue(6005000));
+  payload_state2.UpdateSucceeded();
+  EXPECT_EQ(payload_state2.GetUpdateDuration().InMicroseconds(), 17000000);
+  EXPECT_EQ(payload_state2.GetUpdateDurationUptime().InMicroseconds(),16000000);
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 }
