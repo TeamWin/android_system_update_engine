@@ -63,6 +63,7 @@ class DeltaDiffGenerator {
   // output_path is the filename where the delta update should be written.
   // If |chunk_size| is not -1, the delta payload is generated based on
   // |chunk_size| chunks rather than whole files.
+  // This method computes scratch space based on |rootfs_partition_size|.
   // Returns true on success. Also writes the size of the metadata into
   // |metadata_size|.
   static bool GenerateDeltaUpdateFile(const std::string& old_root,
@@ -74,6 +75,7 @@ class DeltaDiffGenerator {
                                       const std::string& output_path,
                                       const std::string& private_key_path,
                                       off_t chunk_size,
+                                      size_t rootfs_partition_size,
                                       uint64_t* metadata_size);
 
   // These functions are public so that the unit tests can access them:
@@ -265,6 +267,7 @@ class DeltaDiffGenerator {
 extern const char* const kBsdiffPath;
 extern const char* const kBspatchPath;
 extern const char* const kDeltaMagic;
+extern const size_t kRootFSPartitionSize;
 
 };  // namespace chromeos_update_engine
 

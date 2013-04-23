@@ -423,6 +423,7 @@ static void GenerateDeltaFile(bool full_kernel,
             state->delta_path,
             private_key,
             chunk_size,
+            kRootFSPartitionSize,
             &state->metadata_size));
   }
 

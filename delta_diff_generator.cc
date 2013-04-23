@@ -58,15 +58,14 @@ typedef DeltaDiffGenerator::Block Block;
 typedef map<const DeltaArchiveManifest_InstallOperation*,
             string> OperationNameMap;
 
+const size_t kRootFSPartitionSize = 1024 * 1024 * 1024;  // bytes
+const uint64_t kVersionNumber = 1;
+const uint64_t kFullUpdateChunkSize = 1024 * 1024;  // bytes
+
 namespace {
 const size_t kBlockSize = 4096;  // bytes
 const string kNonexistentPath = "";
 
-// TODO(adlr): switch from 1GiB to 2GiB when we no longer care about old
-// clients:
-const size_t kRootFSPartitionSize = 1 * 1024 * 1024 * 1024;  // bytes
-const uint64_t kVersionNumber = 1;
-const uint64_t kFullUpdateChunkSize = 1024 * 1024;  // bytes
 
 static const char* kInstallOperationTypes[] = {
   "REPLACE",
@@ -1387,6 +1386,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     const string& output_path,
     const string& private_key_path,
     off_t chunk_size,
+    size_t rootfs_partition_size,
     uint64_t* metadata_size) {
   TEST_AND_RETURN_FALSE(chunk_size == -1 || chunk_size % kBlockSize == 0);
   int old_image_block_count = 0, old_image_block_size = 0;
@@ -1402,6 +1402,15 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     LOG_IF(WARNING, old_image_block_count != new_image_block_count)
         << "Old and new images have different block counts.";
   }
+
+  // Sanity checks for the partition size.
+  TEST_AND_RETURN_FALSE(rootfs_partition_size % kBlockSize == 0);
+  size_t fs_size = static_cast<size_t>(new_image_block_size *
+                                       new_image_block_count);
+  LOG(INFO) << "Rootfs partition size: " << rootfs_partition_size;
+  LOG(INFO) << "Actual filesystem size: " << fs_size;
+  TEST_AND_RETURN_FALSE(rootfs_partition_size >= fs_size);
+
   // Sanity check kernel partition arg
   TEST_AND_RETURN_FALSE(utils::FileSize(new_kernel_part) >= 0);
 
@@ -1464,11 +1473,11 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
                                                 &graph.back()));
 
       // Final scratch block (if there's space)
-      if (blocks.size() < (kRootFSPartitionSize / kBlockSize)) {
+      if (blocks.size() < (rootfs_partition_size / kBlockSize)) {
         scratch_vertex = graph.size();
         graph.resize(graph.size() + 1);
         CreateScratchNode(blocks.size(),
-                          (kRootFSPartitionSize / kBlockSize) - blocks.size(),
+                          (rootfs_partition_size / kBlockSize) - blocks.size(),
                           &graph.back());
       }
 

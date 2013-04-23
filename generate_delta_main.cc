@@ -61,6 +61,9 @@ DEFINE_string(signature_file, "",
               "signature will be assigned a client version, starting from "
               "kSignatureOriginalVersion.");
 DEFINE_int32(chunk_size, -1, "Payload chunk size (-1 -- no limit/default)");
+DEFINE_int64(rootfs_partition_size,
+             chromeos_update_engine::kRootFSPartitionSize,
+             "RootFS partition size for the image once installed");
 
 // This file contains a simple program that takes an old path, a new path,
 // and an output file as arguments and the path to an output file and
@@ -274,6 +277,7 @@ int Main(int argc, char** argv) {
                                                    FLAGS_out_file,
                                                    FLAGS_private_key,
                                                    FLAGS_chunk_size,
+                                                   FLAGS_rootfs_partition_size,
                                                    &metadata_size)) {
     return 1;
   }
