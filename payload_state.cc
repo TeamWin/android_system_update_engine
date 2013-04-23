@@ -404,14 +404,24 @@ void PayloadState::ReportBytesDownloadedMetrics() {
   // Report metrics collected from all known download sources to UMA.
   // The reported data is in Megabytes in order to represent a larger
   // sample range.
+  int download_sources_used = 0;
+  string metric;
+  uint64_t successful_mbs = 0;
+  uint64_t total_mbs = 0;
   for (int i = 0; i < kNumDownloadSources; i++) {
     DownloadSource source = static_cast<DownloadSource>(i);
     const int kMaxMiBs = 10240; // Anything above 10GB goes in the last bucket.
 
-    string metric = "Installer.SuccessfulMBsDownloadedFrom" +
-      utils::ToString(source);
+    metric = "Installer.SuccessfulMBsDownloadedFrom" + utils::ToString(source);
     uint64_t mbs = GetCurrentBytesDownloaded(source) / kNumBytesInOneMiB;
-    LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " <<  metric;
+
+    //  Count this download source as having been used if we downloaded any
+    //  bytes that contributed to the final success of the update.
+    if (mbs)
+      download_sources_used |= (1 << source);
+
+    successful_mbs += mbs;
+    LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " << metric;
     system_state_->metrics_lib()->SendToUMA(metric,
                                             mbs,
                                             0,  // min
@@ -421,7 +431,8 @@ void PayloadState::ReportBytesDownloadedMetrics() {
 
     metric = "Installer.TotalMBsDownloadedFrom" + utils::ToString(source);
     mbs = GetTotalBytesDownloaded(source) / kNumBytesInOneMiB;
-    LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " <<  metric;
+    total_mbs += mbs;
+    LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " << metric;
     system_state_->metrics_lib()->SendToUMA(metric,
                                             mbs,
                                             0,  // min
@@ -429,6 +440,27 @@ void PayloadState::ReportBytesDownloadedMetrics() {
                                             kNumDefaultUmaBuckets);
 
     SetTotalBytesDownloaded(source, 0, true);
+  }
+
+  metric = "Installer.DownloadSourcesUsed";
+  LOG(INFO) << "Uploading 0x" << std::hex << download_sources_used
+            << " (bit flags) for metric " << metric;
+  int num_buckets = std::min(1 << kNumDownloadSources, kNumDefaultUmaBuckets);
+  system_state_->metrics_lib()->SendToUMA(metric,
+                                          download_sources_used,
+                                          0,  // min
+                                          1 << kNumDownloadSources,
+                                          num_buckets);
+
+  if (successful_mbs) {
+    metric = "Installer.DownloadOverheadPercentage";
+    int percent_overhead = (total_mbs - successful_mbs) * 100 / successful_mbs;
+    LOG(INFO) << "Uploading " << percent_overhead << "% for metric " << metric;
+    system_state_->metrics_lib()->SendToUMA(metric,
+                                            percent_overhead,
+                                            0,    // min: 0% overhead
+                                            1000, // max: 1000% overhead
+                                            kNumDefaultUmaBuckets);
   }
 }
 

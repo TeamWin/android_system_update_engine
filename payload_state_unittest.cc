@@ -28,6 +28,7 @@ using testing::NiceMock;
 using testing::Return;
 using testing::SetArgumentPointee;
 using testing::AtLeast;
+using testing::AnyNumber;
 
 namespace chromeos_update_engine {
 
@@ -88,7 +89,7 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   OmahaResponse response;
   MockSystemState mock_system_state;
   NiceMock<PrefsMock>* prefs = mock_system_state.mock_prefs();
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AtLeast(0));
+  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, 0)).Times(AtLeast(1));
@@ -131,7 +132,7 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   response.metadata_signature = "msign";
   MockSystemState mock_system_state;
   NiceMock<PrefsMock>* prefs = mock_system_state.mock_prefs();
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AtLeast(0));
+  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, 0))
@@ -179,7 +180,7 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   response.metadata_signature = "metasign";
   MockSystemState mock_system_state;
   NiceMock<PrefsMock>* prefs = mock_system_state.mock_prefs();
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AtLeast(0));
+  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsBackoffExpiryTime, 0))
@@ -220,7 +221,7 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   NiceMock<PrefsMock>* prefs = mock_system_state.mock_prefs();
   PayloadState payload_state;
 
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AtLeast(0));
+  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
   // Payload attempt should start with 0 and then advance to 1.
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
@@ -304,7 +305,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   int progress_bytes = 100;
   NiceMock<PrefsMock>* prefs = mock_system_state.mock_prefs();
 
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AtLeast(0));
+  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(2));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
@@ -428,7 +429,7 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDownload) {
   MockSystemState mock_system_state;
   NiceMock<PrefsMock>* prefs = mock_system_state.mock_prefs();
 
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AtLeast(0));
+  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
@@ -602,8 +603,23 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
   SetupPayloadStateWith2Urls("Hash3286", &payload_state, &response);
 
-  // Simulate a successful download and see that we are ready to download
-  // again without any backoff.
+  // Simulate a previous attempt with in order to set an initial non-zero value
+  // for the total bytes downloaded for HTTP.
+  int prev_chunk = 323456789;
+  http_total += prev_chunk;
+  payload_state.DownloadProgress(prev_chunk);
+
+  // Ensure that the initial values for HTTP reflect this attempt.
+  EXPECT_EQ(prev_chunk,
+            payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
+  EXPECT_EQ(http_total,
+            payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
+
+  // Change the response hash so as to simulate a new response which will
+  // reset the current bytes downloaded, but not the total bytes downloaded.
+  SetupPayloadStateWith2Urls("Hash9904", &payload_state, &response);
+
+  // First, simulate successful download of a few bytes over HTTP.
   int first_chunk = 5000000;
   http_total += first_chunk;
   payload_state.DownloadProgress(first_chunk);
@@ -645,16 +661,15 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   // Test that third chunk is again back on HTTP. HTTPS remains on second chunk.
   EXPECT_EQ(http_chunk,
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(http_chunk,
+  EXPECT_EQ(http_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(second_chunk, payload_state.GetCurrentBytesDownloaded(
                  kDownloadSourceHttpsServer));
   EXPECT_EQ(https_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 
-  // Don't care about other metrics in this test.
-  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
-      _,_,_,_,_)).Times(AtLeast(0));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(_, _, _, _, _))
+    .Times(AnyNumber());
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.SuccessfulMBsDownloadedFromHttpServer",
       http_chunk / kNumBytesInOneMiB, _, _, _));
@@ -676,6 +691,10 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.UpdateDurationUptimeMinutes",
       _, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.DownloadSourcesUsed", 3, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.DownloadOverheadPercentage", 542, _, _, _));
 
   payload_state.UpdateSucceeded();
 
