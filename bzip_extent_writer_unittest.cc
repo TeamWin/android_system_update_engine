@@ -53,8 +53,8 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
   extents.push_back(extent);
 
   // 'echo test | bzip2 | hexdump' yields:
-  const char test_uncompressed[] = "test\n";
-  unsigned char test[] = {
+  static const char test_uncompressed[] = "test\n";
+  static const unsigned char test[] = {
     0x42, 0x5a, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0xcc, 0xc3,
     0x71, 0xd4, 0x00, 0x00, 0x02, 0x41, 0x80, 0x00, 0x10, 0x02, 0x00, 0x0c,
     0x00, 0x20, 0x00, 0x21, 0x9a, 0x68, 0x33, 0x4d, 0x19, 0x97, 0x8b, 0xb9,
@@ -101,12 +101,16 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   BzipExtentWriter bzip_writer(&direct_writer);
   EXPECT_TRUE(bzip_writer.Init(fd(), extents, kBlockSize));
 
+  vector<char> original_compressed_data = compressed_data;
   for (vector<char>::size_type i = 0; i < compressed_data.size();
        i += kChunkSize) {
     size_t this_chunk_size = min(kChunkSize, compressed_data.size() - i);
     EXPECT_TRUE(bzip_writer.Write(&compressed_data[i], this_chunk_size));
   }
   EXPECT_TRUE(bzip_writer.End());
+
+  // Check that the const input has not been clobbered.
+  ExpectVectorsEq(original_compressed_data, compressed_data);
   
   vector<char> output(kDecompressedLength + 1);
   ssize_t bytes_read = pread(fd(), &output[0], output.size(), 0);
