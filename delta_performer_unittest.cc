@@ -285,6 +285,20 @@ static void GenerateDeltaFile(bool full_kernel,
                                  &hardtocompress[0],
                                  hardtocompress.size()));
 
+    vector<char> zeros(16 * 1024, 0);
+    EXPECT_EQ(zeros.size(),
+              file_util::WriteFile(
+                  FilePath(StringPrintf("%s/move-to-sparse", a_mnt.c_str())),
+                  &zeros[0], zeros.size()));
+
+    EXPECT_TRUE(
+        WriteSparseFile(StringPrintf("%s/move-from-sparse", a_mnt.c_str()),
+                        16 * 1024));
+
+    EXPECT_EQ(0, system(StringPrintf("dd if=/dev/zero of=%s/move-semi-sparse "
+                                     "bs=1 seek=4096 count=1",
+                                     a_mnt.c_str()).c_str()));
+
     // Write 1 MiB of 0xff to try to catch the case where writing a bsdiff
     // patch fails to zero out the final block.
     vector<char> ones(1024 * 1024, 0xff);
@@ -320,7 +334,22 @@ static void GenerateDeltaFile(bool full_kernel,
                                      b_mnt.c_str()).c_str()));
     EXPECT_TRUE(WriteSparseFile(StringPrintf("%s/fullsparse", b_mnt.c_str()),
                                 1024 * 1024));
-    EXPECT_EQ(0, system(StringPrintf("dd if=/dev/zero of=%s/partsparese bs=1 "
+
+    EXPECT_TRUE(
+        WriteSparseFile(StringPrintf("%s/move-to-sparse", b_mnt.c_str()),
+                        16 * 1024));
+
+    vector<char> zeros(16 * 1024, 0);
+    EXPECT_EQ(zeros.size(),
+              file_util::WriteFile(
+                  FilePath(StringPrintf("%s/move-from-sparse", b_mnt.c_str())),
+                  &zeros[0], zeros.size()));
+
+    EXPECT_EQ(0, system(StringPrintf("dd if=/dev/zero of=%s/move-semi-sparse "
+                                     "bs=1 seek=4096 count=1",
+                                     b_mnt.c_str()).c_str()));
+
+    EXPECT_EQ(0, system(StringPrintf("dd if=/dev/zero of=%s/partsparse bs=1 "
                                      "seek=4096 count=1",
                                      b_mnt.c_str()).c_str()));
     EXPECT_EQ(0, system(StringPrintf("cp %s/srchardlink0 %s/tmp && "

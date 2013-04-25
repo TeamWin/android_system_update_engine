@@ -580,14 +580,19 @@ bool DeltaPerformer::PerformMoveOperation(
   for (int i = 0; i < operation.src_extents_size(); i++) {
     ssize_t bytes_read_this_iteration = 0;
     const Extent& extent = operation.src_extents(i);
-    TEST_AND_RETURN_FALSE(utils::PReadAll(fd,
-                                          &buf[bytes_read],
-                                          extent.num_blocks() * block_size_,
-                                          extent.start_block() * block_size_,
-                                          &bytes_read_this_iteration));
+    const size_t bytes = extent.num_blocks() * block_size_;
+    if (extent.start_block() == kSparseHole) {
+      bytes_read_this_iteration = bytes;
+      memset(&buf[bytes_read], 0, bytes);
+    } else {
+      TEST_AND_RETURN_FALSE(utils::PReadAll(fd,
+                                            &buf[bytes_read],
+                                            bytes,
+                                            extent.start_block() * block_size_,
+                                            &bytes_read_this_iteration));
+    }
     TEST_AND_RETURN_FALSE(
-        bytes_read_this_iteration ==
-        static_cast<ssize_t>(extent.num_blocks() * block_size_));
+        bytes_read_this_iteration == static_cast<ssize_t>(bytes));
     bytes_read += bytes_read_this_iteration;
   }
 
@@ -603,11 +608,19 @@ bool DeltaPerformer::PerformMoveOperation(
   ssize_t bytes_written = 0;
   for (int i = 0; i < operation.dst_extents_size(); i++) {
     const Extent& extent = operation.dst_extents(i);
-    TEST_AND_RETURN_FALSE(utils::PWriteAll(fd,
-                                           &buf[bytes_written],
-                                           extent.num_blocks() * block_size_,
-                                           extent.start_block() * block_size_));
-    bytes_written += extent.num_blocks() * block_size_;
+    const size_t bytes = extent.num_blocks() * block_size_;
+    if (extent.start_block() == kSparseHole) {
+      DCHECK_EQ(&buf[bytes_written],
+                std::search_n(&buf[bytes_written], &buf[bytes_written + bytes],
+                              bytes, 0));
+    } else {
+      TEST_AND_RETURN_FALSE(
+          utils::PWriteAll(fd,
+                           &buf[bytes_written],
+                           bytes,
+                           extent.start_block() * block_size_));
+    }
+    bytes_written += bytes;
   }
   DCHECK_EQ(bytes_written, bytes_read);
   DCHECK_EQ(bytes_written, static_cast<ssize_t>(buf.size()));
