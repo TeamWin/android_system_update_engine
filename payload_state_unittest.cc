@@ -73,13 +73,13 @@ static void SetupPayloadStateWith2Urls(string hash,
 
 class PayloadStateTest : public ::testing::Test { };
 
-TEST(PayloadStateTest, DidYouAddANewActionExitCode) {
-  if (kActionCodeUmaReportedMax != 43) {
+TEST(PayloadStateTest, DidYouAddANewErrorCode) {
+  if (kErrorCodeUmaReportedMax != 43) {
     LOG(ERROR) << "The following failure is intentional. If you added a new "
-               << "ActionExitCode enum value, make sure to add it to the "
+               << "ErrorCode enum value, make sure to add it to the "
                << "PayloadState::UpdateFailed method and then update this test "
-               << "to the new value of kActionCodeUmaReportedMax, which is "
-               << kActionCodeUmaReportedMax;
+               << "to the new value of kErrorCodeUmaReportedMax, which is "
+               << kErrorCodeUmaReportedMax;
     EXPECT_FALSE("Please see the log line above");
   }
 }
@@ -248,7 +248,7 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   EXPECT_EQ(0, payload_state.GetUrlIndex());
 
   // Verify that on the first error, the URL index advances to 1.
-  ActionExitCode error = kActionCodeDownloadMetadataSignatureMismatch;
+  ErrorCode error = kErrorCodeDownloadMetadataSignatureMismatch;
   payload_state.UpdateFailed(error);
   EXPECT_EQ(1, payload_state.GetUrlIndex());
 
@@ -275,7 +275,7 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
   SetupPayloadStateWith2Urls("Hash5823", &payload_state, &response);
 
   // Advance the URL index to 1 by faking an error.
-  ActionExitCode error = kActionCodeDownloadMetadataSignatureMismatch;
+  ErrorCode error = kErrorCodeDownloadMetadataSignatureMismatch;
   payload_state.UpdateFailed(error);
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
@@ -345,21 +345,21 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   SetupPayloadStateWith2Urls("Hash5873", &payload_state, &response);
 
   // This should advance the URL index.
-  payload_state.UpdateFailed(kActionCodeDownloadMetadataSignatureMismatch);
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
   EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
 
   // This should advance the failure count only.
-  payload_state.UpdateFailed(kActionCodeDownloadTransferError);
+  payload_state.UpdateFailed(kErrorCodeDownloadTransferError);
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(1, payload_state.GetUrlFailureCount());
   EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
 
   // This should advance the failure count only.
-  payload_state.UpdateFailed(kActionCodeDownloadTransferError);
+  payload_state.UpdateFailed(kErrorCodeDownloadTransferError);
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(2, payload_state.GetUrlFailureCount());
@@ -369,7 +369,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   // max failure count and reset the failure count for the new URL index.
   // This should also wrap around the URL index and thus cause the payload
   // attempt number to be incremented.
-  payload_state.UpdateFailed(kActionCodeDownloadTransferError);
+  payload_state.UpdateFailed(kErrorCodeDownloadTransferError);
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
@@ -377,7 +377,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // This should advance the URL index.
-  payload_state.UpdateFailed(kActionCodePayloadHashMismatchError);
+  payload_state.UpdateFailed(kErrorCodePayloadHashMismatchError);
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
@@ -386,7 +386,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
 
   // This should advance the URL index and payload attempt number due to
   // wrap-around of URL index.
-  payload_state.UpdateFailed(kActionCodeDownloadMetadataSignatureMissingError);
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMissingError);
   EXPECT_EQ(2, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
@@ -394,8 +394,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // This HTTP error code should only increase the failure count.
-  payload_state.UpdateFailed(static_cast<ActionExitCode>(
-      kActionCodeOmahaRequestHTTPResponseBase + 404));
+  payload_state.UpdateFailed(static_cast<ErrorCode>(
+      kErrorCodeOmahaRequestHTTPResponseBase + 404));
   EXPECT_EQ(2, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(1, payload_state.GetUrlFailureCount());
@@ -466,8 +466,8 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   // Generate enough events to advance URL index, failure count and
   // payload attempt number all to 1.
   payload_state.DownloadComplete();
-  payload_state.UpdateFailed(kActionCodeDownloadMetadataSignatureMismatch);
-  payload_state.UpdateFailed(kActionCodeDownloadTransferError);
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
+  payload_state.UpdateFailed(kErrorCodeDownloadTransferError);
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetUrlIndex());
   EXPECT_EQ(1, payload_state.GetUrlFailureCount());
@@ -522,8 +522,8 @@ TEST(PayloadStateTest, NoBackoffForDeltaPayloads) {
   // Simulate two failures (enough to cause payload backoff) and check
   // again that we're ready to re-download without any backoff as this is
   // a delta payload.
-  payload_state.UpdateFailed(kActionCodeDownloadMetadataSignatureMismatch);
-  payload_state.UpdateFailed(kActionCodeDownloadMetadataSignatureMismatch);
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
   EXPECT_EQ(0, payload_state.GetUrlIndex());
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_FALSE(payload_state.ShouldBackoffDownload());
@@ -585,8 +585,8 @@ TEST(PayloadStateTest, BackoffLogicCanBeDisabled) {
   // Test again, this time by simulating two errors that would cause
   // the payload attempt number to increment due to wrap around. And
   // check that we are still ready to re-download without any backoff.
-  payload_state.UpdateFailed(kActionCodeDownloadMetadataSignatureMismatch);
-  payload_state.UpdateFailed(kActionCodeDownloadMetadataSignatureMismatch);
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
   EXPECT_EQ(2, payload_state.GetPayloadAttemptNumber());
   EXPECT_FALSE(payload_state.ShouldBackoffDownload());
 }
@@ -618,7 +618,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 
   // Simulate an error that'll cause the url index to point to https.
-  ActionExitCode error = kActionCodeDownloadMetadataSignatureMismatch;
+  ErrorCode error = kErrorCodeDownloadMetadataSignatureMismatch;
   payload_state.UpdateFailed(error);
 
   // Test that no new progress is made on HTTP and new progress is on HTTPs.

@@ -114,7 +114,7 @@ class DownloadAction : public Action<DownloadAction>,
 
   // Used by TransferTerminated to figure if this action terminated itself or
   // was terminated by the action processor.
-  ActionExitCode code_;
+  ErrorCode code_;
 
   // For reporting status to outsiders
   DownloadActionDelegate* delegate_;

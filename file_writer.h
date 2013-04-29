@@ -38,8 +38,8 @@ class FileWriter {
   // can override if they wish to return more specific error codes.
   virtual bool Write(const void* bytes,
                      size_t count,
-                     ActionExitCode* error) {
-     *error = kActionCodeDownloadWriteError;
+                     ErrorCode* error) {
+     *error = kErrorCodeDownloadWriteError;
      return Write(bytes, count);
   }
 

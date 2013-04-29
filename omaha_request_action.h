@@ -54,19 +54,19 @@ struct OmahaEvent {
   OmahaEvent()
       : type(kTypeUnknown),
         result(kResultError),
-        error_code(kActionCodeError) {}
+        error_code(kErrorCodeError) {}
   explicit OmahaEvent(Type in_type)
       : type(in_type),
         result(kResultSuccess),
-        error_code(kActionCodeSuccess) {}
-  OmahaEvent(Type in_type, Result in_result, ActionExitCode in_error_code)
+        error_code(kErrorCodeSuccess) {}
+  OmahaEvent(Type in_type, Result in_result, ErrorCode in_error_code)
       : type(in_type),
         result(in_result),
         error_code(in_error_code) {}
 
   Type type;
   Result result;
-  ActionExitCode error_code;
+  ErrorCode error_code;
 };
 
 class NoneType;

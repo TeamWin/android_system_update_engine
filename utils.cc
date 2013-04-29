@@ -764,21 +764,21 @@ std::string ToString(DownloadSource source) {
   return "Unknown";
 }
 
-ActionExitCode GetBaseErrorCode(ActionExitCode code) {
+ErrorCode GetBaseErrorCode(ErrorCode code) {
   // Ignore the higher order bits in the code by applying the mask as
   // we want the enumerations to be in the small contiguous range
-  // with values less than kActionCodeUmaReportedMax.
-  ActionExitCode base_code = static_cast<ActionExitCode>(code & ~kSpecialFlags);
+  // with values less than kErrorCodeUmaReportedMax.
+  ErrorCode base_code = static_cast<ErrorCode>(code & ~kErrorCodeSpecialFlags);
 
   // Make additional adjustments required for UMA and error classification.
   // TODO(jaysri): Move this logic to UeErrorCode.cc when we fix
   // chromium-os:34369.
-  if (base_code >= kActionCodeOmahaRequestHTTPResponseBase) {
+  if (base_code >= kErrorCodeOmahaRequestHTTPResponseBase) {
     // Since we want to keep the enums to a small value, aggregate all HTTP
     // errors into this one bucket for UMA and error classification purposes.
     LOG(INFO) << "Converting error code " << base_code
-              << " to kActionCodeOmahaErrorInHTTPResponse";
-    base_code = kActionCodeOmahaErrorInHTTPResponse;
+              << " to kErrorCodeOmahaErrorInHTTPResponse";
+    base_code = kErrorCodeOmahaErrorInHTTPResponse;
   }
 
   return base_code;
@@ -788,13 +788,13 @@ ActionExitCode GetBaseErrorCode(ActionExitCode code) {
 // bits of the given code. Returns an empty string if none of those bits are
 // set.
 string GetFlagNames(uint32_t code) {
-  uint32_t flags = code & kSpecialFlags;
+  uint32_t flags = code & kErrorCodeSpecialFlags;
   string flag_names;
   string separator = "";
   for(size_t i = 0; i < sizeof(flags) * 8; i++) {
     uint32_t flag = flags & (1 << i);
     if (flag) {
-      flag_names += separator + CodeToString(static_cast<ActionExitCode>(flag));
+      flag_names += separator + CodeToString(static_cast<ErrorCode>(flag));
       separator = ", ";
     }
   }
@@ -802,15 +802,15 @@ string GetFlagNames(uint32_t code) {
   return flag_names;
 }
 
-void SendErrorCodeToUma(SystemState* system_state, ActionExitCode code) {
+void SendErrorCodeToUma(SystemState* system_state, ErrorCode code) {
   if (!system_state)
     return;
 
-  ActionExitCode uma_error_code = GetBaseErrorCode(code);
+  ErrorCode uma_error_code = GetBaseErrorCode(code);
 
   // If the code doesn't have flags computed already, compute them now based on
   // the state of the current update attempt.
-  uint32_t flags = code & kSpecialFlags;
+  uint32_t flags = code & kErrorCodeSpecialFlags;
   if (!flags)
     flags = system_state->update_attempter()->GetErrorCodeFlags();
 
@@ -818,7 +818,7 @@ void SendErrorCodeToUma(SystemState* system_state, ActionExitCode code) {
   // flag, as it's perfectly normal for production devices to resume their
   // downloads and so we want to record those cases also in NormalErrorCodes
   // bucket.
-  string metric = (flags & ~kActionCodeResumedFlag) ?
+  string metric = (flags & ~kErrorCodeResumedFlag) ?
       "Installer.DevModeErrorCodes" : "Installer.NormalErrorCodes";
 
   LOG(INFO) << "Sending error code " << uma_error_code
@@ -828,114 +828,114 @@ void SendErrorCodeToUma(SystemState* system_state, ActionExitCode code) {
 
   system_state->metrics_lib()->SendEnumToUMA(metric,
                                              uma_error_code,
-                                             kActionCodeUmaReportedMax);
+                                             kErrorCodeUmaReportedMax);
 }
 
-string CodeToString(ActionExitCode code) {
+string CodeToString(ErrorCode code) {
   // If the given code has both parts (i.e. the error code part and the flags
   // part) then strip off the flags part since the switch statement below
   // has case statements only for the base error code or a single flag but
   // doesn't support any combinations of those.
-  if ((code & kSpecialFlags) && (code & ~kSpecialFlags))
-    code = static_cast<ActionExitCode>(code & ~kSpecialFlags);
+  if ((code & kErrorCodeSpecialFlags) && (code & ~kErrorCodeSpecialFlags))
+    code = static_cast<ErrorCode>(code & ~kErrorCodeSpecialFlags);
   switch (code) {
-    case kActionCodeSuccess: return "kActionCodeSuccess";
-    case kActionCodeError: return "kActionCodeError";
-    case kActionCodeOmahaRequestError: return "kActionCodeOmahaRequestError";
-    case kActionCodeOmahaResponseHandlerError:
-      return "kActionCodeOmahaResponseHandlerError";
-    case kActionCodeFilesystemCopierError:
-      return "kActionCodeFilesystemCopierError";
-    case kActionCodePostinstallRunnerError:
-      return "kActionCodePostinstallRunnerError";
-    case kActionCodeSetBootableFlagError:
-      return "kActionCodeSetBootableFlagError";
-    case kActionCodeInstallDeviceOpenError:
-      return "kActionCodeInstallDeviceOpenError";
-    case kActionCodeKernelDeviceOpenError:
-      return "kActionCodeKernelDeviceOpenError";
-    case kActionCodeDownloadTransferError:
-      return "kActionCodeDownloadTransferError";
-    case kActionCodePayloadHashMismatchError:
-      return "kActionCodePayloadHashMismatchError";
-    case kActionCodePayloadSizeMismatchError:
-      return "kActionCodePayloadSizeMismatchError";
-    case kActionCodeDownloadPayloadVerificationError:
-      return "kActionCodeDownloadPayloadVerificationError";
-    case kActionCodeDownloadNewPartitionInfoError:
-      return "kActionCodeDownloadNewPartitionInfoError";
-    case kActionCodeDownloadWriteError:
-      return "kActionCodeDownloadWriteError";
-    case kActionCodeNewRootfsVerificationError:
-      return "kActionCodeNewRootfsVerificationError";
-    case kActionCodeNewKernelVerificationError:
-      return "kActionCodeNewKernelVerificationError";
-    case kActionCodeSignedDeltaPayloadExpectedError:
-      return "kActionCodeSignedDeltaPayloadExpectedError";
-    case kActionCodeDownloadPayloadPubKeyVerificationError:
-      return "kActionCodeDownloadPayloadPubKeyVerificationError";
-    case kActionCodePostinstallBootedFromFirmwareB:
-      return "kActionCodePostinstallBootedFromFirmwareB";
-    case kActionCodeDownloadStateInitializationError:
-      return "kActionCodeDownloadStateInitializationError";
-    case kActionCodeDownloadInvalidMetadataMagicString:
-      return "kActionCodeDownloadInvalidMetadataMagicString";
-    case kActionCodeDownloadSignatureMissingInManifest:
-      return "kActionCodeDownloadSignatureMissingInManifest";
-    case kActionCodeDownloadManifestParseError:
-      return "kActionCodeDownloadManifestParseError";
-    case kActionCodeDownloadMetadataSignatureError:
-      return "kActionCodeDownloadMetadataSignatureError";
-    case kActionCodeDownloadMetadataSignatureVerificationError:
-      return "kActionCodeDownloadMetadataSignatureVerificationError";
-    case kActionCodeDownloadMetadataSignatureMismatch:
-      return "kActionCodeDownloadMetadataSignatureMismatch";
-    case kActionCodeDownloadOperationHashVerificationError:
-      return "kActionCodeDownloadOperationHashVerificationError";
-    case kActionCodeDownloadOperationExecutionError:
-      return "kActionCodeDownloadOperationExecutionError";
-    case kActionCodeDownloadOperationHashMismatch:
-      return "kActionCodeDownloadOperationHashMismatch";
-    case kActionCodeOmahaRequestEmptyResponseError:
-      return "kActionCodeOmahaRequestEmptyResponseError";
-    case kActionCodeOmahaRequestXMLParseError:
-      return "kActionCodeOmahaRequestXMLParseError";
-    case kActionCodeDownloadInvalidMetadataSize:
-      return "kActionCodeDownloadInvalidMetadataSize";
-    case kActionCodeDownloadInvalidMetadataSignature:
-      return "kActionCodeDownloadInvalidMetadataSignature";
-    case kActionCodeOmahaResponseInvalid:
-      return "kActionCodeOmahaResponseInvalid";
-    case kActionCodeOmahaUpdateIgnoredPerPolicy:
-      return "kActionCodeOmahaUpdateIgnoredPerPolicy";
-    case kActionCodeOmahaUpdateDeferredPerPolicy:
-      return "kActionCodeOmahaUpdateDeferredPerPolicy";
-    case kActionCodeOmahaErrorInHTTPResponse:
-      return "kActionCodeOmahaErrorInHTTPResponse";
-    case kActionCodeDownloadOperationHashMissingError:
-      return "kActionCodeDownloadOperationHashMissingError";
-    case kActionCodeDownloadMetadataSignatureMissingError:
-      return "kActionCodeDownloadMetadataSignatureMissingError";
-    case kActionCodeOmahaUpdateDeferredForBackoff:
-      return "kActionCodeOmahaUpdateDeferredForBackoff";
-    case kActionCodePostinstallPowerwashError:
-      return "kActionCodePostinstallPowerwashError";
-    case kActionCodeUpdateCanceledByChannelChange:
-      return "kActionCodeUpdateCanceledByChannelChange";
-    case kActionCodeUmaReportedMax:
-      return "kActionCodeUmaReportedMax";
-    case kActionCodeOmahaRequestHTTPResponseBase:
-      return "kActionCodeOmahaRequestHTTPResponseBase";
-    case kActionCodeResumedFlag:
+    case kErrorCodeSuccess: return "kErrorCodeSuccess";
+    case kErrorCodeError: return "kErrorCodeError";
+    case kErrorCodeOmahaRequestError: return "kErrorCodeOmahaRequestError";
+    case kErrorCodeOmahaResponseHandlerError:
+      return "kErrorCodeOmahaResponseHandlerError";
+    case kErrorCodeFilesystemCopierError:
+      return "kErrorCodeFilesystemCopierError";
+    case kErrorCodePostinstallRunnerError:
+      return "kErrorCodePostinstallRunnerError";
+    case kErrorCodeSetBootableFlagError:
+      return "kErrorCodeSetBootableFlagError";
+    case kErrorCodeInstallDeviceOpenError:
+      return "kErrorCodeInstallDeviceOpenError";
+    case kErrorCodeKernelDeviceOpenError:
+      return "kErrorCodeKernelDeviceOpenError";
+    case kErrorCodeDownloadTransferError:
+      return "kErrorCodeDownloadTransferError";
+    case kErrorCodePayloadHashMismatchError:
+      return "kErrorCodePayloadHashMismatchError";
+    case kErrorCodePayloadSizeMismatchError:
+      return "kErrorCodePayloadSizeMismatchError";
+    case kErrorCodeDownloadPayloadVerificationError:
+      return "kErrorCodeDownloadPayloadVerificationError";
+    case kErrorCodeDownloadNewPartitionInfoError:
+      return "kErrorCodeDownloadNewPartitionInfoError";
+    case kErrorCodeDownloadWriteError:
+      return "kErrorCodeDownloadWriteError";
+    case kErrorCodeNewRootfsVerificationError:
+      return "kErrorCodeNewRootfsVerificationError";
+    case kErrorCodeNewKernelVerificationError:
+      return "kErrorCodeNewKernelVerificationError";
+    case kErrorCodeSignedDeltaPayloadExpectedError:
+      return "kErrorCodeSignedDeltaPayloadExpectedError";
+    case kErrorCodeDownloadPayloadPubKeyVerificationError:
+      return "kErrorCodeDownloadPayloadPubKeyVerificationError";
+    case kErrorCodePostinstallBootedFromFirmwareB:
+      return "kErrorCodePostinstallBootedFromFirmwareB";
+    case kErrorCodeDownloadStateInitializationError:
+      return "kErrorCodeDownloadStateInitializationError";
+    case kErrorCodeDownloadInvalidMetadataMagicString:
+      return "kErrorCodeDownloadInvalidMetadataMagicString";
+    case kErrorCodeDownloadSignatureMissingInManifest:
+      return "kErrorCodeDownloadSignatureMissingInManifest";
+    case kErrorCodeDownloadManifestParseError:
+      return "kErrorCodeDownloadManifestParseError";
+    case kErrorCodeDownloadMetadataSignatureError:
+      return "kErrorCodeDownloadMetadataSignatureError";
+    case kErrorCodeDownloadMetadataSignatureVerificationError:
+      return "kErrorCodeDownloadMetadataSignatureVerificationError";
+    case kErrorCodeDownloadMetadataSignatureMismatch:
+      return "kErrorCodeDownloadMetadataSignatureMismatch";
+    case kErrorCodeDownloadOperationHashVerificationError:
+      return "kErrorCodeDownloadOperationHashVerificationError";
+    case kErrorCodeDownloadOperationExecutionError:
+      return "kErrorCodeDownloadOperationExecutionError";
+    case kErrorCodeDownloadOperationHashMismatch:
+      return "kErrorCodeDownloadOperationHashMismatch";
+    case kErrorCodeOmahaRequestEmptyResponseError:
+      return "kErrorCodeOmahaRequestEmptyResponseError";
+    case kErrorCodeOmahaRequestXMLParseError:
+      return "kErrorCodeOmahaRequestXMLParseError";
+    case kErrorCodeDownloadInvalidMetadataSize:
+      return "kErrorCodeDownloadInvalidMetadataSize";
+    case kErrorCodeDownloadInvalidMetadataSignature:
+      return "kErrorCodeDownloadInvalidMetadataSignature";
+    case kErrorCodeOmahaResponseInvalid:
+      return "kErrorCodeOmahaResponseInvalid";
+    case kErrorCodeOmahaUpdateIgnoredPerPolicy:
+      return "kErrorCodeOmahaUpdateIgnoredPerPolicy";
+    case kErrorCodeOmahaUpdateDeferredPerPolicy:
+      return "kErrorCodeOmahaUpdateDeferredPerPolicy";
+    case kErrorCodeOmahaErrorInHTTPResponse:
+      return "kErrorCodeOmahaErrorInHTTPResponse";
+    case kErrorCodeDownloadOperationHashMissingError:
+      return "kErrorCodeDownloadOperationHashMissingError";
+    case kErrorCodeDownloadMetadataSignatureMissingError:
+      return "kErrorCodeDownloadMetadataSignatureMissingError";
+    case kErrorCodeOmahaUpdateDeferredForBackoff:
+      return "kErrorCodeOmahaUpdateDeferredForBackoff";
+    case kErrorCodePostinstallPowerwashError:
+      return "kErrorCodePostinstallPowerwashError";
+    case kErrorCodeUpdateCanceledByChannelChange:
+      return "kErrorCodeUpdateCanceledByChannelChange";
+    case kErrorCodeUmaReportedMax:
+      return "kErrorCodeUmaReportedMax";
+    case kErrorCodeOmahaRequestHTTPResponseBase:
+      return "kErrorCodeOmahaRequestHTTPResponseBase";
+    case kErrorCodeResumedFlag:
       return "Resumed";
-    case kActionCodeDevModeFlag:
+    case kErrorCodeDevModeFlag:
       return "DevMode";
-    case kActionCodeTestImageFlag:
+    case kErrorCodeTestImageFlag:
       return "TestImage";
-    case kActionCodeTestOmahaUrlFlag:
+    case kErrorCodeTestOmahaUrlFlag:
       return "TestOmahaUrl";
-    case kSpecialFlags:
-      return "kSpecialFlags";
+    case kErrorCodeSpecialFlags:
+      return "kErrorCodeSpecialFlags";
     // Don't add a default case to let the compiler warn about newly added
     // error codes which should be added here.
   }

@@ -59,7 +59,7 @@ void PostinstallRunnerAction::PerformAction() {
     if (utils::CreatePowerwashMarkerFile()) {
       powerwash_marker_created_ = true;
     } else {
-      completer.set_code(kActionCodePostinstallPowerwashError);
+      completer.set_code(kErrorCodePostinstallPowerwashError);
       return;
     }
   }
@@ -88,7 +88,7 @@ void PostinstallRunnerAction::CompletePostinstall(int return_code) {
       // This special return code means that we tried to update firmware,
       // but couldn't because we booted from FW B, and we need to reboot
       // to get back to FW A.
-      completer.set_code(kActionCodePostinstallBootedFromFirmwareB);
+      completer.set_code(kErrorCodePostinstallBootedFromFirmwareB);
     }
     return;
   }
@@ -100,7 +100,7 @@ void PostinstallRunnerAction::CompletePostinstall(int return_code) {
   if (HasOutputPipe())
     SetOutputObject(install_plan);
 
-  completer.set_code(kActionCodeSuccess);
+  completer.set_code(kErrorCodeSuccess);
 }
 
 void PostinstallRunnerAction::StaticCompletePostinstall(int return_code,

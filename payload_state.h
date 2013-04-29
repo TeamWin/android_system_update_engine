@@ -38,7 +38,7 @@ class PayloadState : public PayloadStateInterface {
   virtual void UpdateResumed();
   virtual void UpdateRestarted();
   virtual void UpdateSucceeded();
-  virtual void UpdateFailed(ActionExitCode error);
+  virtual void UpdateFailed(ErrorCode error);
   virtual bool ShouldBackoffDownload();
 
   virtual inline std::string GetResponseSignature() {

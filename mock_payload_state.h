@@ -24,7 +24,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD0(UpdateResumed, void());
   MOCK_METHOD0(UpdateRestarted, void());
   MOCK_METHOD0(UpdateSucceeded, void());
-  MOCK_METHOD1(UpdateFailed, void(ActionExitCode error));
+  MOCK_METHOD1(UpdateFailed, void(ErrorCode error));
   MOCK_METHOD0(ShouldBackoffDownload, bool());
 
   // Getters.

@@ -558,7 +558,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   EXPECT_EQ(0, (*performer)->Open(state->a_img.c_str(), 0, 0));
   EXPECT_TRUE((*performer)->OpenKernel(state->old_kernel.c_str()));
 
-  ActionExitCode expected_error, actual_error;
+  ErrorCode expected_error, actual_error;
   bool continue_writing;
   switch(op_hash_test) {
     case kInvalidOperationData: {
@@ -567,7 +567,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       int some_offset = state->metadata_size + 300;
       LOG(INFO) << "Tampered value at offset: " << some_offset;
       state->delta[some_offset]++;
-      expected_error = kActionCodeDownloadOperationHashMismatch;
+      expected_error = kErrorCodeDownloadOperationHashMismatch;
       continue_writing = false;
       break;
     }
@@ -575,7 +575,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
     case kValidOperationData:
     default:
       // no change.
-      expected_error = kActionCodeSuccess;
+      expected_error = kErrorCodeSuccess;
       continue_writing = true;
       break;
   }
@@ -588,7 +588,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                                                 count,
                                                 &actual_error));
     // Normally write_succeeded should be true every time and
-    // actual_error should be kActionCodeSuccess. If so, continue the loop.
+    // actual_error should be kErrorCodeSuccess. If so, continue the loop.
     // But if we seeded an operation hash error above, then write_succeeded
     // will be false. The failure may happen at any operation n. So, all
     // Writes until n-1 should succeed and the nth operation will fail with
@@ -603,7 +603,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       }
     }
 
-    EXPECT_EQ(kActionCodeSuccess, actual_error);
+    EXPECT_EQ(kErrorCodeSuccess, actual_error);
   }
 
   // If we had continued all the way through, Close should succeed.
@@ -617,13 +617,13 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
 
 void VerifyPayloadResult(DeltaPerformer* performer,
                          DeltaState* state,
-                         ActionExitCode expected_result) {
+                         ErrorCode expected_result) {
   if (!performer) {
     EXPECT_TRUE(!"Skipping payload verification since performer is NULL.");
     return;
   }
 
-  int expected_times = (expected_result == kActionCodeSuccess) ? 1 : 0;
+  int expected_times = (expected_result == kErrorCodeSuccess) ? 1 : 0;
   EXPECT_CALL(*(state->mock_system_state.mock_payload_state()),
               DownloadComplete()).Times(expected_times);
 
@@ -634,7 +634,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
       state->delta.size()));
   LOG(INFO) << "Verified payload.";
 
-  if (expected_result != kActionCodeSuccess) {
+  if (expected_result != kErrorCodeSuccess) {
     // no need to verify new partition if VerifyPayload failed.
     return;
   }
@@ -672,13 +672,13 @@ void VerifyPayloadResult(DeltaPerformer* performer,
 void VerifyPayload(DeltaPerformer* performer,
                    DeltaState* state,
                    SignatureTest signature_test) {
-  ActionExitCode expected_result = kActionCodeSuccess;
+  ErrorCode expected_result = kErrorCodeSuccess;
   switch (signature_test) {
     case kSignatureNone:
-      expected_result = kActionCodeSignedDeltaPayloadExpectedError;
+      expected_result = kErrorCodeSignedDeltaPayloadExpectedError;
       break;
     case kSignatureGeneratedShellBadKey:
-      expected_result = kActionCodeDownloadPayloadPubKeyVerificationError;
+      expected_result = kErrorCodeDownloadPayloadPubKeyVerificationError;
       break;
     default: break;  // appease gcc
   }
@@ -727,7 +727,7 @@ void DoMetadataSizeTest(uint64_t expected_metadata_size,
   EXPECT_TRUE(performer.Write(&version, 8));
 
   install_plan.metadata_size = expected_metadata_size;
-  ActionExitCode error_code;
+  ErrorCode error_code;
   // When filling in size in manifest, exclude the size of the 20-byte header.
   uint64_t size_in_manifest = htobe64(actual_metadata_size - 20);
   bool result = performer.Write(&size_in_manifest, 8, &error_code);
@@ -736,7 +736,7 @@ void DoMetadataSizeTest(uint64_t expected_metadata_size,
     EXPECT_TRUE(result);
   } else {
     EXPECT_FALSE(result);
-    EXPECT_EQ(kActionCodeDownloadInvalidMetadataSize, error_code);
+    EXPECT_EQ(kErrorCodeDownloadInvalidMetadataSize, error_code);
   }
 
   EXPECT_LT(performer.Close(), 0);
@@ -771,20 +771,20 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
   install_plan.metadata_size = state.metadata_size;
 
   DeltaPerformer::MetadataParseResult expected_result, actual_result;
-  ActionExitCode expected_error, actual_error;
+  ErrorCode expected_error, actual_error;
 
   // Fill up the metadata signature in install plan according to the test.
   switch (metadata_signature_test) {
     case kEmptyMetadataSignature:
       install_plan.metadata_signature.clear();
       expected_result = DeltaPerformer::kMetadataParseError;
-      expected_error = kActionCodeDownloadMetadataSignatureMissingError;
+      expected_error = kErrorCodeDownloadMetadataSignatureMissingError;
       break;
 
     case kInvalidMetadataSignature:
       install_plan.metadata_signature = kBogusMetadataSignature1;
       expected_result = DeltaPerformer::kMetadataParseError;
-      expected_error = kActionCodeDownloadMetadataSignatureMismatch;
+      expected_error = kErrorCodeDownloadMetadataSignatureMismatch;
       break;
 
     case kValidMetadataSignature:
@@ -799,14 +799,14 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
           &install_plan.metadata_signature));
       EXPECT_FALSE(install_plan.metadata_signature.empty());
       expected_result = DeltaPerformer::kMetadataParseSuccess;
-      expected_error = kActionCodeSuccess;
+      expected_error = kErrorCodeSuccess;
       break;
   }
 
   // Ignore the expected result/error if hash checks are not mandatory.
   if (!hash_checks_mandatory) {
     expected_result = DeltaPerformer::kMetadataParseSuccess;
-    expected_error = kActionCodeSuccess;
+    expected_error = kErrorCodeSuccess;
   }
 
   // Create the delta performer object.
@@ -826,7 +826,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
 
   // Init actual_error with an invalid value so that we make sure
   // ParsePayloadMetadata properly populates it in all cases.
-  actual_error = kActionCodeUmaReportedMax;
+  actual_error = kErrorCodeUmaReportedMax;
   actual_result = delta_performer.ParsePayloadMetadata(payload, &manifest,
       &parsed_metadata_size, &actual_error);
 

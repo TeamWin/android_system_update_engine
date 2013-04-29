@@ -36,7 +36,7 @@ class DownloadActionDelegateMock : public DownloadActionDelegate {
 
 class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
-  explicit DownloadActionTestProcessorDelegate(ActionExitCode expected_code)
+  explicit DownloadActionTestProcessorDelegate(ErrorCode expected_code)
       : loop_(NULL),
         processing_done_called_(false),
         expected_code_(expected_code) {}
@@ -44,12 +44,12 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
     EXPECT_TRUE(processing_done_called_);
   }
   virtual void ProcessingDone(const ActionProcessor* processor,
-                              ActionExitCode code) {
+                              ErrorCode code) {
     ASSERT_TRUE(loop_);
     g_main_loop_quit(loop_);
     vector<char> found_data;
     ASSERT_TRUE(utils::ReadFile(path_, &found_data));
-    if (expected_code_ != kActionCodeDownloadWriteError) {
+    if (expected_code_ != kErrorCodeDownloadWriteError) {
       ASSERT_EQ(expected_data_.size(), found_data.size());
       for (unsigned i = 0; i < expected_data_.size(); i++) {
         EXPECT_EQ(expected_data_[i], found_data[i]);
@@ -60,12 +60,12 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
 
   virtual void ActionCompleted(ActionProcessor* processor,
                                AbstractAction* action,
-                               ActionExitCode code) {
+                               ErrorCode code) {
     const string type = action->Type();
     if (type == DownloadAction::StaticType()) {
       EXPECT_EQ(expected_code_, code);
     } else {
-      EXPECT_EQ(kActionCodeSuccess, code);
+      EXPECT_EQ(kErrorCodeSuccess, code);
     }
   }
 
@@ -73,7 +73,7 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
   string path_;
   vector<char> expected_data_;
   bool processing_done_called_;
-  ActionExitCode expected_code_;
+  ErrorCode expected_code_;
 };
 
 class TestDirectFileWriter : public DirectFileWriter {
@@ -159,9 +159,9 @@ void TestWithData(const vector<char>& data,
     EXPECT_CALL(download_delegate, BytesReceived(_, _)).Times(AtLeast(1));
     EXPECT_CALL(download_delegate, SetDownloadStatus(false)).Times(1);
   }
-  ActionExitCode expected_code = kActionCodeSuccess;
+  ErrorCode expected_code = kErrorCodeSuccess;
   if (fail_write > 0)
-    expected_code = kActionCodeDownloadWriteError;
+    expected_code = kErrorCodeDownloadWriteError;
   DownloadActionTestProcessorDelegate delegate(expected_code);
   delegate.loop_ = loop;
   delegate.expected_data_ = vector<char>(data.begin() + 1, data.end());
@@ -320,7 +320,7 @@ class DownloadActionTestAction : public Action<DownloadActionTestAction> {
     ASSERT_TRUE(HasInputObject());
     EXPECT_TRUE(expected_input_object_ == GetInputObject());
     ASSERT_TRUE(processor());
-    processor()->ActionComplete(this, kActionCodeSuccess);
+    processor()->ActionComplete(this, kErrorCodeSuccess);
   }
   string Type() const { return "DownloadActionTestAction"; }
   InstallPlan expected_input_object_;
@@ -333,7 +333,7 @@ namespace {
 // only by the test PassObjectOutTest.
 class PassObjectOutTestProcessorDelegate : public ActionProcessorDelegate {
  public:
-  void ProcessingDone(const ActionProcessor* processor, ActionExitCode code) {
+  void ProcessingDone(const ActionProcessor* processor, ErrorCode code) {
     ASSERT_TRUE(loop_);
     g_main_loop_quit(loop_);
   }

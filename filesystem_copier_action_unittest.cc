@@ -45,7 +45,7 @@ class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
  public:
   FilesystemCopierActionTestDelegate(GMainLoop* loop,
                                      FilesystemCopierAction* action)
-      : loop_(loop), action_(action), ran_(false), code_(kActionCodeError) {}
+      : loop_(loop), action_(action), ran_(false), code_(kErrorCodeError) {}
   void ExitMainLoop() {
     GMainContext* context = g_main_loop_get_context(loop_);
     // We cannot use g_main_context_pending() alone to determine if it is safe
@@ -58,7 +58,7 @@ class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
     }
     g_main_loop_quit(loop_);
   }
-  void ProcessingDone(const ActionProcessor* processor, ActionExitCode code) {
+  void ProcessingDone(const ActionProcessor* processor, ErrorCode code) {
     ExitMainLoop();
   }
   void ProcessingStopped(const ActionProcessor* processor) {
@@ -66,19 +66,19 @@ class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
   }
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
-                       ActionExitCode code) {
+                       ErrorCode code) {
     if (action->Type() == FilesystemCopierAction::StaticType()) {
       ran_ = true;
       code_ = code;
     }
   }
   bool ran() const { return ran_; }
-  ActionExitCode code() const { return code_; }
+  ErrorCode code() const { return code_; }
  private:
   GMainLoop* loop_;
   FilesystemCopierAction* action_;
   bool ran_;
-  ActionExitCode code_;
+  ErrorCode code_;
 };
 
 struct StartProcessorCallbackArgs {
@@ -229,18 +229,18 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
     success = success && is_delegate_ran;
   }
   if (run_out_of_space || terminate_early) {
-    EXPECT_EQ(kActionCodeError, delegate.code());
-    return (kActionCodeError == delegate.code());
+    EXPECT_EQ(kErrorCodeError, delegate.code());
+    return (kErrorCodeError == delegate.code());
   }
   if (verify_hash == 2) {
-    ActionExitCode expected_exit_code =
+    ErrorCode expected_exit_code =
         (use_kernel_partition ?
-         kActionCodeNewKernelVerificationError :
-         kActionCodeNewRootfsVerificationError);
+         kErrorCodeNewKernelVerificationError :
+         kErrorCodeNewRootfsVerificationError);
     EXPECT_EQ(expected_exit_code, delegate.code());
     return (expected_exit_code == delegate.code());
   }
-  EXPECT_EQ(kActionCodeSuccess, delegate.code());
+  EXPECT_EQ(kErrorCodeSuccess, delegate.code());
 
   // Make sure everything in the out_image is there
   vector<char> a_out;
@@ -273,7 +273,7 @@ class FilesystemCopierActionTest2Delegate : public ActionProcessorDelegate {
  public:
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
-                       ActionExitCode code) {
+                       ErrorCode code) {
     if (action->Type() == FilesystemCopierAction::StaticType()) {
       ran_ = true;
       code_ = code;
@@ -281,7 +281,7 @@ class FilesystemCopierActionTest2Delegate : public ActionProcessorDelegate {
   }
   GMainLoop *loop_;
   bool ran_;
-  ActionExitCode code_;
+  ErrorCode code_;
 };
 
 TEST_F(FilesystemCopierActionTest, MissingInputObjectTest) {
@@ -300,7 +300,7 @@ TEST_F(FilesystemCopierActionTest, MissingInputObjectTest) {
   processor.StartProcessing();
   EXPECT_FALSE(processor.IsRunning());
   EXPECT_TRUE(delegate.ran_);
-  EXPECT_EQ(kActionCodeError, delegate.code_);
+  EXPECT_EQ(kErrorCodeError, delegate.code_);
 }
 
 TEST_F(FilesystemCopierActionTest, ResumeTest) {
@@ -325,7 +325,7 @@ TEST_F(FilesystemCopierActionTest, ResumeTest) {
   processor.StartProcessing();
   EXPECT_FALSE(processor.IsRunning());
   EXPECT_TRUE(delegate.ran_);
-  EXPECT_EQ(kActionCodeSuccess, delegate.code_);
+  EXPECT_EQ(kErrorCodeSuccess, delegate.code_);
   EXPECT_EQ(kUrl, collector_action.object().download_url);
 }
 
@@ -356,7 +356,7 @@ TEST_F(FilesystemCopierActionTest, NonExistentDriveTest) {
   processor.StartProcessing();
   EXPECT_FALSE(processor.IsRunning());
   EXPECT_TRUE(delegate.ran_);
-  EXPECT_EQ(kActionCodeError, delegate.code_);
+  EXPECT_EQ(kErrorCodeError, delegate.code_);
 }
 
 TEST_F(FilesystemCopierActionTest, RunAsRootVerifyHashTest) {

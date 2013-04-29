@@ -54,7 +54,7 @@ void ActionProcessor::StopProcessing() {
 }
 
 void ActionProcessor::ActionComplete(AbstractAction* actionptr,
-                                     ActionExitCode code) {
+                                     ErrorCode code) {
   CHECK_EQ(actionptr, current_action_);
   if (delegate_)
     delegate_->ActionCompleted(this, actionptr, code);
@@ -64,7 +64,7 @@ void ActionProcessor::ActionComplete(AbstractAction* actionptr,
   if (actions_.empty()) {
     LOG(INFO) << "ActionProcessor::ActionComplete: finished last action of"
                  " type " << old_type;
-  } else if (code != kActionCodeSuccess) {
+  } else if (code != kErrorCodeSuccess) {
     LOG(INFO) << "ActionProcessor::ActionComplete: " << old_type
               << " action failed. Aborting processing.";
     actions_.clear();

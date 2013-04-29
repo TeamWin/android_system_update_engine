@@ -27,7 +27,7 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
       system_state_(system_state),
       http_fetcher_(http_fetcher),
       writer_(NULL),
-      code_(kActionCodeSuccess),
+      code_(kErrorCodeSuccess),
       delegate_(NULL),
       bytes_received_(0) {}
 
@@ -57,7 +57,7 @@ void DownloadAction::PerformAction() {
   if (rc < 0) {
     LOG(ERROR) << "Unable to open output file " << install_plan_.install_path;
     // report error to processor
-    processor_->ActionComplete(this, kActionCodeInstallDeviceOpenError);
+    processor_->ActionComplete(this, kErrorCodeInstallDeviceOpenError);
     return;
   }
   if (delta_performer_.get() &&
@@ -66,7 +66,7 @@ void DownloadAction::PerformAction() {
     LOG(ERROR) << "Unable to open kernel file "
                << install_plan_.kernel_install_path.c_str();
     writer_->Close();
-    processor_->ActionComplete(this, kActionCodeKernelDeviceOpenError);
+    processor_->ActionComplete(this, kErrorCodeKernelDeviceOpenError);
     return;
   }
   if (delegate_) {
@@ -117,12 +117,12 @@ void DownloadAction::TransferComplete(HttpFetcher *fetcher, bool successful) {
   if (delegate_) {
     delegate_->SetDownloadStatus(false);  // Set to inactive.
   }
-  ActionExitCode code =
-      successful ? kActionCodeSuccess : kActionCodeDownloadTransferError;
-  if (code == kActionCodeSuccess && delta_performer_.get()) {
+  ErrorCode code =
+      successful ? kErrorCodeSuccess : kErrorCodeDownloadTransferError;
+  if (code == kErrorCodeSuccess && delta_performer_.get()) {
     code = delta_performer_->VerifyPayload(install_plan_.payload_hash,
                                            install_plan_.payload_size);
-    if (code != kActionCodeSuccess) {
+    if (code != kErrorCodeSuccess) {
       LOG(ERROR) << "Download of " << install_plan_.download_url
                  << " failed due to payload verification error.";
     } else if (!delta_performer_->GetNewPartitionInfo(
@@ -131,18 +131,18 @@ void DownloadAction::TransferComplete(HttpFetcher *fetcher, bool successful) {
         &install_plan_.rootfs_size,
         &install_plan_.rootfs_hash)) {
       LOG(ERROR) << "Unable to get new partition hash info.";
-      code = kActionCodeDownloadNewPartitionInfoError;
+      code = kErrorCodeDownloadNewPartitionInfoError;
     }
   }
 
   // Write the path to the output pipe if we're successful.
-  if (code == kActionCodeSuccess && HasOutputPipe())
+  if (code == kErrorCodeSuccess && HasOutputPipe())
     SetOutputObject(install_plan_);
   processor_->ActionComplete(this, code);
 }
 
 void DownloadAction::TransferTerminated(HttpFetcher *fetcher) {
-  if (code_ != kActionCodeSuccess) {
+  if (code_ != kErrorCodeSuccess) {
     processor_->ActionComplete(this, code_);
   }
 }

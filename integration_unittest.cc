@@ -42,16 +42,16 @@ class IntegrationTestProcessorDelegate : public ActionProcessorDelegate {
     EXPECT_TRUE(processing_done_called_);
   }
   virtual void ProcessingDone(const ActionProcessor* processor,
-                              ActionExitCode code) {
+                              ErrorCode code) {
     processing_done_called_ = true;
     g_main_loop_quit(loop_);
   }
 
   virtual void ActionCompleted(ActionProcessor* processor,
                                AbstractAction* action,
-                               ActionExitCode code) {
+                               ErrorCode code) {
     // make sure actions always succeed
-    EXPECT_EQ(kActionCodeSuccess, code);
+    EXPECT_EQ(kErrorCodeSuccess, code);
 
     // Swap in the device path for PostinstallRunnerAction with a loop device
     if (action->Type() == InstallAction::StaticType()) {

@@ -130,26 +130,26 @@ class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   OmahaRequestActionTestProcessorDelegate()
       : loop_(NULL),
-        expected_code_(kActionCodeSuccess) {}
+        expected_code_(kErrorCodeSuccess) {}
   virtual ~OmahaRequestActionTestProcessorDelegate() {
   }
   virtual void ProcessingDone(const ActionProcessor* processor,
-                              ActionExitCode code) {
+                              ErrorCode code) {
     ASSERT_TRUE(loop_);
     g_main_loop_quit(loop_);
   }
 
   virtual void ActionCompleted(ActionProcessor* processor,
                                AbstractAction* action,
-                               ActionExitCode code) {
+                               ErrorCode code) {
     // make sure actions always succeed
     if (action->Type() == OmahaRequestAction::StaticType())
       EXPECT_EQ(expected_code_, code);
     else
-      EXPECT_EQ(kActionCodeSuccess, code);
+      EXPECT_EQ(kErrorCodeSuccess, code);
   }
   GMainLoop *loop_;
-  ActionExitCode expected_code_;
+  ErrorCode expected_code_;
 };
 
 gboolean StartProcessorInRunLoop(gpointer data) {
@@ -178,7 +178,7 @@ class OutputObjectCollectorAction : public Action<OutputObjectCollectorAction> {
     has_input_object_ = HasInputObject();
     if (has_input_object_)
       omaha_response_ = GetInputObject();
-    processor_->ActionComplete(this, kActionCodeSuccess);
+    processor_->ActionComplete(this, kErrorCodeSuccess);
   }
   // Should never be called
   void TerminateProcessing() {
@@ -204,7 +204,7 @@ bool TestUpdateCheck(PrefsInterface* prefs,
                      const string& http_response,
                      int fail_http_response_code,
                      bool ping_only,
-                     ActionExitCode expected_code,
+                     ErrorCode expected_code,
                      OmahaResponse* out_response,
                      vector<char>* out_post_data) {
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -279,7 +279,7 @@ TEST(OmahaRequestActionTest, NoUpdateTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -302,7 +302,7 @@ TEST(OmahaRequestActionTest, ValidUpdateTest) {
                                         "20101020"),  // deadline
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -335,7 +335,7 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByPolicyTest) {
                                         ""),  // deadline
                       -1,
                       false,  // ping_only
-                      kActionCodeOmahaUpdateIgnoredPerPolicy,
+                      kErrorCodeOmahaUpdateIgnoredPerPolicy,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -351,7 +351,7 @@ TEST(OmahaRequestActionTest, NoUpdatesSentWhenBlockedByPolicyTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -389,7 +389,7 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                                          "7"), // max days to scatter
                       -1,
                       false,  // ping_only
-                      kActionCodeOmahaUpdateDeferredPerPolicy,
+                      kErrorCodeOmahaUpdateDeferredPerPolicy,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -430,7 +430,7 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
                                          "7"), // max days to scatter
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -471,7 +471,7 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
                                          "0"), // max days to scatter
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -513,7 +513,7 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
                                          "7"), // max days to scatter
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       &response,
                       NULL));
 
@@ -558,7 +558,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                                          "7"), // max days to scatter
                       -1,
                       false,  // ping_only
-                      kActionCodeOmahaUpdateDeferredPerPolicy,
+                      kErrorCodeOmahaUpdateDeferredPerPolicy,
                       &response,
                       NULL));
 
@@ -605,7 +605,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                                          "7"), // max days to scatter
                       -1,
                       false,  // ping_only
-                      kActionCodeOmahaUpdateDeferredPerPolicy,
+                      kErrorCodeOmahaUpdateDeferredPerPolicy,
                       &response,
                       NULL));
 
@@ -650,7 +650,7 @@ TEST(OmahaRequestActionTest, InvalidXmlTest) {
                       "invalid xml>",
                       -1,
                       false,  // ping_only
-                      kActionCodeOmahaRequestXMLParseError,
+                      kErrorCodeOmahaRequestXMLParseError,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -664,7 +664,7 @@ TEST(OmahaRequestActionTest, EmptyResponseTest) {
                       "",
                       -1,
                       false,  // ping_only
-                      kActionCodeOmahaRequestEmptyResponseError,
+                      kErrorCodeOmahaRequestEmptyResponseError,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -682,7 +682,7 @@ TEST(OmahaRequestActionTest, MissingStatusTest) {
       "<updatecheck/></app></response>",
       -1,
       false,  // ping_only
-      kActionCodeOmahaResponseInvalid,
+      kErrorCodeOmahaResponseInvalid,
       &response,
       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -700,7 +700,7 @@ TEST(OmahaRequestActionTest, InvalidStatusTest) {
       "<updatecheck status=\"InvalidStatusTest\"/></app></response>",
       -1,
       false,  // ping_only
-      kActionCodeOmahaResponseInvalid,
+      kErrorCodeOmahaResponseInvalid,
       &response,
       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -718,7 +718,7 @@ TEST(OmahaRequestActionTest, MissingNodesetTest) {
       "</app></response>",
       -1,
       false,  // ping_only
-      kActionCodeOmahaResponseInvalid,
+      kErrorCodeOmahaResponseInvalid,
       &response,
       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -751,7 +751,7 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
                               input_response,
                               -1,
                               false,  // ping_only
-                              kActionCodeSuccess,
+                              kErrorCodeSuccess,
                               &response,
                               NULL));
   EXPECT_TRUE(response.update_exists);
@@ -839,7 +839,7 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
                       "invalid xml>",
                       -1,
                       false,  // ping_only
-                      kActionCodeOmahaRequestXMLParseError,
+                      kErrorCodeOmahaRequestXMLParseError,
                       &response,
                       &post_data));
   // convert post_data to string
@@ -871,7 +871,7 @@ TEST(OmahaRequestActionTest, XmlDecodeTest) {
                                         "&lt;20110101"),  // deadline
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       &response,
                       NULL));
 
@@ -898,7 +898,7 @@ TEST(OmahaRequestActionTest, ParseIntTest) {
                                         "deadline"),
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       &response,
                       NULL));
 
@@ -916,7 +916,7 @@ TEST(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kActionCodeOmahaRequestXMLParseError,
+                               kErrorCodeOmahaRequestXMLParseError,
                                NULL,  // response
                                &post_data));
   // convert post_data to string
@@ -943,7 +943,7 @@ TEST(OmahaRequestActionTest, FormatUpdateDisabledOutputTest) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kActionCodeOmahaRequestXMLParseError,
+                               kErrorCodeOmahaRequestXMLParseError,
                                NULL,  // response
                                &post_data));
   // convert post_data to string
@@ -978,7 +978,7 @@ TEST(OmahaRequestActionTest, FormatErrorEventOutputTest) {
   TestEvent(kDefaultTestParams,
             new OmahaEvent(OmahaEvent::kTypeDownloadComplete,
                            OmahaEvent::kResultError,
-                           kActionCodeError),
+                           kErrorCodeError),
             "invalid xml>",
             &post_data);
   // convert post_data to string
@@ -988,7 +988,7 @@ TEST(OmahaRequestActionTest, FormatErrorEventOutputTest) {
       "errorcode=\"%d\"></event>\n",
       OmahaEvent::kTypeDownloadComplete,
       OmahaEvent::kResultError,
-      kActionCodeError);
+      kErrorCodeError);
   EXPECT_NE(post_str.find(expected_event), string::npos);
   EXPECT_EQ(post_str.find("updatecheck"), string::npos);
 }
@@ -1045,7 +1045,7 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                                  "invalid xml>",
                                  -1,
                                  false,  // ping_only
-                                 kActionCodeOmahaRequestXMLParseError,
+                                 kErrorCodeOmahaRequestXMLParseError,
                                  NULL,
                                  &post_data));
     // convert post_data to string
@@ -1082,7 +1082,7 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                                  "invalid xml>",
                                  -1,
                                  false,  // ping_only
-                                 kActionCodeOmahaRequestXMLParseError,
+                                 kErrorCodeOmahaRequestXMLParseError,
                                  NULL,
                                  &post_data));
     // convert post_data to string
@@ -1098,19 +1098,19 @@ TEST(OmahaRequestActionTest, OmahaEventTest) {
   OmahaEvent default_event;
   EXPECT_EQ(OmahaEvent::kTypeUnknown, default_event.type);
   EXPECT_EQ(OmahaEvent::kResultError, default_event.result);
-  EXPECT_EQ(kActionCodeError, default_event.error_code);
+  EXPECT_EQ(kErrorCodeError, default_event.error_code);
 
   OmahaEvent success_event(OmahaEvent::kTypeUpdateDownloadStarted);
   EXPECT_EQ(OmahaEvent::kTypeUpdateDownloadStarted, success_event.type);
   EXPECT_EQ(OmahaEvent::kResultSuccess, success_event.result);
-  EXPECT_EQ(kActionCodeSuccess, success_event.error_code);
+  EXPECT_EQ(kErrorCodeSuccess, success_event.error_code);
 
   OmahaEvent error_event(OmahaEvent::kTypeUpdateDownloadFinished,
                          OmahaEvent::kResultError,
-                         kActionCodeError);
+                         kErrorCodeError);
   EXPECT_EQ(OmahaEvent::kTypeUpdateDownloadFinished, error_event.type);
   EXPECT_EQ(OmahaEvent::kResultError, error_event.result);
-  EXPECT_EQ(kActionCodeError, error_event.error_code);
+  EXPECT_EQ(kErrorCodeError, error_event.error_code);
 }
 
 TEST(OmahaRequestActionTest, PingTest) {
@@ -1132,7 +1132,7 @@ TEST(OmahaRequestActionTest, PingTest) {
                         GetNoUpdateResponse(OmahaRequestParams::kAppId),
                         -1,
                         ping_only,
-                        kActionCodeSuccess,
+                        kErrorCodeSuccess,
                         NULL,
                         &post_data));
     string post_str(&post_data[0], post_data.size());
@@ -1164,7 +1164,7 @@ TEST(OmahaRequestActionTest, ActivePingTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       NULL,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
@@ -1188,7 +1188,7 @@ TEST(OmahaRequestActionTest, RollCallPingTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       NULL,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
@@ -1213,7 +1213,7 @@ TEST(OmahaRequestActionTest, NoPingTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       NULL,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
@@ -1237,7 +1237,7 @@ TEST(OmahaRequestActionTest, IgnoreEmptyPingTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       true,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       NULL,
                       &post_data));
   EXPECT_EQ(post_data.size(), 0);
@@ -1265,7 +1265,7 @@ TEST(OmahaRequestActionTest, BackInTimePingTest) {
                       "<updatecheck status=\"noupdate\"/></app></response>",
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       NULL,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
@@ -1297,7 +1297,7 @@ TEST(OmahaRequestActionTest, LastPingDayUpdateTest) {
                       "<updatecheck status=\"noupdate\"/></app></response>",
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       NULL,
                       NULL));
 }
@@ -1315,7 +1315,7 @@ TEST(OmahaRequestActionTest, NoElapsedSecondsTest) {
                       "<updatecheck status=\"noupdate\"/></app></response>",
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       NULL,
                       NULL));
 }
@@ -1333,7 +1333,7 @@ TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
                       "<updatecheck status=\"noupdate\"/></app></response>",
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       NULL,
                       NULL));
 }
@@ -1345,7 +1345,7 @@ TEST(OmahaRequestActionTest, NoUniqueIDTest) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kActionCodeOmahaRequestXMLParseError,
+                               kErrorCodeOmahaRequestXMLParseError,
                                NULL,  // response
                                &post_data));
   // convert post_data to string
@@ -1362,8 +1362,8 @@ TEST(OmahaRequestActionTest, NetworkFailureTest) {
                       "",
                       501,
                       false,  // ping_only
-                      static_cast<ActionExitCode>(
-                          kActionCodeOmahaRequestHTTPResponseBase + 501),
+                      static_cast<ErrorCode>(
+                          kErrorCodeOmahaRequestHTTPResponseBase + 501),
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -1377,8 +1377,8 @@ TEST(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
                       "",
                       1500,
                       false,  // ping_only
-                      static_cast<ActionExitCode>(
-                          kActionCodeOmahaRequestHTTPResponseBase + 999),
+                      static_cast<ErrorCode>(
+                          kErrorCodeOmahaRequestHTTPResponseBase + 999),
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -1416,7 +1416,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                                          "7"), // max days to scatter
                       -1,
                       false,  // ping_only
-                      kActionCodeOmahaUpdateDeferredPerPolicy,
+                      kErrorCodeOmahaUpdateDeferredPerPolicy,
                       &response,
                       NULL));
 
@@ -1463,7 +1463,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
                                          "7"), // max days to scatter
                       -1,
                       false,  // ping_only
-                      kActionCodeSuccess,
+                      kErrorCodeSuccess,
                       &response,
                       NULL));
 
@@ -1504,7 +1504,7 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kActionCodeOmahaRequestXMLParseError,
+                               kErrorCodeOmahaRequestXMLParseError,
                                NULL,  // response
                                &post_data));
   // convert post_data to string
@@ -1543,7 +1543,7 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kActionCodeOmahaRequestXMLParseError,
+                               kErrorCodeOmahaRequestXMLParseError,
                                NULL,  // response
                                &post_data));
   // convert post_data to string

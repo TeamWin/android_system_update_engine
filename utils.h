@@ -294,16 +294,16 @@ std::string FormatTimeDelta(base::TimeDelta delta);
 // aggregating error codes beyond the enum range, etc. This method is
 // idempotent, i.e. if called with a value previously returned by this method,
 // it'll return the same value again.
-ActionExitCode GetBaseErrorCode(ActionExitCode code);
+ErrorCode GetBaseErrorCode(ErrorCode code);
 
 // Sends the error code to UMA using the metrics interface object in the given
 // system state. It also uses the system state to determine the right UMA
 // bucket for the error code.
-void SendErrorCodeToUma(SystemState* system_state, ActionExitCode code);
+void SendErrorCodeToUma(SystemState* system_state, ErrorCode code);
 
-// Returns a string representation of the ActionExitCodes (either the base
+// Returns a string representation of the ErrorCodes (either the base
 // error codes or the bit flags) for logging purposes.
-std::string CodeToString(ActionExitCode code);
+std::string CodeToString(ErrorCode code);
 
 // Creates the powerwash marker file with the appropriate commands in it.
 // Returns true if successfully created. False otherwise.
@@ -441,13 +441,13 @@ class ScopedActionCompleter {
                                  AbstractAction* action)
       : processor_(processor),
         action_(action),
-        code_(kActionCodeError),
+        code_(kErrorCodeError),
         should_complete_(true) {}
   ~ScopedActionCompleter() {
     if (should_complete_)
       processor_->ActionComplete(action_, code_);
   }
-  void set_code(ActionExitCode code) { code_ = code; }
+  void set_code(ErrorCode code) { code_ = code; }
   void set_should_complete(bool should_complete) {
     should_complete_ = should_complete;
   }
@@ -455,7 +455,7 @@ class ScopedActionCompleter {
  private:
   ActionProcessor* processor_;
   AbstractAction* action_;
-  ActionExitCode code_;
+  ErrorCode code_;
   bool should_complete_;
   DISALLOW_COPY_AND_ASSIGN(ScopedActionCompleter);
 };

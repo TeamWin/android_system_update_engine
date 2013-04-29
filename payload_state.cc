@@ -147,8 +147,8 @@ void PayloadState::UpdateSucceeded() {
   ReportDurationMetrics();
 }
 
-void PayloadState::UpdateFailed(ActionExitCode error) {
-  ActionExitCode base_error = utils::GetBaseErrorCode(error);
+void PayloadState::UpdateFailed(ErrorCode error) {
+  ErrorCode base_error = utils::GetBaseErrorCode(error);
   LOG(INFO) << "Updating payload state for error code: " << base_error
             << " (" << utils::CodeToString(base_error) << ")";
 
@@ -164,24 +164,24 @@ void PayloadState::UpdateFailed(ActionExitCode error) {
     // the protocol used in the URL or entities in the communication channel
     // (e.g. proxies). We should try the next available URL in the next update
     // check to quickly recover from these errors.
-    case kActionCodePayloadHashMismatchError:
-    case kActionCodePayloadSizeMismatchError:
-    case kActionCodeDownloadPayloadVerificationError:
-    case kActionCodeDownloadPayloadPubKeyVerificationError:
-    case kActionCodeSignedDeltaPayloadExpectedError:
-    case kActionCodeDownloadInvalidMetadataMagicString:
-    case kActionCodeDownloadSignatureMissingInManifest:
-    case kActionCodeDownloadManifestParseError:
-    case kActionCodeDownloadMetadataSignatureError:
-    case kActionCodeDownloadMetadataSignatureVerificationError:
-    case kActionCodeDownloadMetadataSignatureMismatch:
-    case kActionCodeDownloadOperationHashVerificationError:
-    case kActionCodeDownloadOperationExecutionError:
-    case kActionCodeDownloadOperationHashMismatch:
-    case kActionCodeDownloadInvalidMetadataSize:
-    case kActionCodeDownloadInvalidMetadataSignature:
-    case kActionCodeDownloadOperationHashMissingError:
-    case kActionCodeDownloadMetadataSignatureMissingError:
+    case kErrorCodePayloadHashMismatchError:
+    case kErrorCodePayloadSizeMismatchError:
+    case kErrorCodeDownloadPayloadVerificationError:
+    case kErrorCodeDownloadPayloadPubKeyVerificationError:
+    case kErrorCodeSignedDeltaPayloadExpectedError:
+    case kErrorCodeDownloadInvalidMetadataMagicString:
+    case kErrorCodeDownloadSignatureMissingInManifest:
+    case kErrorCodeDownloadManifestParseError:
+    case kErrorCodeDownloadMetadataSignatureError:
+    case kErrorCodeDownloadMetadataSignatureVerificationError:
+    case kErrorCodeDownloadMetadataSignatureMismatch:
+    case kErrorCodeDownloadOperationHashVerificationError:
+    case kErrorCodeDownloadOperationExecutionError:
+    case kErrorCodeDownloadOperationHashMismatch:
+    case kErrorCodeDownloadInvalidMetadataSize:
+    case kErrorCodeDownloadInvalidMetadataSignature:
+    case kErrorCodeDownloadOperationHashMissingError:
+    case kErrorCodeDownloadMetadataSignatureMissingError:
       IncrementUrlIndex();
       break;
 
@@ -193,11 +193,11 @@ void PayloadState::UpdateFailed(ActionExitCode error) {
     // (because download from a local server URL that appears earlier in a
     // response is preferable than downloading from the next URL which could be
     // a internet URL and thus could be more expensive).
-    case kActionCodeError:
-    case kActionCodeDownloadTransferError:
-    case kActionCodeDownloadWriteError:
-    case kActionCodeDownloadStateInitializationError:
-    case kActionCodeOmahaErrorInHTTPResponse: // Aggregate code for HTTP errors.
+    case kErrorCodeError:
+    case kErrorCodeDownloadTransferError:
+    case kErrorCodeDownloadWriteError:
+    case kErrorCodeDownloadStateInitializationError:
+    case kErrorCodeOmahaErrorInHTTPResponse: // Aggregate code for HTTP errors.
       IncrementFailureCount();
       break;
 
@@ -210,36 +210,36 @@ void PayloadState::UpdateFailed(ActionExitCode error) {
     // payload attempt number would have been incremented and would take care
     // of the backoff at the next update check.
     // In either case, there's no need to update URL index or failure count.
-    case kActionCodeOmahaRequestError:
-    case kActionCodeOmahaResponseHandlerError:
-    case kActionCodePostinstallRunnerError:
-    case kActionCodeFilesystemCopierError:
-    case kActionCodeInstallDeviceOpenError:
-    case kActionCodeKernelDeviceOpenError:
-    case kActionCodeDownloadNewPartitionInfoError:
-    case kActionCodeNewRootfsVerificationError:
-    case kActionCodeNewKernelVerificationError:
-    case kActionCodePostinstallBootedFromFirmwareB:
-    case kActionCodeOmahaRequestEmptyResponseError:
-    case kActionCodeOmahaRequestXMLParseError:
-    case kActionCodeOmahaResponseInvalid:
-    case kActionCodeOmahaUpdateIgnoredPerPolicy:
-    case kActionCodeOmahaUpdateDeferredPerPolicy:
-    case kActionCodeOmahaUpdateDeferredForBackoff:
-    case kActionCodePostinstallPowerwashError:
-    case kActionCodeUpdateCanceledByChannelChange:
+    case kErrorCodeOmahaRequestError:
+    case kErrorCodeOmahaResponseHandlerError:
+    case kErrorCodePostinstallRunnerError:
+    case kErrorCodeFilesystemCopierError:
+    case kErrorCodeInstallDeviceOpenError:
+    case kErrorCodeKernelDeviceOpenError:
+    case kErrorCodeDownloadNewPartitionInfoError:
+    case kErrorCodeNewRootfsVerificationError:
+    case kErrorCodeNewKernelVerificationError:
+    case kErrorCodePostinstallBootedFromFirmwareB:
+    case kErrorCodeOmahaRequestEmptyResponseError:
+    case kErrorCodeOmahaRequestXMLParseError:
+    case kErrorCodeOmahaResponseInvalid:
+    case kErrorCodeOmahaUpdateIgnoredPerPolicy:
+    case kErrorCodeOmahaUpdateDeferredPerPolicy:
+    case kErrorCodeOmahaUpdateDeferredForBackoff:
+    case kErrorCodePostinstallPowerwashError:
+    case kErrorCodeUpdateCanceledByChannelChange:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 
-    case kActionCodeSuccess:                            // success code
-    case kActionCodeSetBootableFlagError:               // unused
-    case kActionCodeUmaReportedMax:                     // not an error code
-    case kActionCodeOmahaRequestHTTPResponseBase:       // aggregated already
-    case kActionCodeDevModeFlag:                       // not an error code
-    case kActionCodeResumedFlag:                        // not an error code
-    case kActionCodeTestImageFlag:                      // not an error code
-    case kActionCodeTestOmahaUrlFlag:                   // not an error code
-    case kSpecialFlags:                                 // not an error code
+    case kErrorCodeSuccess:                            // success code
+    case kErrorCodeSetBootableFlagError:               // unused
+    case kErrorCodeUmaReportedMax:                     // not an error code
+    case kErrorCodeOmahaRequestHTTPResponseBase:       // aggregated already
+    case kErrorCodeDevModeFlag:                       // not an error code
+    case kErrorCodeResumedFlag:                        // not an error code
+    case kErrorCodeTestImageFlag:                      // not an error code
+    case kErrorCodeTestOmahaUrlFlag:                   // not an error code
+    case kErrorCodeSpecialFlags:                       // not an error code
       // These shouldn't happen. Enumerating these  explicitly here so that we
       // can let the compiler warn about new error codes that are added to
       // action_processor.h but not added here.

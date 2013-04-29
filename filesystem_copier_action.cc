@@ -73,7 +73,7 @@ void FilesystemCopierAction::PerformAction() {
     // No copy or hash verification needed. Done!
     if (HasOutputPipe())
       SetOutputObject(install_plan_);
-    abort_action_completer.set_code(kActionCodeSuccess);
+    abort_action_completer.set_code(kErrorCodeSuccess);
     return;
   }
 
@@ -132,7 +132,7 @@ bool FilesystemCopierAction::IsCleanupPending() const {
   return (src_stream_ != NULL);
 }
 
-void FilesystemCopierAction::Cleanup(ActionExitCode code) {
+void FilesystemCopierAction::Cleanup(ErrorCode code) {
   for (int i = 0; i < 2; i++) {
     g_object_unref(canceller_[i]);
     canceller_[i] = NULL;
@@ -145,7 +145,7 @@ void FilesystemCopierAction::Cleanup(ActionExitCode code) {
   }
   if (cancelled_)
     return;
-  if (code == kActionCodeSuccess && HasOutputPipe())
+  if (code == kErrorCodeSuccess && HasOutputPipe())
     SetOutputObject(install_plan_);
   processor_->ActionComplete(this, code);
 }
@@ -244,7 +244,7 @@ void FilesystemCopierAction::SpawnAsyncActions() {
   }
   if (failed_ || cancelled_) {
     if (!reading && !writing) {
-      Cleanup(kActionCodeError);
+      Cleanup(kErrorCodeError);
     }
     return;
   }
@@ -278,18 +278,18 @@ void FilesystemCopierAction::SpawnAsyncActions() {
   }
   if (!reading && !writing) {
     // We're done!
-    ActionExitCode code = kActionCodeSuccess;
+    ErrorCode code = kErrorCodeSuccess;
     if (hasher_.Finalize()) {
       LOG(INFO) << "Hash: " << hasher_.hash();
       if (verify_hash_) {
         if (copying_kernel_install_path_) {
           if (install_plan_.kernel_hash != hasher_.raw_hash()) {
-            code = kActionCodeNewKernelVerificationError;
+            code = kErrorCodeNewKernelVerificationError;
             LOG(ERROR) << "New kernel verification failed.";
           }
         } else {
           if (install_plan_.rootfs_hash != hasher_.raw_hash()) {
-            code = kActionCodeNewRootfsVerificationError;
+            code = kErrorCodeNewRootfsVerificationError;
             LOG(ERROR) << "New rootfs verification failed.";
           }
         }
@@ -302,7 +302,7 @@ void FilesystemCopierAction::SpawnAsyncActions() {
       }
     } else {
       LOG(ERROR) << "Unable to finalize the hash.";
-      code = kActionCodeError;
+      code = kErrorCodeError;
     }
     Cleanup(code);
   }

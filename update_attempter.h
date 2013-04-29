@@ -79,11 +79,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
                       bool is_test_mode);
 
   // ActionProcessorDelegate methods:
-  void ProcessingDone(const ActionProcessor* processor, ActionExitCode code);
+  void ProcessingDone(const ActionProcessor* processor, ErrorCode code);
   void ProcessingStopped(const ActionProcessor* processor);
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
-                       ActionExitCode code);
+                       ErrorCode code);
 
   // Stop updating. An attempt will be made to record status to the disk
   // so that updates can be resumed later.
@@ -153,7 +153,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Broadcasts the current status over D-Bus.
   void BroadcastStatus();
 
-  // Returns the special flags to be added to ActionExitCode values based on the
+  // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
   uint32_t GetErrorCodeFlags();
 
@@ -161,7 +161,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // current state of the system, in which case |cancel_reason| indicates the
   // reason for the cancellation.  False otherwise, in which case
   // |cancel_reason| is untouched.
-  bool ShouldCancel(ActionExitCode* cancel_reason);
+  bool ShouldCancel(ErrorCode* cancel_reason);
 
  private:
   // Update server URL for automated lab test.
@@ -191,7 +191,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Creates an error event object in |error_event_| to be included in an
   // OmahaRequestAction once the current action processor is done.
-  void CreatePendingErrorEvent(AbstractAction* action, ActionExitCode code);
+  void CreatePendingErrorEvent(AbstractAction* action, ErrorCode code);
 
   // If there's a pending error event allocated in |error_event_|, schedules an
   // OmahaRequestAction with that event in the current processor, clears the

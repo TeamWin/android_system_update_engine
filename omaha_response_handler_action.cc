@@ -94,7 +94,7 @@ void OmahaResponseHandlerAction::PerformAction() {
                    response.deadline.size());
   chmod(kDeadlineFile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
-  completer.set_code(kActionCodeSuccess);
+  completer.set_code(kErrorCodeSuccess);
 }
 
 bool OmahaResponseHandlerAction::GetInstallDev(const std::string& boot_dev,

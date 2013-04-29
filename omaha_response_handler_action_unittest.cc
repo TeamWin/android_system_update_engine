@@ -35,17 +35,17 @@ class OmahaResponseHandlerActionProcessorDelegate
     : public ActionProcessorDelegate {
  public:
   OmahaResponseHandlerActionProcessorDelegate()
-      : code_(kActionCodeError),
+      : code_(kErrorCodeError),
         code_set_(false) {}
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
-                       ActionExitCode code) {
+                       ErrorCode code) {
     if (action->Type() == OmahaResponseHandlerAction::StaticType()) {
       code_ = code;
       code_set_ = true;
     }
   }
-  ActionExitCode code_;
+  ErrorCode code_;
   bool code_set_;
 };
 
@@ -91,7 +91,7 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
   if (out)
     *out = collector_action.object();
   EXPECT_TRUE(delegate.code_set_);
-  return delegate.code_ == kActionCodeSuccess;
+  return delegate.code_ == kErrorCodeSuccess;
 }
 
 bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,

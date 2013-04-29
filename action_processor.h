@@ -9,6 +9,8 @@
 
 #include "base/basictypes.h"
 
+#include "update_engine/error_code.h"
+
 // The structure of these classes (Action, ActionPipe, ActionProcessor, etc.)
 // is based on the KSAction* classes from the Google Update Engine code at
 // http://code.google.com/p/update-engine/ . The author of this file sends
@@ -20,101 +22,6 @@
 // An ActionProcessor keeps a queue of Actions and processes them in order.
 
 namespace chromeos_update_engine {
-
-// Action exit codes.
-enum ActionExitCode {
-  kActionCodeSuccess = 0,
-  kActionCodeError = 1,
-  kActionCodeOmahaRequestError = 2,
-  kActionCodeOmahaResponseHandlerError = 3,
-  kActionCodeFilesystemCopierError = 4,
-  kActionCodePostinstallRunnerError = 5,
-  kActionCodeSetBootableFlagError = 6,  // TODO(petkov): Unused. Recycle?
-  kActionCodeInstallDeviceOpenError = 7,
-  kActionCodeKernelDeviceOpenError = 8,
-  kActionCodeDownloadTransferError = 9,
-  kActionCodePayloadHashMismatchError = 10,
-  kActionCodePayloadSizeMismatchError = 11,
-  kActionCodeDownloadPayloadVerificationError = 12,
-  kActionCodeDownloadNewPartitionInfoError = 13,
-  kActionCodeDownloadWriteError = 14,
-  kActionCodeNewRootfsVerificationError = 15,
-  kActionCodeNewKernelVerificationError = 16,
-  kActionCodeSignedDeltaPayloadExpectedError = 17,
-  kActionCodeDownloadPayloadPubKeyVerificationError = 18,
-  kActionCodePostinstallBootedFromFirmwareB = 19,
-  kActionCodeDownloadStateInitializationError = 20,
-  kActionCodeDownloadInvalidMetadataMagicString = 21,
-  kActionCodeDownloadSignatureMissingInManifest = 22,
-  kActionCodeDownloadManifestParseError = 23,
-  kActionCodeDownloadMetadataSignatureError = 24,
-  kActionCodeDownloadMetadataSignatureVerificationError = 25,
-  kActionCodeDownloadMetadataSignatureMismatch = 26,
-  kActionCodeDownloadOperationHashVerificationError = 27,
-  kActionCodeDownloadOperationExecutionError = 28,
-  kActionCodeDownloadOperationHashMismatch = 29,
-  kActionCodeOmahaRequestEmptyResponseError = 30,
-  kActionCodeOmahaRequestXMLParseError = 31,
-  kActionCodeDownloadInvalidMetadataSize = 32,
-  kActionCodeDownloadInvalidMetadataSignature = 33,
-  kActionCodeOmahaResponseInvalid = 34,
-  kActionCodeOmahaUpdateIgnoredPerPolicy = 35,
-  kActionCodeOmahaUpdateDeferredPerPolicy = 36,
-  kActionCodeOmahaErrorInHTTPResponse = 37,
-  kActionCodeDownloadOperationHashMissingError = 38,
-  kActionCodeDownloadMetadataSignatureMissingError = 39,
-  kActionCodeOmahaUpdateDeferredForBackoff = 40,
-  kActionCodePostinstallPowerwashError = 41,
-  kActionCodeUpdateCanceledByChannelChange = 42,
-
-  // Note: When adding new error codes, please remember to add the
-  // error into one of the buckets in PayloadState::UpdateFailed method so
-  // that the retries across URLs and the payload backoff mechanism work
-  // correctly for those new error codes.
-
-  // Any code above this is sent to both Omaha and UMA as-is, except
-  // kActionCodeOmahaErrorInHTTPResponse (see error code 2000 for more details).
-  // Codes/flags below this line is sent only to Omaha and not to UMA.
-
-  // kActionCodeUmaReportedMax is not an error code per se, it's just the count
-  // of the number of enums above.  Add any new errors above this line if you
-  // want them to show up on UMA. Stuff below this line will not be sent to UMA
-  // but is used for other errors that are sent to Omaha. We don't assign any
-  // particular value for this enum so that it's just one more than the last
-  // one above and thus always represents the correct count of UMA metrics
-  // buckets, even when new enums are added above this line in future. See
-  // utils::SendErrorCodeToUma on how this enum is used.
-  kActionCodeUmaReportedMax,
-
-  // use the 2xxx range to encode HTTP errors. These errors are available in
-  // Dremel with the individual granularity. But for UMA purposes, all these
-  // errors are aggregated into one: kActionCodeOmahaErrorInHTTPResponse.
-  kActionCodeOmahaRequestHTTPResponseBase = 2000,  // + HTTP response code
-
-  // TODO(jaysri): Move out all the bit masks into separate constants
-  // outside the enum as part of fixing bug 34369.
-  // Bit flags. Remember to update the mask below for new bits.
-
-  // Set if boot mode not normal.
-  kActionCodeDevModeFlag        = 1 << 31,
-
-  // Set if resuming an interruped update.
-  kActionCodeResumedFlag         = 1 << 30,
-
-  // Set if using a dev/test image as opposed to an MP-signed image.
-  kActionCodeTestImageFlag       = 1 << 29,
-
-  // Set if using devserver or Omaha sandbox (using crosh autest).
-  kActionCodeTestOmahaUrlFlag    = 1 << 28,
-
-  // Mask that indicates bit positions that are used to indicate special flags
-  // that are embedded in the error code to provide additional context about
-  // the system in which the error was encountered.
-  kSpecialFlags = (kActionCodeDevModeFlag |
-                   kActionCodeResumedFlag |
-                   kActionCodeTestImageFlag |
-                   kActionCodeTestOmahaUrlFlag)
-};
 
 class AbstractAction;
 class ActionProcessorDelegate;
@@ -153,7 +60,7 @@ class ActionProcessor {
   }
 
   // Called by an action to notify processor that it's done. Caller passes self.
-  void ActionComplete(AbstractAction* actionptr, ActionExitCode code);
+  void ActionComplete(AbstractAction* actionptr, ErrorCode code);
 
  private:
   // Actions that have not yet begun processing, in the order in which
@@ -177,7 +84,7 @@ class ActionProcessorDelegate {
   // to the ActionProcessor is passed. |code| is set to the exit code of the
   // last completed action.
   virtual void ProcessingDone(const ActionProcessor* processor,
-                              ActionExitCode code) {}
+                              ErrorCode code) {}
 
   // Called when processing has stopped. Does not mean that all Actions have
   // completed. If/when all Actions complete, ProcessingDone() will be called.
@@ -187,7 +94,7 @@ class ActionProcessorDelegate {
   // or otherwise.
   virtual void ActionCompleted(ActionProcessor* processor,
                                AbstractAction* action,
-                               ActionExitCode code) {}
+                               ErrorCode code) {}
 };
 
 }  // namespace chromeos_update_engine

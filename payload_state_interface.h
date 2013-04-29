@@ -56,7 +56,7 @@ class PayloadStateInterface {
   // This method should be called whenever an update attempt fails with the
   // given error code. We use this notification to update the payload state
   // depending on the type of the error that happened.
-  virtual void UpdateFailed(ActionExitCode error) = 0;
+  virtual void UpdateFailed(ErrorCode error) = 0;
 
   // Returns true if we should backoff the current download attempt.
   // False otherwise.

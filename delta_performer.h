@@ -85,13 +85,13 @@ class DeltaPerformer : public FileWriter {
   // FileWriter's Write implementation where caller doesn't care about
   // error codes.
   bool Write(const void* bytes, size_t count) {
-    ActionExitCode error;
+    ErrorCode error;
     return Write(bytes, count, &error);
   }
 
   // FileWriter's Write implementation that returns a more specific |error| code
   // in case of failures in Write operation.
-  bool Write(const void* bytes, size_t count, ActionExitCode *error);
+  bool Write(const void* bytes, size_t count, ErrorCode *error);
 
   // Wrapper around close. Returns 0 on success or -errno on error.
   // Closes both 'path' given to Open() and the kernel path.
@@ -99,12 +99,12 @@ class DeltaPerformer : public FileWriter {
 
   // Verifies the downloaded payload against the signed hash included in the
   // payload, against the update check hash (which is in base64 format)  and
-  // size using the public key and returns kActionCodeSuccess on success, an
+  // size using the public key and returns kErrorCodeSuccess on success, an
   // error code on failure.  This method should be called after closing the
   // stream. Note this method skips the signed hash check if the public key is
-  // unavailable; it returns kActionCodeSignedDeltaPayloadExpectedError if the
+  // unavailable; it returns kErrorCodeSignedDeltaPayloadExpectedError if the
   // public key is available but the delta payload doesn't include a signature.
-  ActionExitCode VerifyPayload(const std::string& update_check_response_hash,
+  ErrorCode VerifyPayload(const std::string& update_check_response_hash,
                                const uint64_t update_check_response_size);
 
   // Reads from the update manifest the expected sizes and hashes of the target
@@ -154,7 +154,7 @@ class DeltaPerformer : public FileWriter {
       const std::vector<char>& payload,
       DeltaArchiveManifest* manifest,
       uint64_t* metadata_size,
-      ActionExitCode* error);
+      ErrorCode* error);
 
   void set_public_key_path(const std::string& public_key_path) {
     public_key_path_ = public_key_path;
@@ -195,19 +195,19 @@ class DeltaPerformer : public FileWriter {
 
   // Validates that the hash of the blobs corresponding to the given |operation|
   // matches what's specified in the manifest in the payload.
-  // Returns kActionCodeSuccess on match or a suitable error code otherwise.
-  ActionExitCode ValidateOperationHash(
+  // Returns kErrorCodeSuccess on match or a suitable error code otherwise.
+  ErrorCode ValidateOperationHash(
       const DeltaArchiveManifest_InstallOperation& operation);
 
   // Interprets the given |protobuf| as a DeltaArchiveManifest protocol buffer
   // of the given protobuf_length and verifies that the signed hash of the
   // metadata matches what's specified in the install plan from Omaha.
-  // Returns kActionCodeSuccess on match or a suitable error code otherwise.
+  // Returns kErrorCodeSuccess on match or a suitable error code otherwise.
   // This method must be called before any part of the |protobuf| is parsed
   // so that a man-in-the-middle attack on the SSL connection to the payload
   // server doesn't exploit any vulnerability in the code that parses the
   // protocol buffer.
-  ActionExitCode ValidateMetadataSignature(const char* protobuf,
+  ErrorCode ValidateMetadataSignature(const char* protobuf,
                                            uint64_t protobuf_length);
 
   // Returns true on success.
@@ -244,7 +244,7 @@ class DeltaPerformer : public FileWriter {
   bool PrimeUpdateState();
 
   // Sends UMA statistics for the given error code.
-  void SendUmaStat(ActionExitCode code);
+  void SendUmaStat(ErrorCode code);
 
   // Update Engine preference store.
   PrefsInterface* prefs_;

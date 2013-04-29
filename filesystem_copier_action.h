@@ -91,7 +91,7 @@ class FilesystemCopierAction : public Action<FilesystemCopierAction> {
   // Cleans up all the variables we use for async operations and tells the
   // ActionProcessor we're done w/ |code| as passed in. |cancelled_| should be
   // true if TerminateProcessing() was called.
-  void Cleanup(ActionExitCode code);
+  void Cleanup(ErrorCode code);
 
   // Determine, if possible, the source file system size to avoid copying the
   // whole partition. Currently this supports only the root file system assuming

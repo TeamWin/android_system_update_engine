@@ -44,23 +44,23 @@ class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
  public:
   PostinstActionProcessorDelegate()
       : loop_(NULL),
-        code_(kActionCodeError),
+        code_(kErrorCodeError),
         code_set_(false) {}
   void ProcessingDone(const ActionProcessor* processor,
-                      ActionExitCode code) {
+                      ErrorCode code) {
     ASSERT_TRUE(loop_);
     g_main_loop_quit(loop_);
   }
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
-                       ActionExitCode code) {
+                       ErrorCode code) {
     if (action->Type() == PostinstallRunnerAction::StaticType()) {
       code_ = code;
       code_set_ = true;
     }
   }
   GMainLoop* loop_;
-  ActionExitCode code_;
+  ErrorCode code_;
   bool code_set_;
 };
 
@@ -171,7 +171,7 @@ void PostinstallRunnerActionTest::DoTest(
   ASSERT_FALSE(processor.IsRunning());
 
   EXPECT_TRUE(delegate.code_set_);
-  EXPECT_EQ(should_succeed, delegate.code_ == kActionCodeSuccess);
+  EXPECT_EQ(should_succeed, delegate.code_ == kErrorCodeSuccess);
   EXPECT_EQ(should_succeed, !collector_action.object().install_path.empty());
   if (should_succeed)
     EXPECT_TRUE(install_plan == collector_action.object());
@@ -187,7 +187,7 @@ void PostinstallRunnerActionTest::DoTest(
   }
 
   if (err_code == 2)
-    EXPECT_EQ(kActionCodePostinstallBootedFromFirmwareB, delegate.code_);
+    EXPECT_EQ(kErrorCodePostinstallBootedFromFirmwareB, delegate.code_);
 
   struct stat stbuf;
   int rc = lstat((string(cwd) + "/postinst_called").c_str(), &stbuf);

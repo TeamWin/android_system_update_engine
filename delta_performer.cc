@@ -262,8 +262,8 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     const std::vector<char>& payload,
     DeltaArchiveManifest* manifest,
     uint64_t* metadata_size,
-    ActionExitCode* error) {
-  *error = kActionCodeSuccess;
+    ErrorCode* error) {
+  *error = kErrorCodeSuccess;
 
   // manifest_offset is the byte offset where the manifest protobuf begins.
   const uint64_t manifest_offset = GetManifestOffset();
@@ -275,7 +275,7 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   // Validate the magic string.
   if (memcmp(payload.data(), kDeltaMagic, strlen(kDeltaMagic)) != 0) {
     LOG(ERROR) << "Bad payload format -- invalid delta magic.";
-    *error = kActionCodeDownloadInvalidMetadataMagicString;
+    *error = kErrorCodeDownloadInvalidMetadataMagicString;
     return kMetadataParseError;
   }
 
@@ -304,7 +304,7 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
       LOG(ERROR) << "Mandatory metadata size in Omaha response ("
                  << install_plan_->metadata_size << ") is missing/incorrect."
                  << ", Actual = " << *metadata_size;
-      *error = kActionCodeDownloadInvalidMetadataSize;
+      *error = kErrorCodeDownloadInvalidMetadataSize;
       return kMetadataParseError;
     }
   }
@@ -328,13 +328,13 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
                  << install_plan_->metadata_size
                  << ") in Omaha response as validation is not mandatory. "
                  << "Trusting metadata size in payload = " << *metadata_size;
-    SendUmaStat(kActionCodeDownloadInvalidMetadataSize);
+    SendUmaStat(kErrorCodeDownloadInvalidMetadataSize);
   }
 
   // We have the full metadata in |payload|. Verify its integrity
   // and authenticity based on the information we have in Omaha response.
   *error = ValidateMetadataSignature(&payload[0], *metadata_size);
-  if (*error != kActionCodeSuccess) {
+  if (*error != kErrorCodeSuccess) {
     if (install_plan_->hash_checks_mandatory) {
       LOG(ERROR) << "Mandatory metadata signature validation failed";
       return kMetadataParseError;
@@ -343,14 +343,14 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     // For non-mandatory cases, just send a UMA stat.
     LOG(WARNING) << "Ignoring metadata signature validation failures";
     SendUmaStat(*error);
-    *error = kActionCodeSuccess;
+    *error = kErrorCodeSuccess;
   }
 
   // The metadata in |payload| is deemed valid. So, it's now safe to
   // parse the protobuf.
   if (!manifest->ParseFromArray(&payload[manifest_offset], manifest_size)) {
     LOG(ERROR) << "Unable to parse manifest in update file.";
-    *error = kActionCodeDownloadManifestParseError;
+    *error = kErrorCodeDownloadManifestParseError;
     return kMetadataParseError;
   }
   return kMetadataParseSuccess;
@@ -361,8 +361,8 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
 // were written, or false on any error, regardless of progress
 // and stores an action exit code in |error|.
 bool DeltaPerformer::Write(const void* bytes, size_t count,
-                           ActionExitCode *error) {
-  *error = kActionCodeSuccess;
+                           ErrorCode *error) {
+  *error = kErrorCodeSuccess;
 
   const char* c_bytes = reinterpret_cast<const char*>(bytes);
   buffer_.insert(buffer_.end(), c_bytes, c_bytes + count);
@@ -393,7 +393,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
 
     LogPartitionInfo(manifest_);
     if (!PrimeUpdateState()) {
-      *error = kActionCodeDownloadStateInitializationError;
+      *error = kErrorCodeDownloadStateInitializationError;
       LOG(ERROR) << "Unable to prime the update state.";
       return false;
     }
@@ -437,7 +437,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
       // called. Otherwise, we might be failing operations before even if there
       // isn't sufficient data to compute the proper hash.
       *error = ValidateOperationHash(op);
-      if (*error != kActionCodeSuccess) {
+      if (*error != kErrorCodeSuccess) {
         if (install_plan_->hash_checks_mandatory) {
           LOG(ERROR) << "Mandatory operation hash check failed";
           return false;
@@ -446,7 +446,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
         // For non-mandatory cases, just send a UMA stat.
         LOG(WARNING) << "Ignoring operation validation errors";
         SendUmaStat(*error);
-        *error = kActionCodeSuccess;
+        *error = kErrorCodeSuccess;
       }
     }
 
@@ -459,21 +459,21 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
       if (!PerformReplaceOperation(op, is_kernel_partition)) {
         LOG(ERROR) << "Failed to perform replace operation "
                    << next_operation_num_;
-        *error = kActionCodeDownloadOperationExecutionError;
+        *error = kErrorCodeDownloadOperationExecutionError;
         return false;
       }
     } else if (op.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
       if (!PerformMoveOperation(op, is_kernel_partition)) {
         LOG(ERROR) << "Failed to perform move operation "
                    << next_operation_num_;
-        *error = kActionCodeDownloadOperationExecutionError;
+        *error = kErrorCodeDownloadOperationExecutionError;
         return false;
       }
     } else if (op.type() == DeltaArchiveManifest_InstallOperation_Type_BSDIFF) {
       if (!PerformBsdiffOperation(op, is_kernel_partition)) {
         LOG(ERROR) << "Failed to perform bsdiff operation "
                    << next_operation_num_;
-        *error = kActionCodeDownloadOperationExecutionError;
+        *error = kErrorCodeDownloadOperationExecutionError;
         return false;
       }
     }
@@ -772,19 +772,19 @@ bool DeltaPerformer::ExtractSignatureMessage(
   return true;
 }
 
-ActionExitCode DeltaPerformer::ValidateMetadataSignature(
+ErrorCode DeltaPerformer::ValidateMetadataSignature(
     const char* metadata, uint64_t metadata_size) {
 
   if (install_plan_->metadata_signature.empty()) {
     if (install_plan_->hash_checks_mandatory) {
       LOG(ERROR) << "Missing mandatory metadata signature in Omaha response";
-      return kActionCodeDownloadMetadataSignatureMissingError;
+      return kErrorCodeDownloadMetadataSignatureMissingError;
     }
 
     // For non-mandatory cases, just send a UMA stat.
     LOG(WARNING) << "Cannot validate metadata as the signature is empty";
-    SendUmaStat(kActionCodeDownloadMetadataSignatureMissingError);
-    return kActionCodeSuccess;
+    SendUmaStat(kErrorCodeDownloadMetadataSignatureMissingError);
+    return kErrorCodeSuccess;
   }
 
   // Convert base64-encoded signature to raw bytes.
@@ -793,7 +793,7 @@ ActionExitCode DeltaPerformer::ValidateMetadataSignature(
                                          &metadata_signature)) {
     LOG(ERROR) << "Unable to decode base64 metadata signature: "
                << install_plan_->metadata_signature;
-    return kActionCodeDownloadMetadataSignatureError;
+    return kErrorCodeDownloadMetadataSignatureError;
   }
 
   vector<char> expected_metadata_hash;
@@ -801,21 +801,21 @@ ActionExitCode DeltaPerformer::ValidateMetadataSignature(
                                               public_key_path_,
                                               &expected_metadata_hash)) {
     LOG(ERROR) << "Unable to compute expected hash from metadata signature";
-    return kActionCodeDownloadMetadataSignatureError;
+    return kErrorCodeDownloadMetadataSignatureError;
   }
 
   OmahaHashCalculator metadata_hasher;
   metadata_hasher.Update(metadata, metadata_size);
   if (!metadata_hasher.Finalize()) {
     LOG(ERROR) << "Unable to compute actual hash of manifest";
-    return kActionCodeDownloadMetadataSignatureVerificationError;
+    return kErrorCodeDownloadMetadataSignatureVerificationError;
   }
 
   vector<char> calculated_metadata_hash = metadata_hasher.raw_hash();
   PayloadSigner::PadRSA2048SHA256Hash(&calculated_metadata_hash);
   if (calculated_metadata_hash.empty()) {
     LOG(ERROR) << "Computed actual hash of metadata is empty.";
-    return kActionCodeDownloadMetadataSignatureVerificationError;
+    return kErrorCodeDownloadMetadataSignatureVerificationError;
   }
 
   if (calculated_metadata_hash != expected_metadata_hash) {
@@ -823,14 +823,14 @@ ActionExitCode DeltaPerformer::ValidateMetadataSignature(
     utils::HexDumpVector(expected_metadata_hash);
     LOG(ERROR) << "Calculated hash = ";
     utils::HexDumpVector(calculated_metadata_hash);
-    return kActionCodeDownloadMetadataSignatureMismatch;
+    return kErrorCodeDownloadMetadataSignatureMismatch;
   }
 
   LOG(INFO) << "Manifest signature matches expected value in Omaha response";
-  return kActionCodeSuccess;
+  return kErrorCodeSuccess;
 }
 
-ActionExitCode DeltaPerformer::ValidateOperationHash(
+ErrorCode DeltaPerformer::ValidateOperationHash(
     const DeltaArchiveManifest_InstallOperation& operation) {
 
   if (!operation.data_sha256_hash().size()) {
@@ -839,7 +839,7 @@ ActionExitCode DeltaPerformer::ValidateOperationHash(
       // either. So, these operations are always considered validated since the
       // metadata that contains all the non-data-blob portions of the operation
       // has already been validated. This is true for both HTTP and HTTPS cases.
-      return kActionCodeSuccess;
+      return kErrorCodeSuccess;
     }
 
     // No hash is present for an operation that has data blobs. This shouldn't
@@ -859,15 +859,15 @@ ActionExitCode DeltaPerformer::ValidateOperationHash(
       if (install_plan_->hash_checks_mandatory) {
         LOG(ERROR) << "Missing mandatory operation hash for operation "
                    << next_operation_num_ + 1;
-        return kActionCodeDownloadOperationHashMissingError;
+        return kErrorCodeDownloadOperationHashMissingError;
       }
 
       // For non-mandatory cases, just send a UMA stat.
       LOG(WARNING) << "Cannot validate operation " << next_operation_num_ + 1
                    << " as there's no operation hash in manifest";
-      SendUmaStat(kActionCodeDownloadOperationHashMissingError);
+      SendUmaStat(kErrorCodeDownloadOperationHashMissingError);
     }
-    return kActionCodeSuccess;
+    return kErrorCodeSuccess;
   }
 
   vector<char> expected_op_hash;
@@ -880,7 +880,7 @@ ActionExitCode DeltaPerformer::ValidateOperationHash(
   if (!operation_hasher.Finalize()) {
     LOG(ERROR) << "Unable to compute actual hash of operation "
                << next_operation_num_;
-    return kActionCodeDownloadOperationHashVerificationError;
+    return kErrorCodeDownloadOperationHashVerificationError;
   }
 
   vector<char> calculated_op_hash = operation_hasher.raw_hash();
@@ -891,10 +891,10 @@ ActionExitCode DeltaPerformer::ValidateOperationHash(
     LOG(ERROR) << "Calculated hash over " << operation.data_length()
                << " bytes at offset: " << operation.data_offset() << " = ";
     utils::HexDumpVector(calculated_op_hash);
-    return kActionCodeDownloadOperationHashMismatch;
+    return kErrorCodeDownloadOperationHashMismatch;
   }
 
-  return kActionCodeSuccess;
+  return kErrorCodeSuccess;
 }
 
 #define TEST_AND_RETURN_VAL(_retval, _condition)                \
@@ -905,44 +905,44 @@ ActionExitCode DeltaPerformer::ValidateOperationHash(
     }                                                           \
   } while (0);
 
-ActionExitCode DeltaPerformer::VerifyPayload(
+ErrorCode DeltaPerformer::VerifyPayload(
     const std::string& update_check_response_hash,
     const uint64_t update_check_response_size) {
   LOG(INFO) << "Verifying delta payload using public key: " << public_key_path_;
 
   // Verifies the download size.
-  TEST_AND_RETURN_VAL(kActionCodePayloadSizeMismatchError,
+  TEST_AND_RETURN_VAL(kErrorCodePayloadSizeMismatchError,
                       update_check_response_size ==
                       manifest_metadata_size_ + buffer_offset_);
 
   // Verifies the payload hash.
   const string& payload_hash_data = hash_calculator_.hash();
-  TEST_AND_RETURN_VAL(kActionCodeDownloadPayloadVerificationError,
+  TEST_AND_RETURN_VAL(kErrorCodeDownloadPayloadVerificationError,
                       !payload_hash_data.empty());
-  TEST_AND_RETURN_VAL(kActionCodePayloadHashMismatchError,
+  TEST_AND_RETURN_VAL(kErrorCodePayloadHashMismatchError,
                       payload_hash_data == update_check_response_hash);
 
   // Verifies the signed payload hash.
   if (!utils::FileExists(public_key_path_.c_str())) {
     LOG(WARNING) << "Not verifying signed delta payload -- missing public key.";
-    return kActionCodeSuccess;
+    return kErrorCodeSuccess;
   }
-  TEST_AND_RETURN_VAL(kActionCodeSignedDeltaPayloadExpectedError,
+  TEST_AND_RETURN_VAL(kErrorCodeSignedDeltaPayloadExpectedError,
                       !signatures_message_data_.empty());
   vector<char> signed_hash_data;
-  TEST_AND_RETURN_VAL(kActionCodeDownloadPayloadPubKeyVerificationError,
+  TEST_AND_RETURN_VAL(kErrorCodeDownloadPayloadPubKeyVerificationError,
                       PayloadSigner::VerifySignature(
                           signatures_message_data_,
                           public_key_path_,
                           &signed_hash_data));
   OmahaHashCalculator signed_hasher;
-  TEST_AND_RETURN_VAL(kActionCodeDownloadPayloadPubKeyVerificationError,
+  TEST_AND_RETURN_VAL(kErrorCodeDownloadPayloadPubKeyVerificationError,
                       signed_hasher.SetContext(signed_hash_context_));
-  TEST_AND_RETURN_VAL(kActionCodeDownloadPayloadPubKeyVerificationError,
+  TEST_AND_RETURN_VAL(kErrorCodeDownloadPayloadPubKeyVerificationError,
                       signed_hasher.Finalize());
   vector<char> hash_data = signed_hasher.raw_hash();
   PayloadSigner::PadRSA2048SHA256Hash(&hash_data);
-  TEST_AND_RETURN_VAL(kActionCodeDownloadPayloadPubKeyVerificationError,
+  TEST_AND_RETURN_VAL(kErrorCodeDownloadPayloadPubKeyVerificationError,
                       !hash_data.empty());
   if (hash_data != signed_hash_data) {
     LOG(ERROR) << "Public key verification failed, thus update failed. "
@@ -950,7 +950,7 @@ ActionExitCode DeltaPerformer::VerifyPayload(
     utils::HexDumpVector(signed_hash_data);
     LOG(ERROR) << "Computed Signature:";
     utils::HexDumpVector(hash_data);
-    return kActionCodeDownloadPayloadPubKeyVerificationError;
+    return kErrorCodeDownloadPayloadPubKeyVerificationError;
   }
 
   // At this point, we are guaranteed to have downloaded a full payload, i.e
@@ -960,7 +960,7 @@ ActionExitCode DeltaPerformer::VerifyPayload(
   // indicate that to the payload state so that AU can backoff appropriately.
   system_state_->payload_state()->DownloadComplete();
 
-  return kActionCodeSuccess;
+  return kErrorCodeSuccess;
 }
 
 bool DeltaPerformer::GetNewPartitionInfo(uint64_t* kernel_size,
@@ -1198,7 +1198,7 @@ bool DeltaPerformer::PrimeUpdateState() {
   return true;
 }
 
-void DeltaPerformer::SendUmaStat(ActionExitCode code) {
+void DeltaPerformer::SendUmaStat(ErrorCode code) {
   utils::SendErrorCodeToUma(system_state_, code);
 }
 

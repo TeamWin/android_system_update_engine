@@ -33,7 +33,7 @@ class ActionProcessorTestAction : public Action<ActionProcessorTestAction> {
   void PerformAction() {}
   void CompleteAction() {
     ASSERT_TRUE(processor());
-    processor()->ActionComplete(this, kActionCodeSuccess);
+    processor()->ActionComplete(this, kErrorCodeSuccess);
   }
   string Type() const { return "ActionProcessorTestAction"; }
 };
@@ -66,10 +66,10 @@ class MyActionProcessorDelegate : public ActionProcessorDelegate {
         processing_done_called_(false),
         processing_stopped_called_(false),
         action_completed_called_(false),
-        action_exit_code_(kActionCodeError) {}
+        action_exit_code_(kErrorCodeError) {}
 
   virtual void ProcessingDone(const ActionProcessor* processor,
-                              ActionExitCode code) {
+                              ErrorCode code) {
     EXPECT_EQ(processor_, processor);
     EXPECT_FALSE(processing_done_called_);
     processing_done_called_ = true;
@@ -81,7 +81,7 @@ class MyActionProcessorDelegate : public ActionProcessorDelegate {
   }
   virtual void ActionCompleted(ActionProcessor* processor,
                                AbstractAction* action,
-                               ActionExitCode code) {
+                               ErrorCode code) {
     EXPECT_EQ(processor_, processor);
     EXPECT_FALSE(action_completed_called_);
     action_completed_called_ = true;
@@ -92,7 +92,7 @@ class MyActionProcessorDelegate : public ActionProcessorDelegate {
   bool processing_done_called_;
   bool processing_stopped_called_;
   bool action_completed_called_;
-  ActionExitCode action_exit_code_;
+  ErrorCode action_exit_code_;
 };
 }  // namespace {}
 

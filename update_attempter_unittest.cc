@@ -116,7 +116,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
   fetcher->FailTransfer(503);  // Sets the HTTP response code.
   DownloadAction action(prefs_, NULL, fetcher.release());
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
-  attempter_.ActionCompleted(NULL, &action, kActionCodeSuccess);
+  attempter_.ActionCompleted(NULL, &action, kErrorCodeSuccess);
   EXPECT_EQ(503, attempter_.http_response_code());
   EXPECT_EQ(UPDATE_STATUS_FINALIZING, attempter_.status());
   ASSERT_TRUE(attempter_.error_event_.get() == NULL);
@@ -128,7 +128,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedErrorTest) {
   attempter_.status_ = UPDATE_STATUS_DOWNLOADING;
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
       .WillOnce(Return(false));
-  attempter_.ActionCompleted(NULL, &action, kActionCodeError);
+  attempter_.ActionCompleted(NULL, &action, kErrorCodeError);
   ASSERT_TRUE(attempter_.error_event_.get() != NULL);
 }
 
@@ -145,7 +145,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   UpdateCheckScheduler scheduler(&attempter_, &mock_system_state_);
   attempter_.set_update_check_scheduler(&scheduler);
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
-  attempter_.ActionCompleted(NULL, &action, kActionCodeSuccess);
+  attempter_.ActionCompleted(NULL, &action, kErrorCodeSuccess);
   EXPECT_EQ(500, attempter_.http_response_code());
   EXPECT_EQ(UPDATE_STATUS_IDLE, attempter_.status());
   EXPECT_EQ(234, scheduler.poll_interval());
@@ -162,31 +162,31 @@ TEST_F(UpdateAttempterTest, RunAsRootConstructWithUpdatedMarkerTest) {
 }
 
 TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
-  extern ActionExitCode GetErrorCodeForAction(AbstractAction* action,
-                                              ActionExitCode code);
-  EXPECT_EQ(kActionCodeSuccess,
-            GetErrorCodeForAction(NULL, kActionCodeSuccess));
+  extern ErrorCode GetErrorCodeForAction(AbstractAction* action,
+                                              ErrorCode code);
+  EXPECT_EQ(kErrorCodeSuccess,
+            GetErrorCodeForAction(NULL, kErrorCodeSuccess));
 
   MockSystemState mock_system_state;
   OmahaRequestAction omaha_request_action(&mock_system_state, NULL,
                                           NULL, false);
-  EXPECT_EQ(kActionCodeOmahaRequestError,
-            GetErrorCodeForAction(&omaha_request_action, kActionCodeError));
+  EXPECT_EQ(kErrorCodeOmahaRequestError,
+            GetErrorCodeForAction(&omaha_request_action, kErrorCodeError));
   OmahaResponseHandlerAction omaha_response_handler_action(&mock_system_state_);
-  EXPECT_EQ(kActionCodeOmahaResponseHandlerError,
+  EXPECT_EQ(kErrorCodeOmahaResponseHandlerError,
             GetErrorCodeForAction(&omaha_response_handler_action,
-                                  kActionCodeError));
+                                  kErrorCodeError));
   FilesystemCopierAction filesystem_copier_action(false, false);
-  EXPECT_EQ(kActionCodeFilesystemCopierError,
-            GetErrorCodeForAction(&filesystem_copier_action, kActionCodeError));
+  EXPECT_EQ(kErrorCodeFilesystemCopierError,
+            GetErrorCodeForAction(&filesystem_copier_action, kErrorCodeError));
   PostinstallRunnerAction postinstall_runner_action;
-  EXPECT_EQ(kActionCodePostinstallRunnerError,
+  EXPECT_EQ(kErrorCodePostinstallRunnerError,
             GetErrorCodeForAction(&postinstall_runner_action,
-                                  kActionCodeError));
+                                  kErrorCodeError));
   ActionMock action_mock;
   EXPECT_CALL(action_mock, Type()).Times(1).WillOnce(Return("ActionMock"));
-  EXPECT_EQ(kActionCodeError,
-            GetErrorCodeForAction(&action_mock, kActionCodeError));
+  EXPECT_EQ(kErrorCodeError,
+            GetErrorCodeForAction(&action_mock, kErrorCodeError));
 }
 
 TEST_F(UpdateAttempterTest, DisableDeltaUpdateIfNeededTest) {
@@ -250,7 +250,7 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
                                      OmahaRequestAction::StaticType())))
       .Times(1);
   EXPECT_CALL(*processor_, StartProcessing()).Times(1);
-  ActionExitCode err = kActionCodeError;
+  ErrorCode err = kErrorCodeError;
   EXPECT_CALL(*mock_system_state_.mock_payload_state(), UpdateFailed(err));
   attempter_.error_event_.reset(new OmahaEvent(OmahaEvent::kTypeUpdateComplete,
                                                OmahaEvent::kResultError,
@@ -427,12 +427,12 @@ TEST_F(UpdateAttempterTest, PingOmahaTest) {
 
 TEST_F(UpdateAttempterTest, CreatePendingErrorEventTest) {
   ActionMock action;
-  const ActionExitCode kCode = kActionCodeDownloadTransferError;
+  const ErrorCode kCode = kErrorCodeDownloadTransferError;
   attempter_.CreatePendingErrorEvent(&action, kCode);
   ASSERT_TRUE(attempter_.error_event_.get() != NULL);
   EXPECT_EQ(OmahaEvent::kTypeUpdateComplete, attempter_.error_event_->type);
   EXPECT_EQ(OmahaEvent::kResultError, attempter_.error_event_->result);
-  EXPECT_EQ(kCode | kActionCodeTestOmahaUrlFlag,
+  EXPECT_EQ(kCode | kErrorCodeTestOmahaUrlFlag,
             attempter_.error_event_->error_code);
 }
 
@@ -442,12 +442,12 @@ TEST_F(UpdateAttempterTest, CreatePendingErrorEventResumedTest) {
   response_action->install_plan_.is_resume = true;
   attempter_.response_handler_action_.reset(response_action);
   ActionMock action;
-  const ActionExitCode kCode = kActionCodeInstallDeviceOpenError;
+  const ErrorCode kCode = kErrorCodeInstallDeviceOpenError;
   attempter_.CreatePendingErrorEvent(&action, kCode);
   ASSERT_TRUE(attempter_.error_event_.get() != NULL);
   EXPECT_EQ(OmahaEvent::kTypeUpdateComplete, attempter_.error_event_->type);
   EXPECT_EQ(OmahaEvent::kResultError, attempter_.error_event_->result);
-  EXPECT_EQ(kCode | kActionCodeResumedFlag | kActionCodeTestOmahaUrlFlag,
+  EXPECT_EQ(kCode | kErrorCodeResumedFlag | kErrorCodeTestOmahaUrlFlag,
             attempter_.error_event_->error_code);
 }
 

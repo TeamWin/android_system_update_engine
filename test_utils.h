@@ -195,7 +195,7 @@ class ObjectFeederAction : public Action<ObjectFeederAction<T> > {
     if (this->HasOutputPipe()) {
       this->SetOutputObject(out_obj_);
     }
-    this->processor_->ActionComplete(this, kActionCodeSuccess);
+    this->processor_->ActionComplete(this, kErrorCodeSuccess);
   }
   static std::string StaticType() { return "ObjectFeederAction"; }
   std::string Type() const { return StaticType(); }
@@ -229,7 +229,7 @@ class ObjectCollectorAction : public Action<ObjectCollectorAction<T> > {
     if (this->HasInputObject()) {
       object_ = this->GetInputObject();
     }
-    this->processor_->ActionComplete(this, kActionCodeSuccess);
+    this->processor_->ActionComplete(this, kErrorCodeSuccess);
   }
   static std::string StaticType() { return "ObjectCollectorAction"; }
   std::string Type() const { return StaticType(); }

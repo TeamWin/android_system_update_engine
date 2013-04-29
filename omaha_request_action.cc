@@ -327,7 +327,7 @@ void OmahaRequestAction::PerformAction() {
   if (ping_only_ &&
       !ShouldPing(ping_active_days_) &&
       !ShouldPing(ping_roll_call_days_)) {
-    processor_->ActionComplete(this, kActionCodeSuccess);
+    processor_->ActionComplete(this, kErrorCodeSuccess);
     return;
   }
   string request_post(GetRequestXml(event_.get(),
@@ -448,7 +448,7 @@ bool OmahaRequestAction::ParseResponse(xmlDoc* doc,
   scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kUpdatecheckNodeXpath)));
   if (!xpath_nodeset.get()) {
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
@@ -490,7 +490,7 @@ bool OmahaRequestAction::ParseResponse(xmlDoc* doc,
 
   output_object->update_exists = true;
   SetOutputObject(*output_object);
-  completer->set_code(kActionCodeSuccess);
+  completer->set_code(kErrorCodeSuccess);
 
   return true;
 }
@@ -501,7 +501,7 @@ bool OmahaRequestAction::ParseStatus(xmlNode* update_check_node,
   // Get status.
   if (!xmlHasProp(update_check_node, ConstXMLStr("status"))) {
     LOG(ERROR) << "Omaha Response missing status";
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
@@ -510,13 +510,13 @@ bool OmahaRequestAction::ParseStatus(xmlNode* update_check_node,
     LOG(INFO) << "No update.";
     output_object->update_exists = false;
     SetOutputObject(*output_object);
-    completer->set_code(kActionCodeSuccess);
+    completer->set_code(kErrorCodeSuccess);
     return false;
   }
 
   if (status != "ok") {
     LOG(ERROR) << "Unknown Omaha response status: " << status;
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
@@ -532,7 +532,7 @@ bool OmahaRequestAction::ParseUrls(xmlDoc* doc,
   scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kUpdateUrlNodeXPath)));
   if (!xpath_nodeset.get()) {
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
@@ -548,7 +548,7 @@ bool OmahaRequestAction::ParseUrls(xmlDoc* doc,
     const string codebase(XmlGetProperty(url_node, "codebase"));
     if (codebase.empty()) {
       LOG(ERROR) << "Omaha Response URL has empty codebase";
-      completer->set_code(kActionCodeOmahaResponseInvalid);
+      completer->set_code(kErrorCodeOmahaResponseInvalid);
       return false;
     }
     output_object->payload_urls.push_back(codebase);
@@ -567,7 +567,7 @@ bool OmahaRequestAction::ParsePackage(xmlDoc* doc,
   scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kPackageNodeXPath)));
   if (!xpath_nodeset.get()) {
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
@@ -586,7 +586,7 @@ bool OmahaRequestAction::ParsePackage(xmlDoc* doc,
   LOG(INFO) << "Omaha Response package name = " << package_name;
   if (package_name.empty()) {
     LOG(ERROR) << "Omaha Response has empty package name";
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
@@ -602,7 +602,7 @@ bool OmahaRequestAction::ParsePackage(xmlDoc* doc,
   off_t size = ParseInt(XmlGetProperty(package_node, "size"));
   if (size <= 0) {
     LOG(ERROR) << "Omaha Response has invalid payload size: " << size;
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
   output_object->size = size;
@@ -622,7 +622,7 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
   scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kActionNodeXPath)));
   if (!xpath_nodeset.get()) {
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
@@ -647,14 +647,14 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
 
   if (!pie_action_node) {
     LOG(ERROR) << "Omaha Response has no postinstall event action";
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
   output_object->hash = XmlGetProperty(pie_action_node, kTagSha256);
   if (output_object->hash.empty()) {
     LOG(ERROR) << "Omaha Response has empty sha256 value";
-    completer->set_code(kActionCodeOmahaResponseInvalid);
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
@@ -701,7 +701,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
       LOG(INFO) << "Signalling Crash Reporter.";
       utils::ScheduleCrashReporterUpload();
     }
-    completer.set_code(kActionCodeSuccess);
+    completer.set_code(kErrorCodeSuccess);
     return;
   }
 
@@ -712,8 +712,8 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
     if (code < 0 || code >= 1000) {
       code = 999;
     }
-    completer.set_code(static_cast<ActionExitCode>(
-        kActionCodeOmahaRequestHTTPResponseBase + code));
+    completer.set_code(static_cast<ErrorCode>(
+        kErrorCodeOmahaRequestHTTPResponseBase + code));
     return;
   }
 
@@ -723,8 +723,8 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   if (!doc.get()) {
     LOG(ERROR) << "Omaha response not valid XML";
     completer.set_code(response_buffer_.empty() ?
-                       kActionCodeOmahaRequestEmptyResponseError :
-                       kActionCodeOmahaRequestXMLParseError);
+                       kErrorCodeOmahaRequestEmptyResponseError :
+                       kErrorCodeOmahaRequestXMLParseError);
     return;
   }
 
@@ -741,7 +741,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   if (!HasOutputPipe()) {
     // Just set success to whether or not the http transfer succeeded,
     // which must be true at this point in the code.
-    completer.set_code(kActionCodeSuccess);
+    completer.set_code(kErrorCodeSuccess);
     return;
   }
 
@@ -752,7 +752,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   if (params_->update_disabled()) {
     LOG(INFO) << "Ignoring Omaha updates as updates are disabled by policy.";
     output_object.update_exists = false;
-    completer.set_code(kActionCodeOmahaUpdateIgnoredPerPolicy);
+    completer.set_code(kErrorCodeOmahaUpdateIgnoredPerPolicy);
     // Note: We could technically delete the UpdateFirstSeenAt state here.
     // If we do, it'll mean a device has to restart the UpdateFirstSeenAt
     // and thus help scattering take effect when the AU is turned on again.
@@ -766,7 +766,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   if (ShouldDeferDownload(&output_object)) {
     output_object.update_exists = false;
     LOG(INFO) << "Ignoring Omaha updates as updates are deferred by policy.";
-    completer.set_code(kActionCodeOmahaUpdateDeferredPerPolicy);
+    completer.set_code(kErrorCodeOmahaUpdateDeferredPerPolicy);
     return;
   }
 
@@ -783,7 +783,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
     output_object.update_exists = false;
     LOG(INFO) << "Ignoring Omaha updates in order to backoff our retry "
                  "attempts";
-    completer.set_code(kActionCodeOmahaUpdateDeferredForBackoff);
+    completer.set_code(kErrorCodeOmahaUpdateDeferredForBackoff);
     return;
   }
 }
