@@ -577,4 +577,23 @@ TEST_F(OmahaRequestParamsTest, ReleaseAppIdUsedAsDefaultTest) {
   EXPECT_EQ("r", out.GetAppId());
 }
 
+TEST_F(OmahaRequestParamsTest, CollectECFWVersionsTest) {
+  ASSERT_TRUE(WriteFileString(
+      kTestDir + "/etc/lsb-release",
+      "CHROMEOS_RELEASE_APPID=r\n"
+      "CHROMEOS_CANARY_APPID=c\n"
+      "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
+  MockSystemState mock_system_state;
+  OmahaRequestParams out(&mock_system_state);
+  out.hwid_ = string("STUMPY ALEX 12345");
+  EXPECT_FALSE(out.CollectECFWVersions());
+
+  out.hwid_ = string("SNOW 12345");
+  EXPECT_TRUE(out.CollectECFWVersions());
+
+  out.hwid_ = string("SAMS ALEX 12345");
+  EXPECT_TRUE(out.CollectECFWVersions());
+}
+
+
 }  // namespace chromeos_update_engine

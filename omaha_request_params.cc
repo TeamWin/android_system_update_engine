@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <base/file_util.h>
+#include <base/string_util.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/constants.h"
@@ -78,6 +79,10 @@ bool OmahaRequestParams::Init(const std::string& in_app_version,
                                stateful_override);
   app_lang_ = "en-US";
   hwid_ = utils::GetHardwareClass();
+  if (CollectECFWVersions()) {
+    fw_version_ = utils::GetFirmwareVersion();
+    ec_version_ = utils::GetECVersion(NULL);
+  }
 
   if (current_channel_ == target_channel_) {
     // deltas are only okay if the /.nodelta file does not exist.  if we don't
@@ -105,6 +110,17 @@ bool OmahaRequestParams::Init(const std::string& in_app_version,
   // Set the interactive flag accordingly.
   interactive_ = in_interactive;
   return true;
+}
+
+bool OmahaRequestParams::CollectECFWVersions() const {
+  return (
+      StartsWithASCII(hwid_, string("SAMS ALEX"), true) ||
+      StartsWithASCII(hwid_, string("BUTTERFLY"), true) ||
+      StartsWithASCII(hwid_, string("LUMPY"), true) ||
+      StartsWithASCII(hwid_, string("PARROT"), true) ||
+      StartsWithASCII(hwid_, string("SPRING"), true) ||
+      StartsWithASCII(hwid_, string("SNOW"), true)
+  );
 }
 
 bool OmahaRequestParams::SetTargetChannel(const std::string& new_target_channel,

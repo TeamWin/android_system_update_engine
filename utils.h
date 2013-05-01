@@ -38,6 +38,16 @@ bool IsNormalBootMode();
 // Returns the HWID or an empty string on error.
 std::string GetHardwareClass();
 
+// Returns the firmware version or an empty string if the system is not running
+// chrome os firmware.
+std::string GetFirmwareVersion();
+
+// Returns the ec version or an empty string if the system is not running a
+// custom chrome os ec. If input_line is not NULL, reads from this line,
+// otherwise polls the system for the input line. input_line should contain
+// fw_version=value.
+std::string GetECVersion(const char* input_line);
+
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
 bool WriteFile(const char* path, const char* data, int data_len);

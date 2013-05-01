@@ -209,6 +209,8 @@ string GetAppXml(const OmahaEvent* event,
                 "board=\"" + XmlEncode(params->os_board()) + "\" " +
                 "hardware_class=\"" + XmlEncode(params->hwid()) + "\" " +
                 "delta_okay=\"" + delta_okay_str + "\" "
+                "fw_version=\"" + XmlEncode(params->fw_version()) + "\" " +
+                "ec_version=\"" + XmlEncode(params->ec_version()) + "\" " +
                 ">\n" +
                    app_body +
       "    </app>\n";

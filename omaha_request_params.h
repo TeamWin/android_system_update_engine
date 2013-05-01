@@ -58,6 +58,8 @@ class OmahaRequestParams {
                      const std::string& in_app_lang,
                      const std::string& in_target_channel,
                      const std::string& in_hwid,
+                     const std::string& in_fw_version,
+                     const std::string& in_ec_version,
                      bool in_delta_okay,
                      bool in_interactive,
                      const std::string& in_update_url,
@@ -75,6 +77,8 @@ class OmahaRequestParams {
         current_channel_(in_target_channel),
         target_channel_(in_target_channel),
         hwid_(in_hwid),
+        fw_version_(in_fw_version),
+        ec_version_(in_ec_version),
         delta_okay_(in_delta_okay),
         interactive_(in_interactive),
         update_url_(in_update_url),
@@ -97,6 +101,8 @@ class OmahaRequestParams {
   inline std::string canary_app_id() const { return canary_app_id_; }
   inline std::string app_lang() const { return app_lang_; }
   inline std::string hwid() const { return hwid_; }
+  inline std::string fw_version() const { return fw_version_; }
+  inline std::string ec_version() const { return ec_version_; }
 
   inline void set_app_version(const std::string& version) {
     app_version_ = version;
@@ -219,6 +225,7 @@ class OmahaRequestParams {
   FRIEND_TEST(OmahaRequestParamsTest, ShouldLockDownTest);
   FRIEND_TEST(OmahaRequestParamsTest, ChannelIndexTest);
   FRIEND_TEST(OmahaRequestParamsTest, LsbPreserveTest);
+  FRIEND_TEST(OmahaRequestParamsTest, CollectECFWVersionsTest);
 
   // Use a validator that is a non-static member of this class so that its
   // inputs can be mocked in unit tests (e.g., build type for IsValidChannel).
@@ -238,6 +245,10 @@ class OmahaRequestParams {
 
   // Returns the index of the given channel.
   int GetChannelIndex(const std::string& channel) const;
+
+  // Returns True if we should store the fw/ec versions based on our hwid_.
+  // Compares hwid to a set of whitelisted prefixes.
+  bool CollectECFWVersions() const;
 
   // These are individual helper methods to initialize the said properties from
   // the LSB value.
@@ -300,6 +311,8 @@ class OmahaRequestParams {
   std::string download_channel_;
 
   std::string hwid_;  // Hardware Qualification ID of the client
+  std::string fw_version_;  // Chrome OS Firmware Version.
+  std::string ec_version_;  // Chrome OS EC Version.
   bool delta_okay_;  // If this client can accept a delta
   bool interactive_;   // Whether this is a user-initiated update check
 

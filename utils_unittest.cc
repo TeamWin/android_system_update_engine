@@ -37,6 +37,21 @@ TEST(UtilsTest, IsNormalBootMode) {
   EXPECT_TRUE(utils::IsNormalBootMode());
 }
 
+TEST(UtilsTest, CanParseECVersion) {
+  // Chroot won't have an ec version.
+  EXPECT_EQ("", utils::GetECVersion(NULL));
+
+  // Should be able to parse and valid key value line.
+  EXPECT_EQ("12345", utils::GetECVersion("fw_version=12345"));
+  EXPECT_EQ("123456", utils::GetECVersion("b=1231a fw_version=123456 a=fasd2"));
+  EXPECT_EQ("12345", utils::GetECVersion("fw_version=12345"));
+  EXPECT_EQ("00VFA616", utils::GetECVersion(
+      "vendor=\"sam\" fw_version=\"00VFA616\""));
+
+  // For invalid entries, should return the empty string.
+  EXPECT_EQ("", utils::GetECVersion("b=1231a fw_version a=fasd2"));
+}
+
 TEST(UtilsTest, NormalizePathTest) {
   EXPECT_EQ("", utils::NormalizePath("", false));
   EXPECT_EQ("", utils::NormalizePath("", true));

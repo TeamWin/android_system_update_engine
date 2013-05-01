@@ -53,6 +53,8 @@ OmahaRequestParams kDefaultTestParams(
     "en-US",
     "unittest",
     "OEM MODEL 09235 7471",
+    "ChromeOSFirmware.1.0",
+    "0X0A1",
     false,  // delta okay
     false,  // interactive
     "http://url",
@@ -827,6 +829,8 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
                             "en-US",
                             "unittest_track&lt;",
                             "<OEM MODEL>",
+                            "ChromeOSFirmware.1.0",
+                            "EC100",
                             false,  // delta okay
                             false,  // interactive
                             "http://url",
@@ -927,6 +931,10 @@ TEST(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
       string::npos);
   EXPECT_NE(post_str.find("hardware_class=\"OEM MODEL 09235 7471\""),
             string::npos);
+  EXPECT_NE(post_str.find("fw_version=\"ChromeOSFirmware.1.0\""),
+            string::npos);
+  EXPECT_NE(post_str.find("ec_version=\"0X0A1\""),
+            string::npos);
 }
 
 
@@ -953,6 +961,10 @@ TEST(OmahaRequestActionTest, FormatUpdateDisabledOutputTest) {
       "        <updatecheck targetversionprefix=\"\"></updatecheck>\n"),
       string::npos);
   EXPECT_NE(post_str.find("hardware_class=\"OEM MODEL 09235 7471\""),
+            string::npos);
+  EXPECT_NE(post_str.find("fw_version=\"ChromeOSFirmware.1.0\""),
+            string::npos);
+  EXPECT_NE(post_str.find("ec_version=\"0X0A1\""),
             string::npos);
 }
 
@@ -1035,6 +1047,8 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                               "en-US",
                               "unittest_track",
                               "OEM MODEL REV 1234",
+                              "ChromeOSFirmware.1.0",
+                              "EC100",
                               delta_okay,
                               false,  // interactive
                               "http://url",
@@ -1072,6 +1086,8 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                               "en-US",
                               "unittest_track",
                               "OEM MODEL REV 1234",
+                              "ChromeOSFirmware.1.0",
+                              "EC100",
                               true,  // delta_okay
                               interactive,
                               "http://url",
