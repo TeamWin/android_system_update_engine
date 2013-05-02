@@ -610,9 +610,10 @@ bool DeltaPerformer::PerformMoveOperation(
     const Extent& extent = operation.dst_extents(i);
     const size_t bytes = extent.num_blocks() * block_size_;
     if (extent.start_block() == kSparseHole) {
-      DCHECK_EQ(&buf[bytes_written],
-                std::search_n(&buf[bytes_written], &buf[bytes_written + bytes],
-                              bytes, 0));
+      DCHECK(buf.begin() + bytes_written ==
+             std::search_n(buf.begin() + bytes_written,
+                           buf.begin() + bytes_written + bytes,
+                           bytes, 0));
     } else {
       TEST_AND_RETURN_FALSE(
           utils::PWriteAll(fd,
@@ -690,7 +691,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
   DiscardBufferHeadBytes(operation.data_length());
 
   int fd = is_kernel_partition ? kernel_fd_ : fd_;
-  const string& path = StringPrintf("/dev/fd/%d", fd);
+  const string path = StringPrintf("/dev/fd/%d", fd);
 
   // If this is a non-idempotent operation, request a delayed exit and clear the
   // update state in case the operation gets interrupted. Do this as late as
