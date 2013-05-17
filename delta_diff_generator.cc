@@ -1413,8 +1413,8 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 
   // Sanity checks for the partition size.
   TEST_AND_RETURN_FALSE(rootfs_partition_size % kBlockSize == 0);
-  size_t fs_size = static_cast<size_t>(new_image_block_size *
-                                       new_image_block_count);
+  size_t fs_size = static_cast<size_t>(new_image_block_size) *
+                   new_image_block_count;
   LOG(INFO) << "Rootfs partition size: " << rootfs_partition_size;
   LOG(INFO) << "Actual filesystem size: " << fs_size;
   TEST_AND_RETURN_FALSE(rootfs_partition_size >= fs_size);
