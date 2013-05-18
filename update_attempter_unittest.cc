@@ -237,11 +237,14 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest) {
   EXPECT_CALL(*mock_system_state_.mock_payload_state(), UpdateFailed(_))
       .Times(0);
   OmahaResponse response;
-  response.payload_urls.push_back("http://url");
+  string url1 = "http://url1";
+  response.payload_urls.push_back(url1);
   response.payload_urls.push_back("https://url");
+  EXPECT_CALL(*(mock_system_state_.mock_payload_state()), GetCurrentUrl())
+      .WillRepeatedly(Return(url1));
   mock_system_state_.mock_payload_state()->SetResponse(response);
   attempter_.ScheduleErrorEventAction();
-  EXPECT_EQ(0, mock_system_state_.mock_payload_state()->GetUrlIndex());
+  EXPECT_EQ(url1, mock_system_state_.mock_payload_state()->GetCurrentUrl());
 }
 
 TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {

@@ -67,6 +67,12 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
   // Always store the latest response.
   response_ = omaha_response;
 
+  // Compute the candidate URLs first as they are used to calculate the
+  // response signature so that a change in enterprise policy for
+  // HTTP downloads being enabled or not could be honored as soon as the
+  // next update check happens.
+  ComputeCandidateUrls();
+
   // Check if the "signature" of this response (i.e. the fields we care about)
   // has changed.
   string new_response_signature = CalculateResponseSignature();
@@ -85,7 +91,7 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
   // we loaded from the persisted state is a valid value. If the response
   // hasn't changed but the URL index is invalid, it's indicative of some
   // tampering of the persisted state.
-  if (url_index_ >= GetNumUrls()) {
+  if (static_cast<uint32_t>(url_index_) >= candidate_urls_.size()) {
     LOG(INFO) << "Resetting all payload state as the url index seems to have "
                  "been tampered with";
     ResetPersistedState();
@@ -152,8 +158,9 @@ void PayloadState::UpdateFailed(ErrorCode error) {
   LOG(INFO) << "Updating payload state for error code: " << base_error
             << " (" << utils::CodeToString(base_error) << ")";
 
-  if (GetNumUrls() == 0) {
-    // This means we got this error even before we got a valid Omaha response.
+  if (candidate_urls_.size() == 0) {
+    // This means we got this error even before we got a valid Omaha response
+    // or don't have any valid candidates in the Omaha response.
     // So we should not advance the url_index_ in such cases.
     LOG(INFO) << "Ignoring failures until we get a valid Omaha response.";
     return;
@@ -307,18 +314,19 @@ void PayloadState::IncrementPayloadAttemptNumber() {
 
 void PayloadState::IncrementUrlIndex() {
   uint32_t next_url_index = GetUrlIndex() + 1;
-  if (next_url_index < GetNumUrls()) {
+  if (next_url_index < candidate_urls_.size()) {
     LOG(INFO) << "Incrementing the URL index for next attempt";
     SetUrlIndex(next_url_index);
   } else {
     LOG(INFO) << "Resetting the current URL index (" << GetUrlIndex() << ") to "
-              << "0 as we only have " << GetNumUrls() << " URL(s)";
+              << "0 as we only have " << candidate_urls_.size()
+              << " candidate URL(s)";
     SetUrlIndex(0);
     IncrementPayloadAttemptNumber();
   }
 
   // If we have multiple URLs, record that we just switched to another one
-  if (GetNumUrls() > 1)
+  if (candidate_urls_.size() > 1)
     SetUrlSwitchCount(url_switch_count_ + 1);
 
   // Whenever we update the URL index, we should also clear the URL failure
@@ -377,8 +385,8 @@ void PayloadState::UpdateBackoffExpiryTime() {
 void PayloadState::UpdateCurrentDownloadSource() {
   current_download_source_ = kNumDownloadSources;
 
-  if (GetUrlIndex() < response_.payload_urls.size())  {
-    string current_url = response_.payload_urls[GetUrlIndex()];
+  if (GetUrlIndex() < candidate_urls_.size())  {
+    string current_url = candidate_urls_[GetUrlIndex()];
     if (StartsWithASCII(current_url, "https://", false))
       current_download_source_ = kDownloadSourceHttpsServer;
     else if (StartsWithASCII(current_url, "http://", false))
@@ -552,11 +560,11 @@ int64_t PayloadState::GetPersistedValue(const string& key) {
 
 string PayloadState::CalculateResponseSignature() {
   string response_sign = StringPrintf("NumURLs = %d\n",
-                                      response_.payload_urls.size());
+                                      candidate_urls_.size());
 
-  for (size_t i = 0; i < response_.payload_urls.size(); i++)
-    response_sign += StringPrintf("Url%d = %s\n",
-                                  i, response_.payload_urls[i].c_str());
+  for (size_t i = 0; i < candidate_urls_.size(); i++)
+    response_sign += StringPrintf("Candidate Url%d = %s\n",
+                                  i, candidate_urls_[i].c_str());
 
   response_sign += StringPrintf("Payload Size = %llu\n"
                                 "Payload Sha256 Hash = %s\n"
@@ -873,6 +881,33 @@ void PayloadState::SetTotalBytesDownloaded(
   LOG_IF(INFO, log) << "Total bytes downloaded for "
                     << utils::ToString(source) << " = "
                     << GetTotalBytesDownloaded(source);
+}
+
+void PayloadState::ComputeCandidateUrls() {
+  bool http_url_ok = false;
+
+  if (system_state_->IsOfficialBuild()) {
+    const policy::DevicePolicy* policy = system_state_->device_policy();
+    if (!(policy && policy->GetHttpDownloadsEnabled(&http_url_ok) &&
+          http_url_ok))
+      LOG(INFO) << "Downloads via HTTP Url are not enabled by device policy";
+  } else {
+    LOG(INFO) << "Allowing HTTP downloads for unofficial builds";
+    http_url_ok = true;
+  }
+
+  candidate_urls_.clear();
+  for (size_t i = 0; i < response_.payload_urls.size(); i++) {
+    string candidate_url = response_.payload_urls[i];
+    if (StartsWithASCII(candidate_url, "http://", false) && !http_url_ok)
+        continue;
+    candidate_urls_.push_back(candidate_url);
+    LOG(INFO) << "Candidate Url" << (candidate_urls_.size() - 1)
+              << ": " << candidate_url;
+  }
+
+  LOG(INFO) << "Found " << candidate_urls_.size() << " candidate URLs "
+            << "out of " << response_.payload_urls.size() << " URLs supplied";
 }
 
 }  // namespace chromeos_update_engine

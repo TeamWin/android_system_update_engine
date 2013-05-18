@@ -77,6 +77,11 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
                 SetString(kPrefsUpdateCheckResponseHash, in.hash))
         .WillOnce(Return(true));
   }
+
+  string current_url = in.payload_urls.size() ? in.payload_urls[0] : "";
+  EXPECT_CALL(*(mock_system_state->mock_payload_state()), GetCurrentUrl())
+      .WillRepeatedly(Return(current_url));
+
   OmahaResponseHandlerAction response_handler_action(mock_system_state);
   response_handler_action.set_boot_device(boot_dev);
   BondActions(&feeder_action, &response_handler_action);

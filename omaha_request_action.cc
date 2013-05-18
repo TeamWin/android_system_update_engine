@@ -544,7 +544,6 @@ bool OmahaRequestAction::ParseUrls(xmlDoc* doc,
   output_object->payload_urls.clear();
   for (int i = 0; i < nodeset->nodeNr; i++) {
     xmlNode* url_node = nodeset->nodeTab[i];
-
     const string codebase(XmlGetProperty(url_node, "codebase"));
     if (codebase.empty()) {
       LOG(ERROR) << "Omaha Response URL has empty codebase";
@@ -593,10 +592,8 @@ bool OmahaRequestAction::ParsePackage(xmlDoc* doc,
   // Append the package name to each URL in our list so that we don't
   // propagate the urlBase vs packageName distinctions beyond this point.
   // From now on, we only need to use payload_urls.
-  for (size_t i = 0; i < output_object->payload_urls.size(); i++) {
+  for (size_t i = 0; i < output_object->payload_urls.size(); i++)
     output_object->payload_urls[i] += package_name;
-    LOG(INFO) << "Url" << i << ": " << output_object->payload_urls[i];
-  }
 
   // Parse the payload size.
   off_t size = ParseInt(XmlGetProperty(package_node, "size"));

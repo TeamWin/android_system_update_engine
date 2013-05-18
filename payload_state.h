@@ -49,8 +49,8 @@ class PayloadState : public PayloadStateInterface {
     return payload_attempt_number_;
   }
 
-  virtual inline uint32_t GetUrlIndex() {
-    return url_index_;
+  virtual inline std::string GetCurrentUrl() {
+    return candidate_urls_.size() ? candidate_urls_[url_index_] : "";
   }
 
   virtual inline uint32_t GetUrlFailureCount() {
@@ -243,6 +243,14 @@ class PayloadState : public PayloadStateInterface {
                                uint64_t total_bytes_downloaded,
                                bool log);
 
+  inline uint32_t GetUrlIndex() {
+    return url_index_;
+  }
+
+  // Computes the list of candidate URLs from the total list of payload URLs in
+  // the Omaha response.
+  void ComputeCandidateUrls();
+
   // The global state of the system.
   SystemState* system_state_;
 
@@ -341,17 +349,14 @@ class PayloadState : public PayloadStateInterface {
   // return value from GetCurrentDownloadSource is used without validation.
   uint64_t total_bytes_downloaded_[kNumDownloadSources + 1];
 
-  // Returns the number of URLs in the current response.
-  // Note: This value will be 0 if this method is called before we receive
-  // the first valid Omaha response in this process.
-  uint32_t GetNumUrls() {
-    return response_.payload_urls.size();
-  }
-
   // A small timespan used when comparing wall-clock times for coping
   // with the fact that clocks drift and consequently are adjusted
   // (either forwards or backwards) via NTP.
   static const base::TimeDelta kDurationSlack;
+
+  // The ordered list of the subset of payload URL candidates which are
+  // allowed as per device policy.
+  std::vector<std::string> candidate_urls_;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };

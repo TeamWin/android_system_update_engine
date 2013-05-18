@@ -69,8 +69,8 @@ class PayloadStateInterface {
   // Returns the payload attempt number.
   virtual uint32_t GetPayloadAttemptNumber() = 0;
 
-  // Returns the current URL index.
-  virtual uint32_t GetUrlIndex() = 0;
+  // Returns the current URL. Returns an empty string if there's no valid URL.
+  virtual std::string GetCurrentUrl() = 0;
 
   // Returns the current URL's failure count.
   virtual uint32_t GetUrlFailureCount() = 0;

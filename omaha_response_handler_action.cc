@@ -39,11 +39,17 @@ void OmahaResponseHandlerAction::PerformAction() {
   }
 
   // All decisions as to which URL should be used have already been done. So,
-  // make the download URL as the payload URL at the current url index.
-  uint32_t url_index = system_state_->payload_state()->GetUrlIndex();
-  LOG(INFO) << "Using Url" << url_index << " as the download url this time";
-  CHECK(url_index < response.payload_urls.size());
-  install_plan_.download_url = response.payload_urls[url_index];
+  // make the current URL as the download URL.
+  string current_url = system_state_->payload_state()->GetCurrentUrl();
+  if (current_url.empty()) {
+    // This shouldn't happen as we should always supply the HTTPS backup URL.
+    // Handling this anyway, just in case.
+    LOG(ERROR) << "There are no suitable URLs in the response to use.";
+    completer.set_code(kErrorCodeOmahaResponseInvalid);
+    return;
+  }
+
+  install_plan_.download_url = current_url;
 
   // Fill up the other properties based on the response.
   install_plan_.payload_size = response.size;
