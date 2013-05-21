@@ -58,7 +58,8 @@ typedef DeltaDiffGenerator::Block Block;
 typedef map<const DeltaArchiveManifest_InstallOperation*,
             string> OperationNameMap;
 
-const size_t kRootFSPartitionSize = 1024 * 1024 * 1024;  // bytes
+// bytes
+const size_t kRootFSPartitionSize = static_cast<size_t>(2) * 1024 * 1024 * 1024;
 const uint64_t kVersionNumber = 1;
 const uint64_t kFullUpdateChunkSize = 1024 * 1024;  // bytes
 
