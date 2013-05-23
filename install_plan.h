@@ -16,7 +16,6 @@ namespace chromeos_update_engine {
 
 struct InstallPlan {
   InstallPlan(bool is_resume,
-              bool is_full_update,
               const std::string& url,
               uint64_t payload_size,
               const std::string& payload_hash,
@@ -35,7 +34,6 @@ struct InstallPlan {
   void Dump() const;
 
   bool is_resume;
-  bool is_full_update;
   std::string download_url;  // url to download from
 
   uint64_t payload_size;                 // size of the payload

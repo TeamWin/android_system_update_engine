@@ -189,7 +189,6 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case kErrorCodeDownloadInvalidMetadataSignature:
     case kErrorCodeDownloadOperationHashMissingError:
     case kErrorCodeDownloadMetadataSignatureMissingError:
-    case kErrorCodePayloadMismatchedType:
       IncrementUrlIndex();
       break;
 
@@ -240,6 +239,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
       break;
 
     case kErrorCodeSuccess:                            // success code
+    case kErrorCodeSetBootableFlagError:               // unused
     case kErrorCodeUmaReportedMax:                     // not an error code
     case kErrorCodeOmahaRequestHTTPResponseBase:       // aggregated already
     case kErrorCodeDevModeFlag:                       // not an error code

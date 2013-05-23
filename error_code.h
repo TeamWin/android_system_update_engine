@@ -15,7 +15,7 @@ enum ErrorCode {
   kErrorCodeOmahaResponseHandlerError = 3,
   kErrorCodeFilesystemCopierError = 4,
   kErrorCodePostinstallRunnerError = 5,
-  kErrorCodePayloadMismatchedType = 6,
+  kErrorCodeSetBootableFlagError = 6,  // TODO(petkov): Unused. Recycle?
   kErrorCodeInstallDeviceOpenError = 7,
   kErrorCodeKernelDeviceOpenError = 8,
   kErrorCodeDownloadTransferError = 9,

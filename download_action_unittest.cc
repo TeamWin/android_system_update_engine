@@ -131,7 +131,6 @@ void TestWithData(const vector<char>& data,
       OmahaHashCalculator::OmahaHashOfBytes(&data[1], data.size() - 1);
   uint64_t size = data.size();
   InstallPlan install_plan(false,
-                           false,
                            "",
                            size,
                            hash,
@@ -253,8 +252,7 @@ void TestTerminateEarly(bool use_download_delegate) {
 
     // takes ownership of passed in HttpFetcher
     ObjectFeederAction<InstallPlan> feeder_action;
-    InstallPlan install_plan(false, false, "", 0, "", 0, "",
-                             temp_file.GetPath(), "");
+    InstallPlan install_plan(false, "", 0, "", 0, "", temp_file.GetPath(), "");
     feeder_action.set_obj(install_plan);
     PrefsMock prefs;
     DownloadAction download_action(&prefs, NULL,
@@ -356,7 +354,6 @@ TEST(DownloadActionTest, PassObjectOutTest) {
 
   // takes ownership of passed in HttpFetcher
   InstallPlan install_plan(false,
-                           false,
                            "",
                            1,
                            OmahaHashCalculator::OmahaHashOfString("x"),
@@ -398,7 +395,7 @@ TEST(DownloadActionTest, BadOutFileTest) {
   DirectFileWriter writer;
 
   // takes ownership of passed in HttpFetcher
-  InstallPlan install_plan(false, false, "", 0, "", 0, "", path, "");
+  InstallPlan install_plan(false, "", 0, "", 0, "", path, "");
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   PrefsMock prefs;
