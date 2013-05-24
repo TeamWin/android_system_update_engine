@@ -13,6 +13,7 @@ using std::string;
 namespace chromeos_update_engine {
 
 InstallPlan::InstallPlan(bool is_resume,
+                         bool is_full_update,
                          const string& url,
                          uint64_t payload_size,
                          const string& payload_hash,
@@ -21,6 +22,7 @@ InstallPlan::InstallPlan(bool is_resume,
                          const string& install_path,
                          const string& kernel_install_path)
     : is_resume(is_resume),
+      is_full_update(is_full_update),
       download_url(url),
       payload_size(payload_size),
       payload_hash(payload_hash),
@@ -34,6 +36,7 @@ InstallPlan::InstallPlan(bool is_resume,
       powerwash_required(false) {}
 
 InstallPlan::InstallPlan() : is_resume(false),
+                             is_full_update(false),  // play it safe.
                              payload_size(0),
                              metadata_size(0),
                              kernel_size(0),
@@ -44,6 +47,7 @@ InstallPlan::InstallPlan() : is_resume(false),
 
 bool InstallPlan::operator==(const InstallPlan& that) const {
   return ((is_resume == that.is_resume) &&
+          (is_full_update == that.is_full_update) &&
           (download_url == that.download_url) &&
           (payload_size == that.payload_size) &&
           (payload_hash == that.payload_hash) &&
@@ -59,7 +63,8 @@ bool InstallPlan::operator!=(const InstallPlan& that) const {
 
 void InstallPlan::Dump() const {
   LOG(INFO) << "InstallPlan: "
-            << (is_resume ? ", resume" : ", new_update")
+            << (is_resume ? "resume" : "new_update")
+            << ", payload type: " << (is_full_update ? "full" : "delta")
             << ", url: " << download_url
             << ", payload size: " << payload_size
             << ", payload hash: " << payload_hash

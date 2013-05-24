@@ -193,6 +193,10 @@ class DeltaPerformer : public FileWriter {
   bool CanPerformInstallOperation(
       const DeltaArchiveManifest_InstallOperation& operation);
 
+  // Checks the integrity of the payload manifest. Returns true upon success,
+  // false otherwise.
+  ErrorCode ValidateManifest();
+
   // Validates that the hash of the blobs corresponding to the given |operation|
   // matches what's specified in the manifest in the payload.
   // Returns kErrorCodeSuccess on match or a suitable error code otherwise.

@@ -69,8 +69,11 @@ void FilesystemCopierAction::PerformAction() {
     return;
   }
   install_plan_ = GetInputObject();
-  if (!verify_hash_ && install_plan_.is_resume) {
+  if (!verify_hash_ &&
+      (install_plan_.is_resume || install_plan_.is_full_update)) {
     // No copy or hash verification needed. Done!
+    LOG(INFO) << "filesystem copying skipped: "
+              << (install_plan_.is_resume ? "resumed" : "full") << " update";
     if (HasOutputPipe())
       SetOutputObject(install_plan_);
     abort_action_completer.set_code(kErrorCodeSuccess);
