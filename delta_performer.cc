@@ -377,12 +377,10 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
                                                       &manifest_,
                                                       &manifest_metadata_size_,
                                                       error);
-    if (result == kMetadataParseError) {
+    if (result == kMetadataParseError)
       return false;
-    }
-    if (result == kMetadataParseInsufficientData) {
+    if (result == kMetadataParseInsufficientData)
       return true;
-    }
 
     // Checks the integrity of the payload manifest.
     if ((*error = ValidateManifest()) != kErrorCodeSuccess)
