@@ -44,6 +44,7 @@ extern const char kPrefsUpdateFirstSeenAt[];
 extern const char kPrefsUpdateServerCertificate[];
 extern const char kPrefsUpdateStateNextDataOffset[];
 extern const char kPrefsUpdateStateNextOperation[];
+extern const char kPrefsUpdateStateOverallProgress[];
 extern const char kPrefsUpdateStateSHA256Context[];
 extern const char kPrefsUpdateStateSignatureBlob[];
 extern const char kPrefsUpdateStateSignedSHA256Context[];
@@ -64,6 +65,10 @@ typedef enum {
 
 // The default number of UMA buckets for metrics.
 const int kNumDefaultUmaBuckets = 50;
+
+// If an update has completed at least this many percent, complete it
+// instead of letting a newer update clobber it.
+const int kUpdateClobberPercentage = 30;
 
 // General constants
 const int kNumBytesInOneMiB = 1024 * 1024;

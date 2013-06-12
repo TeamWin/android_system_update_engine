@@ -41,6 +41,8 @@ const char kPrefsUpdateFirstSeenAt[] = "update-first-seen-at";
 const char kPrefsUpdateServerCertificate[] = "update-server-cert";
 const char kPrefsUpdateStateNextDataOffset[] = "update-state-next-data-offset";
 const char kPrefsUpdateStateNextOperation[] = "update-state-next-operation";
+const char kPrefsUpdateStateOverallProgress[] =
+    "update-state-overall-progress";
 const char kPrefsUpdateStateSHA256Context[] = "update-state-sha-256-context";
 const char kPrefsUpdateStateSignatureBlob[] = "update-state-signature-blob";
 const char kPrefsUpdateStateSignedSHA256Context[] =
