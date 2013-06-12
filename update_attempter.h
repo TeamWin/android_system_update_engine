@@ -18,6 +18,7 @@
 #include "update_engine/action_processor.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/download_action.h"
+#include "update_engine/filesystem_copier_action.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/proxy_resolver.h"
@@ -45,6 +46,7 @@ enum UpdateStatus {
   UPDATE_STATUS_FINALIZING,
   UPDATE_STATUS_UPDATED_NEED_REBOOT,
   UPDATE_STATUS_REPORTING_ERROR_EVENT,
+  UPDATE_STATUS_ATTEMPTING_ROLLBACK
 };
 
 enum UpdateNotice {
@@ -141,6 +143,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void CheckForUpdate(const std::string& app_version,
                       const std::string& omaha_url,
                       bool is_interactive);
+
+  // This is the internal entry point for going through a rollback. This will
+  // attempt to run the postinstall on the non-active partition and set it as
+  // the partition to boot from. If |powerwash| is True, perform a powerwash
+  // as part of rollback.
+  void Rollback(bool powerwash);
 
   // Initiates a reboot if the current state is
   // UPDATED_NEED_REBOOT. Returns true on sucess, false otherwise.
@@ -270,9 +278,15 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // scatter factor value specified from policy.
   void GenerateNewWaitingPeriod();
 
+  // Helper method of Update() and Rollback() to construct the sequence of
+  // actions to be performed for the postinstall.
+  // |previous_action| is the previous action to get
+  // bonded with the install_plan that gets passed to postinstall.
+  void BuildPostInstallActions(InstallPlanAction* previous_action);
+
   // Helper method of Update() to construct the sequence of actions to
   // be performed for an update check. Please refer to
-  // Update() method for the meaning of the parametes.
+  // Update() method for the meaning of the parameters.
   void BuildUpdateActions(bool interactive);
 
   // Decrements the count in the kUpdateCheckCountFilePath.

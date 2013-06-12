@@ -23,15 +23,17 @@ using chromeos_update_engine::utils::GetAndFreeGError;
 using std::string;
 
 DEFINE_string(app_version, "", "Force the current app version.");
-DEFINE_bool(check_for_update, false, "Initiate check for updates.");
-DEFINE_string(omaha_url, "", "The URL of the Omaha update server.");
-DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
-DEFINE_bool(show_channel, false, "Show the current and target channels.");
-DEFINE_bool(status, false, "Print the status to stdout.");
-DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
 DEFINE_string(channel, "",
     "Set the target channel. The device will be powerwashed if the target "
     "channel is more stable than the current channel.");
+DEFINE_bool(check_for_update, false, "Initiate check for updates.");
+DEFINE_string(omaha_url, "", "The URL of the Omaha update server.");
+DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
+DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
+DEFINE_bool(rollback, false, "Perform a rollback to the previous partition.");
+DEFINE_bool(show_channel, false, "Show the current and target channels.");
+DEFINE_bool(powerwash, true, "When performing a rollback, do a powerwash.");
+DEFINE_bool(status, false, "Print the status to stdout.");
 DEFINE_bool(update, false, "Forces an update and waits for its completion. "
             "Exit status is 0 if the update succeeded, and 1 otherwise.");
 DEFINE_bool(watch_for_updates, false,
@@ -176,6 +178,21 @@ void WatchForUpdates() {
   g_main_loop_unref(loop);
 }
 
+bool Rollback(bool rollback) {
+  DBusGProxy* proxy;
+  GError* error = NULL;
+
+  CHECK(GetProxy(&proxy));
+
+  gboolean rc =
+      org_chromium_UpdateEngineInterface_attempt_rollback(proxy,
+                                                          rollback,
+                                                          &error);
+  CHECK_EQ(rc, TRUE) << "Error with rollback request: "
+                     << GetAndFreeGError(&error);
+  return true;
+}
+
 bool CheckForUpdates(const string& app_version, const string& omaha_url) {
   DBusGProxy* proxy;
   GError* error = NULL;
@@ -313,11 +330,27 @@ int main(int argc, char** argv) {
       LOG(INFO) << "Target Channel (pending update): " << target_channel;
   }
 
+  bool do_update_request = FLAGS_check_for_update | FLAGS_update |
+      !FLAGS_app_version.empty() | !FLAGS_omaha_url.empty();
+
+  if (!FLAGS_powerwash && !FLAGS_rollback) {
+    LOG(FATAL) << "Skipping powerwash only works with rollback";
+    return 1;
+  }
+
+  if (do_update_request && FLAGS_rollback) {
+    LOG(FATAL) << "Update should not be requested with rollback!";
+    return 1;
+  }
+
+  if(FLAGS_rollback) {
+    LOG(INFO) << "Requesting rollback.";
+    CHECK(Rollback(FLAGS_powerwash)) << "Request for rollback failed.";
+    return 0;
+  }
+
   // Initiate an update check, if necessary.
-  if (FLAGS_check_for_update ||
-      FLAGS_update ||
-      !FLAGS_app_version.empty() ||
-      !FLAGS_omaha_url.empty()) {
+  if (do_update_request) {
     LOG_IF(WARNING, FLAGS_reboot) << "-reboot flag ignored.";
     string app_version = FLAGS_app_version;
     if (FLAGS_update && app_version.empty()) {

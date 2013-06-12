@@ -283,6 +283,20 @@ TEST(UtilsTest, RunAsRootGetFilesystemSizeTest) {
   EXPECT_EQ(10 * 1024 * 1024 / 4096, block_count);
 }
 
+TEST(UtilsTest, GetInstallDevTest) {
+  string boot_dev = "/dev/sda5";
+  string install_dev;
+  EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
+  EXPECT_EQ(install_dev, "/dev/sda3");
+
+  boot_dev = "/dev/sda3";
+  EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
+  EXPECT_EQ(install_dev, "/dev/sda5");
+
+  boot_dev = "/dev/sda12";
+  EXPECT_FALSE(utils::GetInstallDev(boot_dev, &install_dev));
+}
+
 namespace {
 gboolean  TerminateScheduleCrashReporterUploadTest(void* arg) {
   GMainLoop* loop = reinterpret_cast<GMainLoop*>(arg);

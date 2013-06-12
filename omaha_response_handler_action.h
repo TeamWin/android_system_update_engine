@@ -59,13 +59,6 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
  private:
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
 
-  // Assumes you want to install on the "other" device, where the other
-  // device is what you get if you swap 1 for 2 or 3 for 4 or vice versa
-  // for the number at the end of the boot device. E.g., /dev/sda1 -> /dev/sda2
-  // or /dev/sda4 -> /dev/sda3
-  static bool GetInstallDev(const std::string& boot_dev,
-                            std::string* install_dev);
-
   // Returns true if payload hash checks are mandatory based on the state
   // of the system and the contents of the Omaha response. False otherwise.
   bool AreHashChecksMandatory(const OmahaResponse& response);

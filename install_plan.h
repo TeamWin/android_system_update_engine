@@ -10,6 +10,8 @@
 
 #include <base/basictypes.h>
 
+#include "update_engine/action.h"
+
 // InstallPlan is a simple struct that contains relevant info for many
 // parts of the update system about the install that should happen.
 namespace chromeos_update_engine {
@@ -39,7 +41,7 @@ struct InstallPlan {
   std::string download_url;  // url to download from
 
   uint64_t payload_size;                 // size of the payload
-  std::string payload_hash ;             // SHA256 hash of the payload
+  std::string payload_hash;             // SHA256 hash of the payload
   uint64_t metadata_size;                // size of the metadata
   std::string metadata_signature;        // signature of the  metadata
   std::string install_path;              // path to install device
@@ -68,6 +70,44 @@ struct InstallPlan {
   // True if Powerwash is required on reboot after applying the payload.
   // False otherwise.
   bool powerwash_required;
+};
+
+class InstallPlanAction;
+
+template<>
+class ActionTraits<InstallPlanAction> {
+ public:
+  // Takes the install plan as input
+  typedef InstallPlan InputObjectType;
+  // Passes the install plan as output
+  typedef InstallPlan OutputObjectType;
+};
+
+// Basic action that only receives and sends Install Plans.
+// Can be used to construct an Install Plan to send to any other Action that
+// accept an InstallPlan.
+class InstallPlanAction : public Action<InstallPlanAction> {
+ public:
+  InstallPlanAction() {}
+  InstallPlanAction(const InstallPlan& install_plan):
+    install_plan_(install_plan) {}
+
+  virtual void PerformAction() {
+    if (HasOutputPipe()) {
+      SetOutputObject(install_plan_);
+    }
+    processor_->ActionComplete(this, kErrorCodeSuccess);
+  }
+
+  virtual std::string Type() const { return "InstallPlanAction"; }
+
+  typedef ActionTraits<InstallPlanAction>::InputObjectType InputObjectType;
+  typedef ActionTraits<InstallPlanAction>::OutputObjectType OutputObjectType;
+
+ private:
+  InstallPlan install_plan_;
+
+  DISALLOW_COPY_AND_ASSIGN (InstallPlanAction);
 };
 
 }  // namespace chromeos_update_engine

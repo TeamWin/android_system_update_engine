@@ -24,25 +24,11 @@
 
 namespace chromeos_update_engine {
 
-class FilesystemCopierAction;
 
-template<>
-class ActionTraits<FilesystemCopierAction> {
- public:
-  // Takes the install plan as input
-  typedef InstallPlan InputObjectType;
-  // Passes the install plan as output
-  typedef InstallPlan OutputObjectType;
-};
-
-class FilesystemCopierAction : public Action<FilesystemCopierAction> {
+class FilesystemCopierAction : public InstallPlanAction {
  public:
   FilesystemCopierAction(bool copying_kernel_install_path, bool verify_hash);
 
-  typedef ActionTraits<FilesystemCopierAction>::InputObjectType
-  InputObjectType;
-  typedef ActionTraits<FilesystemCopierAction>::OutputObjectType
-  OutputObjectType;
   void PerformAction();
   void TerminateProcessing();
 

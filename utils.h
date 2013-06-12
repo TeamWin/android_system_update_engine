@@ -323,6 +323,13 @@ bool CreatePowerwashMarkerFile();
 // Returns true if successfully deleted. False otherwise.
 bool DeletePowerwashMarkerFile();
 
+// Assumes you want to install on the "other" device, where the other
+// device is what you get if you swap 1 for 2 or 3 for 4 or vice versa
+// for the number at the end of the boot device. E.g., /dev/sda1 -> /dev/sda2
+// or /dev/sda4 -> /dev/sda3. See
+// http://www.chromium.org/chromium-os/chromiumos-design-docs/disk-format
+bool GetInstallDev(const std::string& boot_dev, std::string* install_dev);
+
 }  // namespace utils
 
 

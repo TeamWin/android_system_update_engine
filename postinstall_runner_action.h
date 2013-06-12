@@ -15,27 +15,10 @@
 
 namespace chromeos_update_engine {
 
-class PostinstallRunnerAction;
-class NoneType;
-
-template<>
-class ActionTraits<PostinstallRunnerAction> {
+class PostinstallRunnerAction : public InstallPlanAction {
  public:
-  // Takes the device path as input
-  typedef InstallPlan InputObjectType;
-  // Passes the device path as output
-  typedef InstallPlan OutputObjectType;
-};
+  PostinstallRunnerAction(): powerwash_marker_created_(false) {}
 
-class PostinstallRunnerAction : public Action<PostinstallRunnerAction> {
- public:
-  PostinstallRunnerAction()
-    : powerwash_marker_created_(false) {}
-
-  typedef ActionTraits<PostinstallRunnerAction>::InputObjectType
-      InputObjectType;
-  typedef ActionTraits<PostinstallRunnerAction>::OutputObjectType
-      OutputObjectType;
   void PerformAction();
 
   // Note that there's no support for terminating this action currently.
@@ -52,6 +35,7 @@ class PostinstallRunnerAction : public Action<PostinstallRunnerAction> {
                                         const std::string& output,
                                         void* p);
 
+  InstallPlan install_plan_;
   std::string temp_rootfs_dir_;
 
   // True if Powerwash Marker was created before invoking post-install script.

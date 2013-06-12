@@ -23,8 +23,8 @@ const char kPostinstallScript[] = "/postinst";
 
 void PostinstallRunnerAction::PerformAction() {
   CHECK(HasInputObject());
-  const InstallPlan install_plan = GetInputObject();
-  const string install_device = install_plan.install_path;
+  install_plan_ = GetInputObject();
+  const string install_device = install_plan_.install_path;
   ScopedActionCompleter completer(processor_, this);
 
   // Make mountpoint.
@@ -38,8 +38,10 @@ void PostinstallRunnerAction::PerformAction() {
                  "ext2",
                  mountflags,
                  NULL);
+  // TODO(sosa): Remove once crbug.com/208022 is resolved.
   if (rc < 0) {
-    LOG(INFO) << "Failed to mount install part as ext2. Trying ext3.";
+    LOG(INFO) << "Failed to mount install part "
+              << install_device << " as ext2. Trying ext3.";
     rc = mount(install_device.c_str(),
                temp_rootfs_dir_.c_str(),
                "ext3",
@@ -55,7 +57,7 @@ void PostinstallRunnerAction::PerformAction() {
   temp_dir_remover.set_should_remove(false);
   completer.set_should_complete(false);
 
-  if (install_plan.powerwash_required) {
+  if (install_plan_.powerwash_required) {
     if (utils::CreatePowerwashMarkerFile()) {
       powerwash_marker_created_ = true;
     } else {
@@ -94,11 +96,9 @@ void PostinstallRunnerAction::CompletePostinstall(int return_code) {
   }
 
   LOG(INFO) << "Postinst command succeeded";
-  CHECK(HasInputObject());
-  const InstallPlan install_plan = GetInputObject();
-
-  if (HasOutputPipe())
-    SetOutputObject(install_plan);
+  if (HasOutputPipe()) {
+    SetOutputObject(install_plan_);
+  }
 
   completer.set_code(kErrorCodeSuccess);
 }

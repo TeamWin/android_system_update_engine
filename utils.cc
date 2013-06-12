@@ -1021,6 +1021,17 @@ bool DeletePowerwashMarkerFile() {
   return result;
 }
 
+bool GetInstallDev(const std::string& boot_dev, std::string* install_dev) {
+  TEST_AND_RETURN_FALSE(StringHasPrefix(boot_dev, "/dev/"));
+  string ret(boot_dev);
+  string::reverse_iterator it = ret.rbegin();  // last character in string
+  // Right now, we just switch '3' and '5' partition numbers.
+  TEST_AND_RETURN_FALSE((*it == '3') || (*it == '5'));
+  *it = (*it == '3') ? '5' : '3';
+  *install_dev = ret;
+  return true;
+}
+
 }  // namespace utils
 
 }  // namespace chromeos_update_engine

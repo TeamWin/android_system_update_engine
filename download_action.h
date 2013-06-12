@@ -41,19 +41,9 @@ class DownloadActionDelegate {
   virtual void BytesReceived(uint64_t bytes_received, uint64_t total) = 0;
 };
 
-class DownloadAction;
-class NoneType;
 class PrefsInterface;
 
-template<>
-class ActionTraits<DownloadAction> {
- public:
-  // Takes and returns an InstallPlan
-  typedef InstallPlan InputObjectType;
-  typedef InstallPlan OutputObjectType;
-};
-
-class DownloadAction : public Action<DownloadAction>,
+class DownloadAction : public InstallPlanAction,
                        public HttpFetcherDelegate {
  public:
   // Takes ownership of the passed in HttpFetcher. Useful for testing.
@@ -63,8 +53,6 @@ class DownloadAction : public Action<DownloadAction>,
                  SystemState* system_state,
                  HttpFetcher* http_fetcher);
   virtual ~DownloadAction();
-  typedef ActionTraits<DownloadAction>::InputObjectType InputObjectType;
-  typedef ActionTraits<DownloadAction>::OutputObjectType OutputObjectType;
   void PerformAction();
   void TerminateProcessing();
 

@@ -11,6 +11,9 @@
       <arg type="s" name="app_version" />
       <arg type="s" name="omaha_url" />
     </method>
+    <method name="AttemptRollback">
+      <arg type="b" name="powerwash" />
+    </method>
     <method name="ResetStatus">
     </method>
     <method name="GetStatus">

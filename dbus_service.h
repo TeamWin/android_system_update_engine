@@ -51,6 +51,10 @@ gboolean update_engine_service_attempt_update(UpdateEngineService* self,
                                               gchar* omaha_url,
                                               GError **error);
 
+gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
+                                                bool powerwash,
+                                                GError **error);
+
 gboolean update_engine_service_reset_status(UpdateEngineService* self,
                                             GError **error);
 

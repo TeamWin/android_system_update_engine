@@ -77,6 +77,8 @@ const char* UpdateStatusToString(UpdateStatus status) {
       return "UPDATE_STATUS_UPDATED_NEED_REBOOT";
     case UPDATE_STATUS_REPORTING_ERROR_EVENT:
       return "UPDATE_STATUS_REPORTING_ERROR_EVENT";
+    case UPDATE_STATUS_ATTEMPTING_ROLLBACK:
+      return "UPDATE_STATUS_ATTEMPTING_ROLLBACK";
     default:
       return "unknown status";
   }
@@ -433,6 +435,15 @@ void UpdateAttempter::GenerateNewWaitingPeriod() {
                    omaha_request_params_->waiting_period().InSeconds());
 }
 
+void UpdateAttempter::BuildPostInstallActions(
+    InstallPlanAction* previous_action) {
+  shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
+        new PostinstallRunnerAction());
+  actions_.push_back(shared_ptr<AbstractAction>(postinstall_runner_action));
+  BondActions(previous_action,
+              postinstall_runner_action.get());
+}
+
 void UpdateAttempter::BuildUpdateActions(bool interactive) {
   CHECK(!processor_->IsRunning());
   processor_->set_delegate(this);
@@ -483,8 +494,6 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new FilesystemCopierAction(false, true));
   shared_ptr<FilesystemCopierAction> kernel_filesystem_verifier_action(
       new FilesystemCopierAction(true, true));
-  shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
-      new PostinstallRunnerAction);
   shared_ptr<OmahaRequestAction> update_complete_action(
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
@@ -506,16 +515,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   actions_.push_back(shared_ptr<AbstractAction>(download_action));
   actions_.push_back(shared_ptr<AbstractAction>(download_finished_action));
   actions_.push_back(shared_ptr<AbstractAction>(filesystem_verifier_action));
-  actions_.push_back(shared_ptr<AbstractAction>(
-      kernel_filesystem_verifier_action));
-  actions_.push_back(shared_ptr<AbstractAction>(postinstall_runner_action));
-  actions_.push_back(shared_ptr<AbstractAction>(update_complete_action));
-
-  // Enqueue the actions
-  for (vector<shared_ptr<AbstractAction> >::iterator it = actions_.begin();
-       it != actions_.end(); ++it) {
-    processor_->EnqueueAction(it->get());
-  }
+    actions_.push_back(shared_ptr<AbstractAction>(
+        kernel_filesystem_verifier_action));
 
   // Bond them together. We have to use the leaf-types when calling
   // BondActions().
@@ -531,8 +532,52 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
               filesystem_verifier_action.get());
   BondActions(filesystem_verifier_action.get(),
               kernel_filesystem_verifier_action.get());
-  BondActions(kernel_filesystem_verifier_action.get(),
-              postinstall_runner_action.get());
+
+  BuildPostInstallActions(kernel_filesystem_verifier_action.get());
+
+  actions_.push_back(shared_ptr<AbstractAction>(update_complete_action));
+
+  // Enqueue the actions
+  for (vector<shared_ptr<AbstractAction> >::iterator it = actions_.begin();
+       it != actions_.end(); ++it) {
+    processor_->EnqueueAction(it->get());
+  }
+}
+
+void UpdateAttempter::Rollback(bool powerwash) {
+  CHECK(!processor_->IsRunning());
+  processor_->set_delegate(this);
+
+  LOG(INFO) << "Setting rollback options.";
+  InstallPlan install_plan;
+  TEST_AND_RETURN(utils::GetInstallDev(utils::BootDevice(),
+                                       &install_plan.install_path));
+  install_plan.kernel_install_path = utils::BootKernelDevice(
+      install_plan.install_path);
+  install_plan.powerwash_required = powerwash;
+
+  LOG(INFO) << "Using this install plan:";
+  install_plan.Dump();
+
+  shared_ptr<InstallPlanAction> install_plan_action(
+      new InstallPlanAction(install_plan));
+  actions_.push_back(shared_ptr<AbstractAction>(install_plan_action));
+
+  BuildPostInstallActions(install_plan_action.get());
+
+  // Enqueue the actions
+  for (vector<shared_ptr<AbstractAction> >::iterator it = actions_.begin();
+       it != actions_.end(); ++it) {
+    processor_->EnqueueAction(it->get());
+  }
+  SetStatusAndNotify(UPDATE_STATUS_ATTEMPTING_ROLLBACK,
+                     kUpdateNoticeUnspecified);
+
+  // Just in case we didn't update boot flags yet, make sure they're updated
+  // before any update processing starts. This also schedules the start of the
+  // actions we just posted.
+  start_action_processor_ = true;
+  UpdateBootFlags();
 }
 
 void UpdateAttempter::CheckForUpdate(const string& app_version,
@@ -574,7 +619,6 @@ bool UpdateAttempter::RebootIfNeeded() {
 // Delegate methods:
 void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
                                      ErrorCode code) {
-  CHECK(response_handler_action_);
   LOG(INFO) << "Processing Done.";
   actions_.clear();
 
@@ -1132,4 +1176,5 @@ bool UpdateAttempter::DecrementUpdateCheckCount() {
   prefs_->Delete(kPrefsUpdateCheckCount);
   return false;
 }
+
 }  // namespace chromeos_update_engine
