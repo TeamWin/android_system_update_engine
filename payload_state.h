@@ -61,6 +61,10 @@ class PayloadState : public PayloadStateInterface {
     return url_switch_count_;
   }
 
+  virtual inline int GetNumResponsesSeen() {
+    return num_responses_seen_;
+  }
+
   virtual inline base::Time GetBackoffExpiryTime() {
     return backoff_expiry_time_;
   }
@@ -251,6 +255,16 @@ class PayloadState : public PayloadStateInterface {
   // the Omaha response.
   void ComputeCandidateUrls();
 
+  // Sets |num_responses_seen_| and persist it to disk.
+  void SetNumResponsesSeen(int num_responses_seen);
+
+  // Initializes |num_responses_seen_| from persisted state.
+  void LoadNumResponsesSeen();
+
+  // Reports metric conveying how many times updates were abandoned
+  // before an update was applied.
+  void ReportUpdatesAbandonedCountMetric();
+
   // The global state of the system.
   SystemState* system_state_;
 
@@ -306,6 +320,11 @@ class PayloadState : public PayloadStateInterface {
   // We're storing this so as not to recompute this on every few bytes of
   // data we read from the socket.
   DownloadSource current_download_source_;
+
+  // The number of different Omaha responses seen. Increases every time
+  // a new response is seen. Resets to 0 only when the system has been
+  // successfully updated.
+  int num_responses_seen_;
 
   // The number of system reboots during an update attempt. Technically since
   // we don't go out of our way to not update it when not attempting an update,

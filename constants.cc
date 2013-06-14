@@ -30,6 +30,7 @@ const char kPrefsLastActivePingDay[] = "last-active-ping-day";
 const char kPrefsLastRollCallPingDay[] = "last-roll-call-ping-day";
 const char kPrefsManifestMetadataSize[] = "manifest-metadata-size";
 const char kPrefsNumReboots[] = "num-reboots";
+const char kPrefsNumResponsesSeen[] = "num-responses-seen";
 const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";

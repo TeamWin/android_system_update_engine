@@ -130,6 +130,7 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   EXPECT_EQ("", payload_state.GetCurrentUrl());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
   EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 }
 
 TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
@@ -177,6 +178,7 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   EXPECT_EQ("https://single.url.test", payload_state.GetCurrentUrl());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
   EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 }
 
 TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
@@ -223,6 +225,7 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   EXPECT_EQ("http://multiple.url.test", payload_state.GetCurrentUrl());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
   EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 }
 
 TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
@@ -284,6 +287,7 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
 
   // Set the first response.
   SetupPayloadStateWith2Urls("Hash5823", true, &payload_state, &response);
+  EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 
   // Advance the URL index to 1 by faking an error.
   ErrorCode error = kErrorCodeDownloadMetadataSignatureMismatch;
@@ -293,6 +297,7 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
 
   // Now, slightly change the response and set it again.
   SetupPayloadStateWith2Urls("Hash8225", true, &payload_state, &response);
+  EXPECT_EQ(2, payload_state.GetNumResponsesSeen());
 
   // Make sure the url index was reset to 0 because of the new response.
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
@@ -354,6 +359,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
 
   SetupPayloadStateWith2Urls("Hash5873", true, &payload_state, &response);
+  EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 
   // This should advance the URL index.
   payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
@@ -424,6 +430,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
 
   // Now, slightly change the response and set it again.
   SetupPayloadStateWith2Urls("Hash8532", true, &payload_state, &response);
+  EXPECT_EQ(2, payload_state.GetNumResponsesSeen());
 
   // Make sure the url index was reset to 0 because of the new response.
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
@@ -612,6 +619,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
   SetupPayloadStateWith2Urls("Hash3286", true, &payload_state, &response);
+  EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 
   // Simulate a previous attempt with in order to set an initial non-zero value
   // for the total bytes downloaded for HTTP.
@@ -628,6 +636,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   // Change the response hash so as to simulate a new response which will
   // reset the current bytes downloaded, but not the total bytes downloaded.
   SetupPayloadStateWith2Urls("Hash9904", true, &payload_state, &response);
+  EXPECT_EQ(2, payload_state.GetNumResponsesSeen());
 
   // First, simulate successful download of a few bytes over HTTP.
   int first_chunk = 5000000;
@@ -717,6 +726,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
                  kDownloadSourceHttpsServer));
   EXPECT_EQ(0,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
+  EXPECT_EQ(0, payload_state.GetNumResponsesSeen());
 }
 
 TEST(PayloadStateTest, RestartingUpdateResetsMetrics) {

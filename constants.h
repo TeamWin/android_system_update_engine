@@ -33,6 +33,7 @@ extern const char kPrefsLastActivePingDay[];
 extern const char kPrefsLastRollCallPingDay[];
 extern const char kPrefsManifestMetadataSize[];
 extern const char kPrefsNumReboots[];
+extern const char kPrefsNumResponsesSeen[];
 extern const char kPrefsPayloadAttemptNumber[];
 extern const char kPrefsPreviousVersion[];
 extern const char kPrefsResumedUpdateFailures[];

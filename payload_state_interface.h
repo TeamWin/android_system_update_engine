@@ -79,6 +79,10 @@ class PayloadStateInterface {
   // for the current response.
   virtual uint32_t GetUrlSwitchCount() = 0;
 
+  // Returns the total number of different responses seen since the
+  // last successful update.
+  virtual int GetNumResponsesSeen() = 0;
+
   // Returns the expiry time for the current backoff period.
   virtual base::Time GetBackoffExpiryTime() = 0;
 

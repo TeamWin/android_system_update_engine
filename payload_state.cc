@@ -60,6 +60,7 @@ bool PayloadState::Initialize(SystemState* system_state) {
     LoadTotalBytesDownloaded(source);
   }
   LoadNumReboots();
+  LoadNumResponsesSeen();
   return true;
 }
 
@@ -82,6 +83,7 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
   // clear away all the existing state.
   if (has_response_changed) {
     LOG(INFO) << "Resetting all persisted state as this is a new response";
+    SetNumResponsesSeen(num_responses_seen_ + 1);
     SetResponseSignature(new_response_signature);
     ResetPersistedState();
     return;
@@ -151,6 +153,11 @@ void PayloadState::UpdateSucceeded() {
   ReportUpdateUrlSwitchesMetric();
   ReportRebootMetrics();
   ReportDurationMetrics();
+  ReportUpdatesAbandonedCountMetric();
+
+  // Reset the number of responses seen since it counts from the last
+  // successful update, e.g. now.
+  SetNumResponsesSeen(0);
 }
 
 void PayloadState::UpdateFailed(ErrorCode error) {
@@ -881,6 +888,30 @@ void PayloadState::SetTotalBytesDownloaded(
   LOG_IF(INFO, log) << "Total bytes downloaded for "
                     << utils::ToString(source) << " = "
                     << GetTotalBytesDownloaded(source);
+}
+
+void PayloadState::LoadNumResponsesSeen() {
+  SetNumResponsesSeen(GetPersistedValue(kPrefsNumResponsesSeen));
+}
+
+void PayloadState::SetNumResponsesSeen(int num_responses_seen) {
+  CHECK(prefs_);
+  num_responses_seen_ = num_responses_seen;
+  LOG(INFO) << "Num Responses Seen = " << num_responses_seen_;
+  prefs_->SetInt64(kPrefsNumResponsesSeen, num_responses_seen_);
+}
+
+void PayloadState::ReportUpdatesAbandonedCountMetric() {
+  string metric = "Installer.UpdatesAbandonedCount";
+  int value = num_responses_seen_ - 1;
+
+  LOG(INFO) << "Uploading " << value << " (count) for metric " <<  metric;
+  system_state_->metrics_lib()->SendToUMA(
+       metric,
+       value,
+       0,    // min value
+       100,  // max value
+       kNumDefaultUmaBuckets);
 }
 
 void PayloadState::ComputeCandidateUrls() {
