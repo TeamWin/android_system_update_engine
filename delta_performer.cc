@@ -1110,30 +1110,8 @@ bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
   string interrupted_hash;
   TEST_AND_RETURN_FALSE(prefs->GetString(kPrefsUpdateCheckResponseHash,
                                          &interrupted_hash) &&
-                        !interrupted_hash.empty());
-  if (interrupted_hash != update_check_response_hash) {
-    /* If there is a new update but we're already way into the current
-     * update (say, 30%), just continue the current update. Why?
-     * Because otherwise infrequently used machines with low-bandwidth
-     * connections will never finish updating. This is detailed in bug
-     * 244538, see
-     * https://code.google.com/p/chromium/issues/detail?id=244538
-     */
-    int64_t overall_progress = 0;
-    prefs->GetInt64(kPrefsUpdateStateOverallProgress, &overall_progress);
-    if (overall_progress > kUpdateClobberPercentage) {
-      LOG(INFO) << "Resuming current update (at "
-                << overall_progress
-                << "% completion) "
-                << "despite the fact that there's a newer update.";
-    } else {
-      LOG(INFO) << "Abandoning current update (at "
-                << overall_progress
-                << "% completion) "
-                << "because there is a newer update available.";
-      return false;
-    }
-  }
+                        !interrupted_hash.empty() &&
+                        interrupted_hash == update_check_response_hash);
 
   int64_t resumed_update_failures;
   TEST_AND_RETURN_FALSE(!prefs->GetInt64(kPrefsResumedUpdateFailures,
@@ -1170,7 +1148,6 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
     prefs->SetString(kPrefsUpdateStateSignatureBlob, "");
     prefs->SetInt64(kPrefsManifestMetadataSize, -1);
     prefs->SetInt64(kPrefsResumedUpdateFailures, 0);
-    prefs->SetInt64(kPrefsUpdateStateOverallProgress, 0);
   }
   return true;
 }
@@ -1189,8 +1166,6 @@ bool DeltaPerformer::CheckpointUpdateProgress() {
   }
   TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextOperation,
                                          next_operation_num_));
-  TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateOverallProgress,
-                                         overall_progress_));
   return true;
 }
 
