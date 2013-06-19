@@ -109,6 +109,9 @@ class PayloadStateInterface {
 
   // Returns the reboot count for this update attempt.
   virtual uint32_t GetNumReboots() = 0;
+
+  // Called at update_engine startup to do various house-keeping.
+  virtual void UpdateEngineStarted() = 0;
  };
 
 }  // namespace chromeos_update_engine

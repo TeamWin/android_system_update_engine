@@ -52,6 +52,11 @@ gboolean BroadcastStatus(void* arg) {
   return FALSE;  // Don't call this callback again
 }
 
+gboolean UpdateEngineStarted(gpointer user_data) {
+  reinterpret_cast<UpdateAttempter*>(user_data)->UpdateEngineStarted();
+  return FALSE; // Remove idle source (e.g. don't do the callback again)
+}
+
 namespace {
 
 void SetupDbusService(UpdateEngineService* service) {
@@ -204,6 +209,9 @@ int main(int argc, char** argv) {
   // Broadcast the update engine status on startup to ensure consistent system
   // state on crashes.
   g_idle_add(&chromeos_update_engine::BroadcastStatus, update_attempter);
+
+  // Run the UpdateEngineStarted() method on |update_attempter|.
+  g_idle_add(&chromeos_update_engine::UpdateEngineStarted, update_attempter);
 
   // Run the main loop until exit time:
   g_main_loop_run(loop);

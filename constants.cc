@@ -34,6 +34,7 @@ const char kPrefsNumResponsesSeen[] = "num-responses-seen";
 const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";
+const char kPrefsSystemUpdatedMarker[] = "system-updated-marker";
 const char kPrefsTotalBytesDownloaded[] = "total-bytes-downloaded";
 const char kPrefsUpdateCheckCount[] = "update-check-count";
 const char kPrefsUpdateCheckResponseHash[] = "update-check-response-hash";

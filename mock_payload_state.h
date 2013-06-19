@@ -26,6 +26,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD0(UpdateSucceeded, void());
   MOCK_METHOD1(UpdateFailed, void(ErrorCode error));
   MOCK_METHOD0(ShouldBackoffDownload, bool());
+  MOCK_METHOD0(UpdateEngineStarted, void());
 
   // Getters.
   MOCK_METHOD0(GetResponseSignature, std::string());

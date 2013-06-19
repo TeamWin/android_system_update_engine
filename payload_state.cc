@@ -158,6 +158,8 @@ void PayloadState::UpdateSucceeded() {
   // Reset the number of responses seen since it counts from the last
   // successful update, e.g. now.
   SetNumResponsesSeen(0);
+
+  CreateSystemUpdatedMarkerFile();
 }
 
 void PayloadState::UpdateFailed(ErrorCode error) {
@@ -939,6 +941,45 @@ void PayloadState::ComputeCandidateUrls() {
 
   LOG(INFO) << "Found " << candidate_urls_.size() << " candidate URLs "
             << "out of " << response_.payload_urls.size() << " URLs supplied";
+}
+
+void PayloadState::CreateSystemUpdatedMarkerFile() {
+  CHECK(prefs_);
+  int64_t value = system_state_->clock()->GetWallclockTime().ToInternalValue();
+  prefs_->SetInt64(kPrefsSystemUpdatedMarker, value);
+}
+
+void PayloadState::BootedIntoUpdate(TimeDelta time_to_reboot) {
+  // Send |time_to_reboot| as a UMA stat.
+  string metric = "Installer.TimeToRebootMinutes";
+  system_state_->metrics_lib()->SendToUMA(metric,
+                                          time_to_reboot.InMinutes(),
+                                          0,        // min: 0 minute
+                                          30*24*60, // max: 1 month (approx)
+                                          kNumDefaultUmaBuckets);
+  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(time_to_reboot)
+            << " for metric " <<  metric;
+}
+
+void PayloadState::UpdateEngineStarted() {
+  // Figure out if we just booted into a new update
+  if (prefs_->Exists(kPrefsSystemUpdatedMarker)) {
+    int64_t stored_value;
+    if (prefs_->GetInt64(kPrefsSystemUpdatedMarker, &stored_value)) {
+      Time system_updated_at = Time::FromInternalValue(stored_value);
+      if (!system_updated_at.is_null()) {
+        TimeDelta time_to_reboot =
+            system_state_->clock()->GetWallclockTime() - system_updated_at;
+        if (time_to_reboot.ToInternalValue() < 0) {
+          LOG(ERROR) << "time_to_reboot is negative - system_updated_at: "
+                     << utils::ToString(system_updated_at);
+        } else {
+          BootedIntoUpdate(time_to_reboot);
+        }
+      }
+    }
+    prefs_->Delete(kPrefsSystemUpdatedMarker);
+  }
 }
 
 }  // namespace chromeos_update_engine

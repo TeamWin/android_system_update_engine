@@ -85,6 +85,8 @@ class PayloadState : public PayloadStateInterface {
     return num_reboots_;
   }
 
+  virtual void UpdateEngineStarted();
+
  private:
   // Increments the payload attempt number which governs the backoff behavior
   // at the time of the next update check.
@@ -279,6 +281,17 @@ class PayloadState : public PayloadStateInterface {
   // Checks to see if the device rebooted since the last call and if so
   // increments num_reboots.
   void UpdateNumReboots();
+
+  // Writes the current wall-clock time to the kPrefsSystemUpdatedMarker
+  // state variable.
+  void CreateSystemUpdatedMarkerFile();
+
+  // Called at program startup if the device booted into a new update.
+  // The |time_to_reboot| parameter contains the (wall-clock) duration
+  // from when the update successfully completed (the value written
+  // into the kPrefsSystemUpdatedMarker state variable) until the device
+  // was booted into the update (current wall-clock time).
+  void BootedIntoUpdate(base::TimeDelta time_to_reboot);
 
   // Interface object with which we read/write persisted state. This must
   // be set by calling the Initialize method before calling any other method.

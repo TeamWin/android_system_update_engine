@@ -171,6 +171,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // |cancel_reason| is untouched.
   bool ShouldCancel(ErrorCode* cancel_reason);
 
+  // Called at update_engine startup to do various house-keeping.
+  void UpdateEngineStarted();
+
  private:
   // Update server URL for automated lab test.
   static const char* const kTestUpdateUrl;

@@ -37,6 +37,7 @@ extern const char kPrefsNumResponsesSeen[];
 extern const char kPrefsPayloadAttemptNumber[];
 extern const char kPrefsPreviousVersion[];
 extern const char kPrefsResumedUpdateFailures[];
+extern const char kPrefsSystemUpdatedMarker[];
 extern const char kPrefsTotalBytesDownloaded[];
 extern const char kPrefsUpdateCheckCount[];
 extern const char kPrefsUpdateCheckResponseHash[];

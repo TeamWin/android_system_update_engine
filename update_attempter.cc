@@ -1177,4 +1177,8 @@ bool UpdateAttempter::DecrementUpdateCheckCount() {
   return false;
 }
 
+void UpdateAttempter::UpdateEngineStarted() {
+  system_state_->payload_state()->UpdateEngineStarted();
+}
+
 }  // namespace chromeos_update_engine

@@ -851,6 +851,56 @@ TEST(PayloadStateTest, DurationsAreCorrect) {
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
+TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
+  OmahaResponse response;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  FakeClock fake_clock;
+  Prefs prefs;
+  string temp_dir;
+
+  // Set the clock to a well-known time (t = 30 seconds).
+  fake_clock.SetWallclockTime(Time::FromInternalValue(
+      30 * Time::kMicrosecondsPerSecond));
+
+  // We need persistent preferences for this test
+  EXPECT_TRUE(utils::MakeTempDirectory(
+      "/tmp/RebootAfterSuccessfulUpdateTest.XXXXXX", &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+
+  mock_system_state.set_clock(&fake_clock);
+  mock_system_state.set_prefs(&prefs);
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+
+  // Make the update succeed.
+  SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
+  payload_state.UpdateSucceeded();
+
+  // Check that the marker was written.
+  EXPECT_TRUE(prefs.Exists(kPrefsSystemUpdatedMarker));
+
+  // Now simulate a reboot and set the wallclock time to a later point
+  // (t = 500 seconds). We do this by using a new PayloadState object
+  // and checking that it emits the right UMA metric with the right
+  // value.
+  fake_clock.SetWallclockTime(Time::FromInternalValue(
+      500 * Time::kMicrosecondsPerSecond));
+  PayloadState payload_state2;
+  EXPECT_TRUE(payload_state2.Initialize(&mock_system_state));
+
+  // Expect 500 - 30 seconds = 470 seconds ~= 7 min 50 sec
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.TimeToRebootMinutes",
+      7, _, _, _));
+
+  payload_state2.UpdateEngineStarted();
+
+  // Check that the marker was nuked.
+  EXPECT_FALSE(prefs.Exists(kPrefsSystemUpdatedMarker));
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
 TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   OmahaResponse response;
   MockSystemState mock_system_state;
