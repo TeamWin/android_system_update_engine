@@ -190,7 +190,7 @@ gboolean update_engine_service_set_channel(UpdateEngineService* self,
   }
 
   bool delegated = false;
-  if (!(device_policy->GetReleaseChannelDelegated(&delegated) && delegated)) {
+  if (device_policy->GetReleaseChannelDelegated(&delegated) && !delegated) {
     LOG(INFO) << "Cannot set target channel explicitly when channel "
                  "policy/settings is not delegated";
     return FALSE;
