@@ -112,7 +112,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
   {
     OmahaResponse in;
     in.update_exists = true;
-    in.display_version = "a.b.c.d";
+    in.version = "a.b.c.d";
     in.payload_urls.push_back("http://foo/the_update_a.b.c.d.tgz");
     in.more_info_url = "http://more/info";
     in.hash = "HASH+";
@@ -138,7 +138,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
   {
     OmahaResponse in;
     in.update_exists = true;
-    in.display_version = "a.b.c.d";
+    in.version = "a.b.c.d";
     in.payload_urls.push_back("http://foo/the_update_a.b.c.d.tgz");
     in.more_info_url = "http://more/info";
     in.hash = "HASHj+";
@@ -157,7 +157,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
   {
     OmahaResponse in;
     in.update_exists = true;
-    in.display_version = "a.b.c.d";
+    in.version = "a.b.c.d";
     in.payload_urls.push_back(kLongName);
     in.more_info_url = "http://more/info";
     in.hash = "HASHj+";
@@ -190,7 +190,7 @@ TEST_F(OmahaResponseHandlerActionTest, NoUpdatesTest) {
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
   OmahaResponse in;
   in.update_exists = true;
-  in.display_version = "a.b.c.d";
+  in.version = "a.b.c.d";
   in.payload_urls.push_back("http://test.should/need/hash.checks.signed");
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
@@ -205,7 +205,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   OmahaResponse in;
   in.update_exists = true;
-  in.display_version = "a.b.c.d";
+  in.version = "a.b.c.d";
   in.payload_urls.push_back("https://test.should.not/need/hash.checks.signed");
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
@@ -220,7 +220,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   OmahaResponse in;
   in.update_exists = true;
-  in.display_version = "a.b.c.d";
+  in.version = "a.b.c.d";
   in.payload_urls.push_back("http://test.should.still/need/hash.checks");
   in.payload_urls.push_back("https://test.should.still/need/hash.checks");
   in.more_info_url = "http://more/info";
@@ -236,7 +236,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
 TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   OmahaResponse in;
   in.update_exists = true;
-  in.display_version = "a.b.c.d";
+  in.version = "a.b.c.d";
   in.payload_urls.push_back("https://MoreStableChannelTest");
   in.more_info_url = "http://more/info";
   in.hash = "HASHjk";
@@ -273,7 +273,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
 TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   OmahaResponse in;
   in.update_exists = true;
-  in.display_version = "a.b.c.d";
+  in.version = "a.b.c.d";
   in.payload_urls.push_back("https://LessStableChannelTest");
   in.more_info_url = "http://more/info";
   in.hash = "HASHjk";

@@ -35,7 +35,7 @@ struct OmahaResponse {
   int poll_interval;
 
   // These are only valid if update_exists is true:
-  std::string display_version;
+  std::string version;
 
   // The ordered list of URLs in the Omaha response. Each item is a complete
   // URL (i.e. in terms of Omaha XML, each value is a urlBase + packageName)

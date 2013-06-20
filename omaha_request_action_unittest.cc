@@ -70,7 +70,7 @@ string GetNoUpdateResponse(const string& app_id) {
 }
 
 string GetUpdateResponse2(const string& app_id,
-                          const string& display_version,
+                          const string& version,
                           const string& more_info_url,
                           const string& prompt,
                           const string& codebase,
@@ -87,12 +87,11 @@ string GetUpdateResponse2(const string& app_id,
       "<app appid=\"" + app_id + "\" status=\"ok\">"
       "<ping status=\"ok\"/><updatecheck status=\"ok\">"
       "<urls><url codebase=\"" + codebase + "\"/></urls>"
-      "<manifest version=\"" + display_version + "\">"
+      "<manifest version=\"" + version + "\">"
       "<packages><package hash=\"not-used\" name=\"" + filename +  "\" "
       "size=\"" + size + "\"/></packages>"
       "<actions><action event=\"postinstall\" "
-      "DisplayVersion=\"" + display_version + "\" "
-      "ChromeOSVersion=\"" + display_version + "\" "
+      "ChromeOSVersion=\"" + version + "\" "
       "MoreInfo=\"" + more_info_url + "\" Prompt=\"" + prompt + "\" "
       "IsDelta=\"true\" "
       "IsDeltaPayload=\"true\" "
@@ -106,7 +105,7 @@ string GetUpdateResponse2(const string& app_id,
 }
 
 string GetUpdateResponse(const string& app_id,
-                         const string& display_version,
+                         const string& version,
                          const string& more_info_url,
                          const string& prompt,
                          const string& codebase,
@@ -116,7 +115,7 @@ string GetUpdateResponse(const string& app_id,
                          const string& size,
                          const string& deadline) {
   return GetUpdateResponse2(app_id,
-                            display_version,
+                            version,
                             more_info_url,
                             prompt,
                             codebase,
@@ -309,7 +308,7 @@ TEST(OmahaRequestActionTest, ValidUpdateTest) {
                       NULL));
   EXPECT_TRUE(response.update_exists);
   EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ("1.2.3.4", response.display_version);
+  EXPECT_EQ("1.2.3.4", response.version);
   EXPECT_EQ("http://code/base/file.signed", response.payload_urls[0]);
   EXPECT_EQ("http://more/info", response.more_info_url);
   EXPECT_EQ("HASH1234=", response.hash);
@@ -733,11 +732,10 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
       "<app appid=\"xyz\" status=\"ok\">"
       "<updatecheck status=\"ok\">"
       "<urls><url codebase=\"http://missing/field/test/\"/></urls>"
-      "<manifest version=\"1.0.0.0\">"
+      "<manifest version=\"10.2.3.4\">"
       "<packages><package hash=\"not-used\" name=\"f\" "
       "size=\"587\"/></packages>"
       "<actions><action event=\"postinstall\" "
-      "DisplayVersion=\"10.2.3.4\" "
       "ChromeOSVersion=\"10.2.3.4\" "
       "Prompt=\"false\" "
       "IsDelta=\"true\" "
@@ -757,7 +755,7 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
                               &response,
                               NULL));
   EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ("10.2.3.4", response.display_version);
+  EXPECT_EQ("10.2.3.4", response.version);
   EXPECT_EQ("http://missing/field/test/f", response.payload_urls[0]);
   EXPECT_EQ("", response.more_info_url);
   EXPECT_EQ("lkq34j5345", response.hash);

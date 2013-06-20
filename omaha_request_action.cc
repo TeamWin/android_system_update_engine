@@ -34,7 +34,7 @@ namespace chromeos_update_engine {
 // List of custom pair tags that we interpret in the Omaha Response:
 static const char* kTagDeadline = "deadline";
 static const char* kTagDisablePayloadBackoff = "DisablePayloadBackoff";
-static const char* kTagDisplayVersion = "DisplayVersion";
+static const char* kTagVersion = "version";
 // Deprecated: "IsDelta"
 static const char* kTagIsDeltaPayload = "IsDeltaPayload";
 static const char* kTagMaxFailureCountPerUrl = "MaxFailureCountPerUrl";
@@ -614,22 +614,48 @@ bool OmahaRequestAction::ParsePackage(xmlDoc* doc,
 bool OmahaRequestAction::ParseParams(xmlDoc* doc,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
-  // Get the action node where parameters are present.
+  // XPath location for response elements we care about.
+  static const char* kManifestNodeXPath("/response/app/updatecheck/manifest");\
   static const char* kActionNodeXPath(
-      "/response/app/updatecheck/manifest/actions/action");
+        "/response/app/updatecheck/manifest/actions/action");
 
+  // Get the manifest node where version is present.
   scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
-      xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kActionNodeXPath)));
-  if (!xpath_nodeset.get()) {
+      xpath_manifest_nodeset(GetNodeSet(doc, ConstXMLStr(kManifestNodeXPath)));
+  if (!xpath_manifest_nodeset.get()) {
     completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }
 
-  xmlNodeSet* nodeset = xpath_nodeset->nodesetval;
-  CHECK(nodeset) << "XPath missing " << kActionNodeXPath;
+  // Grab the only matching node there should be from the xpath.
+  xmlNodeSet* nodeset = xpath_manifest_nodeset->nodesetval;
+  CHECK(nodeset) << "XPath missing " << kManifestNodeXPath;
+  CHECK_GE(nodeset->nodeNr, 1);
+  xmlNode* manifest_node = nodeset->nodeTab[0];
 
-  // We only care about the action that has event "postinall", because this is
+  // Set the version.
+  output_object->version = XmlGetProperty(manifest_node, kTagVersion);
+  if (output_object->version.empty()) {
+    LOG(ERROR) << "Omaha Response has manifest version";
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
+    return false;
+  }
+
+  LOG(INFO) << "Received omaha response to update to version "
+            << output_object->version;
+
+  // Grab the action nodes.
+  scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
+      xpath_action_nodeset(GetNodeSet(doc, ConstXMLStr(kActionNodeXPath)));
+  if (!xpath_action_nodeset.get()) {
+    completer->set_code(kErrorCodeOmahaResponseInvalid);
+    return false;
+  }
+
+  // We only care about the action that has event "postinstall", because this is
   // where Omaha puts all the generic name/value pairs in the rule.
+  nodeset = xpath_action_nodeset->nodesetval;
+  CHECK(nodeset) << "XPath missing " << kActionNodeXPath;
   LOG(INFO) << "Found " << nodeset->nodeNr
             << " action(s). Processing the postinstall action.";
 
@@ -658,8 +684,6 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
   }
 
   // Get the optional properties one by one.
-  output_object->display_version =
-      XmlGetProperty(pie_action_node, kTagDisplayVersion);
   output_object->more_info_url = XmlGetProperty(pie_action_node, kTagMoreInfo);
   output_object->metadata_size =
       ParseInt(XmlGetProperty(pie_action_node, kTagMetadataSize));
