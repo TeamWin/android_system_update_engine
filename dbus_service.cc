@@ -105,8 +105,7 @@ gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
                                                 bool powerwash,
                                                 GError **error) {
   LOG(INFO) << "Attempting rollback to non-active partitions.";
-  self->system_state_->update_attempter()->Rollback(powerwash);
-  return TRUE;
+  return self->system_state_->update_attempter()->Rollback(powerwash);
 }
 
 gboolean update_engine_service_reset_status(UpdateEngineService* self,

@@ -44,6 +44,7 @@ PayloadState::PayloadState()
 bool PayloadState::Initialize(SystemState* system_state) {
   system_state_ = system_state;
   prefs_ = system_state_->prefs();
+  powerwash_safe_prefs_ = system_state_->powerwash_safe_prefs();
   LoadResponseSignature();
   LoadPayloadAttemptNumber();
   LoadUrlIndex();
@@ -61,6 +62,7 @@ bool PayloadState::Initialize(SystemState* system_state) {
   }
   LoadNumReboots();
   LoadNumResponsesSeen();
+  LoadRollbackVersion();
   return true;
 }
 
@@ -310,6 +312,10 @@ bool PayloadState::ShouldBackoffDownload() {
   return true;
 }
 
+void PayloadState::Rollback() {
+  SetRollbackVersion(system_state_->request_params()->app_version());
+}
+
 void PayloadState::IncrementPayloadAttemptNumber() {
   if (response_.is_delta_payload) {
     LOG(INFO) << "Not incrementing payload attempt number for delta payloads";
@@ -544,6 +550,13 @@ void PayloadState::ResetPersistedState() {
   SetUpdateTimestampEnd(Time()); // Set to null time
   SetUpdateDurationUptime(TimeDelta::FromSeconds(0));
   ResetDownloadSourcesOnNewUpdate();
+  ResetRollbackVersion();
+}
+
+void PayloadState::ResetRollbackVersion() {
+  CHECK(powerwash_safe_prefs_);
+  rollback_version_ = "";
+  powerwash_safe_prefs_->Delete(kPrefsRollbackVersion);
 }
 
 void PayloadState::ResetDownloadSourcesOnNewUpdate() {
@@ -556,13 +569,18 @@ void PayloadState::ResetDownloadSourcesOnNewUpdate() {
   }
 }
 
-int64_t PayloadState::GetPersistedValue(const string& key) {
+int64_t PayloadState::GetPersistedValue(const string& key,
+                                        bool across_powerwash) {
+  PrefsInterface* prefs = prefs_;
+  if (across_powerwash)
+    prefs = powerwash_safe_prefs_;
+
   CHECK(prefs_);
-  if (!prefs_->Exists(key))
+  if (!prefs->Exists(key))
     return 0;
 
   int64_t stored_value;
-  if (!prefs_->GetInt64(key, &stored_value))
+  if (!prefs->GetInt64(key, &stored_value))
     return 0;
 
   if (stored_value < 0) {
@@ -616,7 +634,8 @@ void PayloadState::SetResponseSignature(const string& response_signature) {
 }
 
 void PayloadState::LoadPayloadAttemptNumber() {
-  SetPayloadAttemptNumber(GetPersistedValue(kPrefsPayloadAttemptNumber));
+  SetPayloadAttemptNumber(GetPersistedValue(kPrefsPayloadAttemptNumber,
+                                            false));
 }
 
 void PayloadState::SetPayloadAttemptNumber(uint32_t payload_attempt_number) {
@@ -627,7 +646,7 @@ void PayloadState::SetPayloadAttemptNumber(uint32_t payload_attempt_number) {
 }
 
 void PayloadState::LoadUrlIndex() {
-  SetUrlIndex(GetPersistedValue(kPrefsCurrentUrlIndex));
+  SetUrlIndex(GetPersistedValue(kPrefsCurrentUrlIndex, false));
 }
 
 void PayloadState::SetUrlIndex(uint32_t url_index) {
@@ -642,7 +661,7 @@ void PayloadState::SetUrlIndex(uint32_t url_index) {
 }
 
 void PayloadState::LoadUrlSwitchCount() {
-  SetUrlSwitchCount(GetPersistedValue(kPrefsUrlSwitchCount));
+  SetUrlSwitchCount(GetPersistedValue(kPrefsUrlSwitchCount, false));
 }
 
 void PayloadState::SetUrlSwitchCount(uint32_t url_switch_count) {
@@ -653,7 +672,8 @@ void PayloadState::SetUrlSwitchCount(uint32_t url_switch_count) {
 }
 
 void PayloadState::LoadUrlFailureCount() {
-  SetUrlFailureCount(GetPersistedValue(kPrefsCurrentUrlFailureCount));
+  SetUrlFailureCount(GetPersistedValue(kPrefsCurrentUrlFailureCount,
+                                       false));
 }
 
 void PayloadState::SetUrlFailureCount(uint32_t url_failure_count) {
@@ -787,7 +807,18 @@ void PayloadState::LoadUpdateDurationUptime() {
 }
 
 void PayloadState::LoadNumReboots() {
-  SetNumReboots(GetPersistedValue(kPrefsNumReboots));
+  SetNumReboots(GetPersistedValue(kPrefsNumReboots, false));
+}
+
+void PayloadState::LoadRollbackVersion() {
+  SetNumReboots(GetPersistedValue(kPrefsRollbackVersion, true));
+}
+
+void PayloadState::SetRollbackVersion(const string& rollback_version) {
+  CHECK(powerwash_safe_prefs_);
+  LOG(INFO) << "Blacklisting version "<< rollback_version;
+  rollback_version_ = rollback_version;
+  powerwash_safe_prefs_->SetString(kPrefsRollbackVersion, rollback_version);
 }
 
 void PayloadState::SetUpdateDurationUptimeExtended(const TimeDelta& value,
@@ -852,7 +883,7 @@ string PayloadState::GetPrefsKey(const string& prefix, DownloadSource source) {
 
 void PayloadState::LoadCurrentBytesDownloaded(DownloadSource source) {
   string key = GetPrefsKey(kPrefsCurrentBytesDownloaded, source);
-  SetCurrentBytesDownloaded(source, GetPersistedValue(key), true);
+  SetCurrentBytesDownloaded(source, GetPersistedValue(key, false), true);
 }
 
 void PayloadState::SetCurrentBytesDownloaded(
@@ -876,7 +907,7 @@ void PayloadState::SetCurrentBytesDownloaded(
 
 void PayloadState::LoadTotalBytesDownloaded(DownloadSource source) {
   string key = GetPrefsKey(kPrefsTotalBytesDownloaded, source);
-  SetTotalBytesDownloaded(source, GetPersistedValue(key), true);
+  SetTotalBytesDownloaded(source, GetPersistedValue(key, false), true);
 }
 
 void PayloadState::SetTotalBytesDownloaded(
@@ -900,7 +931,7 @@ void PayloadState::SetTotalBytesDownloaded(
 }
 
 void PayloadState::LoadNumResponsesSeen() {
-  SetNumResponsesSeen(GetPersistedValue(kPrefsNumResponsesSeen));
+  SetNumResponsesSeen(GetPersistedValue(kPrefsNumResponsesSeen, false));
 }
 
 void PayloadState::SetNumResponsesSeen(int num_responses_seen) {

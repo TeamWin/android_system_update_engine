@@ -27,6 +27,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD1(UpdateFailed, void(ErrorCode error));
   MOCK_METHOD0(ShouldBackoffDownload, bool());
   MOCK_METHOD0(UpdateEngineStarted, void());
+  MOCK_METHOD0(Rollback, void());
 
   // Getters.
   MOCK_METHOD0(GetResponseSignature, std::string());
@@ -41,6 +42,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD1(GetCurrentBytesDownloaded, uint64_t(DownloadSource source));
   MOCK_METHOD1(GetTotalBytesDownloaded, uint64_t(DownloadSource source));
   MOCK_METHOD0(GetNumReboots, uint32_t());
+  MOCK_METHOD0(GetRollbackVersion, std::string());
 };
 
 }  // namespace chromeos_update_engine

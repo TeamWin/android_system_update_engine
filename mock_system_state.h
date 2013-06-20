@@ -52,6 +52,10 @@ class MockSystemState : public SystemState {
     return prefs_;
   }
 
+  inline virtual PrefsInterface* powerwash_safe_prefs() {
+    return powerwash_safe_prefs_;
+  }
+
   inline virtual PayloadStateInterface* payload_state() {
     return &mock_payload_state_;
   }
@@ -83,8 +87,16 @@ class MockSystemState : public SystemState {
     prefs_ = prefs;
   }
 
+  inline void set_powerwash_safe_prefs(PrefsInterface* prefs) {
+    powerwash_safe_prefs_ = prefs;
+  }
+
   inline testing::NiceMock<PrefsMock> *mock_prefs() {
     return &mock_prefs_;
+  }
+
+  inline testing::NiceMock<PrefsMock> *mock_powerwash_safe_prefs() {
+    return &mock_powerwash_safe_prefs_;
   }
 
   inline MockPayloadState* mock_payload_state() {
@@ -99,6 +111,7 @@ class MockSystemState : public SystemState {
   // These are Mock objects or objects we own.
   testing::NiceMock<MetricsLibraryMock> mock_metrics_lib_;
   testing::NiceMock<PrefsMock> mock_prefs_;
+  testing::NiceMock<PrefsMock> mock_powerwash_safe_prefs_;
   testing::NiceMock<MockPayloadState> mock_payload_state_;
   testing::NiceMock<MockGpioHandler>* mock_gpio_handler_;
   testing::NiceMock<UpdateAttempterMock>* mock_update_attempter_;
@@ -111,6 +124,7 @@ class MockSystemState : public SystemState {
   // These are pointers to objects which caller can override.
   ClockInterface* clock_;
   PrefsInterface* prefs_;
+  PrefsInterface* powerwash_safe_prefs_;
   ConnectionManager* connection_manager_;
   OmahaRequestParams* request_params_;
 };

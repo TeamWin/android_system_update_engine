@@ -17,6 +17,12 @@ extern const char kSystemRebootedMarkerFile[];
 // The contents of the powerwash marker file.
 extern const char kPowerwashCommand[];
 
+// Directory for AU prefs that are preserved across powerwash.
+extern const char kPowerwashSafePrefsDir[];
+
+// The location where we store the AU preferences (state etc).
+extern const char kPrefsDirectory[];
+
 // Path to the stateful partition on the root filesystem.
 extern const char kStatefulPartition[];
 
@@ -37,6 +43,7 @@ extern const char kPrefsNumResponsesSeen[];
 extern const char kPrefsPayloadAttemptNumber[];
 extern const char kPrefsPreviousVersion[];
 extern const char kPrefsResumedUpdateFailures[];
+extern const char kPrefsRollbackVersion[];
 extern const char kPrefsSystemUpdatedMarker[];
 extern const char kPrefsTotalBytesDownloaded[];
 extern const char kPrefsUpdateCheckCount[];

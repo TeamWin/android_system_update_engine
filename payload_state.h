@@ -40,6 +40,7 @@ class PayloadState : public PayloadStateInterface {
   virtual void UpdateSucceeded();
   virtual void UpdateFailed(ErrorCode error);
   virtual bool ShouldBackoffDownload();
+  virtual void Rollback();
 
   virtual inline std::string GetResponseSignature() {
     return response_signature_;
@@ -86,6 +87,10 @@ class PayloadState : public PayloadStateInterface {
   }
 
   virtual void UpdateEngineStarted();
+
+  virtual inline std::string GetRollbackVersion() {
+    return rollback_version_;
+  }
 
  private:
   // Increments the payload attempt number which governs the backoff behavior
@@ -138,8 +143,9 @@ class PayloadState : public PayloadStateInterface {
   void ResetDownloadSourcesOnNewUpdate();
 
   // Returns the persisted value for the given key. It also validates that
-  // the value returned is non-negative.
-  int64_t GetPersistedValue(const std::string& key);
+  // the value returned is non-negative. If |across_powerwash| is True,
+  // get the value that will persist across a powerwash.
+  int64_t GetPersistedValue(const std::string& key, bool across_powerwash);
 
   // Calculates the response "signature", which is basically a string composed
   // of the subset of the fields in the current response that affect the
@@ -249,6 +255,16 @@ class PayloadState : public PayloadStateInterface {
                                uint64_t total_bytes_downloaded,
                                bool log);
 
+  // Loads the blacklisted version from our prefs file.
+  void LoadRollbackVersion();
+
+  // Blacklists this version from getting AU'd to until we receive a new update
+  // response.
+  void SetRollbackVersion(const std::string& rollback_version);
+
+  // Clears any blacklisted version.
+  void ResetRollbackVersion();
+
   inline uint32_t GetUrlIndex() {
     return url_index_;
   }
@@ -296,6 +312,11 @@ class PayloadState : public PayloadStateInterface {
   // Interface object with which we read/write persisted state. This must
   // be set by calling the Initialize method before calling any other method.
   PrefsInterface* prefs_;
+
+  // Interface object with which we read/write persisted state. This must
+  // be set by calling the Initialize method before calling any other method.
+  // This object persists across powerwashes.
+  PrefsInterface* powerwash_safe_prefs_;
 
   // This is the current response object from Omaha.
   OmahaResponse response_;
@@ -389,6 +410,12 @@ class PayloadState : public PayloadStateInterface {
   // The ordered list of the subset of payload URL candidates which are
   // allowed as per device policy.
   std::vector<std::string> candidate_urls_;
+
+  // This stores a blacklisted version set as part of rollback. When we rollback
+  // we store the version of the os from which we are rolling back from in order
+  // to guarantee that we do not re-update to it on the next au attempt after
+  // reboot.
+  std::string rollback_version_;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };

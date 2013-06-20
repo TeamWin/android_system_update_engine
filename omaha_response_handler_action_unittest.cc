@@ -59,6 +59,7 @@ const string kLongName =
     "very_long_name_and_no_slashes-very_long_name_and_no_slashes"
     "very_long_name_and_no_slashes-very_long_name_and_no_slashes"
     "-the_update_a.b.c.d_DELTA_.tgz";
+const string kBadVersion = "don't update me";
 }  // namespace {}
 
 bool OmahaResponseHandlerActionTest::DoTestCommon(
@@ -72,7 +73,7 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
 
   ObjectFeederAction<OmahaResponse> feeder_action;
   feeder_action.set_obj(in);
-  if (in.update_exists) {
+  if (in.update_exists and in.version != kBadVersion) {
     EXPECT_CALL(*(mock_system_state->mock_prefs()),
                 SetString(kPrefsUpdateCheckResponseHash, in.hash))
         .WillOnce(Return(true));
@@ -81,6 +82,8 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
   string current_url = in.payload_urls.size() ? in.payload_urls[0] : "";
   EXPECT_CALL(*(mock_system_state->mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(current_url));
+  EXPECT_CALL(*(mock_system_state->mock_payload_state()), GetRollbackVersion())
+        .WillRepeatedly(Return(kBadVersion));
 
   OmahaResponseHandlerAction response_handler_action(mock_system_state);
   response_handler_action.set_boot_device(boot_dev);
@@ -185,6 +188,31 @@ TEST_F(OmahaResponseHandlerActionTest, NoUpdatesTest) {
   EXPECT_EQ("", install_plan.download_url);
   EXPECT_EQ("", install_plan.payload_hash);
   EXPECT_EQ("", install_plan.install_path);
+}
+
+TEST_F(OmahaResponseHandlerActionTest, RollbackVersionTest) {
+  string version_ok = "124.0.0";
+
+  InstallPlan install_plan;
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = kBadVersion;
+  in.payload_urls.push_back("http://foo/the_update_a.b.c.d.tgz");
+  in.more_info_url = "http://more/info";
+  in.hash = "HASHj+";
+  in.size = 12;
+  in.prompt = true;
+
+  // Version is blacklisted for first call so no update.
+  EXPECT_FALSE(DoTest(in, "/dev/sda5", &install_plan));
+  EXPECT_EQ("", install_plan.download_url);
+  EXPECT_EQ("", install_plan.payload_hash);
+  EXPECT_EQ("", install_plan.install_path);
+
+  // Version isn't blacklisted.
+  in.version = version_ok;
+  EXPECT_TRUE(DoTest(in, "/dev/sda5", &install_plan));
+  EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {

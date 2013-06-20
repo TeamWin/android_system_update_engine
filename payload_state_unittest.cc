@@ -786,6 +786,30 @@ TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
   EXPECT_EQ(0, payload_state.GetNumReboots());
 }
 
+TEST(PayloadStateTest, RollbackVersion) {
+  MockSystemState mock_system_state;
+  PayloadState payload_state;
+
+  NiceMock<PrefsMock>* mock_powerwash_safe_prefs =
+      mock_system_state.mock_powerwash_safe_prefs();
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+
+  // Verify pre-conditions are good.
+  EXPECT_TRUE(payload_state.GetRollbackVersion().empty());
+
+  // Mock out the os version and make sure it's blacklisted correctly.
+  string rollback_version = "2345.0.0";
+  OmahaRequestParams params(&mock_system_state);
+  params.Init(rollback_version, "", false);
+  mock_system_state.set_request_params(&params);
+
+  EXPECT_CALL(*mock_powerwash_safe_prefs, SetString(kPrefsRollbackVersion,
+                                                    rollback_version));
+  payload_state.Rollback();
+
+  EXPECT_EQ(rollback_version, payload_state.GetRollbackVersion());
+}
+
 TEST(PayloadStateTest, DurationsAreCorrect) {
   OmahaResponse response;
   PayloadState payload_state;

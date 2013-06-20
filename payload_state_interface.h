@@ -58,6 +58,9 @@ class PayloadStateInterface {
   // depending on the type of the error that happened.
   virtual void UpdateFailed(ErrorCode error) = 0;
 
+  // This method should be called every time we initiate a Rollback.
+  virtual void Rollback() = 0;
+
   // Returns true if we should backoff the current download attempt.
   // False otherwise.
   virtual bool ShouldBackoffDownload() = 0;
@@ -112,6 +115,10 @@ class PayloadStateInterface {
 
   // Called at update_engine startup to do various house-keeping.
   virtual void UpdateEngineStarted() = 0;
+
+  // Returns the version from before a rollback if our last update was a
+  // rollback.
+  virtual std::string GetRollbackVersion() = 0;
  };
 
 }  // namespace chromeos_update_engine

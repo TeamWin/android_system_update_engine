@@ -7,13 +7,19 @@
 namespace chromeos_update_engine {
 
 const char kPowerwashMarkerFile[] =
-  "/mnt/stateful_partition/factory_install_reset";
+    "/mnt/stateful_partition/factory_install_reset";
+
+const char kPowerwashCommand[] = "safe fast keepimg\n";
+
+const char kPowerwashSafePrefsDir[] =
+    "/mnt/stateful_partition/unencrypted/preserve/update_engine/prefs";
+
+const char kPrefsDirectory[] = "/var/lib/update_engine/prefs";
+
+const char kStatefulPartition[] = "/mnt/stateful_partition";
 
 const char kSystemRebootedMarkerFile[] = "/tmp/update_engine_update_recorded";
 
-const char kPowerwashCommand[] = "safe fast\n";
-
-const char kStatefulPartition[] = "/mnt/stateful_partition";
 
 // Constants defining keys for the persisted state of update engine.
 const char kPrefsBackoffExpiryTime[] = "backoff-expiry-time";
@@ -34,6 +40,7 @@ const char kPrefsNumResponsesSeen[] = "num-responses-seen";
 const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";
+const char kPrefsRollbackVersion[] = "rollback-version";
 const char kPrefsSystemUpdatedMarker[] = "system-updated-marker";
 const char kPrefsTotalBytesDownloaded[] = "total-bytes-downloaded";
 const char kPrefsUpdateCheckCount[] = "update-check-count";

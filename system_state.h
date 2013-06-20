@@ -60,6 +60,12 @@ class SystemState {
   // Gets the interface object for persisted store.
   virtual PrefsInterface* prefs() = 0;
 
+  // Gets the interface object for the persisted store that persists across
+  // powerwashes. Please note that this should be used very seldomly and must
+  // be forwards and backwards compatible as powerwash is used to go back and
+  // forth in system versions.
+  virtual PrefsInterface* powerwash_safe_prefs() = 0;
+
   // Gets the interface for the payload state object.
   virtual PayloadStateInterface* payload_state() = 0;
 

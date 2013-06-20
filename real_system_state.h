@@ -52,6 +52,10 @@ public:
     return &prefs_;
   }
 
+  virtual inline PrefsInterface* powerwash_safe_prefs() {
+      return &powerwash_safe_prefs_;
+    }
+
   virtual inline PayloadStateInterface* payload_state() {
     return &payload_state_;
   }
@@ -94,6 +98,9 @@ private:
 
   // Interface for persisted store.
   Prefs prefs_;
+
+  // Interface for persisted store that persists across powerwashes.
+  Prefs powerwash_safe_prefs_;
 
   // All state pertaining to payload state such as
   // response, URL, backoff states.

@@ -10,7 +10,6 @@
 namespace chromeos_update_engine {
 
 static const char kOOBECompletedMarker[] = "/home/chronos/.oobe_completed";
-static const char kPrefsDirectory[] = "/var/lib/update_engine/prefs";
 
 RealSystemState::RealSystemState()
     : device_policy_(NULL),
@@ -23,6 +22,11 @@ bool RealSystemState::Initialize(bool enable_gpio) {
 
   if (!prefs_.Init(FilePath(kPrefsDirectory))) {
     LOG(ERROR) << "Failed to initialize preferences.";
+    return false;
+  }
+
+  if (!powerwash_safe_prefs_.Init(FilePath(kPowerwashSafePrefsDir))) {
+    LOG(ERROR) << "Failed to initialize powerwash preferences.";
     return false;
   }
 

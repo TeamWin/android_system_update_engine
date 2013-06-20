@@ -636,7 +636,7 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
   // Set the version.
   output_object->version = XmlGetProperty(manifest_node, kTagVersion);
   if (output_object->version.empty()) {
-    LOG(ERROR) << "Omaha Response has manifest version";
+    LOG(ERROR) << "Omaha Response does not have version in manifest!";
     completer->set_code(kErrorCodeOmahaResponseInvalid);
     return false;
   }

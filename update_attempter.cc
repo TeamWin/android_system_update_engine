@@ -544,14 +544,18 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   }
 }
 
-void UpdateAttempter::Rollback(bool powerwash) {
+bool UpdateAttempter::Rollback(bool powerwash) {
   CHECK(!processor_->IsRunning());
   processor_->set_delegate(this);
 
+  // TODO(sosa): crbug.com/252539 -- refactor channel into system_state and
+  // check for != stable-channel here.
+  RefreshDevicePolicy();
+
   LOG(INFO) << "Setting rollback options.";
   InstallPlan install_plan;
-  TEST_AND_RETURN(utils::GetInstallDev(utils::BootDevice(),
-                                       &install_plan.install_path));
+  TEST_AND_RETURN_FALSE(utils::GetInstallDev(utils::BootDevice(),
+                                             &install_plan.install_path));
   install_plan.kernel_install_path = utils::BootKernelDevice(
       install_plan.install_path);
   install_plan.powerwash_required = powerwash;
@@ -563,6 +567,12 @@ void UpdateAttempter::Rollback(bool powerwash) {
       new InstallPlanAction(install_plan));
   actions_.push_back(shared_ptr<AbstractAction>(install_plan_action));
 
+  // Initialize the default request params.
+  if (!omaha_request_params_->Init("", "", true)) {
+    LOG(ERROR) << "Unable to initialize Omaha request params.";
+    return false;
+  }
+
   BuildPostInstallActions(install_plan_action.get());
 
   // Enqueue the actions
@@ -570,6 +580,10 @@ void UpdateAttempter::Rollback(bool powerwash) {
        it != actions_.end(); ++it) {
     processor_->EnqueueAction(it->get());
   }
+
+  // Update the payload state for Rollback.
+  system_state_->payload_state()->Rollback();
+
   SetStatusAndNotify(UPDATE_STATUS_ATTEMPTING_ROLLBACK,
                      kUpdateNoticeUnspecified);
 
@@ -578,6 +592,7 @@ void UpdateAttempter::Rollback(bool powerwash) {
   // actions we just posted.
   start_action_processor_ = true;
   UpdateBootFlags();
+  return true;
 }
 
 void UpdateAttempter::CheckForUpdate(const string& app_version,
