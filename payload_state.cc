@@ -428,34 +428,41 @@ void PayloadState::ReportBytesDownloadedMetrics() {
   for (int i = 0; i < kNumDownloadSources; i++) {
     DownloadSource source = static_cast<DownloadSource>(i);
     const int kMaxMiBs = 10240; // Anything above 10GB goes in the last bucket.
+    uint64_t mbs;
 
-    metric = "Installer.SuccessfulMBsDownloadedFrom" + utils::ToString(source);
-    uint64_t mbs = GetCurrentBytesDownloaded(source) / kNumBytesInOneMiB;
+    // Only consider this download source (and send byte counts) as
+    // having been used if we downloaded a non-trivial amount of bytes
+    // (e.g. at least 1 MiB) that contributed to the final success of
+    // the update. Otherwise we're going to end up with a lot of
+    // zero-byte events in the histogram.
 
-    //  Count this download source as having been used if we downloaded any
-    //  bytes that contributed to the final success of the update.
-    if (mbs)
+    mbs = GetCurrentBytesDownloaded(source) / kNumBytesInOneMiB;
+    if (mbs > 0) {
       download_sources_used |= (1 << source);
 
-    successful_mbs += mbs;
-    LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " << metric;
-    system_state_->metrics_lib()->SendToUMA(metric,
-                                            mbs,
-                                            0,  // min
-                                            kMaxMiBs,
-                                            kNumDefaultUmaBuckets);
+      metric = "Installer.SuccessfulMBsDownloadedFrom" +
+          utils::ToString(source);
+      successful_mbs += mbs;
+      LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " << metric;
+      system_state_->metrics_lib()->SendToUMA(metric,
+                                              mbs,
+                                              0,  // min
+                                              kMaxMiBs,
+                                              kNumDefaultUmaBuckets);
+    }
     SetCurrentBytesDownloaded(source, 0, true);
 
-    metric = "Installer.TotalMBsDownloadedFrom" + utils::ToString(source);
     mbs = GetTotalBytesDownloaded(source) / kNumBytesInOneMiB;
-    total_mbs += mbs;
-    LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " << metric;
-    system_state_->metrics_lib()->SendToUMA(metric,
-                                            mbs,
-                                            0,  // min
-                                            kMaxMiBs,
-                                            kNumDefaultUmaBuckets);
-
+    if (mbs > 0) {
+      metric = "Installer.TotalMBsDownloadedFrom" + utils::ToString(source);
+      total_mbs += mbs;
+      LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " << metric;
+      system_state_->metrics_lib()->SendToUMA(metric,
+                                              mbs,
+                                              0,  // min
+                                              kMaxMiBs,
+                                              kNumDefaultUmaBuckets);
+    }
     SetTotalBytesDownloaded(source, 0, true);
   }
 
