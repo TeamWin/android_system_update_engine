@@ -134,6 +134,9 @@ class PayloadState : public PayloadStateInterface {
   // Reports the various metrics related to update duration.
   void ReportDurationMetrics();
 
+  // Reports the metric related to the applied payload type.
+  void ReportPayloadTypeMetric();
+
   // Resets all the persisted state values which are maintained relative to the
   // current response signature. The response signature itself is not reset.
   void ResetPersistedState();

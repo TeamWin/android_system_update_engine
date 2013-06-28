@@ -156,6 +156,7 @@ void PayloadState::UpdateSucceeded() {
   ReportRebootMetrics();
   ReportDurationMetrics();
   ReportUpdatesAbandonedCountMetric();
+  ReportPayloadTypeMetric();
 
   // Reset the number of responses seen since it counts from the last
   // successful update, e.g. now.
@@ -875,6 +876,28 @@ void PayloadState::ReportDurationMetrics() {
 
   prefs_->Delete(kPrefsUpdateTimestampStart);
   prefs_->Delete(kPrefsUpdateDurationUptime);
+}
+
+void PayloadState::ReportPayloadTypeMetric() {
+  string metric;
+  PayloadType uma_payload_type;
+  OmahaRequestParams* params = system_state_->request_params();
+
+  if (response_.is_delta_payload) {
+    uma_payload_type = kPayloadTypeDelta;
+  } else if (params->delta_okay()) {
+    uma_payload_type = kPayloadTypeFull;
+  } else { // Full payload, delta was not allowed by request.
+    uma_payload_type = kPayloadTypeForcedFull;
+  }
+
+  metric = "Installer.PayloadFormat";
+  system_state_->metrics_lib()->SendEnumToUMA(
+      metric,
+      uma_payload_type,
+      kNumPayloadTypes);
+  LOG(INFO) << "Uploading " << utils::ToString(uma_payload_type)
+            << " for metric " <<  metric;
 }
 
 string PayloadState::GetPrefsKey(const string& prefix, DownloadSource source) {

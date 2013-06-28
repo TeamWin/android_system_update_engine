@@ -71,6 +71,19 @@ typedef enum {
   kNumDownloadSources
 } DownloadSource;
 
+// A payload can be a Full or Delta payload. In some cases, a Full payload is
+// used even when a Delta payload was available for the update, called here
+// ForcedFull. The PayloadType enum is only used to send UMA metrics about the
+// successfully applied payload.
+typedef enum {
+  kPayloadTypeFull,
+  kPayloadTypeDelta,
+  kPayloadTypeForcedFull,
+
+  // Note: Add new payload types only above this line.
+  kNumPayloadTypes
+} PayloadType;
+
 // The default number of UMA buckets for metrics.
 const int kNumDefaultUmaBuckets = 50;
 

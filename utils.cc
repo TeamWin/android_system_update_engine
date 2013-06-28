@@ -802,13 +802,26 @@ string ToString(bool b) {
   return (b ? "true" : "false");
 }
 
-std::string ToString(DownloadSource source) {
+string ToString(DownloadSource source) {
   switch (source) {
     case kDownloadSourceHttpsServer: return "HttpsServer";
     case kDownloadSourceHttpServer:  return "HttpServer";
     case kNumDownloadSources:        return "Unknown";
     // Don't add a default case to let the compiler warn about newly added
     // download sources which should be added here.
+  }
+
+  return "Unknown";
+}
+
+string ToString(PayloadType payload_type) {
+  switch (payload_type) {
+    case kPayloadTypeDelta:      return "Delta";
+    case kPayloadTypeFull:       return "Full";
+    case kPayloadTypeForcedFull: return "ForcedFull";
+    case kNumPayloadTypes:       return "Unknown";
+    // Don't add a default case to let the compiler warn about newly added
+    // payload types which should be added here.
   }
 
   return "Unknown";

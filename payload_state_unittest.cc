@@ -714,6 +714,8 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
       "Installer.DownloadSourcesUsed", 3, _, _, _));
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.DownloadOverheadPercentage", 542, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendEnumToUMA(
+      "Installer.PayloadFormat", kPayloadTypeFull, kNumPayloadTypes));
 
   payload_state.UpdateSucceeded();
 
@@ -987,6 +989,82 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
   EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
   EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+}
+
+TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsDelta) {
+  OmahaResponse response;
+  response.is_delta_payload = true;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash6437", true, &payload_state, &response);
+
+  // Simulate a successful download and update.
+  payload_state.DownloadComplete();
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendEnumToUMA(
+      "Installer.PayloadFormat", kPayloadTypeDelta, kNumPayloadTypes));
+  payload_state.UpdateSucceeded();
+
+  // Mock the request to a request where the delta was disabled but Omaha sends
+  // a delta anyway and test again.
+  OmahaRequestParams params(&mock_system_state);
+  params.set_delta_okay(false);
+  mock_system_state.set_request_params(&params);
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash6437", true, &payload_state, &response);
+
+  payload_state.DownloadComplete();
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendEnumToUMA(
+      "Installer.PayloadFormat", kPayloadTypeDelta, kNumPayloadTypes));
+  payload_state.UpdateSucceeded();
+}
+
+TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsForcedFull) {
+  OmahaResponse response;
+  response.is_delta_payload = false;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash6437", true, &payload_state, &response);
+
+  // Mock the request to a request where the delta was disabled.
+  OmahaRequestParams params(&mock_system_state);
+  params.set_delta_okay(false);
+  mock_system_state.set_request_params(&params);
+
+  // Simulate a successful download and update.
+  payload_state.DownloadComplete();
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendEnumToUMA(
+      "Installer.PayloadFormat", kPayloadTypeForcedFull, kNumPayloadTypes));
+  payload_state.UpdateSucceeded();
+}
+
+TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsFull) {
+  OmahaResponse response;
+  response.is_delta_payload = false;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash6437", true, &payload_state, &response);
+
+  // Mock the request to a request where the delta was disabled.
+  OmahaRequestParams params(&mock_system_state);
+  params.set_delta_okay(true);
+  mock_system_state.set_request_params(&params);
+
+  // Simulate a successful download and update.
+  payload_state.DownloadComplete();
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendEnumToUMA(
+      "Installer.PayloadFormat", kPayloadTypeFull, kNumPayloadTypes));
+  payload_state.UpdateSucceeded();
 }
 
 }

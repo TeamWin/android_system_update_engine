@@ -168,6 +168,9 @@ std::string ToString(bool b);
 // Returns a string representation of the given enum.
 std::string ToString(DownloadSource source);
 
+// Returns a string representation of the given enum.
+std::string ToString(PayloadType payload_type);
+
 enum BootLoader {
   BootLoader_SYSLINUX = 0,
   BootLoader_CHROME_FIRMWARE = 1
