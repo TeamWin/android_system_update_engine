@@ -39,6 +39,11 @@ DEFINE_bool(update, false, "Forces an update and waits for its completion. "
             "Exit status is 0 if the update succeeded, and 1 otherwise.");
 DEFINE_bool(watch_for_updates, false,
             "Listen for status updates and print them to the screen.");
+DEFINE_bool(show_update_over_cellular, false,
+            "Show the current setting for updates over cellular networks.");
+DEFINE_string(update_over_cellular, "",
+              "Enables (\"yes\") or disables (\"no\") the updates over "
+              "cellular networks.");
 
 namespace {
 
@@ -260,6 +265,39 @@ string GetChannel(bool get_current_channel) {
   return output;
 }
 
+bool SetUpdateOverCellularPermission(gboolean allowed) {
+  DBusGProxy* proxy;
+  GError* error = NULL;
+
+  CHECK(GetProxy(&proxy));
+
+  gboolean rc =
+      org_chromium_UpdateEngineInterface_set_update_over_cellular_permission(
+          proxy,
+          allowed,
+          &error);
+  CHECK_EQ(rc, true) << "Error setting the update over cellular setting: "
+                     << GetAndFreeGError(&error);
+  return true;
+}
+
+bool GetUpdateOverCellularPermission() {
+  DBusGProxy* proxy;
+  GError* error = NULL;
+
+  CHECK(GetProxy(&proxy));
+
+  gboolean allowed;
+  gboolean rc =
+      org_chromium_UpdateEngineInterface_get_update_over_cellular_permission(
+          proxy,
+          &allowed,
+          &error);
+  CHECK_EQ(rc, true) << "Error getting the update over cellular setting: "
+                     << GetAndFreeGError(&error);
+  return allowed;
+}
+
 static gboolean CompleteUpdateSource(gpointer data) {
   string current_op;
   if (!GetStatus(&current_op) || current_op == "UPDATE_STATUS_IDLE") {
@@ -314,6 +352,24 @@ int main(int argc, char** argv) {
       return 1;
     }
     return 0;
+  }
+
+  // Changes the current update over cellular network setting.
+  if (!FLAGS_update_over_cellular.empty()) {
+    gboolean allowed = FLAGS_update_over_cellular == "yes";
+    if (!allowed && FLAGS_update_over_cellular != "no") {
+      LOG(ERROR) << "Unknown option: \"" << FLAGS_update_over_cellular
+                 << "\". Please specify \"yes\" or \"no\".";
+    } else {
+      SetUpdateOverCellularPermission(allowed);
+    }
+  }
+
+  // Show the current update over cellular network setting.
+  if (FLAGS_show_update_over_cellular) {
+    bool allowed = GetUpdateOverCellularPermission();
+    LOG(INFO) << "Current update over cellular network setting: "
+              << (allowed ? "ENABLED" : "DISABLED");
   }
 
   // First, update the target channel if requested.

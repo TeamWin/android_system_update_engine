@@ -48,6 +48,8 @@ const char kPrefsUpdateCheckCount[] = "update-check-count";
 const char kPrefsUpdateCheckResponseHash[] = "update-check-response-hash";
 const char kPrefsUpdateDurationUptime[] = "update-duration-uptime";
 const char kPrefsUpdateFirstSeenAt[] = "update-first-seen-at";
+const char kPrefsUpdateOverCellularPermission[] =
+    "update-over-cellular-permission";
 const char kPrefsUpdateServerCertificate[] = "update-server-cert";
 const char kPrefsUpdateStateNextDataOffset[] = "update-state-next-data-offset";
 const char kPrefsUpdateStateNextOperation[] = "update-state-next-operation";

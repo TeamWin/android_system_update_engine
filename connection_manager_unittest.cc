@@ -201,7 +201,7 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
       .Times(1)
       .WillOnce(Return(&allow_3g_policy));
 
-  // This test tests 3G being the only connection type being allowed.
+  // This test tests cellular (3G) being the only connection type being allowed.
   set<string> allowed_set;
   allowed_set.insert(cmut_.StringForConnectionType(kNetCellular));
 
@@ -220,20 +220,24 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
       .WillOnce(Return(&allow_3g_policy));
 
   // This test tests multiple connection types being allowed, with
-  // 3G one among them.
+  // 3G one among them. Only Cellular is currently enforced by the policy
+  // setting, the others are ignored (see Bluetooth for example).
   set<string> allowed_set;
-  allowed_set.insert(cmut_.StringForConnectionType(kNetEthernet));
   allowed_set.insert(cmut_.StringForConnectionType(kNetCellular));
-  allowed_set.insert(cmut_.StringForConnectionType(kNetWifi));
+  allowed_set.insert(cmut_.StringForConnectionType(kNetBluetooth));
 
   EXPECT_CALL(allow_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(1)
       .WillOnce(DoAll(SetArgumentPointee<0>(allowed_set), Return(true)));
 
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetEthernet));
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetCellular));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWifi));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWimax));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetBluetooth));
 }
 
-TEST_F(ConnectionManagerTest, BlockUpdatesOver3GByDefaultTest) {
+TEST_F(ConnectionManagerTest, BlockUpdatesOverCellularByDefaultTest) {
   EXPECT_CALL(mock_system_state_, device_policy()).Times(1);
   EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular));
 }
@@ -276,6 +280,44 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
       .Times(1)
       .WillOnce(DoAll(SetArgumentPointee<0>(allowed_set), Return(false)));
 
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular));
+}
+
+TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
+  policy::MockDevicePolicy no_policy;
+  testing::NiceMock<PrefsMock>* prefs = mock_system_state_.mock_prefs();
+
+  EXPECT_CALL(mock_system_state_, device_policy())
+      .Times(3)
+      .WillRepeatedly(Return(&no_policy));
+
+  // No setting enforced by the device policy, user prefs should be used.
+  EXPECT_CALL(no_policy, GetAllowedConnectionTypesForUpdate(_))
+      .Times(3)
+      .WillRepeatedly(Return(false));
+
+  // No user pref: block.
+  EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
+      .Times(1)
+      .WillOnce(Return(false));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular));
+
+  // Allow per user pref.
+  EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
+      .Times(1)
+      .WillOnce(Return(true));
+  EXPECT_CALL(*prefs, GetInt64(kPrefsUpdateOverCellularPermission, _))
+      .Times(1)
+      .WillOnce(DoAll(SetArgumentPointee<1>(1), Return(true)));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetCellular));
+
+  // Block per user pref.
+  EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
+      .Times(1)
+      .WillOnce(Return(true));
+  EXPECT_CALL(*prefs, GetInt64(kPrefsUpdateOverCellularPermission, _))
+      .Times(1)
+      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
   EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular));
 }
 

@@ -174,6 +174,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Called at update_engine startup to do various house-keeping.
   void UpdateEngineStarted();
 
+  // Reloads the device policy from libchromeos. Note: This method doesn't
+  // cause a real-time policy fetch from the policy server. It just reloads the
+  // latest value that libchromeos has cached. libchromeos fetches the policies
+  // from the server asynchronously at its own frequency.
+  void RefreshDevicePolicy();
+
  private:
   // Update server URL for automated lab test.
   static const char* const kTestUpdateUrl;
@@ -254,12 +260,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // accurate in case a user takes a long time to reboot the device after an
   // update has been applied.
   void PingOmaha();
-
-  // Reloads the device policy from libchromeos. Note: This method doesn't
-  // cause a real-time policy fetch from the policy server. It just reloads the
-  // latest value that libchromeos has cached. libchromeos fetches the policies
-  // from the server asynchronously at its own frequency.
-  void RefreshDevicePolicy();
 
   // Helper method of Update() to calculate the update-related parameters
   // from various sources and set the appropriate state. Please refer to

@@ -40,6 +40,12 @@
       <arg type="b" name="get_current_channel" />
       <arg type="s" name="channel" direction="out" />
     </method>
+    <method name="SetUpdateOverCellularPermission">
+      <arg type="b" name="allowed" />
+    </method>
+    <method name="GetUpdateOverCellularPermission">
+      <arg type="b" name="allowed" direction="out" />
+    </method>
     <signal name="StatusUpdate">
       <arg type="x" name="last_checked_time" />
       <arg type="d" name="progress" />

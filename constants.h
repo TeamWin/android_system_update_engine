@@ -51,6 +51,7 @@ extern const char kPrefsUpdateCheckCount[];
 extern const char kPrefsUpdateCheckResponseHash[];
 extern const char kPrefsUpdateDurationUptime[];
 extern const char kPrefsUpdateFirstSeenAt[];
+extern const char kPrefsUpdateOverCellularPermission[];
 extern const char kPrefsUpdateServerCertificate[];
 extern const char kPrefsUpdateStateNextDataOffset[];
 extern const char kPrefsUpdateStateNextOperation[];

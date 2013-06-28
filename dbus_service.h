@@ -101,6 +101,22 @@ gboolean update_engine_service_get_channel(UpdateEngineService* self,
                                            gchar** channel,
                                            GError **error);
 
+// If there's no device policy installed, sets the update over cellular networks
+// permission to the |allowed| value. Otherwise, this method returns with an
+// error since this setting is overridden by the applied policy.
+gboolean update_engine_service_set_update_over_cellular_permission(
+    UpdateEngineService* self,
+    bool allowed,
+    GError **error);
+
+// Returns the current value of the update over cellular network setting, either
+// forced by the device policy if the device is enrolled or the current user
+// preference otherwise.
+gboolean update_engine_service_get_update_over_cellular_permission(
+    UpdateEngineService* self,
+    bool* allowed,
+    GError **error);
+
 gboolean update_engine_service_emit_status_update(
     UpdateEngineService* self,
     gint64 last_checked_time,

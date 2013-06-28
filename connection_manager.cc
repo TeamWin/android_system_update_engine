@@ -12,6 +12,7 @@
 #include <dbus/dbus-glib.h>
 #include <glib.h>
 
+#include "update_engine/prefs.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
@@ -158,26 +159,51 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type) const {
       set<string> allowed_types;
       const policy::DevicePolicy* device_policy =
           system_state_->device_policy();
+
+      // A device_policy is loaded in a lazy way right before an update check,
+      // so the device_policy should be already loaded at this point. If it's
+      // not, return a safe value for this setting.
       if (!device_policy) {
-        LOG(INFO) << "Disabling updates over cellular connection as there's no "
-                     "device policy object present";
+        LOG(INFO) << "Disabling updates over cellular networks as there's no "
+                     "device policy loaded yet.";
         return false;
       }
 
-      if (!device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
-        LOG(INFO) << "Disabling updates over cellular connection as there's no "
-                     "allowed connection types from policy";
-        return false;
-      }
+      if (device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
+        // The update setting is enforced by the device policy.
 
-      if (!ContainsKey(allowed_types, flimflam::kTypeCellular)) {
-        LOG(INFO) << "Disabling updates over cellular connection as it's not "
-                     "allowed in the device policy.";
-        return false;
-      }
+        if ((type == kNetCellular &&
+            !ContainsKey(allowed_types, flimflam::kTypeCellular))) {
+          LOG(INFO) << "Disabling updates over cellular connection as it's not "
+                       "allowed in the device policy.";
+          return false;
+        }
 
-      LOG(INFO) << "Allowing updates over cellular per device policy";
-      return true;
+        LOG(INFO) << "Allowing updates over cellular per device policy.";
+        return true;
+      } else {
+        // There's no update setting in the device policy, using the local user
+        // setting.
+        PrefsInterface* prefs = system_state_->prefs();
+
+        if (!prefs || !prefs->Exists(kPrefsUpdateOverCellularPermission)) {
+          LOG(INFO) << "Disabling updates over cellular connection as there's "
+                       "no device policy setting nor user preference present.";
+          return false;
+        }
+
+        int64_t stored_value;
+        if (!prefs->GetInt64(kPrefsUpdateOverCellularPermission, &stored_value))
+          return false;
+
+        if (!stored_value) {
+          LOG(INFO) << "Disabling updates over cellular connection per user "
+                       "setting.";
+          return false;
+        }
+        LOG(INFO) << "Allowing updates over cellular per user setting.";
+        return true;
+      }
     }
 
     default:

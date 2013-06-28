@@ -4,15 +4,20 @@
 
 #include "update_engine/dbus_service.h"
 
+#include <set>
 #include <string>
 
 #include <base/logging.h>
 #include <policy/device_policy.h>
 
+#include "update_engine/connection_manager.h"
 #include "update_engine/marshal.glibmarshal.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/update_attempter.h"
+#include "update_engine/prefs.h"
 #include "update_engine/utils.h"
 
+using std::set;
 using std::string;
 
 static const char kAUTestURLRequest[] = "autest";
@@ -216,6 +221,76 @@ gboolean update_engine_service_get_channel(UpdateEngineService* self,
       rp->current_channel() : rp->target_channel();
 
   *channel = g_strdup(channel_str.c_str());
+  return TRUE;
+}
+
+gboolean update_engine_service_set_update_over_cellular_permission(
+    UpdateEngineService* self,
+    bool allowed,
+    GError **error) {
+  set<string> allowed_types;
+  const policy::DevicePolicy* device_policy =
+      self->system_state_->device_policy();
+
+  // The device_policy is loaded in a lazy way before an update check. Load it
+  // now from the libchromeos cache if it wasn't already loaded.
+  if (!device_policy) {
+    chromeos_update_engine::UpdateAttempter* update_attempter =
+        self->system_state_->update_attempter();
+    if (update_attempter) {
+      update_attempter->RefreshDevicePolicy();
+      device_policy = self->system_state_->device_policy();;
+    }
+  }
+
+  // Check if this setting is allowed by the device policy.
+  if (device_policy &&
+      device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
+    LOG(INFO) << "Ignoring the update over cellular setting since there's "
+                 "a device policy enforcing this setting.";
+    *error = NULL;
+    return FALSE;
+  }
+
+  // If the policy wasn't loaded yet, then it is still OK to change the local
+  // setting because the policy will be checked again during the update check.
+
+  chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
+
+  if (!prefs->SetInt64(
+      chromeos_update_engine::kPrefsUpdateOverCellularPermission,
+      allowed ? 1 : 0)) {
+    LOG(ERROR) << "Error setting the update over cellular to "
+               << (allowed ? 1 : 0);
+    *error = NULL;
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+gboolean update_engine_service_get_update_over_cellular_permission(
+    UpdateEngineService* self,
+    bool* allowed,
+    GError **/*error*/) {
+  chromeos_update_engine::ConnectionManager* cm =
+      self->system_state_->connection_manager();
+
+  // The device_policy is loaded in a lazy way before an update check and is
+  // used to determine if an update is allowed over cellular. Load the device
+  // policy now from the libchromeos cache if it wasn't already loaded.
+  if (!self->system_state_->device_policy()) {
+    chromeos_update_engine::UpdateAttempter* update_attempter =
+        self->system_state_->update_attempter();
+    if (update_attempter)
+      update_attempter->RefreshDevicePolicy();
+  }
+
+  // Return the current setting based on the same logic used while checking for
+  // updates. A log message could be printed as the result of this test.
+  LOG(INFO) << "Checking if updates over cellular networks are allowed:";
+  *allowed = cm->IsUpdateAllowedOver(chromeos_update_engine::kNetCellular);
+
   return TRUE;
 }
 
