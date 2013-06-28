@@ -70,7 +70,11 @@ class PayloadStateInterface {
   virtual std::string GetResponseSignature() = 0;
 
   // Returns the payload attempt number.
-  virtual uint32_t GetPayloadAttemptNumber() = 0;
+  virtual int GetPayloadAttemptNumber() = 0;
+
+  // Returns the payload attempt number of the attempted full payload. Returns
+  // 0 for delta payloads.
+  virtual int GetFullPayloadAttemptNumber() = 0;
 
   // Returns the current URL. Returns an empty string if there's no valid URL.
   virtual std::string GetCurrentUrl() = 0;

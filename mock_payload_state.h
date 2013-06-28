@@ -31,7 +31,8 @@ class MockPayloadState: public PayloadStateInterface {
 
   // Getters.
   MOCK_METHOD0(GetResponseSignature, std::string());
-  MOCK_METHOD0(GetPayloadAttemptNumber, uint32_t());
+  MOCK_METHOD0(GetPayloadAttemptNumber, int());
+  MOCK_METHOD0(GetFullPayloadAttemptNumber, int());
   MOCK_METHOD0(GetCurrentUrl, std::string());
   MOCK_METHOD0(GetUrlFailureCount, uint32_t());
   MOCK_METHOD0(GetUrlSwitchCount, uint32_t());

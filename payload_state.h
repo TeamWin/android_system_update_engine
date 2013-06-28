@@ -46,7 +46,11 @@ class PayloadState : public PayloadStateInterface {
     return response_signature_;
   }
 
-  virtual inline uint32_t GetPayloadAttemptNumber() {
+  virtual inline int GetFullPayloadAttemptNumber() {
+    return full_payload_attempt_number_;
+  }
+
+  virtual inline int GetPayloadAttemptNumber() {
     return payload_attempt_number_;
   }
 
@@ -93,9 +97,12 @@ class PayloadState : public PayloadStateInterface {
   }
 
  private:
+  // Increments the payload attempt number used for metrics.
+  void IncrementPayloadAttemptNumber();
+
   // Increments the payload attempt number which governs the backoff behavior
   // at the time of the next update check.
-  void IncrementPayloadAttemptNumber();
+  void IncrementFullPayloadAttemptNumber();
 
   // Advances the current URL index to the next available one. If all URLs have
   // been exhausted during the current payload download attempt (as indicated
@@ -137,6 +144,9 @@ class PayloadState : public PayloadStateInterface {
   // Reports the metric related to the applied payload type.
   void ReportPayloadTypeMetric();
 
+  // Reports the various metrics related to update attempts counts.
+  void ReportAttemptsCountMetrics();
+
   // Resets all the persisted state values which are maintained relative to the
   // current response signature. The response signature itself is not reset.
   void ResetPersistedState();
@@ -166,10 +176,19 @@ class PayloadState : public PayloadStateInterface {
   // Initializes the payload attempt number from the persisted state.
   void LoadPayloadAttemptNumber();
 
+  // Initializes the payload attempt number for full payloads from the persisted
+  // state.
+  void LoadFullPayloadAttemptNumber();
+
   // Sets the payload attempt number to the given value. Also persists the
   // value being set so that we resume from the same value in case of a process
   // restart.
-  void SetPayloadAttemptNumber(uint32_t payload_attempt_number);
+  void SetPayloadAttemptNumber(int payload_attempt_number);
+
+  // Sets the payload attempt number for full updates to the given value. Also
+  // persists the value being set so that we resume from the same value in case
+  // of a process restart.
+  void SetFullPayloadAttemptNumber(int payload_attempt_number);
 
   // Initializes the current URL index from the persisted state.
   void LoadUrlIndex();
@@ -330,12 +349,19 @@ class PayloadState : public PayloadStateInterface {
   // process restart.
   std::string response_signature_;
 
+  // The number of times we've tried to download the payload. This is
+  // incremented each time we download the payload successsfully or when we
+  // exhaust all failure limits for all URLs and are about to wrap around back
+  // to the first URL.  Each update to this value is persisted so we resume from
+  // the same value in case of a process restart.
+  int payload_attempt_number_;
+
   // The number of times we've tried to download the payload in full. This is
   // incremented each time we download the payload in full successsfully or
   // when we exhaust all failure limits for all URLs and are about to wrap
   // around back to the first URL.  Each update to this value is persisted so
   // we resume from the same value in case of a process restart.
-  uint32_t payload_attempt_number_;
+  int full_payload_attempt_number_;
 
   // The index of the current URL.  This type is different from the one in the
   // accessor methods because PrefsInterface supports only int64_t but we want

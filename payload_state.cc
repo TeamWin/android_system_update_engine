@@ -26,7 +26,7 @@ namespace chromeos_update_engine {
 const TimeDelta PayloadState::kDurationSlack = TimeDelta::FromSeconds(600);
 
 // We want to upperbound backoffs to 16 days
-static const uint32_t kMaxBackoffDays = 16;
+static const int kMaxBackoffDays = 16;
 
 // We want to randomize retry attempts after the backoff by +/- 6 hours.
 static const uint32_t kMaxBackoffFuzzMinutes = 12 * 60;
@@ -34,6 +34,7 @@ static const uint32_t kMaxBackoffFuzzMinutes = 12 * 60;
 PayloadState::PayloadState()
     : prefs_(NULL),
       payload_attempt_number_(0),
+      full_payload_attempt_number_(0),
       url_index_(0),
       url_failure_count_(0),
       url_switch_count_(0) {
@@ -47,6 +48,7 @@ bool PayloadState::Initialize(SystemState* system_state) {
   powerwash_safe_prefs_ = system_state_->powerwash_safe_prefs();
   LoadResponseSignature();
   LoadPayloadAttemptNumber();
+  LoadFullPayloadAttemptNumber();
   LoadUrlIndex();
   LoadUrlFailureCount();
   LoadUrlSwitchCount();
@@ -110,6 +112,7 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
 void PayloadState::DownloadComplete() {
   LOG(INFO) << "Payload downloaded successfully";
   IncrementPayloadAttemptNumber();
+  IncrementFullPayloadAttemptNumber();
 }
 
 void PayloadState::DownloadProgress(size_t count) {
@@ -157,6 +160,7 @@ void PayloadState::UpdateSucceeded() {
   ReportDurationMetrics();
   ReportUpdatesAbandonedCountMetric();
   ReportPayloadTypeMetric();
+  ReportAttemptsCountMetrics();
 
   // Reset the number of responses seen since it counts from the last
   // successful update, e.g. now.
@@ -318,13 +322,19 @@ void PayloadState::Rollback() {
 }
 
 void PayloadState::IncrementPayloadAttemptNumber() {
+  // Update the payload attempt number for both payload types: full and delta.
+  SetPayloadAttemptNumber(GetPayloadAttemptNumber() + 1);
+}
+
+void PayloadState::IncrementFullPayloadAttemptNumber() {
+  // Update the payload attempt number for full payloads and the backoff time.
   if (response_.is_delta_payload) {
     LOG(INFO) << "Not incrementing payload attempt number for delta payloads";
     return;
   }
 
   LOG(INFO) << "Incrementing the payload attempt number";
-  SetPayloadAttemptNumber(GetPayloadAttemptNumber() + 1);
+  SetFullPayloadAttemptNumber(GetFullPayloadAttemptNumber() + 1);
   UpdateBackoffExpiryTime();
 }
 
@@ -338,7 +348,8 @@ void PayloadState::IncrementUrlIndex() {
               << "0 as we only have " << candidate_urls_.size()
               << " candidate URL(s)";
     SetUrlIndex(0);
-    IncrementPayloadAttemptNumber();
+  IncrementPayloadAttemptNumber();
+  IncrementFullPayloadAttemptNumber();
   }
 
   // If we have multiple URLs, record that we just switched to another one
@@ -369,20 +380,20 @@ void PayloadState::UpdateBackoffExpiryTime() {
     return;
   }
 
-  if (GetPayloadAttemptNumber() == 0) {
+  if (GetFullPayloadAttemptNumber() == 0) {
     SetBackoffExpiryTime(Time());
     return;
   }
 
   // Since we're doing left-shift below, make sure we don't shift more
-  // than this. E.g. if uint32_t is 4-bytes, don't left-shift more than 30 bits,
+  // than this. E.g. if int is 4-bytes, don't left-shift more than 30 bits,
   // since we don't expect value of kMaxBackoffDays to be more than 100 anyway.
-  uint32_t num_days = 1; // the value to be shifted.
-  const uint32_t kMaxShifts = (sizeof(num_days) * 8) - 2;
+  int num_days = 1; // the value to be shifted.
+  const int kMaxShifts = (sizeof(num_days) * 8) - 2;
 
   // Normal backoff days is 2 raised to (payload_attempt_number - 1).
   // E.g. if payload_attempt_number is over 30, limit power to 30.
-  uint32_t power = min(GetPayloadAttemptNumber() - 1, kMaxShifts);
+  int power = min(GetFullPayloadAttemptNumber() - 1, kMaxShifts);
 
   // The number of days is the minimum of 2 raised to (payload_attempt_number
   // - 1) or kMaxBackoffDays.
@@ -543,6 +554,7 @@ void PayloadState::SetNumReboots(uint32_t num_reboots) {
 
 void PayloadState::ResetPersistedState() {
   SetPayloadAttemptNumber(0);
+  SetFullPayloadAttemptNumber(0);
   SetUrlIndex(0);
   SetUrlFailureCount(0);
   SetUrlSwitchCount(0);
@@ -639,11 +651,25 @@ void PayloadState::LoadPayloadAttemptNumber() {
                                             false));
 }
 
-void PayloadState::SetPayloadAttemptNumber(uint32_t payload_attempt_number) {
+void PayloadState::LoadFullPayloadAttemptNumber() {
+  SetFullPayloadAttemptNumber(GetPersistedValue(kPrefsFullPayloadAttemptNumber,
+                                            false));
+}
+
+void PayloadState::SetPayloadAttemptNumber(int payload_attempt_number) {
   CHECK(prefs_);
   payload_attempt_number_ = payload_attempt_number;
   LOG(INFO) << "Payload Attempt Number = " << payload_attempt_number_;
   prefs_->SetInt64(kPrefsPayloadAttemptNumber, payload_attempt_number_);
+}
+
+void PayloadState::SetFullPayloadAttemptNumber(
+    int full_payload_attempt_number) {
+  CHECK(prefs_);
+  full_payload_attempt_number_ = full_payload_attempt_number;
+  LOG(INFO) << "Full Payload Attempt Number = " << full_payload_attempt_number_;
+  prefs_->SetInt64(kPrefsFullPayloadAttemptNumber,
+      full_payload_attempt_number_);
 }
 
 void PayloadState::LoadUrlIndex() {
@@ -897,6 +923,21 @@ void PayloadState::ReportPayloadTypeMetric() {
       uma_payload_type,
       kNumPayloadTypes);
   LOG(INFO) << "Uploading " << utils::ToString(uma_payload_type)
+            << " for metric " <<  metric;
+}
+
+void PayloadState::ReportAttemptsCountMetrics() {
+  string metric;
+  int total_attempts = GetPayloadAttemptNumber();
+
+  metric = "Installer.AttemptsCount.Total";
+  system_state_->metrics_lib()->SendToUMA(
+       metric,
+       total_attempts,
+       1,      // min
+       50,     // max
+       kNumDefaultUmaBuckets);
+  LOG(INFO) << "Uploading " << total_attempts
             << " for metric " <<  metric;
 }
 

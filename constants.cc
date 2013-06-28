@@ -32,6 +32,7 @@ const char kPrefsCurrentResponseSignature[] = "current-response-signature";
 const char kPrefsCurrentUrlFailureCount[] = "current-url-failure-count";
 const char kPrefsCurrentUrlIndex[] = "current-url-index";
 const char kPrefsDeltaUpdateFailures[] = "delta-update-failures";
+const char kPrefsFullPayloadAttemptNumber[] = "full-payload-attempt-number";
 const char kPrefsLastActivePingDay[] = "last-active-ping-day";
 const char kPrefsLastRollCallPingDay[] = "last-roll-call-ping-day";
 const char kPrefsManifestMetadataSize[] = "manifest-metadata-size";

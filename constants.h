@@ -35,6 +35,7 @@ extern const char kPrefsCurrentResponseSignature[];
 extern const char kPrefsCurrentUrlFailureCount[];
 extern const char kPrefsCurrentUrlIndex[];
 extern const char kPrefsDeltaUpdateFailures[];
+extern const char kPrefsFullPayloadAttemptNumber[];
 extern const char kPrefsLastActivePingDay[];
 extern const char kPrefsLastRollCallPingDay[];
 extern const char kPrefsManifestMetadataSize[];
