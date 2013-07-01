@@ -18,7 +18,6 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/http_common.h"
-#include "update_engine/http_fetcher_unittest.h"
 #include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_http_fetcher.h"
@@ -45,6 +44,8 @@ const int kMediumLength        = 1000;
 const int kFlakyTruncateLength = 29000;
 const int kFlakySleepEvery     = 3;
 const int kFlakySleepSecs      = 10;
+
+const int kServerPort = 8088;
 
 }  // namespace
 
@@ -82,7 +83,11 @@ class NullHttpServer : public HttpServer {
 class PythonHttpServer : public HttpServer {
  public:
   PythonHttpServer() {
-    char *argv[2] = {strdup("./test_http_server"), NULL};
+    char *port_str = NULL;
+    char *argv[] = {
+      strdup("./test_http_server"),
+      asprintf(&port_str, "%d", kServerPort) >= 0 ? port_str : NULL,
+      NULL};
     GError *err;
     started_ = false;
     validate_quit_ = true;
@@ -125,7 +130,8 @@ class PythonHttpServer : public HttpServer {
      started_ = false;
     }
 
-    free(argv[0]);
+    for (unsigned i = 0; i < arraysize(argv); i++)
+      free(argv[i]);
     LOG(INFO) << "gdb attach now!";
   }
 

@@ -10,6 +10,7 @@
 // To use this, simply make an HTTP connection to localhost:port and
 // GET a url.
 
+#include <err.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <netinet/in.h>
@@ -31,7 +32,6 @@
 #include <base/stringprintf.h>
 
 #include "update_engine/http_common.h"
-#include "update_engine/http_fetcher_unittest.h"
 
 
 // HTTP end-of-line delimiter; sorry, this needs to be a macro.
@@ -43,6 +43,19 @@ using std::vector;
 
 
 namespace chromeos_update_engine {
+
+// Allowed port range and default value.
+const long kPortMin = static_cast<long>(1) << 10;
+const long kPortMax = (static_cast<long>(1) << 16) - 1;
+const in_port_t kPortDefault = 8080;
+
+enum {
+  RC_OK = 0,
+  RC_BAD_ARGS,
+  RC_ERR_READ,
+  RC_ERR_SETSOCKOPT,
+  RC_ERR_BIND,
+};
 
 struct HttpRequest {
   HttpRequest()
@@ -61,7 +74,7 @@ bool ParseRequest(int fd, HttpRequest* request) {
     ssize_t r = read(fd, buf, sizeof(buf));
     if (r < 0) {
       perror("read");
-      exit(1);
+      exit(RC_ERR_READ);
     }
     headers.append(buf, r);
   } while (!EndsWith(headers, EOL EOL, true));
@@ -249,7 +262,7 @@ inline size_t WritePayload(int fd, const off_t start_offset,
 void HandleQuit(int fd) {
   WriteHeaders(fd, 0, 0, kHttpResponseOk);
   LOG(INFO) << "pid(" << getpid() <<  "): HTTP server exiting ...";
-  exit(0);
+  exit(RC_OK);
 }
 
 
@@ -501,15 +514,40 @@ void HandleConnection(int fd) {
 
 using namespace chromeos_update_engine;
 
+void usage(const char *prog_arg) {
+  static const char usage_str[] =
+      "Usage: %s [ PORT ]\n"
+      "where PORT is an integer between %ld and %ld (default is %d).\n";
+  fprintf(stderr, usage_str, basename(prog_arg), kPortMin, kPortMax,
+          kPortDefault);
+}
+
 int main(int argc, char** argv) {
+  // Check invocation.
+  if (argc > 2)
+    errx(RC_BAD_ARGS, "unexpected number of arguments (use -h for usage)");
+
+  // Parse inbound port number argument (in host byte-order, as of yet).
+  in_port_t port = kPortDefault;
+  if (argc == 2) {
+    if (!strcmp(argv[1], "-h")) {
+      usage(argv[0]);
+      exit(RC_OK);
+    }
+
+    char *end_ptr;
+    long raw_port = strtol(argv[1], &end_ptr, 10);
+    if (*end_ptr || raw_port < kPortMin || raw_port > kPortMax)
+      errx(RC_BAD_ARGS, "invalid port: %s", argv[1]);
+    port = static_cast<int>(raw_port);
+  }
+
   // Ignore SIGPIPE on write() to sockets.
   signal(SIGPIPE, SIG_IGN);
 
   socklen_t clilen;
-  struct sockaddr_in server_addr;
-  struct sockaddr_in client_addr;
-  memset(&server_addr, 0, sizeof(server_addr));
-  memset(&client_addr, 0, sizeof(client_addr));
+  struct sockaddr_in server_addr = sockaddr_in();
+  struct sockaddr_in client_addr = sockaddr_in();
 
   int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (listen_fd < 0)
@@ -517,7 +555,7 @@ int main(int argc, char** argv) {
 
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = INADDR_ANY;
-  server_addr.sin_port = htons(kServerPort);
+  server_addr.sin_port = htons(port);  // byte-order conversion is necessary!
 
   {
     // Get rid of "Address in use" error
@@ -525,18 +563,19 @@ int main(int argc, char** argv) {
     if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &tr,
                    sizeof(int)) == -1) {
       perror("setsockopt");
-      exit(2);
+      exit(RC_ERR_SETSOCKOPT);
     }
   }
 
   if (bind(listen_fd, reinterpret_cast<struct sockaddr *>(&server_addr),
            sizeof(server_addr)) < 0) {
     perror("bind");
-    exit(3);
+    exit(RC_ERR_BIND);
   }
   CHECK_EQ(listen(listen_fd,5), 0);
   while (1) {
-    LOG(INFO) << "pid(" << getpid() <<  "): waiting to accept new connection";
+    LOG(INFO) << "pid(" << getpid()
+              <<  "): waiting to accept new connection on port " << port;
     clilen = sizeof(client_addr);
     int client_fd = accept(listen_fd,
                            (struct sockaddr *) &client_addr,

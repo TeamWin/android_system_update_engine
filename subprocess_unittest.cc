@@ -114,6 +114,7 @@ gboolean StartAndCancelInRunLoop(gpointer data) {
   CancelTestData* cancel_test_data = reinterpret_cast<CancelTestData*>(data);
   vector<string> cmd;
   cmd.push_back("./test_http_server");
+  cmd.push_back(StringPrintf("%d", kLocalHttpPort));
   uint32_t tag = Subprocess::Get().Exec(cmd, CallbackBad, NULL);
   EXPECT_NE(0, tag);
   cancel_test_data->spawned = true;
