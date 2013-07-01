@@ -21,29 +21,36 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-namespace {
-const char* TestDir() { return "./FilesystemIteratorTest-dir"; }
-}  // namespace {}
-
 class FilesystemIteratorTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    LOG(INFO) << "SetUp() mkdir";
-    EXPECT_EQ(0, System(StringPrintf("rm -rf %s", TestDir())));
-    EXPECT_EQ(0, System(StringPrintf("mkdir -p %s", TestDir())));
+    ASSERT_TRUE(utils::MakeTempDirectory("FilesystemIteratorTest-XXXXXX",
+                                         &test_dir_));
+    LOG(INFO) << "SetUp() mkdir " << test_dir_;
   }
+
   virtual void TearDown() {
-    LOG(INFO) << "TearDown() rmdir";
+    LOG(INFO) << "TearDown() rmdir " << test_dir_;
     EXPECT_EQ(0, System(StringPrintf("rm -rf %s", TestDir())));
   }
+
+  const char* TestDir() {
+    return test_dir_.c_str();
+  }
+
+ private:
+  string test_dir_;
 };
 
 TEST_F(FilesystemIteratorTest, RunAsRootSuccessTest) {
   ASSERT_EQ(0, getuid());
-  string first_image("FilesystemIteratorTest.image1");
-  string sub_image("FilesystemIteratorTest.image2");
+  string first_image;
+  ASSERT_TRUE(utils::MakeTempFile("FilesystemIteratorTest.image1-XXXXXX",
+                                  &first_image, NULL));
+  string sub_image;
+  ASSERT_TRUE(utils::MakeTempFile("FilesystemIteratorTest.image2-XXXXXX",
+                                  &sub_image, NULL));
 
-  ASSERT_EQ(0, System(string("rm -f ") + first_image + " " + sub_image));
   vector<string> expected_paths_vector;
   CreateExtImageAtPath(first_image, &expected_paths_vector);
   CreateExtImageAtPath(sub_image, NULL);
@@ -84,11 +91,14 @@ TEST_F(FilesystemIteratorTest, NegativeTest) {
 }
 
 TEST_F(FilesystemIteratorTest, DeleteWhileTraverseTest) {
-  ASSERT_EQ(0, mkdir("DeleteWhileTraverseTest", 0755));
-  ASSERT_EQ(0, mkdir("DeleteWhileTraverseTest/a", 0755));
-  ASSERT_EQ(0, mkdir("DeleteWhileTraverseTest/a/b", 0755));
-  ASSERT_EQ(0, mkdir("DeleteWhileTraverseTest/b", 0755));
-  ASSERT_EQ(0, mkdir("DeleteWhileTraverseTest/c", 0755));
+  const string dir_name = TestDir();
+  ASSERT_EQ(0, chmod(dir_name.c_str(), 0755));
+  const string sub_dir_name(dir_name + "/a");
+  ASSERT_EQ(0, mkdir(sub_dir_name.c_str(), 0755));
+  const string sub_sub_dir_name(sub_dir_name + "/b");
+  ASSERT_EQ(0, mkdir(sub_sub_dir_name.c_str(), 0755));
+  ASSERT_EQ(0, mkdir((dir_name + "/b").c_str(), 0755));
+  ASSERT_EQ(0, mkdir((dir_name + "/c").c_str(), 0755));
 
   string expected_paths_arr[] = {
     "",
@@ -100,7 +110,7 @@ TEST_F(FilesystemIteratorTest, DeleteWhileTraverseTest) {
                              expected_paths_arr +
                              arraysize(expected_paths_arr));
 
-  FilesystemIterator iter("DeleteWhileTraverseTest", set<string>());
+  FilesystemIterator iter(dir_name, set<string>());
   while (!iter.IsEnd()) {
     string path = iter.GetPartialPath();
     EXPECT_TRUE(expected_paths.find(path) != expected_paths.end());
@@ -108,14 +118,13 @@ TEST_F(FilesystemIteratorTest, DeleteWhileTraverseTest) {
       expected_paths.erase(path);
     }
     if (path == "/a") {
-      EXPECT_EQ(0, rmdir("DeleteWhileTraverseTest/a/b"));
-      EXPECT_EQ(0, rmdir("DeleteWhileTraverseTest/a"));
+      EXPECT_EQ(0, rmdir(sub_sub_dir_name.c_str()));
+      EXPECT_EQ(0, rmdir(sub_dir_name.c_str()));
     }
     iter.Increment();
   }
   EXPECT_FALSE(iter.IsErr());
   EXPECT_TRUE(expected_paths.empty());
-  EXPECT_EQ(0, system("rm -rf DeleteWhileTraverseTest"));
 }
 
 }  // namespace chromeos_update_engine
