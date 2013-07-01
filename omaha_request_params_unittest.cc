@@ -30,29 +30,34 @@ class OmahaRequestParamsTest : public ::testing::Test {
               const string& omaha_url);
 
   virtual void SetUp() {
-    ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
-    ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
+    // Create a uniquely named test directory.
+    ASSERT_TRUE(utils::MakeTempDirectory(kTestDirTemplate,
+                                         &test_dir_));
+
+    ASSERT_EQ(0, System(string("mkdir -p ") + test_dir_ + "/etc"));
+    ASSERT_EQ(0, System(string("mkdir -p ") + test_dir_ +
                         kStatefulPartition + "/etc"));
     // Create a fresh copy of the params for each test, so there's no
     // unintended reuse of state across tests.
     MockSystemState mock_system_state;
     OmahaRequestParams new_params(&mock_system_state);
     params_ = new_params;
-    params_.set_root(string("./") + kTestDir);
+    params_.set_root(string("./") + test_dir_);
     params_.SetLockDown(false);
   }
 
   virtual void TearDown() {
-    EXPECT_EQ(0, System(string("rm -rf ") + kTestDir));
+    EXPECT_EQ(0, System(string("rm -rf ") + test_dir_));
   }
 
   OmahaRequestParams params_;
 
-  static const string kTestDir;
+  static const char* kTestDirTemplate;
+  string test_dir_;
 };
 
-const string OmahaRequestParamsTest::kTestDir =
-    "omaha_request_params-test";
+const char* OmahaRequestParamsTest::kTestDirTemplate =
+  "omaha_request_params-test-XXXXXX";
 
 bool OmahaRequestParamsTest::DoTest(OmahaRequestParams* out,
                                     const string& app_version,
@@ -78,7 +83,7 @@ string GetMachineType() {
 
 TEST_F(OmahaRequestParamsTest, SimpleTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
@@ -101,7 +106,7 @@ TEST_F(OmahaRequestParamsTest, SimpleTest) {
 
 TEST_F(OmahaRequestParamsTest, AppIDTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
@@ -125,7 +130,7 @@ TEST_F(OmahaRequestParamsTest, AppIDTest) {
 
 TEST_F(OmahaRequestParamsTest, MissingChannelTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
       "CHROMEOS_RELEASE_TRXCK=dev-channel"));
@@ -142,7 +147,7 @@ TEST_F(OmahaRequestParamsTest, MissingChannelTest) {
 
 TEST_F(OmahaRequestParamsTest, ConfusingReleaseTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_FOO=CHROMEOS_RELEASE_VERSION=1.2.3.4\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
       "CHROMEOS_RELEASE_TRXCK=dev-channel"));
@@ -159,7 +164,7 @@ TEST_F(OmahaRequestParamsTest, ConfusingReleaseTest) {
 
 TEST_F(OmahaRequestParamsTest, MissingVersionTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_TRACK=dev-channel"));
@@ -178,7 +183,7 @@ TEST_F(OmahaRequestParamsTest, MissingVersionTest) {
 
 TEST_F(OmahaRequestParamsTest, ForceVersionTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_TRACK=dev-channel"));
@@ -197,7 +202,7 @@ TEST_F(OmahaRequestParamsTest, ForceVersionTest) {
 
 TEST_F(OmahaRequestParamsTest, ForcedURLTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
@@ -218,7 +223,7 @@ TEST_F(OmahaRequestParamsTest, ForcedURLTest) {
 
 TEST_F(OmahaRequestParamsTest, MissingURLTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
@@ -239,11 +244,11 @@ TEST_F(OmahaRequestParamsTest, MissingURLTest) {
 
 TEST_F(OmahaRequestParamsTest, NoDeltasTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_FOO=CHROMEOS_RELEASE_VERSION=1.2.3.4\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
       "CHROMEOS_RELEASE_TRXCK=dev-channel"));
-  ASSERT_TRUE(WriteFileString(kTestDir + "/.nodelta", ""));
+  ASSERT_TRUE(WriteFileString(test_dir_ + "/.nodelta", ""));
   MockSystemState mock_system_state;
   OmahaRequestParams out(&mock_system_state);
   EXPECT_TRUE(DoTest(&out, "", ""));
@@ -252,14 +257,14 @@ TEST_F(OmahaRequestParamsTest, NoDeltasTest) {
 
 TEST_F(OmahaRequestParamsTest, OverrideTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
       "CHROMEOS_RELEASE_TRACK=dev-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + kStatefulPartition + "/etc/lsb-release",
+      test_dir_ + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=beta-channel\n"
       "CHROMEOS_AUSERVER=https://www.google.com"));
@@ -280,14 +285,14 @@ TEST_F(OmahaRequestParamsTest, OverrideTest) {
 
 TEST_F(OmahaRequestParamsTest, OverrideLockDownTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
       "CHROMEOS_RELEASE_TRACK=dev-channel\n"
       "CHROMEOS_AUSERVER=https://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + kStatefulPartition + "/etc/lsb-release",
+      test_dir_ + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
@@ -306,14 +311,14 @@ TEST_F(OmahaRequestParamsTest, OverrideLockDownTest) {
 
 TEST_F(OmahaRequestParamsTest, OverrideSameChannelTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
       "CHROMEOS_RELEASE_TRACK=dev-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + kStatefulPartition + "/etc/lsb-release",
+      test_dir_ + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=dev-channel"));
   MockSystemState mock_system_state;
@@ -330,7 +335,7 @@ TEST_F(OmahaRequestParamsTest, OverrideSameChannelTest) {
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
@@ -339,7 +344,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
   {
     MockSystemState mock_system_state;
     OmahaRequestParams params(&mock_system_state);
-    params.set_root(string("./") + kTestDir);
+    params.set_root(string("./") + test_dir_);
     params.SetLockDown(false);
     EXPECT_TRUE(params.Init("", "", false));
     params.SetTargetChannel("canary-channel", false);
@@ -354,7 +359,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
 
 TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
@@ -363,7 +368,7 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
   {
     MockSystemState mock_system_state;
     OmahaRequestParams params(&mock_system_state);
-    params.set_root(string("./") + kTestDir);
+    params.set_root(string("./") + test_dir_);
     params.SetLockDown(false);
     EXPECT_TRUE(params.Init("", "", false));
     params.SetTargetChannel("canary-channel", true);
@@ -378,7 +383,7 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
@@ -387,7 +392,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
   {
     MockSystemState mock_system_state;
     OmahaRequestParams params(&mock_system_state);
-    params.set_root(string("./") + kTestDir);
+    params.set_root(string("./") + test_dir_);
     params.SetLockDown(true);
     EXPECT_TRUE(params.Init("", "", false));
     params.SetTargetChannel("dogfood-channel", true);
@@ -415,7 +420,7 @@ TEST_F(OmahaRequestParamsTest, IsValidChannelTest) {
 
 TEST_F(OmahaRequestParamsTest, ValidChannelTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
@@ -439,7 +444,7 @@ TEST_F(OmahaRequestParamsTest, ValidChannelTest) {
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
@@ -475,7 +480,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
 
   // Set a different channel in stateful LSB release.
   ASSERT_TRUE(WriteFileString(
-      kTestDir + kStatefulPartition + "/etc/lsb-release",
+      test_dir_ + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"
       "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"));
 
@@ -512,14 +517,14 @@ TEST_F(OmahaRequestParamsTest, ChannelIndexTest) {
 
 TEST_F(OmahaRequestParamsTest, ToMoreStableChannelFlagTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=arm-generic\n"
       "CHROMEOS_RELEASE_FOO=bar\n"
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + kStatefulPartition + "/etc/lsb-release",
+      test_dir_ + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"
       "CHROMEOS_AUSERVER=https://www.google.com"));
@@ -538,7 +543,7 @@ TEST_F(OmahaRequestParamsTest, ShouldLockDownTest) {
 
 TEST_F(OmahaRequestParamsTest, BoardAppIdUsedForNonCanaryChannelTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_APPID=r\n"
       "CHROMEOS_BOARD_APPID=b\n"
       "CHROMEOS_CANARY_APPID=c\n"
@@ -552,7 +557,7 @@ TEST_F(OmahaRequestParamsTest, BoardAppIdUsedForNonCanaryChannelTest) {
 
 TEST_F(OmahaRequestParamsTest, CanaryAppIdUsedForCanaryChannelTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_APPID=r\n"
       "CHROMEOS_BOARD_APPID=b\n"
       "CHROMEOS_CANARY_APPID=c\n"
@@ -566,7 +571,7 @@ TEST_F(OmahaRequestParamsTest, CanaryAppIdUsedForCanaryChannelTest) {
 
 TEST_F(OmahaRequestParamsTest, ReleaseAppIdUsedAsDefaultTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_APPID=r\n"
       "CHROMEOS_CANARY_APPID=c\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
@@ -579,7 +584,7 @@ TEST_F(OmahaRequestParamsTest, ReleaseAppIdUsedAsDefaultTest) {
 
 TEST_F(OmahaRequestParamsTest, CollectECFWVersionsTest) {
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir_ + "/etc/lsb-release",
       "CHROMEOS_RELEASE_APPID=r\n"
       "CHROMEOS_CANARY_APPID=c\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
