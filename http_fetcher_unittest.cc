@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include <string>
@@ -45,16 +48,17 @@ const int kFlakyTruncateLength = 29000;
 const int kFlakySleepEvery     = 3;
 const int kFlakySleepSecs      = 10;
 
-const int kServerPort = 8088;
-
 }  // namespace
 
 namespace chromeos_update_engine {
 
 static const char *kUnusedUrl = "unused://unused";
 
-static inline string LocalServerUrlForPath(const string& path) {
-  return base::StringPrintf("http://127.0.0.1:%d%s", kServerPort, path.c_str());
+static inline string LocalServerUrlForPath(in_port_t port,
+                                           const string& path) {
+  string port_str = (port ? StringPrintf(":%hu", port) : "");
+  return base::StringPrintf("http://127.0.0.1%s%s", port_str.c_str(),
+                            path.c_str());
 }
 
 //
@@ -65,6 +69,10 @@ class HttpServer {
  public:
   // This makes it an abstract class (dirty but works).
   virtual ~HttpServer() = 0;
+
+  virtual in_port_t GetPort() const {
+    return 0;
+  }
 
   bool started_;
 };
@@ -82,86 +90,103 @@ class NullHttpServer : public HttpServer {
 
 class PythonHttpServer : public HttpServer {
  public:
-  PythonHttpServer() {
-    char *port_str = NULL;
-    char *argv[] = {
-      strdup("./test_http_server"),
-      asprintf(&port_str, "%d", kServerPort) >= 0 ? port_str : NULL,
-      NULL};
-    GError *err;
+  PythonHttpServer() : pid_(-1), port_(0) {
     started_ = false;
-    validate_quit_ = true;
-    if (!g_spawn_async(NULL,
-                       argv,
-                       NULL,
-                       G_SPAWN_DO_NOT_REAP_CHILD,
-                       NULL,
-                       NULL,
-                       &pid_,
-                       &err)) {
-      LOG(INFO) << "unable to spawn http server process";
+
+    // Spawn the server process.
+    gchar *argv[] = {
+      const_cast<gchar*>("./test_http_server"),
+      NULL };
+    GError *err;
+    gint server_stdout = -1;
+    if (!g_spawn_async_with_pipes(NULL, argv, NULL, G_SPAWN_DO_NOT_REAP_CHILD,
+                                  NULL, NULL, &pid_, NULL, &server_stdout, NULL,
+                                  &err)) {
+      LOG(ERROR) << "failed to spawn http server process";
       return;
     }
+    CHECK_GT(pid_, 0);
+    CHECK_GE(server_stdout, 0);
     LOG(INFO) << "started http server with pid " << pid_;
-    int rc = 1;
-    const TimeDelta kMaxSleep = TimeDelta::FromMinutes(60);
-    TimeDelta timeout = TimeDelta::FromMilliseconds(15);
+
+    // Wait for server to begin accepting connections, obtain its port.
+    char line[80];
+    const size_t listening_msg_prefix_len = strlen(kServerListeningMsgPrefix);
+    CHECK_GT(sizeof(line), listening_msg_prefix_len);
+    int line_len = read(server_stdout, line, sizeof(line) - 1);
+    if (line_len <= static_cast<int>(listening_msg_prefix_len)) {
+      if (line_len < 0) {
+        LOG(ERROR) << "error reading http server stdout: "
+                   << strerror(errno);
+      } else {
+        LOG(ERROR) << "server output too short";
+      }
+      Terminate(true);
+      return;
+    }
+
+    line[line_len] = '\0';
+    CHECK_EQ(strstr(line, kServerListeningMsgPrefix), line);
+    const char* listening_port_str = line + listening_msg_prefix_len;
+    char* end_ptr;
+    long raw_port = strtol(listening_port_str, &end_ptr, 10);
+    CHECK(!*end_ptr || *end_ptr == '\n');
+    port_ = static_cast<in_port_t>(raw_port);
+    CHECK_GT(port_, 0);
     started_ = true;
-    while (rc && timeout < kMaxSleep) {
-      // Wait before the first attempt also as it takes a while for the
-      // test_http_server to be ready.
-      LOG(INFO) << "waiting for " << utils::FormatTimeDelta(timeout);
-      g_usleep(timeout.InMicroseconds());
-      timeout *= 2;
-
-      LOG(INFO) << "running wget to start";
-      // rc should be 0 if we're able to successfully talk to the server.
-      rc = system((string("wget --output-document=/dev/null ") +
-                   LocalServerUrlForPath("/test")).c_str());
-      LOG(INFO) << "done running wget to start, rc = " << rc;
-    }
-
-    if (rc) {
-     LOG(ERROR) << "Http server is not responding to wget.";
-     // TODO(jaysri): Currently we're overloading two things in
-     // started_  flag. One is that the process is running and other
-     // is that the process is responsive. We should separate these
-     // two so that we can do cleanup appropriately in each case.
-     started_ = false;
-    }
-
-    for (unsigned i = 0; i < arraysize(argv); i++)
-      free(argv[i]);
+    LOG(INFO) << "server running, listening on port " << port_;
     LOG(INFO) << "gdb attach now!";
   }
 
   ~PythonHttpServer() {
-    if (!started_) {
-      LOG(INFO) << "not waiting for http server with pid " << pid_
-                << " to terminate, as it's not responding.";
-      // TODO(jaysri): Kill the process if it's really running but
-      // wgets or failing for some reason. Or if it's not running,
-      // add code to get rid of the defunct process.
+    // If there's no process, do nothing.
+    if (pid_ == -1)
       return;
+
+    // If server is responsive, request that it gracefully terminate.
+    bool do_kill = false;
+    if (started_) {
+      LOG(INFO) << "running wget to exit";
+      if (system((string("wget -t 1 --output-document=/dev/null ") +
+                  LocalServerUrlForPath(port_, "/quitquitquit")).c_str())) {
+        LOG(WARNING) << "wget failed, resorting to brute force";
+        do_kill = true;
+      }
     }
 
-    // request that the server exit itself
-    LOG(INFO) << "running wget to exit";
-    int rc = system((string("wget -t 1 --output-document=/dev/null ") +
-                     LocalServerUrlForPath("/quitquitquit")).c_str());
-    LOG(INFO) << "done running wget to exit";
-    if (validate_quit_)
-      EXPECT_EQ(0, rc);
-    LOG(INFO) << "waiting for http server with pid " << pid_ << " to terminate";
-    int status;
-    waitpid(pid_, &status, 0);
-    LOG(INFO) << "http server with pid " << pid_
-              << " terminated with status " << status;
+    // Server not responding or wget failed, kill the process.
+    Terminate(do_kill);
   }
 
+  virtual in_port_t GetPort() const {
+    return port_;
+  }
+
+ private:
+  void Terminate(bool do_kill) {
+    ASSERT_GT(pid_, 0);
+
+    if (do_kill) {
+      LOG(INFO) << "terminating (SIGKILL) server process with pid " << pid_;
+      kill(pid_, SIGKILL);
+    }
+
+    LOG(INFO) << "waiting for http server with pid " << pid_ << " to terminate";
+    int status;
+    pid_t killed_pid = waitpid(pid_, &status, 0);
+    ASSERT_EQ(killed_pid, pid_);
+    LOG(INFO) << "http server with pid " << pid_
+              << " terminated with status " << status;
+    pid_ = -1;
+  }
+
+  static const char* kServerListeningMsgPrefix;
+
   GPid pid_;
-  bool validate_quit_;
+  in_port_t port_;
 };
+
+const char* PythonHttpServer::kServerListeningMsgPrefix = "listening on port ";
 
 //
 // Class hierarchy for HTTP fetcher test wrappers.
@@ -184,9 +209,9 @@ class AnyHttpFetcherTest {
     return NewSmallFetcher(1);
   }
 
-  virtual string BigUrl() const { return kUnusedUrl; }
-  virtual string SmallUrl() const { return kUnusedUrl; }
-  virtual string ErrorUrl() const { return kUnusedUrl; }
+  virtual string BigUrl(in_port_t port) const { return kUnusedUrl; }
+  virtual string SmallUrl(in_port_t port) const { return kUnusedUrl; }
+  virtual string ErrorUrl(in_port_t port) const { return kUnusedUrl; }
 
   virtual bool IsMock() const = 0;
   virtual bool IsMulti() const = 0;
@@ -257,23 +282,23 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
     return NewLargeFetcher(num_proxies);
   }
 
-  virtual string BigUrl() const {
-    return LocalServerUrlForPath(base::StringPrintf("/download/%d",
+  virtual string BigUrl(in_port_t port) const {
+    return LocalServerUrlForPath(port,
+                                 base::StringPrintf("/download/%d",
                                                     kBigLength));
   }
-  virtual string SmallUrl() const {
-    return LocalServerUrlForPath("/foo");
+  virtual string SmallUrl(in_port_t port) const {
+    return LocalServerUrlForPath(port, "/foo");
   }
-  virtual string ErrorUrl() const {
-    return LocalServerUrlForPath("/error");
+  virtual string ErrorUrl(in_port_t port) const {
+    return LocalServerUrlForPath(port, "/error");
   }
 
   virtual bool IsMock() const { return false; }
   virtual bool IsMulti() const { return false; }
 
   virtual void IgnoreServerAborting(HttpServer* server) const {
-    PythonHttpServer *pyserver = reinterpret_cast<PythonHttpServer*>(server);
-    pyserver->validate_quit_ = false;
+    // Nothing to do.
   }
 
   virtual HttpServer *CreateServer() {
@@ -416,7 +441,8 @@ TYPED_TEST(HttpFetcherTest, SimpleTest) {
     scoped_ptr<HttpServer> server(this->test_.CreateServer());
     ASSERT_TRUE(server->started_);
 
-    StartTransferArgs start_xfer_args = {fetcher.get(), this->test_.SmallUrl()};
+    StartTransferArgs start_xfer_args = {
+      fetcher.get(), this->test_.SmallUrl(server->GetPort())};
 
     g_timeout_add(0, StartTransfer, &start_xfer_args);
     g_main_loop_run(loop);
@@ -444,7 +470,8 @@ TYPED_TEST(HttpFetcherTest, SimpleBigTest) {
     scoped_ptr<HttpServer> server(this->test_.CreateServer());
     ASSERT_TRUE(server->started_);
 
-    StartTransferArgs start_xfer_args = {fetcher.get(), this->test_.BigUrl()};
+    StartTransferArgs start_xfer_args = {
+      fetcher.get(), this->test_.BigUrl(server->GetPort())};
 
     g_timeout_add(0, StartTransfer, &start_xfer_args);
     g_main_loop_run(loop);
@@ -482,7 +509,7 @@ TYPED_TEST(HttpFetcherTest, ErrorTest) {
 
     StartTransferArgs start_xfer_args = {
       fetcher.get(),
-      this->test_.ErrorUrl()
+      this->test_.ErrorUrl(server->GetPort())
     };
 
     g_timeout_add(0, StartTransfer, &start_xfer_args);
@@ -561,7 +588,7 @@ TYPED_TEST(HttpFetcherTest, PauseTest) {
 
     guint callback_id = g_timeout_add(kHttpResponseInternalServerError,
                                       UnpausingTimeoutCallback, &delegate);
-    fetcher->BeginTransfer(this->test_.BigUrl());
+    fetcher->BeginTransfer(this->test_.BigUrl(server->GetPort()));
 
     g_main_loop_run(loop);
     g_source_remove(callback_id);
@@ -641,7 +668,7 @@ TYPED_TEST(HttpFetcherTest, AbortTest) {
     g_source_set_callback(timeout_source_, AbortingTimeoutCallback, &delegate,
                           NULL);
     g_source_attach(timeout_source_, NULL);
-    delegate.fetcher_->BeginTransfer(this->test_.BigUrl());
+    delegate.fetcher_->BeginTransfer(this->test_.BigUrl(server->GetPort()));
 
     g_main_loop_run(loop);
     CHECK(!delegate.once_);
@@ -696,7 +723,8 @@ TYPED_TEST(HttpFetcherTest, FlakyTest) {
 
     StartTransferArgs start_xfer_args = {
       fetcher.get(),
-      LocalServerUrlForPath(StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
+      LocalServerUrlForPath(server->GetPort(),
+                            StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
                                          kFlakyTruncateLength,
                                          kFlakySleepEvery,
                                          kFlakySleepSecs))
@@ -775,7 +803,7 @@ TYPED_TEST(HttpFetcherTest, FailureTest) {
 
     StartTransferArgs start_xfer_args = {
       fetcher.get(),
-      LocalServerUrlForPath(this->test_.SmallUrl())
+      LocalServerUrlForPath(0, this->test_.SmallUrl(0))
     };
 
     g_timeout_add(0, StartTransfer, &start_xfer_args);
@@ -798,7 +826,8 @@ TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
 
     StartTransferArgs start_xfer_args = {
       fetcher.get(),
-      LocalServerUrlForPath(StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
+      LocalServerUrlForPath(0,
+                            StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
                                          kFlakyTruncateLength,
                                          kFlakySleepEvery,
                                          kFlakySleepSecs))
@@ -845,7 +874,8 @@ class RedirectHttpFetcherTestDelegate : public HttpFetcherDelegate {
 };
 
 // RedirectTest takes ownership of |http_fetcher|.
-void RedirectTest(bool expected_successful,
+void RedirectTest(const HttpServer* server,
+                  bool expected_successful,
                   const string& url,
                   HttpFetcher* http_fetcher) {
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -865,7 +895,7 @@ void RedirectTest(bool expected_successful,
       .WillRepeatedly(Return(flimflam::kTypeEthernet));
 
     StartTransferArgs start_xfer_args =
-        { fetcher.get(), LocalServerUrlForPath(url) };
+        { fetcher.get(), LocalServerUrlForPath(server->GetPort(), url) };
 
     g_timeout_add(0, StartTransfer, &start_xfer_args);
     g_main_loop_run(loop);
@@ -893,7 +923,7 @@ TYPED_TEST(HttpFetcherTest, SimpleRedirectTest) {
     const string url = base::StringPrintf("/redirect/%d/download/%d",
                                           kRedirectCodes[c],
                                           kMediumLength);
-    RedirectTest(true, url, this->test_.NewLargeFetcher());
+    RedirectTest(server.get(), true, url, this->test_.NewLargeFetcher());
   }
 }
 
@@ -910,7 +940,7 @@ TYPED_TEST(HttpFetcherTest, MaxRedirectTest) {
                               kRedirectCodes[r % arraysize(kRedirectCodes)]);
   }
   url += base::StringPrintf("/download/%d", kMediumLength);
-  RedirectTest(true, url, this->test_.NewLargeFetcher());
+  RedirectTest(server.get(), true, url, this->test_.NewLargeFetcher());
 }
 
 TYPED_TEST(HttpFetcherTest, BeyondMaxRedirectTest) {
@@ -926,7 +956,7 @@ TYPED_TEST(HttpFetcherTest, BeyondMaxRedirectTest) {
                               kRedirectCodes[r % arraysize(kRedirectCodes)]);
   }
   url += base::StringPrintf("/download/%d", kMediumLength);
-  RedirectTest(false, url, this->test_.NewLargeFetcher());
+  RedirectTest(server.get(), false, url, this->test_.NewLargeFetcher());
 }
 
 namespace {
@@ -1025,7 +1055,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherSimpleTest) {
   ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(),
-            this->test_.BigUrl(),
+            this->test_.BigUrl(server->GetPort()),
             ranges,
             "abcdefghijabcdefghijabcdejabcdefghijabcdef",
             kBigLength - (99 - 25),
@@ -1042,7 +1072,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherLengthLimitTest) {
   vector<pair<off_t, off_t> > ranges;
   ranges.push_back(make_pair(0, 24));
   MultiTest(this->test_.NewLargeFetcher(),
-            this->test_.BigUrl(),
+            this->test_.BigUrl(server->GetPort()),
             ranges,
             "abcdefghijabcdefghijabcd",
             24,
@@ -1060,7 +1090,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherMultiEndTest) {
   ranges.push_back(make_pair(kBigLength - 2, 0));
   ranges.push_back(make_pair(kBigLength - 3, 0));
   MultiTest(this->test_.NewLargeFetcher(),
-            this->test_.BigUrl(),
+            this->test_.BigUrl(server->GetPort()),
             ranges,
             "ijhij",
             5,
@@ -1079,7 +1109,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherInsufficientTest) {
   for (int i = 0; i < 2; ++i) {
     LOG(INFO) << "i = " << i;
     MultiTest(this->test_.NewLargeFetcher(),
-              this->test_.BigUrl(),
+              this->test_.BigUrl(server->GetPort()),
               ranges,
               "ij",
               2,
@@ -1104,7 +1134,8 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetRecoverableTest) {
   ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(3),
-            LocalServerUrlForPath(base::StringPrintf("/error-if-offset/%d/2",
+            LocalServerUrlForPath(server->GetPort(),
+                                  base::StringPrintf("/error-if-offset/%d/2",
                                                      kBigLength)),
             ranges,
             "abcdefghijabcdefghijabcdejabcdefghijabcdef",
@@ -1125,7 +1156,8 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetUnrecoverableTest) {
   ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(2),
-            LocalServerUrlForPath(base::StringPrintf("/error-if-offset/%d/3",
+            LocalServerUrlForPath(server->GetPort(),
+                                  base::StringPrintf("/error-if-offset/%d/3",
                                                      kBigLength)),
             ranges,
             "abcdefghijabcdefghijabcde",  // only received the first chunk
@@ -1185,7 +1217,9 @@ TYPED_TEST(HttpFetcherTest, BlockedTransferTest) {
       fetcher->set_delegate(&delegate);
 
       StartTransferArgs start_xfer_args =
-          { fetcher.get(), LocalServerUrlForPath(this->test_.SmallUrl()) };
+          {fetcher.get(),
+           LocalServerUrlForPath(server->GetPort(),
+                                 this->test_.SmallUrl(server->GetPort()))};
 
       g_timeout_add(0, StartTransfer, &start_xfer_args);
       g_main_loop_run(loop);

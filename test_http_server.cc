@@ -12,6 +12,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -19,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -44,10 +46,7 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-// Allowed port range and default value.
-const long kPortMin = static_cast<long>(1) << 10;
-const long kPortMax = (static_cast<long>(1) << 16) - 1;
-const in_port_t kPortDefault = 8080;
+static const char* kListeningMsgPrefix = "listening on port ";
 
 enum {
   RC_OK = 0,
@@ -55,6 +54,9 @@ enum {
   RC_ERR_READ,
   RC_ERR_SETSOCKOPT,
   RC_ERR_BIND,
+  RC_ERR_LISTEN,
+  RC_ERR_GETSOCKNAME,
+  RC_ERR_REPORT,
 };
 
 struct HttpRequest {
@@ -514,12 +516,15 @@ void HandleConnection(int fd) {
 
 using namespace chromeos_update_engine;
 
+
 void usage(const char *prog_arg) {
-  static const char usage_str[] =
-      "Usage: %s [ PORT ]\n"
-      "where PORT is an integer between %ld and %ld (default is %d).\n";
-  fprintf(stderr, usage_str, basename(prog_arg), kPortMin, kPortMax,
-          kPortDefault);
+  fprintf(
+      stderr,
+      "Usage: %s [ FILE ]\n"
+      "Once accepting connections, the following is written to FILE (or "
+      "stdout):\n"
+      "\"%sN\" (where N is an integer port number)\n",
+      basename(prog_arg), kListeningMsgPrefix);
 }
 
 int main(int argc, char** argv) {
@@ -527,35 +532,28 @@ int main(int argc, char** argv) {
   if (argc > 2)
     errx(RC_BAD_ARGS, "unexpected number of arguments (use -h for usage)");
 
-  // Parse inbound port number argument (in host byte-order, as of yet).
-  in_port_t port = kPortDefault;
+  // Parse (optional) argument.
+  int report_fd = STDOUT_FILENO;
   if (argc == 2) {
     if (!strcmp(argv[1], "-h")) {
       usage(argv[0]);
       exit(RC_OK);
     }
 
-    char *end_ptr;
-    long raw_port = strtol(argv[1], &end_ptr, 10);
-    if (*end_ptr || raw_port < kPortMin || raw_port > kPortMax)
-      errx(RC_BAD_ARGS, "invalid port: %s", argv[1]);
-    port = static_cast<int>(raw_port);
+    report_fd = open(argv[1], O_WRONLY | O_CREAT, 00644);
   }
 
   // Ignore SIGPIPE on write() to sockets.
   signal(SIGPIPE, SIG_IGN);
 
-  socklen_t clilen;
-  struct sockaddr_in server_addr = sockaddr_in();
-  struct sockaddr_in client_addr = sockaddr_in();
-
   int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (listen_fd < 0)
     LOG(FATAL) << "socket() failed";
 
+  struct sockaddr_in server_addr = sockaddr_in();
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = INADDR_ANY;
-  server_addr.sin_port = htons(port);  // byte-order conversion is necessary!
+  server_addr.sin_port = 0;
 
   {
     // Get rid of "Address in use" error
@@ -567,19 +565,45 @@ int main(int argc, char** argv) {
     }
   }
 
+  // Bind the socket and set for listening.
   if (bind(listen_fd, reinterpret_cast<struct sockaddr *>(&server_addr),
            sizeof(server_addr)) < 0) {
     perror("bind");
     exit(RC_ERR_BIND);
   }
-  CHECK_EQ(listen(listen_fd,5), 0);
+  if (listen(listen_fd, 5) < 0) {
+    perror("listen");
+    exit(RC_ERR_LISTEN);
+  }
+
+  // Check the actual port.
+  struct sockaddr_in bound_addr = sockaddr_in();
+  socklen_t bound_addr_len = sizeof(bound_addr);
+  if (getsockname(listen_fd, reinterpret_cast<struct sockaddr*>(&bound_addr),
+                  &bound_addr_len) < 0) {
+    perror("getsockname");
+    exit(RC_ERR_GETSOCKNAME);
+  }
+  in_port_t port = ntohs(bound_addr.sin_port);
+
+  // Output the listening port, indicating that the server is processing
+  // requests. IMPORTANT! (a) the format of this message is as expected by some
+  // unit tests, avoid unilateral changes; (b) it is necessary to flush/sync the
+  // file to prevent the spawning process from waiting indefinitely for this
+  // message.
+  string listening_msg = StringPrintf("%s%hu", kListeningMsgPrefix, port);
+  LOG(INFO) << listening_msg;
+  CHECK_EQ(write(report_fd, listening_msg.c_str(), listening_msg.length()),
+           static_cast<int>(listening_msg.length()));
+  CHECK_EQ(write(report_fd, "\n", 1), 1);
+  if (report_fd == STDOUT_FILENO)
+    fsync(report_fd);
+  else
+    close(report_fd);
+
   while (1) {
-    LOG(INFO) << "pid(" << getpid()
-              <<  "): waiting to accept new connection on port " << port;
-    clilen = sizeof(client_addr);
-    int client_fd = accept(listen_fd,
-                           (struct sockaddr *) &client_addr,
-                           &clilen);
+    LOG(INFO) << "pid(" << getpid() <<  "): waiting to accept new connection";
+    int client_fd = accept(listen_fd, NULL, NULL);
     LOG(INFO) << "got past accept";
     if (client_fd < 0)
       LOG(FATAL) << "ERROR on accept";
