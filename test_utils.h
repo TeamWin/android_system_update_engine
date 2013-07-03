@@ -62,6 +62,10 @@ inline int Mkdir(const std::string& path, mode_t mode) {
   return mkdir(path.c_str(), mode);
 }
 
+inline int Chdir(const std::string& path) {
+  return chdir(path.c_str());
+}
+
 void FillWithData(std::vector<char>* buffer);
 
 namespace {

@@ -17,7 +17,9 @@ namespace chromeos_update_engine {
 
 class PostinstallRunnerAction : public InstallPlanAction {
  public:
-  PostinstallRunnerAction(): powerwash_marker_created_(false) {}
+  PostinstallRunnerAction()
+      : powerwash_marker_created_(false),
+        powerwash_marker_file_(NULL) {}
 
   void PerformAction();
 
@@ -41,6 +43,17 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // True if Powerwash Marker was created before invoking post-install script.
   // False otherwise. Used for cleaning up if post-install fails.
   bool powerwash_marker_created_;
+
+  // Non-NULL value will cause post-install to override the default marker file
+  // name; used for testing.
+  const char* powerwash_marker_file_;
+
+  // Special ctor + friend declaration for testing purposes.
+  PostinstallRunnerAction(const char* powerwash_marker_file)
+      : powerwash_marker_created_(false),
+        powerwash_marker_file_(powerwash_marker_file) {}
+
+  friend class PostinstallRunnerActionTest;
 
   DISALLOW_COPY_AND_ASSIGN(PostinstallRunnerAction);
 };

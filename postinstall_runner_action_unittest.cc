@@ -38,6 +38,9 @@ class PostinstallRunnerActionTest : public ::testing::Test {
   // DoTest with various combinations of do_losetup, err_code and
   // powerwash_required.
   void DoTest(bool do_losetup, int err_code, bool powerwash_required);
+
+ private:
+  static const char* kImageMountPointTemplate;
 };
 
 class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
@@ -89,6 +92,9 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootFirmwareBErrScriptTest) {
   DoTest(true, 3, false);
 }
 
+const char* PostinstallRunnerActionTest::kImageMountPointTemplate =
+    "au_destination-XXXXXX";
+
 void PostinstallRunnerActionTest::DoTest(
     bool do_losetup,
     int err_code,
@@ -98,45 +104,49 @@ void PostinstallRunnerActionTest::DoTest(
   // True if the post-install action is expected to succeed.
   bool should_succeed = do_losetup && !err_code;
 
-  const string mountpoint(string(kStatefulPartition) +
-                          "/au_destination");
-
-  string cwd;
+  string orig_cwd;
   {
     vector<char> buf(1000);
     ASSERT_EQ(&buf[0], getcwd(&buf[0], buf.size()));
-    cwd = string(&buf[0], strlen(&buf[0]));
+    orig_cwd = string(&buf[0], strlen(&buf[0]));
   }
 
-  // create the au destination, if it doesn't exist
-  ASSERT_EQ(0, System(string("mkdir -p ") + mountpoint));
+  // Create a unique named working directory and chdir into it.
+  string cwd;
+  ASSERT_TRUE(utils::MakeTempDirectory(
+          orig_cwd + "/postinstall_runner_action_unittest-XXXXXX",
+          &cwd));
+  ASSERT_EQ(0, Chdir(cwd));
 
-  // create 10MiB sparse file
-  ASSERT_EQ(0, system("dd if=/dev/zero of=image.dat seek=10485759 bs=1 "
-                      "count=1"));
-
-  // format it as ext2
+  // Create a 10MiB sparse file to be used as image; format it as ext2.
+  ASSERT_EQ(0, system(
+          "dd if=/dev/zero of=image.dat seek=10485759 bs=1 count=1"));
   ASSERT_EQ(0, system("mkfs.ext2 -F image.dat"));
 
-  // mount it
+  // Create a uniquely named image mount point, mount the image.
+  ASSERT_EQ(0, System(string("mkdir -p ") + kStatefulPartition));
+  string mountpoint;
+  ASSERT_TRUE(utils::MakeTempDirectory(
+          string(kStatefulPartition) + "/" + kImageMountPointTemplate,
+          &mountpoint));
   ASSERT_EQ(0, System(string("mount -o loop image.dat ") + mountpoint));
 
-  // put a postinst script in
-  string script = StringPrintf("#!/bin/bash\n"
-                               "mount | grep au_postint_mount | grep ext2\n"
-                               "if [ $? -eq 0 ]; then\n"
-                               "  touch %s/postinst_called\n"
-                               "fi\n",
-                               cwd.c_str());
-  if (err_code) {
-    script = StringPrintf("#!/bin/bash\nexit %d", err_code);
-  }
-  ASSERT_TRUE(WriteFileString(mountpoint + "/postinst", script));
-  ASSERT_EQ(0, System(string("chmod a+x ") + mountpoint + "/postinst"));
+  // Generate a fake postinst script inside the image.
+  string script = (err_code ?
+                   StringPrintf("#!/bin/bash\nexit %d", err_code) :
+                   StringPrintf("#!/bin/bash\n"
+                                "mount | grep au_postint_mount | grep ext2\n"
+                                "if [ $? -eq 0 ]; then\n"
+                                "  touch %s/postinst_called\n"
+                                "fi\n",
+                                cwd.c_str()));
+  const string script_file_name = mountpoint + "/postinst";
+  ASSERT_TRUE(WriteFileString(script_file_name, script));
+  ASSERT_EQ(0, System(string("chmod a+x ") + script_file_name));
 
+  // Unmount image; do not remove the uniquely named directory as it will be
+  // reused during the test.
   ASSERT_TRUE(utils::UnmountFilesystem(mountpoint));
-
-  ASSERT_EQ(0, System(string("rm -f ") + cwd + "/postinst_called"));
 
   // get a loop device we can use for the install device
   string dev = "/dev/null";
@@ -147,13 +157,17 @@ void PostinstallRunnerActionTest::DoTest(
                                                        &dev));
   }
 
+  // We use a test-specific powerwash marker file, to avoid race conditions.
+  string powerwash_marker_file = mountpoint + "/factory_install_reset";
+  LOG(INFO) << ">>> powerwash_marker_file=" << powerwash_marker_file;
+
   ActionProcessor processor;
   ObjectFeederAction<InstallPlan> feeder_action;
   InstallPlan install_plan;
   install_plan.install_path = dev;
   install_plan.powerwash_required = powerwash_required;
   feeder_action.set_obj(install_plan);
-  PostinstallRunnerAction runner_action;
+  PostinstallRunnerAction runner_action(powerwash_marker_file.c_str());
   BondActions(&feeder_action, &runner_action);
   ObjectCollectorAction<InstallPlan> collector_action;
   BondActions(&runner_action, &collector_action);
@@ -176,7 +190,7 @@ void PostinstallRunnerActionTest::DoTest(
   if (should_succeed)
     EXPECT_TRUE(install_plan == collector_action.object());
 
-  const FilePath kPowerwashMarkerPath(kPowerwashMarkerFile);
+  const FilePath kPowerwashMarkerPath(powerwash_marker_file);
   string actual_cmd;
   if (should_succeed && powerwash_required) {
     EXPECT_TRUE(file_util::ReadFileToString(kPowerwashMarkerPath, &actual_cmd));
@@ -199,9 +213,13 @@ void PostinstallRunnerActionTest::DoTest(
   if (do_losetup) {
     loop_releaser.reset(NULL);
   }
-  ASSERT_EQ(0, System(string("rm -f ") + cwd + "/postinst_called"));
-  ASSERT_EQ(0, System(string("rm -f ") + cwd + "/image.dat"));
-  utils::DeletePowerwashMarkerFile();
+
+  // Remove unique stateful directory.
+  ASSERT_EQ(0, System(string("rm -fr ") + mountpoint));
+
+  // Remove the temporary work directory.
+  ASSERT_EQ(0, Chdir(orig_cwd));
+  ASSERT_EQ(0, System(string("rm -fr ") + cwd));
 }
 
 // Death tests don't seem to be working on Hardy

@@ -1006,30 +1006,31 @@ string CodeToString(ErrorCode code) {
   return "Unknown error: " + base::UintToString(static_cast<unsigned>(code));
 }
 
-bool CreatePowerwashMarkerFile() {
-  bool result = utils::WriteFile(kPowerwashMarkerFile,
+bool CreatePowerwashMarkerFile(const char* file_path) {
+  const char* marker_file = file_path ? file_path : kPowerwashMarkerFile;
+  bool result = utils::WriteFile(marker_file,
                                  kPowerwashCommand,
                                  strlen(kPowerwashCommand));
-  if (result)
-    LOG(INFO) << "Created " << kPowerwashMarkerFile
-              << " to powerwash on next reboot";
-  else
-    PLOG(ERROR) << "Error in creating powerwash marker file: "
-                << kPowerwashMarkerFile;
+  if (result) {
+    LOG(INFO) << "Created " << marker_file << " to powerwash on next reboot";
+  } else {
+    PLOG(ERROR) << "Error in creating powerwash marker file: " << marker_file;
+  }
 
   return result;
 }
 
-bool DeletePowerwashMarkerFile() {
-  const FilePath kPowerwashMarkerPath(kPowerwashMarkerFile);
+bool DeletePowerwashMarkerFile(const char* file_path) {
+  const char* marker_file = file_path ? file_path : kPowerwashMarkerFile;
+  const FilePath kPowerwashMarkerPath(marker_file);
   bool result = file_util::Delete(kPowerwashMarkerPath, false);
 
   if (result)
     LOG(INFO) << "Successfully deleted the powerwash marker file : "
-              << kPowerwashMarkerFile;
+              << marker_file;
   else
     PLOG(ERROR) << "Could not delete the powerwash marker file : "
-                << kPowerwashMarkerFile;
+                << marker_file;
 
   return result;
 }

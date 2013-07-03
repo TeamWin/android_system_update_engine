@@ -58,7 +58,7 @@ void PostinstallRunnerAction::PerformAction() {
   completer.set_should_complete(false);
 
   if (install_plan_.powerwash_required) {
-    if (utils::CreatePowerwashMarkerFile()) {
+    if (utils::CreatePowerwashMarkerFile(powerwash_marker_file_)) {
       powerwash_marker_created_ = true;
     } else {
       completer.set_code(kErrorCodePostinstallPowerwashError);
@@ -84,7 +84,7 @@ void PostinstallRunnerAction::CompletePostinstall(int return_code) {
 
     // Undo any changes done to trigger Powerwash using clobber-state.
     if (powerwash_marker_created_)
-      utils::DeletePowerwashMarkerFile();
+      utils::DeletePowerwashMarkerFile(powerwash_marker_file_);
 
     if (return_code == 3) {
       // This special return code means that we tried to update firmware,

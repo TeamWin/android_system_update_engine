@@ -318,13 +318,15 @@ void SendErrorCodeToUma(SystemState* system_state, ErrorCode code);
 // error codes or the bit flags) for logging purposes.
 std::string CodeToString(ErrorCode code);
 
-// Creates the powerwash marker file with the appropriate commands in it.
-// Returns true if successfully created. False otherwise.
-bool CreatePowerwashMarkerFile();
+// Creates the powerwash marker file with the appropriate commands in it.  Uses
+// |file_path| as the path to the marker file if non-NULL, otherwise uses the
+// global default. Returns true if successfully created.  False otherwise.
+bool CreatePowerwashMarkerFile(const char* file_path);
 
-// Deletes the marker file used to trigger Powerwash using clobber-state.
-// Returns true if successfully deleted. False otherwise.
-bool DeletePowerwashMarkerFile();
+// Deletes the marker file used to trigger Powerwash using clobber-state.  Uses
+// |file_path| as the path to the marker file if non-NULL, otherwise uses the
+// global default. Returns true if successfully deleted. False otherwise.
+bool DeletePowerwashMarkerFile(const char* file_path);
 
 // Assumes you want to install on the "other" device, where the other
 // device is what you get if you swap 1 for 2 or 3 for 4 or vice versa
