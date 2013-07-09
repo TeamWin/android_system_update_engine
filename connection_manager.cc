@@ -192,9 +192,11 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type) const {
           return false;
         }
 
-        int64_t stored_value;
-        if (!prefs->GetInt64(kPrefsUpdateOverCellularPermission, &stored_value))
+        bool stored_value;
+        if (!prefs->GetBoolean(kPrefsUpdateOverCellularPermission,
+                               &stored_value)) {
           return false;
+        }
 
         if (!stored_value) {
           LOG(INFO) << "Disabling updates over cellular connection per user "

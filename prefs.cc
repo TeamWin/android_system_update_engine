@@ -53,6 +53,26 @@ bool Prefs::SetInt64(const string& key, const int64_t value) {
   return SetString(key, base::Int64ToString(value));
 }
 
+bool Prefs::GetBoolean(const std::string& key, bool* value) {
+  string str_value;
+  if (!GetString(key, &str_value))
+    return false;
+  TrimWhitespaceASCII(str_value, TRIM_ALL, &str_value);
+  if (str_value == "false") {
+    *value = false;
+    return true;
+  }
+  if (str_value == "true") {
+    *value = true;
+    return true;
+  }
+  return false;
+}
+
+bool Prefs::SetBoolean(const std::string& key, const bool value) {
+  return SetString(key, value ? "true" : "false");
+}
+
 bool Prefs::Exists(const string& key) {
   FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));

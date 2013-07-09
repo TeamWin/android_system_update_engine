@@ -187,6 +187,63 @@ TEST_F(PrefsTest, SetInt64Min) {
   EXPECT_EQ(StringPrintf("%" PRIi64, kint64min), value);
 }
 
+TEST_F(PrefsTest, GetBooleanFalse) {
+  const char kKey[] = "test-key";
+  ASSERT_TRUE(SetValue(kKey, " \n false \t "));
+  bool value;
+  EXPECT_TRUE(prefs_.GetBoolean(kKey, &value));
+  EXPECT_FALSE(value);
+}
+
+TEST_F(PrefsTest, GetBooleanTrue) {
+  const char kKey[] = "test-key";
+  ASSERT_TRUE(SetValue(kKey, " \t true \n "));
+  bool value;
+  EXPECT_TRUE(prefs_.GetBoolean(kKey, &value));
+  EXPECT_TRUE(value);
+}
+
+TEST_F(PrefsTest, GetBooleanBadValue) {
+  const char kKey[] = "test-key";
+  ASSERT_TRUE(SetValue(kKey, "1"));
+  bool value;
+  EXPECT_FALSE(prefs_.GetBoolean(kKey, &value));
+}
+
+TEST_F(PrefsTest, GetBooleanBadEmptyValue) {
+  const char kKey[] = "test-key";
+  ASSERT_TRUE(SetValue(kKey, ""));
+  bool value;
+  EXPECT_FALSE(prefs_.GetBoolean(kKey, &value));
+}
+
+TEST_F(PrefsTest, GetBooleanNonExistentKey) {
+  bool value;
+  EXPECT_FALSE(prefs_.GetBoolean("random-key", &value));
+}
+
+TEST_F(PrefsTest, SetBooleanTrue) {
+  const char kKey[] = "test-bool";
+  EXPECT_TRUE(prefs_.SetBoolean(kKey, true));
+  string value;
+  EXPECT_TRUE(file_util::ReadFileToString(prefs_dir_.Append(kKey), &value));
+  EXPECT_EQ("true", value);
+}
+
+TEST_F(PrefsTest, SetBooleanFalse) {
+  const char kKey[] = "test-bool";
+  EXPECT_TRUE(prefs_.SetBoolean(kKey, false));
+  string value;
+  EXPECT_TRUE(file_util::ReadFileToString(prefs_dir_.Append(kKey), &value));
+  EXPECT_EQ("false", value);
+}
+
+TEST_F(PrefsTest, SetBooleanBadKey) {
+  const char kKey[] = "s p a c e s";
+  EXPECT_FALSE(prefs_.SetBoolean(kKey, true));
+  EXPECT_FALSE(file_util::PathExists(prefs_dir_.Append(kKey)));
+}
+
 TEST_F(PrefsTest, ExistsWorks) {
   const char kKey[] = "exists-key";
 

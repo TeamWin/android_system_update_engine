@@ -34,6 +34,15 @@ class PrefsInterface {
   // false otherwise.
   virtual bool SetInt64(const std::string& key, const int64_t value) = 0;
 
+  // Gets a boolean |value| associated with |key|. Returns true on
+  // success, false on failure (including when the |key| is not
+  // present in the store).
+  virtual bool GetBoolean(const std::string& key, bool* value) = 0;
+
+  // Associates |key| with a boolean |value|. Returns true on success,
+  // false otherwise.
+  virtual bool SetBoolean(const std::string& key, const bool value) = 0;
+
   // Returns true if the setting exists (i.e. a file with the given key
   // exists in the prefs directory)
   virtual bool Exists(const std::string& key) = 0;

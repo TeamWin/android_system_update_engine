@@ -306,18 +306,18 @@ TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
   EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
       .Times(1)
       .WillOnce(Return(true));
-  EXPECT_CALL(*prefs, GetInt64(kPrefsUpdateOverCellularPermission, _))
+  EXPECT_CALL(*prefs, GetBoolean(kPrefsUpdateOverCellularPermission, _))
       .Times(1)
-      .WillOnce(DoAll(SetArgumentPointee<1>(1), Return(true)));
+      .WillOnce(DoAll(SetArgumentPointee<1>(true), Return(true)));
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetCellular));
 
   // Block per user pref.
   EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
       .Times(1)
       .WillOnce(Return(true));
-  EXPECT_CALL(*prefs, GetInt64(kPrefsUpdateOverCellularPermission, _))
+  EXPECT_CALL(*prefs, GetBoolean(kPrefsUpdateOverCellularPermission, _))
       .Times(1)
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgumentPointee<1>(false), Return(true)));
   EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular));
 }
 

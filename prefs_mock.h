@@ -19,6 +19,9 @@ class PrefsMock : public PrefsInterface {
   MOCK_METHOD2(GetInt64, bool(const std::string& key, int64_t* value));
   MOCK_METHOD2(SetInt64, bool(const std::string& key, const int64_t value));
 
+  MOCK_METHOD2(GetBoolean, bool(const std::string& key, bool* value));
+  MOCK_METHOD2(SetBoolean, bool(const std::string& key, const bool value));
+
   MOCK_METHOD1(Exists, bool(const std::string& key));
   MOCK_METHOD1(Delete, bool(const std::string& key));
 };

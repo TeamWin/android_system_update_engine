@@ -257,11 +257,11 @@ gboolean update_engine_service_set_update_over_cellular_permission(
 
   chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
 
-  if (!prefs->SetInt64(
+  if (!prefs->SetBoolean(
       chromeos_update_engine::kPrefsUpdateOverCellularPermission,
-      allowed ? 1 : 0)) {
+      allowed)) {
     LOG(ERROR) << "Error setting the update over cellular to "
-               << (allowed ? 1 : 0);
+               << (allowed ? "true" : "false");
     *error = NULL;
     return FALSE;
   }

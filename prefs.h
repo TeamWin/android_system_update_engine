@@ -29,6 +29,8 @@ class Prefs : public PrefsInterface {
   bool SetString(const std::string& key, const std::string& value);
   bool GetInt64(const std::string& key, int64_t* value);
   bool SetInt64(const std::string& key, const int64_t value);
+  bool GetBoolean(const std::string& key, bool* value);
+  bool SetBoolean(const std::string& key, const bool value);
 
   bool Exists(const std::string& key);
   bool Delete(const std::string& key);
