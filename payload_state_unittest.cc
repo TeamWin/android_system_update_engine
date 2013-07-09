@@ -496,6 +496,11 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
 
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
 
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.PayloadAttemptNumber", 1, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.FullPayloadAttemptNumber", 1, _, _, _));
+
   // This should just advance the payload attempt number;
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetFullPayloadAttemptNumber());
@@ -535,6 +540,13 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
 
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
+
+  // Metrics for Full payload attempt number is not sent with Delta payloads.
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.PayloadAttemptNumber", 1, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.FullPayloadAttemptNumber", _, _, _, _))
+      .Times(0);
 
   // This should just advance the payload attempt number;
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());

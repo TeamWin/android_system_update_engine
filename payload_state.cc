@@ -324,6 +324,18 @@ void PayloadState::Rollback() {
 void PayloadState::IncrementPayloadAttemptNumber() {
   // Update the payload attempt number for both payload types: full and delta.
   SetPayloadAttemptNumber(GetPayloadAttemptNumber() + 1);
+
+  // Report the metric every time the value is incremented.
+  string metric = "Installer.PayloadAttemptNumber";
+  int value = GetPayloadAttemptNumber();
+
+  LOG(INFO) << "Uploading " << value << " (count) for metric " <<  metric;
+  system_state_->metrics_lib()->SendToUMA(
+       metric,
+       value,
+       1,    // min value
+       50,   // max value
+       kNumDefaultUmaBuckets);
 }
 
 void PayloadState::IncrementFullPayloadAttemptNumber() {
@@ -333,9 +345,21 @@ void PayloadState::IncrementFullPayloadAttemptNumber() {
     return;
   }
 
-  LOG(INFO) << "Incrementing the payload attempt number";
+  LOG(INFO) << "Incrementing the full payload attempt number";
   SetFullPayloadAttemptNumber(GetFullPayloadAttemptNumber() + 1);
   UpdateBackoffExpiryTime();
+
+  // Report the metric every time the value is incremented.
+  string metric = "Installer.FullPayloadAttemptNumber";
+  int value = GetFullPayloadAttemptNumber();
+
+  LOG(INFO) << "Uploading " << value << " (count) for metric " <<  metric;
+  system_state_->metrics_lib()->SendToUMA(
+       metric,
+       value,
+       1,    // min value
+       50,   // max value
+       kNumDefaultUmaBuckets);
 }
 
 void PayloadState::IncrementUrlIndex() {
@@ -348,8 +372,8 @@ void PayloadState::IncrementUrlIndex() {
               << "0 as we only have " << candidate_urls_.size()
               << " candidate URL(s)";
     SetUrlIndex(0);
-  IncrementPayloadAttemptNumber();
-  IncrementFullPayloadAttemptNumber();
+    IncrementPayloadAttemptNumber();
+    IncrementFullPayloadAttemptNumber();
   }
 
   // If we have multiple URLs, record that we just switched to another one
