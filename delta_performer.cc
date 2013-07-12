@@ -694,7 +694,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
   DiscardBufferHeadBytes(operation.data_length());
 
   int fd = is_kernel_partition ? kernel_fd_ : fd_;
-  const string path = StringPrintf("/dev/fd/%d", fd);
+  const string path = StringPrintf("/proc/self/fd/%d", fd);
 
   // If this is a non-idempotent operation, request a delayed exit and clear the
   // update state in case the operation gets interrupted. Do this as late as
