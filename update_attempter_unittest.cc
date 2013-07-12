@@ -10,6 +10,7 @@
 #include "update_engine/action_mock.h"
 #include "update_engine/action_processor_mock.h"
 #include "update_engine/filesystem_copier_action.h"
+#include "update_engine/install_plan.h"
 #include "update_engine/mock_dbus_interface.h"
 #include "update_engine/mock_http_fetcher.h"
 #include "update_engine/mock_payload_state.h"
@@ -74,8 +75,13 @@ class UpdateAttempterTest : public ::testing::Test {
 
   void UpdateTestStart();
   void UpdateTestVerify();
+  void RollbackTestStart(bool enterprise_rollback);
+  void RollbackTestVerify();
   static gboolean StaticUpdateTestStart(gpointer data);
   static gboolean StaticUpdateTestVerify(gpointer data);
+  static gboolean StaticRollbackTestStart(gpointer data);
+  static gboolean StaticEnterpriseRollbackTestStart(gpointer data);
+  static gboolean StaticRollbackTestVerify(gpointer data);
 
   void PingOmahaTestStart();
   static gboolean StaticPingOmahaTestStart(gpointer data);
@@ -302,6 +308,21 @@ gboolean UpdateAttempterTest::StaticUpdateTestVerify(gpointer data) {
   return FALSE;
 }
 
+gboolean UpdateAttempterTest::StaticRollbackTestStart(gpointer data) {
+  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(false);
+  return FALSE;
+}
+
+gboolean UpdateAttempterTest::StaticEnterpriseRollbackTestStart(gpointer data) {
+  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(true);
+  return FALSE;
+}
+
+gboolean UpdateAttempterTest::StaticRollbackTestVerify(gpointer data) {
+  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestVerify();
+  return FALSE;
+}
+
 gboolean UpdateAttempterTest::StaticPingOmahaTestStart(gpointer data) {
   reinterpret_cast<UpdateAttempterTest*>(data)->PingOmahaTestStart();
   return FALSE;
@@ -350,7 +371,8 @@ gboolean UpdateAttempterTest::StaticNoScatteringDoneDuringManualUpdateTestStart(
 }
 
 namespace {
-const string kActionTypes[] = {
+// Actions that will be built as part of an update check.
+const string kUpdateActionTypes[] = {
   OmahaRequestAction::StaticType(),
   OmahaResponseHandlerAction::StaticType(),
   FilesystemCopierAction::StaticType(),
@@ -363,15 +385,22 @@ const string kActionTypes[] = {
   PostinstallRunnerAction::StaticType(),
   OmahaRequestAction::StaticType()
 };
+
+// Actions that will be built as part of a user-initiated rollback.
+const string kRollbackActionTypes[] = {
+  InstallPlanAction::StaticType(),
+  PostinstallRunnerAction::StaticType(),
+};
+
 }  // namespace {}
 
 void UpdateAttempterTest::UpdateTestStart() {
   attempter_.set_http_response_code(200);
   InSequence s;
-  for (size_t i = 0; i < arraysize(kActionTypes); ++i) {
+  for (size_t i = 0; i < arraysize(kUpdateActionTypes); ++i) {
     EXPECT_CALL(*processor_,
                 EnqueueAction(Property(&AbstractAction::Type,
-                                       kActionTypes[i]))).Times(1);
+                                       kUpdateActionTypes[i]))).Times(1);
   }
   EXPECT_CALL(*processor_, StartProcessing()).Times(1);
 
@@ -382,9 +411,9 @@ void UpdateAttempterTest::UpdateTestStart() {
 void UpdateAttempterTest::UpdateTestVerify() {
   EXPECT_EQ(0, attempter_.http_response_code());
   EXPECT_EQ(&attempter_, processor_->delegate());
-  EXPECT_EQ(arraysize(kActionTypes), attempter_.actions_.size());
-  for (size_t i = 0; i < arraysize(kActionTypes); ++i) {
-    EXPECT_EQ(kActionTypes[i], attempter_.actions_[i]->Type());
+  EXPECT_EQ(arraysize(kUpdateActionTypes), attempter_.actions_.size());
+  for (size_t i = 0; i < arraysize(kUpdateActionTypes); ++i) {
+    EXPECT_EQ(kUpdateActionTypes[i], attempter_.actions_[i]->Type());
   }
   EXPECT_EQ(attempter_.response_handler_action_.get(),
             attempter_.actions_[1].get());
@@ -396,9 +425,81 @@ void UpdateAttempterTest::UpdateTestVerify() {
   g_main_loop_quit(loop_);
 }
 
+void UpdateAttempterTest::RollbackTestStart(bool enterprise_rollback) {
+  // Create a device policy so that we can change settings.
+  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
+  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
+
+  EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_system_state_, device_policy()).WillRepeatedly(
+      Return(device_policy));
+
+  string install_path = "/dev/sda3";
+
+  // Non-enterprise enrolled device account with an owner in the device policy.
+  if (!enterprise_rollback) {
+    EXPECT_CALL(*device_policy, GetOwner(_)).WillOnce(
+        DoAll(SetArgumentPointee<0>(std::string("fake.mail@fake.com")),
+        Return(true)));
+
+    InSequence s;
+    for (size_t i = 0; i < arraysize(kRollbackActionTypes); ++i) {
+      EXPECT_CALL(*processor_,
+                  EnqueueAction(Property(&AbstractAction::Type,
+                                         kRollbackActionTypes[i]))).Times(1);
+    }
+    EXPECT_CALL(*processor_, StartProcessing()).Times(1);
+
+    EXPECT_TRUE(attempter_.Rollback(true, &install_path));
+    g_idle_add(&StaticRollbackTestVerify, this);
+  } else {
+    // We return an empty owner as this is an enterprise.
+    EXPECT_CALL(*device_policy, GetOwner(_)).WillOnce(
+            DoAll(SetArgumentPointee<0>(std::string("")),
+            Return(true)));
+
+    // We do not currently support rollbacks for enterprises.
+    EXPECT_FALSE(attempter_.Rollback(true, &install_path));
+    g_main_loop_quit(loop_);
+  }
+}
+
+void UpdateAttempterTest::RollbackTestVerify() {
+  // Verifies the actions that were enqueued.
+  EXPECT_EQ(&attempter_, processor_->delegate());
+  EXPECT_EQ(arraysize(kRollbackActionTypes), attempter_.actions_.size());
+  for (size_t i = 0; i < arraysize(kRollbackActionTypes); ++i) {
+    EXPECT_EQ(kRollbackActionTypes[i], attempter_.actions_[i]->Type());
+  }
+  EXPECT_EQ(UPDATE_STATUS_ATTEMPTING_ROLLBACK, attempter_.status());
+  InstallPlanAction* install_plan_action =
+        dynamic_cast<InstallPlanAction*>(attempter_.actions_[0].get());
+  InstallPlan* install_plan = install_plan_action->install_plan();
+  EXPECT_EQ(install_plan->install_path, string("/dev/sda3"));
+  EXPECT_EQ(install_plan->kernel_install_path, string("/dev/sda2"));
+  EXPECT_EQ(install_plan->powerwash_required, true);
+  g_main_loop_quit(loop_);
+}
+
 TEST_F(UpdateAttempterTest, UpdateTest) {
   loop_ = g_main_loop_new(g_main_context_default(), FALSE);
   g_idle_add(&StaticUpdateTestStart, this);
+  g_main_loop_run(loop_);
+  g_main_loop_unref(loop_);
+  loop_ = NULL;
+}
+
+TEST_F(UpdateAttempterTest, RollbackTest) {
+  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+  g_idle_add(&StaticRollbackTestStart, this);
+  g_main_loop_run(loop_);
+  g_main_loop_unref(loop_);
+  loop_ = NULL;
+}
+
+TEST_F(UpdateAttempterTest, EnterpriseRollbackTest) {
+  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+  g_idle_add(&StaticEnterpriseRollbackTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
   loop_ = NULL;

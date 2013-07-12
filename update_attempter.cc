@@ -544,7 +544,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   }
 }
 
-bool UpdateAttempter::Rollback(bool powerwash) {
+bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
   CHECK(!processor_->IsRunning());
   processor_->set_delegate(this);
 
@@ -554,11 +554,27 @@ bool UpdateAttempter::Rollback(bool powerwash) {
 
   LOG(INFO) << "Setting rollback options.";
   InstallPlan install_plan;
-  TEST_AND_RETURN_FALSE(utils::GetInstallDev(utils::BootDevice(),
-                                             &install_plan.install_path));
+  if (install_path == NULL) {
+    TEST_AND_RETURN_FALSE(utils::GetInstallDev(utils::BootDevice(),
+                                               &install_plan.install_path));
+  }
+  else {
+    install_plan.install_path = *install_path;
+  }
+
   install_plan.kernel_install_path = utils::BootKernelDevice(
       install_plan.install_path);
   install_plan.powerwash_required = powerwash;
+  if (powerwash) {
+    // Enterprise-enrolled devices have an empty owner in their device policy.
+    string owner;
+    const policy::DevicePolicy* device_policy = system_state_->device_policy();
+    if (!device_policy->GetOwner(&owner) || owner.empty()) {
+      LOG(ERROR) << "Enterprise device detected. "
+                 << "Cannot perform a powerwash for enterprise devices.";
+      return false;
+    }
+  }
 
   LOG(INFO) << "Using this install plan:";
   install_plan.Dump();

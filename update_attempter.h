@@ -147,8 +147,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // This is the internal entry point for going through a rollback. This will
   // attempt to run the postinstall on the non-active partition and set it as
   // the partition to boot from. If |powerwash| is True, perform a powerwash
-  // as part of rollback. Returns True on success.
-  bool Rollback(bool powerwash);
+  // as part of rollback. If |install_path| is set, use this value to determine
+  // the partitions to roll back to (used in testing). Returns True on success.
+  bool Rollback(bool powerwash, std::string* install_path);
 
   // Initiates a reboot if the current state is
   // UPDATED_NEED_REBOOT. Returns true on sucess, false otherwise.

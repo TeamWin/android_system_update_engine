@@ -572,7 +572,7 @@ const std::string BootDevice() {
 }
 
 const string BootKernelDevice(const std::string& boot_device) {
-  // Currntly this assumes the last digit of the boot device is
+  // Currently this assumes the last digit of the boot device is
   // 3, 5, or 7, and changes it to 2, 4, or 6, respectively, to
   // get the kernel device.
   string ret = boot_device;

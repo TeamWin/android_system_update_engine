@@ -99,7 +99,10 @@ class InstallPlanAction : public Action<InstallPlanAction> {
     processor_->ActionComplete(this, kErrorCodeSuccess);
   }
 
-  virtual std::string Type() const { return "InstallPlanAction"; }
+  InstallPlan* install_plan() { return &install_plan_; }
+
+  static std::string StaticType() { return "InstallPlanAction"; }
+  virtual std::string Type() const { return StaticType(); }
 
   typedef ActionTraits<InstallPlanAction>::InputObjectType InputObjectType;
   typedef ActionTraits<InstallPlanAction>::OutputObjectType OutputObjectType;
