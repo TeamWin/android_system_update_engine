@@ -552,6 +552,17 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
   // check for != stable-channel here.
   RefreshDevicePolicy();
 
+  // Initialize the default request params.
+  if (!omaha_request_params_->Init("", "", true)) {
+    LOG(ERROR) << "Unable to initialize Omaha request params.";
+    return false;
+  }
+
+  if (omaha_request_params_->current_channel() == "stable-channel") {
+    LOG(ERROR) << "Rollback is not supported while on the stable-channel.";
+    return false;
+  }
+
   LOG(INFO) << "Setting rollback options.";
   InstallPlan install_plan;
   if (install_path == NULL) {
@@ -582,12 +593,6 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
   shared_ptr<InstallPlanAction> install_plan_action(
       new InstallPlanAction(install_plan));
   actions_.push_back(shared_ptr<AbstractAction>(install_plan_action));
-
-  // Initialize the default request params.
-  if (!omaha_request_params_->Init("", "", true)) {
-    LOG(ERROR) << "Unable to initialize Omaha request params.";
-    return false;
-  }
 
   BuildPostInstallActions(install_plan_action.get());
 

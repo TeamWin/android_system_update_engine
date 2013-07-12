@@ -216,6 +216,9 @@ class OmahaRequestParams {
 
   // For unit-tests.
   void set_root(const std::string& root);
+  void set_current_channel(const std::string& channel) {
+    current_channel_ = channel;
+  }
 
   // Enforce security mode for testing purposes.
   void SetLockDown(bool lock);
