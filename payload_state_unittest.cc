@@ -12,6 +12,7 @@
 
 #include "update_engine/constants.h"
 #include "update_engine/fake_clock.h"
+#include "update_engine/fake_hardware.h"
 #include "update_engine/mock_system_state.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/payload_state.h"
@@ -24,11 +25,12 @@ using base::Time;
 using base::TimeDelta;
 using std::string;
 using testing::_;
+using testing::AnyNumber;
+using testing::AtLeast;
+using testing::Mock;
 using testing::NiceMock;
 using testing::Return;
 using testing::SetArgumentPointee;
-using testing::AtLeast;
-using testing::AnyNumber;
 
 namespace chromeos_update_engine {
 
@@ -1163,6 +1165,159 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsFull) {
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendEnumToUMA(
       "Installer.PayloadFormat", kPayloadTypeFull, kNumPayloadTypes));
   payload_state.UpdateSucceeded();
+}
+
+TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
+  FakeHardware fake_hardware;
+  MockSystemState mock_system_state;
+  OmahaResponse response;
+  PayloadState payload_state;
+  Prefs prefs;
+  string temp_dir;
+
+  // Setup an environment with persistent prefs across simulated reboots.
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateReboot.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+  mock_system_state.set_prefs(&prefs);
+
+  fake_hardware.SetBootDevice("/dev/sda3");
+  fake_hardware.SetKernelDeviceOfBootDevice("/dev/sda3", "/dev/sda2");
+  mock_system_state.set_hardware(&fake_hardware);
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash3141", true, &payload_state, &response);
+
+  // Simulate a successful download and update.
+  payload_state.DownloadComplete();
+  payload_state.UpdateSucceeded();
+  payload_state.ExpectRebootInNewVersion("Version:12345678");
+
+  // Reboot into the same environment to get an UMA metric with a value of 1.
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.RebootToNewPartitionAttempt", 1, _, _, _));
+  payload_state.ReportFailedBootIfNeeded();
+  Mock::VerifyAndClearExpectations(mock_system_state.mock_metrics_lib());
+
+  // Simulate a second update and reboot into the same environment, this should
+  // send a value of 2.
+  payload_state.ExpectRebootInNewVersion("Version:12345678");
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.RebootToNewPartitionAttempt", 2, _, _, _));
+  payload_state.ReportFailedBootIfNeeded();
+  Mock::VerifyAndClearExpectations(mock_system_state.mock_metrics_lib());
+
+  // Simulate a third failed reboot to new version, but this time for a
+  // different payload. This should send a value of 1 this time.
+  payload_state.ExpectRebootInNewVersion("Version:3141592");
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.RebootToNewPartitionAttempt", 1, _, _, _));
+  payload_state.ReportFailedBootIfNeeded();
+  Mock::VerifyAndClearExpectations(mock_system_state.mock_metrics_lib());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
+  FakeHardware fake_hardware;
+  MockSystemState mock_system_state;
+  OmahaResponse response;
+  PayloadState payload_state;
+  Prefs prefs;
+  string temp_dir;
+
+  // Setup an environment with persistent prefs across simulated reboots.
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateReboot.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+  mock_system_state.set_prefs(&prefs);
+
+  fake_hardware.SetKernelDeviceOfBootDevice("/dev/sda3", "/dev/sda2");
+  fake_hardware.SetKernelDeviceOfBootDevice("/dev/sda5", "/dev/sda4");
+  fake_hardware.SetBootDevice("/dev/sda3");
+  mock_system_state.set_hardware(&fake_hardware);
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash3141", true, &payload_state, &response);
+
+  // Simulate a successful download and update.
+  payload_state.DownloadComplete();
+  payload_state.UpdateSucceeded();
+  payload_state.ExpectRebootInNewVersion("Version:12345678");
+
+  // Change the BootDevice to a different one, no metric should be sent.
+  fake_hardware.SetBootDevice("/dev/sda5");
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.RebootToNewPartitionAttempt", _, _, _, _))
+      .Times(0);
+  payload_state.ReportFailedBootIfNeeded();
+
+  // A second reboot in eiher partition should not send a metric.
+  payload_state.ReportFailedBootIfNeeded();
+  fake_hardware.SetBootDevice("/dev/sda3");
+  payload_state.ReportFailedBootIfNeeded();
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(PayloadStateTest, RebootAfterCanceledUpdate) {
+  MockSystemState mock_system_state;
+  OmahaResponse response;
+  PayloadState payload_state;
+  Prefs prefs;
+  string temp_dir;
+
+  // Setup an environment with persistent prefs across simulated reboots.
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateReboot.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+  mock_system_state.set_prefs(&prefs);
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash3141", true, &payload_state, &response);
+
+  // Simulate a successful download and update.
+  payload_state.DownloadComplete();
+  payload_state.UpdateSucceeded();
+  payload_state.ExpectRebootInNewVersion("Version:12345678");
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.RebootToNewPartitionAttempt", _, _, _, _))
+      .Times(0);
+
+  // Cancel the applied update.
+  payload_state.ResetUpdateStatus();
+
+  // Simulate a reboot.
+  payload_state.ReportFailedBootIfNeeded();
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
+  MockSystemState mock_system_state;
+  PayloadState payload_state;
+  Prefs prefs;
+  string temp_dir;
+
+  // Setup an environment with persistent but initially empty prefs.
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateReboot.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+  mock_system_state.set_prefs(&prefs);
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.RebootToNewPartitionAttempt", _, _, _, _))
+      .Times(0);
+
+  // Simulate a reboot in this environment.
+  payload_state.ReportFailedBootIfNeeded();
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 }

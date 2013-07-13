@@ -31,7 +31,6 @@
 #include <base/stringprintf.h>
 #include <glib.h>
 #include <google/protobuf/stubs/common.h>
-#include <rootdev/rootdev.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/file_writer.h"
@@ -552,38 +551,6 @@ bool StringHasPrefix(const std::string& str, const std::string& prefix) {
   if (prefix.size() > str.size())
     return false;
   return 0 == str.compare(0, prefix.size(), prefix);
-}
-
-const std::string BootDevice() {
-  char boot_path[PATH_MAX];
-  // Resolve the boot device path fully, including dereferencing
-  // through dm-verity.
-  int ret = rootdev(boot_path, sizeof(boot_path), true, false);
-
-  if (ret < 0) {
-    LOG(ERROR) << "rootdev failed to find the root device";
-    return "";
-  }
-  LOG_IF(WARNING, ret > 0) << "rootdev found a device name with no device node";
-
-  // This local variable is used to construct the return string and is not
-  // passed around after use.
-  return boot_path;
-}
-
-const string BootKernelDevice(const std::string& boot_device) {
-  // Currently this assumes the last digit of the boot device is
-  // 3, 5, or 7, and changes it to 2, 4, or 6, respectively, to
-  // get the kernel device.
-  string ret = boot_device;
-  if (ret.empty())
-    return ret;
-  char last_char = ret[ret.size() - 1];
-  if (last_char == '3' || last_char == '5' || last_char == '7') {
-    ret[ret.size() - 1] = last_char - 1;
-    return ret;
-  }
-  return "";
 }
 
 bool MountFilesystem(const string& device,

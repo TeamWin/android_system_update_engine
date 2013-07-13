@@ -11,6 +11,7 @@
 
 #include "update_engine/constants.h"
 #include "update_engine/delta_performer.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/prefs_interface.h"
 #include "update_engine/utils.h"
@@ -89,10 +90,12 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.is_full_update = !response.is_delta_payload;
 
   TEST_AND_RETURN(utils::GetInstallDev(
-      (!boot_device_.empty() ? boot_device_ : utils::BootDevice()),
+      (!boot_device_.empty() ? boot_device_ :
+          system_state_->hardware()->BootDevice()),
       &install_plan_.install_path));
   install_plan_.kernel_install_path =
-      utils::BootKernelDevice(install_plan_.install_path);
+      system_state_->hardware()->KernelDeviceOfBootDevice(
+          install_plan_.install_path);
 
   OmahaRequestParams* params = system_state_->request_params();
   if (params->to_more_stable_channel() && params->is_powerwash_allowed())

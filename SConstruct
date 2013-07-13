@@ -265,6 +265,7 @@ sources = Split("""action_processor.cc
                    full_update_generator.cc
                    gpio_handler.cc
                    graph_utils.cc
+                   hardware.cc
                    http_common.cc
                    http_fetcher.cc
                    install_plan.cc
@@ -308,6 +309,7 @@ unittest_sources = Split("""action_unittest.cc
                             extent_mapper_unittest.cc
                             extent_ranges_unittest.cc
                             extent_writer_unittest.cc
+                            fake_hardware.cc
                             file_writer_unittest.cc
                             filesystem_copier_action_unittest.cc
                             filesystem_iterator_unittest.cc
@@ -316,6 +318,7 @@ unittest_sources = Split("""action_unittest.cc
                             gpio_mock_file_descriptor.cc
                             gpio_mock_udev_interface.cc
                             graph_utils_unittest.cc
+                            hardware_unittest.cc
                             http_fetcher_unittest.cc
                             metadata_unittest.cc
                             mock_http_fetcher.cc

@@ -16,6 +16,7 @@
 
 #include "update_engine/filesystem_copier_action.h"
 #include "update_engine/filesystem_iterator.h"
+#include "update_engine/mock_system_state.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
@@ -39,6 +40,8 @@ class FilesystemCopierActionTest : public ::testing::Test {
   }
   void TearDown() {
   }
+
+  MockSystemState mock_system_state_;
 };
 
 class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
@@ -196,7 +199,8 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
   ActionProcessor processor;
 
   ObjectFeederAction<InstallPlan> feeder_action;
-  FilesystemCopierAction copier_action(use_kernel_partition,
+  FilesystemCopierAction copier_action(&mock_system_state_,
+                                       use_kernel_partition,
                                        verify_hash != 0);
   ObjectCollectorAction<InstallPlan> collector_action;
 
@@ -290,7 +294,7 @@ TEST_F(FilesystemCopierActionTest, MissingInputObjectTest) {
 
   processor.set_delegate(&delegate);
 
-  FilesystemCopierAction copier_action(false, false);
+  FilesystemCopierAction copier_action(&mock_system_state_, false, false);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&copier_action, &collector_action);
@@ -313,7 +317,7 @@ TEST_F(FilesystemCopierActionTest, ResumeTest) {
   const char* kUrl = "http://some/url";
   InstallPlan install_plan(false, true, kUrl, 0, "", 0, "", "", "");
   feeder_action.set_obj(install_plan);
-  FilesystemCopierAction copier_action(false, false);
+  FilesystemCopierAction copier_action(&mock_system_state_, false, false);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&feeder_action, &copier_action);
@@ -346,7 +350,7 @@ TEST_F(FilesystemCopierActionTest, NonExistentDriveTest) {
                            "/no/such/file",
                            "/no/such/file");
   feeder_action.set_obj(install_plan);
-  FilesystemCopierAction copier_action(false, false);
+  FilesystemCopierAction copier_action(&mock_system_state_, false, false);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&copier_action, &collector_action);
@@ -395,7 +399,7 @@ TEST_F(FilesystemCopierActionTest, RunAsRootDetermineFilesystemSizeTest) {
 
   for (int i = 0; i < 2; ++i) {
     bool is_kernel = i == 1;
-    FilesystemCopierAction action(is_kernel, false);
+    FilesystemCopierAction action(&mock_system_state_, is_kernel, false);
     EXPECT_EQ(kint64max, action.filesystem_size_);
     {
       int fd = HANDLE_EINTR(open(img.c_str(), O_RDONLY));

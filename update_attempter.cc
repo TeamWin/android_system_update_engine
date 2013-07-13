@@ -21,6 +21,7 @@
 #include "update_engine/download_action.h"
 #include "update_engine/filesystem_copier_action.h"
 #include "update_engine/gpio_handler.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/multi_range_http_fetcher.h"
 #include "update_engine/omaha_request_action.h"
@@ -463,9 +464,9 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   shared_ptr<OmahaResponseHandlerAction> response_handler_action(
       new OmahaResponseHandlerAction(system_state_));
   shared_ptr<FilesystemCopierAction> filesystem_copier_action(
-      new FilesystemCopierAction(false, false));
+      new FilesystemCopierAction(system_state_, false, false));
   shared_ptr<FilesystemCopierAction> kernel_filesystem_copier_action(
-      new FilesystemCopierAction(true, false));
+      new FilesystemCopierAction(system_state_, true, false));
   shared_ptr<OmahaRequestAction> download_started_action(
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(
@@ -491,9 +492,9 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                                                     is_test_mode_),
                              false));
   shared_ptr<FilesystemCopierAction> filesystem_verifier_action(
-      new FilesystemCopierAction(false, true));
+      new FilesystemCopierAction(system_state_, false, true));
   shared_ptr<FilesystemCopierAction> kernel_filesystem_verifier_action(
-      new FilesystemCopierAction(true, true));
+      new FilesystemCopierAction(system_state_, true, true));
   shared_ptr<OmahaRequestAction> update_complete_action(
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
@@ -566,15 +567,17 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
   LOG(INFO) << "Setting rollback options.";
   InstallPlan install_plan;
   if (install_path == NULL) {
-    TEST_AND_RETURN_FALSE(utils::GetInstallDev(utils::BootDevice(),
-                                               &install_plan.install_path));
+    TEST_AND_RETURN_FALSE(utils::GetInstallDev(
+        system_state_->hardware()->BootDevice(),
+        &install_plan.install_path));
   }
   else {
     install_plan.install_path = *install_path;
   }
 
-  install_plan.kernel_install_path = utils::BootKernelDevice(
-      install_plan.install_path);
+  install_plan.kernel_install_path =
+      system_state_->hardware()->KernelDeviceOfBootDevice(
+          install_plan.install_path);
   install_plan.powerwash_required = powerwash;
   if (powerwash) {
     // Enterprise-enrolled devices have an empty owner in their device policy.
@@ -702,6 +705,17 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT,
                        kUpdateNoticeUnspecified);
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
+
+    const InstallPlan& install_plan = response_handler_action_->install_plan();
+
+    // Generate an unique payload identifier.
+    const string target_version_uid =
+        install_plan.payload_hash + ":" + install_plan.metadata_signature;
+
+    // Expect to reboot into the new version to send the proper metric during
+    // next boot.
+    system_state_->payload_state()->ExpectRebootInNewVersion(
+        target_version_uid);
 
     // Also report the success code so that the percentiles can be
     // interpreted properly for the remaining error codes in UMA.
@@ -843,6 +857,9 @@ bool UpdateAttempter::ResetStatus() {
       const FilePath kUpdateCompletedMarkerPath(kUpdateCompletedMarker);
       if (!file_util::Delete(kUpdateCompletedMarkerPath, false))
         ret_value = false;
+
+      // Notify the PayloadState that the successful payload was canceled.
+      system_state_->payload_state()->ResetUpdateStatus();
 
       return ret_value;
     }

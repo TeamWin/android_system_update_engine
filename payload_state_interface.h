@@ -58,8 +58,21 @@ class PayloadStateInterface {
   // depending on the type of the error that happened.
   virtual void UpdateFailed(ErrorCode error) = 0;
 
+  // This method should be called whenever a succeeded update is canceled, and
+  // thus can only be called after UpdateSucceeded(). This is currently used
+  // only for manual testing using the update_engine_client.
+  virtual void ResetUpdateStatus() = 0;
+
   // This method should be called every time we initiate a Rollback.
   virtual void Rollback() = 0;
+
+  // Sets the expectations to boot into the new version in the next reboot.
+  // This function is called every time a new update is marked as ready by
+  // UpdateSuccess(). |target_version_uid| is an unique identifier of the
+  // applied payload. It can be any string, as long as the same string is used
+  // for the same payload.
+  virtual void ExpectRebootInNewVersion(
+      const std::string& target_version_uid) = 0;
 
   // Returns true if we should backoff the current download attempt.
   // False otherwise.

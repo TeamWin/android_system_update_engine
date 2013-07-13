@@ -10,6 +10,7 @@
 #include <update_engine/clock.h>
 #include <update_engine/connection_manager.h>
 #include <update_engine/gpio_handler.h>
+#include <update_engine/hardware.h>
 #include <update_engine/payload_state.h>
 #include <update_engine/prefs.h>
 #include <update_engine/update_attempter.h>
@@ -42,6 +43,10 @@ public:
 
   virtual inline ConnectionManager* connection_manager() {
     return &connection_manager_;
+  }
+
+  virtual inline HardwareInterface* hardware() {
+    return &hardware_;
   }
 
   virtual inline MetricsLibraryInterface* metrics_lib() {
@@ -92,6 +97,9 @@ private:
   // The connection manager object that makes download
   // decisions depending on the current type of connection.
   ConnectionManager connection_manager_;
+
+  // Interface for the hardware functions.
+  Hardware hardware_;
 
   // The Metrics Library interface for reporting UMA stats.
   MetricsLibrary metrics_lib_;

@@ -6,6 +6,7 @@
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H__
 
 #include <base/time.h>
+#include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/prefs_interface.h"
@@ -39,8 +40,10 @@ class PayloadState : public PayloadStateInterface {
   virtual void UpdateRestarted();
   virtual void UpdateSucceeded();
   virtual void UpdateFailed(ErrorCode error);
+  virtual void ResetUpdateStatus();
   virtual bool ShouldBackoffDownload();
   virtual void Rollback();
+  virtual void ExpectRebootInNewVersion(const std::string& target_version_uid);
 
   virtual inline std::string GetResponseSignature() {
     return response_signature_;
@@ -97,6 +100,12 @@ class PayloadState : public PayloadStateInterface {
   }
 
  private:
+  friend class PayloadStateTest;
+  FRIEND_TEST(PayloadStateTest, RebootAfterUpdateFailedMetric);
+  FRIEND_TEST(PayloadStateTest, RebootAfterUpdateSucceed);
+  FRIEND_TEST(PayloadStateTest, RebootAfterCanceledUpdate);
+  FRIEND_TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs);
+
   // Increments the payload attempt number used for metrics.
   void IncrementPayloadAttemptNumber();
 
@@ -146,6 +155,13 @@ class PayloadState : public PayloadStateInterface {
 
   // Reports the various metrics related to update attempts counts.
   void ReportAttemptsCountMetrics();
+
+  // Checks if we were expecting to be running in the new version but the
+  // boot into the new version failed for some reason. If that's the case, an
+  // UMA metric is sent reporting the number of attempts the same applied
+  // payload was attempted to reboot. This function is called by UpdateAttempter
+  // every time the update engine starts and there's no reboot pending.
+  void ReportFailedBootIfNeeded();
 
   // Resets all the persisted state values which are maintained relative to the
   // current response signature. The response signature itself is not reset.

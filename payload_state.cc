@@ -12,6 +12,8 @@
 
 #include "update_engine/clock.h"
 #include "update_engine/constants.h"
+#include "update_engine/hardware_interface.h"
+#include "update_engine/install_plan.h"
 #include "update_engine/prefs.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
@@ -1106,6 +1108,86 @@ void PayloadState::UpdateEngineStarted() {
     }
     prefs_->Delete(kPrefsSystemUpdatedMarker);
   }
+  // Check if it is needed to send metrics about a failed reboot into a new
+  // version.
+  ReportFailedBootIfNeeded();
+}
+
+void PayloadState::ReportFailedBootIfNeeded() {
+  // If the kPrefsTargetVersionInstalledFrom is present, a successfully applied
+  // payload was marked as ready immediately before the last reboot, and we
+  // need to check if such payload successfully rebooted or not.
+  if (prefs_->Exists(kPrefsTargetVersionInstalledFrom)) {
+    string installed_from;
+    if (!prefs_->GetString(kPrefsTargetVersionInstalledFrom, &installed_from)) {
+      LOG(ERROR) << "Error reading TargetVersionInstalledFrom on reboot.";
+      return;
+    }
+    if (installed_from ==
+        utils::PartitionNumber(system_state_->hardware()->BootDevice())) {
+      // A reboot was pending, but the chromebook is again in the same
+      // BootDevice where the update was installed from.
+      int64_t target_attempt;
+      if (!prefs_->GetInt64(kPrefsTargetVersionAttempt, &target_attempt)) {
+        LOG(ERROR) << "Error reading TargetVersionAttempt when "
+                      "TargetVersionInstalledFrom was present.";
+        target_attempt = 1;
+      }
+
+      // Report the UMA metric of the current boot failure.
+      string metric = "Installer.RebootToNewPartitionAttempt";
+
+      LOG(INFO) << "Uploading " << target_attempt
+                << " (count) for metric " <<  metric;
+      system_state_->metrics_lib()->SendToUMA(
+           metric,
+           target_attempt,
+           1,    // min value
+           50,   // max value
+           kNumDefaultUmaBuckets);
+    } else {
+      prefs_->Delete(kPrefsTargetVersionAttempt);
+      prefs_->Delete(kPrefsTargetVersionUniqueId);
+    }
+    prefs_->Delete(kPrefsTargetVersionInstalledFrom);
+  }
+}
+
+void PayloadState::ExpectRebootInNewVersion(const string& target_version_uid) {
+  // Expect to boot into the new partition in the next reboot setting the
+  // TargetVersion* flags in the Prefs.
+  string stored_target_version_uid;
+  string target_version_id;
+  string target_partition;
+  int64_t target_attempt;
+
+  if (prefs_->Exists(kPrefsTargetVersionUniqueId) &&
+      prefs_->GetString(kPrefsTargetVersionUniqueId,
+                        &stored_target_version_uid) &&
+      stored_target_version_uid == target_version_uid) {
+    if (!prefs_->GetInt64(kPrefsTargetVersionAttempt, &target_attempt))
+      target_attempt = 0;
+  } else {
+    prefs_->SetString(kPrefsTargetVersionUniqueId, target_version_uid);
+    target_attempt = 0;
+  }
+  prefs_->SetInt64(kPrefsTargetVersionAttempt, target_attempt + 1);
+
+  prefs_->SetString(kPrefsTargetVersionInstalledFrom,
+                    utils::PartitionNumber(
+                        system_state_->hardware()->BootDevice()));
+}
+
+void PayloadState::ResetUpdateStatus() {
+  // Remove the TargetVersionInstalledFrom pref so that if the machine is
+  // rebooted the next boot is not flagged as failed to rebooted into the
+  // new applied payload.
+  prefs_->Delete(kPrefsTargetVersionInstalledFrom);
+
+  // Also decrement the attempt number if it exists.
+  int64_t target_attempt;
+  if (prefs_->GetInt64(kPrefsTargetVersionAttempt, &target_attempt))
+    prefs_->SetInt64(kPrefsTargetVersionAttempt, target_attempt-1);
 }
 
 }  // namespace chromeos_update_engine

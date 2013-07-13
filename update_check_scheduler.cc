@@ -5,6 +5,7 @@
 #include "update_engine/update_check_scheduler.h"
 
 #include "update_engine/certificate_checker.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/http_common.h"
 #include "update_engine/gpio_handler.h"
 #include "update_engine/system_state.h"
@@ -58,7 +59,8 @@ void UpdateCheckScheduler::Run() {
 }
 
 bool UpdateCheckScheduler::IsBootDeviceRemovable() {
-  return utils::IsRemovableDevice(utils::RootDevice(utils::BootDevice()));
+  return utils::IsRemovableDevice(utils::RootDevice(
+      system_state_->hardware()->BootDevice()));
 }
 
 bool UpdateCheckScheduler::IsOfficialBuild() {

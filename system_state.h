@@ -19,6 +19,7 @@ namespace chromeos_update_engine {
 // the required classes.
 class ClockInterface;
 class ConnectionManager;
+class HardwareInterface;
 class PrefsInterface;
 class PayloadStateInterface;
 class GpioHandler;
@@ -53,6 +54,9 @@ class SystemState {
 
   // Gets the connection manager object.
   virtual ConnectionManager* connection_manager() = 0;
+
+  // Gets the hardware interface object.
+  virtual HardwareInterface* hardware() = 0;
 
   // Gets the Metrics Library interface for reporting UMA stats.
   virtual MetricsLibraryInterface* metrics_lib() = 0;

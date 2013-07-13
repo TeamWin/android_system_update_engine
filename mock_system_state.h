@@ -14,6 +14,7 @@
 #include "update_engine/mock_gpio_handler.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/clock.h"
+#include "update_engine/hardware.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/system_state.h"
 
@@ -42,6 +43,10 @@ class MockSystemState : public SystemState {
 
   inline virtual ConnectionManager* connection_manager() {
     return connection_manager_;
+  }
+
+  inline virtual HardwareInterface* hardware() {
+    return hardware_;
   }
 
   inline virtual MetricsLibraryInterface* metrics_lib() {
@@ -83,6 +88,10 @@ class MockSystemState : public SystemState {
     clock_ = clock;
   }
 
+  inline void set_hardware(HardwareInterface* hardware) {
+    hardware_ = hardware;
+  }
+
   inline void set_prefs(PrefsInterface* prefs) {
     prefs_ = prefs;
   }
@@ -119,10 +128,12 @@ class MockSystemState : public SystemState {
 
   // These are the other object we own.
   Clock default_clock_;
+  Hardware default_hardware_;
   OmahaRequestParams default_request_params_;
 
   // These are pointers to objects which caller can override.
   ClockInterface* clock_;
+  HardwareInterface* hardware_;
   PrefsInterface* prefs_;
   PrefsInterface* powerwash_safe_prefs_;
   ConnectionManager* connection_manager_;

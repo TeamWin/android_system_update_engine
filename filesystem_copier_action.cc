@@ -21,7 +21,9 @@
 #include <glib.h>
 
 #include "update_engine/filesystem_iterator.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/subprocess.h"
+#include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
 using std::map;
@@ -36,6 +38,7 @@ const off_t kCopyFileBufferSize = 128 * 1024;
 }  // namespace {}
 
 FilesystemCopierAction::FilesystemCopierAction(
+    SystemState* system_state,
     bool copying_kernel_install_path,
     bool verify_hash)
     : copying_kernel_install_path_(copying_kernel_install_path),
@@ -45,7 +48,8 @@ FilesystemCopierAction::FilesystemCopierAction(
       read_done_(false),
       failed_(false),
       cancelled_(false),
-      filesystem_size_(kint64max) {
+      filesystem_size_(kint64max),
+      system_state_(system_state) {
   // A lot of code works on the implicit assumption that processing is done on
   // exactly 2 ping-pong buffers.
   COMPILE_ASSERT(arraysize(buffer_) == 2 &&
@@ -86,8 +90,9 @@ void FilesystemCopierAction::PerformAction() {
   string source = verify_hash_ ? destination : copy_source_;
   if (source.empty()) {
     source = copying_kernel_install_path_ ?
-        utils::BootKernelDevice(utils::BootDevice()) :
-        utils::BootDevice();
+        system_state_->hardware()->KernelDeviceOfBootDevice(
+            system_state_->hardware()->BootDevice()) :
+        system_state_->hardware()->BootDevice();
   }
   int src_fd = open(source.c_str(), O_RDONLY);
   if (src_fd < 0) {

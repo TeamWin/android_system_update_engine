@@ -183,7 +183,8 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
   EXPECT_EQ(kErrorCodeOmahaResponseHandlerError,
             GetErrorCodeForAction(&omaha_response_handler_action,
                                   kErrorCodeError));
-  FilesystemCopierAction filesystem_copier_action(false, false);
+  FilesystemCopierAction filesystem_copier_action(
+      &mock_system_state_, false, false);
   EXPECT_EQ(kErrorCodeFilesystemCopierError,
             GetErrorCodeForAction(&filesystem_copier_action, kErrorCodeError));
   PostinstallRunnerAction postinstall_runner_action;

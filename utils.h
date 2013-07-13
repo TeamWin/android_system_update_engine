@@ -254,18 +254,6 @@ void ApplyMap(std::vector<ValueType>* collection,
   }
 }
 
-// Returns the currently booted device. "/dev/sda3", for example.
-// This will not interpret LABEL= or UUID=. You'll need to use findfs
-// or something with equivalent funcionality to interpret those.
-const std::string BootDevice();
-
-// Returns the currently booted kernel device, "dev/sda2", for example.
-// Client must pass in the boot device. The suggested calling convention
-// is: BootKernelDevice(BootDevice()).
-// This function works by doing string modification on boot_device.
-// Returns empty string on failure.
-const std::string BootKernelDevice(const std::string& boot_device);
-
 // Cgroups cpu shares constants. 1024 is the default shares a standard process
 // gets and 2 is the minimum value. We set High as a value that gives the
 // update-engine 2x the cpu share of a standard process.

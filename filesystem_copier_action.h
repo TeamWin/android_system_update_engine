@@ -24,10 +24,13 @@
 
 namespace chromeos_update_engine {
 
+class SystemState;
 
 class FilesystemCopierAction : public InstallPlanAction {
  public:
-  FilesystemCopierAction(bool copying_kernel_install_path, bool verify_hash);
+  FilesystemCopierAction(SystemState* system_state,
+                         bool copying_kernel_install_path,
+                         bool verify_hash);
 
   void PerformAction();
   void TerminateProcessing();
@@ -129,6 +132,9 @@ class FilesystemCopierAction : public InstallPlanAction {
   // field is initialized when the action is started and decremented as more
   // bytes get copied.
   int64_t filesystem_size_;
+
+  // The global context for update_engine.
+  SystemState* system_state_;
 
   DISALLOW_COPY_AND_ASSIGN(FilesystemCopierAction);
 };
