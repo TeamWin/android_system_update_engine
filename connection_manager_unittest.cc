@@ -34,9 +34,16 @@ class ConnectionManagerTest : public ::testing::Test {
  protected:
   void SetupMocks(const char* service_path);
   void SetManagerReply(gconstpointer value, const GType& type);
-  void SetServiceReply(const char* service_type);
+
+  // Sets the |service_type| Type and the |physical_technology|
+  // PhysicalTechnology properties in the mocked service. If a NULL
+  // |physical_technology| is passed, the property is not set (not present).
+  void SetServiceReply(const char* service_type,
+                       const char* physical_technology);
   void TestWithServiceType(
-      const char* service_type, NetworkConnectionType expected_type);
+      const char* service_type,
+      const char* physical_technology,
+      NetworkConnectionType expected_type);
 
   static const char* kGetPropertiesMethod;
   DBusGProxy* kMockFlimFlamManagerProxy_;
@@ -108,7 +115,8 @@ void ConnectionManagerTest::SetManagerReply(gconstpointer reply_value,
       .RetiresOnSaturation();
 }
 
-void ConnectionManagerTest::SetServiceReply(const char* service_type) {
+void ConnectionManagerTest::SetServiceReply(const char* service_type,
+                                            const char* physical_technology) {
   // Initialize return value for D-Bus call to Service object.
   // TODO (jaysri): Free the objects allocated here.
   GHashTable* service_hash_table = g_hash_table_new(g_str_hash, g_str_equal);
@@ -121,6 +129,17 @@ void ConnectionManagerTest::SetServiceReply(const char* service_type) {
   g_hash_table_insert(service_hash_table,
                       const_cast<char*>("Type"),
                       service_type_value);
+
+  if (physical_technology != NULL) {
+    GValue* physical_technology_value = g_new0(GValue, 1);
+    EXPECT_EQ(physical_technology_value,
+              g_value_init(physical_technology_value, G_TYPE_STRING));
+    g_value_set_static_string(physical_technology_value, physical_technology);
+
+    g_hash_table_insert(service_hash_table,
+                        const_cast<char*>("PhysicalTechnology"),
+                        physical_technology_value);
+  }
 
   // Plumb return value into mock object.
   EXPECT_CALL(dbus_iface_, ProxyCall(kMockFlimFlamServiceProxy_,
@@ -149,11 +168,12 @@ void ConnectionManagerTest::SetServiceReply(const char* service_type) {
 
 void ConnectionManagerTest::TestWithServiceType(
     const char* service_type,
+    const char* physical_technology,
     NetworkConnectionType expected_type) {
 
   SetupMocks("/service/guest-network");
   SetManagerReply(kServicePath_, DBUS_TYPE_G_OBJECT_PATH_ARRAY);
-  SetServiceReply(service_type);
+  SetServiceReply(service_type, physical_technology);
 
   NetworkConnectionType type;
   EXPECT_TRUE(cmut_.GetConnectionType(&dbus_iface_, &type));
@@ -161,15 +181,22 @@ void ConnectionManagerTest::TestWithServiceType(
 }
 
 TEST_F(ConnectionManagerTest, SimpleTest) {
-  TestWithServiceType(flimflam::kTypeEthernet, kNetEthernet);
-  TestWithServiceType(flimflam::kTypeWifi, kNetWifi);
-  TestWithServiceType(flimflam::kTypeWimax, kNetWimax);
-  TestWithServiceType(flimflam::kTypeBluetooth, kNetBluetooth);
-  TestWithServiceType(flimflam::kTypeCellular, kNetCellular);
+  TestWithServiceType(flimflam::kTypeEthernet, NULL, kNetEthernet);
+  TestWithServiceType(flimflam::kTypeWifi, NULL, kNetWifi);
+  TestWithServiceType(flimflam::kTypeWimax, NULL, kNetWimax);
+  TestWithServiceType(flimflam::kTypeBluetooth, NULL, kNetBluetooth);
+  TestWithServiceType(flimflam::kTypeCellular, NULL, kNetCellular);
+}
+
+TEST_F(ConnectionManagerTest, PhysicalTechnologyTest) {
+  TestWithServiceType(flimflam::kTypeVPN, NULL, kNetUnknown);
+  TestWithServiceType(flimflam::kTypeVPN, flimflam::kTypeVPN, kNetUnknown);
+  TestWithServiceType(flimflam::kTypeVPN, flimflam::kTypeWifi, kNetWifi);
+  TestWithServiceType(flimflam::kTypeVPN, flimflam::kTypeWimax, kNetWimax);
 }
 
 TEST_F(ConnectionManagerTest, UnknownTest) {
-  TestWithServiceType("foo", kNetUnknown);
+  TestWithServiceType("foo", NULL, kNetUnknown);
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverEthernetTest) {

@@ -134,12 +134,26 @@ bool GetServicePathType(DbusGlibInterface* dbus_iface,
                                       flimflam::kFlimflamServiceInterface,
                                       &hash_table));
 
-  GValue* value = (GValue*)g_hash_table_lookup(hash_table, "Type");
+  GValue* value = (GValue*)g_hash_table_lookup(hash_table,
+                                               flimflam::kTypeProperty);
   const char* type_str = NULL;
   bool success = false;
   if (value != NULL && (type_str = g_value_get_string(value)) != NULL) {
-    *out_type = ParseConnectionType(type_str);
     success = true;
+    if (!strcmp(type_str, flimflam::kTypeVPN)) {
+      value = (GValue*)g_hash_table_lookup(hash_table,
+                                           shill::kPhysicalTechnologyProperty);
+      if (value != NULL && (type_str = g_value_get_string(value)) != NULL) {
+        *out_type = ParseConnectionType(type_str);
+      } else {
+        LOG(ERROR) << "No PhysicalTechnology property found for a VPN"
+                   << " connection (service: " << path << "). Returning default"
+                   << " kNetUnknown value.";
+        *out_type = kNetUnknown;
+      }
+    } else {
+      *out_type = ParseConnectionType(type_str);
+    }
   }
   g_hash_table_unref(hash_table);
   return success;
