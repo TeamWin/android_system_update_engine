@@ -5,6 +5,10 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_TEST_UTILS_H__
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_TEST_UTILS_H__
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <set>
 #include <string>
 #include <vector>
@@ -44,6 +48,18 @@ bool ExpectVectorsEq(const std::vector<char>& a, const std::vector<char>& b);
 
 inline int System(const std::string& cmd) {
   return system(cmd.c_str());
+}
+
+inline int Symlink(const std::string& oldpath, const std::string& newpath) {
+  return symlink(oldpath.c_str(), newpath.c_str());
+}
+
+inline int Chmod(const std::string& path, mode_t mode) {
+  return chmod(path.c_str(), mode);
+}
+
+inline int Mkdir(const std::string& path, mode_t mode) {
+  return mkdir(path.c_str(), mode);
 }
 
 void FillWithData(std::vector<char>* buffer);
