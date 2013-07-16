@@ -51,12 +51,24 @@ int64_t BlocksInExtents(
 
 class DeltaDiffGeneratorTest : public ::testing::Test {
  protected:
-  const string old_path() { return "DeltaDiffGeneratorTest-old_path"; }
-  const string new_path() { return "DeltaDiffGeneratorTest-new_path"; }
+  const string& old_path() { return old_path_; }
+  const string& new_path() { return new_path_; }
+
+  virtual void SetUp() {
+    ASSERT_TRUE(utils::MakeTempFile("DeltaDiffGeneratorTest-old_path-XXXXXX",
+                                    &old_path_, NULL));
+    ASSERT_TRUE(utils::MakeTempFile("DeltaDiffGeneratorTest-new_path-XXXXXX",
+                                    &new_path_, NULL));
+  }
+
   virtual void TearDown() {
     unlink(old_path().c_str());
     unlink(new_path().c_str());
   }
+
+ private:
+  string old_path_;
+  string new_path_;
 };
 
 TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveSmallTest) {
