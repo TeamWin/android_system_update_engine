@@ -159,17 +159,24 @@ TEST(UtilsTest, BootKernelDeviceTest) {
 }
 
 TEST(UtilsTest, RecursiveUnlinkDirTest) {
-  EXPECT_EQ(0, mkdir("RecursiveUnlinkDirTest-a", 0755));
-  EXPECT_EQ(0, mkdir("RecursiveUnlinkDirTest-b", 0755));
-  EXPECT_EQ(0, symlink("../RecursiveUnlinkDirTest-a",
-                       "RecursiveUnlinkDirTest-b/link"));
-  EXPECT_EQ(0, system("echo hi > RecursiveUnlinkDirTest-b/file"));
-  EXPECT_EQ(0, mkdir("RecursiveUnlinkDirTest-b/dir", 0755));
-  EXPECT_EQ(0, system("echo ok > RecursiveUnlinkDirTest-b/dir/subfile"));
-  EXPECT_TRUE(utils::RecursiveUnlinkDir("RecursiveUnlinkDirTest-b"));
-  EXPECT_TRUE(utils::FileExists("RecursiveUnlinkDirTest-a"));
-  EXPECT_EQ(0, system("rm -rf RecursiveUnlinkDirTest-a"));
-  EXPECT_FALSE(utils::FileExists("RecursiveUnlinkDirTest-b"));
+  string first_dir_name;
+  ASSERT_TRUE(utils::MakeTempDirectory("RecursiveUnlinkDirTest-a-XXXXXX",
+                                       &first_dir_name));
+  ASSERT_EQ(0, Chmod(first_dir_name, 0755));
+  string second_dir_name;
+  ASSERT_TRUE(utils::MakeTempDirectory("RecursiveUnlinkDirTest-b-XXXXXX",
+                                       &second_dir_name));
+  ASSERT_EQ(0, Chmod(second_dir_name, 0755));
+
+  EXPECT_EQ(0, Symlink(string("../") + first_dir_name,
+                       second_dir_name + "/link"));
+  EXPECT_EQ(0, System(string("echo hi > ") + second_dir_name + "/file"));
+  EXPECT_EQ(0, Mkdir(second_dir_name + "/dir", 0755));
+  EXPECT_EQ(0, System(string("echo ok > ") + second_dir_name + "/dir/subfile"));
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(second_dir_name));
+  EXPECT_TRUE(utils::FileExists(first_dir_name.c_str()));
+  EXPECT_EQ(0, System(string("rm -rf ") + first_dir_name));
+  EXPECT_FALSE(utils::FileExists(second_dir_name.c_str()));
   EXPECT_TRUE(utils::RecursiveUnlinkDir("/something/that/doesnt/exist"));
 }
 
