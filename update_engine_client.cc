@@ -45,6 +45,11 @@ DEFINE_bool(show_update_over_cellular, false,
 DEFINE_string(update_over_cellular, "",
               "Enables (\"yes\") or disables (\"no\") the updates over "
               "cellular networks.");
+DEFINE_bool(show_p2p_update, false,
+            "Show the current setting for peer-to-peer update sharing.");
+DEFINE_string(p2p_update, "",
+              "Enables (\"yes\") or disables (\"no\") the peer-to-peer update "
+              "sharing.");
 
 namespace {
 
@@ -266,7 +271,7 @@ string GetChannel(bool get_current_channel) {
   return output;
 }
 
-bool SetUpdateOverCellularPermission(gboolean allowed) {
+void SetUpdateOverCellularPermission(gboolean allowed) {
   DBusGProxy* proxy;
   GError* error = NULL;
 
@@ -279,7 +284,6 @@ bool SetUpdateOverCellularPermission(gboolean allowed) {
           &error);
   CHECK_EQ(rc, true) << "Error setting the update over cellular setting: "
                      << GetAndFreeGError(&error);
-  return true;
 }
 
 bool GetUpdateOverCellularPermission() {
@@ -297,6 +301,38 @@ bool GetUpdateOverCellularPermission() {
   CHECK_EQ(rc, true) << "Error getting the update over cellular setting: "
                      << GetAndFreeGError(&error);
   return allowed;
+}
+
+void SetP2PUpdatePermission(gboolean enabled) {
+  DBusGProxy* proxy;
+  GError* error = NULL;
+
+  CHECK(GetProxy(&proxy));
+
+  gboolean rc =
+      org_chromium_UpdateEngineInterface_set_p2_pupdate_permission(
+          proxy,
+          enabled,
+          &error);
+  CHECK_EQ(rc, true) << "Error setting the peer-to-peer update setting: "
+                     << GetAndFreeGError(&error);
+}
+
+bool GetP2PUpdatePermission() {
+  DBusGProxy* proxy;
+  GError* error = NULL;
+
+  CHECK(GetProxy(&proxy));
+
+  gboolean enabled;
+  gboolean rc =
+      org_chromium_UpdateEngineInterface_get_p2_pupdate_permission(
+          proxy,
+          &enabled,
+          &error);
+  CHECK_EQ(rc, true) << "Error getting the peer-to-peer update setting: "
+                     << GetAndFreeGError(&error);
+  return enabled;
 }
 
 static gboolean CompleteUpdateSource(gpointer data) {
@@ -376,6 +412,24 @@ int main(int argc, char** argv) {
   if (!FLAGS_powerwash && !FLAGS_rollback && FLAGS_channel.empty()) {
     LOG(FATAL) << "powerwash flag only makes sense rollback or channel change";
     return 1;
+  }
+
+  // Change the P2P enabled setting.
+  if (!FLAGS_p2p_update.empty()) {
+    gboolean enabled = FLAGS_p2p_update == "yes";
+    if (!enabled && FLAGS_p2p_update != "no") {
+      LOG(ERROR) << "Unknown option: \"" << FLAGS_p2p_update
+                 << "\". Please specify \"yes\" or \"no\".";
+    } else {
+      SetP2PUpdatePermission(enabled);
+    }
+  }
+
+  // Show the current P2P enabled setting.
+  if (FLAGS_show_p2p_update) {
+    bool enabled = GetP2PUpdatePermission();
+    LOG(INFO) << "Current update using P2P setting: "
+              << (enabled ? "ENABLED" : "DISABLED");
   }
 
   // First, update the target channel if requested.

@@ -13,6 +13,7 @@
 #include "update_engine/connection_manager.h"
 #include "update_engine/marshal.glibmarshal.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/p2p_manager.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/prefs.h"
 #include "update_engine/utils.h"
@@ -204,6 +205,54 @@ gboolean update_engine_service_get_channel(UpdateEngineService* self,
       rp->current_channel() : rp->target_channel();
 
   *channel = g_strdup(channel_str.c_str());
+  return TRUE;
+}
+
+gboolean update_engine_service_set_p2p_update_permission(
+    UpdateEngineService* self,
+    gboolean enabled,
+    GError **error) {
+  chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
+  chromeos_update_engine::P2PManager* p2p_manager =
+      self->system_state_->p2p_manager();
+
+  bool p2p_was_enabled = p2p_manager && p2p_manager->IsP2PEnabled();
+
+  if (!prefs->SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, enabled)) {
+    LOG(ERROR) << "Error setting the update over cellular to "
+               << (enabled ? "true" : "false");
+    *error = NULL;
+    return FALSE;
+  }
+
+  // If P2P is being effectively disabled (IsP2PEnabled() reports the change)
+  // then we need to shutdown the service.
+  if (p2p_was_enabled && !p2p_manager->IsP2PEnabled())
+    p2p_manager->EnsureP2PNotRunning();
+
+  return TRUE;
+}
+
+gboolean update_engine_service_get_p2p_update_permission(
+    UpdateEngineService* self,
+    gboolean* enabled,
+    GError **error) {
+  chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
+
+  // The default for not present setting is false.
+  if (!prefs->Exists(chromeos_update_engine::kPrefsP2PEnabled)) {
+    *enabled = false;
+    return TRUE;
+  }
+
+  bool p2p_pref = false;
+  if (!prefs->GetBoolean(chromeos_update_engine::kPrefsP2PEnabled, &p2p_pref)) {
+    LOG(ERROR) << "Error getting the P2PEnabled setting.";
+    *error = NULL;
+    return FALSE;
+  }
+
+  *enabled = p2p_pref;
   return TRUE;
 }
 

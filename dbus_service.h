@@ -91,6 +91,20 @@ gboolean update_engine_service_get_channel(UpdateEngineService* self,
                                            gchar** channel,
                                            GError **error);
 
+// Enables or disables the sharing and consuming updates over P2P feature
+// according to the |enabled| argument passed.
+gboolean update_engine_service_set_p2p_update_permission(
+    UpdateEngineService* self,
+    gboolean enabled,
+    GError **error);
+
+// Returns in |enabled| the current value for the P2P enabled setting. This
+// involves both sharing and consuming updates over P2P.
+gboolean update_engine_service_get_p2p_update_permission(
+    UpdateEngineService* self,
+    gboolean* enabled,
+    GError **error);
+
 // If there's no device policy installed, sets the update over cellular networks
 // permission to the |allowed| value. Otherwise, this method returns with an
 // error since this setting is overridden by the applied policy.
