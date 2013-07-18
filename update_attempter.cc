@@ -252,7 +252,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   // is true, we'll ignore ReleaseChannel policy value.
   if (device_policy) {
     bool delegated = false;
-    if (device_policy->GetReleaseChannelDelegated(&delegated) && delegated) {
+    if (!device_policy->GetReleaseChannelDelegated(&delegated) || delegated) {
       LOG(INFO) << "Channel settings are delegated to user by policy. "
                    "Ignoring ReleaseChannel policy value";
     }
