@@ -25,9 +25,11 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
   bool DoTestCommon(MockSystemState* mock_system_state,
                     const OmahaResponse& in,
                     const string& boot_dev,
+                    const string& deadline_file,
                     InstallPlan* out);
   bool DoTest(const OmahaResponse& in,
               const string& boot_dev,
+              const string& deadline_file,
               InstallPlan* out);
 };
 
@@ -66,6 +68,7 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
     MockSystemState* mock_system_state,
     const OmahaResponse& in,
     const string& boot_dev,
+    const string& test_deadline_file,
     InstallPlan* out) {
   ActionProcessor processor;
   OmahaResponseHandlerActionProcessorDelegate delegate;
@@ -85,7 +88,10 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
   EXPECT_CALL(*(mock_system_state->mock_payload_state()), GetRollbackVersion())
         .WillRepeatedly(Return(kBadVersion));
 
-  OmahaResponseHandlerAction response_handler_action(mock_system_state);
+  OmahaResponseHandlerAction response_handler_action(
+      mock_system_state,
+      (test_deadline_file.empty() ?
+       OmahaResponseHandlerAction::kDeadlineFile : test_deadline_file));
   response_handler_action.set_boot_device(boot_dev);
   BondActions(&feeder_action, &response_handler_action);
   ObjectCollectorAction<InstallPlan> collector_action;
@@ -104,14 +110,18 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
 
 bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
                                             const string& boot_dev,
+                                            const string& deadline_file,
                                             InstallPlan* out) {
   MockSystemState mock_system_state;
-  return DoTestCommon(&mock_system_state, in, boot_dev, out);
+  return DoTestCommon(&mock_system_state, in, boot_dev, deadline_file, out);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
-  ScopedPathUnlinker deadline_unlinker(
-      OmahaResponseHandlerAction::kDeadlineFile);
+  string test_deadline_file;
+  CHECK(utils::MakeTempFile(
+          "/tmp/omaha_response_handler_action_unittest-XXXXXX",
+          &test_deadline_file, NULL));
+  ScopedPathUnlinker deadline_unlinker(test_deadline_file);
   {
     OmahaResponse in;
     in.update_exists = true;
@@ -123,18 +133,15 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.prompt = false;
     in.deadline = "20101020";
     InstallPlan install_plan;
-    EXPECT_TRUE(DoTest(in, "/dev/sda3", &install_plan));
+    EXPECT_TRUE(DoTest(in, "/dev/sda3", test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
     EXPECT_EQ(in.hash, install_plan.payload_hash);
     EXPECT_EQ("/dev/sda5", install_plan.install_path);
     string deadline;
-    EXPECT_TRUE(utils::ReadFile(
-        OmahaResponseHandlerAction::kDeadlineFile,
-        &deadline));
+    EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
     EXPECT_EQ("20101020", deadline);
     struct stat deadline_stat;
-    EXPECT_EQ(0, stat(OmahaResponseHandlerAction::kDeadlineFile,
-                      &deadline_stat));
+    EXPECT_EQ(0, stat(test_deadline_file.c_str(), &deadline_stat));
     EXPECT_EQ(S_IFREG | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
               deadline_stat.st_mode);
   }
@@ -148,14 +155,13 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.size = 12;
     in.prompt = true;
     InstallPlan install_plan;
-    EXPECT_TRUE(DoTest(in, "/dev/sda5", &install_plan));
+    EXPECT_TRUE(DoTest(in, "/dev/sda5", test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
     EXPECT_EQ(in.hash, install_plan.payload_hash);
     EXPECT_EQ("/dev/sda3", install_plan.install_path);
     string deadline;
-    EXPECT_TRUE(utils::ReadFile(
-        OmahaResponseHandlerAction::kDeadlineFile,
-        &deadline) && deadline.empty());
+    EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline) &&
+                deadline.empty());
   }
   {
     OmahaResponse in;
@@ -168,14 +174,12 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.prompt = true;
     in.deadline = "some-deadline";
     InstallPlan install_plan;
-    EXPECT_TRUE(DoTest(in, "/dev/sda3", &install_plan));
+    EXPECT_TRUE(DoTest(in, "/dev/sda3", test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
     EXPECT_EQ(in.hash, install_plan.payload_hash);
     EXPECT_EQ("/dev/sda5", install_plan.install_path);
     string deadline;
-    EXPECT_TRUE(utils::ReadFile(
-        OmahaResponseHandlerAction::kDeadlineFile,
-        &deadline));
+    EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
     EXPECT_EQ("some-deadline", deadline);
   }
 }
@@ -184,7 +188,7 @@ TEST_F(OmahaResponseHandlerActionTest, NoUpdatesTest) {
   OmahaResponse in;
   in.update_exists = false;
   InstallPlan install_plan;
-  EXPECT_FALSE(DoTest(in, "/dev/sda1", &install_plan));
+  EXPECT_FALSE(DoTest(in, "/dev/sda1", "", &install_plan));
   EXPECT_EQ("", install_plan.download_url);
   EXPECT_EQ("", install_plan.payload_hash);
   EXPECT_EQ("", install_plan.install_path);
@@ -204,14 +208,14 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackVersionTest) {
   in.prompt = true;
 
   // Version is blacklisted for first call so no update.
-  EXPECT_FALSE(DoTest(in, "/dev/sda5", &install_plan));
+  EXPECT_FALSE(DoTest(in, "/dev/sda5", "", &install_plan));
   EXPECT_EQ("", install_plan.download_url);
   EXPECT_EQ("", install_plan.payload_hash);
   EXPECT_EQ("", install_plan.install_path);
 
   // Version isn't blacklisted.
   in.version = version_ok;
-  EXPECT_TRUE(DoTest(in, "/dev/sda5", &install_plan));
+  EXPECT_TRUE(DoTest(in, "/dev/sda5", "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
 }
 
@@ -224,7 +228,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
   in.hash = "HASHj+";
   in.size = 12;
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTest(in, "/dev/sda5", &install_plan));
+  EXPECT_TRUE(DoTest(in, "/dev/sda5", "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
@@ -239,7 +243,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   in.hash = "HASHj+";
   in.size = 12;
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTest(in, "/dev/sda5", &install_plan));
+  EXPECT_TRUE(DoTest(in, "/dev/sda5", "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
@@ -255,7 +259,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   in.hash = "HASHj+";
   in.size = 12;
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTest(in, "/dev/sda5", &install_plan));
+  EXPECT_TRUE(DoTest(in, "/dev/sda5", "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
@@ -294,7 +298,8 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
 
   mock_system_state.set_request_params(&params);
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", &install_plan));
+  EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", "",
+                           &install_plan));
   EXPECT_TRUE(install_plan.powerwash_required);
 }
 
@@ -331,7 +336,8 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
 
   mock_system_state.set_request_params(&params);
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", &install_plan));
+  EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", "",
+                           &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
 }
 

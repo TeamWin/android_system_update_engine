@@ -32,7 +32,8 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
  public:
   static const char kDeadlineFile[];
 
-  OmahaResponseHandlerAction(SystemState* system_state);
+  explicit OmahaResponseHandlerAction(SystemState* system_state);
+
   typedef ActionTraits<OmahaResponseHandlerAction>::InputObjectType
       InputObjectType;
   typedef ActionTraits<OmahaResponseHandlerAction>::OutputObjectType
@@ -57,8 +58,6 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
   void set_key_path(const std::string& path) { key_path_ = path; }
 
  private:
-  FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
-
   // Returns true if payload hash checks are mandatory based on the state
   // of the system and the contents of the Omaha response. False otherwise.
   bool AreHashChecksMandatory(const OmahaResponse& response);
@@ -77,6 +76,17 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
 
   // Public key path to use for payload verification.
   std::string key_path_;
+
+  // File used for communication deadline to Chrome.
+  const std::string deadline_file_;
+
+  // Special ctor + friend declarations for testing purposes.
+  OmahaResponseHandlerAction(SystemState* system_state,
+                             const std::string& deadline_file);
+
+  friend class OmahaResponseHandlerActionTest;
+
+  FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
 
   DISALLOW_COPY_AND_ASSIGN(OmahaResponseHandlerAction);
 };

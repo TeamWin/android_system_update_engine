@@ -26,7 +26,15 @@ OmahaResponseHandlerAction::OmahaResponseHandlerAction(
     SystemState* system_state)
     : system_state_(system_state),
       got_no_update_response_(false),
-      key_path_(DeltaPerformer::kUpdatePayloadPublicKeyPath) {}
+      key_path_(DeltaPerformer::kUpdatePayloadPublicKeyPath),
+      deadline_file_(kDeadlineFile) {}
+
+OmahaResponseHandlerAction::OmahaResponseHandlerAction(
+    SystemState* system_state, const string& deadline_file)
+    : system_state_(system_state),
+      got_no_update_response_(false),
+      key_path_(DeltaPerformer::kUpdatePayloadPublicKeyPath),
+      deadline_file_(deadline_file) {}
 
 void OmahaResponseHandlerAction::PerformAction() {
   CHECK(HasInputObject());
@@ -104,10 +112,10 @@ void OmahaResponseHandlerAction::PerformAction() {
   // file. Ideally, we would include this information in D-Bus's GetStatus
   // method and UpdateStatus signal. A potential issue is that update_engine may
   // be unresponsive during an update download.
-  utils::WriteFile(kDeadlineFile,
+  utils::WriteFile(deadline_file_.c_str(),
                    response.deadline.data(),
                    response.deadline.size());
-  chmod(kDeadlineFile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  chmod(deadline_file_.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   completer.set_code(kErrorCodeSuccess);
 }
