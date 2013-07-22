@@ -937,69 +937,58 @@ TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageTest) {
-  bool hash_checks_mandatory = false;
   DoSmallImageTest(false, false, false, -1, kSignatureGenerator,
-                   hash_checks_mandatory);
+                   false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageChunksTest) {
-  bool hash_checks_mandatory = false;
   DoSmallImageTest(false, false, false, kBlockSize, kSignatureGenerator,
-                   hash_checks_mandatory);
+                   false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootFullKernelSmallImageTest) {
-  bool hash_checks_mandatory = false;
   DoSmallImageTest(true, false, false, -1, kSignatureGenerator,
-                   hash_checks_mandatory);
+                   false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootFullSmallImageTest) {
-  bool hash_checks_mandatory = true;
   DoSmallImageTest(true, true, false, -1, kSignatureGenerator,
-                   hash_checks_mandatory);
+                   true);
 }
 
 TEST(DeltaPerformerTest, RunAsRootNoopSmallImageTest) {
-  bool hash_checks_mandatory = false;
   DoSmallImageTest(false, false, true, -1, kSignatureGenerator,
-                   hash_checks_mandatory);
+                   false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignNoneTest) {
-  bool hash_checks_mandatory = false;
   DoSmallImageTest(false, false, false, -1, kSignatureNone,
-                   hash_checks_mandatory);
+                   false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedTest) {
-  bool hash_checks_mandatory = true;
   DoSmallImageTest(false, false, false, -1, kSignatureGenerated,
-                   hash_checks_mandatory);
+                   true);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellTest) {
-  bool hash_checks_mandatory = false;
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShell,
-                   hash_checks_mandatory);
+                   false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellBadKeyTest) {
-  bool hash_checks_mandatory = false;
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellBadKey,
-                   hash_checks_mandatory);
+                   false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellRotateCl1Test) {
-  bool hash_checks_mandatory = false;
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellRotateCl1,
-                   hash_checks_mandatory);
+                   false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellRotateCl2Test) {
-  bool hash_checks_mandatory = false;
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellRotateCl2,
-                   hash_checks_mandatory);
+                   false);
 }
 
 TEST(DeltaPerformerTest, BadDeltaMagicTest) {
