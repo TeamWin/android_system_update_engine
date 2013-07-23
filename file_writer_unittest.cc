@@ -20,8 +20,12 @@ namespace chromeos_update_engine {
 class FileWriterTest : public ::testing::Test { };
 
 TEST(FileWriterTest, SimpleTest) {
+  // Create a uniquely named file for testing.
+  string path;
+  ASSERT_TRUE(utils::MakeTempFile("/tmp/FileWriterTest-XXXXXX", &path, NULL));
+  ScopedPathUnlinker path_unlinker(path);
+
   DirectFileWriter file_writer;
-  const string path("/tmp/FileWriterTest");
   EXPECT_EQ(0, file_writer.Open(path.c_str(),
                                 O_CREAT | O_LARGEFILE | O_TRUNC | O_WRONLY,
                                 0644));
@@ -31,7 +35,6 @@ TEST(FileWriterTest, SimpleTest) {
 
   EXPECT_FALSE(memcmp("test", &actual_data[0], actual_data.size()));
   EXPECT_EQ(0, file_writer.Close());
-  unlink(path.c_str());
 }
 
 TEST(FileWriterTest, ErrorTest) {
@@ -42,8 +45,12 @@ TEST(FileWriterTest, ErrorTest) {
 }
 
 TEST(FileWriterTest, WriteErrorTest) {
+  // Create a uniquely named file for testing.
+  string path;
+  ASSERT_TRUE(utils::MakeTempFile("/tmp/FileWriterTest-XXXXXX", &path, NULL));
+  ScopedPathUnlinker path_unlinker(path);
+
   DirectFileWriter file_writer;
-  const string path("/tmp/FileWriterTest");
   EXPECT_EQ(0, file_writer.Open(path.c_str(),
                                 O_CREAT | O_LARGEFILE | O_TRUNC | O_RDONLY,
                                 0644));
