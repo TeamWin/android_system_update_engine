@@ -21,6 +21,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/update_check_scheduler.h"
+#include "update_engine/utils.h"
 
 using std::string;
 using testing::_;
@@ -52,7 +53,10 @@ class UpdateAttempterTest : public ::testing::Test {
         loop_(NULL) {
     mock_system_state_.set_connection_manager(&mock_connection_manager);
   }
+
   virtual void SetUp() {
+    CHECK(utils::MakeTempDirectory("UpdateAttempterTest-XXXXXX", &test_dir_));
+
     EXPECT_EQ(NULL, attempter_.dbus_service_);
     EXPECT_TRUE(attempter_.system_state_ != NULL);
     EXPECT_EQ(NULL, attempter_.update_check_scheduler_);
@@ -68,6 +72,10 @@ class UpdateAttempterTest : public ::testing::Test {
     processor_ = new NiceMock<ActionProcessorMock>();
     attempter_.processor_.reset(processor_);  // Transfers ownership.
     prefs_ = mock_system_state_.mock_prefs();
+  }
+
+  virtual void TearDown() {
+    utils::RecursiveUnlinkDir(test_dir_);
   }
 
   void QuitMainLoop();
@@ -116,6 +124,8 @@ class UpdateAttempterTest : public ::testing::Test {
   NiceMock<PrefsMock>* prefs_; // shortcut to mock_system_state_->mock_prefs()
   NiceMock<MockConnectionManager> mock_connection_manager;
   GMainLoop* loop_;
+
+  string test_dir_;
 };
 
 TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
@@ -612,7 +622,8 @@ void UpdateAttempterTest::ReadChannelFromPolicyTestStart() {
       DoAll(SetArgumentPointee<0>(std::string("beta-channel")),
       Return(true)));
 
-  attempter_.omaha_request_params_->set_root("./UpdateAttempterTest");
+  ASSERT_FALSE(test_dir_.empty());
+  attempter_.omaha_request_params_->set_root(test_dir_);
   attempter_.Update("", "", false, false, false);
   EXPECT_EQ("beta-channel",
             attempter_.omaha_request_params_->target_channel());

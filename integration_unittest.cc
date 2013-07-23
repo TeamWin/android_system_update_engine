@@ -32,12 +32,11 @@ using std::vector;
 class IntegrationTest : public ::testing::Test { };
 
 namespace {
-const char* kTestDir = "/tmp/update_engine-integration-test";
 
 class IntegrationTestProcessorDelegate : public ActionProcessorDelegate {
  public:
-  IntegrationTestProcessorDelegate()
-      : loop_(NULL), processing_done_called_(false) {}
+  IntegrationTestProcessorDelegate(const string& test_dir)
+      : loop_(NULL), processing_done_called_(false), test_dir_(test_dir) {}
   virtual ~IntegrationTestProcessorDelegate() {
     EXPECT_TRUE(processing_done_called_);
   }
@@ -58,7 +57,7 @@ class IntegrationTestProcessorDelegate : public ActionProcessorDelegate {
       InstallAction* install_action = static_cast<InstallAction*>(action);
       old_dev_ = install_action->GetOutputObject();
       string dev;
-      BindToUnusedDevice(kTestDir + "/dev2", &dev);
+      BindToUnusedDevice(test_dir_ + "/dev2", &dev);
       install_action->SetOutputObject(dev);
     } else if (action->Type() == PostinstallRunnerAction::StaticType()) {
       PostinstallRunnerAction* postinstall_runner_action =
@@ -85,6 +84,10 @@ class IntegrationTestProcessorDelegate : public ActionProcessorDelegate {
   // but the PostinstallRunnerAction requires a real device. We set up a
   // loop device pointing to the file when necessary.
   string old_dev_;
+
+  // A per-instance, customizable test directory. Used for avoiding race
+  // conditions while running multiple tests concurrently.
+  string test_dir_;
 };
 
 gboolean TestStarter(gpointer data) {
@@ -99,8 +102,14 @@ TEST(IntegrationTest, DISABLED_RunAsRootFullInstallTest) {
   ASSERT_EQ(0, getuid());
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
 
+  // Create a uniquely named test directory.
+  string test_dir;
+  ASSERT_TRUE(utils::MakeTempDirectory(
+          "/tmp/update_engine-integration-test-XXXXXX", &test_dir));
+  ScopedPathUnlinker test_dir_unlinker(test_dir);
+
   ActionProcessor processor;
-  IntegrationTestProcessorDelegate delegate;
+  IntegrationTestProcessorDelegate delegate(test_dir);
   delegate.set_loop(loop);
   processor.set_delegate(&delegate);
 

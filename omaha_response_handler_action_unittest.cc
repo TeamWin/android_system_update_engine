@@ -274,21 +274,25 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   in.hash = "HASHjk";
   in.size = 15;
 
-  const string kTestDir = "omaha_response_handler_action-test";
-  ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
-  ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
+  // Create a uniquely named test directory.
+  string test_dir;
+  ASSERT_TRUE(utils::MakeTempDirectory(
+          "omaha_response_handler_action-test-XXXXXX", &test_dir));
+
+  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
+  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + kStatefulPartition + "/etc/lsb-release",
+      test_dir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
 
   MockSystemState mock_system_state;
   OmahaRequestParams params(&mock_system_state);
-  params.set_root(string("./") + kTestDir);
+  params.set_root(string("./") + test_dir);
   params.SetLockDown(false);
   params.Init("1.2.3.4", "", 0);
   EXPECT_EQ("canary-channel", params.current_channel());
@@ -301,6 +305,8 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", "",
                            &install_plan));
   EXPECT_TRUE(install_plan.powerwash_required);
+
+  ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
 }
 
 TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
@@ -312,20 +318,24 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   in.hash = "HASHjk";
   in.size = 15;
 
-  const string kTestDir = "omaha_response_handler_action-test";
-  ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
-  ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
+  // Create a uniquely named test directory.
+  string test_dir;
+  ASSERT_TRUE(utils::MakeTempDirectory(
+          "omaha_response_handler_action-test-XXXXXX", &test_dir));
+
+  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
+  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + kStatefulPartition + "/etc/lsb-release",
+      test_dir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
 
   MockSystemState mock_system_state;
   OmahaRequestParams params(&mock_system_state);
-  params.set_root(string("./") + kTestDir);
+  params.set_root(string("./") + test_dir);
   params.SetLockDown(false);
   params.Init("5.6.7.8", "", 0);
   EXPECT_EQ("stable-channel", params.current_channel());
@@ -339,6 +349,8 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", "",
                            &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
+
+  ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
 }
 
 }  // namespace chromeos_update_engine

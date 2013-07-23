@@ -27,6 +27,3 @@
 /update_engine_unittests
 /update_metadata.pb.cc
 /update_metadata.pb.h
-/UpdateAttempterTest/
-/omaha_request_action-test/
-/omaha_response_handler_action-test/

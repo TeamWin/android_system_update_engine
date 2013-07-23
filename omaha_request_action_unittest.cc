@@ -1490,23 +1490,27 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
 }
 
 TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
-  const string kTestDir = "omaha_request_action-test";
-  ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
-  ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
+  // Create a uniquely named test directory.
+  string test_dir;
+  ASSERT_TRUE(utils::MakeTempDirectory(
+          "omaha_request_action-test-XXXXXX", &test_dir));
+
+  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
+  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
   vector<char> post_data;
   NiceMock<PrefsMock> prefs;
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir + "/etc/lsb-release",
       "CHROMEOS_RELEASE_APPID={11111111-1111-1111-1111-111111111111}\n"
       "CHROMEOS_BOARD_APPID={22222222-2222-2222-2222-222222222222}\n"
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + kStatefulPartition + "/etc/lsb-release",
+      test_dir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   OmahaRequestParams params = kDefaultTestParams;
-  params.set_root(string("./") + kTestDir);
+  params.set_root(string("./") + test_dir);
   params.SetLockDown(false);
   params.Init("1.2.3.4", "", 0);
   EXPECT_EQ("canary-channel", params.current_channel());
@@ -1527,25 +1531,31 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
       "appid=\"{22222222-2222-2222-2222-222222222222}\" "
       "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
       "track=\"stable-channel\" from_track=\"canary-channel\" "));
+
+  ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
 }
 
 TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
-  const string kTestDir = "omaha_request_action-test";
-  ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir + "/etc"));
-  ASSERT_EQ(0, System(string("mkdir -p ") + kTestDir +
+  // Create a uniquely named test directory.
+  string test_dir;
+  ASSERT_TRUE(utils::MakeTempDirectory(
+          "omaha_request_action-test-XXXXXX", &test_dir));
+
+  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
+  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
   vector<char> post_data;
   NiceMock<PrefsMock> prefs;
   ASSERT_TRUE(WriteFileString(
-      kTestDir + "/etc/lsb-release",
+      test_dir + "/etc/lsb-release",
       "CHROMEOS_RELEASE_APPID={11111111-1111-1111-1111-111111111111}\n"
       "CHROMEOS_BOARD_APPID={22222222-2222-2222-2222-222222222222}\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   ASSERT_TRUE(WriteFileString(
-      kTestDir + kStatefulPartition + "/etc/lsb-release",
+      test_dir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   OmahaRequestParams params = kDefaultTestParams;
-  params.set_root(string("./") + kTestDir);
+  params.set_root(string("./") + test_dir);
   params.SetLockDown(false);
   params.Init("5.6.7.8", "", 0);
   EXPECT_EQ("stable-channel", params.current_channel());
@@ -1567,6 +1577,8 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
       "version=\"5.6.7.8\" "
       "track=\"canary-channel\" from_track=\"stable-channel\""));
   EXPECT_EQ(string::npos, post_str.find( "from_version"));
+
+  ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
 }
 
 }  // namespace chromeos_update_engine
