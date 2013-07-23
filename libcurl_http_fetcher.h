@@ -197,6 +197,11 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // Sets the curl options for HTTPS URL.
   void SetCurlOptionsForHttps();
 
+  // Convert a proxy URL into a curl proxy type, if applicable. Returns true iff
+  // conversion was successful, false otherwise (in which case nothing is
+  // written to |out_type|).
+  bool GetProxyType(const std::string& proxy, curl_proxytype* out_type);
+
   // Handles for the libcurl library
   CURLM *curl_multi_handle_;
   CURL *curl_handle_;

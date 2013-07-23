@@ -12,7 +12,6 @@
 #include <base/stringprintf.h>
 
 #include "update_engine/certificate_checker.h"
-#include "update_engine/chrome_proxy_resolver.h"
 #include "update_engine/dbus_interface.h"
 #include "update_engine/utils.h"
 
@@ -59,6 +58,30 @@ bool LibcurlHttpFetcher::IsOfficialBuild() const {
   return force_build_type_ ? forced_official_build_ : utils::IsOfficialBuild();
 }
 
+bool LibcurlHttpFetcher::GetProxyType(const std::string& proxy,
+                                      curl_proxytype* out_type) {
+  if (utils::StringHasPrefix(proxy, "socks5://") ||
+      utils::StringHasPrefix(proxy, "socks://")) {
+    *out_type = CURLPROXY_SOCKS5_HOSTNAME;
+    return true;
+  }
+  if (utils::StringHasPrefix(proxy, "socks4://")) {
+    *out_type = CURLPROXY_SOCKS4A;
+    return true;
+  }
+  if (utils::StringHasPrefix(proxy, "http://") ||
+      utils::StringHasPrefix(proxy, "https://")) {
+    *out_type = CURLPROXY_HTTP;
+    return true;
+  }
+  if (utils::StringHasPrefix(proxy, kNoProxy)) {
+    // known failure case. don't log.
+    return false;
+  }
+  LOG(INFO) << "Unknown proxy type: " << proxy;
+  return false;
+}
+
 void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
   LOG(INFO) << "Starting/Resuming transfer";
   CHECK(!transfer_in_progress_);
@@ -82,7 +105,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
                               GetCurrentProxy().c_str()), CURLE_OK);
     // Curl seems to require us to set the protocol
     curl_proxytype type;
-    if (ChromeProxyResolver::GetProxyType(GetCurrentProxy(), &type)) {
+    if (GetProxyType(GetCurrentProxy(), &type)) {
       CHECK_EQ(curl_easy_setopt(curl_handle_,
                                 CURLOPT_PROXYTYPE,
                                 type), CURLE_OK);
