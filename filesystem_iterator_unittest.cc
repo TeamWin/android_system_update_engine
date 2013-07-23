@@ -44,30 +44,42 @@ class FilesystemIteratorTest : public ::testing::Test {
 
 TEST_F(FilesystemIteratorTest, RunAsRootSuccessTest) {
   ASSERT_EQ(0, getuid());
-  string first_image;
+
+  // Create uniquely named main/sub images.
+  string main_image;
   ASSERT_TRUE(utils::MakeTempFile("FilesystemIteratorTest.image1-XXXXXX",
-                                  &first_image, NULL));
+                                  &main_image, NULL));
+  ScopedPathUnlinker main_image_unlinker(main_image);
+
   string sub_image;
   ASSERT_TRUE(utils::MakeTempFile("FilesystemIteratorTest.image2-XXXXXX",
                                   &sub_image, NULL));
+  ScopedPathUnlinker sub_image_unlinker(sub_image);
+
+  // Create uniqely named main/sub mount points.
+  string main_image_mount_point;
+  ASSERT_TRUE(utils::MakeTempDirectory(
+          "/tmp/FilesystemIteratorTest.mount-XXXXXX",
+          &main_image_mount_point));
+  ScopedPathUnlinker main_image_mount_point_unlinker(main_image_mount_point);
+  const string sub_image_mount_point = main_image_mount_point + "/some_dir/mnt";
 
   vector<string> expected_paths_vector;
-  CreateExtImageAtPath(first_image, &expected_paths_vector);
+  CreateExtImageAtPath(main_image, &expected_paths_vector);
   CreateExtImageAtPath(sub_image, NULL);
-  ASSERT_EQ(0, System(string("mount -o loop ") + first_image + " " +
-                      kMountPath));
+  ASSERT_EQ(0, System(string("mount -o loop ") + main_image + " " +
+                      main_image_mount_point));
   ASSERT_EQ(0, System(string("mount -o loop ") + sub_image + " " +
-                      kMountPath + "/some_dir/mnt"));
+                      sub_image_mount_point));
   for (vector<string>::iterator it = expected_paths_vector.begin();
        it != expected_paths_vector.end(); ++it)
-    *it = kMountPath + *it;
+    *it = main_image_mount_point + *it;
   set<string> expected_paths(expected_paths_vector.begin(),
                              expected_paths_vector.end());
-  VerifyAllPaths(kMountPath, expected_paths);
+  VerifyAllPaths(main_image_mount_point, expected_paths);
 
-  EXPECT_TRUE(utils::UnmountFilesystem(kMountPath + string("/some_dir/mnt")));
-  EXPECT_TRUE(utils::UnmountFilesystem(kMountPath));
-  EXPECT_EQ(0, System(string("rm -f ") + first_image + " " + sub_image));
+  EXPECT_TRUE(utils::UnmountFilesystem(sub_image_mount_point));
+  EXPECT_TRUE(utils::UnmountFilesystem(main_image_mount_point));
 }
 
 TEST_F(FilesystemIteratorTest, NegativeTest) {

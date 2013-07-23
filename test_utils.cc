@@ -28,6 +28,8 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
+const char* const kMountPathTemplate = "/tmp/UpdateEngineTests_mnt-XXXXXX";
+
 bool WriteFileVector(const std::string& path, const std::vector<char>& data) {
   return utils::WriteFile(path.c_str(), &data[0], data.size());
 }
@@ -193,31 +195,41 @@ void CreateEmptyExtImageAtPath(const string& path,
 }
 
 void CreateExtImageAtPath(const string& path, vector<string>* out_paths) {
-  // create 10MiB sparse file
+  // create 10MiB sparse file, mounted at a unique location.
+  string mount_path;
+  CHECK(utils::MakeTempDirectory(kMountPathTemplate, &mount_path));
+  ScopedPathUnlinker mount_path_unlinker(mount_path);
+
   EXPECT_EQ(0, System(StringPrintf("dd if=/dev/zero of=%s"
                                    " seek=10485759 bs=1 count=1",
                                    path.c_str())));
   EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -b 4096 -F %s", path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("mkdir -p %s", kMountPath)));
   EXPECT_EQ(0, System(StringPrintf("mount -o loop %s %s", path.c_str(),
-                                   kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("echo hi > %s/hi", kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("echo hello > %s/hello", kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("mkdir %s/some_dir", kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("mkdir %s/some_dir/empty_dir", kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("mkdir %s/some_dir/mnt", kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("echo T > %s/some_dir/test", kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("mkfifo %s/some_dir/fifo", kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("mknod %s/cdev c 2 3", kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("ln -s /some/target %s/sym", kMountPath)));
+                                   mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("echo hi > %s/hi", mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("echo hello > %s/hello",
+                                   mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("mkdir %s/some_dir", mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("mkdir %s/some_dir/empty_dir",
+                                   mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("mkdir %s/some_dir/mnt",
+                                   mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("echo T > %s/some_dir/test",
+                                   mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("mkfifo %s/some_dir/fifo",
+                                   mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("mknod %s/cdev c 2 3", mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("ln -s /some/target %s/sym",
+                                   mount_path.c_str())));
   EXPECT_EQ(0, System(StringPrintf("ln %s/some_dir/test %s/testlink",
-                                   kMountPath, kMountPath)));
-  EXPECT_EQ(0, System(StringPrintf("echo T > %s/srchardlink0", kMountPath)));
+                                   mount_path.c_str(), mount_path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("echo T > %s/srchardlink0",
+                                   mount_path.c_str())));
   EXPECT_EQ(0, System(StringPrintf("ln %s/srchardlink0 %s/srchardlink1",
-                                   kMountPath, kMountPath)));
+                                   mount_path.c_str(), mount_path.c_str())));
   EXPECT_EQ(0, System(StringPrintf("ln -s bogus %s/boguslink",
-                                   kMountPath)));
-  EXPECT_TRUE(utils::UnmountFilesystem(kMountPath));
+                                   mount_path.c_str())));
+  EXPECT_TRUE(utils::UnmountFilesystem(mount_path.c_str()));
 
   if (out_paths) {
     out_paths->clear();
