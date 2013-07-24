@@ -1090,6 +1090,11 @@ void PayloadState::BootedIntoUpdate(TimeDelta time_to_reboot) {
 }
 
 void PayloadState::UpdateEngineStarted() {
+  // Avoid the UpdateEngineStarted actions if this is not the first time we
+  // run the update engine since reboot.
+  if (!system_state_->system_rebooted())
+    return;
+
   // Figure out if we just booted into a new update
   if (prefs_->Exists(kPrefsSystemUpdatedMarker)) {
     int64_t stored_value;

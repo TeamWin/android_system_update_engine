@@ -1017,6 +1017,8 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.TimeToRebootMinutes",
       7, _, _, _));
+  EXPECT_CALL(mock_system_state, system_rebooted())
+      .WillRepeatedly(Return(true));
 
   payload_state2.UpdateEngineStarted();
 
@@ -1024,6 +1026,33 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   EXPECT_FALSE(prefs.Exists(kPrefsSystemUpdatedMarker));
 
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(PayloadStateTest, RestartAfterCrash) {
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  NiceMock<PrefsMock>* prefs = mock_system_state.mock_prefs();
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+
+  // No prefs should be used after a crash.
+  EXPECT_CALL(*prefs, Exists(_)).Times(0);
+  EXPECT_CALL(*prefs, SetString(_, _)).Times(0);
+  EXPECT_CALL(*prefs, SetInt64(_, _)).Times(0);
+  EXPECT_CALL(*prefs, SetBoolean(_, _)).Times(0);
+  EXPECT_CALL(*prefs, GetString(_, _)).Times(0);
+  EXPECT_CALL(*prefs, GetInt64(_, _)).Times(0);
+  EXPECT_CALL(*prefs, GetBoolean(_, _)).Times(0);
+
+  // No metrics are reported after a crash.
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(),
+              SendToUMA(_, _, _, _, _)).Times(0);
+
+  // Simulate an update_engine restart without a reboot.
+  EXPECT_CALL(mock_system_state, system_rebooted())
+      .WillRepeatedly(Return(false));
+
+  payload_state.UpdateEngineStarted();
 }
 
 TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
