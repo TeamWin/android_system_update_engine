@@ -33,7 +33,8 @@ DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
 DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
 DEFINE_bool(rollback, false, "Perform a rollback to the previous partition.");
 DEFINE_bool(show_channel, false, "Show the current and target channels.");
-DEFINE_bool(powerwash, true, "When performing a rollback, do a powerwash.");
+DEFINE_bool(powerwash, true, "When performing rollback or channel change, "
+    "do a powerwash or allow it respectively.");
 DEFINE_bool(status, false, "Print the status to stdout.");
 DEFINE_bool(update, false, "Forces an update and waits for its completion. "
             "Exit status is 0 if the update succeeded, and 1 otherwise.");
@@ -230,7 +231,7 @@ bool RebootIfNeeded() {
   return true;
 }
 
-void SetTargetChannel(const string& target_channel) {
+void SetTargetChannel(const string& target_channel, bool allow_powerwash) {
   DBusGProxy* proxy;
   GError* error = NULL;
 
@@ -239,7 +240,7 @@ void SetTargetChannel(const string& target_channel) {
   gboolean rc =
       org_chromium_UpdateEngineInterface_set_channel(proxy,
                                                      target_channel.c_str(),
-                                                     true, // OK to Powerwash
+                                                     allow_powerwash,
                                                      &error);
   CHECK_EQ(rc, true) << "Error setting the channel: "
                      << GetAndFreeGError(&error);
@@ -372,9 +373,14 @@ int main(int argc, char** argv) {
               << (allowed ? "ENABLED" : "DISABLED");
   }
 
+  if (!FLAGS_powerwash && !FLAGS_rollback && FLAGS_channel.empty()) {
+    LOG(FATAL) << "powerwash flag only makes sense rollback or channel change";
+    return 1;
+  }
+
   // First, update the target channel if requested.
   if (!FLAGS_channel.empty())
-    SetTargetChannel(FLAGS_channel);
+    SetTargetChannel(FLAGS_channel, FLAGS_powerwash);
 
   // Show the current and target channels if requested.
   if (FLAGS_show_channel) {
@@ -388,11 +394,6 @@ int main(int argc, char** argv) {
 
   bool do_update_request = FLAGS_check_for_update | FLAGS_update |
       !FLAGS_app_version.empty() | !FLAGS_omaha_url.empty();
-
-  if (!FLAGS_powerwash && !FLAGS_rollback) {
-    LOG(FATAL) << "Skipping powerwash only works with rollback";
-    return 1;
-  }
 
   if (do_update_request && FLAGS_rollback) {
     LOG(FATAL) << "Update should not be requested with rollback!";

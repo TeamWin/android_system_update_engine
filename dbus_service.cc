@@ -154,30 +154,6 @@ gboolean update_engine_service_reboot_if_needed(UpdateEngineService* self,
   return TRUE;
 }
 
-gboolean update_engine_service_set_track(UpdateEngineService* self,
-                                         gchar* track,
-                                         GError **error) {
-  // track == target channel.
-  // TODO(jaysri): Remove this method once chromium:219292 is fixed.
-  // Since UI won't be ready for now, preserve the existing
-  // behavior for set_track by calling SetTargetChannel directly without the
-  // policy checks instead of calling update_engine_service_set_channel.
-  LOG(INFO) << "Setting destination track to: " << track;
-  if (!self->system_state_->request_params()->SetTargetChannel(track, false)) {
-    *error = NULL;
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
-gboolean update_engine_service_get_track(UpdateEngineService* self,
-                                         gchar** track,
-                                         GError **error) {
-  // track == target channel.
-  return update_engine_service_get_channel(self, false, track, error);
-}
-
 gboolean update_engine_service_set_channel(UpdateEngineService* self,
                                            gchar* target_channel,
                                            bool is_powerwash_allowed,
@@ -187,14 +163,21 @@ gboolean update_engine_service_set_channel(UpdateEngineService* self,
 
   const policy::DevicePolicy* device_policy =
       self->system_state_->device_policy();
+
+  // The device_policy is loaded in a lazy way before an update check. Load it
+  // now from the libchromeos cache if it wasn't already loaded.
   if (!device_policy) {
-    LOG(INFO) << "Cannot set target channel until device policy/settings are "
-                 "known";
-    return FALSE;
+    chromeos_update_engine::UpdateAttempter* update_attempter =
+        self->system_state_->update_attempter();
+    if (update_attempter) {
+      update_attempter->RefreshDevicePolicy();
+      device_policy = self->system_state_->device_policy();
+    }
   }
 
   bool delegated = false;
-  if (device_policy->GetReleaseChannelDelegated(&delegated) && !delegated) {
+  if (device_policy &&
+      device_policy->GetReleaseChannelDelegated(&delegated) && !delegated) {
     LOG(INFO) << "Cannot set target channel explicitly when channel "
                  "policy/settings is not delegated";
     return FALSE;
@@ -239,7 +222,7 @@ gboolean update_engine_service_set_update_over_cellular_permission(
         self->system_state_->update_attempter();
     if (update_attempter) {
       update_attempter->RefreshDevicePolicy();
-      device_policy = self->system_state_->device_policy();;
+      device_policy = self->system_state_->device_policy();
     }
   }
 

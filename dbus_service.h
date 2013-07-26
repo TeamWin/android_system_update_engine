@@ -69,16 +69,6 @@ gboolean update_engine_service_get_status(UpdateEngineService* self,
 gboolean update_engine_service_reboot_if_needed(UpdateEngineService* self,
                                                 GError **error);
 
-// TODO(jaysri): Deprecate set_track and get_track once Chrome is modified to
-// use set_channel and get_channel.
-gboolean update_engine_service_set_track(UpdateEngineService* self,
-                                         gchar* track,
-                                         GError **error);
-
-gboolean update_engine_service_get_track(UpdateEngineService* self,
-                                         gchar** track,
-                                         GError **error);
-
 // Changes the current channel of the device to the target channel. If the
 // target channel is a less stable channel than the current channel, then the
 // channel change happens immediately (at the next update check).  If the
