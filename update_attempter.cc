@@ -788,8 +788,7 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     CHECK(action == response_handler_action_.get());
     const InstallPlan& plan = response_handler_action_->install_plan();
     last_checked_time_ = time(NULL);
-    // TODO(adlr): put version in InstallPlan
-    new_version_ = "0.0.0.0";
+    new_version_ = plan.version;
     new_payload_size_ = plan.payload_size;
     SetupDownload();
     SetupCpuSharesManagement();

@@ -144,6 +144,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_EQ(0, stat(test_deadline_file.c_str(), &deadline_stat));
     EXPECT_EQ(S_IFREG | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
               deadline_stat.st_mode);
+    EXPECT_EQ(in.version, install_plan.version);
   }
   {
     OmahaResponse in;
@@ -162,6 +163,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline) &&
                 deadline.empty());
+    EXPECT_EQ(in.version, install_plan.version);
   }
   {
     OmahaResponse in;
@@ -181,6 +183,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
     EXPECT_EQ("some-deadline", deadline);
+    EXPECT_EQ(in.version, install_plan.version);
   }
 }
 
@@ -192,6 +195,7 @@ TEST_F(OmahaResponseHandlerActionTest, NoUpdatesTest) {
   EXPECT_EQ("", install_plan.download_url);
   EXPECT_EQ("", install_plan.payload_hash);
   EXPECT_EQ("", install_plan.install_path);
+  EXPECT_EQ("", install_plan.version);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, RollbackVersionTest) {
@@ -212,11 +216,13 @@ TEST_F(OmahaResponseHandlerActionTest, RollbackVersionTest) {
   EXPECT_EQ("", install_plan.download_url);
   EXPECT_EQ("", install_plan.payload_hash);
   EXPECT_EQ("", install_plan.install_path);
+  EXPECT_EQ("", install_plan.version);
 
   // Version isn't blacklisted.
   in.version = version_ok;
   EXPECT_TRUE(DoTest(in, "/dev/sda5", "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
+  EXPECT_EQ(version_ok, install_plan.version);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
@@ -232,6 +238,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
+  EXPECT_EQ(in.version, install_plan.version);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
@@ -247,6 +254,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
+  EXPECT_EQ(in.version, install_plan.version);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
@@ -263,6 +271,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
+  EXPECT_EQ(in.version, install_plan.version);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {

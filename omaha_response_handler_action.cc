@@ -67,6 +67,7 @@ void OmahaResponseHandlerAction::PerformAction() {
   }
 
   install_plan_.download_url = current_url;
+  install_plan_.version = response.version;
 
   // Fill up the other properties based on the response.
   install_plan_.payload_size = response.size;

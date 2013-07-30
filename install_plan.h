@@ -39,6 +39,7 @@ struct InstallPlan {
   bool is_resume;
   bool is_full_update;
   std::string download_url;  // url to download from
+  std::string version;       // version we are installing.
 
   uint64_t payload_size;                 // size of the payload
   std::string payload_hash;             // SHA256 hash of the payload
