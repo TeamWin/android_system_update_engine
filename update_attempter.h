@@ -35,8 +35,6 @@ namespace chromeos_update_engine {
 
 class UpdateCheckScheduler;
 
-extern const char* kUpdateCompletedMarker;
-
 enum UpdateStatus {
   UPDATE_STATUS_IDLE = 0,
   UPDATE_STATUS_CHECKING_FOR_UPDATE,
@@ -185,6 +183,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Update server URL for automated lab test.
   static const char* const kTestUpdateUrl;
 
+  // Special ctor + friend declarations for testing purposes.
+  UpdateAttempter(SystemState* system_state,
+                  DbusGlibInterface* dbus_iface,
+                  const std::string& update_completed_marker);
+
+  friend class UpdateAttempterUnderTest;
   friend class UpdateAttempterTest;
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedDownloadTest);
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedErrorTest);
@@ -198,6 +202,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
   FRIEND_TEST(UpdateAttempterTest, UpdateTest);
+
+  // Ctor helper method.
+  void Init(SystemState* system_state,
+            const std::string& update_completed_marker);
 
   // Sets the status to the given status and notifies a status update over dbus.
   // Also accepts a supplement notice, which is delegated to the scheduler and
@@ -392,6 +400,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // The current scatter factor as found in the policy setting.
   base::TimeDelta scatter_factor_;
+
+  // Update completed marker file. An empty string means this marker is being
+  // ignored (nor is it being written), which is useful for testing situations.
+  std::string update_completed_marker_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

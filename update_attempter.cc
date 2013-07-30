@@ -53,11 +53,11 @@ const int UpdateAttempter::kMaxDeltaUpdateFailures = 3;
 const char* const UpdateAttempter::kTestUpdateUrl(
     "http://garnold.mtv.corp.google.com:8080/update");
 
-const char* kUpdateCompletedMarker =
-    "/var/run/update_engine_autoupdate_completed";
-
 namespace {
 const int kMaxConsecutiveObeyProxyRequests = 20;
+
+const char* kUpdateCompletedMarker =
+    "/var/run/update_engine_autoupdate_completed";
 }  // namespace {}
 
 const char* UpdateStatusToString(UpdateStatus status) {
@@ -109,34 +109,52 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
 
 UpdateAttempter::UpdateAttempter(SystemState* system_state,
                                  DbusGlibInterface* dbus_iface)
-    : processor_(new ActionProcessor()),
-      system_state_(system_state),
-      dbus_service_(NULL),
-      update_check_scheduler_(NULL),
-      fake_update_success_(false),
-      http_response_code_(0),
-      shares_(utils::kCpuSharesNormal),
-      manage_shares_source_(NULL),
-      download_active_(false),
-      status_(UPDATE_STATUS_IDLE),
-      download_progress_(0.0),
-      last_checked_time_(0),
-      new_version_("0.0.0.0"),
-      new_payload_size_(0),
-      proxy_manual_checks_(0),
-      obeying_proxies_(true),
-      chrome_proxy_resolver_(dbus_iface),
-      updated_boot_flags_(false),
-      update_boot_flags_running_(false),
-      start_action_processor_(false),
-      policy_provider_(NULL),
-      is_using_test_url_(false),
-      is_test_mode_(false),
-      is_test_update_attempted_(false) {
+    : chrome_proxy_resolver_(dbus_iface) {
+  Init(system_state, kUpdateCompletedMarker);
+}
+
+UpdateAttempter::UpdateAttempter(SystemState* system_state,
+                                 DbusGlibInterface* dbus_iface,
+                                 const std::string& update_completed_marker)
+    : chrome_proxy_resolver_(dbus_iface) {
+  Init(system_state, update_completed_marker);
+}
+
+
+void UpdateAttempter::Init(SystemState* system_state,
+                           const std::string& update_completed_marker) {
+  // Initialite data members.
+  processor_.reset(new ActionProcessor());
+  system_state_ = system_state;
+  dbus_service_ = NULL;
+  update_check_scheduler_ = NULL;
+  fake_update_success_ = false;
+  http_response_code_ = 0;
+  shares_ = utils::kCpuSharesNormal;
+  manage_shares_source_ = NULL;
+  download_active_ = false;
+  download_progress_ = 0.0;
+  last_checked_time_ = 0;
+  new_version_ = "0.0.0.0";
+  new_payload_size_ = 0;
+  proxy_manual_checks_ = 0;
+  obeying_proxies_ = true;
+  updated_boot_flags_ = false;
+  update_boot_flags_running_ = false;
+  start_action_processor_ = false;
+  is_using_test_url_ = false;
+  is_test_mode_ = false;
+  is_test_update_attempted_ = false;
+  update_completed_marker_ = update_completed_marker;
+
   prefs_ = system_state->prefs();
   omaha_request_params_ = system_state->request_params();
-  if (utils::FileExists(kUpdateCompletedMarker))
+
+  if (!update_completed_marker_.empty() &&
+      utils::FileExists(update_completed_marker_.c_str()))
     status_ = UPDATE_STATUS_UPDATED_NEED_REBOOT;
+  else
+    status_ = UPDATE_STATUS_IDLE;
 }
 
 UpdateAttempter::~UpdateAttempter() {
@@ -681,7 +699,8 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   }
 
   if (code == kErrorCodeSuccess) {
-    utils::WriteFile(kUpdateCompletedMarker, "", 0);
+    if (!update_completed_marker_.empty())
+      utils::WriteFile(update_completed_marker_.c_str(), "", 0);
     prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
     prefs_->SetString(kPrefsPreviousVersion,
                       omaha_request_params_->app_version());
@@ -853,9 +872,11 @@ bool UpdateAttempter::ResetStatus() {
       // Remove the reboot marker so that if the machine is rebooted
       // after resetting to idle state, it doesn't go back to
       // UPDATE_STATUS_UPDATED_NEED_REBOOT state.
-      const FilePath kUpdateCompletedMarkerPath(kUpdateCompletedMarker);
-      if (!file_util::Delete(kUpdateCompletedMarkerPath, false))
-        ret_value = false;
+      if (!update_completed_marker_.empty()) {
+        const FilePath update_completed_marker_path(update_completed_marker_);
+        if (!file_util::Delete(update_completed_marker_path, false))
+          ret_value = false;
+      }
 
       // Notify the PayloadState that the successful payload was canceled.
       system_state_->payload_state()->ResetUpdateStatus();

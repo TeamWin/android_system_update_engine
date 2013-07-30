@@ -40,9 +40,17 @@ namespace chromeos_update_engine {
 // methods.
 class UpdateAttempterUnderTest : public UpdateAttempter {
  public:
-  explicit UpdateAttempterUnderTest(MockSystemState* mock_system_state,
-                                    MockDbusGlib* dbus)
-      : UpdateAttempter(mock_system_state, dbus) {}
+  // We always feed an explicit update completed marker name; however, unless
+  // explicitly specified, we feed an empty string, which causes the
+  // UpdateAttempter class to ignore / not write the marker file.
+  UpdateAttempterUnderTest(MockSystemState* mock_system_state,
+                           MockDbusGlib* dbus)
+      : UpdateAttempter(mock_system_state, dbus, "") {}
+
+  UpdateAttempterUnderTest(MockSystemState* mock_system_state,
+                           MockDbusGlib* dbus,
+                           const string& update_completed_marker)
+      : UpdateAttempter(mock_system_state, dbus, update_completed_marker) {}
 };
 
 class UpdateAttempterTest : public ::testing::Test {
@@ -170,12 +178,16 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
 }
 
 TEST_F(UpdateAttempterTest, RunAsRootConstructWithUpdatedMarkerTest) {
-  extern const char* kUpdateCompletedMarker;
-  const FilePath kMarker(kUpdateCompletedMarker);
-  EXPECT_EQ(0, file_util::WriteFile(kMarker, "", 0));
-  UpdateAttempterUnderTest attempter(&mock_system_state_, &dbus_);
+  string test_update_completed_marker;
+  CHECK(utils::MakeTempFile(
+          "/tmp/update_attempter_unittest-update_completed_marker-XXXXXX",
+          &test_update_completed_marker, NULL));
+  ScopedPathUnlinker completed_marker_unlinker(test_update_completed_marker);
+  const FilePath marker(test_update_completed_marker);
+  EXPECT_EQ(0, file_util::WriteFile(marker, "", 0));
+  UpdateAttempterUnderTest attempter(&mock_system_state_, &dbus_,
+                                     test_update_completed_marker);
   EXPECT_EQ(UPDATE_STATUS_UPDATED_NEED_REBOOT, attempter.status());
-  EXPECT_TRUE(file_util::Delete(kMarker, false));
 }
 
 TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
