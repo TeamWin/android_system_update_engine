@@ -92,6 +92,14 @@ void PostinstallRunnerAction::CompletePostinstall(int return_code) {
       // to get back to FW A.
       completer.set_code(kErrorCodePostinstallBootedFromFirmwareB);
     }
+
+    if (return_code == 4) {
+      // This special return code means that we tried to update firmware,
+      // but couldn't because we booted from FW B, and we need to reboot
+      // to get back to FW A.
+      completer.set_code(kErrorCodePostinstallFirmwareRONotUpdatable);
+    }
+
     return;
   }
 

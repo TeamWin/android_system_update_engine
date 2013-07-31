@@ -966,6 +966,8 @@ string CodeToString(ErrorCode code) {
       return "TestOmahaUrl";
     case kErrorCodeSpecialFlags:
       return "kErrorCodeSpecialFlags";
+    case kErrorCodePostinstallFirmwareRONotUpdatable:
+      return "kErrorCodePostinstallFirmwareRONotUpdatable";
     // Don't add a default case to let the compiler warn about newly added
     // error codes which should be added here.
   }

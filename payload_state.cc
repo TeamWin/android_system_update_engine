@@ -246,6 +246,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case kErrorCodeNewRootfsVerificationError:
     case kErrorCodeNewKernelVerificationError:
     case kErrorCodePostinstallBootedFromFirmwareB:
+    case kErrorCodePostinstallFirmwareRONotUpdatable:
     case kErrorCodeOmahaRequestEmptyResponseError:
     case kErrorCodeOmahaRequestXMLParseError:
     case kErrorCodeOmahaResponseInvalid:

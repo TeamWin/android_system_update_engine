@@ -86,7 +86,7 @@ static void SetupPayloadStateWith2Urls(string hash,
 class PayloadStateTest : public ::testing::Test { };
 
 TEST(PayloadStateTest, DidYouAddANewErrorCode) {
-  if (kErrorCodeUmaReportedMax != 43) {
+  if (kErrorCodeUmaReportedMax != 44) {
     LOG(ERROR) << "The following failure is intentional. If you added a new "
                << "ErrorCode enum value, make sure to add it to the "
                << "PayloadState::UpdateFailed method and then update this test "

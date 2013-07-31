@@ -52,6 +52,7 @@ enum ErrorCode {
   kErrorCodeOmahaUpdateDeferredForBackoff = 40,
   kErrorCodePostinstallPowerwashError = 41,
   kErrorCodeUpdateCanceledByChannelChange = 42,
+  kErrorCodePostinstallFirmwareRONotUpdatable = 43,
 
   // Note: When adding new error codes, please remember to add the
   // error into one of the buckets in PayloadState::UpdateFailed method so

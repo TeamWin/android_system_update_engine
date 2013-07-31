@@ -92,6 +92,11 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootFirmwareBErrScriptTest) {
   DoTest(true, 3, false);
 }
 
+TEST_F(PostinstallRunnerActionTest, RunAsRootFirmwareROErrScriptTest) {
+  ASSERT_EQ(0, getuid());
+  DoTest(true, 4, false);
+}
+
 const char* PostinstallRunnerActionTest::kImageMountPointTemplate =
     "au_destination-XXXXXX";
 
