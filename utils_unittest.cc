@@ -283,6 +283,17 @@ TEST(UtilsTest, GetInstallDevTest) {
 
   boot_dev = "/dev/sda12";
   EXPECT_FALSE(utils::GetInstallDev(boot_dev, &install_dev));
+
+  boot_dev = "/dev/ubiblock3_0";
+  EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
+  EXPECT_EQ(install_dev, "/dev/ubiblock5_0");
+
+  boot_dev = "/dev/ubiblock5_0";
+  EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
+  EXPECT_EQ(install_dev, "/dev/ubiblock3_0");
+
+  boot_dev = "/dev/ubiblock12_0";
+  EXPECT_FALSE(utils::GetInstallDev(boot_dev, &install_dev));
 }
 
 namespace {

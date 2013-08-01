@@ -1004,12 +1004,23 @@ bool DeletePowerwashMarkerFile(const char* file_path) {
 
 bool GetInstallDev(const std::string& boot_dev, std::string* install_dev) {
   TEST_AND_RETURN_FALSE(StringHasPrefix(boot_dev, "/dev/"));
-  string ret(boot_dev);
-  string::reverse_iterator it = ret.rbegin();  // last character in string
+  string::iterator it;
+  string ubiblock_prefix("/dev/ubiblock");
+
+  install_dev->assign(boot_dev);
+
+  if(StringHasPrefix(boot_dev, ubiblock_prefix)) {
+    // UBI-based device
+    it = install_dev->begin() + ubiblock_prefix.length();
+  } else {
+    // non-UBI device
+    it = install_dev->end() - 1;  // last character in string
+  }
+
   // Right now, we just switch '3' and '5' partition numbers.
-  TEST_AND_RETURN_FALSE((*it == '3') || (*it == '5'));
-  *it = (*it == '3') ? '5' : '3';
-  *install_dev = ret;
+  TEST_AND_RETURN_FALSE(*it == '3' || *it == '5');
+  *it = (*it == '3' ? '5' : '3');
+
   return true;
 }
 

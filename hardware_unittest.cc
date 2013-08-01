@@ -44,6 +44,14 @@ TEST_F(HardwareTest, KernelDeviceOfBootDevice) {
 
   EXPECT_EQ("/dev/ubi2", hwut_.KernelDeviceOfBootDevice("/dev/ubi3"));
   EXPECT_EQ("", hwut_.KernelDeviceOfBootDevice("/dev/ubi4"));
+
+  EXPECT_EQ("/dev/mtdblock2",
+            hwut_.KernelDeviceOfBootDevice("/dev/ubiblock3_0"));
+  EXPECT_EQ("/dev/mtdblock4",
+            hwut_.KernelDeviceOfBootDevice("/dev/ubiblock5_0"));
+  EXPECT_EQ("/dev/mtdblock6",
+            hwut_.KernelDeviceOfBootDevice("/dev/ubiblock7_0"));
+  EXPECT_EQ("", hwut_.KernelDeviceOfBootDevice("/dev/ubiblock4_0"));
 }
 
 }  // namespace chromeos_update_engine
