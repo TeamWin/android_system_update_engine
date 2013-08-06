@@ -352,4 +352,21 @@ TEST(UtilsTest, FormatTimeDeltaTest) {
             "2d7h33m20.001s");
 }
 
+TEST(UtilsTest, TimeFromStructTimespecTest) {
+  struct timespec ts;
+
+  // Unix epoch (Thursday 00:00:00 UTC on Jan 1, 1970)
+  ts = (struct timespec) {.tv_sec = 0, .tv_nsec = 0};
+  EXPECT_EQ(base::Time::UnixEpoch(), utils::TimeFromStructTimespec(&ts));
+
+  // 42 ms after the Unix billennium (Sunday 01:46:40 UTC on September 9, 2001)
+  ts = (struct timespec) {.tv_sec = 1000 * 1000 * 1000,
+                          .tv_nsec = 42 * 1000 * 1000};
+  base::Time::Exploded exploded = (base::Time::Exploded) {
+    .year = 2001, .month = 9, .day_of_week = 0, .day_of_month = 9,
+    .hour = 1, .minute = 46, .second = 40, .millisecond = 42};
+  EXPECT_EQ(base::Time::FromUTCExploded(exploded),
+            utils::TimeFromStructTimespec(&ts));
+}
+
 }  // namespace chromeos_update_engine

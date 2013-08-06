@@ -35,6 +35,20 @@ bool IsOfficialBuild();
 // boot mode. Returns false if the boot mode is developer.
 bool IsNormalBootMode();
 
+// Converts a struct timespec representing a number of seconds since
+// the Unix epoch to a base::Time. Sub-microsecond time is rounded
+// down.
+base::Time TimeFromStructTimespec(struct timespec *ts);
+
+// Converts a vector of strings to a NULL-terminated array of
+// strings. The resulting array should be freed with g_strfreev()
+// when are you done with it.
+gchar** StringVectorToGStrv(const std::vector<std::string> &vector);
+
+// Formats |vector| as a string of the form ["<elem1>", "<elem2>"].
+// Does no escaping, only use this for presentation in error messages.
+std::string StringVectorToString(const std::vector<std::string> &vector);
+
 // Returns the HWID or an empty string on error.
 std::string GetHardwareClass();
 
@@ -468,6 +482,24 @@ class ScopedActionCompleter {
   ErrorCode code_;
   bool should_complete_;
   DISALLOW_COPY_AND_ASSIGN(ScopedActionCompleter);
+};
+
+// A base::FreeDeleter that frees memory using g_free(). Useful when
+// integrating with GLib since it can be used with scoped_ptr to
+// automatically free memory when going out of scope.
+struct GLibFreeDeleter : public base::FreeDeleter {
+  inline void operator()(void *ptr) const {
+    g_free(reinterpret_cast<gpointer>(ptr));
+  }
+};
+
+// A base::FreeDeleter that frees memory using g_strfreev(). Useful
+// when integrating with GLib since it can be used with scoped_ptr to
+// automatically free memory when going out of scope.
+struct GLibStrvFreeDeleter : public base::FreeDeleter {
+  inline void operator()(void *ptr) const {
+    g_strfreev(reinterpret_cast<gchar**>(ptr));
+  }
 };
 
 }  // namespace chromeos_update_engine

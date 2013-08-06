@@ -1026,6 +1026,36 @@ bool GetInstallDev(const std::string& boot_dev, std::string* install_dev) {
   return true;
 }
 
+Time TimeFromStructTimespec(struct timespec *ts) {
+  int64 us = static_cast<int64>(ts->tv_sec) * Time::kMicrosecondsPerSecond +
+      static_cast<int64>(ts->tv_nsec) / Time::kNanosecondsPerMicrosecond;
+  return Time::UnixEpoch() + TimeDelta::FromMicroseconds(us);
+}
+
+gchar** StringVectorToGStrv(const vector<string> &vector) {
+  GPtrArray *p = g_ptr_array_new();
+  for (std::vector<string>::const_iterator i = vector.begin();
+       i != vector.end(); ++i) {
+    g_ptr_array_add(p, g_strdup(i->c_str()));
+  }
+  g_ptr_array_add(p, NULL);
+  return reinterpret_cast<gchar**>(g_ptr_array_free(p, FALSE));
+}
+
+string StringVectorToString(const vector<string> &vector) {
+  string str = "[";
+  for (std::vector<string>::const_iterator i = vector.begin();
+       i != vector.end(); ++i) {
+    if (i != vector.begin())
+      str += ", ";
+    str += '"';
+    str += *i;
+    str += '"';
+  }
+  str += "]";
+  return str;
+}
+
 }  // namespace utils
 
 }  // namespace chromeos_update_engine
