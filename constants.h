@@ -99,6 +99,9 @@ const int kMaxP2PAttempts = 10;
 // two days.
 const int kMaxP2PAttemptTimeSeconds = 2*24*60*60;
 
+// The maximum number of payload files to keep in /var/cache/p2p.
+const int kMaxP2PFilesToKeep = 3;
+
 // The default number of UMA buckets for metrics.
 const int kNumDefaultUmaBuckets = 50;
 

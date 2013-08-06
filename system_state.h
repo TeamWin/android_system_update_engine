@@ -24,6 +24,7 @@ class PrefsInterface;
 class PayloadStateInterface;
 class GpioHandler;
 class UpdateAttempter;
+class P2PManager;
 
 // An interface to global system context, including platform resources,
 // the current state of the system, high-level objects whose lifetime is same
@@ -82,6 +83,9 @@ class SystemState {
   // Returns a pointer to the object that stores the parameters that are
   // common to all Omaha requests.
   virtual OmahaRequestParams* request_params() = 0;
+
+  // Returns a pointer to the P2PManager singleton.
+  virtual P2PManager* p2p_manager() = 0;
 
   // If true, this is the first instance of the update engine since the system
   // restarted. Important for tracking whether you are running instance of the

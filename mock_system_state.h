@@ -12,6 +12,7 @@
 
 #include "update_engine/mock_dbus_interface.h"
 #include "update_engine/mock_gpio_handler.h"
+#include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/clock.h"
 #include "update_engine/hardware.h"
@@ -62,7 +63,7 @@ class MockSystemState : public SystemState {
   }
 
   inline virtual PayloadStateInterface* payload_state() {
-    return &mock_payload_state_;
+    return payload_state_;
   }
 
   inline virtual GpioHandler* gpio_handler() const {
@@ -73,6 +74,10 @@ class MockSystemState : public SystemState {
 
   inline virtual OmahaRequestParams* request_params() {
     return request_params_;
+  }
+
+  inline virtual P2PManager* p2p_manager() {
+    return p2p_manager_;
   }
 
   // MockSystemState-specific public method.
@@ -116,11 +121,20 @@ class MockSystemState : public SystemState {
     request_params_ = params;
   }
 
+  inline void set_p2p_manager(P2PManager *p2p_manager) {
+    p2p_manager_ = p2p_manager;
+  }
+
+  inline void set_payload_state(PayloadStateInterface *payload_state) {
+    payload_state_ = payload_state;
+  }
+
  private:
   // These are Mock objects or objects we own.
   testing::NiceMock<MetricsLibraryMock> mock_metrics_lib_;
   testing::NiceMock<PrefsMock> mock_prefs_;
   testing::NiceMock<PrefsMock> mock_powerwash_safe_prefs_;
+  testing::NiceMock<MockP2PManager> mock_p2p_manager_;
   testing::NiceMock<MockPayloadState> mock_payload_state_;
   testing::NiceMock<MockGpioHandler>* mock_gpio_handler_;
   testing::NiceMock<UpdateAttempterMock>* mock_update_attempter_;
@@ -138,6 +152,8 @@ class MockSystemState : public SystemState {
   PrefsInterface* powerwash_safe_prefs_;
   ConnectionManager* connection_manager_;
   OmahaRequestParams* request_params_;
+  P2PManager *p2p_manager_;
+  PayloadStateInterface *payload_state_;
 };
 
 } // namespeace chromeos_update_engine

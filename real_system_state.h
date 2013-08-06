@@ -14,6 +14,7 @@
 #include <update_engine/payload_state.h>
 #include <update_engine/prefs.h>
 #include <update_engine/update_attempter.h>
+#include <update_engine/p2p_manager.h>
 
 namespace chromeos_update_engine {
 
@@ -79,6 +80,10 @@ public:
     return &request_params_;
   }
 
+  virtual inline P2PManager* p2p_manager() {
+    return p2p_manager_.get();
+  }
+
   virtual inline bool system_rebooted(){
     return system_rebooted_;
   }
@@ -129,6 +134,8 @@ private:
 
   // Common parameters for all Omaha requests.
   OmahaRequestParams request_params_;
+
+  scoped_ptr<P2PManager> p2p_manager_;
 
   // If true, this is the first instance of the update engine since the system
   // rebooted. Important for tracking whether you are running instance of the

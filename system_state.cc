@@ -15,6 +15,7 @@ RealSystemState::RealSystemState()
     : device_policy_(NULL),
       connection_manager_(this),
       request_params_(this),
+      p2p_manager_(NULL),
       system_rebooted_(false) {}
 
 bool RealSystemState::Initialize(bool enable_gpio) {
@@ -37,6 +38,9 @@ bool RealSystemState::Initialize(bool enable_gpio) {
     }
     system_rebooted_ = true;
   }
+
+  p2p_manager_.reset(P2PManager::Construct(NULL, &prefs_, "cros_au",
+                                           kMaxP2PFilesToKeep));
 
   if (!payload_state_.Initialize(this))
     return false;
