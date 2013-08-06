@@ -65,6 +65,8 @@ extern const char kPrefsUpdateStateSignedSHA256Context[];
 extern const char kPrefsUpdateTimestampStart[];
 extern const char kPrefsUrlSwitchCount[];
 extern const char kPrefsWallClockWaitPeriod[];
+extern const char kPrefsP2PNumAttempts[];
+extern const char kPrefsP2PFirstAttemptTimestamp[];
 
 // A download source is any combination of protocol and server (that's of
 // interest to us when looking at UMA metrics) using which we may download
@@ -89,6 +91,13 @@ typedef enum {
   // Note: Add new payload types only above this line.
   kNumPayloadTypes
 } PayloadType;
+
+// Maximum number of attempts using p2p.
+const int kMaxP2PAttempts = 10;
+
+// Maximum wallclock time we allow attempting to update using p2p -
+// two days.
+const int kMaxP2PAttemptTimeSeconds = 2*24*60*60;
 
 // The default number of UMA buckets for metrics.
 const int kNumDefaultUmaBuckets = 50;

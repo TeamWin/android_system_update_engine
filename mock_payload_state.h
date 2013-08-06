@@ -31,6 +31,8 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD0(Rollback, void());
   MOCK_METHOD1(ExpectRebootInNewVersion,
                void(const std::string& target_version_uid));
+  MOCK_METHOD0(GetP2PNumAttempts, int());
+  MOCK_METHOD0(GetP2PFirstAttemptTimestamp, base::Time());
 
   // Getters.
   MOCK_METHOD0(GetResponseSignature, std::string());
@@ -47,6 +49,8 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD1(GetTotalBytesDownloaded, uint64_t(DownloadSource source));
   MOCK_METHOD0(GetNumReboots, uint32_t());
   MOCK_METHOD0(GetRollbackVersion, std::string());
+  MOCK_METHOD0(P2PNewAttempt, void());
+  MOCK_METHOD0(P2PAttemptAllowed, bool());
 };
 
 }  // namespace chromeos_update_engine

@@ -39,7 +39,8 @@ PayloadState::PayloadState()
       full_payload_attempt_number_(0),
       url_index_(0),
       url_failure_count_(0),
-      url_switch_count_(0) {
+      url_switch_count_(0),
+      p2p_num_attempts_(0) {
  for (int i = 0; i <= kNumDownloadSources; i++)
   total_bytes_downloaded_[i] = current_bytes_downloaded_[i] = 0;
 }
@@ -67,6 +68,8 @@ bool PayloadState::Initialize(SystemState* system_state) {
   LoadNumReboots();
   LoadNumResponsesSeen();
   LoadRollbackVersion();
+  LoadP2PFirstAttemptTimestamp();
+  LoadP2PNumAttempts();
   return true;
 }
 
@@ -592,6 +595,8 @@ void PayloadState::ResetPersistedState() {
   SetUpdateDurationUptime(TimeDelta::FromSeconds(0));
   ResetDownloadSourcesOnNewUpdate();
   ResetRollbackVersion();
+  SetP2PNumAttempts(0);
+  SetP2PFirstAttemptTimestamp(Time()); // Set to null time
 }
 
 void PayloadState::ResetRollbackVersion() {
@@ -1212,6 +1217,82 @@ void PayloadState::ResetUpdateStatus() {
   int64_t target_attempt;
   if (prefs_->GetInt64(kPrefsTargetVersionAttempt, &target_attempt))
     prefs_->SetInt64(kPrefsTargetVersionAttempt, target_attempt-1);
+}
+
+int PayloadState::GetP2PNumAttempts() {
+  return p2p_num_attempts_;
+}
+
+void PayloadState::SetP2PNumAttempts(int value) {
+  p2p_num_attempts_ = value;
+  LOG(INFO) << "p2p Num Attempts = " << p2p_num_attempts_;
+  CHECK(prefs_);
+  prefs_->SetInt64(kPrefsP2PNumAttempts, value);
+}
+
+void PayloadState::LoadP2PNumAttempts() {
+  SetP2PNumAttempts(GetPersistedValue(kPrefsP2PNumAttempts, false));
+}
+
+Time PayloadState::GetP2PFirstAttemptTimestamp() {
+  return p2p_first_attempt_timestamp_;
+}
+
+void PayloadState::SetP2PFirstAttemptTimestamp(const Time& time) {
+  p2p_first_attempt_timestamp_ = time;
+  LOG(INFO) << "p2p First Attempt Timestamp = "
+            << utils::ToString(p2p_first_attempt_timestamp_);
+  CHECK(prefs_);
+  int64_t stored_value = time.ToInternalValue();
+  prefs_->SetInt64(kPrefsP2PFirstAttemptTimestamp, stored_value);
+}
+
+void PayloadState::LoadP2PFirstAttemptTimestamp() {
+  int64_t stored_value = GetPersistedValue(kPrefsP2PFirstAttemptTimestamp,
+                                           false);
+  Time stored_time = Time::FromInternalValue(stored_value);
+  SetP2PFirstAttemptTimestamp(stored_time);
+}
+
+void PayloadState::P2PNewAttempt() {
+  CHECK(prefs_);
+  // Set timestamp, if it hasn't been set already
+  if (p2p_first_attempt_timestamp_.is_null()) {
+    SetP2PFirstAttemptTimestamp(system_state_->clock()->GetWallclockTime());
+  }
+  // Increase number of attempts
+  SetP2PNumAttempts(GetP2PNumAttempts() + 1);
+}
+
+bool PayloadState::P2PAttemptAllowed() {
+  if (p2p_num_attempts_ > kMaxP2PAttempts) {
+    LOG(INFO) << "Number of p2p attempts is " << p2p_num_attempts_
+              << " which is greater than "
+              << kMaxP2PAttempts
+              << " - disallowing p2p.";
+    return false;
+  }
+
+  if (!p2p_first_attempt_timestamp_.is_null()) {
+    Time now = system_state_->clock()->GetWallclockTime();
+    TimeDelta time_spent_attempting_p2p = now - p2p_first_attempt_timestamp_;
+    if (time_spent_attempting_p2p.InSeconds() < 0) {
+      LOG(ERROR) << "Time spent attempting p2p is negative"
+                 << " - disallowing p2p.";
+      return false;
+    }
+    if (time_spent_attempting_p2p.InSeconds() > kMaxP2PAttemptTimeSeconds) {
+      LOG(INFO) << "Time spent attempting p2p is "
+                << utils::FormatTimeDelta(time_spent_attempting_p2p)
+                << " which is greater than "
+                << utils::FormatTimeDelta(TimeDelta::FromSeconds(
+                       kMaxP2PAttemptTimeSeconds))
+                << " - disallowing p2p.";
+      return false;
+    }
+  }
+
+  return true;
 }
 
 }  // namespace chromeos_update_engine

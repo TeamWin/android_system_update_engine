@@ -1380,4 +1380,177 @@ TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
+TEST(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
+  OmahaResponse response;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  Prefs prefs;
+  string temp_dir;
+
+  // We need persistent preferences for this test.
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+
+  mock_system_state.set_prefs(&prefs);
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
+
+  // Should allow exactly kMaxP2PAttempts...
+  for (int n = 0; n < kMaxP2PAttempts; n++) {
+    payload_state.P2PNewAttempt();
+    EXPECT_TRUE(payload_state.P2PAttemptAllowed());
+  }
+  // ... but not more than that.
+  payload_state.P2PNewAttempt();
+  EXPECT_FALSE(payload_state.P2PAttemptAllowed());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
+  OmahaResponse response;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  FakeClock fake_clock;
+  Prefs prefs;
+  string temp_dir;
+
+  // We need persistent preferences for this test.
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+
+  mock_system_state.set_clock(&fake_clock);
+  mock_system_state.set_prefs(&prefs);
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
+
+  // Set the clock to 1 second.
+  Time epoch = Time::FromInternalValue(1000000);
+  fake_clock.SetWallclockTime(epoch);
+
+  // Do an attempt - this will set the timestamp.
+  payload_state.P2PNewAttempt();
+
+  // Check that the timestamp equals what we just set.
+  EXPECT_EQ(epoch, payload_state.GetP2PFirstAttemptTimestamp());
+
+  // Time hasn't advanced - this should work.
+  EXPECT_TRUE(payload_state.P2PAttemptAllowed());
+
+  // Set clock to half the deadline - this should work.
+  fake_clock.SetWallclockTime(epoch +
+      TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds) / 2);
+  EXPECT_TRUE(payload_state.P2PAttemptAllowed());
+
+  // Check that the first attempt timestamp hasn't changed just
+  // because the wall-clock time changed.
+  EXPECT_EQ(epoch, payload_state.GetP2PFirstAttemptTimestamp());
+
+  // Set clock to _just_ before the deadline - this should work.
+  fake_clock.SetWallclockTime(epoch +
+      TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds - 1));
+  EXPECT_TRUE(payload_state.P2PAttemptAllowed());
+
+  // Set clock to _just_ after the deadline - this should not work.
+  fake_clock.SetWallclockTime(epoch +
+      TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds + 1));
+  EXPECT_FALSE(payload_state.P2PAttemptAllowed());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(PayloadStateTest, P2PStateVarsInitialValue) {
+  OmahaResponse response;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  Prefs prefs;
+  string temp_dir;
+
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+  mock_system_state.set_prefs(&prefs);
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
+
+  Time null_time = Time();
+  EXPECT_EQ(null_time, payload_state.GetP2PFirstAttemptTimestamp());
+  EXPECT_EQ(0, payload_state.GetP2PNumAttempts());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(PayloadStateTest, P2PStateVarsArePersisted) {
+  OmahaResponse response;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  FakeClock fake_clock;
+  Prefs prefs;
+  string temp_dir;
+
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+  mock_system_state.set_clock(&fake_clock);
+  mock_system_state.set_prefs(&prefs);
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
+
+  // Set the clock to something known.
+  Time time = Time::FromInternalValue(12345);
+  fake_clock.SetWallclockTime(time);
+
+  // New p2p attempt - as a side-effect this will update the p2p state vars.
+  payload_state.P2PNewAttempt();
+  EXPECT_EQ(1, payload_state.GetP2PNumAttempts());
+  EXPECT_EQ(time, payload_state.GetP2PFirstAttemptTimestamp());
+
+  // Now create a new PayloadState and check that it loads the state
+  // vars correctly.
+  PayloadState payload_state2;
+  EXPECT_TRUE(payload_state2.Initialize(&mock_system_state));
+  EXPECT_EQ(1, payload_state2.GetP2PNumAttempts());
+  EXPECT_EQ(time, payload_state2.GetP2PFirstAttemptTimestamp());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
+  OmahaResponse response;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  FakeClock fake_clock;
+  Prefs prefs;
+  string temp_dir;
+
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+  mock_system_state.set_clock(&fake_clock);
+  mock_system_state.set_prefs(&prefs);
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
+
+  // Set the clock to something known.
+  Time time = Time::FromInternalValue(12345);
+  fake_clock.SetWallclockTime(time);
+
+  // New p2p attempt - as a side-effect this will update the p2p state vars.
+  payload_state.P2PNewAttempt();
+  EXPECT_EQ(1, payload_state.GetP2PNumAttempts());
+  EXPECT_EQ(time, payload_state.GetP2PFirstAttemptTimestamp());
+
+  // Set a new response...
+  SetupPayloadStateWith2Urls("Hash9904", true, &payload_state, &response);
+
+  // ... and check that it clears the P2P state vars.
+  Time null_time = Time();
+  EXPECT_EQ(0, payload_state.GetP2PNumAttempts());
+  EXPECT_EQ(null_time, payload_state.GetP2PFirstAttemptTimestamp());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
 }

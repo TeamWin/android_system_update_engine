@@ -64,5 +64,7 @@ const char kPrefsUpdateStateSignedSHA256Context[] =
 const char kPrefsUpdateTimestampStart[] = "update-timestamp-start";
 const char kPrefsUrlSwitchCount[] = "url-switch-count";
 const char kPrefsWallClockWaitPeriod[] = "wall-clock-wait-period";
+const char kPrefsP2PNumAttempts[] = "p2p-num-attempts";
+const char kPrefsP2PFirstAttemptTimestamp[] = "p2p-first-attempt-timestamp";
 
 }

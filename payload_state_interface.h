@@ -136,7 +136,26 @@ class PayloadStateInterface {
   // Returns the version from before a rollback if our last update was a
   // rollback.
   virtual std::string GetRollbackVersion() = 0;
- };
+
+  // Returns the value of number of attempts we've attempted to
+  // download the payload via p2p.
+  virtual int GetP2PNumAttempts() = 0;
+
+  // Returns the value of timestamp of the first time we've attempted
+  // to download the payload via p2p.
+  virtual base::Time GetP2PFirstAttemptTimestamp() = 0;
+
+  // Should be called every time we decide to use p2p for an update
+  // attempt. This is used to increase the p2p attempt counter and
+  // set the timestamp for first attempt.
+  virtual void P2PNewAttempt() = 0;
+
+  // Returns |true| if we are allowed to continue using p2p for
+  // downloading and |false| otherwise. This is done by recording
+  // and examining how many attempts have been done already as well
+  // as when the first attempt was.
+  virtual bool P2PAttemptAllowed() = 0;
+};
 
 }  // namespace chromeos_update_engine
 

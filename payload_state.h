@@ -99,6 +99,11 @@ class PayloadState : public PayloadStateInterface {
     return rollback_version_;
   }
 
+  virtual int GetP2PNumAttempts();
+  virtual base::Time GetP2PFirstAttemptTimestamp();
+  virtual void P2PNewAttempt();
+  virtual bool P2PAttemptAllowed();
+
  private:
   friend class PayloadStateTest;
   FRIEND_TEST(PayloadStateTest, RebootAfterUpdateFailedMetric);
@@ -355,6 +360,19 @@ class PayloadState : public PayloadStateInterface {
   // was booted into the update (current wall-clock time).
   void BootedIntoUpdate(base::TimeDelta time_to_reboot);
 
+  // Loads the |kPrefsP2PFirstAttemptTimestamp| state variable from disk
+  // into |p2p_first_attempt_timestamp_|.
+  void LoadP2PFirstAttemptTimestamp();
+
+  // Loads the |kPrefsP2PNumAttempts| state variable into |p2p_num_attempts_|.
+  void LoadP2PNumAttempts();
+
+  // Sets the |kPrefsP2PNumAttempts| state variable to |value|.
+  void SetP2PNumAttempts(int value);
+
+  // Sets the |kPrefsP2PFirstAttemptTimestamp| state variable to |time|.
+  void SetP2PFirstAttemptTimestamp(const base::Time& time);
+
   // Interface object with which we read/write persisted state. This must
   // be set by calling the Initialize method before calling any other method.
   PrefsInterface* prefs_;
@@ -469,6 +487,12 @@ class PayloadState : public PayloadStateInterface {
   // to guarantee that we do not re-update to it on the next au attempt after
   // reboot.
   std::string rollback_version_;
+
+  // The cached value of |kPrefsP2PFirstAttemptTimestamp|.
+  base::Time p2p_first_attempt_timestamp_;
+
+  // The cached value of |kPrefsP2PNumAttempts|.
+  int p2p_num_attempts_;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };
