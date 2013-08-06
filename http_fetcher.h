@@ -102,6 +102,18 @@ class HttpFetcher {
   virtual void set_idle_seconds(int seconds) {}
   virtual void set_retry_seconds(int seconds) {}
 
+  // Sets the values used to time out the connection if the transfer
+  // rate is less than |low_speed_bps| bytes/sec for more than
+  // |low_speed_sec| seconds.
+  virtual void set_low_speed_limit(int low_speed_bps, int low_speed_sec) = 0;
+
+  // Sets the connect timeout, e.g. the maximum amount of time willing
+  // to wait for establishing a connection to the server.
+  virtual void set_connect_timeout(int connect_timeout_seconds) = 0;
+
+  // Sets the number of allowed retries.
+  virtual void set_max_retry_count(int max_retry_count) = 0;
+
   // Get the total number of bytes downloaded by fetcher.
   virtual size_t GetBytesDownloaded() = 0;
 

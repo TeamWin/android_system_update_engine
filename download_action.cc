@@ -15,6 +15,7 @@
 #include "update_engine/action_pipe.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/subprocess.h"
+#include "update_engine/utils.h"
 
 using std::min;
 using std::string;
@@ -212,6 +213,19 @@ void DownloadAction::PerformAction() {
         }
       }
     }
+  }
+
+  // Tweak timeouts on the HTTP fetcher if we're downloading from a
+  // local peer.
+  if (system_state_ != NULL &&
+      system_state_->request_params()->use_p2p_for_downloading() &&
+      system_state_->request_params()->p2p_url() ==
+      install_plan_.download_url) {
+    LOG(INFO) << "Tweaking HTTP fetcher since we're downloading via p2p";
+    http_fetcher_->set_low_speed_limit(kDownloadP2PLowSpeedLimitBps,
+                                       kDownloadP2PLowSpeedTimeSeconds);
+    http_fetcher_->set_max_retry_count(kDownloadP2PMaxRetryCount);
+    http_fetcher_->set_connect_timeout(kDownloadP2PConnectTimeoutSeconds);
   }
 
   http_fetcher_->BeginTransfer(install_plan_.download_url);

@@ -935,7 +935,7 @@ TYPED_TEST(HttpFetcherTest, MaxRedirectTest) {
   ASSERT_TRUE(server->started_);
 
   string url;
-  for (int r = 0; r < LibcurlHttpFetcher::kMaxRedirects; r++) {
+  for (int r = 0; r < kDownloadMaxRedirects; r++) {
     url += base::StringPrintf("/redirect/%d",
                               kRedirectCodes[r % arraysize(kRedirectCodes)]);
   }
@@ -951,7 +951,7 @@ TYPED_TEST(HttpFetcherTest, BeyondMaxRedirectTest) {
   ASSERT_TRUE(server->started_);
 
   string url;
-  for (int r = 0; r < LibcurlHttpFetcher::kMaxRedirects + 1; r++) {
+  for (int r = 0; r < kDownloadMaxRedirects + 1; r++) {
     url += base::StringPrintf("/redirect/%d",
                               kRedirectCodes[r % arraysize(kRedirectCodes)]);
   }

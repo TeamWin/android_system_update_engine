@@ -30,10 +30,6 @@ const int kNoNetworkRetrySeconds = 10;
 const char kCACertificatesPath[] = "/usr/share/chromeos-ca-certificates";
 }  // namespace {}
 
-const int LibcurlHttpFetcher::kMaxRedirects = 10;
-const int LibcurlHttpFetcher::kMaxRetryCountOobeComplete = 20;
-const int LibcurlHttpFetcher::kMaxRetryCountOobeNotComplete = 3;
-
 LibcurlHttpFetcher::~LibcurlHttpFetcher() {
   LOG_IF(ERROR, transfer_in_progress_)
       << "Destroying the fetcher while a transfer is in progress.";
@@ -174,22 +170,24 @@ void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_URL, url_to_use.c_str()),
            CURLE_OK);
 
-  // If the connection drops under 10 bytes/sec for 3 minutes, reconnect.
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_LOW_SPEED_LIMIT, 10),
+  // If the connection drops under |low_speed_limit_bps_| (10
+  // bytes/sec by default) for |low_speed_time_seconds_| (90 seconds,
+  // 180 on non-official builds), reconnect.
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_LOW_SPEED_LIMIT,
+                            low_speed_limit_bps_),
            CURLE_OK);
-  // Use a smaller timeout on official builds, larger for dev. Dev users
-  // want a longer timeout b/c they may be waiting on the dev server to
-  // build an image.
-  const int kTimeout = IsOfficialBuild() ? 90 : 3 * 60;
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_LOW_SPEED_TIME, kTimeout),
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_LOW_SPEED_TIME,
+                            low_speed_time_seconds_),
            CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_CONNECTTIMEOUT, 30),
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_CONNECTTIMEOUT,
+                            connect_timeout_seconds_),
            CURLE_OK);
 
   // By default, libcurl doesn't follow redirections. Allow up to
-  // |kMaxRedirects| redirections.
+  // |kDownloadMaxRedirects| redirections.
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_FOLLOWLOCATION, 1), CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_MAXREDIRS, kMaxRedirects),
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_MAXREDIRS,
+                            kDownloadMaxRedirects),
            CURLE_OK);
 
   // If we are running in test mode or using a dev/test build, then lock down
@@ -262,9 +260,6 @@ void LibcurlHttpFetcher::ProxiesResolved() {
   transfer_size_ = -1;
   resume_offset_ = 0;
   retry_count_ = 0;
-  max_retry_count_ = (system_state_->IsOOBEComplete() ?
-                      kMaxRetryCountOobeComplete :
-                      kMaxRetryCountOobeNotComplete);
   no_network_retry_count_ = 0;
   http_response_code_ = 0;
   terminate_requested_ = false;

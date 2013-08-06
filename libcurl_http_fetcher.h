@@ -26,10 +26,6 @@ namespace chromeos_update_engine {
 
 class LibcurlHttpFetcher : public HttpFetcher {
  public:
-  static const int kMaxRedirects;
-  static const int kMaxRetryCountOobeComplete;
-  static const int kMaxRetryCountOobeNotComplete;
-
   LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
                      SystemState* system_state,
                      bool is_test_mode)
@@ -44,7 +40,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
         download_length_(0),
         resume_offset_(0),
         retry_count_(0),
-        max_retry_count_(kMaxRetryCountOobeNotComplete),
+        max_retry_count_(kDownloadMaxRetryCount),
         retry_seconds_(20),
         no_network_retry_count_(0),
         no_network_max_retries_(0),
@@ -55,7 +51,17 @@ class LibcurlHttpFetcher : public HttpFetcher {
         sent_byte_(false),
         terminate_requested_(false),
         check_certificate_(CertificateChecker::kNone),
-        is_test_mode_(is_test_mode) {}
+        is_test_mode_(is_test_mode),
+        low_speed_limit_bps_(kDownloadLowSpeedLimitBps),
+        low_speed_time_seconds_(kDownloadLowSpeedTimeSeconds),
+        connect_timeout_seconds_(kDownloadConnectTimeoutSeconds) {
+    // Dev users want a longer timeout (180 seconds) because they may
+    // be waiting on the dev server to build an image.
+    if (!IsOfficialBuild())
+      low_speed_time_seconds_ = kDownloadDevModeLowSpeedTimeSeconds;
+    if (!system_state_->IsOOBEComplete())
+      max_retry_count_ = kDownloadMaxRetryCountOobeNotComplete;
+  }
 
   // Cleans up all internal state. Does not notify delegate
   ~LibcurlHttpFetcher();
@@ -108,6 +114,19 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
   virtual size_t GetBytesDownloaded() {
     return static_cast<size_t>(bytes_downloaded_);
+  }
+
+  virtual void set_low_speed_limit(int low_speed_bps, int low_speed_sec) {
+    low_speed_limit_bps_ = low_speed_bps;
+    low_speed_time_seconds_ = low_speed_sec;
+  }
+
+  virtual void set_connect_timeout(int connect_timeout_seconds) {
+    connect_timeout_seconds_ = connect_timeout_seconds;
+  }
+
+  virtual void set_max_retry_count(int max_retry_count) {
+    max_retry_count_ = max_retry_count;
   }
 
  private:
@@ -273,6 +292,11 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
   // If true, utilizes a relaxed test mode fetch logic. False by default.
   bool is_test_mode_;
+
+  int low_speed_limit_bps_;
+  int low_speed_time_seconds_;
+  int connect_timeout_seconds_;
+  int num_max_retries_;
 
   DISALLOW_COPY_AND_ASSIGN(LibcurlHttpFetcher);
 };

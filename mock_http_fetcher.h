@@ -58,6 +58,9 @@ class MockHttpFetcher : public HttpFetcher {
   // Do nothing.
   virtual void SetLength(size_t length) {}
   virtual void UnsetLength() {}
+  virtual void set_low_speed_limit(int low_speed_bps, int low_speed_sec) {}
+  virtual void set_connect_timeout(int connect_timeout_seconds) {}
+  virtual void set_max_retry_count(int max_retry_count) {}
 
   // Dummy: no bytes were downloaded.
   virtual size_t GetBytesDownloaded() {

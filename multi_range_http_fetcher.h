@@ -90,6 +90,18 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
     return base_fetcher_->GetBytesDownloaded();
   }
 
+  virtual void set_low_speed_limit(int low_speed_bps, int low_speed_sec) {
+    base_fetcher_->set_low_speed_limit(low_speed_bps, low_speed_sec);
+  }
+
+  virtual void set_connect_timeout(int connect_timeout_seconds) {
+    base_fetcher_->set_connect_timeout(connect_timeout_seconds);
+  }
+
+  virtual void set_max_retry_count(int max_retry_count) {
+    base_fetcher_->set_max_retry_count(max_retry_count);
+  }
+
  private:
   // A range object defining the offset and length of a download chunk.  Zero
   // length indicates an unspecified end offset (note that it is impossible to

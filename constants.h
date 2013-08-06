@@ -116,6 +116,45 @@ const int kNumDefaultUmaBuckets = 50;
 // General constants
 const int kNumBytesInOneMiB = 1024 * 1024;
 
+// Number of redirects allowed when downloading.
+const int kDownloadMaxRedirects = 10;
+
+// The minimum average speed (50 kB/sec) that downloads must sustain...
+//
+// This is set low because some devices may have very poor
+// connecticity and we want to make as much forward progress as
+// possible. For p2p this is high (50 kB/second) since we can assume
+// high bandwidth (same LAN) and we want to fail fast.
+const int kDownloadLowSpeedLimitBps = 1;
+const int kDownloadP2PLowSpeedLimitBps = 50 * 1000;
+
+// ... measured over this period.
+//
+// For non-official builds (e.g. typically built on a developer's
+// workstation and served via devserver) bump this since it takes time
+// for the workstation to generate the payload. For p2p, make this
+// relatively low since we want to fail fast.
+const int kDownloadLowSpeedTimeSeconds = 90;
+const int kDownloadDevModeLowSpeedTimeSeconds = 180;
+const int kDownloadP2PLowSpeedTimeSeconds = 30;
+
+// The maximum amount of HTTP server reconnect attempts.
+//
+// This is set high in order to maximize the attempt's chance of
+// succeeding. When using p2p, this is low in order to fail fast.
+const int kDownloadMaxRetryCount = 20;
+const int kDownloadMaxRetryCountOobeNotComplete = 3;
+const int kDownloadP2PMaxRetryCount = 3;
+
+// The connect timeout, in seconds.
+//
+// This is set high because some devices may have very poor
+// connectivity and we may be using HTTPS which involves complicated
+// multi-roundtrip setup. For p2p, this is set low because we can
+// the server is on the same LAN and we want to fail fast.
+const int kDownloadConnectTimeoutSeconds = 30;
+const int kDownloadP2PConnectTimeoutSeconds = 5;
+
 }  // namespace chromeos_update_engine
 
 #endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_CONSTANTS_H
