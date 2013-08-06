@@ -203,6 +203,16 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
                    OmahaResponse* output_object,
                    ScopedActionCompleter* completer);
 
+  // Called by TransferComplete() to complete processing, either
+  // asynchronously after looking up resources via p2p or directly.
+  void CompleteProcessing();
+
+  // Helper to asynchronously look up payload on the LAN.
+  void LookupPayloadViaP2P(const OmahaResponse& response);
+
+  // Callback used by LookupPayloadViaP2P().
+  void OnLookupPayloadViaP2PCompleted(const std::string& url);
+
   // Global system context.
   SystemState* system_state_;
 

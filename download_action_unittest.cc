@@ -2,17 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string>
-#include <vector>
-
 #include <glib.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <base/file_path.h>
+#include <base/file_util.h>
+#include <base/stringprintf.h>
+
 #include "update_engine/action_pipe.h"
 #include "update_engine/download_action.h"
 #include "update_engine/mock_http_fetcher.h"
+#include "update_engine/mock_system_state.h"
 #include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/fake_p2p_manager_configuration.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
@@ -24,6 +31,10 @@ using std::vector;
 using testing::_;
 using testing::AtLeast;
 using testing::InSequence;
+using base::FilePath;
+using base::StringPrintf;
+using file_util::WriteFile;
+using file_util::ReadFileToString;
 
 class DownloadActionTest : public ::testing::Test { };
 
@@ -415,6 +426,203 @@ TEST(DownloadActionTest, BadOutFileTest) {
   ASSERT_FALSE(processor.IsRunning());
 
   g_main_loop_unref(loop);
+}
+
+gboolean StartProcessorInRunLoopForP2P(gpointer user_data) {
+  ActionProcessor* processor = reinterpret_cast<ActionProcessor*>(user_data);
+  processor->StartProcessing();
+  return FALSE;
+}
+
+// Test fixture for P2P tests.
+class P2PDownloadActionTest : public testing::Test {
+protected:
+  P2PDownloadActionTest()
+    : loop_(NULL),
+      start_at_offset_(0) {}
+
+  virtual ~P2PDownloadActionTest() {}
+
+  // Derived from testing::Test.
+  virtual void SetUp() {
+    loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+  }
+
+  // Derived from testing::Test.
+  virtual void TearDown() {
+    if (loop_ != NULL)
+      g_main_loop_unref(loop_);
+  }
+
+  // To be called by tests to setup the download. The
+  // |starting_offset| parameter is for where to resume.
+  void SetupDownload(off_t starting_offset) {
+    start_at_offset_ = starting_offset;
+    // Prepare data 10 kB of data.
+    data_.clear();
+    for (unsigned int i = 0; i < 10 * 1000; i++)
+      data_ += 'a' + (i % 25);
+
+    // Setup p2p.
+    FakeP2PManagerConfiguration *test_conf = new FakeP2PManagerConfiguration();
+    p2p_manager_.reset(P2PManager::Construct(test_conf, NULL, "cros_au", 3));
+    mock_system_state_.set_p2p_manager(p2p_manager_.get());
+  }
+
+  // To be called by tests to perform the download. The
+  // |use_p2p_to_share| parameter is used to indicate whether the
+  // payload should be shared via p2p.
+  void StartDownload(bool use_p2p_to_share) {
+    mock_system_state_.request_params()->set_use_p2p_for_sharing(
+        use_p2p_to_share);
+
+    ScopedTempFile output_temp_file;
+    TestDirectFileWriter writer;
+    InstallPlan install_plan(false,
+                             false,
+                             "",
+                             data_.length(),
+                             "1234hash",
+                             0,
+                             "",
+                             output_temp_file.GetPath(),
+                             "");
+    ObjectFeederAction<InstallPlan> feeder_action;
+    feeder_action.set_obj(install_plan);
+    PrefsMock prefs;
+    http_fetcher_ = new MockHttpFetcher(data_.c_str(),
+                                        data_.length(),
+                                        NULL);
+    // Note that DownloadAction takes ownership of the passed in HttpFetcher.
+    download_action_.reset(new DownloadAction(&prefs, &mock_system_state_,
+                                              http_fetcher_));
+    download_action_->SetTestFileWriter(&writer);
+    BondActions(&feeder_action, download_action_.get());
+    DownloadActionTestProcessorDelegate delegate(kErrorCodeSuccess);
+    delegate.loop_ = loop_;
+    delegate.expected_data_ = vector<char>(data_.begin() + start_at_offset_,
+                                           data_.end());
+    delegate.path_ = output_temp_file.GetPath();
+    processor_.set_delegate(&delegate);
+    processor_.EnqueueAction(&feeder_action);
+    processor_.EnqueueAction(download_action_.get());
+
+    g_timeout_add(0, &StartProcessorInRunLoopForP2P, this);
+    g_main_loop_run(loop_);
+  }
+
+  // The DownloadAction instance under test.
+  scoped_ptr<DownloadAction> download_action_;
+
+  // The HttpFetcher used in the test.
+  MockHttpFetcher* http_fetcher_;
+
+  // The P2PManager used in the test.
+  scoped_ptr<P2PManager> p2p_manager_;
+
+  // The ActionProcessor used for running the actions.
+  ActionProcessor processor_;
+
+  // A fake system state.
+  MockSystemState mock_system_state_;
+
+  // The data being downloaded.
+  string data_;
+
+private:
+  // Callback used in StartDownload() method.
+  static gboolean StartProcessorInRunLoopForP2P(gpointer user_data) {
+    class P2PDownloadActionTest *test =
+        reinterpret_cast<P2PDownloadActionTest*>(user_data);
+    test->processor_.StartProcessing();
+    test->http_fetcher_->SetOffset(test->start_at_offset_);
+    return FALSE;
+  }
+
+  // Mainloop used to make StartDownload() synchronous.
+  GMainLoop *loop_;
+
+  // The requested starting offset passed to SetupDownload().
+  off_t start_at_offset_;
+};
+
+TEST_F(P2PDownloadActionTest, IsWrittenTo) {
+  SetupDownload(0);    // starting_offset
+  StartDownload(true); // use_p2p_to_share
+
+  // Check the p2p file and its content matches what was sent.
+  string file_id = download_action_->p2p_file_id();
+  EXPECT_NE(file_id, "");
+  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), data_.length());
+  EXPECT_EQ(p2p_manager_->FileGetExpectedSize(file_id), data_.length());
+  string p2p_file_contents;
+  EXPECT_TRUE(ReadFileToString(p2p_manager_->FileGetPath(file_id),
+                               &p2p_file_contents));
+  EXPECT_EQ(data_, p2p_file_contents);
+}
+
+TEST_F(P2PDownloadActionTest, DeleteIfHoleExists) {
+  SetupDownload(1000); // starting_offset
+  StartDownload(true); // use_p2p_to_share
+
+  // DownloadAction should convey that the file is not being shared.
+  // and that we don't have any p2p files.
+  EXPECT_EQ(download_action_->p2p_file_id(), "");
+  EXPECT_EQ(p2p_manager_->CountSharedFiles(), 0);
+}
+
+TEST_F(P2PDownloadActionTest, CanAppend) {
+  SetupDownload(1000); // starting_offset
+
+  // Prepare the file with existing data before starting to write to
+  // it via DownloadAction.
+  string file_id = utils::CalculateP2PFileId("1234hash", data_.length());
+  ASSERT_TRUE(p2p_manager_->FileShare(file_id, data_.length()));
+  string existing_data;
+  for (unsigned int i = 0; i < 1000; i++)
+    existing_data += '0' + (i % 10);
+  ASSERT_EQ(WriteFile(p2p_manager_->FileGetPath(file_id), existing_data.c_str(),
+                      1000), 1000);
+
+  StartDownload(true); // use_p2p_to_share
+
+  // DownloadAction should convey the same file_id and the file should
+  // have the expected size.
+  EXPECT_EQ(download_action_->p2p_file_id(), file_id);
+  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), data_.length());
+  EXPECT_EQ(p2p_manager_->FileGetExpectedSize(file_id), data_.length());
+  string p2p_file_contents;
+  // Check that the first 1000 bytes wasn't touched and that we
+  // appended the remaining as appropriate.
+  EXPECT_TRUE(ReadFileToString(p2p_manager_->FileGetPath(file_id),
+                               &p2p_file_contents));
+  EXPECT_EQ(existing_data, p2p_file_contents.substr(0, 1000));
+  EXPECT_EQ(data_.substr(1000), p2p_file_contents.substr(1000));
+}
+
+
+TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
+  SetupDownload(1000); // starting_offset
+
+  // Prepare the file with all existing data before starting to write
+  // to it via DownloadAction.
+  string file_id = utils::CalculateP2PFileId("1234hash", data_.length());
+  ASSERT_TRUE(p2p_manager_->FileShare(file_id, data_.length()));
+  string existing_data;
+  for (unsigned int i = 0; i < 1000; i++)
+    existing_data += '0' + (i % 10);
+  ASSERT_EQ(WriteFile(p2p_manager_->FileGetPath(file_id), existing_data.c_str(),
+                      1000), 1000);
+
+  // Check that the file is there.
+  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), 1000);
+  EXPECT_EQ(p2p_manager_->CountSharedFiles(), 1);
+
+  StartDownload(false); // use_p2p_to_share
+
+  // DownloadAction should have deleted the p2p file. Check that it's gone.
+  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), -1);
+  EXPECT_EQ(p2p_manager_->CountSharedFiles(), 0);
 }
 
 }  // namespace chromeos_update_engine

@@ -26,6 +26,10 @@ extern const char kPrefsDirectory[];
 // Path to the stateful partition on the root filesystem.
 extern const char kStatefulPartition[];
 
+// Path to the marker file to allow p2p on interactive update attempts.
+// See utils::IsP2PAllowedForInteractiveChecks().
+extern const char kP2PAllowInteractiveMarkerFile[];
+
 // Constants related to preferences.
 extern const char kPrefsBackoffExpiryTime[];
 extern const char kPrefsCertificateReportToSendDownload[];
@@ -92,12 +96,16 @@ typedef enum {
   kNumPayloadTypes
 } PayloadType;
 
-// Maximum number of attempts using p2p.
+// Maximum number of times we'll allow using p2p for the same update payload.
 const int kMaxP2PAttempts = 10;
 
-// Maximum wallclock time we allow attempting to update using p2p -
-// two days.
-const int kMaxP2PAttemptTimeSeconds = 2*24*60*60;
+// Maximum wallclock time we allow attempting to update using p2p for
+// the same update payload - two days.
+const int kMaxP2PAttemptTimeSeconds = 2 * 24 * 60 * 60;
+
+// The maximum amount of time to spend waiting for p2p-client(1) to
+// return while waiting in line to use the LAN - six hours.
+const int kMaxP2PNetworkWaitTimeSeconds = 6 * 60 * 60;
 
 // The maximum number of payload files to keep in /var/cache/p2p.
 const int kMaxP2PFilesToKeep = 3;

@@ -58,8 +58,10 @@ OmahaRequestParams kDefaultTestParams(
     false,  // delta okay
     false,  // interactive
     "http://url",
-    false, // update_disabled
-    ""); // target_version_prefix);
+    false,  // update_disabled
+    "",     // target_version_prefix
+    false,  // use_p2p_for_downloading
+    false); // use_p2p_for_sharing
 
 string GetNoUpdateResponse(const string& app_id) {
   return string(
@@ -79,7 +81,9 @@ string GetUpdateResponse2(const string& app_id,
                           const string& needsadmin,
                           const string& size,
                           const string& deadline,
-                          const string& max_days_to_scatter) {
+                          const string& max_days_to_scatter,
+                          bool disable_p2p_for_downloading,
+                          bool disable_p2p_for_sharing) {
   string response =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
       "protocol=\"3.0\">"
@@ -99,6 +103,9 @@ string GetUpdateResponse2(const string& app_id,
       "sha256=\"" + hash + "\" "
       "needsadmin=\"" + needsadmin + "\" " +
       (deadline.empty() ? "" : ("deadline=\"" + deadline + "\" ")) +
+      (disable_p2p_for_downloading ?
+          "DisableP2PForDownloading=\"true\" " : "") +
+      (disable_p2p_for_sharing ? "DisableP2PForSharing=\"true\" " : "") +
       "/></actions></manifest></updatecheck></app></response>";
   LOG(INFO) << "Response = " << response;
   return response;
@@ -124,7 +131,9 @@ string GetUpdateResponse(const string& app_id,
                             needsadmin,
                             size,
                             deadline,
-                            "7");
+                            "7",
+                            false,  // disable_p2p_for_downloading
+                            false); // disable_p2p_for sharing
 }
 
 class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
@@ -196,12 +205,16 @@ class OutputObjectCollectorAction : public Action<OutputObjectCollectorAction> {
 
 // Returns true iff an output response was obtained from the
 // OmahaRequestAction. |prefs| may be NULL, in which case a local PrefsMock is
-// used. out_response may be NULL. If |fail_http_response_code| is non-negative,
+// used. |payload_state| may be NULL, in which case a local mock is used.
+// |p2p_manager| may be NULL, in which case a local mock is used.
+// out_response may be NULL. If |fail_http_response_code| is non-negative,
 // the transfer will fail with that code. |ping_only| is passed through to the
 // OmahaRequestAction constructor. out_post_data may be null; if non-null, the
 // post-data received by the mock HttpFetcher is returned.
 bool TestUpdateCheck(PrefsInterface* prefs,
-                     OmahaRequestParams params,
+                     PayloadStateInterface *payload_state,
+                     P2PManager *p2p_manager,
+                     OmahaRequestParams& params,
                      const string& http_response,
                      int fail_http_response_code,
                      bool ping_only,
@@ -218,6 +231,10 @@ bool TestUpdateCheck(PrefsInterface* prefs,
   MockSystemState mock_system_state;
   if (prefs)
     mock_system_state.set_prefs(prefs);
+  if (payload_state)
+    mock_system_state.set_payload_state(payload_state);
+  if (p2p_manager)
+    mock_system_state.set_p2p_manager(p2p_manager);
   mock_system_state.set_request_params(&params);
   OmahaRequestAction action(&mock_system_state,
                             NULL,
@@ -276,6 +293,8 @@ TEST(OmahaRequestActionTest, NoUpdateTest) {
   OmahaResponse response;
   ASSERT_TRUE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -290,6 +309,8 @@ TEST(OmahaRequestActionTest, ValidUpdateTest) {
   OmahaResponse response;
   ASSERT_TRUE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
@@ -323,6 +344,8 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByPolicyTest) {
   params.set_update_disabled(true);
   ASSERT_FALSE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       params,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
@@ -348,6 +371,8 @@ TEST(OmahaRequestActionTest, NoUpdatesSentWhenBlockedByPolicyTest) {
   params.set_update_disabled(true);
   ASSERT_TRUE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       params,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -376,6 +401,8 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
 
   ASSERT_FALSE(
       TestUpdateCheck(&prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -387,7 +414,9 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaUpdateDeferredPerPolicy,
@@ -399,6 +428,8 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -410,7 +441,9 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
@@ -440,6 +473,8 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
 
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -451,7 +486,9 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
@@ -481,6 +518,8 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
 
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -492,7 +531,9 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "0"), // max days to scatter
+                                         "0", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
@@ -523,6 +564,8 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
 
   ASSERT_TRUE(TestUpdateCheck(
                       &prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -534,7 +577,9 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
@@ -568,6 +613,8 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
 
   ASSERT_FALSE(TestUpdateCheck(
                       &prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -579,7 +626,9 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaUpdateDeferredPerPolicy,
@@ -595,6 +644,8 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -606,7 +657,9 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
@@ -638,6 +691,8 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
 
   ASSERT_FALSE(TestUpdateCheck(
                       &prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -649,7 +704,9 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaUpdateDeferredPerPolicy,
@@ -667,6 +724,8 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -678,7 +737,9 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
@@ -716,6 +777,8 @@ TEST(OmahaRequestActionTest, InvalidXmlTest) {
   OmahaResponse response;
   ASSERT_FALSE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       "invalid xml>",
                       -1,
@@ -730,6 +793,8 @@ TEST(OmahaRequestActionTest, EmptyResponseTest) {
   OmahaResponse response;
   ASSERT_FALSE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       "",
                       -1,
@@ -744,6 +809,8 @@ TEST(OmahaRequestActionTest, MissingStatusTest) {
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck(
       NULL,  // prefs
+      NULL,  // payload_state
+      NULL,  // p2p_manager
       kDefaultTestParams,
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
@@ -762,6 +829,8 @@ TEST(OmahaRequestActionTest, InvalidStatusTest) {
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck(
       NULL,  // prefs
+      NULL,  // payload_state
+      NULL,  // p2p_manager
       kDefaultTestParams,
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
@@ -780,6 +849,8 @@ TEST(OmahaRequestActionTest, MissingNodesetTest) {
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck(
       NULL,  // prefs
+      NULL,  // payload_state
+      NULL,  // p2p_manager
       kDefaultTestParams,
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
@@ -816,6 +887,8 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
 
   OmahaResponse response;
   ASSERT_TRUE(TestUpdateCheck(NULL,  // prefs
+                              NULL,  // payload_state
+                              NULL,  // p2p_manager
                               kDefaultTestParams,
                               input_response,
                               -1,
@@ -901,11 +974,15 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
                             false,  // delta okay
                             false,  // interactive
                             "http://url",
-                            false,   // update_disabled
-                            "");  // target_version_prefix
+                            false,  // update_disabled
+                            "",     // target_version_prefix
+                            false,  // use_p2p_for_downloading
+                            false); // use_p2p_for_sharing
   OmahaResponse response;
   ASSERT_FALSE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       params,
                       "invalid xml>",
                       -1,
@@ -929,6 +1006,8 @@ TEST(OmahaRequestActionTest, XmlDecodeTest) {
   OmahaResponse response;
   ASSERT_TRUE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
@@ -955,6 +1034,8 @@ TEST(OmahaRequestActionTest, ParseIntTest) {
   OmahaResponse response;
   ASSERT_TRUE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
@@ -983,6 +1064,8 @@ TEST(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
       .WillOnce(DoAll(SetArgumentPointee<1>(string("")), Return(true)));
   EXPECT_CALL(prefs, SetString(kPrefsPreviousVersion, _)).Times(1);
   ASSERT_FALSE(TestUpdateCheck(&prefs,
+                               NULL,  // payload_state
+                               NULL,  // p2p_manager
                                kDefaultTestParams,
                                "invalid xml>",
                                -1,
@@ -1014,6 +1097,8 @@ TEST(OmahaRequestActionTest, FormatUpdateDisabledOutputTest) {
   OmahaRequestParams params = kDefaultTestParams;
   params.set_update_disabled(true);
   ASSERT_FALSE(TestUpdateCheck(&prefs,
+                               NULL,  // payload_state
+                               NULL,  // p2p_manager
                                params,
                                "invalid xml>",
                                -1,
@@ -1119,9 +1204,13 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                               delta_okay,
                               false,  // interactive
                               "http://url",
-                              false, // update_disabled
-                              "");   // target_version_prefix
+                              false,  // update_disabled
+                              "",     // target_version_prefix
+                              false,  // use_p2p_for_downloading
+                              false); // use_p2p_for_sharing
     ASSERT_FALSE(TestUpdateCheck(NULL,  // prefs
+                                 NULL,  // payload_state
+                                 NULL,  // p2p_manager
                                  params,
                                  "invalid xml>",
                                  -1,
@@ -1155,12 +1244,16 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                               "OEM MODEL REV 1234",
                               "ChromeOSFirmware.1.0",
                               "EC100",
-                              true,  // delta_okay
+                              true,   // delta_okay
                               interactive,
                               "http://url",
-                              false, // update_disabled
-                              "");   // target_version_prefix
+                              false,  // update_disabled
+                              "",     // target_version_prefix
+                              false,  // use_p2p_for_downloading
+                              false); // use_p2p_for_sharing
     ASSERT_FALSE(TestUpdateCheck(NULL,  // prefs
+                                 NULL,  // payload_state
+                                 NULL,  // p2p_manager
                                  params,
                                  "invalid xml>",
                                  -1,
@@ -1211,6 +1304,8 @@ TEST(OmahaRequestActionTest, PingTest) {
     vector<char> post_data;
     ASSERT_TRUE(
         TestUpdateCheck(&prefs,
+                        NULL,  // payload_state
+                        NULL,  // p2p_manager
                         kDefaultTestParams,
                         GetNoUpdateResponse(OmahaRequestParams::kAppId),
                         -1,
@@ -1243,6 +1338,8 @@ TEST(OmahaRequestActionTest, ActivePingTest) {
   vector<char> post_data;
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -1267,6 +1364,8 @@ TEST(OmahaRequestActionTest, RollCallPingTest) {
   vector<char> post_data;
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -1292,6 +1391,8 @@ TEST(OmahaRequestActionTest, NoPingTest) {
   vector<char> post_data;
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -1316,6 +1417,8 @@ TEST(OmahaRequestActionTest, IgnoreEmptyPingTest) {
   vector<char> post_data;
   EXPECT_TRUE(
       TestUpdateCheck(&prefs,
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -1341,6 +1444,8 @@ TEST(OmahaRequestActionTest, BackInTimePingTest) {
   vector<char> post_data;
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"100\"/>"
@@ -1373,6 +1478,8 @@ TEST(OmahaRequestActionTest, LastPingDayUpdateTest) {
       .WillOnce(Return(true));
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"200\"/>"
@@ -1391,6 +1498,8 @@ TEST(OmahaRequestActionTest, NoElapsedSecondsTest) {
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart blah=\"200\"/>"
@@ -1409,6 +1518,8 @@ TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"x\"/>"
@@ -1424,6 +1535,8 @@ TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
 TEST(OmahaRequestActionTest, NoUniqueIDTest) {
   vector<char> post_data;
   ASSERT_FALSE(TestUpdateCheck(NULL,  // prefs
+                               NULL,  // payload_state
+                               NULL,  // p2p_manager
                                kDefaultTestParams,
                                "invalid xml>",
                                -1,
@@ -1441,6 +1554,8 @@ TEST(OmahaRequestActionTest, NetworkFailureTest) {
   OmahaResponse response;
   ASSERT_FALSE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       "",
                       501,
@@ -1456,6 +1571,8 @@ TEST(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
   OmahaResponse response;
   ASSERT_FALSE(
       TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
                       kDefaultTestParams,
                       "",
                       1500,
@@ -1485,6 +1602,8 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
 
   ASSERT_FALSE(TestUpdateCheck(
                       &prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -1496,7 +1615,9 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaUpdateDeferredPerPolicy,
@@ -1512,6 +1633,8 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -1523,7 +1646,9 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
@@ -1555,6 +1680,8 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   ASSERT_TRUE(prefs.SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
   ASSERT_TRUE(TestUpdateCheck(
                       &prefs,  // prefs
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
                       params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -1566,7 +1693,9 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7"), // max days to scatter
+                                         "7", // max days to scatter
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
@@ -1610,6 +1739,8 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   EXPECT_TRUE(params.to_more_stable_channel());
   EXPECT_TRUE(params.is_powerwash_allowed());
   ASSERT_FALSE(TestUpdateCheck(&prefs,
+                               NULL,    // payload_state
+                               NULL,    // p2p_manager
                                params,
                                "invalid xml>",
                                -1,
@@ -1655,6 +1786,8 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   EXPECT_FALSE(params.to_more_stable_channel());
   EXPECT_FALSE(params.is_powerwash_allowed());
   ASSERT_FALSE(TestUpdateCheck(&prefs,
+                               NULL,    // payload_state
+                               NULL,    // p2p_manager
                                params,
                                "invalid xml>",
                                -1,
@@ -1671,6 +1804,147 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   EXPECT_EQ(string::npos, post_str.find( "from_version"));
 
   ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
+}
+
+void P2PTest(bool initial_allow_p2p_for_downloading,
+             bool initial_allow_p2p_for_sharing,
+             bool omaha_disable_p2p_for_downloading,
+             bool omaha_disable_p2p_for_sharing,
+             bool payload_state_allow_p2p_attempt,
+             bool expect_p2p_client_lookup,
+             const string& p2p_client_result_url,
+             bool expected_allow_p2p_for_downloading,
+             bool expected_allow_p2p_for_sharing,
+             const string& expected_p2p_url) {
+  OmahaResponse response;
+  OmahaRequestParams request_params = kDefaultTestParams;
+  request_params.set_use_p2p_for_downloading(initial_allow_p2p_for_downloading);
+  request_params.set_use_p2p_for_sharing(initial_allow_p2p_for_sharing);
+
+  MockPayloadState mock_payload_state;
+  EXPECT_CALL(mock_payload_state, P2PAttemptAllowed())
+      .WillRepeatedly(Return(payload_state_allow_p2p_attempt));
+  MockP2PManager mock_p2p_manager;
+  mock_p2p_manager.fake().SetLookupUrlForFileResult(p2p_client_result_url);
+
+  EXPECT_CALL(mock_p2p_manager, LookupUrlForFile(_, _, _, _))
+      .Times(expect_p2p_client_lookup ? 1 : 0);
+
+  ASSERT_TRUE(
+      TestUpdateCheck(NULL,  // prefs
+                      &mock_payload_state,
+                      &mock_p2p_manager,
+                      request_params,
+                      GetUpdateResponse2(OmahaRequestParams::kAppId,
+                                         "1.2.3.4",  // version
+                                         "http://more/info",
+                                         "true",  // prompt
+                                         "http://code/base/",  // dl url
+                                         "file.signed", // file name
+                                         "HASH1234=",  // checksum
+                                         "false",  // needs admin
+                                         "123",  // size
+                                         "",  // deadline
+                                         "7", // max days to scatter
+                                         omaha_disable_p2p_for_downloading,
+                                         omaha_disable_p2p_for_sharing),
+                      -1,
+                      false,  // ping_only
+                      kErrorCodeSuccess,
+                      &response,
+                      NULL));
+  EXPECT_TRUE(response.update_exists);
+
+  EXPECT_EQ(response.disable_p2p_for_downloading,
+            omaha_disable_p2p_for_downloading);
+  EXPECT_EQ(response.disable_p2p_for_sharing,
+            omaha_disable_p2p_for_sharing);
+
+  EXPECT_EQ(request_params.use_p2p_for_downloading(),
+            expected_allow_p2p_for_downloading);
+
+  EXPECT_EQ(request_params.use_p2p_for_sharing(),
+            expected_allow_p2p_for_sharing);
+
+  EXPECT_EQ(request_params.p2p_url(), expected_p2p_url);
+}
+
+TEST(OmahaRequestActionTest, P2PWithPeer) {
+  P2PTest(true,                  // initial_allow_p2p_for_downloading
+          true,                  // initial_allow_p2p_for_sharing
+          false,                 // omaha_disable_p2p_for_downloading
+          false,                 // omaha_disable_p2p_for_sharing
+          true,                  // payload_state_allow_p2p_attempt
+          true,                  // expect_p2p_client_lookup
+          "http://1.3.5.7/p2p",  // p2p_client_result_url
+          true,                  // expected_allow_p2p_for_downloading
+          true,                  // expected_allow_p2p_for_sharing
+          "http://1.3.5.7/p2p"); // expected_p2p_url
+}
+
+TEST(OmahaRequestActionTest, P2PWithoutPeer) {
+  P2PTest(true,                  // initial_allow_p2p_for_downloading
+          true,                  // initial_allow_p2p_for_sharing
+          false,                 // omaha_disable_p2p_for_downloading
+          false,                 // omaha_disable_p2p_for_sharing
+          true,                  // payload_state_allow_p2p_attempt
+          true,                  // expect_p2p_client_lookup
+          "",                    // p2p_client_result_url
+          false,                 // expected_allow_p2p_for_downloading
+          true,                  // expected_allow_p2p_for_sharing
+          "");                   // expected_p2p_url
+}
+
+TEST(OmahaRequestActionTest, P2PDownloadNotAllowed) {
+  P2PTest(false,                 // initial_allow_p2p_for_downloading
+          true,                  // initial_allow_p2p_for_sharing
+          false,                 // omaha_disable_p2p_for_downloading
+          false,                 // omaha_disable_p2p_for_sharing
+          true,                  // payload_state_allow_p2p_attempt
+          false,                 // expect_p2p_client_lookup
+          "unset",               // p2p_client_result_url
+          false,                 // expected_allow_p2p_for_downloading
+          true,                  // expected_allow_p2p_for_sharing
+          "");                   // expected_p2p_url
+}
+
+TEST(OmahaRequestActionTest, P2PWithPeerDownloadDisabledByOmaha) {
+  P2PTest(true,                  // initial_allow_p2p_for_downloading
+          true,                  // initial_allow_p2p_for_sharing
+          true,                  // omaha_disable_p2p_for_downloading
+          false,                 // omaha_disable_p2p_for_sharing
+          true,                  // payload_state_allow_p2p_attempt
+          false,                 // expect_p2p_client_lookup
+          "unset",               // p2p_client_result_url
+          false,                 // expected_allow_p2p_for_downloading
+          true,                  // expected_allow_p2p_for_sharing
+          "");                   // expected_p2p_url
+}
+
+TEST(OmahaRequestActionTest, P2PWithPeerSharingDisabledByOmaha) {
+  P2PTest(true,                  // initial_allow_p2p_for_downloading
+          true,                  // initial_allow_p2p_for_sharing
+          false,                 // omaha_disable_p2p_for_downloading
+          true,                  // omaha_disable_p2p_for_sharing
+          true,                  // payload_state_allow_p2p_attempt
+          true,                  // expect_p2p_client_lookup
+          "http://1.3.5.7/p2p",  // p2p_client_result_url
+          true,                  // expected_allow_p2p_for_downloading
+          false,                 // expected_allow_p2p_for_sharing
+          "http://1.3.5.7/p2p"); // expected_p2p_url
+}
+
+TEST(OmahaRequestActionTest, P2PWithPeerBothDisabledByOmaha) {
+  P2PTest(true,                  // initial_allow_p2p_for_downloading
+          true,                  // initial_allow_p2p_for_sharing
+          true,                  // omaha_disable_p2p_for_downloading
+          true,                  // omaha_disable_p2p_for_sharing
+          true,                  // payload_state_allow_p2p_attempt
+          false,                 // expect_p2p_client_lookup
+          "unset",               // p2p_client_result_url
+          false,                 // expected_allow_p2p_for_downloading
+          false,                 // expected_allow_p2p_for_sharing
+          "");                   // expected_p2p_url
 }
 
 }  // namespace chromeos_update_engine

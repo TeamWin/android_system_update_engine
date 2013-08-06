@@ -488,6 +488,10 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
   return true;
 }
 
+bool DeltaPerformer::IsManifestValid() {
+  return manifest_valid_;
+}
+
 bool DeltaPerformer::CanPerformInstallOperation(
     const chromeos_update_engine::DeltaArchiveManifest_InstallOperation&
     operation) {

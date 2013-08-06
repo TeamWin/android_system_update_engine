@@ -362,4 +362,29 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
 }
 
+TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "a.b.c.d";
+  in.payload_urls.push_back("https://would.not/cause/hash/checks");
+  in.more_info_url = "http://more/info";
+  in.hash = "HASHj+";
+  in.size = 12;
+
+  MockSystemState mock_system_state;
+  OmahaRequestParams params(&mock_system_state);
+  mock_system_state.set_request_params(&params);
+
+  string p2p_url = "http://9.8.7.6/p2p";
+  params.set_p2p_url(p2p_url);
+  params.set_use_p2p_for_downloading(true);
+
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", "",
+                           &install_plan));
+  EXPECT_EQ(in.hash, install_plan.payload_hash);
+  EXPECT_EQ(install_plan.download_url, p2p_url);
+  EXPECT_TRUE(install_plan.hash_checks_mandatory);
+}
+
 }  // namespace chromeos_update_engine

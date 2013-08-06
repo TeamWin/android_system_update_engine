@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 
+#include <base/bind.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
 #include <base/string_number_conversions.h>
@@ -20,7 +21,9 @@
 
 #include "update_engine/action_pipe.h"
 #include "update_engine/constants.h"
+#include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/prefs_interface.h"
 #include "update_engine/utils.h"
@@ -47,6 +50,8 @@ static const char* kTagMoreInfo = "MoreInfo";
 // Deprecated: "NeedsAdmin"
 static const char* kTagPrompt = "Prompt";
 static const char* kTagSha256 = "sha256";
+static const char* kTagDisableP2PForDownloading = "DisableP2PForDownloading";
+static const char* kTagDisableP2PForSharing = "DisableP2PForSharing";
 
 namespace {
 
@@ -490,10 +495,6 @@ bool OmahaRequestAction::ParseResponse(xmlDoc* doc,
   if (!ParseParams(doc, output_object, completer))
     return false;
 
-  output_object->update_exists = true;
-  SetOutputObject(*output_object);
-  completer->set_code(kErrorCodeSuccess);
-
   return true;
 }
 
@@ -693,6 +694,10 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
   output_object->deadline = XmlGetProperty(pie_action_node, kTagDeadline);
   output_object->max_days_to_scatter =
       ParseInt(XmlGetProperty(pie_action_node, kTagMaxDaysToScatter));
+  output_object->disable_p2p_for_downloading =
+      (XmlGetProperty(pie_action_node, kTagDisableP2PForDownloading) == "true");
+  output_object->disable_p2p_for_sharing =
+      (XmlGetProperty(pie_action_node, kTagDisableP2PForSharing) == "true");
 
   string max = XmlGetProperty(pie_action_node, kTagMaxFailureCountPerUrl);
   if (!base::StringToUint(max, &output_object->max_failure_count_per_url))
@@ -771,6 +776,8 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   OmahaResponse output_object;
   if (!ParseResponse(doc.get(), &output_object, &completer))
     return;
+  output_object.update_exists = true;
+  SetOutputObject(output_object);
 
   if (params_->update_disabled()) {
     LOG(INFO) << "Ignoring Omaha updates as updates are disabled by policy.";
@@ -786,11 +793,16 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
     return;
   }
 
-  if (ShouldDeferDownload(&output_object)) {
-    output_object.update_exists = false;
-    LOG(INFO) << "Ignoring Omaha updates as updates are deferred by policy.";
-    completer.set_code(kErrorCodeOmahaUpdateDeferredPerPolicy);
-    return;
+  // If Omaha says to disable p2p, respect that
+  if (output_object.disable_p2p_for_downloading) {
+    LOG(INFO) << "Forcibly disabling use of p2p for downloading as "
+              << "requested by Omaha.";
+    params_->set_use_p2p_for_downloading(false);
+  }
+  if (output_object.disable_p2p_for_sharing) {
+    LOG(INFO) << "Forcibly disabling use of p2p for sharing as "
+              << "requested by Omaha.";
+    params_->set_use_p2p_for_sharing(false);
   }
 
   // Update the payload state with the current response. The payload state
@@ -802,18 +814,115 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   PayloadStateInterface* payload_state = system_state_->payload_state();
   payload_state->SetResponse(output_object);
 
-  if (payload_state->ShouldBackoffDownload()) {
+  // It could be we've already exceeded the deadline for when p2p is
+  // allowed or that we've tried too many times with p2p. Check that.
+  if (params_->use_p2p_for_downloading()) {
+    payload_state->P2PNewAttempt();
+    if (!payload_state->P2PAttemptAllowed()) {
+      LOG(INFO) << "Forcibly disabling use of p2p for downloading because "
+                << "of previous failures when using p2p.";
+      params_->set_use_p2p_for_downloading(false);
+    }
+  }
+
+  // From here on, we'll complete stuff in CompleteProcessing() so
+  // disable |completer| since we'll create a new one in that
+  // function.
+  completer.set_should_complete(false);
+
+  // If we're allowed to use p2p for downloading we do not pay
+  // attention to wall-clock-based waiting if the URL is indeed
+  // available via p2p. Therefore, check if the file is available via
+  // p2p before deferring...
+  if (params_->use_p2p_for_downloading()) {
+    LookupPayloadViaP2P(output_object);
+  } else {
+    CompleteProcessing();
+  }
+}
+
+void OmahaRequestAction::CompleteProcessing() {
+  ScopedActionCompleter completer(processor_, this);
+  OmahaResponse& output_object = const_cast<OmahaResponse&>(GetOutputObject());
+  PayloadStateInterface* payload_state = system_state_->payload_state();
+
+  if (ShouldDeferDownload(&output_object)) {
     output_object.update_exists = false;
-    LOG(INFO) << "Ignoring Omaha updates in order to backoff our retry "
-                 "attempts";
-    completer.set_code(kErrorCodeOmahaUpdateDeferredForBackoff);
+    LOG(INFO) << "Ignoring Omaha updates as updates are deferred by policy.";
+    completer.set_code(kErrorCodeOmahaUpdateDeferredPerPolicy);
     return;
+  }
+
+  // Only back off if we're not using p2p
+  if (params_->use_p2p_for_downloading() && !params_->p2p_url().empty()) {
+    LOG(INFO) << "Payload backoff logic is disabled because download "
+              << "will happen from local peer (via p2p).";
+  } else {
+    if (payload_state->ShouldBackoffDownload()) {
+      output_object.update_exists = false;
+      LOG(INFO) << "Ignoring Omaha updates in order to backoff our retry "
+                << "attempts";
+      completer.set_code(kErrorCodeOmahaUpdateDeferredForBackoff);
+      return;
+    }
+  }
+
+  completer.set_code(kErrorCodeSuccess);
+}
+
+void OmahaRequestAction::OnLookupPayloadViaP2PCompleted(const string& url) {
+  LOG(INFO) << "Lookup complete, p2p-client returned URL '" << url << "'";
+  if (!url.empty()) {
+    params_->set_p2p_url(url);
+  } else {
+    LOG(INFO) << "Forcibly disabling use of p2p for downloading "
+              << "because no suitable peer could be found.";
+    params_->set_use_p2p_for_downloading(false);
+  }
+  CompleteProcessing();
+}
+
+void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
+  // The kPrefsUpdateStateNextDataOffset state variable tracks the
+  // offset into the payload of the last completed operation if we're
+  // in the middle of an update. As such, p2p is only useful if the
+  // peer actually has that many bytes.
+  size_t minimum_size = 0;
+  int64_t next_data_offset = -1;
+  if (system_state_ != NULL &&
+      system_state_->prefs()->GetInt64(kPrefsUpdateStateNextDataOffset,
+                                       &next_data_offset)) {
+    if (next_data_offset > 0) {
+      minimum_size = next_data_offset;
+    }
+  }
+
+  string file_id = utils::CalculateP2PFileId(response.hash, response.size);
+  if (system_state_->p2p_manager() != NULL) {
+    LOG(INFO) << "Checking if payload is available via p2p, file_id="
+              << file_id << " minimum_size=" << minimum_size;
+    system_state_->p2p_manager()->LookupUrlForFile(
+        file_id,
+        minimum_size,
+        TimeDelta::FromHours(kMaxP2PNetworkWaitTimeSeconds),
+        base::Bind(&OmahaRequestAction::OnLookupPayloadViaP2PCompleted,
+                   base::Unretained(this)));
   }
 }
 
 bool OmahaRequestAction::ShouldDeferDownload(OmahaResponse* output_object) {
   if (params_->interactive()) {
     LOG(INFO) << "Not deferring download because update is interactive.";
+    return false;
+  }
+
+  // If we're using p2p to download _and_ we have a p2p URL, we never
+  // defer the download. This is because the download will always
+  // happen from a peer on the LAN and we've been waiting in line for
+  // our turn.
+  if (params_->use_p2p_for_downloading() && !params_->p2p_url().empty()) {
+    LOG(INFO) << "Download not deferred because download "
+              << "will happen from a local peer (via p2p).";
     return false;
   }
 

@@ -305,6 +305,20 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Returns True if successfully decremented, false otherwise.
   bool DecrementUpdateCheckCount();
 
+  // Starts p2p and performs housekeeping. Returns true only if p2p is
+  // running and housekeeping was done.
+  bool StartP2PAndPerformHousekeeping();
+
+  // Calculates whether peer-to-peer should be used. Sets the
+  // |use_p2p_to_download_| and |use_p2p_to_share_| parameters
+  // on the |omaha_request_params_| object.
+  void CalculateP2PParams(bool interactive);
+
+  // Starts P2P if it's enabled and there are files to actually share.
+  // Called only at program startup. Returns true only if p2p was
+  // started and housekeeping was performed.
+  bool StartP2PAtStartup();
+
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is
   // set back in the middle of an update.

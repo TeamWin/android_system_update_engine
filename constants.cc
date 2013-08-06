@@ -20,6 +20,8 @@ const char kStatefulPartition[] = "/mnt/stateful_partition";
 
 const char kSystemRebootedMarkerFile[] = "/tmp/update_engine_update_recorded";
 
+const char kP2PAllowInteractiveMarkerFile[] =
+    "/mnt/stateful_partition/p2p-allow-interactive";
 
 // Constants defining keys for the persisted state of update engine.
 const char kPrefsBackoffExpiryTime[] = "backoff-expiry-time";

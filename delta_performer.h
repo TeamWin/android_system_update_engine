@@ -97,6 +97,9 @@ class DeltaPerformer : public FileWriter {
   // Closes both 'path' given to Open() and the kernel path.
   int Close();
 
+  // Returns |true| only if the manifest has been processed and it's valid.
+  bool IsManifestValid();
+
   // Verifies the downloaded payload against the signed hash included in the
   // payload, against the update check hash (which is in base64 format)  and
   // size using the public key and returns kErrorCodeSuccess on success, an

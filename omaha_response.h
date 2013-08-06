@@ -26,7 +26,9 @@ struct OmahaResponse {
         max_failure_count_per_url(0),
         prompt(false),
         is_delta_payload(false),
-        disable_payload_backoff(false) {}
+        disable_payload_backoff(false),
+        disable_p2p_for_downloading(false),
+        disable_p2p_for_sharing(false) {}
 
   // True iff there is an update to be downloaded.
   bool update_exists;
@@ -61,6 +63,12 @@ struct OmahaResponse {
   // True if the Omaha rule instructs us to disable the backoff logic
   // on the client altogether. False otherwise.
   bool disable_payload_backoff;
+
+  // True if the Omaha rule instructs us to disable p2p for downloading.
+  bool disable_p2p_for_downloading;
+
+  // True if the Omaha rule instructs us to disable p2p for sharing.
+  bool disable_p2p_for_sharing;
 };
 COMPILE_ASSERT(sizeof(off_t) == 8, off_t_not_64bit);
 

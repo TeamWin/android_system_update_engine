@@ -27,6 +27,7 @@
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
+#include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/postinstall_runner_action.h"
 #include "update_engine/prefs_interface.h"
@@ -218,6 +219,48 @@ void UpdateAttempter::RefreshDevicePolicy() {
   system_state_->set_device_policy(device_policy);
 }
 
+void UpdateAttempter::CalculateP2PParams(bool interactive) {
+  bool use_p2p_for_downloading = false;
+  bool use_p2p_for_sharing = false;
+
+  // Never use p2p for downloading in interactive checks unless the
+  // developer has opted in for it via a marker file.
+  //
+  // (Why would a developer want to opt in? If he's working on the
+  // update_engine or p2p codebases so he can actually test his
+  // code.).
+
+  if (system_state_ != NULL) {
+    if (!system_state_->p2p_manager()->IsP2PEnabled()) {
+      LOG(INFO) << "p2p is not enabled - disallowing p2p for both"
+                << " downloading and sharing.";
+    } else {
+      // Allow p2p for sharing, even in interactive checks.
+      use_p2p_for_sharing = true;
+      if (!interactive) {
+        LOG(INFO) << "Non-interactive check - allowing p2p for downloading";
+        use_p2p_for_downloading = true;
+      } else {
+        // TODO(zeuthen,chromium:273251): Remove this marker once we
+        // can easily trigger non-interactive checks.
+        if (utils::IsP2PAllowedForInteractiveChecks()) {
+          LOG(INFO) << "Found marker file at "
+                    << kP2PAllowInteractiveMarkerFile
+                    << " - allowing p2p for downloading despite the fact"
+                    << " the attempt is interactive.";
+          use_p2p_for_downloading = true;
+        } else {
+          LOG(INFO) << "Forcibly disabling use of p2p for downloading "
+                    << "since this update attempt is interactive.";
+        }
+      }
+    }
+  }
+
+  omaha_request_params_->set_use_p2p_for_downloading(use_p2p_for_downloading);
+  omaha_request_params_->set_use_p2p_for_sharing(use_p2p_for_sharing);
+}
+
 bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             const string& omaha_url,
                                             bool obey_proxies,
@@ -251,6 +294,19 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   }
 
   CalculateScatteringParams(interactive);
+
+  CalculateP2PParams(interactive);
+  if (omaha_request_params_->use_p2p_for_downloading() ||
+      omaha_request_params_->use_p2p_for_sharing()) {
+    // OK, p2p is to be used - start it and perform housekeeping.
+    if (!StartP2PAndPerformHousekeeping()) {
+      // If this fails, disable p2p for this attempt
+      LOG(INFO) << "Forcibly disabling use of p2p since starting p2p or "
+                << "performing housekeeping failed.";
+      omaha_request_params_->set_use_p2p_for_downloading(false);
+      omaha_request_params_->set_use_p2p_for_sharing(false);
+    }
+  }
 
   // Determine whether an alternative test address should be used.
   string omaha_url_to_use = omaha_url;
@@ -310,6 +366,11 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
             << omaha_request_params_->update_check_count_wait_enabled()
             << ", Waiting Period = " << utils::FormatSecs(
                omaha_request_params_->waiting_period().InSeconds());
+
+  LOG(INFO) << "Use p2p For Downloading = "
+            << omaha_request_params_->use_p2p_for_downloading()
+            << ", Use p2p For Sharing = "
+            << omaha_request_params_->use_p2p_for_sharing();
 
   obeying_proxies_ = true;
   if (obey_proxies || proxy_manual_checks_ == 0) {
@@ -1250,8 +1311,51 @@ bool UpdateAttempter::DecrementUpdateCheckCount() {
   return false;
 }
 
+
 void UpdateAttempter::UpdateEngineStarted() {
   system_state_->payload_state()->UpdateEngineStarted();
+  StartP2PAtStartup();
+}
+
+bool UpdateAttempter::StartP2PAtStartup() {
+  if (system_state_ == NULL ||
+      !system_state_->p2p_manager()->IsP2PEnabled()) {
+    LOG(INFO) << "Not starting p2p at startup since it's not enabled.";
+    return false;
+  }
+
+  if (system_state_->p2p_manager()->CountSharedFiles() < 1) {
+    LOG(INFO) << "Not starting p2p at startup since our application "
+              << "is not sharing any files.";
+    return false;
+  }
+
+  return StartP2PAndPerformHousekeeping();
+}
+
+bool UpdateAttempter::StartP2PAndPerformHousekeeping() {
+  if (system_state_ == NULL)
+    return false;
+
+  if (!system_state_->p2p_manager()->IsP2PEnabled()) {
+    LOG(INFO) << "Not starting p2p since it's not enabled.";
+    return false;
+  }
+
+  LOG(INFO) << "Ensuring that p2p is running.";
+  if (!system_state_->p2p_manager()->EnsureP2PRunning()) {
+    LOG(ERROR) << "Error starting p2p.";
+    return false;
+  }
+
+  LOG(INFO) << "Performing p2p housekeeping.";
+  if (!system_state_->p2p_manager()->PerformHousekeeping()) {
+    LOG(ERROR) << "Error performing housekeeping for p2p.";
+    return false;
+  }
+
+  LOG(INFO) << "Done performing p2p housekeeping.";
+  return true;
 }
 
 }  // namespace chromeos_update_engine

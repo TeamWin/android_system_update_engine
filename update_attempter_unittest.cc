@@ -13,6 +13,7 @@
 #include "update_engine/install_plan.h"
 #include "update_engine/mock_dbus_interface.h"
 #include "update_engine/mock_http_fetcher.h"
+#include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/mock_system_state.h"
 #include "update_engine/postinstall_runner_action.h"
@@ -124,6 +125,21 @@ class UpdateAttempterTest : public ::testing::Test {
   void NoScatteringDoneDuringManualUpdateTestStart();
   static gboolean StaticNoScatteringDoneDuringManualUpdateTestStart(
       gpointer data);
+
+  void P2PNotEnabledStart();
+  static gboolean StaticP2PNotEnabled(gpointer data);
+
+  void P2PEnabledStart();
+  static gboolean StaticP2PEnabled(gpointer data);
+
+  void P2PEnabledInteractiveStart();
+  static gboolean StaticP2PEnabledInteractive(gpointer data);
+
+  void P2PEnabledStartingFailsStart();
+  static gboolean StaticP2PEnabledStartingFails(gpointer data);
+
+  void P2PEnabledHousekeepingFailsStart();
+  static gboolean StaticP2PEnabledHousekeepingFails(gpointer data);
 
   NiceMock<MockSystemState> mock_system_state_;
   NiceMock<MockDbusGlib> dbus_;
@@ -670,6 +686,167 @@ void UpdateAttempterTest::ReadUpdateDisabledFromPolicyTestStart() {
   attempter_.Update("", "", false, false, false);
   EXPECT_TRUE(attempter_.omaha_request_params_->update_disabled());
 
+  g_idle_add(&StaticQuitMainLoop, this);
+}
+
+TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenNotEnabled) {
+  MockP2PManager mock_p2p_manager;
+  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  mock_p2p_manager.fake().SetP2PEnabled(false);
+  EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning()).Times(0);
+  attempter_.UpdateEngineStarted();
+}
+
+TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenEnabledButNotSharing) {
+  MockP2PManager mock_p2p_manager;
+  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  mock_p2p_manager.fake().SetP2PEnabled(true);
+  EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning()).Times(0);
+  attempter_.UpdateEngineStarted();
+}
+
+TEST_F(UpdateAttempterTest, P2PStartedAtStartupWhenEnabledAndSharing) {
+  MockP2PManager mock_p2p_manager;
+  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  mock_p2p_manager.fake().SetP2PEnabled(true);
+  mock_p2p_manager.fake().SetCountSharedFilesResult(1);
+  EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning()).Times(1);
+  attempter_.UpdateEngineStarted();
+}
+
+TEST_F(UpdateAttempterTest, P2PNotEnabled) {
+  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+  g_idle_add(&StaticP2PNotEnabled, this);
+  g_main_loop_run(loop_);
+  g_main_loop_unref(loop_);
+  loop_ = NULL;
+}
+gboolean UpdateAttempterTest::StaticP2PNotEnabled(gpointer data) {
+  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
+  ua_test->P2PNotEnabledStart();
+  return FALSE;
+}
+void UpdateAttempterTest::P2PNotEnabledStart() {
+  // If P2P is not enabled, check that we do not attempt housekeeping
+  // and do not convey that p2p is to be used.
+  MockP2PManager mock_p2p_manager;
+  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  mock_p2p_manager.fake().SetP2PEnabled(false);
+  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
+  attempter_.Update("", "", false, false, false);
+  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
+  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
+  g_idle_add(&StaticQuitMainLoop, this);
+}
+
+TEST_F(UpdateAttempterTest, P2PEnabledStartingFails) {
+  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+  g_idle_add(&StaticP2PEnabledStartingFails, this);
+  g_main_loop_run(loop_);
+  g_main_loop_unref(loop_);
+  loop_ = NULL;
+}
+gboolean UpdateAttempterTest::StaticP2PEnabledStartingFails(
+    gpointer data) {
+  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
+  ua_test->P2PEnabledStartingFailsStart();
+  return FALSE;
+}
+void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
+  // If p2p is enabled, but starting it fails ensure we don't do
+  // any housekeeping and do not convey that p2p should be used.
+  MockP2PManager mock_p2p_manager;
+  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  mock_p2p_manager.fake().SetP2PEnabled(true);
+  mock_p2p_manager.fake().SetEnsureP2PRunningResult(false);
+  mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
+  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
+  attempter_.Update("", "", false, false, false);
+  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
+  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
+  g_idle_add(&StaticQuitMainLoop, this);
+}
+
+TEST_F(UpdateAttempterTest, P2PEnabledHousekeepingFails) {
+  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+  g_idle_add(&StaticP2PEnabledHousekeepingFails, this);
+  g_main_loop_run(loop_);
+  g_main_loop_unref(loop_);
+  loop_ = NULL;
+}
+gboolean UpdateAttempterTest::StaticP2PEnabledHousekeepingFails(
+    gpointer data) {
+  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
+  ua_test->P2PEnabledHousekeepingFailsStart();
+  return FALSE;
+}
+void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
+  // If p2p is enabled, starting it works but housekeeping fails, ensure
+  // we do not convey p2p is to be used.
+  MockP2PManager mock_p2p_manager;
+  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  mock_p2p_manager.fake().SetP2PEnabled(true);
+  mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
+  mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
+  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
+  attempter_.Update("", "", false, false, false);
+  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
+  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
+  g_idle_add(&StaticQuitMainLoop, this);
+}
+
+TEST_F(UpdateAttempterTest, P2PEnabled) {
+  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+  g_idle_add(&StaticP2PEnabled, this);
+  g_main_loop_run(loop_);
+  g_main_loop_unref(loop_);
+  loop_ = NULL;
+}
+gboolean UpdateAttempterTest::StaticP2PEnabled(gpointer data) {
+  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
+  ua_test->P2PEnabledStart();
+  return FALSE;
+}
+void UpdateAttempterTest::P2PEnabledStart() {
+  MockP2PManager mock_p2p_manager;
+  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  // If P2P is enabled and starting it works, check that we performed
+  // housekeeping and that we convey p2p should be used.
+  mock_p2p_manager.fake().SetP2PEnabled(true);
+  mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
+  mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
+  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
+  attempter_.Update("", "", false, false, false);
+  EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_downloading());
+  EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_sharing());
+  g_idle_add(&StaticQuitMainLoop, this);
+}
+
+TEST_F(UpdateAttempterTest, P2PEnabledInteractive) {
+  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+  g_idle_add(&StaticP2PEnabledInteractive, this);
+  g_main_loop_run(loop_);
+  g_main_loop_unref(loop_);
+  loop_ = NULL;
+}
+gboolean UpdateAttempterTest::StaticP2PEnabledInteractive(gpointer data) {
+  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
+  ua_test->P2PEnabledInteractiveStart();
+  return FALSE;
+}
+void UpdateAttempterTest::P2PEnabledInteractiveStart() {
+  MockP2PManager mock_p2p_manager;
+  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  // For an interactive check, if P2P is enabled and starting it
+  // works, check that we performed housekeeping and that we convey
+  // p2p should be used for sharing but NOT for downloading.
+  mock_p2p_manager.fake().SetP2PEnabled(true);
+  mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
+  mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
+  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
+  attempter_.Update("", "", false, true /* interactive */, false);
+  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
+  EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
 }
 

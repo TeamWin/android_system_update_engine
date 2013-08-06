@@ -69,6 +69,16 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.download_url = current_url;
   install_plan_.version = response.version;
 
+  OmahaRequestParams* params = system_state_->request_params();
+
+  // If we're using p2p to download and there is a local peer, use it.
+  if (params->use_p2p_for_downloading() && !params->p2p_url().empty()) {
+    LOG(INFO) << "Replacing URL " << install_plan_.download_url
+              << " with local URL " << params->p2p_url()
+              << " since p2p is enabled.";
+    install_plan_.download_url = params->p2p_url();
+  }
+
   // Fill up the other properties based on the response.
   install_plan_.payload_size = response.size;
   install_plan_.payload_hash = response.hash;
@@ -98,7 +108,6 @@ void OmahaResponseHandlerAction::PerformAction() {
       system_state_->hardware()->KernelDeviceOfBootDevice(
           install_plan_.install_path);
 
-  OmahaRequestParams* params = system_state_->request_params();
   if (params->to_more_stable_channel() && params->is_powerwash_allowed())
     install_plan_.powerwash_required = true;
 
@@ -137,6 +146,13 @@ bool OmahaResponseHandlerAction::AreHashChecksMandatory(
   if (!utils::IsOfficialBuild()) {
     LOG(INFO) << "Waiving payload hash checks for unofficial builds";
     return false;
+  }
+
+  // If we're using p2p, |install_plan_.download_url| may contain a
+  // HTTP URL even if |response.payload_urls| contain only HTTPS URLs.
+  if (!StartsWithASCII(install_plan_.download_url, "https://", false)) {
+    LOG(INFO) << "Mandating hash checks since download_url is not HTTPS.";
+    return true;
   }
 
   // TODO(jaysri): VALIDATION: For official builds, we currently waive hash

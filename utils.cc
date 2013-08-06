@@ -1026,6 +1026,11 @@ bool GetInstallDev(const std::string& boot_dev, std::string* install_dev) {
   return true;
 }
 
+bool IsP2PAllowedForInteractiveChecks() {
+  struct stat statbuf;
+  return stat(kP2PAllowInteractiveMarkerFile, &statbuf) == 0;
+}
+
 Time TimeFromStructTimespec(struct timespec *ts) {
   int64 us = static_cast<int64>(ts->tv_sec) * Time::kMicrosecondsPerSecond +
       static_cast<int64>(ts->tv_nsec) / Time::kNanosecondsPerMicrosecond;
@@ -1054,6 +1059,16 @@ string StringVectorToString(const vector<string> &vector) {
   }
   str += "]";
   return str;
+}
+
+string CalculateP2PFileId(const string& payload_hash, size_t payload_size) {
+  string encoded_hash;
+  OmahaHashCalculator::Base64Encode(payload_hash.c_str(),
+                                    payload_hash.size(),
+                                    &encoded_hash);
+  return StringPrintf("cros_update_size_%zu_hash_%s",
+                      payload_size,
+                      encoded_hash.c_str());
 }
 
 }  // namespace utils

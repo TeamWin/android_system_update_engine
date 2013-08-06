@@ -35,6 +35,16 @@ bool IsOfficialBuild();
 // boot mode. Returns false if the boot mode is developer.
 bool IsNormalBootMode();
 
+// Returns true if and only if P2P is allowed for interactive update
+// checks. This is implemented by checking the existence of a marker
+// file that can be created by the following command
+//
+// # touch /mnt/stateful_partition/p2p-allow-interactive
+//
+// This function returns false if the required marker file does not
+// exist or if an error occurred.
+bool IsP2PAllowedForInteractiveChecks();
+
 // Converts a struct timespec representing a number of seconds since
 // the Unix epoch to a base::Time. Sub-microsecond time is rounded
 // down.
@@ -48,6 +58,10 @@ gchar** StringVectorToGStrv(const std::vector<std::string> &vector);
 // Formats |vector| as a string of the form ["<elem1>", "<elem2>"].
 // Does no escaping, only use this for presentation in error messages.
 std::string StringVectorToString(const std::vector<std::string> &vector);
+
+// Calculates the p2p file id from payload hash and size
+std::string CalculateP2PFileId(const std::string& payload_hash,
+                               size_t payload_size);
 
 // Returns the HWID or an empty string on error.
 std::string GetHardwareClass();
