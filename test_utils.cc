@@ -198,7 +198,7 @@ void CreateExtImageAtPath(const string& path, vector<string>* out_paths) {
   // create 10MiB sparse file, mounted at a unique location.
   string mount_path;
   CHECK(utils::MakeTempDirectory(kMountPathTemplate, &mount_path));
-  ScopedPathUnlinker mount_path_unlinker(mount_path);
+  ScopedDirRemover mount_path_unlinker(mount_path);
 
   EXPECT_EQ(0, System(StringPrintf("dd if=/dev/zero of=%s"
                                    " seek=10485759 bs=1 count=1",
