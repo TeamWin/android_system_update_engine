@@ -318,8 +318,16 @@ class PayloadState : public PayloadStateInterface {
   void LoadNumResponsesSeen();
 
   // Reports metric conveying how many times updates were abandoned
-  // before an update was applied.
+  // before an update was applied. This metric is reported when an update is
+  // successfully applied.
   void ReportUpdatesAbandonedCountMetric();
+
+  // Reports metric conveying how many times updates were abandoned since
+  // the last update was applied. The difference between this metric and the
+  // previous ReportUpdatesAbandonedCountMetric() one is that this metric is
+  // reported every time an update is abandoned, as oposed to the mentioned
+  // metric that is reported once the new update was applied.
+  void ReportUpdatesAbandonedEventCountMetric();
 
   // The global state of the system.
   SystemState* system_state_;

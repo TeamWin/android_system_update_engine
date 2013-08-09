@@ -92,6 +92,7 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
     SetNumResponsesSeen(num_responses_seen_ + 1);
     SetResponseSignature(new_response_signature);
     ResetPersistedState();
+    ReportUpdatesAbandonedEventCountMetric();
     return;
   }
 
@@ -1035,6 +1036,24 @@ void PayloadState::SetNumResponsesSeen(int num_responses_seen) {
 void PayloadState::ReportUpdatesAbandonedCountMetric() {
   string metric = "Installer.UpdatesAbandonedCount";
   int value = num_responses_seen_ - 1;
+
+  LOG(INFO) << "Uploading " << value << " (count) for metric " <<  metric;
+  system_state_->metrics_lib()->SendToUMA(
+       metric,
+       value,
+       0,    // min value
+       100,  // max value
+       kNumDefaultUmaBuckets);
+}
+
+void PayloadState::ReportUpdatesAbandonedEventCountMetric() {
+  string metric = "Installer.UpdatesAbandonedEventCount";
+  int value = num_responses_seen_ - 1;
+
+  // Do not send an "abandoned" event when 0 payloads were abandoned since the
+  // last successful update.
+  if (value == 0)
+    return;
 
   LOG(INFO) << "Uploading " << value << " (count) for metric " <<  metric;
   system_state_->metrics_lib()->SendToUMA(

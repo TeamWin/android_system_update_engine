@@ -297,6 +297,10 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
 
+  // The first response doesn't send an abandoned event.
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.UpdatesAbandonedEventCount", 0, _, _, _)).Times(0);
+
   // Set the first response.
   SetupPayloadStateWith2Urls("Hash5823", true, &payload_state, &response);
   EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
@@ -307,9 +311,24 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
   EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
 
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.UpdatesAbandonedEventCount", 1, _, _, _));
+
   // Now, slightly change the response and set it again.
   SetupPayloadStateWith2Urls("Hash8225", true, &payload_state, &response);
   EXPECT_EQ(2, payload_state.GetNumResponsesSeen());
+
+  // Fake an error again.
+  payload_state.UpdateFailed(error);
+  EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
+  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.UpdatesAbandonedEventCount", 2, _, _, _));
+
+  // Return a third different response.
+  SetupPayloadStateWith2Urls("Hash9999", true, &payload_state, &response);
+  EXPECT_EQ(3, payload_state.GetNumResponsesSeen());
 
   // Make sure the url index was reset to 0 because of the new response.
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
