@@ -1065,12 +1065,11 @@ void PayloadState::ReportUpdatesAbandonedEventCountMetric() {
 }
 
 void PayloadState::ComputeCandidateUrls() {
-  bool http_url_ok = false;
+  bool http_url_ok = true;
 
   if (system_state_->IsOfficialBuild()) {
     const policy::DevicePolicy* policy = system_state_->device_policy();
-    if (!(policy && policy->GetHttpDownloadsEnabled(&http_url_ok) &&
-          http_url_ok))
+    if (policy && policy->GetHttpDownloadsEnabled(&http_url_ok) && !http_url_ok)
       LOG(INFO) << "Downloads via HTTP Url are not enabled by device policy";
   } else {
     LOG(INFO) << "Allowing HTTP downloads for unofficial builds";

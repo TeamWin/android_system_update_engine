@@ -1087,12 +1087,24 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   policy::MockDevicePolicy disable_http_policy;
   EXPECT_CALL(mock_system_state, device_policy())
       .WillRepeatedly(Return(&disable_http_policy));
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+
+  // Test with no device policy. Should default to allowing http.
+  EXPECT_CALL(disable_http_policy, GetHttpDownloadsEnabled(_))
+      .WillRepeatedly(Return(false));
+
+  // Set the first response.
+  SetupPayloadStateWith2Urls("Hash8433", true, &payload_state, &response);
+
+  // Check that we use the HTTP URL since there is no value set for allowing
+  // http.
+  EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
+
+  // Test with device policy not allowing http updates.
   EXPECT_CALL(disable_http_policy, GetHttpDownloadsEnabled(_))
       .WillRepeatedly(DoAll(SetArgumentPointee<0>(false), Return(true)));
 
-  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
-
-  // Set the first response.
+  // Reset state and set again.
   SetupPayloadStateWith2Urls("Hash8433", false, &payload_state, &response);
 
   // Check that we skip the HTTP URL and use only the HTTPS url.
