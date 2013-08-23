@@ -812,12 +812,17 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
 }
 
 bool OmahaRequestAction::ShouldDeferDownload(OmahaResponse* output_object) {
+  if (params_->interactive()) {
+    LOG(INFO) << "Not deferring download because update is interactive.";
+    return false;
+  }
+
   // We should defer the downloads only if we've first satisfied the
   // wall-clock-based-waiting period and then the update-check-based waiting
   // period, if required.
-
   if (!params_->wall_clock_based_wait_enabled()) {
-    // Wall-clock-based waiting period is not enabled, so no scattering needed.
+    LOG(INFO) << "Wall-clock-based waiting period is not enabled,"
+              << " so no deferring needed.";
     return false;
   }
 

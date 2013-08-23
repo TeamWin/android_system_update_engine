@@ -118,6 +118,7 @@ class OmahaRequestParams {
   inline bool delta_okay() const { return delta_okay_; }
 
   // True if this is a user-initiated update check.
+  inline void set_interactive(bool interactive) { interactive_ = interactive; }
   inline bool interactive() const { return interactive_; }
 
   inline void set_update_url(const std::string& url) { update_url_ = url; }

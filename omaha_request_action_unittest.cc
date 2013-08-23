@@ -394,6 +394,29 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
+
+  // Verify if we are interactive check we don't defer.
+  params.set_interactive(true);
+  ASSERT_TRUE(
+      TestUpdateCheck(&prefs,  // prefs
+                      params,
+                      GetUpdateResponse2(OmahaRequestParams::kAppId,
+                                         "1.2.3.4",  // version
+                                         "http://more/info",
+                                         "true",  // prompt
+                                         "http://code/base/",  // dl url
+                                         "file.signed", // file name
+                                         "HASH1234=",  // checksum
+                                         "false",  // needs admin
+                                         "123",  // size
+                                         "",  // deadline
+                                         "7"), // max days to scatter
+                      -1,
+                      false,  // ping_only
+                      kErrorCodeSuccess,
+                      &response,
+                      NULL));
+  EXPECT_TRUE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
@@ -567,6 +590,29 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
   ASSERT_TRUE(count > 0);
   EXPECT_FALSE(response.update_exists);
+
+  // Verify if we are interactive check we don't defer.
+  params.set_interactive(true);
+  ASSERT_TRUE(
+      TestUpdateCheck(&prefs,  // prefs
+                      params,
+                      GetUpdateResponse2(OmahaRequestParams::kAppId,
+                                         "1.2.3.4",  // version
+                                         "http://more/info",
+                                         "true",  // prompt
+                                         "http://code/base/",  // dl url
+                                         "file.signed", // file name
+                                         "HASH1234=",  // checksum
+                                         "false",  // needs admin
+                                         "123",  // size
+                                         "",  // deadline
+                                         "7"), // max days to scatter
+                      -1,
+                      false,  // ping_only
+                      kErrorCodeSuccess,
+                      &response,
+                      NULL));
+  EXPECT_TRUE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
@@ -616,6 +662,29 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   // which this test doesn't exercise.
   ASSERT_TRUE(count == 5);
   EXPECT_FALSE(response.update_exists);
+
+  // Verify if we are interactive check we don't defer.
+  params.set_interactive(true);
+  ASSERT_TRUE(
+      TestUpdateCheck(&prefs,  // prefs
+                      params,
+                      GetUpdateResponse2(OmahaRequestParams::kAppId,
+                                         "1.2.3.4",  // version
+                                         "http://more/info",
+                                         "true",  // prompt
+                                         "http://code/base/",  // dl url
+                                         "file.signed", // file name
+                                         "HASH1234=",  // checksum
+                                         "false",  // needs admin
+                                         "123",  // size
+                                         "",  // deadline
+                                         "7"), // max days to scatter
+                      -1,
+                      false,  // ping_only
+                      kErrorCodeSuccess,
+                      &response,
+                      NULL));
+  EXPECT_TRUE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, NoOutputPipeTest) {
@@ -1438,6 +1507,29 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
   ASSERT_TRUE(timestamp > 0);
   EXPECT_FALSE(response.update_exists);
+
+  // Verify if we are interactive check we don't defer.
+  params.set_interactive(true);
+  ASSERT_TRUE(
+      TestUpdateCheck(&prefs,  // prefs
+                      params,
+                      GetUpdateResponse2(OmahaRequestParams::kAppId,
+                                         "1.2.3.4",  // version
+                                         "http://more/info",
+                                         "true",  // prompt
+                                         "http://code/base/",  // dl url
+                                         "file.signed", // file name
+                                         "HASH1234=",  // checksum
+                                         "false",  // needs admin
+                                         "123",  // size
+                                         "",  // deadline
+                                         "7"), // max days to scatter
+                      -1,
+                      false,  // ping_only
+                      kErrorCodeSuccess,
+                      &response,
+                      NULL));
+  EXPECT_TRUE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
