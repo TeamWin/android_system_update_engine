@@ -52,7 +52,7 @@ gboolean update_engine_service_attempt_update(UpdateEngineService* self,
                                               GError **error);
 
 gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
-                                                bool powerwash,
+                                                gboolean powerwash,
                                                 GError **error);
 
 gboolean update_engine_service_reset_status(UpdateEngineService* self,
@@ -79,7 +79,7 @@ gboolean update_engine_service_reboot_if_needed(UpdateEngineService* self,
 // currently has).
 gboolean update_engine_service_set_channel(UpdateEngineService* self,
                                            gchar* target_channel,
-                                           bool is_powerwash_allowed,
+                                           gboolean is_powerwash_allowed,
                                            GError **error);
 
 // If get_current_channel is set to true, populates |channel| with the name of
@@ -87,7 +87,7 @@ gboolean update_engine_service_set_channel(UpdateEngineService* self,
 // the name of the channel the device is supposed to be (in case of a pending
 // channel change).
 gboolean update_engine_service_get_channel(UpdateEngineService* self,
-                                           bool get_current_channel,
+                                           gboolean get_current_channel,
                                            gchar** channel,
                                            GError **error);
 
@@ -110,7 +110,7 @@ gboolean update_engine_service_get_p2p_update_permission(
 // error since this setting is overridden by the applied policy.
 gboolean update_engine_service_set_update_over_cellular_permission(
     UpdateEngineService* self,
-    bool allowed,
+    gboolean allowed,
     GError **error);
 
 // Returns the current value of the update over cellular network setting, either
@@ -118,7 +118,7 @@ gboolean update_engine_service_set_update_over_cellular_permission(
 // preference otherwise.
 gboolean update_engine_service_get_update_over_cellular_permission(
     UpdateEngineService* self,
-    bool* allowed,
+    gboolean* allowed,
     GError **error);
 
 gboolean update_engine_service_emit_status_update(

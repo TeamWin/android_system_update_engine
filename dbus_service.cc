@@ -108,7 +108,7 @@ gboolean update_engine_service_attempt_update(UpdateEngineService* self,
 }
 
 gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
-                                                bool powerwash,
+                                                gboolean powerwash,
                                                 GError **error) {
   LOG(INFO) << "Attempting rollback to non-active partitions.";
   return self->system_state_->update_attempter()->Rollback(powerwash, NULL);
@@ -157,7 +157,7 @@ gboolean update_engine_service_reboot_if_needed(UpdateEngineService* self,
 
 gboolean update_engine_service_set_channel(UpdateEngineService* self,
                                            gchar* target_channel,
-                                           bool is_powerwash_allowed,
+                                           gboolean is_powerwash_allowed,
                                            GError **error) {
   if (!target_channel)
     return FALSE;
@@ -195,7 +195,7 @@ gboolean update_engine_service_set_channel(UpdateEngineService* self,
 }
 
 gboolean update_engine_service_get_channel(UpdateEngineService* self,
-                                           bool get_current_channel,
+                                           gboolean get_current_channel,
                                            gchar** channel,
                                            GError **error) {
   chromeos_update_engine::OmahaRequestParams* rp =
@@ -258,7 +258,7 @@ gboolean update_engine_service_get_p2p_update_permission(
 
 gboolean update_engine_service_set_update_over_cellular_permission(
     UpdateEngineService* self,
-    bool allowed,
+    gboolean allowed,
     GError **error) {
   set<string> allowed_types;
   const policy::DevicePolicy* device_policy =
@@ -303,7 +303,7 @@ gboolean update_engine_service_set_update_over_cellular_permission(
 
 gboolean update_engine_service_get_update_over_cellular_permission(
     UpdateEngineService* self,
-    bool* allowed,
+    gboolean* allowed,
     GError **/*error*/) {
   chromeos_update_engine::ConnectionManager* cm =
       self->system_state_->connection_manager();
