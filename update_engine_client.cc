@@ -110,8 +110,7 @@ bool ResetStatus() {
 
   CHECK(GetProxy(&proxy));
 
-  gboolean rc =
-      org_chromium_UpdateEngineInterface_reset_status(proxy, &error);
+  gboolean rc = update_engine_client_reset_status(proxy, &error);
   return rc;
 }
 
@@ -130,14 +129,13 @@ bool GetStatus(string* op) {
   char* new_version = NULL;
   gint64 new_size = 0;
 
-  gboolean rc = org_chromium_UpdateEngineInterface_get_status(
-      proxy,
-      &last_checked_time,
-      &progress,
-      &current_op,
-      &new_version,
-      &new_size,
-      &error);
+  gboolean rc = update_engine_client_get_status(proxy,
+                                                &last_checked_time,
+                                                &progress,
+                                                &current_op,
+                                                &new_version,
+                                                &new_size,
+                                                &error);
   if (rc == FALSE) {
     LOG(INFO) << "Error getting status: " << GetAndFreeGError(&error);
   }
@@ -196,10 +194,9 @@ bool Rollback(bool rollback) {
 
   CHECK(GetProxy(&proxy));
 
-  gboolean rc =
-      org_chromium_UpdateEngineInterface_attempt_rollback(proxy,
-                                                          rollback,
-                                                          &error);
+  gboolean rc = update_engine_client_attempt_rollback(proxy,
+                                                      rollback,
+                                                      &error);
   CHECK_EQ(rc, TRUE) << "Error with rollback request: "
                      << GetAndFreeGError(&error);
   return true;
@@ -211,11 +208,10 @@ bool CheckForUpdates(const string& app_version, const string& omaha_url) {
 
   CHECK(GetProxy(&proxy));
 
-  gboolean rc =
-      org_chromium_UpdateEngineInterface_attempt_update(proxy,
-                                                        app_version.c_str(),
-                                                        omaha_url.c_str(),
-                                                        &error);
+  gboolean rc = update_engine_client_attempt_update(proxy,
+                                                    app_version.c_str(),
+                                                    omaha_url.c_str(),
+                                                    &error);
   CHECK_EQ(rc, TRUE) << "Error checking for update: "
                      << GetAndFreeGError(&error);
   return true;
@@ -228,7 +224,7 @@ bool RebootIfNeeded() {
   CHECK(GetProxy(&proxy));
 
   gboolean rc =
-      org_chromium_UpdateEngineInterface_reboot_if_needed(proxy, &error);
+      update_engine_client_reboot_if_needed(proxy, &error);
   // Reboot error code doesn't necessarily mean that a reboot
   // failed. For example, D-Bus may be shutdown before we receive the
   // result.
@@ -242,11 +238,10 @@ void SetTargetChannel(const string& target_channel, bool allow_powerwash) {
 
   CHECK(GetProxy(&proxy));
 
-  gboolean rc =
-      org_chromium_UpdateEngineInterface_set_channel(proxy,
-                                                     target_channel.c_str(),
-                                                     allow_powerwash,
-                                                     &error);
+  gboolean rc = update_engine_client_set_channel(proxy,
+                                                 target_channel.c_str(),
+                                                 allow_powerwash,
+                                                 &error);
   CHECK_EQ(rc, true) << "Error setting the channel: "
                      << GetAndFreeGError(&error);
   LOG(INFO) << "Channel permanently set to: " << target_channel;
@@ -259,11 +254,10 @@ string GetChannel(bool get_current_channel) {
   CHECK(GetProxy(&proxy));
 
   char* channel = NULL;
-  gboolean rc =
-      org_chromium_UpdateEngineInterface_get_channel(proxy,
-                                                     get_current_channel,
-                                                     &channel,
-                                                     &error);
+  gboolean rc = update_engine_client_get_channel(proxy,
+                                                 get_current_channel,
+                                                 &channel,
+                                                 &error);
   CHECK_EQ(rc, true) << "Error getting the channel: "
                      << GetAndFreeGError(&error);
   string output = channel;
@@ -277,11 +271,10 @@ void SetUpdateOverCellularPermission(gboolean allowed) {
 
   CHECK(GetProxy(&proxy));
 
-  gboolean rc =
-      org_chromium_UpdateEngineInterface_set_update_over_cellular_permission(
-          proxy,
-          allowed,
-          &error);
+  gboolean rc = update_engine_client_set_update_over_cellular_permission(
+      proxy,
+      allowed,
+      &error);
   CHECK_EQ(rc, true) << "Error setting the update over cellular setting: "
                      << GetAndFreeGError(&error);
 }
@@ -293,11 +286,10 @@ bool GetUpdateOverCellularPermission() {
   CHECK(GetProxy(&proxy));
 
   gboolean allowed;
-  gboolean rc =
-      org_chromium_UpdateEngineInterface_get_update_over_cellular_permission(
-          proxy,
-          &allowed,
-          &error);
+  gboolean rc = update_engine_client_get_update_over_cellular_permission(
+      proxy,
+      &allowed,
+      &error);
   CHECK_EQ(rc, true) << "Error getting the update over cellular setting: "
                      << GetAndFreeGError(&error);
   return allowed;
@@ -309,11 +301,10 @@ void SetP2PUpdatePermission(gboolean enabled) {
 
   CHECK(GetProxy(&proxy));
 
-  gboolean rc =
-      org_chromium_UpdateEngineInterface_set_p2_pupdate_permission(
-          proxy,
-          enabled,
-          &error);
+  gboolean rc = update_engine_client_set_p2p_update_permission(
+      proxy,
+      enabled,
+      &error);
   CHECK_EQ(rc, true) << "Error setting the peer-to-peer update setting: "
                      << GetAndFreeGError(&error);
 }
@@ -325,11 +316,10 @@ bool GetP2PUpdatePermission() {
   CHECK(GetProxy(&proxy));
 
   gboolean enabled;
-  gboolean rc =
-      org_chromium_UpdateEngineInterface_get_p2_pupdate_permission(
-          proxy,
-          &enabled,
-          &error);
+  gboolean rc = update_engine_client_get_p2p_update_permission(
+      proxy,
+      &enabled,
+      &error);
   CHECK_EQ(rc, true) << "Error getting the peer-to-peer update setting: "
                      << GetAndFreeGError(&error);
   return enabled;

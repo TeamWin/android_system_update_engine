@@ -7,6 +7,8 @@
   <interface name="org.chromium.UpdateEngineInterface">
     <annotation name="org.freedesktop.DBus.GLib.CSymbol"
                 value="update_engine_service"/>
+    <annotation name="org.freedesktop.DBus.GLib.ClientCSymbol"
+                value="update_engine_client"/>
     <method name="AttemptUpdate">
       <arg type="s" name="app_version" />
       <arg type="s" name="omaha_url" />
@@ -36,11 +38,15 @@
     <method name="SetP2PUpdatePermission">
       <annotation name="org.freedesktop.DBus.GLib.CSymbol"
         value="update_engine_service_set_p2p_update_permission"/>
+      <annotation name="org.freedesktop.DBus.GLib.ClientCSymbol"
+        value="update_engine_client_set_p2p_update_permission"/>
       <arg type="b" name="enabled" />
     </method>
     <method name="GetP2PUpdatePermission">
       <annotation name="org.freedesktop.DBus.GLib.CSymbol"
         value="update_engine_service_get_p2p_update_permission"/>
+      <annotation name="org.freedesktop.DBus.GLib.ClientCSymbol"
+        value="update_engine_client_get_p2p_update_permission"/>
       <arg type="b" name="enabled" direction="out" />
     </method>
     <method name="SetUpdateOverCellularPermission">
