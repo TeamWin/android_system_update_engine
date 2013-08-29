@@ -68,6 +68,9 @@ TEST_F(P2PManagerTest, P2PEnabled) {
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
+// TODO(zeuthen): This test is flaky on some builders. See http://crbug/281694
+#if 0
+
 // Check that we keep the $N newest files with the .$EXT.p2p extension.
 TEST_F(P2PManagerTest, HouseKeeping) {
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
@@ -113,6 +116,7 @@ TEST_F(P2PManagerTest, HouseKeeping) {
   EXPECT_EQ(manager->CountSharedFiles(), 3);
 }
 
+#endif // http://crbug/281694
 
 // TODO(zeuthen): Some builders do not support fallocate(2) or xattrs
 // in the tmp directories where the code runs so comment out these
