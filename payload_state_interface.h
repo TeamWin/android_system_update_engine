@@ -74,6 +74,11 @@ class PayloadStateInterface {
   virtual void ExpectRebootInNewVersion(
       const std::string& target_version_uid) = 0;
 
+  // Sets whether p2p is being used to download the update payload. This
+  // is used to keep track download sources being used and should be called
+  // before the transfer begins.
+  virtual void SetUsingP2PForDownloading(bool value) = 0;
+
   // Returns true if we should backoff the current download attempt.
   // False otherwise.
   virtual bool ShouldBackoffDownload() = 0;
@@ -155,6 +160,9 @@ class PayloadStateInterface {
   // and examining how many attempts have been done already as well
   // as when the first attempt was.
   virtual bool P2PAttemptAllowed() = 0;
+
+  // Gets the value previously set with SetUsingP2PForDownloading().
+  virtual bool GetUsingP2PForDownloading() = 0;
 };
 
 }  // namespace chromeos_update_engine

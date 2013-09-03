@@ -42,6 +42,10 @@ const char* kCurrentBytesDownloadedFromHttp =
   "current-bytes-downloaded-from-HttpServer";
 const char* kTotalBytesDownloadedFromHttp =
   "total-bytes-downloaded-from-HttpServer";
+const char* kCurrentBytesDownloadedFromHttpPeer =
+  "current-bytes-downloaded-from-HttpPeer";
+const char* kTotalBytesDownloadedFromHttpPeer =
+  "total-bytes-downloaded-from-HttpPeer";
 
 static void SetupPayloadStateWith2Urls(string hash,
                                        bool http_enabled,
@@ -117,6 +121,8 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
     .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
+    .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0)).Times(AtLeast(1));
   PayloadState payload_state;
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
@@ -165,6 +171,8 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
     .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
+    .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0))
       .Times(AtLeast(1));
   PayloadState payload_state;
@@ -211,6 +219,8 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttps, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
+    .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 0))
       .Times(AtLeast(1));
@@ -386,6 +396,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttps, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, 0))
+    .Times(AtLeast(1));
+  EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttpPeer, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kCurrentBytesDownloadedFromHttp, progress_bytes))
     .Times(AtLeast(1));
@@ -803,6 +815,16 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_EQ(https_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 
+  // Simulate error (will cause URL switch), set p2p is to be used and
+  // then do 42MB worth of progress
+  payload_state.UpdateFailed(error);
+  payload_state.SetUsingP2PForDownloading(true);
+  int p2p_total = 42 * 1000 * 1000;
+  payload_state.DownloadProgress(p2p_total);
+
+  EXPECT_EQ(p2p_total,
+            payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpPeer));
+
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(_, _, _, _, _))
     .Times(AnyNumber());
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
@@ -818,8 +840,14 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
       "Installer.TotalMBsDownloadedFromHttpsServer",
       https_total / kNumBytesInOneMiB, _, _, _));
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.SuccessfulMBsDownloadedFromHttpPeer",
+      p2p_total / kNumBytesInOneMiB, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.TotalMBsDownloadedFromHttpPeer",
+      p2p_total / kNumBytesInOneMiB, _, _, _));
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.UpdateURLSwitches",
-      2, _, _, _));
+      3, _, _, _));
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.UpdateDurationMinutes",
       _, _, _, _));
@@ -827,9 +855,12 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
       "Installer.UpdateDurationUptimeMinutes",
       _, _, _, _));
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.DownloadSourcesUsed", 3, _, _, _));
+      "Installer.DownloadSourcesUsed",
+      (1 << kDownloadSourceHttpsServer) | (1 << kDownloadSourceHttpServer) |
+      (1 << kDownloadSourceHttpPeer),
+      _, _, _));
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.DownloadOverheadPercentage", 542, _, _, _));
+      "Installer.DownloadOverheadPercentage", 318, _, _, _));
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendEnumToUMA(
       "Installer.PayloadFormat", kPayloadTypeFull, kNumPayloadTypes));
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
@@ -847,6 +878,35 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_EQ(0,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
   EXPECT_EQ(0, payload_state.GetNumResponsesSeen());
+}
+
+TEST(PayloadStateTest, DownloadSourcesUsedIsCorrect) {
+  OmahaResponse response;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash3286", true, &payload_state, &response);
+
+  // Simulate progress in order to mark HTTP as one of the sources used.
+  int num_bytes = 42 * 1000 * 1000;
+  payload_state.DownloadProgress(num_bytes);
+
+  // Check that this was done via HTTP.
+  EXPECT_EQ(num_bytes,
+            payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
+  EXPECT_EQ(num_bytes,
+            payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
+
+  // Check that only HTTP is reported as a download source.
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(_, _, _, _, _))
+    .Times(AnyNumber());
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
+      "Installer.DownloadSourcesUsed",
+      (1 << kDownloadSourceHttpServer),
+      _, _, _));
+
+  payload_state.UpdateSucceeded();
 }
 
 TEST(PayloadStateTest, RestartingUpdateResetsMetrics) {

@@ -773,6 +773,7 @@ string ToString(DownloadSource source) {
   switch (source) {
     case kDownloadSourceHttpsServer: return "HttpsServer";
     case kDownloadSourceHttpServer:  return "HttpServer";
+    case kDownloadSourceHttpPeer:    return "HttpPeer";
     case kNumDownloadSources:        return "Unknown";
     // Don't add a default case to let the compiler warn about newly added
     // download sources which should be added here.

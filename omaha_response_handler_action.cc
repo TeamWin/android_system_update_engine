@@ -77,6 +77,7 @@ void OmahaResponseHandlerAction::PerformAction() {
               << " with local URL " << params->p2p_url()
               << " since p2p is enabled.";
     install_plan_.download_url = params->p2p_url();
+    system_state_->payload_state()->SetUsingP2PForDownloading(true);
   }
 
   // Fill up the other properties based on the response.

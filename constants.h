@@ -78,6 +78,7 @@ extern const char kPrefsP2PFirstAttemptTimestamp[];
 typedef enum {
   kDownloadSourceHttpsServer, // UMA Binary representation: 0001
   kDownloadSourceHttpServer,  // UMA Binary representation: 0010
+  kDownloadSourceHttpPeer,    // UMA Binary representation: 0100
 
   // Note: Add new sources only above this line.
   kNumDownloadSources

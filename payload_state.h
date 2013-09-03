@@ -44,6 +44,7 @@ class PayloadState : public PayloadStateInterface {
   virtual bool ShouldBackoffDownload();
   virtual void Rollback();
   virtual void ExpectRebootInNewVersion(const std::string& target_version_uid);
+  virtual void SetUsingP2PForDownloading(bool value);
 
   virtual inline std::string GetResponseSignature() {
     return response_signature_;
@@ -103,6 +104,10 @@ class PayloadState : public PayloadStateInterface {
   virtual base::Time GetP2PFirstAttemptTimestamp();
   virtual void P2PNewAttempt();
   virtual bool P2PAttemptAllowed();
+
+  virtual bool GetUsingP2PForDownloading() {
+    return using_p2p_for_downloading_;
+  }
 
  private:
   friend class PayloadStateTest;
@@ -384,6 +389,10 @@ class PayloadState : public PayloadStateInterface {
 
   // This is the current response object from Omaha.
   OmahaResponse response_;
+
+  // Whether p2p is being used for downloading as set with the
+  // SetUsingP2PForDownloading() method.
+  bool using_p2p_for_downloading_;
 
   // This stores a "signature" of the current response. The signature here
   // refers to a subset of the current response from Omaha.  Each update to

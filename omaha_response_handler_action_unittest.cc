@@ -375,6 +375,9 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   OmahaRequestParams params(&mock_system_state);
   mock_system_state.set_request_params(&params);
 
+  EXPECT_CALL(*mock_system_state.mock_payload_state(),
+              SetUsingP2PForDownloading(true));
+
   string p2p_url = "http://9.8.7.6/p2p";
   params.set_p2p_url(p2p_url);
   params.set_use_p2p_for_downloading(true);

@@ -35,6 +35,7 @@ static const uint32_t kMaxBackoffFuzzMinutes = 12 * 60;
 
 PayloadState::PayloadState()
     : prefs_(NULL),
+      using_p2p_for_downloading_(false),
       payload_attempt_number_(0),
       full_payload_attempt_number_(0),
       url_index_(0),
@@ -112,6 +113,13 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
 
   // Update the current download source which depends on the latest value of
   // the response.
+  UpdateCurrentDownloadSource();
+}
+
+void PayloadState::SetUsingP2PForDownloading(bool value) {
+  using_p2p_for_downloading_ = value;
+  // Update the current download source which depends on whether we are
+  // using p2p or not.
   UpdateCurrentDownloadSource();
 }
 
@@ -443,7 +451,9 @@ void PayloadState::UpdateBackoffExpiryTime() {
 void PayloadState::UpdateCurrentDownloadSource() {
   current_download_source_ = kNumDownloadSources;
 
-  if (GetUrlIndex() < candidate_urls_.size())  {
+  if (using_p2p_for_downloading_) {
+    current_download_source_ = kDownloadSourceHttpPeer;
+  } else if (GetUrlIndex() < candidate_urls_.size())  {
     string current_url = candidate_urls_[GetUrlIndex()];
     if (StartsWithASCII(current_url, "https://", false))
       current_download_source_ = kDownloadSourceHttpsServer;
