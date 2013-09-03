@@ -68,29 +68,26 @@ TEST_F(P2PManagerTest, P2PEnabled) {
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
-// TODO(zeuthen): This test is flaky on some builders. See http://crbug/281694
-#if 0
-
 // Check that we keep the $N newest files with the .$EXT.p2p extension.
-TEST_F(P2PManagerTest, HouseKeeping) {
+TEST_F(P2PManagerTest, Housekeeping) {
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        NULL, "cros_au", 3));
   EXPECT_EQ(manager->CountSharedFiles(), 0);
 
   // Generate files both matching our pattern and not matching them.
   for (int n = 0; n < 5; n++) {
-    EXPECT_EQ(0, System(StringPrintf("touch %s/file_%d.cros_au.p2p",
+    // We space out the files to be one minute apart.
+    string time_formatted = StringPrintf("2010090311%02d", n);
+
+    EXPECT_EQ(0, System(StringPrintf("touch -t %s %s/file_%d.cros_au.p2p",
+                                     time_formatted.c_str(),
                                      test_conf_->GetP2PDir().value().c_str(),
                                      n)));
 
-    EXPECT_EQ(0, System(StringPrintf("touch %s/file_%d.OTHER.p2p",
+    EXPECT_EQ(0, System(StringPrintf("touch -t %s %s/file_%d.OTHER.p2p",
+                                     time_formatted.c_str(),
                                      test_conf_->GetP2PDir().value().c_str(),
                                      n)));
-
-    // Sleep one micro-second to ensure that the files all have
-    // different timestamps (time resolution for ext4 is one
-    // nano-second so sleeping a single usec is more than enough).
-    g_usleep(1);
   }
   // CountSharedFiles() only counts 'cros_au' files.
   EXPECT_EQ(manager->CountSharedFiles(), 5);
@@ -115,8 +112,6 @@ TEST_F(P2PManagerTest, HouseKeeping) {
   // CountSharedFiles() only counts 'cros_au' files.
   EXPECT_EQ(manager->CountSharedFiles(), 3);
 }
-
-#endif // http://crbug/281694
 
 // TODO(zeuthen): Some builders do not support fallocate(2) or xattrs
 // in the tmp directories where the code runs so comment out these
