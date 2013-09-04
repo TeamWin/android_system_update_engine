@@ -988,6 +988,17 @@ TEST(PayloadStateTest, RollbackVersion) {
   payload_state.Rollback();
 
   EXPECT_EQ(rollback_version, payload_state.GetRollbackVersion());
+
+  // Change it up a little and verify we load it correctly.
+  rollback_version = "2345.0.1";
+  // Let's verify we can reload it correctly.
+  EXPECT_CALL(*mock_powerwash_safe_prefs, GetString(
+      kPrefsRollbackVersion, _)).WillOnce(DoAll(
+          SetArgumentPointee<1>(rollback_version), Return(true)));
+  EXPECT_CALL(*mock_powerwash_safe_prefs, SetString(kPrefsRollbackVersion,
+                                                    rollback_version));
+  payload_state.LoadRollbackVersion();
+  EXPECT_EQ(rollback_version, payload_state.GetRollbackVersion());
 }
 
 TEST(PayloadStateTest, DurationsAreCorrect) {

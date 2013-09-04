@@ -114,6 +114,7 @@ class PayloadState : public PayloadStateInterface {
   FRIEND_TEST(PayloadStateTest, RebootAfterUpdateFailedMetric);
   FRIEND_TEST(PayloadStateTest, RebootAfterUpdateSucceed);
   FRIEND_TEST(PayloadStateTest, RebootAfterCanceledUpdate);
+  FRIEND_TEST(PayloadStateTest, RollbackVersion);
   FRIEND_TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs);
 
   // Increments the payload attempt number used for metrics.
@@ -181,10 +182,9 @@ class PayloadState : public PayloadStateInterface {
   // reset on a new update.
   void ResetDownloadSourcesOnNewUpdate();
 
-  // Returns the persisted value for the given key. It also validates that
-  // the value returned is non-negative. If |across_powerwash| is True,
-  // get the value that will persist across a powerwash.
-  int64_t GetPersistedValue(const std::string& key, bool across_powerwash);
+  // Returns the persisted value from prefs_ for the given key. It also
+  // validates that the value returned is non-negative.
+  int64_t GetPersistedValue(const std::string& key);
 
   // Calculates the response "signature", which is basically a string composed
   // of the subset of the fields in the current response that affect the

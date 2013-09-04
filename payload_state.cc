@@ -625,18 +625,13 @@ void PayloadState::ResetDownloadSourcesOnNewUpdate() {
   }
 }
 
-int64_t PayloadState::GetPersistedValue(const string& key,
-                                        bool across_powerwash) {
-  PrefsInterface* prefs = prefs_;
-  if (across_powerwash)
-    prefs = powerwash_safe_prefs_;
-
+int64_t PayloadState::GetPersistedValue(const string& key) {
   CHECK(prefs_);
-  if (!prefs->Exists(key))
+  if (!prefs_->Exists(key))
     return 0;
 
   int64_t stored_value;
-  if (!prefs->GetInt64(key, &stored_value))
+  if (!prefs_->GetInt64(key, &stored_value))
     return 0;
 
   if (stored_value < 0) {
@@ -690,13 +685,12 @@ void PayloadState::SetResponseSignature(const string& response_signature) {
 }
 
 void PayloadState::LoadPayloadAttemptNumber() {
-  SetPayloadAttemptNumber(GetPersistedValue(kPrefsPayloadAttemptNumber,
-                                            false));
+  SetPayloadAttemptNumber(GetPersistedValue(kPrefsPayloadAttemptNumber));
 }
 
 void PayloadState::LoadFullPayloadAttemptNumber() {
-  SetFullPayloadAttemptNumber(GetPersistedValue(kPrefsFullPayloadAttemptNumber,
-                                            false));
+  SetFullPayloadAttemptNumber(GetPersistedValue(
+      kPrefsFullPayloadAttemptNumber));
 }
 
 void PayloadState::SetPayloadAttemptNumber(int payload_attempt_number) {
@@ -716,7 +710,7 @@ void PayloadState::SetFullPayloadAttemptNumber(
 }
 
 void PayloadState::LoadUrlIndex() {
-  SetUrlIndex(GetPersistedValue(kPrefsCurrentUrlIndex, false));
+  SetUrlIndex(GetPersistedValue(kPrefsCurrentUrlIndex));
 }
 
 void PayloadState::SetUrlIndex(uint32_t url_index) {
@@ -731,7 +725,7 @@ void PayloadState::SetUrlIndex(uint32_t url_index) {
 }
 
 void PayloadState::LoadUrlSwitchCount() {
-  SetUrlSwitchCount(GetPersistedValue(kPrefsUrlSwitchCount, false));
+  SetUrlSwitchCount(GetPersistedValue(kPrefsUrlSwitchCount));
 }
 
 void PayloadState::SetUrlSwitchCount(uint32_t url_switch_count) {
@@ -742,8 +736,7 @@ void PayloadState::SetUrlSwitchCount(uint32_t url_switch_count) {
 }
 
 void PayloadState::LoadUrlFailureCount() {
-  SetUrlFailureCount(GetPersistedValue(kPrefsCurrentUrlFailureCount,
-                                       false));
+  SetUrlFailureCount(GetPersistedValue(kPrefsCurrentUrlFailureCount));
 }
 
 void PayloadState::SetUrlFailureCount(uint32_t url_failure_count) {
@@ -877,11 +870,16 @@ void PayloadState::LoadUpdateDurationUptime() {
 }
 
 void PayloadState::LoadNumReboots() {
-  SetNumReboots(GetPersistedValue(kPrefsNumReboots, false));
+  SetNumReboots(GetPersistedValue(kPrefsNumReboots));
 }
 
 void PayloadState::LoadRollbackVersion() {
-  SetNumReboots(GetPersistedValue(kPrefsRollbackVersion, true));
+  CHECK(powerwash_safe_prefs_);
+  string rollback_version;
+  if (powerwash_safe_prefs_->GetString(kPrefsRollbackVersion,
+                                       &rollback_version)) {
+    SetRollbackVersion(rollback_version);
+  }
 }
 
 void PayloadState::SetRollbackVersion(const string& rollback_version) {
@@ -990,7 +988,7 @@ string PayloadState::GetPrefsKey(const string& prefix, DownloadSource source) {
 
 void PayloadState::LoadCurrentBytesDownloaded(DownloadSource source) {
   string key = GetPrefsKey(kPrefsCurrentBytesDownloaded, source);
-  SetCurrentBytesDownloaded(source, GetPersistedValue(key, false), true);
+  SetCurrentBytesDownloaded(source, GetPersistedValue(key), true);
 }
 
 void PayloadState::SetCurrentBytesDownloaded(
@@ -1014,7 +1012,7 @@ void PayloadState::SetCurrentBytesDownloaded(
 
 void PayloadState::LoadTotalBytesDownloaded(DownloadSource source) {
   string key = GetPrefsKey(kPrefsTotalBytesDownloaded, source);
-  SetTotalBytesDownloaded(source, GetPersistedValue(key, false), true);
+  SetTotalBytesDownloaded(source, GetPersistedValue(key), true);
 }
 
 void PayloadState::SetTotalBytesDownloaded(
@@ -1038,7 +1036,7 @@ void PayloadState::SetTotalBytesDownloaded(
 }
 
 void PayloadState::LoadNumResponsesSeen() {
-  SetNumResponsesSeen(GetPersistedValue(kPrefsNumResponsesSeen, false));
+  SetNumResponsesSeen(GetPersistedValue(kPrefsNumResponsesSeen));
 }
 
 void PayloadState::SetNumResponsesSeen(int num_responses_seen) {
@@ -1241,7 +1239,7 @@ void PayloadState::SetP2PNumAttempts(int value) {
 }
 
 void PayloadState::LoadP2PNumAttempts() {
-  SetP2PNumAttempts(GetPersistedValue(kPrefsP2PNumAttempts, false));
+  SetP2PNumAttempts(GetPersistedValue(kPrefsP2PNumAttempts));
 }
 
 Time PayloadState::GetP2PFirstAttemptTimestamp() {
@@ -1258,8 +1256,7 @@ void PayloadState::SetP2PFirstAttemptTimestamp(const Time& time) {
 }
 
 void PayloadState::LoadP2PFirstAttemptTimestamp() {
-  int64_t stored_value = GetPersistedValue(kPrefsP2PFirstAttemptTimestamp,
-                                           false);
+  int64_t stored_value = GetPersistedValue(kPrefsP2PFirstAttemptTimestamp);
   Time stored_time = Time::FromInternalValue(stored_value);
   SetP2PFirstAttemptTimestamp(stored_time);
 }
