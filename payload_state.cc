@@ -295,7 +295,16 @@ bool PayloadState::ShouldBackoffDownload() {
                  "Can proceed with the download";
     return false;
   }
-
+  if (system_state_->request_params()->use_p2p_for_downloading() &&
+      !system_state_->request_params()->p2p_url().empty()) {
+    LOG(INFO) << "Payload backoff logic is disabled because download "
+              << "will happen from local peer (via p2p).";
+    return false;
+  }
+  if (system_state_->request_params()->interactive()) {
+    LOG(INFO) << "Payload backoff disabled for interactive update checks.";
+    return false;
+  }
   if (response_.is_delta_payload) {
     // If delta payloads fail, we want to fallback quickly to full payloads as
     // they are more likely to succeed. Exponential backoffs would greatly

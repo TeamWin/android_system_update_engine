@@ -853,20 +853,13 @@ void OmahaRequestAction::CompleteProcessing() {
     return;
   }
 
-  // Only back off if we're not using p2p
-  if (params_->use_p2p_for_downloading() && !params_->p2p_url().empty()) {
-    LOG(INFO) << "Payload backoff logic is disabled because download "
-              << "will happen from local peer (via p2p).";
-  } else {
-    if (payload_state->ShouldBackoffDownload()) {
-      output_object.update_exists = false;
-      LOG(INFO) << "Ignoring Omaha updates in order to backoff our retry "
-                << "attempts";
-      completer.set_code(kErrorCodeOmahaUpdateDeferredForBackoff);
-      return;
-    }
+  if (payload_state->ShouldBackoffDownload()) {
+    output_object.update_exists = false;
+    LOG(INFO) << "Ignoring Omaha updates in order to backoff our retry "
+              << "attempts";
+    completer.set_code(kErrorCodeOmahaUpdateDeferredForBackoff);
+    return;
   }
-
   completer.set_code(kErrorCodeSuccess);
 }
 

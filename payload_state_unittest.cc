@@ -645,6 +645,60 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
 }
 
+TEST(PayloadStateTest, NoBackoffInteractiveChecks) {
+  OmahaResponse response;
+  response.is_delta_payload = false;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  OmahaRequestParams params(&mock_system_state);
+  params.Init("", "", true); // is_interactive = True.
+  mock_system_state.set_request_params(&params);
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash6437", true, &payload_state, &response);
+
+  // Simulate two failures (enough to cause payload backoff) and check
+  // again that we're ready to re-download without any backoff as this is
+  // an interactive check.
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
+  EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
+  EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
+  EXPECT_EQ(1, payload_state.GetFullPayloadAttemptNumber());
+  EXPECT_FALSE(payload_state.ShouldBackoffDownload());
+}
+
+TEST(PayloadStateTest, NoBackoffForP2PUpdates) {
+  OmahaResponse response;
+  response.is_delta_payload = false;
+  PayloadState payload_state;
+  MockSystemState mock_system_state;
+  OmahaRequestParams params(&mock_system_state);
+  params.Init("", "", false); // is_interactive = False.
+  mock_system_state.set_request_params(&params);
+
+  EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
+  SetupPayloadStateWith2Urls("Hash6437", true, &payload_state, &response);
+
+  // Simulate two failures (enough to cause payload backoff) and check
+  // again that we're ready to re-download without any backoff as this is
+  // an interactive check.
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
+  payload_state.UpdateFailed(kErrorCodeDownloadMetadataSignatureMismatch);
+  EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
+  EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
+  EXPECT_EQ(1, payload_state.GetFullPayloadAttemptNumber());
+  // Set p2p url.
+  params.set_use_p2p_for_downloading(true);
+  params.set_p2p_url("http://mypeer:52909/path/to/file");
+  // Should not backoff for p2p updates.
+  EXPECT_FALSE(payload_state.ShouldBackoffDownload());
+
+  params.set_p2p_url("");
+  // No actual p2p update if no url is provided.
+  EXPECT_TRUE(payload_state.ShouldBackoffDownload());
+}
+
 TEST(PayloadStateTest, NoBackoffForDeltaPayloads) {
   OmahaResponse response;
   response.is_delta_payload = true;
