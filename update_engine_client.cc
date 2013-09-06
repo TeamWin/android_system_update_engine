@@ -20,6 +20,8 @@ extern "C" {
 using chromeos_update_engine::kUpdateEngineServiceName;
 using chromeos_update_engine::kUpdateEngineServicePath;
 using chromeos_update_engine::kUpdateEngineServiceInterface;
+using chromeos_update_engine::AttemptUpdateFlags;
+using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
 using chromeos_update_engine::utils::GetAndFreeGError;
 using std::string;
 
@@ -50,6 +52,7 @@ DEFINE_bool(show_p2p_update, false,
 DEFINE_string(p2p_update, "",
               "Enables (\"yes\") or disables (\"no\") the peer-to-peer update "
               "sharing.");
+DEFINE_bool(interactive, true, "Mark the update request as interactive.");
 
 namespace {
 
@@ -208,10 +211,14 @@ bool CheckForUpdates(const string& app_version, const string& omaha_url) {
 
   CHECK(GetProxy(&proxy));
 
-  gboolean rc = update_engine_client_attempt_update(proxy,
-                                                    app_version.c_str(),
-                                                    omaha_url.c_str(),
-                                                    &error);
+  AttemptUpdateFlags flags = static_cast<AttemptUpdateFlags>(
+      FLAGS_interactive ? 0 : kAttemptUpdateFlagNonInteractive);
+  gboolean rc =
+      update_engine_client_attempt_update_with_flags(proxy,
+                                                     app_version.c_str(),
+                                                     omaha_url.c_str(),
+                                                     static_cast<gint>(flags),
+                                                     &error);
   CHECK_EQ(rc, TRUE) << "Error checking for update: "
                      << GetAndFreeGError(&error);
   return true;

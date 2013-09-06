@@ -11,6 +11,7 @@
 #include <policy/device_policy.h>
 
 #include "update_engine/connection_manager.h"
+#include "update_engine/dbus_constants.h"
 #include "update_engine/marshal.glibmarshal.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
@@ -20,6 +21,8 @@
 
 using std::set;
 using std::string;
+using chromeos_update_engine::AttemptUpdateFlags;
+using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
 
 static const char kAUTestURLRequest[] = "autest";
 // By default autest bypasses scattering. If we want to test scattering,
@@ -72,8 +75,22 @@ gboolean update_engine_service_attempt_update(UpdateEngineService* self,
                                               gchar* app_version,
                                               gchar* omaha_url,
                                               GError **error) {
+  return update_engine_service_attempt_update_with_flags(self,
+                                                         app_version,
+                                                         omaha_url,
+                                                         0, // No flags set.
+                                                         error);
+}
+
+gboolean update_engine_service_attempt_update_with_flags(
+    UpdateEngineService* self,
+    gchar* app_version,
+    gchar* omaha_url,
+    gint flags_as_int,
+    GError **error) {
   string update_app_version;
   string update_omaha_url;
+  AttemptUpdateFlags flags = static_cast<AttemptUpdateFlags>(flags_as_int);
   bool interactive = true;
 
   // Only non-official (e.g., dev and test) builds can override the current
@@ -98,8 +115,11 @@ gboolean update_engine_service_attempt_update(UpdateEngineService* self,
       update_omaha_url = kAUTestURL;
     }
   }
+  if (flags & kAttemptUpdateFlagNonInteractive)
+    interactive = false;
   LOG(INFO) << "Attempt update: app_version=\"" << update_app_version << "\" "
             << "omaha_url=\"" << update_omaha_url << "\" "
+            << "flags=0x" << std::hex << flags << " "
             << "interactive=" << (interactive? "yes" : "no");
   self->system_state_->update_attempter()->CheckForUpdate(update_app_version,
                                                           update_omaha_url,

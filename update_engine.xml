@@ -13,6 +13,16 @@
       <arg type="s" name="app_version" />
       <arg type="s" name="omaha_url" />
     </method>
+    <!-- TODO(zeuthen,chromium:286399): Rename to AttemptUpdate and
+         update Chrome and other users of the AttemptUpdate() method
+         in lockstep.
+    -->
+    <method name="AttemptUpdateWithFlags">
+      <arg type="s" name="app_version" />
+      <arg type="s" name="omaha_url" />
+      <!-- See AttemptUpdateFlags enum in dbus_constants.h. -->
+      <arg type="i" name="flags" />
+    </method>
     <method name="AttemptRollback">
       <arg type="b" name="powerwash" />
     </method>
