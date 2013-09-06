@@ -26,10 +26,6 @@ extern const char kPrefsDirectory[];
 // Path to the stateful partition on the root filesystem.
 extern const char kStatefulPartition[];
 
-// Path to the marker file to allow p2p on interactive update attempts.
-// See utils::IsP2PAllowedForInteractiveChecks().
-extern const char kP2PAllowInteractiveMarkerFile[];
-
 // Constants related to preferences.
 extern const char kPrefsBackoffExpiryTime[];
 extern const char kPrefsCertificateReportToSendDownload[];

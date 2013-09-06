@@ -35,16 +35,6 @@ bool IsOfficialBuild();
 // boot mode. Returns false if the boot mode is developer.
 bool IsNormalBootMode();
 
-// Returns true if and only if P2P is allowed for interactive update
-// checks. This is implemented by checking the existence of a marker
-// file that can be created by the following command
-//
-// # touch /mnt/stateful_partition/p2p-allow-interactive
-//
-// This function returns false if the required marker file does not
-// exist or if an error occurred.
-bool IsP2PAllowedForInteractiveChecks();
-
 // Converts a struct timespec representing a number of seconds since
 // the Unix epoch to a base::Time. Sub-microsecond time is rounded
 // down.

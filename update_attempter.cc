@@ -241,18 +241,8 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
         LOG(INFO) << "Non-interactive check - allowing p2p for downloading";
         use_p2p_for_downloading = true;
       } else {
-        // TODO(zeuthen,chromium:273251): Remove this marker once we
-        // can easily trigger non-interactive checks.
-        if (utils::IsP2PAllowedForInteractiveChecks()) {
-          LOG(INFO) << "Found marker file at "
-                    << kP2PAllowInteractiveMarkerFile
-                    << " - allowing p2p for downloading despite the fact"
-                    << " the attempt is interactive.";
-          use_p2p_for_downloading = true;
-        } else {
-          LOG(INFO) << "Forcibly disabling use of p2p for downloading "
-                    << "since this update attempt is interactive.";
-        }
+        LOG(INFO) << "Forcibly disabling use of p2p for downloading "
+                  << "since this update attempt is interactive.";
       }
     }
   }

@@ -1027,11 +1027,6 @@ bool GetInstallDev(const std::string& boot_dev, std::string* install_dev) {
   return true;
 }
 
-bool IsP2PAllowedForInteractiveChecks() {
-  struct stat statbuf;
-  return stat(kP2PAllowInteractiveMarkerFile, &statbuf) == 0;
-}
-
 Time TimeFromStructTimespec(struct timespec *ts) {
   int64 us = static_cast<int64>(ts->tv_sec) * Time::kMicrosecondsPerSecond +
       static_cast<int64>(ts->tv_nsec) / Time::kNanosecondsPerMicrosecond;
