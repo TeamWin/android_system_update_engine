@@ -22,6 +22,8 @@ public:
   virtual ~FakeP2PManager() {}
 
   // P2PManager overrides.
+  virtual void SetDevicePolicy(const policy::DevicePolicy* device_policy) {}
+
   virtual bool IsP2PEnabled() {
     return is_p2p_enabled_;
   }

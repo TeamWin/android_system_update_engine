@@ -12,6 +12,8 @@
 #include <base/file_path.h>
 #include <base/memory/ref_counted.h>
 #include <base/time.h>
+#include <policy/device_policy.h>
+#include <policy/libpolicy.h>
 
 #include "update_engine/prefs_interface.h"
 
@@ -45,6 +47,10 @@ public:
   // The type for the callback used in LookupUrlForFile().
   // If the lookup failed, |url| is empty.
   typedef base::Callback<void(const std::string& url)> LookupCallback;
+
+  // Use the device policy specified by |device_policy|. If this is
+  // NULL, then no device policy is used.
+  virtual void SetDevicePolicy(const policy::DevicePolicy* device_policy) = 0;
 
   // Returns true if - and only if - P2P should be used on this
   // device. This value is derived from a variety of sources including

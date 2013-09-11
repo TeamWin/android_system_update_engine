@@ -97,7 +97,7 @@ public:
                  const int num_files_to_keep);
 
   // P2PManager methods.
-  virtual void SetConfiguration(Configuration *configuration);
+  virtual void SetDevicePolicy(const policy::DevicePolicy* device_policy);
   virtual bool IsP2PEnabled();
   virtual bool EnsureP2PRunning();
   virtual bool EnsureP2PNotRunning();
@@ -134,6 +134,9 @@ private:
   // Utility function used by EnsureP2PRunning() and EnsureP2PNotRunning().
   bool EnsureP2P(bool should_be_running);
 
+  // The device policy being used or NULL if no policy is being used.
+  const policy::DevicePolicy* device_policy_;
+
   // Configuration object.
   scoped_ptr<Configuration> configuration_;
 
@@ -166,33 +169,51 @@ P2PManagerImpl::P2PManagerImpl(Configuration *configuration,
                                PrefsInterface *prefs,
                                const string& file_extension,
                                const int num_files_to_keep)
-  : prefs_(prefs),
+  : device_policy_(NULL),
+    prefs_(prefs),
     file_extension_(file_extension),
     num_files_to_keep_(num_files_to_keep) {
   configuration_.reset(configuration != NULL ? configuration :
                        new ConfigurationImpl());
 }
 
-void P2PManagerImpl::SetConfiguration(Configuration *configuration) {
-  configuration_.reset(configuration);
+void P2PManagerImpl::SetDevicePolicy(
+    const policy::DevicePolicy* device_policy) {
+  device_policy_ = device_policy;
 }
 
 bool P2PManagerImpl::IsP2PEnabled() {
-  // TODO(deymo,zeuthen)(chromium:260441): See the bug for the bigger
-  // picture. For now we just read the state variable so in order for
-  // p2p to work the developer will have to manually create the prefs
-  // file. Once the fix for bug 260441 has been merged, this can be
-  // toggled using the crosh command, as intended.
-  bool enabled = false;
-  if (prefs_ == NULL) {
-    LOG(INFO) << "No prefs object.";
-  } else if (!prefs_->Exists(kPrefsP2PEnabled)) {
-    LOG(INFO) << "The " << kPrefsP2PEnabled << " pref does not exist.";
-  } else if (!prefs_->GetBoolean(kPrefsP2PEnabled, &enabled)) {
-    LOG(ERROR) << "Error getting " << kPrefsP2PEnabled << " pref.";
+  bool p2p_enabled = false;
+
+  // The logic we want here is additive, e.g. p2p can be enabled by
+  // either the crosh flag OR by Enterprise Policy, e.g. the following
+  // truth table:
+  //
+  //  crosh_flag == FALSE  &&  enterprise_policy == FALSE  -> use_p2p == FALSE
+  //  crosh_flag == FALSE  &&  enterprise_policy == TRUE   -> use_p2p == TRUE
+  //  crosh_flag == TRUE   &&  enterprise_policy == FALSE  -> use_p2p == TRUE
+  //  crosh_flag == TRUE   &&  enterprise_policy == TRUE   -> use_p2p == TRUE
+
+  if (device_policy_ != NULL) {
+    if (device_policy_->GetAuP2PEnabled(&p2p_enabled)) {
+      if (p2p_enabled) {
+        LOG(INFO) << "Enterprise Policy indicates that p2p is enabled.";
+        return true;
+      }
+    }
   }
-  LOG(INFO) << "Returning value " << enabled << " for whether p2p is enabled.";
-  return enabled;
+
+  if (prefs_ != NULL &&
+      prefs_->Exists(kPrefsP2PEnabled) &&
+      prefs_->GetBoolean(kPrefsP2PEnabled, &p2p_enabled) &&
+      p2p_enabled) {
+    LOG(INFO) << "The crosh flag indicates that p2p is enabled.";
+    return true;
+  }
+
+  LOG(INFO) << "Neither Enterprise Policy nor crosh flag indicates that p2p "
+            << "is enabled.";
+  return false;
 }
 
 bool P2PManagerImpl::EnsureP2P(bool should_be_running) {

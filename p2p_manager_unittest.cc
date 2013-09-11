@@ -16,6 +16,8 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/stringprintf.h"
+#include <policy/libpolicy.h>
+#include <policy/mock_device_policy.h>
 
 #include "update_engine/p2p_manager.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
@@ -48,9 +50,9 @@ protected:
 };
 
 
-// Check that result of IsP2PEnabled() correspond to the
-// kPrefsP2PEnabled state variable.
-TEST_F(P2PManagerTest, P2PEnabled) {
+// Check that IsP2PEnabled() returns false if neither the crosh flag
+// nor the Enterprise Policy indicates p2p is to be used.
+TEST_F(P2PManagerTest, P2PEnabledNeitherCroshFlagNotEnterpriseSetting) {
   string temp_dir;
   Prefs prefs;
   EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
@@ -60,6 +62,75 @@ TEST_F(P2PManagerTest, P2PEnabled) {
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
   EXPECT_FALSE(manager->IsP2PEnabled());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+// Check that IsP2PEnabled() corresponds to value of the crosh flag
+// when Enterprise Policy is not set.
+TEST_F(P2PManagerTest, P2PEnabledCroshFlag) {
+  string temp_dir;
+  Prefs prefs;
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+
+  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+                                                       &prefs, "cros_au", 3));
+  EXPECT_FALSE(manager->IsP2PEnabled());
+  prefs.SetBoolean(kPrefsP2PEnabled, true);
+  EXPECT_TRUE(manager->IsP2PEnabled());
+  prefs.SetBoolean(kPrefsP2PEnabled, false);
+  EXPECT_FALSE(manager->IsP2PEnabled());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+// Check that IsP2PEnabled() always returns true if Enterprise Policy
+// indicates that p2p is to be used.
+TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingTrue) {
+  string temp_dir;
+  Prefs prefs;
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+
+  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+                                                       &prefs, "cros_au", 3));
+  scoped_ptr<policy::MockDevicePolicy> device_policy(
+      new policy::MockDevicePolicy());
+  EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(
+      DoAll(testing::SetArgumentPointee<0>(bool(true)),
+            testing::Return(true)));
+  manager->SetDevicePolicy(device_policy.get());
+  EXPECT_TRUE(manager->IsP2PEnabled());
+
+  // Should still return true even if crosh flag says otherwise.
+  prefs.SetBoolean(kPrefsP2PEnabled, false);
+  EXPECT_TRUE(manager->IsP2PEnabled());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+// Check that IsP2PEnabled() corrresponds to the value of the crosh
+// flag if Enterprise Policy indicates that p2p is not to be used.
+TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingFalse) {
+  string temp_dir;
+  Prefs prefs;
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+
+  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+                                                       &prefs, "cros_au", 3));
+  scoped_ptr<policy::MockDevicePolicy> device_policy(
+      new policy::MockDevicePolicy());
+  EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(
+      DoAll(testing::SetArgumentPointee<0>(bool(false)),
+            testing::Return(true)));
+  manager->SetDevicePolicy(device_policy.get());
+  EXPECT_FALSE(manager->IsP2PEnabled());
+
   prefs.SetBoolean(kPrefsP2PEnabled, true);
   EXPECT_TRUE(manager->IsP2PEnabled());
   prefs.SetBoolean(kPrefsP2PEnabled, false);

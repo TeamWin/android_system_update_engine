@@ -16,6 +16,9 @@ class MockP2PManager : public P2PManager {
 public:
   MockP2PManager() {
     // Delegate all calls to the fake instance
+    ON_CALL(*this, SetDevicePolicy(testing::_))
+      .WillByDefault(testing::Invoke(&fake_,
+            &FakeP2PManager::SetDevicePolicy));
     ON_CALL(*this, IsP2PEnabled())
       .WillByDefault(testing::Invoke(&fake_,
             &FakeP2PManager::IsP2PEnabled));
@@ -58,6 +61,7 @@ public:
   virtual ~MockP2PManager() {}
 
   // P2PManager overrides.
+  MOCK_METHOD1(SetDevicePolicy, void(const policy::DevicePolicy*));
   MOCK_METHOD0(IsP2PEnabled, bool());
   MOCK_METHOD0(EnsureP2PRunning, bool());
   MOCK_METHOD0(EnsureP2PNotRunning, bool());

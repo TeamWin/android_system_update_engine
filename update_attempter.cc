@@ -217,6 +217,7 @@ void UpdateAttempter::RefreshDevicePolicy() {
     LOG(INFO) << "No device policies/settings present.";
 
   system_state_->set_device_policy(device_policy);
+  system_state_->p2p_manager()->SetDevicePolicy(device_policy);
 }
 
 void UpdateAttempter::CalculateP2PParams(bool interactive) {
