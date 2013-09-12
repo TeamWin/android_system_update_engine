@@ -116,14 +116,14 @@ const int kNumBytesInOneMiB = 1024 * 1024;
 // Number of redirects allowed when downloading.
 const int kDownloadMaxRedirects = 10;
 
-// The minimum average speed (50 kB/sec) that downloads must sustain...
+// The minimum average speed that downloads must sustain...
 //
 // This is set low because some devices may have very poor
 // connecticity and we want to make as much forward progress as
-// possible. For p2p this is high (50 kB/second) since we can assume
+// possible. For p2p this is high (25 kB/second) since we can assume
 // high bandwidth (same LAN) and we want to fail fast.
 const int kDownloadLowSpeedLimitBps = 1;
-const int kDownloadP2PLowSpeedLimitBps = 50 * 1000;
+const int kDownloadP2PLowSpeedLimitBps = 25 * 1000;
 
 // ... measured over this period.
 //
@@ -133,7 +133,7 @@ const int kDownloadP2PLowSpeedLimitBps = 50 * 1000;
 // relatively low since we want to fail fast.
 const int kDownloadLowSpeedTimeSeconds = 90;
 const int kDownloadDevModeLowSpeedTimeSeconds = 180;
-const int kDownloadP2PLowSpeedTimeSeconds = 30;
+const int kDownloadP2PLowSpeedTimeSeconds = 60;
 
 // The maximum amount of HTTP server reconnect attempts.
 //
@@ -141,7 +141,7 @@ const int kDownloadP2PLowSpeedTimeSeconds = 30;
 // succeeding. When using p2p, this is low in order to fail fast.
 const int kDownloadMaxRetryCount = 20;
 const int kDownloadMaxRetryCountOobeNotComplete = 3;
-const int kDownloadP2PMaxRetryCount = 3;
+const int kDownloadP2PMaxRetryCount = 5;
 
 // The connect timeout, in seconds.
 //
