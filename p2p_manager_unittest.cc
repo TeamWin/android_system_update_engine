@@ -74,20 +74,38 @@ TEST_F(P2PManagerTest, Housekeeping) {
                                                        NULL, "cros_au", 3));
   EXPECT_EQ(manager->CountSharedFiles(), 0);
 
-  // Generate files both matching our pattern and not matching them.
+  // Generate files with different timestamps matching our pattern and generate
+  // other files not matching the pattern.
+  double last_timestamp = -1;
   for (int n = 0; n < 5; n++) {
-    // We space out the files to be one minute apart.
-    string time_formatted = StringPrintf("2010090311%02d", n);
+    double current_timestamp;
+    do {
+      FilePath file = test_conf_->GetP2PDir().Append(StringPrintf(
+          "file_%d.cros_au.p2p", n));
+      EXPECT_EQ(0, System(StringPrintf("touch %s", file.value().c_str())));
 
-    EXPECT_EQ(0, System(StringPrintf("touch -t %s %s/file_%d.cros_au.p2p",
-                                     time_formatted.c_str(),
+      // Check that the current timestamp on the file is different from the
+      // previous generated file. This timestamp depends on the file system
+      // time resolution, for example, ext2/ext3 have a time resolution of one
+      // second while ext4 has a resolution of one nanosecond. If the assigned
+      // timestamp is the same, we introduce a bigger sleep and call touch
+      // again.
+      struct stat statbuf;
+      EXPECT_EQ(stat(file.value().c_str(), &statbuf), 0);
+      current_timestamp = utils::TimeFromStructTimespec(&statbuf.st_ctim)
+          .ToDoubleT();
+      if (current_timestamp == last_timestamp)
+        sleep(1);
+    } while (current_timestamp == last_timestamp);
+    last_timestamp = current_timestamp;
+
+    EXPECT_EQ(0, System(StringPrintf("touch %s/file_%d.OTHER.p2p",
                                      test_conf_->GetP2PDir().value().c_str(),
                                      n)));
 
-    EXPECT_EQ(0, System(StringPrintf("touch -t %s %s/file_%d.OTHER.p2p",
-                                     time_formatted.c_str(),
-                                     test_conf_->GetP2PDir().value().c_str(),
-                                     n)));
+    // A sleep of one micro-second is enough to have a different "Change" time
+    // on the file on newer file systems.
+    g_usleep(1);
   }
   // CountSharedFiles() only counts 'cros_au' files.
   EXPECT_EQ(manager->CountSharedFiles(), 5);
