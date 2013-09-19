@@ -202,11 +202,6 @@ TEST_F(P2PManagerTest, Housekeeping) {
   EXPECT_EQ(manager->CountSharedFiles(), 3);
 }
 
-// TODO(zeuthen): Some builders do not support fallocate(2) or xattrs
-// in the tmp directories where the code runs so comment out these
-// tests for now. See http://crbug.com/281496
-#if 0
-
 static bool CheckP2PFile(const string& p2p_dir, const string& file_name,
                          ssize_t expected_size, ssize_t expected_size_xattr) {
   string path = p2p_dir + "/" + file_name;
@@ -366,8 +361,6 @@ TEST_F(P2PManagerTest, ExistingFiles) {
   EXPECT_TRUE(manager->FileGetVisible("bar", &visible));
   EXPECT_FALSE(visible);
 }
-
-#endif // http://crbug.com/281496
 
 // This is a little bit ugly but short of mocking a 'p2p' service this
 // will have to do. E.g. we essentially simulate the various

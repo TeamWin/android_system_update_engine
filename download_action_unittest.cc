@@ -546,11 +546,6 @@ private:
   off_t start_at_offset_;
 };
 
-// TODO(zeuthen): Some builders do not support fallocate(2) or xattrs
-// in the tmp directories where the code runs so comment out these
-// tests for now. See http://crbug.com/281496
-#if 0
-
 TEST_F(P2PDownloadActionTest, IsWrittenTo) {
   SetupDownload(0);    // starting_offset
   StartDownload(true); // use_p2p_to_share
@@ -605,7 +600,6 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
   EXPECT_EQ(data_.substr(1000), p2p_file_contents.substr(1000));
 }
 
-
 TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
   SetupDownload(1000); // starting_offset
 
@@ -629,7 +623,5 @@ TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
   EXPECT_EQ(p2p_manager_->FileGetSize(file_id), -1);
   EXPECT_EQ(p2p_manager_->CountSharedFiles(), 0);
 }
-
-#endif // http://crbug.com/281496
 
 }  // namespace chromeos_update_engine
