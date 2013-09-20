@@ -436,7 +436,7 @@ TYPED_TEST(HttpFetcherTest, SimpleTest) {
     EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetWifi))
       .WillRepeatedly(Return(true));
     EXPECT_CALL(*mock_cm, StringForConnectionType(kNetWifi))
-      .WillRepeatedly(Return(flimflam::kTypeWifi));
+      .WillRepeatedly(Return(shill::kTypeWifi));
 
     scoped_ptr<HttpServer> server(this->test_.CreateServer());
     ASSERT_TRUE(server->started_);
@@ -465,7 +465,7 @@ TYPED_TEST(HttpFetcherTest, SimpleBigTest) {
     EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetEthernet))
       .WillRepeatedly(Return(true));
     EXPECT_CALL(*mock_cm, StringForConnectionType(kNetEthernet))
-      .WillRepeatedly(Return(flimflam::kTypeEthernet));
+      .WillRepeatedly(Return(shill::kTypeEthernet));
 
     scoped_ptr<HttpServer> server(this->test_.CreateServer());
     ASSERT_TRUE(server->started_);
@@ -502,7 +502,7 @@ TYPED_TEST(HttpFetcherTest, ErrorTest) {
     EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetWimax))
       .WillRepeatedly(Return(true));
     EXPECT_CALL(*mock_cm, StringForConnectionType(kNetWimax))
-      .WillRepeatedly(Return(flimflam::kTypeWimax));
+      .WillRepeatedly(Return(shill::kTypeWimax));
 
     scoped_ptr<HttpServer> server(this->test_.CreateServer());
     ASSERT_TRUE(server->started_);
@@ -581,7 +581,7 @@ TYPED_TEST(HttpFetcherTest, PauseTest) {
     EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetCellular))
       .WillRepeatedly(Return(true));
     EXPECT_CALL(*mock_cm, StringForConnectionType(kNetCellular))
-      .WillRepeatedly(Return(flimflam::kTypeCellular));
+      .WillRepeatedly(Return(shill::kTypeCellular));
 
     scoped_ptr<HttpServer> server(this->test_.CreateServer());
     ASSERT_TRUE(server->started_);
@@ -657,7 +657,7 @@ TYPED_TEST(HttpFetcherTest, AbortTest) {
     EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetWifi))
       .WillRepeatedly(Return(true));
     EXPECT_CALL(*mock_cm, StringForConnectionType(kNetWifi))
-      .WillRepeatedly(Return(flimflam::kTypeWifi));
+      .WillRepeatedly(Return(shill::kTypeWifi));
 
     scoped_ptr<HttpServer> server(this->test_.CreateServer());
     this->test_.IgnoreServerAborting(server.get());
@@ -715,7 +715,7 @@ TYPED_TEST(HttpFetcherTest, FlakyTest) {
     EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetWifi))
       .WillRepeatedly(Return(true));
     EXPECT_CALL(*mock_cm, StringForConnectionType(kNetWifi))
-      .WillRepeatedly(Return(flimflam::kTypeWifi));
+      .WillRepeatedly(Return(shill::kTypeWifi));
 
 
     scoped_ptr<HttpServer> server(this->test_.CreateServer());
@@ -798,7 +798,7 @@ TYPED_TEST(HttpFetcherTest, FailureTest) {
     EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetEthernet))
       .WillRepeatedly(Return(true));
     EXPECT_CALL(*mock_cm, StringForConnectionType(kNetEthernet))
-      .WillRepeatedly(Return(flimflam::kTypeEthernet));
+      .WillRepeatedly(Return(shill::kTypeEthernet));
 
 
     StartTransferArgs start_xfer_args = {
@@ -892,7 +892,7 @@ void RedirectTest(const HttpServer* server,
     EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetEthernet))
       .WillRepeatedly(Return(true));
     EXPECT_CALL(*mock_cm, StringForConnectionType(kNetEthernet))
-      .WillRepeatedly(Return(flimflam::kTypeEthernet));
+      .WillRepeatedly(Return(shill::kTypeEthernet));
 
     StartTransferArgs start_xfer_args =
         { fetcher.get(), LocalServerUrlForPath(server->GetPort(), url) };
@@ -1010,7 +1010,7 @@ void MultiTest(HttpFetcher* fetcher_in,
     EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetWifi))
       .WillRepeatedly(Return(true));
     EXPECT_CALL(*mock_cm, StringForConnectionType(kNetWifi))
-      .WillRepeatedly(Return(flimflam::kTypeWifi));
+      .WillRepeatedly(Return(shill::kTypeWifi));
 
     MultiRangeHttpFetcher* multi_fetcher =
         dynamic_cast<MultiRangeHttpFetcher*>(fetcher_in);
@@ -1208,7 +1208,7 @@ TYPED_TEST(HttpFetcherTest, BlockedTransferTest) {
       EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetWifi))
         .WillRepeatedly(Return(is_allowed));
       EXPECT_CALL(*mock_cm, StringForConnectionType(kNetWifi))
-        .WillRepeatedly(Return(flimflam::kTypeWifi));
+        .WillRepeatedly(Return(shill::kTypeWifi));
 
       bool is_official_build = (i == 1);
       LOG(INFO) << "is_update_allowed_over_connection: " << is_allowed;

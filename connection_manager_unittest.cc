@@ -105,9 +105,9 @@ void ConnectionManagerTest::SetManagerReply(gconstpointer reply_value,
   // Set other expectations.
   EXPECT_CALL(dbus_iface_,
               ProxyNewForNameOwner(kMockSystemBus_,
-                                   StrEq(flimflam::kFlimflamServiceName),
-                                   StrEq(flimflam::kFlimflamServicePath),
-                                   StrEq(flimflam::kFlimflamManagerInterface),
+                                   StrEq(shill::kFlimflamServiceName),
+                                   StrEq(shill::kFlimflamServicePath),
+                                   StrEq(shill::kFlimflamManagerInterface),
                                    _))
       .WillOnce(Return(kMockFlimFlamManagerProxy_));
   EXPECT_CALL(dbus_iface_, ProxyUnref(kMockFlimFlamManagerProxy_));
@@ -156,9 +156,9 @@ void ConnectionManagerTest::SetServiceReply(const char* service_type,
   // Set other expectations.
   EXPECT_CALL(dbus_iface_,
       ProxyNewForNameOwner(kMockSystemBus_,
-                             StrEq(flimflam::kFlimflamServiceName),
+                             StrEq(shill::kFlimflamServiceName),
                              StrEq(kServicePath_),
-                             StrEq(flimflam::kFlimflamServiceInterface),
+                             StrEq(shill::kFlimflamServiceInterface),
                              _))
       .WillOnce(Return(kMockFlimFlamServiceProxy_));
   EXPECT_CALL(dbus_iface_, ProxyUnref(kMockFlimFlamServiceProxy_));
@@ -181,18 +181,18 @@ void ConnectionManagerTest::TestWithServiceType(
 }
 
 TEST_F(ConnectionManagerTest, SimpleTest) {
-  TestWithServiceType(flimflam::kTypeEthernet, NULL, kNetEthernet);
-  TestWithServiceType(flimflam::kTypeWifi, NULL, kNetWifi);
-  TestWithServiceType(flimflam::kTypeWimax, NULL, kNetWimax);
-  TestWithServiceType(flimflam::kTypeBluetooth, NULL, kNetBluetooth);
-  TestWithServiceType(flimflam::kTypeCellular, NULL, kNetCellular);
+  TestWithServiceType(shill::kTypeEthernet, NULL, kNetEthernet);
+  TestWithServiceType(shill::kTypeWifi, NULL, kNetWifi);
+  TestWithServiceType(shill::kTypeWimax, NULL, kNetWimax);
+  TestWithServiceType(shill::kTypeBluetooth, NULL, kNetBluetooth);
+  TestWithServiceType(shill::kTypeCellular, NULL, kNetCellular);
 }
 
 TEST_F(ConnectionManagerTest, PhysicalTechnologyTest) {
-  TestWithServiceType(flimflam::kTypeVPN, NULL, kNetUnknown);
-  TestWithServiceType(flimflam::kTypeVPN, flimflam::kTypeVPN, kNetUnknown);
-  TestWithServiceType(flimflam::kTypeVPN, flimflam::kTypeWifi, kNetWifi);
-  TestWithServiceType(flimflam::kTypeVPN, flimflam::kTypeWimax, kNetWimax);
+  TestWithServiceType(shill::kTypeVPN, NULL, kNetUnknown);
+  TestWithServiceType(shill::kTypeVPN, shill::kTypeVPN, kNetUnknown);
+  TestWithServiceType(shill::kTypeVPN, shill::kTypeWifi, kNetWifi);
+  TestWithServiceType(shill::kTypeVPN, shill::kTypeWimax, kNetWimax);
 }
 
 TEST_F(ConnectionManagerTest, UnknownTest) {
@@ -349,15 +349,15 @@ TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
 }
 
 TEST_F(ConnectionManagerTest, StringForConnectionTypeTest) {
-  EXPECT_STREQ(flimflam::kTypeEthernet,
+  EXPECT_STREQ(shill::kTypeEthernet,
                cmut_.StringForConnectionType(kNetEthernet));
-  EXPECT_STREQ(flimflam::kTypeWifi,
+  EXPECT_STREQ(shill::kTypeWifi,
                cmut_.StringForConnectionType(kNetWifi));
-  EXPECT_STREQ(flimflam::kTypeWimax,
+  EXPECT_STREQ(shill::kTypeWimax,
                cmut_.StringForConnectionType(kNetWimax));
-  EXPECT_STREQ(flimflam::kTypeBluetooth,
+  EXPECT_STREQ(shill::kTypeBluetooth,
                cmut_.StringForConnectionType(kNetBluetooth));
-  EXPECT_STREQ(flimflam::kTypeCellular,
+  EXPECT_STREQ(shill::kTypeCellular,
                cmut_.StringForConnectionType(kNetCellular));
   EXPECT_STREQ("Unknown",
                cmut_.StringForConnectionType(kNetUnknown));

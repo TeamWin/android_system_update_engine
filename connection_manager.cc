@@ -38,7 +38,7 @@ bool GetFlimFlamProxy(DbusGlibInterface* dbus_iface,
     return false;
   }
   proxy = dbus_iface->ProxyNewForNameOwner(bus,
-                                           flimflam::kFlimflamServiceName,
+                                           shill::kFlimflamServiceName,
                                            path,
                                            interface,
                                            &error);
@@ -90,8 +90,8 @@ bool GetDefaultServicePath(DbusGlibInterface* dbus_iface, string* out_path) {
   GHashTable* hash_table = NULL;
 
   TEST_AND_RETURN_FALSE(GetProperties(dbus_iface,
-                                      flimflam::kFlimflamServicePath,
-                                      flimflam::kFlimflamManagerInterface,
+                                      shill::kFlimflamServicePath,
+                                      shill::kFlimflamManagerInterface,
                                       &hash_table));
 
   GValue* value = reinterpret_cast<GValue*>(g_hash_table_lookup(hash_table,
@@ -110,15 +110,15 @@ bool GetDefaultServicePath(DbusGlibInterface* dbus_iface, string* out_path) {
 }
 
 NetworkConnectionType ParseConnectionType(const char* type_str) {
-  if (!strcmp(type_str, flimflam::kTypeEthernet)) {
+  if (!strcmp(type_str, shill::kTypeEthernet)) {
     return kNetEthernet;
-  } else if (!strcmp(type_str, flimflam::kTypeWifi)) {
+  } else if (!strcmp(type_str, shill::kTypeWifi)) {
     return kNetWifi;
-  } else if (!strcmp(type_str, flimflam::kTypeWimax)) {
+  } else if (!strcmp(type_str, shill::kTypeWimax)) {
     return kNetWimax;
-  } else if (!strcmp(type_str, flimflam::kTypeBluetooth)) {
+  } else if (!strcmp(type_str, shill::kTypeBluetooth)) {
     return kNetBluetooth;
-  } else if (!strcmp(type_str, flimflam::kTypeCellular)) {
+  } else if (!strcmp(type_str, shill::kTypeCellular)) {
     return kNetCellular;
   }
   return kNetUnknown;
@@ -131,16 +131,16 @@ bool GetServicePathType(DbusGlibInterface* dbus_iface,
 
   TEST_AND_RETURN_FALSE(GetProperties(dbus_iface,
                                       path.c_str(),
-                                      flimflam::kFlimflamServiceInterface,
+                                      shill::kFlimflamServiceInterface,
                                       &hash_table));
 
   GValue* value = (GValue*)g_hash_table_lookup(hash_table,
-                                               flimflam::kTypeProperty);
+                                               shill::kTypeProperty);
   const char* type_str = NULL;
   bool success = false;
   if (value != NULL && (type_str = g_value_get_string(value)) != NULL) {
     success = true;
-    if (!strcmp(type_str, flimflam::kTypeVPN)) {
+    if (!strcmp(type_str, shill::kTypeVPN)) {
       value = (GValue*)g_hash_table_lookup(hash_table,
                                            shill::kPhysicalTechnologyProperty);
       if (value != NULL && (type_str = g_value_get_string(value)) != NULL) {
@@ -187,7 +187,7 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type) const {
         // The update setting is enforced by the device policy.
 
         if ((type == kNetCellular &&
-            !ContainsKey(allowed_types, flimflam::kTypeCellular))) {
+            !ContainsKey(allowed_types, shill::kTypeCellular))) {
           LOG(INFO) << "Disabling updates over cellular connection as it's not "
                        "allowed in the device policy.";
           return false;
@@ -229,11 +229,11 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type) const {
 
 const char* ConnectionManager::StringForConnectionType(
     NetworkConnectionType type) const {
-  static const char* const kValues[] = {flimflam::kTypeEthernet,
-                                        flimflam::kTypeWifi,
-                                        flimflam::kTypeWimax,
-                                        flimflam::kTypeBluetooth,
-                                        flimflam::kTypeCellular};
+  static const char* const kValues[] = {shill::kTypeEthernet,
+                                        shill::kTypeWifi,
+                                        shill::kTypeWimax,
+                                        shill::kTypeBluetooth,
+                                        shill::kTypeCellular};
   if (type < 0 || type >= static_cast<int>(arraysize(kValues))) {
     return "Unknown";
   }
