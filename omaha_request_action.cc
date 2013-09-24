@@ -876,18 +876,33 @@ void OmahaRequestAction::OnLookupPayloadViaP2PCompleted(const string& url) {
 }
 
 void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
-  // The kPrefsUpdateStateNextDataOffset state variable tracks the
-  // offset into the payload of the last completed operation if we're
-  // in the middle of an update. As such, p2p is only useful if the
-  // peer actually has that many bytes.
+  // If the device is in the middle of an update, the state variables
+  // kPrefsUpdateStateNextDataOffset, kPrefsUpdateStateNextDataLength
+  // tracks the offset and length of the operation currently in
+  // progress. The offset is based from the end of the manifest which
+  // is kPrefsManifestMetadataSize bytes long.
+  //
+  // To make forward progress and avoid deadlocks, we need to find a
+  // peer that has at least the entire operation we're currently
+  // working on. Otherwise we may end up in a situation where two
+  // devices bounce back and forth downloading from each other,
+  // neither making any forward progress until one of them decides to
+  // stop using p2p (via kMaxP2PAttempts and kMaxP2PAttemptTimeSeconds
+  // safe-guards). See http://crbug.com/297170 for an example)
   size_t minimum_size = 0;
-  int64_t next_data_offset = -1;
+  int64_t manifest_metadata_size = 0;
+  int64_t next_data_offset = 0;
+  int64_t next_data_length = 0;
   if (system_state_ != NULL &&
+      system_state_->prefs()->GetInt64(kPrefsManifestMetadataSize,
+                                       &manifest_metadata_size) &&
+      manifest_metadata_size != -1 &&
       system_state_->prefs()->GetInt64(kPrefsUpdateStateNextDataOffset,
-                                       &next_data_offset)) {
-    if (next_data_offset > 0) {
-      minimum_size = next_data_offset;
-    }
+                                       &next_data_offset) &&
+      next_data_offset != -1 &&
+      system_state_->prefs()->GetInt64(kPrefsUpdateStateNextDataLength,
+                                       &next_data_length)) {
+    minimum_size = manifest_metadata_size + next_data_offset + next_data_length;
   }
 
   string file_id = utils::CalculateP2PFileId(response.hash, response.size);

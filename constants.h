@@ -58,6 +58,7 @@ extern const char kPrefsUpdateFirstSeenAt[];
 extern const char kPrefsUpdateOverCellularPermission[];
 extern const char kPrefsUpdateServerCertificate[];
 extern const char kPrefsUpdateStateNextDataOffset[];
+extern const char kPrefsUpdateStateNextDataLength[];
 extern const char kPrefsUpdateStateNextOperation[];
 extern const char kPrefsUpdateStateSHA256Context[];
 extern const char kPrefsUpdateStateSignatureBlob[];

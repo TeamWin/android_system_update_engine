@@ -1147,6 +1147,7 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
   if (!quick) {
     prefs->SetString(kPrefsUpdateCheckResponseHash, "");
     prefs->SetInt64(kPrefsUpdateStateNextDataOffset, -1);
+    prefs->SetInt64(kPrefsUpdateStateNextDataLength, 0);
     prefs->SetString(kPrefsUpdateStateSHA256Context, "");
     prefs->SetString(kPrefsUpdateStateSignedSHA256Context, "");
     prefs->SetString(kPrefsUpdateStateSignatureBlob, "");
@@ -1167,6 +1168,21 @@ bool DeltaPerformer::CheckpointUpdateProgress() {
     TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextDataOffset,
                                            buffer_offset_));
     last_updated_buffer_offset_ = buffer_offset_;
+
+    if (next_operation_num_ < num_total_operations_) {
+      const bool is_kernel_partition =
+          next_operation_num_ >= num_rootfs_operations_;
+      const DeltaArchiveManifest_InstallOperation &op =
+          is_kernel_partition ?
+          manifest_.kernel_install_operations(
+              next_operation_num_ - num_rootfs_operations_) :
+          manifest_.install_operations(next_operation_num_);
+      TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextDataLength,
+                                             op.data_length()));
+    } else {
+      TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextDataLength,
+                                             0));
+    }
   }
   TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextOperation,
                                          next_operation_num_));

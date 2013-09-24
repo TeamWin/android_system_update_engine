@@ -55,6 +55,7 @@ const char kPrefsUpdateOverCellularPermission[] =
     "update-over-cellular-permission";
 const char kPrefsUpdateServerCertificate[] = "update-server-cert";
 const char kPrefsUpdateStateNextDataOffset[] = "update-state-next-data-offset";
+const char kPrefsUpdateStateNextDataLength[] = "update-state-next-data-length";
 const char kPrefsUpdateStateNextOperation[] = "update-state-next-operation";
 const char kPrefsUpdateStateSHA256Context[] = "update-state-sha-256-context";
 const char kPrefsUpdateStateSignatureBlob[] = "update-state-signature-blob";
