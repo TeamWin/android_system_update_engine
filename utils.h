@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include <base/file_path.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/time.h>
 #include <ext2fs/ext2fs.h>
@@ -340,6 +341,11 @@ bool DeletePowerwashMarkerFile(const char* file_path);
 // or /dev/sda4 -> /dev/sda3. See
 // http://www.chromium.org/chromium-os/chromiumos-design-docs/disk-format
 bool GetInstallDev(const std::string& boot_dev, std::string* install_dev);
+
+// Checks if xattr is supported in the directory specified by
+// |dir_path| which must be writable. Returns true if the feature is
+// supported, false if not or if an error occured.
+bool IsXAttrSupported(const base::FilePath& dir_path);
 
 }  // namespace utils
 

@@ -606,18 +606,21 @@ bool P2PManagerImpl::FileShare(const string& file_id,
                   FALLOC_FL_KEEP_SIZE, // Keep file size as 0.
                   0,
                   expected_size) != 0) {
-      // ENOSPC can happen (funky race though, cf. the statvfs() check
-      // above), handle it gracefully, e.g. use logging level INFO.
-      //
-      // NOTE: we *could* handle ENOSYS gracefully (ie. we could
-      // ignore it) but currently we don't because running out of
-      // space later sounds absolutely horrible. Better to fail fast.
-      PLOG(INFO) << "Error allocating " << expected_size
-                 << " bytes for file " << path.value();
-      if (unlink(path.value().c_str()) != 0) {
-        PLOG(ERROR) << "Error deleting file with path " << path.value();
+      if (errno == ENOSYS || errno == EOPNOTSUPP) {
+        // If the filesystem doesn't support the fallocate, keep
+        // going. This is helpful when running unit tests on build
+        // machines with ancient filesystems and/or OSes.
+        PLOG(WARNING) << "Ignoring fallocate(2) failure";
+      } else {
+        // ENOSPC can happen (funky race though, cf. the statvfs() check
+        // above), handle it gracefully, e.g. use logging level INFO.
+        PLOG(INFO) << "Error allocating " << expected_size
+                   << " bytes for file " << path.value();
+        if (unlink(path.value().c_str()) != 0) {
+          PLOG(ERROR) << "Error deleting file with path " << path.value();
+        }
+        return false;
       }
-      return false;
     }
 
     string decimal_size = StringPrintf("%zu", expected_size);

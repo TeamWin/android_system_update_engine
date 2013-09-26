@@ -287,6 +287,12 @@ static bool CreateP2PFile(string p2p_dir, string file_name,
 
 // Check that sharing a *new* file works.
 TEST_F(P2PManagerTest, ShareFile) {
+  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
+                 << "Please update your system to support this feature.";
+    return;
+  }
+
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        NULL, "cros_au", 3));
   EXPECT_TRUE(manager->FileShare("foo", 10 * 1000 * 1000));
@@ -304,6 +310,12 @@ TEST_F(P2PManagerTest, ShareFile) {
 
 // Check that making a shared file visible, does what is expected.
 TEST_F(P2PManagerTest, MakeFileVisible) {
+  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
+                 << "Please update your system to support this feature.";
+    return;
+  }
+
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        NULL, "cros_au", 3));
   // First, check that it's not visible.
@@ -325,6 +337,12 @@ TEST_F(P2PManagerTest, MakeFileVisible) {
 
 // Check that we return the right values for existing files in P2P_DIR.
 TEST_F(P2PManagerTest, ExistingFiles) {
+  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+    LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
+                 << "Please update your system to support this feature.";
+    return;
+  }
+
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        NULL, "cros_au", 3));
   bool visible;
