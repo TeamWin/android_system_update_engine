@@ -9,6 +9,7 @@
 
 #include "update_engine/action_mock.h"
 #include "update_engine/action_processor_mock.h"
+#include "update_engine/fake_clock.h"
 #include "update_engine/filesystem_copier_action.h"
 #include "update_engine/install_plan.h"
 #include "update_engine/mock_dbus_interface.h"
@@ -24,6 +25,8 @@
 #include "update_engine/update_check_scheduler.h"
 #include "update_engine/utils.h"
 
+using base::Time;
+using base::TimeDelta;
 using std::string;
 using testing::_;
 using testing::DoAll;
@@ -1039,6 +1042,77 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   EXPECT_FALSE(prefs.Exists(kPrefsUpdateCheckCount));
 
   g_idle_add(&StaticQuitMainLoop, this);
+}
+
+// Checks that we only report daily metrics at most every 24 hours.
+TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
+  FakeClock fake_clock;
+  Prefs prefs;
+  string temp_dir;
+
+  // We need persistent preferences for this test
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/UpdateCheckScheduler.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+  mock_system_state_.set_clock(&fake_clock);
+  mock_system_state_.set_prefs(&prefs);
+
+  Time epoch = Time::FromInternalValue(0);
+  fake_clock.SetWallclockTime(epoch);
+
+  // If there is no kPrefsDailyMetricsLastReportedAt state variable,
+  // we should report.
+  EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
+  // We should not report again if no time has passed.
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+
+  // We should not report if only 10 hours has passed.
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(10));
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+
+  // We should not report if only 24 hours - 1 sec has passed.
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(24) -
+                              TimeDelta::FromSeconds(1));
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+
+  // We should report if 24 hours has passed.
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(24));
+  EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
+
+  // But then we should not report again..
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+
+  // .. until another 24 hours has passed
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(47));
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(48));
+  EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+
+  // .. and another 24 hours
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(71));
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(72));
+  EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+
+  // If the span between time of reporting and present time is
+  // negative, we report. This is in order to reset the timestamp and
+  // avoid an edge condition whereby a distant point in the future is
+  // in the state variable resulting in us never ever reporting again.
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(71));
+  EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+
+  // In this case we should not update until the clock reads 71 + 24 = 95.
+  // Check that.
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(94));
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+  fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(95));
+  EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
+  EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 }  // namespace chromeos_update_engine

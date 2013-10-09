@@ -202,10 +202,20 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
   FRIEND_TEST(UpdateAttempterTest, UpdateTest);
+  FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
 
   // Ctor helper method.
   void Init(SystemState* system_state,
             const std::string& update_completed_marker);
+
+  // Checks if it's more than 24 hours since daily metrics were last
+  // reported and, if so, reports daily metrics. Returns |true| if
+  // metrics were reported, |false| otherwise.
+  bool CheckAndReportDailyMetrics();
+
+  // Calculates and reports the age of the currently running OS. This
+  // is defined as the age of the /etc/lsb-release file.
+  void ReportOSAge();
 
   // Sets the status to the given status and notifies a status update over dbus.
   // Also accepts a supplement notice, which is delegated to the scheduler and

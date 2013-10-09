@@ -16,6 +16,7 @@
 #include <policy/device_policy.h>
 
 #include "update_engine/certificate_checker.h"
+#include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"
 #include "update_engine/dbus_service.h"
 #include "update_engine/download_action.h"
@@ -162,11 +163,83 @@ UpdateAttempter::~UpdateAttempter() {
   CleanupCpuSharesManagement();
 }
 
+bool UpdateAttempter::CheckAndReportDailyMetrics() {
+  int64_t stored_value;
+  base::Time now = system_state_->clock()->GetWallclockTime();
+  if (system_state_->prefs()->Exists(kPrefsDailyMetricsLastReportedAt) &&
+      system_state_->prefs()->GetInt64(kPrefsDailyMetricsLastReportedAt,
+                                       &stored_value)) {
+    base::Time last_reported_at = base::Time::FromInternalValue(stored_value);
+    base::TimeDelta time_reported_since = now - last_reported_at;
+    if (time_reported_since.InSeconds() < 0) {
+      LOG(WARNING) << "Last reported daily metrics "
+                   << utils::FormatTimeDelta(time_reported_since) << " ago "
+                   << "which is negative. Either the system clock is wrong or "
+                   << "the kPrefsDailyMetricsLastReportedAt state variable "
+                   << "is wrong.";
+      // In this case, report daily metrics to reset.
+    } else {
+      if (time_reported_since.InSeconds() < 24*60*60) {
+        LOG(INFO) << "Last reported daily metrics "
+                  << utils::FormatTimeDelta(time_reported_since) << " ago.";
+        return false;
+      }
+      LOG(INFO) << "Last reported daily metrics "
+                << utils::FormatTimeDelta(time_reported_since) << " ago, "
+                << "which is more than 24 hours ago.";
+    }
+  }
+
+  LOG(INFO) << "Reporting daily metrics.";
+  system_state_->prefs()->SetInt64(kPrefsDailyMetricsLastReportedAt,
+                                   now.ToInternalValue());
+
+  ReportOSAge();
+
+  return true;
+}
+
+void UpdateAttempter::ReportOSAge() {
+  struct stat sb;
+
+  if (system_state_ == NULL)
+    return;
+
+  if (stat("/etc/lsb-release", &sb) != 0) {
+    PLOG(ERROR) << "Error getting file status for /etc/lsb-release";
+    return;
+  }
+
+  base::Time lsb_release_timestamp = utils::TimeFromStructTimespec(&sb.st_ctim);
+  base::Time now = system_state_->clock()->GetWallclockTime();
+  base::TimeDelta age = now - lsb_release_timestamp;
+  if (age.InSeconds() < 0) {
+    LOG(ERROR) << "The OS age (" << utils::FormatTimeDelta(age)
+               << ") is negative. Maybe the clock is wrong?";
+    return;
+  }
+
+  std::string metric = "Installer.OSAgeDays";
+  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(age)
+            << " for metric " <<  metric;
+  system_state_->metrics_lib()->SendToUMA(
+       metric,
+       static_cast<int>(age.InDays()),
+       0,             // min: 0 days
+       6*30,          // max: 6 months (approx)
+       kNumDefaultUmaBuckets);
+}
+
 void UpdateAttempter::Update(const string& app_version,
                              const string& omaha_url,
                              bool obey_proxies,
                              bool interactive,
                              bool is_test_mode) {
+  // This is called at least every 4 hours (see the constant
+  // UpdateCheckScheduler::kTimeoutMaxBackoffInterval) so it's
+  // appropriate to use as a hook for reporting daily metrics.
+  CheckAndReportDailyMetrics();
+
   chrome_proxy_resolver_.Init();
   fake_update_success_ = false;
   if (status_ == UPDATE_STATUS_UPDATED_NEED_REBOOT) {
