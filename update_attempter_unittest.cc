@@ -311,27 +311,6 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
   EXPECT_EQ(UPDATE_STATUS_REPORTING_ERROR_EVENT, attempter_.status());
 }
 
-TEST_F(UpdateAttempterTest, UpdateStatusToStringTest) {
-  extern const char* UpdateStatusToString(UpdateStatus);
-  EXPECT_STREQ("UPDATE_STATUS_IDLE", UpdateStatusToString(UPDATE_STATUS_IDLE));
-  EXPECT_STREQ("UPDATE_STATUS_CHECKING_FOR_UPDATE",
-               UpdateStatusToString(UPDATE_STATUS_CHECKING_FOR_UPDATE));
-  EXPECT_STREQ("UPDATE_STATUS_UPDATE_AVAILABLE",
-               UpdateStatusToString(UPDATE_STATUS_UPDATE_AVAILABLE));
-  EXPECT_STREQ("UPDATE_STATUS_DOWNLOADING",
-               UpdateStatusToString(UPDATE_STATUS_DOWNLOADING));
-  EXPECT_STREQ("UPDATE_STATUS_VERIFYING",
-               UpdateStatusToString(UPDATE_STATUS_VERIFYING));
-  EXPECT_STREQ("UPDATE_STATUS_FINALIZING",
-               UpdateStatusToString(UPDATE_STATUS_FINALIZING));
-  EXPECT_STREQ("UPDATE_STATUS_UPDATED_NEED_REBOOT",
-               UpdateStatusToString(UPDATE_STATUS_UPDATED_NEED_REBOOT));
-  EXPECT_STREQ("UPDATE_STATUS_REPORTING_ERROR_EVENT",
-               UpdateStatusToString(UPDATE_STATUS_REPORTING_ERROR_EVENT));
-  EXPECT_STREQ("unknown status",
-               UpdateStatusToString(static_cast<UpdateStatus>(-1)));
-}
-
 void UpdateAttempterTest::QuitMainLoop() {
   g_main_loop_quit(loop_);
 }

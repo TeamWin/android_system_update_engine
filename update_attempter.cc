@@ -10,6 +10,7 @@
 
 #include <base/file_util.h>
 #include <base/rand_util.h>
+#include <chromeos/dbus/service_constants.h>
 #include <glib.h>
 #include <metrics/metrics_library.h>
 #include <policy/libpolicy.h>
@@ -65,23 +66,23 @@ const char* kUpdateCompletedMarker =
 const char* UpdateStatusToString(UpdateStatus status) {
   switch (status) {
     case UPDATE_STATUS_IDLE:
-      return "UPDATE_STATUS_IDLE";
+      return update_engine::kUpdateStatusIdle;
     case UPDATE_STATUS_CHECKING_FOR_UPDATE:
-      return "UPDATE_STATUS_CHECKING_FOR_UPDATE";
+      return update_engine::kUpdateStatusCheckingForUpdate;
     case UPDATE_STATUS_UPDATE_AVAILABLE:
-      return "UPDATE_STATUS_UPDATE_AVAILABLE";
+      return update_engine::kUpdateStatusUpdateAvailable;
     case UPDATE_STATUS_DOWNLOADING:
-      return "UPDATE_STATUS_DOWNLOADING";
+      return update_engine::kUpdateStatusDownloading;
     case UPDATE_STATUS_VERIFYING:
-      return "UPDATE_STATUS_VERIFYING";
+      return update_engine::kUpdateStatusVerifying;
     case UPDATE_STATUS_FINALIZING:
-      return "UPDATE_STATUS_FINALIZING";
+      return update_engine::kUpdateStatusFinalizing;
     case UPDATE_STATUS_UPDATED_NEED_REBOOT:
-      return "UPDATE_STATUS_UPDATED_NEED_REBOOT";
+      return update_engine::kUpdateStatusUpdatedNeedReboot;
     case UPDATE_STATUS_REPORTING_ERROR_EVENT:
-      return "UPDATE_STATUS_REPORTING_ERROR_EVENT";
+      return update_engine::kUpdateStatusReportingErrorEvent;
     case UPDATE_STATUS_ATTEMPTING_ROLLBACK:
-      return "UPDATE_STATUS_ATTEMPTING_ROLLBACK";
+      return update_engine::kUpdateStatusAttemptingRollback;
     default:
       return "unknown status";
   }
