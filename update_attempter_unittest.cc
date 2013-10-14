@@ -1094,4 +1094,22 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
+TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
+  const string update_completed_marker = test_dir_ + "/update-completed-marker";
+  UpdateAttempterUnderTest attempter(&mock_system_state_, &dbus_,
+                                     update_completed_marker);
+
+  FakeClock fake_clock;
+  fake_clock.SetBootTime(Time::FromTimeT(42));
+  mock_system_state_.set_clock(&fake_clock);
+
+  Time boot_time;
+  EXPECT_FALSE(attempter.GetBootTimeAtUpdate(&boot_time));
+
+  attempter.WriteUpdateCompletedMarker();
+
+  EXPECT_TRUE(attempter.GetBootTimeAtUpdate(&boot_time));
+  EXPECT_EQ(boot_time.ToTimeT(), 42);
+}
+
 }  // namespace chromeos_update_engine

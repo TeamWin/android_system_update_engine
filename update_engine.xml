@@ -65,6 +65,9 @@
     <method name="GetUpdateOverCellularPermission">
       <arg type="b" name="allowed" direction="out" />
     </method>
+    <method name="GetDurationSinceUpdate">
+      <arg type="x" name="usec_wallclock" direction="out" />
+    </method>
     <signal name="StatusUpdate">
       <arg type="x" name="last_checked_time" />
       <arg type="d" name="progress" />

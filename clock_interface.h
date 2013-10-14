@@ -27,6 +27,13 @@ class ClockInterface {
   // (This is a simple wrapper around clock_gettime(2) / CLOCK_MONOTONIC_RAW.)
   virtual base::Time GetMonotonicTime() = 0;
 
+  // Returns monotonic time since some unspecified starting point. It
+  // is increased when the system is sleeping but it's not affected
+  // by NTP or the user changing the time.
+  //
+  // (This is a simple wrapper around clock_gettime(2) / CLOCK_BOOTTIME.)
+  virtual base::Time GetBootTime() = 0;
+
   virtual ~ClockInterface() {}
 };
 

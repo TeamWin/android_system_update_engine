@@ -9,8 +9,11 @@
 #include <vector>
 
 #include <base/file_util.h>
+#include <base/logging.h>
 #include <base/rand_util.h>
+#include <base/stringprintf.h>
 #include <chromeos/dbus/service_constants.h>
+
 #include <glib.h>
 #include <metrics/metrics_library.h>
 #include <policy/libpolicy.h>
@@ -38,8 +41,10 @@
 #include "update_engine/update_check_scheduler.h"
 #include "update_engine/utils.h"
 
+using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
+using base::StringPrintf;
 using google::protobuf::NewPermanentCallback;
 using std::make_pair;
 using std::tr1::shared_ptr;
@@ -799,6 +804,18 @@ bool UpdateAttempter::RebootIfNeeded() {
   return true;
 }
 
+void UpdateAttempter::WriteUpdateCompletedMarker() {
+  if (update_completed_marker_.empty())
+    return;
+
+  int64_t value = system_state_->clock()->GetBootTime().ToInternalValue();
+  string contents = StringPrintf("%" PRIi64, value);
+
+  utils::WriteFile(update_completed_marker_.c_str(),
+                   contents.c_str(),
+                   contents.length());
+}
+
 // Delegate methods:
 void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
                                      ErrorCode code) {
@@ -825,8 +842,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   }
 
   if (code == kErrorCodeSuccess) {
-    if (!update_completed_marker_.empty())
-      utils::WriteFile(update_completed_marker_.c_str(), "", 0);
+    WriteUpdateCompletedMarker();
     prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
     prefs_->SetString(kPrefsPreviousVersion,
                       omaha_request_params_->app_version());
@@ -1420,6 +1436,26 @@ bool UpdateAttempter::StartP2PAndPerformHousekeeping() {
   }
 
   LOG(INFO) << "Done performing p2p housekeeping.";
+  return true;
+}
+
+bool UpdateAttempter::GetBootTimeAtUpdate(base::Time *out_boot_time) {
+  if (update_completed_marker_.empty())
+    return false;
+
+  string contents;
+  if (!utils::ReadFile(update_completed_marker_, &contents))
+    return false;
+
+  char *endp;
+  int64_t stored_value = strtoll(contents.c_str(), &endp, 10);
+  if (*endp != '\0') {
+    LOG(ERROR) << "Error parsing file " << update_completed_marker_ << " "
+               << "with content '" << contents << "'";
+    return false;
+  }
+
+  *out_boot_time = Time::FromInternalValue(stored_value);
   return true;
 }
 

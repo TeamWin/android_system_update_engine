@@ -179,6 +179,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // from the server asynchronously at its own frequency.
   void RefreshDevicePolicy();
 
+  // Returns the boottime (CLOCK_BOOTTIME) recorded at the last
+  // successful update. Returns false if the device has not updated.
+  bool GetBootTimeAtUpdate(base::Time *out_boot_time);
+
  private:
   // Update server URL for automated lab test.
   static const char* const kTestUpdateUrl;
@@ -203,6 +207,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
   FRIEND_TEST(UpdateAttempterTest, UpdateTest);
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
+  FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
 
   // Ctor helper method.
   void Init(SystemState* system_state,
@@ -328,6 +333,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Called only at program startup. Returns true only if p2p was
   // started and housekeeping was performed.
   bool StartP2PAtStartup();
+
+  // Writes to the processing completed marker. Does nothing if
+  // |update_completed_marker_| is empty.
+  void WriteUpdateCompletedMarker();
 
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is

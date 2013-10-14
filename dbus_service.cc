@@ -10,6 +10,7 @@
 #include <base/logging.h>
 #include <policy/device_policy.h>
 
+#include "update_engine/clock_interface.h"
 #include "update_engine/connection_manager.h"
 #include "update_engine/dbus_constants.h"
 #include "update_engine/hardware_interface.h"
@@ -344,6 +345,20 @@ gboolean update_engine_service_get_update_over_cellular_permission(
   LOG(INFO) << "Checking if updates over cellular networks are allowed:";
   *allowed = cm->IsUpdateAllowedOver(chromeos_update_engine::kNetCellular);
 
+  return TRUE;
+}
+
+gboolean update_engine_service_get_duration_since_update(
+    UpdateEngineService* self,
+    gint64* out_usec_wallclock,
+    GError **/*error*/) {
+
+  base::Time time;
+  if (!self->system_state_->update_attempter()->GetBootTimeAtUpdate(&time))
+    return FALSE;
+
+  chromeos_update_engine::ClockInterface *clock = self->system_state_->clock();
+  *out_usec_wallclock = (clock->GetBootTime() - time).InMicroseconds();
   return TRUE;
 }
 

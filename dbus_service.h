@@ -128,6 +128,14 @@ gboolean update_engine_service_get_update_over_cellular_permission(
     gboolean* allowed,
     GError **error);
 
+// Returns the duration since the last successful update, as the
+// duration on the wallclock. Returns an error if the device has not
+// updated.
+gboolean update_engine_service_get_duration_since_update(
+    UpdateEngineService* self,
+    gint64* out_usec_wallclock,
+    GError **error);
+
 gboolean update_engine_service_emit_status_update(
     UpdateEngineService* self,
     gint64 last_checked_time,

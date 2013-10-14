@@ -18,6 +18,8 @@ class Clock : public ClockInterface {
 
   virtual base::Time GetMonotonicTime();
 
+  virtual base::Time GetBootTime();
+
  private:
 
   DISALLOW_COPY_AND_ASSIGN(Clock);

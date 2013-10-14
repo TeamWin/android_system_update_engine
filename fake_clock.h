@@ -22,6 +22,10 @@ class FakeClock : public ClockInterface {
     return monotonic_time_;
   }
 
+  virtual base::Time GetBootTime() {
+    return boot_time_;
+  }
+
   void SetWallclockTime(const base::Time &time) {
     wallclock_time_ = time;
   }
@@ -30,9 +34,14 @@ class FakeClock : public ClockInterface {
     monotonic_time_ = time;
   }
 
+  void SetBootTime(const base::Time &time) {
+    boot_time_ = time;
+  }
+
  private:
   base::Time wallclock_time_;
   base::Time monotonic_time_;
+  base::Time boot_time_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeClock);
 };
