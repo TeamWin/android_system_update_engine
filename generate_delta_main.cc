@@ -332,7 +332,7 @@ int Main(int argc, char** argv) {
   ImageInfo old_image_info;
   ImageInfo new_image_info;
 
-  // TODO(dgarrett) Check the result is True when these args are required.
+  // Ignore failures. These are optional arguments.
   ParseImageInfo(FLAGS_new_channel,
                  FLAGS_new_board,
                  FLAGS_new_version,
@@ -341,14 +341,14 @@ int Main(int argc, char** argv) {
                  FLAGS_new_build_version,
                  &new_image_info);
 
-  CHECK(is_delta || !ParseImageInfo(FLAGS_old_channel,
-                                    FLAGS_old_board,
-                                    FLAGS_old_version,
-                                    FLAGS_old_key,
-                                    FLAGS_old_build_channel,
-                                    FLAGS_old_build_version,
-                                    &old_image_info));
-
+  // Ignore failures. These are optional arguments.
+  ParseImageInfo(FLAGS_old_channel,
+                 FLAGS_old_board,
+                 FLAGS_old_version,
+                 FLAGS_old_key,
+                 FLAGS_old_build_channel,
+                 FLAGS_old_build_version,
+                 &old_image_info);
 
   if (is_delta) {
     LOG(INFO) << "Generating delta update";

@@ -1405,7 +1405,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     LOG_IF(WARNING, old_image_block_count != new_image_block_count)
         << "Old and new images have different block counts.";
 
-    // If new_image_info is present, old_image_info must but be present.
+    // If new_image_info is present, old_image_info must be present.
     TEST_AND_RETURN_FALSE((bool)old_image_info == (bool)new_image_info);
   } else {
     // old_image_info must not be present for a full update.
