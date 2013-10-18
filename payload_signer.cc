@@ -387,9 +387,12 @@ bool PayloadSigner::VerifySignedPayload(const std::string& payload_path,
   return true;
 }
 
-bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
-                                          const vector<int>& signature_sizes,
-                                          vector<char>* out_hash_data) {
+bool PayloadSigner::PrepPayloadForHashing(
+        const string& payload_path,
+        const vector<int>& signature_sizes,
+        vector<char>* payload_out,
+        uint64_t* metadata_size_out,
+        uint64_t* signatures_offset_out) {
   // TODO(petkov): Reduce memory usage -- the payload is manipulated in memory.
 
   // Loads the payload and adds the signature op to it.
@@ -402,15 +405,27 @@ bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
   vector<char> signature_blob;
   TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(signatures,
                                                        &signature_blob));
-  vector<char> payload;
-  uint64_t final_metadata_size;
-  uint64_t signatures_offset;
   TEST_AND_RETURN_FALSE(AddSignatureOpToPayload(payload_path,
                                                 signature_blob.size(),
-                                                &payload,
-                                                &final_metadata_size,
-                                                &signatures_offset));
+                                                payload_out,
+                                                metadata_size_out,
+                                                signatures_offset_out));
 
+  return true;
+}
+
+bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
+                                          const vector<int>& signature_sizes,
+                                          vector<char>* out_hash_data) {
+  vector<char> payload;
+  uint64_t metadata_size;
+  uint64_t signatures_offset;
+
+  TEST_AND_RETURN_FALSE(PrepPayloadForHashing(payload_path,
+                                              signature_sizes,
+                                              &payload,
+                                              &metadata_size,
+                                              &signatures_offset));
 
   // Calculates the hash on the updated payload. Note that we stop calculating
   // before we reach the signature information.
@@ -421,13 +436,17 @@ bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
 }
 
 bool PayloadSigner::HashMetadataForSigning(const string& payload_path,
+                                           const vector<int>& signature_sizes,
                                            vector<char>* out_metadata_hash) {
-  // Extract the manifest first.
   vector<char> payload;
-  DeltaArchiveManifest manifest_proto;
   uint64_t metadata_size;
-  TEST_AND_RETURN_FALSE(LoadPayload(
-      payload_path, &payload, &manifest_proto, &metadata_size));
+  uint64_t signatures_offset;
+
+  TEST_AND_RETURN_FALSE(PrepPayloadForHashing(payload_path,
+                                              signature_sizes,
+                                              &payload,
+                                              &metadata_size,
+                                              &signatures_offset));
 
   // Calculates the hash on the manifest.
   TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfBytes(&payload[0],

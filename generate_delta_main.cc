@@ -119,18 +119,24 @@ bool IsDir(const char* path) {
   return S_ISDIR(stbuf.st_mode);
 }
 
-void ParseSignatureSizes(vector<int>* sizes) {
-  LOG_IF(FATAL, FLAGS_signature_size.empty())
-      << "Must pass --signature_size to calculate hash for signing.";
-  vector<string> strsizes;
-  base::SplitString(FLAGS_signature_size, ':', &strsizes);
-  for (vector<string>::iterator it = strsizes.begin(), e = strsizes.end();
-       it != e; ++it) {
+void ParseSignatureSizes(const string& signature_sizes_flag,
+                         vector<int>* signature_sizes) {
+  signature_sizes->clear();
+  vector<string> split_strings;
+
+  base::SplitString(signature_sizes_flag, ':', &split_strings);
+  for (vector<string>::iterator i = split_strings.begin();
+       i < split_strings.end();
+       i++) {
     int size = 0;
-    bool parsing_successful = base::StringToInt(*it, &size);
+    bool parsing_successful = base::StringToInt(*i, &size);
     LOG_IF(FATAL, !parsing_successful)
-        << "Invalid signature size: " << *it;
-    sizes->push_back(size);
+        << "Invalid signature size: " << *i;
+
+    LOG_IF(FATAL, size != (2048 / 8)) <<
+        "Only signature sizes of 256 bytes are supported.";
+
+    signature_sizes->push_back(size);
   }
 }
 
@@ -168,42 +174,39 @@ bool ParseImageInfo(const string& channel,
   return true;
 }
 
-
-void CalculatePayloadHashForSigning() {
+void CalculatePayloadHashForSigning(const vector<int> &sizes,
+                                    const string& out_hash_file) {
   LOG(INFO) << "Calculating payload hash for signing.";
   LOG_IF(FATAL, FLAGS_in_file.empty())
       << "Must pass --in_file to calculate hash for signing.";
-  LOG_IF(FATAL, FLAGS_out_hash_file.empty())
+  LOG_IF(FATAL, out_hash_file.empty())
       << "Must pass --out_hash_file to calculate hash for signing.";
-  vector<int> sizes;
-  ParseSignatureSizes(&sizes);
 
   vector<char> hash;
   bool result = PayloadSigner::HashPayloadForSigning(FLAGS_in_file, sizes,
                                                      &hash);
   CHECK(result);
 
-  result = utils::WriteFile(FLAGS_out_hash_file.c_str(), hash.data(),
-                            hash.size());
+  result = utils::WriteFile(out_hash_file.c_str(), hash.data(), hash.size());
   CHECK(result);
   LOG(INFO) << "Done calculating payload hash for signing.";
 }
 
 
-void CalculateMetadataHashForSigning() {
+void CalculateMetadataHashForSigning(const vector<int> &sizes,
+                                     const string& out_metadata_hash_file) {
   LOG(INFO) << "Calculating metadata hash for signing.";
   LOG_IF(FATAL, FLAGS_in_file.empty())
       << "Must pass --in_file to calculate metadata hash for signing.";
-  LOG_IF(FATAL, FLAGS_out_metadata_hash_file.empty())
+  LOG_IF(FATAL, out_metadata_hash_file.empty())
       << "Must pass --out_metadata_hash_file to calculate metadata hash.";
-  vector<int> sizes;
-  ParseSignatureSizes(&sizes);
 
   vector<char> hash;
-  bool result = PayloadSigner::HashMetadataForSigning(FLAGS_in_file, &hash);
+  bool result = PayloadSigner::HashMetadataForSigning(FLAGS_in_file, sizes,
+                                                      &hash);
   CHECK(result);
 
-  result = utils::WriteFile(FLAGS_out_metadata_hash_file.c_str(), hash.data(),
+  result = utils::WriteFile(out_metadata_hash_file.c_str(), hash.data(),
                             hash.size());
   CHECK(result);
 
@@ -296,18 +299,17 @@ int Main(int argc, char** argv) {
                        logging::DONT_LOCK_LOG_FILE,
                        logging::APPEND_TO_OLD_LOG_FILE,
                        logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS);
-  if (!FLAGS_signature_size.empty()) {
-    bool work_done = false;
+
+  vector<int> signature_sizes;
+  ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
+
+  if (!FLAGS_out_hash_file.empty() || !FLAGS_out_metadata_hash_file.empty()) {
     if (!FLAGS_out_hash_file.empty()) {
-      CalculatePayloadHashForSigning();
-      work_done = true;
+      CalculatePayloadHashForSigning(signature_sizes, FLAGS_out_hash_file);
     }
     if (!FLAGS_out_metadata_hash_file.empty()) {
-      CalculateMetadataHashForSigning();
-      work_done = true;
-    }
-    if (!work_done) {
-      LOG(FATAL) << "Neither payload hash file nor metadata hash file supplied";
+      CalculateMetadataHashForSigning(signature_sizes,
+                                      FLAGS_out_metadata_hash_file);
     }
     return 0;
   }

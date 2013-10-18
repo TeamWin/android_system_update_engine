@@ -42,33 +42,41 @@ class PayloadSigner {
       const std::vector<std::string>& private_key_paths,
       uint64_t* out_length);
 
-  // Given an unsigned payload in |payload_path| (with no dummy signature op),
+  // This is a helper method for HashPayloadforSigning and
+  // HashMetadataForSigning. It loads the payload into memory, and inserts
+  // signature placeholders if Signatures aren't already present.
+  static bool PrepPayloadForHashing(
+        const std::string& payload_path,
+        const std::vector<int>& signature_sizes,
+        std::vector<char>* payload_out,
+        uint64_t* metadata_size_out,
+        uint64_t* signatures_offset_out);
+
+  // Given an unsigned payload in |payload_path|,
   // this method does two things:
-  // 1. It calculates the raw SHA256 hash of the entire payload in
-  // |payload_path| and returns the result in |out_hash_data|.
-  // 2. But before calculating the hash, it also inserts a dummy signature
-  // operation at the end of the manifest. This signature operation points to a
-  // blob offset and length that'll be later filled in by paygen with the
-  // actual signature from signer. But since the hash includes the signature
-  // operation, the signature operation has to be inserted before we compute
-  // the hash. Note, the hash doesn't cover the signature itself - it covers
-  // only the signature operation in manifest. Since paygen may add multiple
-  // signatures of different sizes (1024, 2048, etc.) it specifies a list
-  // of those |signature_sizes| so that the signature blob length is
-  // calculated to be of the correct size before the hash is computed.
-  // Returns true on success, false otherwise.
+  // 1. Uses PrepPayloadForHashing to inserts placeholder signature operations
+  //    to make the manifest match what the final signed payload will look
+  //    like based on |signatures_sizes|, if needed.
+  // 2. It calculates the raw SHA256 hash of the payload in |payload_path|
+  //    (except signatures) and returns the result in |out_hash_data|.
+  //
+  // The dummy signatures are not preserved or written to disk.
   static bool HashPayloadForSigning(const std::string& payload_path,
                                     const std::vector<int>& signature_sizes,
                                     std::vector<char>* out_hash_data);
 
-  // Given an unsigned payload in |payload_path|, calculates the raw hash of
-  // just the metadata (not the entire payload) that needs to be signed in
-  // |out_hash_data|. Note: This method should be called only after calling the
-  // HashPayloadForSigning method so that the metadata hash is computed on the
-  // final metadata that will be in the payload (because HashPayloadForSigning
-  // adds a dummy signature operation to the manifest).
-  // Returns true on success, false otherwise.
+  // Given an unsigned payload in |payload_path|,
+  // this method does two things:
+  // 1. Uses PrepPayloadForHashing to inserts placeholder signature operations
+  //    to make the manifest match what the final signed payload will look
+  //    like based on |signatures_sizes|, if needed.
+  // 2. It calculates the raw SHA256 hash of the metadata from the payload in
+  //    |payload_path| (except signatures) and returns the result in
+  //    |out_metadata_hash|.
+  //
+  // The dummy signatures are not preserved or written to disk.
   static bool HashMetadataForSigning(const std::string& payload_path,
+                                     const std::vector<int>& signature_sizes,
                                      std::vector<char>* out_metadata_hash);
 
   // Given an unsigned payload in |payload_path| (with no dummy signature op)
