@@ -25,9 +25,6 @@ using base::StringPrintf;
 
 namespace chromeos_update_engine {
 
-// Use a buffer to reduce the number of IOPS on SSD devices.
-const size_t kFileWriterBufferSize = 128 * 1024;  // 128 KiB
-
 DownloadAction::DownloadAction(PrefsInterface* prefs,
                                SystemState* system_state,
                                HttpFetcher* http_fetcher)
