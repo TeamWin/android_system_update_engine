@@ -75,6 +75,8 @@ enum SignatureTest {
   kSignatureNone,  // No payload signing.
   kSignatureGenerator,  // Sign the payload at generation time.
   kSignatureGenerated,  // Sign the payload after it's generated.
+  kSignatureGeneratedPlaceholder,  // Insert placeholder signatures, then real.
+  kSignatureGeneratedPlaceholderMismatch, // Insert a wrong sized placeholder.
   kSignatureGeneratedShell,  // Sign the generated payload through shell cmds.
   kSignatureGeneratedShellBadKey,  // Sign with a bad key through shell cmds.
   kSignatureGeneratedShellRotateCl1,  // Rotate key, test client v1
@@ -132,6 +134,19 @@ static size_t GetSignatureSize(const string& private_key_path) {
                                       private_key_path,
                                       &signature));
   return signature.size();
+}
+
+static bool InsertSignaturePlaceholder(int signature_size,
+                                       const string& payload_path,
+                                       uint64_t* out_metadata_size) {
+  vector<vector<char> > signatures;
+  signatures.push_back(vector<char>(signature_size, 0));
+
+  return PayloadSigner::AddSignatureToPayload(
+      payload_path,
+      signatures,
+      payload_path,
+      out_metadata_size);
 }
 
 static void SignGeneratedPayload(const string& payload_path,
@@ -450,10 +465,30 @@ static void GenerateDeltaFile(bool full_kernel,
             &state->metadata_size));
   }
 
-  if (signature_test == kSignatureGenerated) {
+  if (signature_test == kSignatureGeneratedPlaceholder ||
+      signature_test == kSignatureGeneratedPlaceholderMismatch) {
+
+    int signature_size = GetSignatureSize(kUnittestPrivateKeyPath);
+    LOG(INFO) << "Inserting placeholder signature.";
+    ASSERT_TRUE(InsertSignaturePlaceholder(signature_size, state->delta_path,
+                                           &state->metadata_size));
+
+    if (signature_test == kSignatureGeneratedPlaceholderMismatch) {
+      signature_size -= 1;
+      LOG(INFO) << "Inserting mismatched placeholder signature.";
+      ASSERT_FALSE(InsertSignaturePlaceholder(signature_size, state->delta_path,
+                                              &state->metadata_size));
+      return;
+    }
+  }
+
+  if (signature_test == kSignatureGenerated ||
+      signature_test == kSignatureGeneratedPlaceholder ||
+      signature_test == kSignatureGeneratedPlaceholderMismatch) {
     // Generate the signed payload and update the metadata size in state to
     // reflect the new size after adding the signature operation to the
     // manifest.
+    LOG(INFO) << "Signing payload.";
     SignGeneratedPayload(state->delta_path, &state->metadata_size);
   } else if (signature_test == kSignatureGeneratedShell ||
              signature_test == kSignatureGeneratedShellBadKey ||
@@ -941,6 +976,17 @@ TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
 TEST(DeltaPerformerTest, RunAsRootSmallImageTest) {
   DoSmallImageTest(false, false, false, -1, kSignatureGenerator,
                    false);
+}
+
+TEST(DeltaPerformerTest, RunAsRootSmallImageSignaturePlaceholderTest) {
+  DoSmallImageTest(false, false, false, -1, kSignatureGeneratedPlaceholder,
+                   false);
+}
+
+TEST(DeltaPerformerTest, RunAsRootSmallImageSignaturePlaceholderMismatchTest) {
+  DeltaState state;
+  GenerateDeltaFile(false, false, false, -1,
+                    kSignatureGeneratedPlaceholderMismatch, &state);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageChunksTest) {

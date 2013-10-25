@@ -113,12 +113,14 @@ bool ConvertSignatureToProtobufBlob(const vector<vector<char> >& signatures,
 // Given an unsigned payload under |payload_path| and the |signature_blob_size|
 // generates an updated payload that includes a dummy signature op in its
 // manifest. It populates |out_metadata_size| with the size of the final
-// manifest after adding the dummy signature operation.  Returns true on
-// success, false otherwise.
+// manifest after adding the dummy signature operation, and
+// |out_signatures_offset| with the expected offset for the new blob. Returns
+// true on success, false otherwise.
 bool AddSignatureOpToPayload(const string& payload_path,
-                             int signature_blob_size,
+                             uint64_t signature_blob_size,
                              vector<char>* out_payload,
-                             uint64_t* out_metadata_size) {
+                             uint64_t* out_metadata_size,
+                             uint64_t* out_signatures_offset) {
   const int kProtobufOffset = 20;
   const int kProtobufSizeOffset = 12;
 
@@ -128,30 +130,51 @@ bool AddSignatureOpToPayload(const string& payload_path,
   uint64_t metadata_size;
   TEST_AND_RETURN_FALSE(PayloadSigner::LoadPayload(
       payload_path, &payload, &manifest, &metadata_size));
-  TEST_AND_RETURN_FALSE(!manifest.has_signatures_offset() &&
-                        !manifest.has_signatures_size());
 
-  // Updates the manifest to include the signature operation.
-  DeltaDiffGenerator::AddSignatureOp(payload.size() - metadata_size,
-                                     signature_blob_size,
-                                     &manifest);
+  // Is there already a signature op in place?
+  if (manifest.has_signatures_size()) {
 
-  // Updates the payload to include the new manifest.
-  string serialized_manifest;
-  TEST_AND_RETURN_FALSE(manifest.AppendToString(&serialized_manifest));
-  LOG(INFO) << "Updated protobuf size: " << serialized_manifest.size();
-  payload.erase(payload.begin() + kProtobufOffset,
-                payload.begin() + metadata_size);
-  payload.insert(payload.begin() + kProtobufOffset,
-                 serialized_manifest.begin(),
-                 serialized_manifest.end());
+    // The signature op is tied to the size of the signature blob, but not it's
+    // contents. We don't allow the manifest to change if there is already an op
+    // present, because that might invalidate previously generated
+    // hashes/signatures.
+    if (manifest.signatures_size() != signature_blob_size) {
+      LOG(ERROR) << "Attempt to insert different signature sized blob. "
+                 << "(current:" << manifest.signatures_size()
+                 << "new:" << signature_blob_size << ")";
+      return false;
+    }
 
-  // Updates the protobuf size.
-  uint64_t size_be = htobe64(serialized_manifest.size());
-  memcpy(&payload[kProtobufSizeOffset], &size_be, sizeof(size_be));
-  LOG(INFO) << "Updated payload size: " << payload.size();
+    LOG(INFO) << "Matching signature sizes already present.";
+  } else {
+    // Updates the manifest to include the signature operation.
+    DeltaDiffGenerator::AddSignatureOp(payload.size() - metadata_size,
+                                       signature_blob_size,
+                                       &manifest);
+
+    // Updates the payload to include the new manifest.
+    string serialized_manifest;
+    TEST_AND_RETURN_FALSE(manifest.AppendToString(&serialized_manifest));
+    LOG(INFO) << "Updated protobuf size: " << serialized_manifest.size();
+    payload.erase(payload.begin() + kProtobufOffset,
+                  payload.begin() + metadata_size);
+    payload.insert(payload.begin() + kProtobufOffset,
+                   serialized_manifest.begin(),
+                   serialized_manifest.end());
+
+    // Updates the protobuf size.
+    uint64_t size_be = htobe64(serialized_manifest.size());
+    memcpy(&payload[kProtobufSizeOffset], &size_be, sizeof(size_be));
+    metadata_size = serialized_manifest.size() + kProtobufOffset;
+
+    LOG(INFO) << "Updated payload size: " << payload.size();
+    LOG(INFO) << "Updated metadata size: " << metadata_size;
+  }
+
   out_payload->swap(payload);
-  *out_metadata_size = serialized_manifest.size() + kProtobufOffset;
+  *out_metadata_size = metadata_size;
+  *out_signatures_offset = metadata_size + manifest.signatures_offset();
+  LOG(INFO) << "Signature Blob Offset: " << *out_signatures_offset;
   return true;
 }
 }  // namespace {}
@@ -381,14 +404,19 @@ bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
                                                        &signature_blob));
   vector<char> payload;
   uint64_t final_metadata_size;
+  uint64_t signatures_offset;
   TEST_AND_RETURN_FALSE(AddSignatureOpToPayload(payload_path,
                                                 signature_blob.size(),
                                                 &payload,
-                                                &final_metadata_size));
-  // Calculates the hash on the updated payload. Note that the payload includes
-  // the signature op but doesn't include the signature blob at the end.
-  TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfData(payload,
-                                                           out_hash_data));
+                                                &final_metadata_size,
+                                                &signatures_offset));
+
+
+  // Calculates the hash on the updated payload. Note that we stop calculating
+  // before we reach the signature information.
+  TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfBytes(&payload[0],
+                                                            signatures_offset,
+                                                            out_hash_data));
   return true;
 }
 
@@ -420,13 +448,19 @@ bool PayloadSigner::AddSignatureToPayload(
   TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(signatures,
                                                        &signature_blob));
   vector<char> payload;
+  uint64_t signatures_offset;
   TEST_AND_RETURN_FALSE(AddSignatureOpToPayload(payload_path,
                                                 signature_blob.size(),
                                                 &payload,
-                                                out_metadata_size));
+                                                out_metadata_size,
+                                                &signatures_offset));
   // Appends the signature blob to the end of the payload and writes the new
   // payload.
-  payload.insert(payload.end(), signature_blob.begin(), signature_blob.end());
+  LOG(INFO) << "Payload size before signatures: " << payload.size();
+  payload.resize(signatures_offset);
+  payload.insert(payload.begin() + signatures_offset,
+                 signature_blob.begin(),
+                 signature_blob.end());
   LOG(INFO) << "Signed payload size: " << payload.size();
   TEST_AND_RETURN_FALSE(utils::WriteFile(signed_payload_path.c_str(),
                                          payload.data(),
