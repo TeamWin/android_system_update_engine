@@ -727,7 +727,7 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
     // Enterprise-enrolled devices have an empty owner in their device policy.
     string owner;
     const policy::DevicePolicy* device_policy = system_state_->device_policy();
-    if (!device_policy->GetOwner(&owner) || owner.empty()) {
+    if (device_policy && (!device_policy->GetOwner(&owner) || owner.empty())) {
       LOG(ERROR) << "Enterprise device detected. "
                  << "Cannot perform a powerwash for enterprise devices.";
       return false;

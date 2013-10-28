@@ -27,32 +27,35 @@ using std::string;
 
 DEFINE_string(app_version, "", "Force the current app version.");
 DEFINE_string(channel, "",
-    "Set the target channel. The device will be powerwashed if the target "
-    "channel is more stable than the current channel.");
+              "Set the target channel. The device will be powerwashed if the "
+              "target channel is more stable than the current channel unless "
+              "--nopowerwash is specified.");
 DEFINE_bool(check_for_update, false, "Initiate check for updates.");
+DEFINE_bool(follow, false, "Wait for any update operations to complete."
+            "Exit status is 0 if the update succeeded, and 1 otherwise.");
+DEFINE_bool(interactive, true, "Mark the update request as interactive.");
 DEFINE_string(omaha_url, "", "The URL of the Omaha update server.");
+DEFINE_string(p2p_update, "",
+              "Enables (\"yes\") or disables (\"no\") the peer-to-peer update "
+              "sharing.");
+DEFINE_bool(powerwash, true, "When performing rollback or channel change, "
+            "do a powerwash or allow it respectively.");
 DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
 DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
 DEFINE_bool(rollback, false, "Perform a rollback to the previous partition.");
 DEFINE_bool(show_channel, false, "Show the current and target channels.");
-DEFINE_bool(powerwash, true, "When performing rollback or channel change, "
-    "do a powerwash or allow it respectively.");
-DEFINE_bool(status, false, "Print the status to stdout.");
-DEFINE_bool(update, false, "Forces an update and waits for its completion. "
-            "Exit status is 0 if the update succeeded, and 1 otherwise.");
-DEFINE_bool(watch_for_updates, false,
-            "Listen for status updates and print them to the screen.");
+DEFINE_bool(show_p2p_update, false,
+            "Show the current setting for peer-to-peer update sharing.");
 DEFINE_bool(show_update_over_cellular, false,
             "Show the current setting for updates over cellular networks.");
+DEFINE_bool(status, false, "Print the status to stdout.");
+DEFINE_bool(update, false, "Forces an update and waits for it to complete. "
+            "Implies --follow.");
 DEFINE_string(update_over_cellular, "",
               "Enables (\"yes\") or disables (\"no\") the updates over "
               "cellular networks.");
-DEFINE_bool(show_p2p_update, false,
-            "Show the current setting for peer-to-peer update sharing.");
-DEFINE_string(p2p_update, "",
-              "Enables (\"yes\") or disables (\"no\") the peer-to-peer update "
-              "sharing.");
-DEFINE_bool(interactive, true, "Mark the update request as interactive.");
+DEFINE_bool(watch_for_updates, false,
+            "Listen for status updates and print them to the screen.");
 
 namespace {
 
@@ -371,21 +374,9 @@ int main(int argc, char** argv) {
       LOG(ERROR) << "ResetStatus failed.";
       return 1;
     }
-
     LOG(INFO) << "ResetStatus succeeded; to undo partition table changes run:\n"
                  "(D=$(rootdev -d) P=$(rootdev -s); cgpt p -i$(($(echo ${P#$D} "
                  "| sed 's/^[^0-9]*//')-1)) $D;)";
-    return 0;
-  }
-
-
-  if (FLAGS_status) {
-    LOG(INFO) << "Querying Update Engine status...";
-    if (!GetStatus(NULL)) {
-      LOG(FATAL) << "GetStatus failed.";
-      return 1;
-    }
-    return 0;
   }
 
   // Changes the current update over cellular network setting.
@@ -407,7 +398,7 @@ int main(int argc, char** argv) {
   }
 
   if (!FLAGS_powerwash && !FLAGS_rollback && FLAGS_channel.empty()) {
-    LOG(FATAL) << "powerwash flag only makes sense rollback or channel change";
+    LOG(ERROR) << "powerwash flag only makes sense rollback or channel change";
     return 1;
   }
 
@@ -445,16 +436,18 @@ int main(int argc, char** argv) {
 
   bool do_update_request = FLAGS_check_for_update | FLAGS_update |
       !FLAGS_app_version.empty() | !FLAGS_omaha_url.empty();
+  if (FLAGS_update)
+    FLAGS_follow = true;
 
   if (do_update_request && FLAGS_rollback) {
-    LOG(FATAL) << "Update should not be requested with rollback!";
+    LOG(ERROR) << "Incompatible flags specified with rollback."
+               << "Rollback should not include update-related flags.";
     return 1;
   }
 
   if(FLAGS_rollback) {
     LOG(INFO) << "Requesting rollback.";
     CHECK(Rollback(FLAGS_powerwash)) << "Request for rollback failed.";
-    return 0;
   }
 
   // Initiate an update check, if necessary.
@@ -468,19 +461,33 @@ int main(int argc, char** argv) {
     LOG(INFO) << "Initiating update check and install.";
     CHECK(CheckForUpdates(app_version, FLAGS_omaha_url))
         << "Update check/initiate update failed.";
+  }
 
-    // Wait for an update to complete.
-    if (FLAGS_update) {
-      LOG(INFO) << "Waiting for update to complete.";
-      CompleteUpdate();  // Should never return.
+  // These final options are all mutually exclusive with one another.
+  if (FLAGS_follow + FLAGS_watch_for_updates + FLAGS_reboot + FLAGS_status > 1)
+  {
+    LOG(ERROR) << "Multiple exclusive options selected. "
+               << "Select only one of --follow, --watch_for_updates, --reboot, "
+               << "or --status.";
+    return 1;
+  }
+
+  if (FLAGS_status) {
+    LOG(INFO) << "Querying Update Engine status...";
+    if (!GetStatus(NULL)) {
+      LOG(ERROR) << "GetStatus failed.";
       return 1;
     }
     return 0;
   }
 
-  // Start watching for updates.
+  if (FLAGS_follow) {
+    LOG(INFO) << "Waiting for update to complete.";
+    CompleteUpdate();  // Should never return.
+    return 1;
+  }
+
   if (FLAGS_watch_for_updates) {
-    LOG_IF(WARNING, FLAGS_reboot) << "-reboot flag ignored.";
     LOG(INFO) << "Watching for status updates.";
     WatchForUpdates();  // Should never return.
     return 1;
