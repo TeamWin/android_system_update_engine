@@ -81,7 +81,7 @@ bool OmahaRequestParams::Init(const std::string& in_app_version,
   hwid_ = utils::GetHardwareClass();
   if (CollectECFWVersions()) {
     fw_version_ = utils::GetFirmwareVersion();
-    ec_version_ = utils::GetECVersion(NULL);
+    ec_version_ = utils::GetECVersion();
   }
 
   if (current_channel_ == target_channel_) {

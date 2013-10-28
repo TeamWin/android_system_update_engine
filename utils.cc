@@ -109,30 +109,30 @@ string GetFirmwareVersion() {
   return ReadValueFromCrosSystem("fwid");
 }
 
-string GetECVersion(const char* input_line) {
-  string line;
-  if(input_line == NULL) {
-    int exit_code = 0;
-    vector<string> cmd(1, "/usr/sbin/mosys");
-    cmd.push_back("-k");
-    cmd.push_back("ec");
-    cmd.push_back("info");
+string GetECVersion() {
+  int exit_code = 0;
+  vector<string> cmd(1, "/usr/sbin/mosys");
+  cmd.push_back("-k");
+  cmd.push_back("ec");
+  cmd.push_back("info");
 
-    bool success = Subprocess::SynchronousExec(cmd, &exit_code, &line);
-    if (!success || exit_code) {
-      LOG(ERROR) << "Unable to read ec info from mosys (" << exit_code << ")";
-      return "";
-    }
-  } else {
-    line = input_line;
+  string input_line;
+  bool success = Subprocess::SynchronousExec(cmd, &exit_code, &input_line);
+  if (!success || exit_code) {
+    LOG(ERROR) << "Unable to read ec info from mosys (" << exit_code << ")";
+    return "";
   }
 
-  TrimWhitespaceASCII(line, TRIM_ALL, &line);
+  return ParseECVersion(input_line);
+}
+
+string ParseECVersion(string input_line) {
+  TrimWhitespaceASCII(input_line, TRIM_ALL, &input_line);
 
   // At this point we want to conver the format key=value pair from mosys to
   // a vector of key value pairs.
   vector<pair<string, string> > kv_pairs;
-  if (base::SplitStringIntoKeyValuePairs(line, '=', ' ', &kv_pairs)) {
+  if (base::SplitStringIntoKeyValuePairs(input_line, '=', ' ', &kv_pairs)) {
     for (vector<pair<string, string> >::iterator it = kv_pairs.begin();
          it != kv_pairs.end(); ++it) {
       // Finally match against the fw_verion which may have quotes.
