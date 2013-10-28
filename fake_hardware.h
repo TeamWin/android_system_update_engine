@@ -7,16 +7,13 @@
 
 #include "update_engine/hardware_interface.h"
 
-#include "base/basictypes.h"
-
-#include <map>
-
 namespace chromeos_update_engine {
 
 // Implements a fake hardware interface used for testing.
 class FakeHardware : public HardwareInterface {
  public:
-  FakeHardware() {}
+  FakeHardware()
+    : boot_device_("/dev/sdz5") {}
 
   // HardwareInterface methods.
   virtual const std::string BootDevice() { return boot_device_; }

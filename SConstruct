@@ -308,7 +308,6 @@ unittest_sources = Split("""action_unittest.cc
                             extent_mapper_unittest.cc
                             extent_ranges_unittest.cc
                             extent_writer_unittest.cc
-                            fake_hardware.cc
                             file_writer_unittest.cc
                             filesystem_copier_action_unittest.cc
                             filesystem_iterator_unittest.cc
