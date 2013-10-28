@@ -50,6 +50,37 @@ TEST(UtilsTest, CanParseECVersion) {
   EXPECT_EQ("", utils::ParseECVersion("b=1231a fw_version a=fasd2"));
 }
 
+
+TEST(UtilsTest, KernelDeviceOfBootDevice) {
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("foo"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda0"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda1"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda2"));
+  EXPECT_EQ("/dev/sda2", utils::KernelDeviceOfBootDevice("/dev/sda3"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda4"));
+  EXPECT_EQ("/dev/sda4", utils::KernelDeviceOfBootDevice("/dev/sda5"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda6"));
+  EXPECT_EQ("/dev/sda6", utils::KernelDeviceOfBootDevice("/dev/sda7"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda8"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda9"));
+
+  EXPECT_EQ("/dev/mmcblk0p2",
+            utils::KernelDeviceOfBootDevice("/dev/mmcblk0p3"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/mmcblk0p4"));
+
+  EXPECT_EQ("/dev/ubi2", utils::KernelDeviceOfBootDevice("/dev/ubi3"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/ubi4"));
+
+  EXPECT_EQ("/dev/mtdblock2",
+            utils::KernelDeviceOfBootDevice("/dev/ubiblock3_0"));
+  EXPECT_EQ("/dev/mtdblock4",
+            utils::KernelDeviceOfBootDevice("/dev/ubiblock5_0"));
+  EXPECT_EQ("/dev/mtdblock6",
+            utils::KernelDeviceOfBootDevice("/dev/ubiblock7_0"));
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/ubiblock4_0"));
+}
+
+
 TEST(UtilsTest, NormalizePathTest) {
   EXPECT_EQ("", utils::NormalizePath("", false));
   EXPECT_EQ("", utils::NormalizePath("", true));

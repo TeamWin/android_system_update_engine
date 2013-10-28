@@ -22,16 +22,6 @@ class HardwareInterface {
   // or something with equivalent funcionality to interpret those.
   virtual const std::string BootDevice() = 0;
 
-  // Returns the kernel device associated with the given boot device,
-  // for example, this function returns "/dev/sda2" if |boot_device| is
-  // "/dev/sda3".
-  // To obtain the current booted kernel device, the suggested calling
-  // convention is KernelDeviceOfBootDevice(BootDevice()).
-  // This function works by doing string modification on |boot_device|.
-  // Returns empty string on failure.
-  virtual const std::string KernelDeviceOfBootDevice(
-      const std::string& boot_device) = 0;
-
   // TODO(deymo): Move other hardware-dependant functions to this interface:
   // GetECVersion, GetFirmwareVersion, GetHardwareClass, IsNormalBootMode and
   // IsOfficialBuild.

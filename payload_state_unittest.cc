@@ -1367,7 +1367,6 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   mock_system_state.set_prefs(&prefs);
 
   fake_hardware.SetBootDevice("/dev/sda3");
-  fake_hardware.SetKernelDeviceOfBootDevice("/dev/sda3", "/dev/sda2");
   mock_system_state.set_hardware(&fake_hardware);
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
@@ -1418,8 +1417,6 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
 
-  fake_hardware.SetKernelDeviceOfBootDevice("/dev/sda3", "/dev/sda2");
-  fake_hardware.SetKernelDeviceOfBootDevice("/dev/sda5", "/dev/sda4");
   fake_hardware.SetBootDevice("/dev/sda3");
   mock_system_state.set_hardware(&fake_hardware);
 

@@ -70,6 +70,11 @@ std::string ParseECVersion(std::string input_line);
 // custom chrome os ec.
 std::string GetECVersion();
 
+// Given the name of the block device of a boot partition, return the
+// name of the associated kernel partition (e.g. given "/dev/sda3",
+// return "/dev/sda2").
+const std::string KernelDeviceOfBootDevice(const std::string& boot_device);
+
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
 bool WriteFile(const char* path, const char* data, int data_len);

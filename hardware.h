@@ -18,8 +18,6 @@ class Hardware : public HardwareInterface {
 
   // HardwareInterface methods.
   virtual const std::string BootDevice();
-  virtual const std::string KernelDeviceOfBootDevice(
-      const std::string& boot_device);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Hardware);

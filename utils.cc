@@ -149,6 +149,36 @@ string ParseECVersion(string input_line) {
 }
 
 
+const string KernelDeviceOfBootDevice(const std::string& boot_device) {
+  if (boot_device.empty())
+    return boot_device;
+
+  string ubiblock_prefix("/dev/ubiblock");
+  string ret;
+  char partition_num;
+  if (StringHasPrefix(boot_device, ubiblock_prefix)) {
+    // eg: /dev/ubiblock3_0 becomes /dev/mtdblock2
+    ret = "/dev/mtdblock";
+    partition_num = boot_device[ubiblock_prefix.size()];
+  } else {
+    // eg: /dev/sda3 becomes /dev/sda2
+    // eg: /dev/mmcblk0p3 becomes /dev/mmcblk0p2
+    ret = boot_device.substr(0, boot_device.size() - 1);
+    partition_num = boot_device[boot_device.size() - 1];
+  }
+
+  // Currently this assumes the partition number of the boot device is
+  // 3, 5, or 7, and changes it to 2, 4, or 6, respectively, to
+  // get the kernel device.
+  if (partition_num == '3' || partition_num == '5' || partition_num == '7') {
+    ret.append(1, partition_num - 1);
+    return ret;
+  }
+
+  return "";
+}
+
+
 bool WriteFile(const char* path, const char* data, int data_len) {
   DirectFileWriter writer;
   TEST_AND_RETURN_FALSE_ERRNO(0 == writer.Open(path,

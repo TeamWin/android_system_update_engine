@@ -8,17 +8,4 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-const string FakeHardware::KernelDeviceOfBootDevice(
-    const string& boot_device) {
-  KernelDevicesMap::iterator it = kernel_devices_.find(boot_device);
-  if (it == kernel_devices_.end())
-    return "";
-  return it->second;
-}
-
-void FakeHardware::SetKernelDeviceOfBootDevice(const string& boot_device,
-                                               const string& kernel_device) {
-  kernel_devices_[boot_device] = kernel_device;
-}
-
 }  // namespace chromeos_update_engine

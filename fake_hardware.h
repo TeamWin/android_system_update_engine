@@ -20,20 +20,14 @@ class FakeHardware : public HardwareInterface {
 
   // HardwareInterface methods.
   virtual const std::string BootDevice() { return boot_device_; }
-  virtual const std::string KernelDeviceOfBootDevice(
-      const std::string& boot_device);
 
   // Setters
   void SetBootDevice(const std::string boot_device) {
     boot_device_ = boot_device;
   }
-  void SetKernelDeviceOfBootDevice(const std::string& boot_device,
-                                   const std::string& kernel_device);
 
  private:
   std::string boot_device_;
-  typedef std::map<std::string, std::string> KernelDevicesMap;
-  KernelDevicesMap kernel_devices_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeHardware);
 };

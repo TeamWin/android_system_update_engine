@@ -36,6 +36,7 @@
 #include "update_engine/subprocess.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_check_scheduler.h"
+#include "update_engine/utils.h"
 
 using base::TimeDelta;
 using base::TimeTicks;
@@ -720,8 +721,7 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
   }
 
   install_plan.kernel_install_path =
-      system_state_->hardware()->KernelDeviceOfBootDevice(
-          install_plan.install_path);
+      utils::KernelDeviceOfBootDevice(install_plan.install_path);
   install_plan.powerwash_required = powerwash;
   if (powerwash) {
     // Enterprise-enrolled devices have an empty owner in their device policy.

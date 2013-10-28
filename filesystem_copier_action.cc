@@ -90,7 +90,7 @@ void FilesystemCopierAction::PerformAction() {
   string source = verify_hash_ ? destination : copy_source_;
   if (source.empty()) {
     source = copying_kernel_install_path_ ?
-        system_state_->hardware()->KernelDeviceOfBootDevice(
+        utils::KernelDeviceOfBootDevice(
             system_state_->hardware()->BootDevice()) :
         system_state_->hardware()->BootDevice();
   }
