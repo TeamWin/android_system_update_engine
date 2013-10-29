@@ -18,6 +18,9 @@ class Hardware : public HardwareInterface {
 
   // HardwareInterface methods.
   virtual const std::string BootDevice();
+  virtual std::string GetHardwareClass();
+  virtual std::string GetFirmwareVersion();
+  virtual std::string GetECVersion();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Hardware);

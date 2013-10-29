@@ -17,6 +17,7 @@
 #include <policy/device_policy.h>
 
 #include "update_engine/constants.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/simple_key_value_store.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
@@ -78,10 +79,10 @@ bool OmahaRequestParams::Init(const std::string& in_app_version,
                                NULL,
                                stateful_override);
   app_lang_ = "en-US";
-  hwid_ = utils::GetHardwareClass();
+  hwid_ = system_state_->hardware()->GetHardwareClass();
   if (CollectECFWVersions()) {
-    fw_version_ = utils::GetFirmwareVersion();
-    ec_version_ = utils::GetECVersion();
+    fw_version_ = system_state_->hardware()->GetFirmwareVersion();
+    ec_version_ = system_state_->hardware()->GetECVersion();
   }
 
   if (current_channel_ == target_channel_) {

@@ -22,9 +22,19 @@ class HardwareInterface {
   // or something with equivalent funcionality to interpret those.
   virtual const std::string BootDevice() = 0;
 
-  // TODO(deymo): Move other hardware-dependant functions to this interface:
-  // GetECVersion, GetFirmwareVersion, GetHardwareClass, IsNormalBootMode and
-  // IsOfficialBuild.
+  // TODO(deymo): Move other hardware-dependent functions to this interface:
+  // IsNormalBootMode and IsOfficialBuild.
+
+  // Returns the HWID or an empty string on error.
+  virtual std::string GetHardwareClass() = 0;
+
+  // Returns the firmware version or an empty string if the system is
+  // not running chrome os firmware.
+  virtual std::string GetFirmwareVersion() = 0;
+
+  // Returns the ec version or an empty string if the system is not
+  // running a custom chrome os ec.
+  virtual std::string GetECVersion() = 0;
 
   virtual ~HardwareInterface() {}
 };

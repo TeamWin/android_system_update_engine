@@ -85,47 +85,6 @@ bool IsNormalBootMode() {
   return !dev_mode;
 }
 
-string ReadValueFromCrosSystem(const string& key){
-  int exit_code = 0;
-  vector<string> cmd(1, "/usr/bin/crossystem");
-  cmd.push_back(key);
-
-  string return_value;
-  bool success = Subprocess::SynchronousExec(cmd, &exit_code, &return_value);
-  if (success && !exit_code) {
-    TrimWhitespaceASCII(return_value, TRIM_ALL, &return_value);
-    return return_value;
-  }
-  LOG(ERROR) << "Unable to read " << key << " (" << exit_code << ") "
-             << return_value;
-  return "";
-}
-
-string GetHardwareClass() {
-  return ReadValueFromCrosSystem("hwid");
-}
-
-string GetFirmwareVersion() {
-  return ReadValueFromCrosSystem("fwid");
-}
-
-string GetECVersion() {
-  int exit_code = 0;
-  vector<string> cmd(1, "/usr/sbin/mosys");
-  cmd.push_back("-k");
-  cmd.push_back("ec");
-  cmd.push_back("info");
-
-  string input_line;
-  bool success = Subprocess::SynchronousExec(cmd, &exit_code, &input_line);
-  if (!success || exit_code) {
-    LOG(ERROR) << "Unable to read ec info from mosys (" << exit_code << ")";
-    return "";
-  }
-
-  return ParseECVersion(input_line);
-}
-
 string ParseECVersion(string input_line) {
   TrimWhitespaceASCII(input_line, TRIM_ALL, &input_line);
 

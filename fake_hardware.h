@@ -13,18 +13,39 @@ namespace chromeos_update_engine {
 class FakeHardware : public HardwareInterface {
  public:
   FakeHardware()
-    : boot_device_("/dev/sdz5") {}
+    : boot_device_("/dev/sdz5"),
+      hardware_class_("Fake HWID BLAH-1234"),
+      firmware_version_("Fake Firmware v1.0.1"),
+      ec_version_("Fake EC v1.0a") {}
 
   // HardwareInterface methods.
   virtual const std::string BootDevice() { return boot_device_; }
+  virtual std::string GetHardwareClass() { return hardware_class_; }
+  virtual std::string GetFirmwareVersion() { return firmware_version_; }
+  virtual std::string GetECVersion() { return ec_version_; }
 
   // Setters
   void SetBootDevice(const std::string boot_device) {
     boot_device_ = boot_device;
   }
 
+  void SetHardwareClass(std::string hardware_class) {
+    hardware_class_ = hardware_class;
+  }
+
+  void SetFirmwareVersion(std::string firmware_version) {
+    firmware_version_ = firmware_version;
+  }
+
+  void SetECVersion(std::string ec_version) {
+    ec_version_ = ec_version;
+  }
+
  private:
   std::string boot_device_;
+  std::string hardware_class_;
+  std::string firmware_version_;
+  std::string ec_version_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeHardware);
 };

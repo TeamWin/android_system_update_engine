@@ -54,21 +54,9 @@ std::string StringVectorToString(const std::vector<std::string> &vector);
 std::string CalculateP2PFileId(const std::string& payload_hash,
                                size_t payload_size);
 
-// Returns the HWID or an empty string on error.
-std::string GetHardwareClass();
-
-// Returns the firmware version or an empty string if the system is not running
-// chrome os firmware.
-std::string GetFirmwareVersion();
-
 // Parse the firmware version from one line of output from the
 // "mosys" command.
 std::string ParseECVersion(std::string input_line);
-
-// Reads and parses the ec version from the "mosys" command.  Returns
-// the version found, or an empty string if the system is not running a
-// custom chrome os ec.
-std::string GetECVersion();
 
 // Given the name of the block device of a boot partition, return the
 // name of the associated kernel partition (e.g. given "/dev/sda3",
