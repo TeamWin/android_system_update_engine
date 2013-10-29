@@ -8,6 +8,7 @@
 #include <base/logging.h>
 #include <base/string_util.h>
 #include <rootdev/rootdev.h>
+#include <vboot/crossystem.h>
 
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
@@ -16,9 +17,6 @@ using std::string;
 using std::vector;
 
 namespace chromeos_update_engine {
-
-static const char kDevImageMarker[] = "/root/.dev_mode";
-
 
 const string Hardware::BootDevice() {
   char boot_path[PATH_MAX];
@@ -38,37 +36,27 @@ const string Hardware::BootDevice() {
 }
 
 bool Hardware::IsOfficialBuild() {
-  return !file_util::PathExists(FilePath(kDevImageMarker));
+  return VbGetSystemPropertyInt("debug_build") == 0;
 }
 
 bool Hardware::IsNormalBootMode() {
-  // TODO(petkov): Convert to a library call once a crossystem library is
-  // available (crosbug.com/13291).
-  int exit_code = 0;
-  vector<string> cmd(1, "/usr/bin/crossystem");
-  cmd.push_back("devsw_boot?1");
-
-  // Assume dev mode if the dev switch is set to 1 and there was no error
-  // executing crossystem. Assume normal mode otherwise.
-  bool success = Subprocess::SynchronousExec(cmd, &exit_code, NULL);
-  bool dev_mode = success && exit_code == 0;
+  bool dev_mode = VbGetSystemPropertyInt("devsw_boot") != 0;
   LOG_IF(INFO, dev_mode) << "Booted in dev mode.";
   return !dev_mode;
 }
 
 static string ReadValueFromCrosSystem(const string& key) {
-  int exit_code = 0;
-  vector<string> cmd(1, "/usr/bin/crossystem");
-  cmd.push_back(key);
+  char value_buffer[VB_MAX_STRING_PROPERTY];
 
-  string return_value;
-  bool success = Subprocess::SynchronousExec(cmd, &exit_code, &return_value);
-  if (success && !exit_code) {
+  const char *rv = VbGetSystemPropertyString(key.c_str(), value_buffer,
+                                             sizeof(value_buffer));
+  if (rv != NULL) {
+    string return_value(value_buffer);
     TrimWhitespaceASCII(return_value, TRIM_ALL, &return_value);
     return return_value;
   }
-  LOG(ERROR) << "Unable to read " << key << " (" << exit_code << ") "
-             << return_value;
+
+  LOG(ERROR) << "Unable to read crossystem key " << key;
   return "";
 }
 

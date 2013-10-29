@@ -212,6 +212,7 @@ env['LIBS'] = Split("""bz2
                        rt
                        ssl
                        udev
+                       vboot_host
                        xml2""" % BASE_VER)
 env['CPPPATH'] = ['..']
 env['BUILDERS']['ProtocolBuffer'] = proto_builder
