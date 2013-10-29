@@ -13,6 +13,7 @@
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/dbus_interface.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/utils.h"
 
 using google::protobuf::NewCallback;
@@ -51,7 +52,8 @@ bool LibcurlHttpFetcher::IsUpdateAllowedOverCurrentConnection() const {
 }
 
 bool LibcurlHttpFetcher::IsOfficialBuild() const {
-  return force_build_type_ ? forced_official_build_ : utils::IsOfficialBuild();
+  return force_build_type_ ? forced_official_build_
+                           : system_state_->hardware()->IsOfficialBuild();
 }
 
 bool LibcurlHttpFetcher::GetProxyType(const std::string& proxy,

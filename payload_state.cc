@@ -317,7 +317,7 @@ bool PayloadState::ShouldBackoffDownload() {
     return false;
   }
 
-  if (!utils::IsOfficialBuild()) {
+  if (!system_state_->hardware()->IsOfficialBuild()) {
     // Backoffs are needed only for official builds. We do not want any delays
     // or update failures due to backoffs during testing or development.
     LOG(INFO) << "No backoffs for test/dev images. "
@@ -1091,7 +1091,7 @@ void PayloadState::ReportUpdatesAbandonedEventCountMetric() {
 void PayloadState::ComputeCandidateUrls() {
   bool http_url_ok = true;
 
-  if (system_state_->IsOfficialBuild()) {
+  if (system_state_->hardware()->IsOfficialBuild()) {
     const policy::DevicePolicy* policy = system_state_->device_policy();
     if (policy && policy->GetHttpDownloadsEnabled(&http_url_ok) && !http_url_ok)
       LOG(INFO) << "Downloads via HTTP Url are not enabled by device policy";

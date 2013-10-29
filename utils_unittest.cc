@@ -27,16 +27,6 @@ namespace chromeos_update_engine {
 
 class UtilsTest : public ::testing::Test { };
 
-TEST(UtilsTest, IsOfficialBuild) {
-  // Pretty lame test...
-  EXPECT_TRUE(utils::IsOfficialBuild());
-}
-
-TEST(UtilsTest, IsNormalBootMode) {
-  // Pretty lame test...
-  EXPECT_TRUE(utils::IsNormalBootMode());
-}
-
 TEST(UtilsTest, CanParseECVersion) {
   // Should be able to parse and valid key value line.
   EXPECT_EQ("12345", utils::ParseECVersion("fw_version=12345"));

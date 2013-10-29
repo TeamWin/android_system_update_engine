@@ -18,6 +18,8 @@ class Hardware : public HardwareInterface {
 
   // HardwareInterface methods.
   virtual const std::string BootDevice();
+  virtual bool IsOfficialBuild();
+  virtual bool IsNormalBootMode();
   virtual std::string GetHardwareClass();
   virtual std::string GetFirmwareVersion();
   virtual std::string GetECVersion();

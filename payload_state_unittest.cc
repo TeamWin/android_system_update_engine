@@ -1204,11 +1204,6 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   MockSystemState mock_system_state;
   PayloadState payload_state;
 
-  // Pretend that this is an offical build so that the HTTP download policy
-  // is honored.
-  EXPECT_CALL(mock_system_state, IsOfficialBuild())
-      .WillRepeatedly(Return(true));
-
   policy::MockDevicePolicy disable_http_policy;
   EXPECT_CALL(mock_system_state, device_policy())
       .WillRepeatedly(Return(&disable_http_policy));

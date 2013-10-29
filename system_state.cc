@@ -72,8 +72,4 @@ bool RealSystemState::IsOOBEComplete() {
   return file_util::PathExists(FilePath(kOOBECompletedMarker));
 }
 
-bool RealSystemState::IsOfficialBuild() {
-  return utils::IsOfficialBuild();
-}
-
 }  // namespace chromeos_update_engine

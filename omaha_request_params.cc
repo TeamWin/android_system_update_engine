@@ -250,7 +250,8 @@ bool OmahaRequestParams::ShouldLockDown() const {
   if (force_lock_down_) {
     return forced_lock_down_;
   }
-  return utils::IsOfficialBuild() && utils::IsNormalBootMode();
+  return system_state_->hardware()->IsOfficialBuild() &&
+            system_state_->hardware()->IsNormalBootMode();
 }
 
 bool OmahaRequestParams::IsValidChannel(const std::string& channel) const {

@@ -12,11 +12,12 @@
 
 #include "update_engine/connection_manager.h"
 #include "update_engine/dbus_constants.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/marshal.glibmarshal.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
-#include "update_engine/update_attempter.h"
 #include "update_engine/prefs.h"
+#include "update_engine/update_attempter.h"
 #include "update_engine/utils.h"
 
 using std::set;
@@ -96,7 +97,7 @@ gboolean update_engine_service_attempt_update_with_flags(
   // Only non-official (e.g., dev and test) builds can override the current
   // version and update server URL over D-Bus. However, pointing to the
   // hardcoded test update server URL is always allowed.
-  if (!chromeos_update_engine::utils::IsOfficialBuild()) {
+  if (!self->system_state_->hardware()->IsOfficialBuild()) {
     if (app_version) {
       update_app_version = app_version;
     }

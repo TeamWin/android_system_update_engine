@@ -146,7 +146,7 @@ bool OmahaResponseHandlerAction::AreHashChecksMandatory(
   // opposed to waiving the checks when we're in dev mode, because we do want
   // to enforce the hash checks when our end customers run in dev mode if they
   // are using an official build, so that they are protected more.
-  if (!utils::IsOfficialBuild()) {
+  if (!system_state_->hardware()->IsOfficialBuild()) {
     LOG(INFO) << "Waiving payload hash checks for unofficial builds";
     return false;
   }

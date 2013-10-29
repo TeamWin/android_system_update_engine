@@ -1084,14 +1084,14 @@ void UpdateAttempter::BroadcastStatus() {
 uint32_t UpdateAttempter::GetErrorCodeFlags()  {
   uint32_t flags = 0;
 
-  if (!utils::IsNormalBootMode())
+  if (!system_state_->hardware()->IsNormalBootMode())
     flags |= kErrorCodeDevModeFlag;
 
   if (response_handler_action_.get() &&
       response_handler_action_->install_plan().is_resume)
     flags |= kErrorCodeResumedFlag;
 
-  if (!utils::IsOfficialBuild())
+  if (!system_state_->hardware()->IsOfficialBuild())
     flags |= kErrorCodeTestImageFlag;
 
   if (omaha_request_params_->update_url() != kProductionOmahaUrl)

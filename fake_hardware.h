@@ -14,12 +14,16 @@ class FakeHardware : public HardwareInterface {
  public:
   FakeHardware()
     : boot_device_("/dev/sdz5"),
+      is_official_build_(true),
+      is_normal_boot_mode_(true),
       hardware_class_("Fake HWID BLAH-1234"),
       firmware_version_("Fake Firmware v1.0.1"),
       ec_version_("Fake EC v1.0a") {}
 
   // HardwareInterface methods.
   virtual const std::string BootDevice() { return boot_device_; }
+  virtual bool IsOfficialBuild() { return is_official_build_; }
+  virtual bool IsNormalBootMode() { return is_normal_boot_mode_; }
   virtual std::string GetHardwareClass() { return hardware_class_; }
   virtual std::string GetFirmwareVersion() { return firmware_version_; }
   virtual std::string GetECVersion() { return ec_version_; }
@@ -27,6 +31,14 @@ class FakeHardware : public HardwareInterface {
   // Setters
   void SetBootDevice(const std::string boot_device) {
     boot_device_ = boot_device;
+  }
+
+  void SetIsOfficialBuild(bool is_official_build) {
+    is_official_build_ = is_official_build;
+  }
+
+  void SetIsNormalBootMode(bool is_normal_boot_mode) {
+    is_normal_boot_mode_ = is_normal_boot_mode;
   }
 
   void SetHardwareClass(std::string hardware_class) {
@@ -43,6 +55,8 @@ class FakeHardware : public HardwareInterface {
 
  private:
   std::string boot_device_;
+  bool is_official_build_;
+  bool is_normal_boot_mode_;
   std::string hardware_class_;
   std::string firmware_version_;
   std::string ec_version_;

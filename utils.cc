@@ -60,30 +60,9 @@ const int kUnmountRetryIntervalInMicroseconds = 200 * 1000;  // 200 ms
 
 namespace utils {
 
-static const char kDevImageMarker[] = "/root/.dev_mode";
-
 // Cgroup container is created in update-engine's upstart script located at
 // /etc/init/update-engine.conf.
 static const char kCGroupDir[] = "/sys/fs/cgroup/cpu/update-engine";
-
-bool IsOfficialBuild() {
-  return !file_util::PathExists(FilePath(kDevImageMarker));
-}
-
-bool IsNormalBootMode() {
-  // TODO(petkov): Convert to a library call once a crossystem library is
-  // available (crosbug.com/13291).
-  int exit_code = 0;
-  vector<string> cmd(1, "/usr/bin/crossystem");
-  cmd.push_back("devsw_boot?1");
-
-  // Assume dev mode if the dev switch is set to 1 and there was no error
-  // executing crossystem. Assume normal mode otherwise.
-  bool success = Subprocess::SynchronousExec(cmd, &exit_code, NULL);
-  bool dev_mode = success && exit_code == 0;
-  LOG_IF(INFO, dev_mode) << "Booted in dev mode.";
-  return !dev_mode;
-}
 
 string ParseECVersion(string input_line) {
   TrimWhitespaceASCII(input_line, TRIM_ALL, &input_line);

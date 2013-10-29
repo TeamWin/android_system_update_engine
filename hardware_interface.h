@@ -22,8 +22,13 @@ class HardwareInterface {
   // or something with equivalent funcionality to interpret those.
   virtual const std::string BootDevice() = 0;
 
-  // TODO(deymo): Move other hardware-dependent functions to this interface:
-  // IsNormalBootMode and IsOfficialBuild.
+  // Returns true if this is an official Chrome OS build, false otherwise.
+  virtual bool IsOfficialBuild() = 0;
+
+  // Returns true if the boot mode is normal or if it's unable to
+  // determine the boot mode. Returns false if the boot mode is
+  // developer.
+  virtual bool IsNormalBootMode() = 0;
 
   // Returns the HWID or an empty string on error.
   virtual std::string GetHardwareClass() = 0;

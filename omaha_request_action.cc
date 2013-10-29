@@ -21,6 +21,7 @@
 
 #include "update_engine/action_pipe.h"
 #include "update_engine/constants.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
@@ -725,7 +726,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   if (IsEvent()) {
     CHECK(!HasOutputPipe()) << "No output pipe allowed for event requests.";
     if (event_->result == OmahaEvent::kResultError && successful &&
-        utils::IsOfficialBuild()) {
+        system_state_->hardware()->IsOfficialBuild()) {
       LOG(INFO) << "Signalling Crash Reporter.";
       utils::ScheduleCrashReporterUpload();
     }

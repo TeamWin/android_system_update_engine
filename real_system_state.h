@@ -27,7 +27,6 @@ public:
   virtual ~RealSystemState() {}
 
   virtual bool IsOOBEComplete();
-  virtual bool IsOfficialBuild();
 
   virtual inline void set_device_policy(
       const policy::DevicePolicy* device_policy) {

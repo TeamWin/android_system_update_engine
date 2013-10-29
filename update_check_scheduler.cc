@@ -64,7 +64,7 @@ bool UpdateCheckScheduler::IsBootDeviceRemovable() {
 }
 
 bool UpdateCheckScheduler::IsOfficialBuild() {
-  return utils::IsOfficialBuild();
+  return system_state_->hardware()->IsOfficialBuild();
 }
 
 guint UpdateCheckScheduler::GTimeoutAddSeconds(guint interval,
