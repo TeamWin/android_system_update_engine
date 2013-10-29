@@ -39,6 +39,8 @@ namespace chromeos_update_engine {
 
 const uint64_t DeltaPerformer::kDeltaVersionSize = 8;
 const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
+const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 1;
+
 const char DeltaPerformer::kUpdatePayloadPublicKeyPath[] =
     "/usr/share/update_engine/update-payload-key.pub.pem";
 const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
@@ -247,6 +249,11 @@ void LogPartitionInfo(const DeltaArchiveManifest& manifest) {
 
 }  // namespace {}
 
+uint64_t DeltaPerformer::GetVersionOffset() {
+ // Manifest size is stored right after the magic string and the version.
+ return strlen(kDeltaMagic);
+}
+
 uint64_t DeltaPerformer::GetManifestSizeOffset() {
  // Manifest size is stored right after the magic string and the version.
  return strlen(kDeltaMagic) + kDeltaVersionSize;
@@ -279,8 +286,22 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     return kMetadataParseError;
   }
 
-  // TODO(jaysri): Compare the version number and skip unknown manifest
-  // versions. We don't check the version at all today.
+  // Extract the payload version from the metadata.
+  uint64_t major_payload_version;
+  COMPILE_ASSERT(sizeof(major_payload_version) == kDeltaVersionSize,
+                 major_payload_version_size_mismatch);
+  memcpy(&major_payload_version,
+         &payload[GetVersionOffset()],
+         kDeltaVersionSize);
+  // switch big endian to host
+  major_payload_version = be64toh(major_payload_version);
+
+  if (major_payload_version != kSupportedMajorPayloadVersion) {
+    LOG(ERROR) << "Bad payload format -- unsupported payload version: "
+               << major_payload_version;
+    *error = kErrorCodeUnsupportedMajorPayloadVersion;
+    return kMetadataParseError;
+  }
 
   // Next, parse the manifest size.
   uint64_t manifest_size;

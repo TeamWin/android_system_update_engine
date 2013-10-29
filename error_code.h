@@ -53,11 +53,15 @@ enum ErrorCode {
   kErrorCodePostinstallPowerwashError = 41,
   kErrorCodeUpdateCanceledByChannelChange = 42,
   kErrorCodePostinstallFirmwareRONotUpdatable = 43,
+  kErrorCodeUnsupportedMajorPayloadVersion = 44,
+  kErrorCodeUnsupportedMinorPayloadVersion = 45,
 
-  // Note: When adding new error codes, please remember to add the
-  // error into one of the buckets in PayloadState::UpdateFailed method so
-  // that the retries across URLs and the payload backoff mechanism work
-  // correctly for those new error codes.
+  // VERY IMPORTANT! When adding new error codes:
+  //
+  // 1) Update tools/metrics/histograms/histograms.xml in Chrome.
+  //
+  // 2) Update the assorted switch statements in update_engine which won't
+  //    build until this case is added.
 
   // Any code above this is sent to both Omaha and UMA as-is, except
   // kErrorCodeOmahaErrorInHTTPResponse (see error code 2000 for more details).

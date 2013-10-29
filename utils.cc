@@ -1000,6 +1000,10 @@ string CodeToString(ErrorCode code) {
       return "kErrorCodeSpecialFlags";
     case kErrorCodePostinstallFirmwareRONotUpdatable:
       return "kErrorCodePostinstallFirmwareRONotUpdatable";
+    case kErrorCodeUnsupportedMajorPayloadVersion:
+      return "kErrorCodeUnsupportedMajorPayloadVersion";
+    case kErrorCodeUnsupportedMinorPayloadVersion:
+      return "kErrorCodeUnsupportedMinorPayloadVersion";
     // Don't add a default case to let the compiler warn about newly added
     // error codes which should be added here.
   }

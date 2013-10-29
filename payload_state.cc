@@ -220,6 +220,8 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case kErrorCodeDownloadOperationHashMissingError:
     case kErrorCodeDownloadMetadataSignatureMissingError:
     case kErrorCodePayloadMismatchedType:
+    case kErrorCodeUnsupportedMajorPayloadVersion:
+    case kErrorCodeUnsupportedMinorPayloadVersion:
       IncrementUrlIndex();
       break;
 

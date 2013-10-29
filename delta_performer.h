@@ -36,6 +36,7 @@ class DeltaPerformer : public FileWriter {
 
   static const uint64_t kDeltaVersionSize;
   static const uint64_t kDeltaManifestSizeSize;
+  static const uint64_t kSupportedMajorPayloadVersion;
   static const char kUpdatePayloadPublicKeyPath[];
 
   // Defines the granularity of progress logging in terms of how many "completed
@@ -163,14 +164,17 @@ class DeltaPerformer : public FileWriter {
     public_key_path_ = public_key_path;
   }
 
-  // Returns the byte offset at which the manifest protobuf begins in a
-  // payload.
-  static uint64_t GetManifestOffset();
+  // Returns the byte offset at which the payload version can be found.
+  static uint64_t GetVersionOffset();
 
   // Returns the byte offset where the size of the manifest is stored in
   // a payload. This offset precedes the actual start of the manifest
   // that's returned by the GetManifestOffset method.
   static uint64_t GetManifestSizeOffset();
+
+  // Returns the byte offset at which the manifest protobuf begins in a
+  // payload.
+  static uint64_t GetManifestOffset();
 
  private:
   friend class DeltaPerformerTest;
