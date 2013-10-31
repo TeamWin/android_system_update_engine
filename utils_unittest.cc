@@ -388,4 +388,26 @@ TEST(UtilsTest, TimeFromStructTimespecTest) {
             utils::TimeFromStructTimespec(&ts));
 }
 
+TEST(UtilsTest, DecodeAndStoreBase64String) {
+  base::FilePath path;
+
+  // Ensure we return false on empty strings or invalid base64.
+  EXPECT_FALSE(utils::DecodeAndStoreBase64String("", &path));
+  EXPECT_FALSE(utils::DecodeAndStoreBase64String("not valid base64", &path));
+
+  // Pass known base64 and check that it matches. This string was generated
+  // the following way:
+  //
+  //   $ echo "Update Engine" | base64
+  //   VXBkYXRlIEVuZ2luZQo=
+  EXPECT_TRUE(utils::DecodeAndStoreBase64String("VXBkYXRlIEVuZ2luZQo=",
+                                                &path));
+  ScopedPathUnlinker unlinker(path.value());
+  string expected_contents = "Update Engine\n";
+  string contents;
+  EXPECT_TRUE(utils::ReadFile(path.value(), &contents));
+  EXPECT_EQ(contents, expected_contents);
+  EXPECT_EQ(utils::FileSize(path.value()), expected_contents.size());
+}
+
 }  // namespace chromeos_update_engine

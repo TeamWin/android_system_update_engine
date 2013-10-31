@@ -69,6 +69,10 @@ struct OmahaResponse {
 
   // True if the Omaha rule instructs us to disable p2p for sharing.
   bool disable_p2p_for_sharing;
+
+  // If not blank, a base-64 encoded representation of the PEM-encoded
+  // public key in the response.
+  std::string public_key_rsa;
 };
 COMPILE_ASSERT(sizeof(off_t) == 8, off_t_not_64bit);
 

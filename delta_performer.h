@@ -179,6 +179,7 @@ class DeltaPerformer : public FileWriter {
  private:
   friend class DeltaPerformerTest;
   FRIEND_TEST(DeltaPerformerTest, IsIdempotentOperationTest);
+  FRIEND_TEST(DeltaPerformerTest, UsePublicKeyFromResponse);
 
   // Logs the progress of downloading/applying an update.
   void LogProgress(const char* message_prefix);
@@ -256,6 +257,14 @@ class DeltaPerformer : public FileWriter {
 
   // Sends UMA statistics for the given error code.
   void SendUmaStat(ErrorCode code);
+
+  // If the Omaha response contains a public RSA key and we're allowed
+  // to use it (e.g. if we're in developer mode), extract the key from
+  // the response and store it in a temporary file and return true. In
+  // the affirmative the path to the temporary file is stored in
+  // |out_tmp_key| and it is the responsibility of the caller to clean
+  // it up.
+  bool GetPublicKeyFromResponse(base::FilePath *out_tmp_key);
 
   // Update Engine preference store.
   PrefsInterface* prefs_;

@@ -1070,6 +1070,48 @@ bool IsXAttrSupported(const base::FilePath& dir_path) {
   return xattr_res == 0;
 }
 
+bool DecodeAndStoreBase64String(const std::string& base64_encoded,
+                                base::FilePath *out_path) {
+  vector<char> contents;
+
+  out_path->clear();
+
+  if (base64_encoded.size() == 0) {
+    LOG(ERROR) << "Can't decode empty string.";
+    return false;
+  }
+
+  if (!OmahaHashCalculator::Base64Decode(base64_encoded, &contents) ||
+      contents.size() == 0) {
+    LOG(ERROR) << "Error decoding base64.";
+    return false;
+  }
+
+  FILE *file = file_util::CreateAndOpenTemporaryFile(out_path);
+  if (file == NULL) {
+    LOG(ERROR) << "Error creating temporary file.";
+    return false;
+  }
+
+  if (fwrite(&contents[0], 1, contents.size(), file) != contents.size()) {
+    PLOG(ERROR) << "Error writing to temporary file.";
+    if (fclose(file) != 0)
+      PLOG(ERROR) << "Error closing temporary file.";
+    if (unlink(out_path->value().c_str()) != 0)
+      PLOG(ERROR) << "Error unlinking temporary file.";
+    out_path->clear();
+    return false;
+  }
+
+  if (fclose(file) != 0) {
+    PLOG(ERROR) << "Error closing temporary file.";
+    out_path->clear();
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace utils
 
 }  // namespace chromeos_update_engine

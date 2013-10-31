@@ -53,6 +53,7 @@ static const char* kTagPrompt = "Prompt";
 static const char* kTagSha256 = "sha256";
 static const char* kTagDisableP2PForDownloading = "DisableP2PForDownloading";
 static const char* kTagDisableP2PForSharing = "DisableP2PForSharing";
+static const char* kTagPublicKeyRsa = "PublicKeyRsa";
 
 namespace {
 
@@ -699,6 +700,8 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
       (XmlGetProperty(pie_action_node, kTagDisableP2PForDownloading) == "true");
   output_object->disable_p2p_for_sharing =
       (XmlGetProperty(pie_action_node, kTagDisableP2PForSharing) == "true");
+  output_object->public_key_rsa =
+      XmlGetProperty(pie_action_node, kTagPublicKeyRsa);
 
   string max = XmlGetProperty(pie_action_node, kTagMaxFailureCountPerUrl);
   if (!base::StringToUint(max, &output_object->max_failure_count_per_url))

@@ -20,7 +20,8 @@ InstallPlan::InstallPlan(bool is_resume,
                          uint64_t metadata_size,
                          const string& metadata_signature,
                          const string& install_path,
-                         const string& kernel_install_path)
+                         const string& kernel_install_path,
+                         const std::string& public_key_rsa)
     : is_resume(is_resume),
       is_full_update(is_full_update),
       download_url(url),
@@ -33,7 +34,8 @@ InstallPlan::InstallPlan(bool is_resume,
       kernel_size(0),
       rootfs_size(0),
       hash_checks_mandatory(false),
-      powerwash_required(false) {}
+      powerwash_required(false),
+      public_key_rsa(public_key_rsa) {}
 
 InstallPlan::InstallPlan() : is_resume(false),
                              is_full_update(false),  // play it safe.

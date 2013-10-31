@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include <base/file_util.h>
 #include <base/memory/scoped_ptr.h>
 #include <base/string_util.h>
 #include <base/stringprintf.h>
@@ -23,6 +24,7 @@
 #include "update_engine/extent_ranges.h"
 #include "update_engine/extent_writer.h"
 #include "update_engine/graph_types.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/payload_signer.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/prefs_interface.h"
@@ -801,6 +803,19 @@ bool DeltaPerformer::ExtractSignatureMessage(
   return true;
 }
 
+bool DeltaPerformer::GetPublicKeyFromResponse(base::FilePath *out_tmp_key) {
+  if (system_state_->hardware()->IsOfficialBuild() ||
+      utils::FileExists(public_key_path_.c_str()) ||
+      install_plan_->public_key_rsa.empty())
+    return false;
+
+  if (!utils::DecodeAndStoreBase64String(install_plan_->public_key_rsa,
+                                         out_tmp_key))
+    return false;
+
+  return true;
+}
+
 ErrorCode DeltaPerformer::ValidateMetadataSignature(
     const char* metadata, uint64_t metadata_size) {
 
@@ -825,9 +840,21 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
     return kErrorCodeDownloadMetadataSignatureError;
   }
 
+  // See if we should use the public RSA key in the Omaha response.
+  base::FilePath path_to_public_key(public_key_path_);
+  base::FilePath tmp_key;
+  if (GetPublicKeyFromResponse(&tmp_key))
+    path_to_public_key = tmp_key;
+  ScopedPathUnlinker tmp_key_remover(tmp_key.value());
+  if (tmp_key.empty())
+    tmp_key_remover.set_should_remove(false);
+
+  LOG(INFO) << "Verifying metadata hash signature using public key: "
+            << path_to_public_key.value();
+
   vector<char> expected_metadata_hash;
   if (!PayloadSigner::GetRawHashFromSignature(metadata_signature,
-                                              public_key_path_,
+                                              path_to_public_key.value(),
                                               &expected_metadata_hash)) {
     LOG(ERROR) << "Unable to compute expected hash from metadata signature";
     return kErrorCodeDownloadMetadataSignatureError;
@@ -855,7 +882,7 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
     return kErrorCodeDownloadMetadataSignatureMismatch;
   }
 
-  LOG(INFO) << "Manifest signature matches expected value in Omaha response";
+  LOG(INFO) << "Metadata hash signature matches value in Omaha response.";
   return kErrorCodeSuccess;
 }
 
@@ -961,7 +988,18 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
 ErrorCode DeltaPerformer::VerifyPayload(
     const std::string& update_check_response_hash,
     const uint64_t update_check_response_size) {
-  LOG(INFO) << "Verifying delta payload using public key: " << public_key_path_;
+
+  // See if we should use the public RSA key in the Omaha response.
+  base::FilePath path_to_public_key(public_key_path_);
+  base::FilePath tmp_key;
+  if (GetPublicKeyFromResponse(&tmp_key))
+    path_to_public_key = tmp_key;
+  ScopedPathUnlinker tmp_key_remover(tmp_key.value());
+  if (tmp_key.empty())
+    tmp_key_remover.set_should_remove(false);
+
+  LOG(INFO) << "Verifying payload using public key: "
+            << path_to_public_key.value();
 
   // Verifies the download size.
   TEST_AND_RETURN_VAL(kErrorCodePayloadSizeMismatchError,
@@ -976,7 +1014,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
                       payload_hash_data == update_check_response_hash);
 
   // Verifies the signed payload hash.
-  if (!utils::FileExists(public_key_path_.c_str())) {
+  if (!utils::FileExists(path_to_public_key.value().c_str())) {
     LOG(WARNING) << "Not verifying signed delta payload -- missing public key.";
     return kErrorCodeSuccess;
   }
@@ -986,7 +1024,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
   TEST_AND_RETURN_VAL(kErrorCodeDownloadPayloadPubKeyVerificationError,
                       PayloadSigner::VerifySignature(
                           signatures_message_data_,
-                          public_key_path_,
+                          path_to_public_key.value(),
                           &signed_hash_data));
   OmahaHashCalculator signed_hasher;
   TEST_AND_RETURN_VAL(kErrorCodeDownloadPayloadPubKeyVerificationError,
@@ -1005,6 +1043,8 @@ ErrorCode DeltaPerformer::VerifyPayload(
     utils::HexDumpVector(hash_data);
     return kErrorCodeDownloadPayloadPubKeyVerificationError;
   }
+
+  LOG(INFO) << "Payload hash matches value in payload.";
 
   // At this point, we are guaranteed to have downloaded a full payload, i.e
   // the one whose size matches the size mentioned in Omaha response. If any

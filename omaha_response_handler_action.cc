@@ -88,6 +88,7 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.payload_hash = response.hash;
   install_plan_.metadata_size = response.metadata_size;
   install_plan_.metadata_signature = response.metadata_signature;
+  install_plan_.public_key_rsa = response.public_key_rsa;
   install_plan_.hash_checks_mandatory = AreHashChecksMandatory(response);
   install_plan_.is_resume =
       DeltaPerformer::CanResumeUpdate(system_state_->prefs(), response.hash);
@@ -138,17 +139,27 @@ void OmahaResponseHandlerAction::PerformAction() {
 
 bool OmahaResponseHandlerAction::AreHashChecksMandatory(
     const OmahaResponse& response) {
-  // All our internal testing uses dev server which doesn't generate metadata
-  // signatures yet. So, in order not to break image_to_live or other AU tools,
-  // we should waive the hash checks for those cases. Since all internal
-  // testing is done using a dev_image or test_image, we can use that as a
-  // criteria for waiving. This criteria reduces the attack surface as
-  // opposed to waiving the checks when we're in dev mode, because we do want
-  // to enforce the hash checks when our end customers run in dev mode if they
-  // are using an official build, so that they are protected more.
+  // All our internal testing uses dev server which doesn't generate
+  // metadata signatures by default. So, in order not to break
+  // image_to_live or other AU tools, we should waive the hash checks
+  // for those cases, except if the response indicates that the
+  // payload is signed.
+  //
+  // Since all internal testing is done using a dev_image or
+  // test_image, we can use that as a criteria for waiving. This
+  // criteria reduces the attack surface as opposed to waiving the
+  // checks when we're in dev mode, because we do want to enforce the
+  // hash checks when our end customers run in dev mode if they are
+  // using an official build, so that they are protected more.
   if (!system_state_->hardware()->IsOfficialBuild()) {
-    LOG(INFO) << "Waiving payload hash checks for unofficial builds";
-    return false;
+    if (!response.public_key_rsa.empty()) {
+      LOG(INFO) << "Mandating payload hash checks since Omaha Response "
+                << "for unofficial build includes public RSA key.";
+      return true;
+    } else {
+      LOG(INFO) << "Waiving payload hash checks for unofficial builds";
+      return false;
+    }
   }
 
   // If we're using p2p, |install_plan_.download_url| may contain a

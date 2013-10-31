@@ -336,6 +336,14 @@ bool GetInstallDev(const std::string& boot_dev, std::string* install_dev);
 // supported, false if not or if an error occured.
 bool IsXAttrSupported(const base::FilePath& dir_path);
 
+// Decodes the data in |base64_encoded| and stores it in a temporary
+// file. Returns false if the given data is empty, not well-formed
+// base64 or if an error occurred. If true is returned, the decoded
+// data is stored in the file returned in |out_path|. The file should
+// be deleted when no longer needed.
+bool DecodeAndStoreBase64String(const std::string& base64_encoded,
+                                base::FilePath *out_path);
+
 }  // namespace utils
 
 

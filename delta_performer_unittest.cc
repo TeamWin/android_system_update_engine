@@ -20,6 +20,7 @@
 #include "update_engine/delta_diff_generator.h"
 #include "update_engine/delta_performer.h"
 #include "update_engine/extent_ranges.h"
+#include "update_engine/fake_hardware.h"
 #include "update_engine/full_update_generator.h"
 #include "update_engine/graph_types.h"
 #include "update_engine/mock_system_state.h"
@@ -1138,6 +1139,85 @@ TEST(DeltaPerformerTest, RunAsRootNonMandatoryValidMetadataSignatureTest) {
 
 TEST(DeltaPerformerTest, RunAsRootMandatoryOperationHashMismatchTest) {
   DoOperationHashMismatchTest(kInvalidOperationData, true);
+}
+
+TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
+  PrefsMock prefs;
+  MockSystemState mock_system_state;
+  InstallPlan install_plan;
+  base::FilePath key_path;
+
+  // The result of the GetPublicKeyResponse() method is based on three things
+  //
+  //  1. Whether it's an official build; and
+  //  2. Whether the Public RSA key to be used is in the root filesystem; and
+  //  3. Whether the reponse has a public key
+  //
+  // We test all eight combinations to ensure that we only use the
+  // public key in the response if
+  //
+  //  a. it's not an official build; and
+  //  b. there is no key in the root filesystem.
+
+  DeltaPerformer *performer = new DeltaPerformer(&prefs,
+                                                 &mock_system_state,
+                                                 &install_plan);
+  FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
+
+  string temp_dir;
+  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PublicKeyFromResponseTests.XXXXXX",
+                                       &temp_dir));
+  string non_existing_file = temp_dir + "/non-existing";
+  string existing_file = temp_dir + "/existing";
+  EXPECT_EQ(0, System(StringPrintf("touch %s", existing_file.c_str())));
+
+  // Non-official build, non-existing public-key, key in response -> true
+  fake_hardware->SetIsOfficialBuild(false);
+  performer->public_key_path_ = non_existing_file;
+  install_plan.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
+  EXPECT_TRUE(performer->GetPublicKeyFromResponse(&key_path));
+  EXPECT_FALSE(key_path.empty());
+  EXPECT_EQ(unlink(key_path.value().c_str()), 0);
+  // Same with official build -> false
+  fake_hardware->SetIsOfficialBuild(true);
+  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+
+  // Non-official build, existing public-key, key in response -> false
+  fake_hardware->SetIsOfficialBuild(false);
+  performer->public_key_path_ = existing_file;
+  install_plan.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
+  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  // Same with official build -> false
+  fake_hardware->SetIsOfficialBuild(true);
+  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+
+  // Non-official build, non-existing public-key, no key in response -> false
+  fake_hardware->SetIsOfficialBuild(false);
+  performer->public_key_path_ = non_existing_file;
+  install_plan.public_key_rsa = "";
+  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  // Same with official build -> false
+  fake_hardware->SetIsOfficialBuild(true);
+  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+
+  // Non-official build, existing public-key, no key in response -> false
+  fake_hardware->SetIsOfficialBuild(false);
+  performer->public_key_path_ = existing_file;
+  install_plan.public_key_rsa = "";
+  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  // Same with official build -> false
+  fake_hardware->SetIsOfficialBuild(true);
+  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+
+  // Non-official build, non-existing public-key, key in response
+  // but invalid base64 -> false
+  fake_hardware->SetIsOfficialBuild(false);
+  performer->public_key_path_ = non_existing_file;
+  install_plan.public_key_rsa = "not-valid-base64";
+  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+
+  delete performer;
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 }  // namespace chromeos_update_engine

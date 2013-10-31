@@ -25,7 +25,8 @@ struct InstallPlan {
               uint64_t metadata_size,
               const std::string& metadata_signature,
               const std::string& install_path,
-              const std::string& kernel_install_path);
+              const std::string& kernel_install_path,
+              const std::string& public_key_rsa);
 
   // Default constructor: Initialize all members which don't have a class
   // initializer.
@@ -71,6 +72,10 @@ struct InstallPlan {
   // True if Powerwash is required on reboot after applying the payload.
   // False otherwise.
   bool powerwash_required;
+
+  // If not blank, a base-64 encoded representation of the PEM-encoded
+  // public key in the response.
+  std::string public_key_rsa;
 };
 
 class InstallPlanAction;
