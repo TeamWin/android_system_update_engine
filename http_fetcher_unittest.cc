@@ -824,6 +824,16 @@ TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
     scoped_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
     fetcher->set_delegate(&delegate);
 
+    // Don't allow connection to server by denying access over ethernet.
+    MockConnectionManager* mock_cm = dynamic_cast<MockConnectionManager*>(
+        fetcher->GetSystemState()->connection_manager());
+    EXPECT_CALL(*mock_cm, GetConnectionType(_,_))
+      .WillRepeatedly(DoAll(SetArgumentPointee<1>(kNetEthernet), Return(true)));
+    EXPECT_CALL(*mock_cm, IsUpdateAllowedOver(kNetEthernet))
+      .WillRepeatedly(Return(false));
+    EXPECT_CALL(*mock_cm, StringForConnectionType(kNetEthernet))
+      .WillRepeatedly(Return(shill::kTypeEthernet));
+
     StartTransferArgs start_xfer_args = {
       fetcher.get(),
       LocalServerUrlForPath(0,
@@ -832,7 +842,6 @@ TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
                                          kFlakySleepEvery,
                                          kFlakySleepSecs))
     };
-
     g_timeout_add(0, StartTransfer, &start_xfer_args);
     g_main_loop_run(loop);
 
