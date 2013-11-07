@@ -867,20 +867,32 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
                        kUpdateNoticeUnspecified);
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
-    const InstallPlan& install_plan = response_handler_action_->install_plan();
+    // This pointer is NULL during rollback operations, and the stats
+    // don't make much sense then anway.
+    if (response_handler_action_) {
+      const InstallPlan& install_plan =
+          response_handler_action_->install_plan();
 
-    // Generate an unique payload identifier.
-    const string target_version_uid =
-        install_plan.payload_hash + ":" + install_plan.metadata_signature;
+      // Generate an unique payload identifier.
+      const string target_version_uid =
+          install_plan.payload_hash + ":" + install_plan.metadata_signature;
 
-    // Expect to reboot into the new version to send the proper metric during
-    // next boot.
-    system_state_->payload_state()->ExpectRebootInNewVersion(
-        target_version_uid);
+      // Expect to reboot into the new version to send the proper metric during
+      // next boot.
+      system_state_->payload_state()->ExpectRebootInNewVersion(
+          target_version_uid);
 
-    // Also report the success code so that the percentiles can be
-    // interpreted properly for the remaining error codes in UMA.
-    utils::SendErrorCodeToUma(system_state_, code);
+      // Also report the success code so that the percentiles can be
+      // interpreted properly for the remaining error codes in UMA.
+      utils::SendErrorCodeToUma(system_state_, code);
+    } else {
+      // If we just finished a rollback, then we expect to have no Omaha
+      // response. Otherwise, it's an error.
+      if (system_state_->payload_state()->GetRollbackVersion().empty()) {
+        LOG(ERROR) << "Can't send metrics because expected "
+            "response_handler_action_ missing.";
+      }
+    }
     return;
   }
 
