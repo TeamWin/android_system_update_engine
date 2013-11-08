@@ -1162,7 +1162,7 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   DeltaPerformer *performer = new DeltaPerformer(&prefs,
                                                  &mock_system_state,
                                                  &install_plan);
-  FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
+  FakeHardware& fake_hardware = mock_system_state.get_mock_hardware().fake();
 
   string temp_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PublicKeyFromResponseTests.XXXXXX",
@@ -1172,46 +1172,46 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   EXPECT_EQ(0, System(StringPrintf("touch %s", existing_file.c_str())));
 
   // Non-official build, non-existing public-key, key in response -> true
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware.SetIsOfficialBuild(false);
   performer->public_key_path_ = non_existing_file;
   install_plan.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
   EXPECT_TRUE(performer->GetPublicKeyFromResponse(&key_path));
   EXPECT_FALSE(key_path.empty());
   EXPECT_EQ(unlink(key_path.value().c_str()), 0);
   // Same with official build -> false
-  fake_hardware->SetIsOfficialBuild(true);
+  fake_hardware.SetIsOfficialBuild(true);
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, existing public-key, key in response -> false
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware.SetIsOfficialBuild(false);
   performer->public_key_path_ = existing_file;
   install_plan.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
-  fake_hardware->SetIsOfficialBuild(true);
+  fake_hardware.SetIsOfficialBuild(true);
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, non-existing public-key, no key in response -> false
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware.SetIsOfficialBuild(false);
   performer->public_key_path_ = non_existing_file;
   install_plan.public_key_rsa = "";
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
-  fake_hardware->SetIsOfficialBuild(true);
+  fake_hardware.SetIsOfficialBuild(true);
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, existing public-key, no key in response -> false
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware.SetIsOfficialBuild(false);
   performer->public_key_path_ = existing_file;
   install_plan.public_key_rsa = "";
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
-  fake_hardware->SetIsOfficialBuild(true);
+  fake_hardware.SetIsOfficialBuild(true);
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, non-existing public-key, key in response
   // but invalid base64 -> false
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware.SetIsOfficialBuild(false);
   performer->public_key_path_ = non_existing_file;
   install_plan.public_key_rsa = "not-valid-base64";
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));

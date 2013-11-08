@@ -17,7 +17,11 @@ class Hardware : public HardwareInterface {
   Hardware() {}
 
   // HardwareInterface methods.
+  virtual const std::string BootKernelDevice();
   virtual const std::string BootDevice();
+  virtual bool IsKernelBootable(const std::string& kernel_device,
+                                bool* bootable);
+  virtual bool MarkKernelUnbootable(const std::string& kernel_device);
   virtual bool IsOfficialBuild();
   virtual bool IsNormalBootMode();
   virtual std::string GetHardwareClass();

@@ -613,10 +613,12 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                              false));
   shared_ptr<OmahaResponseHandlerAction> response_handler_action(
       new OmahaResponseHandlerAction(system_state_));
-  shared_ptr<FilesystemCopierAction> filesystem_copier_action(
-      new FilesystemCopierAction(system_state_, false, false));
+  // We start with the kernel so it's marked as invalid more quickly.
   shared_ptr<FilesystemCopierAction> kernel_filesystem_copier_action(
       new FilesystemCopierAction(system_state_, true, false));
+  shared_ptr<FilesystemCopierAction> filesystem_copier_action(
+      new FilesystemCopierAction(system_state_, false, false));
+
   shared_ptr<OmahaRequestAction> download_started_action(
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(

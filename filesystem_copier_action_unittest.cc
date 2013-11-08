@@ -12,6 +12,7 @@
 #include <base/string_util.h>
 #include <base/stringprintf.h>
 #include <glib.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/filesystem_copier_action.h"
@@ -40,8 +41,6 @@ class FilesystemCopierActionTest : public ::testing::Test {
   }
   void TearDown() {
   }
-
-  MockSystemState mock_system_state_;
 };
 
 class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
@@ -108,11 +107,11 @@ gboolean StartProcessorInRunLoop(gpointer data) {
 // issue with the chroot environiment, library versions we use, etc.
 TEST_F(FilesystemCopierActionTest, DISABLED_RunAsRootSimpleTest) {
   ASSERT_EQ(0, getuid());
-  bool test = DoTest(false, false, false, 0);
+  bool test = DoTest(false, false, true, 0);
   EXPECT_TRUE(test);
   if (!test)
     return;
-  test = DoTest(false, false, true, 0);
+  test = DoTest(false, false, false, 0);
   EXPECT_TRUE(test);
 }
 
@@ -120,6 +119,8 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
                                         bool terminate_early,
                                         bool use_kernel_partition,
                                         int verify_hash) {
+  MockSystemState mock_system_state;
+
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
 
   string a_loop_file;
@@ -196,10 +197,13 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
     }
   }
 
+  EXPECT_CALL(mock_system_state.get_mock_hardware(),
+              MarkKernelUnbootable(a_dev)).Times(use_kernel_partition ? 1 : 0);
+
   ActionProcessor processor;
 
   ObjectFeederAction<InstallPlan> feeder_action;
-  FilesystemCopierAction copier_action(&mock_system_state_,
+  FilesystemCopierAction copier_action(&mock_system_state,
                                        use_kernel_partition,
                                        verify_hash != 0);
   ObjectCollectorAction<InstallPlan> collector_action;
@@ -270,6 +274,14 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
   EXPECT_TRUE(is_install_plan_eq);
   success = success && is_install_plan_eq;
 
+  LOG(INFO) << "Verifying bootable flag on: " << a_dev;
+  bool bootable;
+  EXPECT_TRUE(mock_system_state.get_mock_hardware().fake().
+                  IsKernelBootable(a_dev, &bootable));
+  // We should always mark a partition as unbootable if it's a kernel
+  // partition, but never if it's anything else.
+  EXPECT_EQ(bootable, !use_kernel_partition);
+
   return success;
 }
 
@@ -290,11 +302,12 @@ class FilesystemCopierActionTest2Delegate : public ActionProcessorDelegate {
 
 TEST_F(FilesystemCopierActionTest, MissingInputObjectTest) {
   ActionProcessor processor;
+  MockSystemState mock_system_state;
   FilesystemCopierActionTest2Delegate delegate;
 
   processor.set_delegate(&delegate);
 
-  FilesystemCopierAction copier_action(&mock_system_state_, false, false);
+  FilesystemCopierAction copier_action(&mock_system_state, false, false);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&copier_action, &collector_action);
@@ -309,6 +322,7 @@ TEST_F(FilesystemCopierActionTest, MissingInputObjectTest) {
 
 TEST_F(FilesystemCopierActionTest, ResumeTest) {
   ActionProcessor processor;
+  MockSystemState mock_system_state;
   FilesystemCopierActionTest2Delegate delegate;
 
   processor.set_delegate(&delegate);
@@ -317,7 +331,7 @@ TEST_F(FilesystemCopierActionTest, ResumeTest) {
   const char* kUrl = "http://some/url";
   InstallPlan install_plan(false, true, kUrl, 0, "", 0, "", "", "", "");
   feeder_action.set_obj(install_plan);
-  FilesystemCopierAction copier_action(&mock_system_state_, false, false);
+  FilesystemCopierAction copier_action(&mock_system_state, false, false);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&feeder_action, &copier_action);
@@ -335,6 +349,7 @@ TEST_F(FilesystemCopierActionTest, ResumeTest) {
 
 TEST_F(FilesystemCopierActionTest, NonExistentDriveTest) {
   ActionProcessor processor;
+  MockSystemState mock_system_state;
   FilesystemCopierActionTest2Delegate delegate;
 
   processor.set_delegate(&delegate);
@@ -351,7 +366,7 @@ TEST_F(FilesystemCopierActionTest, NonExistentDriveTest) {
                            "/no/such/file",
                            "");
   feeder_action.set_obj(install_plan);
-  FilesystemCopierAction copier_action(&mock_system_state_, false, false);
+  FilesystemCopierAction copier_action(&mock_system_state, false, false);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&copier_action, &collector_action);
@@ -388,6 +403,7 @@ TEST_F(FilesystemCopierActionTest, RunAsRootTerminateEarlyTest) {
 }
 
 TEST_F(FilesystemCopierActionTest, RunAsRootDetermineFilesystemSizeTest) {
+  MockSystemState mock_system_state;
   string img;
   EXPECT_TRUE(utils::MakeTempFile("/tmp/img.XXXXXX", &img, NULL));
   ScopedPathUnlinker img_unlinker(img);
@@ -400,7 +416,7 @@ TEST_F(FilesystemCopierActionTest, RunAsRootDetermineFilesystemSizeTest) {
 
   for (int i = 0; i < 2; ++i) {
     bool is_kernel = i == 1;
-    FilesystemCopierAction action(&mock_system_state_, is_kernel, false);
+    FilesystemCopierAction action(&mock_system_state, is_kernel, false);
     EXPECT_EQ(kint64max, action.filesystem_size_);
     {
       int fd = HANDLE_EINTR(open(img.c_str(), O_RDONLY));

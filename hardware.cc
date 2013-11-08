@@ -10,6 +10,16 @@
 #include <rootdev/rootdev.h>
 #include <vboot/crossystem.h>
 
+extern "C" {
+#include "vboot/vboot_host.h"
+}
+
+// We don't use these variables, but libcgpt needs them defined to link.
+// TODO(dgarrett) chromium:318536
+const char* progname = "";
+const char* command = "";
+void (*uuid_generator)(uint8_t* buffer) = NULL;
+
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
 
@@ -17,6 +27,10 @@ using std::string;
 using std::vector;
 
 namespace chromeos_update_engine {
+
+const string Hardware::BootKernelDevice() {
+  return utils::KernelDeviceOfBootDevice(Hardware::BootDevice());
+}
 
 const string Hardware::BootDevice() {
   char boot_path[PATH_MAX];
@@ -33,6 +47,60 @@ const string Hardware::BootDevice() {
   // This local variable is used to construct the return string and is not
   // passed around after use.
   return boot_path;
+}
+
+bool Hardware::IsKernelBootable(const std::string& kernel_device,
+                                bool* bootable) {
+
+  if (kernel_device == BootKernelDevice()) {
+    LOG(ERROR) << "Refusing to mark current kernel as unbootable.";
+    return false;
+  }
+
+  CgptAddParams params;
+  memset(&params, '\0', sizeof(params));
+
+  string root_dev = utils::RootDevice(kernel_device);
+  string partition_number_str = utils::PartitionNumber(kernel_device);
+  uint32_t partition_number = atoi(partition_number_str.c_str());
+
+  params.drive_name = const_cast<char *>(root_dev.c_str());
+  params.partition = partition_number;
+
+  int retval = CgptGetPartitionDetails(&params);
+  if (retval != CGPT_OK)
+    return false;
+
+  *bootable = params.successful || (params.tries > 0);
+  return true;
+}
+
+bool Hardware::MarkKernelUnbootable(const std::string& kernel_device) {
+  LOG(INFO) << "MarkPartitionUnbootable: " << kernel_device;
+
+  string root_dev = utils::RootDevice(kernel_device);
+  string partition_number_str = utils::PartitionNumber(kernel_device);
+  uint32_t partition_number = atoi(partition_number_str.c_str());
+
+  CgptAddParams params;
+  memset(&params, 0, sizeof(params));
+
+  params.drive_name = const_cast<char *>(root_dev.c_str());
+  params.partition = partition_number;
+
+  params.successful = false;
+  params.set_successful = true;
+
+  params.tries = 0;
+  params.set_tries = true;
+
+  int retval = CgptSetAttributes(&params);
+  if (retval != CGPT_OK) {
+    LOG(ERROR) << "Marking kernel unbootable failed.";
+    return false;
+  }
+
+  return true;
 }
 
 bool Hardware::IsOfficialBuild() {

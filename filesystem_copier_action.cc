@@ -73,11 +73,28 @@ void FilesystemCopierAction::PerformAction() {
     return;
   }
   install_plan_ = GetInputObject();
-  if (!verify_hash_ &&
-      (install_plan_.is_resume || install_plan_.is_full_update)) {
+
+  // No need to copy on a resume.
+  if (!verify_hash_ && install_plan_.is_resume) {
     // No copy or hash verification needed. Done!
-    LOG(INFO) << "filesystem copying skipped: "
-              << (install_plan_.is_resume ? "resumed" : "full") << " update";
+    LOG(INFO) << "filesystem copying skipped on resumed update.";
+    if (HasOutputPipe())
+      SetOutputObject(install_plan_);
+    abort_action_completer.set_code(kErrorCodeSuccess);
+    return;
+  }
+
+  if (copying_kernel_install_path_) {
+    if (!system_state_->hardware()->MarkKernelUnbootable(
+        install_plan_.kernel_install_path)) {
+      PLOG(ERROR) << "Unable to clear kernel GPT boot flags: " <<
+          install_plan_.kernel_install_path;
+    }
+  }
+
+  if (!verify_hash_ && install_plan_.is_full_update) {
+    // No copy or hash verification needed. Done!
+    LOG(INFO) << "filesystem copying skipped on full update.";
     if (HasOutputPipe())
       SetOutputObject(install_plan_);
     abort_action_completer.set_code(kErrorCodeSuccess);

@@ -17,10 +17,21 @@ namespace chromeos_update_engine {
 // unit testing.
 class HardwareInterface {
  public:
-  // Returns the currently booted device. "/dev/sda3", for example.
-  // This will not interpret LABEL= or UUID=. You'll need to use findfs
-  // or something with equivalent funcionality to interpret those.
+  // Returns the currently booted kernel partition. "/dev/sda2", for example.
+  virtual const std::string BootKernelDevice() = 0;
+
+  // Returns the currently booted rootfs partition. "/dev/sda3", for example.
   virtual const std::string BootDevice() = 0;
+
+  // Is the specified kernel partition currently bootable, based on GPT flags?
+  // Returns success.
+  virtual bool IsKernelBootable(const std::string& kernel_device,
+                                bool* bootable) = 0;
+
+  // Mark the specified kernel partition unbootable in GPT flags. We mark
+  // the other kernel as bootable inside postinst, not inside the UE.
+  // Returns success.
+  virtual bool MarkKernelUnbootable(const std::string& kernel_device) = 0;
 
   // Returns true if this is an official Chrome OS build, false otherwise.
   virtual bool IsOfficialBuild() = 0;

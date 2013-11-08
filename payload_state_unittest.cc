@@ -1360,8 +1360,8 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
 
-  FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
-  fake_hardware->SetBootDevice("/dev/sda3");
+  FakeHardware& fake_hardware = mock_system_state.get_mock_hardware().fake();
+  fake_hardware.SetBootDevice("/dev/sda3");
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
   SetupPayloadStateWith2Urls("Hash3141", true, &payload_state, &response);
@@ -1410,8 +1410,8 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
 
-  FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
-  fake_hardware->SetBootDevice("/dev/sda3");
+  FakeHardware& fake_hardware = mock_system_state.get_mock_hardware().fake();
+  fake_hardware.SetBootDevice("/dev/sda3");
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
   SetupPayloadStateWith2Urls("Hash3141", true, &payload_state, &response);
@@ -1422,7 +1422,7 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   payload_state.ExpectRebootInNewVersion("Version:12345678");
 
   // Change the BootDevice to a different one, no metric should be sent.
-  fake_hardware->SetBootDevice("/dev/sda5");
+  fake_hardware.SetBootDevice("/dev/sda5");
 
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.RebootToNewPartitionAttempt", _, _, _, _))
@@ -1431,7 +1431,7 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
 
   // A second reboot in eiher partition should not send a metric.
   payload_state.ReportFailedBootIfNeeded();
-  fake_hardware->SetBootDevice("/dev/sda3");
+  fake_hardware.SetBootDevice("/dev/sda3");
   payload_state.ReportFailedBootIfNeeded();
 
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
