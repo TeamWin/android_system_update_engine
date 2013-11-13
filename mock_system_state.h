@@ -15,7 +15,7 @@
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/clock.h"
-#include "update_engine/mock_hardware.h"
+#include "update_engine/fake_hardware.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/system_state.h"
 
@@ -96,8 +96,8 @@ class MockSystemState : public SystemState {
     hardware_ = hardware;
   }
 
-  inline MockHardware& get_mock_hardware() {
-    return default_hardware_;
+  inline FakeHardware* get_fake_hardware() {
+    return &default_hardware_;
   }
 
   inline void set_prefs(PrefsInterface* prefs) {
@@ -145,7 +145,7 @@ class MockSystemState : public SystemState {
 
   // These are the other object we own.
   Clock default_clock_;
-  MockHardware default_hardware_;
+  FakeHardware default_hardware_;
   OmahaRequestParams default_request_params_;
 
   // These are pointers to objects which caller can override.

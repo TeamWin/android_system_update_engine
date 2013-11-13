@@ -729,6 +729,23 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
 
   install_plan.kernel_install_path =
       utils::KernelDeviceOfBootDevice(install_plan.install_path);
+
+  // Check to see if the kernel we want to rollback too is bootable.
+  LOG(INFO) << "Validating there is something to rollback too at: "
+            << install_plan.kernel_install_path;
+  bool rollback_bootable;
+  if (!system_state_->hardware()->IsKernelBootable(
+          install_plan.kernel_install_path,
+          &rollback_bootable)) {
+    LOG(ERROR) << "Unable to read GPT kernel flags.";
+    return false;
+  }
+
+  if (!rollback_bootable) {
+    LOG(ERROR) << "There is no valid OS to rollback too.";
+    return false;
+  }
+
   install_plan.powerwash_required = powerwash;
   if (powerwash) {
     // Enterprise-enrolled devices have an empty owner in their device policy.

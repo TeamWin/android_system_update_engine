@@ -51,12 +51,6 @@ const string Hardware::BootDevice() {
 
 bool Hardware::IsKernelBootable(const std::string& kernel_device,
                                 bool* bootable) {
-
-  if (kernel_device == BootKernelDevice()) {
-    LOG(ERROR) << "Refusing to mark current kernel as unbootable.";
-    return false;
-  }
-
   CgptAddParams params;
   memset(&params, '\0', sizeof(params));
 
@@ -77,6 +71,11 @@ bool Hardware::IsKernelBootable(const std::string& kernel_device,
 
 bool Hardware::MarkKernelUnbootable(const std::string& kernel_device) {
   LOG(INFO) << "MarkPartitionUnbootable: " << kernel_device;
+
+  if (kernel_device == BootKernelDevice()) {
+    LOG(ERROR) << "Refusing to mark current kernel as unbootable.";
+    return false;
+  }
 
   string root_dev = utils::RootDevice(kernel_device);
   string partition_number_str = utils::PartitionNumber(kernel_device);

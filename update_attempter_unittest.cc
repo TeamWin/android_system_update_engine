@@ -95,11 +95,14 @@ class UpdateAttempterTest : public ::testing::Test {
 
   void UpdateTestStart();
   void UpdateTestVerify();
-  void RollbackTestStart(bool enterprise_rollback, bool stable_channel);
+  void RollbackTestStart(bool enterprise_rollback,
+                         bool stable_channel,
+                         bool valid_slot);
   void RollbackTestVerify();
   static gboolean StaticUpdateTestStart(gpointer data);
   static gboolean StaticUpdateTestVerify(gpointer data);
   static gboolean StaticRollbackTestStart(gpointer data);
+  static gboolean StaticInvalidSlotRollbackTestStart(gpointer data);
   static gboolean StaticEnterpriseRollbackTestStart(gpointer data);
   static gboolean StaticStableChannelRollbackTestStart(gpointer data);
   static gboolean StaticRollbackTestVerify(gpointer data);
@@ -331,19 +334,28 @@ gboolean UpdateAttempterTest::StaticUpdateTestVerify(gpointer data) {
 }
 
 gboolean UpdateAttempterTest::StaticRollbackTestStart(gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(false, false);
+  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
+      false, false, true);
+  return FALSE;
+}
+
+gboolean UpdateAttempterTest::StaticInvalidSlotRollbackTestStart(
+    gpointer data) {
+  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
+      false, false, false);
   return FALSE;
 }
 
 gboolean UpdateAttempterTest::StaticEnterpriseRollbackTestStart(gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(true, false);
+  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
+      true, false, true);
   return FALSE;
 }
 
 gboolean UpdateAttempterTest::StaticStableChannelRollbackTestStart(
     gpointer data) {
   reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
-      false, true);
+      false, true, true);
   return FALSE;
 }
 
@@ -455,7 +467,7 @@ void UpdateAttempterTest::UpdateTestVerify() {
 }
 
 void UpdateAttempterTest::RollbackTestStart(
-    bool enterprise_rollback, bool stable_channel) {
+    bool enterprise_rollback, bool stable_channel, bool valid_slot) {
   // Create a device policy so that we can change settings.
   policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
@@ -464,12 +476,19 @@ void UpdateAttempterTest::RollbackTestStart(
   EXPECT_CALL(mock_system_state_, device_policy()).WillRepeatedly(
       Return(device_policy));
 
+  if (!valid_slot) {
+    string rollback_kernel = "/dev/sda2";
+    LOG(INFO) << "Test Mark Unbootable: " << rollback_kernel;
+    mock_system_state_.get_fake_hardware()->MarkKernelUnbootable(
+        rollback_kernel);
+  }
+
   string install_path = "/dev/sda3";
   bool is_rollback_allowed = false;
 
   // We only allow rollback on devices that are neither enterprise enrolled or
-  // not on the stable channel.
-  if (!(enterprise_rollback || stable_channel)) {
+  // not on the stable channel, and which have a valid slot to rollback too.
+  if (!(enterprise_rollback || stable_channel) && valid_slot) {
      is_rollback_allowed = true;
   }
 
@@ -477,14 +496,16 @@ void UpdateAttempterTest::RollbackTestStart(
   if (stable_channel) {
     attempter_.omaha_request_params_->set_current_channel(
         string("stable-channel"));
-  } else if (enterprise_rollback) {
+  }
+
+  if (enterprise_rollback) {
     // We return an empty owner as this is an enterprise.
-    EXPECT_CALL(*device_policy, GetOwner(_)).WillOnce(
+    EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
         DoAll(SetArgumentPointee<0>(std::string("")),
         Return(true)));
   } else {
     // We return a fake owner as this is an owned consumer device.
-    EXPECT_CALL(*device_policy, GetOwner(_)).WillOnce(
+    EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
         DoAll(SetArgumentPointee<0>(std::string("fake.mail@fake.com")),
         Return(true)));
   }
@@ -534,6 +555,14 @@ TEST_F(UpdateAttempterTest, UpdateTest) {
 TEST_F(UpdateAttempterTest, RollbackTest) {
   loop_ = g_main_loop_new(g_main_context_default(), FALSE);
   g_idle_add(&StaticRollbackTestStart, this);
+  g_main_loop_run(loop_);
+  g_main_loop_unref(loop_);
+  loop_ = NULL;
+}
+
+TEST_F(UpdateAttempterTest, InvalidSlotRollbackTest) {
+  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+  g_idle_add(&StaticInvalidSlotRollbackTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
   loop_ = NULL;
