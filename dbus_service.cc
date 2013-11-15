@@ -26,6 +26,43 @@ using std::string;
 using chromeos_update_engine::AttemptUpdateFlags;
 using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
 
+#define UPDATE_ENGINE_SERVICE_ERROR update_engine_service_error_quark ()
+#define UPDATE_ENGINE_SERVICE_TYPE_ERROR \
+  (update_engine_service_error_get_type())
+
+typedef enum
+{
+  UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+  UPDATE_ENGINE_SERVICE_NUM_ERRORS
+} UpdateEngineServiceError;
+
+static GQuark update_engine_service_error_quark(void) {
+  static GQuark ret = 0;
+
+  if (ret == 0)
+    ret = g_quark_from_static_string("update_engine_service_error");
+
+  return ret;
+}
+
+#define ENUM_ENTRY(NAME, DESC) { NAME, "" #NAME "", DESC }
+
+static GType update_engine_service_error_get_type(void) {
+  static GType etype = 0;
+
+  if (etype == 0) {
+    static const GEnumValue values[] = {
+      ENUM_ENTRY(UPDATE_ENGINE_SERVICE_ERROR_FAILED, "Failed"),
+      { 0, 0, 0 }
+    };
+    G_STATIC_ASSERT(UPDATE_ENGINE_SERVICE_NUM_ERRORS ==
+                    G_N_ELEMENTS (values) - 1);
+    etype = g_enum_register_static("UpdateEngineServiceError", values);
+  }
+
+  return etype;
+}
+
 static const char kAUTestURLRequest[] = "autest";
 // By default autest bypasses scattering. If we want to test scattering,
 // we should use autest-scheduled. The Url used is same in both cases, but
@@ -39,6 +76,14 @@ G_DEFINE_TYPE(UpdateEngineService, update_engine_service, G_TYPE_OBJECT)
 
 static void update_engine_service_finalize(GObject* object) {
   G_OBJECT_CLASS(update_engine_service_parent_class)->finalize(object);
+}
+
+static void log_and_set_response_error(GError** error,
+                                       UpdateEngineServiceError error_code,
+                                       const string& reason) {
+  LOG(ERROR) << "Sending DBus Failure: " << reason;
+  g_set_error_literal(error, UPDATE_ENGINE_SERVICE_ERROR,
+                      error_code, reason.c_str());
 }
 
 static guint status_update_signal = 0;
@@ -66,6 +111,9 @@ static void update_engine_service_class_init(UpdateEngineServiceClass* klass) {
 }
 
 static void update_engine_service_init(UpdateEngineService* object) {
+  dbus_g_error_domain_register (UPDATE_ENGINE_SERVICE_ERROR,
+                                "org.chromium.UpdateEngine.Error",
+                                UPDATE_ENGINE_SERVICE_TYPE_ERROR);
 }
 
 UpdateEngineService* update_engine_service_new(void) {
@@ -133,15 +181,30 @@ gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
                                                 gboolean powerwash,
                                                 GError **error) {
   LOG(INFO) << "Attempting rollback to non-active partitions.";
-  return self->system_state_->update_attempter()->Rollback(powerwash, NULL);
+
+  if (!self->system_state_->update_attempter()->Rollback(powerwash, NULL)) {
+    // TODO(dgarrett): Give a more specific error code/reason.
+    log_and_set_response_error(error,
+                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+                               "Rollback attempt failed.");
+    return FALSE;
+  }
+
+  return TRUE;
 }
 
 gboolean update_engine_service_reset_status(UpdateEngineService* self,
                                             GError **error) {
-  *error = NULL;
-  return self->system_state_->update_attempter()->ResetStatus();
-}
+  if (!self->system_state_->update_attempter()->ResetStatus()) {
+    // TODO(dgarrett): Give a more specific error code/reason.
+    log_and_set_response_error(error,
+                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+                               "ResetStatus failed.");
+    return FALSE;
+  }
 
+  return TRUE;
+}
 
 gboolean update_engine_service_get_status(UpdateEngineService* self,
                                           int64_t* last_checked_time,
@@ -158,20 +221,33 @@ gboolean update_engine_service_get_status(UpdateEngineService* self,
                                                            &current_op,
                                                            &new_version_str,
                                                            new_size));
-
   *current_operation = g_strdup(current_op.c_str());
   *new_version = g_strdup(new_version_str.c_str());
-  if (!(*current_operation && *new_version)) {
-    *error = NULL;
+
+  if (!*current_operation) {
+    log_and_set_response_error(error,
+                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+                               "Unable to find current_operation.");
     return FALSE;
   }
+
+  if (!*new_version) {
+    log_and_set_response_error(error,
+                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+                               "Unable to find vew_version.");
+    return FALSE;
+  }
+
   return TRUE;
 }
 
 gboolean update_engine_service_reboot_if_needed(UpdateEngineService* self,
                                                 GError **error) {
   if (!self->system_state_->update_attempter()->RebootIfNeeded()) {
-    *error = NULL;
+    // TODO(dgarrett): Give a more specific error code/reason.
+    log_and_set_response_error(error,
+                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+                               "Reboot not needed, or attempt failed.");
     return FALSE;
   }
   return TRUE;
@@ -181,8 +257,12 @@ gboolean update_engine_service_set_channel(UpdateEngineService* self,
                                            gchar* target_channel,
                                            gboolean is_powerwash_allowed,
                                            GError **error) {
-  if (!target_channel)
+  if (!target_channel) {
+    log_and_set_response_error(error,
+                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+                               "Target channel to set not specified.");
     return FALSE;
+  }
 
   const policy::DevicePolicy* device_policy =
       self->system_state_->device_policy();
@@ -201,15 +281,20 @@ gboolean update_engine_service_set_channel(UpdateEngineService* self,
   bool delegated = false;
   if (device_policy &&
       device_policy->GetReleaseChannelDelegated(&delegated) && !delegated) {
-    LOG(INFO) << "Cannot set target channel explicitly when channel "
-                 "policy/settings is not delegated";
+    log_and_set_response_error(
+        error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+        "Cannot set target channel explicitly when channel "
+        "policy/settings is not delegated");
     return FALSE;
   }
 
   LOG(INFO) << "Setting destination channel to: " << target_channel;
   if (!self->system_state_->request_params()->SetTargetChannel(
           target_channel, is_powerwash_allowed)) {
-    *error = NULL;
+    // TODO(dgarrett): Give a more specific error code/reason.
+    log_and_set_response_error(error,
+                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+                               "Setting channel failed.");
     return FALSE;
   }
 
@@ -241,9 +326,10 @@ gboolean update_engine_service_set_p2p_update_permission(
   bool p2p_was_enabled = p2p_manager && p2p_manager->IsP2PEnabled();
 
   if (!prefs->SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, enabled)) {
-    LOG(ERROR) << "Error setting the update over cellular to "
-               << (enabled ? "true" : "false");
-    *error = NULL;
+    log_and_set_response_error(
+        error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+        string("Error setting the update over cellular to ") +
+        (enabled ? "true." : "false."));
     return FALSE;
   }
 
@@ -269,8 +355,8 @@ gboolean update_engine_service_get_p2p_update_permission(
 
   bool p2p_pref = false;
   if (!prefs->GetBoolean(chromeos_update_engine::kPrefsP2PEnabled, &p2p_pref)) {
-    LOG(ERROR) << "Error getting the P2PEnabled setting.";
-    *error = NULL;
+    log_and_set_response_error(error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+                               "Error getting the P2PEnabled setting.");
     return FALSE;
   }
 
@@ -300,9 +386,10 @@ gboolean update_engine_service_set_update_over_cellular_permission(
   // Check if this setting is allowed by the device policy.
   if (device_policy &&
       device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
-    LOG(INFO) << "Ignoring the update over cellular setting since there's "
-                 "a device policy enforcing this setting.";
-    *error = NULL;
+    log_and_set_response_error(
+        error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+        "Ignoring the update over cellular setting since there's "
+        "a device policy enforcing this setting.");
     return FALSE;
   }
 
@@ -314,9 +401,10 @@ gboolean update_engine_service_set_update_over_cellular_permission(
   if (!prefs->SetBoolean(
       chromeos_update_engine::kPrefsUpdateOverCellularPermission,
       allowed)) {
-    LOG(ERROR) << "Error setting the update over cellular to "
-               << (allowed ? "true" : "false");
-    *error = NULL;
+    log_and_set_response_error(
+        error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+        string("Error setting the update over cellular to ") +
+        (allowed ? "true" : "false"));
     return FALSE;
   }
 
@@ -326,7 +414,7 @@ gboolean update_engine_service_set_update_over_cellular_permission(
 gboolean update_engine_service_get_update_over_cellular_permission(
     UpdateEngineService* self,
     gboolean* allowed,
-    GError **/*error*/) {
+    GError **error) {
   chromeos_update_engine::ConnectionManager* cm =
       self->system_state_->connection_manager();
 
@@ -351,11 +439,14 @@ gboolean update_engine_service_get_update_over_cellular_permission(
 gboolean update_engine_service_get_duration_since_update(
     UpdateEngineService* self,
     gint64* out_usec_wallclock,
-    GError **/*error*/) {
+    GError **error) {
 
   base::Time time;
-  if (!self->system_state_->update_attempter()->GetBootTimeAtUpdate(&time))
+  if (!self->system_state_->update_attempter()->GetBootTimeAtUpdate(&time)) {
+    log_and_set_response_error(error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+                               "No pending update.");
     return FALSE;
+  }
 
   chromeos_update_engine::ClockInterface *clock = self->system_state_->clock();
   *out_usec_wallclock = (clock->GetBootTime() - time).InMicroseconds();
