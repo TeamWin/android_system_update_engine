@@ -42,6 +42,8 @@ namespace chromeos_update_engine {
 const uint64_t DeltaPerformer::kDeltaVersionSize = 8;
 const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 1;
+const uint64_t DeltaPerformer::kSupportedMinorPayloadVersion = 1;
+const uint64_t DeltaPerformer::kFullPayloadMinorVersion = 0;
 
 const char DeltaPerformer::kUpdatePayloadPublicKeyPath[] =
     "/usr/share/update_engine/update-payload-key.pub.pem";
@@ -891,8 +893,8 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
 }
 
 ErrorCode DeltaPerformer::ValidateManifest() {
-  // Ensure that a full update does not contain old partition hashes, which is
-  // indicative of a delta.
+  // Perform assorted checks to sanity check the manifest, make sure it
+  // matches data from other sources, and that it is a supported version.
   //
   // TODO(garnold) in general, the presence of an old partition hash should be
   // the sole indicator for a delta update, as we would generally like update
@@ -901,11 +903,28 @@ ErrorCode DeltaPerformer::ValidateManifest() {
   // flow (making filesystem copying happen conditionally only *after*
   // downloading and parsing of the update manifest) we'll put it off for now.
   // See chromium-os:7597 for further discussion.
-  if (install_plan_->is_full_update &&
-      (manifest_.has_old_kernel_info() || manifest_.has_old_rootfs_info())) {
-    LOG(ERROR) << "Purported full payload contains old partition "
-                  "hash(es), aborting update";
-    return kErrorCodePayloadMismatchedType;
+  if (install_plan_->is_full_update) {
+    if (manifest_.has_old_kernel_info() || manifest_.has_old_rootfs_info()) {
+      LOG(ERROR) << "Purported full payload contains old partition "
+                    "hash(es), aborting update";
+      return kErrorCodePayloadMismatchedType;
+    }
+
+    if (manifest_.minor_version() != kFullPayloadMinorVersion) {
+      LOG(ERROR) << "Manifest contains minor version "
+                 << manifest_.minor_version()
+                 << ", but all full payloads should have version "
+                 << kFullPayloadMinorVersion << ".";
+      return kErrorCodeUnsupportedMinorPayloadVersion;
+    }
+  } else {
+    if (manifest_.minor_version() != kSupportedMinorPayloadVersion) {
+      LOG(ERROR) << "Manifest contains minor version "
+                 << manifest_.minor_version()
+                 << " not the supported "
+                 << kSupportedMinorPayloadVersion;
+      return kErrorCodeUnsupportedMinorPayloadVersion;
+    }
   }
 
   // TODO(garnold) we should be adding more and more manifest checks, such as

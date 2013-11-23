@@ -28,6 +28,7 @@
 
 #include "update_engine/bzip.h"
 #include "update_engine/cycle_breaker.h"
+#include "update_engine/delta_performer.h"
 #include "update_engine/extent_mapper.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/file_writer.h"
@@ -1440,6 +1441,9 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 
   LOG(INFO) << "Reading files...";
 
+  // Create empty protobuf Manifest object
+  DeltaArchiveManifest manifest;
+
   vector<DeltaArchiveManifest_InstallOperation> kernel_ops;
 
   vector<Vertex::Index> final_order;
@@ -1511,6 +1515,10 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
                                               &data_file_size,
                                               &final_order,
                                               scratch_vertex));
+
+      // Set the minor version for this payload.
+      LOG(INFO) << "Adding Delta Minor Version.";
+      manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
     } else {
       // Full update
       off_t new_image_size =
@@ -1525,11 +1533,12 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
                                                      kBlockSize,
                                                      &kernel_ops,
                                                      &final_order));
+
+      // Set the minor version for this payload.
+      LOG(INFO) << "Adding Full Minor Version.";
+      manifest.set_minor_version(DeltaPerformer::kFullPayloadMinorVersion);
     }
   }
-
-  // Convert to protobuf Manifest object
-  DeltaArchiveManifest manifest;
 
   if (old_image_info)
     *(manifest.mutable_old_image_info()) = *old_image_info;

@@ -630,6 +630,8 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   InstallPlan install_plan;
   install_plan.hash_checks_mandatory = hash_checks_mandatory;
   install_plan.metadata_size = state->metadata_size;
+  install_plan.is_full_update = full_kernel && full_rootfs;
+
   LOG(INFO) << "Setting payload metadata size in Omaha  = "
             << state->metadata_size;
   ASSERT_TRUE(PayloadSigner::GetMetadataSignature(
@@ -950,7 +952,28 @@ void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
                  &state, hash_checks_mandatory, op_hash_test, &performer);
 }
 
-class DeltaPerformerTest : public ::testing::Test { };
+
+class DeltaPerformerTest : public ::testing::Test {
+
+ public:
+  // Test helper placed where it can easily be friended from DeltaPerformer.
+  static void RunManifestValidation(DeltaArchiveManifest& manifest,
+                                    bool full_payload,
+                                    ErrorCode expected) {
+    PrefsMock prefs;
+    InstallPlan install_plan;
+    MockSystemState mock_system_state;
+    DeltaPerformer performer(&prefs, &mock_system_state, &install_plan);
+
+    // The install plan is for Full or Delta.
+    install_plan.is_full_update = full_payload;
+
+    // The Manifest we are validating.
+    performer.manifest_.CopyFrom(manifest);
+
+    EXPECT_EQ(expected, performer.ValidateManifest());
+  }
+};
 
 TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
   uint64_t test[] = {1, 1, 4, 2, kSparseHole, 1, 0, 1};
@@ -972,6 +995,83 @@ TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
                                                              file_length,
                                                              &actual_output));
   EXPECT_EQ(expected_output, actual_output);
+}
+
+TEST(DeltaPerformerTest, ValidateManifestFullGoodTest) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+  manifest.mutable_new_kernel_info();
+  manifest.mutable_new_rootfs_info();
+  manifest.set_minor_version(DeltaPerformer::kFullPayloadMinorVersion);
+
+  DeltaPerformerTest::RunManifestValidation(manifest, true, kErrorCodeSuccess);
+}
+
+TEST(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+  manifest.mutable_old_kernel_info();
+  manifest.mutable_old_rootfs_info();
+  manifest.mutable_new_kernel_info();
+  manifest.mutable_new_rootfs_info();
+  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
+
+  DeltaPerformerTest::RunManifestValidation(manifest, false, kErrorCodeSuccess);
+}
+
+TEST(DeltaPerformerTest, ValidateManifestFullUnsetMinorVersion) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+
+  DeltaPerformerTest::RunManifestValidation(manifest, true, kErrorCodeSuccess);
+}
+
+TEST(DeltaPerformerTest, ValidateManifestDeltaUnsetMinorVersion) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+
+  DeltaPerformerTest::RunManifestValidation(
+      manifest, false,
+      kErrorCodeUnsupportedMinorPayloadVersion);
+}
+
+TEST(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+  manifest.mutable_old_kernel_info();
+  manifest.mutable_new_kernel_info();
+  manifest.mutable_new_rootfs_info();
+  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
+
+  DeltaPerformerTest::RunManifestValidation(
+      manifest, true,
+      kErrorCodePayloadMismatchedType);
+}
+
+TEST(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+  manifest.mutable_old_rootfs_info();
+  manifest.mutable_new_kernel_info();
+  manifest.mutable_new_rootfs_info();
+  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
+
+  DeltaPerformerTest::RunManifestValidation(
+      manifest, true,
+      kErrorCodePayloadMismatchedType);
+}
+
+TEST(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+
+  // Generate a bad version number.
+  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion +
+                             10000);
+
+  DeltaPerformerTest::RunManifestValidation(
+      manifest, false,
+      kErrorCodeUnsupportedMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageTest) {

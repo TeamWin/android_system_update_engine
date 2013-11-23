@@ -168,4 +168,6 @@ message DeltaArchiveManifest {
   optional ImageInfo old_image_info = 10;
 
   optional ImageInfo new_image_info = 11;
+
+  optional uint32 minor_version = 12 [default = 0];
 }

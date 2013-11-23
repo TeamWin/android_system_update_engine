@@ -37,6 +37,8 @@ class DeltaPerformer : public FileWriter {
   static const uint64_t kDeltaVersionSize;
   static const uint64_t kDeltaManifestSizeSize;
   static const uint64_t kSupportedMajorPayloadVersion;
+  static const uint64_t kSupportedMinorPayloadVersion;
+  static const uint64_t kFullPayloadMinorVersion;
   static const char kUpdatePayloadPublicKeyPath[];
 
   // Defines the granularity of progress logging in terms of how many "completed
