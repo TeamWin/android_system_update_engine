@@ -359,6 +359,8 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   *error = ValidateMetadataSignature(&payload[0], *metadata_size);
   if (*error != kErrorCodeSuccess) {
     if (install_plan_->hash_checks_mandatory) {
+      // The autoupdate_CatchBadSignatures test checks for this string
+      // in log-files. Keep in sync.
       LOG(ERROR) << "Mandatory metadata signature validation failed";
       return kMetadataParseError;
     }
@@ -882,6 +884,8 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
     return kErrorCodeDownloadMetadataSignatureMismatch;
   }
 
+  // The autoupdate_CatchBadSignatures test checks for this string in
+  // log-files. Keep in sync.
   LOG(INFO) << "Metadata hash signature matches value in Omaha response.";
   return kErrorCodeSuccess;
 }
@@ -1036,6 +1040,8 @@ ErrorCode DeltaPerformer::VerifyPayload(
   TEST_AND_RETURN_VAL(kErrorCodeDownloadPayloadPubKeyVerificationError,
                       !hash_data.empty());
   if (hash_data != signed_hash_data) {
+    // The autoupdate_CatchBadSignatures test checks for this string
+    // in log-files. Keep in sync.
     LOG(ERROR) << "Public key verification failed, thus update failed. "
         "Attached Signature:";
     utils::HexDumpVector(signed_hash_data);

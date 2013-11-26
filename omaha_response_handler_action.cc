@@ -153,6 +153,8 @@ bool OmahaResponseHandlerAction::AreHashChecksMandatory(
   // using an official build, so that they are protected more.
   if (!system_state_->hardware()->IsOfficialBuild()) {
     if (!response.public_key_rsa.empty()) {
+      // The autoupdate_CatchBadSignatures test checks for this string
+      // in log-files. Keep in sync.
       LOG(INFO) << "Mandating payload hash checks since Omaha Response "
                 << "for unofficial build includes public RSA key.";
       return true;
