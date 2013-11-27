@@ -260,6 +260,9 @@ void DownloadAction::ReceivedBytes(HttpFetcher *fetcher,
   if (writer_ && !writer_->Write(bytes, length, &code_)) {
     LOG(ERROR) << "Error " << code_ << " in DeltaPerformer's Write method when "
                << "processing the received payload -- Terminating processing";
+    // Delete p2p file, if applicable.
+    if (!p2p_file_id_.empty())
+      CloseP2PSharingFd(true);
     // Don't tell the action processor that the action is complete until we get
     // the TransferTerminated callback. Otherwise, this and the HTTP fetcher
     // objects may get destroyed before all callbacks are complete.
@@ -293,6 +296,9 @@ void DownloadAction::TransferComplete(HttpFetcher *fetcher, bool successful) {
     if (code != kErrorCodeSuccess) {
       LOG(ERROR) << "Download of " << install_plan_.download_url
                  << " failed due to payload verification error.";
+      // Delete p2p file, if applicable.
+      if (!p2p_file_id_.empty())
+        CloseP2PSharingFd(true);
     } else if (!delta_performer_->GetNewPartitionInfo(
         &install_plan_.kernel_size,
         &install_plan_.kernel_hash,
