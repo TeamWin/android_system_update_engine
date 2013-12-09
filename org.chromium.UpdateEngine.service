@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=org.chromium.UpdateEngine
-Exec=/usr/sbin/update_engine
