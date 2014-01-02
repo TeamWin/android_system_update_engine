@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -20,6 +21,7 @@
 #include "update_engine/cycle_breaker.h"
 #include "update_engine/delta_diff_generator.h"
 #include "update_engine/delta_performer.h"
+#include "update_engine/extent_mapper.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/graph_types.h"
 #include "update_engine/graph_utils.h"
@@ -37,6 +39,10 @@ using std::vector;
 namespace chromeos_update_engine {
 
 typedef DeltaDiffGenerator::Block Block;
+
+typedef bool (*GetExtentsWithChunk)(const std::string&, off_t, off_t,
+                                    std::vector<Extent>*);
+extern GetExtentsWithChunk get_extents_with_chunk_func;
 
 namespace {
 int64_t BlocksInExtents(
@@ -101,6 +107,121 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveSmallTest) {
   EXPECT_EQ(BlocksInExtents(op.src_extents()),
             BlocksInExtents(op.dst_extents()));
   EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
+}
+
+std::map<string, vector<Extent>*> fake_file_extents;
+
+bool FakeGetExtents(const string& path, off_t chunk_offset, off_t chunk_size,
+                    vector<Extent>* out) {
+  if (fake_file_extents.count(path) == 1) {
+    *out = *fake_file_extents[path];
+    return true;
+  } else {
+    return false;
+  }
+}
+
+uint64_t AddExtent(uint64_t start_block, uint64_t num_blocks,
+                   vector<Extent>* extents) {
+  Extent e;
+  e.set_start_block(start_block);
+  e.set_num_blocks(num_blocks);
+  extents->push_back(e);
+  return num_blocks;
+}
+
+TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
+  // Mock out the extent gathering function.
+  GetExtentsWithChunk orig_get_extents_with_chunk_func =
+      get_extents_with_chunk_func;
+  get_extents_with_chunk_func = FakeGetExtents;
+
+  // Setup the old/new files so that it has immobile chunks; we make sure to
+  // utilize all sub-cases of such chunks: blocks 21--22 induce a split (src)
+  // and complete removal (dst), whereas blocks 24--25 induce trimming of the
+  // tail (src) and head (dst) of extents. The detailed configuration:
+  //
+  // Old:  [ 20     21 22     23     24 25 ] [ 28 ]
+  // New:  [ 18 ] [ 21 22 ] [ 20 ] [ 24 25     26 ]
+  // Same:          ^^ ^^            ^^ ^^
+  vector<Extent> old_extents;
+  uint64_t num_extents = 0;
+  num_extents += AddExtent(20, 6, &old_extents);
+  num_extents += AddExtent(28, 1, &old_extents);
+  fake_file_extents[old_path()] = &old_extents;
+  vector<Extent> new_extents;
+  AddExtent(18, 1, &new_extents);
+  AddExtent(21, 2, &new_extents);
+  AddExtent(20, 1, &new_extents);
+  AddExtent(24, 3, &new_extents);
+  fake_file_extents[new_path()] = &new_extents;
+
+  // The size of the data should match the total number of blocks.
+  const size_t file_len = 5 * 4096;
+  const string random_string(reinterpret_cast<const char*>(kRandomString),
+                             sizeof(kRandomString));
+  string random_data;
+  while (random_data.size() < file_len)
+    random_data += random_string;
+  if (random_data.size() > file_len)
+    random_data.erase(file_len);
+  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+                               random_data.c_str(), file_len));
+  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+                               random_data.c_str(), file_len));
+
+  vector<char> data;
+  DeltaArchiveManifest_InstallOperation op;
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
+                                                 new_path(),
+                                                 0,  // chunk_offset
+                                                 -1,  // chunk_size
+                                                 true, // bsdiff_allowed
+                                                 &data,
+                                                 &op,
+                                                 true));
+
+  // Adjust the old/new extents to remove duplicates.
+  old_extents[0].set_num_blocks(1);
+  Extent e;
+  e.set_start_block(23);
+  e.set_num_blocks(1);
+  old_extents.insert(old_extents.begin() + 1, e);
+  new_extents.erase(new_extents.begin() + 1);
+  new_extents[2].set_start_block(26);
+  new_extents[2].set_num_blocks(1);
+  num_extents -= 4;
+
+  EXPECT_TRUE(data.empty());
+
+  EXPECT_TRUE(op.has_type());
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE, op.type());
+  EXPECT_FALSE(op.has_data_offset());
+  EXPECT_FALSE(op.has_data_length());
+
+  EXPECT_EQ(file_len, op.src_length());
+  EXPECT_EQ(num_extents, BlocksInExtents(op.src_extents()));
+  EXPECT_EQ(old_extents.size(), op.src_extents_size());
+  for (int i = 0; i < op.src_extents_size(); i++) {
+    EXPECT_EQ(old_extents[i].start_block(), op.src_extents(i).start_block())
+        << "i == " << i;
+    EXPECT_EQ(old_extents[i].num_blocks(), op.src_extents(i).num_blocks())
+        << "i == " << i;
+  }
+
+  EXPECT_EQ(file_len, op.dst_length());
+  EXPECT_EQ(num_extents, BlocksInExtents(op.dst_extents()));
+  EXPECT_EQ(new_extents.size(), op.dst_extents_size());
+  for (int i = 0; i < op.dst_extents_size(); i++) {
+    EXPECT_EQ(new_extents[i].start_block(), op.dst_extents(i).start_block())
+        << "i == " << i;
+    EXPECT_EQ(new_extents[i].num_blocks(), op.dst_extents(i).num_blocks())
+        << "i == " << i;
+  }
+
+  // Clean up fake extents and restore the module's extent gathering logic.
+  fake_file_extents.clear();
+  get_extents_with_chunk_func = orig_get_extents_with_chunk_func;
 }
 
 TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffSmallTest) {

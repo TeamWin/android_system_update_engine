@@ -64,6 +64,13 @@ const size_t kRootFSPartitionSize = static_cast<size_t>(2) * 1024 * 1024 * 1024;
 const uint64_t kVersionNumber = 1;
 const uint64_t kFullUpdateChunkSize = 1024 * 1024;  // bytes
 
+// Needed for testing purposes, in case we can't use actual filesystem objects.
+// TODO(garnold)(chromium:331965) Replace this hack with a properly injected
+// parameter in form of a mockable abstract class.
+bool (*get_extents_with_chunk_func)(const std::string&, off_t, off_t,
+                                    std::vector<Extent>*) =
+    extent_mapper::ExtentsForFileChunkFibmap;
+
 namespace {
 const size_t kBlockSize = 4096;  // bytes
 const string kNonexistentPath = "";
@@ -76,16 +83,15 @@ static const char* kInstallOperationTypes[] = {
   "BSDIFF"
 };
 
-// Stores all Extents for a file into 'out'. Returns true on success.
+// Stores all the extents of |path| into |extents|. Returns true on success.
 bool GatherExtents(const string& path,
                    off_t chunk_offset,
                    off_t chunk_size,
-                   google::protobuf::RepeatedPtrField<Extent>* out) {
-  vector<Extent> extents;
+                   vector<Extent>* extents) {
+  extents->clear();
   TEST_AND_RETURN_FALSE(
-      extent_mapper::ExtentsForFileChunkFibmap(
-          path, chunk_offset, chunk_size, &extents));
-  DeltaDiffGenerator::StoreExtents(extents, out);
+      get_extents_with_chunk_func(
+          path, chunk_offset, chunk_size, extents));
   return true;
 }
 
@@ -130,6 +136,17 @@ bool DeltaReadFile(Graph* graph,
                                                            &data,
                                                            &operation,
                                                            true));
+
+  // Check if the operation writes nothing.
+  if (operation.dst_extents_size() == 0) {
+    if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
+      LOG(INFO) << "Empty MOVE operation (" << new_root + path << "), skipping";
+      return true;
+    } else {
+      LOG(ERROR) << "Empty non-MOVE operation";
+      return false;
+    }
+  }
 
   // Write the data
   if (operation.type() != DeltaArchiveManifest_InstallOperation_Type_MOVE) {
@@ -440,10 +457,7 @@ bool DeltaCompressKernelPartition(
   LOG(INFO) << "Delta compressing kernel partition...";
   LOG_IF(INFO, old_kernel_part.empty()) << "Generating full kernel update...";
 
-  // Add a new install operation
-  ops->resize(1);
-  DeltaArchiveManifest_InstallOperation* op = &(*ops)[0];
-
+  DeltaArchiveManifest_InstallOperation op;
   vector<char> data;
   TEST_AND_RETURN_FALSE(
       DeltaDiffGenerator::ReadFileToDiff(old_kernel_part,
@@ -452,20 +466,35 @@ bool DeltaCompressKernelPartition(
                                          -1,  // chunk_size
                                          true, // bsdiff_allowed
                                          &data,
-                                         op,
+                                         &op,
                                          false));
 
-  // Write the data
-  if (op->type() != DeltaArchiveManifest_InstallOperation_Type_MOVE) {
-    op->set_data_offset(*blobs_length);
-    op->set_data_length(data.size());
+  // Check if the operation writes nothing.
+  if (op.dst_extents_size() == 0) {
+    if (op.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
+      LOG(INFO) << "Empty MOVE operation, nothing to do.";
+      return true;
+    } else {
+      LOG(ERROR) << "Empty non-MOVE operation";
+      return false;
+    }
   }
+
+  // Write the data.
+  if (op.type() != DeltaArchiveManifest_InstallOperation_Type_MOVE) {
+    op.set_data_offset(*blobs_length);
+    op.set_data_length(data.size());
+  }
+
+  // Add the new install operation.
+  ops->clear();
+  ops->push_back(op);
 
   TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd, &data[0], data.size()));
   *blobs_length += data.size();
 
   LOG(INFO) << "Done delta compressing kernel partition: "
-            << kInstallOperationTypes[op->type()];
+            << kInstallOperationTypes[op.type()];
   return true;
 }
 
@@ -526,6 +555,89 @@ void ReportPayloadUsage(const DeltaArchiveManifest& manifest,
             object.name.c_str());
   }
   fprintf(stderr, kFormatString, 100.0, total_size, "", "<total>");
+}
+
+// Process a range of blocks from |range_start| to |range_end| in the extent at
+// position |*idx_p| of |extents|. If |do_remove| is true, this range will be
+// removed, which may cause the extent to be trimmed, split or removed entirely.
+// The value of |*idx_p| is updated to point to the next extent to be processed.
+// Returns true iff the next extent to process is a new or updated one.
+bool ProcessExtentBlockRange(vector<Extent>* extents, size_t* idx_p,
+                             const bool do_remove, uint64_t range_start,
+                             uint64_t range_end) {
+  size_t idx = *idx_p;
+  uint64_t start_block = (*extents)[idx].start_block();
+  uint64_t num_blocks = (*extents)[idx].num_blocks();
+  uint64_t range_size = range_end - range_start;
+
+  if (do_remove) {
+    if (range_size == num_blocks) {
+      // Remove the entire extent.
+      extents->erase(extents->begin() + idx);
+    } else if (range_end == num_blocks) {
+      // Trim the end of the extent.
+      (*extents)[idx].set_num_blocks(num_blocks - range_size);
+      idx++;
+    } else if (range_start == 0) {
+      // Trim the head of the extent.
+      (*extents)[idx].set_start_block(start_block + range_size);
+      (*extents)[idx].set_num_blocks(num_blocks - range_size);
+    } else {
+      // Trim the middle, splitting the remainder into two parts.
+      (*extents)[idx].set_num_blocks(range_start);
+      Extent e;
+      e.set_start_block(start_block + range_end);
+      e.set_num_blocks(num_blocks - range_end);
+      idx++;
+      extents->insert(extents->begin() + idx, e);
+    }
+  } else if (range_end == num_blocks) {
+    // Done with this extent.
+    idx++;
+  } else {
+    return false;
+  }
+
+  *idx_p = idx;
+  return true;
+}
+
+// Remove identical corresponding block ranges in |src_extents| and
+// |dst_extents|. Used for preventing moving of blocks onto themselves during
+// MOVE operations.
+void RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
+                                vector<Extent>* dst_extents) {
+  size_t src_idx = 0;
+  size_t dst_idx = 0;
+  uint64_t src_offset = 0, dst_offset = 0;
+  bool new_src = true, new_dst = true;
+  while (src_idx < src_extents->size() && dst_idx < dst_extents->size()) {
+    if (new_src) {
+      src_offset = 0;
+      new_src = false;
+    }
+    if (new_dst) {
+      dst_offset = 0;
+      new_dst = false;
+    }
+
+    bool do_remove = ((*src_extents)[src_idx].start_block() + src_offset ==
+                      (*dst_extents)[dst_idx].start_block() + dst_offset);
+
+    uint64_t src_num_blocks = (*src_extents)[src_idx].num_blocks();
+    uint64_t dst_num_blocks = (*dst_extents)[dst_idx].num_blocks();
+    uint64_t min_num_blocks = min(src_num_blocks - src_offset,
+                                  dst_num_blocks - dst_offset);
+    uint64_t prev_src_offset = src_offset;
+    uint64_t prev_dst_offset = dst_offset;
+    src_offset += min_num_blocks;
+    dst_offset += min_num_blocks;
+
+    new_src = ProcessExtentBlockRange(src_extents, &src_idx, do_remove,
+                                      prev_src_offset, src_offset);
+    new_dst = ProcessExtentBlockRange(dst_extents, &dst_idx, do_remove,
+                                      prev_dst_offset, dst_offset);
+  }
 }
 
 }  // namespace {}
@@ -617,6 +729,7 @@ bool DeltaDiffGenerator::ReadFileToDiff(
   // Set parameters of the operations
   CHECK_EQ(data.size(), current_best_size);
 
+  vector<Extent> src_extents, dst_extents;
   if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE ||
       operation.type() == DeltaArchiveManifest_InstallOperation_Type_BSDIFF) {
     if (gather_extents) {
@@ -624,7 +737,7 @@ bool DeltaDiffGenerator::ReadFileToDiff(
           GatherExtents(old_filename,
                         chunk_offset,
                         chunk_size,
-                        operation.mutable_src_extents()));
+                        &src_extents));
     } else {
       Extent* src_extent = operation.add_src_extents();
       src_extent->set_start_block(0);
@@ -639,13 +752,25 @@ bool DeltaDiffGenerator::ReadFileToDiff(
         GatherExtents(new_filename,
                       chunk_offset,
                       chunk_size,
-                      operation.mutable_dst_extents()));
+                      &dst_extents));
   } else {
     Extent* dst_extent = operation.add_dst_extents();
     dst_extent->set_start_block(0);
     dst_extent->set_num_blocks((new_data.size() + kBlockSize - 1) / kBlockSize);
   }
   operation.set_dst_length(new_data.size());
+
+  if (gather_extents) {
+    // Remove identical src/dst block ranges in MOVE operations.
+    if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE)
+      RemoveIdenticalBlockRanges(&src_extents, &dst_extents);
+
+    // Embed extents in the operation.
+    DeltaDiffGenerator::StoreExtents(src_extents,
+                                     operation.mutable_src_extents());
+    DeltaDiffGenerator::StoreExtents(dst_extents,
+                                     operation.mutable_dst_extents());
+  }
 
   out_data->swap(data);
   *out_op = operation;
