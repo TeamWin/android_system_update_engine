@@ -8,6 +8,7 @@
 #include <string>
 
 #include <base/time.h>
+#include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 namespace chromeos_policy_manager {
 
@@ -18,6 +19,9 @@ class Variable {
   virtual ~Variable() {}
 
  protected:
+  friend class PMRandomProviderTest;
+  FRIEND_TEST(PMRandomProviderTest, GetRandomValues);
+
   // Gets the current value of the variable. The current value is copied to a
   // new object and returned. The caller of this method owns the object and
   // should delete it.
