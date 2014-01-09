@@ -110,19 +110,25 @@ bool IsSymlink(const char* path);
 // THAT YOUR PROCESS WILL BE THE ONLY THING WRITING FILES IN THIS DIRECTORY.
 std::string TempFilename(std::string path);
 
-// Calls mkstemp() with the template passed. Returns the filename in the
-// out param filename. If fd is non-NULL, the file fd returned by mkstemp
-// is not close()d and is returned in the out param 'fd'. However, if
-// fd is NULL, the fd from mkstemp() will be closed.
-// The last six chars of the template must be XXXXXX.
-// Returns true on success.
-bool MakeTempFile(const std::string& filename_template,
+// If |base_filename_template| is neither absolute (starts with "/") nor
+// explicitly relative to the current working directory (starts with "./" or
+// "../"), then it is prepended the value of TMPDIR, which defaults to /tmp if
+// it isn't set or is empty.  It then calls mkstemp(3) with the resulting
+// template.  Writes the name of a new temporary file to |filename|. If |fd| is
+// non-NULL, the file descriptor returned by mkstemp is written to it and kept
+// open; otherwise, it is closed. The template must end with "XXXXXX". Returns
+// true on success.
+bool MakeTempFile(const std::string& base_filename_template,
                   std::string* filename,
                   int* fd);
 
-// Calls mkdtemp() with the template passed. Returns the generated dirname
-// in the dirname param. Returns TRUE on success. dirname must not be NULL.
-bool MakeTempDirectory(const std::string& dirname_template,
+// If |base_filename_template| is neither absolute (starts with "/") nor
+// explicitly relative to the current working directory (starts with "./" or
+// "../"), then it is prepended the value of TMPDIR, which defaults to /tmp if
+// it isn't set or is empty.  It then calls mkdtemp() with the resulting
+// template. Writes the name of the new temporary directory to |dirname|.
+// The template must end with "XXXXXX". Returns true on success.
+bool MakeTempDirectory(const std::string& base_dirname_template,
                        std::string* dirname);
 
 // Deletes a directory and all its contents synchronously. Returns true

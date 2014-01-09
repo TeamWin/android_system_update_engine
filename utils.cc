@@ -476,9 +476,24 @@ std::string TempFilename(string path) {
   return path;
 }
 
-bool MakeTempFile(const std::string& filename_template,
+// If |path| is absolute, or explicit relative to the current working directory,
+// leaves it as is. Otherwise, if TMPDIR is defined in the environment and is
+// non-empty, prepends it to |path|. Otherwise, prepends /tmp.  Returns the
+// resulting path.
+static const string PrependTmpdir(const string& path) {
+  if (path[0] == '/' || StartsWithASCII(path, "./", true) ||
+      StartsWithASCII(path, "../", true))
+    return path;
+
+  const char *tmpdir = getenv("TMPDIR");
+  const string prefix = (tmpdir && *tmpdir ? tmpdir : "/tmp");
+  return prefix + "/" + path;
+}
+
+bool MakeTempFile(const std::string& base_filename_template,
                   std::string* filename,
                   int* fd) {
+  const string filename_template = PrependTmpdir(base_filename_template);
   DCHECK(filename || fd);
   vector<char> buf(filename_template.size() + 1);
   memcpy(&buf[0], filename_template.data(), filename_template.size());
@@ -497,8 +512,9 @@ bool MakeTempFile(const std::string& filename_template,
   return true;
 }
 
-bool MakeTempDirectory(const std::string& dirname_template,
+bool MakeTempDirectory(const std::string& base_dirname_template,
                        std::string* dirname) {
+  const string dirname_template = PrependTmpdir(base_dirname_template);
   DCHECK(dirname);
   vector<char> buf(dirname_template.size() + 1);
   memcpy(&buf[0], dirname_template.data(), dirname_template.size());

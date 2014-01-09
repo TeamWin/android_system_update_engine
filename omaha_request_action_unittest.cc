@@ -1731,7 +1731,7 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
       "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   OmahaRequestParams params = kDefaultTestParams;
-  params.set_root(string("./") + test_dir);
+  params.set_root(test_dir);
   params.SetLockDown(false);
   params.Init("1.2.3.4", "", 0);
   EXPECT_EQ("canary-channel", params.current_channel());
@@ -1778,7 +1778,7 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
       test_dir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   OmahaRequestParams params = kDefaultTestParams;
-  params.set_root(string("./") + test_dir);
+  params.set_root(test_dir);
   params.SetLockDown(false);
   params.Init("5.6.7.8", "", 0);
   EXPECT_EQ("stable-channel", params.current_channel());

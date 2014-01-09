@@ -301,7 +301,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
 
   MockSystemState mock_system_state;
   OmahaRequestParams params(&mock_system_state);
-  params.set_root(string("./") + test_dir);
+  params.set_root(test_dir);
   params.SetLockDown(false);
   params.Init("1.2.3.4", "", 0);
   EXPECT_EQ("canary-channel", params.current_channel());
@@ -344,7 +344,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
 
   MockSystemState mock_system_state;
   OmahaRequestParams params(&mock_system_state);
-  params.set_root(string("./") + test_dir);
+  params.set_root(test_dir);
   params.SetLockDown(false);
   params.Init("5.6.7.8", "", 0);
   EXPECT_EQ("stable-channel", params.current_channel());

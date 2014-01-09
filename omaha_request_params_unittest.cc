@@ -41,7 +41,7 @@ class OmahaRequestParamsTest : public ::testing::Test {
     // unintended reuse of state across tests.
     OmahaRequestParams new_params(&mock_system_state_);
     params_ = new_params;
-    params_.set_root(string("./") + test_dir_);
+    params_.set_root(test_dir_);
     params_.SetLockDown(false);
   }
 
@@ -331,7 +331,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
       "CHROMEOS_AUSERVER=http://www.google.com"));
   {
     OmahaRequestParams params(&mock_system_state_);
-    params.set_root(string("./") + test_dir_);
+    params.set_root(test_dir_);
     params.SetLockDown(false);
     EXPECT_TRUE(params.Init("", "", false));
     params.SetTargetChannel("canary-channel", false);
@@ -353,7 +353,7 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
       "CHROMEOS_AUSERVER=http://www.google.com"));
   {
     OmahaRequestParams params(&mock_system_state_);
-    params.set_root(string("./") + test_dir_);
+    params.set_root(test_dir_);
     params.SetLockDown(false);
     EXPECT_TRUE(params.Init("", "", false));
     params.SetTargetChannel("canary-channel", true);
