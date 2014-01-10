@@ -604,13 +604,19 @@ bool ProcessExtentBlockRange(vector<Extent>* extents, size_t* idx_p,
 
 // Remove identical corresponding block ranges in |src_extents| and
 // |dst_extents|. Used for preventing moving of blocks onto themselves during
-// MOVE operations.
-void RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
-                                vector<Extent>* dst_extents) {
+// MOVE operations. The value of |total_bytes| indicates the actual length of
+// content; this may be slightly less than the total size of blocks, in which
+// case the last block is only partly occupied with data. Returns the total
+// number of bytes removed.
+size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
+                                  vector<Extent>* dst_extents,
+                                  const size_t total_bytes) {
   size_t src_idx = 0;
   size_t dst_idx = 0;
   uint64_t src_offset = 0, dst_offset = 0;
   bool new_src = true, new_dst = true;
+  size_t removed_bytes = 0, nonfull_block_bytes;
+  bool do_remove = false;
   while (src_idx < src_extents->size() && dst_idx < dst_extents->size()) {
     if (new_src) {
       src_offset = 0;
@@ -621,8 +627,8 @@ void RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
       new_dst = false;
     }
 
-    bool do_remove = ((*src_extents)[src_idx].start_block() + src_offset ==
-                      (*dst_extents)[dst_idx].start_block() + dst_offset);
+    do_remove = ((*src_extents)[src_idx].start_block() + src_offset ==
+                 (*dst_extents)[dst_idx].start_block() + dst_offset);
 
     uint64_t src_num_blocks = (*src_extents)[src_idx].num_blocks();
     uint64_t dst_num_blocks = (*dst_extents)[dst_idx].num_blocks();
@@ -637,7 +643,16 @@ void RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
                                       prev_src_offset, src_offset);
     new_dst = ProcessExtentBlockRange(dst_extents, &dst_idx, do_remove,
                                       prev_dst_offset, dst_offset);
+    if (do_remove)
+      removed_bytes += min_num_blocks * kBlockSize;
   }
+
+  // If we removed the last block and this block is only partly used by file
+  // content, deduct the unused portion from the total removed byte count.
+  if (do_remove && (nonfull_block_bytes = total_bytes % kBlockSize))
+    removed_bytes -= kBlockSize - nonfull_block_bytes;
+
+  return removed_bytes;
 }
 
 }  // namespace {}
@@ -762,8 +777,16 @@ bool DeltaDiffGenerator::ReadFileToDiff(
 
   if (gather_extents) {
     // Remove identical src/dst block ranges in MOVE operations.
-    if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE)
-      RemoveIdenticalBlockRanges(&src_extents, &dst_extents);
+    if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
+      size_t removed_bytes = RemoveIdenticalBlockRanges(
+          &src_extents, &dst_extents, new_data.size());
+
+      // Adjust the file length field accordingly.
+      if (removed_bytes) {
+        operation.set_src_length(old_data.size() - removed_bytes);
+        operation.set_dst_length(new_data.size() - removed_bytes);
+      }
+    }
 
     // Embed extents in the operation.
     DeltaDiffGenerator::StoreExtents(src_extents,

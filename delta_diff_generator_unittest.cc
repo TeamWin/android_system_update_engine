@@ -139,25 +139,29 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
   // Setup the old/new files so that it has immobile chunks; we make sure to
   // utilize all sub-cases of such chunks: blocks 21--22 induce a split (src)
   // and complete removal (dst), whereas blocks 24--25 induce trimming of the
-  // tail (src) and head (dst) of extents. The detailed configuration:
+  // tail (src) and head (dst) of extents. The final block (29) is used for
+  // ensuring we properly account for the number of bytes removed in cases where
+  // the last block is partly filled. The detailed configuration:
   //
-  // Old:  [ 20     21 22     23     24 25 ] [ 28 ]
-  // New:  [ 18 ] [ 21 22 ] [ 20 ] [ 24 25     26 ]
-  // Same:          ^^ ^^            ^^ ^^
+  // Old:  [ 20     21 22     23     24 25 ] [ 28     29 ]
+  // New:  [ 18 ] [ 21 22 ] [ 20 ] [ 24 25     26 ] [ 29 ]
+  // Same:          ^^ ^^            ^^ ^^            ^^
   vector<Extent> old_extents;
   uint64_t num_extents = 0;
   num_extents += AddExtent(20, 6, &old_extents);
-  num_extents += AddExtent(28, 1, &old_extents);
+  num_extents += AddExtent(28, 2, &old_extents);
   fake_file_extents[old_path()] = &old_extents;
   vector<Extent> new_extents;
   AddExtent(18, 1, &new_extents);
   AddExtent(21, 2, &new_extents);
   AddExtent(20, 1, &new_extents);
   AddExtent(24, 3, &new_extents);
+  AddExtent(29, 1, &new_extents);
   fake_file_extents[new_path()] = &new_extents;
 
-  // The size of the data should match the total number of blocks.
-  const size_t file_len = 5 * 4096;
+  // The size of the data should match the total number of blocks; the last
+  // block is only partly filled.
+  size_t file_len = 7 * 4096 + 3333;
   const string random_string(reinterpret_cast<const char*>(kRandomString),
                              sizeof(kRandomString));
   string random_data;
@@ -187,10 +191,13 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
   e.set_start_block(23);
   e.set_num_blocks(1);
   old_extents.insert(old_extents.begin() + 1, e);
+  old_extents[2].set_num_blocks(1);
   new_extents.erase(new_extents.begin() + 1);
   new_extents[2].set_start_block(26);
   new_extents[2].set_num_blocks(1);
-  num_extents -= 4;
+  new_extents.erase(new_extents.begin() + 3);
+  num_extents -= 5;
+  file_len -= 4 * 4096 + 3333;
 
   EXPECT_TRUE(data.empty());
 
