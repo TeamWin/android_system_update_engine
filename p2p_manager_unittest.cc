@@ -55,7 +55,7 @@ protected:
 TEST_F(P2PManagerTest, P2PEnabledNeitherCroshFlagNotEnterpriseSetting) {
   string temp_dir;
   Prefs prefs;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
 
@@ -71,7 +71,7 @@ TEST_F(P2PManagerTest, P2PEnabledNeitherCroshFlagNotEnterpriseSetting) {
 TEST_F(P2PManagerTest, P2PEnabledCroshFlag) {
   string temp_dir;
   Prefs prefs;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
 
@@ -91,7 +91,7 @@ TEST_F(P2PManagerTest, P2PEnabledCroshFlag) {
 TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingTrue) {
   string temp_dir;
   Prefs prefs;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
 
@@ -117,7 +117,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingTrue) {
 TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingFalse) {
   string temp_dir;
   Prefs prefs;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
 

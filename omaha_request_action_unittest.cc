@@ -391,7 +391,7 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   params.set_waiting_period(TimeDelta::FromDays(2));
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
@@ -463,7 +463,7 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
   params.set_max_update_checks_allowed(8);
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
@@ -508,7 +508,7 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
   params.set_max_update_checks_allowed(8);
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
@@ -554,7 +554,7 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
   params.set_max_update_checks_allowed(0);
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
@@ -603,7 +603,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   params.set_max_update_checks_allowed(8);
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
@@ -679,7 +679,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   params.set_max_update_checks_allowed(8);
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
@@ -1592,7 +1592,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   params.set_update_check_count_wait_enabled(false);
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
@@ -1665,7 +1665,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   params.set_update_check_count_wait_enabled(false);
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 

@@ -288,7 +288,7 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
   ScopedFdCloser image_fd_closer(&image_fd);
 
   string temp_file_path;
-  TEST_AND_RETURN_FALSE(utils::MakeTempFile("/tmp/CrAU_temp_data.XXXXXX",
+  TEST_AND_RETURN_FALSE(utils::MakeTempFile("CrAU_temp_data.XXXXXX",
                                             &temp_file_path,
                                             NULL));
 
@@ -1559,7 +1559,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   Graph graph;
   CheckGraph(graph);
 
-  const string kTempFileTemplate("/tmp/CrAU_temp_data.XXXXXX");
+  const string kTempFileTemplate("CrAU_temp_data.XXXXXX");
   string temp_file_path;
   scoped_ptr<ScopedPathUnlinker> temp_file_unlinker;
   off_t data_file_size = 0;
@@ -1684,7 +1684,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   // Reorder the data blobs with the newly ordered manifest
   string ordered_blobs_path;
   TEST_AND_RETURN_FALSE(utils::MakeTempFile(
-      "/tmp/CrAU_temp_data.ordered.XXXXXX",
+      "CrAU_temp_data.ordered.XXXXXX",
       &ordered_blobs_path,
       NULL));
   ScopedPathUnlinker ordered_blobs_unlinker(ordered_blobs_path);
@@ -1801,7 +1801,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 bool DeltaDiffGenerator::BsdiffFiles(const string& old_file,
                                      const string& new_file,
                                      vector<char>* out) {
-  const string kPatchFile = "/tmp/delta.patchXXXXXX";
+  const string kPatchFile = "delta.patchXXXXXX";
   string patch_file_path;
 
   TEST_AND_RETURN_FALSE(

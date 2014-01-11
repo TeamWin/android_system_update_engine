@@ -119,7 +119,7 @@ void PostinstallRunnerActionTest::DoTest(
   // Create a unique named working directory and chdir into it.
   string cwd;
   ASSERT_TRUE(utils::MakeTempDirectory(
-          orig_cwd + "/postinstall_runner_action_unittest-XXXXXX",
+          "postinstall_runner_action_unittest-XXXXXX",
           &cwd));
   ASSERT_EQ(0, Chdir(cwd));
 

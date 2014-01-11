@@ -202,7 +202,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
 TEST_F(UpdateAttempterTest, RunAsRootConstructWithUpdatedMarkerTest) {
   string test_update_completed_marker;
   CHECK(utils::MakeTempFile(
-          "/tmp/update_attempter_unittest-update_completed_marker-XXXXXX",
+          "update_attempter_unittest-update_completed_marker-XXXXXX",
           &test_update_completed_marker, NULL));
   ScopedPathUnlinker completed_marker_unlinker(test_update_completed_marker);
   const FilePath marker(test_update_completed_marker);
@@ -945,7 +945,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
               IsOOBEComplete()).WillRepeatedly(Return(true));
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
@@ -1010,7 +1010,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
               IsOOBEComplete()).WillRepeatedly(Return(true));
 
   string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/ue_ut_prefs.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
@@ -1059,7 +1059,7 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
   string temp_dir;
 
   // We need persistent preferences for this test
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/UpdateCheckScheduler.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("UpdateCheckScheduler.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
   mock_system_state_.set_clock(&fake_clock);

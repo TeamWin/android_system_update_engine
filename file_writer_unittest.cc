@@ -22,7 +22,7 @@ class FileWriterTest : public ::testing::Test { };
 TEST(FileWriterTest, SimpleTest) {
   // Create a uniquely named file for testing.
   string path;
-  ASSERT_TRUE(utils::MakeTempFile("/tmp/FileWriterTest-XXXXXX", &path, NULL));
+  ASSERT_TRUE(utils::MakeTempFile("FileWriterTest-XXXXXX", &path, NULL));
   ScopedPathUnlinker path_unlinker(path);
 
   DirectFileWriter file_writer;
@@ -47,7 +47,7 @@ TEST(FileWriterTest, ErrorTest) {
 TEST(FileWriterTest, WriteErrorTest) {
   // Create a uniquely named file for testing.
   string path;
-  ASSERT_TRUE(utils::MakeTempFile("/tmp/FileWriterTest-XXXXXX", &path, NULL));
+  ASSERT_TRUE(utils::MakeTempFile("FileWriterTest-XXXXXX", &path, NULL));
   ScopedPathUnlinker path_unlinker(path);
 
   DirectFileWriter file_writer;

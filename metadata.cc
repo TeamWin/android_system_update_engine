@@ -71,7 +71,7 @@ bool ReadExtentsData(const ext2_filsys fs,
 bool ComputeMetadataBsdiff(const vector<char>& old_metadata,
                            const vector<char>& new_metadata,
                            vector<char>* bsdiff_delta) {
-  const string kTempFileTemplate("/tmp/CrAU_temp_data.XXXXXX");
+  const string kTempFileTemplate("CrAU_temp_data.XXXXXX");
 
   // Write the metadata buffers to temporary files
   int old_fd;

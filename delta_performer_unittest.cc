@@ -177,7 +177,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
                                       const string& payload_path) {
   string private_key_path = kUnittestPrivateKeyPath;
   if (signature_test == kSignatureGeneratedShellBadKey) {
-    ASSERT_TRUE(utils::MakeTempFile("/tmp/key.XXXXXX",
+    ASSERT_TRUE(utils::MakeTempFile("key.XXXXXX",
                                     &private_key_path,
                                     NULL));
   } else {
@@ -198,7 +198,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   }
   int signature_size = GetSignatureSize(private_key_path);
   string hash_file;
-  ASSERT_TRUE(utils::MakeTempFile("/tmp/hash.XXXXXX", &hash_file, NULL));
+  ASSERT_TRUE(utils::MakeTempFile("hash.XXXXXX", &hash_file, NULL));
   ScopedPathUnlinker hash_unlinker(hash_file);
   string signature_size_string;
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
@@ -222,7 +222,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   ASSERT_TRUE(WriteFileVector(hash_file, hash));
 
   string sig_file;
-  ASSERT_TRUE(utils::MakeTempFile("/tmp/signature.XXXXXX", &sig_file, NULL));
+  ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file, NULL));
   ScopedPathUnlinker sig_unlinker(sig_file);
   ASSERT_EQ(0,
             System(StringPrintf(
@@ -231,7 +231,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
                 hash_file.c_str(),
                 sig_file.c_str())));
   string sig_file2;
-  ASSERT_TRUE(utils::MakeTempFile("/tmp/signature.XXXXXX", &sig_file2, NULL));
+  ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file2, NULL));
   ScopedPathUnlinker sig2_unlinker(sig_file2);
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2) {
@@ -272,8 +272,8 @@ static void GenerateDeltaFile(bool full_kernel,
                               off_t chunk_size,
                               SignatureTest signature_test,
                               DeltaState *state) {
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/a_img.XXXXXX", &state->a_img, NULL));
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/b_img.XXXXXX", &state->b_img, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &state->a_img, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &state->b_img, NULL));
   CreateExtImageAtPath(state->a_img, NULL);
 
   state->image_size = static_cast<int>(utils::FileSize(state->a_img));
@@ -410,12 +410,12 @@ static void GenerateDeltaFile(bool full_kernel,
   }
 
   string old_kernel;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/old_kernel.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempFile("old_kernel.XXXXXX",
                                   &state->old_kernel,
                                   NULL));
 
   string new_kernel;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/new_kernel.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempFile("new_kernel.XXXXXX",
                                   &state->new_kernel,
                                   NULL));
 
@@ -439,7 +439,7 @@ static void GenerateDeltaFile(bool full_kernel,
                                &state->new_kernel_data[0],
                                state->new_kernel_data.size()));
 
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/delta.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempFile("delta.XXXXXX",
                                   &state->delta_path,
                                   NULL));
   LOG(INFO) << "delta path: " << state->delta_path;
@@ -1265,7 +1265,7 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
 
   string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PublicKeyFromResponseTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PublicKeyFromResponseTests.XXXXXX",
                                        &temp_dir));
   string non_existing_file = temp_dir + "/non-existing";
   string existing_file = temp_dir + "/existing";

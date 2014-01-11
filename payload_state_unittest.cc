@@ -1069,7 +1069,7 @@ TEST(PayloadStateTest, DurationsAreCorrect) {
   fake_clock.SetMonotonicTime(Time::FromInternalValue(2000000));
 
   // We need persistent preferences for this test
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateDurationTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateDurationTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
 
@@ -1134,7 +1134,7 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
 
   // We need persistent preferences for this test
   EXPECT_TRUE(utils::MakeTempDirectory(
-      "/tmp/RebootAfterSuccessfulUpdateTest.XXXXXX", &temp_dir));
+      "RebootAfterSuccessfulUpdateTest.XXXXXX", &temp_dir));
   prefs.Init(FilePath(temp_dir));
 
   mock_system_state.set_clock(&fake_clock);
@@ -1355,7 +1355,7 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   string temp_dir;
 
   // Setup an environment with persistent prefs across simulated reboots.
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateReboot.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
@@ -1405,7 +1405,7 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   string temp_dir;
 
   // Setup an environment with persistent prefs across simulated reboots.
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateReboot.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
@@ -1445,7 +1445,7 @@ TEST(PayloadStateTest, RebootAfterCanceledUpdate) {
   string temp_dir;
 
   // Setup an environment with persistent prefs across simulated reboots.
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateReboot.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
@@ -1478,7 +1478,7 @@ TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
   string temp_dir;
 
   // Setup an environment with persistent but initially empty prefs.
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateReboot.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
@@ -1503,7 +1503,7 @@ TEST(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
   string temp_dir;
 
   // We need persistent preferences for this test.
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
 
@@ -1532,7 +1532,7 @@ TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
   string temp_dir;
 
   // We need persistent preferences for this test.
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
 
@@ -1583,7 +1583,7 @@ TEST(PayloadStateTest, P2PStateVarsInitialValue) {
   Prefs prefs;
   string temp_dir;
 
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
@@ -1605,7 +1605,7 @@ TEST(PayloadStateTest, P2PStateVarsArePersisted) {
   Prefs prefs;
   string temp_dir;
 
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_clock(&fake_clock);
@@ -1640,7 +1640,7 @@ TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   Prefs prefs;
   string temp_dir;
 
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/PayloadStateP2PTests.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
   prefs.Init(FilePath(temp_dir));
   mock_system_state.set_clock(&fake_clock);

@@ -28,7 +28,7 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-const char* const kMountPathTemplate = "/tmp/UpdateEngineTests_mnt-XXXXXX";
+const char* const kMountPathTemplate = "UpdateEngineTests_mnt-XXXXXX";
 
 bool WriteFileVector(const std::string& path, const std::vector<char>& data) {
   return utils::WriteFile(path.c_str(), &data[0], data.size());
@@ -300,7 +300,7 @@ void VerifyAllPaths(const string& parent, set<string> expected_paths) {
 ScopedLoopMounter::ScopedLoopMounter(const string& file_path,
                                      string* mnt_path,
                                      unsigned long flags) {
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/mnt.XXXXXX", mnt_path));
+  EXPECT_TRUE(utils::MakeTempDirectory("mnt.XXXXXX", mnt_path));
   dir_remover_.reset(new ScopedDirRemover(*mnt_path));
 
   string loop_dev;

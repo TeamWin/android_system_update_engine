@@ -119,7 +119,7 @@ bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
 TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
   string test_deadline_file;
   CHECK(utils::MakeTempFile(
-          "/tmp/omaha_response_handler_action_unittest-XXXXXX",
+          "omaha_response_handler_action_unittest-XXXXXX",
           &test_deadline_file, NULL));
   ScopedPathUnlinker deadline_unlinker(test_deadline_file);
   {

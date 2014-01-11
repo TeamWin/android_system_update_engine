@@ -182,7 +182,7 @@ TEST(UtilsTest, RecursiveUnlinkDirTest) {
 
 TEST(UtilsTest, IsSymlinkTest) {
   string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/symlink-test.XXXXXX", &temp_dir));
+  EXPECT_TRUE(utils::MakeTempDirectory("symlink-test.XXXXXX", &temp_dir));
   string temp_file = temp_dir + "temp-file";
   EXPECT_TRUE(utils::WriteFile(temp_file.c_str(), "", 0));
   string temp_symlink = temp_dir + "temp-symlink";
@@ -275,7 +275,7 @@ TEST(UtilsTest, ApplyMapTest) {
 
 TEST(UtilsTest, RunAsRootGetFilesystemSizeTest) {
   string img;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/img.XXXXXX", &img, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, NULL));
   ScopedPathUnlinker img_unlinker(img);
   CreateExtImageAtPath(img, NULL);
   // Extend the "partition" holding the file system from 10MiB to 20MiB.

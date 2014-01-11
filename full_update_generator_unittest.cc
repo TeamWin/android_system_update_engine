@@ -33,14 +33,14 @@ TEST(FullUpdateGeneratorTest, RunTest) {
   off_t new_rootfs_size = new_root.size() - 2 * 1024 * 1024;
 
   string new_root_path;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/NewFullUpdateTest_R.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_R.XXXXXX",
                                   &new_root_path,
                                   NULL));
   ScopedPathUnlinker new_root_path_unlinker(new_root_path);
   EXPECT_TRUE(WriteFileVector(new_root_path, new_root));
 
   string new_kern_path;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/NewFullUpdateTest_K.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_K.XXXXXX",
                                   &new_kern_path,
                                   NULL));
   ScopedPathUnlinker new_kern_path_unlinker(new_kern_path);
@@ -48,7 +48,7 @@ TEST(FullUpdateGeneratorTest, RunTest) {
 
   string out_blobs_path;
   int out_blobs_fd;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/NewFullUpdateTest_D.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_D.XXXXXX",
                                   &out_blobs_path,
                                   &out_blobs_fd));
   ScopedPathUnlinker out_blobs_path_unlinker(out_blobs_path);

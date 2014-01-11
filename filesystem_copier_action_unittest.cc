@@ -132,8 +132,8 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
   string a_loop_file;
   string b_loop_file;
 
-  if (!(utils::MakeTempFile("/tmp/a_loop_file.XXXXXX", &a_loop_file, NULL) &&
-        utils::MakeTempFile("/tmp/b_loop_file.XXXXXX", &b_loop_file, NULL))) {
+  if (!(utils::MakeTempFile("a_loop_file.XXXXXX", &a_loop_file, NULL) &&
+        utils::MakeTempFile("b_loop_file.XXXXXX", &b_loop_file, NULL))) {
     ADD_FAILURE();
     return false;
   }
@@ -406,7 +406,7 @@ TEST_F(FilesystemCopierActionTest, RunAsRootTerminateEarlyTest) {
 
 TEST_F(FilesystemCopierActionTest, RunAsRootDetermineFilesystemSizeTest) {
   string img;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/img.XXXXXX", &img, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, NULL));
   ScopedPathUnlinker img_unlinker(img);
   CreateExtImageAtPath(img, NULL);
   // Extend the "partition" holding the file system from 10MiB to 20MiB.

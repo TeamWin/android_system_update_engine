@@ -697,7 +697,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootAssignTempBlocksTest) {
 
   // Prepare the filesystem with the minimum required for this to work
   string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/AssignTempBlocksTest.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("AssignTempBlocksTest.XXXXXX",
                                        &temp_dir));
   ScopedDirRemover temp_dir_remover(temp_dir);
 
@@ -708,7 +708,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootAssignTempBlocksTest) {
   ScopedPathUnlinker filename_unlinker(temp_dir + kFilename);
 
   int fd;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/AssignTempBlocksTestData.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempFile("AssignTempBlocksTestData.XXXXXX",
                                   NULL,
                                   &fd));
   ScopedFdCloser fd_closer(&fd);
@@ -814,7 +814,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootNoSparseAsTempTest) {
 
   // Prepare the filesystem with the minimum required for this to work.
   string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/NoSparseAsTempTest.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("NoSparseAsTempTest.XXXXXX",
                                        &temp_dir));
   ScopedDirRemover temp_dir_remover(temp_dir);
 
@@ -825,7 +825,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootNoSparseAsTempTest) {
   ScopedPathUnlinker filename_unlinker(temp_dir + kFilename);
 
   int fd = -1;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/NoSparseAsTempTestData.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempFile("NoSparseAsTempTestData.XXXXXX",
                                   NULL,
                                   &fd));
   ScopedFdCloser fd_closer(&fd);
@@ -1075,7 +1075,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootAssignTempBlocksReuseTest) {
 
   // Prepare the filesystem with the minimum required for this to work
   string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("/tmp/AssignTempBlocksReuseTest.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("AssignTempBlocksReuseTest.XXXXXX",
                                        &temp_dir));
   ScopedDirRemover temp_dir_remover(temp_dir);
 
@@ -1086,7 +1086,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootAssignTempBlocksReuseTest) {
   ScopedPathUnlinker filename_unlinker(temp_dir + kFilename);
 
   int fd;
-  EXPECT_TRUE(utils::MakeTempFile("/tmp/AssignTempBlocksReuseTest.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempFile("AssignTempBlocksReuseTest.XXXXXX",
                                   NULL,
                                   &fd));
   ScopedFdCloser fd_closer(&fd);
