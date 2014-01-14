@@ -922,20 +922,19 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
 
   // Parse the delta payload we created.
   DeltaArchiveManifest manifest;
-  uint64_t parsed_metadata_size;
 
   // Init actual_error with an invalid value so that we make sure
   // ParsePayloadMetadata properly populates it in all cases.
   actual_error = kErrorCodeUmaReportedMax;
   actual_result = delta_performer.ParsePayloadMetadata(payload, &manifest,
-      &parsed_metadata_size, &actual_error);
+                                                       &actual_error);
 
   EXPECT_EQ(expected_result, actual_result);
   EXPECT_EQ(expected_error, actual_error);
 
   // Check that the parsed metadata size is what's expected. This test
   // implicitly confirms that the metadata signature is valid, if required.
-  EXPECT_EQ(state.metadata_size, parsed_metadata_size);
+  EXPECT_EQ(state.metadata_size, delta_performer.GetMetadataSize());
 }
 
 void DoOperationHashMismatchTest(OperationHashTest op_hash_test,

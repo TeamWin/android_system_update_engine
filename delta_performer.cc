@@ -172,6 +172,33 @@ void DeltaPerformer::UpdateOverallProgress(bool force_log,
 }
 
 
+size_t DeltaPerformer::CopyDataToBuffer(const char** bytes_p, size_t* count_p,
+                                        size_t max) {
+  const size_t count = *count_p;
+  if (!count)
+    return 0;  // Special case shortcut.
+  size_t read_len = std::min(count, max - buffer_.size());
+  const char* bytes_start = *bytes_p;
+  const char* bytes_end = bytes_start + read_len;
+  buffer_.insert(buffer_.end(), bytes_start, bytes_end);
+  *bytes_p = bytes_end;
+  *count_p = count - read_len;
+  return read_len;
+}
+
+
+bool DeltaPerformer::HandleOpResult(bool op_result, const char* op_type_name,
+                                    ErrorCode* error) {
+  if (op_result)
+    return true;
+
+  LOG(ERROR) << "Failed to perform " << op_type_name << " operation "
+             << next_operation_num_;
+  *error = kErrorCodeDownloadOperationExecutionError;
+  return false;
+}
+
+
 // Returns true if |op| is idempotent -- i.e., if we can interrupt it and repeat
 // it safely. Returns false otherwise.
 bool DeltaPerformer::IsIdempotentOperation(
@@ -268,83 +295,83 @@ uint64_t DeltaPerformer::GetManifestOffset() {
  return GetManifestSizeOffset() + kDeltaManifestSizeSize;
 }
 
+uint64_t DeltaPerformer::GetMetadataSize() const {
+ return metadata_size_;
+}
+
 
 DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     const std::vector<char>& payload,
     DeltaArchiveManifest* manifest,
-    uint64_t* metadata_size,
     ErrorCode* error) {
   *error = kErrorCodeSuccess;
-
-  // manifest_offset is the byte offset where the manifest protobuf begins.
   const uint64_t manifest_offset = GetManifestOffset();
-  if (payload.size() < manifest_offset) {
-    // Don't have enough bytes to even know the manifest size.
-    return kMetadataParseInsufficientData;
-  }
+  uint64_t manifest_size = (metadata_size_ ?
+                            metadata_size_ - manifest_offset : 0);
 
-  // Validate the magic string.
-  if (memcmp(payload.data(), kDeltaMagic, strlen(kDeltaMagic)) != 0) {
-    LOG(ERROR) << "Bad payload format -- invalid delta magic.";
-    *error = kErrorCodeDownloadInvalidMetadataMagicString;
-    return kMetadataParseError;
-  }
+  if (!manifest_size) {
+    // Ensure we have data to cover the payload header.
+    if (payload.size() < manifest_offset)
+      return kMetadataParseInsufficientData;
 
-  // Extract the payload version from the metadata.
-  uint64_t major_payload_version;
-  COMPILE_ASSERT(sizeof(major_payload_version) == kDeltaVersionSize,
-                 major_payload_version_size_mismatch);
-  memcpy(&major_payload_version,
-         &payload[GetVersionOffset()],
-         kDeltaVersionSize);
-  // switch big endian to host
-  major_payload_version = be64toh(major_payload_version);
-
-  if (major_payload_version != kSupportedMajorPayloadVersion) {
-    LOG(ERROR) << "Bad payload format -- unsupported payload version: "
-               << major_payload_version;
-    *error = kErrorCodeUnsupportedMajorPayloadVersion;
-    return kMetadataParseError;
-  }
-
-  // Next, parse the manifest size.
-  uint64_t manifest_size;
-  COMPILE_ASSERT(sizeof(manifest_size) == kDeltaManifestSizeSize,
-                 manifest_size_size_mismatch);
-  memcpy(&manifest_size,
-         &payload[GetManifestSizeOffset()],
-         kDeltaManifestSizeSize);
-  manifest_size = be64toh(manifest_size);  // switch big endian to host
-
-  // Now, check if the metasize we computed matches what was passed in
-  // through Omaha Response.
-  *metadata_size = manifest_offset + manifest_size;
-
-  // If the metadata size is present in install plan, check for it immediately
-  // even before waiting for that many number of bytes to be downloaded
-  // in the payload. This will prevent any attack which relies on us downloading
-  // data beyond the expected metadata size.
-  if (install_plan_->hash_checks_mandatory) {
-    if (install_plan_->metadata_size != *metadata_size) {
-      LOG(ERROR) << "Mandatory metadata size in Omaha response ("
-                 << install_plan_->metadata_size << ") is missing/incorrect."
-                 << ", Actual = " << *metadata_size;
-      *error = kErrorCodeDownloadInvalidMetadataSize;
+    // Validate the magic string.
+    if (memcmp(payload.data(), kDeltaMagic, strlen(kDeltaMagic)) != 0) {
+      LOG(ERROR) << "Bad payload format -- invalid delta magic.";
+      *error = kErrorCodeDownloadInvalidMetadataMagicString;
       return kMetadataParseError;
+    }
+
+    // Extract the payload version from the metadata.
+    uint64_t major_payload_version;
+    COMPILE_ASSERT(sizeof(major_payload_version) == kDeltaVersionSize,
+                   major_payload_version_size_mismatch);
+    memcpy(&major_payload_version,
+           &payload[GetVersionOffset()],
+           kDeltaVersionSize);
+    // switch big endian to host
+    major_payload_version = be64toh(major_payload_version);
+
+    if (major_payload_version != kSupportedMajorPayloadVersion) {
+      LOG(ERROR) << "Bad payload format -- unsupported payload version: "
+          << major_payload_version;
+      *error = kErrorCodeUnsupportedMajorPayloadVersion;
+      return kMetadataParseError;
+    }
+
+    // Next, parse the manifest size.
+    COMPILE_ASSERT(sizeof(manifest_size) == kDeltaManifestSizeSize,
+                   manifest_size_size_mismatch);
+    memcpy(&manifest_size,
+           &payload[GetManifestSizeOffset()],
+           kDeltaManifestSizeSize);
+    manifest_size = be64toh(manifest_size);  // switch big endian to host
+
+    // If the metadata size is present in install plan, check for it immediately
+    // even before waiting for that many number of bytes to be downloaded in the
+    // payload. This will prevent any attack which relies on us downloading data
+    // beyond the expected metadata size.
+    metadata_size_ = manifest_offset + manifest_size;
+    if (install_plan_->hash_checks_mandatory) {
+      if (install_plan_->metadata_size != metadata_size_) {
+        LOG(ERROR) << "Mandatory metadata size in Omaha response ("
+                   << install_plan_->metadata_size
+                   << ") is missing/incorrect, actual = " << metadata_size_;
+        *error = kErrorCodeDownloadInvalidMetadataSize;
+        return kMetadataParseError;
+      }
     }
   }
 
   // Now that we have validated the metadata size, we should wait for the full
   // metadata to be read in before we can parse it.
-  if (payload.size() < *metadata_size) {
+  if (payload.size() < metadata_size_)
     return kMetadataParseInsufficientData;
-  }
 
   // Log whether we validated the size or simply trusting what's in the payload
   // here. This is logged here (after we received the full metadata data) so
   // that we just log once (instead of logging n times) if it takes n
   // DeltaPerformer::Write calls to download the full manifest.
-  if (install_plan_->metadata_size == *metadata_size) {
+  if (install_plan_->metadata_size == metadata_size_) {
     LOG(INFO) << "Manifest size in payload matches expected value from Omaha";
   } else {
     // For mandatory-cases, we'd have already returned a kMetadataParseError
@@ -352,13 +379,13 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     LOG(WARNING) << "Ignoring missing/incorrect metadata size ("
                  << install_plan_->metadata_size
                  << ") in Omaha response as validation is not mandatory. "
-                 << "Trusting metadata size in payload = " << *metadata_size;
+                 << "Trusting metadata size in payload = " << metadata_size_;
     SendUmaStat(kErrorCodeDownloadInvalidMetadataSize);
   }
 
   // We have the full metadata in |payload|. Verify its integrity
   // and authenticity based on the information we have in Omaha response.
-  *error = ValidateMetadataSignature(&payload[0], *metadata_size);
+  *error = ValidateMetadataSignature(&payload[0], metadata_size_);
   if (*error != kErrorCodeSuccess) {
     if (install_plan_->hash_checks_mandatory) {
       // The autoupdate_CatchBadSignatures test checks for this string
@@ -392,32 +419,41 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
   *error = kErrorCodeSuccess;
 
   const char* c_bytes = reinterpret_cast<const char*>(bytes);
-  buffer_.insert(buffer_.end(), c_bytes, c_bytes + count);
   system_state_->payload_state()->DownloadProgress(count);
 
   // Update the total byte downloaded count and the progress logs.
   total_bytes_received_ += count;
   UpdateOverallProgress(false, "Completed ");
 
-  if (!manifest_valid_) {
+  while (!manifest_valid_) {
+    // Read data up to the needed limit; this is either the payload header size,
+    // or the full metadata size (once it becomes known).
+    const bool do_read_header = !metadata_size_;
+    CopyDataToBuffer(&c_bytes, &count,
+                     (do_read_header ? GetManifestOffset() :
+                      metadata_size_));
+
     MetadataParseResult result = ParsePayloadMetadata(buffer_,
                                                       &manifest_,
-                                                      &manifest_metadata_size_,
                                                       error);
     if (result == kMetadataParseError)
       return false;
-    if (result == kMetadataParseInsufficientData)
+    if (result == kMetadataParseInsufficientData) {
+      // If we just processed the header, make an attempt on the manifest.
+      if (do_read_header && metadata_size_)
+        continue;
+
       return true;
+    }
 
     // Checks the integrity of the payload manifest.
     if ((*error = ValidateManifest()) != kErrorCodeSuccess)
       return false;
 
-    // Remove protobuf and header info from buffer_, so buffer_ contains
-    // just data blobs
-    DiscardBufferHeadBytes(manifest_metadata_size_);
+    // Clear the download buffer.
+    DiscardBuffer();
     LOG_IF(WARNING, !prefs_->SetInt64(kPrefsManifestMetadataSize,
-                                      manifest_metadata_size_))
+                                      metadata_size_))
         << "Unable to save the manifest metadata size.";
     manifest_valid_ = true;
 
@@ -450,11 +486,12 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
         manifest_.kernel_install_operations(
             next_operation_num_ - num_rootfs_operations_) :
         manifest_.install_operations(next_operation_num_);
-    if (!CanPerformInstallOperation(op)) {
-      // This means we don't have enough bytes received yet to carry out the
-      // next operation.
+
+    CopyDataToBuffer(&c_bytes, &count, op.data_length());
+
+    // Check whether we received all of the next operation's data payload.
+    if (!CanPerformInstallOperation(op))
       return true;
-    }
 
     // Validate the operation only if the metadata signature is present.
     // Otherwise, keep the old behavior. This serves as a knob to disable
@@ -483,30 +520,23 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
     // Makes sure we unblock exit when this operation completes.
     ScopedTerminatorExitUnblocker exit_unblocker =
         ScopedTerminatorExitUnblocker();  // Avoids a compiler unused var bug.
-    // Log every thousandth operation, and also the first and last ones
+
+    bool op_result;
     if (op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-        op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
-      if (!PerformReplaceOperation(op, is_kernel_partition)) {
-        LOG(ERROR) << "Failed to perform replace operation "
-                   << next_operation_num_;
-        *error = kErrorCodeDownloadOperationExecutionError;
-        return false;
-      }
-    } else if (op.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
-      if (!PerformMoveOperation(op, is_kernel_partition)) {
-        LOG(ERROR) << "Failed to perform move operation "
-                   << next_operation_num_;
-        *error = kErrorCodeDownloadOperationExecutionError;
-        return false;
-      }
-    } else if (op.type() == DeltaArchiveManifest_InstallOperation_Type_BSDIFF) {
-      if (!PerformBsdiffOperation(op, is_kernel_partition)) {
-        LOG(ERROR) << "Failed to perform bsdiff operation "
-                   << next_operation_num_;
-        *error = kErrorCodeDownloadOperationExecutionError;
-        return false;
-      }
-    }
+        op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ)
+      op_result = HandleOpResult(
+          PerformReplaceOperation(op, is_kernel_partition), "replace", error);
+    else if (op.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE)
+      op_result = HandleOpResult(
+          PerformMoveOperation(op, is_kernel_partition), "move", error);
+    else if (op.type() == DeltaArchiveManifest_InstallOperation_Type_BSDIFF)
+      op_result = HandleOpResult(
+          PerformBsdiffOperation(op, is_kernel_partition), "bsdiff", error);
+    else
+      op_result = HandleOpResult(false, "unknown", error);
+
+    if (!op_result)
+      return false;
 
     next_operation_num_++;
     UpdateOverallProgress(false, "Completed ");
@@ -533,8 +563,8 @@ bool DeltaPerformer::CanPerformInstallOperation(
     return false;
   }
 
-  return (operation.data_offset() + operation.data_length()) <=
-      (buffer_offset_ + buffer_.size());
+  return (operation.data_offset() + operation.data_length() <=
+          buffer_offset_ + buffer_.size());
 }
 
 bool DeltaPerformer::PerformReplaceOperation(
@@ -583,8 +613,7 @@ bool DeltaPerformer::PerformReplaceOperation(
   TEST_AND_RETURN_FALSE(writer->End());
 
   // Update buffer
-  buffer_offset_ += operation.data_length();
-  DiscardBufferHeadBytes(operation.data_length());
+  DiscardBuffer();
   return true;
 }
 
@@ -721,8 +750,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
 
   // Update the buffer to release the patch data memory as soon as the patch
   // file is written out.
-  buffer_offset_ += operation.data_length();
-  DiscardBufferHeadBytes(operation.data_length());
+  DiscardBuffer();
 
   int fd = is_kernel_partition ? kernel_fd_ : fd_;
   const string path = StringPrintf("/proc/self/fd/%d", fd);
@@ -1027,7 +1055,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
   // Verifies the download size.
   TEST_AND_RETURN_VAL(kErrorCodePayloadSizeMismatchError,
                       update_check_response_size ==
-                      manifest_metadata_size_ + buffer_offset_);
+                      metadata_size_ + buffer_offset_);
 
   // Verifies the payload hash.
   const string& payload_hash_data = hash_calculator_.hash();
@@ -1181,12 +1209,16 @@ bool DeltaPerformer::VerifySourcePartitions() {
   return true;
 }
 
-void DeltaPerformer::DiscardBufferHeadBytes(size_t count) {
-  hash_calculator_.Update(&buffer_[0], count);
-  // Copy the remainder data into a temporary vector first to ensure that any
-  // unused memory in the updated |buffer_| will be released.
-  vector<char> temp(buffer_.begin() + count, buffer_.end());
-  buffer_.swap(temp);
+void DeltaPerformer::DiscardBuffer() {
+  // Update the buffer offset.
+  if (manifest_valid_)
+    buffer_offset_ += buffer_.size();
+
+  // Hash the content.
+  hash_calculator_.Update(&buffer_[0], buffer_.size());
+
+  // Swap content with an empty vector to ensure that all memory is released.
+  vector<char>().swap(buffer_);
 }
 
 bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
@@ -1315,7 +1347,7 @@ bool DeltaPerformer::PrimeUpdateState() {
   TEST_AND_RETURN_FALSE(prefs_->GetInt64(kPrefsManifestMetadataSize,
                                          &manifest_metadata_size) &&
                         manifest_metadata_size > 0);
-  manifest_metadata_size_ = manifest_metadata_size;
+  metadata_size_ = manifest_metadata_size;
 
   // Advance the download progress to reflect what doesn't need to be
   // re-downloaded.

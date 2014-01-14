@@ -190,9 +190,10 @@ bool PayloadSigner::LoadPayload(const string& payload_path,
   ErrorCode error = kErrorCodeSuccess;
   InstallPlan install_plan;
   DeltaPerformer delta_performer(NULL, NULL, &install_plan);
-  TEST_AND_RETURN_FALSE(delta_performer.ParsePayloadMetadata(
-      payload, out_manifest, out_metadata_size, &error) ==
-                        DeltaPerformer::kMetadataParseSuccess);
+  TEST_AND_RETURN_FALSE(
+      delta_performer.ParsePayloadMetadata(payload, out_manifest, &error) ==
+      DeltaPerformer::kMetadataParseSuccess);
+  *out_metadata_size = delta_performer.GetMetadataSize();
   LOG(INFO) << "Metadata size: " << *out_metadata_size;
   out_payload->swap(payload);
   return true;

@@ -63,7 +63,7 @@ class DeltaPerformer : public FileWriter {
         fd_(-1),
         kernel_fd_(-1),
         manifest_valid_(false),
-        manifest_metadata_size_(0),
+        metadata_size_(0),
         next_operation_num_(0),
         buffer_offset_(0),
         last_updated_buffer_offset_(kuint64max),
@@ -151,15 +151,19 @@ class DeltaPerformer : public FileWriter {
   static bool ResetUpdateProgress(PrefsInterface* prefs, bool quick);
 
   // Attempts to parse the update metadata starting from the beginning of
-  // |payload| into |manifest|. On success, sets |metadata_size| to the total
-  // metadata bytes (including the delta magic and metadata size fields), and
-  // returns kMetadataParseSuccess. Returns kMetadataParseInsufficientData if
-  // more data is needed to parse the complete metadata. Returns
-  // kMetadataParseError if the metadata can't be parsed given the payload.
+  // |payload| into |manifest|. On success, sets |*metadata_size_p| to the total
+  // metadata length in bytes (including the delta magic and metadata size
+  // fields), and returns kMetadataParseSuccess. Returns
+  // kMetadataParseInsufficientData if more data is needed to parse the complete
+  // metadata. Returns kMetadataParseError if the metadata can't be parsed given
+  // the payload.
+  //
+  // IMPORTANT! Reads the value of |*metadata_size_p| to determine whether the
+  // payload header (which includes the manifest length) was already processed.
+  // Therefore |*metadata_size_p| must be zero when it is first called.
   MetadataParseResult ParsePayloadMetadata(
       const std::vector<char>& payload,
       DeltaArchiveManifest* manifest,
-      uint64_t* metadata_size,
       ErrorCode* error);
 
   void set_public_key_path(const std::string& public_key_path) {
@@ -178,10 +182,25 @@ class DeltaPerformer : public FileWriter {
   // payload.
   static uint64_t GetManifestOffset();
 
+  // Returns the size of the payload metadata, which includes the payload header
+  // and the manifest. Is the header was not yet parsed, returns zero.
+  uint64_t GetMetadataSize() const;
+
  private:
   friend class DeltaPerformerTest;
   FRIEND_TEST(DeltaPerformerTest, IsIdempotentOperationTest);
   FRIEND_TEST(DeltaPerformerTest, UsePublicKeyFromResponse);
+
+  // Appends up to |*count_p| bytes from |*bytes_p| to |buffer_|, but only to
+  // the extent that the size of |buffer_| does not exceed |max|. Advances
+  // |*cbytes_p| and decreases |*count_p| by the actual number of bytes copied,
+  // and returns this number.
+  size_t CopyDataToBuffer(const char** bytes_p, size_t* count_p, size_t max);
+
+  // If |op_result| is false, emits an error message using |op_type_name| and
+  // sets |*error| accordingly. Otherwise does nothing. Returns |op_result|.
+  bool HandleOpResult(bool op_result, const char* op_type_name,
+                      ErrorCode* error);
 
   // Logs the progress of downloading/applying an update.
   void LogProgress(const char* message_prefix);
@@ -244,9 +263,9 @@ class DeltaPerformer : public FileWriter {
   bool ExtractSignatureMessage(
       const DeltaArchiveManifest_InstallOperation& operation);
 
-  // Updates the hash calculator with |count| bytes at the head of |buffer_| and
-  // then discards them.
-  void DiscardBufferHeadBytes(size_t count);
+  // Updates the hash calculator with the bytes in |buffer_|. Then discard the
+  // content, ensuring that memory is being deallocated.
+  void DiscardBuffer();
 
   // Checkpoints the update progress into persistent storage to allow this
   // update attempt to be resumed after reboot.
@@ -288,15 +307,14 @@ class DeltaPerformer : public FileWriter {
 
   DeltaArchiveManifest manifest_;
   bool manifest_valid_;
-  uint64_t manifest_metadata_size_;
+  uint64_t metadata_size_;
 
   // Index of the next operation to perform in the manifest.
   size_t next_operation_num_;
 
-  // buffer_ is a window of the data that's been downloaded. At first,
-  // it contains the beginning of the download, but after the protobuf
-  // has been downloaded and parsed, it contains a sliding window of
-  // data blobs.
+  // A buffer used for accumulating downloaded data. Initially, it stores the
+  // payload metadata; once that's downloaded and parsed, it stores data for the
+  // next update operation.
   std::vector<char> buffer_;
   // Offset of buffer_ in the binary blobs section of the update.
   uint64_t buffer_offset_;
