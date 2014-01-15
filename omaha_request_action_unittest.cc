@@ -1827,7 +1827,8 @@ void P2PTest(bool initial_allow_p2p_for_downloading,
   MockP2PManager mock_p2p_manager;
   mock_p2p_manager.fake().SetLookupUrlForFileResult(p2p_client_result_url);
 
-  EXPECT_CALL(mock_p2p_manager, LookupUrlForFile(_, _, _, _))
+  TimeDelta timeout = TimeDelta::FromSeconds(kMaxP2PNetworkWaitTimeSeconds);
+  EXPECT_CALL(mock_p2p_manager, LookupUrlForFile(_, _, timeout, _))
       .Times(expect_p2p_client_lookup ? 1 : 0);
 
   ASSERT_TRUE(

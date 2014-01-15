@@ -916,7 +916,7 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
     system_state_->p2p_manager()->LookupUrlForFile(
         file_id,
         minimum_size,
-        TimeDelta::FromHours(kMaxP2PNetworkWaitTimeSeconds),
+        TimeDelta::FromSeconds(kMaxP2PNetworkWaitTimeSeconds),
         base::Bind(&OmahaRequestAction::OnLookupPayloadViaP2PCompleted,
                    base::Unretained(this)));
   }
