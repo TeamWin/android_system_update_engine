@@ -281,28 +281,34 @@ void LogPartitionInfo(const DeltaArchiveManifest& manifest) {
 }  // namespace {}
 
 uint64_t DeltaPerformer::GetVersionOffset() {
- // Manifest size is stored right after the magic string and the version.
- return strlen(kDeltaMagic);
+  // Manifest size is stored right after the magic string and the version.
+  return strlen(kDeltaMagic);
 }
 
 uint64_t DeltaPerformer::GetManifestSizeOffset() {
- // Manifest size is stored right after the magic string and the version.
- return strlen(kDeltaMagic) + kDeltaVersionSize;
+  // Manifest size is stored right after the magic string and the version.
+  return strlen(kDeltaMagic) + kDeltaVersionSize;
 }
 
 uint64_t DeltaPerformer::GetManifestOffset() {
- // Actual manifest begins right after the manifest size field.
- return GetManifestSizeOffset() + kDeltaManifestSizeSize;
+  // Actual manifest begins right after the manifest size field.
+  return GetManifestSizeOffset() + kDeltaManifestSizeSize;
 }
 
 uint64_t DeltaPerformer::GetMetadataSize() const {
- return metadata_size_;
+  return metadata_size_;
+}
+
+bool DeltaPerformer::GetManifest(DeltaArchiveManifest* out_manifest_p) const {
+  if (!manifest_parsed_)
+    return false;
+  *out_manifest_p = manifest_;
+  return true;
 }
 
 
 DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     const std::vector<char>& payload,
-    DeltaArchiveManifest* manifest,
     ErrorCode* error) {
   *error = kErrorCodeSuccess;
   const uint64_t manifest_offset = GetManifestOffset();
@@ -400,13 +406,14 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     *error = kErrorCodeSuccess;
   }
 
-  // The metadata in |payload| is deemed valid. So, it's now safe to
-  // parse the protobuf.
-  if (!manifest->ParseFromArray(&payload[manifest_offset], manifest_size)) {
+  // The payload metadata is deemed valid, it's safe to parse the protobuf.
+  if (!manifest_.ParseFromArray(&payload[manifest_offset], manifest_size)) {
     LOG(ERROR) << "Unable to parse manifest in update file.";
     *error = kErrorCodeDownloadManifestParseError;
     return kMetadataParseError;
   }
+
+  manifest_parsed_ = true;
   return kMetadataParseSuccess;
 }
 
@@ -433,9 +440,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
                      (do_read_header ? GetManifestOffset() :
                       metadata_size_));
 
-    MetadataParseResult result = ParsePayloadMetadata(buffer_,
-                                                      &manifest_,
-                                                      error);
+    MetadataParseResult result = ParsePayloadMetadata(buffer_, error);
     if (result == kMetadataParseError)
       return false;
     if (result == kMetadataParseInsufficientData) {
@@ -449,13 +454,13 @@ bool DeltaPerformer::Write(const void* bytes, size_t count,
     // Checks the integrity of the payload manifest.
     if ((*error = ValidateManifest()) != kErrorCodeSuccess)
       return false;
+    manifest_valid_ = true;
 
     // Clear the download buffer.
-    DiscardBuffer();
+    DiscardBuffer(false);
     LOG_IF(WARNING, !prefs_->SetInt64(kPrefsManifestMetadataSize,
                                       metadata_size_))
         << "Unable to save the manifest metadata size.";
-    manifest_valid_ = true;
 
     LogPartitionInfo(manifest_);
     if (!PrimeUpdateState()) {
@@ -613,7 +618,7 @@ bool DeltaPerformer::PerformReplaceOperation(
   TEST_AND_RETURN_FALSE(writer->End());
 
   // Update buffer
-  DiscardBuffer();
+  DiscardBuffer(true);
   return true;
 }
 
@@ -750,7 +755,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
 
   // Update the buffer to release the patch data memory as soon as the patch
   // file is written out.
-  DiscardBuffer();
+  DiscardBuffer(true);
 
   int fd = is_kernel_partition ? kernel_fd_ : fd_;
   const string path = StringPrintf("/proc/self/fd/%d", fd);
@@ -1209,9 +1214,9 @@ bool DeltaPerformer::VerifySourcePartitions() {
   return true;
 }
 
-void DeltaPerformer::DiscardBuffer() {
+void DeltaPerformer::DiscardBuffer(bool do_advance_offset) {
   // Update the buffer offset.
-  if (manifest_valid_)
+  if (do_advance_offset)
     buffer_offset_ += buffer_.size();
 
   // Hash the content.

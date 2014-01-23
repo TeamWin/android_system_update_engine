@@ -62,6 +62,7 @@ class DeltaPerformer : public FileWriter {
         install_plan_(install_plan),
         fd_(-1),
         kernel_fd_(-1),
+        manifest_parsed_(false),
         manifest_valid_(false),
         metadata_size_(0),
         next_operation_num_(0),
@@ -151,20 +152,12 @@ class DeltaPerformer : public FileWriter {
   static bool ResetUpdateProgress(PrefsInterface* prefs, bool quick);
 
   // Attempts to parse the update metadata starting from the beginning of
-  // |payload| into |manifest|. On success, sets |*metadata_size_p| to the total
-  // metadata length in bytes (including the delta magic and metadata size
-  // fields), and returns kMetadataParseSuccess. Returns
+  // |payload|. On success, returns kMetadataParseSuccess. Returns
   // kMetadataParseInsufficientData if more data is needed to parse the complete
   // metadata. Returns kMetadataParseError if the metadata can't be parsed given
   // the payload.
-  //
-  // IMPORTANT! Reads the value of |*metadata_size_p| to determine whether the
-  // payload header (which includes the manifest length) was already processed.
-  // Therefore |*metadata_size_p| must be zero when it is first called.
-  MetadataParseResult ParsePayloadMetadata(
-      const std::vector<char>& payload,
-      DeltaArchiveManifest* manifest,
-      ErrorCode* error);
+  MetadataParseResult ParsePayloadMetadata(const std::vector<char>& payload,
+                                           ErrorCode* error);
 
   void set_public_key_path(const std::string& public_key_path) {
     public_key_path_ = public_key_path;
@@ -185,6 +178,10 @@ class DeltaPerformer : public FileWriter {
   // Returns the size of the payload metadata, which includes the payload header
   // and the manifest. Is the header was not yet parsed, returns zero.
   uint64_t GetMetadataSize() const;
+
+  // If the manifest was successfully parsed, copies it to |*out_manifest_p|.
+  // Returns true on success.
+  bool GetManifest(DeltaArchiveManifest* out_manifest_p) const;
 
  private:
   friend class DeltaPerformerTest;
@@ -264,8 +261,9 @@ class DeltaPerformer : public FileWriter {
       const DeltaArchiveManifest_InstallOperation& operation);
 
   // Updates the hash calculator with the bytes in |buffer_|. Then discard the
-  // content, ensuring that memory is being deallocated.
-  void DiscardBuffer();
+  // content, ensuring that memory is being deallocated. If |do_advance_offset|,
+  // advances the internal offset counter accordingly.
+  void DiscardBuffer(bool do_advance_offset);
 
   // Checkpoints the update progress into persistent storage to allow this
   // update attempt to be resumed after reboot.
@@ -306,6 +304,7 @@ class DeltaPerformer : public FileWriter {
   std::string kernel_path_;  // Path that kernel_fd_ refers to.
 
   DeltaArchiveManifest manifest_;
+  bool manifest_parsed_;
   bool manifest_valid_;
   uint64_t metadata_size_;
 

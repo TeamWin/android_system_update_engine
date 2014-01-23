@@ -920,14 +920,10 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
   EXPECT_TRUE(utils::FileExists(kUnittestPublicKeyPath));
   delta_performer.set_public_key_path(kUnittestPublicKeyPath);
 
-  // Parse the delta payload we created.
-  DeltaArchiveManifest manifest;
-
   // Init actual_error with an invalid value so that we make sure
   // ParsePayloadMetadata properly populates it in all cases.
   actual_error = kErrorCodeUmaReportedMax;
-  actual_result = delta_performer.ParsePayloadMetadata(payload, &manifest,
-                                                       &actual_error);
+  actual_result = delta_performer.ParsePayloadMetadata(payload, &actual_error);
 
   EXPECT_EQ(expected_result, actual_result);
   EXPECT_EQ(expected_error, actual_error);
