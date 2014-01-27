@@ -5,21 +5,18 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PM_RANDOM_PROVIDER_H
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_PM_RANDOM_PROVIDER_H
 
-#include "base/basictypes.h"
+#include "policy_manager/provider.h"
 
 namespace chromeos_policy_manager {
 
 // Provider of random values.
-class RandomProvider {
+class RandomProvider : public Provider {
  public:
   RandomProvider() {}
+  virtual ~RandomProvider();
 
-  // Initialize the provider variables and internal state. Returns whether it
-  // succeeded.
-  bool Init();
-
-  // Destroy all the provider variables in a best-effor approach.
-  void Finalize();
+ protected:
+  virtual bool DoInit();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(RandomProvider);

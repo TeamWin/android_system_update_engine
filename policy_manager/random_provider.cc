@@ -62,23 +62,19 @@ class RandomVariable : public Variable<uint64> {
 
 // RandomProvider implementation.
 
-bool RandomProvider::Init(void) {
-  // Check for double Init()
-  if (var_random_seed != NULL)
-    return false;
+RandomProvider::~RandomProvider(void) {
+  if (var_random_seed) {
+    delete var_random_seed;
+    var_random_seed = NULL;
+  }
+}
 
+bool RandomProvider::DoInit(void) {
   FILE* fp = fopen(kRandomDevice, "r");
   if (!fp)
     return false;
   var_random_seed = new RandomVariable(fp);
   return true;
-}
-
-void RandomProvider::Finalize(void) {
-  if (var_random_seed) {
-    delete var_random_seed;
-    var_random_seed = NULL;
-  }
 }
 
 }  // namespace chromeos_policy_manager

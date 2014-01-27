@@ -14,44 +14,47 @@ using std::string;
 
 namespace chromeos_policy_manager {
 
-class PMRandomProviderTest : public ::testing::Test {
+class PmRandomProviderTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     ASSERT_TRUE(var_random_seed == NULL);
-    EXPECT_TRUE(provider_.Init());
+    provider_ = new RandomProvider();
+    ASSERT_TRUE(provider_);
+    EXPECT_TRUE(provider_->Init());
   }
 
   virtual void TearDown() {
-    provider_.Finalize();
+    delete provider_;
+    provider_ = NULL;
     ASSERT_TRUE(var_random_seed == NULL);
   }
 
  private:
-  RandomProvider provider_;
+  RandomProvider* provider_;
 };
 
-TEST_F(PMRandomProviderTest, InitFinalize) {
+TEST_F(PmRandomProviderTest, InitFinalize) {
   // The provider should initialize the variable with a valid object.
   ASSERT_TRUE(var_random_seed != NULL);
 }
 
-TEST_F(PMRandomProviderTest, GetRandomValues) {
+TEST_F(PmRandomProviderTest, GetRandomValues) {
   string errmsg;
   scoped_ptr<const uint64> value(
       var_random_seed->GetValue(TimeDelta::FromSeconds(1.), &errmsg));
   ASSERT_TRUE(value != NULL);
 
-  bool returns_allways_the_same_value = true;
+  bool always_returns_the_same_value = true;
   // Test that at least the returned values are different. This test fails,
   // by design, once every 2^320 runs.
   for (int i = 0; i < 5; i++) {
     scoped_ptr<const uint64> other_value(
         var_random_seed->GetValue(TimeDelta::FromSeconds(1.), &errmsg));
     ASSERT_TRUE(other_value != NULL);
-    returns_allways_the_same_value = returns_allways_the_same_value &&
+    always_returns_the_same_value = always_returns_the_same_value &&
         *other_value == *value;
   }
-  EXPECT_FALSE(returns_allways_the_same_value);
+  EXPECT_FALSE(always_returns_the_same_value);
 }
 
 }  // namespace chromeos_policy_manager

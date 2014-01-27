@@ -6,6 +6,7 @@
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_PM_RANDOM_VARS_H
 
 #include "base/basictypes.h"
+
 #include "policy_manager/variable.h"
 
 namespace chromeos_policy_manager {

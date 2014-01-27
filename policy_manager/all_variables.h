@@ -7,11 +7,14 @@
 
 // List of globally available variables exposed by the different providers.
 //
-// Each state provider should implement a header file with the suffix "_vars.h"
-// with all the defined variable pointers, such as:
-//  Variable<MyType>* var_something;
-// This file includes all the different provider's header files with these
-// definitions.
+// Each state provider must implement a header file with the suffix "_vars.h",
+// which declares all the variables owned by this provider declared as extern
+// global pointers.
+//
+//   extern Variable<SomeType>* var_providername_variablename;
+//
+// This file is just an aggregate of all variable declarations
+// from the different providers.
 
 #include "policy_manager/random_vars.h"
 

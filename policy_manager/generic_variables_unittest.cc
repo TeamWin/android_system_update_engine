@@ -10,7 +10,7 @@ using std::string;
 
 namespace chromeos_policy_manager {
 
-TEST(PMCopyVariableTest, SimpleTest) {
+TEST(PmCopyVariableTest, SimpleTest) {
   int obj_int = 5;
 
   CopyVariable<int> var(obj_int);
@@ -45,7 +45,7 @@ class ConstructorTestClass {
   bool copied_;
 };
 
-TEST(PMCopyVariableTest, UseCopyConstructorTest) {
+TEST(PmCopyVariableTest, UseCopyConstructorTest) {
   ConstructorTestClass obj;
   ASSERT_FALSE(obj.copied_);
 
