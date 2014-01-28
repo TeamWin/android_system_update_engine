@@ -45,6 +45,8 @@ class Variable : public BaseVariable {
 
   friend class PmRealRandomProviderTest;
   FRIEND_TEST(PmRealRandomProviderTest, GetRandomValues);
+  friend class PmRealShillProviderTest;
+  FRIEND_TEST(PmRealShillProviderTest, DefaultValues);
 
   // Gets the current value of the variable. The current value is copied to a
   // new object and returned. The caller of this method owns the object and
