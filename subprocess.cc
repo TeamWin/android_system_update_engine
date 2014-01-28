@@ -127,7 +127,7 @@ uint32_t Subprocess::Exec(const vector<string>& cmd,
                           ExecCallback callback,
                           void* p) {
   GPid child_pid;
-  scoped_array<char*> argv(new char*[cmd.size() + 1]);
+  scoped_ptr<char*[]> argv(new char*[cmd.size() + 1]);
   for (unsigned int i = 0; i < cmd.size(); i++) {
     argv[i] = strdup(cmd[i].c_str());
     if (!argv[i]) {
@@ -195,7 +195,7 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
     *stdout = "";
   }
   GError* err = NULL;
-  scoped_array<char*> argv(new char*[cmd.size() + 1]);
+  scoped_ptr<char*[]> argv(new char*[cmd.size() + 1]);
   for (unsigned int i = 0; i < cmd.size(); i++) {
     argv[i] = strdup(cmd[i].c_str());
     if (!argv[i]) {
