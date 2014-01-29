@@ -6,6 +6,6 @@
 
 namespace chromeos_policy_manager {
 
-Variable<uint64>* var_random_seed = NULL;
+Variable<uint64_t>* var_random_seed = NULL;
 
 }  // namespace chromeos_policy_manager

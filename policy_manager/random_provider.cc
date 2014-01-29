@@ -7,6 +7,7 @@
 
 #include <base/file_path.h>
 #include <base/file_util.h>
+#include <base/stringprintf.h>
 
 #include "policy_manager/random_provider.h"
 
@@ -22,34 +23,33 @@ const char* kRandomDevice = "/dev/urandom";
 namespace chromeos_policy_manager {
 
 // The random variable class implementation.
-class RandomVariable : public Variable<uint64> {
+class RandomVariable : public Variable<uint64_t> {
  public:
   RandomVariable(FILE* fp) : fp_(fp) {}
   virtual ~RandomVariable() {}
 
  protected:
-  virtual const uint64* GetValue(base::TimeDelta /* timeout */,
-                                 string* errmsg) {
-    uint8 buf[sizeof(uint64)];
+  virtual const uint64_t* GetValue(base::TimeDelta /* timeout */,
+                                   string* errmsg) {
+    uint64_t result;
+    // Aliasing via char pointer abides by the C/C++ strict-aliasing rules.
+    char* const buf = reinterpret_cast<char*>(&result);
     unsigned int buf_rd = 0;
 
-    while (buf_rd < sizeof(uint64)) {
-      int rd = fread(buf + buf_rd, 1, sizeof(uint64) - buf_rd, fp_.get());
+    while (buf_rd < sizeof(result)) {
+      int rd = fread(buf + buf_rd, 1, sizeof(result) - buf_rd, fp_.get());
       if (rd == 0 || ferror(fp_.get())) {
         // Either EOF on fp or read failed.
-        if (errmsg)
-          *errmsg = string("Error reading from the random device: ")
-              + kRandomDevice;
+        if (errmsg) {
+          *errmsg = StringPrintf("Error reading from the random device: %s",
+                                 kRandomDevice);
+        }
         return NULL;
       }
       buf_rd += rd;
     }
-    // Convert the result to a uint64.
-    uint64 result = 0;
-    for (unsigned int i = 0; i < sizeof(uint64); ++i)
-      result = (result << 8) | buf[i];
 
-    return new uint64(result);
+    return new uint64_t(result);
   }
 
  private:

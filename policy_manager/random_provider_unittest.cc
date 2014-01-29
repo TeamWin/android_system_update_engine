@@ -40,7 +40,7 @@ TEST_F(PmRandomProviderTest, InitFinalize) {
 
 TEST_F(PmRandomProviderTest, GetRandomValues) {
   string errmsg;
-  scoped_ptr<const uint64> value(
+  scoped_ptr<const uint64_t> value(
       var_random_seed->GetValue(TimeDelta::FromSeconds(1.), &errmsg));
   ASSERT_TRUE(value != NULL);
 
@@ -48,7 +48,7 @@ TEST_F(PmRandomProviderTest, GetRandomValues) {
   // Test that at least the returned values are different. This test fails,
   // by design, once every 2^320 runs.
   for (int i = 0; i < 5; i++) {
-    scoped_ptr<const uint64> other_value(
+    scoped_ptr<const uint64_t> other_value(
         var_random_seed->GetValue(TimeDelta::FromSeconds(1.), &errmsg));
     ASSERT_TRUE(other_value != NULL);
     always_returns_the_same_value = always_returns_the_same_value &&
