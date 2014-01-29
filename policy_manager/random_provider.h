@@ -20,7 +20,7 @@ class RandomProvider : public Provider {
   virtual bool DoInit();
 
  private:
-  ScopedPtrVarCloser<typeof(var_random_seed)> seed_closer_;
+  DECLARE_VAR_CLOSER(seed_closer_, var_random_seed);
 
   DISALLOW_COPY_AND_ASSIGN(RandomProvider);
 };

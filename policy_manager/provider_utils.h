@@ -5,6 +5,16 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PROVIDER_UTILS_H
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PROVIDER_UTILS_H
 
+// Convenience macro for declaring policy variable closers.
+//
+// TODO(garnold) If/when we switch to C++11, this can already initialize the
+// closer with the variable's address and save us further work in the ctor.
+//
+// TODO(garnold) This is likely unnecessary once we introduce a non-template
+// variable base class.
+#define DECLARE_VAR_CLOSER(closer_name, var_name) \
+    ScopedPtrVarCloser<typeof(var_name)> closer_name
+
 namespace chromeos_policy_manager {
 
 // Scoped closer for a pointer variable. It is initialized with a reference to
