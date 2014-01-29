@@ -9,7 +9,6 @@
 #include <base/file_util.h>
 
 #include "policy_manager/random_provider.h"
-#include "policy_manager/random_vars.h"
 
 using std::string;
 
@@ -61,13 +60,6 @@ class RandomVariable : public Variable<uint64> {
 
 
 // RandomProvider implementation.
-
-RandomProvider::~RandomProvider(void) {
-  if (var_random_seed) {
-    delete var_random_seed;
-    var_random_seed = NULL;
-  }
-}
 
 bool RandomProvider::DoInit(void) {
   FILE* fp = fopen(kRandomDevice, "r");

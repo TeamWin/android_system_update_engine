@@ -39,8 +39,6 @@ class CopyVariable : public Variable<T> {
   // GetValue() method is called.
   CopyVariable(const T& ref) : ref_(ref) {};
 
-  virtual ~CopyVariable() {}
-
  protected:
   friend class PmCopyVariableTest;
   FRIEND_TEST(PmCopyVariableTest, SimpleTest);

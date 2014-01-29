@@ -12,7 +12,8 @@
 
 namespace chromeos_policy_manager {
 
-// Interface to a Policy Manager variable to be implemented by the providers.
+// Interface to a Policy Manager variable. Implementation internals are hidden
+// as protected members, since policies should not be using them directly.
 template<typename T>
 class Variable {
  public:

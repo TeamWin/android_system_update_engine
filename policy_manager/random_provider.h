@@ -6,19 +6,22 @@
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_PM_RANDOM_PROVIDER_H
 
 #include "policy_manager/provider.h"
+#include "policy_manager/provider_utils.h"
+#include "policy_manager/random_vars.h"
 
 namespace chromeos_policy_manager {
 
 // Provider of random values.
 class RandomProvider : public Provider {
  public:
-  RandomProvider() {}
-  virtual ~RandomProvider();
+  RandomProvider() : seed_closer_(&var_random_seed) {}
 
  protected:
   virtual bool DoInit();
 
  private:
+  ScopedPtrVarCloser<typeof(var_random_seed)> seed_closer_;
+
   DISALLOW_COPY_AND_ASSIGN(RandomProvider);
 };
 
