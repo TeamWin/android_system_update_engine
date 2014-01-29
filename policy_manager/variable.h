@@ -12,11 +12,30 @@
 
 namespace chromeos_policy_manager {
 
-// Interface to a Policy Manager variable. Implementation internals are hidden
-// as protected members, since policies should not be using them directly.
-template<typename T>
-class Variable {
+// This class is a base class with the common functionality that doesn't
+// deppend on the variable's type, implemented by all the variables.
+class BaseVariable {
  public:
+  BaseVariable(const std::string& name) : name_(name) {}
+  virtual ~BaseVariable() {}
+
+  // Returns the variable name as a string.
+  virtual const std::string& GetName() {
+    return name_;
+  }
+
+ private:
+  // The variable's name as a string.
+  const std::string name_;
+};
+
+// Interface to a Policy Manager variable of a given type. Implementation
+// internals are hidden as protected members, since policies should not be
+// using them directly.
+template<typename T>
+class Variable : public BaseVariable {
+ public:
+  Variable(const std::string& name) : BaseVariable(name) {}
   virtual ~Variable() {}
 
  protected:

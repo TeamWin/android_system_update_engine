@@ -25,7 +25,8 @@ namespace chromeos_policy_manager {
 // The random variable class implementation.
 class RandomVariable : public Variable<uint64_t> {
  public:
-  RandomVariable(FILE* fp) : fp_(fp) {}
+  RandomVariable(const string& name, FILE* fp)
+      : Variable<uint64_t>(name), fp_(fp) {}
   virtual ~RandomVariable() {}
 
  protected:
@@ -65,7 +66,7 @@ bool RandomProvider::DoInit(void) {
   FILE* fp = fopen(kRandomDevice, "r");
   if (!fp)
     return false;
-  var_random_seed = new RandomVariable(fp);
+  var_random_seed = new RandomVariable("random_seed", fp);
   return true;
 }
 

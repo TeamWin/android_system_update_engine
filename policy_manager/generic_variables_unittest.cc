@@ -13,7 +13,7 @@ namespace chromeos_policy_manager {
 TEST(PmCopyVariableTest, SimpleTest) {
   int obj_int = 5;
 
-  CopyVariable<int> var(obj_int);
+  CopyVariable<int> var("var", obj_int);
 
   string errmsg = "Nope";
 
@@ -50,7 +50,7 @@ TEST(PmCopyVariableTest, UseCopyConstructorTest) {
   ASSERT_FALSE(obj.copied_);
 
   string errmsg;
-  CopyVariable<ConstructorTestClass> var(obj);
+  CopyVariable<ConstructorTestClass> var("var", obj);
   const ConstructorTestClass* value =
       var.GetValue(TimeDelta::FromSeconds(1), &errmsg);
   EXPECT_NE(value, static_cast<void*>(NULL));

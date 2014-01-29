@@ -37,7 +37,8 @@ class CopyVariable : public Variable<T> {
   // Creates the variable returning copies of the passed |obj| reference. The
   // reference to this object is kept and it should be available whenever the
   // GetValue() method is called.
-  CopyVariable(const T& ref) : ref_(ref) {};
+  CopyVariable(const std::string& name, const T& ref)
+      : Variable<T>(name), ref_(ref) {}
 
  protected:
   friend class PmCopyVariableTest;

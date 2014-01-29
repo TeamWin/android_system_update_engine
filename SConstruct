@@ -334,6 +334,7 @@ unittest_sources = Split("""action_unittest.cc
                             payload_state_unittest.cc
                             policy_manager/generic_variables_unittest.cc
                             policy_manager/random_provider_unittest.cc
+                            policy_manager/variable_unittest.cc
                             postinstall_runner_action_unittest.cc
                             prefs_unittest.cc
                             simple_key_value_store_unittest.cc
