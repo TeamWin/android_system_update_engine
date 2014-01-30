@@ -10,6 +10,7 @@
 #include <base/stringprintf.h>
 
 #include "policy_manager/random_provider.h"
+#include "policy_manager/variable.h"
 
 using std::string;
 
@@ -54,9 +55,9 @@ class RandomSeedVariable : public Variable<uint64_t> {
   }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(RandomSeedVariable);
-
   file_util::ScopedFILE fp_;
+
+  DISALLOW_COPY_AND_ASSIGN(RandomSeedVariable);
 };
 
 
