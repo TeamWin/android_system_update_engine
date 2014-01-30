@@ -22,12 +22,12 @@ const char* kRandomDevice = "/dev/urandom";
 
 namespace chromeos_policy_manager {
 
-// The random variable class implementation.
-class RandomVariable : public Variable<uint64_t> {
+// A random seed variable.
+class RandomSeedVariable : public Variable<uint64_t> {
  public:
-  RandomVariable(const string& name, FILE* fp)
+  RandomSeedVariable(const string& name, FILE* fp)
       : Variable<uint64_t>(name), fp_(fp) {}
-  virtual ~RandomVariable() {}
+  virtual ~RandomSeedVariable() {}
 
  protected:
   virtual const uint64_t* GetValue(base::TimeDelta /* timeout */,
@@ -54,7 +54,7 @@ class RandomVariable : public Variable<uint64_t> {
   }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(RandomVariable);
+  DISALLOW_COPY_AND_ASSIGN(RandomSeedVariable);
 
   file_util::ScopedFILE fp_;
 };
@@ -66,7 +66,7 @@ bool RandomProvider::DoInit(void) {
   FILE* fp = fopen(kRandomDevice, "r");
   if (!fp)
     return false;
-  var_random_seed = new RandomVariable("random_seed", fp);
+  var_random_seed = new RandomSeedVariable("random_seed", fp);
   return true;
 }
 
