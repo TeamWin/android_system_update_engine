@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PM_RANDOM_VARS_H
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PM_RANDOM_VARS_H
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_VARS_H
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_VARS_H
 
 #include "policy_manager/variable.h"
 
@@ -17,4 +17,4 @@ extern Variable<uint64_t>* var_random_seed;
 
 }  // namespace chromeos_policy_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PM_RANDOM_VARS_H
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_VARS_H
