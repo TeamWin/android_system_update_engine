@@ -2,54 +2,48 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string>
-
 #include <base/memory/scoped_ptr.h>
+#include <base/time.h>
 #include <gtest/gtest.h>
 
-#include "policy_manager/random_provider.h"
-#include "policy_manager/random_vars.h"
 #include "policy_manager/pmtest_utils.h"
+#include "policy_manager/real_random_provider.h"
 
 using base::TimeDelta;
-using std::string;
 
 namespace chromeos_policy_manager {
 
-class PmRandomProviderTest : public ::testing::Test {
+class PmRealRandomProviderTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     default_timeout_ = TimeDelta::FromSeconds(1);
 
-    // All variables are initially null.
-    PMTEST_ASSERT_NULL(var_random_seed);
-
     // The provider initializes correctly.
-    provider_ = new RandomProvider();
-    PMTEST_ASSERT_NOT_NULL(provider_);
-    ASSERT_TRUE(provider_->Init());
+    random_ = new RealRandomProvider();
+    ASSERT_TRUE(random_ != NULL);
+    ASSERT_TRUE(random_->Init());
 
-    // The provider initializes all variables with valid objects.
-    PMTEST_EXPECT_NOT_NULL(var_random_seed);
+    (random_->seed());
   }
 
   virtual void TearDown() {
-    delete provider_;
-    provider_ = NULL;
-    PMTEST_EXPECT_NULL(var_random_seed);
+    delete random_;
+    random_ = NULL;
   }
 
   TimeDelta default_timeout_;
-
- private:
-  RandomProvider* provider_;
+  RealRandomProvider* random_;
 };
 
+TEST_F(PmRealRandomProviderTest, InitFinalize) {
+  // The provider initializes all variables with valid objects.
+  PMTEST_EXPECT_NOT_NULL(random_->seed());
+}
 
-TEST_F(PmRandomProviderTest, GetRandomValues) {
+TEST_F(PmRealRandomProviderTest, GetRandomValues) {
   // Should not return the same random seed repeatedly.
   scoped_ptr<const uint64_t> value(
-      var_random_seed->GetValue(default_timeout_, NULL));
+      random_->seed()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(value.get());
 
   // Test that at least the returned values are different. This test fails,
@@ -57,7 +51,7 @@ TEST_F(PmRandomProviderTest, GetRandomValues) {
   bool is_same_value = true;
   for (int i = 0; i < 5; i++) {
     scoped_ptr<const uint64_t> other_value(
-        var_random_seed->GetValue(default_timeout_, NULL));
+        random_->seed()->GetValue(default_timeout_, NULL));
     PMTEST_ASSERT_NOT_NULL(other_value.get());
     is_same_value = is_same_value && *other_value == *value;
   }

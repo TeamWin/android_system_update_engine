@@ -282,8 +282,7 @@ sources = Split("""action_processor.cc
                    p2p_manager.cc
                    payload_signer.cc
                    payload_state.cc
-                   policy_manager/random_provider.cc
-                   policy_manager/random_vars.cc
+                   policy_manager/real_random_provider.cc
                    postinstall_runner_action.cc
                    prefs.cc
                    proxy_resolver.cc
@@ -333,7 +332,7 @@ unittest_sources = Split("""action_unittest.cc
                             payload_signer_unittest.cc
                             payload_state_unittest.cc
                             policy_manager/generic_variables_unittest.cc
-                            policy_manager/random_provider_unittest.cc
+                            policy_manager/real_random_provider_unittest.cc
                             policy_manager/variable_unittest.cc
                             postinstall_runner_action_unittest.cc
                             prefs_unittest.cc

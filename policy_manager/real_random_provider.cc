@@ -9,7 +9,7 @@
 #include <base/file_util.h>
 #include <base/stringprintf.h>
 
-#include "policy_manager/random_provider.h"
+#include "policy_manager/real_random_provider.h"
 #include "policy_manager/variable.h"
 
 using std::string;
@@ -60,14 +60,11 @@ class RandomSeedVariable : public Variable<uint64_t> {
   DISALLOW_COPY_AND_ASSIGN(RandomSeedVariable);
 };
 
-
-// RandomProvider implementation.
-
-bool RandomProvider::DoInit(void) {
+bool RealRandomProvider::DoInit(void) {
   FILE* fp = fopen(kRandomDevice, "r");
   if (!fp)
     return false;
-  var_random_seed = new RandomSeedVariable("random_seed", fp);
+  seed_.reset(new RandomSeedVariable("random_seed", fp));
   return true;
 }
 

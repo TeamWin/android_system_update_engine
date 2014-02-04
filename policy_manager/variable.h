@@ -39,8 +39,8 @@ class Variable : public BaseVariable {
   virtual ~Variable() {}
 
  protected:
-  friend class PmRandomProviderTest;
-  FRIEND_TEST(PmRandomProviderTest, GetRandomValues);
+  friend class PmRealRandomProviderTest;
+  FRIEND_TEST(PmRealRandomProviderTest, GetRandomValues);
 
   // Gets the current value of the variable. The current value is copied to a
   // new object and returned. The caller of this method owns the object and
