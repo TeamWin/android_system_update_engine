@@ -31,7 +31,7 @@ class MockSystemState : public SystemState {
 
   virtual ~MockSystemState();
 
-  MOCK_METHOD0(IsOOBEComplete, bool());
+  MOCK_METHOD1(IsOOBEComplete, bool(base::Time*));
 
   MOCK_METHOD1(set_device_policy, void(const policy::DevicePolicy*));
   MOCK_CONST_METHOD0(device_policy, const policy::DevicePolicy*());

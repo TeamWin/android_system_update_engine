@@ -34,12 +34,15 @@ const char kPrefsDailyMetricsLastReportedAt[] =
     "daily-metrics-last-reported-at";
 const char kPrefsDeltaUpdateFailures[] = "delta-update-failures";
 const char kPrefsFullPayloadAttemptNumber[] = "full-payload-attempt-number";
+const char kPrefsInstallDateDays[] = "install-date-days";
 const char kPrefsLastActivePingDay[] = "last-active-ping-day";
 const char kPrefsLastRollCallPingDay[] = "last-roll-call-ping-day";
 const char kPrefsManifestMetadataSize[] = "manifest-metadata-size";
 const char kPrefsNumReboots[] = "num-reboots";
 const char kPrefsNumResponsesSeen[] = "num-responses-seen";
 const char kPrefsP2PEnabled[] = "p2p-enabled";
+const char kPrefsP2PFirstAttemptTimestamp[] = "p2p-first-attempt-timestamp";
+const char kPrefsP2PNumAttempts[] = "p2p-num-attempts";
 const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";
@@ -56,8 +59,8 @@ const char kPrefsUpdateFirstSeenAt[] = "update-first-seen-at";
 const char kPrefsUpdateOverCellularPermission[] =
     "update-over-cellular-permission";
 const char kPrefsUpdateServerCertificate[] = "update-server-cert";
-const char kPrefsUpdateStateNextDataOffset[] = "update-state-next-data-offset";
 const char kPrefsUpdateStateNextDataLength[] = "update-state-next-data-length";
+const char kPrefsUpdateStateNextDataOffset[] = "update-state-next-data-offset";
 const char kPrefsUpdateStateNextOperation[] = "update-state-next-operation";
 const char kPrefsUpdateStateSHA256Context[] = "update-state-sha-256-context";
 const char kPrefsUpdateStateSignatureBlob[] = "update-state-signature-blob";
@@ -66,7 +69,5 @@ const char kPrefsUpdateStateSignedSHA256Context[] =
 const char kPrefsUpdateTimestampStart[] = "update-timestamp-start";
 const char kPrefsUrlSwitchCount[] = "url-switch-count";
 const char kPrefsWallClockWaitPeriod[] = "wall-clock-wait-period";
-const char kPrefsP2PNumAttempts[] = "p2p-num-attempts";
-const char kPrefsP2PFirstAttemptTimestamp[] = "p2p-first-attempt-timestamp";
 
 }

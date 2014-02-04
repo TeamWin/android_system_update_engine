@@ -1128,6 +1128,27 @@ bool DecodeAndStoreBase64String(const std::string& base64_encoded,
   return true;
 }
 
+bool ConvertToOmahaInstallDate(base::Time time, int *out_num_days) {
+  time_t unix_time = time.ToTimeT();
+  // Output of: date +"%s" --date="Jan 1, 2007 0:00 PST".
+  const time_t kOmahaEpoch = 1167638400;
+  const int64_t kNumSecondsPerWeek = 7*24*3600;
+  const int64_t kNumDaysPerWeek = 7;
+
+  time_t omaha_time = unix_time - kOmahaEpoch;
+
+  if (omaha_time < 0)
+    return false;
+
+  // Note, as per the comment in utils.h we are deliberately not
+  // handling DST correctly.
+
+  int64_t num_weeks_since_omaha_epoch = omaha_time / kNumSecondsPerWeek;
+  *out_num_days = num_weeks_since_omaha_epoch * kNumDaysPerWeek;
+
+  return true;
+}
+
 }  // namespace utils
 
 }  // namespace chromeos_update_engine

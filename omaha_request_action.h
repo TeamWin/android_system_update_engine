@@ -143,6 +143,41 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   bool IsEvent() const { return event_.get() != NULL; }
 
  private:
+  FRIEND_TEST(OmahaRequestActionTest, GetInstallDate);
+
+  // Enumeration used in PersistInstallDate().
+  enum InstallDateProvisioningSource {
+    kProvisionedFromOmahaResponse,
+    kProvisionedFromOOBEMarker,
+
+    // kProvisionedMax is the count of the number of enums above. Add
+    // any new enums above this line only.
+    kProvisionedMax
+  };
+
+  // Gets the install date, expressed as the number of PST8PDT
+  // calendar weeks since January 1st 2007, times seven. Returns -1 if
+  // unknown. See http://crbug.com/336838 for details about this value.
+  static int GetInstallDate(SystemState* system_state);
+
+  // Parses the Omaha Response in |doc| and sets the
+  // |install_date_days| field of |output_object| to the value of the
+  // elapsed_days attribute of the daystart element. Returns True if
+  // the value was set, False if it wasn't found.
+  static bool ParseInstallDate(xmlDoc* doc,
+                               OmahaResponse* output_object);
+
+  // Returns True if the kPrefsInstallDateDays state variable is set,
+  // False otherwise.
+  static bool HasInstallDate(SystemState *system_state);
+
+  // Writes |install_date_days| into the kPrefsInstallDateDays state
+  // variable and emits an UMA stat for the |source| used. Returns
+  // True if the value was written, False if an error occurred.
+  static bool PersistInstallDate(SystemState *system_state,
+                                 int install_date_days,
+                                 InstallDateProvisioningSource source);
+
   // If this is an update check request, initializes
   // |ping_active_days_| and |ping_roll_call_days_| to values that may
   // be sent as pings to Omaha.

@@ -26,7 +26,7 @@ public:
   RealSystemState();
   virtual ~RealSystemState() {}
 
-  virtual bool IsOOBEComplete();
+  virtual bool IsOOBEComplete(base::Time* out_time_of_oobe);
 
   virtual inline void set_device_policy(
       const policy::DevicePolicy* device_policy) {

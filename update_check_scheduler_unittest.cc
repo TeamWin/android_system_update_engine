@@ -10,6 +10,7 @@
 #include "update_engine/update_attempter_mock.h"
 #include "update_engine/update_check_scheduler.h"
 
+using base::Time;
 using std::string;
 using testing::_;
 using testing::AllOf;
@@ -18,6 +19,7 @@ using testing::Ge;
 using testing::Le;
 using testing::MockFunction;
 using testing::Return;
+using testing::SetArgumentPointee;
 
 namespace chromeos_update_engine {
 
@@ -286,7 +288,9 @@ TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
   scheduler_.scheduled_ = true;
   EXPECT_TRUE(scheduler_.mock_system_state_ != NULL);
   EXPECT_CALL(*scheduler_.mock_system_state_,
-              IsOOBEComplete()).Times(1).WillOnce(Return(true));
+              IsOOBEComplete(_)).Times(1)
+              .WillOnce(DoAll(SetArgumentPointee<0>(Time::UnixEpoch()),
+                              Return(true)));
   EXPECT_CALL(attempter_, Update("", "", false, false, false))
       .Times(1)
       .WillOnce(Assign(&scheduler_.scheduled_, true));
@@ -298,7 +302,9 @@ TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBENotCompleteTest) {
   scheduler_.scheduled_ = true;
   EXPECT_CALL(*scheduler_.mock_system_state_,
-              IsOOBEComplete()).Times(1).WillOnce(Return(false));
+              IsOOBEComplete(_)).Times(1)
+              .WillOnce(DoAll(SetArgumentPointee<0>(Time::UnixEpoch()),
+                              Return(false)));
   EXPECT_CALL(attempter_, Update("", "", _, _, _)).Times(0);
   int interval_min, interval_max;
   FuzzRange(UpdateCheckScheduler::kTimeoutInitialInterval,

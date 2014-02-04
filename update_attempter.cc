@@ -478,11 +478,12 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
   }
 
   bool is_scatter_enabled = false;
+  base::Time time_oobe_complete;
   if (scatter_factor_.InSeconds() == 0) {
     LOG(INFO) << "Scattering disabled since scatter factor is set to 0";
   } else if (interactive) {
     LOG(INFO) << "Scattering disabled as this is an interactive update check";
-  } else if (!system_state_->IsOOBEComplete()) {
+  } else if (!system_state_->IsOOBEComplete(&time_oobe_complete)) {
     LOG(INFO) << "Scattering disabled since OOBE is not complete yet";
   } else {
     is_scatter_enabled = true;

@@ -37,12 +37,15 @@ extern const char kPrefsCurrentUrlIndex[];
 extern const char kPrefsDailyMetricsLastReportedAt[];
 extern const char kPrefsDeltaUpdateFailures[];
 extern const char kPrefsFullPayloadAttemptNumber[];
+extern const char kPrefsInstallDateDays[];
 extern const char kPrefsLastActivePingDay[];
 extern const char kPrefsLastRollCallPingDay[];
 extern const char kPrefsManifestMetadataSize[];
 extern const char kPrefsNumReboots[];
 extern const char kPrefsNumResponsesSeen[];
 extern const char kPrefsP2PEnabled[];
+extern const char kPrefsP2PFirstAttemptTimestamp[];
+extern const char kPrefsP2PNumAttempts[];
 extern const char kPrefsPayloadAttemptNumber[];
 extern const char kPrefsPreviousVersion[];
 extern const char kPrefsResumedUpdateFailures[];
@@ -58,8 +61,8 @@ extern const char kPrefsUpdateDurationUptime[];
 extern const char kPrefsUpdateFirstSeenAt[];
 extern const char kPrefsUpdateOverCellularPermission[];
 extern const char kPrefsUpdateServerCertificate[];
-extern const char kPrefsUpdateStateNextDataOffset[];
 extern const char kPrefsUpdateStateNextDataLength[];
+extern const char kPrefsUpdateStateNextDataOffset[];
 extern const char kPrefsUpdateStateNextOperation[];
 extern const char kPrefsUpdateStateSHA256Context[];
 extern const char kPrefsUpdateStateSignatureBlob[];
@@ -67,8 +70,6 @@ extern const char kPrefsUpdateStateSignedSHA256Context[];
 extern const char kPrefsUpdateTimestampStart[];
 extern const char kPrefsUrlSwitchCount[];
 extern const char kPrefsWallClockWaitPeriod[];
-extern const char kPrefsP2PNumAttempts[];
-extern const char kPrefsP2PFirstAttemptTimestamp[];
 
 // A download source is any combination of protocol and server (that's of
 // interest to us when looking at UMA metrics) using which we may download

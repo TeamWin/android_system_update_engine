@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include <base/file_util.h>
+#include <base/time.h>
 
+#include "update_engine/constants.h"
 #include "update_engine/real_system_state.h"
 #include "update_engine/utils.h"
 
@@ -68,8 +70,19 @@ bool RealSystemState::Initialize(bool enable_gpio) {
   return true;
 }
 
-bool RealSystemState::IsOOBEComplete() {
-  return file_util::PathExists(FilePath(kOOBECompletedMarker));
+bool RealSystemState::IsOOBEComplete(base::Time* out_time_of_oobe) {
+  struct stat statbuf;
+  if (stat(kOOBECompletedMarker, &statbuf) != 0) {
+    if (errno != ENOENT) {
+      PLOG(ERROR) << "Error getting information about "
+                  << kOOBECompletedMarker;
+    }
+    return false;
+  }
+
+  if (out_time_of_oobe != NULL)
+    *out_time_of_oobe = base::Time::FromTimeT(statbuf.st_mtime);
+  return true;
 }
 
 }  // namespace chromeos_update_engine

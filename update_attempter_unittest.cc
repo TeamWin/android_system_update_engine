@@ -942,7 +942,9 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   attempter_.prefs_ = &prefs;
 
   EXPECT_CALL(mock_system_state_,
-              IsOOBEComplete()).WillRepeatedly(Return(true));
+              IsOOBEComplete(_))
+              .WillRepeatedly(DoAll(SetArgumentPointee<0>(Time::UnixEpoch()),
+                                    Return(true)));
 
   string prefs_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
@@ -1007,7 +1009,9 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   attempter_.prefs_ = &prefs;
 
   EXPECT_CALL(mock_system_state_,
-              IsOOBEComplete()).WillRepeatedly(Return(true));
+              IsOOBEComplete(_))
+              .WillRepeatedly(DoAll(SetArgumentPointee<0>(Time::UnixEpoch()),
+                                    Return(true)));
 
   string prefs_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",

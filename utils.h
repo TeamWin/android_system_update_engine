@@ -350,6 +350,25 @@ bool IsXAttrSupported(const base::FilePath& dir_path);
 bool DecodeAndStoreBase64String(const std::string& base64_encoded,
                                 base::FilePath *out_path);
 
+// Converts |time| to an Omaha InstallDate which is defined as "the
+// number of PST8PDT calendar weeks since Jan 1st 2007 0:00 PST, times
+// seven" with PST8PDT defined as "Pacific Time" (e.g. UTC-07:00 if
+// daylight savings is observed and UTC-08:00 otherwise.)
+//
+// If the passed in |time| variable is before Monday January 1st 2007
+// 0:00 PST, False is returned and the value returned in
+// |out_num_days| is undefined. Otherwise the number of PST8PDT
+// calendar weeks since that date times seven is returned in
+// |out_num_days| and the function returns True.
+//
+// (NOTE: This function does not currently take daylight savings time
+// into account so the result may up to one hour off. This is because
+// the glibc date and timezone routines depend on the TZ environment
+// variable and changing environment variables is not thread-safe. An
+// alternative, thread-safe API to use would be GDateTime/GTimeZone
+// available in GLib 2.26 or later.)
+bool ConvertToOmahaInstallDate(base::Time time, int *out_num_days);
+
 }  // namespace utils
 
 

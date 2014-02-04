@@ -28,7 +28,8 @@ struct OmahaResponse {
         is_delta_payload(false),
         disable_payload_backoff(false),
         disable_p2p_for_downloading(false),
-        disable_p2p_for_sharing(false) {}
+        disable_p2p_for_sharing(false),
+        install_date_days(-1) {}
 
   // True iff there is an update to be downloaded.
   bool update_exists;
@@ -73,6 +74,11 @@ struct OmahaResponse {
   // If not blank, a base-64 encoded representation of the PEM-encoded
   // public key in the response.
   std::string public_key_rsa;
+
+  // If not -1, the number of days since the epoch Jan 1, 2007 0:00
+  // PST, according to the Omaha Server's clock and timezone (PST8PDT,
+  // aka "Pacific Time".)
+  int install_date_days;
 };
 COMPILE_ASSERT(sizeof(off_t) == 8, off_t_not_64bit);
 

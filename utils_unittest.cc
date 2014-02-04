@@ -410,4 +410,68 @@ TEST(UtilsTest, DecodeAndStoreBase64String) {
   EXPECT_EQ(utils::FileSize(path.value()), expected_contents.size());
 }
 
+TEST(UtilsTest, ConvertToOmahaInstallDate) {
+  // The Omaha Epoch starts at Jan 1, 2007 0:00 PST which is a
+  // Monday. In Unix time, this point in time is easily obtained via
+  // the date(1) command like this:
+  //
+  //  $ date +"%s" --date="Jan 1, 2007 0:00 PST"
+  const time_t omaha_epoch = 1167638400;
+  int value;
+
+  // Points in time *on and after* the Omaha epoch should not fail.
+  EXPECT_TRUE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(omaha_epoch), &value));
+  EXPECT_GE(value, 0);
+
+  // Anything before the Omaha epoch should fail. We test it for two points.
+  EXPECT_FALSE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(omaha_epoch - 1), &value));
+  EXPECT_FALSE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(omaha_epoch - 100*24*3600), &value));
+
+  // Check that we jump from 0 to 7 exactly on the one-week mark, e.g.
+  // on Jan 8, 2007 0:00 PST.
+  EXPECT_TRUE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(omaha_epoch + 7*24*3600 - 1), &value));
+  EXPECT_EQ(value, 0);
+  EXPECT_TRUE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(omaha_epoch + 7*24*3600), &value));
+  EXPECT_EQ(value, 7);
+
+  // Check a couple of more values.
+  EXPECT_TRUE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(omaha_epoch + 10*24*3600), &value));
+  EXPECT_EQ(value, 7);
+  EXPECT_TRUE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(omaha_epoch + 20*24*3600), &value));
+  EXPECT_EQ(value, 14);
+  EXPECT_TRUE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(omaha_epoch + 26*24*3600), &value));
+  EXPECT_EQ(value, 21);
+  EXPECT_TRUE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(omaha_epoch + 29*24*3600), &value));
+  EXPECT_EQ(value, 28);
+
+  // The date Jun 4, 2007 0:00 PDT is a Monday and is hence a point
+  // where the Omaha InstallDate jumps 7 days. Its unix time is
+  // 1180940400. Notably, this is a point in time where Daylight
+  // Savings Time (DST) was is in effect (e.g. it's PDT, not PST).
+  //
+  // Note that as utils::ConvertToOmahaInstallDate() _deliberately_
+  // ignores DST (as it's hard to implement in a thread-safe way using
+  // glibc, see comments in utils.h) we have to fudge by the DST
+  // offset which is one hour. Conveniently, if the function were
+  // someday modified to be DST aware, this test would have to be
+  // modified as well.
+  const time_t dst_time = 1180940400; // Jun 4, 2007 0:00 PDT.
+  const time_t fudge = 3600;
+  int value1, value2;
+  EXPECT_TRUE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(dst_time + fudge - 1), &value1));
+  EXPECT_TRUE(utils::ConvertToOmahaInstallDate(
+      base::Time::FromTimeT(dst_time + fudge), &value2));
+  EXPECT_EQ(value1, value2 - 7);
+}
+
 }  // namespace chromeos_update_engine

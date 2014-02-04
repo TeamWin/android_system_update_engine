@@ -82,12 +82,15 @@ string GetUpdateResponse2(const string& app_id,
                           const string& size,
                           const string& deadline,
                           const string& max_days_to_scatter,
+                          const string& elapsed_days,
                           bool disable_p2p_for_downloading,
                           bool disable_p2p_for_sharing) {
   string response =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
       "protocol=\"3.0\">"
-      "<daystart elapsed_seconds=\"100\"/>"
+      "<daystart elapsed_seconds=\"100\"" +
+      (elapsed_days.empty() ? "" : (" elapsed_days=\"" + elapsed_days + "\"")) +
+      "/>"
       "<app appid=\"" + app_id + "\" status=\"ok\">"
       "<ping status=\"ok\"/><updatecheck status=\"ok\">"
       "<urls><url codebase=\"" + codebase + "\"/></urls>"
@@ -132,6 +135,7 @@ string GetUpdateResponse(const string& app_id,
                             size,
                             deadline,
                             "7",
+                            "42", // elapsed_days
                             false,  // disable_p2p_for_downloading
                             false); // disable_p2p_for sharing
 }
@@ -415,6 +419,7 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -442,6 +447,7 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -487,6 +493,7 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -532,6 +539,7 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
                                          "123",  // size
                                          "",  // deadline
                                          "0", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -578,6 +586,7 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -627,6 +636,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -658,6 +668,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -705,6 +716,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -738,6 +750,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -1297,6 +1310,8 @@ TEST(OmahaRequestActionTest, PingTest) {
         (Time::Now() - TimeDelta::FromHours(5 * 24 + 13)).ToInternalValue();
     int64_t six_days_ago =
         (Time::Now() - TimeDelta::FromHours(6 * 24 + 11)).ToInternalValue();
+    EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
+        .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
     EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
         .WillOnce(DoAll(SetArgumentPointee<1>(six_days_ago), Return(true)));
     EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
@@ -1331,6 +1346,8 @@ TEST(OmahaRequestActionTest, ActivePingTest) {
   int64_t three_days_ago =
       (Time::Now() - TimeDelta::FromHours(3 * 24 + 12)).ToInternalValue();
   int64_t now = Time::Now().ToInternalValue();
+  EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(three_days_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
@@ -1357,6 +1374,8 @@ TEST(OmahaRequestActionTest, RollCallPingTest) {
   int64_t four_days_ago =
       (Time::Now() - TimeDelta::FromHours(4 * 24)).ToInternalValue();
   int64_t now = Time::Now().ToInternalValue();
+  EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
@@ -1382,6 +1401,8 @@ TEST(OmahaRequestActionTest, NoPingTest) {
   NiceMock<PrefsMock> prefs;
   int64_t one_hour_ago =
       (Time::Now() - TimeDelta::FromHours(1)).ToInternalValue();
+  EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(one_hour_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
@@ -1433,6 +1454,8 @@ TEST(OmahaRequestActionTest, BackInTimePingTest) {
   NiceMock<PrefsMock> prefs;
   int64_t future =
       (Time::Now() + TimeDelta::FromHours(3 * 24 + 4)).ToInternalValue();
+  EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(future), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
@@ -1616,6 +1639,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -1647,6 +1671,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -1694,6 +1719,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          false,  // disable_p2p_for_downloading
                                          false), // disable_p2p_for sharing
                       -1,
@@ -1847,6 +1873,7 @@ void P2PTest(bool initial_allow_p2p_for_downloading,
                                          "123",  // size
                                          "",  // deadline
                                          "7", // max days to scatter
+                                         "42", // elapsed_days
                                          omaha_disable_p2p_for_downloading,
                                          omaha_disable_p2p_for_sharing),
                       -1,
@@ -1946,6 +1973,160 @@ TEST(OmahaRequestActionTest, P2PWithPeerBothDisabledByOmaha) {
           false,                 // expected_allow_p2p_for_downloading
           false,                 // expected_allow_p2p_for_sharing
           "");                   // expected_p2p_url
+}
+
+bool InstallDateParseHelper(const std::string &elapsed_days,
+                            PrefsInterface* prefs,
+                            OmahaResponse *response) {
+  return
+      TestUpdateCheck(prefs,
+                      NULL,    // payload_state
+                      NULL,    // p2p_manager
+                      kDefaultTestParams,
+                      GetUpdateResponse2(OmahaRequestParams::kAppId,
+                                         "1.2.3.4",  // version
+                                         "http://more/info",
+                                         "true",  // prompt
+                                         "http://code/base/",  // dl url
+                                         "file.signed", // file name
+                                         "HASH1234=",  // checksum
+                                         "false",  // needs admin
+                                         "123",  // size
+                                         "",  // deadline
+                                         "7", // max days to scatter
+                                         elapsed_days,
+                                         false,  // disable_p2p_for_downloading
+                                         false), // disable_p2p_for sharing
+                      -1,
+                      false,  // ping_only
+                      kErrorCodeSuccess,
+                      response,
+                      NULL);
+}
+
+TEST(OmahaRequestActionTest, ParseInstallDateFromResponse) {
+  OmahaResponse response;
+  string temp_dir;
+  Prefs prefs;
+  EXPECT_TRUE(utils::MakeTempDirectory("ParseInstallDateFromResponse.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+
+  // Check that we parse elapsed_days in the Omaha Response correctly.
+  // and that the kPrefsInstallDateDays value is written to.
+  EXPECT_FALSE(prefs.Exists(kPrefsInstallDateDays));
+  EXPECT_TRUE(InstallDateParseHelper("42", &prefs, &response));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(42, response.install_date_days);
+  EXPECT_TRUE(prefs.Exists(kPrefsInstallDateDays));
+  int64_t prefs_days;
+  EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
+  EXPECT_EQ(prefs_days, 42);
+
+  // If there already is a value set, we shouldn't do anything.
+  EXPECT_TRUE(InstallDateParseHelper("7", &prefs, &response));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(7, response.install_date_days);
+  EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
+  EXPECT_EQ(prefs_days, 42);
+
+  // Note that elapsed_days is not necessarily divisible by 7 so check
+  // that we round down correctly when populating kPrefsInstallDateDays.
+  EXPECT_TRUE(prefs.Delete(kPrefsInstallDateDays));
+  EXPECT_TRUE(InstallDateParseHelper("23", &prefs, &response));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(23, response.install_date_days);
+  EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
+  EXPECT_EQ(prefs_days, 21);
+
+  // Check that we correctly handle elapsed_days not being included in
+  // the Omaha Response.
+  EXPECT_TRUE(InstallDateParseHelper("", &prefs, &response));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(-1, response.install_date_days);
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(OmahaRequestActionTest, GetInstallDate) {
+  string temp_dir;
+  Prefs prefs;
+  EXPECT_TRUE(utils::MakeTempDirectory("GetInstallDate.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(FilePath(temp_dir));
+
+  // If there is no prefs and OOBE is not complete, we should not
+  // report anything to Omaha.
+  {
+    NiceMock<MockSystemState> system_state;
+    system_state.set_prefs(&prefs);
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), -1);
+    EXPECT_FALSE(prefs.Exists(kPrefsInstallDateDays));
+  }
+
+  // If OOBE is complete and happened on a valid date (e.g. after Jan
+  // 1 2007 0:00 PST), that date should be used and written to
+  // prefs. However, first try with an invalid date and check we do
+  // nothing.
+  {
+    NiceMock<MockSystemState> system_state;
+    system_state.set_prefs(&prefs);
+
+    Time oobe_date = Time::FromTimeT(42); // Dec 31, 1969 16:00:42 PST.
+    EXPECT_CALL(system_state,
+                IsOOBEComplete(_))
+                .WillRepeatedly(DoAll(SetArgumentPointee<0>(oobe_date),
+                                      Return(true)));
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), -1);
+    EXPECT_FALSE(prefs.Exists(kPrefsInstallDateDays));
+  }
+
+  // Then check with a valid date. The date Jan 20, 2007 0:00 PST
+  // should yield an InstallDate of 14.
+  {
+    NiceMock<MockSystemState> system_state;
+    system_state.set_prefs(&prefs);
+
+    Time oobe_date = Time::FromTimeT(1169280000); // Jan 20, 2007 0:00 PST.
+    EXPECT_CALL(system_state,
+                IsOOBEComplete(_))
+                .WillRepeatedly(DoAll(SetArgumentPointee<0>(oobe_date),
+                                      Return(true)));
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), 14);
+    EXPECT_TRUE(prefs.Exists(kPrefsInstallDateDays));
+
+    int64_t prefs_days;
+    EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
+    EXPECT_EQ(prefs_days, 14);
+  }
+
+  // Now that we have a valid date in prefs, check that we keep using
+  // that even if OOBE date reports something else. The date Jan 30,
+  // 2007 0:00 PST should yield an InstallDate of 28... but since
+  // there's a prefs file, we should still get 14.
+  {
+    NiceMock<MockSystemState> system_state;
+    system_state.set_prefs(&prefs);
+
+    Time oobe_date = Time::FromTimeT(1170144000); // Jan 30, 2007 0:00 PST.
+    EXPECT_CALL(system_state,
+                IsOOBEComplete(_))
+                .WillRepeatedly(DoAll(SetArgumentPointee<0>(oobe_date),
+                                      Return(true)));
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), 14);
+
+    int64_t prefs_days;
+    EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
+    EXPECT_EQ(prefs_days, 14);
+
+    // If we delete the prefs file, we should get 28 days.
+    EXPECT_TRUE(prefs.Delete(kPrefsInstallDateDays));
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), 28);
+    EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
+    EXPECT_EQ(prefs_days, 28);
+  }
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 }  // namespace chromeos_update_engine

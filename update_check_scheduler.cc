@@ -93,7 +93,8 @@ gboolean UpdateCheckScheduler::StaticCheck(void* scheduler) {
 
   bool is_test_mode = false;
   GpioHandler* gpio_handler = me->system_state_->gpio_handler();
-  if (me->system_state_->IsOOBEComplete() ||
+  base::Time time_oobe_complete;
+  if (me->system_state_->IsOOBEComplete(&time_oobe_complete) ||
       (is_test_mode = (!me->is_test_update_attempted_ &&
                        gpio_handler->IsTestModeSignaled()))) {
     if (is_test_mode) {

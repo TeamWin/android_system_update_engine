@@ -183,6 +183,7 @@ string GetAppXml(const OmahaEvent* event,
                  bool ping_only,
                  int ping_active_days,
                  int ping_roll_call_days,
+                 int install_date_in_days,
                  SystemState* system_state) {
   string app_body = GetAppBody(event, params, ping_only, ping_active_days,
                                ping_roll_call_days, system_state->prefs());
@@ -208,6 +209,14 @@ string GetAppXml(const OmahaEvent* event,
 
   string delta_okay_str = params->delta_okay() ? "true" : "false";
 
+  // If install_date_days is not set (e.g. its value is -1 ), don't
+  // include the attribute.
+  string install_date_in_days_str = "";
+  if (install_date_in_days >= 0) {
+    install_date_in_days_str = StringPrintf("installdate=\"%d\" ",
+                                            install_date_in_days);
+  }
+
   string app_xml =
       "    <app appid=\"" + XmlEncode(params->GetAppId()) + "\" " +
                 app_versions +
@@ -218,6 +227,7 @@ string GetAppXml(const OmahaEvent* event,
                 "delta_okay=\"" + delta_okay_str + "\" "
                 "fw_version=\"" + XmlEncode(params->fw_version()) + "\" " +
                 "ec_version=\"" + XmlEncode(params->ec_version()) + "\" " +
+                install_date_in_days_str +
                 ">\n" +
                    app_body +
       "    </app>\n";
@@ -243,10 +253,12 @@ string GetRequestXml(const OmahaEvent* event,
                      bool ping_only,
                      int ping_active_days,
                      int ping_roll_call_days,
+                     int install_date_in_days,
                      SystemState* system_state) {
   string os_xml = GetOsXml(params);
   string app_xml = GetAppXml(event, params, ping_only, ping_active_days,
-                             ping_roll_call_days, system_state);
+                             ping_roll_call_days, install_date_in_days,
+                             system_state);
 
   string install_source = StringPrintf("installsource=\"%s\" ",
       (params->interactive() ? "ondemandupdate" : "scheduler"));
@@ -330,6 +342,70 @@ void OmahaRequestAction::InitPingDays() {
   ping_roll_call_days_ = CalculatePingDays(kPrefsLastRollCallPingDay);
 }
 
+// static
+int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
+  PrefsInterface* prefs = system_state->prefs();
+  if (prefs == NULL)
+    return -1;
+
+  // If we have the value stored on disk, just return it.
+  int64_t stored_value;
+  if (prefs->GetInt64(kPrefsInstallDateDays, &stored_value)) {
+    // Convert and sanity-check.
+    int install_date_days = static_cast<int>(stored_value);
+    if (install_date_days >= 0)
+      return install_date_days;
+    LOG(ERROR) << "Dropping stored Omaha InstallData since its value num_days="
+               << install_date_days << " looks suspicious.";
+    prefs->Delete(kPrefsInstallDateDays);
+  }
+
+  // Otherwise, if OOBE is not complete then do nothing and wait for
+  // ParseResponse() to call ParseInstallDate() and then
+  // PersistInstallDate() to set the kPrefsInstallDateDays state
+  // variable. Once that is done, we'll then report back in future
+  // Omaha requests.  This works exactly because OOBE triggers an
+  // update check.
+  //
+  // However, if OOBE is complete and the kPrefsInstallDateDays state
+  // variable is not set, there are two possibilities
+  //
+  //   1. The update check in OOBE failed so we never got a response
+  //      from Omaha (no network etc.); or
+  //
+  //   2. OOBE was done on an older version that didn't write to the
+  //      kPrefsInstallDateDays state variable.
+  //
+  // In both cases, we approximate the install date by simply
+  // inspecting the timestamp of when OOBE happened.
+
+  Time time_of_oobe;
+  if (!system_state->IsOOBEComplete(&time_of_oobe)) {
+    LOG(INFO) << "Not generating Omaha InstallData as we have "
+              << "no prefs file and OOBE is not complete.";
+    return -1;
+  }
+
+  int num_days;
+  if (!utils::ConvertToOmahaInstallDate(time_of_oobe, &num_days)) {
+    LOG(ERROR) << "Not generating Omaha InstallData from time of OOBE "
+               << "as its value '" << utils::ToString(time_of_oobe)
+               << "' looks suspicious.";
+    return -1;
+  }
+
+  // Persist this to disk, for future use.
+  if (!OmahaRequestAction::PersistInstallDate(system_state,
+                                              num_days,
+                                              kProvisionedFromOOBEMarker))
+    return -1;
+
+  LOG(INFO) << "Set the Omaha InstallDate from OOBE time-stamp to "
+            << num_days << " days";
+
+  return num_days;
+}
+
 void OmahaRequestAction::PerformAction() {
   http_fetcher_->set_delegate(this);
   InitPingDays();
@@ -339,11 +415,13 @@ void OmahaRequestAction::PerformAction() {
     processor_->ActionComplete(this, kErrorCodeSuccess);
     return;
   }
+
   string request_post(GetRequestXml(event_.get(),
                                     params_,
                                     ping_only_,
                                     ping_active_days_,
                                     ping_roll_call_days_,
+                                    GetInstallDate(system_state_),
                                     system_state_));
 
   http_fetcher_->SetPostData(request_post.data(), request_post.size(),
@@ -482,6 +560,25 @@ bool OmahaRequestAction::ParseResponse(xmlDoc* doc,
   // there's no update.
   base::StringToInt(XmlGetProperty(update_check_node, "PollInterval"),
                     &output_object->poll_interval);
+
+  // Check for the "elapsed_days" attribute in the "daystart"
+  // element. This is the number of days since Jan 1 2007, 0:00
+  // PST. If we don't have a persisted value of the Omaha InstallDate,
+  // we'll use it to calculate it and then persist it.
+  if (ParseInstallDate(doc, output_object) && !HasInstallDate(system_state_)) {
+    // Since output_object->install_date_days is never negative, the
+    // elapsed_days -> install-date calculation is reduced to simply
+    // rounding down to the nearest number divisible by 7.
+    int remainder = output_object->install_date_days % 7;
+    int install_date_days_rounded =
+        output_object->install_date_days - remainder;
+    if (PersistInstallDate(system_state_,
+                           install_date_days_rounded,
+                           kProvisionedFromOmahaResponse)) {
+      LOG(INFO) << "Set the Omaha InstallDate from Omaha Response to "
+                << install_date_days_rounded << " days";
+    }
+  }
 
   if (!ParseStatus(update_check_node, output_object, completer))
     return false;
@@ -1133,6 +1230,67 @@ bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
             << update_check_count_value
             << " update checks per policy";
   return false;
+}
+
+// static
+bool OmahaRequestAction::ParseInstallDate(xmlDoc* doc,
+                                          OmahaResponse* output_object) {
+  scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
+      xpath_nodeset(GetNodeSet(doc, ConstXMLStr("/response/daystart")));
+
+  if (xpath_nodeset.get() == NULL)
+    return false;
+
+  xmlNodeSet* nodeset = xpath_nodeset->nodesetval;
+  if (nodeset == NULL || nodeset->nodeNr < 1)
+    return false;
+
+  xmlNode* daystart_node = nodeset->nodeTab[0];
+  if (!xmlHasProp(daystart_node, ConstXMLStr("elapsed_days")))
+    return false;
+
+  int64_t elapsed_days = 0;
+  if (!base::StringToInt64(XmlGetProperty(daystart_node, "elapsed_days"),
+                           &elapsed_days))
+    return false;
+
+  if (elapsed_days < 0)
+    return false;
+
+  output_object->install_date_days = elapsed_days;
+  return true;
+}
+
+// static
+bool OmahaRequestAction::HasInstallDate(SystemState *system_state) {
+  PrefsInterface* prefs = system_state->prefs();
+  if (prefs == NULL)
+    return false;
+
+  return prefs->Exists(kPrefsInstallDateDays);
+}
+
+// static
+bool OmahaRequestAction::PersistInstallDate(
+    SystemState *system_state,
+    int install_date_days,
+    InstallDateProvisioningSource source) {
+  TEST_AND_RETURN_FALSE(install_date_days >= 0);
+
+  PrefsInterface* prefs = system_state->prefs();
+  if (prefs == NULL)
+    return false;
+
+  if (!prefs->SetInt64(kPrefsInstallDateDays, install_date_days))
+    return false;
+
+  string metric_name = "Installer.InstallDateProvisioningSource";
+  system_state->metrics_lib()->SendEnumToUMA(
+      metric_name,
+      static_cast<int>(source), // Sample.
+      kProvisionedMax);         // Maximum.
+
+  return true;
 }
 
 }  // namespace chromeos_update_engine
