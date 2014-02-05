@@ -39,6 +39,10 @@ class Variable : public BaseVariable {
   virtual ~Variable() {}
 
  protected:
+  // Only allow to get values through the EvaluationContext class and not
+  // directly from the variable.
+  friend class EvaluationContext;
+
   friend class PmRealRandomProviderTest;
   FRIEND_TEST(PmRealRandomProviderTest, GetRandomValues);
 
