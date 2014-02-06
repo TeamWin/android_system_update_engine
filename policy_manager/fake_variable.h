@@ -7,7 +7,7 @@
 
 #include <base/memory/scoped_ptr.h>
 
-#include "policy_manager/variable.h"
+#include "update_engine/policy_manager/variable.h"
 
 namespace chromeos_policy_manager {
 

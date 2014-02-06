@@ -9,8 +9,8 @@
 #include <base/file_util.h>
 #include <base/stringprintf.h>
 
-#include "policy_manager/real_random_provider.h"
-#include "policy_manager/variable.h"
+#include "update_engine/policy_manager/real_random_provider.h"
+#include "update_engine/policy_manager/variable.h"
 
 using std::string;
 

@@ -6,8 +6,8 @@
 #include <base/time.h>
 #include <gtest/gtest.h>
 
-#include "policy_manager/pmtest_utils.h"
-#include "policy_manager/real_random_provider.h"
+#include "update_engine/policy_manager/pmtest_utils.h"
+#include "update_engine/policy_manager/real_random_provider.h"
 
 using base::TimeDelta;
 

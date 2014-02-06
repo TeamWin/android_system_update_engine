@@ -5,8 +5,8 @@
 #include <base/memory/scoped_ptr.h>
 #include <gtest/gtest.h>
 
-#include "policy_manager/generic_variables.h"
-#include "policy_manager/pmtest_utils.h"
+#include "update_engine/policy_manager/generic_variables.h"
+#include "update_engine/policy_manager/pmtest_utils.h"
 
 using base::TimeDelta;
 

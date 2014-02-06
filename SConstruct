@@ -193,7 +193,6 @@ env['CCFLAGS'] = ' '.join("""-g
                              -D__STDC_FORMAT_MACROS=1
                              -D_FILE_OFFSET_BITS=64
                              -D_POSIX_C_SOURCE=199309L
-                             -I.
                              -I/usr/include/libxml2""".split());
 env['CCFLAGS'] += (' ' + ' '.join(env['CFLAGS']))
 

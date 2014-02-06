@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "policy_manager/variable.h"
+#include "update_engine/policy_manager/variable.h"
 
 using std::string;
 

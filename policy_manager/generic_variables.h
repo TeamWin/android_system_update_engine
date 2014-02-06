@@ -9,7 +9,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H
 
-#include "policy_manager/variable.h"
+#include "update_engine/policy_manager/variable.h"
 
 namespace chromeos_policy_manager {
 
