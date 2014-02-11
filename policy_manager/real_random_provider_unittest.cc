@@ -19,20 +19,15 @@ class PmRealRandomProviderTest : public ::testing::Test {
     default_timeout_ = TimeDelta::FromSeconds(1);
 
     // The provider initializes correctly.
-    random_ = new RealRandomProvider();
-    ASSERT_TRUE(random_ != NULL);
+    random_.reset(new RealRandomProvider());
+    PMTEST_ASSERT_NOT_NULL(random_.get());
     ASSERT_TRUE(random_->Init());
 
-    (random_->seed());
-  }
-
-  virtual void TearDown() {
-    delete random_;
-    random_ = NULL;
+    random_->seed();
   }
 
   TimeDelta default_timeout_;
-  RealRandomProvider* random_;
+  scoped_ptr<RealRandomProvider> random_;
 };
 
 TEST_F(PmRealRandomProviderTest, InitFinalize) {
