@@ -8,7 +8,6 @@
 #include <gflags/gflags.h>
 #include <glib.h>
 
-#include "update_engine/marshal.glibmarshal.h"
 #include "update_engine/dbus_constants.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
@@ -166,7 +165,7 @@ void WatchForUpdates() {
 
   // Register marshaller
   dbus_g_object_register_marshaller(
-      update_engine_VOID__INT64_DOUBLE_STRING_STRING_INT64,
+      NULL,
       G_TYPE_NONE,
       G_TYPE_INT64,
       G_TYPE_DOUBLE,

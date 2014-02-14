@@ -17,8 +17,6 @@
 /app.info
 /delta_generator
 /html/
-/marshal.glibmarshal.c
-/marshal.glibmarshal.h
 /test_http_server
 /update_engine
 /update_engine.dbusclient.h

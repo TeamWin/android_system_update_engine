@@ -14,7 +14,6 @@
 #include "update_engine/connection_manager.h"
 #include "update_engine/dbus_constants.h"
 #include "update_engine/hardware_interface.h"
-#include "update_engine/marshal.glibmarshal.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/prefs.h"
@@ -100,7 +99,7 @@ static void update_engine_service_class_init(UpdateEngineServiceClass* klass) {
       0,  // 0 == no class method associated
       NULL,  // Accumulator
       NULL,  // Accumulator data
-      update_engine_VOID__INT64_DOUBLE_STRING_STRING_INT64,
+      NULL,  // Marshaller
       G_TYPE_NONE,  // Return type
       5,  // param count:
       G_TYPE_INT64,

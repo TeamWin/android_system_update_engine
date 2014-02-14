@@ -79,46 +79,6 @@ dbus_bindings_builder = Builder(generator = DbusBindingsGenerator,
                                 single_source = 1,
                                 suffix = 'dbusclient.h')
 
-def GlibMarshalEmitter(target, source, env):
-  """ Inputs:
-          target: unused
-          source: list containing the source .list file
-          env: the scons environment in which we are compiling
-      Outputs:
-          target: the list of targets we'll emit
-          source: the list of sources we'll process"""
-  output = str(source[0])
-  output = output[0:output.rfind('.list')]
-  target = [
-    output + '.glibmarshal.c',
-    output + '.glibmarshal.h'
-  ]
-  return target, source
-
-def GlibMarshalGenerator(source, target, env, for_signature):
-  """ Inputs:
-          source: list of sources to process
-          target: list of targets to generate
-          env: scons environment in which we are working
-          for_signature: unused
-      Outputs: a list of commands to execute to generate the targets from
-               the sources."""
-  commands = []
-  for target_file in target:
-    if str(target_file).endswith('.glibmarshal.h'):
-      mode_flag = '--header '
-    else:
-      mode_flag = '--body '
-    cmd = '/usr/bin/glib-genmarshal %s --prefix=update_engine ' \
-          '%s > %s' % (mode_flag, str(source[0]), str(target_file))
-    commands.append(cmd)
-  return commands
-
-glib_marshal_builder = Builder(generator = GlibMarshalGenerator,
-                               emitter = GlibMarshalEmitter,
-                               single_source = 1,
-                               suffix = 'glibmarshal.c')
-
 # Public key generation
 def PublicKeyEmitter(target, source, env):
   """ Inputs:
@@ -214,7 +174,6 @@ env['LIBS'] = Split("""bz2
 env['CPPPATH'] = ['..']
 env['BUILDERS']['ProtocolBuffer'] = proto_builder
 env['BUILDERS']['DbusBindings'] = dbus_bindings_builder
-env['BUILDERS']['GlibMarshal'] = glib_marshal_builder
 env['BUILDERS']['PublicKey'] = public_key_builder
 
 # Fix issue with scons not passing pkg-config vars through the environment.
@@ -232,8 +191,6 @@ env.PublicKey('unittest_key.pub.pem', 'unittest_key.pem')
 env.PublicKey('unittest_key2.pub.pem', 'unittest_key2.pem')
 
 env.DbusBindings('update_engine.dbusclient.h', 'update_engine.xml')
-
-env.GlibMarshal('marshal.glibmarshal.c', 'marshal.list')
 
 if ARGUMENTS.get('debug', 0):
   env['CCFLAGS'] += ['-fprofile-arcs', '-ftest-coverage']
@@ -268,7 +225,6 @@ sources = Split("""action_processor.cc
                    hwid_override.cc
                    install_plan.cc
                    libcurl_http_fetcher.cc
-                   marshal.glibmarshal.c
                    metadata.cc
                    multi_range_http_fetcher.cc
                    omaha_hash_calculator.cc
@@ -362,10 +318,9 @@ all_sources.extend(delta_generator_main)
 for source in all_sources:
   if source.endswith('_unittest.cc'):
     env.Depends(source, 'unittest_key.pub.pem')
-  if source.endswith('.glibmarshal.c') or source.endswith('.pb.cc'):
+  if source.endswith('.pb.cc'):
     continue
   env.Depends(source, 'update_metadata.pb.cc')
-  env.Depends(source, 'marshal.glibmarshal.c')
   env.Depends(source, 'update_engine.dbusclient.h')
 
 update_engine_core = env.Library('update_engine_core', sources)
