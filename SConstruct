@@ -136,12 +136,14 @@ env['LINKFLAGS'] = env.get('LDFLAGS', '')
 env['CCFLAGS'] = ' '.join("""-g
                              -fno-exceptions
                              -fno-strict-aliasing
+                             -std=gnu++11
                              -Wall
                              -Wclobbered
                              -Wempty-body
                              -Werror
                              -Wignored-qualifiers
                              -Wmissing-field-initializers
+                             -Wno-deprecated-register
                              -Wno-format
                              -Wsign-compare
                              -Wtype-limits
@@ -190,7 +192,9 @@ env.ProtocolBuffer('update_metadata.pb.cc', 'update_metadata.proto')
 env.PublicKey('unittest_key.pub.pem', 'unittest_key.pem')
 env.PublicKey('unittest_key2.pub.pem', 'unittest_key2.pem')
 
-env.DbusBindings('update_engine.dbusclient.h', 'update_engine.xml')
+# Target name is derived from the source .xml filename. The passed name is
+# unused.
+env.DbusBindings(None, 'update_engine.xml')
 
 if ARGUMENTS.get('debug', 0):
   env['CCFLAGS'] += ['-fprofile-arcs', '-ftest-coverage']
