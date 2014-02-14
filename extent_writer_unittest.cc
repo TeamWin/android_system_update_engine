@@ -40,7 +40,7 @@ class ExtentWriterTest : public ::testing::Test {
   }
   int fd() { return fd_; }
   const char* path() { return path_; }
-  
+
   // Writes data to an extent writer in 'chunk_size' chunks with
   // the first chunk of size first_chunk_size. It calculates what the
   // resultant file should look like and ensure that the extent writer

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,8 +14,8 @@
 
 namespace chromeos_update_engine {
 namespace simple_key_value_store {
-  
-// Parses a string. 
+
+// Parses a string.
 std::map<std::string, std::string> ParseString(const std::string& str);
 
 std::string AssembleString(const std::map<std::string, std::string>& data);
