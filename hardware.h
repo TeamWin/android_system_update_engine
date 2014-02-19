@@ -14,8 +14,7 @@ namespace chromeos_update_engine {
 // Implements the real interface with the hardware.
 class Hardware : public HardwareInterface {
  public:
-  Hardware();
-  virtual ~Hardware();
+  Hardware() {}
 
   // HardwareInterface methods.
   virtual const std::string BootKernelDevice();
