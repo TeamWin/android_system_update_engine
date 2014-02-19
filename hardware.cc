@@ -20,6 +20,7 @@ const char* progname = "";
 const char* command = "";
 void (*uuid_generator)(uint8_t* buffer) = NULL;
 
+#include "update_engine/hwid_override.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
 
@@ -27,6 +28,10 @@ using std::string;
 using std::vector;
 
 namespace chromeos_update_engine {
+
+Hardware::Hardware() {}
+
+Hardware::~Hardware() {}
 
 const string Hardware::BootKernelDevice() {
   return utils::KernelDeviceOfBootDevice(Hardware::BootDevice());
@@ -128,6 +133,9 @@ static string ReadValueFromCrosSystem(const string& key) {
 }
 
 string Hardware::GetHardwareClass() {
+  if (USE_HWID_OVERRIDE) {
+    return HwidOverride::Read(base::FilePath("/"));
+  }
   return ReadValueFromCrosSystem("hwid");
 }
 
