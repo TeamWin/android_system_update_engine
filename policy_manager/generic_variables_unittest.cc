@@ -25,7 +25,7 @@ class PmCopyVariableTest : public ::testing::Test {
 TEST_F(PmCopyVariableTest, SimpleTest) {
   // Tests that copies are generated as intended.
   int source = 5;
-  CopyVariable<int> var("var", source);
+  CopyVariable<int> var("var", kVariableModePoll, source);
 
   // Generate and validate a copy.
   scoped_ptr<const int> copy_1(var.GetValue(default_timeout_, NULL));
@@ -61,7 +61,7 @@ TEST_F(PmCopyVariableTest, UseCopyConstructorTest) {
   const CopyConstructorTestClass source;
   ASSERT_FALSE(source.copied_);
 
-  CopyVariable<CopyConstructorTestClass> var("var", source);
+  CopyVariable<CopyConstructorTestClass> var("var", kVariableModePoll, source);
   scoped_ptr<const CopyConstructorTestClass> copy(
       var.GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(copy.get());

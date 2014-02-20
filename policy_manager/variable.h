@@ -12,21 +12,53 @@
 
 namespace chromeos_policy_manager {
 
+// The VariableMode specifies important behavior of the variable in terms of
+// whether, how and when the value of the variable changes.
+enum VariableMode {
+  // Const variables never changes during the life of a policy request, so the
+  // EvaluationContext caches the value even between different evaluations of
+  // the same policy request.
+  kVariableModeConst,
+
+  // Poll variables, or synchronous variables, represent a variable with a value
+  // that can be queried at any time, but it is not known when the value
+  // changes on the source of information. In order to detect if the value of
+  // the variable changes, it has to be queried again.
+  kVariableModePoll,
+
+  // Async variables are able to produce a signal or callback whenever the
+  // value changes. This means that it's not required to poll the value to
+  // detect when it changes, instead, you should register an observer to get
+  // a notification when that happens.
+  kVariableModeAsync,
+};
+
 // This class is a base class with the common functionality that doesn't
 // deppend on the variable's type, implemented by all the variables.
 class BaseVariable {
  public:
-  BaseVariable(const std::string& name) : name_(name) {}
   virtual ~BaseVariable() {}
 
   // Returns the variable name as a string.
-  virtual const std::string& GetName() {
+  const std::string& GetName() const {
     return name_;
   }
+
+  // Returns the variable mode.
+  VariableMode GetMode() const {
+    return mode_;
+  }
+
+ protected:
+  BaseVariable(const std::string& name, VariableMode mode)
+      : name_(name), mode_(mode) {}
 
  private:
   // The variable's name as a string.
   const std::string name_;
+
+  // The variable's mode.
+  const VariableMode mode_;
 };
 
 // Interface to a Policy Manager variable of a given type. Implementation
@@ -35,7 +67,6 @@ class BaseVariable {
 template<typename T>
 class Variable : public BaseVariable {
  public:
-  Variable(const std::string& name) : BaseVariable(name) {}
   virtual ~Variable() {}
 
  protected:
@@ -47,6 +78,9 @@ class Variable : public BaseVariable {
   FRIEND_TEST(PmRealRandomProviderTest, GetRandomValues);
   friend class PmRealShillProviderTest;
   FRIEND_TEST(PmRealShillProviderTest, DefaultValues);
+
+  Variable(const std::string& name, VariableMode mode)
+      : BaseVariable(name, mode) {}
 
   // Gets the current value of the variable. The current value is copied to a
   // new object and returned. The caller of this method owns the object and

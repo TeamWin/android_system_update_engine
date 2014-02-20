@@ -13,11 +13,14 @@ bool RealShillProvider::DoInit(void) {
   // TODO(garnold) Initialize with actual (or fake) DBus connection.
 
   var_is_connected_.reset(
-      new CopyVariable<bool>("is_connected", is_connected_));
+      new CopyVariable<bool>("is_connected", kVariableModeAsync,
+                             is_connected_));
   var_conn_type_.reset(
-      new CopyVariable<ShillConnType>("conn_type", conn_type_));
+      new CopyVariable<ShillConnType>("conn_type", kVariableModeAsync,
+                                      conn_type_));
   var_conn_last_changed_.reset(
-      new CopyVariable<Time>("conn_last_changed", conn_last_changed_));
+      new CopyVariable<Time>("conn_last_changed", kVariableModeAsync,
+                             conn_last_changed_));
   return true;
 }
 

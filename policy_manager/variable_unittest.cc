@@ -14,7 +14,8 @@ namespace chromeos_policy_manager {
 template <typename T>
 class DefaultVariable : public Variable<T> {
  public:
-  DefaultVariable(const string& name) : Variable<T>(name) {}
+  DefaultVariable(const string& name, VariableMode mode)
+      : Variable<T>(name, mode) {}
   virtual ~DefaultVariable() {}
 
  protected:
@@ -28,8 +29,15 @@ class DefaultVariable : public Variable<T> {
 };
 
 TEST(PmBaseVariableTest, GetNameTest) {
-  DefaultVariable<int> var("var");
+  DefaultVariable<int> var("var", kVariableModeConst);
   EXPECT_EQ(var.GetName(), string("var"));
+}
+
+TEST(PmBaseVariableTest, GetModeTest) {
+  DefaultVariable<int> var("var", kVariableModeConst);
+  EXPECT_EQ(var.GetMode(), kVariableModeConst);
+  DefaultVariable<int> other_var("other_var", kVariableModePoll);
+  EXPECT_EQ(other_var.GetMode(), kVariableModePoll);
 }
 
 }  // namespace chromeos_policy_manager

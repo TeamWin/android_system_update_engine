@@ -26,8 +26,11 @@ namespace chromeos_policy_manager {
 // A random seed variable.
 class RandomSeedVariable : public Variable<uint64_t> {
  public:
+  // RandomSeedVariable is initialized as kVariableModeConst to let the
+  // EvaluationContext cache the value between different evaluations of the same
+  // policy request.
   RandomSeedVariable(const string& name, FILE* fp)
-      : Variable<uint64_t>(name), fp_(fp) {}
+      : Variable<uint64_t>(name, kVariableModeConst), fp_(fp) {}
   virtual ~RandomSeedVariable() {}
 
  protected:

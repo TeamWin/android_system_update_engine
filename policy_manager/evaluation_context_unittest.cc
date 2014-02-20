@@ -17,7 +17,7 @@ namespace chromeos_policy_manager {
 
 class PmEvaluationContextTest : public ::testing::Test {
  public:
-  PmEvaluationContextTest() : fake_int_var_("fake_int") {}
+  PmEvaluationContextTest() : fake_int_var_("fake_int", kVariableModePoll) {}
 
  protected:
   virtual void SetUp() {
@@ -75,7 +75,7 @@ TEST_F(PmEvaluationContextTest, GetValueDontCacheNULL) {
 }
 
 TEST_F(PmEvaluationContextTest, GetValueMixedTypes) {
-  FakeVariable<string> fake_string_var_("fake_string");
+  FakeVariable<string> fake_string_var_("fake_string", kVariableModePoll);
   const int* p_fake_int;
   const string* p_fake_string;
 

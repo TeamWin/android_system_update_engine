@@ -16,7 +16,8 @@ namespace chromeos_policy_manager {
 template<typename T>
 class FakeVariable : public Variable<T> {
  public:
-  explicit FakeVariable(const std::string& name) : Variable<T>(name) {}
+  explicit FakeVariable(const std::string& name, VariableMode mode)
+      : Variable<T>(name, mode) {}
   virtual ~FakeVariable() {}
 
   // Sets the next value of this variable to the passed |p_value| pointer. Once
