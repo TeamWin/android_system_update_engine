@@ -15,20 +15,20 @@ namespace chromeos_update_engine {
 class Hardware : public HardwareInterface {
  public:
   Hardware();
-  virtual ~Hardware();
+  virtual ~Hardware() override;
 
   // HardwareInterface methods.
-  virtual const std::string BootKernelDevice();
-  virtual const std::string BootDevice();
-  virtual std::vector<std::string> GetKernelDevices() override;
+  virtual std::string BootKernelDevice() const override;
+  virtual std::string BootDevice() const override;
+  virtual std::vector<std::string> GetKernelDevices() const override;
   virtual bool IsKernelBootable(const std::string& kernel_device,
-                                bool* bootable);
-  virtual bool MarkKernelUnbootable(const std::string& kernel_device);
-  virtual bool IsOfficialBuild();
-  virtual bool IsNormalBootMode();
-  virtual std::string GetHardwareClass();
-  virtual std::string GetFirmwareVersion();
-  virtual std::string GetECVersion();
+                                bool* bootable) const override;
+  virtual bool MarkKernelUnbootable(const std::string& kernel_device) override;
+  virtual bool IsOfficialBuild() const override;
+  virtual bool IsNormalBootMode() const override;
+  virtual std::string GetHardwareClass() const override;
+  virtual std::string GetFirmwareVersion() const override;
+  virtual std::string GetECVersion() const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Hardware);

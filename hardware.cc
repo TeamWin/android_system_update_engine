@@ -33,11 +33,11 @@ Hardware::Hardware() {}
 
 Hardware::~Hardware() {}
 
-const string Hardware::BootKernelDevice() {
+string Hardware::BootKernelDevice() const {
   return utils::KernelDeviceOfBootDevice(Hardware::BootDevice());
 }
 
-const string Hardware::BootDevice() {
+string Hardware::BootDevice() const {
   char boot_path[PATH_MAX];
   // Resolve the boot device path fully, including dereferencing
   // through dm-verity.
@@ -55,7 +55,7 @@ const string Hardware::BootDevice() {
 }
 
 bool Hardware::IsKernelBootable(const std::string& kernel_device,
-                                bool* bootable) {
+                                bool* bootable) const {
   CgptAddParams params;
   memset(&params, '\0', sizeof(params));
 
@@ -76,7 +76,7 @@ bool Hardware::IsKernelBootable(const std::string& kernel_device,
   return true;
 }
 
-std::vector<std::string> Hardware::GetKernelDevices() {
+std::vector<std::string> Hardware::GetKernelDevices() const {
   LOG(INFO) << "GetAllKernelDevices";
 
   std::string disk_name = utils::GetDiskName(Hardware::BootKernelDevice());
@@ -138,11 +138,11 @@ bool Hardware::MarkKernelUnbootable(const std::string& kernel_device) {
   return true;
 }
 
-bool Hardware::IsOfficialBuild() {
+bool Hardware::IsOfficialBuild() const {
   return VbGetSystemPropertyInt("debug_build") == 0;
 }
 
-bool Hardware::IsNormalBootMode() {
+bool Hardware::IsNormalBootMode() const {
   bool dev_mode = VbGetSystemPropertyInt("devsw_boot") != 0;
   LOG_IF(INFO, dev_mode) << "Booted in dev mode.";
   return !dev_mode;
@@ -163,24 +163,21 @@ static string ReadValueFromCrosSystem(const string& key) {
   return "";
 }
 
-string Hardware::GetHardwareClass() {
+string Hardware::GetHardwareClass() const {
   if (USE_HWID_OVERRIDE) {
     return HwidOverride::Read(base::FilePath("/"));
   }
   return ReadValueFromCrosSystem("hwid");
 }
 
-string Hardware::GetFirmwareVersion() {
+string Hardware::GetFirmwareVersion() const {
   return ReadValueFromCrosSystem("fwid");
 }
 
-string Hardware::GetECVersion() {
+string Hardware::GetECVersion() const {
   string input_line;
   int exit_code = 0;
-  vector<string> cmd(1, "/usr/sbin/mosys");
-  cmd.push_back("-k");
-  cmd.push_back("ec");
-  cmd.push_back("info");
+  vector<string> cmd = {"/usr/sbin/mosys", "-k", "ec", "info"};
 
   bool success = Subprocess::SynchronousExec(cmd, &exit_code, &input_line);
   if (!success || exit_code) {

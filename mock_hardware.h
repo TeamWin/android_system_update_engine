@@ -51,18 +51,18 @@ public:
   virtual ~MockHardware() {}
 
   // Hardware overrides.
-  MOCK_METHOD0(BootKernelDevice, const std::string());
-  MOCK_METHOD0(BootDevice, const std::string());
-  MOCK_METHOD0(GetKernelDevices, std::vector<std::string>());
-  MOCK_METHOD2(IsKernelBootable,
+  MOCK_CONST_METHOD0(BootKernelDevice, std::string());
+  MOCK_CONST_METHOD0(BootDevice, std::string());
+  MOCK_CONST_METHOD0(GetKernelDevices, std::vector<std::string>());
+  MOCK_CONST_METHOD2(IsKernelBootable,
                bool(const std::string& kernel_device, bool* bootable));
   MOCK_METHOD1(MarkKernelUnbootable,
                bool(const std::string& kernel_device));
-  MOCK_METHOD0(IsOfficialBuild, bool());
-  MOCK_METHOD0(IsNormalBootMode, bool());
-  MOCK_METHOD0(GetHardwareClass, std::string());
-  MOCK_METHOD0(GetFirmwareVersion, std::string());
-  MOCK_METHOD0(GetECVersion, std::string());
+  MOCK_CONST_METHOD0(IsOfficialBuild, bool());
+  MOCK_CONST_METHOD0(IsNormalBootMode, bool());
+  MOCK_CONST_METHOD0(GetHardwareClass, std::string());
+  MOCK_CONST_METHOD0(GetFirmwareVersion, std::string());
+  MOCK_CONST_METHOD0(GetECVersion, std::string());
 
   // Returns a reference to the underlying FakeHardware.
   FakeHardware& fake() {
