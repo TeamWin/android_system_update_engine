@@ -202,12 +202,16 @@ TEST(UtilsTest, TempFilenameTest) {
   EXPECT_FALSE(utils::StringHasSuffix(result, "XXXXXX"));
 }
 
-TEST(UtilsTest, RootDeviceTest) {
-  EXPECT_EQ("/dev/sda", utils::RootDevice("/dev/sda3"));
-  EXPECT_EQ("/dev/mmc0", utils::RootDevice("/dev/mmc0p3"));
-  EXPECT_EQ("", utils::RootDevice("/dev/foo/bar"));
-  EXPECT_EQ("", utils::RootDevice("/"));
-  EXPECT_EQ("", utils::RootDevice(""));
+TEST(UtilsTest, GetDiskNameTest) {
+  EXPECT_EQ("/dev/sda", utils::GetDiskName("/dev/sda3"));
+  EXPECT_EQ("/dev/sda", utils::GetDiskName("/dev/sda1234"));
+  EXPECT_EQ("/dev/mmcblk0", utils::GetDiskName("/dev/mmcblk0p3"));
+  EXPECT_EQ("", utils::GetDiskName("/dev/mmcblk0p"));
+  EXPECT_EQ("", utils::GetDiskName("/dev/sda"));
+  EXPECT_EQ("", utils::GetDiskName("/dev/ubiblock3_2"));
+  EXPECT_EQ("", utils::GetDiskName("/dev/foo/bar"));
+  EXPECT_EQ("", utils::GetDiskName("/"));
+  EXPECT_EQ("", utils::GetDiskName(""));
 }
 
 TEST(UtilsTest, SysfsBlockDeviceTest) {
@@ -224,9 +228,16 @@ TEST(UtilsTest, IsRemovableDeviceTest) {
   EXPECT_FALSE(utils::IsRemovableDevice("/dev/non-existent-device"));
 }
 
-TEST(UtilsTest, PartitionNumberTest) {
-  EXPECT_EQ("3", utils::PartitionNumber("/dev/sda3"));
-  EXPECT_EQ("3", utils::PartitionNumber("/dev/mmc0p3"));
+TEST(UtilsTest, GetPartitionNumberTest) {
+  EXPECT_EQ(3, utils::GetPartitionNumber("/dev/sda3"));
+  EXPECT_EQ(123, utils::GetPartitionNumber("/dev/sda123"));
+  EXPECT_EQ(2, utils::GetPartitionNumber("/dev/mmcblk0p2"));
+  EXPECT_EQ(0, utils::GetPartitionNumber("/dev/mmcblk0p"));
+  EXPECT_EQ(0, utils::GetPartitionNumber("/dev/ubiblock3_2"));
+  EXPECT_EQ(0, utils::GetPartitionNumber(""));
+  EXPECT_EQ(0, utils::GetPartitionNumber("/"));
+  EXPECT_EQ(0, utils::GetPartitionNumber("/dev/"));
+  EXPECT_EQ(0, utils::GetPartitionNumber("/dev/sda"));
 }
 
 TEST(UtilsTest, CompareCpuSharesTest) {

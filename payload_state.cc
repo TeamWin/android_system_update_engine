@@ -1166,13 +1166,13 @@ void PayloadState::ReportFailedBootIfNeeded() {
   // payload was marked as ready immediately before the last reboot, and we
   // need to check if such payload successfully rebooted or not.
   if (prefs_->Exists(kPrefsTargetVersionInstalledFrom)) {
-    string installed_from;
-    if (!prefs_->GetString(kPrefsTargetVersionInstalledFrom, &installed_from)) {
+    int64_t installed_from = 0;
+    if (!prefs_->GetInt64(kPrefsTargetVersionInstalledFrom, &installed_from)) {
       LOG(ERROR) << "Error reading TargetVersionInstalledFrom on reboot.";
       return;
     }
-    if (installed_from ==
-        utils::PartitionNumber(system_state_->hardware()->BootDevice())) {
+    if (int(installed_from) ==
+        utils::GetPartitionNumber(system_state_->hardware()->BootDevice())) {
       // A reboot was pending, but the chromebook is again in the same
       // BootDevice where the update was installed from.
       int64_t target_attempt;
@@ -1221,8 +1221,8 @@ void PayloadState::ExpectRebootInNewVersion(const string& target_version_uid) {
   }
   prefs_->SetInt64(kPrefsTargetVersionAttempt, target_attempt + 1);
 
-  prefs_->SetString(kPrefsTargetVersionInstalledFrom,
-                    utils::PartitionNumber(
+  prefs_->SetInt64(kPrefsTargetVersionInstalledFrom,
+                    utils::GetPartitionNumber(
                         system_state_->hardware()->BootDevice()));
 }
 

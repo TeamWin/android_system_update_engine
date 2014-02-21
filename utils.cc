@@ -368,31 +368,78 @@ bool RecursiveUnlinkDir(const std::string& path) {
   return true;
 }
 
-string RootDevice(const string& partition_device) {
-  FilePath device_path(partition_device);
-  if (device_path.DirName().value() != "/dev") {
-    return "";
-  }
-  string::const_iterator it = --partition_device.end();
-  for (; it >= partition_device.begin(); --it) {
-    if (!isdigit(*it))
-      break;
-  }
-  // Some devices contain a p before the partitions. For example:
-  // /dev/mmc0p4 should be shortened to /dev/mmc0.
-  if (*it == 'p')
-    --it;
-  return string(partition_device.begin(), it + 1);
+std::string GetDiskName(const string& partition_name) {
+  std::string disk_name;
+  return SplitPartitionName(partition_name, &disk_name, nullptr) ?
+         disk_name : std::string();
 }
 
-string PartitionNumber(const string& partition_device) {
-  CHECK(!partition_device.empty());
-  string::const_iterator it = --partition_device.end();
-  for (; it >= partition_device.begin(); --it) {
-    if (!isdigit(*it))
-      break;
+int GetPartitionNumber(const std::string& partition_name) {
+  int partition_num = 0;
+  return SplitPartitionName(partition_name, nullptr, &partition_num) ?
+      partition_num : 0;
+}
+
+bool SplitPartitionName(const std::string& partition_name,
+                        std::string* out_disk_name,
+                        int* out_partition_num) {
+  if (!StringHasPrefix(partition_name, "/dev/")) {
+    LOG(ERROR) << "Invalid partition device name: " << partition_name;
+    return false;
   }
-  return string(it + 1, partition_device.end());
+
+  if (StringHasPrefix(partition_name, "/dev/ubiblock")) {
+    // NAND block devices have weird naming which could be something
+    // like "/dev/ubiblock2_0". Since update engine doesn't have proper
+    // support for NAND devices yet, don't bother parsing their names for now.
+    LOG(ERROR) << "UBI block devices are not supported: " << partition_name;
+    return false;
+  }
+
+  size_t pos = partition_name.find_last_not_of("0123456789");
+  if (pos == string::npos || (pos + 1) == partition_name.size()) {
+    LOG(ERROR) << "Unable to parse partition device name: "
+               << partition_name;
+    return false;
+  }
+
+  if (out_disk_name) {
+    // Special case for MMC devices which have the following naming scheme:
+    // mmcblk0p2
+    bool valid_mmc_device = StringHasPrefix(partition_name, "/dev/mmcblk") &&
+                            partition_name[pos] == 'p';
+    *out_disk_name =
+        partition_name.substr(0, valid_mmc_device ? pos : (pos + 1));
+  }
+
+  if (out_partition_num) {
+    std::string partition_str = partition_name.substr(pos + 1);
+    *out_partition_num = atoi(partition_str.c_str());
+  }
+  return true;
+}
+
+std::string MakePartitionName(const std::string& disk_name,
+                              int partition_num) {
+  if (!StringHasPrefix(disk_name, "/dev/")) {
+    LOG(ERROR) << "Invalid disk name: " << disk_name;
+    return std::string();
+  }
+
+  if (partition_num < 1) {
+    LOG(ERROR) << "Invalid partition number: " << partition_num;
+    return std::string();
+  }
+
+  std::string partition_name = disk_name;
+  if (!StringHasPrefix(disk_name, "/dev/mmcblk")) {
+    // Special case for MMC devices. Add "p" to separate the disk name
+    // from partition number
+    partition_name += 'p';
+  }
+
+  base::StringAppendF(&partition_name, "%d", partition_num);
+  return partition_name;
 }
 
 string SysfsBlockDevice(const string& device) {

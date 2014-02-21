@@ -59,7 +59,7 @@ void UpdateCheckScheduler::Run() {
 }
 
 bool UpdateCheckScheduler::IsBootDeviceRemovable() {
-  return utils::IsRemovableDevice(utils::RootDevice(
+  return utils::IsRemovableDevice(utils::GetDiskName(
       system_state_->hardware()->BootDevice()));
 }
 

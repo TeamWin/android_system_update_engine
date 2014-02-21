@@ -136,14 +136,35 @@ bool MakeTempDirectory(const std::string& base_dirname_template,
 // This WILL cross filesystem boundaries.
 bool RecursiveUnlinkDir(const std::string& path);
 
-// Returns the root device for a partition. For example,
-// RootDevice("/dev/sda3") returns "/dev/sda". Returns an empty string
-// if the input device is not of the "/dev/xyz" form.
-std::string RootDevice(const std::string& partition_device);
+// Returns the disk device name for a partition. For example,
+// GetDiskName("/dev/sda3") returns "/dev/sda". Returns an empty string
+// if the input device is not of the "/dev/xyz#" form.
+std::string GetDiskName(const std::string& partition_name);
 
-// Returns the partition number, as a string, of partition_device. For example,
-// PartitionNumber("/dev/sda3") returns "3".
-std::string PartitionNumber(const std::string& partition_device);
+// Returns the partition number, of partition device name. For example,
+// GetPartitionNumber("/dev/sda3") returns 3.
+// Returns 0 on failure
+int GetPartitionNumber(const std::string& partition_name);
+
+// Splits the partition device name into the block device name and partition
+// number. For example, "/dev/sda3" will be split into {"/dev/sda", 3} and
+// "/dev/mmcblk0p2" into {"/dev/mmcblk0", 2}
+// Returns false when malformed device name is passed in.
+// If both output parameters are omitted (nullptr), can be used
+// just to test the validity of the device name. Note that the function
+// simply checks if the device name looks like a valid device, no other
+// checks are performed (i.e. it doesn't check if the device actually exists).
+bool SplitPartitionName(const std::string& partition_name,
+                        std::string* out_disk_name,
+                        int* out_partition_num);
+
+// Builds a partition device name from the block device name and partition
+// number. For example:
+// {"/dev/sda", 1} => "/dev/sda1"
+// {"/dev/mmcblk2", 12} => "/dev/mmcblk2p12"
+// Returns empty string when invalid parameters are passed in
+std::string MakePartitionName(const std::string& disk_name,
+                              int partition_num);
 
 // Returns the sysfs block device for a root block device. For
 // example, SysfsBlockDevice("/dev/sda") returns

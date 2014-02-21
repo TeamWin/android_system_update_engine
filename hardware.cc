@@ -59,12 +59,14 @@ bool Hardware::IsKernelBootable(const std::string& kernel_device,
   CgptAddParams params;
   memset(&params, '\0', sizeof(params));
 
-  string root_dev = utils::RootDevice(kernel_device);
-  string partition_number_str = utils::PartitionNumber(kernel_device);
-  uint32_t partition_number = atoi(partition_number_str.c_str());
+  std::string disk_name;
+  int partition_num = 0;
 
-  params.drive_name = const_cast<char *>(root_dev.c_str());
-  params.partition = partition_number;
+  if (!utils::SplitPartitionName(kernel_device, &disk_name, &partition_num))
+    return false;
+
+  params.drive_name = const_cast<char *>(disk_name.c_str());
+  params.partition = partition_num;
 
   int retval = CgptGetPartitionDetails(&params);
   if (retval != CGPT_OK)
@@ -82,15 +84,17 @@ bool Hardware::MarkKernelUnbootable(const std::string& kernel_device) {
     return false;
   }
 
-  string root_dev = utils::RootDevice(kernel_device);
-  string partition_number_str = utils::PartitionNumber(kernel_device);
-  uint32_t partition_number = atoi(partition_number_str.c_str());
+  std::string disk_name;
+  int partition_num = 0;
+
+  if (!utils::SplitPartitionName(kernel_device, &disk_name, &partition_num))
+    return false;
 
   CgptAddParams params;
   memset(&params, 0, sizeof(params));
 
-  params.drive_name = const_cast<char *>(root_dev.c_str());
-  params.partition = partition_number;
+  params.drive_name = const_cast<char *>(disk_name.c_str());
+  params.partition = partition_num;
 
   params.successful = false;
   params.set_successful = true;
