@@ -192,6 +192,16 @@ gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
   return TRUE;
 }
 
+gboolean update_engine_service_can_rollback(UpdateEngineService* self,
+                                            gboolean* out_can_rollback,
+                                            GError **error)
+{
+  LOG(INFO) << "Checking for a rollback partition.";
+  *out_can_rollback = self->system_state_->update_attempter()->CanRollback();
+  return TRUE;
+}
+
+
 gboolean update_engine_service_reset_status(UpdateEngineService* self,
                                             GError **error) {
   if (!self->system_state_->update_attempter()->ResetStatus()) {

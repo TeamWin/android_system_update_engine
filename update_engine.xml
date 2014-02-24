@@ -26,6 +26,9 @@
     <method name="AttemptRollback">
       <arg type="b" name="powerwash" />
     </method>
+    <method name="CanRollback">
+      <arg type="b" name="can_rollback" direction="out" />
+    </method>
     <method name="ResetStatus">
     </method>
     <method name="GetStatus">

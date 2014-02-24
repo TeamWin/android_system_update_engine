@@ -42,6 +42,8 @@ DEFINE_bool(powerwash, true, "When performing rollback or channel change, "
 DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
 DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
 DEFINE_bool(rollback, false, "Perform a rollback to the previous partition.");
+DEFINE_bool(can_rollback, false, "Shows whether rollback partition "
+            "is available.");
 DEFINE_bool(show_channel, false, "Show the current and target channels.");
 DEFINE_bool(show_p2p_update, false,
             "Show the current setting for peer-to-peer update sharing.");
@@ -207,6 +209,20 @@ bool Rollback(bool rollback) {
   return true;
 }
 
+bool CanRollback() {
+  DBusGProxy* proxy;
+  GError* error = NULL;
+
+  CHECK(GetProxy(&proxy));
+
+  gboolean can_rollback = FALSE;
+  gboolean rc = update_engine_client_can_rollback(proxy,
+                                                  &can_rollback,
+                                                  &error);
+  CHECK_EQ(rc, TRUE) << "Error while querying rollback partition availabilty: "
+                     << GetAndFreeGError(&error);
+  return can_rollback;
+}
 bool CheckForUpdates(const string& app_version, const string& omaha_url) {
   DBusGProxy* proxy;
   GError* error = NULL;
@@ -410,6 +426,13 @@ int main(int argc, char** argv) {
     } else {
       SetP2PUpdatePermission(enabled);
     }
+  }
+
+  // Show the rollback availability.
+  if (FLAGS_can_rollback) {
+    bool can_rollback = CanRollback();
+    LOG(INFO) << "Rollback partition: "
+              << (can_rollback ? "AVAILABLE" : "UNAVAILABLE");
   }
 
   // Show the current P2P enabled setting.

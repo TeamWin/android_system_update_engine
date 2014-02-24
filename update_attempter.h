@@ -149,6 +149,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // the partitions to roll back to (used in testing). Returns True on success.
   bool Rollback(bool powerwash, std::string* install_path);
 
+  // This is the internal entry point for checking if a valid rollback
+  // partition exists.
+  bool CanRollback() const;
+
   // Initiates a reboot if the current state is
   // UPDATED_NEED_REBOOT. Returns true on sucess, false otherwise.
   bool RebootIfNeeded();

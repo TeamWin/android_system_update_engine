@@ -76,6 +76,33 @@ bool Hardware::IsKernelBootable(const std::string& kernel_device,
   return true;
 }
 
+std::vector<std::string> Hardware::GetKernelDevices() {
+  LOG(INFO) << "GetAllKernelDevices";
+
+  std::string disk_name = utils::GetDiskName(Hardware::BootKernelDevice());
+  if(disk_name.empty()) {
+    LOG(ERROR) << "Failed to get the cuurent kernel boot disk name";
+    return std::vector<std::string>();
+  }
+
+  std::vector<std::string> devices;
+  const int slot_count = 2; // Use only partition slots A and B
+  devices.reserve(slot_count);
+  for(int slot = 0; slot < slot_count; slot++) {
+    int partition_num = (slot + 1) * 2; // for now, only #2, #4
+    std::string device = utils::MakePartitionName(disk_name, partition_num);
+    if(!device.empty()) {
+      devices.push_back(std::move(device));
+    } else {
+      LOG(ERROR) << "Cannot make a partition name for disk: "
+                 << disk_name << ", partition: " << partition_num;
+    }
+  }
+
+  return devices;
+}
+
+
 bool Hardware::MarkKernelUnbootable(const std::string& kernel_device) {
   LOG(INFO) << "MarkPartitionUnbootable: " << kernel_device;
 

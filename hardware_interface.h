@@ -6,6 +6,7 @@
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_HARDWARE_INTERFACE_H__
 
 #include <string>
+#include <vector>
 
 namespace chromeos_update_engine {
 
@@ -22,6 +23,9 @@ class HardwareInterface {
 
   // Returns the currently booted rootfs partition. "/dev/sda3", for example.
   virtual const std::string BootDevice() = 0;
+
+  // Returns a list of all kernel partitions available (whether bootable or not)
+  virtual std::vector<std::string> GetKernelDevices() = 0;
 
   // Is the specified kernel partition currently bootable, based on GPT flags?
   // Returns success.

@@ -7,6 +7,7 @@
 #include <string>
 #include <tr1/memory>
 #include <vector>
+#include <algorithm>
 
 #include <base/file_util.h>
 #include <base/logging.h>
@@ -786,6 +787,35 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
   start_action_processor_ = true;
   UpdateBootFlags();
   return true;
+}
+
+bool UpdateAttempter::CanRollback() const {
+  std::vector<std::string> kernel_devices =
+      system_state_->hardware()->GetKernelDevices();
+
+  std::string boot_kernel_device =
+      system_state_->hardware()->BootKernelDevice();
+
+  auto current = std::find(kernel_devices.begin(), kernel_devices.end(),
+                           boot_kernel_device);
+
+  if(current == kernel_devices.end()) {
+    LOG(ERROR) << "Unable to find the boot kernel device in the list of "
+               << "available devices";
+    return false;
+  }
+
+  for (std::string const& device_name : kernel_devices) {
+    if (device_name != *current) {
+      bool bootable = false;
+      if (system_state_->hardware()->IsKernelBootable(device_name, &bootable) &&
+          bootable) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 void UpdateAttempter::CheckForUpdate(const string& app_version,

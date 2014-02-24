@@ -62,6 +62,13 @@ gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
                                                 gboolean powerwash,
                                                 GError **error);
 
+// Checks if the system rollback is available by verifying if the secondary
+// system partition is valid and bootable.
+gboolean update_engine_service_can_rollback(
+    UpdateEngineService* self,
+    gboolean* out_can_rollback,
+    GError **error);
+
 gboolean update_engine_service_reset_status(UpdateEngineService* self,
                                             GError **error);
 

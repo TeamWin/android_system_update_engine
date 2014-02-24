@@ -22,6 +22,9 @@ public:
     ON_CALL(*this, BootDevice())
       .WillByDefault(testing::Invoke(&fake_,
             &FakeHardware::BootDevice));
+    ON_CALL(*this, GetKernelDevices())
+      .WillByDefault(testing::Invoke(&fake_,
+            &FakeHardware::GetKernelDevices));
     ON_CALL(*this, IsKernelBootable(testing::_, testing::_))
       .WillByDefault(testing::Invoke(&fake_,
             &FakeHardware::IsKernelBootable));
@@ -50,6 +53,7 @@ public:
   // Hardware overrides.
   MOCK_METHOD0(BootKernelDevice, const std::string());
   MOCK_METHOD0(BootDevice, const std::string());
+  MOCK_METHOD0(GetKernelDevices, std::vector<std::string>());
   MOCK_METHOD2(IsKernelBootable,
                bool(const std::string& kernel_device, bool* bootable));
   MOCK_METHOD1(MarkKernelUnbootable,

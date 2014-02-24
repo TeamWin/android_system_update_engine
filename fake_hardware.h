@@ -17,6 +17,7 @@ class FakeHardware : public HardwareInterface {
   FakeHardware()
     : kernel_device_("/dev/sdz4"),
       boot_device_("/dev/sdz5"),
+      bootable_devices_{"/dev/sdz4", "/dev/sdz5"},
       is_official_build_(true),
       is_normal_boot_mode_(true),
       hardware_class_("Fake HWID BLAH-1234"),
@@ -26,6 +27,9 @@ class FakeHardware : public HardwareInterface {
   // HardwareInterface methods.
   virtual const std::string BootKernelDevice() { return kernel_device_; }
   virtual const std::string BootDevice() { return boot_device_; }
+  virtual std::vector<std::string> GetKernelDevices() override
+      { return bootable_devices_; }
+
   virtual bool IsKernelBootable(const std::string& kernel_device,
                                 bool* bootable)
       { std::map<std::string, bool>::const_iterator i =
@@ -70,6 +74,7 @@ class FakeHardware : public HardwareInterface {
  private:
   std::string kernel_device_;
   std::string boot_device_;
+  std::vector<std::string>  bootable_devices_;
   std::map<std::string, bool> is_bootable_;
   bool is_official_build_;
   bool is_normal_boot_mode_;
