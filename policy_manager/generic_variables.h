@@ -39,6 +39,9 @@ class CopyVariable : public Variable<T> {
   // GetValue() method is called.
   CopyVariable(const std::string& name, VariableMode mode, const T& ref)
       : Variable<T>(name, mode), ref_(ref) {}
+  CopyVariable(const std::string& name, const base::TimeDelta& poll_interval,
+               const T& ref)
+      : Variable<T>(name, poll_interval), ref_(ref) {}
 
  protected:
   friend class PmCopyVariableTest;

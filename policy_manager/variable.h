@@ -49,16 +49,42 @@ class BaseVariable {
     return mode_;
   }
 
+  // For VariableModePoll variables, it returns the polling interval of this
+  // variable. In other case, it returns 0.
+  base::TimeDelta GetPollInterval() const {
+    return poll_interval_;
+  }
+
  protected:
+  // Creates a BaseVariable using the default polling interval (5 minutes).
   BaseVariable(const std::string& name, VariableMode mode)
-      : name_(name), mode_(mode) {}
+      : BaseVariable(name, mode,
+                     base::TimeDelta::FromMinutes(kDefaultPollMinutes)) {}
+
+  // Creates a BaseVariable with mode kVariableModePoll and the provided
+  // polling interval.
+  BaseVariable(const std::string& name, base::TimeDelta poll_interval)
+      : BaseVariable(name, kVariableModePoll, poll_interval) {}
 
  private:
+  BaseVariable(const std::string& name, VariableMode mode,
+               base::TimeDelta poll_interval)
+    : name_(name), mode_(mode),
+      poll_interval_(mode == kVariableModePoll ?
+                     poll_interval : base::TimeDelta()) {}
+
+  // The default PollInterval in minutes.
+  static constexpr int kDefaultPollMinutes = 5;
+
   // The variable's name as a string.
   const std::string name_;
 
   // The variable's mode.
   const VariableMode mode_;
+
+  // The variable's polling interval for VariableModePoll variable and 0 for
+  // other modes.
+  const base::TimeDelta poll_interval_;
 };
 
 // Interface to a Policy Manager variable of a given type. Implementation
@@ -81,6 +107,9 @@ class Variable : public BaseVariable {
 
   Variable(const std::string& name, VariableMode mode)
       : BaseVariable(name, mode) {}
+
+  Variable(const std::string& name, const base::TimeDelta& poll_interval)
+      : BaseVariable(name, poll_interval) {}
 
   // Gets the current value of the variable. The current value is copied to a
   // new object and returned. The caller of this method owns the object and

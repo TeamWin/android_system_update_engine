@@ -6,6 +6,7 @@
 
 #include "update_engine/policy_manager/variable.h"
 
+using base::TimeDelta;
 using std::string;
 
 namespace chromeos_policy_manager {
@@ -16,6 +17,8 @@ class DefaultVariable : public Variable<T> {
  public:
   DefaultVariable(const string& name, VariableMode mode)
       : Variable<T>(name, mode) {}
+  DefaultVariable(const string& name, const TimeDelta& poll_interval)
+      : Variable<T>(name, poll_interval) {}
   virtual ~DefaultVariable() {}
 
  protected:
@@ -38,6 +41,19 @@ TEST(PmBaseVariableTest, GetModeTest) {
   EXPECT_EQ(var.GetMode(), kVariableModeConst);
   DefaultVariable<int> other_var("other_var", kVariableModePoll);
   EXPECT_EQ(other_var.GetMode(), kVariableModePoll);
+}
+
+TEST(PmBaseVariableTest, DefaultPollIntervalTest) {
+  DefaultVariable<int> const_var("const_var", kVariableModeConst);
+  EXPECT_EQ(const_var.GetPollInterval(), TimeDelta());
+  DefaultVariable<int> poll_var("poll_var", kVariableModePoll);
+  EXPECT_EQ(poll_var.GetPollInterval(), TimeDelta::FromMinutes(5));
+}
+
+TEST(PmBaseVariableTest, GetPollIntervalTest) {
+  DefaultVariable<int> var("var", TimeDelta::FromMinutes(3));
+  EXPECT_EQ(var.GetMode(), kVariableModePoll);
+  EXPECT_EQ(var.GetPollInterval(), TimeDelta::FromMinutes(3));
 }
 
 }  // namespace chromeos_policy_manager
