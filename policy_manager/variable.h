@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_VARIABLE_H
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_VARIABLE_H
 
+#include <algorithm>
+#include <list>
 #include <string>
 
 #include <base/time.h>
@@ -37,6 +39,15 @@ enum VariableMode {
 // deppend on the variable's type, implemented by all the variables.
 class BaseVariable {
  public:
+  // Interface for observing changes on variable value.
+  class Observer {
+   public:
+    virtual ~Observer() {}
+
+    // Called when the value on the variable changes.
+    virtual void ValueChanged(BaseVariable* variable) = 0;
+  };
+
   virtual ~BaseVariable() {}
 
   // Returns the variable name as a string.
@@ -55,6 +66,20 @@ class BaseVariable {
     return poll_interval_;
   }
 
+  // Adds and removes observers for value changes on the variable. This only
+  // works for kVariableAsync variables since the other modes don't track value
+  // changes. Adding the same observer twice has no effect.
+  virtual void AddObserver(BaseVariable::Observer* observer) {
+    if (std::find(observer_list_.begin(), observer_list_.end(), observer) ==
+        observer_list_.end()) {
+      observer_list_.push_back(observer);
+    }
+  }
+
+  virtual void RemoveObserver(BaseVariable::Observer* observer) {
+    observer_list_.remove(observer);
+  }
+
  protected:
   // Creates a BaseVariable using the default polling interval (5 minutes).
   BaseVariable(const std::string& name, VariableMode mode)
@@ -66,7 +91,17 @@ class BaseVariable {
   BaseVariable(const std::string& name, base::TimeDelta poll_interval)
       : BaseVariable(name, kVariableModePoll, poll_interval) {}
 
+  // Calls ValueChanged on all the observers.
+  void NotifyValueChanged() {
+    for (auto& observer : observer_list_)
+      observer->ValueChanged(this);
+  }
+
  private:
+  friend class PmBaseVariableTest;
+  FRIEND_TEST(PmBaseVariableTest, RepeatedObserverTest);
+  FRIEND_TEST(PmBaseVariableTest, NotifyValueChangedTest);
+
   BaseVariable(const std::string& name, VariableMode mode,
                base::TimeDelta poll_interval)
     : name_(name), mode_(mode),
@@ -85,6 +120,9 @@ class BaseVariable {
   // The variable's polling interval for VariableModePoll variable and 0 for
   // other modes.
   const base::TimeDelta poll_interval_;
+
+  // The list of value changes observers.
+  std::list<BaseVariable::Observer*> observer_list_;
 };
 
 // Interface to a Policy Manager variable of a given type. Implementation
