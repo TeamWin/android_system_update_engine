@@ -100,8 +100,8 @@ typedef enum {
 const int kMaxP2PAttempts = 10;
 
 // Maximum wallclock time we allow attempting to update using p2p for
-// the same update payload - two days.
-const int kMaxP2PAttemptTimeSeconds = 2 * 24 * 60 * 60;
+// the same update payload - five days.
+const int kMaxP2PAttemptTimeSeconds = 5 * 24 * 60 * 60;
 
 // The maximum amount of time to spend waiting for p2p-client(1) to
 // return while waiting in line to use the LAN - six hours.
