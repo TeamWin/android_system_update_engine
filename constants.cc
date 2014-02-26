@@ -38,6 +38,10 @@ const char kPrefsInstallDateDays[] = "install-date-days";
 const char kPrefsLastActivePingDay[] = "last-active-ping-day";
 const char kPrefsLastRollCallPingDay[] = "last-roll-call-ping-day";
 const char kPrefsManifestMetadataSize[] = "manifest-metadata-size";
+const char kPrefsMetricsAttemptLastReportingTime[] =
+    "metrics-attempt-last-reporting-time";
+const char kPrefsMetricsCheckLastReportingTime[] =
+    "metrics-check-last-reporting-time";
 const char kPrefsNumReboots[] = "num-reboots";
 const char kPrefsNumResponsesSeen[] = "num-responses-seen";
 const char kPrefsP2PEnabled[] = "p2p-enabled";

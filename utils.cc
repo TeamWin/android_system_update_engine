@@ -33,9 +33,11 @@
 #include <glib.h>
 #include <google/protobuf/stubs/common.h>
 
+#include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"
 #include "update_engine/file_writer.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/prefs_interface.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_attempter.h"
@@ -929,6 +931,189 @@ ErrorCode GetBaseErrorCode(ErrorCode code) {
   return base_code;
 }
 
+metrics::AttemptResult GetAttemptResult(ErrorCode code) {
+  ErrorCode base_code = static_cast<ErrorCode>(code & ~kErrorCodeSpecialFlags);
+
+  switch (base_code) {
+    case kErrorCodeSuccess:
+      return metrics::AttemptResult::kUpdateSucceeded;
+
+    case kErrorCodeDownloadTransferError:
+      return metrics::AttemptResult::kPayloadDownloadError;
+
+    case kErrorCodeDownloadInvalidMetadataSize:
+    case kErrorCodeDownloadInvalidMetadataMagicString:
+    case kErrorCodeDownloadMetadataSignatureError:
+    case kErrorCodeDownloadMetadataSignatureVerificationError:
+    case kErrorCodePayloadMismatchedType:
+    case kErrorCodeUnsupportedMajorPayloadVersion:
+    case kErrorCodeUnsupportedMinorPayloadVersion:
+    case kErrorCodeDownloadNewPartitionInfoError:
+    case kErrorCodeDownloadSignatureMissingInManifest:
+    case kErrorCodeDownloadManifestParseError:
+    case kErrorCodeDownloadOperationHashMissingError:
+      return metrics::AttemptResult::kMetadataMalformed;
+
+    case kErrorCodeDownloadOperationHashMismatch:
+    case kErrorCodeDownloadOperationHashVerificationError:
+      return metrics::AttemptResult::kOperationMalformed;
+
+    case kErrorCodeDownloadOperationExecutionError:
+    case kErrorCodeInstallDeviceOpenError:
+    case kErrorCodeKernelDeviceOpenError:
+    case kErrorCodeDownloadWriteError:
+    case kErrorCodeFilesystemCopierError:
+      return metrics::AttemptResult::kOperationExecutionError;
+
+    case kErrorCodeDownloadMetadataSignatureMismatch:
+      return metrics::AttemptResult::kMetadataVerificationFailed;
+
+    case kErrorCodePayloadSizeMismatchError:
+    case kErrorCodePayloadHashMismatchError:
+    case kErrorCodeDownloadPayloadVerificationError:
+    case kErrorCodeSignedDeltaPayloadExpectedError:
+    case kErrorCodeDownloadPayloadPubKeyVerificationError:
+      return metrics::AttemptResult::kPayloadVerificationFailed;
+
+    case kErrorCodeNewRootfsVerificationError:
+    case kErrorCodeNewKernelVerificationError:
+      return metrics::AttemptResult::kVerificationFailed;
+
+    case kErrorCodePostinstallRunnerError:
+    case kErrorCodePostinstallBootedFromFirmwareB:
+    case kErrorCodePostinstallFirmwareRONotUpdatable:
+      return metrics::AttemptResult::kPostInstallFailed;
+
+    // We should never get these errors in the update-attempt stage so
+    // return internal error if this happens.
+    case kErrorCodeError:
+    case kErrorCodeOmahaRequestXMLParseError:
+    case kErrorCodeOmahaRequestError:
+    case kErrorCodeOmahaResponseHandlerError:
+    case kErrorCodeDownloadStateInitializationError:
+    case kErrorCodeOmahaRequestEmptyResponseError:
+    case kErrorCodeDownloadInvalidMetadataSignature:
+    case kErrorCodeOmahaResponseInvalid:
+    case kErrorCodeOmahaUpdateIgnoredPerPolicy:
+    case kErrorCodeOmahaUpdateDeferredPerPolicy:
+    case kErrorCodeOmahaErrorInHTTPResponse:
+    case kErrorCodeDownloadMetadataSignatureMissingError:
+    case kErrorCodeOmahaUpdateDeferredForBackoff:
+    case kErrorCodePostinstallPowerwashError:
+    case kErrorCodeUpdateCanceledByChannelChange:
+      return metrics::AttemptResult::kInternalError;
+
+    // Special flags. These can't happen (we mask them out above) but
+    // the compiler doesn't know that. Just break out so we can warn and
+    // return |kInternalError|.
+    case kErrorCodeUmaReportedMax:
+    case kErrorCodeOmahaRequestHTTPResponseBase:
+    case kErrorCodeDevModeFlag:
+    case kErrorCodeResumedFlag:
+    case kErrorCodeTestImageFlag:
+    case kErrorCodeTestOmahaUrlFlag:
+    case kErrorCodeSpecialFlags:
+      break;
+  }
+
+  LOG(ERROR) << "Unexpected error code " << base_code;
+  return metrics::AttemptResult::kInternalError;
+}
+
+
+metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
+  ErrorCode base_code = static_cast<ErrorCode>(code & ~kErrorCodeSpecialFlags);
+
+  if (base_code >= kErrorCodeOmahaRequestHTTPResponseBase) {
+    int http_status = base_code - kErrorCodeOmahaRequestHTTPResponseBase;
+    if (http_status >= 200 && http_status <= 599) {
+      return static_cast<metrics::DownloadErrorCode>(
+          static_cast<int>(metrics::DownloadErrorCode::kHttpStatus200) +
+          http_status - 200);
+    } else if (http_status == 0) {
+      // The code is using HTTP Status 0 for "Unable to get http
+      // response code."
+      return metrics::DownloadErrorCode::kDownloadError;
+    }
+    LOG(WARNING) << "Unexpected HTTP status code " << http_status;
+    return metrics::DownloadErrorCode::kHttpStatusOther;
+  }
+
+  switch (base_code) {
+    // Unfortunately, kErrorCodeDownloadTransferError is returned for a wide
+    // variety of errors (proxy errors, host not reachable, timeouts etc.).
+    //
+    // For now just map that to kDownloading. See http://crbug.com/355745
+    // for how we plan to add more detail in the future.
+    case kErrorCodeDownloadTransferError:
+      return metrics::DownloadErrorCode::kDownloadError;
+
+    // All of these error codes are not related to downloading so break
+    // out so we can warn and return InputMalformed.
+    case kErrorCodeSuccess:
+    case kErrorCodeError:
+    case kErrorCodeOmahaRequestError:
+    case kErrorCodeOmahaResponseHandlerError:
+    case kErrorCodeFilesystemCopierError:
+    case kErrorCodePostinstallRunnerError:
+    case kErrorCodePayloadMismatchedType:
+    case kErrorCodeInstallDeviceOpenError:
+    case kErrorCodeKernelDeviceOpenError:
+    case kErrorCodePayloadHashMismatchError:
+    case kErrorCodePayloadSizeMismatchError:
+    case kErrorCodeDownloadPayloadVerificationError:
+    case kErrorCodeDownloadNewPartitionInfoError:
+    case kErrorCodeDownloadWriteError:
+    case kErrorCodeNewRootfsVerificationError:
+    case kErrorCodeNewKernelVerificationError:
+    case kErrorCodeSignedDeltaPayloadExpectedError:
+    case kErrorCodeDownloadPayloadPubKeyVerificationError:
+    case kErrorCodePostinstallBootedFromFirmwareB:
+    case kErrorCodeDownloadStateInitializationError:
+    case kErrorCodeDownloadInvalidMetadataMagicString:
+    case kErrorCodeDownloadSignatureMissingInManifest:
+    case kErrorCodeDownloadManifestParseError:
+    case kErrorCodeDownloadMetadataSignatureError:
+    case kErrorCodeDownloadMetadataSignatureVerificationError:
+    case kErrorCodeDownloadMetadataSignatureMismatch:
+    case kErrorCodeDownloadOperationHashVerificationError:
+    case kErrorCodeDownloadOperationExecutionError:
+    case kErrorCodeDownloadOperationHashMismatch:
+    case kErrorCodeOmahaRequestEmptyResponseError:
+    case kErrorCodeOmahaRequestXMLParseError:
+    case kErrorCodeDownloadInvalidMetadataSize:
+    case kErrorCodeDownloadInvalidMetadataSignature:
+    case kErrorCodeOmahaResponseInvalid:
+    case kErrorCodeOmahaUpdateIgnoredPerPolicy:
+    case kErrorCodeOmahaUpdateDeferredPerPolicy:
+    case kErrorCodeOmahaErrorInHTTPResponse:
+    case kErrorCodeDownloadOperationHashMissingError:
+    case kErrorCodeDownloadMetadataSignatureMissingError:
+    case kErrorCodeOmahaUpdateDeferredForBackoff:
+    case kErrorCodePostinstallPowerwashError:
+    case kErrorCodeUpdateCanceledByChannelChange:
+    case kErrorCodePostinstallFirmwareRONotUpdatable:
+    case kErrorCodeUnsupportedMajorPayloadVersion:
+    case kErrorCodeUnsupportedMinorPayloadVersion:
+      break;
+
+    // Special flags. These can't happen (we mask them out above) but
+    // the compiler doesn't know that. Just break out so we can warn and
+    // return |kInputMalformed|.
+    case kErrorCodeUmaReportedMax:
+    case kErrorCodeOmahaRequestHTTPResponseBase:
+    case kErrorCodeDevModeFlag:
+    case kErrorCodeResumedFlag:
+    case kErrorCodeTestImageFlag:
+    case kErrorCodeTestOmahaUrlFlag:
+    case kErrorCodeSpecialFlags:
+      LOG(ERROR) << "Unexpected error code " << base_code;
+      break;
+  }
+
+  return metrics::DownloadErrorCode::kInputMalformed;
+}
+
 // Returns a printable version of the various flags denoted in the higher order
 // bits of the given code. Returns an empty string if none of those bits are
 // set.
@@ -1276,6 +1461,48 @@ bool ConvertToOmahaInstallDate(base::Time time, int *out_num_days) {
   *out_num_days = num_weeks_since_omaha_epoch * kNumDaysPerWeek;
 
   return true;
+}
+
+bool WallclockDurationHelper(SystemState* system_state,
+                             const std::string& state_variable_key,
+                             base::TimeDelta* out_duration) {
+  bool ret = false;
+
+  base::Time now = system_state->clock()->GetWallclockTime();
+  int64_t stored_value;
+  if (system_state->prefs()->GetInt64(state_variable_key, &stored_value)) {
+    base::Time stored_time = base::Time::FromInternalValue(stored_value);
+    if (stored_time > now) {
+      LOG(ERROR) << "Stored time-stamp used for " << state_variable_key
+                 << " is in the future.";
+    } else {
+      *out_duration = now - stored_time;
+      ret = true;
+    }
+  }
+
+  if (!system_state->prefs()->SetInt64(state_variable_key,
+                                       now.ToInternalValue())) {
+    LOG(ERROR) << "Error storing time-stamp in " << state_variable_key;
+  }
+
+  return ret;
+}
+
+bool MonotonicDurationHelper(SystemState* system_state,
+                             int64_t* storage,
+                             base::TimeDelta* out_duration) {
+  bool ret = false;
+
+  base::Time now = system_state->clock()->GetMonotonicTime();
+  if (*storage != 0) {
+    base::Time stored_time = base::Time::FromInternalValue(*storage);
+    *out_duration = now - stored_time;
+    ret = true;
+  }
+  *storage = now.ToInternalValue();
+
+  return ret;
 }
 
 }  // namespace utils

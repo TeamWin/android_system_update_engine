@@ -117,6 +117,10 @@ class PayloadState : public PayloadStateInterface {
   FRIEND_TEST(PayloadStateTest, RollbackVersion);
   FRIEND_TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs);
 
+  // Helper called when an attempt has begun, is called by
+  // UpdateResumed() and UpdateRestarted().
+  void AttemptStarted();
+
   // Increments the payload attempt number used for metrics.
   void IncrementPayloadAttemptNumber();
 
@@ -149,23 +153,14 @@ class PayloadState : public PayloadStateInterface {
   // that were downloaded recently.
   void UpdateBytesDownloaded(size_t count);
 
-  // Reports the various metrics related to the number of bytes downloaded.
-  void ReportBytesDownloadedMetrics();
+  // Calculates the PayloadType we're using.
+  PayloadType CalculatePayloadType();
 
-  // Reports the metric related to number of URL switches.
-  void ReportUpdateUrlSwitchesMetric();
+  // Collects and reports the various metrics related to an update attempt.
+  void CollectAndReportAttemptMetrics(ErrorCode code);
 
-  // Reports the various metrics related to rebooting during an update.
-  void ReportRebootMetrics();
-
-  // Reports the various metrics related to update duration.
-  void ReportDurationMetrics();
-
-  // Reports the metric related to the applied payload type.
-  void ReportPayloadTypeMetric();
-
-  // Reports the various metrics related to update attempts counts.
-  void ReportAttemptsCountMetrics();
+  // Collects and reports the various metrics related to a successful update.
+  void CollectAndReportSuccessfulUpdateMetrics();
 
   // Checks if we were expecting to be running in the new version but the
   // boot into the new version failed for some reason. If that's the case, an
@@ -326,11 +321,6 @@ class PayloadState : public PayloadStateInterface {
 
   // Initializes |num_responses_seen_| from persisted state.
   void LoadNumResponsesSeen();
-
-  // Reports metric conveying how many times updates were abandoned
-  // before an update was applied. This metric is reported when an update is
-  // successfully applied.
-  void ReportUpdatesAbandonedCountMetric();
 
   // Reports metric conveying how many times updates were abandoned since
   // the last update was applied. The difference between this metric and the
@@ -502,6 +492,15 @@ class PayloadState : public PayloadStateInterface {
 
   // The cached value of |kPrefsP2PNumAttempts|.
   int p2p_num_attempts_;
+
+  // The number of bytes downloaded per attempt.
+  int64_t attempt_num_bytes_downloaded_;
+
+  // The boot time when the attempt was started.
+  base::Time attempt_start_time_boot_;
+
+  // The monotonic time when the attempt was started.
+  base::Time attempt_start_time_monotonic_;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };

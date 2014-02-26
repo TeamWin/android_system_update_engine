@@ -59,6 +59,7 @@ void ActionProcessor::ActionComplete(AbstractAction* actionptr,
   if (delegate_)
     delegate_->ActionCompleted(this, actionptr, code);
   string old_type = current_action_->Type();
+  current_action_->ActionCompleted(code);
   current_action_->SetProcessor(NULL);
   current_action_ = NULL;
   if (actions_.empty()) {

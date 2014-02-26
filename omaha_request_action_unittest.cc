@@ -34,6 +34,7 @@ using testing::Le;
 using testing::NiceMock;
 using testing::Return;
 using testing::SetArgumentPointee;
+using testing::AnyNumber;
 
 namespace chromeos_update_engine {
 
@@ -215,6 +216,12 @@ class OutputObjectCollectorAction : public Action<OutputObjectCollectorAction> {
 // the transfer will fail with that code. |ping_only| is passed through to the
 // OmahaRequestAction constructor. out_post_data may be null; if non-null, the
 // post-data received by the mock HttpFetcher is returned.
+//
+// The |expected_check_result|, |expected_check_reaction| and
+// |expected_error_code| parameters are for checking expectations
+// about reporting UpdateEngine.Check.{Result,Reaction,DownloadError}
+// UMA statistics. Use the appropriate ::kUnset value to specify that
+// the given metric should not be reported.
 bool TestUpdateCheck(PrefsInterface* prefs,
                      PayloadStateInterface *payload_state,
                      P2PManager *p2p_manager,
@@ -223,6 +230,9 @@ bool TestUpdateCheck(PrefsInterface* prefs,
                      int fail_http_response_code,
                      bool ping_only,
                      ErrorCode expected_code,
+                     metrics::CheckResult expected_check_result,
+                     metrics::CheckReaction expected_check_reaction,
+                     metrics::DownloadErrorCode expected_download_error_code,
                      OmahaResponse* out_response,
                      vector<char>* out_post_data) {
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -255,6 +265,25 @@ bool TestUpdateCheck(PrefsInterface* prefs,
   OutputObjectCollectorAction collector_action;
   BondActions(&action, &collector_action);
   processor.EnqueueAction(&collector_action);
+
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
+      .Times(AnyNumber());
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(),
+      SendEnumToUMA(metrics::kMetricCheckResult,
+          static_cast<int>(expected_check_result),
+          static_cast<int>(metrics::CheckResult::kNumConstants) - 1))
+      .Times(expected_check_result == metrics::CheckResult::kUnset ? 0 : 1);
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(),
+      SendEnumToUMA(metrics::kMetricCheckReaction,
+          static_cast<int>(expected_check_reaction),
+          static_cast<int>(metrics::CheckReaction::kNumConstants) - 1))
+      .Times(expected_check_reaction == metrics::CheckReaction::kUnset ? 0 : 1);
+  EXPECT_CALL(*mock_system_state.mock_metrics_lib(),
+      SendEnumToUMA(metrics::kMetricCheckDownloadErrorCode,
+          static_cast<int>(expected_download_error_code),
+          static_cast<int>(metrics::DownloadErrorCode::kNumConstants) - 1))
+      .Times(expected_download_error_code == metrics::DownloadErrorCode::kUnset
+             ? 0 : 1);
 
   g_timeout_add(0, &StartProcessorInRunLoop, &processor);
   g_main_loop_run(loop);
@@ -304,6 +333,9 @@ TEST(OmahaRequestActionTest, NoUpdateTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -329,6 +361,9 @@ TEST(OmahaRequestActionTest, ValidUpdateTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -364,6 +399,9 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByPolicyTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaUpdateIgnoredPerPolicy,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kIgnored,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -382,6 +420,9 @@ TEST(OmahaRequestActionTest, NoUpdatesSentWhenBlockedByPolicyTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -425,6 +466,9 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaUpdateDeferredPerPolicy,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kDeferring,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -453,6 +497,9 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -499,6 +546,9 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -545,6 +595,9 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -592,6 +645,9 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
 
@@ -642,6 +698,9 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaUpdateDeferredPerPolicy,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kDeferring,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
 
@@ -674,6 +733,9 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -722,6 +784,9 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaUpdateDeferredPerPolicy,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kDeferring,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
 
@@ -756,6 +821,9 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -797,6 +865,9 @@ TEST(OmahaRequestActionTest, InvalidXmlTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaRequestXMLParseError,
+                      metrics::CheckResult::kParsingError,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -813,6 +884,9 @@ TEST(OmahaRequestActionTest, EmptyResponseTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaRequestEmptyResponseError,
+                      metrics::CheckResult::kParsingError,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -833,6 +907,9 @@ TEST(OmahaRequestActionTest, MissingStatusTest) {
       -1,
       false,  // ping_only
       kErrorCodeOmahaResponseInvalid,
+      metrics::CheckResult::kParsingError,
+      metrics::CheckReaction::kUnset,
+      metrics::DownloadErrorCode::kUnset,
       &response,
       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -853,6 +930,9 @@ TEST(OmahaRequestActionTest, InvalidStatusTest) {
       -1,
       false,  // ping_only
       kErrorCodeOmahaResponseInvalid,
+      metrics::CheckResult::kParsingError,
+      metrics::CheckReaction::kUnset,
+      metrics::DownloadErrorCode::kUnset,
       &response,
       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -873,6 +953,9 @@ TEST(OmahaRequestActionTest, MissingNodesetTest) {
       -1,
       false,  // ping_only
       kErrorCodeOmahaResponseInvalid,
+      metrics::CheckResult::kParsingError,
+      metrics::CheckReaction::kUnset,
+      metrics::DownloadErrorCode::kUnset,
       &response,
       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -907,6 +990,9 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
                               -1,
                               false,  // ping_only
                               kErrorCodeSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
                               &response,
                               NULL));
   EXPECT_TRUE(response.update_exists);
@@ -1001,6 +1087,9 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaRequestXMLParseError,
+                      metrics::CheckResult::kParsingError,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       &post_data));
   // convert post_data to string
@@ -1035,6 +1124,9 @@ TEST(OmahaRequestActionTest, XmlDecodeTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
 
@@ -1064,6 +1156,9 @@ TEST(OmahaRequestActionTest, ParseIntTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
 
@@ -1084,6 +1179,9 @@ TEST(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
                                -1,
                                false,  // ping_only
                                kErrorCodeOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
                                NULL,  // response
                                &post_data));
   // convert post_data to string
@@ -1117,6 +1215,9 @@ TEST(OmahaRequestActionTest, FormatUpdateDisabledOutputTest) {
                                -1,
                                false,  // ping_only
                                kErrorCodeOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
                                NULL,  // response
                                &post_data));
   // convert post_data to string
@@ -1229,6 +1330,9 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                                  -1,
                                  false,  // ping_only
                                  kErrorCodeOmahaRequestXMLParseError,
+                                 metrics::CheckResult::kParsingError,
+                                 metrics::CheckReaction::kUnset,
+                                 metrics::DownloadErrorCode::kUnset,
                                  NULL,
                                  &post_data));
     // convert post_data to string
@@ -1273,6 +1377,9 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                                  -1,
                                  false,  // ping_only
                                  kErrorCodeOmahaRequestXMLParseError,
+                                 metrics::CheckResult::kParsingError,
+                                 metrics::CheckReaction::kUnset,
+                                 metrics::DownloadErrorCode::kUnset,
                                  NULL,
                                  &post_data));
     // convert post_data to string
@@ -1306,6 +1413,9 @@ TEST(OmahaRequestActionTest, OmahaEventTest) {
 TEST(OmahaRequestActionTest, PingTest) {
   for (int ping_only = 0; ping_only < 2; ping_only++) {
     NiceMock<PrefsMock> prefs;
+    EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
+      .Times(AnyNumber());
+    EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
     // Add a few hours to the day difference to test no rounding, etc.
     int64_t five_days_ago =
         (Time::Now() - TimeDelta::FromHours(5 * 24 + 13)).ToInternalValue();
@@ -1327,6 +1437,9 @@ TEST(OmahaRequestActionTest, PingTest) {
                         -1,
                         ping_only,
                         kErrorCodeSuccess,
+                        metrics::CheckResult::kUnset,
+                        metrics::CheckReaction::kUnset,
+                        metrics::DownloadErrorCode::kUnset,
                         NULL,
                         &post_data));
     string post_str(&post_data[0], post_data.size());
@@ -1344,6 +1457,9 @@ TEST(OmahaRequestActionTest, PingTest) {
 
 TEST(OmahaRequestActionTest, ActivePingTest) {
   NiceMock<PrefsMock> prefs;
+  EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
+    .Times(AnyNumber());
+  EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   int64_t three_days_ago =
       (Time::Now() - TimeDelta::FromHours(3 * 24 + 12)).ToInternalValue();
   int64_t now = Time::Now().ToInternalValue();
@@ -1363,6 +1479,9 @@ TEST(OmahaRequestActionTest, ActivePingTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       NULL,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
@@ -1372,6 +1491,9 @@ TEST(OmahaRequestActionTest, ActivePingTest) {
 
 TEST(OmahaRequestActionTest, RollCallPingTest) {
   NiceMock<PrefsMock> prefs;
+  EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
+    .Times(AnyNumber());
+  EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   int64_t four_days_ago =
       (Time::Now() - TimeDelta::FromHours(4 * 24)).ToInternalValue();
   int64_t now = Time::Now().ToInternalValue();
@@ -1391,6 +1513,9 @@ TEST(OmahaRequestActionTest, RollCallPingTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       NULL,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
@@ -1400,6 +1525,9 @@ TEST(OmahaRequestActionTest, RollCallPingTest) {
 
 TEST(OmahaRequestActionTest, NoPingTest) {
   NiceMock<PrefsMock> prefs;
+  EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
+    .Times(AnyNumber());
+  EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   int64_t one_hour_ago =
       (Time::Now() - TimeDelta::FromHours(1)).ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
@@ -1420,6 +1548,9 @@ TEST(OmahaRequestActionTest, NoPingTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       NULL,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
@@ -1446,6 +1577,9 @@ TEST(OmahaRequestActionTest, IgnoreEmptyPingTest) {
                       -1,
                       true,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUnset,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       NULL,
                       &post_data));
   EXPECT_EQ(post_data.size(), 0);
@@ -1453,6 +1587,9 @@ TEST(OmahaRequestActionTest, IgnoreEmptyPingTest) {
 
 TEST(OmahaRequestActionTest, BackInTimePingTest) {
   NiceMock<PrefsMock> prefs;
+  EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
+    .Times(AnyNumber());
+  EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   int64_t future =
       (Time::Now() + TimeDelta::FromHours(3 * 24 + 4)).ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
@@ -1478,6 +1615,9 @@ TEST(OmahaRequestActionTest, BackInTimePingTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       NULL,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
@@ -1494,6 +1634,8 @@ TEST(OmahaRequestActionTest, LastPingDayUpdateTest) {
   int64_t midnight_slack =
       (Time::Now() - TimeDelta::FromSeconds(195)).ToInternalValue();
   NiceMock<PrefsMock> prefs;
+  EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
+  EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay,
                               AllOf(Ge(midnight), Le(midnight_slack))))
       .WillOnce(Return(true));
@@ -1512,12 +1654,17 @@ TEST(OmahaRequestActionTest, LastPingDayUpdateTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       NULL,
                       NULL));
 }
 
 TEST(OmahaRequestActionTest, NoElapsedSecondsTest) {
   NiceMock<PrefsMock> prefs;
+  EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
+  EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   ASSERT_TRUE(
@@ -1532,12 +1679,17 @@ TEST(OmahaRequestActionTest, NoElapsedSecondsTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       NULL,
                       NULL));
 }
 
 TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
   NiceMock<PrefsMock> prefs;
+  EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
+  EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   ASSERT_TRUE(
@@ -1552,6 +1704,9 @@ TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
                       NULL,
                       NULL));
 }
@@ -1566,6 +1721,9 @@ TEST(OmahaRequestActionTest, NoUniqueIDTest) {
                                -1,
                                false,  // ping_only
                                kErrorCodeOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
                                NULL,  // response
                                &post_data));
   // convert post_data to string
@@ -1586,6 +1744,9 @@ TEST(OmahaRequestActionTest, NetworkFailureTest) {
                       false,  // ping_only
                       static_cast<ErrorCode>(
                           kErrorCodeOmahaRequestHTTPResponseBase + 501),
+                      metrics::CheckResult::kDownloadError,
+                      metrics::CheckReaction::kUnset,
+                      static_cast<metrics::DownloadErrorCode>(501),
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -1603,6 +1764,9 @@ TEST(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
                       false,  // ping_only
                       static_cast<ErrorCode>(
                           kErrorCodeOmahaRequestHTTPResponseBase + 999),
+                      metrics::CheckResult::kDownloadError,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kHttpStatusOther,
                       &response,
                       NULL));
   EXPECT_FALSE(response.update_exists);
@@ -1646,6 +1810,9 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                       -1,
                       false,  // ping_only
                       kErrorCodeOmahaUpdateDeferredPerPolicy,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kDeferring,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
 
@@ -1678,6 +1845,9 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -1726,6 +1896,9 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
 
@@ -1773,6 +1946,9 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
                                -1,
                                false,  // ping_only
                                kErrorCodeOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
                                NULL,  // response
                                &post_data));
   // convert post_data to string
@@ -1820,6 +1996,9 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
                                -1,
                                false,  // ping_only
                                kErrorCodeOmahaRequestXMLParseError,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
                                NULL,  // response
                                &post_data));
   // convert post_data to string
@@ -1880,6 +2059,9 @@ void P2PTest(bool initial_allow_p2p_for_downloading,
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       &response,
                       NULL));
   EXPECT_TRUE(response.update_exists);
@@ -2001,6 +2183,9 @@ bool InstallDateParseHelper(const std::string &elapsed_days,
                       -1,
                       false,  // ping_only
                       kErrorCodeSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
                       response,
                       NULL);
 }

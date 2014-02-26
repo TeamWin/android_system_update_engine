@@ -127,6 +127,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   typedef ActionTraits<OmahaRequestAction>::OutputObjectType OutputObjectType;
   void PerformAction();
   void TerminateProcessing();
+  void ActionCompleted(ErrorCode code);
 
   int GetHTTPResponseCode() { return http_fetcher_->http_response_code(); }
 

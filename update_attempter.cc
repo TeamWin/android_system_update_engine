@@ -29,6 +29,7 @@
 #include "update_engine/gpio_handler.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/libcurl_http_fetcher.h"
+#include "update_engine/metrics.h"
 #include "update_engine/multi_range_http_fetcher.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
@@ -236,6 +237,8 @@ void UpdateAttempter::ReportOSAge() {
        0,             // min: 0 days
        6*30,          // max: 6 months (approx)
        kNumDefaultUmaBuckets);
+
+  metrics::ReportDailyMetrics(system_state_, age);
 }
 
 void UpdateAttempter::Update(const string& app_version,
@@ -253,8 +256,15 @@ void UpdateAttempter::Update(const string& app_version,
   if (status_ == UPDATE_STATUS_UPDATED_NEED_REBOOT) {
     // Although we have applied an update, we still want to ping Omaha
     // to ensure the number of active statistics is accurate.
+    //
+    // Also convey to the UpdateEngine.Check.Result metric that we're
+    // not performing an update check because of this.
     LOG(INFO) << "Not updating b/c we already updated and we're waiting for "
               << "reboot, we'll ping Omaha instead";
+    metrics::ReportUpdateCheckMetrics(system_state_,
+                                      metrics::CheckResult::kRebootPending,
+                                      metrics::CheckReaction::kUnset,
+                                      metrics::DownloadErrorCode::kUnset);
     PingOmaha();
     return;
   }

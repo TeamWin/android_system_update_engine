@@ -1287,10 +1287,77 @@ bool OmahaRequestAction::PersistInstallDate(
   string metric_name = "Installer.InstallDateProvisioningSource";
   system_state->metrics_lib()->SendEnumToUMA(
       metric_name,
-      static_cast<int>(source), // Sample.
-      kProvisionedMax);         // Maximum.
+      static_cast<int>(source),  // Sample.
+      kProvisionedMax);          // Maximum.
+
+  metric_name = metrics::kMetricInstallDateProvisioningSource;
+  system_state->metrics_lib()->SendEnumToUMA(
+      metric_name,
+      static_cast<int>(source),  // Sample.
+      kProvisionedMax);          // Maximum.
 
   return true;
+}
+
+void OmahaRequestAction::ActionCompleted(ErrorCode code) {
+  // We only want to report this on "update check".
+  if (ping_only_ || event_ != nullptr)
+    return;
+
+  metrics::CheckResult result = metrics::CheckResult::kUnset;
+  metrics::CheckReaction reaction = metrics::CheckReaction::kUnset;
+  metrics::DownloadErrorCode download_error_code =
+      metrics::DownloadErrorCode::kUnset;
+
+  // Regular update attempt.
+  switch (code) {
+  case kErrorCodeSuccess:
+    // OK, we parsed the response successfully but that does
+    // necessarily mean that an update is available.
+    if (HasOutputPipe()) {
+      const OmahaResponse& response = GetOutputObject();
+      if (response.update_exists) {
+        result = metrics::CheckResult::kUpdateAvailable;
+        reaction = metrics::CheckReaction::kUpdating;
+      } else {
+        result = metrics::CheckResult::kNoUpdateAvailable;
+      }
+    } else {
+      result = metrics::CheckResult::kNoUpdateAvailable;
+    }
+    break;
+
+  case kErrorCodeOmahaUpdateIgnoredPerPolicy:
+    result = metrics::CheckResult::kUpdateAvailable;
+    reaction = metrics::CheckReaction::kIgnored;
+    break;
+
+  case kErrorCodeOmahaUpdateDeferredPerPolicy:
+    result = metrics::CheckResult::kUpdateAvailable;
+    reaction = metrics::CheckReaction::kDeferring;
+    break;
+
+  case kErrorCodeOmahaUpdateDeferredForBackoff:
+    result = metrics::CheckResult::kUpdateAvailable;
+    reaction = metrics::CheckReaction::kBackingOff;
+    break;
+
+  default:
+    // We report two flavors of errors, "Download errors" and "Parsing
+    // error". Try to convert to the former and if that doesn't work
+    // we know it's the latter.
+    metrics::DownloadErrorCode tmp_error = utils::GetDownloadErrorCode(code);
+    if (tmp_error != metrics::DownloadErrorCode::kInputMalformed) {
+      result = metrics::CheckResult::kDownloadError;
+      download_error_code = tmp_error;
+    } else {
+      result = metrics::CheckResult::kParsingError;
+    }
+    break;
+  }
+
+  metrics::ReportUpdateCheckMetrics(system_state_,
+                                    result, reaction, download_error_code);
 }
 
 }  // namespace chromeos_update_engine

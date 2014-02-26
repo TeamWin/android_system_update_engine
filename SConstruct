@@ -224,6 +224,7 @@ sources = Split("""action_processor.cc
                    install_plan.cc
                    libcurl_http_fetcher.cc
                    metadata.cc
+                   metrics.cc
                    multi_range_http_fetcher.cc
                    omaha_hash_calculator.cc
                    omaha_request_action.cc
