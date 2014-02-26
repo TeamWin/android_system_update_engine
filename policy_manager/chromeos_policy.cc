@@ -11,7 +11,7 @@ using std::string;
 namespace chromeos_policy_manager {
 
 EvalStatus ChromeOSPolicy::UpdateCheckAllowed(EvaluationContext* ec,
-                                              string* error,
+                                              State* state, string* error,
                                               bool* result) const {
   // TODO(deymo): Write this policy implementation with the actual policy.
   *result = true;

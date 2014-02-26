@@ -35,7 +35,7 @@ class PmPolicyManagerTest : public ::testing::Test {
 // class extends the DefaultPolicy class to allow extensions of the Policy
 // class without extending nor changing this test.
 class FailingPolicy : public DefaultPolicy {
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
                                         string* error,
                                         bool* result) const {
     *error = "FailingPolicy failed.";
@@ -45,7 +45,7 @@ class FailingPolicy : public DefaultPolicy {
 
 // The LazyPolicy always returns
 class LazyPolicy : public DefaultPolicy {
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
                                         string* error,
                                         bool* result) const {
     return EvalStatusAskMeAgainLater;
@@ -64,7 +64,7 @@ TEST_F(PmPolicyManagerTest, PolicyRequestCallsPolicy) {
   bool result;
 
   // Tests that the method is called on the policy_ instance.
-  EXPECT_CALL(*policy, UpdateCheckAllowed(_, _, _))
+  EXPECT_CALL(*policy, UpdateCheckAllowed(_, _, _, _))
       .WillOnce(Return(EvalStatusSucceeded));
   EvalStatus status = pmut_.PolicyRequest(&Policy::UpdateCheckAllowed, &result);
   EXPECT_EQ(status, EvalStatusSucceeded);

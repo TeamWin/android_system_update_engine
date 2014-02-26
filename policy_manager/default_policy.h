@@ -18,7 +18,7 @@ class DefaultPolicy : public Policy {
   virtual ~DefaultPolicy() {}
 
   // Policy overrides.
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
                                         std::string* error,
                                         bool* result) const {
     *result = true;

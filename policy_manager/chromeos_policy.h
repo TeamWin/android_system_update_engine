@@ -16,7 +16,7 @@ class ChromeOSPolicy : public Policy {
   virtual ~ChromeOSPolicy() {}
 
   // Policy overrides.
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
                                         std::string* error,
                                         bool* result) const;
 

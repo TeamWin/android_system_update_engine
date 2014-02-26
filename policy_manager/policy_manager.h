@@ -9,7 +9,7 @@
 
 #include "update_engine/policy_manager/default_policy.h"
 #include "update_engine/policy_manager/policy.h"
-#include "update_engine/policy_manager/random_provider.h"
+#include "update_engine/policy_manager/state.h"
 
 namespace chromeos_policy_manager {
 
@@ -38,7 +38,7 @@ class PolicyManager {
   // An example call to this method is:
   //   pm.PolicyRequest(&Policy::SomePolicyMethod, &bool_result, arg1, arg2);
   template<typename T, typename R, typename... Args>
-  EvalStatus PolicyRequest(T policy_method , R* result, Args... args);
+  EvalStatus PolicyRequest(T policy_method, R* result, Args... args);
 
  private:
   friend class PmPolicyManagerTest;
@@ -54,8 +54,8 @@ class PolicyManager {
   // a policy implementation fails with EvalStatusFailed.
   const DefaultPolicy default_policy_;
 
-  // Providers.
-  scoped_ptr<RandomProvider> random_;
+  // State Providers.
+  scoped_ptr<State> state_;
 
   DISALLOW_COPY_AND_ASSIGN(PolicyManager);
 };

@@ -12,9 +12,12 @@ namespace chromeos_policy_manager {
 
 // Fake implementation of the RandomProvider base class.
 class FakeRandomProvider : public RandomProvider {
+ public:
+  FakeRandomProvider() {}
+
  protected:
   virtual bool DoInit() {
-    seed_.reset(new FakeVariable<uint64_t>("random_seed"));
+    seed_.reset(new FakeVariable<uint64_t>("random_seed", kVariableModeConst));
     return true;
   }
 

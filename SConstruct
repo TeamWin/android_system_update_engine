@@ -239,10 +239,11 @@ sources = Split("""action_processor.cc
                    payload_signer.cc
                    payload_state.cc
                    policy_manager/chromeos_policy.cc
+                   policy_manager/evaluation_context.cc
                    policy_manager/policy_manager.cc
                    policy_manager/real_random_provider.cc
-                   policy_manager/evaluation_context.cc
                    policy_manager/real_shill_provider.cc
+                   policy_manager/real_state.cc
                    postinstall_runner_action.cc
                    prefs.cc
                    proxy_resolver.cc
@@ -294,10 +295,12 @@ unittest_sources = Split("""action_unittest.cc
                             payload_state_unittest.cc
                             policy_manager/boxed_value_unittest.cc
                             policy_manager/evaluation_context_unittest.cc
+                            policy_manager/fake_state.cc
                             policy_manager/generic_variables_unittest.cc
                             policy_manager/policy_manager_unittest.cc
                             policy_manager/real_random_provider_unittest.cc
                             policy_manager/real_shill_provider_unittest.cc
+                            policy_manager/real_state_unittest.cc
                             policy_manager/variable_unittest.cc
                             postinstall_runner_action_unittest.cc
                             prefs_unittest.cc

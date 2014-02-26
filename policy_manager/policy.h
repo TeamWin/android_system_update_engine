@@ -6,6 +6,7 @@
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_POLICY_H
 
 #include "update_engine/policy_manager/evaluation_context.h"
+#include "update_engine/policy_manager/state.h"
 
 namespace chromeos_policy_manager {
 
@@ -27,15 +28,15 @@ class Policy {
   virtual ~Policy() {}
 
   // List of policy requests. A policy request takes an EvaluationContext as the
-  // first argument, a returned error message, a returned value and optionally
-  // followed by one or more arbitrary constant arguments.
+  // first argument, a State instance, a returned error message, a returned
+  // value and optionally followed by one or more arbitrary constant arguments.
   //
   // When the implementation fails, the method returns EvalStatusFailed and sets
   // the |error| string.
 
   // UpdateCheckAllowed returns whether it is allowed to request an update check
   // to Omaha.
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec,
+  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
                                         std::string* error,
                                         bool* result) const = 0;
 

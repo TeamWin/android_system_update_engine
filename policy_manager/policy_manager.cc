@@ -4,7 +4,7 @@
 
 #include "update_engine/policy_manager/chromeos_policy.h"
 #include "update_engine/policy_manager/policy_manager.h"
-#include "update_engine/policy_manager/real_random_provider.h"
+#include "update_engine/policy_manager/real_state.h"
 
 namespace chromeos_policy_manager {
 
@@ -19,13 +19,9 @@ bool PolicyManager::Init() {
   // implementation with a build-time flag.
   policy_.reset(new ChromeOSPolicy());
 
-  bool result = true;
+  state_.reset(new RealState());
 
-  // Initialize all the providers.
-  result = result && InitProvider<RandomProvider>(&random_,
-                                                  new RealRandomProvider());
-
-  return result;
+  return state_->Init();
 }
 
 }  // namespace chromeos_policy_manager

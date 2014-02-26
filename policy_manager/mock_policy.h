@@ -18,8 +18,9 @@ public:
   virtual ~MockPolicy() {}
 
   // Policy overrides.
-  MOCK_CONST_METHOD3(UpdateCheckAllowed,
-                     EvalStatus(EvaluationContext*, std::string*, bool*));
+  MOCK_CONST_METHOD4(UpdateCheckAllowed,
+                     EvalStatus(EvaluationContext*, State*, std::string*,
+                                bool*));
 
 private:
   DISALLOW_COPY_AND_ASSIGN(MockPolicy);

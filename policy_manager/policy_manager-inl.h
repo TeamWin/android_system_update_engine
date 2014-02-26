@@ -17,13 +17,14 @@ EvalStatus PolicyManager::PolicyRequest(T policy_method, R* result,
   std::string error;
 
   // First try calling the actual policy.
-  EvalStatus status = (policy_.get()->*policy_method)(&ec, &error, result,
-                                                      args...);
+  EvalStatus status = (policy_.get()->*policy_method)(&ec, state_.get(), &error,
+                                                      result, args...);
 
   if (status == EvalStatusFailed) {
     LOG(WARNING) << "PolicyRequest() failed with error: " << error;
     error.clear();
-    status = (default_policy_.*policy_method)(&ec, &error, result, args...);
+    status = (default_policy_.*policy_method)(&ec, state_.get(), &error,
+                                              result, args...);
 
     if (status == EvalStatusFailed) {
       LOG(WARNING) << "Request to DefaultPolicy also failed, passing error.";
