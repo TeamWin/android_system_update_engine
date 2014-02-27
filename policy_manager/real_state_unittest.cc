@@ -14,7 +14,7 @@ TEST(PmRealStateTest, InitTest) {
   EXPECT_TRUE(state.Init());
   // Check that the providers are being initialized.
   PMTEST_ASSERT_NOT_NULL(state.random_provider());
-  PMTEST_EXPECT_NOT_NULL(state.random_provider()->seed());
+  PMTEST_EXPECT_NOT_NULL(state.random_provider()->var_seed());
 }
 
 }  // namespace chromeos_policy_manager

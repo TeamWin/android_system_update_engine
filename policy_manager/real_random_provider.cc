@@ -67,7 +67,7 @@ bool RealRandomProvider::DoInit(void) {
   FILE* fp = fopen(kRandomDevice, "r");
   if (!fp)
     return false;
-  seed_.reset(new RandomSeedVariable("random_seed", fp));
+  set_var_seed(new RandomSeedVariable("seed", fp));
   return true;
 }
 

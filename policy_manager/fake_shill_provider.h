@@ -17,11 +17,11 @@ class FakeShillProvider : public ShillProvider {
 
  protected:
   virtual bool DoInit() {
-    var_is_connected_.reset(
+    set_var_is_connected(
         new FakeVariable<bool>("is_connected", kVariableModeAsync));
-    var_conn_type_.reset(
+    set_var_conn_type(
         new FakeVariable<ShillConnType>("conn_type", kVariableModeAsync));
-    var_conn_last_changed_.reset(
+    set_var_conn_last_changed(
         new FakeVariable<Time>("conn_last_changed", kVariableModeAsync));
     return true;
   }

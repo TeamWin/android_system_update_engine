@@ -12,13 +12,13 @@ namespace chromeos_policy_manager {
 bool RealShillProvider::DoInit(void) {
   // TODO(garnold) Initialize with actual (or fake) DBus connection.
 
-  var_is_connected_.reset(
+  set_var_is_connected(
       new CopyVariable<bool>("is_connected", kVariableModeAsync,
                              is_connected_));
-  var_conn_type_.reset(
+  set_var_conn_type(
       new CopyVariable<ShillConnType>("conn_type", kVariableModeAsync,
                                       conn_type_));
-  var_conn_last_changed_.reset(
+  set_var_conn_last_changed(
       new CopyVariable<Time>("conn_last_changed", kVariableModeAsync,
                              conn_last_changed_));
   return true;

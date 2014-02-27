@@ -17,7 +17,7 @@ class FakeRandomProvider : public RandomProvider {
 
  protected:
   virtual bool DoInit() {
-    seed_.reset(new FakeVariable<uint64_t>("random_seed", kVariableModeConst));
+    set_var_seed(new FakeVariable<uint64_t>("seed", kVariableModeConst));
     return true;
   }
 

@@ -19,15 +19,19 @@ class RandomProvider : public Provider {
   // returned by the variables are cached by the EvaluationContext, so the
   // returned value will be the same during the same policy request. If more
   // random values are needed use a PRNG seeded with this value.
-  Variable<uint64_t>* seed() const { return seed_.get(); }
+  Variable<uint64_t>* var_seed() const { return var_seed_.get(); }
 
  protected:
   RandomProvider() {}
 
-  // The seed() scoped variable.
-  scoped_ptr<Variable<uint64_t> > seed_;
+  void set_var_seed(Variable<uint64_t>* var_seed) {
+    var_seed_.reset(var_seed);
+  }
 
  private:
+  // The seed() scoped variable.
+  scoped_ptr<Variable<uint64_t>> var_seed_;
+
   DISALLOW_COPY_AND_ASSIGN(RandomProvider);
 };
 

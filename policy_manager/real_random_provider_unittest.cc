@@ -23,7 +23,7 @@ class PmRealRandomProviderTest : public ::testing::Test {
     PMTEST_ASSERT_NOT_NULL(random_.get());
     ASSERT_TRUE(random_->Init());
 
-    random_->seed();
+    random_->var_seed();
   }
 
   TimeDelta default_timeout_;
@@ -32,13 +32,13 @@ class PmRealRandomProviderTest : public ::testing::Test {
 
 TEST_F(PmRealRandomProviderTest, InitFinalize) {
   // The provider initializes all variables with valid objects.
-  PMTEST_EXPECT_NOT_NULL(random_->seed());
+  PMTEST_EXPECT_NOT_NULL(random_->var_seed());
 }
 
 TEST_F(PmRealRandomProviderTest, GetRandomValues) {
   // Should not return the same random seed repeatedly.
   scoped_ptr<const uint64_t> value(
-      random_->seed()->GetValue(default_timeout_, NULL));
+      random_->var_seed()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(value.get());
 
   // Test that at least the returned values are different. This test fails,
@@ -46,7 +46,7 @@ TEST_F(PmRealRandomProviderTest, GetRandomValues) {
   bool is_same_value = true;
   for (int i = 0; i < 5; i++) {
     scoped_ptr<const uint64_t> other_value(
-        random_->seed()->GetValue(default_timeout_, NULL));
+        random_->var_seed()->GetValue(default_timeout_, NULL));
     PMTEST_ASSERT_NOT_NULL(other_value.get());
     is_same_value = is_same_value && *other_value == *value;
   }

@@ -47,11 +47,23 @@ class ShillProvider : public Provider {
  protected:
   ShillProvider() {}
 
-  scoped_ptr<Variable<bool> > var_is_connected_;
-  scoped_ptr<Variable<ShillConnType> > var_conn_type_;
-  scoped_ptr<Variable<base::Time> > var_conn_last_changed_;
+  void set_var_is_connected(Variable<bool>* var_is_connected) {
+    var_is_connected_.reset(var_is_connected);
+  }
+
+  void set_var_conn_type(Variable<ShillConnType>* var_conn_type) {
+    var_conn_type_.reset(var_conn_type);
+  }
+
+  void set_var_conn_last_changed(Variable<base::Time>* var_conn_last_changed) {
+    var_conn_last_changed_.reset(var_conn_last_changed);
+  }
 
  private:
+  scoped_ptr<Variable<bool>> var_is_connected_;
+  scoped_ptr<Variable<ShillConnType>> var_conn_type_;
+  scoped_ptr<Variable<base::Time>> var_conn_last_changed_;
+
   DISALLOW_COPY_AND_ASSIGN(ShillProvider);
 };
 
