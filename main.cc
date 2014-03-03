@@ -19,8 +19,8 @@
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/dbus_constants.h"
-#include "update_engine/dbus_interface.h"
 #include "update_engine/dbus_service.h"
+#include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/real_system_state.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/terminator.h"

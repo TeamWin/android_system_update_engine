@@ -247,9 +247,9 @@ sources = Split("""action_processor.cc
                    postinstall_runner_action.cc
                    prefs.cc
                    proxy_resolver.cc
+                   real_system_state.cc
                    simple_key_value_store.cc
                    subprocess.cc
-                   system_state.cc
                    tarjan.cc
                    terminator.cc
                    topological_sort.cc

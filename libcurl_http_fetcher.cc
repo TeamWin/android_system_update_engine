@@ -12,8 +12,8 @@
 #include <base/stringprintf.h>
 
 #include "update_engine/certificate_checker.h"
-#include "update_engine/dbus_interface.h"
 #include "update_engine/hardware_interface.h"
+#include "update_engine/real_dbus_wrapper.h"
 #include "update_engine/utils.h"
 
 using google::protobuf::NewCallback;
@@ -40,7 +40,7 @@ LibcurlHttpFetcher::~LibcurlHttpFetcher() {
 // On error, returns false.
 bool LibcurlHttpFetcher::IsUpdateAllowedOverCurrentConnection() const {
   NetworkConnectionType type;
-  ConcreteDbusGlib dbus_iface;
+  RealDBusWrapper dbus_iface;
   ConnectionManager* connection_manager = system_state_->connection_manager();
   if (!connection_manager->GetConnectionType(&dbus_iface, &type)) {
     LOG(INFO) << "We could not determine our connection type. "

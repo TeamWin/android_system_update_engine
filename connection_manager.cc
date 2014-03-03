@@ -24,7 +24,7 @@ namespace chromeos_update_engine {
 namespace {
 
 // Gets the DbusGProxy for FlimFlam. Must be free'd with ProxyUnref()
-bool GetFlimFlamProxy(DbusGlibInterface* dbus_iface,
+bool GetFlimFlamProxy(DBusWrapperInterface* dbus_iface,
                       const char* path,
                       const char* interface,
                       DBusGProxy** out_proxy) {
@@ -45,7 +45,7 @@ bool GetFlimFlamProxy(DbusGlibInterface* dbus_iface,
 
 // On success, caller owns the GHashTable at out_hash_table.
 // Returns true on success.
-bool GetProperties(DbusGlibInterface* dbus_iface,
+bool GetProperties(DBusWrapperInterface* dbus_iface,
                    const char* path,
                    const char* interface,
                    GHashTable** out_hash_table) {
@@ -73,7 +73,7 @@ bool GetProperties(DbusGlibInterface* dbus_iface,
 // Returns (via out_path) the default network path, or empty string if
 // there's no network up.
 // Returns true on success.
-bool GetDefaultServicePath(DbusGlibInterface* dbus_iface, string* out_path) {
+bool GetDefaultServicePath(DBusWrapperInterface* dbus_iface, string* out_path) {
   GHashTable* hash_table = NULL;
 
   TEST_AND_RETURN_FALSE(GetProperties(dbus_iface,
@@ -111,7 +111,7 @@ NetworkConnectionType ParseConnectionType(const char* type_str) {
   return kNetUnknown;
 }
 
-bool GetServicePathType(DbusGlibInterface* dbus_iface,
+bool GetServicePathType(DBusWrapperInterface* dbus_iface,
                         const string& path,
                         NetworkConnectionType* out_type) {
   GHashTable* hash_table = NULL;
@@ -228,7 +228,7 @@ const char* ConnectionManager::StringForConnectionType(
 }
 
 bool ConnectionManager::GetConnectionType(
-    DbusGlibInterface* dbus_iface,
+    DBusWrapperInterface* dbus_iface,
     NetworkConnectionType* out_type) const {
   string default_service_path;
   TEST_AND_RETURN_FALSE(GetDefaultServicePath(dbus_iface,

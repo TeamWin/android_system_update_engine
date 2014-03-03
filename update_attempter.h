@@ -60,7 +60,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   static const int kMaxDeltaUpdateFailures;
 
   UpdateAttempter(SystemState* system_state,
-                  DbusGlibInterface* dbus_iface);
+                  DBusWrapperInterface* dbus_iface);
   virtual ~UpdateAttempter();
 
   // Checks for update and, if a newer version is available, attempts to update
@@ -193,7 +193,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Special ctor + friend declarations for testing purposes.
   UpdateAttempter(SystemState* system_state,
-                  DbusGlibInterface* dbus_iface,
+                  DBusWrapperInterface* dbus_iface,
                   const std::string& update_completed_marker);
 
   friend class UpdateAttempterUnderTest;

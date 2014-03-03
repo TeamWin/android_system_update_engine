@@ -10,7 +10,7 @@
 #include <metrics/metrics_library_mock.h>
 #include <policy/mock_device_policy.h>
 
-#include "update_engine/mock_dbus_interface.h"
+#include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_gpio_handler.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
@@ -141,7 +141,7 @@ class MockSystemState : public SystemState {
   testing::NiceMock<MockPayloadState> mock_payload_state_;
   testing::NiceMock<MockGpioHandler>* mock_gpio_handler_;
   testing::NiceMock<UpdateAttempterMock>* mock_update_attempter_;
-  MockDbusGlib dbus_;
+  MockDBusWrapper dbus_;
 
   // These are the other object we own.
   Clock default_clock_;

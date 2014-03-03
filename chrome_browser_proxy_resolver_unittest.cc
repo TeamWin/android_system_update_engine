@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/chrome_browser_proxy_resolver.h"
-#include "update_engine/mock_dbus_interface.h"
+#include "update_engine/mock_dbus_wrapper.h"
 
 using std::deque;
 using std::string;
@@ -77,15 +77,15 @@ TEST(ChromeBrowserProxyResolverTest, ParseTest) {
 }
 
 namespace {
-void DbusInterfaceTestResolved(const std::deque<std::string>& proxies,
-                               void* data) {
+void DBusWrapperTestResolved(const std::deque<std::string>& proxies,
+                             void* data) {
   EXPECT_EQ(2, proxies.size());
   EXPECT_EQ("socks5://192.168.52.83:5555", proxies[0]);
   EXPECT_EQ(kNoProxy, proxies[1]);
   g_main_loop_quit(reinterpret_cast<GMainLoop*>(data));
 }
-void DbusInterfaceTestResolvedNoReply(const std::deque<std::string>& proxies,
-                                      void* data) {
+void DBusWrapperTestResolvedNoReply(const std::deque<std::string>& proxies,
+                                    void* data) {
   EXPECT_EQ(1, proxies.size());
   EXPECT_EQ(kNoProxy, proxies[0]);
   g_main_loop_quit(reinterpret_cast<GMainLoop*>(data));
@@ -121,7 +121,7 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
 
   const char kUrl[] = "http://example.com/blah";
 
-  MockDbusGlib dbus_iface;
+  MockDBusWrapper dbus_iface;
   
   EXPECT_CALL(dbus_iface, BusGet(_, _))
       .Times(2)
@@ -130,9 +130,9 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
               ConnectionGetConnection(kMockSystemGBus))
       .Times(2)
       .WillRepeatedly(Return(kMockSystemBus));
-  EXPECT_CALL(dbus_iface, DbusBusAddMatch(kMockSystemBus, _, _));
+  EXPECT_CALL(dbus_iface, DBusBusAddMatch(kMockSystemBus, _, _));
   EXPECT_CALL(dbus_iface,
-              DbusConnectionAddFilter(kMockSystemBus, _, _, _))
+              DBusConnectionAddFilter(kMockSystemBus, _, _, _))
       .WillOnce(Return(1));
   EXPECT_CALL(dbus_iface,
               ProxyNewForName(kMockSystemGBus,
@@ -150,15 +150,15 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
         StrEq(kLibCrosProxyResolveName)))
         .WillOnce(Return(chrome_alive ? TRUE : FALSE));
   EXPECT_CALL(dbus_iface,
-              DbusConnectionRemoveFilter(kMockSystemBus, _, _));
+              DBusConnectionRemoveFilter(kMockSystemBus, _, _));
   if (chrome_replies) {
     EXPECT_CALL(dbus_iface,
-                DbusMessageIsSignal(kMockDbusMessage,
+                DBusMessageIsSignal(kMockDbusMessage,
                                     kLibCrosProxyResolveSignalInterface,
                                     kLibCrosProxyResolveName))
         .WillOnce(Return(1));
     EXPECT_CALL(dbus_iface,
-                DbusMessageGetArgs_3(kMockDbusMessage, _, _, _, _))
+                DBusMessageGetArgs_3(kMockDbusMessage, _, _, _, _))
         .WillOnce(DoAll(SetArgumentPointee<2>(strdup(kUrl)),
                         SetArgumentPointee<3>(
                             strdup("SOCKS5 192.168.52.83:5555;DIRECT")),
@@ -179,8 +179,8 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
     g_idle_add(SendReply, &args);
   EXPECT_TRUE(resolver.GetProxiesForUrl(kUrl,
                                         chrome_replies ?
-                                        &DbusInterfaceTestResolved :
-                                        &DbusInterfaceTestResolvedNoReply,
+                                        &DBusWrapperTestResolved :
+                                        &DBusWrapperTestResolvedNoReply,
                                         loop));
   g_main_loop_run(loop);
   g_main_loop_unref(loop);

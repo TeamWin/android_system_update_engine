@@ -8,7 +8,7 @@
 #include <string>
 
 #include "update_engine/connection_manager.h"
-#include "update_engine/mock_dbus_interface.h"
+#include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_system_state.h"
 
 using std::set;
@@ -50,7 +50,7 @@ class ConnectionManagerTest : public ::testing::Test {
   DBusGProxy* kMockFlimFlamServiceProxy_;
   DBusGConnection* kMockSystemBus_;
   const char* kServicePath_;
-  MockDbusGlib dbus_iface_;
+  MockDBusWrapper dbus_iface_;
   ConnectionManager cmut_;  // ConnectionManager under test.
   MockSystemState mock_system_state_;
 };

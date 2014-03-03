@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_DBUS_INTERFACE_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_DBUS_INTERFACE_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_DBUS_WRAPPER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_DBUS_WRAPPER_H_
 
 #include <gmock/gmock.h>
 
-#include "update_engine/dbus_interface.h"
+#include "update_engine/dbus_wrapper_interface.h"
 
 namespace chromeos_update_engine {
 
-class MockDbusGlib : public DbusGlibInterface {
+class MockDBusWrapper : public DBusWrapperInterface {
  public:
   MOCK_METHOD4(ProxyNewForName, DBusGProxy*(DBusGConnection *connection,
                                             const char *name,
@@ -35,26 +35,26 @@ class MockDbusGlib : public DbusGlibInterface {
 
   MOCK_METHOD1(ConnectionGetConnection, DBusConnection*(DBusGConnection* gbus));
 
-  MOCK_METHOD3(DbusBusAddMatch, void(DBusConnection* connection,
+  MOCK_METHOD3(DBusBusAddMatch, void(DBusConnection* connection,
                                      const char* rule,
                                      DBusError* error));
 
-  MOCK_METHOD4(DbusConnectionAddFilter, dbus_bool_t(
+  MOCK_METHOD4(DBusConnectionAddFilter, dbus_bool_t(
       DBusConnection* connection,
       DBusHandleMessageFunction function,
       void* user_data,
       DBusFreeFunction free_data_function));
 
-  MOCK_METHOD3(DbusConnectionRemoveFilter, void(
+  MOCK_METHOD3(DBusConnectionRemoveFilter, void(
       DBusConnection* connection,
       DBusHandleMessageFunction function,
       void* user_data));
 
-  MOCK_METHOD3(DbusMessageIsSignal, dbus_bool_t(DBusMessage* message,
+  MOCK_METHOD3(DBusMessageIsSignal, dbus_bool_t(DBusMessage* message,
                                                 const char* interface,
                                                 const char* signal_name));
 
-  MOCK_METHOD5(DbusMessageGetArgs_3, dbus_bool_t(DBusMessage* message,
+  MOCK_METHOD5(DBusMessageGetArgs_3, dbus_bool_t(DBusMessage* message,
                                                  DBusError* error,
                                                  char** out1,
                                                  char** out2,
@@ -63,4 +63,4 @@ class MockDbusGlib : public DbusGlibInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_DBUS_INTERFACE_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_DBUS_WRAPPER_H_

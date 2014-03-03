@@ -7,7 +7,7 @@
 
 #include <gmock/gmock.h>
 
-#include "update_engine/mock_dbus_interface.h"
+#include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_system_state.h"
 #include "update_engine/update_attempter.h"
 
@@ -18,7 +18,7 @@ class MockSystemState;
 class UpdateAttempterMock : public UpdateAttempter {
  public:
   explicit UpdateAttempterMock(MockSystemState* mock_system_state,
-                               MockDbusGlib* dbus)
+                               MockDBusWrapper* dbus)
       : UpdateAttempter(mock_system_state, dbus) {}
 
   MOCK_METHOD5(Update, void(const std::string& app_version,

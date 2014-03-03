@@ -12,7 +12,7 @@
 #include "update_engine/fake_clock.h"
 #include "update_engine/filesystem_copier_action.h"
 #include "update_engine/install_plan.h"
-#include "update_engine/mock_dbus_interface.h"
+#include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_http_fetcher.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
@@ -48,11 +48,11 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
   // explicitly specified, we feed an empty string, which causes the
   // UpdateAttempter class to ignore / not write the marker file.
   UpdateAttempterUnderTest(MockSystemState* mock_system_state,
-                           MockDbusGlib* dbus)
+                           MockDBusWrapper* dbus)
       : UpdateAttempter(mock_system_state, dbus, "") {}
 
   UpdateAttempterUnderTest(MockSystemState* mock_system_state,
-                           MockDbusGlib* dbus,
+                           MockDBusWrapper* dbus,
                            const string& update_completed_marker)
       : UpdateAttempter(mock_system_state, dbus, update_completed_marker) {}
 };
@@ -148,7 +148,7 @@ class UpdateAttempterTest : public ::testing::Test {
   static gboolean StaticP2PEnabledHousekeepingFails(gpointer data);
 
   NiceMock<MockSystemState> mock_system_state_;
-  NiceMock<MockDbusGlib> dbus_;
+  NiceMock<MockDBusWrapper> dbus_;
   UpdateAttempterUnderTest attempter_;
   NiceMock<ActionProcessorMock>* processor_;
   NiceMock<PrefsMock>* prefs_; // shortcut to mock_system_state_->mock_prefs()

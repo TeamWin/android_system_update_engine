@@ -78,7 +78,7 @@ class UpdateCheckSchedulerTest : public ::testing::Test {
   }
 
   MockSystemState mock_system_state_;
-  MockDbusGlib dbus_;
+  MockDBusWrapper dbus_;
   OpenSSLWrapperMock openssl_wrapper_;
   UpdateAttempterMock attempter_;
   UpdateCheckSchedulerUnderTest scheduler_;

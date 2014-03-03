@@ -5,16 +5,17 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_REAL_SYSTEM_STATE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_REAL_SYSTEM_STATE_H_
 
-#include <update_engine/system_state.h>
+#include "update_engine/system_state.h"
 
-#include <update_engine/clock.h>
-#include <update_engine/connection_manager.h>
-#include <update_engine/gpio_handler.h>
-#include <update_engine/hardware.h>
-#include <update_engine/payload_state.h>
-#include <update_engine/prefs.h>
-#include <update_engine/update_attempter.h>
-#include <update_engine/p2p_manager.h>
+#include "update_engine/clock.h"
+#include "update_engine/connection_manager.h"
+#include "update_engine/gpio_handler.h"
+#include "update_engine/hardware.h"
+#include "update_engine/payload_state.h"
+#include "update_engine/prefs.h"
+#include "update_engine/real_dbus_wrapper.h"
+#include "update_engine/update_attempter.h"
+#include "update_engine/p2p_manager.h"
 
 namespace chromeos_update_engine {
 
@@ -126,7 +127,7 @@ private:
   scoped_ptr<GpioHandler> gpio_handler_;
 
   // The dbus object used to initialize the update attempter.
-  ConcreteDbusGlib dbus_;
+  RealDBusWrapper dbus_;
 
   // Pointer to the update attempter object.
   scoped_ptr<UpdateAttempter> update_attempter_;

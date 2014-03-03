@@ -19,7 +19,7 @@ class MockConnectionManager : public ConnectionManager {
   MockConnectionManager(SystemState* system_state)
       : ConnectionManager(system_state) {}
 
-  MOCK_CONST_METHOD2(GetConnectionType, bool(DbusGlibInterface* dbus_iface,
+  MOCK_CONST_METHOD2(GetConnectionType, bool(DBusWrapperInterface* dbus_iface,
                                              NetworkConnectionType* out_type));
 
   MOCK_CONST_METHOD1(IsUpdateAllowedOver, bool(NetworkConnectionType type));

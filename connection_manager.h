@@ -7,7 +7,7 @@
 
 #include <base/basictypes.h>
 
-#include "update_engine/dbus_interface.h"
+#include "update_engine/dbus_wrapper_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -34,7 +34,7 @@ class ConnectionManager {
   // Populates |out_type| with the type of the network connection
   // that we are currently connected. The dbus_iface is used to
   // query the real connection manager (e.g shill).
-  virtual bool GetConnectionType(DbusGlibInterface* dbus_iface,
+  virtual bool GetConnectionType(DBusWrapperInterface* dbus_iface,
                                  NetworkConnectionType* out_type) const;
 
   // Returns true if we're allowed to update the system when we're

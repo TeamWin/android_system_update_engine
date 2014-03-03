@@ -118,13 +118,13 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
 }
 
 UpdateAttempter::UpdateAttempter(SystemState* system_state,
-                                 DbusGlibInterface* dbus_iface)
+                                 DBusWrapperInterface* dbus_iface)
     : chrome_proxy_resolver_(dbus_iface) {
   Init(system_state, kUpdateCompletedMarker);
 }
 
 UpdateAttempter::UpdateAttempter(SystemState* system_state,
-                                 DbusGlibInterface* dbus_iface,
+                                 DBusWrapperInterface* dbus_iface,
                                  const std::string& update_completed_marker)
     : chrome_proxy_resolver_(dbus_iface) {
   Init(system_state, update_completed_marker);

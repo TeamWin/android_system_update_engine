@@ -50,7 +50,8 @@ const int kTimeout = 5;  // seconds
 
 }  // namespace {}
 
-ChromeBrowserProxyResolver::ChromeBrowserProxyResolver(DbusGlibInterface* dbus)
+ChromeBrowserProxyResolver::ChromeBrowserProxyResolver(
+    DBusWrapperInterface* dbus)
     : dbus_(dbus), proxy_(NULL), timeout_(kTimeout) {}
 
 bool ChromeBrowserProxyResolver::Init() {
@@ -66,10 +67,10 @@ bool ChromeBrowserProxyResolver::Init() {
 
   DBusError dbus_error;
   dbus_error_init(&dbus_error);
-  dbus_->DbusBusAddMatch(connection, kLibCrosProxyResolveSignalFilter,
+  dbus_->DBusBusAddMatch(connection, kLibCrosProxyResolveSignalFilter,
                          &dbus_error);
   TEST_AND_RETURN_FALSE(!dbus_error_is_set(&dbus_error));
-  TEST_AND_RETURN_FALSE(dbus_->DbusConnectionAddFilter(
+  TEST_AND_RETURN_FALSE(dbus_->DBusConnectionAddFilter(
       connection,
       &ChromeBrowserProxyResolver::StaticFilterMessage,
       this,
@@ -78,7 +79,7 @@ bool ChromeBrowserProxyResolver::Init() {
   proxy_ = dbus_->ProxyNewForName(bus, kLibCrosServiceName, kLibCrosServicePath,
                                   kLibCrosServiceInterface);
   if (!proxy_) {
-    dbus_->DbusConnectionRemoveFilter(
+    dbus_->DBusConnectionRemoveFilter(
         connection,
         &ChromeBrowserProxyResolver::StaticFilterMessage,
         this);
@@ -94,7 +95,7 @@ ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() {
     DBusGConnection* gbus = dbus_->BusGet(DBUS_BUS_SYSTEM, &gerror);
     if (gbus) {
       DBusConnection* connection = dbus_->ConnectionGetConnection(gbus);
-      dbus_->DbusConnectionRemoveFilter(
+      dbus_->DBusConnectionRemoveFilter(
           connection,
           &ChromeBrowserProxyResolver::StaticFilterMessage,
           this);
@@ -152,7 +153,7 @@ DBusHandlerResult ChromeBrowserProxyResolver::FilterMessage(
     DBusConnection* connection,
     DBusMessage* message) {
   // Code lifted from libcros.
-  if (!dbus_->DbusMessageIsSignal(message,
+  if (!dbus_->DBusMessageIsSignal(message,
                                   kLibCrosProxyResolveSignalInterface,
                                   kLibCrosProxyResolveName)) {
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -163,7 +164,7 @@ DBusHandlerResult ChromeBrowserProxyResolver::FilterMessage(
   char* error = NULL;
   DBusError arg_error;
   dbus_error_init(&arg_error);
-  if (!dbus_->DbusMessageGetArgs_3(message, &arg_error,
+  if (!dbus_->DBusMessageGetArgs_3(message, &arg_error,
                                    &source_url,
                                    &proxy_list,
                                    &error)) {

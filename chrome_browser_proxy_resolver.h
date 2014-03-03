@@ -12,7 +12,7 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
-#include "update_engine/dbus_interface.h"
+#include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/proxy_resolver.h"
 
 namespace chromeos_update_engine {
@@ -27,7 +27,7 @@ extern const char kLibCrosProxyResolveSignalFilter[];
 
 class ChromeBrowserProxyResolver : public ProxyResolver {
  public:
-  explicit ChromeBrowserProxyResolver(DbusGlibInterface* dbus);
+  explicit ChromeBrowserProxyResolver(DBusWrapperInterface* dbus);
   virtual ~ChromeBrowserProxyResolver();
   bool Init();
 
@@ -75,7 +75,7 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
   // Shutdown the dbus proxy object.
   void Shutdown();
 
-  DbusGlibInterface* dbus_;
+  DBusWrapperInterface* dbus_;
   DBusGProxy* proxy_;
   DBusGProxy* peer_proxy_;
   int timeout_;
