@@ -18,11 +18,11 @@ class FakeShillProvider : public ShillProvider {
  protected:
   virtual bool DoInit() {
     set_var_is_connected(
-        new FakeVariable<bool>("is_connected", kVariableModeAsync));
+        new FakeVariable<bool>("is_connected", kVariableModePoll));
     set_var_conn_type(
-        new FakeVariable<ShillConnType>("conn_type", kVariableModeAsync));
+        new FakeVariable<ShillConnType>("conn_type", kVariableModePoll));
     set_var_conn_last_changed(
-        new FakeVariable<Time>("conn_last_changed", kVariableModeAsync));
+        new FakeVariable<base::Time>("conn_last_changed", kVariableModePoll));
     return true;
   }
 

@@ -11,6 +11,8 @@
 #include <base/memory/ref_counted.h>
 #include <base/memory/scoped_ptr.h>
 
+#include "update_engine/clock_interface.h"
+#include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/policy_manager/default_policy.h"
 #include "update_engine/policy_manager/policy.h"
 #include "update_engine/policy_manager/state.h"
@@ -24,7 +26,8 @@ class PolicyManager {
 
   // Initializes the PolicyManager instance. Returns whether the initialization
   // succeeded.
-  bool Init();
+  bool Init(chromeos_update_engine::DBusWrapperInterface* dbus,
+            chromeos_update_engine::ClockInterface* clock);
 
   // PolicyRequest() evaluates the given policy with the provided arguments and
   // returns the result. The |policy_method| is the pointer-to-method of the

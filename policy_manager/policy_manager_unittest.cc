@@ -8,10 +8,11 @@
 
 #include <base/bind.h>
 #include <base/memory/scoped_ptr.h>
-#include <base/time.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "update_engine/fake_clock.h"
+#include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/policy_manager/default_policy.h"
 #include "update_engine/policy_manager/mock_policy.h"
 #include "update_engine/policy_manager/pmtest_utils.h"
@@ -20,24 +21,34 @@
 
 using base::Bind;
 using base::Callback;
-using base::TimeDelta;
+using chromeos_update_engine::FakeClock;
+using chromeos_update_engine::MockDBusWrapper;
 using std::pair;
 using std::string;
 using std::vector;
-
-using testing::_;
+using testing::NiceMock;
 using testing::Return;
 using testing::StrictMock;
+using testing::_;
+
+namespace {
+
+DBusGConnection* const kFakeConnection = reinterpret_cast<DBusGConnection*>(1);
+
+}  // namespace
 
 namespace chromeos_policy_manager {
 
 class PmPolicyManagerTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    EXPECT_TRUE(pmut_.Init());
+    EXPECT_CALL(mock_dbus_, BusGet(_, _)).WillOnce(Return(kFakeConnection));
+    EXPECT_TRUE(pmut_.Init(&mock_dbus_, &fake_clock_));
   }
 
-  PolicyManager pmut_; // PolicyManager undert test.
+  NiceMock<MockDBusWrapper> mock_dbus_;
+  FakeClock fake_clock_;
+  PolicyManager pmut_;
 };
 
 // The FailingPolicy implements a single method and make it always fail. This

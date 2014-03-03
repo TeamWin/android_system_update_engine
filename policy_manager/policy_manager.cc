@@ -17,12 +17,13 @@ bool InitProvider(scoped_ptr<T>* handle_ptr, T* provider) {
    return handle_ptr->get() && (*handle_ptr)->Init();
 }
 
-bool PolicyManager::Init() {
+bool PolicyManager::Init(chromeos_update_engine::DBusWrapperInterface* dbus,
+                         chromeos_update_engine::ClockInterface* clock) {
   // TODO(deymo): Make it possible to replace this policy with a different
   // implementation with a build-time flag.
   policy_.reset(new ChromeOSPolicy());
 
-  state_.reset(new RealState());
+  state_.reset(new RealState(dbus, clock));
 
   return state_->Init();
 }

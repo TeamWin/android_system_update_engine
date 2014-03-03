@@ -141,7 +141,9 @@ class Variable : public BaseVariable {
   friend class PmRealRandomProviderTest;
   FRIEND_TEST(PmRealRandomProviderTest, GetRandomValues);
   friend class PmRealShillProviderTest;
-  FRIEND_TEST(PmRealShillProviderTest, DefaultValues);
+  FRIEND_TEST(PmRealShillProviderTest, ReadDefaultValues);
+  FRIEND_TEST(PmRealShillProviderTest, ReadChangedValuesConnectedViaEthernet);
+  FRIEND_TEST(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn);
 
   Variable(const std::string& name, VariableMode mode)
       : BaseVariable(name, mode) {}

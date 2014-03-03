@@ -11,8 +11,6 @@
 #include "update_engine/policy_manager/provider.h"
 #include "update_engine/policy_manager/variable.h"
 
-using base::Time;
-
 namespace chromeos_policy_manager {
 
 // TODO(garnold) Adapted from connection_manager.h.
