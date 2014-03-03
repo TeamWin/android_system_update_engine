@@ -91,24 +91,17 @@ void ConnectionManagerTest::SetManagerReply(gconstpointer reply_value,
                       array_as_value);
 
   // Plumb return value into mock object.
-  EXPECT_CALL(dbus_iface_, ProxyCall(kMockFlimFlamManagerProxy_,
-                                     StrEq(kGetPropertiesMethod),
-                                     _,
-                                     G_TYPE_INVALID,
-                                     dbus_g_type_get_map("GHashTable",
-                                                         G_TYPE_STRING,
-                                                         G_TYPE_VALUE),
-                                     _,
-                                     G_TYPE_INVALID))
-      .WillOnce(DoAll(SetArgumentPointee<5>(manager_hash_table), Return(TRUE)));
+  EXPECT_CALL(dbus_iface_, ProxyCall_0_1(kMockFlimFlamManagerProxy_,
+                                         StrEq(kGetPropertiesMethod),
+                                         _, _))
+      .WillOnce(DoAll(SetArgumentPointee<3>(manager_hash_table), Return(TRUE)));
 
   // Set other expectations.
   EXPECT_CALL(dbus_iface_,
-              ProxyNewForNameOwner(kMockSystemBus_,
-                                   StrEq(shill::kFlimflamServiceName),
-                                   StrEq(shill::kFlimflamServicePath),
-                                   StrEq(shill::kFlimflamManagerInterface),
-                                   _))
+              ProxyNewForName(kMockSystemBus_,
+                              StrEq(shill::kFlimflamServiceName),
+                              StrEq(shill::kFlimflamServicePath),
+                              StrEq(shill::kFlimflamManagerInterface)))
       .WillOnce(Return(kMockFlimFlamManagerProxy_));
   EXPECT_CALL(dbus_iface_, ProxyUnref(kMockFlimFlamManagerProxy_));
   EXPECT_CALL(dbus_iface_, BusGet(DBUS_BUS_SYSTEM, _))
@@ -142,24 +135,17 @@ void ConnectionManagerTest::SetServiceReply(const char* service_type,
   }
 
   // Plumb return value into mock object.
-  EXPECT_CALL(dbus_iface_, ProxyCall(kMockFlimFlamServiceProxy_,
-                                    StrEq(kGetPropertiesMethod),
-                                    _,
-                                    G_TYPE_INVALID,
-                                    dbus_g_type_get_map("GHashTable",
-                                                        G_TYPE_STRING,
-                                                        G_TYPE_VALUE),
-                                    _,
-                                    G_TYPE_INVALID))
-      .WillOnce(DoAll(SetArgumentPointee<5>(service_hash_table), Return(TRUE)));
+  EXPECT_CALL(dbus_iface_, ProxyCall_0_1(kMockFlimFlamServiceProxy_,
+                                         StrEq(kGetPropertiesMethod),
+                                         _, _))
+      .WillOnce(DoAll(SetArgumentPointee<3>(service_hash_table), Return(TRUE)));
 
   // Set other expectations.
   EXPECT_CALL(dbus_iface_,
-      ProxyNewForNameOwner(kMockSystemBus_,
-                             StrEq(shill::kFlimflamServiceName),
-                             StrEq(kServicePath_),
-                             StrEq(shill::kFlimflamServiceInterface),
-                             _))
+              ProxyNewForName(kMockSystemBus_,
+                              StrEq(shill::kFlimflamServiceName),
+                              StrEq(kServicePath_),
+                              StrEq(shill::kFlimflamServiceInterface)))
       .WillOnce(Return(kMockFlimFlamServiceProxy_));
   EXPECT_CALL(dbus_iface_, ProxyUnref(kMockFlimFlamServiceProxy_));
   EXPECT_CALL(dbus_iface_, BusGet(DBUS_BUS_SYSTEM, _))

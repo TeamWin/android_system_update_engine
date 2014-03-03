@@ -45,28 +45,8 @@ const char kLibCrosProxyResolveSignalFilter[] = "type='signal', "
 #undef LIB_CROS_PROXY_RESOLVE_NAME
 
 namespace {
+
 const int kTimeout = 5;  // seconds
-
-DBusGProxy* GetProxy(DbusGlibInterface* dbus) {
-  GError* error = NULL;
-
-  DBusGConnection* bus = dbus->BusGet(DBUS_BUS_SYSTEM, &error);
-  if (!bus) {
-    LOG(ERROR) << "Failed to get bus";
-    return NULL;
-  }
-  DBusGProxy* proxy = dbus->ProxyNewForNameOwner(bus,
-                                                 kLibCrosServiceName,
-                                                 kLibCrosServicePath,
-                                                 kLibCrosServiceInterface,
-                                                 &error);
-  if (!proxy) {
-    LOG(ERROR) << "Error getting dbus proxy for " << kLibCrosServiceName << ": "
-               << utils::GetAndFreeGError(&error);
-    return NULL;
-  }
-  return proxy;
-}
 
 }  // namespace {}
 
@@ -74,27 +54,29 @@ ChromeBrowserProxyResolver::ChromeBrowserProxyResolver(DbusGlibInterface* dbus)
     : dbus_(dbus), proxy_(NULL), timeout_(kTimeout) {}
 
 bool ChromeBrowserProxyResolver::Init() {
-  // Set up signal handler. Code lifted from libcros
-  if (proxy_) {
-    // Already initialized
-    return true;
-  }
-  GError* gerror = NULL;
-  DBusGConnection* gbus = dbus_->BusGet(DBUS_BUS_SYSTEM, &gerror);
-  TEST_AND_RETURN_FALSE(gbus);
-  DBusConnection* connection = dbus_->ConnectionGetConnection(gbus);
+  if (proxy_)
+    return true;  // Already initialized.
+
+  // Set up signal handler. Code lifted from libcros.
+  GError* g_error = NULL;
+  DBusGConnection* bus = dbus_->BusGet(DBUS_BUS_SYSTEM, &g_error);
+  TEST_AND_RETURN_FALSE(bus);
+  DBusConnection* connection = dbus_->ConnectionGetConnection(bus);
   TEST_AND_RETURN_FALSE(connection);
-  DBusError error;
-  dbus_error_init(&error);
-  dbus_->DbusBusAddMatch(connection, kLibCrosProxyResolveSignalFilter, &error);
-  TEST_AND_RETURN_FALSE(!dbus_error_is_set(&error));
+
+  DBusError dbus_error;
+  dbus_error_init(&dbus_error);
+  dbus_->DbusBusAddMatch(connection, kLibCrosProxyResolveSignalFilter,
+                         &dbus_error);
+  TEST_AND_RETURN_FALSE(!dbus_error_is_set(&dbus_error));
   TEST_AND_RETURN_FALSE(dbus_->DbusConnectionAddFilter(
       connection,
       &ChromeBrowserProxyResolver::StaticFilterMessage,
       this,
       NULL));
 
-  proxy_ = GetProxy(dbus_);
+  proxy_ = dbus_->ProxyNewForName(bus, kLibCrosServiceName, kLibCrosServicePath,
+                                  kLibCrosServiceInterface);
   if (!proxy_) {
     dbus_->DbusConnectionRemoveFilter(
         connection,
@@ -105,24 +87,21 @@ bool ChromeBrowserProxyResolver::Init() {
   return true;
 }
 
-void ChromeBrowserProxyResolver::Shutdown() {
-  if (!proxy_)
-    return;
-
-  GError* gerror = NULL;
-  DBusGConnection* gbus = dbus_->BusGet(DBUS_BUS_SYSTEM, &gerror);
-  TEST_AND_RETURN(gbus);
-  DBusConnection* connection = dbus_->ConnectionGetConnection(gbus);
-  dbus_->DbusConnectionRemoveFilter(
-      connection,
-      &ChromeBrowserProxyResolver::StaticFilterMessage,
-      this);
-  proxy_ = NULL;
-}
-
 ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() {
-  // Kill proxy object.
-  Shutdown();
+  // Remove DBus connection filters and Kill proxy object.
+  if (proxy_) {
+    GError* gerror = NULL;
+    DBusGConnection* gbus = dbus_->BusGet(DBUS_BUS_SYSTEM, &gerror);
+    if (gbus) {
+      DBusConnection* connection = dbus_->ConnectionGetConnection(gbus);
+      dbus_->DbusConnectionRemoveFilter(
+          connection,
+          &ChromeBrowserProxyResolver::StaticFilterMessage,
+          this);
+    }
+    dbus_->ProxyUnref(proxy_);
+  }
+
   // Kill outstanding timers
   for (TimeoutsMap::iterator it = timers_.begin(), e = timers_.end(); it != e;
        ++it) {
@@ -137,50 +116,22 @@ bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
   GError* error = NULL;
   guint timeout = timeout_;
   if (proxy_) {
-    bool dbus_success = true;
-    bool dbus_reinit = false;
-    bool dbus_got_error;
+    if (!dbus_->ProxyCall_3_0(proxy_,
+                              kLibCrosServiceResolveNetworkProxyMethodName,
+                              &error,
+                              url.c_str(),
+                              kLibCrosProxyResolveSignalInterface,
+                              kLibCrosProxyResolveName)) {
 
-    do {
-      if (!dbus_success) {
-        // We failed with a null error, time to re-init the dbus proxy.
-        LOG(WARNING) << "attempting to reinitialize dbus proxy and retrying";
-        Shutdown();
-        if (!Init()) {
-          LOG(WARNING) << "failed to reinitialize the dbus proxy";
-          break;
-        }
-        dbus_reinit = true;
-      }
-
-      dbus_success = dbus_->ProxyCall(
-          proxy_,
-          kLibCrosServiceResolveNetworkProxyMethodName,
-          &error,
-          G_TYPE_STRING, url.c_str(),
-          G_TYPE_STRING, kLibCrosProxyResolveSignalInterface,
-          G_TYPE_STRING, kLibCrosProxyResolveName,
-          G_TYPE_INVALID, G_TYPE_INVALID);
-
-      dbus_got_error = false;
-
-      if (dbus_success) {
-        LOG(INFO) << "dbus_g_proxy_call succeeded!";
+      if (error) {
+        LOG(WARNING) << "dbus_g_proxy_call failed, continuing with no proxy: "
+                     << utils::GetAndFreeGError(&error);
       } else {
-        if (error) {
-          // Register the fact that we did receive an error, as it is nullified
-          // on the next line.
-          dbus_got_error = true;
-          LOG(WARNING) << "dbus_g_proxy_call failed: "
-                       << utils::GetAndFreeGError(&error)
-                       << " Continuing with no proxy.";
-        } else {
-          LOG(WARNING) << "dbus_g_proxy_call failed with no error string, "
-                          "continuing with no proxy.";
-        }
-        timeout = 0;
+        LOG(WARNING) << "dbus_g_proxy_call failed with no error string, "
+                        "continuing with no proxy.";
       }
-    } while (!(dbus_success || dbus_got_error || dbus_reinit));
+      timeout = 0;
+    }
   } else {
     LOG(WARNING) << "dbus proxy object missing, continuing with no proxy.";
     timeout = 0;
@@ -212,11 +163,10 @@ DBusHandlerResult ChromeBrowserProxyResolver::FilterMessage(
   char* error = NULL;
   DBusError arg_error;
   dbus_error_init(&arg_error);
-  if (!dbus_->DbusMessageGetArgs(message, &arg_error,
-                                 DBUS_TYPE_STRING, &source_url,
-                                 DBUS_TYPE_STRING, &proxy_list,
-                                 DBUS_TYPE_STRING, &error,
-                                 DBUS_TYPE_INVALID)) {
+  if (!dbus_->DbusMessageGetArgs_3(message, &arg_error,
+                                   &source_url,
+                                   &proxy_list,
+                                   &error)) {
     LOG(ERROR) << "Error reading dbus signal.";
     return DBUS_HANDLER_RESULT_HANDLED;
   }

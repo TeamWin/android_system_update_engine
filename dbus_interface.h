@@ -5,9 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_DBUS_INTERFACE_H__
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_DBUS_INTERFACE_H__
 
-// This class interfaces with DBus. The interface allows it to be mocked.
+// A mockable interface for DBus.
 
-#include <base/logging.h>
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-lowlevel.h>
 
@@ -25,81 +24,79 @@ namespace chromeos_update_engine {
 
 class DbusGlibInterface {
  public:
-  // wraps dbus_g_proxy_new_for_name_owner
-  virtual DBusGProxy* ProxyNewForNameOwner(DBusGConnection* connection,
-                                           const char* name,
-                                           const char* path,
-                                           const char* interface,
-                                           GError** error) = 0;
+  // Wraps dbus_g_proxy_new_for_name().
+  virtual DBusGProxy* ProxyNewForName(DBusGConnection* connection,
+                                      const char* name,
+                                      const char* path,
+                                      const char* interface) = 0;
 
-  // wraps g_object_unref
+  // Wraps g_object_unref().
   virtual void ProxyUnref(DBusGProxy* proxy) = 0;
 
-  // wraps dbus_g_bus_get
+  // Wraps dbus_g_bus_get().
   virtual DBusGConnection* BusGet(DBusBusType type, GError** error) = 0;
 
-  // wraps dbus_g_proxy_call
-  virtual gboolean ProxyCall(DBusGProxy* proxy,
-                             const char* method,
-                             GError** error,
-                             GType first_arg_type,
-                             GType var_arg1,
-                             GHashTable** var_arg2,
-                             GType var_arg3) = 0;
+  // Wraps dbus_g_proxy_call(). Since this is a variadic function without a
+  // va_list equivalent, we have to list specific wrappers depending on the
+  // number of input and output arguments, based on the required usage. Note,
+  // however, that we do rely on automatic signature overriding to facilitate
+  // different types of input/output arguments.
+  virtual gboolean ProxyCall_0_1(DBusGProxy* proxy,
+                                 const char* method,
+                                 GError** error,
+                                 GHashTable** out1) = 0;
 
-  virtual gboolean ProxyCall(DBusGProxy* proxy,
-                             const char* method,
-                             GError** error,
-                             GType var_arg1, const char* var_arg2,
-                             GType var_arg3,
-                             GType var_arg4, gchar** var_arg5,
-                             GType var_arg6, GArray** var_arg7,
-                             GType var_arg8) = 0;
+  virtual gboolean ProxyCall_3_0(DBusGProxy* proxy,
+                                 const char* method,
+                                 GError** error,
+                                 const char* in1,
+                                 const char* in2,
+                                 const char* in3) = 0;
 
-  virtual gboolean ProxyCall(DBusGProxy* proxy,
-                             const char* method,
-                             GError** error,
-                             GType var_arg1, const char* var_arg2,
-                             GType var_arg3, const char* var_arg4,
-                             GType var_arg5, const char* var_arg6,
-                             GType var_arg7, GType var_arg8) = 0;
-
+  // Wraps dbus_g_connection_get_connection().
   virtual DBusConnection* ConnectionGetConnection(DBusGConnection* gbus) = 0;
 
+  // Wraps dbus_bus_add_match().
   virtual void DbusBusAddMatch(DBusConnection* connection,
                                const char* rule,
                                DBusError* error) = 0;
 
+  // Wraps dbus_connection_add_filter().
   virtual dbus_bool_t DbusConnectionAddFilter(
       DBusConnection* connection,
       DBusHandleMessageFunction function,
       void* user_data,
       DBusFreeFunction free_data_function) = 0;
+
+  // Wraps dbus_connection_remove_filter().
   virtual void DbusConnectionRemoveFilter(DBusConnection* connection,
                                           DBusHandleMessageFunction function,
                                           void* user_data) = 0;
+
+  // Wraps dbus_message_is_signal().
   virtual dbus_bool_t DbusMessageIsSignal(DBusMessage* message,
                                           const char* interface,
                                           const char* signal_name) = 0;
-  virtual dbus_bool_t DbusMessageGetArgs(DBusMessage* message,
-                                         DBusError* error,
-                                         GType var_arg1, char** var_arg2,
-                                         GType var_arg3, char** var_arg4,
-                                         GType var_arg5, char** var_arg6,
-                                         GType var_arg7) = 0;
+
+  // Wraps dbus_message_get_args(). Deploys the same approach for handling
+  // variadic arguments as ProxyCall above.
+  virtual dbus_bool_t DbusMessageGetArgs_3(DBusMessage* message,
+                                           DBusError* error,
+                                           char** out1,
+                                           char** out2,
+                                           char** out3) = 0;
 };
 
+
 class ConcreteDbusGlib : public DbusGlibInterface {
-  virtual DBusGProxy* ProxyNewForNameOwner(DBusGConnection* connection,
-                                           const char* name,
-                                           const char* path,
-                                           const char* interface,
-                                           GError** error) {
-    return dbus_g_proxy_new_for_name_owner(connection,
-                                           name,
-                                           path,
-                                           interface,
-                                           error);
+  virtual DBusGProxy* ProxyNewForName(DBusGConnection* connection,
+                                      const char* name,
+                                      const char* path,
+                                      const char* interface) {
+    return dbus_g_proxy_new_for_name(connection,
+                                     name,
+                                     path,
+                                     interface);
   }
 
   virtual void ProxyUnref(DBusGProxy* proxy) {
@@ -109,43 +106,29 @@ class ConcreteDbusGlib : public DbusGlibInterface {
   virtual DBusGConnection* BusGet(DBusBusType type, GError** error) {
     return dbus_g_bus_get(type, error);
   }
-  
-  virtual gboolean ProxyCall(DBusGProxy* proxy,
-                             const char* method,
-                             GError** error,
-                             GType first_arg_type,
-                             GType var_arg1,
-                             GHashTable** var_arg2,
-                             GType var_arg3) {
-    return dbus_g_proxy_call(
-        proxy, method, error, first_arg_type, var_arg1, var_arg2, var_arg3);
+
+  virtual gboolean ProxyCall_0_1(DBusGProxy* proxy,
+                                 const char* method,
+                                 GError** error,
+                                 GHashTable** out1) {
+    return dbus_g_proxy_call(proxy, method, error, G_TYPE_INVALID,
+                             dbus_g_type_get_map("GHashTable",
+                                                 G_TYPE_STRING,
+                                                 G_TYPE_VALUE),
+                             out1, G_TYPE_INVALID);
   }
 
-  virtual gboolean ProxyCall(DBusGProxy* proxy,
-                             const char* method,
-                             GError** error,
-                             GType var_arg1, const char* var_arg2,
-                             GType var_arg3,
-                             GType var_arg4, gchar** var_arg5,
-                             GType var_arg6, GArray** var_arg7,
-                             GType var_arg8) {
+  virtual gboolean ProxyCall_3_0(DBusGProxy* proxy,
+                                 const char* method,
+                                 GError** error,
+                                 const char* in1,
+                                 const char* in2,
+                                 const char* in3) {
     return dbus_g_proxy_call(
-        proxy, method, error, var_arg1, var_arg2, var_arg3,
-        var_arg4, var_arg5, var_arg6, var_arg7, var_arg8);
+        proxy, method, error,
+        G_TYPE_STRING, in1, G_TYPE_STRING, in2, G_TYPE_STRING, in3,
+        G_TYPE_INVALID, G_TYPE_INVALID);
   }
-
-  virtual gboolean ProxyCall(DBusGProxy* proxy,
-                             const char* method,
-                             GError** error,
-                             GType var_arg1, const char* var_arg2,
-                             GType var_arg3, const char* var_arg4,
-                             GType var_arg5, const char* var_arg6,
-                             GType var_arg7, GType var_arg8) {
-    return dbus_g_proxy_call(
-        proxy, method, error, var_arg1, var_arg2, var_arg3,
-        var_arg4, var_arg5, var_arg6, var_arg7, var_arg8);
-  }
-
 
   virtual DBusConnection* ConnectionGetConnection(DBusGConnection* gbus) {
     return dbus_g_connection_get_connection(gbus);
@@ -167,27 +150,29 @@ class ConcreteDbusGlib : public DbusGlibInterface {
                                       user_data,
                                       free_data_function);
   }
+
   virtual void DbusConnectionRemoveFilter(DBusConnection* connection,
                                           DBusHandleMessageFunction function,
                                           void* user_data) {
     dbus_connection_remove_filter(connection, function, user_data);
   }
+
   dbus_bool_t DbusMessageIsSignal(DBusMessage* message,
                                   const char* interface,
                                   const char* signal_name) {
     return dbus_message_is_signal(message, interface, signal_name);
   }
-  virtual dbus_bool_t DbusMessageGetArgs(DBusMessage* message,
-                                         DBusError* error,
-                                         GType var_arg1, char** var_arg2,
-                                         GType var_arg3, char** var_arg4,
-                                         GType var_arg5, char** var_arg6,
-                                         GType var_arg7) {
+
+  virtual dbus_bool_t DbusMessageGetArgs_3(DBusMessage* message,
+                                           DBusError* error,
+                                           char** out1,
+                                           char** out2,
+                                           char** out3) {
     return dbus_message_get_args(message, error,
-                                 var_arg1, var_arg2,
-                                 var_arg3, var_arg4,
-                                 var_arg5, var_arg6,
-                                 var_arg7);
+                                 DBUS_TYPE_STRING, out1,
+                                 DBUS_TYPE_STRING, out2,
+                                 DBUS_TYPE_STRING, out3,
+                                 G_TYPE_INVALID);
   }
 };
 

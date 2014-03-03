@@ -124,32 +124,30 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
   MockDbusGlib dbus_iface;
   
   EXPECT_CALL(dbus_iface, BusGet(_, _))
-      .Times(chrome_alive ? 3 : 2)
+      .Times(2)
       .WillRepeatedly(Return(kMockSystemGBus));
   EXPECT_CALL(dbus_iface,
               ConnectionGetConnection(kMockSystemGBus))
-      .Times(chrome_alive ? 2 : 1)
+      .Times(2)
       .WillRepeatedly(Return(kMockSystemBus));
   EXPECT_CALL(dbus_iface, DbusBusAddMatch(kMockSystemBus, _, _));
   EXPECT_CALL(dbus_iface,
               DbusConnectionAddFilter(kMockSystemBus, _, _, _))
       .WillOnce(Return(1));
   EXPECT_CALL(dbus_iface,
-              ProxyNewForNameOwner(kMockSystemGBus,
-                                   StrEq(kLibCrosServiceName),
-                                   StrEq(kLibCrosServicePath),
-                                   StrEq(kLibCrosServiceInterface),
-                                   _))
-      .WillOnce(Return(chrome_alive ? kMockDbusProxy : NULL));
+              ProxyNewForName(kMockSystemGBus,
+                              StrEq(kLibCrosServiceName),
+                              StrEq(kLibCrosServicePath),
+                              StrEq(kLibCrosServiceInterface)))
+      .WillOnce(Return(kMockDbusProxy));
   if (chrome_alive)
-    EXPECT_CALL(dbus_iface, ProxyCall(
+    EXPECT_CALL(dbus_iface, ProxyCall_3_0(
         kMockDbusProxy,
         StrEq(kLibCrosServiceResolveNetworkProxyMethodName),
         _,
-        G_TYPE_STRING, StrEq(kUrl),
-        G_TYPE_STRING, StrEq(kLibCrosProxyResolveSignalInterface),
-        G_TYPE_STRING, StrEq(kLibCrosProxyResolveName),
-        G_TYPE_INVALID))
+        StrEq(kUrl),
+        StrEq(kLibCrosProxyResolveSignalInterface),
+        StrEq(kLibCrosProxyResolveName)))
         .WillOnce(Return(chrome_alive ? TRUE : FALSE));
   EXPECT_CALL(dbus_iface,
               DbusConnectionRemoveFilter(kMockSystemBus, _, _));
@@ -160,13 +158,9 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
                                     kLibCrosProxyResolveName))
         .WillOnce(Return(1));
     EXPECT_CALL(dbus_iface,
-                DbusMessageGetArgs(kMockDbusMessage, _,
-                                   DBUS_TYPE_STRING, _,
-                                   DBUS_TYPE_STRING, _,
-                                   DBUS_TYPE_STRING, _,
-                                   DBUS_TYPE_INVALID))
-        .WillOnce(DoAll(SetArgumentPointee<3>(strdup(kUrl)),
-                        SetArgumentPointee<5>(
+                DbusMessageGetArgs_3(kMockDbusMessage, _, _, _, _))
+        .WillOnce(DoAll(SetArgumentPointee<2>(strdup(kUrl)),
+                        SetArgumentPointee<3>(
                             strdup("SOCKS5 192.168.52.83:5555;DIRECT")),
                         Return(TRUE)));
   }
@@ -174,7 +168,7 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
 
   ChromeBrowserProxyResolver resolver(&dbus_iface);
-  EXPECT_EQ(chrome_alive, resolver.Init());
+  EXPECT_EQ(true, resolver.Init());
   resolver.set_timeout(1);
   SendReplyArgs args = {
     kMockSystemBus,

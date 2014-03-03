@@ -37,16 +37,8 @@ bool GetFlimFlamProxy(DbusGlibInterface* dbus_iface,
     LOG(ERROR) << "Failed to get system bus";
     return false;
   }
-  proxy = dbus_iface->ProxyNewForNameOwner(bus,
-                                           shill::kFlimflamServiceName,
-                                           path,
-                                           interface,
-                                           &error);
-  if (!proxy) {
-    LOG(ERROR) << "Error getting FlimFlam proxy: "
-               << utils::GetAndFreeGError(&error);
-    return false;
-  }
+  proxy = dbus_iface->ProxyNewForName(bus, shill::kFlimflamServiceName, path,
+                                      interface);
   *out_proxy = proxy;
   return true;
 }
@@ -65,15 +57,10 @@ bool GetProperties(DbusGlibInterface* dbus_iface,
                                          interface,
                                          &proxy));
 
-  gboolean rc = dbus_iface->ProxyCall(proxy,
-                                      "GetProperties",
-                                      &error,
-                                      G_TYPE_INVALID,
-                                      dbus_g_type_get_map("GHashTable",
-                                                          G_TYPE_STRING,
-                                                          G_TYPE_VALUE),
-                                      out_hash_table,
-                                      G_TYPE_INVALID);
+  gboolean rc = dbus_iface->ProxyCall_0_1(proxy,
+                                          "GetProperties",
+                                          &error,
+                                          out_hash_table);
   dbus_iface->ProxyUnref(proxy);
   if (rc == FALSE) {
     LOG(ERROR) << "dbus_g_proxy_call failed";
