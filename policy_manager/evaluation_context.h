@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_EVALUATION_CONTEXT_H
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_EVALUATION_CONTEXT_H
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_EVALUATION_CONTEXT_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_EVALUATION_CONTEXT_H_
 
 #include <map>
 
@@ -48,4 +48,4 @@ class EvaluationContext : public base::RefCounted<EvaluationContext> {
 // Include the implementation of the template methods.
 #include "update_engine/policy_manager/evaluation_context-inl.h"
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_EVALUATION_CONTEXT_H
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_EVALUATION_CONTEXT_H_

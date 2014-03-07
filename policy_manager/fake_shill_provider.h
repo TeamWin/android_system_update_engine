@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_SHILL_PROVIDER_H
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_SHILL_PROVIDER_H
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_SHILL_PROVIDER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_SHILL_PROVIDER_H_
 
 #include "update_engine/policy_manager/fake_variable.h"
 #include "update_engine/policy_manager/shill_provider.h"
@@ -32,4 +32,4 @@ class FakeShillProvider : public ShillProvider {
 
 }  // namespace chromeos_policy_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_SHILL_PROVIDER_H
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_SHILL_PROVIDER_H_

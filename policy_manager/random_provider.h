@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_PROVIDER_H
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_PROVIDER_H
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_PROVIDER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_PROVIDER_H_
 
 #include <base/memory/scoped_ptr.h>
 
@@ -37,4 +37,4 @@ class RandomProvider : public Provider {
 
 }  // namespace chromeos_policy_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_PROVIDER_H
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_PROVIDER_H_

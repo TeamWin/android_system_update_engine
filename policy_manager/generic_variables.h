@@ -6,8 +6,8 @@
 // used by any state provider to implement simple variables to avoid repeat the
 // same common code on different state providers.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H_
 
 #include "update_engine/policy_manager/variable.h"
 
@@ -61,4 +61,4 @@ class CopyVariable : public Variable<T> {
 
 }  // namespace chromeos_policy_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H_
