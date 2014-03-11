@@ -53,6 +53,23 @@ class DBusWrapperInterface {
                                  const char* in2,
                                  const char* in3) = 0;
 
+  // Wrappers for dbus_g_proxy_add_signal() (variadic).
+  virtual void ProxyAddSignal_2(DBusGProxy* proxy,
+                                const char* signal_name,
+                                GType type1,
+                                GType type2) = 0;
+
+  // Wrapper for dbus_g_proxy_{connect,disconnect}_signal().
+  virtual void ProxyConnectSignal(DBusGProxy* proxy,
+                                  const char* signal_name,
+                                  GCallback handler,
+                                  void* data,
+                                  GClosureNotify free_data_func) = 0;
+  virtual void ProxyDisconnectSignal(DBusGProxy* proxy,
+                                     const char* signal_name,
+                                     GCallback handler,
+                                     void* data) = 0;
+
   // Wraps dbus_g_connection_get_connection().
   virtual DBusConnection* ConnectionGetConnection(DBusGConnection* gbus) = 0;
 

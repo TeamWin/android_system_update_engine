@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <base/memory/scoped_ptr.h>
+#include <glib-object.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/action.h"
@@ -280,6 +281,12 @@ class ScopedLoopMounter {
 // than |iterations| events to attend, then this function returns |iterations|
 // and the remaining events are not dispatched.
 int RunGMainLoopMaxIterations(int iterations);
+
+// Allocates, initializes and returns a string GValue object.
+GValue* GValueNewString(const char* str);
+
+// Frees a GValue object and its allocated resources.
+void GValueFree(gpointer arg);
 
 }  // namespace chromeos_update_engine
 

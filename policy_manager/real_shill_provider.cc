@@ -7,6 +7,7 @@
 #include <string>
 
 #include <base/logging.h>
+#include <base/stringprintf.h>
 #include <chromeos/dbus/service_constants.h>
 
 #include "update_engine/policy_manager/generic_variables.h"
@@ -28,6 +29,8 @@ const char* GetStrProperty(GHashTable* hash_table, const char* key) {
 
 namespace chromeos_policy_manager {
 
+// ShillConnector methods.
+
 const ShillConnector::ConnStrToType ShillConnector::shill_conn_str_to_type[] = {
   {shill::kTypeEthernet, kShillConnTypeEthernet},
   {shill::kTypeWifi, kShillConnTypeWifi},
@@ -36,7 +39,21 @@ const ShillConnector::ConnStrToType ShillConnector::shill_conn_str_to_type[] = {
   {shill::kTypeCellular, kShillConnTypeCellular},
 };
 
+ShillConnector::~ShillConnector() {
+  if (!is_init_)
+    return;
+
+  // Detach signal handler, free manager proxy.
+  dbus_->ProxyDisconnectSignal(manager_proxy_, shill::kMonitorPropertyChanged,
+                               G_CALLBACK(signal_handler_), signal_data_);
+  dbus_->ProxyUnref(manager_proxy_);
+}
+
 bool ShillConnector::Init() {
+  if (is_init_)
+    return true;
+
+  // Obtain a DBus connection.
   GError* error = NULL;
   connection_ = dbus_->BusGet(DBUS_BUS_SYSTEM, &error);
   if (!connection_) {
@@ -44,29 +61,18 @@ bool ShillConnector::Init() {
                << chromeos_update_engine::utils::GetAndFreeGError(&error);
     return false;
   }
+
+  // Allocate a shill manager proxy.
   manager_proxy_ = GetProxy(shill::kFlimflamServicePath,
                             shill::kFlimflamManagerInterface);
-  return true;
-}
 
-bool ShillConnector::GetDefaultConnection(bool* is_connected_p,
-                                          string* default_service_path_p) {
-  GHashTable* hash_table = NULL;
-  if (!GetProperties(manager_proxy_, &hash_table))
-    return false;
-  GValue* value = reinterpret_cast<GValue*>(
-      g_hash_table_lookup(hash_table, shill::kDefaultServiceProperty));
-  const char* default_service_path_str = NULL;
-  bool success = false;
-  if (value && (default_service_path_str = g_value_get_string(value))) {
-    success = true;
-    *is_connected_p = strcmp(default_service_path_str, "/");
-    if (*is_connected_p)
-      *default_service_path_p = default_service_path_str;
-  }
-  g_hash_table_unref(hash_table);
+  // Subscribe to the manager's PropertyChanged signal.
+  dbus_->ProxyAddSignal_2(manager_proxy_, shill::kMonitorPropertyChanged,
+                          G_TYPE_STRING, G_TYPE_VALUE);
+  dbus_->ProxyConnectSignal(manager_proxy_, shill::kMonitorPropertyChanged,
+                            G_CALLBACK(signal_handler_), signal_data_, NULL);
 
-  return success;
+  return is_init_ = true;
 }
 
 bool ShillConnector::GetConnectionType(const string& service_path,
@@ -114,8 +120,6 @@ ShillConnType ShillConnector::ParseConnType(const char* str) {
   return kShillConnTypeUnknown;
 }
 
-// Issues a GetProperties call through a given |proxy|, storing the result to
-// |*result_p|. Returns |true| on success.
 bool ShillConnector::GetProperties(DBusGProxy* proxy, GHashTable** result_p) {
   GError* error = NULL;
   if (!dbus_->ProxyCall_0_1(proxy, shill::kGetPropertiesFunction, &error,
@@ -127,82 +131,112 @@ bool ShillConnector::GetProperties(DBusGProxy* proxy, GHashTable** result_p) {
   return true;
 }
 
-// A variable returning whether or not we have a network connection.
-class IsConnectedVariable : public Variable<bool> {
- public:
-  IsConnectedVariable(const string& name, ShillConnector* connector,
-                      LastValueTracker<bool>* is_connected_tracker)
-      : Variable<bool>(name, kVariableModePoll),
-        connector_(connector),
-        is_connected_tracker_(is_connected_tracker) {}
-
- protected:
-  virtual const bool* GetValue(base::TimeDelta timeout, string* errmsg) {
-    bool is_connected;
-    string default_service_path;
-    if (!connector_->GetDefaultConnection(&is_connected, &default_service_path))
-      return NULL;;
-
-    return new bool(is_connected_tracker_->Update(is_connected));
-  }
-
- private:
-  ShillConnector* connector_;
-  LastValueTracker<bool>* is_connected_tracker_;
-
-  DISALLOW_COPY_AND_ASSIGN(IsConnectedVariable);
-};
 
 // A variable returning the curent connection type.
 class ConnTypeVariable : public Variable<ShillConnType> {
  public:
   ConnTypeVariable(const string& name, ShillConnector* connector,
-                   LastValueTracker<bool>* is_connected_tracker)
+                   RealShillProvider* provider)
       : Variable<ShillConnType>(name, kVariableModePoll),
-        connector_(connector),
-        is_connected_tracker_(is_connected_tracker) {}
+        connector_(connector), provider_(provider) {}
 
  protected:
-  virtual const ShillConnType* GetValue(base::TimeDelta timeout,
+  // TODO(garnold) Shift to a non-blocking version, respect the timeout.
+  virtual const ShillConnType* GetValue(base::TimeDelta /* timeout */,
                                         string* errmsg) {
-    bool is_connected;
-    string default_service_path;
-    ShillConnType conn_type;
-    if (!(connector_->GetDefaultConnection(&is_connected,
-                                           &default_service_path) &&
-          is_connected &&
-          connector_->GetConnectionType(default_service_path, &conn_type)))
+    if (!(provider_->is_connected_)) {
+      if (errmsg)
+        *errmsg = "No connection detected";
       return NULL;
+    }
 
-    is_connected_tracker_->Update(is_connected);
+    ShillConnType conn_type;
+    if (provider_->is_conn_type_valid_) {
+      conn_type = provider_->conn_type_;
+    } else {
+      if (!connector_->GetConnectionType(provider_->default_service_path_,
+                                         &conn_type)) {
+        if (errmsg)
+          *errmsg = StringPrintf(
+              "Could not retrieve type of default connection (%s)",
+              provider_->default_service_path_.c_str());
+        return NULL;
+      }
+      provider_->is_conn_type_valid_ = true;
+    }
+
     return new ShillConnType(conn_type);
   }
 
  private:
+  // The DBus connector.
   ShillConnector* connector_;
-  LastValueTracker<bool>* is_connected_tracker_;
+
+  // The shill provider object (we need to read/update some internal members).
+  RealShillProvider* provider_;
 
   DISALLOW_COPY_AND_ASSIGN(ConnTypeVariable);
 };
 
-// A real implementation of the ShillProvider.
+
+// RealShillProvider methods.
+
 bool RealShillProvider::DoInit() {
   // Initialize a DBus connection and obtain the shill manager proxy.
-  connector_.reset(new ShillConnector(dbus_));
+  connector_.reset(new ShillConnector(dbus_, HandlePropertyChangedStatic,
+                                      this));
   if (!connector_->Init())
+    return false;
+
+  // Read initial connection status.
+  GHashTable* hash_table = NULL;
+  if (!connector_->GetManagerProperties(&hash_table))
+    return false;
+  GValue* value = reinterpret_cast<GValue*>(
+      g_hash_table_lookup(hash_table, shill::kDefaultServiceProperty));
+  bool success = ProcessDefaultService(value);
+  g_hash_table_unref(hash_table);
+  if (!success)
     return false;
 
   // Initialize variables.
   set_var_is_connected(
-      new IsConnectedVariable("is_connected", connector_.get(),
-                              &is_connected_tracker_));
+      new CopyVariable<bool>("is_connected", kVariableModePoll, is_connected_));
   set_var_conn_type(
-      new ConnTypeVariable("conn_type", connector_.get(),
-                           &is_connected_tracker_));
+      new ConnTypeVariable("conn_type", connector_.get(), this));
   set_var_conn_last_changed(
       new CopyVariable<base::Time>("conn_last_changed", kVariableModePoll,
                                    conn_last_changed_));
   return true;
+}
+
+bool RealShillProvider::ProcessDefaultService(GValue* value) {
+  // Decode the string from the boxed value.
+  const char* default_service_path_str = NULL;
+  if (!(value && (default_service_path_str = g_value_get_string(value))))
+    return false;
+
+  // Update the connection status.
+  is_connected_ = strcmp(default_service_path_str, "/");
+  if (default_service_path_ != default_service_path_str)
+    conn_last_changed_ = clock_->GetWallclockTime();
+  default_service_path_ = default_service_path_str;
+  is_conn_type_valid_ = false;
+  return true;
+}
+
+void RealShillProvider::HandlePropertyChanged(DBusGProxy* proxy,
+                                              const char* name, GValue* value) {
+  if (!strcmp(name, shill::kDefaultServiceProperty))
+    ProcessDefaultService(value);
+}
+
+void RealShillProvider::HandlePropertyChangedStatic(DBusGProxy* proxy,
+                                                    const char* name,
+                                                    GValue* value,
+                                                    void* data) {
+  auto obj = reinterpret_cast<RealShillProvider*>(data);
+  obj->HandlePropertyChanged(proxy, name, value);
 }
 
 }  // namespace chromeos_policy_manager

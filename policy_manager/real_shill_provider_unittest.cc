@@ -12,15 +12,20 @@
 #include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/policy_manager/real_shill_provider.h"
 #include "update_engine/policy_manager/pmtest_utils.h"
+#include "update_engine/test_utils.h"
 
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
+using chromeos_update_engine::GValueNewString;
+using chromeos_update_engine::GValueFree;
 using chromeos_update_engine::MockDBusWrapper;
 using std::pair;
 using testing::_;
+using testing::Eq;
 using testing::NiceMock;
 using testing::Return;
+using testing::SaveArg;
 using testing::SetArgPointee;
 using testing::StrEq;
 using testing::StrictMock;
@@ -48,21 +53,6 @@ const char* const kFakeCellularServicePath = "/fake-cellular-service";
 const char* const kFakeVpnServicePath = "/fake-vpn-service";
 const char* const kFakeUnknownServicePath = "/fake-unknown-service";
 
-// Allocates, initializes and returns a string GValue object.
-GValue* GValueNewString(const char* str) {
-  GValue* gval = new GValue();
-  g_value_init(gval, G_TYPE_STRING);
-  g_value_set_string(gval, str);
-  return gval;
-}
-
-// Frees a GValue object and its allocated resources.
-void GValueFree(gpointer arg) {
-  auto gval = reinterpret_cast<GValue*>(arg);
-  g_value_unset(gval);
-  delete gval;
-}
-
 }  // namespace
 
 namespace chromeos_policy_manager {
@@ -70,23 +60,47 @@ namespace chromeos_policy_manager {
 class PmRealShillProviderTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    // The provider initializes correctly.
-    fake_clock_.SetWallclockTime(init_time_);
-    // A DBus connection should only be obtained once.
-    EXPECT_CALL(mock_dbus_, BusGet(_, _)).WillOnce(Return(kFakeConnection));
     provider_.reset(new RealShillProvider(&mock_dbus_, &fake_clock_));
     PMTEST_ASSERT_NOT_NULL(provider_.get());
+    fake_clock_.SetWallclockTime(init_time_);
+    // A DBus connection should only be obtained once.
+    EXPECT_CALL(mock_dbus_, BusGet(_, _)).WillOnce(
+        Return(kFakeConnection));
     // A manager proxy should only be obtained once.
     EXPECT_CALL(mock_dbus_, ProxyNewForName(
             kFakeConnection, StrEq(shill::kFlimflamServiceName),
             StrEq(shill::kFlimflamServicePath),
             StrEq(shill::kFlimflamManagerInterface)))
         .WillOnce(Return(kFakeManagerProxy));
+    // The PropertyChanged signal should be subscribed to.
+    EXPECT_CALL(mock_dbus_, ProxyAddSignal_2(
+            kFakeManagerProxy, StrEq(shill::kMonitorPropertyChanged),
+            G_TYPE_STRING, G_TYPE_VALUE))
+        .WillOnce(Return());
+    EXPECT_CALL(mock_dbus_, ProxyConnectSignal(
+            kFakeManagerProxy, StrEq(shill::kMonitorPropertyChanged),
+            _, _, _))
+        .WillOnce(DoAll(SaveArg<2>(&signal_handler_),
+                        SaveArg<3>(&signal_data_),
+                        Return()));
+    // Default service should be checked once during initialization.
+    pair<const char*, const char*> manager_pairs[] = {
+      {shill::kDefaultServiceProperty, "/"},
+    };
+    auto manager_properties = MockGetProperties(kFakeManagerProxy, false,
+                                                1, manager_pairs);
+    // Check that provider initializes corrrectly.
     ASSERT_TRUE(provider_->Init());
+    // Release properties hash table.
+    g_hash_table_unref(manager_properties);
   }
 
   virtual void TearDown() {
-    // Make sure the manager proxy gets unreffed (once).
+    // Make sure that DBus resources get freed.
+    EXPECT_CALL(mock_dbus_, ProxyDisconnectSignal(
+            kFakeManagerProxy, StrEq(shill::kMonitorPropertyChanged),
+            Eq(signal_handler_), Eq(signal_data_)))
+        .WillOnce(Return());
     EXPECT_CALL(mock_dbus_, ProxyUnref(kFakeManagerProxy)).WillOnce(Return());
     provider_.reset();
     // Verify and clear all expectations.
@@ -133,16 +147,18 @@ class PmRealShillProviderTest : public ::testing::Test {
                                 DBusGProxy* service_proxy,
                                 const char* shill_type_str,
                                 ShillConnType expected_conn_type) {
-    // Mock logic for returning a default service path.
-    pair<const char*, const char*> manager_pairs[] = {
-      {shill::kDefaultServiceProperty, service_path},
-    };
-    auto manager_properties = MockGetProperties(
-        kFakeManagerProxy, true, arraysize(manager_pairs), manager_pairs);
+    // Send a signal about a new default service.
+    auto callback = reinterpret_cast<ShillConnector::PropertyChangedHandler>(
+        signal_handler_);
+    auto default_service_gval = GValueNewString(service_path);
+    Time conn_change_time = Time::Now();
+    fake_clock_.SetWallclockTime(conn_change_time);
+    callback(kFakeManagerProxy, shill::kDefaultServiceProperty,
+             default_service_gval, signal_data_);
+    fake_clock_.SetWallclockTime(conn_change_time + TimeDelta::FromSeconds(5));
+    GValueFree(default_service_gval);
 
     // Query the connection status, ensure last change time reported correctly.
-    const Time change_time = Time::Now();
-    fake_clock_.SetWallclockTime(change_time);
     scoped_ptr<const bool> is_connected(
         provider_->var_is_connected()->GetValue(default_timeout_, NULL));
     PMTEST_ASSERT_NOT_NULL(is_connected.get());
@@ -151,7 +167,7 @@ class PmRealShillProviderTest : public ::testing::Test {
     scoped_ptr<const Time> conn_last_changed_1(
         provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
     PMTEST_ASSERT_NOT_NULL(conn_last_changed_1.get());
-    EXPECT_EQ(change_time, *conn_last_changed_1);
+    EXPECT_EQ(conn_change_time, *conn_last_changed_1);
 
     // Mock logic for querying the type of the default service.
     EXPECT_CALL(mock_dbus_, ProxyNewForName(
@@ -159,17 +175,16 @@ class PmRealShillProviderTest : public ::testing::Test {
             StrEq(service_path),
             StrEq(shill::kFlimflamServiceInterface)))
         .WillOnce(Return(service_proxy));
-    EXPECT_CALL(mock_dbus_, ProxyUnref(service_proxy))
-        .WillOnce(Return());
+    EXPECT_CALL(mock_dbus_,
+                ProxyUnref(service_proxy)).WillOnce(Return());
     pair<const char*, const char*> service_pairs[] = {
       {shill::kTypeProperty, shill_type_str},
     };
     auto service_properties = MockGetProperties(
-        service_proxy, false, arraysize(service_pairs),
-        service_pairs);
+        service_proxy, false,
+        arraysize(service_pairs), service_pairs);
 
-    // Query the connection type, ensure last change time reported correctly.
-    fake_clock_.SetWallclockTime(change_time + TimeDelta::FromSeconds(5));
+    // Query the connection type, ensure last change time did not change.
     scoped_ptr<const ShillConnType> conn_type(
         provider_->var_conn_type()->GetValue(default_timeout_, NULL));
     PMTEST_ASSERT_NOT_NULL(conn_type.get());
@@ -178,11 +193,10 @@ class PmRealShillProviderTest : public ::testing::Test {
     scoped_ptr<const Time> conn_last_changed_2(
         provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
     PMTEST_ASSERT_NOT_NULL(conn_last_changed_2.get());
-    EXPECT_EQ(change_time, *conn_last_changed_2);
+    EXPECT_EQ(*conn_last_changed_1, *conn_last_changed_2);
 
     // Release properties hash tables.
     g_hash_table_unref(service_properties);
-    g_hash_table_unref(manager_properties);
   }
 
   const TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
@@ -190,21 +204,14 @@ class PmRealShillProviderTest : public ::testing::Test {
   StrictMock<MockDBusWrapper> mock_dbus_;
   FakeClock fake_clock_;
   scoped_ptr<RealShillProvider> provider_;
+  GCallback signal_handler_;
+  // FIXME void (*signal_handler_)(DBusGProxy*, const char*, GValue*, void*);
+  void* signal_data_;
 };
 
-// Programs the mock DBus interface to indicate no default connection; this is
-// in line with the default values the variables should be initialized with, and
-// so the last changed time should not be updated. Also note that reading the
-// connection type should not induce getting of a per-service proxy, as no
-// default service is reported.
+// Query the connection status, type and time last changed, as they were set
+// during initialization.
 TEST_F(PmRealShillProviderTest, ReadDefaultValues) {
-  // Mock logic for returning no default connection.
-  pair<const char*, const char*> manager_pairs[] = {
-    {shill::kDefaultServiceProperty, "/"},
-  };
-  auto manager_properties = MockGetProperties(
-      kFakeManagerProxy, true, arraysize(manager_pairs), manager_pairs);
-
   // Query the provider variables.
   scoped_ptr<const bool> is_connected(
       provider_->var_is_connected()->GetValue(default_timeout_, NULL));
@@ -219,9 +226,6 @@ TEST_F(PmRealShillProviderTest, ReadDefaultValues) {
       provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
   EXPECT_EQ(init_time_, *conn_last_changed);
-
-  // Release properties hash table.
-  g_hash_table_unref(manager_properties);
 }
 
 // Test that Ethernet connection is identified correctly.
@@ -274,12 +278,18 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaUnknown) {
 
 // Tests that VPN connection is identified correctly.
 TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn) {
+  // Send a signal about a new default service.
+  auto callback = reinterpret_cast<ShillConnector::PropertyChangedHandler>(
+      signal_handler_);
+  auto default_service_gval = GValueNewString(kFakeVpnServicePath);
+  Time conn_change_time = Time::Now();
+  fake_clock_.SetWallclockTime(conn_change_time);
+  callback(kFakeManagerProxy, shill::kDefaultServiceProperty,
+           default_service_gval, signal_data_);
+  fake_clock_.SetWallclockTime(conn_change_time + TimeDelta::FromSeconds(5));
+  GValueFree(default_service_gval);
+
   // Mock logic for returning a default service path and its type.
-  pair<const char*, const char*> manager_pairs[] = {
-    {shill::kDefaultServiceProperty, kFakeVpnServicePath},
-  };
-  auto manager_properties = MockGetProperties(
-      kFakeManagerProxy, false, arraysize(manager_pairs), manager_pairs);
   EXPECT_CALL(mock_dbus_, ProxyNewForName(
           kFakeConnection, StrEq(shill::kFlimflamServiceName),
           StrEq(kFakeVpnServicePath), StrEq(shill::kFlimflamServiceInterface)))
@@ -293,7 +303,6 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn) {
       kFakeVpnServiceProxy, false, arraysize(service_pairs), service_pairs);
 
   // Query the connection type, ensure last change time reported correctly.
-  fake_clock_.SetWallclockTime(Time::Now());
   scoped_ptr<const ShillConnType> conn_type(
       provider_->var_conn_type()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(conn_type.get());
@@ -302,11 +311,40 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn) {
   scoped_ptr<const Time> conn_last_changed(
       provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
-  EXPECT_EQ(fake_clock_.GetWallclockTime(), *conn_last_changed);
+  EXPECT_EQ(conn_change_time, *conn_last_changed);
 
   // Release properties hash tables.
   g_hash_table_unref(service_properties);
-  g_hash_table_unref(manager_properties);
+}
+
+// Fake two DBus signal prompting about a default connection change, but
+// otherwise give the same service path. Check connection status and the time is
+// was last changed, make sure it is the same time when the first signal was
+// sent (and not the second).
+TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedTwoSignals) {
+  // Send a default service signal twice, advancing the clock in between.
+  auto callback = reinterpret_cast<ShillConnector::PropertyChangedHandler>(
+      signal_handler_);
+  auto default_service_gval = GValueNewString(kFakeEthernetServicePath);
+  Time conn_change_time = Time::Now();
+  fake_clock_.SetWallclockTime(conn_change_time);
+  callback(kFakeManagerProxy, shill::kDefaultServiceProperty,
+           default_service_gval, signal_data_);
+  fake_clock_.SetWallclockTime(conn_change_time + TimeDelta::FromSeconds(5));
+  callback(kFakeManagerProxy, shill::kDefaultServiceProperty,
+           default_service_gval, signal_data_);
+  GValueFree(default_service_gval);
+
+  // Query the connection status, ensure last change time reported correctly.
+  scoped_ptr<const bool> is_connected(
+      provider_->var_is_connected()->GetValue(default_timeout_, NULL));
+  PMTEST_ASSERT_NOT_NULL(is_connected.get());
+  EXPECT_TRUE(*is_connected);
+
+  scoped_ptr<const Time> conn_last_changed(
+      provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
+  PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
+  EXPECT_EQ(conn_change_time, *conn_last_changed);
 }
 
 }  // namespace chromeos_policy_manager

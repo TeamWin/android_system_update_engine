@@ -319,4 +319,17 @@ int RunGMainLoopMaxIterations(int iterations) {
   return result;
 }
 
+GValue* GValueNewString(const char* str) {
+  GValue* gval = new GValue();
+  g_value_init(gval, G_TYPE_STRING);
+  g_value_set_string(gval, str);
+  return gval;
+}
+
+void GValueFree(gpointer arg) {
+  auto gval = reinterpret_cast<GValue*>(arg);
+  g_value_unset(gval);
+  delete gval;
+}
+
 }  // namespace chromeos_update_engine

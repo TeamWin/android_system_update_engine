@@ -56,6 +56,29 @@ class RealDBusWrapper : public DBusWrapperInterface {
         G_TYPE_INVALID, G_TYPE_INVALID);
   }
 
+  virtual void ProxyAddSignal_2(DBusGProxy* proxy,
+                                const char* signal_name,
+                                GType type1,
+                                GType type2) {
+    dbus_g_proxy_add_signal(proxy, signal_name, type1, type2, G_TYPE_INVALID);
+  }
+
+  virtual void ProxyConnectSignal(DBusGProxy* proxy,
+                                  const char* signal_name,
+                                  GCallback handler,
+                                  void* data,
+                                  GClosureNotify free_data_func) {
+    dbus_g_proxy_connect_signal(proxy, signal_name, handler, data,
+                                free_data_func);
+  }
+
+  virtual void ProxyDisconnectSignal(DBusGProxy* proxy,
+                                     const char* signal_name,
+                                     GCallback handler,
+                                     void* data) {
+    dbus_g_proxy_disconnect_signal(proxy, signal_name, handler, data);
+  }
+
   virtual DBusConnection* ConnectionGetConnection(DBusGConnection* gbus) {
     return dbus_g_connection_get_connection(gbus);
   }

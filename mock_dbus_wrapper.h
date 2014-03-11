@@ -33,6 +33,22 @@ class MockDBusWrapper : public DBusWrapperInterface {
                                        const char* in2,
                                        const char* in3));
 
+  MOCK_METHOD4(ProxyAddSignal_2, void(DBusGProxy* proxy,
+                                      const char* signal_name,
+                                      GType type1,
+                                      GType type2));
+
+  MOCK_METHOD5(ProxyConnectSignal, void(DBusGProxy* proxy,
+                                        const char* signal_name,
+                                        GCallback handler,
+                                        void* data,
+                                        GClosureNotify free_data_func));
+
+  MOCK_METHOD4(ProxyDisconnectSignal, void(DBusGProxy* proxy,
+                                           const char* signal_name,
+                                           GCallback handler,
+                                           void* data));
+
   MOCK_METHOD1(ConnectionGetConnection, DBusConnection*(DBusGConnection* gbus));
 
   MOCK_METHOD3(DBusBusAddMatch, void(DBusConnection* connection,
