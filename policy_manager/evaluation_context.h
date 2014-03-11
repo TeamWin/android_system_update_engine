@@ -7,6 +7,8 @@
 
 #include <map>
 
+#include <base/memory/ref_counted.h>
+
 #include "update_engine/policy_manager/variable.h"
 #include "update_engine/policy_manager/boxed_value.h"
 
@@ -15,7 +17,7 @@ namespace chromeos_policy_manager {
 // The EvaluationContext class is the interface between a policy implementation
 // and the state. The EvaluationContext tracks the variables used by a policy
 // request and caches the returned values, owning those cached values.
-class EvaluationContext {
+class EvaluationContext : public base::RefCounted<EvaluationContext> {
  public:
   EvaluationContext() {}
 

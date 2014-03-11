@@ -5,6 +5,10 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_POLICY_MANAGER_H
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_POLICY_MANAGER_H
 
+#include <glib.h>
+
+#include <base/callback.h>
+#include <base/memory/ref_counted.h>
 #include <base/memory/scoped_ptr.h>
 
 #include "update_engine/policy_manager/default_policy.h"
@@ -41,11 +45,55 @@ class PolicyManager {
   template<typename T, typename R, typename... Args>
   EvalStatus PolicyRequest(T policy_method, R* result, Args... args);
 
+  // Evaluates the given |policy_method| policy with the provided |args|
+  // arguments and calls the |callback| callback with the result when done.
+  //
+  // If the policy implementation should block, returning a
+  // EvalStatus::kAskMeAgainLater status the policy manager will re-evaluate the
+  // policy until another status is returned.
+  template<typename T, typename R, typename... Args>
+  void AsyncPolicyRequest(
+      base::Callback<void(EvalStatus, const R& result)> callback,
+      T policy_method, Args... args);
+
  private:
   friend class PmPolicyManagerTest;
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestCallsPolicy);
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError);
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestDoesntBlock);
+  FRIEND_TEST(PmPolicyManagerTest, AsyncPolicyRequestDelaysEvaluation);
+
+  // Schedules the passed |callback| to run from the GLib's main loop after a
+  // timeout if it is given.
+  static void RunFromMainLoop(const base::Closure& callback);
+  static void RunFromMainLoopAfterTimeout(const base::Closure& callback,
+                                          base::TimeDelta timeout);
+
+  // Called by the GLib's main loop when is time to call the callback scheduled
+  // with RunFromMainLopp() and similar functions. The pointer to the callback
+  // passed when scheduling it is passed to this functions as a gpointer on
+  // |user_data|.
+  static gboolean OnRanFromMainLoop(gpointer user_data);
+
+  // EvaluatePolicy() evaluates the passed |policy_method| method on the current
+  // policy with the given |args| arguments. If the method fails, the default
+  // policy is used instead.
+  template<typename T, typename R, typename... Args>
+  EvalStatus EvaluatePolicy(EvaluationContext* ec,
+                            T policy_method, R* result,
+                            Args... args);
+
+  // OnPolicyReadyToEvaluate() is called by the main loop when the evaluation
+  // of the given |policy_method| should be executed. If the evaluation finishes
+  // the |callback| callback is called passing the |result| and the |status|
+  // returned by the policy. If the evaluation returns an
+  // EvalStatus::kAskMeAgainLater state, the |callback| will NOT be called and
+  // the evaluation will be re-scheduled to be called later.
+  template<typename T, typename R, typename... Args>
+  void OnPolicyReadyToEvaluate(
+      scoped_refptr<EvaluationContext> ec,
+      base::Callback<void(EvalStatus status, const R& result)> callback,
+      T policy_method, Args... args);
 
   // The policy used by the PolicyManager. Note that since it is a const Policy,
   // policy implementations are not allowed to persist state on this class.

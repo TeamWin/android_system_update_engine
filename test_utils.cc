@@ -310,4 +310,13 @@ ScopedLoopMounter::ScopedLoopMounter(const string& file_path,
   unmounter_.reset(new ScopedFilesystemUnmounter(*mnt_path));
 }
 
+int RunGMainLoopMaxIterations(int iterations) {
+  int result;
+  GMainContext* context = g_main_context_default();
+  for (result = 0;
+       result < iterations && g_main_context_iteration(context, FALSE);
+       result++) {}
+  return result;
+}
+
 }  // namespace chromeos_update_engine

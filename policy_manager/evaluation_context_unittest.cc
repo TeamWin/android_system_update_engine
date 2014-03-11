@@ -21,10 +21,10 @@ class PmEvaluationContextTest : public ::testing::Test {
 
  protected:
   virtual void SetUp() {
-    eval_ctx_.reset(new EvaluationContext());
+    eval_ctx_ = new EvaluationContext();
   }
 
-  scoped_ptr<EvaluationContext> eval_ctx_;
+  scoped_refptr<EvaluationContext> eval_ctx_;
   FakeVariable<int> fake_int_var_;
 };
 

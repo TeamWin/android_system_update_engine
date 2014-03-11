@@ -273,6 +273,14 @@ class ScopedLoopMounter {
   scoped_ptr<ScopedFilesystemUnmounter> unmounter_;
 };
 
+// Runs the default GLib main loop at most |iterations| times. This
+// dispatches all the events that are already waiting in the main loop and
+// those that get scheduled as a result of these events being attended.
+// Returns the number of iterations the main loop was ran. If there are more
+// than |iterations| events to attend, then this function returns |iterations|
+// and the remaining events are not dispatched.
+int RunGMainLoopMaxIterations(int iterations);
+
 }  // namespace chromeos_update_engine
 
 #endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_TEST_UTILS_H__
