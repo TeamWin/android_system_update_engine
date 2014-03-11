@@ -111,9 +111,22 @@ NetworkConnectionType ParseConnectionType(const char* type_str) {
   return kNetUnknown;
 }
 
-bool GetServicePathType(DBusWrapperInterface* dbus_iface,
-                        const string& path,
-                        NetworkConnectionType* out_type) {
+NetworkTethering ParseTethering(const char* tethering_str) {
+  if (!strcmp(tethering_str, shill::kTetheringNotDetectedState)) {
+    return NetworkTethering::kNotDetected;
+  } else if (!strcmp(tethering_str, shill::kTetheringSuspectedState)) {
+    return NetworkTethering::kSuspected;
+  } else if (!strcmp(tethering_str, shill::kTetheringConfirmedState)) {
+    return NetworkTethering::kConfirmed;
+  }
+  LOG(WARNING) << "Unknown Tethering value: " << tethering_str;
+  return NetworkTethering::kUnknown;
+}
+
+bool GetServicePathProperties(DBusWrapperInterface* dbus_iface,
+                              const string& path,
+                              NetworkConnectionType* out_type,
+                              NetworkTethering* out_tethering) {
   GHashTable* hash_table = NULL;
 
   TEST_AND_RETURN_FALSE(GetProperties(dbus_iface,
@@ -121,8 +134,23 @@ bool GetServicePathType(DBusWrapperInterface* dbus_iface,
                                       shill::kFlimflamServiceInterface,
                                       &hash_table));
 
+  // Populate the out_tethering.
   GValue* value = (GValue*)g_hash_table_lookup(hash_table,
-                                               shill::kTypeProperty);
+                                               shill::kTetheringProperty);
+  const char* tethering_str = NULL;
+
+  if (value != NULL)
+    tethering_str = g_value_get_string(value);
+  if (tethering_str != NULL) {
+    *out_tethering = ParseTethering(tethering_str);
+  } else {
+    // Set to Unknown if not present.
+    *out_tethering = NetworkTethering::kUnknown;
+  }
+
+  // Populate the out_type property.
+  value = (GValue*)g_hash_table_lookup(hash_table,
+                                       shill::kTypeProperty);
   const char* type_str = NULL;
   bool success = false;
   if (value != NULL && (type_str = g_value_get_string(value)) != NULL) {
@@ -151,7 +179,8 @@ bool GetServicePathType(DBusWrapperInterface* dbus_iface,
 ConnectionManager::ConnectionManager(SystemState *system_state)
     :  system_state_(system_state) {}
 
-bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type) const {
+bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type,
+                                            NetworkTethering tethering) const {
   switch (type) {
     case kNetBluetooth:
       return false;
@@ -210,6 +239,12 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type) const {
     }
 
     default:
+      if (tethering == NetworkTethering::kConfirmed) {
+        // Treat this connection as if it is a cellular connection.
+        LOG(INFO) << "Current connection is confirmed tethered, using Cellular "
+                     "setting.";
+        return IsUpdateAllowedOver(kNetCellular, NetworkTethering::kUnknown);
+      }
       return true;
   }
 }
@@ -227,15 +262,33 @@ const char* ConnectionManager::StringForConnectionType(
   return kValues[type];
 }
 
-bool ConnectionManager::GetConnectionType(
+const char* ConnectionManager::StringForTethering(
+    NetworkTethering tethering) const {
+  switch (tethering) {
+    case NetworkTethering::kNotDetected:
+      return shill::kTetheringNotDetectedState;
+    case NetworkTethering::kSuspected:
+      return shill::kTetheringSuspectedState;
+    case NetworkTethering::kConfirmed:
+      return shill::kTetheringConfirmedState;
+    case NetworkTethering::kUnknown:
+      return "Unknown";
+  }
+  // The program shouldn't reach this point, but the compiler isn't smart
+  // enough to infer that.
+  return "Unknown";
+}
+
+bool ConnectionManager::GetConnectionProperties(
     DBusWrapperInterface* dbus_iface,
-    NetworkConnectionType* out_type) const {
+    NetworkConnectionType* out_type,
+    NetworkTethering* out_tethering) const {
   string default_service_path;
   TEST_AND_RETURN_FALSE(GetDefaultServicePath(dbus_iface,
                                               &default_service_path));
-  TEST_AND_RETURN_FALSE(GetServicePathType(dbus_iface,
-                                           default_service_path,
-                                           out_type));
+  TEST_AND_RETURN_FALSE(GetServicePathProperties(dbus_iface,
+                                                 default_service_path,
+                                                 out_type, out_tethering));
   return true;
 }
 
