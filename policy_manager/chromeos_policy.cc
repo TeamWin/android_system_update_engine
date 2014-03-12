@@ -15,7 +15,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(EvaluationContext* ec,
                                               bool* result) const {
   // TODO(deymo): Write this policy implementation with the actual policy.
   *result = true;
-  return EvalStatusSucceeded;
+  return EvalStatus::kSucceeded;
 }
 
 }  // namespace chromeos_policy_manager

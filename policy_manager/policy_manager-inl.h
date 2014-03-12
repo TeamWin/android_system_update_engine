@@ -20,13 +20,13 @@ EvalStatus PolicyManager::PolicyRequest(T policy_method, R* result,
   EvalStatus status = (policy_.get()->*policy_method)(&ec, state_.get(), &error,
                                                       result, args...);
 
-  if (status == EvalStatusFailed) {
+  if (status == EvalStatus::kFailed) {
     LOG(WARNING) << "PolicyRequest() failed with error: " << error;
     error.clear();
     status = (default_policy_.*policy_method)(&ec, state_.get(), &error,
                                               result, args...);
 
-    if (status == EvalStatusFailed) {
+    if (status == EvalStatus::kFailed) {
       LOG(WARNING) << "Request to DefaultPolicy also failed, passing error.";
     }
   }

@@ -30,10 +30,11 @@ class PolicyManager {
   // |policy_method|.
   //
   // When the policy request succeeds, the |result| is set and the method
-  // returns EvalStatusSucceeded, otherwise, the |result| may not be set. Also,
-  // if the policy implementation should block, this method returns immediately
-  // with EvalStatusAskMeAgainLater. In case of failure EvalStatusFailed is
-  // returned and the |error| message is set, which must not be NULL.
+  // returns EvalStatus::kSucceeded, otherwise, the |result| may not be set.
+  // Also, if the policy implementation should block, this method returns
+  // immediately with EvalStatus::kAskMeAgainLater. In case of failure
+  // EvalStatus::kFailed is returned and the |error| message is set, which must
+  // not be NULL.
   //
   // An example call to this method is:
   //   pm.PolicyRequest(&Policy::SomePolicyMethod, &bool_result, arg1, arg2);
@@ -51,7 +52,7 @@ class PolicyManager {
   scoped_ptr<const Policy> policy_;
 
   // A safe default value to the current policy. This policy is used whenever
-  // a policy implementation fails with EvalStatusFailed.
+  // a policy implementation fails with EvalStatus::kFailed.
   const DefaultPolicy default_policy_;
 
   // State Providers.

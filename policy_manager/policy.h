@@ -11,10 +11,10 @@
 namespace chromeos_policy_manager {
 
 // The three different results of a policy request.
-enum EvalStatus {
-  EvalStatusFailed,
-  EvalStatusSucceeded,
-  EvalStatusAskMeAgainLater,
+enum class EvalStatus {
+  kFailed,
+  kSucceeded,
+  kAskMeAgainLater,
 };
 
 // The Policy class is an interface to the ensemble of policy requests that the
@@ -31,8 +31,8 @@ class Policy {
   // first argument, a State instance, a returned error message, a returned
   // value and optionally followed by one or more arbitrary constant arguments.
   //
-  // When the implementation fails, the method returns EvalStatusFailed and sets
-  // the |error| string.
+  // When the implementation fails, the method returns EvalStatus::kFailed and
+  // sets the |error| string.
 
   // UpdateCheckAllowed returns whether it is allowed to request an update check
   // to Omaha.

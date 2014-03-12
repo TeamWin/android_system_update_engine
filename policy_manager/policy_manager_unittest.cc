@@ -39,7 +39,7 @@ class FailingPolicy : public DefaultPolicy {
                                         string* error,
                                         bool* result) const {
     *error = "FailingPolicy failed.";
-    return EvalStatusFailed;
+    return EvalStatus::kFailed;
   }
 };
 
@@ -48,14 +48,14 @@ class LazyPolicy : public DefaultPolicy {
   virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
                                         string* error,
                                         bool* result) const {
-    return EvalStatusAskMeAgainLater;
+    return EvalStatus::kAskMeAgainLater;
   }
 };
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCall) {
   bool result;
   EvalStatus status = pmut_.PolicyRequest(&Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(status, EvalStatusSucceeded);
+  EXPECT_EQ(status, EvalStatus::kSucceeded);
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCallsPolicy) {
@@ -65,9 +65,9 @@ TEST_F(PmPolicyManagerTest, PolicyRequestCallsPolicy) {
 
   // Tests that the method is called on the policy_ instance.
   EXPECT_CALL(*policy, UpdateCheckAllowed(_, _, _, _))
-      .WillOnce(Return(EvalStatusSucceeded));
+      .WillOnce(Return(EvalStatus::kSucceeded));
   EvalStatus status = pmut_.PolicyRequest(&Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(status, EvalStatusSucceeded);
+  EXPECT_EQ(status, EvalStatus::kSucceeded);
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError) {
@@ -77,7 +77,7 @@ TEST_F(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError) {
   // which will set this as true.
   bool result = false;
   EvalStatus status = pmut_.PolicyRequest(&Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(status, EvalStatusSucceeded);
+  EXPECT_EQ(status, EvalStatus::kSucceeded);
   EXPECT_TRUE(result);
 }
 
@@ -86,7 +86,7 @@ TEST_F(PmPolicyManagerTest, PolicyRequestDoesntBlock) {
   bool result;
 
   EvalStatus status = pmut_.PolicyRequest(&Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(status, EvalStatusAskMeAgainLater);
+  EXPECT_EQ(status, EvalStatus::kAskMeAgainLater);
 }
 
 }  // namespace chromeos_policy_manager

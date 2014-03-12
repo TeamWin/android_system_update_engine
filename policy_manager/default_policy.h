@@ -22,7 +22,7 @@ class DefaultPolicy : public Policy {
                                         std::string* error,
                                         bool* result) const {
     *result = true;
-    return EvalStatusSucceeded;
+    return EvalStatus::kSucceeded;
   }
 
  private:
