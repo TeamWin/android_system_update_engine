@@ -8,77 +8,35 @@
 
 #include <base/bind.h>
 #include <base/memory/scoped_ptr.h>
-// TODO(garnold) Remove once shill DBus constants not needed.
-#include <chromeos/dbus/service_constants.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "update_engine/fake_clock.h"
-#include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/policy_manager/default_policy.h"
+#include "update_engine/policy_manager/fake_state.h"
 #include "update_engine/policy_manager/mock_policy.h"
 #include "update_engine/policy_manager/pmtest_utils.h"
 #include "update_engine/policy_manager/policy_manager.h"
-// TODO(garnold) Remove once we stop mocking DBus.
 #include "update_engine/test_utils.h"
 
 using base::Bind;
 using base::Callback;
-using chromeos_update_engine::FakeClock;
-using chromeos_update_engine::GValueNewString;
-using chromeos_update_engine::GValueFree;
-using chromeos_update_engine::MockDBusWrapper;
 using std::pair;
 using std::string;
 using std::vector;
-using testing::NiceMock;
 using testing::Return;
-using testing::SetArgPointee;
 using testing::StrictMock;
 using testing::_;
-
-namespace {
-
-// TODO(garnold) This whole section gets removed once we mock the shill provider
-// itself in tests.
-
-// Fake dbus-glib objects.
-DBusGConnection* const kFakeConnection = reinterpret_cast<DBusGConnection*>(1);
-DBusGProxy* const kFakeManagerProxy = reinterpret_cast<DBusGProxy*>(2);
-
-}  // namespace
 
 namespace chromeos_policy_manager {
 
 class PmPolicyManagerTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    // TODO(garnold) Replace this low-level DBus injection with a high-level
-    // mock shill provider.
-    EXPECT_CALL(mock_dbus_, BusGet(_, _))
-        .WillOnce(Return(kFakeConnection));
-    EXPECT_CALL(mock_dbus_, ProxyNewForName(_, _, _, _))
-        .WillOnce(Return(kFakeManagerProxy));
-    EXPECT_CALL(mock_dbus_, ProxyAddSignal_2(_, _, _, _))
-        .WillOnce(Return());
-    EXPECT_CALL(mock_dbus_, ProxyConnectSignal(_, _, _, _, _))
-        .WillOnce(Return());
-    auto properties = g_hash_table_new_full(g_str_hash, g_str_equal, free,
-                                            GValueFree);
-    g_hash_table_insert(properties, strdup(shill::kDefaultServiceProperty),
-                        GValueNewString("/"));
-    EXPECT_CALL(mock_dbus_, ProxyCall_0_1(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<3>(g_hash_table_ref(properties)),
-                        Return(true)));
-
-    EXPECT_TRUE(pmut_.Init(&mock_dbus_, &fake_clock_));
-
-    // TODO(garnold) Remove this, too.
-    g_hash_table_unref(properties);
+    FakeState* fake_state = new FakeState();
+    ASSERT_TRUE(fake_state->Init());
+    EXPECT_TRUE(pmut_.Init(fake_state));
   }
 
-  NiceMock<MockDBusWrapper> mock_dbus_;
-  FakeClock fake_clock_;
   PolicyManager pmut_;
 };
 

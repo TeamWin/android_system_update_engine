@@ -9,11 +9,10 @@
 
 namespace chromeos_policy_manager {
 
-// TODO(garnold) We should be injecting actual provider objects here.
-RealState::RealState(chromeos_update_engine::DBusWrapperInterface* dbus,
-                     chromeos_update_engine::ClockInterface* clock) {
-  set_random_provider(new RealRandomProvider());
-  set_shill_provider(new RealShillProvider(dbus, clock));
+RealState::RealState(RandomProvider* random_provider,
+                     ShillProvider* shill_provider) {
+  set_random_provider(random_provider);
+  set_shill_provider(shill_provider);
 }
 
 }  // namespace chromeos_policy_manager
