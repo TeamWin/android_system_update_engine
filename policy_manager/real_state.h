@@ -15,7 +15,8 @@ namespace chromeos_policy_manager {
 class RealState : public State {
  public:
   // Instantiate with given providers, assuming ownership of them.
-  RealState(RandomProvider* random_provider, ShillProvider* shill_provider);
+  RealState(RandomProvider* random_provider, ShillProvider* shill_provider,
+            TimeProvider* time_provider);
 
   ~RealState() {}
 

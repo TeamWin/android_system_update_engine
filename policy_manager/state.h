@@ -7,6 +7,7 @@
 
 #include "update_engine/policy_manager/random_provider.h"
 #include "update_engine/policy_manager/shill_provider.h"
+#include "update_engine/policy_manager/time_provider.h"
 
 namespace chromeos_policy_manager {
 
@@ -20,12 +21,14 @@ class State {
   // succeeded.
   bool Init() {
     return (random_provider_ && random_provider_->Init() &&
-            shill_provider_ && shill_provider_->Init());
+            shill_provider_ && shill_provider_->Init() &&
+            time_provider_ && time_provider_->Init());
   }
 
   // These functions return the given provider.
   RandomProvider* random_provider() { return random_provider_.get(); }
   ShillProvider* shill_provider() { return shill_provider_.get(); }
+  TimeProvider* time_provider() { return time_provider_.get(); }
 
  protected:
   // Initialize the private scoped_ptr for each provider.
@@ -37,10 +40,15 @@ class State {
     return shill_provider_.reset(shill_provider);
   }
 
+  void set_time_provider(TimeProvider* time_provider) {
+    return time_provider_.reset(time_provider);
+  }
+
  private:
   // Instances of the providers.
   scoped_ptr<RandomProvider> random_provider_;
   scoped_ptr<ShillProvider> shill_provider_;
+  scoped_ptr<TimeProvider> time_provider_;
 };
 
 }  // namespace chromeos_policy_manager

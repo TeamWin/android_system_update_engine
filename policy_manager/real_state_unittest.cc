@@ -6,13 +6,15 @@
 
 #include "update_engine/policy_manager/fake_random_provider.h"
 #include "update_engine/policy_manager/fake_shill_provider.h"
+#include "update_engine/policy_manager/fake_time_provider.h"
 #include "update_engine/policy_manager/real_state.h"
 #include "update_engine/policy_manager/pmtest_utils.h"
 
 namespace chromeos_policy_manager {
 
 TEST(PmRealStateTest, InitTest) {
-  RealState state(new FakeRandomProvider(), new FakeShillProvider());
+  RealState state(new FakeRandomProvider(), new FakeShillProvider(),
+                  new FakeTimeProvider());
   EXPECT_TRUE(state.Init());
 
   // Check that the providers are being initialized. Beyond ensuring that we get
@@ -22,6 +24,8 @@ TEST(PmRealStateTest, InitTest) {
   PMTEST_EXPECT_NOT_NULL(state.random_provider()->var_seed());
   PMTEST_ASSERT_NOT_NULL(state.shill_provider());
   PMTEST_EXPECT_NOT_NULL(state.shill_provider()->var_is_connected());
+  PMTEST_ASSERT_NOT_NULL(state.time_provider());
+  PMTEST_ASSERT_NOT_NULL(state.time_provider()->var_curr_date());
 }
 
 }  // namespace chromeos_policy_manager
