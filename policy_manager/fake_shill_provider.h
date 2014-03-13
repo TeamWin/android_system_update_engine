@@ -20,7 +20,7 @@ class FakeShillProvider : public ShillProvider {
     set_var_is_connected(
         new FakeVariable<bool>("is_connected", kVariableModePoll));
     set_var_conn_type(
-        new FakeVariable<ShillConnType>("conn_type", kVariableModePoll));
+        new FakeVariable<ConnectionType>("conn_type", kVariableModePoll));
     set_var_conn_last_changed(
         new FakeVariable<base::Time>("conn_last_changed", kVariableModePoll));
     return true;

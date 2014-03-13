@@ -43,7 +43,7 @@ class ShillConnector {
   // storing it to |*conn_type_p|. Returns |true| on success; |false| on
   // failure, in which case no value is written.
   bool GetConnectionType(const std::string& service_path,
-                         ShillConnType* conn_type_p);
+                         ConnectionType* conn_type_p);
 
   // Issues a GetProperties call to shill's manager interface, storing the
   // result to |*result_p|. Returns |true| on success.
@@ -58,7 +58,7 @@ class ShillConnector {
 
   typedef struct {
     const char *str;
-    ShillConnType type;
+    ConnectionType type;
   } ConnStrToType;
 
   // A mapping from shill connection type strings to enum values.
@@ -80,7 +80,7 @@ class ShillConnector {
   DBusGProxy* GetProxy(const char* path, const char* interface);
 
   // Converts a shill connection type string into a symbolic value.
-  ShillConnType ParseConnType(const char* str);
+  ConnectionType ParseConnType(const char* str);
 
   DISALLOW_COPY_AND_ASSIGN(ShillConnector);
 };
@@ -115,7 +115,7 @@ class RealShillProvider : public ShillProvider {
   std::string default_service_path_;
 
   // The last known type of the default connection.
-  ShillConnType conn_type_ = kShillConnTypeUnknown;
+  ConnectionType conn_type_ = ConnectionType::kUnknown;
 
   // Whether the last known connection type is valid.
   bool is_conn_type_valid_ = false;

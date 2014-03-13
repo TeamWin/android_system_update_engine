@@ -13,14 +13,13 @@
 
 namespace chromeos_policy_manager {
 
-// TODO(garnold) Adapted from connection_manager.h.
-enum ShillConnType {
-  kShillConnTypeEthernet = 0,
-  kShillConnTypeWifi,
-  kShillConnTypeWimax,
-  kShillConnTypeBluetooth,
-  kShillConnTypeCellular,
-  kShillConnTypeUnknown
+enum class ConnectionType {
+  kEthernet,
+  kWifi,
+  kWimax,
+  kBluetooth,
+  kCellular,
+  kUnknown
 };
 
 // Provider for networking related information.
@@ -32,7 +31,7 @@ class ShillProvider : public Provider {
   }
 
   // Returns the current network connection type. Unknown if not connected.
-  Variable<ShillConnType>* var_conn_type() const {
+  Variable<ConnectionType>* var_conn_type() const {
     return var_conn_type_.get();
   }
 
@@ -49,7 +48,7 @@ class ShillProvider : public Provider {
     var_is_connected_.reset(var_is_connected);
   }
 
-  void set_var_conn_type(Variable<ShillConnType>* var_conn_type) {
+  void set_var_conn_type(Variable<ConnectionType>* var_conn_type) {
     var_conn_type_.reset(var_conn_type);
   }
 
@@ -59,7 +58,7 @@ class ShillProvider : public Provider {
 
  private:
   scoped_ptr<Variable<bool>> var_is_connected_;
-  scoped_ptr<Variable<ShillConnType>> var_conn_type_;
+  scoped_ptr<Variable<ConnectionType>> var_conn_type_;
   scoped_ptr<Variable<base::Time>> var_conn_last_changed_;
 
   DISALLOW_COPY_AND_ASSIGN(ShillProvider);

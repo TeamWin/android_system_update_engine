@@ -146,7 +146,7 @@ class PmRealShillProviderTest : public ::testing::Test {
   void SetConnectionAndTestType(const char* service_path,
                                 DBusGProxy* service_proxy,
                                 const char* shill_type_str,
-                                ShillConnType expected_conn_type) {
+                                ConnectionType expected_conn_type) {
     // Send a signal about a new default service.
     auto callback = reinterpret_cast<ShillConnector::PropertyChangedHandler>(
         signal_handler_);
@@ -185,7 +185,7 @@ class PmRealShillProviderTest : public ::testing::Test {
         arraysize(service_pairs), service_pairs);
 
     // Query the connection type, ensure last change time did not change.
-    scoped_ptr<const ShillConnType> conn_type(
+    scoped_ptr<const ConnectionType> conn_type(
         provider_->var_conn_type()->GetValue(default_timeout_, NULL));
     PMTEST_ASSERT_NOT_NULL(conn_type.get());
     EXPECT_EQ(expected_conn_type, *conn_type);
@@ -218,7 +218,7 @@ TEST_F(PmRealShillProviderTest, ReadDefaultValues) {
   PMTEST_ASSERT_NOT_NULL(is_connected.get());
   EXPECT_FALSE(*is_connected);
 
-  scoped_ptr<const ShillConnType> conn_type(
+  scoped_ptr<const ConnectionType> conn_type(
       provider_->var_conn_type()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NULL(conn_type.get());
 
@@ -233,7 +233,7 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaEthernet) {
   SetConnectionAndTestType(kFakeEthernetServicePath,
                            kFakeEthernetServiceProxy,
                            shill::kTypeEthernet,
-                           kShillConnTypeEthernet);
+                           ConnectionType::kEthernet);
 }
 
 // Test that Wifi connection is identified correctly.
@@ -241,7 +241,7 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaWifi) {
   SetConnectionAndTestType(kFakeWifiServicePath,
                            kFakeWifiServiceProxy,
                            shill::kTypeWifi,
-                           kShillConnTypeWifi);
+                           ConnectionType::kWifi);
 }
 
 // Test that Wimax connection is identified correctly.
@@ -249,7 +249,7 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaWimax) {
   SetConnectionAndTestType(kFakeWimaxServicePath,
                            kFakeWimaxServiceProxy,
                            shill::kTypeWimax,
-                           kShillConnTypeWimax);
+                           ConnectionType::kWimax);
 }
 
 // Test that Bluetooth connection is identified correctly.
@@ -257,7 +257,7 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaBluetooth) {
   SetConnectionAndTestType(kFakeBluetoothServicePath,
                            kFakeBluetoothServiceProxy,
                            shill::kTypeBluetooth,
-                           kShillConnTypeBluetooth);
+                           ConnectionType::kBluetooth);
 }
 
 // Test that Cellular connection is identified correctly.
@@ -265,7 +265,7 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaCellular) {
   SetConnectionAndTestType(kFakeCellularServicePath,
                            kFakeCellularServiceProxy,
                            shill::kTypeCellular,
-                           kShillConnTypeCellular);
+                           ConnectionType::kCellular);
 }
 
 // Test that an unknown connection is identified as such.
@@ -273,7 +273,7 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaUnknown) {
   SetConnectionAndTestType(kFakeUnknownServicePath,
                            kFakeUnknownServiceProxy,
                            "FooConnectionType",
-                           kShillConnTypeUnknown);
+                           ConnectionType::kUnknown);
 }
 
 // Tests that VPN connection is identified correctly.
@@ -303,10 +303,10 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn) {
       kFakeVpnServiceProxy, false, arraysize(service_pairs), service_pairs);
 
   // Query the connection type, ensure last change time reported correctly.
-  scoped_ptr<const ShillConnType> conn_type(
+  scoped_ptr<const ConnectionType> conn_type(
       provider_->var_conn_type()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(conn_type.get());
-  EXPECT_EQ(kShillConnTypeWifi, *conn_type);
+  EXPECT_EQ(ConnectionType::kWifi, *conn_type);
 
   scoped_ptr<const Time> conn_last_changed(
       provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));

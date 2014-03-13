@@ -32,11 +32,11 @@ namespace chromeos_policy_manager {
 // ShillConnector methods.
 
 const ShillConnector::ConnStrToType ShillConnector::shill_conn_str_to_type[] = {
-  {shill::kTypeEthernet, kShillConnTypeEthernet},
-  {shill::kTypeWifi, kShillConnTypeWifi},
-  {shill::kTypeWimax, kShillConnTypeWimax},
-  {shill::kTypeBluetooth, kShillConnTypeBluetooth},
-  {shill::kTypeCellular, kShillConnTypeCellular},
+  {shill::kTypeEthernet, ConnectionType::kEthernet},
+  {shill::kTypeWifi, ConnectionType::kWifi},
+  {shill::kTypeWimax, ConnectionType::kWimax},
+  {shill::kTypeBluetooth, ConnectionType::kBluetooth},
+  {shill::kTypeCellular, ConnectionType::kCellular},
 };
 
 ShillConnector::~ShillConnector() {
@@ -76,7 +76,7 @@ bool ShillConnector::Init() {
 }
 
 bool ShillConnector::GetConnectionType(const string& service_path,
-                                       ShillConnType* conn_type_p) {
+                                       ConnectionType* conn_type_p) {
   // Obtain a proxy for the service path.
   DBusGProxy* service_proxy = GetProxy(service_path.c_str(),
                                        shill::kFlimflamServiceInterface);
@@ -112,12 +112,12 @@ DBusGProxy* ShillConnector::GetProxy(const char* path, const char* interface) {
                                 path, interface);
 }
 
-ShillConnType ShillConnector::ParseConnType(const char* str) {
+ConnectionType ShillConnector::ParseConnType(const char* str) {
   for (unsigned i = 0; i < arraysize(shill_conn_str_to_type); i++)
     if (!strcmp(str, shill_conn_str_to_type[i].str))
       return shill_conn_str_to_type[i].type;
 
-  return kShillConnTypeUnknown;
+  return ConnectionType::kUnknown;
 }
 
 bool ShillConnector::GetProperties(DBusGProxy* proxy, GHashTable** result_p) {
@@ -133,24 +133,24 @@ bool ShillConnector::GetProperties(DBusGProxy* proxy, GHashTable** result_p) {
 
 
 // A variable returning the curent connection type.
-class ConnTypeVariable : public Variable<ShillConnType> {
+class ConnTypeVariable : public Variable<ConnectionType> {
  public:
   ConnTypeVariable(const string& name, ShillConnector* connector,
                    RealShillProvider* provider)
-      : Variable<ShillConnType>(name, kVariableModePoll),
+      : Variable<ConnectionType>(name, kVariableModePoll),
         connector_(connector), provider_(provider) {}
 
  protected:
   // TODO(garnold) Shift to a non-blocking version, respect the timeout.
-  virtual const ShillConnType* GetValue(base::TimeDelta /* timeout */,
-                                        string* errmsg) {
+  virtual const ConnectionType* GetValue(base::TimeDelta /* timeout */,
+                                         string* errmsg) {
     if (!(provider_->is_connected_)) {
       if (errmsg)
         *errmsg = "No connection detected";
       return NULL;
     }
 
-    ShillConnType conn_type;
+    ConnectionType conn_type;
     if (provider_->is_conn_type_valid_) {
       conn_type = provider_->conn_type_;
     } else {
@@ -165,7 +165,7 @@ class ConnTypeVariable : public Variable<ShillConnType> {
       provider_->is_conn_type_valid_ = true;
     }
 
-    return new ShillConnType(conn_type);
+    return new ConnectionType(conn_type);
   }
 
  private:
