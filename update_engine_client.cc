@@ -57,6 +57,8 @@ DEFINE_string(update_over_cellular, "",
               "cellular networks.");
 DEFINE_bool(watch_for_updates, false,
             "Listen for status updates and print them to the screen.");
+DEFINE_bool(prev_version, false,
+            "Show the previous OS version used before the update reboot.");
 
 namespace {
 
@@ -373,6 +375,26 @@ void CompleteUpdate() {
   g_main_loop_unref(loop);
 }
 
+void ShowPrevVersion() {
+  DBusGProxy* proxy;
+  GError* error = nullptr;
+
+  CHECK(GetProxy(&proxy));
+
+  char* prev_version = nullptr;
+
+  gboolean rc = update_engine_client_get_prev_version(proxy,
+                                                      &prev_version,
+                                                      &error);
+  if (!rc) {
+    LOG(ERROR) << "Error getting previous version: "
+               << GetAndFreeGError(&error);
+  } else {
+    LOG(INFO) << "Previous version = " << prev_version;
+    g_free(prev_version);
+  }
+}
+
 }  // namespace {}
 
 int main(int argc, char** argv) {
@@ -519,6 +541,10 @@ int main(int argc, char** argv) {
     LOG(INFO) << "Requesting a reboot...";
     CHECK(RebootIfNeeded());
     return 0;
+  }
+
+  if (FLAGS_prev_version) {
+    ShowPrevVersion();
   }
 
   LOG(INFO) << "Done.";

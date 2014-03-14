@@ -187,6 +187,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // successful update. Returns false if the device has not updated.
   bool GetBootTimeAtUpdate(base::Time *out_boot_time);
 
+  // Returns a version OS version that was being used before the last reboot,
+  // and if that reboot happended to be into an update (current version).
+  // This will return an empty string otherwise.
+  std::string const& GetPrevVersion() const { return prev_version_; }
+
  private:
   // Update server URL for automated lab test.
   static const char* const kTestUpdateUrl;
@@ -395,6 +400,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   UpdateStatus status_;
   double download_progress_;
   int64_t last_checked_time_;
+  std::string prev_version_;
   std::string new_version_;
   int64_t new_payload_size_;
 

@@ -1456,6 +1456,20 @@ bool UpdateAttempter::DecrementUpdateCheckCount() {
 
 
 void UpdateAttempter::UpdateEngineStarted() {
+  // If we just booted into a new update, keep the previous OS version
+  // in case we rebooted because of a crash of the old version, so we
+  // can do a proper crash report with correcy information.
+  // This must be done before calling
+  // system_state_->payload_state()->UpdateEngineStarted() since it will
+  // delete SystemUpdated marker file.
+  if (system_state_->system_rebooted() &&
+      prefs_->Exists(kPrefsSystemUpdatedMarker)) {
+    if (!prefs_->GetString(kPrefsPreviousVersion, &prev_version_)) {
+      // If we fail to get the version string, make sure it stays empty.
+      prev_version_.clear();
+    }
+  }
+
   system_state_->payload_state()->UpdateEngineStarted();
   StartP2PAtStartup();
 }

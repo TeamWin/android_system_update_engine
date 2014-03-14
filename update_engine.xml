@@ -78,5 +78,8 @@
       <arg type="s" name="new_version" />
       <arg type="x" name="new_size" />
     </signal>
+    <method name="GetPrevVersion">
+      <arg type="s" name="prev_version" direction="out" />
+    </method>
   </interface>
 </node>

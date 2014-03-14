@@ -151,6 +151,14 @@ gboolean update_engine_service_emit_status_update(
     const gchar* new_version,
     gint64 new_size);
 
+// Returns the version string of OS that was used before the last reboot
+// into an updated version. This is avalable only when rebooting into an
+// update from previous version, otherwise an empty string is returned.
+gboolean update_engine_service_get_prev_version(
+    UpdateEngineService* self,
+    gchar** prev_version,
+    GError **error);
+
 G_END_DECLS
 
 #endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_DBUS_SERVICE_H_

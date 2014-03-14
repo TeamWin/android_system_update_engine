@@ -481,3 +481,12 @@ gboolean update_engine_service_emit_status_update(
                 new_size);
   return TRUE;
 }
+
+gboolean update_engine_service_get_prev_version(
+    UpdateEngineService* self,
+    gchar** prev_version,
+    GError **error) {
+  std::string ver = self->system_state_->update_attempter()->GetPrevVersion();
+  *prev_version = g_strdup(ver.c_str());
+  return TRUE;
+}
