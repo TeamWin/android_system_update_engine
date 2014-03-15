@@ -16,29 +16,27 @@ namespace chromeos_policy_manager {
 class PmRealRandomProviderTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    default_timeout_ = TimeDelta::FromSeconds(1);
-
     // The provider initializes correctly.
-    random_.reset(new RealRandomProvider());
-    PMTEST_ASSERT_NOT_NULL(random_.get());
-    ASSERT_TRUE(random_->Init());
+    provider_.reset(new RealRandomProvider());
+    PMTEST_ASSERT_NOT_NULL(provider_.get());
+    ASSERT_TRUE(provider_->Init());
 
-    random_->var_seed();
+    provider_->var_seed();
   }
 
-  TimeDelta default_timeout_;
-  scoped_ptr<RealRandomProvider> random_;
+  const TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
+  scoped_ptr<RealRandomProvider> provider_;
 };
 
 TEST_F(PmRealRandomProviderTest, InitFinalize) {
   // The provider initializes all variables with valid objects.
-  PMTEST_EXPECT_NOT_NULL(random_->var_seed());
+  PMTEST_EXPECT_NOT_NULL(provider_->var_seed());
 }
 
 TEST_F(PmRealRandomProviderTest, GetRandomValues) {
   // Should not return the same random seed repeatedly.
   scoped_ptr<const uint64_t> value(
-      random_->var_seed()->GetValue(default_timeout_, NULL));
+      provider_->var_seed()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(value.get());
 
   // Test that at least the returned values are different. This test fails,
@@ -46,7 +44,7 @@ TEST_F(PmRealRandomProviderTest, GetRandomValues) {
   bool is_same_value = true;
   for (int i = 0; i < 5; i++) {
     scoped_ptr<const uint64_t> other_value(
-        random_->var_seed()->GetValue(default_timeout_, NULL));
+        provider_->var_seed()->GetValue(default_timeout_, NULL));
     PMTEST_ASSERT_NOT_NULL(other_value.get());
     is_same_value = is_same_value && *other_value == *value;
   }
