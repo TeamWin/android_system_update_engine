@@ -5,9 +5,12 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_POLICY_MANAGER_INL_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_POLICY_MANAGER_INL_H_
 
+#include <string>
+
 #include <base/bind.h>
 
 #include "update_engine/policy_manager/evaluation_context.h"
+#include "update_engine/policy_manager/event_loop.h"
 
 namespace chromeos_policy_manager {
 
@@ -35,7 +38,6 @@ EvalStatus PolicyManager::EvaluatePolicy(EvaluationContext* ec,
   return status;
 }
 
-
 template<typename T, typename R, typename... Args>
 void PolicyManager::OnPolicyReadyToEvaluate(
     scoped_refptr<EvaluationContext> ec,
@@ -49,14 +51,20 @@ void PolicyManager::OnPolicyReadyToEvaluate(
     callback.Run(status, result);
     return;
   }
-  // Re-schedule the policy request.
-  // TODO(deymo): Use the information gathered on the EvaluationContext to
-  // hook on proper events from changes on the State in order to re-evaluate
-  // the policy after some period of time.
+  // Re-schedule the policy request based on used variables.
   base::Closure closure = base::Bind(
       &PolicyManager::OnPolicyReadyToEvaluate<T, R, Args...>,
       base::Unretained(this), ec, callback, policy_method, args...);
-  RunFromMainLoopAfterTimeout(closure, base::TimeDelta::FromSeconds(20));
+
+  if (!ec->RunOnValueChangeOrTimeout(closure)) {
+    // The policy method didn't use any non-const variable nor there's any
+    // time-based event that will change the status of evaluation. We call the
+    // callback with EvalStatus::kAskMeAgainLater.
+    LOG(ERROR) << "Policy implementation didn't use any non-const variable "
+                  "but returned kAskMeAgainLater.";
+    callback.Run(EvalStatus::kAskMeAgainLater, result);
+    return;
+  }
 }
 
 template<typename T, typename R, typename... Args>

@@ -13,8 +13,8 @@ namespace chromeos_policy_manager {
 
 template <typename T>
 bool InitProvider(scoped_ptr<T>* handle_ptr, T* provider) {
-   handle_ptr->reset(provider);
-   return handle_ptr->get() && (*handle_ptr)->Init();
+  handle_ptr->reset(provider);
+  return handle_ptr->get() && (*handle_ptr)->Init();
 }
 
 bool PolicyManager::Init(State* state) {
@@ -25,30 +25,6 @@ bool PolicyManager::Init(State* state) {
   state_.reset(state);
 
   return true;
-}
-
-void PolicyManager::RunFromMainLoop(const Closure& callback) {
-  Closure* callback_p = new base::Closure(callback);
-  g_idle_add_full(G_PRIORITY_DEFAULT,
-                  OnRanFromMainLoop,
-                  reinterpret_cast<gpointer>(callback_p),
-                  NULL);
-}
-
-void PolicyManager::RunFromMainLoopAfterTimeout(
-    const Closure& callback,
-    base::TimeDelta timeout) {
-  Closure* callback_p = new Closure(callback);
-  g_timeout_add_seconds(timeout.InSeconds(),
-                        OnRanFromMainLoop,
-                        reinterpret_cast<gpointer>(callback_p));
-}
-
-gboolean PolicyManager::OnRanFromMainLoop(gpointer user_data) {
-  Closure* callback_p = reinterpret_cast<Closure*>(user_data);
-  callback_p->Run();
-  delete callback_p;
-  return FALSE;  // Removes the source since a callback can only be called once.
 }
 
 }  // namespace chromeos_policy_manager

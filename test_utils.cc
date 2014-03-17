@@ -310,6 +310,27 @@ ScopedLoopMounter::ScopedLoopMounter(const string& file_path,
   unmounter_.reset(new ScopedFilesystemUnmounter(*mnt_path));
 }
 
+static gboolean RunGMainLoopOnTimeout(gpointer user_data) {
+  bool* timeout = static_cast<bool*>(user_data);
+  *timeout = true;
+  return FALSE;  // Remove timeout source
+}
+
+void RunGMainLoopUntil(int timeout_msec, base::Callback<bool()> terminate) {
+  GMainLoop* loop = g_main_loop_new(NULL, FALSE);
+  GMainContext* context = g_main_context_default();
+
+  bool timeout = false;
+  guint source_id = g_timeout_add(
+      timeout_msec, RunGMainLoopOnTimeout, &timeout);
+
+  while (!timeout && (terminate.is_null() || !terminate.Run()))
+    g_main_context_iteration(context, TRUE);
+
+  g_source_remove(source_id);
+  g_main_loop_unref(loop);
+}
+
 int RunGMainLoopMaxIterations(int iterations) {
   int result;
   GMainContext* context = g_main_context_default();

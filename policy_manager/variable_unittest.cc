@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/policy_manager/variable.h"
+
 #include <vector>
 
 #include <gtest/gtest.h>
 
-#include "update_engine/policy_manager/variable.h"
+#include "update_engine/test_utils.h"
 
 using base::TimeDelta;
 using std::string;
 using std::vector;
+using chromeos_update_engine::RunGMainLoopMaxIterations;
 
 namespace chromeos_policy_manager {
 
@@ -25,7 +28,7 @@ class DefaultVariable : public Variable<T> {
   virtual ~DefaultVariable() {}
 
  protected:
-  virtual const T* GetValue(base::TimeDelta /* timeout */,
+  virtual const T* GetValue(TimeDelta /* timeout */,
                             string* /* errmsg */) {
     return new T();
   }
@@ -59,7 +62,7 @@ TEST(PmBaseVariableTest, GetPollIntervalTest) {
   EXPECT_EQ(var.GetPollInterval(), TimeDelta::FromMinutes(3));
 }
 
-class BaseVariableObserver : public BaseVariable::Observer {
+class BaseVariableObserver : public BaseVariable::ObserverInterface {
  public:
   void ValueChanged(BaseVariable* variable) {
     calls_.push_back(variable);
@@ -88,18 +91,21 @@ TEST(PmBaseVariableTest, NotifyValueChangedTest) {
   var.AddObserver(&observer1);
   // Simulate a value change on the variable's implementation.
   var.NotifyValueChanged();
+  ASSERT_EQ(0, observer1.calls_.size());
+  RunGMainLoopMaxIterations(100);
 
-  ASSERT_EQ(observer1.calls_.size(), 1);
+  ASSERT_EQ(1, observer1.calls_.size());
   // Check that the observer is called with the right argument.
-  EXPECT_EQ(observer1.calls_[0], &var);
+  EXPECT_EQ(&var, observer1.calls_[0]);
 
   BaseVariableObserver observer2;
   var.AddObserver(&observer2);
   var.NotifyValueChanged();
+  RunGMainLoopMaxIterations(100);
 
   // Check that all the observers are called.
-  EXPECT_EQ(observer1.calls_.size(), 2);
-  EXPECT_EQ(observer2.calls_.size(), 1);
+  EXPECT_EQ(2, observer1.calls_.size());
+  EXPECT_EQ(1, observer2.calls_.size());
 }
 
 }  // namespace chromeos_policy_manager

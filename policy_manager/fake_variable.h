@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_VARIABLE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_VARIABLE_H_
 
+#include <string>
+
 #include <base/memory/scoped_ptr.h>
 
 #include "update_engine/policy_manager/variable.h"
@@ -16,8 +18,10 @@ namespace chromeos_policy_manager {
 template<typename T>
 class FakeVariable : public Variable<T> {
  public:
-  explicit FakeVariable(const std::string& name, VariableMode mode)
+  FakeVariable(const std::string& name, VariableMode mode)
       : Variable<T>(name, mode) {}
+  FakeVariable(const std::string& name, base::TimeDelta poll_interval)
+      : Variable<T>(name, poll_interval) {}
   virtual ~FakeVariable() {}
 
   // Sets the next value of this variable to the passed |p_value| pointer. Once
@@ -25,6 +29,11 @@ class FakeVariable : public Variable<T> {
   // A value of NULL means that the GetValue() call will fail and return NULL.
   void reset(const T* p_value) {
     ptr_.reset(p_value);
+  }
+
+  // Make the NotifyValueChanged() public for FakeVariables.
+  void NotifyValueChanged() {
+    Variable<T>::NotifyValueChanged();
   }
 
  protected:

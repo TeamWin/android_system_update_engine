@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include <base/callback.h>
 #include <base/memory/scoped_ptr.h>
 #include <glib-object.h>
 #include <gtest/gtest.h>
@@ -273,6 +274,12 @@ class ScopedLoopMounter {
   scoped_ptr<ScopedLoopbackDeviceBinder> loop_binder_;
   scoped_ptr<ScopedFilesystemUnmounter> unmounter_;
 };
+
+// Runs the default GLib main loop for at most |timeout_msec| or until the
+// function |terminate| returns true, whichever happens first. The function
+// |terminate| is called before every GLib main loop iteration and its value is
+// checked.
+void RunGMainLoopUntil(int timeout_msec, base::Callback<bool()> terminate);
 
 // Runs the default GLib main loop at most |iterations| times. This
 // dispatches all the events that are already waiting in the main loop and

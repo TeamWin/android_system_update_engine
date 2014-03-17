@@ -5,8 +5,6 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_POLICY_MANAGER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_POLICY_MANAGER_H_
 
-#include <glib.h>
-
 #include <base/callback.h>
 #include <base/memory/ref_counted.h>
 #include <base/memory/scoped_ptr.h>
@@ -51,7 +49,9 @@ class PolicyManager {
   //
   // If the policy implementation should block, returning a
   // EvalStatus::kAskMeAgainLater status the policy manager will re-evaluate the
-  // policy until another status is returned.
+  // policy until another status is returned. If the policy implementation based
+  // its return value solely on const variables, the callback will be called
+  // with the EvalStatus::kAskMeAgainLater status.
   template<typename T, typename R, typename... Args>
   void AsyncPolicyRequest(
       base::Callback<void(EvalStatus, const R& result)> callback,
@@ -63,18 +63,6 @@ class PolicyManager {
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError);
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestDoesntBlock);
   FRIEND_TEST(PmPolicyManagerTest, AsyncPolicyRequestDelaysEvaluation);
-
-  // Schedules the passed |callback| to run from the GLib's main loop after a
-  // timeout if it is given.
-  static void RunFromMainLoop(const base::Closure& callback);
-  static void RunFromMainLoopAfterTimeout(const base::Closure& callback,
-                                          base::TimeDelta timeout);
-
-  // Called by the GLib's main loop when is time to call the callback scheduled
-  // with RunFromMainLopp() and similar functions. The pointer to the callback
-  // passed when scheduling it is passed to this functions as a gpointer on
-  // |user_data|.
-  static gboolean OnRanFromMainLoop(gpointer user_data);
 
   // EvaluatePolicy() evaluates the passed |policy_method| method on the current
   // policy with the given |args| arguments. If the method fails, the default

@@ -9,8 +9,12 @@
 #include <list>
 #include <string>
 
+#include <base/bind.h>
+#include <base/logging.h>
 #include <base/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
+
+#include "update_engine/policy_manager/event_loop.h"
 
 namespace chromeos_policy_manager {
 
@@ -40,15 +44,20 @@ enum VariableMode {
 class BaseVariable {
  public:
   // Interface for observing changes on variable value.
-  class Observer {
+  class ObserverInterface {
    public:
-    virtual ~Observer() {}
+    virtual ~ObserverInterface() {}
 
     // Called when the value on the variable changes.
     virtual void ValueChanged(BaseVariable* variable) = 0;
   };
 
-  virtual ~BaseVariable() {}
+  virtual ~BaseVariable() {
+    if (!observer_list_.empty()) {
+      LOG(WARNING) << "Variable " << name_ << " deleted with "
+                   << observer_list_.size() << " observers.";
+    }
+  }
 
   // Returns the variable name as a string.
   const std::string& GetName() const {
@@ -69,14 +78,14 @@ class BaseVariable {
   // Adds and removes observers for value changes on the variable. This only
   // works for kVariableAsync variables since the other modes don't track value
   // changes. Adding the same observer twice has no effect.
-  virtual void AddObserver(BaseVariable::Observer* observer) {
+  virtual void AddObserver(BaseVariable::ObserverInterface* observer) {
     if (std::find(observer_list_.begin(), observer_list_.end(), observer) ==
         observer_list_.end()) {
       observer_list_.push_back(observer);
     }
   }
 
-  virtual void RemoveObserver(BaseVariable::Observer* observer) {
+  virtual void RemoveObserver(BaseVariable::ObserverInterface* observer) {
     observer_list_.remove(observer);
   }
 
@@ -93,11 +102,14 @@ class BaseVariable {
 
   // Calls ValueChanged on all the observers.
   void NotifyValueChanged() {
-    for (auto& observer : observer_list_)
-      observer->ValueChanged(this);
+    for (auto& observer : observer_list_) {
+      RunFromMainLoop(base::Bind(&BaseVariable::ObserverInterface::ValueChanged,
+                                 base::Unretained(observer), this));
+    }
   }
 
  private:
+  friend class PmEvaluationContextTest;
   friend class PmBaseVariableTest;
   FRIEND_TEST(PmBaseVariableTest, RepeatedObserverTest);
   FRIEND_TEST(PmBaseVariableTest, NotifyValueChangedTest);
@@ -122,7 +134,7 @@ class BaseVariable {
   const base::TimeDelta poll_interval_;
 
   // The list of value changes observers.
-  std::list<BaseVariable::Observer*> observer_list_;
+  std::list<BaseVariable::ObserverInterface*> observer_list_;
 };
 
 // Interface to a Policy Manager variable of a given type. Implementation
