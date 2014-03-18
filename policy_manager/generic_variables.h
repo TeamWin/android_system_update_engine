@@ -59,6 +59,32 @@ class CopyVariable : public Variable<T> {
   const T& ref_;
 };
 
+// Variable class returning a constant value that is cached on the variable when
+// it is created.
+template<typename T>
+class ConstCopyVariable : public Variable<T> {
+ public:
+  // Creates the variable returning copies of the passed |obj|. The value passed
+  // is copied in this variable, and new copies of it will be returned by
+  // GetValue().
+  ConstCopyVariable(const std::string& name, const T& obj)
+      : Variable<T>(name, kVariableModeConst), obj_(obj) {}
+
+ protected:
+  friend class PmConstCopyVariableTest;
+  FRIEND_TEST(PmConstCopyVariableTest, SimpleTest);
+
+  // Variable override.
+  virtual const T* GetValue(base::TimeDelta /* timeout */,
+                            std::string* /* errmsg */) {
+    return new T(obj_);
+  }
+
+ private:
+  // Value to be copied by GetValue().
+  const T obj_;
+};
+
 }  // namespace chromeos_policy_manager
 
 #endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H_

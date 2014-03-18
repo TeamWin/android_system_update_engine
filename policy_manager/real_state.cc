@@ -12,9 +12,11 @@ namespace chromeos_policy_manager {
 
 RealState::RealState(RandomProvider* random_provider,
                      ShillProvider* shill_provider,
+                     SystemProvider* system_provider,
                      TimeProvider* time_provider) {
   set_random_provider(random_provider);
   set_shill_provider(shill_provider);
+  set_system_provider(system_provider);
   set_time_provider(time_provider);
 }
 

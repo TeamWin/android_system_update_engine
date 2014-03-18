@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/policy_manager/generic_variables.h"
+
 #include <base/memory/scoped_ptr.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/policy_manager/generic_variables.h"
 #include "update_engine/policy_manager/pmtest_utils.h"
 
 using base::TimeDelta;
@@ -14,11 +15,7 @@ namespace chromeos_policy_manager {
 
 class PmCopyVariableTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
-    default_timeout_ = TimeDelta::FromSeconds(1);
-  }
-
-  TimeDelta default_timeout_;
+  TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
 };
 
 
@@ -66,6 +63,26 @@ TEST_F(PmCopyVariableTest, UseCopyConstructorTest) {
       var.GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(copy.get());
   EXPECT_TRUE(copy->copied_);
+}
+
+
+class PmConstCopyVariableTest : public ::testing::Test {
+ protected:
+  TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
+};
+
+TEST_F(PmConstCopyVariableTest, SimpleTest) {
+  int source = 5;
+  ConstCopyVariable<int> var("var", source);
+  scoped_ptr<const int> copy(var.GetValue(default_timeout_, NULL));
+  PMTEST_ASSERT_NOT_NULL(copy.get());
+  EXPECT_EQ(5, *copy);
+
+  // Ensure the value is cached.
+  source = 42;
+  copy.reset(var.GetValue(default_timeout_, NULL));
+  PMTEST_ASSERT_NOT_NULL(copy.get());
+  EXPECT_EQ(5, *copy);
 }
 
 }  // namespace chromeos_policy_manager

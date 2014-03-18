@@ -5,9 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_STATE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_STATE_H_
 
-#include "update_engine/clock.h"
 #include "update_engine/policy_manager/state.h"
-#include "update_engine/real_dbus_wrapper.h"
 
 namespace chromeos_policy_manager {
 
@@ -15,7 +13,9 @@ namespace chromeos_policy_manager {
 class RealState : public State {
  public:
   // Instantiate with given providers, assuming ownership of them.
-  RealState(RandomProvider* random_provider, ShillProvider* shill_provider,
+  RealState(RandomProvider* random_provider,
+            ShillProvider* shill_provider,
+            SystemProvider* system_provider,
             TimeProvider* time_provider);
 
   ~RealState() {}
