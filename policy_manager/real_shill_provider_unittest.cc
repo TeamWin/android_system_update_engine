@@ -62,7 +62,7 @@ class PmRealShillProviderTest : public ::testing::Test {
   virtual void SetUp() {
     provider_.reset(new RealShillProvider(&mock_dbus_, &fake_clock_));
     PMTEST_ASSERT_NOT_NULL(provider_.get());
-    fake_clock_.SetWallclockTime(init_time_);
+    fake_clock_.SetWallclockTime(InitTime());
     // A DBus connection should only be obtained once.
     EXPECT_CALL(mock_dbus_, BusGet(_, _)).WillOnce(
         Return(kFakeConnection));
@@ -105,6 +105,24 @@ class PmRealShillProviderTest : public ::testing::Test {
     provider_.reset();
     // Verify and clear all expectations.
     testing::Mock::VerifyAndClear(&mock_dbus_);
+  }
+
+  // These methods generate fixed timestamps for use in faking the current time.
+  Time InitTime() {
+    Time::Exploded now_exp;
+    now_exp.year = 2014;
+    now_exp.month = 3;
+    now_exp.day_of_week = 2;
+    now_exp.day_of_month = 18;
+    now_exp.hour = 8;
+    now_exp.minute = 5;
+    now_exp.second = 33;
+    now_exp.millisecond = 675;
+    return Time::FromLocalExploded(now_exp);
+  }
+
+  Time ConnChangedTime() {
+    return InitTime() + TimeDelta::FromSeconds(10);
   }
 
   // Sets up a mock "GetProperties" call on |proxy| that returns a hash table
@@ -151,7 +169,7 @@ class PmRealShillProviderTest : public ::testing::Test {
     auto callback = reinterpret_cast<ShillConnector::PropertyChangedHandler>(
         signal_handler_);
     auto default_service_gval = GValueNewString(service_path);
-    Time conn_change_time = Time::Now();
+    Time conn_change_time = ConnChangedTime();
     fake_clock_.SetWallclockTime(conn_change_time);
     callback(kFakeManagerProxy, shill::kDefaultServiceProperty,
              default_service_gval, signal_data_);
@@ -200,7 +218,6 @@ class PmRealShillProviderTest : public ::testing::Test {
   }
 
   const TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
-  const Time init_time_ = Time::Now();
   StrictMock<MockDBusWrapper> mock_dbus_;
   FakeClock fake_clock_;
   scoped_ptr<RealShillProvider> provider_;
@@ -225,7 +242,7 @@ TEST_F(PmRealShillProviderTest, ReadDefaultValues) {
   scoped_ptr<const Time> conn_last_changed(
       provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
-  EXPECT_EQ(init_time_, *conn_last_changed);
+  EXPECT_EQ(InitTime(), *conn_last_changed);
 }
 
 // Test that Ethernet connection is identified correctly.
@@ -282,7 +299,7 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn) {
   auto callback = reinterpret_cast<ShillConnector::PropertyChangedHandler>(
       signal_handler_);
   auto default_service_gval = GValueNewString(kFakeVpnServicePath);
-  Time conn_change_time = Time::Now();
+  Time conn_change_time = ConnChangedTime();
   fake_clock_.SetWallclockTime(conn_change_time);
   callback(kFakeManagerProxy, shill::kDefaultServiceProperty,
            default_service_gval, signal_data_);
@@ -326,7 +343,7 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedTwoSignals) {
   auto callback = reinterpret_cast<ShillConnector::PropertyChangedHandler>(
       signal_handler_);
   auto default_service_gval = GValueNewString(kFakeEthernetServicePath);
-  Time conn_change_time = Time::Now();
+  Time conn_change_time = ConnChangedTime();
   fake_clock_.SetWallclockTime(conn_change_time);
   callback(kFakeManagerProxy, shill::kDefaultServiceProperty,
            default_service_gval, signal_data_);
