@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_DBUS_SERVICE_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_DBUS_SERVICE_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_DBUS_SERVICE_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_DBUS_SERVICE_H_
 
 #include <inttypes.h>
 #include <dbus/dbus-glib.h>
@@ -153,4 +153,4 @@ gboolean update_engine_service_emit_status_update(
 
 G_END_DECLS
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_DBUS_SERVICE_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_DBUS_SERVICE_H_

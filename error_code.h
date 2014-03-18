@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_ERROR_CODE_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_ERROR_CODE_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_ERROR_CODE_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_ERROR_CODE_H_
 
 namespace chromeos_update_engine {
 
@@ -109,4 +109,4 @@ enum ErrorCode {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_ACTION_PROCESSOR_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_ERROR_CODE_H_

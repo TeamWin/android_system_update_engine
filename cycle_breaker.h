@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_CYCLE_BREAKER_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_CYCLE_BREAKER_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_CYCLE_BREAKER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_CYCLE_BREAKER_H_
 
 // This is a modified implementation of Donald B. Johnson's algorithm for
 // finding all elementary cycles (a.k.a. circuits) in a directed graph.
@@ -55,4 +55,4 @@ class CycleBreaker {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_CYCLE_BREAKER_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_CYCLE_BREAKER_H_

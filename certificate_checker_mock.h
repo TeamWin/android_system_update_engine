@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_UPDATE_ENGINE_CERTIFICATE_CHECKER_MOCK_H_
-#define CHROMEOS_UPDATE_ENGINE_CERTIFICATE_CHECKER_MOCK_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_CERTIFICATE_CHECKER_MOCK_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_CERTIFICATE_CHECKER_MOCK_H_
 
 #include <gmock/gmock.h>
 #include <openssl/ssl.h>
@@ -23,4 +23,4 @@ class OpenSSLWrapperMock : public OpenSSLWrapper {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_UPDATE_ENGINE_CERTIFICATE_CHECKER_MOCK_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_CERTIFICATE_CHECKER_MOCK_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_H_
 
 #include "p2p_manager.h"
 
@@ -115,4 +115,4 @@ private:
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_H_

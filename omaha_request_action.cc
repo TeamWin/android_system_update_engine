@@ -1294,5 +1294,3 @@ bool OmahaRequestAction::PersistInstallDate(
 }
 
 }  // namespace chromeos_update_engine
-
-

@@ -33,4 +33,3 @@ UpdateAttempter* MockSystemState::update_attempter() {
 }
 
 } // namespeace chromeos_update_engine
-

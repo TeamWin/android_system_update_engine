@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_CHECK_SCHEDULER_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_CHECK_SCHEDULER_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_CHECK_SCHEDULER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_CHECK_SCHEDULER_H_
 
 #include <base/basictypes.h>
 #include <glib.h>
@@ -139,4 +139,4 @@ class UpdateCheckScheduler {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_CHECK_SCHEDULER_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_CHECK_SCHEDULER_H_

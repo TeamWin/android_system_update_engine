@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_H_
 
 #include "base/file_path.h"
 #include "gtest/gtest_prod.h"  // for FRIEND_TEST
@@ -52,4 +52,4 @@ class Prefs : public PrefsInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_H_

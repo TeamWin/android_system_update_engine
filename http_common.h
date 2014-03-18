@@ -5,8 +5,8 @@
 // This file contains general definitions used in implementing, testing and
 // emulating communication over HTTP.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H_
 
 #include <stdlib.h>
 
@@ -55,4 +55,4 @@ enum HttpContentType {
 // Returns a standard HTTP Content-Type string.
 const char *GetHttpContentTypeString(HttpContentType type);
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H_

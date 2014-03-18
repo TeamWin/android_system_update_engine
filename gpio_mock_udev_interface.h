@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_GPIO_MOCK_UDEV_INTERFACE_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_GPIO_MOCK_UDEV_INTERFACE_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_GPIO_MOCK_UDEV_INTERFACE_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_GPIO_MOCK_UDEV_INTERFACE_H_
 
 #include "update_engine/gpio_handler.h"
 #include "update_engine/udev_interface.h"
@@ -146,4 +146,4 @@ class FailInitGpioMockUdevInterface : public StandardGpioMockUdevInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_GPIO_MOCK_UDEV_INTERFACE_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_GPIO_MOCK_UDEV_INTERFACE_H_

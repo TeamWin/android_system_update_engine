@@ -1,6 +1,9 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_BZIP_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_BZIP_H_
 
 #include <string>
 #include <vector>
@@ -14,3 +17,5 @@ bool BzipCompressString(const std::string& str, std::vector<char>* out);
 bool BzipDecompressString(const std::string& str, std::vector<char>* out);
 
 }  // namespace chromeos_update_engine
+
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_BZIP_H_

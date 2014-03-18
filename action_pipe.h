@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PIPE_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PIPE_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_ACTION_PIPE_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_ACTION_PIPE_H_
 
 #include <stdio.h>
 #include <iostream>
@@ -86,4 +86,4 @@ void BondActions(FromAction* from, ToAction* to) {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PIPE_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_ACTION_PIPE_H_

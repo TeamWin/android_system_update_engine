@@ -1,9 +1,9 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FILESYSTEM_ITERATOR_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_FILESYSTEM_ITERATOR_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FILESYSTEM_ITERATOR_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_FILESYSTEM_ITERATOR_H_
 
 // This class is used to walk a filesystem. It will iterate over every file
 // on the same device as the file passed in the ctor. Directories will be
@@ -123,4 +123,4 @@ class FilesystemIterator {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_FILESYSTEM_ITERATOR_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_FILESYSTEM_ITERATOR_H_

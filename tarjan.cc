@@ -67,4 +67,3 @@ void TarjanAlgorithm::Tarjan(Vertex::Index vertex, Graph* graph) {
 }
 
 }  // namespace chromeos_update_engine
-

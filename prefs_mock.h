@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_MOCK_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_MOCK_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_MOCK_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_MOCK_H_
 
 #include "gmock/gmock.h"
 #include "update_engine/constants.h"
@@ -28,4 +28,4 @@ class PrefsMock : public PrefsInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_MOCK_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_MOCK_H_

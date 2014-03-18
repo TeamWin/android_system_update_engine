@@ -81,4 +81,3 @@ void InstallPlan::Dump() const {
 }
 
 }  // namespace chromeos_update_engine
-

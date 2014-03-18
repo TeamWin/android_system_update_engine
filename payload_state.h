@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H_
 
 #include <base/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
@@ -508,4 +508,4 @@ class PayloadState : public PayloadStateInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H_

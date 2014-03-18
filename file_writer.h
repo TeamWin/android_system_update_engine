@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FILE_WRITER_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_FILE_WRITER_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FILE_WRITER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_FILE_WRITER_H_
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -87,4 +87,4 @@ class ScopedFileWriterCloser {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_FILE_WRITER_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_FILE_WRITER_H_

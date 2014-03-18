@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_SIGNER_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_SIGNER_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_SIGNER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_SIGNER_H_
 
 #include <string>
 #include <vector>
@@ -154,4 +154,4 @@ class PayloadSigner {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_SIGNER_H__
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_SIGNER_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_CONSTANTS_H
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_CONSTANTS_H
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_CONSTANTS_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_CONSTANTS_H_
 
 namespace chromeos_update_engine {
 
@@ -157,4 +157,4 @@ const int kDownloadP2PConnectTimeoutSeconds = 5;
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_CONSTANTS_H
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_CONSTANTS_H_

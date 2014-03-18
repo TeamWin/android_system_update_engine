@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UDEV_INTERFACE_H__
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UDEV_INTERFACE_H__
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UDEV_INTERFACE_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UDEV_INTERFACE_H_
 
 #include <libudev.h>
 
@@ -193,5 +193,4 @@ class StandardUdevInterface : public UdevInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UDEV_INTERFACE_H__
-
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UDEV_INTERFACE_H_
