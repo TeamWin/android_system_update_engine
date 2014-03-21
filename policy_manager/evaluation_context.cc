@@ -91,7 +91,8 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
     return false;
   if (reeval_timeout_set) {
     poll_timeout_event_ = RunFromMainLoopAfterTimeout(
-        base::Bind(&EvaluationContext::OnPollTimeout, this),  // refcounted.
+        base::Bind(&EvaluationContext::OnPollTimeout,
+                   weak_ptr_factory_.GetWeakPtr()),
         reeval_timeout);
   }
 

@@ -203,4 +203,32 @@ TEST_F(PmEvaluationContextTest, RunOnValueChangeOrTimeoutRunsFromTimeoutTest) {
   EXPECT_TRUE(value);
 }
 
+// Test that we can delete the EvaluationContext while having pending events.
+TEST_F(PmEvaluationContextTest, ObjectDeletedWithPendingEventsTest) {
+  fake_async_var_.reset(new string("Async value"));
+  fake_poll_var_.reset(new string("Polled value"));
+  eval_ctx_->GetValue(&fake_async_var_);
+  eval_ctx_->GetValue(&fake_poll_var_);
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+  // TearDown() checks for leaked observers on this async_variable, which means
+  // that our object is still alive after removing its reference.
+}
+
+// Test that timed events fired after removal of the EvaluationContext don't
+// crash.
+TEST_F(PmEvaluationContextTest, TimeoutEventAfterDeleteTest) {
+  FakeVariable<string> fake_short_poll_var = {"fake_short_poll", TimeDelta()};
+  fake_short_poll_var.reset(new string("Polled value"));
+  eval_ctx_->GetValue(&fake_short_poll_var);
+  bool value = false;
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
+  // Remove the last reference to the EvaluationContext and run the loop for
+  // 1 second to give time to the main loop to trigger the timeout Event (of 0
+  // seconds). Our callback should not be called because the EvaluationContext
+  // was removed before the timeout event is attended.
+  eval_ctx_ = NULL;
+  RunGMainLoopUntil(1000, Bind(&GetBoolean, &value));
+  EXPECT_FALSE(value);
+}
+
 }  // namespace chromeos_policy_manager

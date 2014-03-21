@@ -9,6 +9,7 @@
 
 #include <base/callback.h>
 #include <base/memory/ref_counted.h>
+#include <base/memory/weak_ptr.h>
 #include <base/time.h>
 
 #include "update_engine/policy_manager/boxed_value.h"
@@ -24,7 +25,7 @@ class EvaluationContext :
     public base::RefCounted<EvaluationContext>,
     private BaseVariable::ObserverInterface {
  public:
-  EvaluationContext() {}
+  EvaluationContext() : weak_ptr_factory_(this) {}
   ~EvaluationContext();
 
   // Returns a pointer to the value returned by the passed variable |var|. The
@@ -75,6 +76,8 @@ class EvaluationContext :
   // The EventId returned by the event loop identifying the timeout callback.
   // Used to cancel the timeout callback.
   EventId poll_timeout_event_ = kEventIdNull;
+
+  base::WeakPtrFactory<EvaluationContext> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(EvaluationContext);
 };
