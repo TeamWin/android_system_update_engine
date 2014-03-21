@@ -53,6 +53,8 @@ class FakeVariable : public Variable<T> {
  private:
   // The pointer returned by GetValue().
   scoped_ptr<const T> ptr_;
+
+  DISALLOW_COPY_AND_ASSIGN(FakeVariable);
 };
 
 }  // namespace chromeos_policy_manager

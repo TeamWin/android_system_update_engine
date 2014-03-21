@@ -135,6 +135,8 @@ class BaseVariable {
 
   // The list of value changes observers.
   std::list<BaseVariable::ObserverInterface*> observer_list_;
+
+  DISALLOW_COPY_AND_ASSIGN(BaseVariable);
 };
 
 // Interface to a Policy Manager variable of a given type. Implementation
@@ -177,6 +179,9 @@ class Variable : public BaseVariable {
   // The caller can pass a NULL value for |errmsg|, in which case the error
   // message won't be set.
   virtual const T* GetValue(base::TimeDelta timeout, std::string* errmsg) = 0;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Variable);
 };
 
 }  // namespace chromeos_policy_manager
