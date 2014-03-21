@@ -5,7 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_HARDWARE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_HARDWARE_H_
 
-#include "fake_hardware.h"
+#include "update_engine/fake_hardware.h"
 
 #include <gmock/gmock.h>
 

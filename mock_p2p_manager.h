@@ -5,7 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_P2P_MANAGER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_P2P_MANAGER_H_
 
-#include "fake_p2p_manager.h"
+#include "update_engine/fake_p2p_manager.h"
 
 #include <gmock/gmock.h>
 

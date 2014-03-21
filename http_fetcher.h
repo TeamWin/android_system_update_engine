@@ -14,7 +14,7 @@
 #include <glib.h>
 #include <google/protobuf/stubs/common.h>
 
-#include "http_common.h"
+#include "update_engine/http_common.h"
 #include "update_engine/proxy_resolver.h"
 #include "update_engine/system_state.h"
 

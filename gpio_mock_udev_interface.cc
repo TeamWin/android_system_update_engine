@@ -9,7 +9,7 @@
 #include <base/stringprintf.h>
 #include <gtest/gtest.h>
 
-#include "gpio_handler_unittest.h"
+#include "update_engine/gpio_handler_unittest.h"
 
 namespace chromeos_update_engine {
 
