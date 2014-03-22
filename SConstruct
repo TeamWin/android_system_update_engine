@@ -238,9 +238,9 @@ sources = Split("""action_processor.cc
                    policy_manager/policy_manager.cc
                    policy_manager/real_random_provider.cc
                    policy_manager/real_shill_provider.cc
-                   policy_manager/real_state.cc
                    policy_manager/real_system_provider.cc
                    policy_manager/real_time_provider.cc
+                   policy_manager/state_factory.cc
                    postinstall_runner_action.cc
                    prefs.cc
                    proxy_resolver.cc
@@ -298,7 +298,6 @@ unittest_sources = Split("""action_unittest.cc
                             policy_manager/policy_manager_unittest.cc
                             policy_manager/real_random_provider_unittest.cc
                             policy_manager/real_shill_provider_unittest.cc
-                            policy_manager/real_state_unittest.cc
                             policy_manager/real_system_provider_unittest.cc
                             policy_manager/real_time_provider_unittest.cc
                             policy_manager/variable_unittest.cc

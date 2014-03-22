@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/bind.h>
@@ -32,11 +33,12 @@ namespace chromeos_policy_manager {
 class PmPolicyManagerTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    FakeState* fake_state = new FakeState();
-    ASSERT_TRUE(fake_state->Init());
-    EXPECT_TRUE(pmut_.Init(fake_state));
+    fake_state_ = FakeState::Construct();
+    PMTEST_ASSERT_NOT_NULL(fake_state_);
+    EXPECT_TRUE(pmut_.Init(fake_state_));
   }
 
+  FakeState* fake_state_;
   PolicyManager pmut_;
 };
 

@@ -5,7 +5,7 @@
 #include "update_engine/policy_manager/policy_manager.h"
 
 #include "update_engine/policy_manager/chromeos_policy.h"
-#include "update_engine/policy_manager/real_state.h"
+#include "update_engine/policy_manager/state.h"
 
 using base::Closure;
 

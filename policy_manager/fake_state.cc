@@ -2,19 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "update_engine/policy_manager/fake_random_provider.h"
-#include "update_engine/policy_manager/fake_shill_provider.h"
 #include "update_engine/policy_manager/fake_state.h"
-#include "update_engine/policy_manager/fake_system_provider.h"
-#include "update_engine/policy_manager/fake_time_provider.h"
+
+#include "base/memory/scoped_ptr.h"
 
 namespace chromeos_policy_manager {
 
-FakeState::FakeState() {
-  set_random_provider(new FakeRandomProvider());
-  set_shill_provider(new FakeShillProvider());
-  set_system_provider(new FakeSystemProvider());
-  set_time_provider(new FakeTimeProvider());
+FakeState::FakeState() : State(new FakeRandomProvider(),
+                               new FakeShillProvider(),
+                               new FakeSystemProvider(),
+                               new FakeTimeProvider()) {
+}
+
+FakeState* FakeState::Construct() {
+  scoped_ptr<FakeState> fake_state(new FakeState());
+  if (!(fake_state->random_provider()->Init() &&
+        fake_state->shill_provider()->Init() &&
+        fake_state->system_provider()->Init() &&
+        fake_state->time_provider()->Init())) {
+    return NULL;
+  }
+  return fake_state.release();
 }
 
 }  // namespace chromeos_policy_manager

@@ -17,39 +17,18 @@ namespace chromeos_policy_manager {
 class State {
  public:
   virtual ~State() {}
+  State(RandomProvider* random_provider, ShillProvider* shill_provider,
+        SystemProvider* system_provider, TimeProvider* time_provider) :
+      random_provider_(random_provider),
+      shill_provider_(shill_provider),
+      system_provider_(system_provider),
+      time_provider_(time_provider) {}
 
-  // Initializes the State instance. Returns whether the initialization
-  // succeeded.
-  bool Init() {
-    return (random_provider_ && random_provider_->Init() &&
-            shill_provider_ && shill_provider_->Init() &&
-            system_provider_ && system_provider_->Init() &&
-            time_provider_ && time_provider_->Init());
-  }
-
-  // These functions return the given provider.
-  RandomProvider* random_provider() { return random_provider_.get(); }
-  ShillProvider* shill_provider() { return shill_provider_.get(); }
-  TimeProvider* time_provider() { return time_provider_.get(); }
-  SystemProvider* system_provider() { return system_provider_.get(); }
-
- protected:
-  // Initialize the private scoped_ptr for each provider.
-  void set_random_provider(RandomProvider* random_provider) {
-    return random_provider_.reset(random_provider);
-  }
-
-  void set_shill_provider(ShillProvider* shill_provider) {
-    return shill_provider_.reset(shill_provider);
-  }
-
-  void set_system_provider(SystemProvider* system_provider) {
-    return system_provider_.reset(system_provider);
-  }
-
-  void set_time_provider(TimeProvider* time_provider) {
-    return time_provider_.reset(time_provider);
-  }
+  // These methods return the given provider.
+  virtual RandomProvider* random_provider() { return random_provider_.get(); }
+  virtual ShillProvider* shill_provider() { return shill_provider_.get(); }
+  virtual TimeProvider* time_provider() { return time_provider_.get(); }
+  virtual SystemProvider* system_provider() { return system_provider_.get(); }
 
  private:
   // Instances of the providers.

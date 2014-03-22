@@ -57,6 +57,12 @@ class PolicyManager {
       base::Callback<void(EvalStatus, const R& result)> callback,
       T policy_method, Args... args);
 
+ protected:
+  // The PolicyManager receives ownership of the passed Policy instance.
+  void set_policy(const Policy* policy) {
+    policy_.reset(policy);
+  }
+
  private:
   friend class PmPolicyManagerTest;
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestCallsPolicy);

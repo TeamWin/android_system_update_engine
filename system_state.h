@@ -13,6 +13,12 @@
 #include "update_engine/gpio_handler.h"
 #include "update_engine/omaha_request_params.h"
 
+namespace chromeos_policy_manager {
+
+class PolicyManager;
+
+}  // namespace chromeos_policy_manager
+
 namespace chromeos_update_engine {
 
 // SystemState is the root class within the update engine. So we should avoid
@@ -20,12 +26,12 @@ namespace chromeos_update_engine {
 // the required classes.
 class ClockInterface;
 class ConnectionManager;
-class HardwareInterface;
-class PrefsInterface;
-class PayloadStateInterface;
 class GpioHandler;
-class UpdateAttempter;
+class HardwareInterface;
 class P2PManager;
+class PayloadStateInterface;
+class PrefsInterface;
+class UpdateAttempter;
 
 // An interface to global system context, including platform resources,
 // the current state of the system, high-level objects whose lifetime is same
@@ -33,7 +39,7 @@ class P2PManager;
 // Carved out separately so it can be mocked for unit tests.
 // Currently it has only one method, but we should start migrating other
 // methods to use this as and when needed to unit test them.
-// TODO (jaysri): Consider renaming this to something like GlobalContext.
+// TODO(jaysri): Consider renaming this to something like GlobalContext.
 class SystemState {
  public:
   // Destructs this object.
@@ -84,6 +90,9 @@ class SystemState {
 
   // Returns a pointer to the P2PManager singleton.
   virtual P2PManager* p2p_manager() = 0;
+
+  // Returns a pointer to the PolicyManager singleton.
+  virtual chromeos_policy_manager::PolicyManager* policy_manager() = 0;
 
   // If true, this is the first instance of the update engine since the system
   // restarted. Important for tracking whether you are running instance of the

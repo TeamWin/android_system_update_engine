@@ -10,12 +10,13 @@
 #include <metrics/metrics_library_mock.h>
 #include <policy/mock_device_policy.h>
 
+#include "update_engine/clock.h"
+#include "update_engine/fake_hardware.h"
 #include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_gpio_handler.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
-#include "update_engine/clock.h"
-#include "update_engine/fake_hardware.h"
+#include "update_engine/policy_manager/fake_policy_manager.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/system_state.h"
 
@@ -79,6 +80,10 @@ class MockSystemState : public SystemState {
     return p2p_manager_;
   }
 
+  inline virtual chromeos_policy_manager::PolicyManager* policy_manager() {
+    return policy_manager_;
+  }
+
   // MockSystemState-specific public method.
   inline void set_connection_manager(ConnectionManager* connection_manager) {
     connection_manager_ = connection_manager;
@@ -128,6 +133,11 @@ class MockSystemState : public SystemState {
     p2p_manager_ = p2p_manager;
   }
 
+  inline void set_policy_manager(
+      chromeos_policy_manager::PolicyManager *policy_manager) {
+    policy_manager_ = policy_manager;
+  }
+
   inline void set_payload_state(PayloadStateInterface *payload_state) {
     payload_state_ = payload_state;
   }
@@ -146,6 +156,7 @@ class MockSystemState : public SystemState {
   // These are the other object we own.
   Clock default_clock_;
   FakeHardware default_hardware_;
+  chromeos_policy_manager::FakePolicyManager fake_policy_manager_;
   OmahaRequestParams default_request_params_;
 
   // These are pointers to objects which caller can override.
@@ -155,10 +166,11 @@ class MockSystemState : public SystemState {
   PrefsInterface* powerwash_safe_prefs_;
   ConnectionManager* connection_manager_;
   OmahaRequestParams* request_params_;
-  P2PManager *p2p_manager_;
-  PayloadStateInterface *payload_state_;
+  P2PManager* p2p_manager_;
+  PayloadStateInterface* payload_state_;
+  chromeos_policy_manager::PolicyManager* policy_manager_;
 };
 
-} // namespeace chromeos_update_engine
+}  // namespace chromeos_update_engine
 
 #endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_SYSTEM_STATE_H_

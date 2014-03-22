@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/real_system_state.h"
+
 #include <base/file_util.h>
 #include <base/time/time.h>
 
 #include "update_engine/constants.h"
-#include "update_engine/real_system_state.h"
+#include "update_engine/policy_manager/state_factory.h"
 #include "update_engine/utils.h"
 
 namespace chromeos_update_engine {
@@ -43,6 +45,10 @@ bool RealSystemState::Initialize(bool enable_gpio) {
 
   p2p_manager_.reset(P2PManager::Construct(NULL, &prefs_, "cros_au",
                                            kMaxP2PFilesToKeep));
+
+  // Initialize the PolicyManager using the default State Factory.
+  policy_manager_.Init(
+      chromeos_policy_manager::DefaultStateFactory(&dbus_, &clock_));
 
   if (!payload_state_.Initialize(this))
     return false;

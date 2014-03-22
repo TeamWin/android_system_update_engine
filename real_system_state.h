@@ -11,18 +11,19 @@
 #include "update_engine/connection_manager.h"
 #include "update_engine/gpio_handler.h"
 #include "update_engine/hardware.h"
+#include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
+#include "update_engine/policy_manager/policy_manager.h"
 #include "update_engine/prefs.h"
 #include "update_engine/real_dbus_wrapper.h"
 #include "update_engine/update_attempter.h"
-#include "update_engine/p2p_manager.h"
 
 namespace chromeos_update_engine {
 
 // A real implementation of the SystemStateInterface which is
 // used by the actual product code.
 class RealSystemState : public SystemState {
-public:
+ public:
   // Constructors and destructors.
   RealSystemState();
   virtual ~RealSystemState() {}
@@ -84,7 +85,11 @@ public:
     return p2p_manager_.get();
   }
 
-  virtual inline bool system_rebooted(){
+  virtual inline chromeos_policy_manager::PolicyManager* policy_manager() {
+    return &policy_manager_;
+  }
+
+  virtual inline bool system_rebooted() {
     return system_rebooted_;
   }
 
@@ -92,7 +97,7 @@ public:
   // if the object has been initialized successfully.
   bool Initialize(bool enable_gpio);
 
-private:
+ private:
   // Interface for the clock.
   Clock clock_;
 
@@ -136,6 +141,8 @@ private:
   OmahaRequestParams request_params_;
 
   scoped_ptr<P2PManager> p2p_manager_;
+
+  chromeos_policy_manager::PolicyManager policy_manager_;
 
   // If true, this is the first instance of the update engine since the system
   // rebooted. Important for tracking whether you are running instance of the
