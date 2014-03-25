@@ -13,9 +13,9 @@
 #include <string>
 #include <vector>
 
-#include <base/string_util.h>
-#include <base/stringprintf.h>
-#include <base/time.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <glib.h>
 #include <gtest/gtest.h>
 
@@ -181,8 +181,8 @@ gboolean ExitWhenDone(gpointer data) {
     // tear down the sub process
     printf("tear down time\n");
     int status = System(
-        StringPrintf("wget -O /dev/null http://127.0.0.1:%d/quitquitquit",
-                     local_server_port));
+        base::StringPrintf("wget -O /dev/null http://127.0.0.1:%d/quitquitquit",
+                           local_server_port));
     EXPECT_NE(-1, status) << "system() failed";
     EXPECT_TRUE(WIFEXITED(status))
         << "command failed to run or died abnormally";

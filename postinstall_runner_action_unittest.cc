@@ -12,8 +12,8 @@
 #include <vector>
 
 #include <base/file_util.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
@@ -138,13 +138,14 @@ void PostinstallRunnerActionTest::DoTest(
 
   // Generate a fake postinst script inside the image.
   string script = (err_code ?
-                   StringPrintf("#!/bin/bash\nexit %d", err_code) :
-                   StringPrintf("#!/bin/bash\n"
-                                "mount | grep au_postint_mount | grep ext2\n"
-                                "if [ $? -eq 0 ]; then\n"
-                                "  touch %s/postinst_called\n"
-                                "fi\n",
-                                cwd.c_str()));
+                   base::StringPrintf("#!/bin/bash\nexit %d", err_code) :
+                   base::StringPrintf(
+                       "#!/bin/bash\n"
+                       "mount | grep au_postint_mount | grep ext2\n"
+                       "if [ $? -eq 0 ]; then\n"
+                       "  touch %s/postinst_called\n"
+                       "fi\n",
+                       cwd.c_str()));
   const string script_file_name = mountpoint + "/postinst";
   ASSERT_TRUE(WriteFileString(script_file_name, script));
   ASSERT_EQ(0, System(string("chmod a+x ") + script_file_name));
@@ -195,14 +196,14 @@ void PostinstallRunnerActionTest::DoTest(
   if (should_succeed)
     EXPECT_TRUE(install_plan == collector_action.object());
 
-  const FilePath kPowerwashMarkerPath(powerwash_marker_file);
+  const base::FilePath kPowerwashMarkerPath(powerwash_marker_file);
   string actual_cmd;
   if (should_succeed && powerwash_required) {
-    EXPECT_TRUE(file_util::ReadFileToString(kPowerwashMarkerPath, &actual_cmd));
+    EXPECT_TRUE(base::ReadFileToString(kPowerwashMarkerPath, &actual_cmd));
     EXPECT_EQ(kPowerwashCommand, actual_cmd);
   } else {
     EXPECT_FALSE(
-        file_util::ReadFileToString(kPowerwashMarkerPath, &actual_cmd));
+        base::ReadFileToString(kPowerwashMarkerPath, &actual_cmd));
   }
 
   if (err_code == 2)

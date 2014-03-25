@@ -9,9 +9,9 @@
 #include <vector>
 
 #include <base/callback.h>
-#include <base/file_path.h>
+#include <base/files/file_path.h>
 #include <base/memory/ref_counted.h>
-#include <base/time.h>
+#include <base/time/time.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
 
@@ -111,7 +111,7 @@ public:
 
   // Gets a fully qualified path for the file identified by |file_id|.
   // If the file has not been shared already using the FileShare()
-  // method, an empty FilePath is returned - use FilePath::empty() to
+  // method, an empty base::FilePath is returned - use FilePath::empty() to
   // find out.
   virtual base::FilePath FileGetPath(const std::string& file_id) = 0;
 

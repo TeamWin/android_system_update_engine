@@ -11,8 +11,8 @@
 
 #include <base/file_util.h>
 #include <base/memory/scoped_ptr.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
 
@@ -192,9 +192,8 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   if (signature_test == kSignatureGeneratedShellBadKey) {
     LOG(INFO) << "Generating a mismatched private key.";
     ASSERT_EQ(0,
-              System(StringPrintf(
-                  "openssl genrsa -out %s 2048",
-                  private_key_path.c_str())));
+              System(base::StringPrintf("openssl genrsa -out %s 2048",
+                                        private_key_path.c_str())));
   }
   int signature_size = GetSignatureSize(private_key_path);
   string hash_file;
@@ -203,12 +202,12 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   string signature_size_string;
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2)
-    signature_size_string = StringPrintf("%d:%d",
-                                         signature_size, signature_size);
+    signature_size_string = base::StringPrintf("%d:%d",
+                                               signature_size, signature_size);
   else
-    signature_size_string = StringPrintf("%d", signature_size);
+    signature_size_string = base::StringPrintf("%d", signature_size);
   ASSERT_EQ(0,
-            System(StringPrintf(
+            System(base::StringPrintf(
                 "./delta_generator -in_file %s -signature_size %s "
                 "-out_hash_file %s",
                 payload_path.c_str(),
@@ -225,7 +224,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file, NULL));
   ScopedPathUnlinker sig_unlinker(sig_file);
   ASSERT_EQ(0,
-            System(StringPrintf(
+            System(base::StringPrintf(
                 "openssl rsautl -raw -sign -inkey %s -in %s -out %s",
                 private_key_path.c_str(),
                 hash_file.c_str(),
@@ -236,7 +235,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2) {
     ASSERT_EQ(0,
-              System(StringPrintf(
+              System(base::StringPrintf(
                   "openssl rsautl -raw -sign -inkey %s -in %s -out %s",
                   kUnittestPrivateKey2Path,
                   hash_file.c_str(),
@@ -246,14 +245,14 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   }
 
   ASSERT_EQ(0,
-            System(StringPrintf(
+            System(base::StringPrintf(
                 "./delta_generator -in_file %s -signature_file %s "
                 "-out_file %s",
                 payload_path.c_str(),
                 sig_file.c_str(),
                 payload_path.c_str())));
   int verify_result =
-      System(StringPrintf(
+      System(base::StringPrintf(
           "./delta_generator -in_file %s -public_key %s -public_key_version %d",
           payload_path.c_str(),
           signature_test == kSignatureGeneratedShellRotateCl2 ?
@@ -316,37 +315,39 @@ static void GenerateDeltaFile(bool full_kernel,
                             kRandomString,
                             kRandomString + sizeof(kRandomString) - 1);
     }
-    EXPECT_TRUE(utils::WriteFile(StringPrintf("%s/hardtocompress",
+    EXPECT_TRUE(utils::WriteFile(base::StringPrintf("%s/hardtocompress",
                                               a_mnt.c_str()).c_str(),
-                                 &hardtocompress[0],
+                                 hardtocompress.data(),
                                  hardtocompress.size()));
 
     vector<char> zeros(16 * 1024, 0);
     EXPECT_EQ(zeros.size(),
               file_util::WriteFile(
-                  FilePath(StringPrintf("%s/move-to-sparse", a_mnt.c_str())),
-                  &zeros[0], zeros.size()));
+                  base::FilePath(base::StringPrintf("%s/move-to-sparse",
+                                                    a_mnt.c_str())),
+                  zeros.data(), zeros.size()));
 
     EXPECT_TRUE(
-        WriteSparseFile(StringPrintf("%s/move-from-sparse", a_mnt.c_str()),
-                        16 * 1024));
+        WriteSparseFile(base::StringPrintf("%s/move-from-sparse",
+                                           a_mnt.c_str()), 16 * 1024));
 
-    EXPECT_EQ(0, system(StringPrintf("dd if=/dev/zero of=%s/move-semi-sparse "
-                                     "bs=1 seek=4096 count=1",
+    EXPECT_EQ(0,
+              system(base::StringPrintf("dd if=/dev/zero of=%s/move-semi-sparse"
+                                     " bs=1 seek=4096 count=1",
                                      a_mnt.c_str()).c_str()));
 
     // Write 1 MiB of 0xff to try to catch the case where writing a bsdiff
     // patch fails to zero out the final block.
     vector<char> ones(1024 * 1024, 0xff);
-    EXPECT_TRUE(utils::WriteFile(StringPrintf("%s/ones",
+    EXPECT_TRUE(utils::WriteFile(base::StringPrintf("%s/ones",
                                               a_mnt.c_str()).c_str(),
-                                 &ones[0],
+                                 ones.data(),
                                  ones.size()));
   }
 
   if (noop) {
-    EXPECT_TRUE(file_util::CopyFile(FilePath(state->a_img),
-                                    FilePath(state->b_img)));
+    EXPECT_TRUE(base::CopyFile(base::FilePath(state->a_img),
+                               base::FilePath(state->b_img)));
     old_image_info = new_image_info;
   } else {
     CreateExtImageAtPath(state->b_img, NULL);
@@ -360,40 +361,49 @@ static void GenerateDeltaFile(bool full_kernel,
     string b_mnt;
     ScopedLoopMounter b_mounter(state->b_img, &b_mnt, 0);
 
-    EXPECT_EQ(0, system(StringPrintf("cp %s/hello %s/hello2", b_mnt.c_str(),
-                                     b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(StringPrintf("rm %s/hello", b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(StringPrintf("mv %s/hello2 %s/hello", b_mnt.c_str(),
-                                     b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(StringPrintf("echo foo > %s/foo",
-                                     b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(StringPrintf("touch %s/emptyfile",
-                                     b_mnt.c_str()).c_str()));
-    EXPECT_TRUE(WriteSparseFile(StringPrintf("%s/fullsparse", b_mnt.c_str()),
-                                1024 * 1024));
+    EXPECT_EQ(0, system(base::StringPrintf("cp %s/hello %s/hello2",
+                                           b_mnt.c_str(),
+                                           b_mnt.c_str()).c_str()));
+    EXPECT_EQ(0, system(base::StringPrintf("rm %s/hello",
+                                           b_mnt.c_str()).c_str()));
+    EXPECT_EQ(0, system(base::StringPrintf("mv %s/hello2 %s/hello",
+                                           b_mnt.c_str(),
+                                           b_mnt.c_str()).c_str()));
+    EXPECT_EQ(0, system(base::StringPrintf("echo foo > %s/foo",
+                                           b_mnt.c_str()).c_str()));
+    EXPECT_EQ(0, system(base::StringPrintf("touch %s/emptyfile",
+                                           b_mnt.c_str()).c_str()));
+    EXPECT_TRUE(WriteSparseFile(base::StringPrintf("%s/fullsparse",
+                                                   b_mnt.c_str()),
+                                                   1024 * 1024));
 
     EXPECT_TRUE(
-        WriteSparseFile(StringPrintf("%s/move-to-sparse", b_mnt.c_str()),
+        WriteSparseFile(base::StringPrintf("%s/move-to-sparse", b_mnt.c_str()),
                         16 * 1024));
 
     vector<char> zeros(16 * 1024, 0);
     EXPECT_EQ(zeros.size(),
               file_util::WriteFile(
-                  FilePath(StringPrintf("%s/move-from-sparse", b_mnt.c_str())),
-                  &zeros[0], zeros.size()));
+                  base::FilePath(base::StringPrintf("%s/move-from-sparse",
+                                                    b_mnt.c_str())),
+                  zeros.data(), zeros.size()));
 
-    EXPECT_EQ(0, system(StringPrintf("dd if=/dev/zero of=%s/move-semi-sparse "
-                                     "bs=1 seek=4096 count=1",
-                                     b_mnt.c_str()).c_str()));
+    EXPECT_EQ(0, system(base::StringPrintf("dd if=/dev/zero "
+                                           "of=%s/move-semi-sparse "
+                                           "bs=1 seek=4096 count=1",
+                                           b_mnt.c_str()).c_str()));
 
-    EXPECT_EQ(0, system(StringPrintf("dd if=/dev/zero of=%s/partsparse bs=1 "
-                                     "seek=4096 count=1",
-                                     b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(StringPrintf("cp %s/srchardlink0 %s/tmp && "
-                                     "mv %s/tmp %s/srchardlink1",
-                                     b_mnt.c_str(), b_mnt.c_str(),
-                                     b_mnt.c_str(), b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(StringPrintf("rm %s/boguslink && "
+    EXPECT_EQ(0, system(base::StringPrintf("dd if=/dev/zero "
+                                           "of=%s/partsparse bs=1 "
+                                           "seek=4096 count=1",
+                                           b_mnt.c_str()).c_str()));
+    EXPECT_EQ(0, system(base::StringPrintf("cp %s/srchardlink0 %s/tmp && "
+                                           "mv %s/tmp %s/srchardlink1",
+                                           b_mnt.c_str(),
+                                           b_mnt.c_str(),
+                                           b_mnt.c_str(),
+                                           b_mnt.c_str()).c_str()));
+    EXPECT_EQ(0, system(base::StringPrintf("rm %s/boguslink && "
                                      "echo foobar > %s/boguslink",
                                      b_mnt.c_str(), b_mnt.c_str()).c_str()));
 
@@ -403,9 +413,9 @@ static void GenerateDeltaFile(bool full_kernel,
                             kRandomString,
                             kRandomString + sizeof(kRandomString));
     }
-    EXPECT_TRUE(utils::WriteFile(StringPrintf("%s/hardtocompress",
+    EXPECT_TRUE(utils::WriteFile(base::StringPrintf("%s/hardtocompress",
                                               b_mnt.c_str()).c_str(),
-                                 &hardtocompress[0],
+                                 hardtocompress.data(),
                                  hardtocompress.size()));
   }
 
@@ -433,10 +443,10 @@ static void GenerateDeltaFile(bool full_kernel,
 
   // Write kernels to disk
   EXPECT_TRUE(utils::WriteFile(state->old_kernel.c_str(),
-                               &state->old_kernel_data[0],
+                               state->old_kernel_data.data(),
                                state->old_kernel_data.size()));
   EXPECT_TRUE(utils::WriteFile(state->new_kernel.c_str(),
-                               &state->new_kernel_data[0],
+                               state->new_kernel_data.data(),
                                state->new_kernel_data.size()));
 
   EXPECT_TRUE(utils::MakeTempFile("delta.XXXXXX",
@@ -635,7 +645,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   LOG(INFO) << "Setting payload metadata size in Omaha  = "
             << state->metadata_size;
   ASSERT_TRUE(PayloadSigner::GetMetadataSignature(
-      &state->delta[0],
+      state->delta.data(),
       state->metadata_size,
       kUnittestPrivateKeyPath,
       &install_plan.metadata_signature));
@@ -743,7 +753,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
 
   vector<char> updated_kernel_partition;
   EXPECT_TRUE(utils::ReadFile(state->old_kernel, &updated_kernel_partition));
-  EXPECT_EQ(0, strncmp(&updated_kernel_partition[0], kNewDataString,
+  EXPECT_EQ(0, strncmp(updated_kernel_partition.data(), kNewDataString,
                        strlen(kNewDataString)));
 
   uint64_t new_kernel_size;
@@ -893,7 +903,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
       // in the manifest so that we pass the metadata size checks. Only
       // then we can get to manifest signature checks.
       ASSERT_TRUE(PayloadSigner::GetMetadataSignature(
-          &payload[0],
+          payload.data(),
           state.metadata_size,
           kUnittestPrivateKeyPath,
           &install_plan.metadata_signature));
@@ -1264,7 +1274,7 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
                                        &temp_dir));
   string non_existing_file = temp_dir + "/non-existing";
   string existing_file = temp_dir + "/existing";
-  EXPECT_EQ(0, System(StringPrintf("touch %s", existing_file.c_str())));
+  EXPECT_EQ(0, System(base::StringPrintf("touch %s", existing_file.c_str())));
 
   // Non-official build, non-existing public-key, key in response -> true
   fake_hardware->SetIsOfficialBuild(false);

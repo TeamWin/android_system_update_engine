@@ -5,7 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H_
 
-#include <base/time.h>
+#include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/payload_state_interface.h"

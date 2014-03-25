@@ -12,10 +12,10 @@
 #include <base/bind.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
-#include <base/string_number_conversions.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
-#include <base/time.h>
+#include <base/strings/string_number_conversions.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <libxml/xpath.h>
 #include <libxml/xpathInternals.h>
 
@@ -100,7 +100,7 @@ bool ShouldPing(int ping_days) {
 // to be sent, or an empty string otherwise.
 string GetPingAttribute(const string& name, int ping_days) {
   if (ShouldPing(ping_days)) {
-    return StringPrintf(" %s=\"%d\"", name.c_str(), ping_days);
+    return base::StringPrintf(" %s=\"%d\"", name.c_str(), ping_days);
   }
   return "";
 }
@@ -111,7 +111,7 @@ string GetPingXml(int ping_active_days, int ping_roll_call_days) {
   string ping_active = GetPingAttribute("a", ping_active_days);
   string ping_roll_call = GetPingAttribute("r", ping_roll_call_days);
   if (!ping_active.empty() || !ping_roll_call.empty()) {
-    return StringPrintf("        <ping active=\"1\"%s%s></ping>\n",
+    return base::StringPrintf("        <ping active=\"1\"%s%s></ping>\n",
                         ping_active.c_str(),
                         ping_roll_call.c_str());
   }
@@ -135,7 +135,7 @@ string GetAppBody(const OmahaEvent* event,
       // borgmon charts show up updates that are deferred. This is also
       // the expected behavior when we move to Omaha v3.0 protocol, so it'll
       // be consistent.
-      app_body += StringPrintf(
+      app_body += base::StringPrintf(
           "        <updatecheck targetversionprefix=\"%s\""
           "></updatecheck>\n",
           XmlEncode(params->target_version_prefix()).c_str());
@@ -152,7 +152,7 @@ string GetAppBody(const OmahaEvent* event,
         prev_version = "0.0.0.0";
       }
 
-      app_body += StringPrintf(
+      app_body += base::StringPrintf(
           "        <event eventtype=\"%d\" eventresult=\"%d\" "
           "previousversion=\"%s\"></event>\n",
           OmahaEvent::kTypeUpdateComplete,
@@ -166,9 +166,9 @@ string GetAppBody(const OmahaEvent* event,
     // is not success.
     string error_code;
     if (event->result != OmahaEvent::kResultSuccess) {
-      error_code = StringPrintf(" errorcode=\"%d\"", event->error_code);
+      error_code = base::StringPrintf(" errorcode=\"%d\"", event->error_code);
     }
-    app_body = StringPrintf(
+    app_body = base::StringPrintf(
         "        <event eventtype=\"%d\" eventresult=\"%d\"%s></event>\n",
         event->type, event->result, error_code.c_str());
   }
@@ -213,8 +213,8 @@ string GetAppXml(const OmahaEvent* event,
   // include the attribute.
   string install_date_in_days_str = "";
   if (install_date_in_days >= 0) {
-    install_date_in_days_str = StringPrintf("installdate=\"%d\" ",
-                                            install_date_in_days);
+    install_date_in_days_str = base::StringPrintf("installdate=\"%d\" ",
+                                                  install_date_in_days);
   }
 
   string app_xml =
@@ -260,7 +260,7 @@ string GetRequestXml(const OmahaEvent* event,
                              ping_roll_call_days, install_date_in_days,
                              system_state);
 
-  string install_source = StringPrintf("installsource=\"%s\" ",
+  string install_source = base::StringPrintf("installsource=\"%s\" ",
       (params->interactive() ? "ondemandupdate" : "scheduler"));
 
   string request_xml =

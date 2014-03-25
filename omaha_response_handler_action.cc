@@ -7,7 +7,7 @@
 #include <string>
 
 #include <base/logging.h>
-#include "base/string_util.h"
+#include <base/strings/string_util.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/delta_performer.h"

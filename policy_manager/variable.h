@@ -11,7 +11,7 @@
 
 #include <base/bind.h>
 #include <base/logging.h>
-#include <base/time.h>
+#include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/policy_manager/event_loop.h"

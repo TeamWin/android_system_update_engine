@@ -14,8 +14,9 @@
 
 #include <base/file_util.h>
 #include <base/memory/scoped_ptr.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
+#include <base/format_macros.h>
 #include <google/protobuf/repeated_field.h>
 
 #include "update_engine/bzip_extent_writer.h"
@@ -87,10 +88,10 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   string total_operations_str("?");
   string completed_percentage_str("");
   if (num_total_operations_) {
-    total_operations_str = StringPrintf("%zu", num_total_operations_);
+    total_operations_str = base::StringPrintf("%zu", num_total_operations_);
     // Upcasting to 64-bit to avoid overflow, back to size_t for formatting.
     completed_percentage_str =
-        StringPrintf(" (%llu%%)",
+        base::StringPrintf(" (%" PRIu64 "%%)",
                      IntRatio(next_operation_num_, num_total_operations_,
                               100));
   }
@@ -100,10 +101,10 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   string payload_size_str("?");
   string downloaded_percentage_str("");
   if (payload_size) {
-    payload_size_str = StringPrintf("%zu", payload_size);
+    payload_size_str = base::StringPrintf("%zu", payload_size);
     // Upcasting to 64-bit to avoid overflow, back to size_t for formatting.
     downloaded_percentage_str =
-        StringPrintf(" (%llu%%)",
+        base::StringPrintf(" (%" PRIu64 "%%)",
                      IntRatio(total_bytes_received_, payload_size, 100));
   }
 
@@ -712,7 +713,7 @@ bool DeltaPerformer::ExtentsToBsdiffPositionsString(
       start = -1;
     else
       start *= block_size;
-    ret += StringPrintf("%" PRIi64 ":%" PRIu64 ",", start, this_length);
+    ret += base::StringPrintf("%" PRIi64 ":%" PRIu64 ",", start, this_length);
     length += this_length;
   }
   TEST_AND_RETURN_FALSE(length == full_length);
@@ -758,7 +759,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
   DiscardBuffer(true);
 
   int fd = is_kernel_partition ? kernel_fd_ : fd_;
-  const string path = StringPrintf("/proc/self/fd/%d", fd);
+  const string path = base::StringPrintf("/proc/self/fd/%d", fd);
 
   // If this is a non-idempotent operation, request a delayed exit and clear the
   // update state in case the operation gets interrupted. Do this as late as

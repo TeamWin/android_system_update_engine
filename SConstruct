@@ -138,23 +138,17 @@ env['CCFLAGS'] = ' '.join("""-g
                              -fno-strict-aliasing
                              -std=gnu++11
                              -Wall
-                             -Wclobbered
-                             -Wempty-body
+                             -Wextra
                              -Werror
-                             -Wignored-qualifiers
-                             -Wmissing-field-initializers
+                             -Wno-unused-parameter
                              -Wno-deprecated-register
-                             -Wno-format
-                             -Wsign-compare
-                             -Wtype-limits
-                             -Wuninitialized
                              -D__STDC_FORMAT_MACROS=1
                              -D_FILE_OFFSET_BITS=64
                              -D_POSIX_C_SOURCE=199309L
                              -I/usr/include/libxml2""".split());
 env['CCFLAGS'] += (' ' + ' '.join(env['CFLAGS']))
 
-BASE_VER = os.environ.get('BASE_VER', '180609')
+BASE_VER = os.environ.get('BASE_VER', '242728')
 env['LIBS'] = Split("""bz2
                        crypto
                        curl

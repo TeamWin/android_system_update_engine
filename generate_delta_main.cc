@@ -14,8 +14,8 @@
 
 #include <base/command_line.h>
 #include <base/logging.h>
-#include <base/string_number_conversions.h>
-#include <base/string_split.h>
+#include <base/strings/string_number_conversions.h>
+#include <base/strings/string_split.h>
 #include <gflags/gflags.h>
 #include <glib.h>
 
@@ -255,7 +255,7 @@ void ApplyDelta() {
   Prefs prefs;
   InstallPlan install_plan;
   LOG(INFO) << "Setting up preferences under: " << FLAGS_prefs_dir;
-  LOG_IF(ERROR, !prefs.Init(FilePath(FLAGS_prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(FLAGS_prefs_dir)))
       << "Failed to initialize preferences.";
   // Get original checksums
   LOG(INFO) << "Calculating original checksums";
@@ -294,11 +294,16 @@ int Main(int argc, char** argv) {
   CommandLine::Init(argc, argv);
   Terminator::Init();
   Subprocess::Init();
-  logging::InitLogging("delta_generator.log",
-                       logging::LOG_ONLY_TO_SYSTEM_DEBUG_LOG,
-                       logging::DONT_LOCK_LOG_FILE,
-                       logging::APPEND_TO_OLD_LOG_FILE,
-                       logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS);
+
+  logging::LoggingSettings log_settings;
+  log_settings.log_file     = "delta_generator.log";
+  log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
+  log_settings.lock_log     = logging::DONT_LOCK_LOG_FILE;
+  log_settings.delete_old   = logging::APPEND_TO_OLD_LOG_FILE;
+  log_settings.dcheck_state =
+    logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
+
+  logging::InitLogging(log_settings);
 
   vector<int> signature_sizes;
   ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);

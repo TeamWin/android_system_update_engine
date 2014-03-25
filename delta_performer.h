@@ -9,7 +9,7 @@
 
 #include <vector>
 
-#include <base/time.h>
+#include <base/time/time.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 

@@ -10,10 +10,10 @@
 #include <string>
 #include <vector>
 
-#include <base/file_path.h>
+#include <base/files/file_path.h>
 #include <base/file_util.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/test_utils.h"
@@ -106,8 +106,8 @@ TEST(UtilsTest, ReadFileFailure) {
 }
 
 TEST(UtilsTest, ReadFileChunk) {
-  FilePath file;
-  EXPECT_TRUE(file_util::CreateTemporaryFile(&file));
+  base::FilePath file;
+  EXPECT_TRUE(base::CreateTemporaryFile(&file));
   ScopedPathUnlinker unlinker(file.value());
   vector<char> data;
   const size_t kSize = 1024 * 1024;

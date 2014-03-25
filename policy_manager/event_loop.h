@@ -12,7 +12,7 @@
 #include <glib.h>
 
 #include <base/callback.h>
-#include <base/time.h>
+#include <base/time/time.h>
 
 namespace chromeos_policy_manager {
 

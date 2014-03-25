@@ -15,7 +15,7 @@
 #include <vector>
 
 #include <base/logging.h>
-#include <base/string_util.h>
+#include <base/strings/string_util.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/cycle_breaker.h"

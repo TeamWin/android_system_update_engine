@@ -4,7 +4,7 @@
 
 #include "update_engine/policy_manager/real_time_provider.h"
 
-#include <base/time.h>
+#include <base/time/time.h>
 
 #include "update_engine/clock_interface.h"
 

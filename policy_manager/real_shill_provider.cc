@@ -7,7 +7,7 @@
 #include <string>
 
 #include <base/logging.h>
-#include <base/stringprintf.h>
+#include <base/strings/stringprintf.h>
 #include <chromeos/dbus/service_constants.h>
 
 #include "update_engine/policy_manager/generic_variables.h"
@@ -157,7 +157,7 @@ class ConnTypeVariable : public Variable<ConnectionType> {
       if (!connector_->GetConnectionType(provider_->default_service_path_,
                                          &conn_type)) {
         if (errmsg)
-          *errmsg = StringPrintf(
+          *errmsg = base::StringPrintf(
               "Could not retrieve type of default connection (%s)",
               provider_->default_service_path_.c_str());
         return NULL;

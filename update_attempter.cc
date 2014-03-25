@@ -12,7 +12,7 @@
 #include <base/file_util.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/stringprintf.h>
 #include <chromeos/dbus/service_constants.h>
 
 #include <glib.h>
@@ -854,7 +854,7 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
     return;
 
   int64_t value = system_state_->clock()->GetBootTime().ToInternalValue();
-  string contents = StringPrintf("%" PRIi64, value);
+  string contents = base::StringPrintf("%" PRIi64, value);
 
   utils::WriteFile(update_completed_marker_.c_str(),
                    contents.c_str(),
@@ -1072,8 +1072,7 @@ bool UpdateAttempter::ResetStatus() {
       // after resetting to idle state, it doesn't go back to
       // UPDATE_STATUS_UPDATED_NEED_REBOOT state.
       if (!update_completed_marker_.empty()) {
-        const FilePath update_completed_marker_path(update_completed_marker_);
-        if (!file_util::Delete(update_completed_marker_path, false))
+        if (!base::DeleteFile(base::FilePath(update_completed_marker_), false))
           ret_value = false;
       }
 

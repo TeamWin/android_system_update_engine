@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <base/stringprintf.h>
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/multi_range_http_fetcher.h"
 #include "update_engine/utils.h"
@@ -163,7 +163,7 @@ void MultiRangeHttpFetcher::Reset() {
 }
 
 std::string MultiRangeHttpFetcher::Range::ToString() const {
-  std::string range_str = StringPrintf("%jd+", offset());
+  std::string range_str = base::StringPrintf("%jd+", offset());
   if (HasLength())
     base::StringAppendF(&range_str, "%zu", length());
   else

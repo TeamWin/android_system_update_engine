@@ -205,7 +205,7 @@ TEST_F(UpdateAttempterTest, RunAsRootConstructWithUpdatedMarkerTest) {
           "update_attempter_unittest-update_completed_marker-XXXXXX",
           &test_update_completed_marker, NULL));
   ScopedPathUnlinker completed_marker_unlinker(test_update_completed_marker);
-  const FilePath marker(test_update_completed_marker);
+  const base::FilePath marker(test_update_completed_marker);
   EXPECT_EQ(0, file_util::WriteFile(marker, "", 0));
   UpdateAttempterUnderTest attempter(&mock_system_state_, &dbus_,
                                      test_update_completed_marker);
@@ -951,7 +951,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
   EXPECT_TRUE(prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
 
@@ -1018,7 +1018,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
                                        &prefs_dir));
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
   EXPECT_TRUE(prefs.SetInt64(kPrefsWallClockWaitPeriod, initial_value));
   EXPECT_TRUE(prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
@@ -1065,7 +1065,7 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
   // We need persistent preferences for this test
   EXPECT_TRUE(utils::MakeTempDirectory("UpdateCheckScheduler.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
   mock_system_state_.set_clock(&fake_clock);
   mock_system_state_.set_prefs(&prefs);
 

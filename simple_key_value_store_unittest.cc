@@ -5,7 +5,7 @@
 #include <map>
 #include <string>
 #include <gtest/gtest.h>
-#include "base/string_util.h"
+#include <base/strings/string_util.h>
 #include "update_engine/simple_key_value_store.h"
 
 using std::map;

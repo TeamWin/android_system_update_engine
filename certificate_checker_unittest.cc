@@ -4,8 +4,8 @@
 
 #include <string>
 
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <metrics/metrics_library_mock.h>
@@ -41,10 +41,10 @@ class CertificateCheckerTest : public testing::Test {
     diff_digest_hex_ = "1234ABCD";
     cert_key_prefix_ = kPrefsUpdateServerCertificate;
     server_to_check_ = CertificateChecker::kUpdate;
-    cert_key_ = StringPrintf("%s-%d-%d",
-                             cert_key_prefix_.c_str(),
-                             server_to_check_,
-                             depth_);
+    cert_key_ = base::StringPrintf("%s-%d-%d",
+                                   cert_key_prefix_.c_str(),
+                                   server_to_check_,
+                                   depth_);
     kCertChanged = "Updater.ServerCertificateChanged";
     kCertFailed = "Updater.ServerCertificateFailed";
     CertificateChecker::set_system_state(&mock_system_state_);

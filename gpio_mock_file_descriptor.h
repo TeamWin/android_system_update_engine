@@ -6,7 +6,7 @@
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_GPIO_MOCK_FILE_DESCRIPTOR_H_
 
 #include <base/rand_util.h>
-#include <base/time.h>
+#include <base/time/time.h>
 
 #include "update_engine/file_descriptor.h"
 #include "update_engine/gpio_handler_unittest.h"

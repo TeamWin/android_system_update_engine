@@ -7,7 +7,7 @@
 #include <string>
 
 #include <base/stl_util.h>
-#include <base/string_util.h>
+#include <base/strings/string_util.h>
 #include <chromeos/dbus/service_constants.h>
 #include <dbus/dbus-glib.h>
 #include <glib.h>

@@ -13,9 +13,9 @@
 
 #include <base/logging.h>
 #include <base/memory/scoped_ptr.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
-#include <base/time.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <chromeos/dbus/service_constants.h>
 #include <glib.h>
 #include <gtest/gtest.h>
@@ -56,7 +56,7 @@ static const char *kUnusedUrl = "unused://unused";
 
 static inline string LocalServerUrlForPath(in_port_t port,
                                            const string& path) {
-  string port_str = (port ? StringPrintf(":%hu", port) : "");
+  string port_str = (port ? base::StringPrintf(":%hu", port) : "");
   return base::StringPrintf("http://127.0.0.1%s%s", port_str.c_str(),
                             path.c_str());
 }
@@ -736,10 +736,10 @@ TYPED_TEST(HttpFetcherTest, FlakyTest) {
     StartTransferArgs start_xfer_args = {
       fetcher.get(),
       LocalServerUrlForPath(server->GetPort(),
-                            StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
-                                         kFlakyTruncateLength,
-                                         kFlakySleepEvery,
-                                         kFlakySleepSecs))
+                            base::StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
+                                               kFlakyTruncateLength,
+                                               kFlakySleepEvery,
+                                               kFlakySleepSecs))
     };
 
     g_timeout_add(0, StartTransfer, &start_xfer_args);
@@ -853,10 +853,10 @@ TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
     StartTransferArgs start_xfer_args = {
       fetcher.get(),
       LocalServerUrlForPath(0,
-                            StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
-                                         kFlakyTruncateLength,
-                                         kFlakySleepEvery,
-                                         kFlakySleepSecs))
+                            base::StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
+                                               kFlakyTruncateLength,
+                                               kFlakySleepEvery,
+                                               kFlakySleepSecs))
     };
     g_timeout_add(0, StartTransfer, &start_xfer_args);
     g_main_loop_run(loop);
@@ -1047,7 +1047,7 @@ void MultiTest(HttpFetcher* fetcher_in,
     multi_fetcher->ClearRanges();
     for (vector<pair<off_t, off_t> >::const_iterator it = ranges.begin(),
              e = ranges.end(); it != e; ++it) {
-      std::string tmp_str = StringPrintf("%jd+", it->first);
+      std::string tmp_str = base::StringPrintf("%jd+", it->first);
       if (it->second > 0) {
         base::StringAppendF(&tmp_str, "%jd", it->second);
         multi_fetcher->AddRange(it->first, it->second);

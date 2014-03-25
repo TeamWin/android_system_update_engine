@@ -17,13 +17,13 @@
 #include <utility>
 #include <vector>
 
-#include <base/file_path.h>
+#include <base/files/file_path.h>
 #include <base/file_util.h>
 #include <base/logging.h>
 #include <base/memory/scoped_ptr.h>
-#include <base/string_number_conversions.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_number_conversions.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <bzlib.h>
 
 #include "update_engine/bzip.h"
@@ -531,7 +531,8 @@ void ReportPayloadUsage(const DeltaArchiveManifest& manifest,
   for (int i = 0; i < manifest.kernel_install_operations_size(); ++i) {
     const DeltaArchiveManifest_InstallOperation& op =
         manifest.kernel_install_operations(i);
-    objects.push_back(DeltaObject(StringPrintf("<kernel-operation-%d>", i),
+    objects.push_back(DeltaObject(base::StringPrintf("<kernel-operation-%d>",
+                                                     i),
                                   op.type(),
                                   op.data_length()));
     total_size += op.data_length();
@@ -544,17 +545,18 @@ void ReportPayloadUsage(const DeltaArchiveManifest& manifest,
 
   std::sort(objects.begin(), objects.end());
 
-  static const char kFormatString[] = "%6.2f%% %10llu %-10s %s\n";
+  static const char kFormatString[] = "%6.2f%% %10jd %-10s %s\n";
   for (vector<DeltaObject>::const_iterator it = objects.begin();
        it != objects.end(); ++it) {
     const DeltaObject& object = *it;
     fprintf(stderr, kFormatString,
             object.size * 100.0 / total_size,
-            object.size,
+            static_cast<intmax_t>(object.size),
             object.type >= 0 ? kInstallOperationTypes[object.type] : "-",
             object.name.c_str());
   }
-  fprintf(stderr, kFormatString, 100.0, total_size, "", "<total>");
+  fprintf(stderr, kFormatString,
+          100.0, static_cast<intmax_t>(total_size), "", "<total>");
 }
 
 // Process a range of blocks from |range_start| to |range_end| in the extent at
@@ -716,14 +718,14 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     } else if (!old_data.empty() && bsdiff_allowed) {
       // If the source file is considered bsdiff safe (no bsdiff bugs
       // triggered), see if BSDIFF encoding is smaller.
-      FilePath old_chunk;
-      TEST_AND_RETURN_FALSE(file_util::CreateTemporaryFile(&old_chunk));
+      base::FilePath old_chunk;
+      TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&old_chunk));
       ScopedPathUnlinker old_unlinker(old_chunk.value());
       TEST_AND_RETURN_FALSE(
           utils::WriteFile(old_chunk.value().c_str(),
                            &old_data[0], old_data.size()));
-      FilePath new_chunk;
-      TEST_AND_RETURN_FALSE(file_util::CreateTemporaryFile(&new_chunk));
+      base::FilePath new_chunk;
+      TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&new_chunk));
       ScopedPathUnlinker new_unlinker(new_chunk.value());
       TEST_AND_RETURN_FALSE(
           utils::WriteFile(new_chunk.value().c_str(),

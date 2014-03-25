@@ -13,7 +13,7 @@
 #include <vector>
 
 #include <base/file_util.h>
-#include <base/string_util.h>
+#include <base/strings/string_util.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/constants.h"
@@ -133,16 +133,16 @@ bool OmahaRequestParams::SetTargetChannel(const std::string& new_target_channel,
             << ", existing target channel = " << target_channel_
             << ", download channel = " << download_channel_;
   TEST_AND_RETURN_FALSE(IsValidChannel(new_target_channel));
-  FilePath kFile(root_ + kStatefulPartition + "/etc/lsb-release");
+  base::FilePath kFile(root_ + kStatefulPartition + "/etc/lsb-release");
   string file_data;
   map<string, string> data;
-  if (file_util::ReadFileToString(kFile, &file_data)) {
+  if (base::ReadFileToString(kFile, &file_data)) {
     data = simple_key_value_store::ParseString(file_data);
   }
   data[kUpdateChannelKey] = new_target_channel;
   data[kIsPowerwashAllowedKey] = is_powerwash_allowed ? "true" : "false";
   file_data = simple_key_value_store::AssembleString(data);
-  TEST_AND_RETURN_FALSE(file_util::CreateDirectory(kFile.DirName()));
+  TEST_AND_RETURN_FALSE(base::CreateDirectory(kFile.DirName()));
   TEST_AND_RETURN_FALSE(
       file_util::WriteFile(kFile, file_data.data(), file_data.size()) ==
       static_cast<int>(file_data.size()));

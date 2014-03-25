@@ -7,9 +7,9 @@
 
 #include <glib.h>
 
-#include "base/string_util.h"
-#include <base/stringprintf.h>
-#include "base/time.h"
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include "gtest/gtest.h"
 
 #include "update_engine/action_pipe.h"
@@ -400,7 +400,7 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
   Prefs prefs;
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
 
   ASSERT_FALSE(
@@ -474,7 +474,7 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
   Prefs prefs;
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
 
   ASSERT_TRUE(
@@ -520,7 +520,7 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
   Prefs prefs;
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
 
   ASSERT_TRUE(
@@ -567,7 +567,7 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
   Prefs prefs;
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
 
   ASSERT_TRUE(TestUpdateCheck(
@@ -617,7 +617,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
   Prefs prefs;
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
 
   ASSERT_FALSE(TestUpdateCheck(
@@ -695,7 +695,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
   Prefs prefs;
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
 
   ASSERT_TRUE(prefs.SetInt64(kPrefsUpdateCheckCount, 5));
@@ -1141,7 +1141,7 @@ TEST(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
             &post_data);
   // convert post_data to string
   string post_str(&post_data[0], post_data.size());
-  string expected_event = StringPrintf(
+  string expected_event = base::StringPrintf(
       "        <event eventtype=\"%d\" eventresult=\"%d\"></event>\n",
       OmahaEvent::kTypeUpdateDownloadStarted,
       OmahaEvent::kResultSuccess);
@@ -1160,7 +1160,7 @@ TEST(OmahaRequestActionTest, FormatErrorEventOutputTest) {
             &post_data);
   // convert post_data to string
   string post_str(&post_data[0], post_data.size());
-  string expected_event = StringPrintf(
+  string expected_event = base::StringPrintf(
       "        <event eventtype=\"%d\" eventresult=\"%d\" "
       "errorcode=\"%d\"></event>\n",
       OmahaEvent::kTypeDownloadComplete,
@@ -1232,8 +1232,9 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                                  NULL,
                                  &post_data));
     // convert post_data to string
-    string post_str(&post_data[0], post_data.size());
-    EXPECT_NE(post_str.find(StringPrintf(" delta_okay=\"%s\"", delta_okay_str)),
+    string post_str(post_data.data(), post_data.size());
+    EXPECT_NE(post_str.find(base::StringPrintf(" delta_okay=\"%s\"",
+                                               delta_okay_str)),
               string::npos)
         << "i = " << i;
   }
@@ -1276,8 +1277,8 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                                  &post_data));
     // convert post_data to string
     string post_str(&post_data[0], post_data.size());
-    EXPECT_NE(post_str.find(StringPrintf("installsource=\"%s\"",
-                                         interactive_str)),
+    EXPECT_NE(post_str.find(base::StringPrintf("installsource=\"%s\"",
+                                               interactive_str)),
               string::npos)
         << "i = " << i;
   }
@@ -1620,7 +1621,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
   Prefs prefs;
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
 
   ASSERT_FALSE(TestUpdateCheck(
@@ -1695,7 +1696,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   ScopedDirRemover temp_dir_remover(prefs_dir);
 
   Prefs prefs;
-  LOG_IF(ERROR, !prefs.Init(FilePath(prefs_dir)))
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
 
   // Set the timestamp to a very old value such that it exceeds the
@@ -2010,7 +2011,7 @@ TEST(OmahaRequestActionTest, ParseInstallDateFromResponse) {
   Prefs prefs;
   EXPECT_TRUE(utils::MakeTempDirectory("ParseInstallDateFromResponse.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   // Check that we parse elapsed_days in the Omaha Response correctly.
   // and that the kPrefsInstallDateDays value is written to.
@@ -2053,7 +2054,7 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
   Prefs prefs;
   EXPECT_TRUE(utils::MakeTempDirectory("GetInstallDate.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   // If there is no prefs and OOBE is not complete, we should not
   // report anything to Omaha.

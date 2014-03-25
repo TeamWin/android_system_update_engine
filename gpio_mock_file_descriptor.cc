@@ -4,7 +4,7 @@
 
 #include "update_engine/gpio_mock_file_descriptor.h"
 
-#include <base/stringprintf.h>
+#include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/utils.h"
@@ -20,11 +20,11 @@ namespace {
 string TimeToString(Time time) {
   Time::Exploded exploded_time;
   time.LocalExplode(&exploded_time);
-  return StringPrintf("%d:%02d:%02d.%03d",
-                      exploded_time.hour,
-                      exploded_time.minute,
-                      exploded_time.second,
-                      exploded_time.millisecond);
+  return base::StringPrintf("%d:%02d:%02d.%03d",
+                            exploded_time.hour,
+                            exploded_time.minute,
+                            exploded_time.second,
+                            exploded_time.millisecond);
 }
 }  // namespace
 
@@ -172,8 +172,8 @@ ssize_t GpioMockFileDescriptor::Write(const void* buf, size_t count) {
   if (!(IsOpen() && buf))
     return -1;
 
-  string str = StringPrintf("%-*s", static_cast<int>(count),
-                            reinterpret_cast<const char*>(buf));
+  string str = base::StringPrintf("%-*s", static_cast<int>(count),
+                                  reinterpret_cast<const char*>(buf));
   size_t pos = 0;
   while ((pos = str.find('\n', pos)) != string::npos) {
     str.replace(pos, 1, "\\n");

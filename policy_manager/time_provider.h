@@ -6,7 +6,7 @@
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_TIME_PROVIDER_H_
 
 #include <base/memory/scoped_ptr.h>
-#include <base/time.h>
+#include <base/time/time.h>
 
 #include "update_engine/policy_manager/provider.h"
 #include "update_engine/policy_manager/variable.h"

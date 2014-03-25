@@ -9,8 +9,8 @@
 #include <base/command_line.h>
 #include <base/file_util.h>
 #include <base/logging.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <gflags/gflags.h>
 #include <glib.h>
 #include <metrics/metrics_library.h>
@@ -62,7 +62,7 @@ namespace {
 void SetupDbusService(UpdateEngineService* service) {
   DBusGConnection *bus;
   DBusGProxy *proxy;
-  GError *error = NULL;
+  GError *error = nullptr;
 
   bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
   LOG_IF(FATAL, !bus) << "Failed to get bus: "
@@ -97,9 +97,11 @@ void SetupLogSymlink(const string& symlink_path, const string& log_path) {
   // we stop caring about the old-style logs.
   if (utils::FileExists(symlink_path.c_str()) &&
       !utils::IsSymlink(symlink_path.c_str())) {
-    file_util::ReplaceFile(FilePath(symlink_path), FilePath(log_path));
+    base::ReplaceFile(base::FilePath(symlink_path),
+                      base::FilePath(log_path),
+                      nullptr);
   }
-  file_util::Delete(FilePath(symlink_path), true);
+  base::DeleteFile(base::FilePath(symlink_path), true);
   if (symlink(log_path.c_str(), symlink_path.c_str()) == -1) {
     PLOG(ERROR) << "Unable to create symlink " << symlink_path
                 << " pointing at " << log_path;
@@ -118,30 +120,32 @@ string SetupLogFile(const string& kLogsRoot) {
   const string kLogSymlink = kLogsRoot + "/update_engine.log";
   const string kLogsDir = kLogsRoot + "/update_engine";
   const string kLogPath =
-      StringPrintf("%s/update_engine.%s",
-                   kLogsDir.c_str(),
-                   GetTimeAsString(::time(NULL)).c_str());
+      base::StringPrintf("%s/update_engine.%s",
+                         kLogsDir.c_str(),
+                         GetTimeAsString(::time(nullptr)).c_str());
   mkdir(kLogsDir.c_str(), 0755);
   SetupLogSymlink(kLogSymlink, kLogPath);
   return kLogSymlink;
 }
 
 void SetupLogging() {
-  // Log to stderr initially.
-  logging::InitLogging(NULL,
-                       logging::LOG_ONLY_TO_SYSTEM_DEBUG_LOG,
-                       logging::DONT_LOCK_LOG_FILE,
-                       logging::APPEND_TO_OLD_LOG_FILE,
-                       logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS);
+  logging::LoggingSettings log_settings;
+  log_settings.lock_log = logging::DONT_LOCK_LOG_FILE;
+  log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
+  log_settings.dcheck_state =
+    logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
+
   if (FLAGS_logtostderr) {
-    return;
+    // Log to stderr initially.
+    log_settings.log_file = nullptr;
+    log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
+  } else {
+    const string log_file = SetupLogFile("/var/log");
+    log_settings.log_file = log_file.c_str();
+    log_settings.logging_dest = logging::LOG_TO_FILE;
   }
-  const string log_file = SetupLogFile("/var/log");
-  logging::InitLogging(log_file.c_str(),
-                       logging::LOG_ONLY_TO_FILE,
-                       logging::DONT_LOCK_LOG_FILE,
-                       logging::APPEND_TO_OLD_LOG_FILE,
-                       logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS);
+
+  logging::InitLogging(log_settings);
 }
 
 }  // namespace {}
@@ -190,7 +194,7 @@ int main(int argc, char** argv) {
   dbus_g_object_type_install_info(UPDATE_ENGINE_TYPE_SERVICE,
                                   &dbus_glib_update_engine_service_object_info);
   UpdateEngineService* service =
-      UPDATE_ENGINE_SERVICE(g_object_new(UPDATE_ENGINE_TYPE_SERVICE, NULL));
+      UPDATE_ENGINE_SERVICE(g_object_new(UPDATE_ENGINE_TYPE_SERVICE, nullptr));
   service->system_state_ = &real_system_state;
   update_attempter->set_dbus_service(service);
   chromeos_update_engine::SetupDbusService(service);
@@ -217,7 +221,7 @@ int main(int argc, char** argv) {
 
   // Cleanup:
   g_main_loop_unref(loop);
-  update_attempter->set_dbus_service(NULL);
+  update_attempter->set_dbus_service(nullptr);
   g_object_unref(G_OBJECT(service));
 
   LOG(INFO) << "Chrome OS Update Engine terminating";

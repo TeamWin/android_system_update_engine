@@ -8,8 +8,8 @@
 #include <string>
 
 #include <base/logging.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/hardware_interface.h"
@@ -156,9 +156,9 @@ void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
 
     // Create a string representation of the desired range.
     std::string range_str = (end_offset ?
-                             StringPrintf("%jd-%zu", resume_offset_,
-                                          end_offset) :
-                             StringPrintf("%jd-", resume_offset_));
+                             base::StringPrintf("%jd-%zu", resume_offset_,
+                                                end_offset) :
+                             base::StringPrintf("%jd-", resume_offset_));
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_RANGE, range_str.c_str()),
              CURLE_OK);
   }

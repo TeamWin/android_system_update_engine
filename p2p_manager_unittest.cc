@@ -15,7 +15,7 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/stringprintf.h"
+#include <base/strings/stringprintf.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
@@ -57,7 +57,7 @@ TEST_F(P2PManagerTest, P2PEnabledNeitherCroshFlagNotEnterpriseSetting) {
   Prefs prefs;
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
@@ -73,7 +73,7 @@ TEST_F(P2PManagerTest, P2PEnabledCroshFlag) {
   Prefs prefs;
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
@@ -93,7 +93,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingTrue) {
   Prefs prefs;
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
@@ -119,7 +119,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingFalse) {
   Prefs prefs;
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
@@ -151,9 +151,10 @@ TEST_F(P2PManagerTest, Housekeeping) {
   for (int n = 0; n < 5; n++) {
     double current_timestamp;
     do {
-      FilePath file = test_conf_->GetP2PDir().Append(StringPrintf(
+      base::FilePath file = test_conf_->GetP2PDir().Append(base::StringPrintf(
           "file_%d.cros_au.p2p", n));
-      EXPECT_EQ(0, System(StringPrintf("touch %s", file.value().c_str())));
+      EXPECT_EQ(0, System(base::StringPrintf("touch %s",
+                                             file.value().c_str())));
 
       // Check that the current timestamp on the file is different from the
       // previous generated file. This timestamp depends on the file system
@@ -170,9 +171,9 @@ TEST_F(P2PManagerTest, Housekeeping) {
     } while (current_timestamp == last_timestamp);
     last_timestamp = current_timestamp;
 
-    EXPECT_EQ(0, System(StringPrintf("touch %s/file_%d.OTHER.p2p",
-                                     test_conf_->GetP2PDir().value().c_str(),
-                                     n)));
+    EXPECT_EQ(0, System(base::StringPrintf(
+        "touch %s/file_%d.OTHER.p2p",
+        test_conf_->GetP2PDir().value().c_str(), n)));
 
     // A sleep of one micro-second is enough to have a different "Change" time
     // on the file on newer file systems.
@@ -190,12 +191,14 @@ TEST_F(P2PManagerTest, Housekeeping) {
     bool expect;
 
     expect = (n >= 2);
-    file_name = StringPrintf("%s/file_%d.cros_au.p2p",
-                             test_conf_->GetP2PDir().value().c_str(), n);
+    file_name = base::StringPrintf(
+        "%s/file_%d.cros_au.p2p",
+         test_conf_->GetP2PDir().value().c_str(), n);
     EXPECT_EQ(!!g_file_test(file_name.c_str(), G_FILE_TEST_EXISTS), expect);
 
-    file_name = StringPrintf("%s/file_%d.OTHER.p2p",
-                             test_conf_->GetP2PDir().value().c_str(), n);
+    file_name = base::StringPrintf(
+        "%s/file_%d.OTHER.p2p",
+        test_conf_->GetP2PDir().value().c_str(), n);
     EXPECT_TRUE(g_file_test(file_name.c_str(), G_FILE_TEST_EXISTS));
   }
   // CountSharedFiles() only counts 'cros_au' files.
@@ -272,7 +275,7 @@ static bool CreateP2PFile(string p2p_dir, string file_name,
   }
 
   if (size_xattr != 0) {
-    string decimal_size = StringPrintf("%zu", size_xattr);
+    string decimal_size = base::StringPrintf("%zu", size_xattr);
     if (fsetxattr(fd, "user.cros-p2p-filesize",
                   decimal_size.c_str(), decimal_size.size(), 0) != 0) {
       PLOG(ERROR) << "Error setting xattr on " << path;
@@ -287,7 +290,7 @@ static bool CreateP2PFile(string p2p_dir, string file_name,
 
 // Check that sharing a *new* file works.
 TEST_F(P2PManagerTest, ShareFile) {
-  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+  if (!utils::IsXAttrSupported(base::FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;
@@ -310,7 +313,7 @@ TEST_F(P2PManagerTest, ShareFile) {
 
 // Check that making a shared file visible, does what is expected.
 TEST_F(P2PManagerTest, MakeFileVisible) {
-  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+  if (!utils::IsXAttrSupported(base::FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;
@@ -337,7 +340,7 @@ TEST_F(P2PManagerTest, MakeFileVisible) {
 
 // Check that we return the right values for existing files in P2P_DIR.
 TEST_F(P2PManagerTest, ExistingFiles) {
-  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+  if (!utils::IsXAttrSupported(base::FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;
@@ -348,7 +351,7 @@ TEST_F(P2PManagerTest, ExistingFiles) {
   bool visible;
 
   // Check that errors are returned if the file does not exist
-  EXPECT_EQ(manager->FileGetPath("foo"), FilePath());
+  EXPECT_EQ(manager->FileGetPath("foo"), base::FilePath());
   EXPECT_EQ(manager->FileGetSize("foo"), -1);
   EXPECT_EQ(manager->FileGetExpectedSize("foo"), -1);
   EXPECT_FALSE(manager->FileGetVisible("foo", NULL));
@@ -364,7 +367,7 @@ TEST_F(P2PManagerTest, ExistingFiles) {
   EXPECT_TRUE(visible);
 
   // One more time, this time with a .tmp variant. First ensure it errors out..
-  EXPECT_EQ(manager->FileGetPath("bar"), FilePath());
+  EXPECT_EQ(manager->FileGetPath("bar"), base::FilePath());
   EXPECT_EQ(manager->FileGetSize("bar"), -1);
   EXPECT_EQ(manager->FileGetExpectedSize("bar"), -1);
   EXPECT_FALSE(manager->FileGetVisible("bar", NULL));

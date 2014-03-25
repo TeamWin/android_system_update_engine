@@ -9,8 +9,8 @@
 
 #include <tr1/memory>
 
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/bzip.h"
 #include "update_engine/utils.h"
@@ -163,7 +163,7 @@ bool FullUpdateGenerator::Run(
       if (partition == 0) {
         graph->resize(graph->size() + 1);
         graph->back().file_name =
-            StringPrintf("<rootfs-operation-%" PRIi64 ">", counter++);
+            base::StringPrintf("<rootfs-operation-%" PRIi64 ">", counter++);
         op = &graph->back().op;
         final_order->push_back(graph->size() - 1);
       } else {

@@ -29,9 +29,9 @@
 #include <vector>
 
 #include <base/logging.h>
-#include <base/string_split.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_split.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/http_common.h"
 
@@ -115,11 +115,12 @@ bool ParseRequest(int fd, HttpRequest* request) {
       if (range.find('-') < range.length() - 1)
         request->end_offset = atoll(range.c_str() + range.find('-') + 1) + 1;
       request->return_code = kHttpResponsePartialContent;
-      std::string tmp_str = StringPrintf("decoded range offsets: start=%jd "
-                                         "end=", request->start_offset);
+      std::string tmp_str = base::StringPrintf("decoded range offsets: "
+                                               "start=%jd end=",
+                                               (intmax_t)request->start_offset);
       if (request->end_offset > 0)
         base::StringAppendF(&tmp_str, "%jd (non-inclusive)",
-                            request->end_offset);
+                            (intmax_t)request->end_offset);
       else
         base::StringAppendF(&tmp_str, "unspecified");
       LOG(INFO) << tmp_str;
@@ -591,7 +592,7 @@ int main(int argc, char** argv) {
   // unit tests, avoid unilateral changes; (b) it is necessary to flush/sync the
   // file to prevent the spawning process from waiting indefinitely for this
   // message.
-  string listening_msg = StringPrintf("%s%hu", kListeningMsgPrefix, port);
+  string listening_msg = base::StringPrintf("%s%hu", kListeningMsgPrefix, port);
   LOG(INFO) << listening_msg;
   CHECK_EQ(write(report_fd, listening_msg.c_str(), listening_msg.length()),
            static_cast<int>(listening_msg.length()));

@@ -7,7 +7,7 @@
 #include <map>
 #include <string>
 
-#include <base/string_util.h>
+#include <base/strings/string_util.h>
 #include <base/strings/string_tokenizer.h>
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-lowlevel.h>

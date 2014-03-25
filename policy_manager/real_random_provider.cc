@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <base/file_path.h>
+#include <base/files/file_path.h>
 #include <base/file_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/policy_manager/real_random_provider.h"
 #include "update_engine/policy_manager/variable.h"
@@ -46,8 +46,8 @@ class RandomSeedVariable : public Variable<uint64_t> {
       if (rd == 0 || ferror(fp_.get())) {
         // Either EOF on fp or read failed.
         if (errmsg) {
-          *errmsg = StringPrintf("Error reading from the random device: %s",
-                                 kRandomDevice);
+          *errmsg = base::StringPrintf(
+              "Error reading from the random device: %s", kRandomDevice);
         }
         return NULL;
       }

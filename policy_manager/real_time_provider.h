@@ -5,7 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_TIME_PROVIDER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_TIME_PROVIDER_H_
 
-#include <base/time.h>
+#include <base/time/time.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/policy_manager/time_provider.h"

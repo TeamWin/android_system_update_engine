@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include <base/file_path.h>
+#include <base/files/file_path.h>
 #include <base/file_util.h>
 #include <base/files/scoped_temp_dir.h>
 #include <gtest/gtest.h>
@@ -20,7 +20,7 @@ class HwidOverrideTest : public ::testing::Test {
 
   virtual void SetUp() {
     ASSERT_TRUE(tempdir_.CreateUniqueTempDir());
-    ASSERT_TRUE(file_util::CreateDirectory(tempdir_.path().Append("etc")));
+    ASSERT_TRUE(base::CreateDirectory(tempdir_.path().Append("etc")));
   }
 
  protected:

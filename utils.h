@@ -12,9 +12,9 @@
 #include <unistd.h>
 #include <vector>
 
-#include <base/file_path.h>
+#include <base/files/file_path.h>
 #include <base/posix/eintr_wrapper.h>
-#include <base/time.h>
+#include <base/time/time.h>
 #include <ext2fs/ext2fs.h>
 #include <glib.h>
 #include "metrics/metrics_library.h"

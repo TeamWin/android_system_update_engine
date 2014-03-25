@@ -10,9 +10,9 @@
 #include <utility>
 #include <vector>
 
-#include <base/file_path.h>
+#include <base/files/file_path.h>
 #include <base/file_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/action_pipe.h"
 #include "update_engine/download_action.h"
@@ -32,9 +32,9 @@ using testing::_;
 using testing::AtLeast;
 using testing::InSequence;
 using base::FilePath;
+using base::ReadFileToString;
 using base::StringPrintf;
 using file_util::WriteFile;
-using file_util::ReadFileToString;
 
 class DownloadActionTest : public ::testing::Test { };
 

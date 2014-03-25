@@ -8,7 +8,7 @@
 #include <string>
 
 #include <base/basictypes.h>
-#include <base/file_path.h>
+#include <base/files/file_path.h>
 #include <base/file_util.h>
 
 #include "update_engine/simple_key_value_store.h"
@@ -28,7 +28,7 @@ std::string HwidOverride::Read(const base::FilePath& root) {
   base::FilePath kFile(root.value() + "/etc/lsb-release");
   string file_data;
   map<string, string> data;
-  if (file_util::ReadFileToString(kFile, &file_data)) {
+  if (base::ReadFileToString(kFile, &file_data)) {
     data = simple_key_value_store::ParseString(file_data);
   }
   return data[kHwidOverrideKey];

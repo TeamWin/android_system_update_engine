@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/graph_types.h"
@@ -80,11 +80,12 @@ TEST_F(MetadataTest, RunAsRootReadMetadata) {
   {
     string a_img_mnt;
     ScopedLoopMounter a_img_mount(a_img, &a_img_mnt, 0);
-    System(StringPrintf("dd if=/dev/zero of=%s/test_file bs=%d count=%d",
-                        a_img_mnt.c_str(), block_size, EXT2_NDIR_BLOCKS + 1));
+    System(base::StringPrintf("dd if=/dev/zero of=%s/test_file bs=%d count=%d",
+                              a_img_mnt.c_str(), block_size,
+                              EXT2_NDIR_BLOCKS + 1));
   }
 
-  System(StringPrintf("cp %s %s", a_img.c_str(), b_img.c_str()));
+  System(base::StringPrintf("cp %s %s", a_img.c_str(), b_img.c_str()));
 
   int fd = open(data_file.c_str(), O_RDWR | O_CREAT, S_IRWXU);
   EXPECT_NE(fd, -1);

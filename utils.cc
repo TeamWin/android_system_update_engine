@@ -21,15 +21,15 @@
 #include <algorithm>
 #include <vector>
 
-#include <base/file_path.h>
+#include <base/files/file_path.h>
 #include <base/file_util.h>
 #include <base/logging.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/rand_util.h>
-#include <base/string_number_conversions.h>
-#include <base/string_split.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_number_conversions.h>
+#include <base/strings/string_split.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <glib.h>
 #include <google/protobuf/stubs/common.h>
 
@@ -72,7 +72,7 @@ static const char kCGroupDir[] = "/sys/fs/cgroup/cpu/update-engine";
 string ParseECVersion(string input_line) {
   TrimWhitespaceASCII(input_line, TRIM_ALL, &input_line);
 
-  // At this point we want to conver the format key=value pair from mosys to
+  // At this point we want to convert the format key=value pair from mosys to
   // a vector of key value pairs.
   vector<pair<string, string> > kv_pairs;
   if (base::SplitStringIntoKeyValuePairs(input_line, '=', ' ', &kv_pairs)) {
@@ -82,7 +82,7 @@ string ParseECVersion(string input_line) {
       if (it->first == "fw_version") {
         string output;
         // Trim any quotes.
-        TrimString(it->second, "\"", &output);
+        base::TrimString(it->second, "\"", &output);
         return output;
       }
     }
@@ -448,18 +448,18 @@ std::string MakePartitionName(const std::string& disk_name,
 }
 
 string SysfsBlockDevice(const string& device) {
-  FilePath device_path(device);
+  base::FilePath device_path(device);
   if (device_path.DirName().value() != "/dev") {
     return "";
   }
-  return FilePath("/sys/block").Append(device_path.BaseName()).value();
+  return base::FilePath("/sys/block").Append(device_path.BaseName()).value();
 }
 
 bool IsRemovableDevice(const std::string& device) {
   string sysfs_block = SysfsBlockDevice(device);
   string removable;
   if (sysfs_block.empty() ||
-      !file_util::ReadFileToString(FilePath(sysfs_block).Append("removable"),
+      !base::ReadFileToString(base::FilePath(sysfs_block).Append("removable"),
                                    &removable)) {
     return false;
   }
@@ -870,7 +870,7 @@ string FormatTimeDelta(TimeDelta delta) {
 string ToString(const Time utc_time) {
   Time::Exploded exp_time;
   utc_time.UTCExplode(&exp_time);
-  return StringPrintf("%d/%d/%d %d:%02d:%02d GMT",
+  return base::StringPrintf("%d/%d/%d %d:%02d:%02d GMT",
                       exp_time.month,
                       exp_time.day_of_month,
                       exp_time.year,
@@ -1110,8 +1110,8 @@ bool CreatePowerwashMarkerFile(const char* file_path) {
 
 bool DeletePowerwashMarkerFile(const char* file_path) {
   const char* marker_file = file_path ? file_path : kPowerwashMarkerFile;
-  const FilePath kPowerwashMarkerPath(marker_file);
-  bool result = file_util::Delete(kPowerwashMarkerPath, false);
+  const base::FilePath kPowerwashMarkerPath(marker_file);
+  bool result = base::DeleteFile(kPowerwashMarkerPath, false);
 
   if (result)
     LOG(INFO) << "Successfully deleted the powerwash marker file : "
@@ -1180,7 +1180,7 @@ string CalculateP2PFileId(const string& payload_hash, size_t payload_size) {
   OmahaHashCalculator::Base64Encode(payload_hash.c_str(),
                                     payload_hash.size(),
                                     &encoded_hash);
-  return StringPrintf("cros_update_size_%zu_hash_%s",
+  return base::StringPrintf("cros_update_size_%zu_hash_%s",
                       payload_size,
                       encoded_hash.c_str());
 }
@@ -1232,7 +1232,7 @@ bool DecodeAndStoreBase64String(const std::string& base64_encoded,
     return false;
   }
 
-  FILE *file = file_util::CreateAndOpenTemporaryFile(out_path);
+  FILE *file = base::CreateAndOpenTemporaryFile(out_path);
   if (file == NULL) {
     LOG(ERROR) << "Error creating temporary file.";
     return false;

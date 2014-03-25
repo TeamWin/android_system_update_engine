@@ -7,8 +7,9 @@
 #include <algorithm>
 
 #include <base/logging.h>
-#include "base/string_util.h"
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
+#include <base/format_macros.h>
 
 #include "update_engine/clock.h"
 #include "update_engine/constants.h"
@@ -655,27 +656,29 @@ int64_t PayloadState::GetPersistedValue(const string& key) {
 }
 
 string PayloadState::CalculateResponseSignature() {
-  string response_sign = StringPrintf("NumURLs = %d\n",
-                                      candidate_urls_.size());
+  string response_sign = base::StringPrintf(
+      "NumURLs = %d\n", static_cast<int>(candidate_urls_.size()));
 
   for (size_t i = 0; i < candidate_urls_.size(); i++)
-    response_sign += StringPrintf("Candidate Url%d = %s\n",
-                                  i, candidate_urls_[i].c_str());
+    response_sign += base::StringPrintf("Candidate Url%d = %s\n",
+                                        static_cast<int>(i),
+                                        candidate_urls_[i].c_str());
 
-  response_sign += StringPrintf("Payload Size = %llu\n"
-                                "Payload Sha256 Hash = %s\n"
-                                "Metadata Size = %llu\n"
-                                "Metadata Signature = %s\n"
-                                "Is Delta Payload = %d\n"
-                                "Max Failure Count Per Url = %d\n"
-                                "Disable Payload Backoff = %d\n",
-                                response_.size,
-                                response_.hash.c_str(),
-                                response_.metadata_size,
-                                response_.metadata_signature.c_str(),
-                                response_.is_delta_payload,
-                                response_.max_failure_count_per_url,
-                                response_.disable_payload_backoff);
+  response_sign += base::StringPrintf(
+      "Payload Size = %ju\n"
+      "Payload Sha256 Hash = %s\n"
+      "Metadata Size = %ju\n"
+      "Metadata Signature = %s\n"
+      "Is Delta Payload = %d\n"
+      "Max Failure Count Per Url = %d\n"
+      "Disable Payload Backoff = %d\n",
+      static_cast<uintmax_t>(response_.size),
+      response_.hash.c_str(),
+      static_cast<uintmax_t>(response_.metadata_size),
+      response_.metadata_signature.c_str(),
+      response_.is_delta_payload,
+      response_.max_failure_count_per_url,
+      response_.disable_payload_backoff);
   return response_sign;
 }
 

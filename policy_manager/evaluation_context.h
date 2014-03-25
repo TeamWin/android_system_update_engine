@@ -10,7 +10,7 @@
 #include <base/callback.h>
 #include <base/memory/ref_counted.h>
 #include <base/memory/weak_ptr.h>
-#include <base/time.h>
+#include <base/time/time.h>
 
 #include "update_engine/policy_manager/boxed_value.h"
 #include "update_engine/policy_manager/event_loop.h"

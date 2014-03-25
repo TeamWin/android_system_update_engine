@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include <base/stringprintf.h>
+#include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/gpio_handler_unittest.h"
@@ -173,7 +173,7 @@ int StandardGpioMockUdevInterface::EnumerateAddMatchSysname(
     case 2: {
       const int gpio_id = udev_enum_id - 1;
       const std::string gpio_pattern =
-          StringPrintf("*%s", gpio_descriptors_[gpio_id].value);
+          base::StringPrintf("*%s", gpio_descriptors_[gpio_id].value);
       EXPECT_STREQ(sysname, gpio_pattern.c_str());
       if (strcmp(sysname, gpio_pattern.c_str()))
         return -1;

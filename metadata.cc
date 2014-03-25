@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <et/com_err.h>
 #include <ext2fs/ext2_io.h>
 #include <ext2fs/ext2fs.h>
@@ -22,6 +22,7 @@
 using std::min;
 using std::string;
 using std::vector;
+using base::StringPrintf;
 
 namespace chromeos_update_engine {
 

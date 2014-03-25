@@ -11,7 +11,7 @@
 
 #include <string>
 
-#include <base/time.h>
+#include <base/time/time.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/dbus_wrapper_interface.h"

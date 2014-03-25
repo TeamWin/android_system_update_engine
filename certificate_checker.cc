@@ -6,9 +6,9 @@
 
 #include <string>
 
-#include <base/string_number_conversions.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_number_conversions.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <base/logging.h>
 #include <curl/curl.h>
 #include <metrics/metrics_library.h>
@@ -134,10 +134,10 @@ bool CertificateChecker::CheckCertificateChange(
   // prefs.
   string digest_string = base::HexEncode(digest, digest_length);
 
-  string storage_key = StringPrintf("%s-%d-%d",
-                                    kPrefsUpdateServerCertificate,
-                                    server_to_check,
-                                    depth);
+  string storage_key = base::StringPrintf("%s-%d-%d",
+                                          kPrefsUpdateServerCertificate,
+                                          server_to_check,
+                                          depth);
   string stored_digest;
   // If there's no stored certificate, we just store the current one and return.
   if (!system_state_->prefs()->GetString(storage_key, &stored_digest)) {

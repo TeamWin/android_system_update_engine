@@ -6,7 +6,7 @@
 
 #include <base/file_util.h>
 #include <base/logging.h>
-#include <base/string_util.h>
+#include <base/strings/string_util.h>
 #include <rootdev/rootdev.h>
 #include <vboot/crossystem.h>
 

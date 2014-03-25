@@ -11,7 +11,7 @@
 #include <glib.h>
 
 #include <base/logging.h>
-#include <base/stringprintf.h>
+#include <base/strings/stringprintf.h>
 
 namespace chromeos_update_engine {
 
@@ -33,8 +33,8 @@ public:
   }
 
   // P2PManager::Configuration override
-  virtual FilePath GetP2PDir() {
-    return FilePath(p2p_dir_);
+  virtual base::FilePath GetP2PDir() {
+    return base::FilePath(p2p_dir_);
   };
 
   // P2PManager::Configuration override

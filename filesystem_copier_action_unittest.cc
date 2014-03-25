@@ -9,8 +9,8 @@
 #include <vector>
 
 #include <base/posix/eintr_wrapper.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <glib.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -410,7 +410,7 @@ TEST_F(FilesystemCopierActionTest, RunAsRootDetermineFilesystemSizeTest) {
   ScopedPathUnlinker img_unlinker(img);
   CreateExtImageAtPath(img, NULL);
   // Extend the "partition" holding the file system from 10MiB to 20MiB.
-  EXPECT_EQ(0, System(StringPrintf(
+  EXPECT_EQ(0, System(base::StringPrintf(
       "dd if=/dev/zero of=%s seek=20971519 bs=1 count=1",
       img.c_str())));
   EXPECT_EQ(20 * 1024 * 1024, utils::FileSize(img));

@@ -5,9 +5,9 @@
 #include "update_engine/gpio_handler.h"
 
 #include <base/memory/scoped_ptr.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
-#include <base/time.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <glib.h>
 
 #include "update_engine/file_descriptor.h"
@@ -300,8 +300,8 @@ bool StandardGpioHandler::OpenGpioFd(StandardGpioHandler::GpioId id,
                                      const char* dev_name,
                                      bool is_write) {
   CHECK(id >= 0 && id < kGpioIdMax && dev_name);
-  string file_name = StringPrintf("%s/%s", gpios_[id].dev_path.c_str(),
-                                  dev_name);
+  string file_name = base::StringPrintf("%s/%s", gpios_[id].dev_path.c_str(),
+                                        dev_name);
   if (!fd_->Open(file_name.c_str(), (is_write ? O_WRONLY : O_RDONLY))) {
     if (fd_->IsSettingErrno()) {
       PLOG(ERROR) << "failed to open " << file_name

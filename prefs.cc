@@ -6,8 +6,8 @@
 
 #include <base/file_util.h>
 #include <base/logging.h>
-#include <base/string_number_conversions.h>
-#include <base/string_util.h>
+#include <base/strings/string_number_conversions.h>
+#include <base/strings/string_util.h>
 
 #include "update_engine/utils.h"
 
@@ -15,15 +15,15 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-bool Prefs::Init(const FilePath& prefs_dir) {
+bool Prefs::Init(const base::FilePath& prefs_dir) {
   prefs_dir_ = prefs_dir;
   return true;
 }
 
 bool Prefs::GetString(const string& key, string* value) {
-  FilePath filename;
+  base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
-  if (!file_util::ReadFileToString(filename, value)) {
+  if (!base::ReadFileToString(filename, value)) {
     LOG(INFO) << key << " not present in " << prefs_dir_.value();
     return false;
   }
@@ -31,9 +31,9 @@ bool Prefs::GetString(const string& key, string* value) {
 }
 
 bool Prefs::SetString(const std::string& key, const std::string& value) {
-  FilePath filename;
+  base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
-  TEST_AND_RETURN_FALSE(file_util::CreateDirectory(filename.DirName()));
+  TEST_AND_RETURN_FALSE(base::CreateDirectory(filename.DirName()));
   TEST_AND_RETURN_FALSE(
       file_util::WriteFile(filename, value.data(), value.size()) ==
       static_cast<int>(value.size()));
@@ -74,18 +74,19 @@ bool Prefs::SetBoolean(const std::string& key, const bool value) {
 }
 
 bool Prefs::Exists(const string& key) {
-  FilePath filename;
+  base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
-  return file_util::PathExists(filename);
+  return base::PathExists(filename);
 }
 
 bool Prefs::Delete(const string& key) {
-  FilePath filename;
+  base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
-  return file_util::Delete(filename, false);
+  return base::DeleteFile(filename, false);
 }
 
-bool Prefs::GetFileNameForKey(const std::string& key, FilePath* filename) {
+bool Prefs::GetFileNameForKey(const std::string& key,
+                              base::FilePath* filename) {
   // Allows only non-empty keys containing [A-Za-z0-9_-].
   TEST_AND_RETURN_FALSE(!key.empty());
   for (size_t i = 0; i < key.size(); ++i) {

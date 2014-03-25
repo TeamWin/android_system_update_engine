@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
-#include "base/string_util.h"
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include "update_engine/filesystem_iterator.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
@@ -31,7 +31,7 @@ class FilesystemIteratorTest : public ::testing::Test {
 
   virtual void TearDown() {
     LOG(INFO) << "TearDown() rmdir " << test_dir_;
-    EXPECT_EQ(0, System(StringPrintf("rm -rf %s", TestDir())));
+    EXPECT_EQ(0, System(base::StringPrintf("rm -rf %s", TestDir())));
   }
 
   const char* TestDir() {

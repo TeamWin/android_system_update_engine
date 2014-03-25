@@ -4,9 +4,9 @@
 
 #include <glib.h>
 
-#include "base/file_path.h"
+#include <base/files/file_path.h>
 #include "base/file_util.h"
-#include "base/stringprintf.h"
+#include <base/strings/stringprintf.h>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -73,17 +73,17 @@ static void SetupPayloadStateWith2Urls(string hash,
 
   string expected_response_sign =
       (http_enabled ? expected_urls_both : expected_url_https_only) +
-      StringPrintf("Payload Size = 523456789\n"
-                   "Payload Sha256 Hash = %s\n"
-                   "Metadata Size = 558123\n"
-                   "Metadata Signature = metasign\n"
-                   "Is Delta Payload = %d\n"
-                   "Max Failure Count Per Url = %d\n"
-                   "Disable Payload Backoff = %d\n",
-                   hash.c_str(),
-                   response->is_delta_payload,
-                   response->max_failure_count_per_url,
-                   response->disable_payload_backoff);
+      base::StringPrintf("Payload Size = 523456789\n"
+                         "Payload Sha256 Hash = %s\n"
+                         "Metadata Size = 558123\n"
+                         "Metadata Signature = metasign\n"
+                         "Is Delta Payload = %d\n"
+                         "Max Failure Count Per Url = %d\n"
+                         "Disable Payload Backoff = %d\n",
+                         hash.c_str(),
+                         response->is_delta_payload,
+                         response->max_failure_count_per_url,
+                         response->disable_payload_backoff);
   EXPECT_EQ(expected_response_sign, stored_response_sign);
 }
 
@@ -1071,7 +1071,7 @@ TEST(PayloadStateTest, DurationsAreCorrect) {
   // We need persistent preferences for this test
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateDurationTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   mock_system_state.set_clock(&fake_clock);
   mock_system_state.set_prefs(&prefs);
@@ -1135,7 +1135,7 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   // We need persistent preferences for this test
   EXPECT_TRUE(utils::MakeTempDirectory(
       "RebootAfterSuccessfulUpdateTest.XXXXXX", &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   mock_system_state.set_clock(&fake_clock);
   mock_system_state.set_prefs(&prefs);
@@ -1357,7 +1357,7 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   // Setup an environment with persistent prefs across simulated reboots.
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
 
   FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
@@ -1407,7 +1407,7 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   // Setup an environment with persistent prefs across simulated reboots.
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
 
   FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
@@ -1447,7 +1447,7 @@ TEST(PayloadStateTest, RebootAfterCanceledUpdate) {
   // Setup an environment with persistent prefs across simulated reboots.
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
@@ -1480,7 +1480,7 @@ TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
   // Setup an environment with persistent but initially empty prefs.
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
@@ -1505,7 +1505,7 @@ TEST(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
   // We need persistent preferences for this test.
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   mock_system_state.set_prefs(&prefs);
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
@@ -1534,7 +1534,7 @@ TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
   // We need persistent preferences for this test.
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
 
   mock_system_state.set_clock(&fake_clock);
   mock_system_state.set_prefs(&prefs);
@@ -1585,7 +1585,7 @@ TEST(PayloadStateTest, P2PStateVarsInitialValue) {
 
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
@@ -1607,7 +1607,7 @@ TEST(PayloadStateTest, P2PStateVarsArePersisted) {
 
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
   mock_system_state.set_clock(&fake_clock);
   mock_system_state.set_prefs(&prefs);
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
@@ -1642,7 +1642,7 @@ TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
 
   EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
                                        &temp_dir));
-  prefs.Init(FilePath(temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
   mock_system_state.set_clock(&fake_clock);
   mock_system_state.set_prefs(&prefs);
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));

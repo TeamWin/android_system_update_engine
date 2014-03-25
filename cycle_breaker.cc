@@ -6,8 +6,8 @@
 #include <inttypes.h>
 #include <set>
 #include <utility>
-#include "base/string_util.h"
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include "update_engine/graph_utils.h"
 #include "update_engine/tarjan.h"
 #include "update_engine/utils.h"
@@ -149,8 +149,8 @@ bool CycleBreaker::Circuit(Vertex::Index vertex, Vertex::Index depth) {
       std::string stack_str;
       for (vector<Vertex::Index>::const_iterator it = stack_.begin();
            it != stack_.end(); ++it) {
-        stack_str += StringPrintf("%lu -> ",
-                                  static_cast<long unsigned int>(*it));
+        stack_str += base::StringPrintf("%lu -> ",
+                                        static_cast<long unsigned int>(*it));
       }
       LOG(INFO) << "stack: " << stack_str;
     }

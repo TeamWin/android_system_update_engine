@@ -13,8 +13,8 @@
 
 #include <base/logging.h>
 #include <base/memory/scoped_ptr.h>
-#include <base/string_util.h>
-#include <base/stringprintf.h>
+#include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/utils.h"
 
@@ -93,8 +93,8 @@ char** ArgPointer() {
   int pointer = 0;
   for (size_t i = 0; i < arraysize(keys); i++) {
     if (getenv(keys[i])) {
-      ret[pointer] = strdup(StringPrintf("%s=%s", keys[i],
-                                         getenv(keys[i])).c_str());
+      ret[pointer] = strdup(base::StringPrintf("%s=%s", keys[i],
+                                               getenv(keys[i])).c_str());
       if (!ret[pointer]) {
         FreeArgv(ret);
         delete [] ret;

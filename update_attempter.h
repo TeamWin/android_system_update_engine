@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include <base/time.h>
+#include <base/time/time.h>
 #include <glib.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 

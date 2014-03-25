@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include <base/memory/scoped_ptr.h>
-#include <base/time.h>
+#include <base/time/time.h>
 #include <chromeos/dbus/service_constants.h>
 #include <glib.h>
 #include <gtest/gtest.h>

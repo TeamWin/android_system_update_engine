@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include <base/time.h>
+#include <base/time/time.h>
 
 namespace chromeos_update_engine {
 

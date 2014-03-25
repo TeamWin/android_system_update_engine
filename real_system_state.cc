@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include <base/file_util.h>
-#include <base/time.h>
+#include <base/time/time.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/real_system_state.h"
@@ -14,21 +14,21 @@ namespace chromeos_update_engine {
 static const char kOOBECompletedMarker[] = "/home/chronos/.oobe_completed";
 
 RealSystemState::RealSystemState()
-    : device_policy_(NULL),
+    : device_policy_(nullptr),
       connection_manager_(this),
       request_params_(this),
-      p2p_manager_(NULL),
+      p2p_manager_(),
       system_rebooted_(false) {}
 
 bool RealSystemState::Initialize(bool enable_gpio) {
   metrics_lib_.Init();
 
-  if (!prefs_.Init(FilePath(kPrefsDirectory))) {
+  if (!prefs_.Init(base::FilePath(kPrefsDirectory))) {
     LOG(ERROR) << "Failed to initialize preferences.";
     return false;
   }
 
-  if (!powerwash_safe_prefs_.Init(FilePath(kPowerwashSafePrefsDir))) {
+  if (!powerwash_safe_prefs_.Init(base::FilePath(kPowerwashSafePrefsDir))) {
     LOG(ERROR) << "Failed to initialize powerwash preferences.";
     return false;
   }

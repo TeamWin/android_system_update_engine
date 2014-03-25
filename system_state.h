@@ -5,7 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_SYSTEM_STATE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_SYSTEM_STATE_H_
 
-#include <base/time.h>
+#include <base/time/time.h>
 #include "metrics/metrics_library.h"
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
