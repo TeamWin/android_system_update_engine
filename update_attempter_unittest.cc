@@ -486,9 +486,9 @@ void UpdateAttempterTest::RollbackTestStart(
   string install_path = "/dev/sda3";
   bool is_rollback_allowed = false;
 
-  // We only allow rollback on devices that are neither enterprise enrolled or
-  // not on the stable channel, and which have a valid slot to rollback too.
-  if (!(enterprise_rollback || stable_channel) && valid_slot) {
+  // We only allow rollback on devices that are not enterprise enrolled and
+  // which have a valid slot to rollback to.
+  if (!enterprise_rollback && valid_slot) {
      is_rollback_allowed = true;
   }
 

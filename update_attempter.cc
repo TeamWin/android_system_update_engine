@@ -713,11 +713,6 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
     return false;
   }
 
-  if (omaha_request_params_->current_channel() == "stable-channel") {
-    LOG(ERROR) << "Rollback is not supported while on the stable-channel.";
-    return false;
-  }
-
   LOG(INFO) << "Setting rollback options.";
   InstallPlan install_plan;
   if (install_path == NULL) {
