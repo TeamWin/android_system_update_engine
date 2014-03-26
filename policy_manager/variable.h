@@ -177,6 +177,7 @@ class Variable : public BaseVariable {
   friend class PmRealTimeProviderTest;
   FRIEND_TEST(PmRealTimeProviderTest, CurrDateValid);
   FRIEND_TEST(PmRealTimeProviderTest, CurrHourValid);
+  friend class PmRealUpdaterProviderTest;
 
   Variable(const std::string& name, VariableMode mode)
       : BaseVariable(name, mode) {}

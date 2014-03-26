@@ -46,7 +46,7 @@ bool RealSystemState::Initialize(bool enable_gpio) {
 
   // Initialize the PolicyManager using the default State Factory.
   policy_manager_.Init(
-      chromeos_policy_manager::DefaultStateFactory(&dbus_, &clock_));
+      chromeos_policy_manager::DefaultStateFactory(&dbus_, this));
 
   if (!payload_state_.Initialize(this))
     return false;

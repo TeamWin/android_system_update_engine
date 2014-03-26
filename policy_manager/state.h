@@ -9,6 +9,7 @@
 #include "update_engine/policy_manager/shill_provider.h"
 #include "update_engine/policy_manager/system_provider.h"
 #include "update_engine/policy_manager/time_provider.h"
+#include "update_engine/policy_manager/updater_provider.h"
 
 namespace chromeos_policy_manager {
 
@@ -18,17 +19,22 @@ class State {
  public:
   virtual ~State() {}
   State(RandomProvider* random_provider, ShillProvider* shill_provider,
-        SystemProvider* system_provider, TimeProvider* time_provider) :
+        SystemProvider* system_provider, TimeProvider* time_provider,
+        UpdaterProvider* updater_provider) :
       random_provider_(random_provider),
       shill_provider_(shill_provider),
       system_provider_(system_provider),
-      time_provider_(time_provider) {}
+      time_provider_(time_provider),
+      updater_provider_(updater_provider) {}
 
   // These methods return the given provider.
   virtual RandomProvider* random_provider() { return random_provider_.get(); }
   virtual ShillProvider* shill_provider() { return shill_provider_.get(); }
-  virtual TimeProvider* time_provider() { return time_provider_.get(); }
   virtual SystemProvider* system_provider() { return system_provider_.get(); }
+  virtual TimeProvider* time_provider() { return time_provider_.get(); }
+  virtual UpdaterProvider* updater_provider() {
+    return updater_provider_.get();
+  }
 
  private:
   // Instances of the providers.
@@ -36,6 +42,7 @@ class State {
   scoped_ptr<ShillProvider> shill_provider_;
   scoped_ptr<SystemProvider> system_provider_;
   scoped_ptr<TimeProvider> time_provider_;
+  scoped_ptr<UpdaterProvider> updater_provider_;
 };
 
 }  // namespace chromeos_policy_manager

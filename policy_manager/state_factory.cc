@@ -6,26 +6,31 @@
 
 #include <base/logging.h>
 
+#include "update_engine/clock_interface.h"
 #include "update_engine/policy_manager/real_random_provider.h"
 #include "update_engine/policy_manager/real_shill_provider.h"
 #include "update_engine/policy_manager/real_system_provider.h"
 #include "update_engine/policy_manager/real_time_provider.h"
+#include "update_engine/policy_manager/real_updater_provider.h"
 
 namespace chromeos_policy_manager {
 
-State* DefaultStateFactory(
-    chromeos_update_engine::DBusWrapperInterface* dbus,
-    chromeos_update_engine::ClockInterface* clock) {
+State* DefaultStateFactory(chromeos_update_engine::DBusWrapperInterface* dbus,
+                           chromeos_update_engine::SystemState* system_state) {
+  chromeos_update_engine::ClockInterface* const clock = system_state->clock();
   scoped_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   scoped_ptr<RealShillProvider> shill_provider(
       new RealShillProvider(dbus, clock));
   scoped_ptr<RealSystemProvider> system_provider(new RealSystemProvider());
   scoped_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
+  scoped_ptr<RealUpdaterProvider> updater_provider(
+      new RealUpdaterProvider(system_state));
 
   if (!(random_provider->Init() &&
         shill_provider->Init() &&
         system_provider->Init() &&
-        time_provider->Init())) {
+        time_provider->Init() &&
+        updater_provider->Init())) {
     LOG(ERROR) << "Error initializing providers";
     return NULL;
   }
@@ -33,7 +38,8 @@ State* DefaultStateFactory(
   return new State(random_provider.release(),
                    shill_provider.release(),
                    system_provider.release(),
-                   time_provider.release());
+                   time_provider.release(),
+                   updater_provider.release());
 }
 
 }  // namespace chromeos_policy_manager

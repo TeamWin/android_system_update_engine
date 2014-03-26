@@ -56,10 +56,10 @@ class ShillConnector {
   // |*result_p|. Returns |true| on success.
   bool GetProperties(DBusGProxy* proxy, GHashTable** result_p);
 
-  typedef struct {
+  struct ConnStrToType {
     const char *str;
     ConnectionType type;
-  } ConnStrToType;
+  };
 
   // A mapping from shill connection type strings to enum values.
   static const ConnStrToType shill_conn_str_to_type[];

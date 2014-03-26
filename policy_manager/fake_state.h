@@ -9,6 +9,7 @@
 #include "update_engine/policy_manager/fake_shill_provider.h"
 #include "update_engine/policy_manager/fake_system_provider.h"
 #include "update_engine/policy_manager/fake_time_provider.h"
+#include "update_engine/policy_manager/fake_updater_provider.h"
 #include "update_engine/policy_manager/state.h"
 
 namespace chromeos_policy_manager {
@@ -26,14 +27,21 @@ class FakeState : public State {
   virtual FakeRandomProvider* random_provider() override {
     return reinterpret_cast<FakeRandomProvider*>(State::random_provider());
   }
+
   virtual FakeShillProvider* shill_provider() override {
     return reinterpret_cast<FakeShillProvider*>(State::shill_provider());
   }
+
+  virtual FakeSystemProvider* system_provider() override {
+    return reinterpret_cast<FakeSystemProvider*>(State::system_provider());
+  }
+
   virtual FakeTimeProvider* time_provider() override {
     return reinterpret_cast<FakeTimeProvider*>(State::time_provider());
   }
-  virtual FakeSystemProvider* system_provider() override {
-    return reinterpret_cast<FakeSystemProvider*>(State::system_provider());
+
+  virtual FakeUpdaterProvider* updater_provider() override {
+    return reinterpret_cast<FakeUpdaterProvider*>(State::updater_provider());
   }
 
  private:
