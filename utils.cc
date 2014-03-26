@@ -56,6 +56,11 @@ namespace {
 // one second.
 const int kUnmountMaxNumOfRetries = 5;
 const int kUnmountRetryIntervalInMicroseconds = 200 * 1000;  // 200 ms
+
+// Number of bytes to read from a file to attempt to detect its contents. Used
+// in GetFileFormat.
+const int kGetFileFormatMaxHeaderSize = 32;
+
 }  // namespace
 
 namespace utils {
@@ -663,6 +668,83 @@ bool GetFilesystemSizeFromFD(int fd,
     *out_block_size = block_size;
   }
   return true;
+}
+
+// Tries to parse the header of an ELF file to obtain a human-readable
+// description of it on the |output| string.
+static bool GetFileFormatELF(const char* buffer, size_t size, string* output) {
+  // 0x00: EI_MAG - ELF magic header, 4 bytes.
+  if (size < 4 || memcmp(buffer, "\x7F""ELF", 4) != 0)
+    return false;
+  *output = "ELF";
+
+  // 0x04: EI_CLASS, 1 byte.
+  if (size < 0x04 + 1)
+    return true;
+  switch (buffer[4]) {
+    case 1:
+      *output += " 32-bit";
+      break;
+    case 2:
+      *output += " 64-bit";
+      break;
+    default:
+      *output += " ?-bit";
+  }
+
+  // 0x05: EI_DATA, endianness, 1 byte.
+  if (size < 0x05 + 1)
+    return true;
+  char ei_data = buffer[5];
+  switch (ei_data) {
+    case 1:
+      *output += " little-endian";
+      break;
+    case 2:
+      *output += " big-endian";
+      break;
+    default:
+      *output += " ?-endian";
+      // Don't parse anything after the 0x10 offset if endianness is unknown.
+      return true;
+  }
+
+  // 0x12: e_machine, 2 byte endianness based on ei_data
+  if (size < 0x12 + 2)
+    return true;
+  uint16 e_machine = *reinterpret_cast<const uint16*>(buffer+0x12);
+  // Fix endianess regardless of the host endianess.
+  if (ei_data == 1)
+    e_machine = le16toh(e_machine);
+  else
+    e_machine = be16toh(e_machine);
+
+  switch (e_machine) {
+    case 0x03:
+      *output += " x86";
+      break;
+    case 0x28:
+      *output += " arm";
+      break;
+    case 0x3E:
+      *output += " x86-64";
+      break;
+    default:
+      *output += " unknown-arch";
+  }
+  return true;
+}
+
+string GetFileFormat(const string& path) {
+  vector<char> buffer;
+  if (!ReadFileChunkAndAppend(path, 0, kGetFileFormatMaxHeaderSize, &buffer))
+    return "File not found.";
+
+  string result;
+  if (GetFileFormatELF(buffer.data(), buffer.size(), &result))
+    return result;
+
+  return "data";
 }
 
 bool GetBootloader(BootLoader* out_bootloader) {

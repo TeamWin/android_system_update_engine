@@ -327,6 +327,48 @@ TEST(UtilsTest, GetInstallDevTest) {
 }
 
 namespace {
+void GetFileFormatTester(const string& expected,
+                         const vector<uint8>& contents) {
+  ScopedTempFile file;
+  ASSERT_TRUE(utils::WriteFile(file.GetPath().c_str(),
+                               reinterpret_cast<const char*>(contents.data()),
+                               contents.size()));
+  EXPECT_EQ(expected, utils::GetFileFormat(file.GetPath()));
+}
+}
+
+TEST(UtilsTest, GetFileFormatTest) {
+  EXPECT_EQ("File not found.", utils::GetFileFormat("/path/to/nowhere"));
+  GetFileFormatTester("data", vector<uint8>{1, 2, 3, 4, 5, 6, 7, 8});
+  GetFileFormatTester("ELF", vector<uint8>{0x7f, 0x45, 0x4c, 0x46});
+
+  // Real tests from cros_installer on different boards.
+  // ELF 32-bit LSB executable, Intel 80386
+  GetFileFormatTester(
+      "ELF 32-bit little-endian x86",
+      vector<uint8>{0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x02, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x00,
+                    0x90, 0x83, 0x04, 0x08, 0x34, 0x00, 0x00, 0x00});
+
+  // ELF 32-bit LSB executable, ARM
+  GetFileFormatTester(
+      "ELF 32-bit little-endian arm",
+      vector<uint8>{0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x02, 0x00, 0x28, 0x00, 0x01, 0x00, 0x00, 0x00,
+                    0x85, 0x8b, 0x00, 0x00, 0x34, 0x00, 0x00, 0x00});
+
+  // ELF 64-bit LSB executable, x86-64
+  GetFileFormatTester(
+      "ELF 64-bit little-endian x86-64",
+      vector<uint8>{0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x02, 0x00, 0x3e, 0x00, 0x01, 0x00, 0x00, 0x00,
+                    0xb0, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00});
+}
+
+namespace {
 gboolean  TerminateScheduleCrashReporterUploadTest(void* arg) {
   GMainLoop* loop = reinterpret_cast<GMainLoop*>(arg);
   g_main_loop_quit(loop);

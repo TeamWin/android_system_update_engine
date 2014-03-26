@@ -18,7 +18,13 @@ using std::string;
 using std::vector;
 
 namespace {
+// The absolute path to the post install command.
 const char kPostinstallScript[] = "/postinst";
+
+// Path to the binary file used by kPostinstallScript. Used to get and log the
+// file format of the binary to debug issues when the ELF format on the update
+// doesn't match the one on the current system. This path is not executed.
+const char kDebugPostinstallBinaryPath[] = "/usr/bin/cros_installer";
 }
 
 void PostinstallRunnerAction::PerformAction() {
@@ -65,6 +71,15 @@ void PostinstallRunnerAction::PerformAction() {
       return;
     }
   }
+
+  // Logs the file format of the postinstall script we are about to run. This
+  // will help debug when the postinstall script doesn't match the architecture
+  // of our build.
+  LOG(INFO) << "Format file for new " <<  kPostinstallScript << " is: "
+            << utils::GetFileFormat(temp_rootfs_dir_ + kPostinstallScript);
+  LOG(INFO) << "Format file for new " <<  kDebugPostinstallBinaryPath << " is: "
+            << utils::GetFileFormat(
+                temp_rootfs_dir_ + kDebugPostinstallBinaryPath);
 
   // Runs the postinstall script asynchronously to free up the main loop while
   // it's running.

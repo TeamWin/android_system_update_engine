@@ -193,6 +193,11 @@ bool GetFilesystemSizeFromFD(int fd,
                              int* out_block_count,
                              int* out_block_size);
 
+
+// Returns a human-readable string with the file format based on magic constants
+// on the header of the file.
+std::string GetFileFormat(const std::string& path);
+
 // Returns the string representation of the given UTC time.
 // such as "11/14/2011 14:05:30 GMT".
 std::string ToString(const base::Time utc_time);
