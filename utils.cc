@@ -94,33 +94,26 @@ string ParseECVersion(string input_line) {
 }
 
 
-const string KernelDeviceOfBootDevice(const std::string& boot_device) {
-  if (boot_device.empty())
-    return boot_device;
+const string KernelDeviceOfBootDevice(const string& boot_device) {
+  string kernel_partition_name;
 
-  string ubiblock_prefix("/dev/ubiblock");
-  string ret;
-  char partition_num;
-  if (StringHasPrefix(boot_device, ubiblock_prefix)) {
-    // eg: /dev/ubiblock3_0 becomes /dev/mtdblock2
-    ret = "/dev/mtdblock";
-    partition_num = boot_device[ubiblock_prefix.size()];
-  } else {
-    // eg: /dev/sda3 becomes /dev/sda2
-    // eg: /dev/mmcblk0p3 becomes /dev/mmcblk0p2
-    ret = boot_device.substr(0, boot_device.size() - 1);
-    partition_num = boot_device[boot_device.size() - 1];
+  string disk_name;
+  int partition_num;
+  if (SplitPartitionName(boot_device, &disk_name, &partition_num)) {
+    if (disk_name == "/dev/ubiblock") {
+      // Special case for NAND devices.
+      // eg: /dev/ubiblock3_0 becomes /dev/mtdblock2
+      disk_name = "/dev/mtdblock";
+    }
+    // Currently this assumes the partition number of the boot device is
+    // 3, 5, or 7, and changes it to 2, 4, or 6, respectively, to
+    // get the kernel device.
+    if (partition_num == 3 || partition_num == 5 || partition_num == 7) {
+      kernel_partition_name = MakePartitionName(disk_name, partition_num - 1);
+    }
   }
 
-  // Currently this assumes the partition number of the boot device is
-  // 3, 5, or 7, and changes it to 2, 4, or 6, respectively, to
-  // get the kernel device.
-  if (partition_num == '3' || partition_num == '5' || partition_num == '7') {
-    ret.append(1, partition_num - 1);
-    return ret;
-  }
-
-  return "";
+  return kernel_partition_name;
 }
 
 
@@ -395,32 +388,44 @@ bool SplitPartitionName(const std::string& partition_name,
     return false;
   }
 
-  if (StringHasPrefix(partition_name, "/dev/ubiblock")) {
-    // NAND block devices have weird naming which could be something
-    // like "/dev/ubiblock2_0". Since update engine doesn't have proper
-    // support for NAND devices yet, don't bother parsing their names for now.
-    LOG(ERROR) << "UBI block devices are not supported: " << partition_name;
+  size_t last_nondigit_pos = partition_name.find_last_not_of("0123456789");
+  if (last_nondigit_pos == string::npos ||
+      (last_nondigit_pos + 1) == partition_name.size()) {
+    LOG(ERROR) << "Unable to parse partition device name: " << partition_name;
     return false;
   }
 
-  size_t pos = partition_name.find_last_not_of("0123456789");
-  if (pos == string::npos || (pos + 1) == partition_name.size()) {
-    LOG(ERROR) << "Unable to parse partition device name: "
-               << partition_name;
-    return false;
+  size_t partition_name_len = std::string::npos;
+  if (partition_name[last_nondigit_pos] == '_') {
+    // NAND block devices have weird naming which could be something
+    // like "/dev/ubiblock2_0". We discard "_0" in such a case.
+    size_t prev_nondigit_pos =
+        partition_name.find_last_not_of("0123456789", last_nondigit_pos - 1);
+    if (prev_nondigit_pos == string::npos ||
+        (prev_nondigit_pos + 1) == last_nondigit_pos) {
+      LOG(ERROR) << "Unable to parse partition device name: " << partition_name;
+      return false;
+    }
+
+    partition_name_len = last_nondigit_pos - prev_nondigit_pos;
+    last_nondigit_pos = prev_nondigit_pos;
   }
 
   if (out_disk_name) {
     // Special case for MMC devices which have the following naming scheme:
     // mmcblk0p2
-    bool valid_mmc_device = StringHasPrefix(partition_name, "/dev/mmcblk") &&
-                            partition_name[pos] == 'p';
-    *out_disk_name =
-        partition_name.substr(0, valid_mmc_device ? pos : (pos + 1));
+    size_t disk_name_len = last_nondigit_pos;
+    if (partition_name[last_nondigit_pos] != 'p' ||
+        last_nondigit_pos == 0 ||
+        !isdigit(partition_name[last_nondigit_pos - 1])) {
+      disk_name_len++;
+    }
+    *out_disk_name = partition_name.substr(0, disk_name_len);
   }
 
   if (out_partition_num) {
-    std::string partition_str = partition_name.substr(pos + 1);
+    std::string partition_str = partition_name.substr(last_nondigit_pos + 1,
+                                                      partition_name_len);
     *out_partition_num = atoi(partition_str.c_str());
   }
   return true;
@@ -439,13 +444,19 @@ std::string MakePartitionName(const std::string& disk_name,
   }
 
   std::string partition_name = disk_name;
-  if (!StringHasPrefix(disk_name, "/dev/mmcblk")) {
-    // Special case for MMC devices. Add "p" to separate the disk name
-    // from partition number
+  if (isdigit(partition_name.back())) {
+    // Special case for devices with names ending with a digit.
+    // Add "p" to separate the disk name from partition number,
+    // e.g. "/dev/loop0p2"
     partition_name += 'p';
   }
 
-  base::StringAppendF(&partition_name, "%d", partition_num);
+  partition_name += std::to_string(partition_num);
+
+  if (StringHasPrefix(partition_name, "/dev/ubiblock")) {
+    // Special case for UBI block devieces that have "_0" suffix.
+    partition_name += "_0";
+  }
   return partition_name;
 }
 
@@ -1309,23 +1320,22 @@ bool DeletePowerwashMarkerFile(const char* file_path) {
 }
 
 bool GetInstallDev(const std::string& boot_dev, std::string* install_dev) {
-  TEST_AND_RETURN_FALSE(StringHasPrefix(boot_dev, "/dev/"));
-  string::iterator it;
-  string ubiblock_prefix("/dev/ubiblock");
-
-  install_dev->assign(boot_dev);
-
-  if(StringHasPrefix(boot_dev, ubiblock_prefix)) {
-    // UBI-based device
-    it = install_dev->begin() + ubiblock_prefix.length();
-  } else {
-    // non-UBI device
-    it = install_dev->end() - 1;  // last character in string
-  }
+  std::string disk_name;
+  int partition_num;
+  if (!SplitPartitionName(boot_dev, &disk_name, &partition_num))
+    return false;
 
   // Right now, we just switch '3' and '5' partition numbers.
-  TEST_AND_RETURN_FALSE(*it == '3' || *it == '5');
-  *it = (*it == '3' ? '5' : '3');
+  if (partition_num == 3) {
+    partition_num = 5;
+  } else if (partition_num == 5) {
+    partition_num = 3;
+  } else {
+    return false;
+  }
+
+  if (install_dev)
+    *install_dev = MakePartitionName(disk_name, partition_num);
 
   return true;
 }

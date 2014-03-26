@@ -45,6 +45,7 @@ TEST(UtilsTest, CanParseECVersion) {
 
 
 TEST(UtilsTest, KernelDeviceOfBootDevice) {
+  EXPECT_EQ("", utils::KernelDeviceOfBootDevice(""));
   EXPECT_EQ("", utils::KernelDeviceOfBootDevice("foo"));
   EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda0"));
   EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda1"));
@@ -207,11 +208,11 @@ TEST(UtilsTest, TempFilenameTest) {
 
 TEST(UtilsTest, GetDiskNameTest) {
   EXPECT_EQ("/dev/sda", utils::GetDiskName("/dev/sda3"));
-  EXPECT_EQ("/dev/sda", utils::GetDiskName("/dev/sda1234"));
+  EXPECT_EQ("/dev/sdp", utils::GetDiskName("/dev/sdp1234"));
   EXPECT_EQ("/dev/mmcblk0", utils::GetDiskName("/dev/mmcblk0p3"));
   EXPECT_EQ("", utils::GetDiskName("/dev/mmcblk0p"));
   EXPECT_EQ("", utils::GetDiskName("/dev/sda"));
-  EXPECT_EQ("", utils::GetDiskName("/dev/ubiblock3_2"));
+  EXPECT_EQ("/dev/ubiblock", utils::GetDiskName("/dev/ubiblock3_2"));
   EXPECT_EQ("", utils::GetDiskName("/dev/foo/bar"));
   EXPECT_EQ("", utils::GetDiskName("/"));
   EXPECT_EQ("", utils::GetDiskName(""));
@@ -233,15 +234,31 @@ TEST(UtilsTest, IsRemovableDeviceTest) {
 
 TEST(UtilsTest, GetPartitionNumberTest) {
   EXPECT_EQ(3, utils::GetPartitionNumber("/dev/sda3"));
+  EXPECT_EQ(3, utils::GetPartitionNumber("/dev/sdz3"));
   EXPECT_EQ(123, utils::GetPartitionNumber("/dev/sda123"));
   EXPECT_EQ(2, utils::GetPartitionNumber("/dev/mmcblk0p2"));
   EXPECT_EQ(0, utils::GetPartitionNumber("/dev/mmcblk0p"));
-  EXPECT_EQ(0, utils::GetPartitionNumber("/dev/ubiblock3_2"));
+  EXPECT_EQ(3, utils::GetPartitionNumber("/dev/ubiblock3_2"));
   EXPECT_EQ(0, utils::GetPartitionNumber(""));
   EXPECT_EQ(0, utils::GetPartitionNumber("/"));
   EXPECT_EQ(0, utils::GetPartitionNumber("/dev/"));
   EXPECT_EQ(0, utils::GetPartitionNumber("/dev/sda"));
+  EXPECT_EQ(10, utils::GetPartitionNumber("/dev/loop10"));
+  EXPECT_EQ(11, utils::GetPartitionNumber("/dev/loop28p11"));
+  EXPECT_EQ(10, utils::GetPartitionNumber("/dev/loop10_0"));
+  EXPECT_EQ(11, utils::GetPartitionNumber("/dev/loop28p11_0"));
 }
+
+TEST(UtilsTest, MakePartitionNameTest) {
+  EXPECT_EQ("/dev/sda4", utils::MakePartitionName("/dev/sda", 4));
+  EXPECT_EQ("/dev/sda123", utils::MakePartitionName("/dev/sda", 123));
+  EXPECT_EQ("/dev/mmcblk2", utils::MakePartitionName("/dev/mmcblk", 2));
+  EXPECT_EQ("/dev/mmcblk0p2", utils::MakePartitionName("/dev/mmcblk0", 2));
+  EXPECT_EQ("/dev/loop8", utils::MakePartitionName("/dev/loop", 8));
+  EXPECT_EQ("/dev/loop12p2", utils::MakePartitionName("/dev/loop12", 2));
+  EXPECT_EQ("/dev/ubiblock3_0", utils::MakePartitionName("/dev/ubiblock", 3));
+}
+
 
 TEST(UtilsTest, CompareCpuSharesTest) {
   EXPECT_LT(utils::CompareCpuShares(utils::kCpuSharesLow,
