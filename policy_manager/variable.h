@@ -166,7 +166,7 @@ class Variable : public BaseVariable {
   Variable(const std::string& name, VariableMode mode)
       : BaseVariable(name, mode) {}
 
-  Variable(const std::string& name, const base::TimeDelta& poll_interval)
+  Variable(const std::string& name, const base::TimeDelta poll_interval)
       : BaseVariable(name, poll_interval) {}
 
   // Gets the current value of the variable. The current value is copied to a
