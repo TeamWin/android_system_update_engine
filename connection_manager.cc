@@ -202,8 +202,7 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type,
       if (device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
         // The update setting is enforced by the device policy.
 
-        if ((type == kNetCellular &&
-            !ContainsKey(allowed_types, shill::kTypeCellular))) {
+        if (!ContainsKey(allowed_types, shill::kTypeCellular)) {
           LOG(INFO) << "Disabling updates over cellular connection as it's not "
                        "allowed in the device policy.";
           return false;
