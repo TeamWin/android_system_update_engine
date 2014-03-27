@@ -785,11 +785,20 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
 }
 
 bool UpdateAttempter::CanRollback() const {
+  return !GetRollbackPartition().empty();
+}
+
+std::string UpdateAttempter::GetRollbackPartition() const {
   std::vector<std::string> kernel_devices =
       system_state_->hardware()->GetKernelDevices();
 
   std::string boot_kernel_device =
       system_state_->hardware()->BootKernelDevice();
+
+  LOG(INFO) << "UpdateAttempter::GetRollbackPartition";
+  for (auto&& name : kernel_devices)
+    LOG(INFO) << "  Available kernel device = " << name;
+  LOG(INFO) << "  Boot kernel device =      " << boot_kernel_device;
 
   auto current = std::find(kernel_devices.begin(), kernel_devices.end(),
                            boot_kernel_device);
@@ -797,7 +806,7 @@ bool UpdateAttempter::CanRollback() const {
   if(current == kernel_devices.end()) {
     LOG(ERROR) << "Unable to find the boot kernel device in the list of "
                << "available devices";
-    return false;
+    return std::string();
   }
 
   for (std::string const& device_name : kernel_devices) {
@@ -805,12 +814,35 @@ bool UpdateAttempter::CanRollback() const {
       bool bootable = false;
       if (system_state_->hardware()->IsKernelBootable(device_name, &bootable) &&
           bootable) {
-        return true;
+        return device_name;
       }
     }
   }
 
-  return false;
+  return std::string();
+}
+
+std::vector<std::pair<std::string, bool>>
+    UpdateAttempter::GetKernelDevices() const {
+  std::vector<std::string> kernel_devices =
+    system_state_->hardware()->GetKernelDevices();
+
+  std::string boot_kernel_device =
+    system_state_->hardware()->BootKernelDevice();
+
+  std::vector<std::pair<std::string, bool>> info_list;
+  info_list.reserve(kernel_devices.size());
+
+  for (std::string device_name : kernel_devices) {
+    bool bootable = false;
+    system_state_->hardware()->IsKernelBootable(device_name, &bootable);
+    // Add '*' to the name of the partition we booted from.
+    if (device_name == boot_kernel_device)
+      device_name += '*';
+    info_list.emplace_back(device_name, bootable);
+  }
+
+  return info_list;
 }
 
 void UpdateAttempter::CheckForUpdate(const string& app_version,

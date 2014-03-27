@@ -69,6 +69,18 @@ gboolean update_engine_service_can_rollback(
     gboolean* out_can_rollback,
     GError **error);
 
+// Returns the name of kernel partition that can be rolled back into.
+gboolean update_engine_service_get_rollback_partition(
+  UpdateEngineService* self,
+  gchar** out_rollback_partition_name,
+  GError **error);
+
+// Returns a list of available kernel partitions and whether each of them
+// can be booted from or not.
+gboolean update_engine_service_get_kernel_devices(UpdateEngineService* self,
+                                                  gchar** out_kernel_devices,
+                                                  GError **error);
+
 gboolean update_engine_service_reset_status(UpdateEngineService* self,
                                             GError **error);
 

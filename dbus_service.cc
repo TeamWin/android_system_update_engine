@@ -8,6 +8,7 @@
 #include <string>
 
 #include <base/logging.h>
+#include <base/strings/stringprintf.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/clock_interface.h"
@@ -196,8 +197,33 @@ gboolean update_engine_service_can_rollback(UpdateEngineService* self,
                                             gboolean* out_can_rollback,
                                             GError **error)
 {
-  LOG(INFO) << "Checking for a rollback partition.";
-  *out_can_rollback = self->system_state_->update_attempter()->CanRollback();
+  bool can_rollback = self->system_state_->update_attempter()->CanRollback();
+  LOG(INFO) << "Checking for a rollback partition. Result: " << can_rollback;
+  *out_can_rollback = can_rollback;
+  return TRUE;
+}
+
+gboolean update_engine_service_get_rollback_partition(
+    UpdateEngineService* self,
+    gchar** out_rollback_partition_name,
+    GError **error) {
+  auto name = self->system_state_->update_attempter()->GetRollbackPartition();
+  LOG(INFO) << "Getting rollback partition name. Result: " << name;
+  *out_rollback_partition_name = g_strdup(name.c_str());
+  return TRUE;
+}
+
+gboolean update_engine_service_get_kernel_devices(UpdateEngineService* self,
+                                                  gchar** out_kernel_devices,
+                                                  GError **error) {
+  auto devices = self->system_state_->update_attempter()->GetKernelDevices();
+  std::string info;
+  for (auto&& device : devices) {
+    base::StringAppendF(&info, "%d:%s\n",
+                        device.second ? 1 : 0, device.first.c_str());
+  }
+  LOG(INFO) << "Available kernel devices: " << info;
+  *out_kernel_devices = g_strdup(info.c_str());
   return TRUE;
 }
 

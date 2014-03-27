@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <!-- COPYRIGHT HERE
      dbus-binding-tool -mode=glib-server -prefix=update_engine update_engine.xml
                         &gt; glib_server.h
@@ -80,6 +80,12 @@
     </signal>
     <method name="GetPrevVersion">
       <arg type="s" name="prev_version" direction="out" />
+    </method>
+    <method name="GetKernelDevices">
+      <arg type="s" name="kernel_devices" direction="out" />
+    </method>
+    <method name="GetRollbackPartition">
+      <arg type="s" name="rollback_partition_name" direction="out" />
     </method>
   </interface>
 </node>

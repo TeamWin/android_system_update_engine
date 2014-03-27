@@ -153,6 +153,15 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // partition exists.
   bool CanRollback() const;
 
+  // This is the internal entry point for getting a rollback partition name,
+  // if one exists. It returns the bootable rollback kernel device partition
+  // name or empty string if none is available.
+  std::string GetRollbackPartition() const;
+
+  // Returns a list of available kernel partitions along with information
+  // whether it is possible to boot from it.
+  std::vector<std::pair<std::string, bool>> GetKernelDevices() const;
+
   // Initiates a reboot if the current state is
   // UPDATED_NEED_REBOOT. Returns true on sucess, false otherwise.
   bool RebootIfNeeded();

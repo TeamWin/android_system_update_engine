@@ -59,6 +59,8 @@ DEFINE_bool(watch_for_updates, false,
             "Listen for status updates and print them to the screen.");
 DEFINE_bool(prev_version, false,
             "Show the previous OS version used before the update reboot.");
+DEFINE_bool(show_kernels, false, "Show the list of kernel patritions and "
+            "whether each of them is bootable or not");
 
 namespace {
 
@@ -211,20 +213,40 @@ bool Rollback(bool rollback) {
   return true;
 }
 
-bool CanRollback() {
+std::string GetRollbackPartition() {
   DBusGProxy* proxy;
   GError* error = NULL;
 
   CHECK(GetProxy(&proxy));
 
-  gboolean can_rollback = FALSE;
-  gboolean rc = update_engine_client_can_rollback(proxy,
-                                                  &can_rollback,
-                                                  &error);
+  char* rollback_partition = nullptr;
+  gboolean rc = update_engine_client_get_rollback_partition(proxy,
+                                                            &rollback_partition,
+                                                            &error);
   CHECK_EQ(rc, TRUE) << "Error while querying rollback partition availabilty: "
                      << GetAndFreeGError(&error);
-  return can_rollback;
+  std::string partition = rollback_partition;
+  g_free(rollback_partition);
+  return partition;
 }
+
+std::string GetKernelDevices() {
+  DBusGProxy* proxy;
+  GError* error = nullptr;
+
+  CHECK(GetProxy(&proxy));
+
+  char* kernel_devices = nullptr;
+  gboolean rc = update_engine_client_get_kernel_devices(proxy,
+                                                        &kernel_devices,
+                                                        &error);
+  CHECK_EQ(rc, TRUE) << "Error while getting a list of kernel devices: "
+    << GetAndFreeGError(&error);
+  std::string devices = kernel_devices;
+  g_free(kernel_devices);
+  return devices;
+}
+
 bool CheckForUpdates(const string& app_version, const string& omaha_url) {
   DBusGProxy* proxy;
   GError* error = NULL;
@@ -452,9 +474,13 @@ int main(int argc, char** argv) {
 
   // Show the rollback availability.
   if (FLAGS_can_rollback) {
-    bool can_rollback = CanRollback();
-    LOG(INFO) << "Rollback partition: "
-              << (can_rollback ? "AVAILABLE" : "UNAVAILABLE");
+    std::string rollback_partition = GetRollbackPartition();
+    if (rollback_partition.empty())
+      rollback_partition = "UNAVAILABLE";
+    else
+      rollback_partition = "AVAILABLE: " + rollback_partition;
+
+    LOG(INFO) << "Rollback partition: " << rollback_partition;
   }
 
   // Show the current P2P enabled setting.
@@ -545,6 +571,11 @@ int main(int argc, char** argv) {
 
   if (FLAGS_prev_version) {
     ShowPrevVersion();
+  }
+
+  if (FLAGS_show_kernels) {
+    LOG(INFO) << "Kernel partitions:\n"
+              << GetKernelDevices();
   }
 
   LOG(INFO) << "Done.";

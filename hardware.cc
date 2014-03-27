@@ -86,10 +86,7 @@ std::vector<std::string> Hardware::GetKernelDevices() const {
   }
 
   std::vector<std::string> devices;
-  const int slot_count = 2; // Use only partition slots A and B
-  devices.reserve(slot_count);
-  for(int slot = 0; slot < slot_count; slot++) {
-    int partition_num = (slot + 1) * 2; // for now, only #2, #4
+  for (int partition_num : {2, 4}) { // for now, only #2, #4 for slot A & B
     std::string device = utils::MakePartitionName(disk_name, partition_num);
     if(!device.empty()) {
       devices.push_back(std::move(device));
