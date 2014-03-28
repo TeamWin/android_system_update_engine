@@ -222,7 +222,6 @@ class PmRealShillProviderTest : public ::testing::Test {
   FakeClock fake_clock_;
   scoped_ptr<RealShillProvider> provider_;
   GCallback signal_handler_;
-  // FIXME void (*signal_handler_)(DBusGProxy*, const char*, GValue*, void*);
   void* signal_data_;
 };
 
