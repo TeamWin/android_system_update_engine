@@ -102,10 +102,8 @@ class BaseVariable {
 
   // Calls ValueChanged on all the observers.
   void NotifyValueChanged() {
-    for (auto& observer : observer_list_) {
-      RunFromMainLoop(base::Bind(&BaseVariable::ObserverInterface::ValueChanged,
-                                 base::Unretained(observer), this));
-    }
+    RunFromMainLoop(base::Bind(&BaseVariable::OnValueChangedNotification,
+                               base::Unretained(this)));
   }
 
  private:
@@ -113,12 +111,29 @@ class BaseVariable {
   friend class PmBaseVariableTest;
   FRIEND_TEST(PmBaseVariableTest, RepeatedObserverTest);
   FRIEND_TEST(PmBaseVariableTest, NotifyValueChangedTest);
+  FRIEND_TEST(PmBaseVariableTest, NotifyValueRemovesObserversTest);
 
   BaseVariable(const std::string& name, VariableMode mode,
                base::TimeDelta poll_interval)
     : name_(name), mode_(mode),
       poll_interval_(mode == kVariableModePoll ?
                      poll_interval : base::TimeDelta()) {}
+
+  void OnValueChangedNotification() {
+    // A ValueChanged() method can change the list of observers, for example
+    // removing itself and invalidating the iterator, so we create a snapshot
+    // of the observers first. Also, to support the case when *another* observer
+    // is removed, we check for them.
+    std::list<BaseVariable::ObserverInterface*> observer_list_copy(
+        observer_list_);
+
+    for (auto& observer : observer_list_copy) {
+      if (std::find(observer_list_.begin(), observer_list_.end(), observer) !=
+          observer_list_.end()) {
+        observer->ValueChanged(this);
+      }
+    }
+  }
 
   // The default PollInterval in minutes.
   static constexpr int kDefaultPollMinutes = 5;

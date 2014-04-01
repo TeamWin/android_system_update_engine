@@ -106,6 +106,53 @@ TEST(PmBaseVariableTest, NotifyValueChangedTest) {
   // Check that all the observers are called.
   EXPECT_EQ(2, observer1.calls_.size());
   EXPECT_EQ(1, observer2.calls_.size());
+
+  var.RemoveObserver(&observer1);
+  var.RemoveObserver(&observer2);
+}
+
+class BaseVariableObserverRemover : public BaseVariable::ObserverInterface {
+ public:
+  BaseVariableObserverRemover() : calls_(0) {}
+
+  void ValueChanged(BaseVariable* variable) override {
+    for (auto& observer : remove_observers_) {
+      variable->RemoveObserver(observer);
+    }
+    calls_++;
+  }
+
+  void OnCallRemoveObserver(BaseVariable::ObserverInterface* observer) {
+    remove_observers_.push_back(observer);
+  }
+
+  int get_calls() { return calls_; }
+
+ private:
+  vector<BaseVariable::ObserverInterface*> remove_observers_;
+  int calls_;
+};
+
+// Tests that we can remove an observer from a Variable on the ValueChanged()
+// call to that observer.
+TEST(PmBaseVariableTest, NotifyValueRemovesObserversTest) {
+  DefaultVariable<int> var("var", kVariableModeAsync);
+  BaseVariableObserverRemover observer1;
+  BaseVariableObserverRemover observer2;
+
+  var.AddObserver(&observer1);
+  var.AddObserver(&observer2);
+
+  // Make each observer remove both observers on ValueChanged.
+  observer1.OnCallRemoveObserver(&observer1);
+  observer1.OnCallRemoveObserver(&observer2);
+  observer2.OnCallRemoveObserver(&observer1);
+  observer2.OnCallRemoveObserver(&observer2);
+
+  var.NotifyValueChanged();
+  RunGMainLoopMaxIterations(100);
+
+  EXPECT_EQ(1, observer1.get_calls() + observer2.get_calls());
 }
 
 }  // namespace chromeos_policy_manager
