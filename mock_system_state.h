@@ -20,6 +20,7 @@
 #include "update_engine/policy_manager/fake_policy_manager.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/system_state.h"
+#include "update_engine/update_attempter_mock.h"
 
 namespace chromeos_update_engine {
 
@@ -69,7 +70,9 @@ class MockSystemState : public SystemState {
     return mock_gpio_handler_;
   }
 
-  virtual UpdateAttempter* update_attempter();
+  inline virtual UpdateAttempterMock* update_attempter() const override {
+    return mock_update_attempter_;
+  }
 
   inline virtual OmahaRequestParams* request_params() {
     return request_params_;

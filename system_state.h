@@ -76,7 +76,7 @@ class SystemState {
   virtual GpioHandler* gpio_handler() const = 0;
 
   // Returns a pointer to the update attempter object.
-  virtual UpdateAttempter* update_attempter() = 0;
+  virtual UpdateAttempter* update_attempter() const = 0;
 
   // Returns a pointer to the object that stores the parameters that are
   // common to all Omaha requests.

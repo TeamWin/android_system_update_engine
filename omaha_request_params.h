@@ -247,6 +247,9 @@ class OmahaRequestParams {
   void set_current_channel(const std::string& channel) {
     current_channel_ = channel;
   }
+  void set_target_channel(const std::string& channel) {
+    target_channel_ = channel;
+  }
 
   // Enforce security mode for testing purposes.
   void SetLockDown(bool lock);

@@ -4,7 +4,6 @@
 
 #include "update_engine/mock_system_state.h"
 #include "update_engine/policy_manager/fake_state.h"
-#include "update_engine/update_attempter_mock.h"
 
 using chromeos_policy_manager::FakeState;
 
@@ -35,10 +34,6 @@ MockSystemState::~MockSystemState() {
   delete mock_connection_manager_;
   delete mock_update_attempter_;
   delete mock_gpio_handler_;
-}
-
-UpdateAttempter* MockSystemState::update_attempter() {
-  return mock_update_attempter_;
 }
 
 }  // namespace chromeos_update_engine

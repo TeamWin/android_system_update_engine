@@ -69,7 +69,7 @@ class RealSystemState : public SystemState {
     return gpio_handler_.get();
   }
 
-  virtual inline UpdateAttempter* update_attempter() {
+  virtual inline UpdateAttempter* update_attempter() const override {
     return update_attempter_.get();
   }
 

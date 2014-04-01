@@ -100,11 +100,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   bool ResetStatus();
 
   // Returns the current status in the out params. Returns true on success.
-  bool GetStatus(int64_t* last_checked_time,
-                 double* progress,
-                 std::string* current_operation,
-                 std::string* new_version,
-                 int64_t* new_size);
+  virtual bool GetStatus(int64_t* last_checked_time,
+                         double* progress,
+                         std::string* current_operation,
+                         std::string* new_version,
+                         int64_t* new_size);
 
   // Runs chromeos-setgoodkernel, whose responsibility it is to mark the
   // currently booted partition has high priority/permanent/etc. The execution
@@ -192,7 +192,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Returns the boottime (CLOCK_BOOTTIME) recorded at the last
   // successful update. Returns false if the device has not updated.
-  bool GetBootTimeAtUpdate(base::Time *out_boot_time);
+  virtual bool GetBootTimeAtUpdate(base::Time *out_boot_time);
 
   // Returns a version OS version that was being used before the last reboot,
   // and if that reboot happended to be into an update (current version).
