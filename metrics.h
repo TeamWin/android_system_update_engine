@@ -30,6 +30,7 @@ extern const char kMetricCheckTimeSinceLastCheckUptimeMinutes[];
 extern const char kMetricAttemptNumber[];
 extern const char kMetricAttemptPayloadType[];
 extern const char kMetricAttemptPayloadSizeMiB[];
+extern const char kMetricAttemptConnectionType[];
 extern const char kMetricAttemptDurationMinutes[];
 extern const char kMetricAttemptDurationUptimeMinutes[];
 extern const char kMetricAttemptTimeSinceLastAttemptSeconds[];
@@ -140,6 +141,23 @@ enum class AttemptResult {
   kUnset = -1
 };
 
+// Possible ways the device is connected to the Internet.
+//
+// This is used in the UpdateEngine.Attempt.ConnectionType histogram.
+enum class ConnectionType {
+  kUnknown,           // Unknown.
+  kEthernet,          // Ethernet.
+  kWifi,              // Wireless.
+  kWimax,             // WiMax.
+  kBluetooth,         // Bluetooth.
+  kCellular,          // Cellular.
+  kTetheredEthernet,  // Tethered (Ethernet).
+  kTetheredWifi,      // Tethered (Wifi).
+
+  kNumConstants,
+  kUnset = -1
+};
+
 // Helper function to report metrics reported once a day. The
 // following metrics are reported:
 //
@@ -215,7 +233,8 @@ void ReportUpdateAttemptMetrics(
     DownloadSource download_source,
     AttemptResult attempt_result,
     ErrorCode internal_error_code,
-    DownloadErrorCode payload_download_error_code);
+    DownloadErrorCode payload_download_error_code,
+    ConnectionType connection_type);
 
 // Helper function to report the after the completion of a successful
 // update attempt. The following metrics are reported:

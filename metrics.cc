@@ -39,6 +39,8 @@ const char kMetricAttemptPayloadType[] =
     "UpdateEngine.Attempt.PayloadType";
 const char kMetricAttemptPayloadSizeMiB[] =
     "UpdateEngine.Attempt.PayloadSizeMiB";
+const char kMetricAttemptConnectionType[] =
+    "UpdateEngine.Attempt.ConnectionType";
 const char kMetricAttemptDurationMinutes[] =
     "UpdateEngine.Attempt.DurationMinutes";
 const char kMetricAttemptDurationUptimeMinutes[] =
@@ -180,7 +182,8 @@ void ReportUpdateAttemptMetrics(
     DownloadSource download_source,
     AttemptResult attempt_result,
     ErrorCode internal_error_code,
-    DownloadErrorCode payload_download_error_code) {
+    DownloadErrorCode payload_download_error_code,
+    ConnectionType connection_type) {
   string metric;
 
   metric = metrics::kMetricAttemptNumber;
@@ -311,6 +314,14 @@ void ReportUpdateAttemptMetrics(
         30*24*60,  // max: 30 days
         50);       // num_buckets
   }
+
+  metric = metrics::kMetricAttemptConnectionType;
+  LOG(INFO) << "Uploading " << static_cast<int>(connection_type)
+            << " for metric " <<  metric;
+  system_state->metrics_lib()->SendEnumToUMA(
+      metric,
+      static_cast<int>(connection_type),
+      static_cast<int>(ConnectionType::kNumConstants));
 }
 
 

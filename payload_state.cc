@@ -16,6 +16,7 @@
 #include "update_engine/hardware_interface.h"
 #include "update_engine/install_plan.h"
 #include "update_engine/prefs.h"
+#include "update_engine/real_dbus_wrapper.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
@@ -158,8 +159,22 @@ void PayloadState::AttemptStarted() {
   ClockInterface *clock = system_state_->clock();
   attempt_start_time_boot_ = clock->GetBootTime();
   attempt_start_time_monotonic_ = clock->GetMonotonicTime();
-
   attempt_num_bytes_downloaded_ = 0;
+
+  metrics::ConnectionType type;
+  NetworkConnectionType network_connection_type;
+  NetworkTethering tethering;
+  RealDBusWrapper dbus_iface;
+  ConnectionManager* connection_manager = system_state_->connection_manager();
+  if (!connection_manager->GetConnectionProperties(&dbus_iface,
+                                                   &network_connection_type,
+                                                   &tethering)) {
+    LOG(ERROR) << "Failed to determine connection type.";
+    type = metrics::ConnectionType::kUnknown;
+  } else {
+    type = utils::GetConnectionType(network_connection_type, tethering);
+  }
+  attempt_connection_type_ = type;
 }
 
 void PayloadState::UpdateResumed() {
@@ -583,7 +598,8 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
                                       download_source,
                                       attempt_result,
                                       internal_error_code,
-                                      payload_download_error_code);
+                                      payload_download_error_code,
+                                      attempt_connection_type_);
 }
 
 void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {

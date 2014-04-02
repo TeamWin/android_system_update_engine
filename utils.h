@@ -20,9 +20,10 @@
 #include "metrics/metrics_library.h"
 
 #include "update_engine/action.h"
+#include "update_engine/action_processor.h"
+#include "update_engine/connection_manager.h"
 #include "update_engine/constants.h"
 #include "update_engine/metrics.h"
-#include "update_engine/action_processor.h"
 
 namespace chromeos_update_engine {
 
@@ -349,6 +350,10 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code);
 // If metrics::AttemptResult::kPayloadDownloadError is returned, you
 // can use utils::GetDownloadError() to get more detail.
 metrics::AttemptResult GetAttemptResult(ErrorCode code);
+
+// Calculates the internet connection type given |type| and |tethering|.
+metrics::ConnectionType GetConnectionType(NetworkConnectionType type,
+                                          NetworkTethering tethering);
 
 // Sends the error code to UMA using the metrics interface object in the given
 // system state. It also uses the system state to determine the right UMA

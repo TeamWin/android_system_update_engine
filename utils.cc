@@ -1125,6 +1125,41 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
   return metrics::DownloadErrorCode::kInputMalformed;
 }
 
+metrics::ConnectionType GetConnectionType(
+    NetworkConnectionType type,
+    NetworkTethering tethering) {
+  switch (type) {
+    case kNetUnknown:
+      return metrics::ConnectionType::kUnknown;
+
+    case kNetEthernet:
+      if (tethering == NetworkTethering::kConfirmed)
+        return metrics::ConnectionType::kTetheredEthernet;
+      else
+        return metrics::ConnectionType::kEthernet;
+
+    case kNetWifi:
+      if (tethering == NetworkTethering::kConfirmed)
+        return metrics::ConnectionType::kTetheredWifi;
+      else
+        return metrics::ConnectionType::kWifi;
+
+    case kNetWimax:
+      return metrics::ConnectionType::kWimax;
+
+    case kNetBluetooth:
+      return metrics::ConnectionType::kBluetooth;
+
+    case kNetCellular:
+      return metrics::ConnectionType::kCellular;
+  }
+
+  LOG(ERROR) << "Unexpected network connection type: type=" << type
+             << ", tethering=" << static_cast<int>(tethering);
+
+  return metrics::ConnectionType::kUnknown;
+}
+
 // Returns a printable version of the various flags denoted in the higher order
 // bits of the given code. Returns an empty string if none of those bits are
 // set.

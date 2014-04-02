@@ -8,6 +8,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/metrics.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/prefs_interface.h"
 
@@ -501,6 +502,9 @@ class PayloadState : public PayloadStateInterface {
 
   // The monotonic time when the attempt was started.
   base::Time attempt_start_time_monotonic_;
+
+  // The connection type when the attempt started.
+  metrics::ConnectionType attempt_connection_type_;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };

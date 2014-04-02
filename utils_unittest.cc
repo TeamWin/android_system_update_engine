@@ -682,4 +682,54 @@ TEST(UtilsTest, MonotonicDurationHelper) {
   EXPECT_EQ(duration.InSeconds(), 0);
 }
 
+TEST(UtilsTest, GetConnectionType) {
+  // Check that expected combinations map to the right value.
+  EXPECT_EQ(metrics::ConnectionType::kUnknown,
+            utils::GetConnectionType(kNetUnknown,
+                                     NetworkTethering::kUnknown));
+  EXPECT_EQ(metrics::ConnectionType::kEthernet,
+            utils::GetConnectionType(kNetEthernet,
+                                     NetworkTethering::kUnknown));
+  EXPECT_EQ(metrics::ConnectionType::kWifi,
+            utils::GetConnectionType(kNetWifi,
+                                     NetworkTethering::kUnknown));
+  EXPECT_EQ(metrics::ConnectionType::kWimax,
+            utils::GetConnectionType(kNetWimax,
+                                     NetworkTethering::kUnknown));
+  EXPECT_EQ(metrics::ConnectionType::kBluetooth,
+            utils::GetConnectionType(kNetBluetooth,
+                                     NetworkTethering::kUnknown));
+  EXPECT_EQ(metrics::ConnectionType::kCellular,
+            utils::GetConnectionType(kNetCellular,
+                                     NetworkTethering::kUnknown));
+  EXPECT_EQ(metrics::ConnectionType::kTetheredEthernet,
+            utils::GetConnectionType(kNetEthernet,
+                                     NetworkTethering::kConfirmed));
+  EXPECT_EQ(metrics::ConnectionType::kTetheredWifi,
+            utils::GetConnectionType(kNetWifi,
+                                     NetworkTethering::kConfirmed));
+
+  // Ensure that we don't report tethered ethernet unless it's confirmed.
+  EXPECT_EQ(metrics::ConnectionType::kEthernet,
+            utils::GetConnectionType(kNetEthernet,
+                                     NetworkTethering::kNotDetected));
+  EXPECT_EQ(metrics::ConnectionType::kEthernet,
+            utils::GetConnectionType(kNetEthernet,
+                                     NetworkTethering::kSuspected));
+  EXPECT_EQ(metrics::ConnectionType::kEthernet,
+            utils::GetConnectionType(kNetEthernet,
+                                     NetworkTethering::kUnknown));
+
+  // Ditto for tethered wifi.
+  EXPECT_EQ(metrics::ConnectionType::kWifi,
+            utils::GetConnectionType(kNetWifi,
+                                     NetworkTethering::kNotDetected));
+  EXPECT_EQ(metrics::ConnectionType::kWifi,
+            utils::GetConnectionType(kNetWifi,
+                                     NetworkTethering::kSuspected));
+  EXPECT_EQ(metrics::ConnectionType::kWifi,
+            utils::GetConnectionType(kNetWifi,
+                                     NetworkTethering::kUnknown));
+}
+
 }  // namespace chromeos_update_engine
