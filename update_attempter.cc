@@ -709,13 +709,26 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   }
 }
 
-bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
-  CHECK(!processor_->IsRunning());
-  processor_->set_delegate(this);
+bool UpdateAttempter::Rollback(bool powerwash) {
+  if (!CanRollback()) {
+    return false;
+  }
 
-  // TODO(sosa): crbug.com/252539 -- refactor channel into system_state and
-  // check for != stable-channel here.
-  RefreshDevicePolicy();
+  // Extra check for enterprise-enrolled devices since they don't support
+  // powerwash.
+  if (powerwash) {
+    // Enterprise-enrolled devices have an empty owner in their device policy.
+    string owner;
+    RefreshDevicePolicy();
+    const policy::DevicePolicy* device_policy = system_state_->device_policy();
+    if (device_policy && (!device_policy->GetOwner(&owner) || owner.empty())) {
+      LOG(ERROR) << "Enterprise device detected. "
+                 << "Cannot perform a powerwash for enterprise devices.";
+      return false;
+    }
+  }
+
+  processor_->set_delegate(this);
 
   // Initialize the default request params.
   if (!omaha_request_params_->Init("", "", true)) {
@@ -725,45 +738,14 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
 
   LOG(INFO) << "Setting rollback options.";
   InstallPlan install_plan;
-  if (install_path == NULL) {
-    TEST_AND_RETURN_FALSE(utils::GetInstallDev(
-        system_state_->hardware()->BootDevice(),
-        &install_plan.install_path));
-  }
-  else {
-    install_plan.install_path = *install_path;
-  }
+
+  TEST_AND_RETURN_FALSE(utils::GetInstallDev(
+      system_state_->hardware()->BootDevice(),
+      &install_plan.install_path));
 
   install_plan.kernel_install_path =
       utils::KernelDeviceOfBootDevice(install_plan.install_path);
-
-  // Check to see if the kernel we want to rollback too is bootable.
-  LOG(INFO) << "Validating there is something to rollback too at: "
-            << install_plan.kernel_install_path;
-  bool rollback_bootable;
-  if (!system_state_->hardware()->IsKernelBootable(
-          install_plan.kernel_install_path,
-          &rollback_bootable)) {
-    LOG(ERROR) << "Unable to read GPT kernel flags.";
-    return false;
-  }
-
-  if (!rollback_bootable) {
-    LOG(ERROR) << "There is no valid OS to rollback too.";
-    return false;
-  }
-
   install_plan.powerwash_required = powerwash;
-  if (powerwash) {
-    // Enterprise-enrolled devices have an empty owner in their device policy.
-    string owner;
-    const policy::DevicePolicy* device_policy = system_state_->device_policy();
-    if (device_policy && (!device_policy->GetOwner(&owner) || owner.empty())) {
-      LOG(ERROR) << "Enterprise device detected. "
-                 << "Cannot perform a powerwash for enterprise devices.";
-      return false;
-    }
-  }
 
   LOG(INFO) << "Using this install plan:";
   install_plan.Dump();
@@ -795,7 +777,9 @@ bool UpdateAttempter::Rollback(bool powerwash, string *install_path) {
 }
 
 bool UpdateAttempter::CanRollback() const {
-  return !GetRollbackPartition().empty();
+  // We can only rollback if the update_engine isn't busy and we have a valid
+  // rollback partition.
+  return (status_ == UPDATE_STATUS_IDLE && !GetRollbackPartition().empty());
 }
 
 std::string UpdateAttempter::GetRollbackPartition() const {

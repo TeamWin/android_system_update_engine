@@ -182,7 +182,7 @@ gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
                                                 GError **error) {
   LOG(INFO) << "Attempting rollback to non-active partitions.";
 
-  if (!self->system_state_->update_attempter()->Rollback(powerwash, NULL)) {
+  if (!self->system_state_->update_attempter()->Rollback(powerwash)) {
     // TODO(dgarrett): Give a more specific error code/reason.
     log_and_set_response_error(error,
                                UPDATE_ENGINE_SERVICE_ERROR_FAILED,
@@ -198,7 +198,7 @@ gboolean update_engine_service_can_rollback(UpdateEngineService* self,
                                             GError **error)
 {
   bool can_rollback = self->system_state_->update_attempter()->CanRollback();
-  LOG(INFO) << "Checking for a rollback partition. Result: " << can_rollback;
+  LOG(INFO) << "Checking to see if we can rollback . Result: " << can_rollback;
   *out_can_rollback = can_rollback;
   return TRUE;
 }

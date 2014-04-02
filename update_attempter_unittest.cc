@@ -96,7 +96,6 @@ class UpdateAttempterTest : public ::testing::Test {
   void UpdateTestStart();
   void UpdateTestVerify();
   void RollbackTestStart(bool enterprise_rollback,
-                         bool stable_channel,
                          bool valid_slot);
   void RollbackTestVerify();
   static gboolean StaticUpdateTestStart(gpointer data);
@@ -104,7 +103,6 @@ class UpdateAttempterTest : public ::testing::Test {
   static gboolean StaticRollbackTestStart(gpointer data);
   static gboolean StaticInvalidSlotRollbackTestStart(gpointer data);
   static gboolean StaticEnterpriseRollbackTestStart(gpointer data);
-  static gboolean StaticStableChannelRollbackTestStart(gpointer data);
   static gboolean StaticRollbackTestVerify(gpointer data);
 
   void PingOmahaTestStart();
@@ -335,27 +333,20 @@ gboolean UpdateAttempterTest::StaticUpdateTestVerify(gpointer data) {
 
 gboolean UpdateAttempterTest::StaticRollbackTestStart(gpointer data) {
   reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
-      false, false, true);
+      false, true);
   return FALSE;
 }
 
 gboolean UpdateAttempterTest::StaticInvalidSlotRollbackTestStart(
     gpointer data) {
   reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
-      false, false, false);
+      false, false);
   return FALSE;
 }
 
 gboolean UpdateAttempterTest::StaticEnterpriseRollbackTestStart(gpointer data) {
   reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
-      true, false, true);
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticStableChannelRollbackTestStart(
-    gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
-      false, true, true);
+      true, true);
   return FALSE;
 }
 
@@ -467,7 +458,7 @@ void UpdateAttempterTest::UpdateTestVerify() {
 }
 
 void UpdateAttempterTest::RollbackTestStart(
-    bool enterprise_rollback, bool stable_channel, bool valid_slot) {
+    bool enterprise_rollback, bool valid_slot) {
   // Create a device policy so that we can change settings.
   policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
@@ -477,25 +468,19 @@ void UpdateAttempterTest::RollbackTestStart(
       Return(device_policy));
 
   if (!valid_slot) {
-    string rollback_kernel = "/dev/sda2";
+    // References bootable kernels in fake_hardware.h
+    string rollback_kernel = "/dev/sdz2";
     LOG(INFO) << "Test Mark Unbootable: " << rollback_kernel;
     mock_system_state_.get_fake_hardware()->MarkKernelUnbootable(
         rollback_kernel);
   }
 
-  string install_path = "/dev/sda3";
   bool is_rollback_allowed = false;
 
   // We only allow rollback on devices that are not enterprise enrolled and
   // which have a valid slot to rollback to.
   if (!enterprise_rollback && valid_slot) {
      is_rollback_allowed = true;
-  }
-
-  // Set up the policy for the test given our args.
-  if (stable_channel) {
-    attempter_.omaha_request_params_->set_current_channel(
-        string("stable-channel"));
   }
 
   if (enterprise_rollback) {
@@ -519,10 +504,10 @@ void UpdateAttempterTest::RollbackTestStart(
     }
     EXPECT_CALL(*processor_, StartProcessing()).Times(1);
 
-    EXPECT_TRUE(attempter_.Rollback(true, &install_path));
+    EXPECT_TRUE(attempter_.Rollback(true));
     g_idle_add(&StaticRollbackTestVerify, this);
   } else {
-    EXPECT_FALSE(attempter_.Rollback(true, &install_path));
+    EXPECT_FALSE(attempter_.Rollback(true));
     g_main_loop_quit(loop_);
   }
 }
@@ -538,8 +523,10 @@ void UpdateAttempterTest::RollbackTestVerify() {
   InstallPlanAction* install_plan_action =
         dynamic_cast<InstallPlanAction*>(attempter_.actions_[0].get());
   InstallPlan* install_plan = install_plan_action->install_plan();
-  EXPECT_EQ(install_plan->install_path, string("/dev/sda3"));
-  EXPECT_EQ(install_plan->kernel_install_path, string("/dev/sda2"));
+  // Matches fake_hardware.h -> rollback should move from kernel/boot device
+  // pair to other pair.
+  EXPECT_EQ(install_plan->install_path, string("/dev/sdz3"));
+  EXPECT_EQ(install_plan->kernel_install_path, string("/dev/sdz2"));
   EXPECT_EQ(install_plan->powerwash_required, true);
   g_main_loop_quit(loop_);
 }
@@ -563,14 +550,6 @@ TEST_F(UpdateAttempterTest, RollbackTest) {
 TEST_F(UpdateAttempterTest, InvalidSlotRollbackTest) {
   loop_ = g_main_loop_new(g_main_context_default(), FALSE);
   g_idle_add(&StaticInvalidSlotRollbackTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = NULL;
-}
-
-TEST_F(UpdateAttempterTest, StableChannelRollbackTest) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticStableChannelRollbackTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
   loop_ = NULL;
