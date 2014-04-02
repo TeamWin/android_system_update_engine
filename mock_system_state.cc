@@ -26,11 +26,14 @@ MockSystemState::MockSystemState()
   mock_gpio_handler_ = new testing::NiceMock<MockGpioHandler>();
   mock_update_attempter_ = new testing::NiceMock<UpdateAttempterMock>(
       this, &dbus_);
+  mock_connection_manager_ = new testing::NiceMock<MockConnectionManager>(this);
+  connection_manager_ = mock_connection_manager_;
   fake_policy_manager_.Init(FakeState::Construct());
 }
 
 MockSystemState::~MockSystemState() {
   delete mock_gpio_handler_;
+  delete mock_connection_manager_;
 }
 
 UpdateAttempter* MockSystemState::update_attempter() {

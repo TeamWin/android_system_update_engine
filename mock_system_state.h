@@ -12,6 +12,7 @@
 
 #include "update_engine/clock.h"
 #include "update_engine/fake_hardware.h"
+#include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_gpio_handler.h"
 #include "update_engine/mock_p2p_manager.h"
@@ -151,6 +152,7 @@ class MockSystemState : public SystemState {
   testing::NiceMock<MockPayloadState> mock_payload_state_;
   testing::NiceMock<MockGpioHandler>* mock_gpio_handler_;
   testing::NiceMock<UpdateAttempterMock>* mock_update_attempter_;
+  testing::NiceMock<MockConnectionManager>* mock_connection_manager_;
   MockDBusWrapper dbus_;
 
   // These are the other object we own.
