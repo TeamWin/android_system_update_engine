@@ -123,6 +123,63 @@ class ConstCopyVariable : public Variable<T> {
   const T obj_;
 };
 
+// A Variable class to implement simple Async variables. It provides two methods
+// SetValue and UnsetValue to modify the current value of the variable and
+// notify the registered observers whenever the value changed.
+//
+// The type T needs to be copy-constructable, default-constructable and have an
+// operator== (to determine if the value changed), which makes this class
+// suitable for basic types.
+template<typename T>
+class AsyncCopyVariable : public Variable<T> {
+ public:
+  explicit AsyncCopyVariable(const std::string& name)
+      : Variable<T>(name, kVariableModeAsync), has_value_(false) {}
+
+  AsyncCopyVariable(const std::string& name, const T value)
+      : Variable<T>(name, kVariableModeAsync),
+        has_value_(true), value_(value) {}
+
+  void SetValue(const T& new_value) {
+    bool should_notify = !(has_value_ && new_value == value_);
+    value_ = new_value;
+    has_value_ = true;
+    if (should_notify)
+      this->NotifyValueChanged();
+  }
+
+  void UnsetValue() {
+    if (has_value_) {
+      has_value_ = false;
+      this->NotifyValueChanged();
+    }
+  }
+
+ protected:
+  friend class PmAsyncCopyVariableTest;
+  FRIEND_TEST(PmAsyncCopyVariableTest, ConstructorTest);
+  FRIEND_TEST(PmAsyncCopyVariableTest, SetValueTest);
+  FRIEND_TEST(PmAsyncCopyVariableTest, UnsetValueTest);
+
+  // Variable override.
+  virtual const T* GetValue(base::TimeDelta /* timeout */,
+                            std::string* errmsg) {
+    if (!has_value_) {
+      if (errmsg)
+        *errmsg = "No value set for " + this->GetName();
+      return nullptr;
+    }
+    return new T(value_);
+  }
+
+ private:
+  // Whether the variable has a value set.
+  bool has_value_;
+
+  // Copy of the object to be returned by GetValue().
+  T value_;
+};
+
 }  // namespace chromeos_policy_manager
 
 #endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H_

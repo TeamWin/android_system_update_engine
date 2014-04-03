@@ -8,8 +8,8 @@
 #include "update_engine/system_state.h"
 
 #include <policy/device_policy.h>
+#include <metrics/metrics_library.h>
 
-#include "metrics/metrics_library.h"
 #include "update_engine/clock.h"
 #include "update_engine/connection_manager.h"
 #include "update_engine/gpio_handler.h"
@@ -143,6 +143,8 @@ class RealSystemState : public SystemState {
   scoped_ptr<P2PManager> p2p_manager_;
 
   chromeos_policy_manager::PolicyManager policy_manager_;
+
+  policy::PolicyProvider policy_provider_;
 
   // If true, this is the first instance of the update engine since the system
   // rebooted. Important for tracking whether you are running instance of the

@@ -7,6 +7,7 @@
 #include <base/logging.h>
 
 #include "update_engine/clock_interface.h"
+#include "update_engine/policy_manager/real_device_policy_provider.h"
 #include "update_engine/policy_manager/real_random_provider.h"
 #include "update_engine/policy_manager/real_shill_provider.h"
 #include "update_engine/policy_manager/real_system_provider.h"
@@ -15,9 +16,12 @@
 
 namespace chromeos_policy_manager {
 
-State* DefaultStateFactory(chromeos_update_engine::DBusWrapperInterface* dbus,
+State* DefaultStateFactory(policy::PolicyProvider* policy_provider,
+                           chromeos_update_engine::DBusWrapperInterface* dbus,
                            chromeos_update_engine::SystemState* system_state) {
   chromeos_update_engine::ClockInterface* const clock = system_state->clock();
+  scoped_ptr<RealDevicePolicyProvider> device_policy_provider(
+      new RealDevicePolicyProvider(policy_provider));
   scoped_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   scoped_ptr<RealShillProvider> shill_provider(
       new RealShillProvider(dbus, clock));
@@ -26,7 +30,8 @@ State* DefaultStateFactory(chromeos_update_engine::DBusWrapperInterface* dbus,
   scoped_ptr<RealUpdaterProvider> updater_provider(
       new RealUpdaterProvider(system_state));
 
-  if (!(random_provider->Init() &&
+  if (!(device_policy_provider->Init() &&
+        random_provider->Init() &&
         shill_provider->Init() &&
         system_provider->Init() &&
         time_provider->Init() &&
@@ -35,7 +40,8 @@ State* DefaultStateFactory(chromeos_update_engine::DBusWrapperInterface* dbus,
     return NULL;
   }
 
-  return new State(random_provider.release(),
+  return new State(device_policy_provider.release(),
+                   random_provider.release(),
                    shill_provider.release(),
                    system_provider.release(),
                    time_provider.release(),

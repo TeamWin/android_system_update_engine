@@ -57,6 +57,8 @@ class BaseVariable {
       LOG(WARNING) << "Variable " << name_ << " deleted with "
                    << observer_list_.size() << " observers.";
     }
+    DCHECK(observer_list_.empty()) << "Don't destroy the variable without "
+                                      "removing the observers.";
   }
 
   // Returns the variable name as a string.
@@ -172,6 +174,9 @@ class Variable : public BaseVariable {
   // directly from the variable.
   friend class EvaluationContext;
 
+  friend class PmRealDevicePolicyProviderTest;
+  FRIEND_TEST(PmRealDevicePolicyProviderTest,
+              NonExistentDevicePolicyEmptyVariables);
   friend class PmRealRandomProviderTest;
   FRIEND_TEST(PmRealRandomProviderTest, GetRandomValues);
   friend class PmRealShillProviderTest;

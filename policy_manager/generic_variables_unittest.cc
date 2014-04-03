@@ -8,8 +8,10 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/policy_manager/pmtest_utils.h"
+#include "update_engine/test_utils.h"
 
 using base::TimeDelta;
+using chromeos_update_engine::RunGMainLoopMaxIterations;
 
 namespace chromeos_policy_manager {
 
@@ -99,6 +101,80 @@ TEST_F(PmConstCopyVariableTest, SimpleTest) {
   copy.reset(var.GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(copy.get());
   EXPECT_EQ(5, *copy);
+}
+
+
+class PmAsyncCopyVariableTest : public ::testing::Test {
+ public:
+  void TearDown() {
+    // No remaining event on the main loop.
+    EXPECT_EQ(0, RunGMainLoopMaxIterations(1));
+  }
+
+ protected:
+  TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
+};
+
+TEST_F(PmAsyncCopyVariableTest, ConstructorTest) {
+  AsyncCopyVariable<int> var("var");
+  PMTEST_EXPECT_NULL(var.GetValue(default_timeout_, NULL));
+  EXPECT_EQ(kVariableModeAsync, var.GetMode());
+}
+
+TEST_F(PmAsyncCopyVariableTest, SetValueTest) {
+  AsyncCopyVariable<int> var("var");
+  var.SetValue(5);
+  scoped_ptr<const int> copy(var.GetValue(default_timeout_, NULL));
+  PMTEST_ASSERT_NOT_NULL(copy.get());
+  EXPECT_EQ(5, *copy);
+  // Execute all the pending observers.
+  RunGMainLoopMaxIterations(100);
+}
+
+TEST_F(PmAsyncCopyVariableTest, UnsetValueTest) {
+  AsyncCopyVariable<int> var("var", 42);
+  var.UnsetValue();
+  PMTEST_EXPECT_NULL(var.GetValue(default_timeout_, NULL));
+  // Execute all the pending observers.
+  RunGMainLoopMaxIterations(100);
+}
+
+class CallCounterObserver : public BaseVariable::ObserverInterface {
+ public:
+  void ValueChanged(BaseVariable* variable) {
+    calls_count_++;
+  }
+
+  int calls_count_ = 0;
+};
+
+TEST_F(PmAsyncCopyVariableTest, ObserverCalledTest) {
+  AsyncCopyVariable<int> var("var", 42);
+  CallCounterObserver observer;
+  var.AddObserver(&observer);
+  EXPECT_EQ(0, observer.calls_count_);
+
+  // Check that a different value fires the notification.
+  var.SetValue(5);
+  RunGMainLoopMaxIterations(100);
+  EXPECT_EQ(1, observer.calls_count_);
+
+  // Check the same value doesn't.
+  var.SetValue(5);
+  RunGMainLoopMaxIterations(100);
+  EXPECT_EQ(1, observer.calls_count_);
+
+  // Check that unsetting a previously set value fires the notification.
+  var.UnsetValue();
+  RunGMainLoopMaxIterations(100);
+  EXPECT_EQ(2, observer.calls_count_);
+
+  // Check that unsetting again doesn't.
+  var.UnsetValue();
+  RunGMainLoopMaxIterations(100);
+  EXPECT_EQ(2, observer.calls_count_);
+
+  var.RemoveObserver(&observer);
 }
 
 }  // namespace chromeos_policy_manager

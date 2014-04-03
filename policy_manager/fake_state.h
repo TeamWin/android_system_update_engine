@@ -5,6 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_STATE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_STATE_H_
 
+#include "update_engine/policy_manager/fake_device_policy_provider.h"
 #include "update_engine/policy_manager/fake_random_provider.h"
 #include "update_engine/policy_manager/fake_shill_provider.h"
 #include "update_engine/policy_manager/fake_system_provider.h"
@@ -24,6 +25,10 @@ class FakeState : public State {
   virtual ~FakeState() {}
 
   // Downcasted getters, to allow access to the fake instances during testing.
+  virtual FakeDevicePolicyProvider* device_policy_provider() override {
+    return reinterpret_cast<FakeDevicePolicyProvider*>(
+        State::device_policy_provider());
+  }
   virtual FakeRandomProvider* random_provider() override {
     return reinterpret_cast<FakeRandomProvider*>(State::random_provider());
   }

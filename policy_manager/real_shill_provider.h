@@ -51,6 +51,9 @@ class ShillConnector {
     return GetProperties(manager_proxy_, result_p);
   }
 
+  // Converts a shill connection type string into a symbolic value.
+  static ConnectionType ParseConnectionType(const char* str);
+
  private:
   // Issues a GetProperties call through a given |proxy|, storing the result to
   // |*result_p|. Returns |true| on success.
@@ -78,9 +81,6 @@ class ShillConnector {
 
   // Return a DBus proxy for a given |path| and |interface| within shill.
   DBusGProxy* GetProxy(const char* path, const char* interface);
-
-  // Converts a shill connection type string into a symbolic value.
-  ConnectionType ParseConnType(const char* str);
 
   DISALLOW_COPY_AND_ASSIGN(ShillConnector);
 };

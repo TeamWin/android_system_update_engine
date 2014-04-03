@@ -16,8 +16,10 @@ namespace chromeos_policy_manager {
 // ownership of the passed interfaces, which need to remain available during the
 // life of this instance.  Returns null if one of the underlying providers fails
 // to initialize.
-State* DefaultStateFactory(chromeos_update_engine::DBusWrapperInterface* dbus,
-                           chromeos_update_engine::SystemState* system_state);
+State* DefaultStateFactory(
+    policy::PolicyProvider* policy_provider,
+    chromeos_update_engine::DBusWrapperInterface* dbus,
+    chromeos_update_engine::SystemState* system_state);
 
 }  // namespace chromeos_policy_manager
 

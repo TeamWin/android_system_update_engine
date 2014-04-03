@@ -45,8 +45,8 @@ bool RealSystemState::Initialize(bool enable_gpio) {
                                            kMaxP2PFilesToKeep));
 
   // Initialize the PolicyManager using the default State Factory.
-  if (!policy_manager_.Init(
-          chromeos_policy_manager::DefaultStateFactory(&dbus_, this))) {
+  if (!policy_manager_.Init(chromeos_policy_manager::DefaultStateFactory(
+      &policy_provider_, &dbus_, this))) {
     LOG(ERROR) << "Failed to initialize the policy manager.";
     return false;
   }

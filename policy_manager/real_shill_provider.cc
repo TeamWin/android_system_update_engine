@@ -94,7 +94,7 @@ bool ShillConnector::GetConnectionType(const string& service_path,
     }
     if (type_str) {
       success = true;
-      *conn_type_p = ParseConnType(type_str);
+      *conn_type_p = ParseConnectionType(type_str);
     }
     g_hash_table_unref(hash_table);
   }
@@ -114,7 +114,7 @@ DBusGProxy* ShillConnector::GetProxy(const char* path, const char* interface) {
                                 path, interface);
 }
 
-ConnectionType ShillConnector::ParseConnType(const char* str) {
+ConnectionType ShillConnector::ParseConnectionType(const char* str) {
   for (unsigned i = 0; i < arraysize(shill_conn_str_to_type); i++)
     if (!strcmp(str, shill_conn_str_to_type[i].str))
       return shill_conn_str_to_type[i].type;
