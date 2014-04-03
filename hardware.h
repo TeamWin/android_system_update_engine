@@ -26,6 +26,7 @@ class Hardware : public HardwareInterface {
   virtual bool MarkKernelUnbootable(const std::string& kernel_device) override;
   virtual bool IsOfficialBuild() const override;
   virtual bool IsNormalBootMode() const override;
+  virtual bool IsOOBEComplete(base::Time* out_time_of_oobe) const override;
   virtual std::string GetHardwareClass() const override;
   virtual std::string GetFirmwareVersion() const override;
   virtual std::string GetECVersion() const override;

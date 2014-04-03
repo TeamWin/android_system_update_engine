@@ -380,7 +380,7 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
   // inspecting the timestamp of when OOBE happened.
 
   Time time_of_oobe;
-  if (!system_state->IsOOBEComplete(&time_of_oobe)) {
+  if (!system_state->hardware()->IsOOBEComplete(&time_of_oobe)) {
     LOG(INFO) << "Not generating Omaha InstallData as we have "
               << "no prefs file and OOBE is not complete.";
     return -1;

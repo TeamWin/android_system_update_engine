@@ -2255,30 +2255,24 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
   // prefs. However, first try with an invalid date and check we do
   // nothing.
   {
-    NiceMock<MockSystemState> system_state;
-    system_state.set_prefs(&prefs);
+    NiceMock<MockSystemState> mock_system_state;
+    mock_system_state.set_prefs(&prefs);
 
     Time oobe_date = Time::FromTimeT(42); // Dec 31, 1969 16:00:42 PST.
-    EXPECT_CALL(system_state,
-                IsOOBEComplete(_))
-                .WillRepeatedly(DoAll(SetArgumentPointee<0>(oobe_date),
-                                      Return(true)));
-    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), -1);
+    mock_system_state.get_fake_hardware()->SetIsOOBEComplete(oobe_date);
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&mock_system_state), -1);
     EXPECT_FALSE(prefs.Exists(kPrefsInstallDateDays));
   }
 
   // Then check with a valid date. The date Jan 20, 2007 0:00 PST
   // should yield an InstallDate of 14.
   {
-    NiceMock<MockSystemState> system_state;
-    system_state.set_prefs(&prefs);
+    NiceMock<MockSystemState> mock_system_state;
+    mock_system_state.set_prefs(&prefs);
 
     Time oobe_date = Time::FromTimeT(1169280000); // Jan 20, 2007 0:00 PST.
-    EXPECT_CALL(system_state,
-                IsOOBEComplete(_))
-                .WillRepeatedly(DoAll(SetArgumentPointee<0>(oobe_date),
-                                      Return(true)));
-    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), 14);
+    mock_system_state.get_fake_hardware()->SetIsOOBEComplete(oobe_date);
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&mock_system_state), 14);
     EXPECT_TRUE(prefs.Exists(kPrefsInstallDateDays));
 
     int64_t prefs_days;
@@ -2291,15 +2285,12 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
   // 2007 0:00 PST should yield an InstallDate of 28... but since
   // there's a prefs file, we should still get 14.
   {
-    NiceMock<MockSystemState> system_state;
-    system_state.set_prefs(&prefs);
+    NiceMock<MockSystemState> mock_system_state;
+    mock_system_state.set_prefs(&prefs);
 
     Time oobe_date = Time::FromTimeT(1170144000); // Jan 30, 2007 0:00 PST.
-    EXPECT_CALL(system_state,
-                IsOOBEComplete(_))
-                .WillRepeatedly(DoAll(SetArgumentPointee<0>(oobe_date),
-                                      Return(true)));
-    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), 14);
+    mock_system_state.get_fake_hardware()->SetIsOOBEComplete(oobe_date);
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&mock_system_state), 14);
 
     int64_t prefs_days;
     EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
@@ -2307,7 +2298,7 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
 
     // If we delete the prefs file, we should get 28 days.
     EXPECT_TRUE(prefs.Delete(kPrefsInstallDateDays));
-    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), 28);
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&mock_system_state), 28);
     EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
     EXPECT_EQ(prefs_days, 28);
   }

@@ -13,8 +13,6 @@
 
 namespace chromeos_update_engine {
 
-static const char kOOBECompletedMarker[] = "/home/chronos/.oobe_completed";
-
 RealSystemState::RealSystemState()
     : device_policy_(nullptr),
       connection_manager_(this),
@@ -73,21 +71,6 @@ bool RealSystemState::Initialize(bool enable_gpio) {
   update_attempter_.reset(new UpdateAttempter(this, &dbus_));
 
   // All is well. Initialization successful.
-  return true;
-}
-
-bool RealSystemState::IsOOBEComplete(base::Time* out_time_of_oobe) {
-  struct stat statbuf;
-  if (stat(kOOBECompletedMarker, &statbuf) != 0) {
-    if (errno != ENOENT) {
-      PLOG(ERROR) << "Error getting information about "
-                  << kOOBECompletedMarker;
-    }
-    return false;
-  }
-
-  if (out_time_of_oobe != NULL)
-    *out_time_of_oobe = base::Time::FromTimeT(statbuf.st_mtime);
   return true;
 }
 

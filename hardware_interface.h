@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include <base/time/time.h>
+
 namespace chromeos_update_engine {
 
 // The hardware interface allows access to the following parts of the system,
@@ -44,6 +46,11 @@ class HardwareInterface {
   // determine the boot mode. Returns false if the boot mode is
   // developer.
   virtual bool IsNormalBootMode() const = 0;
+
+  // Returns true if the OOBE process has been completed and EULA accepted,
+  // False otherwise. If True is returned, and |out_time_of_oobe| isn't null,
+  // the time-stamp of when OOBE happened is stored at |out_time_of_oobe|.
+  virtual bool IsOOBEComplete(base::Time* out_time_of_oobe) const = 0;
 
   // Returns the HWID or an empty string on error.
   virtual std::string GetHardwareClass() const = 0;

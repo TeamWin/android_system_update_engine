@@ -281,10 +281,8 @@ TEST_F(UpdateCheckSchedulerTest, SetUpdateStatusNonIdleTest) {
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
   scheduler_.scheduled_ = true;
   EXPECT_TRUE(scheduler_.mock_system_state_ != NULL);
-  EXPECT_CALL(*scheduler_.mock_system_state_,
-              IsOOBEComplete(_)).Times(1)
-              .WillOnce(DoAll(SetArgumentPointee<0>(Time::UnixEpoch()),
-                              Return(true)));
+  scheduler_.mock_system_state_->get_fake_hardware()->SetIsOOBEComplete(
+      Time::UnixEpoch());
   EXPECT_CALL(attempter_, Update("", "", false, false, false))
       .Times(1)
       .WillOnce(Assign(&scheduler_.scheduled_, true));
@@ -295,10 +293,7 @@ TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
 
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBENotCompleteTest) {
   scheduler_.scheduled_ = true;
-  EXPECT_CALL(*scheduler_.mock_system_state_,
-              IsOOBEComplete(_)).Times(1)
-              .WillOnce(DoAll(SetArgumentPointee<0>(Time::UnixEpoch()),
-                              Return(false)));
+  scheduler_.mock_system_state_->get_fake_hardware()->UnsetIsOOBEComplete();
   EXPECT_CALL(attempter_, Update("", "", _, _, _)).Times(0);
   int interval_min, interval_max;
   FuzzRange(UpdateCheckScheduler::kTimeoutInitialInterval,

@@ -28,8 +28,6 @@ class RealSystemState : public SystemState {
   RealSystemState();
   virtual ~RealSystemState() {}
 
-  virtual bool IsOOBEComplete(base::Time* out_time_of_oobe);
-
   virtual inline void set_device_policy(
       const policy::DevicePolicy* device_policy) {
     device_policy_ = device_policy;

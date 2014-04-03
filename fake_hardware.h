@@ -7,6 +7,8 @@
 
 #include <map>
 
+#include <base/time/time.h>
+
 #include "update_engine/hardware_interface.h"
 
 namespace chromeos_update_engine {
@@ -20,6 +22,7 @@ class FakeHardware : public HardwareInterface {
       kernel_devices_({"/dev/sdz2", "/dev/sdz4"}),
       is_official_build_(true),
       is_normal_boot_mode_(true),
+      is_oobe_complete_(false),
       hardware_class_("Fake HWID BLAH-1234"),
       firmware_version_("Fake Firmware v1.0.1"),
       ec_version_("Fake EC v1.0a") {}
@@ -53,6 +56,12 @@ class FakeHardware : public HardwareInterface {
     return is_normal_boot_mode_;
   }
 
+  virtual bool IsOOBEComplete(base::Time* out_time_of_oobe) const override {
+    if (out_time_of_oobe != nullptr)
+      *out_time_of_oobe = oobe_timestamp_;
+    return is_oobe_complete_;
+  }
+
   virtual std::string GetHardwareClass() const override {
     return hardware_class_;
   }
@@ -76,6 +85,17 @@ class FakeHardware : public HardwareInterface {
     is_normal_boot_mode_ = is_normal_boot_mode;
   }
 
+  // Sets the IsOOBEComplete to True with the given timestamp.
+  void SetIsOOBEComplete(base::Time oobe_timestamp) {
+    is_oobe_complete_ = true;
+    oobe_timestamp_ = oobe_timestamp;
+  }
+
+  // Sets the IsOOBEComplete to False.
+  void UnsetIsOOBEComplete() {
+    is_oobe_complete_ = false;
+  }
+
   void SetHardwareClass(std::string hardware_class) {
     hardware_class_ = hardware_class;
   }
@@ -95,6 +115,8 @@ class FakeHardware : public HardwareInterface {
   std::map<std::string, bool> is_bootable_;
   bool is_official_build_;
   bool is_normal_boot_mode_;
+  bool is_oobe_complete_;
+  base::Time oobe_timestamp_;
   std::string hardware_class_;
   std::string firmware_version_;
   std::string ec_version_;

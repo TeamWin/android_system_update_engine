@@ -37,6 +37,9 @@ public:
     ON_CALL(*this, IsNormalBootMode())
       .WillByDefault(testing::Invoke(&fake_,
             &FakeHardware::IsNormalBootMode));
+    ON_CALL(*this, IsOOBEComplete(testing::_))
+      .WillByDefault(testing::Invoke(&fake_,
+            &FakeHardware::IsOOBEComplete));
     ON_CALL(*this, GetHardwareClass())
       .WillByDefault(testing::Invoke(&fake_,
             &FakeHardware::GetHardwareClass));
@@ -60,6 +63,7 @@ public:
                bool(const std::string& kernel_device));
   MOCK_CONST_METHOD0(IsOfficialBuild, bool());
   MOCK_CONST_METHOD0(IsNormalBootMode, bool());
+  MOCK_CONST_METHOD1(IsOOBEComplete, bool(base::Time* out_time_of_oobe));
   MOCK_CONST_METHOD0(GetHardwareClass, std::string());
   MOCK_CONST_METHOD0(GetFirmwareVersion, std::string());
   MOCK_CONST_METHOD0(GetECVersion, std::string());

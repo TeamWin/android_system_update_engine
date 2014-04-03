@@ -58,8 +58,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
     // be waiting on the dev server to build an image.
     if (!system_state->hardware()->IsOfficialBuild())
       low_speed_time_seconds_ = kDownloadDevModeLowSpeedTimeSeconds;
-    base::Time time_oobe_complete;
-    if (!system_state_->IsOOBEComplete(&time_oobe_complete))
+    if (!system_state_->hardware()->IsOOBEComplete(nullptr))
       max_retry_count_ = kDownloadMaxRetryCountOobeNotComplete;
   }
 

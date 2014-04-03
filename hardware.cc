@@ -27,6 +27,12 @@ void (*uuid_generator)(uint8_t* buffer) = NULL;
 using std::string;
 using std::vector;
 
+namespace {
+
+static const char kOOBECompletedMarker[] = "/home/chronos/.oobe_completed";
+
+}  // namespace
+
 namespace chromeos_update_engine {
 
 Hardware::Hardware() {}
@@ -143,6 +149,21 @@ bool Hardware::IsNormalBootMode() const {
   bool dev_mode = VbGetSystemPropertyInt("devsw_boot") != 0;
   LOG_IF(INFO, dev_mode) << "Booted in dev mode.";
   return !dev_mode;
+}
+
+bool Hardware::IsOOBEComplete(base::Time* out_time_of_oobe) const {
+  struct stat statbuf;
+  if (stat(kOOBECompletedMarker, &statbuf) != 0) {
+    if (errno != ENOENT) {
+      PLOG(ERROR) << "Error getting information about "
+                  << kOOBECompletedMarker;
+    }
+    return false;
+  }
+
+  if (out_time_of_oobe != nullptr)
+    *out_time_of_oobe = base::Time::FromTimeT(statbuf.st_mtime);
+  return true;
 }
 
 static string ReadValueFromCrosSystem(const string& key) {
