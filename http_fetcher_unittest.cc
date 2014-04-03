@@ -372,12 +372,8 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
       is_expect_error_(false), times_transfer_complete_called_(0),
       times_transfer_terminated_called_(0), times_received_bytes_called_(0) {}
 
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes, int length) {
-    char str[length + 1];
-    memset(str, 0, length + 1);
-    memcpy(str, bytes, length);
-
+  virtual void ReceivedBytes(HttpFetcher* /* fetcher */,
+                             const char* /* bytes */, int /* length */) {
     // Update counters
     times_received_bytes_called_++;
   }
@@ -537,10 +533,7 @@ namespace {
 class PausingHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
   virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes, int length) {
-    char str[length + 1];
-    memset(str, 0, length + 1);
-    memcpy(str, bytes, length);
+                             const char* /* bytes */, int /* length */) {
     CHECK(!paused_);
     paused_ = true;
     fetcher->Pause();
