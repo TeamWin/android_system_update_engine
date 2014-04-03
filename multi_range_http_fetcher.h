@@ -79,9 +79,6 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
   virtual void set_retry_seconds(int seconds) {
     base_fetcher_->set_retry_seconds(seconds);
   }
-  virtual void SetBuildType(bool is_official) {
-    base_fetcher_->SetBuildType(is_official);
-  }
   virtual void SetProxies(const std::deque<std::string>& proxies) {
     base_fetcher_->SetProxies(proxies);
   }

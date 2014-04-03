@@ -15,6 +15,7 @@
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/connection_manager.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/http_fetcher.h"
 #include "update_engine/system_state.h"
 
@@ -45,8 +46,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
         no_network_retry_count_(0),
         no_network_max_retries_(0),
         idle_seconds_(1),
-        force_build_type_(false),
-        forced_official_build_(false),
         in_write_callback_(false),
         sent_byte_(false),
         terminate_requested_(false),
@@ -57,7 +56,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
         connect_timeout_seconds_(kDownloadConnectTimeoutSeconds) {
     // Dev users want a longer timeout (180 seconds) because they may
     // be waiting on the dev server to build an image.
-    if (!IsOfficialBuild())
+    if (!system_state->hardware()->IsOfficialBuild())
       low_speed_time_seconds_ = kDownloadDevModeLowSpeedTimeSeconds;
     base::Time time_oobe_complete;
     if (!system_state_->IsOOBEComplete(&time_oobe_complete))
@@ -101,11 +100,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
   void set_no_network_max_retries(int retries) {
     no_network_max_retries_ = retries;
-  }
-
-  void SetBuildType(bool is_official) {
-    force_build_type_ = true;
-    forced_official_build_ = is_official;
   }
 
   void set_check_certificate(
@@ -208,9 +202,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // False otherwise.
   bool IsUpdateAllowedOverCurrentConnection() const;
 
-  // Returns whether or not the current build is official.
-  bool IsOfficialBuild() const;
-
   // Sets the curl options for HTTP URL.
   void SetCurlOptionsForHttp();
 
@@ -269,11 +260,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
   // Seconds to wait before asking libcurl to "perform".
   int idle_seconds_;
-
-  // If true, assume the build is official or not, according to
-  // forced_official_build_. Useful for testing.
-  bool force_build_type_;
-  bool forced_official_build_;
 
   // If true, we are currently performing a write callback on the delegate.
   bool in_write_callback_;

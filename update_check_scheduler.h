@@ -9,8 +9,8 @@
 #include <glib.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
-#include "update_engine/update_attempter.h"
 #include "update_engine/system_state.h"
+#include "update_engine/update_attempter.h"
 
 namespace chromeos_update_engine {
 
@@ -66,7 +66,6 @@ class UpdateCheckScheduler {
   FRIEND_TEST(UpdateCheckSchedulerTest, ComputeNextIntervalAndFuzzTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, GTimeoutAddSecondsTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, IsBootDeviceRemovableTest);
-  FRIEND_TEST(UpdateCheckSchedulerTest, IsOfficialBuildTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, RunBootDeviceRemovableTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, RunNonOfficialBuildTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, RunTest);
@@ -87,7 +86,6 @@ class UpdateCheckScheduler {
 
   // Wrappers for utils functions so that they can be mocked in tests.
   virtual bool IsBootDeviceRemovable();
-  virtual bool IsOfficialBuild();
 
   // Returns true if an update check can be scheduled. An update check should
   // not be scheduled if periodic update checks are disabled or if one is

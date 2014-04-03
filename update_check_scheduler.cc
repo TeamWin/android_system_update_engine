@@ -5,9 +5,9 @@
 #include "update_engine/update_check_scheduler.h"
 
 #include "update_engine/certificate_checker.h"
+#include "update_engine/gpio_handler.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/http_common.h"
-#include "update_engine/gpio_handler.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
@@ -37,7 +37,7 @@ void UpdateCheckScheduler::Run() {
   enabled_ = false;
   update_attempter_->set_update_check_scheduler(NULL);
 
-  if (!IsOfficialBuild()) {
+  if (!system_state_->hardware()->IsOfficialBuild()) {
     LOG(WARNING) << "Non-official build: periodic update checks disabled.";
     return;
   }
@@ -61,10 +61,6 @@ void UpdateCheckScheduler::Run() {
 bool UpdateCheckScheduler::IsBootDeviceRemovable() {
   return utils::IsRemovableDevice(utils::GetDiskName(
       system_state_->hardware()->BootDevice()));
-}
-
-bool UpdateCheckScheduler::IsOfficialBuild() {
-  return system_state_->hardware()->IsOfficialBuild();
 }
 
 guint UpdateCheckScheduler::GTimeoutAddSeconds(guint interval,

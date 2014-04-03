@@ -119,9 +119,7 @@ class HttpFetcher {
 
   ProxyResolver* proxy_resolver() const { return proxy_resolver_; }
 
-  // These are used for testing:
-  virtual void SetBuildType(bool is_official) {}
-
+  // Returns the global SystemState.
   SystemState* GetSystemState() {
     return system_state_;
   }

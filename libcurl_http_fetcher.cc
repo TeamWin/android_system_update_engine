@@ -56,11 +56,6 @@ bool LibcurlHttpFetcher::IsUpdateAllowedOverCurrentConnection() const {
   return is_allowed;
 }
 
-bool LibcurlHttpFetcher::IsOfficialBuild() const {
-  return force_build_type_ ? forced_official_build_
-                           : system_state_->hardware()->IsOfficialBuild();
-}
-
 bool LibcurlHttpFetcher::GetProxyType(const std::string& proxy,
                                       curl_proxytype* out_type) {
   if (utils::StringHasPrefix(proxy, "socks5://") ||
@@ -199,7 +194,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
 
   // If we are running in test mode or using a dev/test build, then lock down
   // the appropriate curl options for HTTP or HTTPS depending on the url.
-  if (!is_test_mode_ && IsOfficialBuild()) {
+  if (!is_test_mode_ && GetSystemState()->hardware()->IsOfficialBuild()) {
     if (StartsWithASCII(url_to_use, "http://", false))
       SetCurlOptionsForHttp();
     else

@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/update_check_scheduler.h"
+
 #include <gtest/gtest.h>
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/certificate_checker_mock.h"
 #include "update_engine/mock_system_state.h"
 #include "update_engine/update_attempter_mock.h"
-#include "update_engine/update_check_scheduler.h"
 
 using base::Time;
-using std::string;
 using testing::_;
 using testing::AllOf;
 using testing::Assign;
@@ -28,7 +28,7 @@ void FuzzRange(int interval, int fuzz, int* interval_min, int* interval_max) {
   *interval_min = interval - fuzz / 2;
   *interval_max = interval + fuzz - fuzz / 2;
 }
-}  // namespace {}
+}  // namespace
 
 // Test a subclass rather than the main class directly so that we can mock out
 // GLib and utils in tests. There're explicit unit test for the wrapper methods.
@@ -41,7 +41,6 @@ class UpdateCheckSchedulerUnderTest : public UpdateCheckScheduler {
 
   MOCK_METHOD2(GTimeoutAddSeconds, guint(guint seconds, GSourceFunc function));
   MOCK_METHOD0(IsBootDeviceRemovable, bool());
-  MOCK_METHOD0(IsOfficialBuild, bool());
 
   MockSystemState* mock_system_state_;
 };
@@ -170,14 +169,9 @@ TEST_F(UpdateCheckSchedulerTest, IsBootDeviceRemovableTest) {
   EXPECT_FALSE(scheduler_.UpdateCheckScheduler::IsBootDeviceRemovable());
 }
 
-TEST_F(UpdateCheckSchedulerTest, IsOfficialBuildTest) {
-  // Invokes the actual utils wrapper method rather than the subclass mock.
-  EXPECT_TRUE(scheduler_.UpdateCheckScheduler::IsOfficialBuild());
-}
-
 TEST_F(UpdateCheckSchedulerTest, RunBootDeviceRemovableTest) {
   scheduler_.enabled_ = true;
-  EXPECT_CALL(scheduler_, IsOfficialBuild()).Times(1).WillOnce(Return(true));
+  mock_system_state_.get_fake_hardware()->SetIsOfficialBuild(true);
   EXPECT_CALL(scheduler_, IsBootDeviceRemovable())
       .Times(1)
       .WillOnce(Return(true));
@@ -188,7 +182,7 @@ TEST_F(UpdateCheckSchedulerTest, RunBootDeviceRemovableTest) {
 
 TEST_F(UpdateCheckSchedulerTest, RunNonOfficialBuildTest) {
   scheduler_.enabled_ = true;
-  EXPECT_CALL(scheduler_, IsOfficialBuild()).Times(1).WillOnce(Return(false));
+  mock_system_state_.get_fake_hardware()->SetIsOfficialBuild(false);
   scheduler_.Run();
   EXPECT_FALSE(scheduler_.enabled_);
   EXPECT_EQ(NULL, attempter_.update_check_scheduler());
@@ -200,7 +194,7 @@ TEST_F(UpdateCheckSchedulerTest, RunTest) {
             UpdateCheckScheduler::kTimeoutRegularFuzz,
             &interval_min,
             &interval_max);
-  EXPECT_CALL(scheduler_, IsOfficialBuild()).Times(1).WillOnce(Return(true));
+  mock_system_state_.get_fake_hardware()->SetIsOfficialBuild(true);
   EXPECT_CALL(scheduler_, IsBootDeviceRemovable())
       .Times(1)
       .WillOnce(Return(false));
