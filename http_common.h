@@ -8,7 +8,9 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H_
 
-#include <stdlib.h>
+#include <cstdlib>
+
+namespace chromeos_update_engine {
 
 // Enumeration type for HTTP response codes.
 enum HttpResponseCode {
@@ -54,5 +56,7 @@ enum HttpContentType {
 
 // Returns a standard HTTP Content-Type string.
 const char *GetHttpContentTypeString(HttpContentType type);
+
+}  // namespace chromeos_update_engine
 
 #endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H_

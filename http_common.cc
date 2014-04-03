@@ -4,10 +4,11 @@
 
 // Implementation of common HTTP related functions.
 
-#include "base/basictypes.h"
-
 #include "update_engine/http_common.h"
 
+#include "base/basictypes.h"
+
+namespace chromeos_update_engine {
 
 const char *GetHttpResponseDescription(HttpResponseCode code) {
   static const struct {
@@ -69,3 +70,5 @@ const char *GetHttpContentTypeString(HttpContentType type) {
 
   return (is_found ? http_content_type_table[i].str : NULL);
 }
+
+} //  namespace chromeos_update_engine
