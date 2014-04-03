@@ -32,8 +32,9 @@ MockSystemState::MockSystemState()
 }
 
 MockSystemState::~MockSystemState() {
-  delete mock_gpio_handler_;
   delete mock_connection_manager_;
+  delete mock_update_attempter_;
+  delete mock_gpio_handler_;
 }
 
 UpdateAttempter* MockSystemState::update_attempter() {
