@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include <chromeos/dbus/service_constants.h>
 #include <dbus/dbus.h>
 #include <gflags/gflags.h>
 #include <glib.h>
@@ -40,6 +41,10 @@ DEFINE_string(p2p_update, "",
 DEFINE_bool(powerwash, true, "When performing rollback or channel change, "
             "do a powerwash or allow it respectively.");
 DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
+DEFINE_bool(is_reboot_needed, false, "Exit status 0 if reboot is needed, "
+            "2 if reboot is not needed or 1 if an error occurred.");
+DEFINE_bool(block_until_reboot_is_needed, false, "Blocks until reboot is "
+            "needed. Returns non-zero exit status if an error occurred.");
 DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
 DEFINE_bool(rollback, false, "Perform a rollback to the previous partition.");
 DEFINE_bool(can_rollback, false, "Shows whether rollback partition "
@@ -417,6 +422,113 @@ void ShowPrevVersion() {
   }
 }
 
+bool CheckIfRebootIsNeeded(DBusGProxy *proxy, bool *out_reboot_needed) {
+  gint64 last_checked_time = 0;
+  gdouble progress = 0.0;
+  char* current_op = nullptr;
+  char* new_version = nullptr;
+  gint64 new_size = 0;
+  GError* error = nullptr;
+
+  if (!update_engine_client_get_status(proxy,
+                                       &last_checked_time,
+                                       &progress,
+                                       &current_op,
+                                       &new_version,
+                                       &new_size,
+                                       &error)) {
+    LOG(INFO) << "Error getting status: " << GetAndFreeGError(&error);
+    return false;
+  }
+  *out_reboot_needed =
+      (g_strcmp0(current_op,
+                 update_engine::kUpdateStatusUpdatedNeedReboot) == 0);
+  g_free(current_op);
+  g_free(new_version);
+  return true;
+}
+
+// Determines if reboot is needed. The result is returned in
+// |out_reboot_needed|. Returns true if the check succeeded, false
+// otherwise.
+bool IsRebootNeeded(bool *out_reboot_needed) {
+  DBusGProxy* proxy = nullptr;
+  CHECK(GetProxy(&proxy));
+  bool ret = CheckIfRebootIsNeeded(proxy, out_reboot_needed);
+  g_object_unref(proxy);
+  return ret;
+}
+
+static void OnBlockUntilRebootStatusCallback(
+    DBusGProxy* proxy,
+    int64_t last_checked_time,
+    double progress,
+    const gchar* current_operation,
+    const gchar* new_version,
+    int64_t new_size,
+    void* user_data) {
+  GMainLoop *loop = reinterpret_cast<GMainLoop*>(user_data);
+  if (g_strcmp0(current_operation,
+                update_engine::kUpdateStatusUpdatedNeedReboot) == 0) {
+    g_main_loop_quit(loop);
+  }
+}
+
+bool CheckRebootNeeded(DBusGProxy *proxy, GMainLoop *loop) {
+  bool reboot_needed;
+  if (!CheckIfRebootIsNeeded(proxy, &reboot_needed))
+    return false;
+  if (reboot_needed)
+    return true;
+  // This will block until OnBlockUntilRebootStatusCallback() calls
+  // g_main_loop_quit().
+  g_main_loop_run(loop);
+  return true;
+}
+
+// Blocks until a reboot is needed. Returns true if waiting succeeded,
+// false if an error occurred.
+bool BlockUntilRebootIsNeeded() {
+  // The basic idea is to get a proxy, listen to signals and only then
+  // check the status. If no reboot is needed, just sit and wait for
+  // the StatusUpdate signal to convey that a reboot is pending.
+  DBusGProxy* proxy = nullptr;
+  CHECK(GetProxy(&proxy));
+  dbus_g_object_register_marshaller(
+      g_cclosure_marshal_generic,
+      G_TYPE_NONE,
+      G_TYPE_INT64,
+      G_TYPE_DOUBLE,
+      G_TYPE_STRING,
+      G_TYPE_STRING,
+      G_TYPE_INT64,
+      G_TYPE_INVALID);
+  dbus_g_proxy_add_signal(proxy,
+                          update_engine::kStatusUpdate,  // Signal name.
+                          G_TYPE_INT64,
+                          G_TYPE_DOUBLE,
+                          G_TYPE_STRING,
+                          G_TYPE_STRING,
+                          G_TYPE_INT64,
+                          G_TYPE_INVALID);
+  GMainLoop* loop = g_main_loop_new(nullptr, TRUE);
+  dbus_g_proxy_connect_signal(proxy,
+                              update_engine::kStatusUpdate,
+                              G_CALLBACK(OnBlockUntilRebootStatusCallback),
+                              loop,
+                              nullptr);  // free_data_func.
+
+  bool ret = CheckRebootNeeded(proxy, loop);
+
+  dbus_g_proxy_disconnect_signal(proxy,
+                                 update_engine::kStatusUpdate,
+                                 G_CALLBACK(OnBlockUntilRebootStatusCallback),
+                                 loop);
+  g_main_loop_unref(loop);
+  g_object_unref(proxy);
+  return ret;
+}
+
 }  // namespace {}
 
 int main(int argc, char** argv) {
@@ -534,10 +646,13 @@ int main(int argc, char** argv) {
   }
 
   // These final options are all mutually exclusive with one another.
-  if (FLAGS_follow + FLAGS_watch_for_updates + FLAGS_reboot + FLAGS_status > 1)
+  if (FLAGS_follow + FLAGS_watch_for_updates + FLAGS_reboot +
+      FLAGS_status + FLAGS_is_reboot_needed +
+      FLAGS_block_until_reboot_is_needed > 1)
   {
     LOG(ERROR) << "Multiple exclusive options selected. "
                << "Select only one of --follow, --watch_for_updates, --reboot, "
+               << "--is_reboot_needed, --block_until_reboot_is_needed, "
                << "or --status.";
     return 1;
   }
@@ -576,6 +691,19 @@ int main(int argc, char** argv) {
   if (FLAGS_show_kernels) {
     LOG(INFO) << "Kernel partitions:\n"
               << GetKernelDevices();
+  }
+
+  if (FLAGS_is_reboot_needed) {
+    bool reboot_needed = false;
+    if (!IsRebootNeeded(&reboot_needed))
+      return 1;
+    else if (!reboot_needed)
+      return 2;
+  }
+
+  if (FLAGS_block_until_reboot_is_needed) {
+    if (!BlockUntilRebootIsNeeded())
+      return 1;
   }
 
   LOG(INFO) << "Done.";
