@@ -133,9 +133,8 @@ void ReportUpdateCheckMetrics(SystemState *system_state,
   if (download_error_code != metrics::DownloadErrorCode::kUnset) {
     metric = metrics::kMetricCheckDownloadErrorCode;
     value = static_cast<int>(download_error_code);
-    max_value = static_cast<int>(metrics::DownloadErrorCode::kNumConstants) - 1;
-    LOG(INFO) << "Sending " << value << " for metric " << metric << " (enum)";
-    system_state->metrics_lib()->SendEnumToUMA(metric, value, max_value);
+    LOG(INFO) << "Sending " << value << " for metric " << metric << " (sparse)";
+    system_state->metrics_lib()->SendSparseToUMA(metric, value);
   }
 
   base::TimeDelta time_since_last;
@@ -277,11 +276,10 @@ void ReportUpdateAttemptMetrics(
   if (payload_download_error_code != DownloadErrorCode::kUnset) {
     metric = metrics::kMetricAttemptDownloadErrorCode;
     LOG(INFO) << "Uploading " << static_cast<int>(payload_download_error_code)
-              << " for metric " <<  metric;
-    system_state->metrics_lib()->SendEnumToUMA(
+              << " for metric " <<  metric << " (sparse)";
+    system_state->metrics_lib()->SendSparseToUMA(
         metric,
-        static_cast<int>(payload_download_error_code),
-        static_cast<int>(DownloadErrorCode::kNumConstants));
+        static_cast<int>(payload_download_error_code));
   }
 
   base::TimeDelta time_since_last;

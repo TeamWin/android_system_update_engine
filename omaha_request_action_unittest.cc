@@ -279,9 +279,8 @@ bool TestUpdateCheck(PrefsInterface* prefs,
           static_cast<int>(metrics::CheckReaction::kNumConstants) - 1))
       .Times(expected_check_reaction == metrics::CheckReaction::kUnset ? 0 : 1);
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(),
-      SendEnumToUMA(metrics::kMetricCheckDownloadErrorCode,
-          static_cast<int>(expected_download_error_code),
-          static_cast<int>(metrics::DownloadErrorCode::kNumConstants) - 1))
+      SendSparseToUMA(metrics::kMetricCheckDownloadErrorCode,
+          static_cast<int>(expected_download_error_code)))
       .Times(expected_download_error_code == metrics::DownloadErrorCode::kUnset
              ? 0 : 1);
 
