@@ -7,6 +7,9 @@
 
 #include "update_engine/system_state.h"
 
+#include <policy/device_policy.h>
+
+#include "metrics/metrics_library.h"
 #include "update_engine/clock.h"
 #include "update_engine/connection_manager.h"
 #include "update_engine/gpio_handler.h"
@@ -24,76 +27,75 @@ namespace chromeos_update_engine {
 // used by the actual product code.
 class RealSystemState : public SystemState {
  public:
-  // Constructors and destructors.
+  // Constructs all system objects that do not require separate initialization;
+  // see Initialize() below for the remaining ones.
   RealSystemState();
-  virtual ~RealSystemState() {}
+
+  // Initializes and sets systems objects that require an initialization
+  // separately from construction. Returns |true| on success.
+  bool Initialize(bool enable_gpio);
 
   virtual inline void set_device_policy(
-      const policy::DevicePolicy* device_policy) {
+      const policy::DevicePolicy* device_policy) override {
     device_policy_ = device_policy;
   }
 
-  virtual inline const policy::DevicePolicy* device_policy() const {
+  virtual inline const policy::DevicePolicy* device_policy() override {
     return device_policy_;
   }
 
-  virtual inline ClockInterface* clock() {
+  virtual inline ClockInterface* clock() override {
     return &clock_;
   }
 
-  virtual inline ConnectionManager* connection_manager() {
+  virtual inline ConnectionManager* connection_manager() override {
     return &connection_manager_;
   }
 
-  virtual inline HardwareInterface* hardware() {
+  virtual inline HardwareInterface* hardware() override {
     return &hardware_;
   }
 
-  virtual inline MetricsLibraryInterface* metrics_lib() {
+  virtual inline MetricsLibraryInterface* metrics_lib() override {
     return &metrics_lib_;
   }
 
-  virtual inline PrefsInterface* prefs() {
+  virtual inline PrefsInterface* prefs() override {
     return &prefs_;
   }
 
-  virtual inline PrefsInterface* powerwash_safe_prefs() {
+  virtual inline PrefsInterface* powerwash_safe_prefs() override {
       return &powerwash_safe_prefs_;
     }
 
-  virtual inline PayloadStateInterface* payload_state() {
+  virtual inline PayloadStateInterface* payload_state() override {
     return &payload_state_;
   }
 
-  virtual inline GpioHandler* gpio_handler() const {
+  virtual inline GpioHandler* gpio_handler() override {
     return gpio_handler_.get();
   }
 
-  virtual inline UpdateAttempter* update_attempter() const override {
-    return update_attempter_.get();
+  virtual inline UpdateAttempter* update_attempter() override {
+    return &update_attempter_;
   }
 
-  // Returns a pointer to the object that stores the parameters that are
-  // common to all Omaha requests.
-  virtual inline OmahaRequestParams* request_params() {
+  virtual inline OmahaRequestParams* request_params() override {
     return &request_params_;
   }
 
-  virtual inline P2PManager* p2p_manager() {
+  virtual inline P2PManager* p2p_manager() override {
     return p2p_manager_.get();
   }
 
-  virtual inline chromeos_policy_manager::PolicyManager* policy_manager() {
+  virtual inline chromeos_policy_manager::PolicyManager* policy_manager()
+      override {
     return &policy_manager_;
   }
 
-  virtual inline bool system_rebooted() {
+  virtual inline bool system_rebooted() override {
     return system_rebooted_;
   }
-
-  // Initializes this concrete object. Other methods should be invoked only
-  // if the object has been initialized successfully.
-  bool Initialize(bool enable_gpio);
 
  private:
   // Interface for the clock.
@@ -133,7 +135,7 @@ class RealSystemState : public SystemState {
   RealDBusWrapper dbus_;
 
   // Pointer to the update attempter object.
-  scoped_ptr<UpdateAttempter> update_attempter_;
+  UpdateAttempter update_attempter_;
 
   // Common parameters for all Omaha requests.
   OmahaRequestParams request_params_;

@@ -116,7 +116,8 @@ class PmRealUpdaterProviderTest : public ::testing::Test {
                                 kUpdateBootTime + kDurationSinceUpdate :
                                 kUpdateBootTime - kDurationSinceUpdate);
     const Time kCurrWallclockTime = FixedTime();
-    EXPECT_CALL(*mock_sys_state_.update_attempter(), GetBootTimeAtUpdate(_))
+    EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+                GetBootTimeAtUpdate(_))
         .WillOnce(DoAll(SetArgPointee<0>(kUpdateBootTime), Return(true)));
     fake_clock_.SetBootTime(kCurrBootTime);
     fake_clock_.SetWallclockTime(kCurrWallclockTime);
@@ -130,63 +131,73 @@ class PmRealUpdaterProviderTest : public ::testing::Test {
 };
 
 TEST_F(PmRealUpdaterProviderTest, GetLastCheckedTimeOkay) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<0>(FixedTime().ToTimeT()), Return(true)));
   TestGetValueOkay(provider_->var_last_checked_time(),
                    RoundedToSecond(FixedTime()));
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetLastCheckedTimeFailNoValue) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
   TestGetValueFail(provider_->var_last_checked_time());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressOkayMin) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(0.0), Return(true)));
   TestGetValueOkay(provider_->var_progress(), 0.0);
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressOkayMid) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(0.3), Return(true)));
   TestGetValueOkay(provider_->var_progress(), 0.3);
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressOkayMax) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(1.0), Return(true)));
   TestGetValueOkay(provider_->var_progress(), 1.0);
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressFailNoValue) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
   TestGetValueFail(provider_->var_progress());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressFailTooSmall) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(-2.0), Return(true)));
   TestGetValueFail(provider_->var_progress());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressFailTooBig) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(2.0), Return(true)));
   TestGetValueFail(provider_->var_progress());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayIdle) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusIdle),
                       Return(true)));
   TestGetValueOkay(provider_->var_stage(), Stage::kIdle);
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayCheckingForUpdate) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusCheckingForUpdate),
               Return(true)));
@@ -194,7 +205,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayCheckingForUpdate) {
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayUpdateAvailable) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusUpdateAvailable),
               Return(true)));
@@ -202,28 +214,32 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayUpdateAvailable) {
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayDownloading) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusDownloading),
                       Return(true)));
   TestGetValueOkay(provider_->var_stage(), Stage::kDownloading);
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayVerifying) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusVerifying),
                       Return(true)));
   TestGetValueOkay(provider_->var_stage(), Stage::kVerifying);
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayFinalizing) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusFinalizing),
                       Return(true)));
   TestGetValueOkay(provider_->var_stage(), Stage::kFinalizing);
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayUpdatedNeedReboot) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusUpdatedNeedReboot),
               Return(true)));
@@ -231,7 +247,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayUpdatedNeedReboot) {
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayReportingErrorEvent) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusReportingErrorEvent),
               Return(true)));
@@ -239,7 +256,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayReportingErrorEvent) {
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayAttemptingRollback) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusAttemptingRollback),
               Return(true)));
@@ -247,64 +265,74 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayAttemptingRollback) {
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageFailNoValue) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
   TestGetValueFail(provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageFailUnknown) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>("FooUpdateEngineState"),
                       Return(true)));
   TestGetValueFail(provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageFailEmpty) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(""), Return(true)));
   TestGetValueFail(provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetNewVersionOkay) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<3>("1.2.0"), Return(true)));
   TestGetValueOkay(provider_->var_new_version(), string("1.2.0"));
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetNewVersionFailNoValue) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
   TestGetValueFail(provider_->var_new_version());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayZero) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(0)), Return(true)));
   TestGetValueOkay(provider_->var_payload_size(), static_cast<size_t>(0));
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayArbitrary) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(567890)),
                       Return(true)));
   TestGetValueOkay(provider_->var_payload_size(), static_cast<size_t>(567890));
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayTwoGigabytes) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(1) << 31),
                       Return(true)));
   TestGetValueOkay(provider_->var_payload_size(), static_cast<size_t>(1) << 31);
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeFailNoValue) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
   TestGetValueFail(provider_->var_payload_size());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeFailNegative) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetStatus(_, _, _, _, _))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(),
+              GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(-1024)),
                       Return(true)));
   TestGetValueFail(provider_->var_payload_size());
@@ -402,7 +430,7 @@ TEST_F(PmRealUpdaterProviderTest, GetUpdateCompletedTimeOkay) {
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetUpdateCompletedTimeFailNoValue) {
-  EXPECT_CALL(*mock_sys_state_.update_attempter(), GetBootTimeAtUpdate(_))
+  EXPECT_CALL(*mock_sys_state_.mock_update_attempter(), GetBootTimeAtUpdate(_))
       .WillOnce(Return(false));
   TestGetValueFail(provider_->var_update_completed_time());
 }

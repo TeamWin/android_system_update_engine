@@ -171,7 +171,7 @@ TEST_F(UpdateCheckSchedulerTest, IsBootDeviceRemovableTest) {
 
 TEST_F(UpdateCheckSchedulerTest, RunBootDeviceRemovableTest) {
   scheduler_.enabled_ = true;
-  mock_system_state_.get_fake_hardware()->SetIsOfficialBuild(true);
+  mock_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   EXPECT_CALL(scheduler_, IsBootDeviceRemovable())
       .Times(1)
       .WillOnce(Return(true));
@@ -182,7 +182,7 @@ TEST_F(UpdateCheckSchedulerTest, RunBootDeviceRemovableTest) {
 
 TEST_F(UpdateCheckSchedulerTest, RunNonOfficialBuildTest) {
   scheduler_.enabled_ = true;
-  mock_system_state_.get_fake_hardware()->SetIsOfficialBuild(false);
+  mock_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   scheduler_.Run();
   EXPECT_FALSE(scheduler_.enabled_);
   EXPECT_EQ(NULL, attempter_.update_check_scheduler());
@@ -194,7 +194,7 @@ TEST_F(UpdateCheckSchedulerTest, RunTest) {
             UpdateCheckScheduler::kTimeoutRegularFuzz,
             &interval_min,
             &interval_max);
-  mock_system_state_.get_fake_hardware()->SetIsOfficialBuild(true);
+  mock_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   EXPECT_CALL(scheduler_, IsBootDeviceRemovable())
       .Times(1)
       .WillOnce(Return(false));
@@ -281,7 +281,7 @@ TEST_F(UpdateCheckSchedulerTest, SetUpdateStatusNonIdleTest) {
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
   scheduler_.scheduled_ = true;
   EXPECT_TRUE(scheduler_.mock_system_state_ != NULL);
-  scheduler_.mock_system_state_->get_fake_hardware()->SetIsOOBEComplete(
+  scheduler_.mock_system_state_->fake_hardware()->SetIsOOBEComplete(
       Time::UnixEpoch());
   EXPECT_CALL(attempter_, Update("", "", false, false, false))
       .Times(1)
@@ -293,7 +293,7 @@ TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
 
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBENotCompleteTest) {
   scheduler_.scheduled_ = true;
-  scheduler_.mock_system_state_->get_fake_hardware()->UnsetIsOOBEComplete();
+  scheduler_.mock_system_state_->fake_hardware()->UnsetIsOOBEComplete();
   EXPECT_CALL(attempter_, Update("", "", _, _, _)).Times(0);
   int interval_min, interval_max;
   FuzzRange(UpdateCheckScheduler::kTimeoutInitialInterval,

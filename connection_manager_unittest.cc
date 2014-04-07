@@ -229,26 +229,21 @@ TEST_F(ConnectionManagerTest, UnknownTest) {
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverEthernetTest) {
-  EXPECT_CALL(mock_system_state_, device_policy()).Times(0);
-
   // Updates over Ethernet are allowed even if there's no policy.
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetEthernet,
                                         NetworkTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverWifiTest) {
-  EXPECT_CALL(mock_system_state_, device_policy()).Times(0);
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWifi, NetworkTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverWimaxTest) {
-  EXPECT_CALL(mock_system_state_, device_policy()).Times(0);
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWimax,
                                         NetworkTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOverBluetoothTest) {
-  EXPECT_CALL(mock_system_state_, device_policy()).Times(0);
   EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetBluetooth,
                                          NetworkTethering::kUnknown));
 }
@@ -256,9 +251,7 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOverBluetoothTest) {
 TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
   policy::MockDevicePolicy allow_3g_policy;
 
-  EXPECT_CALL(mock_system_state_, device_policy())
-      .Times(1)
-      .WillOnce(Return(&allow_3g_policy));
+  mock_system_state_.set_device_policy(&allow_3g_policy);
 
   // This test tests cellular (3G) being the only connection type being allowed.
   set<string> allowed_set;
@@ -275,9 +268,7 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
 TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
   policy::MockDevicePolicy allow_3g_policy;
 
-  EXPECT_CALL(mock_system_state_, device_policy())
-      .Times(3)
-      .WillRepeatedly(Return(&allow_3g_policy));
+  mock_system_state_.set_device_policy(&allow_3g_policy);
 
   // This test tests multiple connection types being allowed, with
   // 3G one among them. Only Cellular is currently enforced by the policy
@@ -310,13 +301,11 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOverCellularByDefaultTest) {
-  EXPECT_CALL(mock_system_state_, device_policy()).Times(1);
   EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular,
                                          NetworkTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOverTetheredNetworkByDefaultTest) {
-  EXPECT_CALL(mock_system_state_, device_policy()).Times(2);
   EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetWifi,
                                          NetworkTethering::kConfirmed));
   EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetEthernet,
@@ -328,9 +317,7 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOverTetheredNetworkByDefaultTest) {
 TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
   policy::MockDevicePolicy block_3g_policy;
 
-  EXPECT_CALL(mock_system_state_, device_policy())
-      .Times(1)
-      .WillOnce(Return(&block_3g_policy));
+  mock_system_state_.set_device_policy(&block_3g_policy);
 
   // Test that updates for 3G are blocked while updates are allowed
   // over several other types.
@@ -350,9 +337,7 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
 TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
   policy::MockDevicePolicy allow_3g_policy;
 
-  EXPECT_CALL(mock_system_state_, device_policy())
-      .Times(1)
-      .WillOnce(Return(&allow_3g_policy));
+  mock_system_state_.set_device_policy(&allow_3g_policy);
 
   set<string> allowed_set;
   allowed_set.insert(cmut_.StringForConnectionType(kNetCellular));
@@ -372,9 +357,7 @@ TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
   policy::MockDevicePolicy no_policy;
   testing::NiceMock<PrefsMock>* prefs = mock_system_state_.mock_prefs();
 
-  EXPECT_CALL(mock_system_state_, device_policy())
-      .Times(3)
-      .WillRepeatedly(Return(&no_policy));
+  mock_system_state_.set_device_policy(&no_policy);
 
   // No setting enforced by the device policy, user prefs should be used.
   EXPECT_CALL(no_policy, GetAllowedConnectionTypesForUpdate(_))

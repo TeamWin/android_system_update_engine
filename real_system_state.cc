@@ -5,7 +5,6 @@
 #include "update_engine/real_system_state.h"
 
 #include <base/file_util.h>
-#include <base/time/time.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/policy_manager/state_factory.h"
@@ -16,8 +15,8 @@ namespace chromeos_update_engine {
 RealSystemState::RealSystemState()
     : device_policy_(nullptr),
       connection_manager_(this),
+      update_attempter_(this, &dbus_),
       request_params_(this),
-      p2p_manager_(),
       system_rebooted_(false) {}
 
 bool RealSystemState::Initialize(bool enable_gpio) {
@@ -45,11 +44,16 @@ bool RealSystemState::Initialize(bool enable_gpio) {
                                            kMaxP2PFilesToKeep));
 
   // Initialize the PolicyManager using the default State Factory.
-  policy_manager_.Init(
-      chromeos_policy_manager::DefaultStateFactory(&dbus_, this));
-
-  if (!payload_state_.Initialize(this))
+  if (!policy_manager_.Init(
+          chromeos_policy_manager::DefaultStateFactory(&dbus_, this))) {
+    LOG(ERROR) << "Failed to initialize the policy manager.";
     return false;
+  }
+
+  if (!payload_state_.Initialize(this)) {
+    LOG(ERROR) << "Failed to initialize the payload state object.";
+    return false;
+  }
 
   // Initialize the GPIO handler as instructed.
   if (enable_gpio) {
@@ -67,8 +71,8 @@ bool RealSystemState::Initialize(bool enable_gpio) {
     gpio_handler_.reset(new NoopGpioHandler(false));
   }
 
-  // Create the update attempter.
-  update_attempter_.reset(new UpdateAttempter(this, &dbus_));
+  // Initialize the update attempter.
+  update_attempter_.Init();
 
   // All is well. Initialization successful.
   return true;

@@ -120,52 +120,28 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
 
 UpdateAttempter::UpdateAttempter(SystemState* system_state,
                                  DBusWrapperInterface* dbus_iface)
-    : chrome_proxy_resolver_(dbus_iface) {
-  Init(system_state, kUpdateCompletedMarker);
-}
+    : UpdateAttempter(system_state, dbus_iface, kUpdateCompletedMarker) {}
 
 UpdateAttempter::UpdateAttempter(SystemState* system_state,
                                  DBusWrapperInterface* dbus_iface,
                                  const std::string& update_completed_marker)
-    : chrome_proxy_resolver_(dbus_iface) {
-  Init(system_state, update_completed_marker);
-}
-
-
-void UpdateAttempter::Init(SystemState* system_state,
-                           const std::string& update_completed_marker) {
-  // Initialite data members.
-  processor_.reset(new ActionProcessor());
-  system_state_ = system_state;
-  dbus_service_ = NULL;
-  update_check_scheduler_ = NULL;
-  fake_update_success_ = false;
-  http_response_code_ = 0;
-  shares_ = utils::kCpuSharesNormal;
-  manage_shares_source_ = NULL;
-  download_active_ = false;
-  download_progress_ = 0.0;
-  last_checked_time_ = 0;
-  new_version_ = "0.0.0.0";
-  new_payload_size_ = 0;
-  proxy_manual_checks_ = 0;
-  obeying_proxies_ = true;
-  updated_boot_flags_ = false;
-  update_boot_flags_running_ = false;
-  start_action_processor_ = false;
-  is_using_test_url_ = false;
-  is_test_mode_ = false;
-  is_test_update_attempted_ = false;
-  update_completed_marker_ = update_completed_marker;
-
-  prefs_ = system_state->prefs();
-  omaha_request_params_ = system_state->request_params();
-
+    : processor_(new ActionProcessor()),
+      system_state_(system_state),
+      chrome_proxy_resolver_(dbus_iface),
+      update_completed_marker_(update_completed_marker) {
   if (!update_completed_marker_.empty() &&
       utils::FileExists(update_completed_marker_.c_str()))
     status_ = UPDATE_STATUS_UPDATED_NEED_REBOOT;
   else
     status_ = UPDATE_STATUS_IDLE;
+}
+
+void UpdateAttempter::Init() {
+  // Pulling from the SystemState can only be done after construction, since
+  // this is an aggregate of various objects (such as the UpdateAttempter),
+  // which requires them all to be constructed prior to it being used.
+  prefs_ = system_state_->prefs();
+  omaha_request_params_ = system_state_->request_params();
 }
 
 UpdateAttempter::~UpdateAttempter() {

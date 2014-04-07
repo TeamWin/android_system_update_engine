@@ -5,6 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_STATE_FACTORY_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_STATE_FACTORY_H_
 
+#include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/policy_manager/state.h"
 #include "update_engine/system_state.h"
 

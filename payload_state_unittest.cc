@@ -1032,12 +1032,12 @@ TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
   payload_state.UpdateRestarted();
   EXPECT_EQ(0, payload_state.GetNumReboots());
 
-  EXPECT_CALL(mock_system_state, system_rebooted()).WillOnce(Return(true));
+  mock_system_state.set_system_rebooted(true);
   payload_state.UpdateResumed();
   // Num reboots should be incremented because system rebooted detected.
   EXPECT_EQ(1, payload_state.GetNumReboots());
 
-  EXPECT_CALL(mock_system_state, system_rebooted()).WillOnce(Return(false));
+  mock_system_state.set_system_rebooted(false);
   payload_state.UpdateResumed();
   // Num reboots should now be 1 as reboot was not detected.
   EXPECT_EQ(1, payload_state.GetNumReboots());
@@ -1191,8 +1191,7 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricTimeToRebootMinutes,
       7, _, _, _));
-  EXPECT_CALL(mock_system_state, system_rebooted())
-      .WillRepeatedly(Return(true));
+  mock_system_state.set_system_rebooted(true);
 
   payload_state2.UpdateEngineStarted();
 
@@ -1223,8 +1222,7 @@ TEST(PayloadStateTest, RestartAfterCrash) {
               SendToUMA(_, _, _, _, _)).Times(0);
 
   // Simulate an update_engine restart without a reboot.
-  EXPECT_CALL(mock_system_state, system_rebooted())
-      .WillRepeatedly(Return(false));
+  mock_system_state.set_system_rebooted(false);
 
   payload_state.UpdateEngineStarted();
 }
@@ -1235,8 +1233,7 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   PayloadState payload_state;
 
   policy::MockDevicePolicy disable_http_policy;
-  EXPECT_CALL(mock_system_state, device_policy())
-      .WillRepeatedly(Return(&disable_http_policy));
+  mock_system_state.set_device_policy(&disable_http_policy);
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
 
   // Test with no device policy. Should default to allowing http.
@@ -1277,8 +1274,7 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   // Now, pretend that the HTTP policy is turned on. We want to make sure
   // the new policy is honored.
   policy::MockDevicePolicy enable_http_policy;
-  EXPECT_CALL(mock_system_state, device_policy())
-      .WillRepeatedly(Return(&enable_http_policy));
+  mock_system_state.set_device_policy(&enable_http_policy);
   EXPECT_CALL(enable_http_policy, GetHttpDownloadsEnabled(_))
       .WillRepeatedly(DoAll(SetArgumentPointee<0>(true), Return(true)));
 
@@ -1419,7 +1415,7 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   prefs.Init(base::FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
 
-  FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
+  FakeHardware* fake_hardware = mock_system_state.fake_hardware();
   fake_hardware->SetBootDevice("/dev/sda3");
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));
@@ -1475,7 +1471,7 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   prefs.Init(base::FilePath(temp_dir));
   mock_system_state.set_prefs(&prefs);
 
-  FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
+  FakeHardware* fake_hardware = mock_system_state.fake_hardware();
   fake_hardware->SetBootDevice("/dev/sda3");
 
   EXPECT_TRUE(payload_state.Initialize(&mock_system_state));

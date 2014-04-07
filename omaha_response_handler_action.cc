@@ -8,10 +8,12 @@
 
 #include <base/logging.h>
 #include <base/strings/string_util.h>
+#include <policy/device_policy.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/delta_performer.h"
 #include "update_engine/hardware_interface.h"
+#include "update_engine/omaha_request_params.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/prefs_interface.h"
 #include "update_engine/utils.h"

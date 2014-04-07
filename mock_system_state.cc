@@ -12,28 +12,26 @@ namespace chromeos_update_engine {
 // Mock the SystemStateInterface so that we could lie that
 // OOBE is completed even when there's no such marker file, etc.
 MockSystemState::MockSystemState()
-  : default_request_params_(this),
-    clock_(&default_clock_),
-    hardware_(&default_hardware_),
+  : mock_connection_manager_(this),
+    mock_update_attempter_(this, &dbus_),
+    default_request_params_(this),
+    clock_(&fake_clock_),
+    connection_manager_(&mock_connection_manager_),
+    hardware_(&fake_hardware_),
+    metrics_lib_(&mock_metrics_lib_),
     prefs_(&mock_prefs_),
     powerwash_safe_prefs_(&mock_powerwash_safe_prefs_),
-    p2p_manager_(&mock_p2p_manager_),
     payload_state_(&mock_payload_state_),
-    policy_manager_(&fake_policy_manager_) {
-  request_params_ = &default_request_params_;
+    gpio_handler_(&mock_gpio_handler_),
+    update_attempter_(&mock_update_attempter_),
+    request_params_(&default_request_params_),
+    p2p_manager_(&mock_p2p_manager_),
+    policy_manager_(&fake_policy_manager_),
+    device_policy_(nullptr),
+    fake_system_rebooted_(false) {
   mock_payload_state_.Initialize(this);
-  mock_gpio_handler_ = new testing::NiceMock<MockGpioHandler>();
-  mock_update_attempter_ = new testing::NiceMock<UpdateAttempterMock>(
-      this, &dbus_);
-  mock_connection_manager_ = new testing::NiceMock<MockConnectionManager>(this);
-  connection_manager_ = mock_connection_manager_;
+  mock_update_attempter_.Init();
   fake_policy_manager_.Init(FakeState::Construct());
-}
-
-MockSystemState::~MockSystemState() {
-  delete mock_connection_manager_;
-  delete mock_update_attempter_;
-  delete mock_gpio_handler_;
 }
 
 }  // namespace chromeos_update_engine

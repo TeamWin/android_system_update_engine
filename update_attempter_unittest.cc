@@ -47,14 +47,14 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
   // We always feed an explicit update completed marker name; however, unless
   // explicitly specified, we feed an empty string, which causes the
   // UpdateAttempter class to ignore / not write the marker file.
-  UpdateAttempterUnderTest(MockSystemState* mock_system_state,
-                           MockDBusWrapper* dbus)
-      : UpdateAttempter(mock_system_state, dbus, "") {}
+  UpdateAttempterUnderTest(SystemState* system_state,
+                           DBusWrapperInterface* dbus_iface)
+      : UpdateAttempterUnderTest(system_state, dbus_iface, "") {}
 
-  UpdateAttempterUnderTest(MockSystemState* mock_system_state,
-                           MockDBusWrapper* dbus,
-                           const string& update_completed_marker)
-      : UpdateAttempter(mock_system_state, dbus, update_completed_marker) {}
+  UpdateAttempterUnderTest(SystemState* system_state,
+                           DBusWrapperInterface* dbus_iface,
+                           const std::string& update_completed_marker)
+      : UpdateAttempter(system_state, dbus_iface, update_completed_marker) {}
 };
 
 class UpdateAttempterTest : public ::testing::Test {
@@ -63,7 +63,12 @@ class UpdateAttempterTest : public ::testing::Test {
       : attempter_(&mock_system_state_, &dbus_),
         mock_connection_manager(&mock_system_state_),
         loop_(NULL) {
+    // Override system state members.
     mock_system_state_.set_connection_manager(&mock_connection_manager);
+    mock_system_state_.set_update_attempter(&attempter_);
+
+    // Finish initializing the attempter.
+    attempter_.Init();
   }
 
   virtual void SetUp() {
@@ -145,7 +150,7 @@ class UpdateAttempterTest : public ::testing::Test {
   void P2PEnabledHousekeepingFailsStart();
   static gboolean StaticP2PEnabledHousekeepingFails(gpointer data);
 
-  NiceMock<MockSystemState> mock_system_state_;
+  MockSystemState mock_system_state_;
   NiceMock<MockDBusWrapper> dbus_;
   UpdateAttempterUnderTest attempter_;
   NiceMock<ActionProcessorMock>* processor_;
@@ -464,14 +469,13 @@ void UpdateAttempterTest::RollbackTestStart(
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  EXPECT_CALL(mock_system_state_, device_policy()).WillRepeatedly(
-      Return(device_policy));
+  mock_system_state_.set_device_policy(device_policy);
 
   if (!valid_slot) {
     // References bootable kernels in fake_hardware.h
     string rollback_kernel = "/dev/sdz2";
     LOG(INFO) << "Test Mark Unbootable: " << rollback_kernel;
-    mock_system_state_.get_fake_hardware()->MarkKernelUnbootable(
+    mock_system_state_.fake_hardware()->MarkKernelUnbootable(
         rollback_kernel);
   }
 
@@ -629,8 +633,7 @@ void UpdateAttempterTest::ReadChannelFromPolicyTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  EXPECT_CALL(mock_system_state_, device_policy()).WillRepeatedly(
-      Return(device_policy));
+  mock_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetReleaseChannelDelegated(_)).WillRepeatedly(
       DoAll(SetArgumentPointee<0>(bool(false)),
@@ -665,8 +668,7 @@ void UpdateAttempterTest::ReadUpdateDisabledFromPolicyTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  EXPECT_CALL(mock_system_state_, device_policy()).WillRepeatedly(
-      Return(device_policy));
+  mock_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetUpdateDisabled(_))
       .WillRepeatedly(DoAll(
@@ -858,8 +860,7 @@ void UpdateAttempterTest::ReadTargetVersionPrefixFromPolicyTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  EXPECT_CALL(mock_system_state_, device_policy()).WillRepeatedly(
-      Return(device_policy));
+  mock_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetTargetVersionPrefix(_))
       .WillRepeatedly(DoAll(
@@ -891,8 +892,7 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  EXPECT_CALL(mock_system_state_, device_policy()).WillRepeatedly(
-      Return(device_policy));
+  mock_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
@@ -920,7 +920,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   Prefs prefs;
   attempter_.prefs_ = &prefs;
 
-  mock_system_state_.get_fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
+  mock_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
 
   string prefs_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
@@ -937,8 +937,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  EXPECT_CALL(mock_system_state_, device_policy()).WillRepeatedly(
-      Return(device_policy));
+  mock_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
@@ -984,7 +983,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   Prefs prefs;
   attempter_.prefs_ = &prefs;
 
-  mock_system_state_.get_fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
+  mock_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
 
   string prefs_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
@@ -1004,8 +1003,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  EXPECT_CALL(mock_system_state_, device_policy()).WillRepeatedly(
-      Return(device_policy));
+  mock_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(

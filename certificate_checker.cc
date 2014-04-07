@@ -11,10 +11,10 @@
 #include <base/strings/stringprintf.h>
 #include <base/logging.h>
 #include <curl/curl.h>
-#include <metrics/metrics_library.h>
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
 
+#include "metrics/metrics_library.h"
 #include "update_engine/constants.h"
 #include "update_engine/prefs_interface.h"
 #include "update_engine/utils.h"

@@ -1267,7 +1267,7 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   DeltaPerformer *performer = new DeltaPerformer(&prefs,
                                                  &mock_system_state,
                                                  &install_plan);
-  FakeHardware* fake_hardware = mock_system_state.get_fake_hardware();
+  FakeHardware* fake_hardware = mock_system_state.fake_hardware();
 
   string temp_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("PublicKeyFromResponseTests.XXXXXX",

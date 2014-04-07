@@ -272,7 +272,7 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
     // Speed up test execution.
     ret->set_idle_seconds(1);
     ret->set_retry_seconds(1);
-    mock_system_state_.get_fake_hardware()->SetIsOfficialBuild(false);
+    mock_system_state_.fake_hardware()->SetIsOfficialBuild(false);
     return ret;
   }
 
@@ -323,7 +323,7 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
     // Speed up test execution.
     ret->set_idle_seconds(1);
     ret->set_retry_seconds(1);
-    mock_system_state_.get_fake_hardware()->SetIsOfficialBuild(false);
+    mock_system_state_.fake_hardware()->SetIsOfficialBuild(false);
     return ret;
   }
 
@@ -1051,7 +1051,7 @@ void MultiTest(HttpFetcher* fetcher_in,
       LOG(INFO) << "added range: " << tmp_str;
     }
     dynamic_cast<MockSystemState*>(fetcher_in->GetSystemState())
-        ->get_fake_hardware()->SetIsOfficialBuild(false);
+        ->fake_hardware()->SetIsOfficialBuild(false);
     multi_fetcher->set_delegate(&delegate);
 
     StartTransferArgs start_xfer_args = {multi_fetcher, url};
@@ -1240,7 +1240,7 @@ TYPED_TEST(HttpFetcherTest, BlockedTransferTest) {
       LOG(INFO) << "is_official_build: " << is_official_build;
       // NewLargeFetcher creates the HttpFetcher* with a MockSystemState.
       dynamic_cast<MockSystemState*>(fetcher->GetSystemState())
-          ->get_fake_hardware()->SetIsOfficialBuild(is_official_build);
+          ->fake_hardware()->SetIsOfficialBuild(is_official_build);
       fetcher->set_delegate(&delegate);
 
       StartTransferArgs start_xfer_args =

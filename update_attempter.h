@@ -63,6 +63,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
                   DBusWrapperInterface* dbus_iface);
   virtual ~UpdateAttempter();
 
+  // Further initialization to be done post construction.
+  void Init();
+
   // Checks for update and, if a newer version is available, attempts to update
   // the system. Non-empty |in_app_version| or |in_update_url| prevents
   // automatic detection of the parameter.  If |obey_proxies| is true, the
@@ -225,10 +228,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
   FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
 
-  // Ctor helper method.
-  void Init(SystemState* system_state,
-            const std::string& update_completed_marker);
-
   // Checks if it's more than 24 hours since daily metrics were last
   // reported and, if so, reports daily metrics. Returns |true| if
   // metrics were reported, |false| otherwise.
@@ -368,7 +367,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // If non-null, this UpdateAttempter will send status updates over this
   // dbus service.
-  UpdateEngineService* dbus_service_;
+  UpdateEngineService* dbus_service_ = nullptr;
 
   // Pointer to the OmahaResponseHandlerAction in the actions_ vector.
   std::tr1::shared_ptr<OmahaResponseHandlerAction> response_handler_action_;
@@ -379,47 +378,47 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Pointer to the preferences store interface. This is just a cached
   // copy of system_state->prefs() because it's used in many methods and
   // is convenient this way.
-  PrefsInterface* prefs_;
+  PrefsInterface* prefs_ = nullptr;
 
   // The current UpdateCheckScheduler to notify of state transitions.
-  UpdateCheckScheduler* update_check_scheduler_;
+  UpdateCheckScheduler* update_check_scheduler_ = nullptr;
 
   // Pending error event, if any.
   scoped_ptr<OmahaEvent> error_event_;
 
   // If we should request a reboot even tho we failed the update
-  bool fake_update_success_;
+  bool fake_update_success_ = false;
 
   // HTTP server response code from the last HTTP request action.
-  int http_response_code_;
+  int http_response_code_ = 0;
 
   // Current cpu shares.
-  utils::CpuShares shares_;
+  utils::CpuShares shares_ = utils::kCpuSharesNormal;
 
   // The cpu shares management timeout source.
-  GSource* manage_shares_source_;
+  GSource* manage_shares_source_ = nullptr;
 
   // Set to true if an update download is active (and BytesReceived
   // will be called), set to false otherwise.
-  bool download_active_;
+  bool download_active_ = false;
 
   // For status:
   UpdateStatus status_;
-  double download_progress_;
-  int64_t last_checked_time_;
+  double download_progress_ = 0.0;
+  int64_t last_checked_time_ = 0;
   std::string prev_version_;
-  std::string new_version_;
-  int64_t new_payload_size_;
+  std::string new_version_ = "0.0.0.0";
+  int64_t new_payload_size_ = 0;
 
   // Common parameters for all Omaha requests.
-  OmahaRequestParams* omaha_request_params_;
+  OmahaRequestParams* omaha_request_params_ = nullptr;
 
   // Number of consecutive manual update checks we've had where we obeyed
   // Chrome's proxy settings.
-  int proxy_manual_checks_;
+  int proxy_manual_checks_ = 0;
 
   // If true, this update cycle we are obeying proxies
-  bool obeying_proxies_;
+  bool obeying_proxies_ = true;
 
   // Our two proxy resolvers
   DirectProxyResolver direct_proxy_resolver_;
@@ -430,23 +429,26 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // completes its asynchronous run, |update_boot_flags_running_| is reset to
   // false and |updated_boot_flags_| is set to true. From that point on there
   // will be no more changes to these flags.
-  bool updated_boot_flags_;  // True if UpdateBootFlags has completed.
-  bool update_boot_flags_running_;  // True if UpdateBootFlags is running.
+  //
+  // True if UpdateBootFlags has completed.
+  bool updated_boot_flags_ = false;
+  // True if UpdateBootFlags is running.
+  bool update_boot_flags_running_ = false;
 
   // True if the action processor needs to be started by the boot flag updater.
-  bool start_action_processor_;
+  bool start_action_processor_ = false;
 
   // Used for fetching information about the device policy.
   scoped_ptr<policy::PolicyProvider> policy_provider_;
 
   // A flag for indicating whether we are using a test server URL.
-  bool is_using_test_url_;
+  bool is_using_test_url_ = false;
 
   // If true, will induce a test mode update attempt.
-  bool is_test_mode_;
+  bool is_test_mode_ = false;
 
   // A flag indicating whether a test update cycle was already attempted.
-  bool is_test_update_attempted_;
+  bool is_test_update_attempted_ = false;
 
   // The current scatter factor as found in the policy setting.
   base::TimeDelta scatter_factor_;

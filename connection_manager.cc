@@ -11,6 +11,7 @@
 #include <chromeos/dbus/service_constants.h>
 #include <dbus/dbus-glib.h>
 #include <glib.h>
+#include <policy/device_policy.h>
 
 #include "update_engine/prefs.h"
 #include "update_engine/system_state.h"

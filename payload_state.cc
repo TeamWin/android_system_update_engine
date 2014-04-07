@@ -10,11 +10,13 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/format_macros.h>
+#include <policy/device_policy.h>
 
 #include "update_engine/clock.h"
 #include "update_engine/constants.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/install_plan.h"
+#include "update_engine/omaha_request_params.h"
 #include "update_engine/prefs.h"
 #include "update_engine/real_dbus_wrapper.h"
 #include "update_engine/system_state.h"
