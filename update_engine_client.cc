@@ -176,7 +176,7 @@ void WatchForUpdates() {
 
   // Register marshaller
   dbus_g_object_register_marshaller(
-      NULL,
+      g_cclosure_marshal_generic,
       G_TYPE_NONE,
       G_TYPE_INT64,
       G_TYPE_DOUBLE,
