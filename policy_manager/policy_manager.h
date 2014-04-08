@@ -41,8 +41,14 @@ class PolicyManager {
   //
   // An example call to this method is:
   //   pm.PolicyRequest(&Policy::SomePolicyMethod, &bool_result, arg1, arg2);
-  template<typename T, typename R, typename... Args>
-  EvalStatus PolicyRequest(T policy_method, R* result, Args... args);
+  template<typename R, typename... Args>
+  EvalStatus PolicyRequest(
+      EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
+                                          State* state,
+                                          std::string* error,
+                                          R* result,
+                                          Args... args) const,
+      R* result, Args... args);
 
   // Evaluates the given |policy_method| policy with the provided |args|
   // arguments and calls the |callback| callback with the result when done.
@@ -52,10 +58,15 @@ class PolicyManager {
   // policy until another status is returned. If the policy implementation based
   // its return value solely on const variables, the callback will be called
   // with the EvalStatus::kAskMeAgainLater status.
-  template<typename T, typename R, typename... Args>
+  template<typename R, typename... Args>
   void AsyncPolicyRequest(
       base::Callback<void(EvalStatus, const R& result)> callback,
-      T policy_method, Args... args);
+      EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
+                                          State* state,
+                                          std::string* error,
+                                          R* result,
+                                          Args... args) const,
+      Args... args);
 
  protected:
   // The PolicyManager receives ownership of the passed Policy instance.
@@ -73,10 +84,15 @@ class PolicyManager {
   // EvaluatePolicy() evaluates the passed |policy_method| method on the current
   // policy with the given |args| arguments. If the method fails, the default
   // policy is used instead.
-  template<typename T, typename R, typename... Args>
-  EvalStatus EvaluatePolicy(EvaluationContext* ec,
-                            T policy_method, R* result,
-                            Args... args);
+  template<typename R, typename... Args>
+  EvalStatus EvaluatePolicy(
+      EvaluationContext* ec,
+      EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
+                                          State* state,
+                                          std::string* error,
+                                          R* result,
+                                          Args... args) const,
+      R* result, Args... args);
 
   // OnPolicyReadyToEvaluate() is called by the main loop when the evaluation
   // of the given |policy_method| should be executed. If the evaluation finishes
@@ -84,11 +100,16 @@ class PolicyManager {
   // returned by the policy. If the evaluation returns an
   // EvalStatus::kAskMeAgainLater state, the |callback| will NOT be called and
   // the evaluation will be re-scheduled to be called later.
-  template<typename T, typename R, typename... Args>
+  template<typename R, typename... Args>
   void OnPolicyReadyToEvaluate(
       scoped_refptr<EvaluationContext> ec,
       base::Callback<void(EvalStatus status, const R& result)> callback,
-      T policy_method, Args... args);
+      EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
+                                          State* state,
+                                          std::string* error,
+                                          R* result,
+                                          Args... args) const,
+      Args... args);
 
   // The policy used by the PolicyManager. Note that since it is a const Policy,
   // policy implementations are not allowed to persist state on this class.
