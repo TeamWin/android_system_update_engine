@@ -1080,6 +1080,13 @@ TEST(PayloadStateTest, RollbackVersion) {
                                                     rollback_version));
   payload_state.LoadRollbackVersion();
   EXPECT_EQ(rollback_version, payload_state.GetRollbackVersion());
+
+  // Check that we don't report any metrics in UpdateSucceeded().
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(_, _, _, _, _))
+    .Times(0);
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
+    .Times(0);
+  payload_state.UpdateSucceeded();
 }
 
 TEST(PayloadStateTest, DurationsAreCorrect) {

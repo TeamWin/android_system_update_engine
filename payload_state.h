@@ -111,6 +111,11 @@ class PayloadState : public PayloadStateInterface {
   }
 
  private:
+  enum class AttemptType {
+    kUpdate,
+    kRollback,
+  };
+
   friend class PayloadStateTest;
   FRIEND_TEST(PayloadStateTest, RebootAfterUpdateFailedMetric);
   FRIEND_TEST(PayloadStateTest, RebootAfterUpdateSucceed);
@@ -119,8 +124,8 @@ class PayloadState : public PayloadStateInterface {
   FRIEND_TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs);
 
   // Helper called when an attempt has begun, is called by
-  // UpdateResumed() and UpdateRestarted().
-  void AttemptStarted();
+  // UpdateResumed(), UpdateRestarted() and Rollback().
+  void AttemptStarted(AttemptType attempt_type);
 
   // Increments the payload attempt number used for metrics.
   void IncrementPayloadAttemptNumber();
@@ -505,6 +510,9 @@ class PayloadState : public PayloadStateInterface {
 
   // The connection type when the attempt started.
   metrics::ConnectionType attempt_connection_type_;
+
+  // Whether we're currently rolling back.
+  AttemptType attempt_type_;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };

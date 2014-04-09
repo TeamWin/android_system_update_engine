@@ -45,7 +45,11 @@ PayloadState::PayloadState()
       url_index_(0),
       url_failure_count_(0),
       url_switch_count_(0),
-      p2p_num_attempts_(0) {
+      p2p_num_attempts_(0),
+      attempt_num_bytes_downloaded_(0),
+      attempt_connection_type_(metrics::ConnectionType::kUnknown),
+      attempt_type_(AttemptType::kUpdate)
+{
  for (int i = 0; i <= kNumDownloadSources; i++)
   total_bytes_downloaded_[i] = current_bytes_downloaded_[i] = 0;
 }
@@ -157,7 +161,9 @@ void PayloadState::DownloadProgress(size_t count) {
   SetUrlFailureCount(0);
 }
 
-void PayloadState::AttemptStarted() {
+void PayloadState::AttemptStarted(AttemptType attempt_type) {
+  attempt_type_ = attempt_type;
+
   ClockInterface *clock = system_state_->clock();
   attempt_start_time_boot_ = clock->GetBootTime();
   attempt_start_time_monotonic_ = clock->GetMonotonicTime();
@@ -182,14 +188,14 @@ void PayloadState::AttemptStarted() {
 void PayloadState::UpdateResumed() {
   LOG(INFO) << "Resuming an update that was previously started.";
   UpdateNumReboots();
-  AttemptStarted();
+  AttemptStarted(AttemptType::kUpdate);
 }
 
 void PayloadState::UpdateRestarted() {
   LOG(INFO) << "Starting a new update";
   ResetDownloadSourcesOnNewUpdate();
   SetNumReboots(0);
-  AttemptStarted();
+  AttemptStarted(AttemptType::kUpdate);
 }
 
 void PayloadState::UpdateSucceeded() {
@@ -197,8 +203,11 @@ void PayloadState::UpdateSucceeded() {
   CalculateUpdateDurationUptime();
   SetUpdateTimestampEnd(system_state_->clock()->GetWallclockTime());
 
-  CollectAndReportAttemptMetrics(kErrorCodeSuccess);
-  CollectAndReportSuccessfulUpdateMetrics();
+  // Only report metrics on an update, not on a rollback.
+  if (attempt_type_ == AttemptType::kUpdate) {
+    CollectAndReportAttemptMetrics(kErrorCodeSuccess);
+    CollectAndReportSuccessfulUpdateMetrics();
+  }
 
   // Reset the number of responses seen since it counts from the last
   // successful update, e.g. now.
@@ -220,7 +229,9 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     return;
   }
 
-  CollectAndReportAttemptMetrics(base_error);
+  // Only report metrics on an update, not on a rollback.
+  if (attempt_type_ == AttemptType::kUpdate)
+    CollectAndReportAttemptMetrics(base_error);
 
   switch (base_error) {
     // Errors which are good indicators of a problem with a particular URL or
@@ -371,6 +382,7 @@ bool PayloadState::ShouldBackoffDownload() {
 
 void PayloadState::Rollback() {
   SetRollbackVersion(system_state_->request_params()->app_version());
+  AttemptStarted(AttemptType::kRollback);
 }
 
 void PayloadState::IncrementPayloadAttemptNumber() {
