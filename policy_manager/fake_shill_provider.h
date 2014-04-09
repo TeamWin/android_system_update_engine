@@ -23,6 +23,11 @@ class FakeShillProvider : public ShillProvider {
     return &var_conn_type_;
   }
 
+  virtual inline FakeVariable<ConnectionTethering>*
+      var_conn_tethering() override {
+    return &var_conn_tethering_;
+  }
+
   virtual inline FakeVariable<base::Time>* var_conn_last_changed() override {
     return &var_conn_last_changed_;
   }
@@ -33,8 +38,10 @@ class FakeShillProvider : public ShillProvider {
  private:
   FakeVariable<bool> var_is_connected_{"is_connected", kVariableModePoll};
   FakeVariable<ConnectionType> var_conn_type_{"conn_type", kVariableModePoll};
-  FakeVariable<base::Time> var_conn_last_changed_{"conn_last_changed",
-                                                  kVariableModePoll};
+  FakeVariable<ConnectionTethering> var_conn_tethering_{
+      "conn_tethering", kVariableModePoll};
+  FakeVariable<base::Time> var_conn_last_changed_{
+      "conn_last_changed", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeShillProvider);
 };

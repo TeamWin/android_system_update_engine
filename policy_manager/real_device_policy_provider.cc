@@ -81,7 +81,8 @@ bool RealDevicePolicyProvider::ConvertAllowedConnectionTypesForUpdate(
   }
   allowed_types->clear();
   for (auto& type_str : allowed_types_str) {
-    ConnectionType type = ShillConnector::ParseConnectionType(type_str.c_str());
+    ConnectionType type =
+        RealShillProvider::ParseConnectionType(type_str.c_str());
     if (type != ConnectionType::kUnknown) {
       allowed_types->insert(type);
     } else {

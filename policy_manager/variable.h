@@ -181,9 +181,12 @@ class Variable : public BaseVariable {
   FRIEND_TEST(PmRealRandomProviderTest, GetRandomValues);
   friend class PmRealShillProviderTest;
   FRIEND_TEST(PmRealShillProviderTest, ReadBaseValues);
-  FRIEND_TEST(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn);
-  FRIEND_TEST(PmRealShillProviderTest, ReadChangedValuesConnectedTwoSignals);
-  FRIEND_TEST(PmRealShillProviderTest, ConnectionTypeCached);
+  FRIEND_TEST(PmRealShillProviderTest, ReadConnTypeVpn);
+  FRIEND_TEST(PmRealShillProviderTest, ReadLastChangedTimeTwoSignals);
+  FRIEND_TEST(PmRealShillProviderTest, ConnTypeCacheUsed);
+  FRIEND_TEST(PmRealShillProviderTest, ConnTypeCacheRemainsValid);
+  FRIEND_TEST(PmRealShillProviderTest, ConnTetheringCacheUsed);
+  FRIEND_TEST(PmRealShillProviderTest, ConnTetheringCacheRemainsValid);
   FRIEND_TEST(PmRealShillProviderTest, NoInitConnStatusReadBaseValues);
   friend class PmRealTimeProviderTest;
   FRIEND_TEST(PmRealTimeProviderTest, CurrDateValid);

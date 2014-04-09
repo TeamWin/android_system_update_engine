@@ -22,17 +22,29 @@ enum class ConnectionType {
   kUnknown
 };
 
+enum class ConnectionTethering {
+  kNotDetected,
+  kSuspected,
+  kConfirmed,
+  kUnknown,
+};
+
 // Provider for networking related information.
 class ShillProvider : public Provider {
  public:
-  // Returns whether we currently have network connectivity.
+  // A variable returning whether we currently have network connectivity.
   virtual Variable<bool>* var_is_connected() = 0;
 
-  // Returns the current network connection type. Unknown if not connected.
+  // A variable returning the current network connection type. Unknown if not
+  // connected.
   virtual Variable<ConnectionType>* var_conn_type() = 0;
 
-  // Returns the time when network connection last changed; initialized to
-  // current time.
+  // A variable returning the tethering mode of a network connection. Unknown if
+  // not connected.
+  virtual Variable<ConnectionTethering>* var_conn_tethering() = 0;
+
+  // A variable retruning the time when network connection last changed.
+  // Initialized to current time.
   virtual Variable<base::Time>* var_conn_last_changed() = 0;
 
  protected:
