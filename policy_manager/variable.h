@@ -173,6 +173,7 @@ class Variable : public BaseVariable {
   FRIEND_TEST(PmRealShillProviderTest, ReadBaseValues);
   FRIEND_TEST(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn);
   FRIEND_TEST(PmRealShillProviderTest, ReadChangedValuesConnectedTwoSignals);
+  FRIEND_TEST(PmRealShillProviderTest, ConnectionTypeCached);
   FRIEND_TEST(PmRealShillProviderTest, NoInitConnStatusReadBaseValues);
   friend class PmRealTimeProviderTest;
   FRIEND_TEST(PmRealTimeProviderTest, CurrDateValid);

@@ -158,12 +158,9 @@ class ConnTypeVariable : public Variable<ConnectionType> {
       return NULL;
     }
 
-    ConnectionType conn_type;
-    if (provider_->is_conn_type_valid_) {
-      conn_type = provider_->conn_type_;
-    } else {
+    if (!provider_->is_conn_type_valid_) {
       if (!connector_->GetConnectionType(provider_->default_service_path_,
-                                         &conn_type)) {
+                                         &provider_->conn_type_)) {
         if (errmsg)
           *errmsg = base::StringPrintf(
               "Could not retrieve type of default connection (%s)",
@@ -173,7 +170,7 @@ class ConnTypeVariable : public Variable<ConnectionType> {
       provider_->is_conn_type_valid_ = true;
     }
 
-    return new ConnectionType(conn_type);
+    return new ConnectionType(provider_->conn_type_);
   }
 
  private:

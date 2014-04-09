@@ -372,6 +372,19 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn) {
   g_hash_table_unref(service_properties);
 }
 
+// Ensure that the connection type is properly cached in the provider.
+TEST_F(PmRealShillProviderTest, ConnectionTypeCached) {
+  SetupConnectionAndTestType(kFakeEthernetServicePath,
+                             kFakeEthernetServiceProxy,
+                             shill::kTypeEthernet,
+                             ConnectionType::kEthernet);
+
+  scoped_ptr<const ConnectionType> conn_type(
+      provider_->var_conn_type()->GetValue(default_timeout_, NULL));
+  PMTEST_ASSERT_NOT_NULL(conn_type.get());
+  EXPECT_EQ(ConnectionType::kEthernet, *conn_type);
+}
+
 // Fake two DBus signal prompting about a default connection change, but
 // otherwise give the same service path. Check connection status and the time is
 // was last changed, make sure it is the same time when the first signal was
