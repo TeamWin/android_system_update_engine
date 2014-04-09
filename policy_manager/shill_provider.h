@@ -26,42 +26,17 @@ enum class ConnectionType {
 class ShillProvider : public Provider {
  public:
   // Returns whether we currently have network connectivity.
-  Variable<bool>* var_is_connected() const {
-    return var_is_connected_.get();
-  }
+  virtual Variable<bool>* var_is_connected() = 0;
 
   // Returns the current network connection type. Unknown if not connected.
-  Variable<ConnectionType>* var_conn_type() const {
-    return var_conn_type_.get();
-  }
+  virtual Variable<ConnectionType>* var_conn_type() = 0;
 
   // Returns the time when network connection last changed; initialized to
   // current time.
-  Variable<base::Time>* var_conn_last_changed() const {
-    return var_conn_last_changed_.get();
-  }
+  virtual Variable<base::Time>* var_conn_last_changed() = 0;
 
  protected:
   ShillProvider() {}
-
-  void set_var_is_connected(Variable<bool>* var_is_connected) {
-    var_is_connected_.reset(var_is_connected);
-  }
-
-  void set_var_conn_type(Variable<ConnectionType>* var_conn_type) {
-    var_conn_type_.reset(var_conn_type);
-  }
-
-  void set_var_conn_last_changed(Variable<base::Time>* var_conn_last_changed) {
-    var_conn_last_changed_.reset(var_conn_last_changed);
-  }
-
- private:
-  scoped_ptr<Variable<bool>> var_is_connected_;
-  scoped_ptr<Variable<ConnectionType>> var_conn_type_;
-  scoped_ptr<Variable<base::Time>> var_conn_last_changed_;
-
-  DISALLOW_COPY_AND_ASSIGN(ShillProvider);
 };
 
 }  // namespace chromeos_policy_manager

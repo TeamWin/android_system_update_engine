@@ -170,10 +170,10 @@ class Variable : public BaseVariable {
   friend class PmRealRandomProviderTest;
   FRIEND_TEST(PmRealRandomProviderTest, GetRandomValues);
   friend class PmRealShillProviderTest;
-  FRIEND_TEST(PmRealShillProviderTest, ReadDefaultValues);
-  FRIEND_TEST(PmRealShillProviderTest, ReadChangedValuesConnectedViaEthernet);
+  FRIEND_TEST(PmRealShillProviderTest, ReadBaseValues);
   FRIEND_TEST(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn);
   FRIEND_TEST(PmRealShillProviderTest, ReadChangedValuesConnectedTwoSignals);
+  FRIEND_TEST(PmRealShillProviderTest, NoInitConnStatusReadBaseValues);
   friend class PmRealTimeProviderTest;
   FRIEND_TEST(PmRealTimeProviderTest, CurrDateValid);
   FRIEND_TEST(PmRealTimeProviderTest, CurrHourValid);

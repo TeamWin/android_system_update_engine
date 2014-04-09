@@ -60,18 +60,39 @@ namespace chromeos_policy_manager {
 class PmRealShillProviderTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
+    // By default, initialize the provider so that it gets an initial connection
+    // status from shill. This simulates the common case where shill is
+    // available and respoding during RealShillProvider initialization.
+    Init(true);
+  }
+
+  virtual void TearDown() {
+    Shutdown();
+  }
+
+  // Initialize the RealShillProvider under test. If |do_init_conn_status| is
+  // true, configure mocks to respond to the initial connection status check
+  // with shill. Otherwise, the initial check will fail.
+  void Init(bool do_init_conn_status) {
+    // Properly shutdown a previously initialized provider.
+    if (provider_.get())
+      Shutdown();
+
     provider_.reset(new RealShillProvider(&mock_dbus_, &fake_clock_));
     PMTEST_ASSERT_NOT_NULL(provider_.get());
     fake_clock_.SetWallclockTime(InitTime());
+
     // A DBus connection should only be obtained once.
     EXPECT_CALL(mock_dbus_, BusGet(_, _)).WillOnce(
         Return(kFakeConnection));
+
     // A manager proxy should only be obtained once.
     EXPECT_CALL(mock_dbus_, ProxyNewForName(
             kFakeConnection, StrEq(shill::kFlimflamServiceName),
             StrEq(shill::kFlimflamServicePath),
             StrEq(shill::kFlimflamManagerInterface)))
         .WillOnce(Return(kFakeManagerProxy));
+
     // The PropertyChanged signal should be subscribed to.
     EXPECT_CALL(mock_dbus_, ProxyAddSignal_2(
             kFakeManagerProxy, StrEq(shill::kMonitorPropertyChanged),
@@ -83,19 +104,32 @@ class PmRealShillProviderTest : public ::testing::Test {
         .WillOnce(DoAll(SaveArg<2>(&signal_handler_),
                         SaveArg<3>(&signal_data_),
                         Return()));
-    // Default service should be checked once during initialization.
-    pair<const char*, const char*> manager_pairs[] = {
-      {shill::kDefaultServiceProperty, "/"},
-    };
-    auto manager_properties = MockGetProperties(kFakeManagerProxy, false,
-                                                1, manager_pairs);
+
+    // Mock a response to an initial connection check (optional).
+    GHashTable* manager_properties = nullptr;
+    if (do_init_conn_status) {
+      pair<const char*, const char*> manager_pairs[] = {
+        {shill::kDefaultServiceProperty, "/"},
+      };
+      manager_properties = SetupGetPropertiesOkay(
+          kFakeManagerProxy, arraysize(manager_pairs), manager_pairs);
+    } else {
+      SetupGetPropertiesFail(kFakeManagerProxy);
+    }
+
     // Check that provider initializes corrrectly.
     ASSERT_TRUE(provider_->Init());
-    // Release properties hash table.
-    g_hash_table_unref(manager_properties);
+
+    // Release properties hash table (if provided).
+    if (manager_properties)
+      g_hash_table_unref(manager_properties);
+
+    // Verify and clear all expectations.
+    testing::Mock::VerifyAndClear(&mock_dbus_);
   }
 
-  virtual void TearDown() {
+  // Deletes the RealShillProvider under test.
+  void Shutdown() {
     // Make sure that DBus resources get freed.
     EXPECT_CALL(mock_dbus_, ProxyDisconnectSignal(
             kFakeManagerProxy, StrEq(shill::kMonitorPropertyChanged),
@@ -103,6 +137,7 @@ class PmRealShillProviderTest : public ::testing::Test {
         .WillOnce(Return());
     EXPECT_CALL(mock_dbus_, ProxyUnref(kFakeManagerProxy)).WillOnce(Return());
     provider_.reset();
+
     // Verify and clear all expectations.
     testing::Mock::VerifyAndClear(&mock_dbus_);
   }
@@ -125,46 +160,49 @@ class PmRealShillProviderTest : public ::testing::Test {
     return InitTime() + TimeDelta::FromSeconds(10);
   }
 
-  // Sets up a mock "GetProperties" call on |proxy| that returns a hash table
-  // containing |num_entries| entries formed by subsequent key/value pairs. Keys
-  // and values are plain C strings (const char*). Mock will be expected to call
-  // exactly once, unless |allow_multiple_calls| is true, in which case it's
-  // allowed to be called multiple times. Returns a pointer to a newly allocated
-  // hash table, which should be unreffed with g_hash_table_unref() when done.
-  GHashTable* MockGetProperties(DBusGProxy* proxy, bool allow_multiple_calls,
-                                size_t num_entries,
-                                pair<const char*, const char*>* key_val_pairs) {
+  // Sets up a successful mock "GetProperties" call on |proxy|, writing a hash
+  // table containing |num_entries| entries formed by key/value pairs from
+  // |key_val_pairs| and returning true. Keys and values are plain C strings
+  // (const char*). The proxy call is expected to be made exactly once. Returns
+  // a pointer to a newly allocated hash table, which should be unreffed with
+  // g_hash_table_unref() when done.
+  GHashTable* SetupGetPropertiesOkay(
+      DBusGProxy* proxy, size_t num_entries,
+      pair<const char*, const char*>* key_val_pairs) {
     // Allocate and populate the hash table.
-    auto properties = g_hash_table_new_full(g_str_hash, g_str_equal, free,
-                                            GValueFree);
+    GHashTable* properties = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                                   free, GValueFree);
     for (size_t i = 0; i < num_entries; i++) {
       g_hash_table_insert(properties, strdup(key_val_pairs[i].first),
                           GValueNewString(key_val_pairs[i].second));
     }
 
-    // Set mock expectation and actions.
-    auto action = DoAll(SetArgPointee<3>(g_hash_table_ref(properties)),
-                        Return(true));
-    if (allow_multiple_calls) {
-      EXPECT_CALL(mock_dbus_, ProxyCall_0_1(
-              proxy, StrEq(shill::kGetPropertiesFunction), _, _))
-          .WillRepeatedly(action);
-    } else {
-      EXPECT_CALL(mock_dbus_, ProxyCall_0_1(
-              proxy, StrEq(shill::kGetPropertiesFunction), _, _))
-          .WillOnce(action);
-    }
+    // Set mock expectations.
+    EXPECT_CALL(mock_dbus_,
+                ProxyCall_0_1(proxy, StrEq(shill::kGetPropertiesFunction),
+                              _, _))
+        .WillOnce(DoAll(SetArgPointee<3>(g_hash_table_ref(properties)),
+                        Return(true)));
 
     return properties;
+  }
+
+  // Sets up a failing mock "GetProperties" call on |proxy|, returning false.
+  // The proxy call is expected to be made exactly once.
+  void SetupGetPropertiesFail(DBusGProxy* proxy) {
+    EXPECT_CALL(mock_dbus_,
+                ProxyCall_0_1(proxy, StrEq(shill::kGetPropertiesFunction),
+                              _, _))
+      .WillOnce(Return(false));
   }
 
   // Programs the mock DBus interface to return an non-VPN service and ensures
   // that the shill provider reads it correctly, including updating the last
   // changed time on each of the queries.
-  void SetConnectionAndTestType(const char* service_path,
-                                DBusGProxy* service_proxy,
-                                const char* shill_type_str,
-                                ConnectionType expected_conn_type) {
+  void SetupConnectionAndTestType(const char* service_path,
+                                  DBusGProxy* service_proxy,
+                                  const char* shill_type_str,
+                                  ConnectionType expected_conn_type) {
     // Send a signal about a new default service.
     auto callback = reinterpret_cast<ShillConnector::PropertyChangedHandler>(
         signal_handler_);
@@ -198,9 +236,8 @@ class PmRealShillProviderTest : public ::testing::Test {
     pair<const char*, const char*> service_pairs[] = {
       {shill::kTypeProperty, shill_type_str},
     };
-    auto service_properties = MockGetProperties(
-        service_proxy, false,
-        arraysize(service_pairs), service_pairs);
+    auto service_properties = SetupGetPropertiesOkay(
+        service_proxy, arraysize(service_pairs), service_pairs);
 
     // Query the connection type, ensure last change time did not change.
     scoped_ptr<const ConnectionType> conn_type(
@@ -226,8 +263,8 @@ class PmRealShillProviderTest : public ::testing::Test {
 };
 
 // Query the connection status, type and time last changed, as they were set
-// during initialization.
-TEST_F(PmRealShillProviderTest, ReadDefaultValues) {
+// during initialization (no signals).
+TEST_F(PmRealShillProviderTest, ReadBaseValues) {
   // Query the provider variables.
   scoped_ptr<const bool> is_connected(
       provider_->var_is_connected()->GetValue(default_timeout_, NULL));
@@ -246,50 +283,51 @@ TEST_F(PmRealShillProviderTest, ReadDefaultValues) {
 
 // Test that Ethernet connection is identified correctly.
 TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaEthernet) {
-  SetConnectionAndTestType(kFakeEthernetServicePath,
-                           kFakeEthernetServiceProxy,
-                           shill::kTypeEthernet,
-                           ConnectionType::kEthernet);
+  SetupConnectionAndTestType(kFakeEthernetServicePath,
+                             kFakeEthernetServiceProxy,
+                             shill::kTypeEthernet,
+                             ConnectionType::kEthernet);
 }
 
 // Test that Wifi connection is identified correctly.
 TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaWifi) {
-  SetConnectionAndTestType(kFakeWifiServicePath,
-                           kFakeWifiServiceProxy,
-                           shill::kTypeWifi,
-                           ConnectionType::kWifi);
+  SetupConnectionAndTestType(kFakeWifiServicePath,
+                             kFakeWifiServiceProxy,
+                             shill::kTypeWifi,
+                             ConnectionType::kWifi);
 }
 
 // Test that Wimax connection is identified correctly.
 TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaWimax) {
-  SetConnectionAndTestType(kFakeWimaxServicePath,
-                           kFakeWimaxServiceProxy,
-                           shill::kTypeWimax,
-                           ConnectionType::kWimax);
+  SetupConnectionAndTestType(kFakeWimaxServicePath,
+                             kFakeWimaxServiceProxy,
+                             shill::kTypeWimax,
+                             ConnectionType::kWimax);
 }
 
 // Test that Bluetooth connection is identified correctly.
 TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaBluetooth) {
-  SetConnectionAndTestType(kFakeBluetoothServicePath,
-                           kFakeBluetoothServiceProxy,
-                           shill::kTypeBluetooth,
-                           ConnectionType::kBluetooth);
+  SetupConnectionAndTestType(kFakeBluetoothServicePath,
+                             kFakeBluetoothServiceProxy,
+                             shill::kTypeBluetooth,
+                             ConnectionType::kBluetooth);
 }
 
 // Test that Cellular connection is identified correctly.
 TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaCellular) {
-  SetConnectionAndTestType(kFakeCellularServicePath,
-                           kFakeCellularServiceProxy,
-                           shill::kTypeCellular,
-                           ConnectionType::kCellular);
+  SetupConnectionAndTestType(kFakeCellularServicePath,
+                             kFakeCellularServiceProxy,
+                             shill::kTypeCellular,
+                             ConnectionType::kCellular);
 }
 
 // Test that an unknown connection is identified as such.
-TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaUnknown) {
-  SetConnectionAndTestType(kFakeUnknownServicePath,
-                           kFakeUnknownServiceProxy,
-                           "FooConnectionType",
-                           ConnectionType::kUnknown);
+TEST_F(PmRealShillProviderTest,
+       ReadChangedValuesConnectedViaUnknown) {
+  SetupConnectionAndTestType(kFakeUnknownServicePath,
+                             kFakeUnknownServiceProxy,
+                             "FooConnectionType",
+                             ConnectionType::kUnknown);
 }
 
 // Tests that VPN connection is identified correctly.
@@ -315,8 +353,9 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedViaVpn) {
     {shill::kTypeProperty, shill::kTypeVPN},
     {shill::kPhysicalTechnologyProperty, shill::kTypeWifi},
   };
-  auto service_properties = MockGetProperties(
-      kFakeVpnServiceProxy, false, arraysize(service_pairs), service_pairs);
+  auto service_properties = SetupGetPropertiesOkay(kFakeVpnServiceProxy,
+                                                   arraysize(service_pairs),
+                                                   service_pairs);
 
   // Query the connection type, ensure last change time reported correctly.
   scoped_ptr<const ConnectionType> conn_type(
@@ -361,6 +400,32 @@ TEST_F(PmRealShillProviderTest, ReadChangedValuesConnectedTwoSignals) {
       provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
   PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
   EXPECT_EQ(conn_change_time, *conn_last_changed);
+}
+
+// Make sure that the provider initializes correctly even if shill is not
+// responding, that variables can be obtained, and that they all return a null
+// value (indicating that the underlying values were not set).
+TEST_F(PmRealShillProviderTest, NoInitConnStatusReadBaseValues) {
+  // Re-initialize the provider, no initial connection status response.
+  Init(false);
+  PMTEST_ASSERT_NULL(provider_->var_is_connected()->GetValue(
+          default_timeout_, NULL));
+  PMTEST_ASSERT_NULL(provider_->var_conn_type()->GetValue(
+          default_timeout_, NULL));
+  PMTEST_ASSERT_NULL(provider_->var_conn_last_changed()->GetValue(
+          default_timeout_, NULL));
+}
+
+// Test that, once a signal is received, the connection status and other info
+// can be read correctly.
+TEST_F(PmRealShillProviderTest,
+       NoInitConnStatusReadChangedValuesConnectedViaEthernet) {
+  // Re-initialize the provider, no initial connection status response.
+  Init(false);
+  SetupConnectionAndTestType(kFakeEthernetServicePath,
+                             kFakeEthernetServiceProxy,
+                             shill::kTypeEthernet,
+                             ConnectionType::kEthernet);
 }
 
 }  // namespace chromeos_policy_manager

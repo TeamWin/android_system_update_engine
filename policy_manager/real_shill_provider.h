@@ -91,8 +91,20 @@ class RealShillProvider : public ShillProvider {
   RealShillProvider(DBusWrapperInterface* dbus, ClockInterface* clock)
       : dbus_(dbus), clock_(clock) {}
 
+  virtual inline Variable<bool>* var_is_connected() override {
+    return var_is_connected_.get();
+  }
+
+  virtual inline Variable<ConnectionType>* var_conn_type() override {
+    return var_conn_type_.get();
+  }
+
+  virtual inline Variable<base::Time>* var_conn_last_changed() override {
+    return var_conn_last_changed_.get();
+  }
+
  protected:
-  virtual bool DoInit();
+  virtual bool DoInit() override;
 
  private:
   // Process a default connection value, update last change time as needed.
@@ -104,6 +116,9 @@ class RealShillProvider : public ShillProvider {
   static void HandlePropertyChangedStatic(DBusGProxy* proxy, const char* name,
                                           GValue* value, void* data);
 
+
+  // Whether the connection status has been properly initialized.
+  bool is_conn_status_init_ = false;
 
   // The time when the connection type last changed.
   base::Time conn_last_changed_;
@@ -128,6 +143,11 @@ class RealShillProvider : public ShillProvider {
 
   // A clock abstraction (mockable).
   ClockInterface* const clock_;
+
+  // Pointers to all variable objects.
+  scoped_ptr<Variable<bool>> var_is_connected_;
+  scoped_ptr<Variable<ConnectionType>> var_conn_type_;
+  scoped_ptr<Variable<base::Time>> var_conn_last_changed_;
 
   friend class ConnTypeVariable;
   DISALLOW_COPY_AND_ASSIGN(RealShillProvider);

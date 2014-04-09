@@ -17,6 +17,8 @@ using std::string;
 
 namespace {
 
+const char* kConnInfoNotAvailErrMsg = "Connection information not available";
+
 // Looks up a key in a hash table and returns the string inside of the returned
 // GValue.
 const char* GetStrProperty(GHashTable* hash_table, const char* key) {
@@ -144,6 +146,12 @@ class ConnTypeVariable : public Variable<ConnectionType> {
   // TODO(garnold) Shift to a non-blocking version, respect the timeout.
   virtual const ConnectionType* GetValue(base::TimeDelta /* timeout */,
                                          string* errmsg) {
+    if (!(provider_->is_conn_status_init_)) {
+      if (errmsg)
+        *errmsg = kConnInfoNotAvailErrMsg;
+      return NULL;
+    }
+
     if (!(provider_->is_connected_)) {
       if (errmsg)
         *errmsg = "No connection detected";
@@ -188,25 +196,27 @@ bool RealShillProvider::DoInit() {
   if (!connector_->Init())
     return false;
 
-  // Read initial connection status.
+  // Attempt to read initial connection status. Even if this fails because shill
+  // is not responding (e.g. it is down) we'll be notified via "PropertyChanged"
+  // signal as soon as it comes up, so this is not a critical step.
   GHashTable* hash_table = NULL;
-  if (!connector_->GetManagerProperties(&hash_table))
-    return false;
-  GValue* value = reinterpret_cast<GValue*>(
-      g_hash_table_lookup(hash_table, shill::kDefaultServiceProperty));
-  bool success = ProcessDefaultService(value);
-  g_hash_table_unref(hash_table);
-  if (!success)
-    return false;
+  if (connector_->GetManagerProperties(&hash_table)) {
+    GValue* value = reinterpret_cast<GValue*>(
+        g_hash_table_lookup(hash_table, shill::kDefaultServiceProperty));
+    ProcessDefaultService(value);
+    g_hash_table_unref(hash_table);
+  }
 
   // Initialize variables.
-  set_var_is_connected(
-      new CopyVariable<bool>("is_connected", kVariableModePoll, is_connected_));
-  set_var_conn_type(
+  var_is_connected_.reset(
+      new CopyVariable<bool>("is_connected", kVariableModePoll, is_connected_,
+                             &is_conn_status_init_, kConnInfoNotAvailErrMsg));
+  var_conn_type_.reset(
       new ConnTypeVariable("conn_type", connector_.get(), this));
-  set_var_conn_last_changed(
+  var_conn_last_changed_.reset(
       new CopyVariable<base::Time>("conn_last_changed", kVariableModePoll,
-                                   conn_last_changed_));
+                                   conn_last_changed_, &is_conn_status_init_,
+                                   kConnInfoNotAvailErrMsg));
   return true;
 }
 
@@ -222,6 +232,9 @@ bool RealShillProvider::ProcessDefaultService(GValue* value) {
     conn_last_changed_ = clock_->GetWallclockTime();
   default_service_path_ = default_service_path_str;
   is_conn_type_valid_ = false;
+
+  // Mark the connection status as initialized.
+  is_conn_status_init_ = true;
   return true;
 }
 

@@ -15,18 +15,27 @@ class FakeShillProvider : public ShillProvider {
  public:
   FakeShillProvider() {}
 
- protected:
-  virtual bool DoInit() {
-    set_var_is_connected(
-        new FakeVariable<bool>("is_connected", kVariableModePoll));
-    set_var_conn_type(
-        new FakeVariable<ConnectionType>("conn_type", kVariableModePoll));
-    set_var_conn_last_changed(
-        new FakeVariable<base::Time>("conn_last_changed", kVariableModePoll));
-    return true;
+  virtual inline FakeVariable<bool>* var_is_connected() override {
+    return &var_is_connected_;
   }
 
+  virtual inline FakeVariable<ConnectionType>* var_conn_type() override {
+    return &var_conn_type_;
+  }
+
+  virtual inline FakeVariable<base::Time>* var_conn_last_changed() override {
+    return &var_conn_last_changed_;
+  }
+
+ protected:
+  virtual bool DoInit() { return true; }
+
  private:
+  FakeVariable<bool> var_is_connected_{"is_connected", kVariableModePoll};
+  FakeVariable<ConnectionType> var_conn_type_{"conn_type", kVariableModePoll};
+  FakeVariable<base::Time> var_conn_last_changed_{"conn_last_changed",
+                                                  kVariableModePoll};
+
   DISALLOW_COPY_AND_ASSIGN(FakeShillProvider);
 };
 
