@@ -21,9 +21,9 @@
 #include "update_engine/delta_performer.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/fake_hardware.h"
+#include "update_engine/fake_system_state.h"
 #include "update_engine/full_update_generator.h"
 #include "update_engine/graph_types.h"
-#include "update_engine/mock_system_state.h"
 #include "update_engine/payload_signer.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
@@ -69,7 +69,7 @@ struct DeltaState {
 
   // The mock system state object with which we initialize the
   // delta performer.
-  MockSystemState mock_system_state;
+  FakeSystemState fake_system_state;
 };
 
 enum SignatureTest {
@@ -652,7 +652,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   EXPECT_FALSE(install_plan.metadata_signature.empty());
 
   *performer = new DeltaPerformer(&prefs,
-                                  &state->mock_system_state,
+                                  &state->fake_system_state,
                                   &install_plan);
   EXPECT_TRUE(utils::FileExists(kUnittestPublicKeyPath));
   (*performer)->set_public_key_path(kUnittestPublicKeyPath);
@@ -733,7 +733,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
   }
 
   int expected_times = (expected_result == kErrorCodeSuccess) ? 1 : 0;
-  EXPECT_CALL(*(state->mock_system_state.mock_payload_state()),
+  EXPECT_CALL(*(state->fake_system_state.mock_payload_state()),
               DownloadComplete()).Times(expected_times);
 
   LOG(INFO) << "Verifying payload for expected result "
@@ -826,8 +826,8 @@ void DoMetadataSizeTest(uint64_t expected_metadata_size,
   PrefsMock prefs;
   InstallPlan install_plan;
   install_plan.hash_checks_mandatory = hash_checks_mandatory;
-  MockSystemState mock_system_state;
-  DeltaPerformer performer(&prefs, &mock_system_state, &install_plan);
+  FakeSystemState fake_system_state;
+  DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
   EXPECT_EQ(0, performer.Open("/dev/null", 0, 0));
   EXPECT_TRUE(performer.OpenKernel("/dev/null"));
 
@@ -922,7 +922,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
   // Create the delta performer object.
   PrefsMock prefs;
   DeltaPerformer delta_performer(&prefs,
-                                 &state.mock_system_state,
+                                 &state.fake_system_state,
                                  &install_plan);
 
   // Use the public key corresponding to the private key used above to
@@ -967,8 +967,8 @@ class DeltaPerformerTest : public ::testing::Test {
                                     ErrorCode expected) {
     PrefsMock prefs;
     InstallPlan install_plan;
-    MockSystemState mock_system_state;
-    DeltaPerformer performer(&prefs, &mock_system_state, &install_plan);
+    FakeSystemState fake_system_state;
+    DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
 
     // The install plan is for Full or Delta.
     install_plan.is_full_update = full_payload;
@@ -1148,8 +1148,8 @@ TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellRotateCl2Test) {
 TEST(DeltaPerformerTest, BadDeltaMagicTest) {
   PrefsMock prefs;
   InstallPlan install_plan;
-  MockSystemState mock_system_state;
-  DeltaPerformer performer(&prefs, &mock_system_state, &install_plan);
+  FakeSystemState fake_system_state;
+  DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
   EXPECT_EQ(0, performer.Open("/dev/null", 0, 0));
   EXPECT_TRUE(performer.OpenKernel("/dev/null"));
   EXPECT_TRUE(performer.Write("junk", 4));
@@ -1177,14 +1177,14 @@ TEST(DeltaPerformerTest, IsIdempotentOperationTest) {
 TEST(DeltaPerformerTest, WriteUpdatesPayloadState) {
   PrefsMock prefs;
   InstallPlan install_plan;
-  MockSystemState mock_system_state;
-  DeltaPerformer performer(&prefs, &mock_system_state, &install_plan);
+  FakeSystemState fake_system_state;
+  DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
   EXPECT_EQ(0, performer.Open("/dev/null", 0, 0));
   EXPECT_TRUE(performer.OpenKernel("/dev/null"));
 
-  EXPECT_CALL(*(mock_system_state.mock_payload_state()),
+  EXPECT_CALL(*(fake_system_state.mock_payload_state()),
               DownloadProgress(4)).Times(1);
-  EXPECT_CALL(*(mock_system_state.mock_payload_state()),
+  EXPECT_CALL(*(fake_system_state.mock_payload_state()),
               DownloadProgress(8)).Times(2);
 
   EXPECT_TRUE(performer.Write("junk", 4));
@@ -1248,7 +1248,7 @@ TEST(DeltaPerformerTest, RunAsRootMandatoryOperationHashMismatchTest) {
 
 TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   PrefsMock prefs;
-  MockSystemState mock_system_state;
+  FakeSystemState fake_system_state;
   InstallPlan install_plan;
   base::FilePath key_path;
 
@@ -1265,9 +1265,9 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   //  b. there is no key in the root filesystem.
 
   DeltaPerformer *performer = new DeltaPerformer(&prefs,
-                                                 &mock_system_state,
+                                                 &fake_system_state,
                                                  &install_plan);
-  FakeHardware* fake_hardware = mock_system_state.fake_hardware();
+  FakeHardware* fake_hardware = fake_system_state.fake_hardware();
 
   string temp_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("PublicKeyFromResponseTests.XXXXXX",

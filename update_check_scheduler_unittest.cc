@@ -8,7 +8,7 @@
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/certificate_checker_mock.h"
-#include "update_engine/mock_system_state.h"
+#include "update_engine/fake_system_state.h"
 #include "update_engine/update_attempter_mock.h"
 
 using base::Time;
@@ -35,21 +35,21 @@ void FuzzRange(int interval, int fuzz, int* interval_min, int* interval_max) {
 class UpdateCheckSchedulerUnderTest : public UpdateCheckScheduler {
  public:
   UpdateCheckSchedulerUnderTest(UpdateAttempter* update_attempter,
-                                MockSystemState* mock_system_state)
-      : UpdateCheckScheduler(update_attempter, mock_system_state),
-        mock_system_state_(mock_system_state) {}
+                                FakeSystemState* fake_system_state)
+      : UpdateCheckScheduler(update_attempter, fake_system_state),
+        fake_system_state_(fake_system_state) {}
 
   MOCK_METHOD2(GTimeoutAddSeconds, guint(guint seconds, GSourceFunc function));
   MOCK_METHOD0(IsBootDeviceRemovable, bool());
 
-  MockSystemState* mock_system_state_;
+  FakeSystemState* fake_system_state_;
 };
 
 class UpdateCheckSchedulerTest : public ::testing::Test {
  public:
   UpdateCheckSchedulerTest()
-      : attempter_(&mock_system_state_, &dbus_),
-        scheduler_(&attempter_, &mock_system_state_) {}
+      : attempter_(&fake_system_state_, &dbus_),
+        scheduler_(&attempter_, &fake_system_state_) {}
 
  protected:
   virtual void SetUp() {
@@ -61,7 +61,7 @@ class UpdateCheckSchedulerTest : public ::testing::Test {
     EXPECT_EQ(0, scheduler_.last_interval_);
     EXPECT_EQ(0, scheduler_.poll_interval_);
     // Make sure singleton CertificateChecker has its members properly setup.
-    CertificateChecker::set_system_state(&mock_system_state_);
+    CertificateChecker::set_system_state(&fake_system_state_);
     CertificateChecker::set_openssl_wrapper(&openssl_wrapper_);
   }
 
@@ -76,7 +76,7 @@ class UpdateCheckSchedulerTest : public ::testing::Test {
     return test_->source_callback_.Call(data);
   }
 
-  MockSystemState mock_system_state_;
+  FakeSystemState fake_system_state_;
   MockDBusWrapper dbus_;
   OpenSSLWrapperMock openssl_wrapper_;
   UpdateAttempterMock attempter_;
@@ -171,7 +171,7 @@ TEST_F(UpdateCheckSchedulerTest, IsBootDeviceRemovableTest) {
 
 TEST_F(UpdateCheckSchedulerTest, RunBootDeviceRemovableTest) {
   scheduler_.enabled_ = true;
-  mock_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   EXPECT_CALL(scheduler_, IsBootDeviceRemovable())
       .Times(1)
       .WillOnce(Return(true));
@@ -182,7 +182,7 @@ TEST_F(UpdateCheckSchedulerTest, RunBootDeviceRemovableTest) {
 
 TEST_F(UpdateCheckSchedulerTest, RunNonOfficialBuildTest) {
   scheduler_.enabled_ = true;
-  mock_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   scheduler_.Run();
   EXPECT_FALSE(scheduler_.enabled_);
   EXPECT_EQ(NULL, attempter_.update_check_scheduler());
@@ -194,7 +194,7 @@ TEST_F(UpdateCheckSchedulerTest, RunTest) {
             UpdateCheckScheduler::kTimeoutRegularFuzz,
             &interval_min,
             &interval_max);
-  mock_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   EXPECT_CALL(scheduler_, IsBootDeviceRemovable())
       .Times(1)
       .WillOnce(Return(false));
@@ -280,8 +280,8 @@ TEST_F(UpdateCheckSchedulerTest, SetUpdateStatusNonIdleTest) {
 
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
   scheduler_.scheduled_ = true;
-  EXPECT_TRUE(scheduler_.mock_system_state_ != NULL);
-  scheduler_.mock_system_state_->fake_hardware()->SetIsOOBEComplete(
+  EXPECT_TRUE(scheduler_.fake_system_state_ != NULL);
+  scheduler_.fake_system_state_->fake_hardware()->SetIsOOBEComplete(
       Time::UnixEpoch());
   EXPECT_CALL(attempter_, Update("", "", false, false, false))
       .Times(1)
@@ -293,7 +293,7 @@ TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
 
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBENotCompleteTest) {
   scheduler_.scheduled_ = true;
-  scheduler_.mock_system_state_->fake_hardware()->UnsetIsOOBEComplete();
+  scheduler_.fake_system_state_->fake_hardware()->UnsetIsOOBEComplete();
   EXPECT_CALL(attempter_, Update("", "", _, _, _)).Times(0);
   int interval_min, interval_max;
   FuzzRange(UpdateCheckScheduler::kTimeoutInitialInterval,

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_SYSTEM_STATE_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_SYSTEM_STATE_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_SYSTEM_STATE_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_SYSTEM_STATE_H_
 
 #include <base/logging.h>
 #include <gmock/gmock.h>
@@ -26,9 +26,9 @@ namespace chromeos_update_engine {
 
 // Mock the SystemStateInterface so that we could lie that
 // OOBE is completed even when there's no such marker file, etc.
-class MockSystemState : public SystemState {
+class FakeSystemState : public SystemState {
  public:
-  MockSystemState();
+  FakeSystemState();
 
   // Base class overrides. All getters return the current implementation of
   // various members, either the default (fake/mock) or the one set to override
@@ -262,4 +262,4 @@ class MockSystemState : public SystemState {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_SYSTEM_STATE_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_SYSTEM_STATE_H_

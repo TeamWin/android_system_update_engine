@@ -10,13 +10,13 @@
 #include "update_engine/action_mock.h"
 #include "update_engine/action_processor_mock.h"
 #include "update_engine/fake_clock.h"
+#include "update_engine/fake_system_state.h"
 #include "update_engine/filesystem_copier_action.h"
 #include "update_engine/install_plan.h"
 #include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_http_fetcher.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
-#include "update_engine/mock_system_state.h"
 #include "update_engine/postinstall_runner_action.h"
 #include "update_engine/prefs.h"
 #include "update_engine/prefs_mock.h"
@@ -60,12 +60,12 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 class UpdateAttempterTest : public ::testing::Test {
  protected:
   UpdateAttempterTest()
-      : attempter_(&mock_system_state_, &dbus_),
-        mock_connection_manager(&mock_system_state_),
+      : attempter_(&fake_system_state_, &dbus_),
+        mock_connection_manager(&fake_system_state_),
         loop_(NULL) {
     // Override system state members.
-    mock_system_state_.set_connection_manager(&mock_connection_manager);
-    mock_system_state_.set_update_attempter(&attempter_);
+    fake_system_state_.set_connection_manager(&mock_connection_manager);
+    fake_system_state_.set_update_attempter(&attempter_);
 
     // Finish initializing the attempter.
     attempter_.Init();
@@ -88,7 +88,7 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_EQ(0, attempter_.new_payload_size_);
     processor_ = new NiceMock<ActionProcessorMock>();
     attempter_.processor_.reset(processor_);  // Transfers ownership.
-    prefs_ = mock_system_state_.mock_prefs();
+    prefs_ = fake_system_state_.mock_prefs();
   }
 
   virtual void TearDown() {
@@ -150,11 +150,11 @@ class UpdateAttempterTest : public ::testing::Test {
   void P2PEnabledHousekeepingFailsStart();
   static gboolean StaticP2PEnabledHousekeepingFails(gpointer data);
 
-  MockSystemState mock_system_state_;
+  FakeSystemState fake_system_state_;
   NiceMock<MockDBusWrapper> dbus_;
   UpdateAttempterUnderTest attempter_;
   NiceMock<ActionProcessorMock>* processor_;
-  NiceMock<PrefsMock>* prefs_; // shortcut to mock_system_state_->mock_prefs()
+  NiceMock<PrefsMock>* prefs_; // shortcut to fake_system_state_->mock_prefs()
   NiceMock<MockConnectionManager> mock_connection_manager;
   GMainLoop* loop_;
 
@@ -185,14 +185,14 @@ TEST_F(UpdateAttempterTest, ActionCompletedErrorTest) {
 TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   scoped_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, NULL));
   fetcher->FailTransfer(500);  // Sets the HTTP response code.
-  OmahaRequestAction action(&mock_system_state_, NULL,
+  OmahaRequestAction action(&fake_system_state_, NULL,
                             fetcher.release(), false);
   ObjectCollectorAction<OmahaResponse> collector_action;
   BondActions(&action, &collector_action);
   OmahaResponse response;
   response.poll_interval = 234;
   action.SetOutputObject(response);
-  UpdateCheckScheduler scheduler(&attempter_, &mock_system_state_);
+  UpdateCheckScheduler scheduler(&attempter_, &fake_system_state_);
   attempter_.set_update_check_scheduler(&scheduler);
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(NULL, &action, kErrorCodeSuccess);
@@ -210,7 +210,7 @@ TEST_F(UpdateAttempterTest, RunAsRootConstructWithUpdatedMarkerTest) {
   ScopedPathUnlinker completed_marker_unlinker(test_update_completed_marker);
   const base::FilePath marker(test_update_completed_marker);
   EXPECT_EQ(0, file_util::WriteFile(marker, "", 0));
-  UpdateAttempterUnderTest attempter(&mock_system_state_, &dbus_,
+  UpdateAttempterUnderTest attempter(&fake_system_state_, &dbus_,
                                      test_update_completed_marker);
   EXPECT_EQ(UPDATE_STATUS_UPDATED_NEED_REBOOT, attempter.status());
 }
@@ -221,17 +221,17 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
   EXPECT_EQ(kErrorCodeSuccess,
             GetErrorCodeForAction(NULL, kErrorCodeSuccess));
 
-  MockSystemState mock_system_state;
-  OmahaRequestAction omaha_request_action(&mock_system_state, NULL,
+  FakeSystemState fake_system_state;
+  OmahaRequestAction omaha_request_action(&fake_system_state, NULL,
                                           NULL, false);
   EXPECT_EQ(kErrorCodeOmahaRequestError,
             GetErrorCodeForAction(&omaha_request_action, kErrorCodeError));
-  OmahaResponseHandlerAction omaha_response_handler_action(&mock_system_state_);
+  OmahaResponseHandlerAction omaha_response_handler_action(&fake_system_state_);
   EXPECT_EQ(kErrorCodeOmahaResponseHandlerError,
             GetErrorCodeForAction(&omaha_response_handler_action,
                                   kErrorCodeError));
   FilesystemCopierAction filesystem_copier_action(
-      &mock_system_state_, false, false);
+      &fake_system_state_, false, false);
   EXPECT_EQ(kErrorCodeFilesystemCopierError,
             GetErrorCodeForAction(&filesystem_copier_action, kErrorCodeError));
   PostinstallRunnerAction postinstall_runner_action;
@@ -289,17 +289,17 @@ TEST_F(UpdateAttempterTest, MarkDeltaUpdateFailureTest) {
 TEST_F(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest) {
   EXPECT_CALL(*processor_, EnqueueAction(_)).Times(0);
   EXPECT_CALL(*processor_, StartProcessing()).Times(0);
-  EXPECT_CALL(*mock_system_state_.mock_payload_state(), UpdateFailed(_))
+  EXPECT_CALL(*fake_system_state_.mock_payload_state(), UpdateFailed(_))
       .Times(0);
   OmahaResponse response;
   string url1 = "http://url1";
   response.payload_urls.push_back(url1);
   response.payload_urls.push_back("https://url");
-  EXPECT_CALL(*(mock_system_state_.mock_payload_state()), GetCurrentUrl())
+  EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(url1));
-  mock_system_state_.mock_payload_state()->SetResponse(response);
+  fake_system_state_.mock_payload_state()->SetResponse(response);
   attempter_.ScheduleErrorEventAction();
-  EXPECT_EQ(url1, mock_system_state_.mock_payload_state()->GetCurrentUrl());
+  EXPECT_EQ(url1, fake_system_state_.mock_payload_state()->GetCurrentUrl());
 }
 
 TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
@@ -309,7 +309,7 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
       .Times(1);
   EXPECT_CALL(*processor_, StartProcessing()).Times(1);
   ErrorCode err = kErrorCodeError;
-  EXPECT_CALL(*mock_system_state_.mock_payload_state(), UpdateFailed(err));
+  EXPECT_CALL(*fake_system_state_.mock_payload_state(), UpdateFailed(err));
   attempter_.error_event_.reset(new OmahaEvent(OmahaEvent::kTypeUpdateComplete,
                                                OmahaEvent::kResultError,
                                                err));
@@ -469,13 +469,13 @@ void UpdateAttempterTest::RollbackTestStart(
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  mock_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy);
 
   if (!valid_slot) {
     // References bootable kernels in fake_hardware.h
     string rollback_kernel = "/dev/sdz2";
     LOG(INFO) << "Test Mark Unbootable: " << rollback_kernel;
-    mock_system_state_.fake_hardware()->MarkKernelUnbootable(
+    fake_system_state_.fake_hardware()->MarkKernelUnbootable(
         rollback_kernel);
   }
 
@@ -578,7 +578,7 @@ void UpdateAttempterTest::PingOmahaTestStart() {
 }
 
 TEST_F(UpdateAttempterTest, PingOmahaTest) {
-  UpdateCheckScheduler scheduler(&attempter_, &mock_system_state_);
+  UpdateCheckScheduler scheduler(&attempter_, &fake_system_state_);
   scheduler.enabled_ = true;
   EXPECT_FALSE(scheduler.scheduled_);
   attempter_.set_update_check_scheduler(&scheduler);
@@ -604,7 +604,7 @@ TEST_F(UpdateAttempterTest, CreatePendingErrorEventTest) {
 
 TEST_F(UpdateAttempterTest, CreatePendingErrorEventResumedTest) {
   OmahaResponseHandlerAction *response_action =
-      new OmahaResponseHandlerAction(&mock_system_state_);
+      new OmahaResponseHandlerAction(&fake_system_state_);
   response_action->install_plan_.is_resume = true;
   attempter_.response_handler_action_.reset(response_action);
   ActionMock action;
@@ -633,7 +633,7 @@ void UpdateAttempterTest::ReadChannelFromPolicyTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  mock_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetReleaseChannelDelegated(_)).WillRepeatedly(
       DoAll(SetArgumentPointee<0>(bool(false)),
@@ -668,7 +668,7 @@ void UpdateAttempterTest::ReadUpdateDisabledFromPolicyTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  mock_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetUpdateDisabled(_))
       .WillRepeatedly(DoAll(
@@ -683,7 +683,7 @@ void UpdateAttempterTest::ReadUpdateDisabledFromPolicyTestStart() {
 
 TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenNotEnabled) {
   MockP2PManager mock_p2p_manager;
-  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(false);
   EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning()).Times(0);
   attempter_.UpdateEngineStarted();
@@ -691,7 +691,7 @@ TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenNotEnabled) {
 
 TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenEnabledButNotSharing) {
   MockP2PManager mock_p2p_manager;
-  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
   EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning()).Times(0);
   attempter_.UpdateEngineStarted();
@@ -699,7 +699,7 @@ TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenEnabledButNotSharing) {
 
 TEST_F(UpdateAttempterTest, P2PStartedAtStartupWhenEnabledAndSharing) {
   MockP2PManager mock_p2p_manager;
-  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetCountSharedFilesResult(1);
   EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning()).Times(1);
@@ -722,7 +722,7 @@ void UpdateAttempterTest::P2PNotEnabledStart() {
   // If P2P is not enabled, check that we do not attempt housekeeping
   // and do not convey that p2p is to be used.
   MockP2PManager mock_p2p_manager;
-  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
   attempter_.Update("", "", false, false, false);
@@ -748,7 +748,7 @@ void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
   // If p2p is enabled, but starting it fails ensure we don't do
   // any housekeeping and do not convey that p2p should be used.
   MockP2PManager mock_p2p_manager;
-  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(false);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
@@ -776,7 +776,7 @@ void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
   // If p2p is enabled, starting it works but housekeeping fails, ensure
   // we do not convey p2p is to be used.
   MockP2PManager mock_p2p_manager;
-  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
@@ -801,7 +801,7 @@ gboolean UpdateAttempterTest::StaticP2PEnabled(gpointer data) {
 }
 void UpdateAttempterTest::P2PEnabledStart() {
   MockP2PManager mock_p2p_manager;
-  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   // If P2P is enabled and starting it works, check that we performed
   // housekeeping and that we convey p2p should be used.
   mock_p2p_manager.fake().SetP2PEnabled(true);
@@ -828,7 +828,7 @@ gboolean UpdateAttempterTest::StaticP2PEnabledInteractive(gpointer data) {
 }
 void UpdateAttempterTest::P2PEnabledInteractiveStart() {
   MockP2PManager mock_p2p_manager;
-  mock_system_state_.set_p2p_manager(&mock_p2p_manager);
+  fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   // For an interactive check, if P2P is enabled and starting it
   // works, check that we performed housekeeping and that we convey
   // p2p should be used for sharing but NOT for downloading.
@@ -860,7 +860,7 @@ void UpdateAttempterTest::ReadTargetVersionPrefixFromPolicyTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  mock_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetTargetVersionPrefix(_))
       .WillRepeatedly(DoAll(
@@ -892,7 +892,7 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  mock_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
@@ -920,7 +920,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   Prefs prefs;
   attempter_.prefs_ = &prefs;
 
-  mock_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
+  fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
 
   string prefs_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
@@ -937,7 +937,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  mock_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
@@ -983,7 +983,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   Prefs prefs;
   attempter_.prefs_ = &prefs;
 
-  mock_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
+  fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
 
   string prefs_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
@@ -1003,7 +1003,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
 
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  mock_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
@@ -1037,8 +1037,8 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
   EXPECT_TRUE(utils::MakeTempDirectory("UpdateCheckScheduler.XXXXXX",
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
-  mock_system_state_.set_clock(&fake_clock);
-  mock_system_state_.set_prefs(&prefs);
+  fake_system_state_.set_clock(&fake_clock);
+  fake_system_state_.set_prefs(&prefs);
 
   Time epoch = Time::FromInternalValue(0);
   fake_clock.SetWallclockTime(epoch);
@@ -1100,12 +1100,12 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
 
 TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
   const string update_completed_marker = test_dir_ + "/update-completed-marker";
-  UpdateAttempterUnderTest attempter(&mock_system_state_, &dbus_,
+  UpdateAttempterUnderTest attempter(&fake_system_state_, &dbus_,
                                      update_completed_marker);
 
   FakeClock fake_clock;
   fake_clock.SetBootTime(Time::FromTimeT(42));
-  mock_system_state_.set_clock(&fake_clock);
+  fake_system_state_.set_clock(&fake_clock);
 
   Time boot_time;
   EXPECT_FALSE(attempter.GetBootTimeAtUpdate(&boot_time));

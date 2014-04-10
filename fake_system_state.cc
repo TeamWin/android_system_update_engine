@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "update_engine/mock_system_state.h"
+#include "update_engine/fake_system_state.h"
 #include "update_engine/policy_manager/fake_state.h"
 
 using chromeos_policy_manager::FakeState;
@@ -11,7 +11,7 @@ namespace chromeos_update_engine {
 
 // Mock the SystemStateInterface so that we could lie that
 // OOBE is completed even when there's no such marker file, etc.
-MockSystemState::MockSystemState()
+FakeSystemState::FakeSystemState()
   : mock_connection_manager_(this),
     mock_update_attempter_(this, &dbus_),
     default_request_params_(this),

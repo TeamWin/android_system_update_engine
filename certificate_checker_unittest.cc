@@ -13,7 +13,7 @@
 #include "update_engine/certificate_checker.h"
 #include "update_engine/certificate_checker_mock.h"
 #include "update_engine/constants.h"
-#include "update_engine/mock_system_state.h"
+#include "update_engine/fake_system_state.h"
 #include "update_engine/prefs_mock.h"
 
 using ::testing::_;
@@ -47,15 +47,15 @@ class CertificateCheckerTest : public testing::Test {
                                    depth_);
     kCertChanged = "Updater.ServerCertificateChanged";
     kCertFailed = "Updater.ServerCertificateFailed";
-    CertificateChecker::set_system_state(&mock_system_state_);
+    CertificateChecker::set_system_state(&fake_system_state_);
     CertificateChecker::set_openssl_wrapper(&openssl_wrapper_);
-    prefs_ = mock_system_state_.mock_prefs();
+    prefs_ = fake_system_state_.mock_prefs();
   }
 
   virtual void TearDown() {}
 
-  MockSystemState mock_system_state_;
-  PrefsMock* prefs_; // shortcut to mock_system_state_.mock_prefs()
+  FakeSystemState fake_system_state_;
+  PrefsMock* prefs_; // shortcut to fake_system_state_.mock_prefs()
   OpenSSLWrapperMock openssl_wrapper_;
   // Parameters of our mock certificate digest.
   int depth_;
@@ -143,7 +143,7 @@ TEST_F(CertificateCheckerTest, FlushReport) {
           Return(true)));
   EXPECT_CALL(*prefs_, GetString(kPrefsCertificateReportToSendDownload, _))
       .WillOnce(Return(false));
-  EXPECT_CALL(*mock_system_state_.mock_metrics_lib(),
+  EXPECT_CALL(*fake_system_state_.mock_metrics_lib(),
               SendUserActionToUMA(kCertChanged))
       .WillOnce(Return(true));
   EXPECT_CALL(*prefs_, Delete(kPrefsCertificateReportToSendUpdate))
@@ -162,7 +162,7 @@ TEST_F(CertificateCheckerTest, FlushNothingToReport) {
           Return(true)));
   EXPECT_CALL(*prefs_, GetString(kPrefsCertificateReportToSendDownload, _))
       .WillOnce(Return(false));
-  EXPECT_CALL(*mock_system_state_.mock_metrics_lib(),
+  EXPECT_CALL(*fake_system_state_.mock_metrics_lib(),
               SendUserActionToUMA(_)).Times(0);
   EXPECT_CALL(*prefs_, SetString(_,_)).Times(0);
   CertificateChecker::FlushReport();

@@ -8,8 +8,8 @@
 #include <string>
 
 #include "update_engine/connection_manager.h"
+#include "update_engine/fake_system_state.h"
 #include "update_engine/mock_dbus_wrapper.h"
-#include "update_engine/mock_system_state.h"
 
 using std::set;
 using std::string;
@@ -27,8 +27,8 @@ class ConnectionManagerTest : public ::testing::Test {
       : kMockFlimFlamManagerProxy_(NULL),
         kMockFlimFlamServiceProxy_(NULL),
         kServicePath_(NULL),
-        cmut_(&mock_system_state_) {
-    mock_system_state_.set_connection_manager(&cmut_);
+        cmut_(&fake_system_state_) {
+    fake_system_state_.set_connection_manager(&cmut_);
   }
 
  protected:
@@ -56,7 +56,7 @@ class ConnectionManagerTest : public ::testing::Test {
   const char* kServicePath_;
   MockDBusWrapper dbus_iface_;
   ConnectionManager cmut_;  // ConnectionManager under test.
-  MockSystemState mock_system_state_;
+  FakeSystemState fake_system_state_;
 };
 
 // static
@@ -251,7 +251,7 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOverBluetoothTest) {
 TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
   policy::MockDevicePolicy allow_3g_policy;
 
-  mock_system_state_.set_device_policy(&allow_3g_policy);
+  fake_system_state_.set_device_policy(&allow_3g_policy);
 
   // This test tests cellular (3G) being the only connection type being allowed.
   set<string> allowed_set;
@@ -268,7 +268,7 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
 TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
   policy::MockDevicePolicy allow_3g_policy;
 
-  mock_system_state_.set_device_policy(&allow_3g_policy);
+  fake_system_state_.set_device_policy(&allow_3g_policy);
 
   // This test tests multiple connection types being allowed, with
   // 3G one among them. Only Cellular is currently enforced by the policy
@@ -317,7 +317,7 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOverTetheredNetworkByDefaultTest) {
 TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
   policy::MockDevicePolicy block_3g_policy;
 
-  mock_system_state_.set_device_policy(&block_3g_policy);
+  fake_system_state_.set_device_policy(&block_3g_policy);
 
   // Test that updates for 3G are blocked while updates are allowed
   // over several other types.
@@ -337,7 +337,7 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
 TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
   policy::MockDevicePolicy allow_3g_policy;
 
-  mock_system_state_.set_device_policy(&allow_3g_policy);
+  fake_system_state_.set_device_policy(&allow_3g_policy);
 
   set<string> allowed_set;
   allowed_set.insert(cmut_.StringForConnectionType(kNetCellular));
@@ -355,9 +355,9 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
 
 TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
   policy::MockDevicePolicy no_policy;
-  testing::NiceMock<PrefsMock>* prefs = mock_system_state_.mock_prefs();
+  testing::NiceMock<PrefsMock>* prefs = fake_system_state_.mock_prefs();
 
-  mock_system_state_.set_device_policy(&no_policy);
+  fake_system_state_.set_device_policy(&no_policy);
 
   // No setting enforced by the device policy, user prefs should be used.
   EXPECT_CALL(no_policy, GetAllowedConnectionTypesForUpdate(_))

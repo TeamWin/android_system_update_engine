@@ -7,8 +7,8 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
+#include "update_engine/fake_system_state.h"
 #include "update_engine/omaha_response_handler_action.h"
-#include "update_engine/mock_system_state.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -22,7 +22,7 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
  public:
   // Return true iff the OmahaResponseHandlerAction succeeded.
   // If out is non-NULL, it's set w/ the response from the action.
-  bool DoTestCommon(MockSystemState* mock_system_state,
+  bool DoTestCommon(FakeSystemState* fake_system_state,
                     const OmahaResponse& in,
                     const string& boot_dev,
                     const string& deadline_file,
@@ -65,7 +65,7 @@ const string kBadVersion = "don't update me";
 }  // namespace {}
 
 bool OmahaResponseHandlerActionTest::DoTestCommon(
-    MockSystemState* mock_system_state,
+    FakeSystemState* fake_system_state,
     const OmahaResponse& in,
     const string& boot_dev,
     const string& test_deadline_file,
@@ -77,19 +77,19 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
   ObjectFeederAction<OmahaResponse> feeder_action;
   feeder_action.set_obj(in);
   if (in.update_exists and in.version != kBadVersion) {
-    EXPECT_CALL(*(mock_system_state->mock_prefs()),
+    EXPECT_CALL(*(fake_system_state->mock_prefs()),
                 SetString(kPrefsUpdateCheckResponseHash, in.hash))
         .WillOnce(Return(true));
   }
 
   string current_url = in.payload_urls.size() ? in.payload_urls[0] : "";
-  EXPECT_CALL(*(mock_system_state->mock_payload_state()), GetCurrentUrl())
+  EXPECT_CALL(*(fake_system_state->mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(current_url));
-  EXPECT_CALL(*(mock_system_state->mock_payload_state()), GetRollbackVersion())
+  EXPECT_CALL(*(fake_system_state->mock_payload_state()), GetRollbackVersion())
         .WillRepeatedly(Return(kBadVersion));
 
   OmahaResponseHandlerAction response_handler_action(
-      mock_system_state,
+      fake_system_state,
       (test_deadline_file.empty() ?
        OmahaResponseHandlerAction::kDeadlineFile : test_deadline_file));
   response_handler_action.set_boot_device(boot_dev);
@@ -112,8 +112,8 @@ bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
                                             const string& boot_dev,
                                             const string& deadline_file,
                                             InstallPlan* out) {
-  MockSystemState mock_system_state;
-  return DoTestCommon(&mock_system_state, in, boot_dev, deadline_file, out);
+  FakeSystemState fake_system_state;
+  return DoTestCommon(&fake_system_state, in, boot_dev, deadline_file, out);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
@@ -299,8 +299,8 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
       "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
 
-  MockSystemState mock_system_state;
-  OmahaRequestParams params(&mock_system_state);
+  FakeSystemState fake_system_state;
+  OmahaRequestParams params(&fake_system_state);
   params.set_root(test_dir);
   params.SetLockDown(false);
   params.Init("1.2.3.4", "", 0);
@@ -309,9 +309,9 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   EXPECT_TRUE(params.to_more_stable_channel());
   EXPECT_TRUE(params.is_powerwash_allowed());
 
-  mock_system_state.set_request_params(&params);
+  fake_system_state.set_request_params(&params);
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", "",
+  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
                            &install_plan));
   EXPECT_TRUE(install_plan.powerwash_required);
 
@@ -342,8 +342,8 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
       test_dir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
 
-  MockSystemState mock_system_state;
-  OmahaRequestParams params(&mock_system_state);
+  FakeSystemState fake_system_state;
+  OmahaRequestParams params(&fake_system_state);
   params.set_root(test_dir);
   params.SetLockDown(false);
   params.Init("5.6.7.8", "", 0);
@@ -353,9 +353,9 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   EXPECT_FALSE(params.to_more_stable_channel());
   EXPECT_FALSE(params.is_powerwash_allowed());
 
-  mock_system_state.set_request_params(&params);
+  fake_system_state.set_request_params(&params);
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", "",
+  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
                            &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
 
@@ -371,11 +371,11 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   in.hash = "HASHj+";
   in.size = 12;
 
-  MockSystemState mock_system_state;
-  OmahaRequestParams params(&mock_system_state);
-  mock_system_state.set_request_params(&params);
+  FakeSystemState fake_system_state;
+  OmahaRequestParams params(&fake_system_state);
+  fake_system_state.set_request_params(&params);
 
-  EXPECT_CALL(*mock_system_state.mock_payload_state(),
+  EXPECT_CALL(*fake_system_state.mock_payload_state(),
               SetUsingP2PForDownloading(true));
 
   string p2p_url = "http://9.8.7.6/p2p";
@@ -383,7 +383,7 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   params.set_use_p2p_for_downloading(true);
 
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&mock_system_state, in, "/dev/sda5", "",
+  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
                            &install_plan));
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_EQ(install_plan.download_url, p2p_url);

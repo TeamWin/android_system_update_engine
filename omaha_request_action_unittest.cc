@@ -42,9 +42,9 @@ class OmahaRequestActionTest : public ::testing::Test {};
 
 namespace {
 
-MockSystemState mock_system_state;
+FakeSystemState fake_system_state;
 OmahaRequestParams kDefaultTestParams(
-    &mock_system_state,
+    &fake_system_state,
     OmahaRequestParams::kOsPlatform,
     OmahaRequestParams::kOsVersion,
     "service_pack",
@@ -242,15 +242,15 @@ bool TestUpdateCheck(PrefsInterface* prefs,
   if (fail_http_response_code >= 0) {
     fetcher->FailTransfer(fail_http_response_code);
   }
-  MockSystemState mock_system_state;
+  FakeSystemState fake_system_state;
   if (prefs)
-    mock_system_state.set_prefs(prefs);
+    fake_system_state.set_prefs(prefs);
   if (payload_state)
-    mock_system_state.set_payload_state(payload_state);
+    fake_system_state.set_payload_state(payload_state);
   if (p2p_manager)
-    mock_system_state.set_p2p_manager(p2p_manager);
-  mock_system_state.set_request_params(&params);
-  OmahaRequestAction action(&mock_system_state,
+    fake_system_state.set_p2p_manager(p2p_manager);
+  fake_system_state.set_request_params(&params);
+  OmahaRequestAction action(&fake_system_state,
                             NULL,
                             fetcher,
                             ping_only);
@@ -266,19 +266,19 @@ bool TestUpdateCheck(PrefsInterface* prefs,
   BondActions(&action, &collector_action);
   processor.EnqueueAction(&collector_action);
 
-  EXPECT_CALL(*mock_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
       .Times(AnyNumber());
-  EXPECT_CALL(*mock_system_state.mock_metrics_lib(),
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(),
       SendEnumToUMA(metrics::kMetricCheckResult,
           static_cast<int>(expected_check_result),
           static_cast<int>(metrics::CheckResult::kNumConstants) - 1))
       .Times(expected_check_result == metrics::CheckResult::kUnset ? 0 : 1);
-  EXPECT_CALL(*mock_system_state.mock_metrics_lib(),
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(),
       SendEnumToUMA(metrics::kMetricCheckReaction,
           static_cast<int>(expected_check_reaction),
           static_cast<int>(metrics::CheckReaction::kNumConstants) - 1))
       .Times(expected_check_reaction == metrics::CheckReaction::kUnset ? 0 : 1);
-  EXPECT_CALL(*mock_system_state.mock_metrics_lib(),
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(),
       SendSparseToUMA(metrics::kMetricCheckDownloadErrorCode,
           static_cast<int>(expected_download_error_code)))
       .Times(expected_download_error_code == metrics::DownloadErrorCode::kUnset
@@ -305,9 +305,9 @@ void TestEvent(OmahaRequestParams params,
   MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
                                                  http_response.size(),
                                                  NULL);
-  MockSystemState mock_system_state;
-  mock_system_state.set_request_params(&params);
-  OmahaRequestAction action(&mock_system_state, event, fetcher, false);
+  FakeSystemState fake_system_state;
+  fake_system_state.set_request_params(&params);
+  OmahaRequestAction action(&fake_system_state, event, fetcher, false);
   OmahaRequestActionTestProcessorDelegate delegate;
   delegate.loop_ = loop;
   ActionProcessor processor;
@@ -833,10 +833,10 @@ TEST(OmahaRequestActionTest, NoOutputPipeTest) {
 
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
 
-  MockSystemState mock_system_state;
+  FakeSystemState fake_system_state;
   OmahaRequestParams params = kDefaultTestParams;
-  mock_system_state.set_request_params(&params);
-  OmahaRequestAction action(&mock_system_state, NULL,
+  fake_system_state.set_request_params(&params);
+  OmahaRequestAction action(&fake_system_state, NULL,
                             new MockHttpFetcher(http_response.data(),
                                                 http_response.size(),
                                                 NULL),
@@ -1027,10 +1027,10 @@ TEST(OmahaRequestActionTest, TerminateTransferTest) {
   string http_response("doesn't matter");
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
 
-  MockSystemState mock_system_state;
+  FakeSystemState fake_system_state;
   OmahaRequestParams params = kDefaultTestParams;
-  mock_system_state.set_request_params(&params);
-  OmahaRequestAction action(&mock_system_state, NULL,
+  fake_system_state.set_request_params(&params);
+  OmahaRequestAction action(&fake_system_state, NULL,
                             new MockHttpFetcher(http_response.data(),
                                                 http_response.size(),
                                                 NULL),
@@ -1056,8 +1056,8 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
   vector<char> post_data;
 
   // Make sure XML Encode is being called on the params
-  MockSystemState mock_system_state;
-  OmahaRequestParams params(&mock_system_state,
+  FakeSystemState fake_system_state;
+  OmahaRequestParams params(&fake_system_state,
                             OmahaRequestParams::kOsPlatform,
                             OmahaRequestParams::kOsVersion,
                             "testtheservice_pack>",
@@ -1272,11 +1272,11 @@ TEST(OmahaRequestActionTest, FormatErrorEventOutputTest) {
 
 TEST(OmahaRequestActionTest, IsEventTest) {
   string http_response("doesn't matter");
-  MockSystemState mock_system_state;
+  FakeSystemState fake_system_state;
   OmahaRequestParams params = kDefaultTestParams;
-  mock_system_state.set_request_params(&params);
+  fake_system_state.set_request_params(&params);
   OmahaRequestAction update_check_action(
-      &mock_system_state,
+      &fake_system_state,
       NULL,
       new MockHttpFetcher(http_response.data(),
                           http_response.size(),
@@ -1285,9 +1285,9 @@ TEST(OmahaRequestActionTest, IsEventTest) {
   EXPECT_FALSE(update_check_action.IsEvent());
 
   params = kDefaultTestParams;
-  mock_system_state.set_request_params(&params);
+  fake_system_state.set_request_params(&params);
   OmahaRequestAction event_action(
-      &mock_system_state,
+      &fake_system_state,
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
       new MockHttpFetcher(http_response.data(),
                           http_response.size(),
@@ -1301,8 +1301,8 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
     bool delta_okay = i == 1;
     const char* delta_okay_str = delta_okay ? "true" : "false";
     vector<char> post_data;
-    MockSystemState mock_system_state;
-    OmahaRequestParams params(&mock_system_state,
+    FakeSystemState fake_system_state;
+    OmahaRequestParams params(&fake_system_state,
                               OmahaRequestParams::kOsPlatform,
                               OmahaRequestParams::kOsVersion,
                               "service_pack",
@@ -1348,8 +1348,8 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
     bool interactive = i == 1;
     const char* interactive_str = interactive ? "ondemandupdate" : "scheduler";
     vector<char> post_data;
-    MockSystemState mock_system_state;
-    OmahaRequestParams params(&mock_system_state,
+    FakeSystemState fake_system_state;
+    OmahaRequestParams params(&fake_system_state,
                               OmahaRequestParams::kOsPlatform,
                               OmahaRequestParams::kOsVersion,
                               "service_pack",
@@ -2243,7 +2243,7 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
   // If there is no prefs and OOBE is not complete, we should not
   // report anything to Omaha.
   {
-    MockSystemState system_state;
+    FakeSystemState system_state;
     system_state.set_prefs(&prefs);
     EXPECT_EQ(OmahaRequestAction::GetInstallDate(&system_state), -1);
     EXPECT_FALSE(prefs.Exists(kPrefsInstallDateDays));
@@ -2254,24 +2254,24 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
   // prefs. However, first try with an invalid date and check we do
   // nothing.
   {
-    MockSystemState mock_system_state;
-    mock_system_state.set_prefs(&prefs);
+    FakeSystemState fake_system_state;
+    fake_system_state.set_prefs(&prefs);
 
     Time oobe_date = Time::FromTimeT(42); // Dec 31, 1969 16:00:42 PST.
-    mock_system_state.fake_hardware()->SetIsOOBEComplete(oobe_date);
-    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&mock_system_state), -1);
+    fake_system_state.fake_hardware()->SetIsOOBEComplete(oobe_date);
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state), -1);
     EXPECT_FALSE(prefs.Exists(kPrefsInstallDateDays));
   }
 
   // Then check with a valid date. The date Jan 20, 2007 0:00 PST
   // should yield an InstallDate of 14.
   {
-    MockSystemState mock_system_state;
-    mock_system_state.set_prefs(&prefs);
+    FakeSystemState fake_system_state;
+    fake_system_state.set_prefs(&prefs);
 
     Time oobe_date = Time::FromTimeT(1169280000); // Jan 20, 2007 0:00 PST.
-    mock_system_state.fake_hardware()->SetIsOOBEComplete(oobe_date);
-    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&mock_system_state), 14);
+    fake_system_state.fake_hardware()->SetIsOOBEComplete(oobe_date);
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state), 14);
     EXPECT_TRUE(prefs.Exists(kPrefsInstallDateDays));
 
     int64_t prefs_days;
@@ -2284,12 +2284,12 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
   // 2007 0:00 PST should yield an InstallDate of 28... but since
   // there's a prefs file, we should still get 14.
   {
-    MockSystemState mock_system_state;
-    mock_system_state.set_prefs(&prefs);
+    FakeSystemState fake_system_state;
+    fake_system_state.set_prefs(&prefs);
 
     Time oobe_date = Time::FromTimeT(1170144000); // Jan 30, 2007 0:00 PST.
-    mock_system_state.fake_hardware()->SetIsOOBEComplete(oobe_date);
-    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&mock_system_state), 14);
+    fake_system_state.fake_hardware()->SetIsOOBEComplete(oobe_date);
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state), 14);
 
     int64_t prefs_days;
     EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
@@ -2297,7 +2297,7 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
 
     // If we delete the prefs file, we should get 28 days.
     EXPECT_TRUE(prefs.Delete(kPrefsInstallDateDays));
-    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&mock_system_state), 28);
+    EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state), 28);
     EXPECT_TRUE(prefs.GetInt64(kPrefsInstallDateDays, &prefs_days));
     EXPECT_EQ(prefs_days, 28);
   }

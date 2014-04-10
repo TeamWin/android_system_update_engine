@@ -16,10 +16,10 @@
 
 #include "update_engine/action_pipe.h"
 #include "update_engine/download_action.h"
-#include "update_engine/mock_http_fetcher.h"
-#include "update_engine/mock_system_state.h"
-#include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
+#include "update_engine/fake_system_state.h"
+#include "update_engine/mock_http_fetcher.h"
+#include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
@@ -468,14 +468,14 @@ protected:
     // Setup p2p.
     FakeP2PManagerConfiguration *test_conf = new FakeP2PManagerConfiguration();
     p2p_manager_.reset(P2PManager::Construct(test_conf, NULL, "cros_au", 3));
-    mock_system_state_.set_p2p_manager(p2p_manager_.get());
+    fake_system_state_.set_p2p_manager(p2p_manager_.get());
   }
 
   // To be called by tests to perform the download. The
   // |use_p2p_to_share| parameter is used to indicate whether the
   // payload should be shared via p2p.
   void StartDownload(bool use_p2p_to_share) {
-    mock_system_state_.request_params()->set_use_p2p_for_sharing(
+    fake_system_state_.request_params()->set_use_p2p_for_sharing(
         use_p2p_to_share);
 
     ScopedTempFile output_temp_file;
@@ -497,7 +497,7 @@ protected:
                                         data_.length(),
                                         NULL);
     // Note that DownloadAction takes ownership of the passed in HttpFetcher.
-    download_action_.reset(new DownloadAction(&prefs, &mock_system_state_,
+    download_action_.reset(new DownloadAction(&prefs, &fake_system_state_,
                                               http_fetcher_));
     download_action_->SetTestFileWriter(&writer);
     BondActions(&feeder_action, download_action_.get());
@@ -527,7 +527,7 @@ protected:
   ActionProcessor processor_;
 
   // A fake system state.
-  MockSystemState mock_system_state_;
+  FakeSystemState fake_system_state_;
 
   // The data being downloaded.
   string data_;

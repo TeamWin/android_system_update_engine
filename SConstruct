@@ -258,9 +258,9 @@ sources = Split("""action_processor.cc
                    utils.cc""")
 main = ['main.cc']
 
-unittest_sources = Split("""action_unittest.cc
-                            action_pipe_unittest.cc
+unittest_sources = Split("""action_pipe_unittest.cc
                             action_processor_unittest.cc
+                            action_unittest.cc
                             bzip_extent_writer_unittest.cc
                             certificate_checker_unittest.cc
                             chrome_browser_proxy_resolver_unittest.cc
@@ -272,6 +272,7 @@ unittest_sources = Split("""action_unittest.cc
                             extent_mapper_unittest.cc
                             extent_ranges_unittest.cc
                             extent_writer_unittest.cc
+                            fake_system_state.cc
                             file_writer_unittest.cc
                             filesystem_copier_action_unittest.cc
                             filesystem_iterator_unittest.cc
@@ -284,7 +285,6 @@ unittest_sources = Split("""action_unittest.cc
                             hwid_override_unittest.cc
                             metadata_unittest.cc
                             mock_http_fetcher.cc
-                            mock_system_state.cc
                             omaha_hash_calculator_unittest.cc
                             omaha_request_action_unittest.cc
                             omaha_request_params_unittest.cc

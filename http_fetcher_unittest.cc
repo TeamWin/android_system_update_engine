@@ -20,11 +20,11 @@
 #include <glib.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/fake_system_state.h"
 #include "update_engine/http_common.h"
 #include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_http_fetcher.h"
-#include "update_engine/mock_system_state.h"
 #include "update_engine/multi_range_http_fetcher.h"
 #include "update_engine/proxy_resolver.h"
 #include "update_engine/utils.h"
@@ -195,8 +195,8 @@ const char* PythonHttpServer::kServerListeningMsgPrefix = "listening on port ";
 class AnyHttpFetcherTest {
  public:
   AnyHttpFetcherTest()
-      : mock_connection_manager_(&mock_system_state_) {
-    mock_system_state_.set_connection_manager(&mock_connection_manager_);
+      : mock_connection_manager_(&fake_system_state_) {
+    fake_system_state_.set_connection_manager(&mock_connection_manager_);
   }
 
   virtual HttpFetcher* NewLargeFetcher(size_t num_proxies) = 0;
@@ -222,7 +222,7 @@ class AnyHttpFetcherTest {
 
  protected:
   DirectProxyResolver proxy_resolver_;
-  MockSystemState mock_system_state_;
+  FakeSystemState fake_system_state_;
   MockConnectionManager mock_connection_manager_;
 };
 
@@ -268,11 +268,11 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
     proxy_resolver_.set_num_proxies(num_proxies);
     LibcurlHttpFetcher *ret = new
         LibcurlHttpFetcher(reinterpret_cast<ProxyResolver*>(&proxy_resolver_),
-                           &mock_system_state_, false);
+                           &fake_system_state_, false);
     // Speed up test execution.
     ret->set_idle_seconds(1);
     ret->set_retry_seconds(1);
-    mock_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+    fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
     return ret;
   }
 
@@ -317,13 +317,13 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
         reinterpret_cast<ProxyResolver*>(&proxy_resolver_);
     MultiRangeHttpFetcher *ret =
         new MultiRangeHttpFetcher(
-            new LibcurlHttpFetcher(resolver, &mock_system_state_, false));
+            new LibcurlHttpFetcher(resolver, &fake_system_state_, false));
     ret->ClearRanges();
     ret->AddRange(0);
     // Speed up test execution.
     ret->set_idle_seconds(1);
     ret->set_retry_seconds(1);
-    mock_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+    fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
     return ret;
   }
 
@@ -1050,7 +1050,7 @@ void MultiTest(HttpFetcher* fetcher_in,
       }
       LOG(INFO) << "added range: " << tmp_str;
     }
-    dynamic_cast<MockSystemState*>(fetcher_in->GetSystemState())
+    dynamic_cast<FakeSystemState*>(fetcher_in->GetSystemState())
         ->fake_hardware()->SetIsOfficialBuild(false);
     multi_fetcher->set_delegate(&delegate);
 
@@ -1238,8 +1238,8 @@ TYPED_TEST(HttpFetcherTest, BlockedTransferTest) {
       bool is_official_build = (i == 1);
       LOG(INFO) << "is_update_allowed_over_connection: " << is_allowed;
       LOG(INFO) << "is_official_build: " << is_official_build;
-      // NewLargeFetcher creates the HttpFetcher* with a MockSystemState.
-      dynamic_cast<MockSystemState*>(fetcher->GetSystemState())
+      // NewLargeFetcher creates the HttpFetcher* with a FakeSystemState.
+      dynamic_cast<FakeSystemState*>(fetcher->GetSystemState())
           ->fake_hardware()->SetIsOfficialBuild(is_official_build);
       fetcher->set_delegate(&delegate);
 

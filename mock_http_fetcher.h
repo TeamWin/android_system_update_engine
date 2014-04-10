@@ -10,9 +10,9 @@
 #include <base/logging.h>
 #include <glib.h>
 
+#include "update_engine/fake_system_state.h"
 #include "update_engine/http_fetcher.h"
 #include "update_engine/mock_connection_manager.h"
-#include "update_engine/mock_system_state.h"
 
 // This is a mock implementation of HttpFetcher which is useful for testing.
 // All data must be passed into the ctor. When started, MockHttpFetcher will
@@ -33,15 +33,15 @@ class MockHttpFetcher : public HttpFetcher {
   MockHttpFetcher(const char* data,
                   size_t size,
                   ProxyResolver* proxy_resolver)
-      : HttpFetcher(proxy_resolver, &mock_system_state_),
+      : HttpFetcher(proxy_resolver, &fake_system_state_),
         sent_size_(0),
         timeout_source_(NULL),
         timout_tag_(0),
         paused_(false),
         fail_transfer_(false),
         never_use_(false),
-        mock_connection_manager_(&mock_system_state_) {
-    mock_system_state_.set_connection_manager(&mock_connection_manager_);
+        mock_connection_manager_(&fake_system_state_) {
+    fake_system_state_.set_connection_manager(&mock_connection_manager_);
     data_.insert(data_.end(), data, data + size);
   }
 
@@ -131,7 +131,7 @@ class MockHttpFetcher : public HttpFetcher {
   // Set to true if BeginTransfer should EXPECT fail.
   bool never_use_;
 
-  MockSystemState mock_system_state_;
+  FakeSystemState fake_system_state_;
   MockConnectionManager mock_connection_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(MockHttpFetcher);
