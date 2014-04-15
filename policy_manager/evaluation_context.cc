@@ -7,9 +7,17 @@
 #include <base/bind.h>
 
 using base::Closure;
+using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ClockInterface;
 
 namespace chromeos_policy_manager {
+
+EvaluationContext::EvaluationContext(ClockInterface* clock)
+    : clock_(clock),
+      weak_ptr_factory_(this) {
+  ResetEvaluation();
+}
 
 EvaluationContext::~EvaluationContext() {
   RemoveObserversAndTimeout();
@@ -25,9 +33,7 @@ void EvaluationContext::RemoveObserversAndTimeout() {
 }
 
 TimeDelta EvaluationContext::RemainingTime() const {
-  // TODO(deymo): Return a timeout based on the elapsed time on the current
-  // policy request evaluation.
-  return TimeDelta::FromSeconds(1.);
+  return evaluation_monotonic_deadline_ - clock_->GetMonotonicTime();
 }
 
 void EvaluationContext::ValueChanged(BaseVariable* var) {
@@ -43,6 +49,32 @@ void EvaluationContext::OnPollTimeout() {
 
 void EvaluationContext::OnValueChangedOrPollTimeout() {
   RemoveObserversAndTimeout();
+
+  if (value_changed_callback_.get() != NULL) {
+    value_changed_callback_->Run();
+    value_changed_callback_.reset();
+  }
+}
+
+bool EvaluationContext::IsTimeGreaterThan(base::Time timestamp) {
+  if (evaluation_start_ > timestamp)
+    return true;
+  // We need to keep track of these calls to trigger a reevaluation.
+  if (reevaluation_time_ > timestamp)
+    reevaluation_time_ = timestamp;
+  return false;
+}
+
+void EvaluationContext::ResetEvaluation() {
+  // It is not important if these two values are not in sync. The first value is
+  // a reference in time when the evaluation started, to device time-based
+  // values for the current evaluation. The second is a deadline for the
+  // evaluation which required a monotonic source of time.
+  evaluation_start_ = clock_->GetWallclockTime();
+  evaluation_monotonic_deadline_ =
+      clock_->GetMonotonicTime() + evaluation_timeout_;
+  reevaluation_time_ = Time::Max();
+
   // Remove the cached values of non-const variables
   for (auto it = value_cache_.begin(); it != value_cache_.end(); ) {
     if (it->first->GetMode() == kVariableModeConst) {
@@ -51,17 +83,19 @@ void EvaluationContext::OnValueChangedOrPollTimeout() {
       it = value_cache_.erase(it);
     }
   }
-
-  if (value_changed_callback_.get() != NULL) {
-    value_changed_callback_->Run();
-    value_changed_callback_.reset();
-  }
 }
 
 bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
   TimeDelta reeval_timeout;
   bool reeval_timeout_set = false;
   bool waiting_for_value_change = false;
+
+  // Check if a reevaluation should be triggered due to a IsTimeGreaterThan()
+  // call.
+  if (reevaluation_time_ != Time::Max()) {
+    reeval_timeout = reevaluation_time_ - evaluation_start_;
+    reeval_timeout_set = true;
+  }
 
   if (value_changed_callback_.get() != NULL) {
     LOG(ERROR) << "RunOnValueChangeOrTimeout called more than once.";

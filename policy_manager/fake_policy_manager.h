@@ -13,7 +13,8 @@ namespace chromeos_policy_manager {
 
 class FakePolicyManager : public PolicyManager {
  public:
-  FakePolicyManager() {
+  explicit FakePolicyManager(chromeos_update_engine::ClockInterface* clock)
+      : PolicyManager(clock) {
     // The FakePolicyManager uses a DefaultPolicy.
     set_policy(new DefaultPolicy());
   }

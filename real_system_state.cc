@@ -17,6 +17,7 @@ RealSystemState::RealSystemState()
       connection_manager_(this),
       update_attempter_(this, &dbus_),
       request_params_(this),
+      policy_manager_(&clock_),
       system_rebooted_(false) {}
 
 bool RealSystemState::Initialize(bool enable_gpio) {

@@ -53,6 +53,7 @@ void PolicyManager::OnPolicyReadyToEvaluate(
                                         R* result,
                                         Args... args) const,
     Args... args) {
+  ec->ResetEvaluation();
   R result;
   EvalStatus status = EvaluatePolicy(ec, policy_method, &result, args...);
 
@@ -85,7 +86,7 @@ EvalStatus PolicyManager::PolicyRequest(
                                         R* result,
                                         Args... args) const,
     R* result, Args... args) {
-  scoped_refptr<EvaluationContext> ec(new EvaluationContext);
+  scoped_refptr<EvaluationContext> ec(new EvaluationContext(clock_));
   // A PolicyRequest allways consists on a single evaluation on a new
   // EvaluationContext.
   return EvaluatePolicy(ec, policy_method, result, args...);
@@ -100,7 +101,7 @@ void PolicyManager::AsyncPolicyRequest(
                                         R* result,
                                         Args... args) const,
     Args... args) {
-  scoped_refptr<EvaluationContext> ec = new EvaluationContext;
+  scoped_refptr<EvaluationContext> ec = new EvaluationContext(clock_);
   base::Closure closure = base::Bind(
       &PolicyManager::OnPolicyReadyToEvaluate<R, Args...>,
       base::Unretained(this), ec, callback, policy_method, args...);

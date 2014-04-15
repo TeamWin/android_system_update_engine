@@ -8,17 +8,24 @@
 #include <base/memory/scoped_ptr.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/fake_clock.h"
 #include "update_engine/policy_manager/evaluation_context.h"
 #include "update_engine/policy_manager/fake_variable.h"
 #include "update_engine/policy_manager/generic_variables.h"
+#include "update_engine/policy_manager/mock_variable.h"
 #include "update_engine/policy_manager/pmtest_utils.h"
 #include "update_engine/test_utils.h"
 
 using base::Bind;
+using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::FakeClock;
 using chromeos_update_engine::RunGMainLoopMaxIterations;
 using chromeos_update_engine::RunGMainLoopUntil;
 using std::string;
+using testing::Return;
+using testing::StrictMock;
+using testing::_;
 
 namespace {
 
@@ -38,12 +45,12 @@ bool GetBoolean(bool* value) {
 namespace chromeos_policy_manager {
 
 class PmEvaluationContextTest : public ::testing::Test {
- public:
-  PmEvaluationContextTest() {}
-
  protected:
   virtual void SetUp() {
-    eval_ctx_ = new EvaluationContext();
+    // Set the clock to a fixed values.
+    fake_clock_.SetMonotonicTime(Time::FromInternalValue(12345678L));
+    fake_clock_.SetWallclockTime(Time::FromInternalValue(12345678901234L));
+    eval_ctx_ = new EvaluationContext(&fake_clock_);
   }
 
   virtual void TearDown() {
@@ -55,6 +62,11 @@ class PmEvaluationContextTest : public ::testing::Test {
     EXPECT_TRUE(fake_poll_var_.observer_list_.empty());
   }
 
+  // TODO(deymo): Update the default timeout to the one passed on construction.
+  // See crbug.com/363790
+  base::TimeDelta default_timeout_ = base::TimeDelta::FromSeconds(5);
+
+  FakeClock fake_clock_;
   scoped_refptr<EvaluationContext> eval_ctx_;
 
   // FakeVariables used for testing the EvaluationContext. These are required
@@ -65,6 +77,10 @@ class PmEvaluationContextTest : public ::testing::Test {
   FakeVariable<string> fake_const_var_ = {"fake_const", kVariableModeConst};
   FakeVariable<string> fake_poll_var_ = {"fake_poll",
                                          TimeDelta::FromSeconds(1)};
+  StrictMock<MockVariable<string>> mock_var_async_{"mock_var_async",
+                                                   kVariableModeAsync};
+  StrictMock<MockVariable<string>> mock_var_poll_{"mock_var_poll",
+                                                  kVariableModePoll};
 };
 
 TEST_F(PmEvaluationContextTest, GetValueFails) {
@@ -229,6 +245,65 @@ TEST_F(PmEvaluationContextTest, TimeoutEventAfterDeleteTest) {
   eval_ctx_ = NULL;
   RunGMainLoopUntil(1000, Bind(&GetBoolean, &value));
   EXPECT_FALSE(value);
+}
+
+TEST_F(PmEvaluationContextTest, DefaultTimeout) {
+  // Test that the RemainingTime() uses the default timeout on setup.
+  EXPECT_CALL(mock_var_async_, GetValue(default_timeout_, _))
+      .WillOnce(Return(nullptr));
+  PMTEST_EXPECT_NULL(eval_ctx_->GetValue(&mock_var_async_));
+}
+
+TEST_F(PmEvaluationContextTest, TimeoutUpdatesWithMonotonicTime) {
+  fake_clock_.SetMonotonicTime(
+      fake_clock_.GetMonotonicTime() + TimeDelta::FromSeconds(1));
+
+  TimeDelta timeout = default_timeout_ - TimeDelta::FromSeconds(1);
+
+  EXPECT_CALL(mock_var_async_, GetValue(timeout, _))
+      .WillOnce(Return(nullptr));
+  PMTEST_EXPECT_NULL(eval_ctx_->GetValue(&mock_var_async_));
+}
+
+TEST_F(PmEvaluationContextTest, ResetEvaluationResetsTimes) {
+  base::Time cur_time = fake_clock_.GetWallclockTime();
+  // Advance the time on the clock but don't call ResetEvaluation yet.
+  fake_clock_.SetWallclockTime(cur_time + TimeDelta::FromSeconds(4));
+
+  EXPECT_TRUE(eval_ctx_->IsTimeGreaterThan(cur_time -
+                                           TimeDelta::FromSeconds(1)));
+  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(cur_time));
+  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(cur_time +
+                                            TimeDelta::FromSeconds(1)));
+  // Call ResetEvaluation now, which should use the new evaluation time.
+  eval_ctx_->ResetEvaluation();
+
+  cur_time = fake_clock_.GetWallclockTime();
+  EXPECT_TRUE(eval_ctx_->IsTimeGreaterThan(cur_time -
+                                           TimeDelta::FromSeconds(1)));
+  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(cur_time));
+  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(cur_time +
+                                            TimeDelta::FromSeconds(1)));
+}
+
+TEST_F(PmEvaluationContextTest, IsTimeGreaterThanSignalsTriggerReevaluation) {
+  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(1)));
+
+  // The "false" from IsTimeGreaterThan means that's not that timestamp yet, so
+  // this should schedule a callback for when that happens.
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+}
+
+TEST_F(PmEvaluationContextTest, IsTimeGreaterThanDoesntRecordPastTimestamps) {
+  // IsTimeGreaterThan() should ignore timestamps on the past for reevaluation.
+  EXPECT_TRUE(eval_ctx_->IsTimeGreaterThan(
+      fake_clock_.GetWallclockTime() - TimeDelta::FromSeconds(20)));
+  EXPECT_TRUE(eval_ctx_->IsTimeGreaterThan(
+      fake_clock_.GetWallclockTime() - TimeDelta::FromSeconds(1)));
+
+  // Callback should not be scheduled.
+  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
 }
 
 }  // namespace chromeos_policy_manager

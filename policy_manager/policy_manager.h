@@ -9,6 +9,7 @@
 #include <base/memory/ref_counted.h>
 #include <base/memory/scoped_ptr.h>
 
+#include "update_engine/clock_interface.h"
 #include "update_engine/policy_manager/default_policy.h"
 #include "update_engine/policy_manager/policy.h"
 #include "update_engine/policy_manager/state.h"
@@ -18,7 +19,8 @@ namespace chromeos_policy_manager {
 // The main Policy Manager singleton class.
 class PolicyManager {
  public:
-  PolicyManager() {}
+  explicit PolicyManager(chromeos_update_engine::ClockInterface* clock)
+      : clock_(clock) {}
 
   // Initializes the PolicyManager instance, assuming ownership on the provided
   // |state|, which is assumed to be pre-initialized. Returns whether the
@@ -121,6 +123,9 @@ class PolicyManager {
 
   // State Providers.
   scoped_ptr<State> state_;
+
+  // Pointer to the mockable clock interface;
+  chromeos_update_engine::ClockInterface* clock_;
 
   DISALLOW_COPY_AND_ASSIGN(PolicyManager);
 };

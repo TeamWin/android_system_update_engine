@@ -15,6 +15,7 @@ FakeSystemState::FakeSystemState()
   : mock_connection_manager_(this),
     mock_update_attempter_(this, &dbus_),
     default_request_params_(this),
+    fake_policy_manager_(&fake_clock_),
     clock_(&fake_clock_),
     connection_manager_(&mock_connection_manager_),
     hardware_(&fake_hardware_),

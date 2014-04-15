@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "update_engine/fake_clock.h"
 #include "update_engine/policy_manager/default_policy.h"
 #include "update_engine/policy_manager/fake_state.h"
 #include "update_engine/policy_manager/mock_policy.h"
@@ -21,6 +22,7 @@
 
 using base::Bind;
 using base::Callback;
+using chromeos_update_engine::FakeClock;
 using std::pair;
 using std::string;
 using std::vector;
@@ -31,6 +33,9 @@ using testing::_;
 namespace chromeos_policy_manager {
 
 class PmPolicyManagerTest : public ::testing::Test {
+ public:
+  PmPolicyManagerTest() : pmut_(&fake_clock_) {}
+
  protected:
   virtual void SetUp() {
     fake_state_ = FakeState::Construct();
@@ -39,6 +44,7 @@ class PmPolicyManagerTest : public ::testing::Test {
   }
 
   FakeState* fake_state_;
+  FakeClock fake_clock_;
   PolicyManager pmut_;
 };
 
