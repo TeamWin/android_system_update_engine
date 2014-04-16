@@ -88,6 +88,9 @@ const char kMetricSuccessfulUpdateUpdatesAbandonedCount[] =
 const char kMetricSuccessfulUpdateUrlSwitchCount[] =
     "UpdateEngine.SuccessfulUpdate.UrlSwitchCount";
 
+// UpdateEngine.Rollback.* metric.
+const char kMetricRollbackResult[] = "UpdateEngine.Rollback.Result";
+
 // UpdateEngine.* metrics.
 const char kMetricFailedUpdateCount[] = "UpdateEngine.FailedUpdateCount";
 const char kMetricInstallDateProvisioningSource[] =
@@ -449,6 +452,20 @@ void ReportSuccessfulUpdateMetrics(
                                          0,    // min: 0 counts
                                          49,   // max: 49 counts
                                          50);  // num_buckets
+}
+
+void ReportRollbackMetrics(SystemState *system_state,
+                           RollbackResult result) {
+  string metric;
+  int value;
+
+  metric = metrics::kMetricRollbackResult;
+  value = static_cast<int>(result);
+  LOG(INFO) << "Sending " << value << " for metric " << metric << " (enum)";
+  system_state->metrics_lib()->SendEnumToUMA(
+      metric,
+      value,
+      static_cast<int>(metrics::RollbackResult::kNumConstants));
 }
 
 }  // namespace metrics

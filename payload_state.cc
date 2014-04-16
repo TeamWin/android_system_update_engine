@@ -203,10 +203,16 @@ void PayloadState::UpdateSucceeded() {
   CalculateUpdateDurationUptime();
   SetUpdateTimestampEnd(system_state_->clock()->GetWallclockTime());
 
-  // Only report metrics on an update, not on a rollback.
-  if (attempt_type_ == AttemptType::kUpdate) {
-    CollectAndReportAttemptMetrics(kErrorCodeSuccess);
-    CollectAndReportSuccessfulUpdateMetrics();
+  switch (attempt_type_) {
+    case AttemptType::kUpdate:
+      CollectAndReportAttemptMetrics(kErrorCodeSuccess);
+      CollectAndReportSuccessfulUpdateMetrics();
+      break;
+
+    case AttemptType::kRollback:
+      metrics::ReportRollbackMetrics(system_state_,
+                                     metrics::RollbackResult::kSuccess);
+      break;
   }
 
   // Reset the number of responses seen since it counts from the last
@@ -229,9 +235,16 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     return;
   }
 
-  // Only report metrics on an update, not on a rollback.
-  if (attempt_type_ == AttemptType::kUpdate)
-    CollectAndReportAttemptMetrics(base_error);
+  switch (attempt_type_) {
+    case AttemptType::kUpdate:
+      CollectAndReportAttemptMetrics(base_error);
+      break;
+
+    case AttemptType::kRollback:
+      metrics::ReportRollbackMetrics(system_state_,
+                                     metrics::RollbackResult::kFailed);
+      break;
+  }
 
   switch (base_error) {
     // Errors which are good indicators of a problem with a particular URL or

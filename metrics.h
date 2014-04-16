@@ -56,6 +56,9 @@ extern const char kMetricSuccessfulUpdateRebootCount[];
 extern const char kMetricSuccessfulUpdateUpdatesAbandonedCount[];
 extern const char kMetricSuccessfulUpdateUrlSwitchCount[];
 
+// UpdateEngine.Rollback.* metric.
+extern const char kMetricRollbackResult[];
+
 // UpdateEngine.* metrics.
 extern const char kMetricFailedUpdateCount[];
 extern const char kMetricInstallDateProvisioningSource[];
@@ -157,6 +160,23 @@ enum class ConnectionType {
   kNumConstants,
   kUnset = -1
 };
+
+// Possible ways a rollback can end.
+//
+// This is used in the UpdateEngine.Rollback histogram.
+enum class RollbackResult {
+  kFailed,
+  kSuccess,
+
+  kNumConstants
+};
+
+// Helper function to report metrics related to rollback. The
+// following metrics are reported:
+//
+//  |kMetricRollbackResult|
+void ReportRollbackMetrics(SystemState *system_state,
+                           RollbackResult result);
 
 // Helper function to report metrics reported once a day. The
 // following metrics are reported:

@@ -1081,11 +1081,17 @@ TEST(PayloadStateTest, RollbackVersion) {
   payload_state.LoadRollbackVersion();
   EXPECT_EQ(rollback_version, payload_state.GetRollbackVersion());
 
-  // Check that we don't report any metrics in UpdateSucceeded().
+  // Check that we report only UpdateEngine.Rollback.* metrics in
+  // UpdateSucceeded().
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(_, _, _, _, _))
     .Times(0);
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
     .Times(0);
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(),
+              SendEnumToUMA(
+                  metrics::kMetricRollbackResult,
+                  static_cast<int>(metrics::RollbackResult::kSuccess),
+                  static_cast<int>(metrics::RollbackResult::kNumConstants)));
   payload_state.UpdateSucceeded();
 }
 
