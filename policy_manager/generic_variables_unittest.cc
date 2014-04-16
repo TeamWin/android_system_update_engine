@@ -41,6 +41,22 @@ TEST_F(PmCopyVariableTest, SimpleTest) {
   EXPECT_EQ(42, *copy_2);
 }
 
+TEST_F(PmCopyVariableTest, SetFlagTest) {
+  // Tests that the set flag is being referred to as expected.
+  int source = 5;
+  bool is_set = false;
+  CopyVariable<int> var("var", kVariableModePoll, source, &is_set);
+
+  // Flag marked unset, nothing should be returned.
+  PMTEST_ASSERT_NULL(var.GetValue(default_timeout_, NULL));
+
+  // Flag marked set, we should be getting a value.
+  is_set = true;
+  scoped_ptr<const int> copy(var.GetValue(default_timeout_, NULL));
+  PMTEST_ASSERT_NOT_NULL(copy.get());
+  EXPECT_EQ(5, *copy);
+}
+
 
 class CopyConstructorTestClass {
  public:

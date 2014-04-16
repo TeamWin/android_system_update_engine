@@ -11,6 +11,13 @@
 
 #include "update_engine/policy_manager/variable.h"
 
+namespace {
+
+const char* kCopyVariableDefaultErrMsg = "Requested value is not set";
+
+}  // namespace
+
+
 namespace chromeos_policy_manager {
 
 // Variable class returning a copy of a given object using the copy constructor.
@@ -34,29 +41,60 @@ namespace chromeos_policy_manager {
 template<typename T>
 class CopyVariable : public Variable<T> {
  public:
-  // Creates the variable returning copies of the passed |obj| reference. The
-  // reference to this object is kept and it should be available whenever the
-  // GetValue() method is called.
+  // Creates the variable returning copies of the passed |ref|. The reference to
+  // this object is kept and it should be available whenever the GetValue()
+  // method is called. If |is_set_p| is not null, then this flag will be
+  // consulted prior to returning the value, and an |errmsg| will be returned if
+  // it is not set.
+  CopyVariable(const std::string& name, VariableMode mode, const T& ref,
+               const bool* is_set_p, const std::string& errmsg)
+      : Variable<T>(name, mode), ref_(ref), is_set_p_(is_set_p),
+        errmsg_(errmsg) {}
+  CopyVariable(const std::string& name, VariableMode mode, const T& ref,
+               const bool* is_set_p)
+      : CopyVariable(name, mode, ref, is_set_p, kCopyVariableDefaultErrMsg) {}
   CopyVariable(const std::string& name, VariableMode mode, const T& ref)
-      : Variable<T>(name, mode), ref_(ref) {}
+      : CopyVariable(name, mode, ref, nullptr) {}
+
+  CopyVariable(const std::string& name, const base::TimeDelta poll_interval,
+               const T& ref, const bool* is_set_p, const std::string& errmsg)
+      : Variable<T>(name, poll_interval), ref_(ref), is_set_p_(is_set_p),
+        errmsg_(errmsg) {}
+  CopyVariable(const std::string& name, const base::TimeDelta poll_interval,
+               const T& ref, const bool* is_set_p)
+      : CopyVariable(name, poll_interval, ref, is_set_p,
+                     kCopyVariableDefaultErrMsg) {}
   CopyVariable(const std::string& name, const base::TimeDelta poll_interval,
                const T& ref)
-      : Variable<T>(name, poll_interval), ref_(ref) {}
+      : CopyVariable(name, poll_interval, ref, nullptr) {}
 
  protected:
   friend class PmCopyVariableTest;
   FRIEND_TEST(PmCopyVariableTest, SimpleTest);
+  FRIEND_TEST(PmCopyVariableTest, SetFlagTest);
   FRIEND_TEST(PmCopyVariableTest, UseCopyConstructorTest);
 
   // Variable override.
-  virtual const T* GetValue(base::TimeDelta /* timeout */,
-                            std::string* /* errmsg */) {
+  virtual inline const T* GetValue(base::TimeDelta /* timeout */,
+                                   std::string* errmsg) {
+    if (is_set_p_ && !(*is_set_p_)) {
+      if (errmsg)
+        *errmsg = errmsg_;
+      return nullptr;
+    }
     return new T(ref_);
   }
 
  private:
   // Reference to the object to be copied by GetValue().
   const T& ref_;
+
+  // A pointer to a flag indicating whether the value is set. If null, then the
+  // value is assumed to be set.
+  const bool* const is_set_p_;
+
+  // An error message to be returned when attempting to get an unset value.
+  const std::string errmsg_;
 };
 
 // Variable class returning a constant value that is cached on the variable when
