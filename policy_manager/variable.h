@@ -102,8 +102,13 @@ class BaseVariable {
 
   // Calls ValueChanged on all the observers.
   void NotifyValueChanged() {
-    RunFromMainLoop(base::Bind(&BaseVariable::OnValueChangedNotification,
-                               base::Unretained(this)));
+    // Fire all the observer methods from the main loop as single call. In order
+    // to avoid scheduling these callbacks when it is not needed, we check
+    // first the list of observers.
+    if (!observer_list_.empty()) {
+        RunFromMainLoop(base::Bind(&BaseVariable::OnValueChangedNotification,
+                                  base::Unretained(this)));
+    }
   }
 
  private:
