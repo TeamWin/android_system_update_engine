@@ -25,13 +25,12 @@ HwidOverride::HwidOverride() {}
 HwidOverride::~HwidOverride() {}
 
 std::string HwidOverride::Read(const base::FilePath& root) {
-  base::FilePath kFile(root.value() + "/etc/lsb-release");
-  string file_data;
-  map<string, string> data;
-  if (base::ReadFileToString(kFile, &file_data)) {
-    data = simple_key_value_store::ParseString(file_data);
-  }
-  return data[kHwidOverrideKey];
+  KeyValueStore lsb_release;
+  lsb_release.Load(root.value() + "/etc/lsb-release");
+  string result;
+  if (lsb_release.GetString(kHwidOverrideKey, &result))
+    return result;
+  return "";
 }
 
 }  // namespace chromeos_update_engine

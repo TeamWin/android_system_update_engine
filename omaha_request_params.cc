@@ -133,19 +133,15 @@ bool OmahaRequestParams::SetTargetChannel(const std::string& new_target_channel,
             << ", existing target channel = " << target_channel_
             << ", download channel = " << download_channel_;
   TEST_AND_RETURN_FALSE(IsValidChannel(new_target_channel));
+  KeyValueStore lsb_release;
   base::FilePath kFile(root_ + kStatefulPartition + "/etc/lsb-release");
-  string file_data;
-  map<string, string> data;
-  if (base::ReadFileToString(kFile, &file_data)) {
-    data = simple_key_value_store::ParseString(file_data);
-  }
-  data[kUpdateChannelKey] = new_target_channel;
-  data[kIsPowerwashAllowedKey] = is_powerwash_allowed ? "true" : "false";
-  file_data = simple_key_value_store::AssembleString(data);
+
+  lsb_release.Load(kFile.value());
+  lsb_release.SetString(kUpdateChannelKey, new_target_channel);
+  lsb_release.SetBoolean(kIsPowerwashAllowedKey, is_powerwash_allowed);
+
   TEST_AND_RETURN_FALSE(base::CreateDirectory(kFile.DirName()));
-  TEST_AND_RETURN_FALSE(
-      file_util::WriteFile(kFile, file_data.data(), file_data.size()) ==
-      static_cast<int>(file_data.size()));
+  TEST_AND_RETURN_FALSE(lsb_release.Save(kFile.value()));
   target_channel_ = new_target_channel;
   is_powerwash_allowed_ = is_powerwash_allowed;
   return true;
@@ -221,13 +217,12 @@ string OmahaRequestParams::GetLsbValue(const string& key,
        it != files.end(); ++it) {
     // TODO(adlr): make sure files checked are owned as root (and all their
     // parents are recursively, too).
-    string file_data;
-    if (!utils::ReadFile(root_ + *it, &file_data))
+    KeyValueStore data;
+    if (!data.Load(root_ + *it))
       continue;
 
-    map<string, string> data = simple_key_value_store::ParseString(file_data);
-    if (utils::MapContainsKey(data, key)) {
-      const string& value = data[key];
+    string value;
+    if (data.GetString(key, &value)) {
       if (validator && !CALL_MEMBER_FN(*this, validator)(value)) {
         continue;
       }
