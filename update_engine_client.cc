@@ -587,12 +587,18 @@ int main(int argc, char** argv) {
   // Show the rollback availability.
   if (FLAGS_can_rollback) {
     std::string rollback_partition = GetRollbackPartition();
-    if (rollback_partition.empty())
+    bool can_rollback = true;
+    if (rollback_partition.empty()) {
       rollback_partition = "UNAVAILABLE";
+      can_rollback = false;
+    }
     else
       rollback_partition = "AVAILABLE: " + rollback_partition;
 
     LOG(INFO) << "Rollback partition: " << rollback_partition;
+    if (!can_rollback) {
+      return 1;
+    }
   }
 
   // Show the current P2P enabled setting.
