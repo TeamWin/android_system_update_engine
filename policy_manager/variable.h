@@ -174,6 +174,7 @@ class Variable : public BaseVariable {
   // directly from the variable.
   friend class EvaluationContext;
 
+  friend class PmRealConfigProviderTest;
   friend class PmRealDevicePolicyProviderTest;
   FRIEND_TEST(PmRealDevicePolicyProviderTest,
               NonExistentDevicePolicyEmptyVariables);
