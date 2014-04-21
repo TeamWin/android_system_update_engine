@@ -132,21 +132,25 @@ for key in Split('PKG_CONFIG_LIBDIR PKG_CONFIG_PATH SYSROOT'):
     env['ENV'][key] = os.environ[key]
 
 
-env['LINKFLAGS'] = env.get('LDFLAGS', '')
-env['CCFLAGS'] = ' '.join("""-g
-                             -fno-exceptions
-                             -fno-strict-aliasing
-                             -std=gnu++11
-                             -Wall
-                             -Wextra
-                             -Werror
-                             -Wno-unused-parameter
-                             -Wno-deprecated-register
-                             -D__STDC_FORMAT_MACROS=1
-                             -D_FILE_OFFSET_BITS=64
-                             -D_POSIX_C_SOURCE=199309L
-                             -I/usr/include/libxml2""".split());
-env['CCFLAGS'] += (' ' + ' '.join(env['CFLAGS']))
+env['LINKFLAGS'] = Split("""
+    -Wl,--gc-sections""")
+env['LINKFLAGS'] += env.get('LDFLAGS', [])
+
+env['CCFLAGS'] = Split("""
+    -g
+    -ffunction-sections
+    -fno-exceptions
+    -fno-strict-aliasing
+    -std=gnu++11
+    -Wall
+    -Wextra
+    -Werror
+    -Wno-unused-parameter
+    -Wno-deprecated-register
+    -D__STDC_FORMAT_MACROS=1
+    -D_FILE_OFFSET_BITS=64
+    -D_POSIX_C_SOURCE=199309L""")
+env['CCFLAGS'] += env['CFLAGS']
 
 BASE_VER = os.environ.get('BASE_VER', '242728')
 env['LIBS'] = Split("""bz2
@@ -181,7 +185,7 @@ pkgconfig = os.environ.get('PKG_CONFIG', 'pkg-config')
 
 env.ParseConfig(pkgconfig + ' --cflags --libs '
                 'dbus-1 dbus-glib-1 gio-2.0 gio-unix-2.0 glib-2.0 libchrome-%s '
-                'libchromeos-%s' % (BASE_VER, BASE_VER))
+                'libchromeos-%s libxml-2.0' % (BASE_VER, BASE_VER))
 env.ProtocolBuffer('update_metadata.pb.cc', 'update_metadata.proto')
 env.PublicKey('unittest_key.pub.pem', 'unittest_key.pem')
 env.PublicKey('unittest_key2.pub.pem', 'unittest_key2.pem')
