@@ -49,10 +49,6 @@ const char kMetricAttemptTimeSinceLastAttemptMinutes[] =
     "UpdateEngine.Attempt.TimeSinceLastAttemptMinutes";
 const char kMetricAttemptTimeSinceLastAttemptUptimeMinutes[] =
     "UpdateEngine.Attempt.TimeSinceLastAttemptUptimeMinutes";
-const char kMetricAttemptPayloadBytesOffset[] =
-    "UpdateEngine.Attempt.PayloadBytesOffset";
-const char kMetricAttemptPayloadBytesNeeded[] =
-    "UpdateEngine.Attempt.PayloadBytesNeeded";
 const char kMetricAttemptPayloadBytesDownloadedMiB[] =
     "UpdateEngine.Attempt.PayloadBytesDownloadedMiB";
 const char kMetricAttemptPayloadDownloadSpeedKBps[] =

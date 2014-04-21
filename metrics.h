@@ -35,8 +35,6 @@ extern const char kMetricAttemptDurationMinutes[];
 extern const char kMetricAttemptDurationUptimeMinutes[];
 extern const char kMetricAttemptTimeSinceLastAttemptSeconds[];
 extern const char kMetricAttemptTimeSinceLastAttemptUptimeSeconds[];
-extern const char kMetricAttemptPayloadBytesOffset[];
-extern const char kMetricAttemptPayloadBytesNeeded[];
 extern const char kMetricAttemptPayloadBytesDownloaded[];
 extern const char kMetricAttemptPayloadDownloadSpeedKBps[];
 extern const char kMetricAttemptDownloadSource[];
