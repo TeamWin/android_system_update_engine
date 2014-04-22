@@ -56,11 +56,6 @@ class RealShillProvider : public ShillProvider {
   virtual bool DoInit() override;
 
  private:
-  // Default error strings for variables.
-  static const char* kConnStatusUnavailable;
-  static const char* kConnTypeUnavailable;
-  static const char* kConnTetheringUnavailable;
-
   // Return a DBus proxy for a given |path| and |interface| within shill.
   DBusGProxy* GetProxy(const char* path, const char* interface);
 
@@ -77,23 +72,6 @@ class RealShillProvider : public ShillProvider {
   static void HandlePropertyChangedStatic(DBusGProxy* proxy, const char* name,
                                           GValue* value, void* data);
 
-  // Whether the connection status has been properly initialized.
-  bool is_conn_status_init_ = false;
-
-  // The time when the connection type last changed.
-  base::Time conn_last_changed_;
-
-  // The current connection status.
-  bool is_connected_;
-
-  // The default connection type and whether its value is valid.
-  ConnectionType conn_type_;
-  bool conn_type_is_valid_ = false;
-
-  // The default connection tethering mode and whether its value is valid.
-  ConnectionTethering conn_tethering_;
-  bool conn_tethering_is_valid_ = false;
-
   // The current default service path, if connected.
   std::string default_service_path_;
 
@@ -105,19 +83,11 @@ class RealShillProvider : public ShillProvider {
   // A clock abstraction (mockable).
   ClockInterface* const clock_;
 
-  // The provider's variable.
-  CopyVariable<bool> var_is_connected_{
-      "is_connected", kVariableModePoll, is_connected_, &is_conn_status_init_,
-      kConnStatusUnavailable};
-  CopyVariable<ConnectionType> var_conn_type_{
-      "conn_type", kVariableModePoll, conn_type_, &conn_type_is_valid_,
-      kConnTypeUnavailable};
-  CopyVariable<ConnectionTethering> var_conn_tethering_{
-      "conn_tethering", kVariableModePoll, conn_tethering_,
-      &conn_tethering_is_valid_, kConnTetheringUnavailable};
-  CopyVariable<base::Time> var_conn_last_changed_{
-      "conn_last_changed", kVariableModePoll, conn_last_changed_,
-      &is_conn_status_init_, kConnStatusUnavailable};
+  // The provider's variables.
+  AsyncCopyVariable<bool> var_is_connected_{"is_connected"};
+  AsyncCopyVariable<ConnectionType> var_conn_type_{"conn_type"};
+  AsyncCopyVariable<ConnectionTethering> var_conn_tethering_{"conn_tethering"};
+  AsyncCopyVariable<base::Time> var_conn_last_changed_{"conn_last_changed"};
 
   DISALLOW_COPY_AND_ASSIGN(RealShillProvider);
 };

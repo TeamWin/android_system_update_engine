@@ -28,13 +28,6 @@ const char* GetStrProperty(GHashTable* hash_table, const char* key) {
 
 namespace chromeos_policy_manager {
 
-const char* RealShillProvider::kConnStatusUnavailable =
-    "Connection status unavailable";
-const char* RealShillProvider::kConnTypeUnavailable =
-    "Connection type unavailable";
-const char* RealShillProvider::kConnTetheringUnavailable =
-    "Connection tethering mode unavailable";
-
 RealShillProvider::~RealShillProvider() {
   // Detach signal handler, free manager proxy.
   dbus_->ProxyDisconnectSignal(manager_proxy_, shill::kMonitorPropertyChanged,
@@ -133,15 +126,14 @@ bool RealShillProvider::ProcessDefaultService(GValue* value) {
   if (default_service_path_ == default_service_path_str)
     return true;
 
-  // Update the connection status, invalidate all attributes.
+  // Update the connection status.
   default_service_path_ = default_service_path_str;
-  is_connected_ = (default_service_path_ != "/");
-  conn_last_changed_ = clock_->GetWallclockTime();
-  conn_type_is_valid_ = false;
-  conn_tethering_is_valid_ = false;
+  bool is_connected = (default_service_path_ != "/");
+  var_is_connected_.SetValue(is_connected);
+  var_conn_last_changed_.SetValue(clock_->GetWallclockTime());
 
-  // If connected, update the connection attributes.
-  if (is_connected_) {
+  // Update the connection attributes.
+  if (is_connected) {
     DBusGProxy* service_proxy = GetProxy(default_service_path_.c_str(),
                                          shill::kFlimflamServiceInterface);
     GHashTable* hash_table = NULL;
@@ -153,9 +145,9 @@ bool RealShillProvider::ProcessDefaultService(GValue* value) {
                                   shill::kPhysicalTechnologyProperty);
       }
       if (type_str) {
-        conn_type_ = ParseConnectionType(type_str);
-        conn_type_is_valid_ = true;
+        var_conn_type_.SetValue(ParseConnectionType(type_str));
       } else {
+        var_conn_type_.UnsetValue();
         LOG(ERROR) << "Could not find connection type ("
                    << default_service_path_ << ")";
       }
@@ -164,9 +156,9 @@ bool RealShillProvider::ProcessDefaultService(GValue* value) {
       const char* tethering_str = GetStrProperty(hash_table,
                                                  shill::kTetheringProperty);
       if (tethering_str) {
-        conn_tethering_ = ParseConnectionTethering(tethering_str);
-        conn_tethering_is_valid_ = true;
+        var_conn_tethering_.SetValue(ParseConnectionTethering(tethering_str));
       } else {
+        var_conn_tethering_.UnsetValue();
         LOG(ERROR) << "Could not find connection tethering mode ("
                    << default_service_path_ << ")";
       }
@@ -174,10 +166,11 @@ bool RealShillProvider::ProcessDefaultService(GValue* value) {
       g_hash_table_unref(hash_table);
     }
     dbus_->ProxyUnref(service_proxy);
+  } else {
+    var_conn_type_.UnsetValue();
+    var_conn_tethering_.UnsetValue();
   }
 
-  // Mark the connection status as initialized.
-  is_conn_status_init_ = true;
   return true;
 }
 
