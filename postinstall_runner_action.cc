@@ -84,7 +84,13 @@ void PostinstallRunnerAction::PerformAction() {
   // Runs the postinstall script asynchronously to free up the main loop while
   // it's running.
   vector<string> command;
-  command.push_back(temp_rootfs_dir_ + kPostinstallScript);
+  if (!install_plan_.download_url.empty()) {
+    command.push_back(temp_rootfs_dir_ + kPostinstallScript);
+  } else {
+    // TODO(sosa): crbug.com/366207.
+    // If we're doing a rollback, just run our own postinstall.
+    command.push_back(kPostinstallScript);
+  }
   command.push_back(install_device);
   if (!Subprocess::Get().Exec(command, StaticCompletePostinstall, this)) {
     CompletePostinstall(1);

@@ -171,6 +171,7 @@ void PostinstallRunnerActionTest::DoTest(
   ObjectFeederAction<InstallPlan> feeder_action;
   InstallPlan install_plan;
   install_plan.install_path = dev;
+  install_plan.download_url = "http://devserver:8080/update";
   install_plan.powerwash_required = powerwash_required;
   feeder_action.set_obj(install_plan);
   PostinstallRunnerAction runner_action(powerwash_marker_file.c_str());
