@@ -32,6 +32,8 @@ enum class ConnectionTethering {
 // Provider for networking related information.
 class ShillProvider : public Provider {
  public:
+  virtual ~ShillProvider() {}
+
   // A variable returning whether we currently have network connectivity.
   virtual Variable<bool>* var_is_connected() = 0;
 
@@ -49,6 +51,9 @@ class ShillProvider : public Provider {
 
  protected:
   ShillProvider() {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ShillProvider);
 };
 
 }  // namespace chromeos_policy_manager

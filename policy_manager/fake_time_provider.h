@@ -15,16 +15,20 @@ class FakeTimeProvider : public TimeProvider {
  public:
   FakeTimeProvider() {}
 
- protected:
-  virtual bool DoInit() {
-    set_var_curr_date(
-        new FakeVariable<base::Time>("curr_date", kVariableModePoll));
-    set_var_curr_hour(
-        new FakeVariable<int>("curr_hour", kVariableModePoll));
-    return true;
+  virtual FakeVariable<base::Time>* var_curr_date() override {
+    return &var_curr_date_;
+  }
+
+  virtual FakeVariable<int>* var_curr_hour() override {
+    return &var_curr_hour_;
   }
 
  private:
+  virtual bool DoInit() override { return true; }
+
+  FakeVariable<base::Time> var_curr_date_{"curr_date", kVariableModePoll};
+  FakeVariable<int> var_curr_hour_{"curr_hour", kVariableModePoll};
+
   DISALLOW_COPY_AND_ASSIGN(FakeTimeProvider);
 };
 

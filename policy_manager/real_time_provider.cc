@@ -61,8 +61,8 @@ class CurrHourVariable : public Variable<int> {
 };
 
 bool RealTimeProvider::DoInit() {
-  set_var_curr_date(new CurrDateVariable("curr_date", clock_));
-  set_var_curr_hour(new CurrHourVariable("curr_hour", clock_));
+  var_curr_date_.reset(new CurrDateVariable("curr_date", clock_));
+  var_curr_hour_.reset(new CurrHourVariable("curr_hour", clock_));
   return true;
 }
 

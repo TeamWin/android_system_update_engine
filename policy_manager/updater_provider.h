@@ -30,6 +30,8 @@ enum class Stage {
 // Provider for Chrome OS update related information.
 class UpdaterProvider : public Provider {
  public:
+  virtual ~UpdaterProvider() {}
+
   // A variable returning the last update check time.
   virtual Variable<base::Time>* var_last_checked_time() = 0;
 
@@ -68,6 +70,12 @@ class UpdaterProvider : public Provider {
 
   // A variable indicating whether updates are allowed over a cellular network.
   virtual Variable<bool>* var_cellular_enabled() = 0;
+
+ protected:
+  UpdaterProvider() {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(UpdaterProvider);
 };
 
 }  // namespace chromeos_policy_manager

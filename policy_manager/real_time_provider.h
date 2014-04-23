@@ -18,12 +18,22 @@ class RealTimeProvider : public TimeProvider {
   RealTimeProvider(chromeos_update_engine::ClockInterface* clock)
       : clock_(clock) {}
 
- protected:
-  virtual bool DoInit();
+  virtual Variable<base::Time>* var_curr_date() override {
+    return var_curr_date_.get();
+  }
+
+  virtual Variable<int>* var_curr_hour() override {
+    return var_curr_hour_.get();
+  }
 
  private:
-  // A clock abstraction (mockable).
+  virtual bool DoInit() override;
+
+  // A clock abstraction (fakeable).
   chromeos_update_engine::ClockInterface* const clock_;
+
+  scoped_ptr<Variable<base::Time>> var_curr_date_;
+  scoped_ptr<Variable<int>> var_curr_hour_;
 
   DISALLOW_COPY_AND_ASSIGN(RealTimeProvider);
 };

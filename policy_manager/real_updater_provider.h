@@ -62,10 +62,9 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_cellular_enabled_.get();
   }
 
- protected:
+ private:
   virtual bool DoInit() { return true; }
 
- private:
   // A pointer to the update engine's system state aggregator.
   chromeos_update_engine::SystemState* system_state_;
 

@@ -31,19 +31,19 @@ class RealShillProvider : public ShillProvider {
 
   virtual ~RealShillProvider();
 
-  virtual inline Variable<bool>* var_is_connected() override {
+  virtual Variable<bool>* var_is_connected() override {
     return &var_is_connected_;
   }
 
-  virtual inline Variable<ConnectionType>* var_conn_type() override {
+  virtual Variable<ConnectionType>* var_conn_type() override {
     return &var_conn_type_;
   }
 
-  virtual inline Variable<ConnectionTethering>* var_conn_tethering() override {
+  virtual Variable<ConnectionTethering>* var_conn_tethering() override {
     return &var_conn_tethering_;
   }
 
-  virtual inline Variable<base::Time>* var_conn_last_changed() override {
+  virtual Variable<base::Time>* var_conn_last_changed() override {
     return &var_conn_last_changed_;
   }
 
@@ -52,10 +52,9 @@ class RealShillProvider : public ShillProvider {
   static ConnectionTethering ParseConnectionTethering(
       const char* tethering_str);
 
- protected:
+ private:
   virtual bool DoInit() override;
 
- private:
   // Return a DBus proxy for a given |path| and |interface| within shill.
   DBusGProxy* GetProxy(const char* path, const char* interface);
 

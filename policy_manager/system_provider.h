@@ -16,33 +16,20 @@ namespace chromeos_policy_manager {
 // reported by crossystem, the kernel boot command line and the partition table.
 class SystemProvider : public Provider {
  public:
+  virtual ~SystemProvider() {}
+
   // Returns true if the boot mode is normal or if it's unable to
   // determine the boot mode. Returns false if the boot mode is
   // developer.
-  Variable<bool>* var_is_normal_boot_mode() const {
-    return var_is_normal_boot_mode_.get();
-  }
+  virtual Variable<bool>* var_is_normal_boot_mode() = 0;
 
   // Returns whether this is an official Chrome OS build.
-  Variable<bool>* var_is_official_build() const {
-    return var_is_official_build_.get();
-  }
+  virtual Variable<bool>* var_is_official_build() = 0;
 
  protected:
   SystemProvider() {}
 
-  void set_var_is_normal_boot_mode(Variable<bool>* var_is_normal_boot_mode) {
-    var_is_normal_boot_mode_.reset(var_is_normal_boot_mode);
-  }
-
-  void set_var_is_official_build(Variable<bool>* var_is_official_build) {
-    var_is_official_build_.reset(var_is_official_build);
-  }
-
  private:
-  scoped_ptr<Variable<bool>> var_is_normal_boot_mode_;
-  scoped_ptr<Variable<bool>> var_is_official_build_;
-
   DISALLOW_COPY_AND_ASSIGN(SystemProvider);
 };
 

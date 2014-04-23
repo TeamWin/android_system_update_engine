@@ -14,11 +14,14 @@ class RealRandomProvider : public RandomProvider {
  public:
   RealRandomProvider() {}
 
- protected:
-  // Initializes all the variables.
-  virtual bool DoInit(void);
+  virtual Variable<uint64_t>* var_seed() override { return var_seed_.get(); }
 
  private:
+  virtual bool DoInit(void) override;
+
+  // The seed() scoped variable.
+  scoped_ptr<Variable<uint64_t>> var_seed_;
+
   DISALLOW_COPY_AND_ASSIGN(RealRandomProvider);
 };
 

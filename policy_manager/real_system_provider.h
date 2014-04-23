@@ -16,8 +16,19 @@ class RealSystemProvider : public SystemProvider {
  public:
   RealSystemProvider() {}
 
+  virtual Variable<bool>* var_is_normal_boot_mode() override {
+    return var_is_normal_boot_mode_.get();
+  }
+
+  virtual Variable<bool>* var_is_official_build() override {
+    return var_is_official_build_.get();
+  }
+
  private:
   virtual bool DoInit() override;
+
+  scoped_ptr<Variable<bool>> var_is_normal_boot_mode_;
+  scoped_ptr<Variable<bool>> var_is_official_build_;
 
   DISALLOW_COPY_AND_ASSIGN(RealSystemProvider);
 };

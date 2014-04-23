@@ -16,16 +16,14 @@ namespace chromeos_policy_manager {
 // Provider for time related information.
 class TimeProvider : public Provider {
  public:
+  virtual ~TimeProvider() {}
+
   // Returns the current date. The time of day component will be zero.
-  Variable<base::Time>* var_curr_date() const {
-    return var_curr_date_.get();
-  }
+  virtual Variable<base::Time>* var_curr_date() = 0;
 
   // Returns the current hour (0 to 23) in local time. The type is int to keep
   // consistent with base::Time.
-  Variable<int>* var_curr_hour() const {
-    return var_curr_hour_.get();
-  }
+  virtual Variable<int>* var_curr_hour() = 0;
 
   // TODO(garnold) Implement a method/variable for querying whether a given
   // point in time was reached.
@@ -33,18 +31,7 @@ class TimeProvider : public Provider {
  protected:
   TimeProvider() {}
 
-  void set_var_curr_date(Variable<base::Time>* var_curr_date) {
-    var_curr_date_.reset(var_curr_date);
-  }
-
-  void set_var_curr_hour(Variable<int>* var_curr_hour) {
-    var_curr_hour_.reset(var_curr_hour);
-  }
-
  private:
-  scoped_ptr<Variable<base::Time>> var_curr_date_;
-  scoped_ptr<Variable<int>> var_curr_hour_;
-
   DISALLOW_COPY_AND_ASSIGN(TimeProvider);
 };
 

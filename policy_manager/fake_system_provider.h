@@ -15,16 +15,22 @@ class FakeSystemProvider : public SystemProvider {
  public:
   FakeSystemProvider() {}
 
- protected:
-  virtual bool DoInit() {
-    set_var_is_normal_boot_mode(
-        new FakeVariable<bool>("is_normal_boot_mode", kVariableModeConst));
-    set_var_is_official_build(
-        new FakeVariable<bool>("is_official_build", kVariableModeConst));
-    return true;
+  virtual FakeVariable<bool>* var_is_normal_boot_mode() override {
+    return &var_is_normal_boot_mode_;
+  }
+
+  virtual FakeVariable<bool>* var_is_official_build() override {
+    return &var_is_official_build_;
   }
 
  private:
+  virtual bool DoInit() override { return true; }
+
+  FakeVariable<bool> var_is_normal_boot_mode_{
+      "is_normal_boot_mode", kVariableModeConst};
+  FakeVariable<bool> var_is_official_build_{
+      "is_official_build", kVariableModeConst};
+
   DISALLOW_COPY_AND_ASSIGN(FakeSystemProvider);
 };
 

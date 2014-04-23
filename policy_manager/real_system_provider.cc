@@ -19,11 +19,11 @@ using std::vector;
 namespace chromeos_policy_manager {
 
 bool RealSystemProvider::DoInit() {
-  set_var_is_normal_boot_mode(
+  var_is_normal_boot_mode_.reset(
       new ConstCopyVariable<bool>("is_normal_boot_mode",
                                   VbGetSystemPropertyInt("devsw_boot") != 0));
 
-  set_var_is_official_build(
+  var_is_official_build_.reset(
       new ConstCopyVariable<bool>("var_is_official_build",
                                   VbGetSystemPropertyInt("debug_build") == 0));
 
