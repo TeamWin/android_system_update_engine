@@ -115,7 +115,6 @@ class BaseVariable {
 
  private:
   friend class PmEvaluationContextTest;
-  friend class PmBaseVariableTest;
   FRIEND_TEST(PmBaseVariableTest, RepeatedObserverTest);
   FRIEND_TEST(PmBaseVariableTest, NotifyValueChangedTest);
   FRIEND_TEST(PmBaseVariableTest, NotifyValueRemovesObserversTest);
@@ -174,25 +173,9 @@ class Variable : public BaseVariable {
   // directly from the variable.
   friend class EvaluationContext;
 
-  friend class PmRealConfigProviderTest;
-  friend class PmRealDevicePolicyProviderTest;
-  FRIEND_TEST(PmRealDevicePolicyProviderTest,
-              NonExistentDevicePolicyEmptyVariables);
-  friend class PmRealRandomProviderTest;
+  // Needed to be able to verify variable contents during unit testing.
+  friend class PmTestUtils;
   FRIEND_TEST(PmRealRandomProviderTest, GetRandomValues);
-  friend class PmRealShillProviderTest;
-  FRIEND_TEST(PmRealShillProviderTest, ReadBaseValues);
-  FRIEND_TEST(PmRealShillProviderTest, ReadConnTypeVpn);
-  FRIEND_TEST(PmRealShillProviderTest, ReadLastChangedTimeTwoSignals);
-  FRIEND_TEST(PmRealShillProviderTest, ConnTypeCacheUsed);
-  FRIEND_TEST(PmRealShillProviderTest, ConnTypeCacheRemainsValid);
-  FRIEND_TEST(PmRealShillProviderTest, ConnTetheringCacheUsed);
-  FRIEND_TEST(PmRealShillProviderTest, ConnTetheringCacheRemainsValid);
-  FRIEND_TEST(PmRealShillProviderTest, NoInitConnStatusReadBaseValues);
-  friend class PmRealTimeProviderTest;
-  FRIEND_TEST(PmRealTimeProviderTest, CurrDateValid);
-  FRIEND_TEST(PmRealTimeProviderTest, CurrHourValid);
-  friend class PmRealUpdaterProviderTest;
 
   Variable(const std::string& name, VariableMode mode)
       : BaseVariable(name, mode) {}

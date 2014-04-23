@@ -246,15 +246,9 @@ class PmRealShillProviderTest : public ::testing::Test {
     g_hash_table_unref(service_properties);
 
     // Query the connection status, ensure last change time reported correctly.
-    scoped_ptr<const bool> is_connected(
-        provider_->var_is_connected()->GetValue(default_timeout_, NULL));
-    PMTEST_ASSERT_NOT_NULL(is_connected.get());
-    EXPECT_TRUE(*is_connected);
-
-    scoped_ptr<const Time> conn_last_changed(
-        provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
-    PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
-    EXPECT_EQ(conn_change_time, *conn_last_changed);
+    PmTestUtils::ExpectVariableHasValue(true, provider_->var_is_connected());
+    PmTestUtils::ExpectVariableHasValue(conn_change_time,
+                                        provider_->var_conn_last_changed());
 
     // Write the connection change time to the output argument.
     if (conn_change_time_p)
@@ -274,15 +268,10 @@ class PmRealShillProviderTest : public ::testing::Test {
                             &conn_change_time);
 
     // Query the connection type, ensure last change time did not change.
-    scoped_ptr<const ConnectionType> conn_type(
-        provider_->var_conn_type()->GetValue(default_timeout_, NULL));
-    PMTEST_ASSERT_NOT_NULL(conn_type.get());
-    EXPECT_EQ(expected_conn_type, *conn_type);
-
-    scoped_ptr<const Time> conn_last_changed(
-        provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
-    PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
-    EXPECT_EQ(conn_change_time, *conn_last_changed);
+    PmTestUtils::ExpectVariableHasValue(expected_conn_type,
+                                        provider_->var_conn_type());
+    PmTestUtils::ExpectVariableHasValue(conn_change_time,
+                                        provider_->var_conn_last_changed());
   }
 
   // Sets up a connection and tests that its tethering mode is being properly
@@ -297,18 +286,12 @@ class PmRealShillProviderTest : public ::testing::Test {
                             shill_tethering_str, &conn_change_time);
 
     // Query the connection tethering, ensure last change time did not change.
-    scoped_ptr<const ConnectionTethering> conn_tethering(
-        provider_->var_conn_tethering()->GetValue(default_timeout_, NULL));
-    PMTEST_ASSERT_NOT_NULL(conn_tethering.get());
-    EXPECT_EQ(expected_conn_tethering, *conn_tethering);
-
-    scoped_ptr<const Time> conn_last_changed(
-        provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
-    PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
-    EXPECT_EQ(conn_change_time, *conn_last_changed);
+    PmTestUtils::ExpectVariableHasValue(expected_conn_tethering,
+                                        provider_->var_conn_tethering());
+    PmTestUtils::ExpectVariableHasValue(conn_change_time,
+                                        provider_->var_conn_last_changed());
   }
 
-  const TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
   StrictMock<MockDBusWrapper> mock_dbus_;
   FakeClock fake_clock_;
   scoped_ptr<RealShillProvider> provider_;
@@ -320,19 +303,10 @@ class PmRealShillProviderTest : public ::testing::Test {
 // during initialization (no signals).
 TEST_F(PmRealShillProviderTest, ReadBaseValues) {
   // Query the provider variables.
-  scoped_ptr<const bool> is_connected(
-      provider_->var_is_connected()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(is_connected.get());
-  EXPECT_FALSE(*is_connected);
-
-  scoped_ptr<const ConnectionType> conn_type(
-      provider_->var_conn_type()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NULL(conn_type.get());
-
-  scoped_ptr<const Time> conn_last_changed(
-      provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
-  EXPECT_EQ(InitTime(), *conn_last_changed);
+  PmTestUtils::ExpectVariableHasValue(false, provider_->var_is_connected());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_conn_type());
+  PmTestUtils::ExpectVariableHasValue(InitTime(),
+                                      provider_->var_conn_last_changed());
 }
 
 // Test that Ethernet connection is identified correctly.
@@ -403,15 +377,10 @@ TEST_F(PmRealShillProviderTest, ReadConnTypeVpn) {
   Time conn_change_time = SendDefaultServiceSignal(kFakeVpnServicePath);
 
   // Query the connection type, ensure last change time reported correctly.
-  scoped_ptr<const ConnectionType> conn_type(
-      provider_->var_conn_type()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(conn_type.get());
-  EXPECT_EQ(ConnectionType::kWifi, *conn_type);
-
-  scoped_ptr<const Time> conn_last_changed(
-      provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
-  EXPECT_EQ(conn_change_time, *conn_last_changed);
+  PmTestUtils::ExpectVariableHasValue(ConnectionType::kWifi,
+                                      provider_->var_conn_type());
+  PmTestUtils::ExpectVariableHasValue(conn_change_time,
+                                      provider_->var_conn_last_changed());
 
   // Release properties hash tables.
   g_hash_table_unref(service_properties);
@@ -425,10 +394,8 @@ TEST_F(PmRealShillProviderTest, ConnTypeCacheUsed) {
                              shill::kTypeEthernet,
                              ConnectionType::kEthernet);
 
-  scoped_ptr<const ConnectionType> conn_type(
-      provider_->var_conn_type()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(conn_type.get());
-  EXPECT_EQ(ConnectionType::kEthernet, *conn_type);
+  PmTestUtils::ExpectVariableHasValue(ConnectionType::kEthernet,
+                                      provider_->var_conn_type());
 }
 
 // Ensure that the cached connection type remains valid even when a default
@@ -441,10 +408,8 @@ TEST_F(PmRealShillProviderTest, ConnTypeCacheRemainsValid) {
 
   SendDefaultServiceSignal(kFakeEthernetServicePath);
 
-  scoped_ptr<const ConnectionType> conn_type(
-      provider_->var_conn_type()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(conn_type.get());
-  EXPECT_EQ(ConnectionType::kEthernet, *conn_type);
+  PmTestUtils::ExpectVariableHasValue(ConnectionType::kEthernet,
+                                      provider_->var_conn_type());
 }
 
 // Ensure that the cached connection type is invalidated and re-read when the
@@ -500,10 +465,8 @@ TEST_F(PmRealShillProviderTest, ConnTetheringCacheUsed) {
                                   shill::kTetheringNotDetectedState,
                                   ConnectionTethering::kNotDetected);
 
-  scoped_ptr<const ConnectionTethering> conn_tethering(
-      provider_->var_conn_tethering()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(conn_tethering.get());
-  EXPECT_EQ(ConnectionTethering::kNotDetected, *conn_tethering);
+  PmTestUtils::ExpectVariableHasValue(ConnectionTethering::kNotDetected,
+                                      provider_->var_conn_tethering());
 }
 
 // Ensure that the cached connection tethering mode remains valid even when a
@@ -516,10 +479,8 @@ TEST_F(PmRealShillProviderTest, ConnTetheringCacheRemainsValid) {
 
   SendDefaultServiceSignal(kFakeEthernetServicePath);
 
-  scoped_ptr<const ConnectionTethering> conn_tethering(
-      provider_->var_conn_tethering()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(conn_tethering.get());
-  EXPECT_EQ(ConnectionTethering::kNotDetected, *conn_tethering);
+  PmTestUtils::ExpectVariableHasValue(ConnectionTethering::kNotDetected,
+                                      provider_->var_conn_tethering());
 }
 
 // Ensure that the cached connection tethering mode is invalidated and re-read
@@ -549,15 +510,9 @@ TEST_F(PmRealShillProviderTest, ReadLastChangedTimeTwoSignals) {
   SendDefaultServiceSignal(kFakeEthernetServicePath);
 
   // Query the connection status, ensure last change time reported correctly.
-  scoped_ptr<const bool> is_connected(
-      provider_->var_is_connected()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(is_connected.get());
-  EXPECT_TRUE(*is_connected);
-
-  scoped_ptr<const Time> conn_last_changed(
-      provider_->var_conn_last_changed()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(conn_last_changed.get());
-  EXPECT_EQ(conn_change_time, *conn_last_changed);
+  PmTestUtils::ExpectVariableHasValue(true, provider_->var_is_connected());
+  PmTestUtils::ExpectVariableHasValue(conn_change_time,
+                                      provider_->var_conn_last_changed());
 }
 
 // Make sure that the provider initializes correctly even if shill is not
@@ -566,12 +521,9 @@ TEST_F(PmRealShillProviderTest, ReadLastChangedTimeTwoSignals) {
 TEST_F(PmRealShillProviderTest, NoInitConnStatusReadBaseValues) {
   // Re-initialize the provider, no initial connection status response.
   Init(false);
-  PMTEST_ASSERT_NULL(provider_->var_is_connected()->GetValue(
-          default_timeout_, NULL));
-  PMTEST_ASSERT_NULL(provider_->var_conn_type()->GetValue(
-          default_timeout_, NULL));
-  PMTEST_ASSERT_NULL(provider_->var_conn_last_changed()->GetValue(
-          default_timeout_, NULL));
+  PmTestUtils::ExpectVariableNotSet(provider_->var_is_connected());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_conn_type());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_conn_last_changed());
 }
 
 // Test that, once a signal is received, the connection status and other info

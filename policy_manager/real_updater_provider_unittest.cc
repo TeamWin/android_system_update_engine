@@ -70,24 +70,6 @@ class PmRealUpdaterProviderTest : public ::testing::Test {
     ASSERT_TRUE(provider_->Init());
   }
 
-  // Tests that the GetValue() method of variable |var| succeeds and the
-  // returned value equals |expected|.
-  template<typename T>
-  void TestGetValueOkay(Variable<T>* var, T expected) {
-    PMTEST_ASSERT_NOT_NULL(var);
-    scoped_ptr<const T> actual(var->GetValue(default_timeout_, NULL));
-    PMTEST_ASSERT_NOT_NULL(actual.get());
-    EXPECT_EQ(expected, *actual);
-  }
-
-  // Tests that the GetValue() method of variable |var| fails, returning null.
-  template<typename T>
-  void TestGetValueFail(Variable<T>* var) {
-    PMTEST_ASSERT_NOT_NULL(var);
-    scoped_ptr<const T> actual(var->GetValue(default_timeout_, NULL));
-    PMTEST_EXPECT_NULL(actual.get());
-  }
-
   // Sets up mock expectations for testing a variable that reads a Boolean pref
   // |key|. |key_exists| determines whether the key is present. If it is, then
   // |get_boolean_success| determines whether reading it is successful, and if
@@ -124,7 +106,6 @@ class PmRealUpdaterProviderTest : public ::testing::Test {
     return kCurrWallclockTime - kDurationSinceUpdate;
   }
 
-  const TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
   FakeSystemState fake_sys_state_;
   FakeClock fake_clock_;
   scoped_ptr<RealUpdaterProvider> provider_;
@@ -134,57 +115,57 @@ TEST_F(PmRealUpdaterProviderTest, GetLastCheckedTimeOkay) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<0>(FixedTime().ToTimeT()), Return(true)));
-  TestGetValueOkay(provider_->var_last_checked_time(),
-                   RoundedToSecond(FixedTime()));
+  PmTestUtils::ExpectVariableHasValue(RoundedToSecond(FixedTime()),
+                                      provider_->var_last_checked_time());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetLastCheckedTimeFailNoValue) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
-  TestGetValueFail(provider_->var_last_checked_time());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_last_checked_time());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressOkayMin) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(0.0), Return(true)));
-  TestGetValueOkay(provider_->var_progress(), 0.0);
+  PmTestUtils::ExpectVariableHasValue(0.0, provider_->var_progress());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressOkayMid) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(0.3), Return(true)));
-  TestGetValueOkay(provider_->var_progress(), 0.3);
+  PmTestUtils::ExpectVariableHasValue(0.3, provider_->var_progress());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressOkayMax) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(1.0), Return(true)));
-  TestGetValueOkay(provider_->var_progress(), 1.0);
+  PmTestUtils::ExpectVariableHasValue(1.0, provider_->var_progress());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressFailNoValue) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
-  TestGetValueFail(provider_->var_progress());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_progress());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressFailTooSmall) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(-2.0), Return(true)));
-  TestGetValueFail(provider_->var_progress());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_progress());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetProgressFailTooBig) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(2.0), Return(true)));
-  TestGetValueFail(provider_->var_progress());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_progress());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayIdle) {
@@ -192,7 +173,7 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayIdle) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusIdle),
                       Return(true)));
-  TestGetValueOkay(provider_->var_stage(), Stage::kIdle);
+  PmTestUtils::ExpectVariableHasValue(Stage::kIdle, provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayCheckingForUpdate) {
@@ -201,7 +182,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayCheckingForUpdate) {
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusCheckingForUpdate),
               Return(true)));
-  TestGetValueOkay(provider_->var_stage(), Stage::kCheckingForUpdate);
+  PmTestUtils::ExpectVariableHasValue(Stage::kCheckingForUpdate,
+                                      provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayUpdateAvailable) {
@@ -210,7 +192,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayUpdateAvailable) {
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusUpdateAvailable),
               Return(true)));
-  TestGetValueOkay(provider_->var_stage(), Stage::kUpdateAvailable);
+  PmTestUtils::ExpectVariableHasValue(Stage::kUpdateAvailable,
+                                      provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayDownloading) {
@@ -218,7 +201,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayDownloading) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusDownloading),
                       Return(true)));
-  TestGetValueOkay(provider_->var_stage(), Stage::kDownloading);
+  PmTestUtils::ExpectVariableHasValue(Stage::kDownloading,
+                                      provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayVerifying) {
@@ -226,7 +210,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayVerifying) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusVerifying),
                       Return(true)));
-  TestGetValueOkay(provider_->var_stage(), Stage::kVerifying);
+  PmTestUtils::ExpectVariableHasValue(Stage::kVerifying,
+                                      provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayFinalizing) {
@@ -234,7 +219,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayFinalizing) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(update_engine::kUpdateStatusFinalizing),
                       Return(true)));
-  TestGetValueOkay(provider_->var_stage(), Stage::kFinalizing);
+  PmTestUtils::ExpectVariableHasValue(Stage::kFinalizing,
+                                      provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayUpdatedNeedReboot) {
@@ -243,7 +229,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayUpdatedNeedReboot) {
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusUpdatedNeedReboot),
               Return(true)));
-  TestGetValueOkay(provider_->var_stage(), Stage::kUpdatedNeedReboot);
+  PmTestUtils::ExpectVariableHasValue(Stage::kUpdatedNeedReboot,
+                                      provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayReportingErrorEvent) {
@@ -252,7 +239,8 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayReportingErrorEvent) {
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusReportingErrorEvent),
               Return(true)));
-  TestGetValueOkay(provider_->var_stage(), Stage::kReportingErrorEvent);
+  PmTestUtils::ExpectVariableHasValue(Stage::kReportingErrorEvent,
+                                      provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageOkayAttemptingRollback) {
@@ -261,14 +249,15 @@ TEST_F(PmRealUpdaterProviderTest, GetStageOkayAttemptingRollback) {
       .WillOnce(DoAll(
               SetArgPointee<2>(update_engine::kUpdateStatusAttemptingRollback),
               Return(true)));
-  TestGetValueOkay(provider_->var_stage(), Stage::kAttemptingRollback);
+  PmTestUtils::ExpectVariableHasValue(Stage::kAttemptingRollback,
+                                      provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageFailNoValue) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
-  TestGetValueFail(provider_->var_stage());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageFailUnknown) {
@@ -276,35 +265,37 @@ TEST_F(PmRealUpdaterProviderTest, GetStageFailUnknown) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>("FooUpdateEngineState"),
                       Return(true)));
-  TestGetValueFail(provider_->var_stage());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetStageFailEmpty) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<2>(""), Return(true)));
-  TestGetValueFail(provider_->var_stage());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_stage());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetNewVersionOkay) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<3>("1.2.0"), Return(true)));
-  TestGetValueOkay(provider_->var_new_version(), string("1.2.0"));
+  PmTestUtils::ExpectVariableHasValue(string("1.2.0"),
+                                      provider_->var_new_version());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetNewVersionFailNoValue) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
-  TestGetValueFail(provider_->var_new_version());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_new_version());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayZero) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(0)), Return(true)));
-  TestGetValueOkay(provider_->var_payload_size(), static_cast<size_t>(0));
+  PmTestUtils::ExpectVariableHasValue(static_cast<size_t>(0),
+                                      provider_->var_payload_size());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayArbitrary) {
@@ -312,7 +303,8 @@ TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayArbitrary) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(567890)),
                       Return(true)));
-  TestGetValueOkay(provider_->var_payload_size(), static_cast<size_t>(567890));
+  PmTestUtils::ExpectVariableHasValue(static_cast<size_t>(567890),
+                                      provider_->var_payload_size());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayTwoGigabytes) {
@@ -320,14 +312,15 @@ TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayTwoGigabytes) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(1) << 31),
                       Return(true)));
-  TestGetValueOkay(provider_->var_payload_size(), static_cast<size_t>(1) << 31);
+  PmTestUtils::ExpectVariableHasValue(static_cast<size_t>(1) << 31,
+                                      provider_->var_payload_size());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeFailNoValue) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(Return(false));
-  TestGetValueFail(provider_->var_payload_size());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_payload_size());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeFailNegative) {
@@ -335,7 +328,7 @@ TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeFailNegative) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(-1024)),
                       Return(true)));
-  TestGetValueFail(provider_->var_payload_size());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_payload_size());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetCurrChannelOkay) {
@@ -344,7 +337,8 @@ TEST_F(PmRealUpdaterProviderTest, GetCurrChannelOkay) {
   request_params.Init("", "", false);
   request_params.set_current_channel(kChannelName);
   fake_sys_state_.set_request_params(&request_params);
-  TestGetValueOkay(provider_->var_curr_channel(), kChannelName);
+  PmTestUtils::ExpectVariableHasValue(kChannelName,
+                                      provider_->var_curr_channel());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetCurrChannelFailEmpty) {
@@ -352,7 +346,7 @@ TEST_F(PmRealUpdaterProviderTest, GetCurrChannelFailEmpty) {
   request_params.Init("", "", false);
   request_params.set_current_channel("");
   fake_sys_state_.set_request_params(&request_params);
-  TestGetValueFail(provider_->var_curr_channel());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_curr_channel());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetNewChannelOkay) {
@@ -361,7 +355,8 @@ TEST_F(PmRealUpdaterProviderTest, GetNewChannelOkay) {
   request_params.Init("", "", false);
   request_params.set_target_channel(kChannelName);
   fake_sys_state_.set_request_params(&request_params);
-  TestGetValueOkay(provider_->var_new_channel(), kChannelName);
+  PmTestUtils::ExpectVariableHasValue(kChannelName,
+                                      provider_->var_new_channel());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetNewChannelFailEmpty) {
@@ -369,75 +364,76 @@ TEST_F(PmRealUpdaterProviderTest, GetNewChannelFailEmpty) {
   request_params.Init("", "", false);
   request_params.set_target_channel("");
   fake_sys_state_.set_request_params(&request_params);
-  TestGetValueFail(provider_->var_new_channel());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_new_channel());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetP2PEnabledOkayPrefDoesntExist) {
   SetupReadBooleanPref(chromeos_update_engine::kPrefsP2PEnabled,
                        false, false, false);
-  TestGetValueOkay(provider_->var_p2p_enabled(), false);
+  PmTestUtils::ExpectVariableHasValue(false, provider_->var_p2p_enabled());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetP2PEnabledOkayPrefReadsFalse) {
   SetupReadBooleanPref(chromeos_update_engine::kPrefsP2PEnabled,
                        true, true, false);
-  TestGetValueOkay(provider_->var_p2p_enabled(), false);
+  PmTestUtils::ExpectVariableHasValue(false, provider_->var_p2p_enabled());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetP2PEnabledOkayPrefReadsTrue) {
   SetupReadBooleanPref(chromeos_update_engine::kPrefsP2PEnabled,
                        true, true, true);
-  TestGetValueOkay(provider_->var_p2p_enabled(), true);
+  PmTestUtils::ExpectVariableHasValue(true, provider_->var_p2p_enabled());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetP2PEnabledFailCannotReadPref) {
   SetupReadBooleanPref(chromeos_update_engine::kPrefsP2PEnabled,
                        true, false, false);
-  TestGetValueFail(provider_->var_p2p_enabled());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_p2p_enabled());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetCellularEnabledOkayPrefDoesntExist) {
   SetupReadBooleanPref(
       chromeos_update_engine::kPrefsUpdateOverCellularPermission,
       false, false, false);
-  TestGetValueOkay(provider_->var_cellular_enabled(), false);
+  PmTestUtils::ExpectVariableHasValue(false, provider_->var_cellular_enabled());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetCellularEnabledOkayPrefReadsFalse) {
   SetupReadBooleanPref(
       chromeos_update_engine::kPrefsUpdateOverCellularPermission,
       true, true, false);
-  TestGetValueOkay(provider_->var_cellular_enabled(), false);
+  PmTestUtils::ExpectVariableHasValue(false, provider_->var_cellular_enabled());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetCellularEnabledOkayPrefReadsTrue) {
   SetupReadBooleanPref(
       chromeos_update_engine::kPrefsUpdateOverCellularPermission,
       true, true, true);
-  TestGetValueOkay(provider_->var_cellular_enabled(), true);
+  PmTestUtils::ExpectVariableHasValue(true, provider_->var_cellular_enabled());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetCellularEnabledFailCannotReadPref) {
   SetupReadBooleanPref(
       chromeos_update_engine::kPrefsUpdateOverCellularPermission,
       true, false, false);
-  TestGetValueFail(provider_->var_cellular_enabled());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_cellular_enabled());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetUpdateCompletedTimeOkay) {
   Time expected = SetupUpdateCompletedTime(true);
-  TestGetValueOkay(provider_->var_update_completed_time(), expected);
+  PmTestUtils::ExpectVariableHasValue(expected,
+                                      provider_->var_update_completed_time());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetUpdateCompletedTimeFailNoValue) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(), GetBootTimeAtUpdate(_))
       .WillOnce(Return(false));
-  TestGetValueFail(provider_->var_update_completed_time());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_update_completed_time());
 }
 
 TEST_F(PmRealUpdaterProviderTest, GetUpdateCompletedTimeFailInvalidValue) {
   SetupUpdateCompletedTime(false);
-  TestGetValueFail(provider_->var_update_completed_time());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_update_completed_time());
 }
 
 }  // namespace chromeos_policy_manager

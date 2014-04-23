@@ -40,30 +40,22 @@ class PmRealTimeProviderTest : public ::testing::Test {
     return Time::FromLocalExploded(now_exp);
   }
 
-  const TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
   FakeClock fake_clock_;
   scoped_ptr<RealTimeProvider> provider_;
 };
 
 TEST_F(PmRealTimeProviderTest, CurrDateValid) {
   const Time now = CurrTime();
-  Time::Exploded expected;
-  now.LocalExplode(&expected);
-  fake_clock_.SetWallclockTime(now);
-  scoped_ptr<const Time> curr_date(
-      provider_->var_curr_date()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(curr_date.get());
+  Time::Exploded exploded;
+  now.LocalExplode(&exploded);
+  exploded.hour = 0;
+  exploded.minute = 0;
+  exploded.second = 0;
+  exploded.millisecond = 0;
+  const Time expected = Time::FromLocalExploded(exploded);
 
-  Time::Exploded actual;
-  curr_date->LocalExplode(&actual);
-  EXPECT_EQ(expected.year, actual.year);
-  EXPECT_EQ(expected.month, actual.month);
-  EXPECT_EQ(expected.day_of_week, actual.day_of_week);
-  EXPECT_EQ(expected.day_of_month, actual.day_of_month);
-  EXPECT_EQ(0, actual.hour);
-  EXPECT_EQ(0, actual.minute);
-  EXPECT_EQ(0, actual.second);
-  EXPECT_EQ(0, actual.millisecond);
+  fake_clock_.SetWallclockTime(now);
+  PmTestUtils::ExpectVariableHasValue(expected, provider_->var_curr_date());
 }
 
 TEST_F(PmRealTimeProviderTest, CurrHourValid) {
@@ -71,11 +63,8 @@ TEST_F(PmRealTimeProviderTest, CurrHourValid) {
   Time::Exploded expected;
   now.LocalExplode(&expected);
   fake_clock_.SetWallclockTime(now);
-  scoped_ptr<const int> curr_hour(
-      provider_->var_curr_hour()->GetValue(default_timeout_, NULL));
-  PMTEST_ASSERT_NOT_NULL(curr_hour.get());
-
-  EXPECT_EQ(expected.hour, *curr_hour);
+  PmTestUtils::ExpectVariableHasValue(expected.hour,
+                                      provider_->var_curr_hour());
 }
 
 }  // namespace chromeos_policy_manager

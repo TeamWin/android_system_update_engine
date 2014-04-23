@@ -77,7 +77,6 @@ class PolicyManager {
   }
 
  private:
-  friend class PmPolicyManagerTest;
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestCallsPolicy);
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError);
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestDoesntBlock);

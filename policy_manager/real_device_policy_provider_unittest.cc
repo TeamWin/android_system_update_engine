@@ -58,22 +58,6 @@ class PmRealDevicePolicyProviderTest : public ::testing::Test {
         .WillByDefault(ReturnRef(mock_device_policy_));
   }
 
-  // Calls GetValue and expects its result to be the passed one.
-  template<typename T>
-  void ExpectVariableValue(const T& expected, Variable<T>* variable) {
-    scoped_ptr<const T> value(variable->GetValue(default_timeout_, nullptr));
-    PMTEST_ASSERT_NOT_NULL(value.get()) << "Variable: " << variable->GetName();
-    EXPECT_EQ(expected, *value) << "Variable: " << variable->GetName();
-  }
-
-  // Calls GetValue and expects its result to be NULL.
-  template<typename T>
-  void ExpectVariableNotSet(Variable<T>* variable) {
-    scoped_ptr<const T> value(variable->GetValue(default_timeout_, nullptr));
-    PMTEST_EXPECT_NULL(value.get()) << "Variable: " << variable->GetName();
-  }
-
-  TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
   testing::NiceMock<policy::MockDevicePolicy> mock_device_policy_;
   testing::NiceMock<policy::MockPolicyProvider> mock_policy_provider_;
   scoped_ptr<RealDevicePolicyProvider> provider_;
@@ -105,17 +89,19 @@ TEST_F(PmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   EXPECT_CALL(mock_policy_provider_, GetDevicePolicy()).Times(0);
   EXPECT_TRUE(provider_->Init());
 
-  ExpectVariableValue(false, provider_->var_device_policy_is_loaded());
+  PmTestUtils::ExpectVariableHasValue(false,
+                                      provider_->var_device_policy_is_loaded());
 
-  ExpectVariableNotSet(provider_->var_release_channel());
-  ExpectVariableNotSet(provider_->var_release_channel_delegated());
-  ExpectVariableNotSet(provider_->var_update_disabled());
-  ExpectVariableNotSet(provider_->var_target_version_prefix());
-  ExpectVariableNotSet(provider_->var_scatter_factor());
-  ExpectVariableNotSet(provider_->var_allowed_connection_types_for_update());
-  ExpectVariableNotSet(provider_->var_get_owner());
-  ExpectVariableNotSet(provider_->var_http_downloads_enabled());
-  ExpectVariableNotSet(provider_->var_au_p2p_enabled());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_release_channel());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_release_channel_delegated());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_update_disabled());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_target_version_prefix());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_scatter_factor());
+  PmTestUtils::ExpectVariableNotSet(
+      provider_->var_allowed_connection_types_for_update());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_get_owner());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_http_downloads_enabled());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_au_p2p_enabled());
 }
 
 TEST_F(PmRealDevicePolicyProviderTest, ValuesUpdated) {
@@ -134,11 +120,14 @@ TEST_F(PmRealDevicePolicyProviderTest, ValuesUpdated) {
 
   provider_->RefreshDevicePolicy();
 
-  ExpectVariableValue(true, provider_->var_device_policy_is_loaded());
+  PmTestUtils::ExpectVariableHasValue(true,
+                                      provider_->var_device_policy_is_loaded());
 
   // Test that at least one variable is set, to ensure the refresh ocurred.
-  ExpectVariableValue(string("mychannel"), provider_->var_release_channel());
-  ExpectVariableNotSet(provider_->var_allowed_connection_types_for_update());
+  PmTestUtils::ExpectVariableHasValue(string("mychannel"),
+                                      provider_->var_release_channel());
+  PmTestUtils::ExpectVariableNotSet(
+      provider_->var_allowed_connection_types_for_update());
 }
 
 TEST_F(PmRealDevicePolicyProviderTest, ScatterFactorConverted) {
@@ -147,8 +136,8 @@ TEST_F(PmRealDevicePolicyProviderTest, ScatterFactorConverted) {
       .WillOnce(DoAll(SetArgumentPointee<0>(1234), Return(true)));
   EXPECT_TRUE(provider_->Init());
 
-  ExpectVariableValue(base::TimeDelta::FromSeconds(1234),
-                      provider_->var_scatter_factor());
+  PmTestUtils::ExpectVariableHasValue(base::TimeDelta::FromSeconds(1234),
+                                      provider_->var_scatter_factor());
 }
 
 TEST_F(PmRealDevicePolicyProviderTest, NegativeScatterFactorIgnored) {
@@ -157,7 +146,7 @@ TEST_F(PmRealDevicePolicyProviderTest, NegativeScatterFactorIgnored) {
       .WillOnce(DoAll(SetArgumentPointee<0>(-1), Return(true)));
   EXPECT_TRUE(provider_->Init());
 
-  ExpectVariableNotSet(provider_->var_scatter_factor());
+  PmTestUtils::ExpectVariableNotSet(provider_->var_scatter_factor());
 }
 
 TEST_F(PmRealDevicePolicyProviderTest, AllowedTypesConverted) {
@@ -168,9 +157,9 @@ TEST_F(PmRealDevicePolicyProviderTest, AllowedTypesConverted) {
                       Return(true)));
   EXPECT_TRUE(provider_->Init());
 
-  ExpectVariableValue(set<ConnectionType>{ConnectionType::kWifi,
-                                          ConnectionType::kBluetooth},
-                      provider_->var_allowed_connection_types_for_update());
+  PmTestUtils::ExpectVariableHasValue(
+      set<ConnectionType>{ConnectionType::kWifi, ConnectionType::kBluetooth},
+      provider_->var_allowed_connection_types_for_update());
 }
 
 }  // namespace chromeos_policy_manager

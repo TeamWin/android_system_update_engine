@@ -69,9 +69,7 @@ class CopyVariable : public Variable<T> {
       : CopyVariable(name, poll_interval, ref, nullptr) {}
 
  protected:
-  friend class PmCopyVariableTest;
   FRIEND_TEST(PmCopyVariableTest, SimpleTest);
-  FRIEND_TEST(PmCopyVariableTest, SetFlagTest);
   FRIEND_TEST(PmCopyVariableTest, UseCopyConstructorTest);
 
   // Variable override.
@@ -109,9 +107,6 @@ class ConstCopyVariable : public Variable<T> {
       : Variable<T>(name, kVariableModeConst), obj_(obj) {}
 
  protected:
-  friend class PmConstCopyVariableTest;
-  FRIEND_TEST(PmConstCopyVariableTest, SimpleTest);
-
   // Variable override.
   virtual const T* GetValue(base::TimeDelta /* timeout */,
                             std::string* /* errmsg */) {
@@ -156,11 +151,6 @@ class AsyncCopyVariable : public Variable<T> {
   }
 
  protected:
-  friend class PmAsyncCopyVariableTest;
-  FRIEND_TEST(PmAsyncCopyVariableTest, ConstructorTest);
-  FRIEND_TEST(PmAsyncCopyVariableTest, SetValueTest);
-  FRIEND_TEST(PmAsyncCopyVariableTest, UnsetValueTest);
-
   // Variable override.
   virtual const T* GetValue(base::TimeDelta /* timeout */,
                             std::string* errmsg) {

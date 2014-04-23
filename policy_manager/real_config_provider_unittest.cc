@@ -28,16 +28,6 @@ class PmRealConfigProviderTest : public ::testing::Test {
     provider_->SetRootPrefix(root_dir_.path().value());
   }
 
-  // TODO(deymo): Merge this method into common unittest tools for PM.
-  // Calls GetValue and expects its result to be the passed one.
-  template<typename T>
-  void ExpectVariableValue(const T& expected, Variable<T>* variable) {
-    PMTEST_ASSERT_NOT_NULL(variable);
-    scoped_ptr<const T> value(variable->GetValue(default_timeout_, nullptr));
-    PMTEST_ASSERT_NOT_NULL(value.get()) << "Variable: " << variable->GetName();
-    EXPECT_EQ(expected, *value) << "Variable: " << variable->GetName();
-  }
-
   void WriteStatefulConfig(const string& config) {
     base::FilePath kFile(root_dir_.path().value()
                          + chromeos_update_engine::kStatefulPartition
@@ -66,7 +56,7 @@ TEST_F(PmRealConfigProviderTest, InitTest) {
 
 TEST_F(PmRealConfigProviderTest, NoFileFoundReturnsDefault) {
   EXPECT_TRUE(provider_->Init());
-  ExpectVariableValue(true, provider_->var_is_oobe_enabled());
+  PmTestUtils::ExpectVariableHasValue(true, provider_->var_is_oobe_enabled());
 }
 
 TEST_F(PmRealConfigProviderTest, DontReadStatefulInNormalMode) {
@@ -74,7 +64,7 @@ TEST_F(PmRealConfigProviderTest, DontReadStatefulInNormalMode) {
   WriteStatefulConfig("is_oobe_enabled=false");
 
   EXPECT_TRUE(provider_->Init());
-  ExpectVariableValue(true, provider_->var_is_oobe_enabled());
+  PmTestUtils::ExpectVariableHasValue(true, provider_->var_is_oobe_enabled());
 }
 
 TEST_F(PmRealConfigProviderTest, ReadStatefulInDevMode) {
@@ -84,7 +74,7 @@ TEST_F(PmRealConfigProviderTest, ReadStatefulInDevMode) {
   WriteStatefulConfig("is_oobe_enabled=false");
 
   EXPECT_TRUE(provider_->Init());
-  ExpectVariableValue(false, provider_->var_is_oobe_enabled());
+  PmTestUtils::ExpectVariableHasValue(false, provider_->var_is_oobe_enabled());
 }
 
 TEST_F(PmRealConfigProviderTest, ReadRootfsIfStatefulNotFound) {
@@ -92,7 +82,7 @@ TEST_F(PmRealConfigProviderTest, ReadRootfsIfStatefulNotFound) {
   WriteRootfsConfig("is_oobe_enabled=false");
 
   EXPECT_TRUE(provider_->Init());
-  ExpectVariableValue(false, provider_->var_is_oobe_enabled());
+  PmTestUtils::ExpectVariableHasValue(false, provider_->var_is_oobe_enabled());
 }
 
 }  // namespace chromeos_policy_manager

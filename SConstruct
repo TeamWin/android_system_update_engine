@@ -300,6 +300,7 @@ unittest_sources = Split("""action_pipe_unittest.cc
                             policy_manager/event_loop_unittest.cc
                             policy_manager/fake_state.cc
                             policy_manager/generic_variables_unittest.cc
+                            policy_manager/pmtest_utils.cc
                             policy_manager/policy_manager_unittest.cc
                             policy_manager/real_config_provider_unittest.cc
                             policy_manager/real_device_policy_provider_unittest.cc

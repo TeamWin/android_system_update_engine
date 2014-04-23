@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include <base/memory/scoped_ptr.h>
-#include <base/time/time.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/policy_manager/pmtest_utils.h"
@@ -24,7 +23,6 @@ class PmRealRandomProviderTest : public ::testing::Test {
     provider_->var_seed();
   }
 
-  const TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
   scoped_ptr<RealRandomProvider> provider_;
 };
 
@@ -36,7 +34,7 @@ TEST_F(PmRealRandomProviderTest, InitFinalize) {
 TEST_F(PmRealRandomProviderTest, GetRandomValues) {
   // Should not return the same random seed repeatedly.
   scoped_ptr<const uint64_t> value(
-      provider_->var_seed()->GetValue(default_timeout_, NULL));
+      provider_->var_seed()->GetValue(PmTestUtils::DefaultTimeout(), nullptr));
   PMTEST_ASSERT_NOT_NULL(value.get());
 
   // Test that at least the returned values are different. This test fails,
@@ -44,7 +42,8 @@ TEST_F(PmRealRandomProviderTest, GetRandomValues) {
   bool is_same_value = true;
   for (int i = 0; i < 5; i++) {
     scoped_ptr<const uint64_t> other_value(
-        provider_->var_seed()->GetValue(default_timeout_, NULL));
+        provider_->var_seed()->GetValue(PmTestUtils::DefaultTimeout(),
+                                        nullptr));
     PMTEST_ASSERT_NOT_NULL(other_value.get());
     is_same_value = is_same_value && *other_value == *value;
   }

@@ -66,7 +66,6 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   }
 
  private:
-  friend class PmRealDevicePolicyProviderTest;
   FRIEND_TEST(PmRealDevicePolicyProviderTest, RefreshScheduledTest);
   FRIEND_TEST(PmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded);
   FRIEND_TEST(PmRealDevicePolicyProviderTest, ValuesUpdated);
