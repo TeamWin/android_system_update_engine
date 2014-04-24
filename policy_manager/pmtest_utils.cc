@@ -10,4 +10,8 @@ namespace chromeos_policy_manager {
 
 const unsigned PmTestUtils::kDefaultTimeoutInSeconds = 1;
 
+void PrintTo(const EvalStatus& status, ::std::ostream* os) {
+  *os << ToString(status);
+}
+
 }  // namespace chromeos_policy_manager

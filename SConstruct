@@ -241,6 +241,7 @@ sources = Split("""action_processor.cc
                    policy_manager/evaluation_context.cc
                    policy_manager/event_loop.cc
                    policy_manager/policy_manager.cc
+                   policy_manager/policy.cc
                    policy_manager/real_config_provider.cc
                    policy_manager/real_device_policy_provider.cc
                    policy_manager/real_random_provider.cc
@@ -300,6 +301,7 @@ unittest_sources = Split("""action_pipe_unittest.cc
                             payload_signer_unittest.cc
                             payload_state_unittest.cc
                             policy_manager/boxed_value_unittest.cc
+                            policy_manager/chromeos_policy_unittest.cc
                             policy_manager/evaluation_context_unittest.cc
                             policy_manager/event_loop_unittest.cc
                             policy_manager/generic_variables_unittest.cc

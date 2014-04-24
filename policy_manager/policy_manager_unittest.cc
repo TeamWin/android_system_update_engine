@@ -50,7 +50,7 @@ class PmPolicyManagerTest : public ::testing::Test {
 class FailingPolicy : public DefaultPolicy {
   virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
                                         string* error,
-                                        bool* result) const {
+                                        UpdateCheckParams* result) const {
     *error = "FailingPolicy failed.";
     return EvalStatus::kFailed;
   }
@@ -60,7 +60,7 @@ class FailingPolicy : public DefaultPolicy {
 class LazyPolicy : public DefaultPolicy {
   virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
                                         string* error,
-                                        bool* result) const {
+                                        UpdateCheckParams* result) const {
     return EvalStatus::kAskMeAgainLater;
   }
 };
@@ -75,41 +75,19 @@ static void AccumulateCallsCallback(vector<pair<EvalStatus, T>>* acc,
   acc->push_back(std::make_pair(status, result));
 }
 
-TEST_F(PmPolicyManagerTest, PolicyRequestCallReturnsSuccess) {
+// Tests that policy requests are completed successfully. It is important that
+// this tests cover all policy requests as defined in Policy.
+TEST_F(PmPolicyManagerTest, PolicyRequestCallUpdateDownloadAndApplyAllowed) {
   bool result;
-  EvalStatus status;
-
-  // Tests that policy requests are completed successfully. It is important that
-  // this test covers all policy requests as defined in Policy.
-  //
-  // TODO(garnold) We may need to adapt this test as the Chrome OS policy grows
-  // beyond the stub implementation.
-  status = pmut_->PolicyRequest(&Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(EvalStatus::kSucceeded, status);
-  status = pmut_->PolicyRequest(&Policy::UpdateDownloadAndApplyAllowed,
-                                &result);
-  EXPECT_EQ(EvalStatus::kSucceeded, status);
+  EXPECT_EQ(EvalStatus::kSucceeded,
+            pmut_->PolicyRequest(&Policy::UpdateDownloadAndApplyAllowed,
+                                 &result));
 }
 
-TEST_F(PmPolicyManagerTest, PolicyRequestCallsPolicy) {
-  StrictMock<MockPolicy>* policy = new StrictMock<MockPolicy>();
-  pmut_->set_policy(policy);
-  bool result;
-  EvalStatus status;
-
-  // Tests that the policy methods are actually called on the policy instance.
-  // It is important that this test covers all policy requests as defined in
-  // Policy.
-  EXPECT_CALL(*policy, UpdateCheckAllowed(_, _, _, _))
-      .WillOnce(Return(EvalStatus::kSucceeded));
-  status = pmut_->PolicyRequest(&Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(EvalStatus::kSucceeded, status);
-
-  EXPECT_CALL(*policy, UpdateDownloadAndApplyAllowed(_, _, _, _))
-      .WillOnce(Return(EvalStatus::kSucceeded));
-  status = pmut_->PolicyRequest(&Policy::UpdateDownloadAndApplyAllowed,
-                                &result);
-  EXPECT_EQ(EvalStatus::kSucceeded, status);
+TEST_F(PmPolicyManagerTest, PolicyRequestCallUpdateCheckAllowed) {
+  UpdateCheckParams result;
+  EXPECT_EQ(EvalStatus::kSucceeded, pmut_->PolicyRequest(
+      &Policy::UpdateCheckAllowed, &result));
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError) {
@@ -117,16 +95,17 @@ TEST_F(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError) {
 
   // Tests that the DefaultPolicy instance is called when the method fails,
   // which will set this as true.
-  bool result = false;
+  UpdateCheckParams result;
+  result.updates_enabled = false;
   EvalStatus status = pmut_->PolicyRequest(
       &Policy::UpdateCheckAllowed, &result);
   EXPECT_EQ(EvalStatus::kSucceeded, status);
-  EXPECT_TRUE(result);
+  EXPECT_TRUE(result.updates_enabled);
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestDoesntBlock) {
+  UpdateCheckParams result;
   pmut_->set_policy(new LazyPolicy());
-  bool result;
 
   EvalStatus status = pmut_->PolicyRequest(
       &Policy::UpdateCheckAllowed, &result);
@@ -140,9 +119,9 @@ TEST_F(PmPolicyManagerTest, AsyncPolicyRequestDelaysEvaluation) {
   // the main loop in both cases even when we could evaluate it right now.
   pmut_->set_policy(new FailingPolicy());
 
-  vector<pair<EvalStatus, bool>> calls;
-  Callback<void(EvalStatus, const bool& result)> callback =
-      Bind(AccumulateCallsCallback<bool>, &calls);
+  vector<pair<EvalStatus, UpdateCheckParams>> calls;
+  Callback<void(EvalStatus, const UpdateCheckParams& result)> callback =
+      Bind(AccumulateCallsCallback<UpdateCheckParams>, &calls);
 
   pmut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // The callback should wait until we run the main loop for it to be executed.

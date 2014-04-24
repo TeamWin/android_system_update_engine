@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_POLICY_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_POLICY_H_
 
+#include <string>
+
 #include "update_engine/policy_manager/evaluation_context.h"
 #include "update_engine/policy_manager/state.h"
 
@@ -16,6 +18,15 @@ enum class EvalStatus {
   kSucceeded,
   kAskMeAgainLater,
 };
+
+std::string ToString(EvalStatus status);
+
+// Parameters of an update check. These parameters are determined by the
+// UpdateCheckAllowed policy.
+struct UpdateCheckParams {
+  bool updates_enabled;  // Whether the auto-updates are enabled on this build.
+};
+
 
 // The Policy class is an interface to the ensemble of policy requests that the
 // client can make. A derived class includes the policy implementations of
@@ -36,9 +47,9 @@ class Policy {
 
   // UpdateCheckAllowed returns whether it is allowed to request an update check
   // to Omaha.
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
-                                        std::string* error,
-                                        bool* result) const = 0;
+  virtual EvalStatus UpdateCheckAllowed(
+      EvaluationContext* ec, State* state, std::string* error,
+      UpdateCheckParams* result) const = 0;
 
   // Returns whether an update can be downloaded/applied.
   virtual EvalStatus UpdateDownloadAndApplyAllowed(EvaluationContext* ec,

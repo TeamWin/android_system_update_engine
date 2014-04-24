@@ -18,10 +18,10 @@ class DefaultPolicy : public Policy {
   virtual ~DefaultPolicy() {}
 
   // Policy overrides.
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
-                                        std::string* error,
-                                        bool* result) const override {
-    *result = true;
+  virtual EvalStatus UpdateCheckAllowed(
+      EvaluationContext* ec, State* state, std::string* error,
+      UpdateCheckParams* result) const override {
+    result->updates_enabled = true;
     return EvalStatus::kSucceeded;
   }
 

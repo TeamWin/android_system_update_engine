@@ -5,10 +5,13 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PMTEST_UTILS_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PMTEST_UTILS_H_
 
+#include <iostream>
+
 #include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/policy_manager/policy.h"
 #include "update_engine/policy_manager/variable.h"
 
 // Convenience macros for checking null-ness of pointers.
@@ -57,6 +60,10 @@ class PmTestUtils {
  private:
   static const unsigned kDefaultTimeoutInSeconds;
 };
+
+// PrintTo() functions are used by gtest to print these values. They need to be
+// defined on the same namespace where the type was defined.
+void PrintTo(const EvalStatus& status, ::std::ostream* os);
 
 }  // namespace chromeos_policy_manager
 

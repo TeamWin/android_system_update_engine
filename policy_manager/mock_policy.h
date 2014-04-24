@@ -13,20 +13,20 @@ namespace chromeos_policy_manager {
 
 // A mocked implementation of Policy.
 class MockPolicy : public Policy {
-public:
+ public:
   MockPolicy() {}
   virtual ~MockPolicy() {}
 
   // Policy overrides.
   MOCK_CONST_METHOD4(UpdateCheckAllowed,
                      EvalStatus(EvaluationContext*, State*, std::string*,
-                                bool*));
+                                UpdateCheckParams*));
 
   MOCK_CONST_METHOD4(UpdateDownloadAndApplyAllowed,
                      EvalStatus(EvaluationContext*, State*, std::string*,
                                 bool*));
 
-private:
+ private:
   DISALLOW_COPY_AND_ASSIGN(MockPolicy);
 };
 
