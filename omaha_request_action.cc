@@ -62,8 +62,7 @@ const string kGupdateVersion("ChromeOSUpdateEngine-0.1.0.0");
 // This is handy for passing strings into libxml2
 #define ConstXMLStr(x) (reinterpret_cast<const xmlChar*>(x))
 
-// These are for scoped_ptr_malloc, which is like scoped_ptr, but allows
-// a custom free() function to be specified.
+// These are for scoped_ptr with a custom free function to be specified.
 class ScopedPtrXmlDocFree {
  public:
   inline void operator()(void* x) const {
@@ -284,13 +283,13 @@ string GetRequestXml(const OmahaEvent* event,
 string XmlEncode(const string& input) {
   //  // TODO(adlr): if allocating a new xmlDoc each time is taking up too much
   //  // cpu, considering creating one and caching it.
-  //  scoped_ptr_malloc<xmlDoc, ScopedPtrXmlDocFree> xml_doc(
+  //  scoped_ptr<xmlDoc, ScopedPtrXmlDocFree> xml_doc(
   //      xmlNewDoc(ConstXMLStr("1.0")));
   //  if (!xml_doc.get()) {
   //    LOG(ERROR) << "Unable to create xmlDoc";
   //    return "";
   //  }
-  scoped_ptr_malloc<xmlChar, ScopedPtrXmlFree> str(
+  scoped_ptr<xmlChar, ScopedPtrXmlFree> str(
       xmlEncodeEntitiesReentrant(NULL, ConstXMLStr(input.c_str())));
   return string(reinterpret_cast<const char *>(str.get()));
 }
@@ -452,7 +451,7 @@ namespace {
 xmlXPathObject* GetNodeSet(xmlDoc* doc, const xmlChar* xpath) {
   xmlXPathObject* result = NULL;
 
-  scoped_ptr_malloc<xmlXPathContext, ScopedPtrXmlXPathContextFree> context(
+  scoped_ptr<xmlXPathContext, ScopedPtrXmlXPathContextFree> context(
       xmlXPathNewContext(doc));
   if (!context.get()) {
     LOG(ERROR) << "xmlXPathNewContext() returned NULL";
@@ -479,7 +478,7 @@ xmlXPathObject* GetNodeSet(xmlDoc* doc, const xmlChar* xpath) {
 string XmlGetProperty(xmlNode* node, const char* name) {
   if (!xmlHasProp(node, ConstXMLStr(name)))
     return "";
-  scoped_ptr_malloc<xmlChar, ScopedPtrXmlFree> str(
+  scoped_ptr<xmlChar, ScopedPtrXmlFree> str(
       xmlGetProp(node, ConstXMLStr(name)));
   string ret(reinterpret_cast<const char *>(str.get()));
   return ret;
@@ -503,7 +502,7 @@ off_t ParseInt(const string& str) {
 bool UpdateLastPingDays(xmlDoc* doc, PrefsInterface* prefs) {
   static const char kDaystartNodeXpath[] = "/response/daystart";
 
-  scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
+  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kDaystartNodeXpath)));
   TEST_AND_RETURN_FALSE(xpath_nodeset.get());
   xmlNodeSet* nodeset = xpath_nodeset->nodesetval;
@@ -532,7 +531,7 @@ bool OmahaRequestAction::ParseResponse(xmlDoc* doc,
                                        ScopedActionCompleter* completer) {
   static const char* kUpdatecheckNodeXpath("/response/app/updatecheck");
 
-  scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
+  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kUpdatecheckNodeXpath)));
   if (!xpath_nodeset.get()) {
     completer->set_code(kErrorCodeOmahaResponseInvalid);
@@ -631,7 +630,7 @@ bool OmahaRequestAction::ParseUrls(xmlDoc* doc,
   // Get the update URL.
   static const char* kUpdateUrlNodeXPath("/response/app/updatecheck/urls/url");
 
-  scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
+  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kUpdateUrlNodeXPath)));
   if (!xpath_nodeset.get()) {
     completer->set_code(kErrorCodeOmahaResponseInvalid);
@@ -665,7 +664,7 @@ bool OmahaRequestAction::ParsePackage(xmlDoc* doc,
   static const char* kPackageNodeXPath(
       "/response/app/updatecheck/manifest/packages/package");
 
-  scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
+  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kPackageNodeXPath)));
   if (!xpath_nodeset.get()) {
     completer->set_code(kErrorCodeOmahaResponseInvalid);
@@ -720,7 +719,7 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
         "/response/app/updatecheck/manifest/actions/action");
 
   // Get the manifest node where version is present.
-  scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
+  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_manifest_nodeset(GetNodeSet(doc, ConstXMLStr(kManifestNodeXPath)));
   if (!xpath_manifest_nodeset.get()) {
     completer->set_code(kErrorCodeOmahaResponseInvalid);
@@ -745,7 +744,7 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
             << output_object->version;
 
   // Grab the action nodes.
-  scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
+  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_action_nodeset(GetNodeSet(doc, ConstXMLStr(kActionNodeXPath)));
   if (!xpath_action_nodeset.get()) {
     completer->set_code(kErrorCodeOmahaResponseInvalid);
@@ -847,7 +846,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   }
 
   // parse our response and fill the fields in the output object
-  scoped_ptr_malloc<xmlDoc, ScopedPtrXmlDocFree> doc(
+  scoped_ptr<xmlDoc, ScopedPtrXmlDocFree> doc(
       xmlParseMemory(&response_buffer_[0], response_buffer_.size()));
   if (!doc.get()) {
     LOG(ERROR) << "Omaha response not valid XML";
@@ -1235,7 +1234,7 @@ bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
 // static
 bool OmahaRequestAction::ParseInstallDate(xmlDoc* doc,
                                           OmahaResponse* output_object) {
-  scoped_ptr_malloc<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
+  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
       xpath_nodeset(GetNodeSet(doc, ConstXMLStr("/response/daystart")));
 
   if (xpath_nodeset.get() == NULL)
