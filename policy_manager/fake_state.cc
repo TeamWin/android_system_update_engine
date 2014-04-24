@@ -8,24 +8,15 @@
 
 namespace chromeos_policy_manager {
 
-FakeState::FakeState() : State(new FakeConfigProvider(),
-                               new FakeDevicePolicyProvider(),
-                               new FakeRandomProvider(),
-                               new FakeShillProvider(),
-                               new FakeSystemProvider(),
-                               new FakeTimeProvider(),
-                               new FakeUpdaterProvider()) {
-}
-
 FakeState* FakeState::Construct() {
   scoped_ptr<FakeState> fake_state(new FakeState());
-  if (!(fake_state->config_provider()->Init() &&
-        fake_state->device_policy_provider()->Init() &&
-        fake_state->random_provider()->Init() &&
-        fake_state->shill_provider()->Init() &&
-        fake_state->system_provider()->Init() &&
-        fake_state->time_provider()->Init() &&
-        fake_state->updater_provider()->Init())) {
+  if (!(fake_state->config_provider_.Init() &&
+        fake_state->device_policy_provider_.Init() &&
+        fake_state->random_provider_.Init() &&
+        fake_state->shill_provider_.Init() &&
+        fake_state->system_provider_.Init() &&
+        fake_state->time_provider_.Init() &&
+        fake_state->updater_provider_.Init())) {
     return NULL;
   }
   return fake_state.release();

@@ -27,37 +27,43 @@ class FakeState : public State {
 
   // Downcasted getters, to allow access to the fake instances during testing.
   virtual FakeConfigProvider* config_provider() override {
-    return reinterpret_cast<FakeConfigProvider*>(State::config_provider());
+    return &config_provider_;
   }
 
   virtual FakeDevicePolicyProvider* device_policy_provider() override {
-    return reinterpret_cast<FakeDevicePolicyProvider*>(
-        State::device_policy_provider());
+    return &device_policy_provider_;
   }
 
   virtual FakeRandomProvider* random_provider() override {
-    return reinterpret_cast<FakeRandomProvider*>(State::random_provider());
+    return &random_provider_;
   }
 
   virtual FakeShillProvider* shill_provider() override {
-    return reinterpret_cast<FakeShillProvider*>(State::shill_provider());
+    return &shill_provider_;
   }
 
   virtual FakeSystemProvider* system_provider() override {
-    return reinterpret_cast<FakeSystemProvider*>(State::system_provider());
+    return &system_provider_;
   }
 
   virtual FakeTimeProvider* time_provider() override {
-    return reinterpret_cast<FakeTimeProvider*>(State::time_provider());
+    return &time_provider_;
   }
 
   virtual FakeUpdaterProvider* updater_provider() override {
-    return reinterpret_cast<FakeUpdaterProvider*>(State::updater_provider());
+    return &updater_provider_;
   }
 
  private:
-  // Creates a FakeState instance using FakeProviders.
-  FakeState();
+  FakeState() {}
+
+  FakeConfigProvider config_provider_;
+  FakeDevicePolicyProvider device_policy_provider_;
+  FakeRandomProvider random_provider_;
+  FakeShillProvider shill_provider_;
+  FakeSystemProvider system_provider_;
+  FakeTimeProvider time_provider_;
+  FakeUpdaterProvider updater_provider_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeState);
 };

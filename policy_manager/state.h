@@ -20,43 +20,21 @@ namespace chromeos_policy_manager {
 class State {
  public:
   virtual ~State() {}
-  State(ConfigProvider* config_provider,
-        DevicePolicyProvider* device_policy_provider,
-        RandomProvider* random_provider,
-        ShillProvider* shill_provider,
-        SystemProvider* system_provider,
-        TimeProvider* time_provider,
-        UpdaterProvider* updater_provider) :
-      config_provider_(config_provider),
-      device_policy_provider_(device_policy_provider),
-      random_provider_(random_provider),
-      shill_provider_(shill_provider),
-      system_provider_(system_provider),
-      time_provider_(time_provider),
-      updater_provider_(updater_provider) {}
 
   // These methods return the given provider.
-  virtual ConfigProvider* config_provider() { return config_provider_.get(); }
-  virtual DevicePolicyProvider* device_policy_provider() {
-    return device_policy_provider_.get();
-  }
-  virtual RandomProvider* random_provider() { return random_provider_.get(); }
-  virtual ShillProvider* shill_provider() { return shill_provider_.get(); }
-  virtual SystemProvider* system_provider() { return system_provider_.get(); }
-  virtual TimeProvider* time_provider() { return time_provider_.get(); }
-  virtual UpdaterProvider* updater_provider() {
-    return updater_provider_.get();
-  }
+  virtual ConfigProvider* config_provider() = 0;
+  virtual DevicePolicyProvider* device_policy_provider() = 0;
+  virtual RandomProvider* random_provider() = 0;
+  virtual ShillProvider* shill_provider() = 0;
+  virtual SystemProvider* system_provider() = 0;
+  virtual TimeProvider* time_provider() = 0;
+  virtual UpdaterProvider* updater_provider() = 0;
+
+ protected:
+  State() {}
 
  private:
-  // Instances of the providers.
-  scoped_ptr<ConfigProvider> config_provider_;
-  scoped_ptr<DevicePolicyProvider> device_policy_provider_;
-  scoped_ptr<RandomProvider> random_provider_;
-  scoped_ptr<ShillProvider> shill_provider_;
-  scoped_ptr<SystemProvider> system_provider_;
-  scoped_ptr<TimeProvider> time_provider_;
-  scoped_ptr<UpdaterProvider> updater_provider_;
+  DISALLOW_COPY_AND_ASSIGN(State);
 };
 
 }  // namespace chromeos_policy_manager

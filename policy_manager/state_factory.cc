@@ -11,6 +11,7 @@
 #include "update_engine/policy_manager/real_config_provider.h"
 #include "update_engine/policy_manager/real_random_provider.h"
 #include "update_engine/policy_manager/real_shill_provider.h"
+#include "update_engine/policy_manager/real_state.h"
 #include "update_engine/policy_manager/real_system_provider.h"
 #include "update_engine/policy_manager/real_time_provider.h"
 #include "update_engine/policy_manager/real_updater_provider.h"
@@ -44,13 +45,13 @@ State* DefaultStateFactory(policy::PolicyProvider* policy_provider,
     return NULL;
   }
 
-  return new State(config_provider.release(),
-                   device_policy_provider.release(),
-                   random_provider.release(),
-                   shill_provider.release(),
-                   system_provider.release(),
-                   time_provider.release(),
-                   updater_provider.release());
+  return new RealState(config_provider.release(),
+                       device_policy_provider.release(),
+                       random_provider.release(),
+                       shill_provider.release(),
+                       system_provider.release(),
+                       time_provider.release(),
+                       updater_provider.release());
 }
 
 }  // namespace chromeos_policy_manager
