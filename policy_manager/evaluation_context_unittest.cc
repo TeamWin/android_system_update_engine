@@ -117,16 +117,15 @@ TEST_F(PmEvaluationContextTest, GetValueCached) {
   EXPECT_EQ(42, *p_fake_int);
 }
 
-TEST_F(PmEvaluationContextTest, GetValueDontCacheNULL) {
+TEST_F(PmEvaluationContextTest, GetValueCachesNull) {
   const int* p_fake_int = eval_ctx_->GetValue(&fake_int_var_);
   PMTEST_EXPECT_NULL(p_fake_int);
 
   fake_int_var_.reset(new int(42));
-  // A second attempt to read the variable should work even on the same
-  // EvaluationContext.
+  // A second attempt to read the variable should not work because this
+  // EvaluationContext already got a NULL value.
   p_fake_int = eval_ctx_->GetValue(&fake_int_var_);
-  PMTEST_ASSERT_NOT_NULL(p_fake_int);
-  EXPECT_EQ(42, *p_fake_int);
+  PMTEST_EXPECT_NULL(p_fake_int);
 }
 
 TEST_F(PmEvaluationContextTest, GetValueMixedTypes) {

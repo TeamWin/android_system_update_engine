@@ -11,9 +11,9 @@ namespace chromeos_policy_manager {
 
 template<typename T>
 const T* EvaluationContext::GetValue(Variable<T>* var) {
-  if (var == NULL) {
+  if (var == nullptr) {
     LOG(ERROR) << "GetValue received an uninitialized variable.";
-    return NULL;
+    return nullptr;
   }
 
   // Search for the value on the cache first.
@@ -24,16 +24,15 @@ const T* EvaluationContext::GetValue(Variable<T>* var) {
   // Get the value from the variable if not found on the cache.
   std::string errmsg;
   const T* result = var->GetValue(RemainingTime(), &errmsg);
-  if (result == NULL) {
+  if (result == nullptr) {
     LOG(WARNING) << "Error reading Variable " << var->GetName() << ": \""
         << errmsg << "\"";
-  } else {
-    // Cache the value for the next time. The map of CachedValues keeps the
-    // ownership of the pointer until the map is destroyed.
-    value_cache_.emplace(
-      static_cast<BaseVariable*>(var),
-      std::move(BoxedValue(result)));
   }
+  // Cache the value for the next time. The map of CachedValues keeps the
+  // ownership of the pointer until the map is destroyed.
+  value_cache_.emplace(
+    static_cast<BaseVariable*>(var),
+    std::move(BoxedValue(result)));
   return result;
 }
 
