@@ -5,6 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PMTEST_UTILS_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PMTEST_UTILS_H_
 
+#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 #include <gtest/gtest.h>
 

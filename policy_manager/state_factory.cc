@@ -5,10 +5,11 @@
 #include "update_engine/policy_manager/state_factory.h"
 
 #include <base/logging.h>
+#include <base/memory/scoped_ptr.h>
 
 #include "update_engine/clock_interface.h"
-#include "update_engine/policy_manager/real_device_policy_provider.h"
 #include "update_engine/policy_manager/real_config_provider.h"
+#include "update_engine/policy_manager/real_device_policy_provider.h"
 #include "update_engine/policy_manager/real_random_provider.h"
 #include "update_engine/policy_manager/real_shill_provider.h"
 #include "update_engine/policy_manager/real_state.h"

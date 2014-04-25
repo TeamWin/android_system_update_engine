@@ -5,6 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_TIME_PROVIDER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_TIME_PROVIDER_H_
 
+#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 
 #include "update_engine/clock_interface.h"
@@ -15,7 +16,7 @@ namespace chromeos_policy_manager {
 // TimeProvider concrete implementation.
 class RealTimeProvider : public TimeProvider {
  public:
-  RealTimeProvider(chromeos_update_engine::ClockInterface* clock)
+  explicit RealTimeProvider(chromeos_update_engine::ClockInterface* clock)
       : clock_(clock) {}
 
   // Initializes the provider and returns whether it succeeded.

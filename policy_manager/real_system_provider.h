@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_SYSTEM_PROVIDER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_SYSTEM_PROVIDER_H_
 
+#include <base/memory/scoped_ptr.h>
+
 #include <string>
 
 #include "update_engine/policy_manager/system_provider.h"

@@ -5,8 +5,6 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_PROVIDER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_RANDOM_PROVIDER_H_
 
-#include <base/memory/scoped_ptr.h>
-
 #include "update_engine/policy_manager/provider.h"
 #include "update_engine/policy_manager/variable.h"
 

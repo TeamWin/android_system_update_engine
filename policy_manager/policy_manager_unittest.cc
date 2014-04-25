@@ -8,9 +8,8 @@
 #include <vector>
 
 #include <base/bind.h>
-#include <base/memory/scoped_ptr.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
 #include "update_engine/policy_manager/default_policy.h"

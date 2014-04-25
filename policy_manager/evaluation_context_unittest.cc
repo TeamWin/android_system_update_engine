@@ -5,7 +5,6 @@
 #include <string>
 
 #include <base/bind.h>
-#include <base/memory/scoped_ptr.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"

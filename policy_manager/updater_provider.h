@@ -7,7 +7,6 @@
 
 #include <string>
 
-#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 
 #include "update_engine/policy_manager/provider.h"

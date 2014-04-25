@@ -5,7 +5,6 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_TIME_PROVIDER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_TIME_PROVIDER_H_
 
-#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 
 #include "update_engine/policy_manager/provider.h"
@@ -24,9 +23,6 @@ class TimeProvider : public Provider {
   // Returns the current hour (0 to 23) in local time. The type is int to keep
   // consistent with base::Time.
   virtual Variable<int>* var_curr_hour() = 0;
-
-  // TODO(garnold) Implement a method/variable for querying whether a given
-  // point in time was reached.
 
  protected:
   TimeProvider() {}

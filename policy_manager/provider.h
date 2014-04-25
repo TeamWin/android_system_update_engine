@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PROVIDER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PROVIDER_H_
 
+#include <base/basictypes.h>
+
 namespace chromeos_policy_manager {
 
 // Abstract base class for a policy provider.

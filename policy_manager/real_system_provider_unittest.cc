@@ -4,6 +4,7 @@
 
 #include "update_engine/policy_manager/real_system_provider.h"
 
+#include <base/memory/scoped_ptr.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/policy_manager/pmtest_utils.h"

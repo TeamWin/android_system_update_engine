@@ -5,8 +5,9 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_UPDATER_PROVIDER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_REAL_UPDATER_PROVIDER_H_
 
-#include "update_engine/policy_manager/updater_provider.h"
+#include <base/memory/scoped_ptr.h>
 
+#include "update_engine/policy_manager/updater_provider.h"
 #include "update_engine/system_state.h"
 
 namespace chromeos_policy_manager {
