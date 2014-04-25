@@ -254,6 +254,11 @@ void ReportUpdateAttemptMetrics(
     DownloadErrorCode payload_download_error_code,
     ConnectionType connection_type);
 
+// Reports the |kAbnormalTermination| for the |kMetricAttemptResult|
+// metric. No other metrics in the UpdateEngine.Attempt.* namespace
+// will be reported.
+void ReportAbnormallyTerminatedUpdateAttemptMetrics(SystemState *system_state);
+
 // Helper function to report the after the completion of a successful
 // update attempt. The following metrics are reported:
 //

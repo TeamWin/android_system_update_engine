@@ -27,6 +27,7 @@ extern const char kPrefsDirectory[];
 extern const char kStatefulPartition[];
 
 // Constants related to preferences.
+extern const char kPrefsAttemptInProgress[];
 extern const char kPrefsBackoffExpiryTime[];
 extern const char kPrefsCertificateReportToSendDownload[];
 extern const char kPrefsCertificateReportToSendUpdate[];

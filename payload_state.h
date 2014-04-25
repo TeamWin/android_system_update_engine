@@ -165,6 +165,18 @@ class PayloadState : public PayloadStateInterface {
   // Collects and reports the various metrics related to an update attempt.
   void CollectAndReportAttemptMetrics(ErrorCode code);
 
+  // Persists values related to the UpdateEngine.Attempt.* metrics so
+  // we can identify later if an update attempt ends abnormally.
+  void PersistAttemptMetrics();
+
+  // Clears persistent state previously set using AttemptMetricsPersist().
+  void ClearPersistedAttemptMetrics();
+
+  // Checks if persistent state previously set using AttemptMetricsPersist()
+  // exists and, if so, emits it with |attempt_result| set to
+  // metrics::AttemptResult::kAbnormalTermination.
+  void ReportAndClearPersistedAttemptMetrics();
+
   // Collects and reports the various metrics related to a successful update.
   void CollectAndReportSuccessfulUpdateMetrics();
 

@@ -21,6 +21,7 @@ const char kStatefulPartition[] = "/mnt/stateful_partition";
 const char kSystemRebootedMarkerFile[] = "/tmp/update_engine_update_recorded";
 
 // Constants defining keys for the persisted state of update engine.
+const char kPrefsAttemptInProgress[] = "attempt-in-progress";
 const char kPrefsBackoffExpiryTime[] = "backoff-expiry-time";
 const char kPrefsCertificateReportToSendDownload[] =
     "certificate-report-to-send-download";

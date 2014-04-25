@@ -168,6 +168,20 @@ void ReportUpdateCheckMetrics(SystemState *system_state,
   }
 }
 
+void ReportAbnormallyTerminatedUpdateAttemptMetrics(
+    SystemState *system_state) {
+
+  string metric = metrics::kMetricAttemptResult;
+  AttemptResult attempt_result = AttemptResult::kAbnormalTermination;
+
+  LOG(INFO) << "Uploading " << static_cast<int>(attempt_result)
+            << " for metric " <<  metric;
+  system_state->metrics_lib()->SendEnumToUMA(
+      metric,
+      static_cast<int>(attempt_result),
+      static_cast<int>(AttemptResult::kNumConstants));
+}
+
 void ReportUpdateAttemptMetrics(
     SystemState *system_state,
     int attempt_number,

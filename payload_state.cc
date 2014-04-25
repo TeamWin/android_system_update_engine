@@ -162,6 +162,9 @@ void PayloadState::DownloadProgress(size_t count) {
 }
 
 void PayloadState::AttemptStarted(AttemptType attempt_type) {
+  // Flush previous state from abnormal attempt failure, if any.
+  ReportAndClearPersistedAttemptMetrics();
+
   attempt_type_ = attempt_type;
 
   ClockInterface *clock = system_state_->clock();
@@ -183,6 +186,9 @@ void PayloadState::AttemptStarted(AttemptType attempt_type) {
     type = utils::GetConnectionType(network_connection_type, tethering);
   }
   attempt_connection_type_ = type;
+
+  if (attempt_type == AttemptType::kUpdate)
+    PersistAttemptMetrics();
 }
 
 void PayloadState::UpdateResumed() {
@@ -207,6 +213,7 @@ void PayloadState::UpdateSucceeded() {
     case AttemptType::kUpdate:
       CollectAndReportAttemptMetrics(kErrorCodeSuccess);
       CollectAndReportSuccessfulUpdateMetrics();
+      ClearPersistedAttemptMetrics();
       break;
 
     case AttemptType::kRollback:
@@ -238,6 +245,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
   switch (attempt_type_) {
     case AttemptType::kUpdate:
       CollectAndReportAttemptMetrics(base_error);
+      ClearPersistedAttemptMetrics();
       break;
 
     case AttemptType::kRollback:
@@ -627,6 +635,33 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
                                       internal_error_code,
                                       payload_download_error_code,
                                       attempt_connection_type_);
+}
+
+void PayloadState::PersistAttemptMetrics() {
+  // TODO(zeuthen): For now we only persist whether an attempt was in
+  // progress and not values/metrics related to the attempt. This
+  // means that when this happens, of all the UpdateEngine.Attempt.*
+  // metrics, only UpdateEngine.Attempt.Result is reported (with the
+  // value |kAbnormalTermination|). In the future we might want to
+  // persist more data so we can report other metrics in the
+  // UpdateEngine.Attempt.* namespace when this happens.
+  prefs_->SetBoolean(kPrefsAttemptInProgress, true);
+}
+
+void PayloadState::ClearPersistedAttemptMetrics() {
+  prefs_->Delete(kPrefsAttemptInProgress);
+}
+
+void PayloadState::ReportAndClearPersistedAttemptMetrics() {
+  bool attempt_in_progress = false;
+  if (!prefs_->GetBoolean(kPrefsAttemptInProgress, &attempt_in_progress))
+    return;
+  if (!attempt_in_progress)
+    return;
+
+  metrics::ReportAbnormallyTerminatedUpdateAttemptMetrics(system_state_);
+
+  ClearPersistedAttemptMetrics();
 }
 
 void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
@@ -1316,6 +1351,9 @@ void PayloadState::BootedIntoUpdate(TimeDelta time_to_reboot) {
 }
 
 void PayloadState::UpdateEngineStarted() {
+  // Flush previous state from abnormal attempt failure, if any.
+  ReportAndClearPersistedAttemptMetrics();
+
   // Avoid the UpdateEngineStarted actions if this is not the first time we
   // run the update engine since reboot.
   if (!system_state_->system_rebooted())

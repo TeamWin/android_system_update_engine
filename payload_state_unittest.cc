@@ -13,6 +13,7 @@
 #include "update_engine/constants.h"
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_hardware.h"
+#include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/payload_state.h"
@@ -1221,7 +1222,7 @@ TEST(PayloadStateTest, RestartAfterCrash) {
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
-  // No prefs should be used after a crash.
+  // Only the |kPrefsAttemptInProgress| state variable should be read.
   EXPECT_CALL(*prefs, Exists(_)).Times(0);
   EXPECT_CALL(*prefs, SetString(_, _)).Times(0);
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(0);
@@ -1229,6 +1230,7 @@ TEST(PayloadStateTest, RestartAfterCrash) {
   EXPECT_CALL(*prefs, GetString(_, _)).Times(0);
   EXPECT_CALL(*prefs, GetInt64(_, _)).Times(0);
   EXPECT_CALL(*prefs, GetBoolean(_, _)).Times(0);
+  EXPECT_CALL(*prefs, GetBoolean(kPrefsAttemptInProgress, _));
 
   // No metrics are reported after a crash.
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(),
@@ -1238,6 +1240,77 @@ TEST(PayloadStateTest, RestartAfterCrash) {
   fake_system_state.set_system_rebooted(false);
 
   payload_state.UpdateEngineStarted();
+}
+
+TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsNoReporting) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+
+  // If there's no marker at startup, ensure we don't report a metric.
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(),
+      SendEnumToUMA(
+          metrics::kMetricAttemptResult,
+          static_cast<int>(metrics::AttemptResult::kAbnormalTermination),
+          _)).Times(0);
+  payload_state.UpdateEngineStarted();
+}
+
+TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsReported) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  FakePrefs prefs;
+
+  // If we have a marker at startup, ensure it's reported and the
+  // marker is then cleared.
+  fake_system_state.set_prefs(&prefs);
+  prefs.SetBoolean(kPrefsAttemptInProgress, true);
+
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(),
+      SendEnumToUMA(
+          metrics::kMetricAttemptResult,
+          static_cast<int>(metrics::AttemptResult::kAbnormalTermination),
+          _)).Times(1);
+  payload_state.UpdateEngineStarted();
+
+  EXPECT_FALSE(prefs.Exists(kPrefsAttemptInProgress));
+}
+
+TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
+  PayloadState payload_state;
+  FakeSystemState fake_system_state;
+  FakePrefs prefs;
+
+  // Make sure the marker is written and cleared during an attempt and
+  // also that we DO NOT emit the metric (since the attempt didn't end
+  // abnormally).
+  fake_system_state.set_prefs(&prefs);
+  EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(_, _, _, _, _))
+    .Times(AnyNumber());
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
+    .Times(AnyNumber());
+  EXPECT_CALL(*fake_system_state.mock_metrics_lib(),
+      SendEnumToUMA(
+          metrics::kMetricAttemptResult,
+          static_cast<int>(metrics::AttemptResult::kAbnormalTermination),
+          _)).Times(0);
+
+  // Attempt not in progress, should be clear.
+  EXPECT_FALSE(prefs.Exists(kPrefsAttemptInProgress));
+
+  payload_state.UpdateRestarted();
+
+  // Attempt not in progress, should be set.
+  EXPECT_TRUE(prefs.Exists(kPrefsAttemptInProgress));
+
+  payload_state.UpdateSucceeded();
+
+  // Attempt not in progress, should be clear.
+  EXPECT_FALSE(prefs.Exists(kPrefsAttemptInProgress));
 }
 
 TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
