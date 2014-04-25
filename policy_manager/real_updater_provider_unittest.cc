@@ -445,4 +445,13 @@ TEST_F(PmRealUpdaterProviderTest, GetUpdateCompletedTimeFailInvalidValue) {
   PmTestUtils::ExpectVariableNotSet(provider_->var_update_completed_time());
 }
 
+TEST_F(PmRealUpdaterProviderTest, GetConsecutiveFailedUpdateChecks) {
+  const unsigned int kNumFailedChecks = 3;
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
+              consecutive_failed_update_checks())
+      .WillRepeatedly(Return(kNumFailedChecks));
+  PmTestUtils::ExpectVariableHasValue(
+      kNumFailedChecks, provider_->var_consecutive_failed_update_checks());
+}
+
 }  // namespace chromeos_policy_manager

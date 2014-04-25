@@ -202,6 +202,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // This will return an empty string otherwise.
   std::string const& GetPrevVersion() const { return prev_version_; }
 
+  // Returns the nubmer of consecutive failed update checks.
+  virtual unsigned int consecutive_failed_update_checks() const {
+    return consecutive_failed_update_checks_;
+  }
+
  private:
   // Update server URL for automated lab test.
   static const char* const kTestUpdateUrl;
@@ -456,6 +461,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Update completed marker file. An empty string means this marker is being
   // ignored (nor is it being written), which is useful for testing situations.
   std::string update_completed_marker_;
+
+  // The number of consecutive failed update checks. Needed for calculating the
+  // next update check interval.
+  unsigned int consecutive_failed_update_checks_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

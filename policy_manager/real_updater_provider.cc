@@ -309,6 +309,21 @@ class BooleanPrefVariable : public UpdaterVariableBase<bool> {
   DISALLOW_COPY_AND_ASSIGN(BooleanPrefVariable);
 };
 
+// A variable returning the number of consecutive failed update checks.
+class ConsecutiveFailedUpdateChecksVariable :
+    public UpdaterVariableBase<unsigned int> {
+ public:
+  using UpdaterVariableBase<unsigned int>::UpdaterVariableBase;
+
+ private:
+  virtual const unsigned int* GetValue(TimeDelta /* timeout */,
+                                       string* /* errmsg */) override {
+    return new unsigned int(
+        system_state()->update_attempter()->consecutive_failed_update_checks());
+  }
+
+  DISALLOW_COPY_AND_ASSIGN(ConsecutiveFailedUpdateChecksVariable);
+};
 
 // RealUpdaterProvider methods.
 
@@ -335,6 +350,9 @@ RealUpdaterProvider::RealUpdaterProvider(SystemState* system_state)
         new BooleanPrefVariable(
             "cellular_enabled", system_state_,
             chromeos_update_engine::kPrefsUpdateOverCellularPermission,
-            false)) {}
+            false)),
+    var_consecutive_failed_update_checks_(
+        new ConsecutiveFailedUpdateChecksVariable(
+            "consecutive_failed_update_checks", system_state_)) {}
 
 }  // namespace chromeos_policy_manager

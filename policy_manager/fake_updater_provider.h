@@ -61,23 +61,30 @@ class FakeUpdaterProvider : public UpdaterProvider {
     return &var_cellular_enabled_;
   }
 
+  virtual FakeVariable<unsigned int>*
+      var_consecutive_failed_update_checks() override {
+    return &var_consecutive_failed_update_checks_;
+  }
+
  private:
   FakeVariable<base::Time> var_updater_started_time_{
       "updater_started_time", kVariableModePoll};
   FakeVariable<base::Time> var_last_checked_time_{
-    "last_checked_time", kVariableModePoll};
+      "last_checked_time", kVariableModePoll};
   FakeVariable<base::Time> var_update_completed_time_{
-    "update_completed_time", kVariableModePoll};
+      "update_completed_time", kVariableModePoll};
   FakeVariable<double> var_progress_{"progress", kVariableModePoll};
   FakeVariable<Stage> var_stage_{"stage", kVariableModePoll};
   FakeVariable<std::string> var_new_version_{"new_version", kVariableModePoll};
   FakeVariable<size_t> var_payload_size_{"payload_size", kVariableModePoll};
   FakeVariable<std::string> var_curr_channel_{
-    "curr_channel", kVariableModePoll};
+      "curr_channel", kVariableModePoll};
   FakeVariable<std::string> var_new_channel_{"new_channel", kVariableModePoll};
   FakeVariable<bool> var_p2p_enabled_{"p2p_enabled", kVariableModePoll};
   FakeVariable<bool> var_cellular_enabled_{
-    "cellular_enabled", kVariableModePoll};
+      "cellular_enabled", kVariableModePoll};
+  FakeVariable<unsigned int> var_consecutive_failed_update_checks_{
+      "consecutive_failed_update_checks", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeUpdaterProvider);
 };

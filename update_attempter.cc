@@ -978,6 +978,15 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     // If the request is not an event, then it's the update-check.
     if (!omaha_request_action->IsEvent()) {
       http_response_code_ = omaha_request_action->GetHTTPResponseCode();
+
+      // Record the number of consecutive failed update checks.
+      if (http_response_code_ == kHttpResponseInternalServerError ||
+          http_response_code_ == kHttpResponseServiceUnavailable) {
+        consecutive_failed_update_checks_++;
+      } else {
+        consecutive_failed_update_checks_ = 0;
+      }
+
       // Forward the server-dictated poll interval to the update check
       // scheduler, if any.
       if (update_check_scheduler_) {

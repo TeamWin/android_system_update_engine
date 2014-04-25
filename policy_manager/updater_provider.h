@@ -74,6 +74,9 @@ class UpdaterProvider : public Provider {
   // A variable indicating whether updates are allowed over a cellular network.
   virtual Variable<bool>* var_cellular_enabled() = 0;
 
+  // A variable returning the number of consecutive failed update checks.
+  virtual Variable<unsigned int>* var_consecutive_failed_update_checks() = 0;
+
  protected:
   UpdaterProvider() {}
 

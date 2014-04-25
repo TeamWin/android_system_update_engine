@@ -71,6 +71,11 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_cellular_enabled_.get();
   }
 
+  virtual Variable<unsigned int>*
+      var_consecutive_failed_update_checks() override {
+    return var_consecutive_failed_update_checks_.get();
+  }
+
  private:
   // A pointer to the update engine's system state aggregator.
   chromeos_update_engine::SystemState* system_state_;
@@ -87,6 +92,7 @@ class RealUpdaterProvider : public UpdaterProvider {
   scoped_ptr<Variable<std::string>> var_new_channel_;
   scoped_ptr<Variable<bool>> var_p2p_enabled_;
   scoped_ptr<Variable<bool>> var_cellular_enabled_;
+  scoped_ptr<Variable<unsigned int>> var_consecutive_failed_update_checks_;
 
   DISALLOW_COPY_AND_ASSIGN(RealUpdaterProvider);
 };

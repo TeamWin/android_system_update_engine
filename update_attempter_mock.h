@@ -28,6 +28,8 @@ class UpdateAttempterMock : public UpdateAttempter {
                                int64_t* new_size));
 
   MOCK_METHOD1(GetBootTimeAtUpdate, bool(base::Time* out_boot_time));
+
+  MOCK_CONST_METHOD0(consecutive_failed_update_checks, unsigned int(void));
 };
 
 }  // namespace chromeos_update_engine
