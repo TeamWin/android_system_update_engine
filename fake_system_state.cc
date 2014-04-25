@@ -32,7 +32,7 @@ FakeSystemState::FakeSystemState()
     fake_system_rebooted_(false) {
   mock_payload_state_.Initialize(this);
   mock_update_attempter_.Init();
-  fake_policy_manager_.Init(FakeState::Construct());
+  fake_policy_manager_.Init(new FakeState());
 }
 
 }  // namespace chromeos_update_engine

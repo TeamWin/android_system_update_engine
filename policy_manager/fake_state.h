@@ -17,15 +17,23 @@
 namespace chromeos_policy_manager {
 
 // A fake State class that creates fake providers for all the providers.
+// This fake can be used in unit testing of Policy subclasses. To fake out the
+// value a variable is exposing, just call FakeVariable<T>::SetValue() on the
+// variable you fake out. For example:
+//
+//   FakeState fake_state_;
+//   fake_state_.random_provider_->var_seed()->SetValue(new uint64_t(12345));
+//
+// You can call SetValue more than once and the FakeVariable will take care of
+// the memory, but only the last value will remain.
 class FakeState : public State {
  public:
-  // Creates and initializes the FakeState using fake providers. Returns NULL
-  // if the initialization fails.
-  static FakeState* Construct();
+  // Creates and initializes the FakeState using fake providers.
+  FakeState() {}
 
   virtual ~FakeState() {}
 
-  // Downcasted getters, to allow access to the fake instances during testing.
+  // Downcasted detters to access the fake instances during testing.
   virtual FakeConfigProvider* config_provider() override {
     return &config_provider_;
   }
@@ -55,8 +63,6 @@ class FakeState : public State {
   }
 
  private:
-  FakeState() {}
-
   FakeConfigProvider config_provider_;
   FakeDevicePolicyProvider device_policy_provider_;
   FakeRandomProvider random_provider_;

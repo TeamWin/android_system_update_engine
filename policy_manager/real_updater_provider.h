@@ -22,6 +22,9 @@ class RealUpdaterProvider : public UpdaterProvider {
   explicit RealUpdaterProvider(
       chromeos_update_engine::SystemState* system_state);
 
+  // Initializes the provider and returns whether it succeeded.
+  bool Init() { return true; }
+
   virtual Variable<base::Time>* var_last_checked_time() override {
     return var_last_checked_time_.get();
   }
@@ -63,8 +66,6 @@ class RealUpdaterProvider : public UpdaterProvider {
   }
 
  private:
-  virtual bool DoInit() { return true; }
-
   // A pointer to the update engine's system state aggregator.
   chromeos_update_engine::SystemState* system_state_;
 

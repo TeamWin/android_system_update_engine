@@ -18,7 +18,7 @@ using std::vector;
 
 namespace chromeos_policy_manager {
 
-bool RealSystemProvider::DoInit() {
+bool RealSystemProvider::Init() {
   var_is_normal_boot_mode_.reset(
       new ConstCopyVariable<bool>("is_normal_boot_mode",
                                   VbGetSystemPropertyInt("devsw_boot") != 0));

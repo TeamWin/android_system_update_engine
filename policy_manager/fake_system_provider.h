@@ -24,8 +24,6 @@ class FakeSystemProvider : public SystemProvider {
   }
 
  private:
-  virtual bool DoInit() override { return true; }
-
   FakeVariable<bool> var_is_normal_boot_mode_{
       "is_normal_boot_mode", kVariableModeConst};
   FakeVariable<bool> var_is_official_build_{

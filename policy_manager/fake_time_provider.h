@@ -24,8 +24,6 @@ class FakeTimeProvider : public TimeProvider {
   }
 
  private:
-  virtual bool DoInit() override { return true; }
-
   FakeVariable<base::Time> var_curr_date_{"curr_date", kVariableModePoll};
   FakeVariable<int> var_curr_hour_{"curr_hour", kVariableModePoll};
 

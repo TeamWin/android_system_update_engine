@@ -31,6 +31,9 @@ class RealShillProvider : public ShillProvider {
 
   virtual ~RealShillProvider();
 
+  // Initializes the provider and returns whether it succeeded.
+  bool Init();
+
   virtual Variable<bool>* var_is_connected() override {
     return &var_is_connected_;
   }
@@ -53,8 +56,6 @@ class RealShillProvider : public ShillProvider {
       const char* tethering_str);
 
  private:
-  virtual bool DoInit() override;
-
   // Return a DBus proxy for a given |path| and |interface| within shill.
   DBusGProxy* GetProxy(const char* path, const char* interface);
 

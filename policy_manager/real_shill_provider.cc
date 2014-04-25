@@ -63,7 +63,7 @@ ConnectionTethering RealShillProvider::ParseConnectionTethering(
   return ConnectionTethering::kUnknown;
 }
 
-bool RealShillProvider::DoInit() {
+bool RealShillProvider::Init() {
   // Obtain a DBus connection.
   GError* error = NULL;
   connection_ = dbus_->BusGet(DBUS_BUS_SYSTEM, &error);

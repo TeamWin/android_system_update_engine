@@ -60,8 +60,6 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
   }
 
  private:
-  virtual bool DoInit() override { return true; }
-
   FakeVariable<bool> var_device_policy_is_loaded_{
       "policy_is_loaded", kVariableModePoll};
   FakeVariable<std::string> var_release_channel_{

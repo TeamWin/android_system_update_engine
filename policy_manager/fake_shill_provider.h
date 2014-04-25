@@ -33,8 +33,6 @@ class FakeShillProvider : public ShillProvider {
   }
 
  private:
-  virtual bool DoInit() override { return true; }
-
   FakeVariable<bool> var_is_connected_{"is_connected", kVariableModePoll};
   FakeVariable<ConnectionType> var_conn_type_{"conn_type", kVariableModePoll};
   FakeVariable<ConnectionTethering> var_conn_tethering_{

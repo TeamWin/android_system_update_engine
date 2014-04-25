@@ -29,7 +29,7 @@ RealDevicePolicyProvider::~RealDevicePolicyProvider() {
   CancelMainLoopEvent(scheduled_refresh_);
 }
 
-bool RealDevicePolicyProvider::DoInit() {
+bool RealDevicePolicyProvider::Init() {
   CHECK(policy_provider_ != nullptr);
 
   // On Init() we try to get the device policy and keep updating it.

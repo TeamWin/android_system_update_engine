@@ -10,23 +10,12 @@ namespace chromeos_policy_manager {
 // Abstract base class for a policy provider.
 class Provider {
  public:
-  Provider() : is_initialized_(false) {}
   virtual ~Provider() {}
 
-  // Initializes the provider at most once.  Returns true on success.
-  bool Init() {
-    return is_initialized_ || (is_initialized_ = DoInit());
-  }
-
  protected:
-  // Performs the actual initialization. To be implemented by concrete
-  // subclasses.
-  virtual bool DoInit() = 0;
+  Provider() {}
 
  private:
-  // Whether the provider was already initialized.
-  bool is_initialized_;
-
   DISALLOW_COPY_AND_ASSIGN(Provider);
 };
 

@@ -16,8 +16,6 @@ class FakeConfigProvider : public ConfigProvider {
   FakeConfigProvider() {}
 
  protected:
-  virtual bool DoInit() override { return true; }
-
   virtual FakeVariable<bool>* var_is_oobe_enabled() override {
     return &var_is_oobe_enabled_;
   }

@@ -16,9 +16,10 @@ class RealRandomProvider : public RandomProvider {
 
   virtual Variable<uint64_t>* var_seed() override { return var_seed_.get(); }
 
- private:
-  virtual bool DoInit(void) override;
+  // Initializes the provider and returns whether it succeeded.
+  bool Init();
 
+ private:
   // The seed() scoped variable.
   scoped_ptr<Variable<uint64_t>> var_seed_;
 

@@ -63,7 +63,7 @@ class RandomSeedVariable : public Variable<uint64_t> {
   DISALLOW_COPY_AND_ASSIGN(RandomSeedVariable);
 };
 
-bool RealRandomProvider::DoInit(void) {
+bool RealRandomProvider::Init(void) {
   FILE* fp = fopen(kRandomDevice, "r");
   if (!fp)
     return false;

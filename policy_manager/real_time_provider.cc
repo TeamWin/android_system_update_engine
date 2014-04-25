@@ -60,7 +60,7 @@ class CurrHourVariable : public Variable<int> {
   DISALLOW_COPY_AND_ASSIGN(CurrHourVariable);
 };
 
-bool RealTimeProvider::DoInit() {
+bool RealTimeProvider::Init() {
   var_curr_date_.reset(new CurrDateVariable("curr_date", clock_));
   var_curr_hour_.reset(new CurrHourVariable("curr_hour", clock_));
   return true;

@@ -25,7 +25,7 @@ const char* kConfigOptsIsOOBEEnabled = "is_oobe_enabled";
 
 namespace chromeos_policy_manager {
 
-bool RealConfigProvider::DoInit() {
+bool RealConfigProvider::Init() {
   KeyValueStore store;
 
   if (hardware_->IsNormalBootMode()) {

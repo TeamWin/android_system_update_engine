@@ -18,6 +18,9 @@ class RealTimeProvider : public TimeProvider {
   RealTimeProvider(chromeos_update_engine::ClockInterface* clock)
       : clock_(clock) {}
 
+  // Initializes the provider and returns whether it succeeded.
+  bool Init();
+
   virtual Variable<base::Time>* var_curr_date() override {
     return var_curr_date_.get();
   }
@@ -27,8 +30,6 @@ class RealTimeProvider : public TimeProvider {
   }
 
  private:
-  virtual bool DoInit() override;
-
   // A clock abstraction (fakeable).
   chromeos_update_engine::ClockInterface* const clock_;
 

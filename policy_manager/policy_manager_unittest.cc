@@ -38,8 +38,7 @@ class PmPolicyManagerTest : public ::testing::Test {
 
  protected:
   virtual void SetUp() {
-    fake_state_ = FakeState::Construct();
-    PMTEST_ASSERT_NOT_NULL(fake_state_);
+    fake_state_ = new FakeState();
     EXPECT_TRUE(pmut_.Init(fake_state_));
   }
 

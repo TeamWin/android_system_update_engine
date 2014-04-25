@@ -18,8 +18,6 @@ class FakeRandomProvider : public RandomProvider {
   virtual FakeVariable<uint64_t>* var_seed() override { return &var_seed_; }
 
  private:
-  virtual bool DoInit() override { return true; }
-
   FakeVariable<uint64_t> var_seed_{"seed", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeRandomProvider);

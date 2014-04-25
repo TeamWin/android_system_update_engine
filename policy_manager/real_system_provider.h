@@ -16,6 +16,9 @@ class RealSystemProvider : public SystemProvider {
  public:
   RealSystemProvider() {}
 
+  // Initializes the provider and returns whether it succeeded.
+  bool Init();
+
   virtual Variable<bool>* var_is_normal_boot_mode() override {
     return var_is_normal_boot_mode_.get();
   }
@@ -25,8 +28,6 @@ class RealSystemProvider : public SystemProvider {
   }
 
  private:
-  virtual bool DoInit() override;
-
   scoped_ptr<Variable<bool>> var_is_normal_boot_mode_;
   scoped_ptr<Variable<bool>> var_is_official_build_;
 

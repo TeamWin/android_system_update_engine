@@ -56,8 +56,6 @@ class FakeUpdaterProvider : public UpdaterProvider {
   }
 
  private:
-  virtual bool DoInit() { return true; }
-
   FakeVariable<base::Time> var_last_checked_time_{
     "last_checked_time", kVariableModePoll};
   FakeVariable<base::Time> var_update_completed_time_{

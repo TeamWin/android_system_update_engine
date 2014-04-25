@@ -24,6 +24,9 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
       : policy_provider_(policy_provider) {}
   ~RealDevicePolicyProvider();
 
+  // Initializes the provider and returns whether it succeeded.
+  bool Init();
+
   virtual Variable<bool>* var_device_policy_is_loaded() override {
     return &var_device_policy_is_loaded_;
   }
@@ -69,9 +72,6 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   FRIEND_TEST(PmRealDevicePolicyProviderTest, RefreshScheduledTest);
   FRIEND_TEST(PmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded);
   FRIEND_TEST(PmRealDevicePolicyProviderTest, ValuesUpdated);
-
-  // Provider override.
-  bool DoInit() override;
 
   // Schedules a call to periodically refresh the device policy.
   void RefreshDevicePolicyAndReschedule();

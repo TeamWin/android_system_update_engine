@@ -22,14 +22,15 @@ class RealConfigProvider : public ConfigProvider {
       chromeos_update_engine::HardwareInterface* hardware)
       : hardware_(hardware) {}
 
+  // Initializes the provider and returns whether it succeeded.
+  bool Init();
+
   Variable<bool>* var_is_oobe_enabled() override {
     return var_is_oobe_enabled_.get();
   }
 
  private:
   friend class PmRealConfigProviderTest;
-
-  virtual bool DoInit() override;
 
   // Used for testing. Sets the root prefix, which is by default "". Call this
   // method before calling Init() in order to mock out the place where the files
