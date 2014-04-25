@@ -8,15 +8,23 @@
 #include "update_engine/policy_manager/policy_manager.h"
 
 #include "update_engine/policy_manager/default_policy.h"
+#include "update_engine/policy_manager/fake_state.h"
 
 namespace chromeos_policy_manager {
 
 class FakePolicyManager : public PolicyManager {
  public:
   explicit FakePolicyManager(chromeos_update_engine::ClockInterface* clock)
-      : PolicyManager(clock) {
+      : PolicyManager(clock, new FakeState()) {
     // The FakePolicyManager uses a DefaultPolicy.
     set_policy(new DefaultPolicy());
+  }
+
+  // PolicyManager overrides.
+  using PolicyManager::set_policy;
+
+  FakeState* state() {
+    return reinterpret_cast<FakeState*>(PolicyManager::state());
   }
 
  private:

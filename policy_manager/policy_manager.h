@@ -19,13 +19,12 @@ namespace chromeos_policy_manager {
 // The main Policy Manager singleton class.
 class PolicyManager {
  public:
-  explicit PolicyManager(chromeos_update_engine::ClockInterface* clock)
-      : clock_(clock) {}
+  // Creates the PolicyManager instance, assuming ownership on the provided
+  // |state|.
+  PolicyManager(chromeos_update_engine::ClockInterface* clock,
+                State* state);
 
-  // Initializes the PolicyManager instance, assuming ownership on the provided
-  // |state|, which is assumed to be pre-initialized. Returns whether the
-  // initialization succeeded.
-  bool Init(State* state);
+  virtual ~PolicyManager() {}
 
   // PolicyRequest() evaluates the given policy with the provided arguments and
   // returns the result. The |policy_method| is the pointer-to-method of the
@@ -75,6 +74,9 @@ class PolicyManager {
   void set_policy(const Policy* policy) {
     policy_.reset(policy);
   }
+
+  // State getter used for testing.
+  State* state() { return state_.get(); }
 
  private:
   FRIEND_TEST(PmPolicyManagerTest, PolicyRequestCallsPolicy);

@@ -90,7 +90,7 @@ class RealSystemState : public SystemState {
 
   virtual inline chromeos_policy_manager::PolicyManager* policy_manager()
       override {
-    return &policy_manager_;
+    return policy_manager_.get();
   }
 
   virtual inline bool system_rebooted() override {
@@ -142,7 +142,7 @@ class RealSystemState : public SystemState {
 
   scoped_ptr<P2PManager> p2p_manager_;
 
-  chromeos_policy_manager::PolicyManager policy_manager_;
+  scoped_ptr<chromeos_policy_manager::PolicyManager> policy_manager_;
 
   policy::PolicyProvider policy_provider_;
 

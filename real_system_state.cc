@@ -17,7 +17,6 @@ RealSystemState::RealSystemState()
       connection_manager_(this),
       update_attempter_(this, &dbus_),
       request_params_(this),
-      policy_manager_(&clock_),
       system_rebooted_(false) {}
 
 bool RealSystemState::Initialize(bool enable_gpio) {
@@ -45,11 +44,15 @@ bool RealSystemState::Initialize(bool enable_gpio) {
                                            kMaxP2PFilesToKeep));
 
   // Initialize the PolicyManager using the default State Factory.
-  if (!policy_manager_.Init(chromeos_policy_manager::DefaultStateFactory(
-      &policy_provider_, &dbus_, this))) {
+  chromeos_policy_manager::State* pm_state =
+      chromeos_policy_manager::DefaultStateFactory(
+          &policy_provider_, &dbus_, this);
+  if (!pm_state) {
     LOG(ERROR) << "Failed to initialize the policy manager.";
     return false;
   }
+  policy_manager_.reset(
+      new chromeos_policy_manager::PolicyManager(&clock_, pm_state));
 
   if (!payload_state_.Initialize(this)) {
     LOG(ERROR) << "Failed to initialize the payload state object.";

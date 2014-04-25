@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/memory/scoped_ptr.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -32,18 +33,15 @@ using testing::_;
 namespace chromeos_policy_manager {
 
 class PmPolicyManagerTest : public ::testing::Test {
- public:
-  PmPolicyManagerTest() : pmut_(&fake_clock_) {}
-
  protected:
   virtual void SetUp() {
     fake_state_ = new FakeState();
-    EXPECT_TRUE(pmut_.Init(fake_state_));
+    pmut_.reset(new PolicyManager(&fake_clock_, fake_state_));
   }
 
-  FakeState* fake_state_;
+  FakeState* fake_state_;  // Owned by the pmut_.
   FakeClock fake_clock_;
-  PolicyManager pmut_;
+  scoped_ptr<PolicyManager> pmut_;
 };
 
 // The FailingPolicy implements a single method and make it always fail. This
@@ -79,38 +77,42 @@ static void AccumulateCallsCallback(vector<pair<EvalStatus, T>>* acc,
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCall) {
   bool result;
-  EvalStatus status = pmut_.PolicyRequest(&Policy::UpdateCheckAllowed, &result);
+  EvalStatus status = pmut_->PolicyRequest(
+      &Policy::UpdateCheckAllowed, &result);
   EXPECT_EQ(status, EvalStatus::kSucceeded);
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCallsPolicy) {
   StrictMock<MockPolicy>* policy = new StrictMock<MockPolicy>();
-  pmut_.policy_.reset(policy);
+  pmut_->set_policy(policy);
   bool result;
 
   // Tests that the method is called on the policy_ instance.
   EXPECT_CALL(*policy, UpdateCheckAllowed(_, _, _, _))
       .WillOnce(Return(EvalStatus::kSucceeded));
-  EvalStatus status = pmut_.PolicyRequest(&Policy::UpdateCheckAllowed, &result);
+  EvalStatus status = pmut_->PolicyRequest(
+      &Policy::UpdateCheckAllowed, &result);
   EXPECT_EQ(status, EvalStatus::kSucceeded);
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError) {
-  pmut_.policy_.reset(new FailingPolicy());
+  pmut_->set_policy(new FailingPolicy());
 
   // Tests that the DefaultPolicy instance is called when the method fails,
   // which will set this as true.
   bool result = false;
-  EvalStatus status = pmut_.PolicyRequest(&Policy::UpdateCheckAllowed, &result);
+  EvalStatus status = pmut_->PolicyRequest(
+      &Policy::UpdateCheckAllowed, &result);
   EXPECT_EQ(status, EvalStatus::kSucceeded);
   EXPECT_TRUE(result);
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestDoesntBlock) {
-  pmut_.policy_.reset(new LazyPolicy());
+  pmut_->set_policy(new LazyPolicy());
   bool result;
 
-  EvalStatus status = pmut_.PolicyRequest(&Policy::UpdateCheckAllowed, &result);
+  EvalStatus status = pmut_->PolicyRequest(
+      &Policy::UpdateCheckAllowed, &result);
   EXPECT_EQ(status, EvalStatus::kAskMeAgainLater);
 }
 
@@ -119,13 +121,13 @@ TEST_F(PmPolicyManagerTest, AsyncPolicyRequestDelaysEvaluation) {
   // call on a policy that returns AskMeAgainLater the first time and one that
   // succeeds the first time, we ensure that the passed callback is called from
   // the main loop in both cases even when we could evaluate it right now.
-  pmut_.policy_.reset(new FailingPolicy());
+  pmut_->set_policy(new FailingPolicy());
 
   vector<pair<EvalStatus, bool>> calls;
   Callback<void(EvalStatus, const bool& result)> callback =
       Bind(AccumulateCallsCallback<bool>, &calls);
 
-  pmut_.AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
+  pmut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // The callback should wait until we run the main loop for it to be executed.
   EXPECT_EQ(0, calls.size());
   chromeos_update_engine::RunGMainLoopMaxIterations(100);

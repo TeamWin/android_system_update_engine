@@ -11,20 +11,12 @@ using base::Closure;
 
 namespace chromeos_policy_manager {
 
-template <typename T>
-bool InitProvider(scoped_ptr<T>* handle_ptr, T* provider) {
-  handle_ptr->reset(provider);
-  return handle_ptr->get() && (*handle_ptr)->Init();
-}
-
-bool PolicyManager::Init(State* state) {
+PolicyManager::PolicyManager(chromeos_update_engine::ClockInterface* clock,
+                             State* state)
+      : state_(state), clock_(clock) {
   // TODO(deymo): Make it possible to replace this policy with a different
   // implementation with a build-time flag.
   policy_.reset(new ChromeOSPolicy());
-
-  state_.reset(state);
-
-  return true;
 }
 
 }  // namespace chromeos_policy_manager
