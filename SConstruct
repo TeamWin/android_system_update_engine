@@ -161,7 +161,7 @@ env['LIBS'] = Split("""bz2
                        gflags
                        glib-2.0
                        gthread-2.0
-                       metrics
+                       metrics-%s
                        policy-%s
                        protobuf
                        pthread
@@ -170,7 +170,7 @@ env['LIBS'] = Split("""bz2
                        ssl
                        udev
                        vboot_host
-                       xml2""" % BASE_VER)
+                       xml2""" % (BASE_VER, BASE_VER))
 env['CPPPATH'] = ['..']
 env['BUILDERS']['ProtocolBuffer'] = proto_builder
 env['BUILDERS']['DbusBindings'] = dbus_bindings_builder
