@@ -31,6 +31,10 @@ class UpdaterProvider : public Provider {
  public:
   virtual ~UpdaterProvider() {}
 
+  // A variable returning the timestamp when the update engine was started in
+  // wallclock time.
+  virtual Variable<base::Time>* var_updater_started_time() = 0;
+
   // A variable returning the last update check time.
   virtual Variable<base::Time>* var_last_checked_time() = 0;
 

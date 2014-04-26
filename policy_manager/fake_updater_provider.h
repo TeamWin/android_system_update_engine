@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_UPDATER_PROVIDER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_FAKE_UPDATER_PROVIDER_H_
 
+#include <string>
+
 #include "update_engine/policy_manager/fake_variable.h"
 #include "update_engine/policy_manager/updater_provider.h"
 
@@ -14,6 +16,10 @@ namespace chromeos_policy_manager {
 class FakeUpdaterProvider : public UpdaterProvider {
  public:
   FakeUpdaterProvider() {}
+
+  virtual FakeVariable<base::Time>* var_updater_started_time() override {
+    return &var_updater_started_time_;
+  }
 
   virtual FakeVariable<base::Time>* var_last_checked_time() override {
     return &var_last_checked_time_;
@@ -56,6 +62,8 @@ class FakeUpdaterProvider : public UpdaterProvider {
   }
 
  private:
+  FakeVariable<base::Time> var_updater_started_time_{
+      "updater_started_time", kVariableModePoll};
   FakeVariable<base::Time> var_last_checked_time_{
     "last_checked_time", kVariableModePoll};
   FakeVariable<base::Time> var_update_completed_time_{

@@ -8,8 +8,8 @@
 
 #include <string>
 
-#include <base/time/time.h>
 #include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <chromeos/dbus/service_constants.h>
 
 #include "update_engine/clock_interface.h"
@@ -314,6 +314,8 @@ class BooleanPrefVariable : public UpdaterVariableBase<bool> {
 
 RealUpdaterProvider::RealUpdaterProvider(SystemState* system_state)
   : system_state_(system_state),
+    var_updater_started_time_("updater_started_time",
+                              system_state->clock()->GetWallclockTime()),
     var_last_checked_time_(
         new LastCheckedTimeVariable("last_checked_time", system_state_)),
     var_update_completed_time_(

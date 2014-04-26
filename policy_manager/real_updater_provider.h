@@ -7,6 +7,7 @@
 
 #include <base/memory/scoped_ptr.h>
 
+#include "update_engine/policy_manager/generic_variables.h"
 #include "update_engine/policy_manager/updater_provider.h"
 #include "update_engine/system_state.h"
 
@@ -25,6 +26,10 @@ class RealUpdaterProvider : public UpdaterProvider {
 
   // Initializes the provider and returns whether it succeeded.
   bool Init() { return true; }
+
+  virtual Variable<base::Time>* var_updater_started_time() override {
+    return &var_updater_started_time_;
+  }
 
   virtual Variable<base::Time>* var_last_checked_time() override {
     return var_last_checked_time_.get();
@@ -70,7 +75,8 @@ class RealUpdaterProvider : public UpdaterProvider {
   // A pointer to the update engine's system state aggregator.
   chromeos_update_engine::SystemState* system_state_;
 
-  // Pointers to all variable implementations.
+  // Variable implementations.
+  ConstCopyVariable<base::Time> var_updater_started_time_;
   scoped_ptr<Variable<base::Time>> var_last_checked_time_;
   scoped_ptr<Variable<base::Time>> var_update_completed_time_;
   scoped_ptr<Variable<double>> var_progress_;

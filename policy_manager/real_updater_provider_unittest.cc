@@ -63,7 +63,7 @@ namespace chromeos_policy_manager {
 class PmRealUpdaterProviderTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    fake_sys_state_.set_clock(&fake_clock_);
+    fake_clock_ = fake_sys_state_.fake_clock();
     provider_.reset(new RealUpdaterProvider(&fake_sys_state_));
     PMTEST_ASSERT_NOT_NULL(provider_.get());
     // Check that provider initializes corrrectly.
@@ -101,15 +101,24 @@ class PmRealUpdaterProviderTest : public ::testing::Test {
     EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
                 GetBootTimeAtUpdate(_))
         .WillOnce(DoAll(SetArgPointee<0>(kUpdateBootTime), Return(true)));
-    fake_clock_.SetBootTime(kCurrBootTime);
-    fake_clock_.SetWallclockTime(kCurrWallclockTime);
+    fake_clock_->SetBootTime(kCurrBootTime);
+    fake_clock_->SetWallclockTime(kCurrWallclockTime);
     return kCurrWallclockTime - kDurationSinceUpdate;
   }
 
   FakeSystemState fake_sys_state_;
-  FakeClock fake_clock_;
+  FakeClock* fake_clock_;  // Short for fake_sys_state_.fake_clock()
   scoped_ptr<RealUpdaterProvider> provider_;
 };
+
+TEST_F(PmRealUpdaterProviderTest, UpdaterStartedTimeIsWallclockTime) {
+  fake_clock_->SetWallclockTime(Time::FromDoubleT(123.456));
+  fake_clock_->SetMonotonicTime(Time::FromDoubleT(456.123));
+  // Run SetUp again to re-setup the provider under test to use these values.
+  SetUp();
+  PmTestUtils::ExpectVariableHasValue(Time::FromDoubleT(123.456),
+                                      provider_->var_updater_started_time());
+}
 
 TEST_F(PmRealUpdaterProviderTest, GetLastCheckedTimeOkay) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
