@@ -40,6 +40,12 @@ class Policy {
                                         std::string* error,
                                         bool* result) const = 0;
 
+  // Returns whether an update can be downloaded/applied.
+  virtual EvalStatus UpdateDownloadAndApplyAllowed(EvaluationContext* ec,
+                                                   State* state,
+                                                   std::string* error,
+                                                   bool* result) const = 0;
+
  protected:
   Policy() {}
 

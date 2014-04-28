@@ -18,7 +18,12 @@ class ChromeOSPolicy : public Policy {
   // Policy overrides.
   virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
                                         std::string* error,
-                                        bool* result) const;
+                                        bool* result) const override;
+
+  virtual EvalStatus UpdateDownloadAndApplyAllowed(EvaluationContext* ec,
+                                                   State* state,
+                                                   std::string* error,
+                                                   bool* result) const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ChromeOSPolicy);

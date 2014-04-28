@@ -18,4 +18,13 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(EvaluationContext* ec,
   return EvalStatus::kSucceeded;
 }
 
+EvalStatus ChromeOSPolicy::UpdateDownloadAndApplyAllowed(EvaluationContext* ec,
+                                                         State* state,
+                                                         string* error,
+                                                         bool* result) const {
+  // TODO(garnold): Write this policy implementation with the actual policy.
+  *result = true;
+  return EvalStatus::kSucceeded;
+}
+
 }  // namespace chromeos_policy_manager

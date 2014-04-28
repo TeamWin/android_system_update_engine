@@ -75,24 +75,41 @@ static void AccumulateCallsCallback(vector<pair<EvalStatus, T>>* acc,
   acc->push_back(std::make_pair(status, result));
 }
 
-TEST_F(PmPolicyManagerTest, PolicyRequestCall) {
+TEST_F(PmPolicyManagerTest, PolicyRequestCallReturnsSuccess) {
   bool result;
-  EvalStatus status = pmut_->PolicyRequest(
-      &Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(status, EvalStatus::kSucceeded);
+  EvalStatus status;
+
+  // Tests that policy requests are completed successfully. It is important that
+  // this test covers all policy requests as defined in Policy.
+  //
+  // TODO(garnold) We may need to adapt this test as the Chrome OS policy grows
+  // beyond the stub implementation.
+  status = pmut_->PolicyRequest(&Policy::UpdateCheckAllowed, &result);
+  EXPECT_EQ(EvalStatus::kSucceeded, status);
+  status = pmut_->PolicyRequest(&Policy::UpdateDownloadAndApplyAllowed,
+                                &result);
+  EXPECT_EQ(EvalStatus::kSucceeded, status);
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCallsPolicy) {
   StrictMock<MockPolicy>* policy = new StrictMock<MockPolicy>();
   pmut_->set_policy(policy);
   bool result;
+  EvalStatus status;
 
-  // Tests that the method is called on the policy_ instance.
+  // Tests that the policy methods are actually called on the policy instance.
+  // It is important that this test covers all policy requests as defined in
+  // Policy.
   EXPECT_CALL(*policy, UpdateCheckAllowed(_, _, _, _))
       .WillOnce(Return(EvalStatus::kSucceeded));
-  EvalStatus status = pmut_->PolicyRequest(
-      &Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(status, EvalStatus::kSucceeded);
+  status = pmut_->PolicyRequest(&Policy::UpdateCheckAllowed, &result);
+  EXPECT_EQ(EvalStatus::kSucceeded, status);
+
+  EXPECT_CALL(*policy, UpdateDownloadAndApplyAllowed(_, _, _, _))
+      .WillOnce(Return(EvalStatus::kSucceeded));
+  status = pmut_->PolicyRequest(&Policy::UpdateDownloadAndApplyAllowed,
+                                &result);
+  EXPECT_EQ(EvalStatus::kSucceeded, status);
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError) {
@@ -103,7 +120,7 @@ TEST_F(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError) {
   bool result = false;
   EvalStatus status = pmut_->PolicyRequest(
       &Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(status, EvalStatus::kSucceeded);
+  EXPECT_EQ(EvalStatus::kSucceeded, status);
   EXPECT_TRUE(result);
 }
 
@@ -113,7 +130,7 @@ TEST_F(PmPolicyManagerTest, PolicyRequestDoesntBlock) {
 
   EvalStatus status = pmut_->PolicyRequest(
       &Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(status, EvalStatus::kAskMeAgainLater);
+  EXPECT_EQ(EvalStatus::kAskMeAgainLater, status);
 }
 
 TEST_F(PmPolicyManagerTest, AsyncPolicyRequestDelaysEvaluation) {

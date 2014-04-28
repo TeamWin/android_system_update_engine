@@ -22,6 +22,10 @@ public:
                      EvalStatus(EvaluationContext*, State*, std::string*,
                                 bool*));
 
+  MOCK_CONST_METHOD4(UpdateDownloadAndApplyAllowed,
+                     EvalStatus(EvaluationContext*, State*, std::string*,
+                                bool*));
+
 private:
   DISALLOW_COPY_AND_ASSIGN(MockPolicy);
 };
