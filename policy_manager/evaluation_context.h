@@ -85,6 +85,11 @@ class EvaluationContext :
   // reseted, removing all the non-const cached values.
   bool RunOnValueChangeOrTimeout(base::Closure callback);
 
+  // Returns a textual representation of the evaluation context,
+  // including the variables and their values. This is intended only
+  // to help with debugging and the format may change in the future.
+  std::string DumpContext() const;
+
  private:
   // Removes all the Observers and timeout callbacks scheduled by
   // RunOnValueChangeOrTimeout(). This method is idempotent.

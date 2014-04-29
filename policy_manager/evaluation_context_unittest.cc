@@ -48,7 +48,8 @@ class PmEvaluationContextTest : public ::testing::Test {
   virtual void SetUp() {
     // Set the clock to a fixed values.
     fake_clock_.SetMonotonicTime(Time::FromInternalValue(12345678L));
-    fake_clock_.SetWallclockTime(Time::FromInternalValue(12345678901234L));
+    // Mar 2, 2006 1:23:45 UTC is 1141262625 since the Unix Epoch.
+    fake_clock_.SetWallclockTime(Time::FromTimeT(1141262625));
     eval_ctx_ = new EvaluationContext(&fake_clock_);
   }
 
@@ -71,6 +72,7 @@ class PmEvaluationContextTest : public ::testing::Test {
   // FakeVariables used for testing the EvaluationContext. These are required
   // here to prevent them from going away *before* the EvaluationContext under
   // test does, which keeps a reference to them.
+  FakeVariable<bool> fail_var_ = {"fail_var", kVariableModePoll};
   FakeVariable<int> fake_int_var_ = {"fake_int", kVariableModePoll};
   FakeVariable<string> fake_async_var_ = {"fake_async", kVariableModeAsync};
   FakeVariable<string> fake_const_var_ = {"fake_const", kVariableModeConst};
@@ -302,6 +304,32 @@ TEST_F(PmEvaluationContextTest, IsTimeGreaterThanDoesntRecordPastTimestamps) {
 
   // Callback should not be scheduled.
   EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+}
+
+TEST_F(PmEvaluationContextTest, DumpContext) {
+  // |fail_var_| yield "(no value)" since it is unset.
+  eval_ctx_->GetValue(&fail_var_);
+
+  // Check that this is included.
+  fake_int_var_.reset(new int(42));
+  eval_ctx_->GetValue(&fake_int_var_);
+
+  // Check that double-quotes are escaped properly.
+  fake_poll_var_.reset(new string("Hello \"world\"!"));
+  eval_ctx_->GetValue(&fake_poll_var_);
+
+  // Note that the variables are printed in alphabetical order. Also
+  // see PmEvaluationContextText::SetUp() where the value used for
+  // |evaluation_start| is set.
+  EXPECT_EQ("{\n"
+            "   \"evaluation_start\": \"3/2/2006 1:23:45 GMT\",\n"
+            "   \"variables\": {\n"
+            "      \"fail_var\": \"(no value)\",\n"
+            "      \"fake_int\": \"42\",\n"
+            "      \"fake_poll\": \"Hello \\\"world\\\"!\"\n"
+            "   }\n"
+            "}\n",
+            eval_ctx_->DumpContext());
 }
 
 }  // namespace chromeos_policy_manager

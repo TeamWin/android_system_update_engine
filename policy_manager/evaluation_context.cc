@@ -4,12 +4,19 @@
 
 #include "update_engine/policy_manager/evaluation_context.h"
 
+#include <string>
+
 #include <base/bind.h>
+#include <base/json/json_writer.h>
+#include <base/values.h>
+
+#include "update_engine/utils.h"
 
 using base::Closure;
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::ClockInterface;
+using std::string;
 
 namespace chromeos_policy_manager {
 
@@ -132,6 +139,25 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
 
   value_changed_callback_.reset(new Closure(callback));
   return true;
+}
+
+string EvaluationContext::DumpContext() const {
+  base::DictionaryValue* variables = new base::DictionaryValue();
+  for (auto& it : value_cache_) {
+    variables->SetString(it.first->GetName(), it.second.ToString());
+  }
+
+  base::DictionaryValue value;
+  value.Set("variables", variables);  // Adopts |variables|.
+  value.SetString("evaluation_start",
+                  chromeos_update_engine::utils::ToString(evaluation_start_));
+
+  string json_str;
+  base::JSONWriter::WriteWithOptions(&value,
+                                     base::JSONWriter::OPTIONS_PRETTY_PRINT,
+                                     &json_str);
+
+  return json_str;
 }
 
 }  // namespace chromeos_policy_manager
