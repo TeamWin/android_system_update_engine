@@ -237,6 +237,7 @@ sources = Split("""action_processor.cc
                    p2p_manager.cc
                    payload_signer.cc
                    payload_state.cc
+                   policy_manager/boxed_value.cc
                    policy_manager/chromeos_policy.cc
                    policy_manager/evaluation_context.cc
                    policy_manager/event_loop.cc
