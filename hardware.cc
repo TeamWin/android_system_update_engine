@@ -90,15 +90,15 @@ std::vector<std::string> Hardware::GetKernelDevices() const {
   LOG(INFO) << "GetAllKernelDevices";
 
   std::string disk_name = utils::GetDiskName(Hardware::BootKernelDevice());
-  if(disk_name.empty()) {
+  if (disk_name.empty()) {
     LOG(ERROR) << "Failed to get the cuurent kernel boot disk name";
     return std::vector<std::string>();
   }
 
   std::vector<std::string> devices;
-  for (int partition_num : {2, 4}) { // for now, only #2, #4 for slot A & B
+  for (int partition_num : {2, 4}) {  // for now, only #2, #4 for slot A & B
     std::string device = utils::MakePartitionName(disk_name, partition_num);
-    if(!device.empty()) {
+    if (!device.empty()) {
       devices.push_back(std::move(device));
     } else {
       LOG(ERROR) << "Cannot make a partition name for disk: "

@@ -6,6 +6,8 @@
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_HARDWARE_H_
 
 #include <map>
+#include <string>
+#include <vector>
 
 #include <base/time/time.h>
 

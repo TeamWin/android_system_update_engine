@@ -5,9 +5,12 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_HARDWARE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_HARDWARE_H_
 
-#include "update_engine/hardware_interface.h"
+#include <string>
+#include <vector>
 
-#include "base/basictypes.h"
+#include <base/basictypes.h>
+
+#include "update_engine/hardware_interface.h"
 
 namespace chromeos_update_engine {
 

@@ -5,6 +5,9 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_HARDWARE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_HARDWARE_H_
 
+#include <string>
+#include <vector>
+
 #include "update_engine/fake_hardware.h"
 
 #include <gmock/gmock.h>
@@ -13,7 +16,7 @@ namespace chromeos_update_engine {
 
 // A mocked, fake implementation of HardwareInterface.
 class MockHardware : public HardwareInterface {
-public:
+ public:
   MockHardware() {
     // Delegate all calls to the fake instance
     ON_CALL(*this, BootKernelDevice())
@@ -77,7 +80,7 @@ public:
     return fake_;
   }
 
-private:
+ private:
   // The underlying FakeHardware.
   FakeHardware fake_;
 
