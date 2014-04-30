@@ -60,6 +60,10 @@ string Hardware::BootDevice() const {
   return boot_path;
 }
 
+bool Hardware::IsBootDeviceRemovable() const {
+  return utils::IsRemovableDevice(utils::GetDiskName(BootDevice()));
+}
+
 bool Hardware::IsKernelBootable(const std::string& kernel_device,
                                 bool* bootable) const {
   CgptAddParams params;

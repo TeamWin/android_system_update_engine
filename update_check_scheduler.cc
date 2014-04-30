@@ -41,7 +41,7 @@ void UpdateCheckScheduler::Run() {
     LOG(WARNING) << "Non-official build: periodic update checks disabled.";
     return;
   }
-  if (IsBootDeviceRemovable()) {
+  if (system_state_->hardware()->IsBootDeviceRemovable()) {
     LOG(WARNING) << "Removable device boot: periodic update checks disabled.";
     return;
   }
@@ -56,11 +56,6 @@ void UpdateCheckScheduler::Run() {
   // by ScheduleNextCheck, normally at |kTimeoutPeriodicInterval|-second
   // intervals.
   ScheduleCheck(kTimeoutInitialInterval, kTimeoutRegularFuzz);
-}
-
-bool UpdateCheckScheduler::IsBootDeviceRemovable() {
-  return utils::IsRemovableDevice(utils::GetDiskName(
-      system_state_->hardware()->BootDevice()));
 }
 
 guint UpdateCheckScheduler::GTimeoutAddSeconds(guint interval,

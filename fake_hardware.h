@@ -19,6 +19,7 @@ class FakeHardware : public HardwareInterface {
   FakeHardware()
     : kernel_device_("/dev/sdz4"),
       boot_device_("/dev/sdz5"),
+      is_boot_device_removable_(false),
       kernel_devices_({"/dev/sdz2", "/dev/sdz4"}),
       is_official_build_(true),
       is_normal_boot_mode_(true),
@@ -33,6 +34,10 @@ class FakeHardware : public HardwareInterface {
   }
 
   virtual std::string BootDevice() const override { return boot_device_; }
+
+  virtual bool IsBootDeviceRemovable() const override {
+    return is_boot_device_removable_;
+  }
 
   virtual std::vector<std::string> GetKernelDevices() const override {
     return kernel_devices_;
@@ -73,8 +78,12 @@ class FakeHardware : public HardwareInterface {
   virtual std::string GetECVersion() const override { return ec_version_; }
 
   // Setters
-  void SetBootDevice(const std::string boot_device) {
+  void SetBootDevice(const std::string& boot_device) {
     boot_device_ = boot_device;
+  }
+
+  void SetIsBootDeviceRemovable(bool is_boot_device_removable) {
+    is_boot_device_removable_ = is_boot_device_removable;
   }
 
   void SetIsOfficialBuild(bool is_official_build) {
@@ -111,6 +120,7 @@ class FakeHardware : public HardwareInterface {
  private:
   std::string kernel_device_;
   std::string boot_device_;
+  bool is_boot_device_removable_;
   std::vector<std::string>  kernel_devices_;
   std::map<std::string, bool> is_bootable_;
   bool is_official_build_;

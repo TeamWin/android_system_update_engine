@@ -26,6 +26,9 @@ class HardwareInterface {
   // Returns the currently booted rootfs partition. "/dev/sda3", for example.
   virtual std::string BootDevice() const = 0;
 
+  // Return whether the BootDevice() is a removable device.
+  virtual bool IsBootDeviceRemovable() const = 0;
+
   // Returns a list of all kernel partitions available (whether bootable or not)
   virtual std::vector<std::string> GetKernelDevices() const = 0;
 

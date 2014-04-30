@@ -65,7 +65,6 @@ class UpdateCheckScheduler {
   FRIEND_TEST(UpdateCheckSchedulerTest, ComputeNextIntervalAndFuzzPriorityTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, ComputeNextIntervalAndFuzzTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, GTimeoutAddSecondsTest);
-  FRIEND_TEST(UpdateCheckSchedulerTest, IsBootDeviceRemovableTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, RunBootDeviceRemovableTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, RunNonOfficialBuildTest);
   FRIEND_TEST(UpdateCheckSchedulerTest, RunTest);
@@ -83,9 +82,6 @@ class UpdateCheckScheduler {
 
   // Wraps GLib's g_timeout_add_seconds so that it can be mocked in tests.
   virtual guint GTimeoutAddSeconds(guint interval, GSourceFunc function);
-
-  // Wrappers for utils functions so that they can be mocked in tests.
-  virtual bool IsBootDeviceRemovable();
 
   // Returns true if an update check can be scheduled. An update check should
   // not be scheduled if periodic update checks are disabled or if one is
