@@ -34,6 +34,7 @@ class DevicePolicyProvider : public Provider {
 
   virtual Variable<std::string>* var_target_version_prefix() = 0;
 
+  // Returns a non-negative scatter interval used for updates.
   virtual Variable<base::TimeDelta>* var_scatter_factor() = 0;
 
   // Variable returing the set of connection types allowed for updates. The

@@ -9,6 +9,7 @@
 
 #include <base/bind.h>
 #include <base/memory/scoped_ptr.h>
+#include <base/time/time.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -22,6 +23,8 @@
 
 using base::Bind;
 using base::Callback;
+using base::Time;
+using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
 using std::pair;
 using std::string;
@@ -29,6 +32,24 @@ using std::vector;
 using testing::Return;
 using testing::StrictMock;
 using testing::_;
+
+namespace {
+
+// Generates a fixed timestamp for use in faking the current time.
+Time FixedTime() {
+  Time::Exploded now_exp;
+  now_exp.year = 2014;
+  now_exp.month = 3;
+  now_exp.day_of_week = 2;
+  now_exp.day_of_month = 18;
+  now_exp.hour = 8;
+  now_exp.minute = 5;
+  now_exp.second = 33;
+  now_exp.millisecond = 675;
+  return Time::FromLocalExploded(now_exp);
+}
+
+}  // namespace
 
 namespace chromeos_policy_manager {
 
@@ -77,17 +98,21 @@ static void AccumulateCallsCallback(vector<pair<EvalStatus, T>>* acc,
 
 // Tests that policy requests are completed successfully. It is important that
 // this tests cover all policy requests as defined in Policy.
-TEST_F(PmPolicyManagerTest, PolicyRequestCallUpdateDownloadAndApplyAllowed) {
-  bool result;
-  EXPECT_EQ(EvalStatus::kSucceeded,
-            pmut_->PolicyRequest(&Policy::UpdateDownloadAndApplyAllowed,
-                                 &result));
-}
-
 TEST_F(PmPolicyManagerTest, PolicyRequestCallUpdateCheckAllowed) {
   UpdateCheckParams result;
   EXPECT_EQ(EvalStatus::kSucceeded, pmut_->PolicyRequest(
       &Policy::UpdateCheckAllowed, &result));
+}
+
+TEST_F(PmPolicyManagerTest, PolicyRequestCallUpdateCanStart) {
+  const UpdateState update_state = {
+    FixedTime(), 1, TimeDelta::FromSeconds(15), TimeDelta::FromSeconds(60),
+    4, 2, 8
+  };
+  UpdateCanStartResult result;
+  EXPECT_EQ(EvalStatus::kSucceeded,
+            pmut_->PolicyRequest(&Policy::UpdateCanStart, &result, true,
+                                 update_state));
 }
 
 TEST_F(PmPolicyManagerTest, PolicyRequestCallsDefaultOnError) {

@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_DEFAULT_POLICY_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_DEFAULT_POLICY_H_
 
+#include <base/time/time.h>
+
 #include "update_engine/policy_manager/policy.h"
 
 namespace chromeos_policy_manager {
@@ -25,10 +27,20 @@ class DefaultPolicy : public Policy {
     return EvalStatus::kSucceeded;
   }
 
-  virtual EvalStatus UpdateDownloadAndApplyAllowed(
-      EvaluationContext* ec, State* state, std::string* error,
-      bool* result) const override {
-    *result = true;
+  virtual EvalStatus UpdateCanStart(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      UpdateCanStartResult* result,
+      const bool interactive,
+      const UpdateState& update_state) const override {
+    result->update_can_start = true;
+    result->http_allowed = false;
+    result->p2p_allowed = false;
+    result->target_channel.clear();
+    result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
+    result->scatter_wait_period = base::TimeDelta();
+    result->scatter_check_threshold = 0;
     return EvalStatus::kSucceeded;
   }
 
