@@ -193,8 +193,7 @@ int main(int argc, char** argv) {
   // Create the dbus service object:
   dbus_g_object_type_install_info(UPDATE_ENGINE_TYPE_SERVICE,
                                   &dbus_glib_update_engine_service_object_info);
-  UpdateEngineService* service =
-      UPDATE_ENGINE_SERVICE(g_object_new(UPDATE_ENGINE_TYPE_SERVICE, nullptr));
+  UpdateEngineService* service = update_engine_service_new();
   service->system_state_ = &real_system_state;
   update_attempter->set_dbus_service(service);
   chromeos_update_engine::SetupDbusService(service);
