@@ -303,7 +303,7 @@ TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayZero) {
   EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(0)), Return(true)));
-  PmTestUtils::ExpectVariableHasValue(static_cast<size_t>(0),
+  PmTestUtils::ExpectVariableHasValue(static_cast<int64_t>(0),
                                       provider_->var_payload_size());
 }
 
@@ -312,7 +312,7 @@ TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayArbitrary) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(567890)),
                       Return(true)));
-  PmTestUtils::ExpectVariableHasValue(static_cast<size_t>(567890),
+  PmTestUtils::ExpectVariableHasValue(static_cast<int64_t>(567890),
                                       provider_->var_payload_size());
 }
 
@@ -321,7 +321,7 @@ TEST_F(PmRealUpdaterProviderTest, GetPayloadSizeOkayTwoGigabytes) {
               GetStatus(_, _, _, _, _))
       .WillOnce(DoAll(SetArgPointee<4>(static_cast<int64_t>(1) << 31),
                       Return(true)));
-  PmTestUtils::ExpectVariableHasValue(static_cast<size_t>(1) << 31,
+  PmTestUtils::ExpectVariableHasValue(static_cast<int64_t>(1) << 31,
                                       provider_->var_payload_size());
 }
 

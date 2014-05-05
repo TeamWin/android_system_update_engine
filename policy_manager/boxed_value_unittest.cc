@@ -102,19 +102,21 @@ TEST(PmBoxedValueTest, IntToString) {
   EXPECT_EQ("42", BoxedValue(new int(42)).ToString());
 }
 
+TEST(PmBoxedValueTest, Int64ToString) {
+  // -123456789012345 doensn't fit in 32-bit integers.
+  EXPECT_EQ("-123456789012345", BoxedValue(
+      new int64_t(-123456789012345LL)).ToString());
+}
+
 TEST(PmBoxedValueTest, UnsignedIntToString) {
   // 4294967295 is the biggest possible 32-bit unsigned integer.
-  EXPECT_EQ("4294967295", BoxedValue(new unsigned int(4294967295)).ToString());
+  EXPECT_EQ("4294967295", BoxedValue(new unsigned int(4294967295U)).ToString());
 }
 
-TEST(PmBoxedValueTest, UnsignedLongToString) {
-  EXPECT_EQ("4294967295", BoxedValue(new unsigned long(4294967295)).ToString());
-}
-
-TEST(PmBoxedValueTest, UnsignedLongLongToString) {
+TEST(PmBoxedValueTest, UnsignedInt64ToString) {
   // 18446744073709551615 is the biggest possible 64-bit unsigned integer.
   EXPECT_EQ("18446744073709551615", BoxedValue(
-      new unsigned long long(18446744073709551615ULL)).ToString());
+      new uint64_t(18446744073709551615ULL)).ToString());
 }
 
 TEST(PmBoxedValueTest, BoolToString) {

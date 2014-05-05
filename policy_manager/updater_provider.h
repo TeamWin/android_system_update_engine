@@ -59,8 +59,9 @@ class UpdaterProvider : public Provider {
   // A variable returning the update target version.
   virtual Variable<std::string>* var_new_version() = 0;
 
-  // A variable returning the update payload size.
-  virtual Variable<size_t>* var_payload_size() = 0;
+  // A variable returning the update payload size. The payload size is
+  // guaranteed to be non-negative.
+  virtual Variable<int64_t>* var_payload_size() = 0;
 
   // A variable returning the current channel.
   virtual Variable<std::string>* var_curr_channel() = 0;

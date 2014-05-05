@@ -180,12 +180,12 @@ class NewVersionVariable : public UpdaterVariableBase<string> {
 };
 
 // A variable reporting the size of the update being processed in bytes.
-class PayloadSizeVariable : public UpdaterVariableBase<size_t> {
+class PayloadSizeVariable : public UpdaterVariableBase<int64_t> {
  public:
-  using UpdaterVariableBase<size_t>::UpdaterVariableBase;
+  using UpdaterVariableBase<int64_t>::UpdaterVariableBase;
 
  private:
-  virtual const size_t* GetValue(TimeDelta /* timeout */,
+  virtual const int64_t* GetValue(TimeDelta /* timeout */,
                                  string* errmsg) override {
     GetStatusHelper raw(system_state(), errmsg);
     if (!raw.is_success())
@@ -197,7 +197,7 @@ class PayloadSizeVariable : public UpdaterVariableBase<size_t> {
       return NULL;
     }
 
-    return new size_t(static_cast<size_t>(raw.payload_size()));
+    return new int64_t(raw.payload_size());
   }
 
   DISALLOW_COPY_AND_ASSIGN(PayloadSizeVariable);

@@ -41,7 +41,7 @@ class FakeUpdaterProvider : public UpdaterProvider {
     return &var_new_version_;
   }
 
-  virtual FakeVariable<size_t>* var_payload_size() override {
+  virtual FakeVariable<int64_t>* var_payload_size() override {
     return &var_payload_size_;
   }
 
@@ -76,7 +76,7 @@ class FakeUpdaterProvider : public UpdaterProvider {
   FakeVariable<double> var_progress_{"progress", kVariableModePoll};
   FakeVariable<Stage> var_stage_{"stage", kVariableModePoll};
   FakeVariable<std::string> var_new_version_{"new_version", kVariableModePoll};
-  FakeVariable<size_t> var_payload_size_{"payload_size", kVariableModePoll};
+  FakeVariable<int64_t> var_payload_size_{"payload_size", kVariableModePoll};
   FakeVariable<std::string> var_curr_channel_{
       "curr_channel", kVariableModePoll};
   FakeVariable<std::string> var_new_channel_{"new_channel", kVariableModePoll};

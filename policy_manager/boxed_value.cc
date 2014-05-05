@@ -28,28 +28,28 @@ string BoxedValue::ValuePrinter<string>(const void *value) {
 }
 
 template<>
+string BoxedValue::ValuePrinter<int>(const void *value) {
+  const int* val = reinterpret_cast<const int*>(value);
+  return base::IntToString(*val);
+}
+
+template<>
 string BoxedValue::ValuePrinter<unsigned int>(const void *value) {
   const unsigned int* val = reinterpret_cast<const unsigned int*>(value);
   return base::UintToString(*val);
 }
 
 template<>
-string BoxedValue::ValuePrinter<unsigned long>(const void *value) {
-  const unsigned long* val = reinterpret_cast<const unsigned long*>(value);
-  return base::Uint64ToString(static_cast<uint64>(*val));
+string BoxedValue::ValuePrinter<int64_t>(const void *value) {
+  const int64_t* val = reinterpret_cast<const int64_t*>(value);
+  return base::Int64ToString(*val);
 }
 
 template<>
-string BoxedValue::ValuePrinter<unsigned long long>(const void *value) {
-  const unsigned long long* val =
-      reinterpret_cast<const unsigned long long*>(value);
+string BoxedValue::ValuePrinter<uint64_t>(const void *value) {
+  const uint64_t* val =
+    reinterpret_cast<const uint64_t*>(value);
   return base::Uint64ToString(static_cast<uint64>(*val));
-}
-
-template<>
-string BoxedValue::ValuePrinter<int>(const void *value) {
-  const int* val = reinterpret_cast<const int*>(value);
-  return base::IntToString(*val);
 }
 
 template<>
