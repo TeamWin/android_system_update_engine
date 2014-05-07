@@ -5,6 +5,7 @@
 #include "update_engine/policy_manager/chromeos_policy.h"
 #include "update_engine/policy_manager/policy_utils.h"
 
+#include <algorithm>
 #include <string>
 
 using base::Time;
@@ -87,18 +88,13 @@ EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,
 }
 
 TimeDelta ChromeOSPolicy::FuzzedInterval(PRNG* prng, int interval, int fuzz) {
+  DCHECK_GE(interval, 0);
+  DCHECK_GE(fuzz, 0);
   int half_fuzz = fuzz / 2;
-  int lower_bound = interval - half_fuzz;
-  int upper_bound = interval + half_fuzz + 1;
-
   // This guarantees the output interval is non negative.
-  if (lower_bound < 0)
-    lower_bound = 0;
-
-  int fuzzed_interval = lower_bound;
-  if (upper_bound - lower_bound > 0)
-    fuzzed_interval = lower_bound + prng->rand() % (upper_bound - lower_bound);
-  return TimeDelta::FromSeconds(fuzzed_interval);
+  int interval_min = std::max(interval - half_fuzz, 0);
+  int interval_max = interval + half_fuzz;
+  return TimeDelta::FromSeconds(prng->RandMinMax(interval_min, interval_max));
 }
 
 }  // namespace chromeos_policy_manager

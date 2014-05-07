@@ -5,25 +5,31 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PRNG_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_PRNG_H_
 
-#include <cstdlib>
+#include <random>
 
-#include <base/basictypes.h>
+#include <base/logging.h>
 
 namespace chromeos_policy_manager {
 
-// An unsecure Pseudo-Random Number Generator class based on rand_r(3), which
-// is thread safe and doesn't interfere with other calls to rand().
+// A thread-safe, unsecure, 32-bit pseudo-random number generator based on
+// std::mt19937.
 class PRNG {
  public:
-  // Creates the object using the passed |seed| value as the initial state.
-  explicit PRNG(unsigned int seed) : state_(seed) {}
+  // Initializes the generator with the passed |seed| value.
+  explicit PRNG(uint32_t seed) : gen_(seed) {}
 
-  // Returns a pseudo-random integer in the range [0, RAND_MAX].
-  int rand() { return rand_r(&state_); }
+  // Returns a random unsigned 32-bit integer.
+  uint32_t Rand() { return gen_(); }
+
+  // Returns a random integer uniformly distributed in the range [min, max].
+  int RandMinMax(int min, int max) {
+    DCHECK_LE(min, max);
+    return std::uniform_int_distribution<>(min, max)(gen_);
+  }
 
  private:
-  // The internal state of the PRNG.
-  unsigned int state_;
+  // A pseudo-random number generator.
+  std::mt19937 gen_;
 
   DISALLOW_COPY_AND_ASSIGN(PRNG);
 };
