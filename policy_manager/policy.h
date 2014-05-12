@@ -114,6 +114,17 @@ class Policy {
       const bool interactive,
       const UpdateState& update_state) const = 0;
 
+  // Checks whether updating is allowed over the current network connection
+  // Consults the shill provider as well as the device policy (if available).
+  // Returns |EvalStatus::kSucceeded|, setting |result| according to whether or
+  // not the current connection can be used; on failure, returns
+  // |EvalStatus::kFailed| and sets |error| accordingly.
+  virtual EvalStatus UpdateCurrentConnectionAllowed(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      bool* result) const = 0;
+
  protected:
   Policy() {}
 

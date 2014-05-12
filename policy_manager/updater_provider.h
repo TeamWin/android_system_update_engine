@@ -69,10 +69,11 @@ class UpdaterProvider : public Provider {
   // A variable returning the update target channel.
   virtual Variable<std::string>* var_new_channel() = 0;
 
-  // A variable indicating whether P2P updates are allowed.
+  // A variable indicating whether user settings allow P2P updates.
   virtual Variable<bool>* var_p2p_enabled() = 0;
 
-  // A variable indicating whether updates are allowed over a cellular network.
+  // A variable indicating whether user settings allow updates over a cellular
+  // network.
   virtual Variable<bool>* var_cellular_enabled() = 0;
 
   // A variable returning the number of consecutive failed update checks.

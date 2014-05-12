@@ -5,6 +5,7 @@
 #include "update_engine/policy_manager/chromeos_policy.h"
 
 #include <algorithm>
+#include <set>
 #include <string>
 
 #include <base/logging.h>
@@ -12,10 +13,12 @@
 
 #include "update_engine/policy_manager/device_policy_provider.h"
 #include "update_engine/policy_manager/policy_utils.h"
+#include "update_engine/policy_manager/shill_provider.h"
 
 using base::Time;
 using base::TimeDelta;
 using std::min;
+using std::set;
 using std::string;
 
 namespace chromeos_policy_manager {
@@ -282,6 +285,99 @@ EvalStatus ChromeOSPolicy::UpdateScattering(
   result->wait_period = wait_period;
   result->check_threshold = check_threshold;
   return ret;
+}
+
+// TODO(garnold) Logic in this method is based on
+// ConnectionManager::IsUpdateAllowedOver(); be sure to deprecate the latter.
+//
+// TODO(garnold) The current logic generally treats the list of allowed
+// connections coming from the device policy as a whitelist, meaning that it
+// can only be used for enabling connections, but not disable them. Further,
+// certain connection types (like Bluetooth) cannot be enabled even by policy.
+// In effect, the only thing that device policy can change is to enable
+// updates over a cellular network (disabled by default). We may want to
+// revisit this semantics, allowing greater flexibility in defining specific
+// permissions over all types of networks.
+EvalStatus ChromeOSPolicy::UpdateCurrentConnectionAllowed(
+    EvaluationContext* ec,
+    State* state,
+    string* error,
+    bool* result) const {
+  // Get the current connection type.
+  ShillProvider* const shill_provider = state->shill_provider();
+  const ConnectionType* conn_type_p = ec->GetValue(
+      shill_provider->var_conn_type());
+  POLICY_CHECK_VALUE_AND_FAIL(conn_type_p, error);
+  ConnectionType conn_type = *conn_type_p;
+
+  // If we're tethering, treat it as a cellular connection.
+  if (conn_type != ConnectionType::kCellular) {
+    const ConnectionTethering* conn_tethering_p = ec->GetValue(
+        shill_provider->var_conn_tethering());
+    POLICY_CHECK_VALUE_AND_FAIL(conn_tethering_p, error);
+    if (*conn_tethering_p == ConnectionTethering::kConfirmed)
+      conn_type = ConnectionType::kCellular;
+  }
+
+  // By default, we allow updates for all connection types, with exceptions as
+  // noted below. This also determines whether a device policy can override the
+  // default.
+  *result = true;
+  bool device_policy_can_override = false;
+  switch (conn_type) {
+    case ConnectionType::kBluetooth:
+      *result = false;
+      break;
+
+    case ConnectionType::kCellular:
+      *result = false;
+      device_policy_can_override = true;
+      break;
+
+    case ConnectionType::kUnknown:
+      if (error)
+        *error = "Unknown connection type";
+      return EvalStatus::kFailed;
+
+    default:
+      break;  // Nothing to do.
+  }
+
+  // If update is allowed, we're done.
+  if (*result)
+    return EvalStatus::kSucceeded;
+
+  // Check whether the device policy specifically allows this connection.
+  bool user_settings_can_override = false;
+  if (device_policy_can_override) {
+    DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+    const bool* device_policy_is_loaded_p = ec->GetValue(
+        dp_provider->var_device_policy_is_loaded());
+    if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
+      const set<ConnectionType>* allowed_conn_types_p = ec->GetValue(
+          dp_provider->var_allowed_connection_types_for_update());
+      if (allowed_conn_types_p) {
+        if (allowed_conn_types_p->count(conn_type)) {
+          *result = true;
+          return EvalStatus::kSucceeded;
+        }
+      } else {
+        user_settings_can_override = true;
+      }
+    }
+  }
+
+  // Local user settings can allow updates iff a policy was loaded but no
+  // allowed connections were specified in it. In all other cases, we either
+  // stick with the default or use the values determined by the policy.
+  if (user_settings_can_override) {
+    const bool* update_over_cellular_allowed_p = ec->GetValue(
+        state->updater_provider()->var_cellular_enabled());
+    if (update_over_cellular_allowed_p && *update_over_cellular_allowed_p)
+      *result = true;
+  }
+
+  return EvalStatus::kSucceeded;
 }
 
 }  // namespace chromeos_policy_manager

@@ -44,6 +44,15 @@ class DefaultPolicy : public Policy {
     return EvalStatus::kSucceeded;
   }
 
+  virtual EvalStatus UpdateCurrentConnectionAllowed(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      bool* result) const override {
+    *result = true;
+    return EvalStatus::kSucceeded;
+  }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(DefaultPolicy);
 };

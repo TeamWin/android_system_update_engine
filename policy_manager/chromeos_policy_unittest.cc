@@ -4,6 +4,7 @@
 
 #include "update_engine/policy_manager/chromeos_policy.h"
 
+#include <set>
 #include <string>
 
 #include <base/time/time.h>
@@ -17,6 +18,7 @@
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
+using std::set;
 using std::string;
 
 namespace chromeos_policy_manager {
@@ -55,6 +57,12 @@ class PmChromeOSPolicyTest : public ::testing::Test {
     // For the purpose of the tests, this is an official build.
     fake_state_.system_provider()->var_is_official_build()->reset(
         new bool(true));
+
+    // Connection is wifi, untethered.
+    fake_state_.shill_provider()->var_conn_type()->
+        reset(new ConnectionType(ConnectionType::kWifi));
+    fake_state_.shill_provider()->var_conn_tethering()->
+        reset(new ConnectionTethering(ConnectionTethering::kNotDetected));
   }
 
   // Sets up a default device policy that does not impose any restrictions, nor
@@ -510,6 +518,156 @@ TEST_F(PmChromeOSPolicyTest, UpdateCanStartAllowedWithHttpForUnofficialBuild) {
   EXPECT_TRUE(result.http_allowed);
   EXPECT_FALSE(result.p2p_allowed);
   EXPECT_EQ("foo-channel", result.target_channel);
+}
+
+TEST_F(PmChromeOSPolicyTest, UpdateCurrentConnectionAllowedEthernetDefault) {
+  // Ethernet is always allowed.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kEthernet));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_TRUE(result);
+}
+
+TEST_F(PmChromeOSPolicyTest, UpdateCurrentConnectionAllowedWifiDefault) {
+  // Wifi is allowed if not tethered.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kWifi));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_TRUE(result);
+}
+
+TEST_F(PmChromeOSPolicyTest,
+       UpdateCurrentConnectionNotAllowedWifiTetheredDefault) {
+  // Tethered wifi is not allowed by default.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kWifi));
+  fake_state_.shill_provider()->var_conn_tethering()->
+      reset(new ConnectionTethering(ConnectionTethering::kConfirmed));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_FALSE(result);
+}
+
+TEST_F(PmChromeOSPolicyTest,
+       UpdateCurrentConnectionAllowedWifiTetheredPolicyOverride) {
+  // Tethered wifi can be allowed by policy.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kWifi));
+  fake_state_.shill_provider()->var_conn_tethering()->
+      reset(new ConnectionTethering(ConnectionTethering::kConfirmed));
+  set<ConnectionType> allowed_connections;
+  allowed_connections.insert(ConnectionType::kCellular);
+  fake_state_.device_policy_provider()->
+      var_allowed_connection_types_for_update()->
+      reset(new set<ConnectionType>(allowed_connections));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_TRUE(result);
+}
+
+TEST_F(PmChromeOSPolicyTest, UpdateCurrentConnectionAllowedWimaxDefault) {
+  // Wimax is always allowed.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kWifi));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_TRUE(result);
+}
+
+TEST_F(PmChromeOSPolicyTest,
+       UpdateCurrentConnectionNotAllowedBluetoothDefault) {
+  // Bluetooth is never allowed.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kBluetooth));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_FALSE(result);
+}
+
+TEST_F(PmChromeOSPolicyTest,
+       UpdateCurrentConnectionNotAllowedBluetoothPolicyCannotOverride) {
+  // Bluetooth cannot be allowed even by policy.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kBluetooth));
+  set<ConnectionType> allowed_connections;
+  allowed_connections.insert(ConnectionType::kBluetooth);
+  fake_state_.device_policy_provider()->
+      var_allowed_connection_types_for_update()->
+      reset(new set<ConnectionType>(allowed_connections));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_FALSE(result);
+}
+
+TEST_F(PmChromeOSPolicyTest, UpdateCurrentConnectionNotAllowedCellularDefault) {
+  // Cellular is not allowed by default.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kCellular));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_FALSE(result);
+}
+
+TEST_F(PmChromeOSPolicyTest,
+       UpdateCurrentConnectionAllowedCellularPolicyOverride) {
+  // Update over cellular can be enabled by policy.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kCellular));
+  set<ConnectionType> allowed_connections;
+  allowed_connections.insert(ConnectionType::kCellular);
+  fake_state_.device_policy_provider()->
+      var_allowed_connection_types_for_update()->
+      reset(new set<ConnectionType>(allowed_connections));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_TRUE(result);
+}
+
+TEST_F(PmChromeOSPolicyTest,
+       UpdateCurrentConnectionAllowedCellularUserOverride) {
+  // Update over cellular can be enabled by user settings, but only if policy
+  // is present and does not determine allowed connections.
+
+  fake_state_.shill_provider()->var_conn_type()->
+      reset(new ConnectionType(ConnectionType::kCellular));
+  set<ConnectionType> allowed_connections;
+  allowed_connections.insert(ConnectionType::kCellular);
+  fake_state_.updater_provider()->var_cellular_enabled()->
+      reset(new bool(true));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCurrentConnectionAllowed, &result);
+  EXPECT_TRUE(result);
 }
 
 }  // namespace chromeos_policy_manager

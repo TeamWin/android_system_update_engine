@@ -27,6 +27,10 @@ class MockPolicy : public Policy {
                                 UpdateCanStartResult*,
                                 const bool, const UpdateState&));
 
+  MOCK_CONST_METHOD4(UpdateCanStart,
+                     EvalStatus(EvaluationContext*, State*, std::string*,
+                                bool*));
+
  private:
   DISALLOW_COPY_AND_ASSIGN(MockPolicy);
 };
