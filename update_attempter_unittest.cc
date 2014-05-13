@@ -441,7 +441,7 @@ void UpdateAttempterTest::UpdateTestStart() {
   }
   EXPECT_CALL(*processor_, StartProcessing()).Times(1);
 
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   g_idle_add(&StaticUpdateTestVerify, this);
 }
 
@@ -645,7 +645,7 @@ void UpdateAttempterTest::ReadChannelFromPolicyTestStart() {
 
   ASSERT_FALSE(test_dir_.empty());
   attempter_.omaha_request_params_->set_root(test_dir_);
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_EQ("beta-channel",
             attempter_.omaha_request_params_->target_channel());
 
@@ -675,7 +675,7 @@ void UpdateAttempterTest::ReadUpdateDisabledFromPolicyTestStart() {
           SetArgumentPointee<0>(true),
           Return(true)));
 
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_TRUE(attempter_.omaha_request_params_->update_disabled());
 
   g_idle_add(&StaticQuitMainLoop, this);
@@ -725,7 +725,7 @@ void UpdateAttempterTest::P2PNotEnabledStart() {
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
@@ -753,7 +753,7 @@ void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(false);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
@@ -781,7 +781,7 @@ void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
@@ -808,7 +808,7 @@ void UpdateAttempterTest::P2PEnabledStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
@@ -836,7 +836,7 @@ void UpdateAttempterTest::P2PEnabledInteractiveStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
-  attempter_.Update("", "", false, true /* interactive */, false);
+  attempter_.Update("", "", false, true /* interactive */);
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
@@ -867,7 +867,7 @@ void UpdateAttempterTest::ReadTargetVersionPrefixFromPolicyTestStart() {
           SetArgumentPointee<0>(target_version_prefix),
           Return(true)));
 
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_EQ(target_version_prefix.c_str(),
             attempter_.omaha_request_params_->target_version_prefix());
 
@@ -899,7 +899,7 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
           SetArgumentPointee<0>(scatter_factor_in_seconds),
           Return(true)));
 
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   g_idle_add(&StaticQuitMainLoop, this);
@@ -944,7 +944,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
           SetArgumentPointee<0>(scatter_factor_in_seconds),
           Return(true)));
 
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   // Make sure the file still exists.
@@ -960,7 +960,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   // However, if the count is already 0, it's not decremented. Test that.
   initial_value = 0;
   EXPECT_TRUE(prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
-  attempter_.Update("", "", false, false, false);
+  attempter_.Update("", "", false, false);
   EXPECT_TRUE(prefs.Exists(kPrefsUpdateCheckCount));
   EXPECT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
   EXPECT_EQ(initial_value, new_value);
@@ -1011,7 +1011,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
           Return(true)));
 
   // Trigger an interactive check so we can test that scattering is disabled.
-  attempter_.Update("", "", false, true, false);
+  attempter_.Update("", "", false, true);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   // Make sure scattering is disabled for manual (i.e. user initiated) update

@@ -12,7 +12,6 @@
 
 #include "update_engine/clock.h"
 #include "update_engine/connection_manager.h"
-#include "update_engine/gpio_handler.h"
 #include "update_engine/hardware.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
@@ -33,7 +32,7 @@ class RealSystemState : public SystemState {
 
   // Initializes and sets systems objects that require an initialization
   // separately from construction. Returns |true| on success.
-  bool Initialize(bool enable_gpio);
+  bool Initialize();
 
   virtual inline void set_device_policy(
       const policy::DevicePolicy* device_policy) override {
@@ -70,10 +69,6 @@ class RealSystemState : public SystemState {
 
   virtual inline PayloadStateInterface* payload_state() override {
     return &payload_state_;
-  }
-
-  virtual inline GpioHandler* gpio_handler() override {
-    return gpio_handler_.get();
   }
 
   virtual inline UpdateAttempter* update_attempter() override {
@@ -123,13 +118,6 @@ class RealSystemState : public SystemState {
   // All state pertaining to payload state such as
   // response, URL, backoff states.
   PayloadState payload_state_;
-
-  // Pointer to a GPIO handler and other needed modules (note that the order of
-  // declaration significant for destruction, as the latter depends on the
-  // former).
-  scoped_ptr<UdevInterface> udev_iface_;
-  scoped_ptr<FileDescriptor> file_descriptor_;
-  scoped_ptr<GpioHandler> gpio_handler_;
 
   // The dbus object used to initialize the update attempter.
   RealDBusWrapper dbus_;

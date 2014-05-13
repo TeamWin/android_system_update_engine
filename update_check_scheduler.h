@@ -38,7 +38,6 @@ class UpdateCheckScheduler {
  public:
   static const int kTimeoutInitialInterval;
   static const int kTimeoutPeriodicInterval;
-  static const int kTimeoutQuickInterval;
   static const int kTimeoutRegularFuzz;
   static const int kTimeoutMaxBackoffInterval;
 
@@ -49,10 +48,8 @@ class UpdateCheckScheduler {
   // Initiates the periodic update checks, if necessary.
   void Run();
 
-  // Sets the new update status. This is invoked by UpdateAttempter.  |notice|
-  // is used for passing supplemental information about recent update events,
-  // which may influence scheduling decisions.
-  void SetUpdateStatus(UpdateStatus status, UpdateNotice notice);
+  // Sets the new update status. This is invoked by UpdateAttempter.
+  void SetUpdateStatus(UpdateStatus status);
 
   void set_poll_interval(int interval) { poll_interval_ = interval; }
   int poll_interval() const { return poll_interval_; }
@@ -97,15 +94,12 @@ class UpdateCheckScheduler {
   static gboolean StaticCheck(void* scheduler);
 
   // Schedules the next update check by setting up a timeout source;
-  // |is_force_quick| will enforce a quick subsequent update check interval.
-  void ScheduleNextCheck(bool is_force_quick);
+  void ScheduleNextCheck();
 
   // Computes the timeout interval along with its random fuzz range for the next
   // update check by taking into account the last timeout interval as well as
-  // the last update status. A nonzero |forced_interval|, however, will override
-  // all other considerations.
-  void ComputeNextIntervalAndFuzz(const int forced_interval,
-                                  int* next_interval, int* next_fuzz);
+  // the last update status.
+  void ComputeNextIntervalAndFuzz(int* next_interval, int* next_fuzz);
 
   // The UpdateAttempter to use for update checks.
   UpdateAttempter* update_attempter_;
@@ -121,9 +115,6 @@ class UpdateCheckScheduler {
 
   // Server dictated poll interval in seconds, if positive.
   int poll_interval_;
-
-  // A flag indicating whether a test update cycle was already attempted.
-  bool is_test_update_attempted_;
 
   // The external state of the system outside the update_engine process.
   SystemState* system_state_;

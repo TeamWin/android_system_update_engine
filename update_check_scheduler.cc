@@ -5,7 +5,6 @@
 #include "update_engine/update_check_scheduler.h"
 
 #include "update_engine/certificate_checker.h"
-#include "update_engine/gpio_handler.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/http_common.h"
 #include "update_engine/system_state.h"
@@ -17,7 +16,6 @@ namespace chromeos_update_engine {
 // actual fuzz is within +/- half of the indicated value.
 const int UpdateCheckScheduler::kTimeoutInitialInterval    =  7 * 60;
 const int UpdateCheckScheduler::kTimeoutPeriodicInterval   = 45 * 60;
-const int UpdateCheckScheduler::kTimeoutQuickInterval      =  1 * 60;
 const int UpdateCheckScheduler::kTimeoutMaxBackoffInterval =  4 * 60 * 60;
 const int UpdateCheckScheduler::kTimeoutRegularFuzz        = 10 * 60;
 
@@ -28,7 +26,6 @@ UpdateCheckScheduler::UpdateCheckScheduler(UpdateAttempter* update_attempter,
       scheduled_(false),
       last_interval_(0),
       poll_interval_(0),
-      is_test_update_attempted_(false),
       system_state_(system_state) {}
 
 UpdateCheckScheduler::~UpdateCheckScheduler() {}
@@ -82,20 +79,10 @@ gboolean UpdateCheckScheduler::StaticCheck(void* scheduler) {
   CHECK(me->scheduled_);
   me->scheduled_ = false;
 
-  bool is_test_mode = false;
-  GpioHandler* gpio_handler = me->system_state_->gpio_handler();
-  if (me->system_state_->hardware()->IsOOBEComplete(nullptr) ||
-      (is_test_mode = (!me->is_test_update_attempted_ &&
-                       gpio_handler->IsTestModeSignaled()))) {
-    if (is_test_mode) {
-      LOG(WARNING)
-          << "test mode signaled, allowing update check prior to OOBE complete";
-      me->is_test_update_attempted_ = true;
-    }
-
+  if (me->system_state_->hardware()->IsOOBEComplete(nullptr)) {
     // Before updating, we flush any previously generated UMA reports.
     CertificateChecker::FlushReport();
-    me->update_attempter_->Update("", "", false, false, is_test_mode);
+    me->update_attempter_->Update("", "", false, false);
   } else {
     // Skips all automatic update checks if the OOBE process is not complete and
     // schedules a new check as if it is the first one.
@@ -112,41 +99,38 @@ gboolean UpdateCheckScheduler::StaticCheck(void* scheduler) {
   return FALSE;  // Don't run again.
 }
 
-void UpdateCheckScheduler::ComputeNextIntervalAndFuzz(const int forced_interval,
-                                                      int* next_interval,
+void UpdateCheckScheduler::ComputeNextIntervalAndFuzz(int* next_interval,
                                                       int* next_fuzz) {
   CHECK(next_interval && next_fuzz);
 
-  int interval = forced_interval;
+  int interval = 0;
   int fuzz = 0;  // Use default fuzz value (see below)
 
-  if (interval == 0) {
-    int http_response_code;
-    if (poll_interval_ > 0) {
-      // Server-dictated poll interval.
-      interval = poll_interval_;
-      LOG(WARNING) << "Using server-dictated poll interval: " << interval;
-    } else if ((http_response_code = update_attempter_->http_response_code()) ==
-               kHttpResponseInternalServerError ||
-               http_response_code == kHttpResponseServiceUnavailable) {
-      // Implements exponential backoff on 500 (Internal Server Error) and 503
-      // (Service Unavailable) HTTP response codes.
-      interval = 2 * last_interval_;
-      LOG(WARNING) << "Exponential backoff due to HTTP response code ("
-                   << http_response_code << ")";
-    }
+  int http_response_code;
+  if (poll_interval_ > 0) {
+    // Server-dictated poll interval.
+    interval = poll_interval_;
+    LOG(WARNING) << "Using server-dictated poll interval: " << interval;
+  } else if ((http_response_code = update_attempter_->http_response_code()) ==
+             kHttpResponseInternalServerError ||
+             http_response_code == kHttpResponseServiceUnavailable) {
+    // Implements exponential backoff on 500 (Internal Server Error) and 503
+    // (Service Unavailable) HTTP response codes.
+    interval = 2 * last_interval_;
+    LOG(WARNING) << "Exponential backoff due to HTTP response code ("
+                 << http_response_code << ")";
+  }
 
-    // Backoff cannot exceed a predetermined maximum period.
-    if (interval > kTimeoutMaxBackoffInterval)
-      interval = kTimeoutMaxBackoffInterval;
+  // Backoff cannot exceed a predetermined maximum period.
+  if (interval > kTimeoutMaxBackoffInterval)
+    interval = kTimeoutMaxBackoffInterval;
 
-    // Ensures that under normal conditions the regular update check interval
-    // and fuzz are used. Also covers the case where backoff is required based
-    // on the initial update check.
-    if (interval < kTimeoutPeriodicInterval) {
-      interval = kTimeoutPeriodicInterval;
-      fuzz = kTimeoutRegularFuzz;
-    }
+  // Ensures that under normal conditions the regular update check interval
+  // and fuzz are used. Also covers the case where backoff is required based
+  // on the initial update check.
+  if (interval < kTimeoutPeriodicInterval) {
+    interval = kTimeoutPeriodicInterval;
+    fuzz = kTimeoutRegularFuzz;
   }
 
   // Set default fuzz to +/- |interval|/2.
@@ -157,21 +141,19 @@ void UpdateCheckScheduler::ComputeNextIntervalAndFuzz(const int forced_interval,
   *next_fuzz = fuzz;
 }
 
-void UpdateCheckScheduler::ScheduleNextCheck(bool is_force_quick) {
+void UpdateCheckScheduler::ScheduleNextCheck() {
   int interval, fuzz;
-  ComputeNextIntervalAndFuzz(is_force_quick ? kTimeoutQuickInterval : 0,
-                             &interval, &fuzz);
+  ComputeNextIntervalAndFuzz(&interval, &fuzz);
   ScheduleCheck(interval, fuzz);
 }
 
-void UpdateCheckScheduler::SetUpdateStatus(UpdateStatus status,
-                                           UpdateNotice notice) {
+void UpdateCheckScheduler::SetUpdateStatus(UpdateStatus status) {
   // We want to schedule the update checks for when we're idle as well as
   // after we've successfully applied an update and waiting for the user
   // to reboot to ensure our active count is accurate.
   if (status == UPDATE_STATUS_IDLE ||
       status == UPDATE_STATUS_UPDATED_NEED_REBOOT) {
-    ScheduleNextCheck(notice == kUpdateNoticeTestAddrFailed);
+    ScheduleNextCheck();
   }
 }
 

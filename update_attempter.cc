@@ -26,7 +26,6 @@
 #include "update_engine/dbus_service.h"
 #include "update_engine/download_action.h"
 #include "update_engine/filesystem_copier_action.h"
-#include "update_engine/gpio_handler.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/metrics.h"
@@ -57,12 +56,6 @@ using std::vector;
 namespace chromeos_update_engine {
 
 const int UpdateAttempter::kMaxDeltaUpdateFailures = 3;
-
-// Private test server URL w/ custom port number.
-// TODO(garnold) This is a temporary hack to allow us to test the closed loop
-// automated update testing. To be replaced with an hard-coded local IP address.
-const char* const UpdateAttempter::kTestUpdateUrl(
-    "http://garnold.mtv.corp.google.com:8080/update");
 
 namespace {
 const int kMaxConsecutiveObeyProxyRequests = 20;
@@ -220,8 +213,7 @@ void UpdateAttempter::ReportOSAge() {
 void UpdateAttempter::Update(const string& app_version,
                              const string& omaha_url,
                              bool obey_proxies,
-                             bool interactive,
-                             bool is_test_mode) {
+                             bool interactive) {
   // This is called at least every 4 hours (see the constant
   // UpdateCheckScheduler::kTimeoutMaxBackoffInterval) so it's
   // appropriate to use as a hook for reporting daily metrics.
@@ -252,15 +244,13 @@ void UpdateAttempter::Update(const string& app_version,
   if (!CalculateUpdateParams(app_version,
                              omaha_url,
                              obey_proxies,
-                             interactive,
-                             is_test_mode)) {
+                             interactive)) {
     return;
   }
 
   BuildUpdateActions(interactive);
 
-  SetStatusAndNotify(UPDATE_STATUS_CHECKING_FOR_UPDATE,
-                     kUpdateNoticeUnspecified);
+  SetStatusAndNotify(UPDATE_STATUS_CHECKING_FOR_UPDATE);
 
   // Just in case we didn't update boot flags yet, make sure they're updated
   // before any update processing starts.
@@ -322,12 +312,9 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
 bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             const string& omaha_url,
                                             bool obey_proxies,
-                                            bool interactive,
-                                            bool is_test_mode) {
+                                            bool interactive) {
   http_response_code_ = 0;
 
-  // Set the test mode flag for the current update attempt.
-  is_test_mode_ = is_test_mode;
   RefreshDevicePolicy();
   const policy::DevicePolicy* device_policy = system_state_->device_policy();
   if (device_policy) {
@@ -366,15 +353,8 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     }
   }
 
-  // Determine whether an alternative test address should be used.
-  string omaha_url_to_use = omaha_url;
-  if ((is_using_test_url_ = (omaha_url_to_use.empty() && is_test_mode_))) {
-    omaha_url_to_use = kTestUpdateUrl;
-    LOG(INFO) << "using alternative server address: " << omaha_url_to_use;
-  }
-
   if (!omaha_request_params_->Init(app_version,
-                                   omaha_url_to_use,
+                                   omaha_url,
                                    interactive)) {
     LOG(ERROR) << "Unable to initialize Omaha request params.";
     return false;
@@ -588,7 +568,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
 
   // Actions:
   LibcurlHttpFetcher* update_check_fetcher =
-      new LibcurlHttpFetcher(GetProxyResolver(), system_state_, is_test_mode_);
+      new LibcurlHttpFetcher(GetProxyResolver(), system_state_);
   // Try harder to connect to the network, esp when not interactive.
   // See comment in libcurl_http_fetcher.cc.
   update_check_fetcher->set_no_network_max_retries(interactive ? 1 : 3);
@@ -611,11 +591,10 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                              new OmahaEvent(
                                  OmahaEvent::kTypeUpdateDownloadStarted),
                              new LibcurlHttpFetcher(GetProxyResolver(),
-                                                    system_state_,
-                                                    is_test_mode_),
+                                                    system_state_),
                              false));
   LibcurlHttpFetcher* download_fetcher =
-      new LibcurlHttpFetcher(GetProxyResolver(), system_state_, is_test_mode_);
+      new LibcurlHttpFetcher(GetProxyResolver(), system_state_);
   download_fetcher->set_check_certificate(CertificateChecker::kDownload);
   shared_ptr<DownloadAction> download_action(
       new DownloadAction(prefs_,
@@ -627,8 +606,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                              new OmahaEvent(
                                  OmahaEvent::kTypeUpdateDownloadFinished),
                              new LibcurlHttpFetcher(GetProxyResolver(),
-                                                    system_state_,
-                                                    is_test_mode_),
+                                                    system_state_),
                              false));
   shared_ptr<FilesystemCopierAction> filesystem_verifier_action(
       new FilesystemCopierAction(system_state_, false, true));
@@ -638,8 +616,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
                              new LibcurlHttpFetcher(GetProxyResolver(),
-                                                    system_state_,
-                                                    is_test_mode_),
+                                                    system_state_),
                              false));
 
   download_action->set_delegate(this);
@@ -740,8 +717,7 @@ bool UpdateAttempter::Rollback(bool powerwash) {
   // Update the payload state for Rollback.
   system_state_->payload_state()->Rollback();
 
-  SetStatusAndNotify(UPDATE_STATUS_ATTEMPTING_ROLLBACK,
-                     kUpdateNoticeUnspecified);
+  SetStatusAndNotify(UPDATE_STATUS_ATTEMPTING_ROLLBACK);
 
   // Just in case we didn't update boot flags yet, make sure they're updated
   // before any update processing starts. This also schedules the start of the
@@ -825,19 +801,9 @@ void UpdateAttempter::CheckForUpdate(const string& app_version,
     return;
   }
 
-  // Read GPIO signals and determine whether this is an automated test scenario.
-  // For safety, we only allow a test update to be performed once; subsequent
-  // update requests will be carried out normally.
-  bool is_test_mode = (!is_test_update_attempted_ &&
-                       system_state_->gpio_handler()->IsTestModeSignaled());
-  if (is_test_mode) {
-    LOG(WARNING) << "this is a test mode update attempt!";
-    is_test_update_attempted_ = true;
-  }
-
   // Pass through the interactive flag, in case we want to simulate a scheduled
   // test.
-  Update(app_version, omaha_url, true, interactive, is_test_mode);
+  Update(app_version, omaha_url, true, interactive);
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
@@ -874,11 +840,8 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   if (status_ == UPDATE_STATUS_REPORTING_ERROR_EVENT) {
     LOG(INFO) << "Error event sent.";
 
-    // Inform scheduler of new status; also specifically inform about a failed
-    // update attempt with a test address.
-    SetStatusAndNotify(UPDATE_STATUS_IDLE,
-                       (is_using_test_url_ ? kUpdateNoticeTestAddrFailed :
-                        kUpdateNoticeUnspecified));
+    // Inform scheduler of new status;
+    SetStatusAndNotify(UPDATE_STATUS_IDLE);
 
     if (!fake_update_success_) {
       return;
@@ -909,8 +872,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     prefs_->Delete(kPrefsWallClockWaitPeriod);
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
 
-    SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT,
-                       kUpdateNoticeUnspecified);
+    SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT);
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
     // This pointer is NULL during rollback operations, and the stats
@@ -946,14 +908,14 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     return;
   }
   LOG(INFO) << "No update.";
-  SetStatusAndNotify(UPDATE_STATUS_IDLE, kUpdateNoticeUnspecified);
+  SetStatusAndNotify(UPDATE_STATUS_IDLE);
 }
 
 void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
   // Reset cpu shares back to normal.
   CleanupCpuSharesManagement();
   download_progress_ = 0.0;
-  SetStatusAndNotify(UPDATE_STATUS_IDLE, kUpdateNoticeUnspecified);
+  SetStatusAndNotify(UPDATE_STATUS_IDLE);
   actions_.clear();
   error_event_.reset(NULL);
 }
@@ -1020,10 +982,9 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     new_payload_size_ = plan.payload_size;
     SetupDownload();
     SetupCpuSharesManagement();
-    SetStatusAndNotify(UPDATE_STATUS_UPDATE_AVAILABLE,
-                       kUpdateNoticeUnspecified);
+    SetStatusAndNotify(UPDATE_STATUS_UPDATE_AVAILABLE);
   } else if (type == DownloadAction::StaticType()) {
-    SetStatusAndNotify(UPDATE_STATUS_FINALIZING, kUpdateNoticeUnspecified);
+    SetStatusAndNotify(UPDATE_STATUS_FINALIZING);
   }
 }
 
@@ -1060,7 +1021,7 @@ void UpdateAttempter::BytesReceived(uint64_t bytes_received, uint64_t total) {
       progress - download_progress_ >= kDeltaPercent ||
       TimeTicks::Now() - last_notify_time_ >= TimeDelta::FromSeconds(10)) {
     download_progress_ = progress;
-    SetStatusAndNotify(UPDATE_STATUS_DOWNLOADING, kUpdateNoticeUnspecified);
+    SetStatusAndNotify(UPDATE_STATUS_DOWNLOADING);
   }
 }
 
@@ -1198,11 +1159,10 @@ bool UpdateAttempter::ShouldCancel(ErrorCode* cancel_reason) {
   return false;
 }
 
-void UpdateAttempter::SetStatusAndNotify(UpdateStatus status,
-                                         UpdateNotice notice) {
+void UpdateAttempter::SetStatusAndNotify(UpdateStatus status) {
   status_ = status;
   if (update_check_scheduler_) {
-    update_check_scheduler_->SetUpdateStatus(status_, notice);
+    update_check_scheduler_->SetUpdateStatus(status_);
   }
   BroadcastStatus();
 }
@@ -1268,13 +1228,11 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
       new OmahaRequestAction(system_state_,
                              error_event_.release(),  // Pass ownership.
                              new LibcurlHttpFetcher(GetProxyResolver(),
-                                                    system_state_,
-                                                    is_test_mode_),
+                                                    system_state_),
                              false));
   actions_.push_back(shared_ptr<AbstractAction>(error_event_action));
   processor_->EnqueueAction(error_event_action.get());
-  SetStatusAndNotify(UPDATE_STATUS_REPORTING_ERROR_EVENT,
-                     kUpdateNoticeUnspecified);
+  SetStatusAndNotify(UPDATE_STATUS_REPORTING_ERROR_EVENT);
   processor_->StartProcessing();
   return true;
 }
@@ -1383,8 +1341,7 @@ void UpdateAttempter::PingOmaha() {
         new OmahaRequestAction(system_state_,
                                NULL,
                                new LibcurlHttpFetcher(GetProxyResolver(),
-                                                      system_state_,
-                                                      is_test_mode_),
+                                                      system_state_),
                                true));
     actions_.push_back(shared_ptr<OmahaRequestAction>(ping_action));
     processor_->set_delegate(NULL);
@@ -1405,8 +1362,7 @@ void UpdateAttempter::PingOmaha() {
   }
 
   // Update the status which will schedule the next update check
-  SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT,
-                     kUpdateNoticeUnspecified);
+  SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT);
 }
 
 

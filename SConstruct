@@ -168,7 +168,6 @@ env['LIBS'] = Split("""bz2
                        rootdev
                        rt
                        ssl
-                       udev
                        vboot_host
                        xml2""" % (BASE_VER, BASE_VER))
 env['CPPPATH'] = ['..']
@@ -214,7 +213,6 @@ sources = Split("""action_processor.cc
                    file_descriptor.cc
                    file_writer.cc
                    filesystem_copier_action.cc
-                   gpio_handler.cc
                    hardware.cc
                    http_common.cc
                    http_fetcher.cc
@@ -282,9 +280,6 @@ unittest_sources = Split("""action_pipe_unittest.cc
                             fake_system_state.cc
                             file_writer_unittest.cc
                             filesystem_copier_action_unittest.cc
-                            gpio_handler_unittest.cc
-                            gpio_mock_file_descriptor.cc
-                            gpio_mock_udev_interface.cc
                             http_fetcher_unittest.cc
                             hwid_override_unittest.cc
                             mock_http_fetcher.cc

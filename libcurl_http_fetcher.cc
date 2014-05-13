@@ -192,16 +192,16 @@ void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
                             kDownloadMaxRedirects),
            CURLE_OK);
 
-  // If we are running in test mode or using a dev/test build, then lock down
-  // the appropriate curl options for HTTP or HTTPS depending on the url.
-  if (!is_test_mode_ && GetSystemState()->hardware()->IsOfficialBuild()) {
+  // Lock down the appropriate curl options for HTTP or HTTPS depending on
+  // the url.
+  if (GetSystemState()->hardware()->IsOfficialBuild()) {
     if (StartsWithASCII(url_to_use, "http://", false))
       SetCurlOptionsForHttp();
     else
       SetCurlOptionsForHttps();
   } else {
-    LOG(INFO) << "Not setting http(s) curl options because we are in "
-              << "test mode or running a dev/test image";
+    LOG(INFO) << "Not setting http(s) curl options because we are "
+              << "running a dev/test image";
   }
 
   CHECK_EQ(curl_multi_add_handle(curl_multi_handle_, curl_handle_), CURLM_OK);

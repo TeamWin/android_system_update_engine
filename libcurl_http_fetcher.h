@@ -28,8 +28,7 @@ namespace chromeos_update_engine {
 class LibcurlHttpFetcher : public HttpFetcher {
  public:
   LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
-                     SystemState* system_state,
-                     bool is_test_mode)
+                     SystemState* system_state)
       : HttpFetcher(proxy_resolver, system_state),
         curl_multi_handle_(NULL),
         curl_handle_(NULL),
@@ -50,7 +49,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
         sent_byte_(false),
         terminate_requested_(false),
         check_certificate_(CertificateChecker::kNone),
-        is_test_mode_(is_test_mode),
         low_speed_limit_bps_(kDownloadLowSpeedLimitBps),
         low_speed_time_seconds_(kDownloadLowSpeedTimeSeconds),
         connect_timeout_seconds_(kDownloadConnectTimeoutSeconds) {
@@ -275,9 +273,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // connection's certificate. If no certificate check needs to be performed,
   // this should be kNone.
   CertificateChecker::ServerToCheck check_certificate_;
-
-  // If true, utilizes a relaxed test mode fetch logic. False by default.
-  bool is_test_mode_;
 
   int low_speed_limit_bps_;
   int low_speed_time_seconds_;

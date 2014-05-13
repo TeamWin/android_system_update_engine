@@ -23,7 +23,6 @@ FakeSystemState::FakeSystemState()
     prefs_(&mock_prefs_),
     powerwash_safe_prefs_(&mock_powerwash_safe_prefs_),
     payload_state_(&mock_payload_state_),
-    gpio_handler_(&mock_gpio_handler_),
     update_attempter_(&mock_update_attempter_),
     request_params_(&default_request_params_),
     p2p_manager_(&mock_p2p_manager_),

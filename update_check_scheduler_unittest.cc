@@ -102,14 +102,14 @@ TEST_F(UpdateCheckSchedulerTest, ComputeNextIntervalAndFuzzBackoffTest) {
   attempter_.set_http_response_code(500);
   int last_interval = UpdateCheckScheduler::kTimeoutPeriodicInterval + 50;
   scheduler_.last_interval_ = last_interval;
-  scheduler_.ComputeNextIntervalAndFuzz(0, &interval, &fuzz);
+  scheduler_.ComputeNextIntervalAndFuzz(&interval, &fuzz);
   EXPECT_EQ(2 * last_interval, interval);
   EXPECT_EQ(2 * last_interval, fuzz);
 
   attempter_.set_http_response_code(503);
   scheduler_.last_interval_ =
     UpdateCheckScheduler::kTimeoutMaxBackoffInterval / 2 + 1;
-  scheduler_.ComputeNextIntervalAndFuzz(0, &interval, &fuzz);
+  scheduler_.ComputeNextIntervalAndFuzz(&interval, &fuzz);
   EXPECT_EQ(UpdateCheckScheduler::kTimeoutMaxBackoffInterval, interval);
   EXPECT_EQ(UpdateCheckScheduler::kTimeoutMaxBackoffInterval, fuzz);
 }
@@ -118,19 +118,19 @@ TEST_F(UpdateCheckSchedulerTest, ComputeNextIntervalAndFuzzPollTest) {
   int interval, fuzz;
   int poll_interval = UpdateCheckScheduler::kTimeoutPeriodicInterval + 50;
   scheduler_.set_poll_interval(poll_interval);
-  scheduler_.ComputeNextIntervalAndFuzz(0, &interval, &fuzz);
+  scheduler_.ComputeNextIntervalAndFuzz(&interval, &fuzz);
   EXPECT_EQ(poll_interval, interval);
   EXPECT_EQ(poll_interval, fuzz);
 
   scheduler_.set_poll_interval(
       UpdateCheckScheduler::kTimeoutMaxBackoffInterval + 1);
-  scheduler_.ComputeNextIntervalAndFuzz(0, &interval, &fuzz);
+  scheduler_.ComputeNextIntervalAndFuzz(&interval, &fuzz);
   EXPECT_EQ(UpdateCheckScheduler::kTimeoutMaxBackoffInterval, interval);
   EXPECT_EQ(UpdateCheckScheduler::kTimeoutMaxBackoffInterval, fuzz);
 
   scheduler_.set_poll_interval(
       UpdateCheckScheduler::kTimeoutPeriodicInterval - 1);
-  scheduler_.ComputeNextIntervalAndFuzz(0, &interval, &fuzz);
+  scheduler_.ComputeNextIntervalAndFuzz(&interval, &fuzz);
   EXPECT_EQ(UpdateCheckScheduler::kTimeoutPeriodicInterval, interval);
   EXPECT_EQ(UpdateCheckScheduler::kTimeoutRegularFuzz, fuzz);
 }
@@ -142,14 +142,14 @@ TEST_F(UpdateCheckSchedulerTest, ComputeNextIntervalAndFuzzPriorityTest) {
     UpdateCheckScheduler::kTimeoutPeriodicInterval + 50;
   int poll_interval = UpdateCheckScheduler::kTimeoutPeriodicInterval + 100;
   scheduler_.set_poll_interval(poll_interval);
-  scheduler_.ComputeNextIntervalAndFuzz(0, &interval, &fuzz);
+  scheduler_.ComputeNextIntervalAndFuzz(&interval, &fuzz);
   EXPECT_EQ(poll_interval, interval);
   EXPECT_EQ(poll_interval, fuzz);
 }
 
 TEST_F(UpdateCheckSchedulerTest, ComputeNextIntervalAndFuzzTest) {
   int interval, fuzz;
-  scheduler_.ComputeNextIntervalAndFuzz(0, &interval, &fuzz);
+  scheduler_.ComputeNextIntervalAndFuzz(&interval, &fuzz);
   EXPECT_EQ(UpdateCheckScheduler::kTimeoutPeriodicInterval, interval);
   EXPECT_EQ(UpdateCheckScheduler::kTimeoutRegularFuzz, fuzz);
 }
@@ -225,7 +225,7 @@ TEST_F(UpdateCheckSchedulerTest, ScheduleCheckNegativeIntervalTest) {
 
 TEST_F(UpdateCheckSchedulerTest, ScheduleNextCheckDisabledTest) {
   EXPECT_CALL(scheduler_, GTimeoutAddSeconds(_, _)).Times(0);
-  scheduler_.ScheduleNextCheck(false);
+  scheduler_.ScheduleNextCheck();
 }
 
 TEST_F(UpdateCheckSchedulerTest, ScheduleNextCheckEnabledTest) {
@@ -238,12 +238,12 @@ TEST_F(UpdateCheckSchedulerTest, ScheduleNextCheckEnabledTest) {
               GTimeoutAddSeconds(AllOf(Ge(interval_min), Le(interval_max)),
                                  scheduler_.StaticCheck)).Times(1);
   scheduler_.enabled_ = true;
-  scheduler_.ScheduleNextCheck(false);
+  scheduler_.ScheduleNextCheck();
 }
 
 TEST_F(UpdateCheckSchedulerTest, SetUpdateStatusIdleDisabledTest) {
   EXPECT_CALL(scheduler_, GTimeoutAddSeconds(_, _)).Times(0);
-  scheduler_.SetUpdateStatus(UPDATE_STATUS_IDLE, kUpdateNoticeUnspecified);
+  scheduler_.SetUpdateStatus(UPDATE_STATUS_IDLE);
 }
 
 TEST_F(UpdateCheckSchedulerTest, SetUpdateStatusIdleEnabledTest) {
@@ -256,16 +256,14 @@ TEST_F(UpdateCheckSchedulerTest, SetUpdateStatusIdleEnabledTest) {
               GTimeoutAddSeconds(AllOf(Ge(interval_min), Le(interval_max)),
                                  scheduler_.StaticCheck)).Times(1);
   scheduler_.enabled_ = true;
-  scheduler_.SetUpdateStatus(UPDATE_STATUS_IDLE, kUpdateNoticeUnspecified);
+  scheduler_.SetUpdateStatus(UPDATE_STATUS_IDLE);
 }
 
 TEST_F(UpdateCheckSchedulerTest, SetUpdateStatusNonIdleTest) {
   EXPECT_CALL(scheduler_, GTimeoutAddSeconds(_, _)).Times(0);
-  scheduler_.SetUpdateStatus(UPDATE_STATUS_DOWNLOADING,
-                             kUpdateNoticeUnspecified);
+  scheduler_.SetUpdateStatus(UPDATE_STATUS_DOWNLOADING);
   scheduler_.enabled_ = true;
-  scheduler_.SetUpdateStatus(UPDATE_STATUS_DOWNLOADING,
-                             kUpdateNoticeUnspecified);
+  scheduler_.SetUpdateStatus(UPDATE_STATUS_DOWNLOADING);
 }
 
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
@@ -273,7 +271,7 @@ TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
   EXPECT_TRUE(scheduler_.fake_system_state_ != NULL);
   scheduler_.fake_system_state_->fake_hardware()->SetIsOOBEComplete(
       Time::UnixEpoch());
-  EXPECT_CALL(attempter_, Update("", "", false, false, false))
+  EXPECT_CALL(attempter_, Update("", "", false, false))
       .Times(1)
       .WillOnce(Assign(&scheduler_.scheduled_, true));
   scheduler_.enabled_ = true;
@@ -284,7 +282,7 @@ TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBENotCompleteTest) {
   scheduler_.scheduled_ = true;
   scheduler_.fake_system_state_->fake_hardware()->UnsetIsOOBEComplete();
-  EXPECT_CALL(attempter_, Update("", "", _, _, _)).Times(0);
+  EXPECT_CALL(attempter_, Update("", "", _, _)).Times(0);
   int interval_min, interval_max;
   FuzzRange(UpdateCheckScheduler::kTimeoutInitialInterval,
             UpdateCheckScheduler::kTimeoutRegularFuzz,

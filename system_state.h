@@ -74,9 +74,6 @@ class SystemState {
   // Gets the interface for the payload state object.
   virtual PayloadStateInterface* payload_state() = 0;
 
-  // Returns a pointer to the GPIO handler.
-  virtual GpioHandler* gpio_handler() = 0;
-
   // Returns a pointer to the update attempter object.
   virtual UpdateAttempter* update_attempter() = 0;
 

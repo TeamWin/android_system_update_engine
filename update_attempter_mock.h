@@ -15,11 +15,10 @@ class UpdateAttempterMock : public UpdateAttempter {
  public:
   using UpdateAttempter::UpdateAttempter;
 
-  MOCK_METHOD5(Update, void(const std::string& app_version,
+  MOCK_METHOD4(Update, void(const std::string& app_version,
                             const std::string& omaha_url,
                             bool obey_proxies,
-                            bool interactive,
-                            bool is_test));
+                            bool interactive));
 
   MOCK_METHOD5(GetStatus, bool(int64_t* last_checked_time,
                                double* progress,

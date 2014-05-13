@@ -14,7 +14,6 @@
 #include "update_engine/fake_hardware.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_dbus_wrapper.h"
-#include "update_engine/mock_gpio_handler.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/policy_manager/fake_policy_manager.h"
@@ -71,10 +70,6 @@ class FakeSystemState : public SystemState {
     return payload_state_;
   }
 
-  virtual inline GpioHandler* gpio_handler() override {
-    return gpio_handler_;
-  }
-
   virtual inline UpdateAttempter* update_attempter() override {
     return update_attempter_;
   }
@@ -128,10 +123,6 @@ class FakeSystemState : public SystemState {
 
   inline void set_payload_state(PayloadStateInterface *payload_state) {
     payload_state_ = payload_state ? payload_state : &mock_payload_state_;
-  }
-
-  inline void set_gpio_handler(GpioHandler* gpio_handler) {
-    gpio_handler_ = gpio_handler ? gpio_handler : &mock_gpio_handler_;
   }
 
   inline void set_update_attempter(UpdateAttempter* update_attempter) {
@@ -197,11 +188,6 @@ class FakeSystemState : public SystemState {
     return &mock_payload_state_;
   }
 
-  inline testing::NiceMock<MockGpioHandler>* mock_gpio_handler() {
-    CHECK(gpio_handler_ == &mock_gpio_handler_);
-    return &mock_gpio_handler_;
-  }
-
   inline testing::NiceMock<UpdateAttempterMock>* mock_update_attempter() {
     CHECK(update_attempter_ == &mock_update_attempter_);
     return &mock_update_attempter_;
@@ -231,7 +217,6 @@ class FakeSystemState : public SystemState {
   testing::NiceMock<PrefsMock> mock_prefs_;
   testing::NiceMock<PrefsMock> mock_powerwash_safe_prefs_;
   testing::NiceMock<MockPayloadState> mock_payload_state_;
-  testing::NiceMock<MockGpioHandler> mock_gpio_handler_;
   testing::NiceMock<UpdateAttempterMock> mock_update_attempter_;
   OmahaRequestParams default_request_params_;
   testing::NiceMock<MockP2PManager> mock_p2p_manager_;
@@ -246,7 +231,6 @@ class FakeSystemState : public SystemState {
   PrefsInterface* prefs_;
   PrefsInterface* powerwash_safe_prefs_;
   PayloadStateInterface* payload_state_;
-  GpioHandler* gpio_handler_;
   UpdateAttempter* update_attempter_;
   OmahaRequestParams* request_params_;
   P2PManager* p2p_manager_;

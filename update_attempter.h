@@ -47,11 +47,6 @@ enum UpdateStatus {
   UPDATE_STATUS_ATTEMPTING_ROLLBACK
 };
 
-enum UpdateNotice {
-  kUpdateNoticeUnspecified = 0,
-  kUpdateNoticeTestAddrFailed,
-};
-
 const char* UpdateStatusToString(UpdateStatus status);
 
 class UpdateAttempter : public ActionProcessorDelegate,
@@ -78,8 +73,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   virtual void Update(const std::string& app_version,
                       const std::string& omaha_url,
                       bool obey_proxies,
-                      bool interactive,
-                      bool is_test_mode);
+                      bool interactive);
 
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor, ErrorCode code);
@@ -243,9 +237,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void ReportOSAge();
 
   // Sets the status to the given status and notifies a status update over dbus.
-  // Also accepts a supplement notice, which is delegated to the scheduler and
-  // used for making better informed scheduling decisions (e.g. retry timeout).
-  void SetStatusAndNotify(UpdateStatus status, UpdateNotice notice);
+  void SetStatusAndNotify(UpdateStatus status);
 
   // Sets up the download parameters after receiving the update check response.
   void SetupDownload();
@@ -311,8 +303,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   bool CalculateUpdateParams(const std::string& app_version,
                              const std::string& omaha_url,
                              bool obey_proxies,
-                             bool interactive,
-                             bool is_test);
+                             bool interactive);
 
   // Calculates all the scattering related parameters (such as waiting period,
   // which type of scattering is enabled, etc.) and also updates/deletes
@@ -445,15 +436,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Used for fetching information about the device policy.
   scoped_ptr<policy::PolicyProvider> policy_provider_;
-
-  // A flag for indicating whether we are using a test server URL.
-  bool is_using_test_url_ = false;
-
-  // If true, will induce a test mode update attempt.
-  bool is_test_mode_ = false;
-
-  // A flag indicating whether a test update cycle was already attempted.
-  bool is_test_update_attempted_ = false;
 
   // The current scatter factor as found in the policy setting.
   base::TimeDelta scatter_factor_;
