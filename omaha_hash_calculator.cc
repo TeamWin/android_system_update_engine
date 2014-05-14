@@ -91,7 +91,7 @@ off_t OmahaHashCalculator::UpdateFile(const string& name, off_t length) {
     }
     bytes_processed += rc;
   }
-  HANDLE_EINTR(close(fd));
+  IGNORE_EINTR(close(fd));
   return bytes_processed;
 }
 

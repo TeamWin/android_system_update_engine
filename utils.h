@@ -480,7 +480,7 @@ class ScopedEintrSafeFdCloser {
   explicit ScopedEintrSafeFdCloser(int* fd) : fd_(fd), should_close_(true) {}
   ~ScopedEintrSafeFdCloser() {
     if (should_close_ && fd_ && (*fd_ >= 0)) {
-      if (!HANDLE_EINTR(close(*fd_)))
+      if (!IGNORE_EINTR(close(*fd_)))
         *fd_ = -1;
     }
   }

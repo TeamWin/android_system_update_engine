@@ -48,7 +48,7 @@ ssize_t EintrSafeFileDescriptor::Write(const void* buf, size_t count) {
 
 bool EintrSafeFileDescriptor::Close() {
   CHECK_GE(fd_, 0);
-  if (HANDLE_EINTR(close(fd_)))
+  if (IGNORE_EINTR(close(fd_)))
     return false;
   Reset();
   return true;
