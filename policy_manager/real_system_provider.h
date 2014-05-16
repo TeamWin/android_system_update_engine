@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "update_engine/hardware_interface.h"
 #include "update_engine/policy_manager/system_provider.h"
 
 namespace chromeos_policy_manager {
@@ -16,7 +17,9 @@ namespace chromeos_policy_manager {
 // SystemProvider concrete implementation.
 class RealSystemProvider : public SystemProvider {
  public:
-  RealSystemProvider() {}
+  explicit RealSystemProvider(
+      chromeos_update_engine::HardwareInterface* hardware)
+      : hardware_(hardware) {}
 
   // Initializes the provider and returns whether it succeeded.
   bool Init();
@@ -29,9 +32,16 @@ class RealSystemProvider : public SystemProvider {
     return var_is_official_build_.get();
   }
 
+  virtual Variable<bool>* var_is_oobe_complete() override {
+    return var_is_oobe_complete_.get();
+  }
+
  private:
   scoped_ptr<Variable<bool>> var_is_normal_boot_mode_;
   scoped_ptr<Variable<bool>> var_is_official_build_;
+  scoped_ptr<Variable<bool>> var_is_oobe_complete_;
+
+  chromeos_update_engine::HardwareInterface* hardware_;
 
   DISALLOW_COPY_AND_ASSIGN(RealSystemProvider);
 };

@@ -23,11 +23,17 @@ class FakeSystemProvider : public SystemProvider {
     return &var_is_official_build_;
   }
 
+  virtual FakeVariable<bool>* var_is_oobe_complete() override {
+    return &var_is_oobe_complete_;
+  }
+
  private:
   FakeVariable<bool> var_is_normal_boot_mode_{
       "is_normal_boot_mode", kVariableModeConst};
   FakeVariable<bool> var_is_official_build_{
       "is_official_build", kVariableModeConst};
+  FakeVariable<bool> var_is_oobe_complete_{
+      "is_oobe_complete", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeSystemProvider);
 };

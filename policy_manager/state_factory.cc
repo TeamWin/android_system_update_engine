@@ -23,14 +23,15 @@ State* DefaultStateFactory(policy::PolicyProvider* policy_provider,
                            chromeos_update_engine::DBusWrapperInterface* dbus,
                            chromeos_update_engine::SystemState* system_state) {
   chromeos_update_engine::ClockInterface* const clock = system_state->clock();
-  scoped_ptr<RealConfigProvider> config_provider(new RealConfigProvider(
-      system_state->hardware()));
+  scoped_ptr<RealConfigProvider> config_provider(
+      new RealConfigProvider(system_state->hardware()));
   scoped_ptr<RealDevicePolicyProvider> device_policy_provider(
       new RealDevicePolicyProvider(policy_provider));
   scoped_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   scoped_ptr<RealShillProvider> shill_provider(
       new RealShillProvider(dbus, clock));
-  scoped_ptr<RealSystemProvider> system_provider(new RealSystemProvider());
+  scoped_ptr<RealSystemProvider> system_provider(
+      new RealSystemProvider(system_state->hardware()));
   scoped_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
   scoped_ptr<RealUpdaterProvider> updater_provider(
       new RealUpdaterProvider(system_state));

@@ -24,6 +24,9 @@ class SystemProvider : public Provider {
   // Returns whether this is an official Chrome OS build.
   virtual Variable<bool>* var_is_official_build() = 0;
 
+  // Returns a variable that tells whether OOBE was completed.
+  virtual Variable<bool>* var_is_oobe_complete() = 0;
+
  protected:
   SystemProvider() {}
 
