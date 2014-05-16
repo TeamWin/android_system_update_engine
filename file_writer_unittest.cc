@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/file_writer.h"
+
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+
 #include <string>
 #include <vector>
+
 #include <gtest/gtest.h>
-#include "update_engine/file_writer.h"
+
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
