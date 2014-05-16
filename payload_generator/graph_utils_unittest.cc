@@ -7,8 +7,9 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/graph_utils.h"
 #include "update_engine/extent_ranges.h"
+#include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/graph_utils.h"
 
 using std::make_pair;
 using std::vector;

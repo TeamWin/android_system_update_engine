@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <string>
 #include <vector>
@@ -13,9 +13,9 @@
 #include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/graph_types.h"
-#include "update_engine/delta_diff_generator.h"
-#include "update_engine/metadata.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/graph_types.h"
+#include "update_engine/payload_generator/metadata.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 

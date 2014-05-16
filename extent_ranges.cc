@@ -10,6 +10,8 @@
 
 #include <base/logging.h>
 
+#include "update_engine/payload_constants.h"
+
 using std::max;
 using std::min;
 using std::set;

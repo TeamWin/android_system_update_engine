@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_GRAPH_UTILS_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_GRAPH_UTILS_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_GRAPH_UTILS_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_GRAPH_UTILS_H_
 
 #include <vector>
-#include "base/basictypes.h"
-#include "update_engine/graph_types.h"
+
+#include <base/basictypes.h>
+
+#include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/update_metadata.pb.h"
 
 // A few utility functions for graphs
@@ -60,4 +62,4 @@ void DumpGraph(const Graph& graph);
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_GRAPH_UTILS_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_GRAPH_UTILS_H_

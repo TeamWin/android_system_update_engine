@@ -4,10 +4,10 @@
 
 #include "update_engine/filesystem_copier_action.h"
 
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <algorithm>
 #include <cstdlib>
@@ -20,7 +20,6 @@
 #include <gio/gunixoutputstream.h>
 #include <glib.h>
 
-#include "update_engine/filesystem_iterator.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/system_state.h"

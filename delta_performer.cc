@@ -13,19 +13,18 @@
 #include <vector>
 
 #include <base/file_util.h>
+#include <base/format_macros.h>
 #include <base/memory/scoped_ptr.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <base/format_macros.h>
 #include <google/protobuf/repeated_field.h>
 
 #include "update_engine/bzip_extent_writer.h"
 #include "update_engine/constants.h"
-#include "update_engine/delta_diff_generator.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/extent_writer.h"
-#include "update_engine/graph_types.h"
 #include "update_engine/hardware_interface.h"
+#include "update_engine/payload_constants.h"
 #include "update_engine/payload_signer.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/prefs_interface.h"
@@ -33,10 +32,10 @@
 #include "update_engine/terminator.h"
 #include "update_engine/update_attempter.h"
 
+using google::protobuf::RepeatedPtrField;
 using std::min;
 using std::string;
 using std::vector;
-using google::protobuf::RepeatedPtrField;
 
 namespace chromeos_update_engine {
 

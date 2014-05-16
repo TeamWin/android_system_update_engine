@@ -2,16 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_generator/extent_mapper.h"
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 #include <set>
 #include <string>
 #include <vector>
+
+#include <base/basictypes.h>
 #include <gtest/gtest.h>
-#include "base/basictypes.h"
-#include "update_engine/extent_mapper.h"
-#include "update_engine/graph_types.h"
+
+#include "update_engine/payload_constants.h"
 #include "update_engine/utils.h"
 
 using std::set;
@@ -86,11 +90,11 @@ TEST(ExtentMapperTest, RunAsRootSparseFileTest) {
   uint32_t block_size = 0;
   EXPECT_TRUE(extent_mapper::GetFilesystemBlockSize(buf, &block_size));
   EXPECT_GT(block_size, 0);
-  
+
   EXPECT_EQ(1, pwrite(fd, "x", 1, 0));
   EXPECT_EQ(1, pwrite(fd, "x", 1, 3 * block_size));
   close(fd);
-  
+
   vector<Extent> extents;
   EXPECT_TRUE(extent_mapper::ExtentsForFileFibmap(buf, &extents));
   unlink(buf);

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <set>
@@ -19,8 +19,8 @@
 #include <gflags/gflags.h>
 #include <glib.h>
 
-#include "update_engine/delta_diff_generator.h"
 #include "update_engine/delta_performer.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_signer.h"
 #include "update_engine/prefs.h"
 #include "update_engine/subprocess.h"

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "update_engine/delta_diff_generator.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -17,8 +17,8 @@
 #include <utility>
 #include <vector>
 
-#include <base/files/file_path.h>
 #include <base/file_util.h>
+#include <base/files/file_path.h>
 #include <base/logging.h>
 #include <base/memory/scoped_ptr.h>
 #include <base/strings/string_number_conversions.h>
@@ -27,20 +27,21 @@
 #include <bzlib.h>
 
 #include "update_engine/bzip.h"
-#include "update_engine/cycle_breaker.h"
 #include "update_engine/delta_performer.h"
-#include "update_engine/extent_mapper.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/file_writer.h"
-#include "update_engine/filesystem_iterator.h"
-#include "update_engine/full_update_generator.h"
-#include "update_engine/graph_types.h"
-#include "update_engine/graph_utils.h"
-#include "update_engine/metadata.h"
 #include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/cycle_breaker.h"
+#include "update_engine/payload_generator/extent_mapper.h"
+#include "update_engine/payload_generator/filesystem_iterator.h"
+#include "update_engine/payload_generator/full_update_generator.h"
+#include "update_engine/payload_generator/graph_types.h"
+#include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/metadata.h"
+#include "update_engine/payload_generator/topological_sort.h"
 #include "update_engine/payload_signer.h"
 #include "update_engine/subprocess.h"
-#include "update_engine/topological_sort.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
 
@@ -53,6 +54,23 @@ using std::set;
 using std::string;
 using std::vector;
 
+namespace {
+
+const uint64_t kVersionNumber = 1;
+const uint64_t kFullUpdateChunkSize = 1024 * 1024;  // bytes
+
+const size_t kBlockSize = 4096;  // bytes
+const string kNonexistentPath = "";
+
+static const char* kInstallOperationTypes[] = {
+  "REPLACE",
+  "REPLACE_BZ",
+  "MOVE",
+  "BSDIFF"
+};
+
+}  // namespace
+
 namespace chromeos_update_engine {
 
 typedef DeltaDiffGenerator::Block Block;
@@ -61,8 +79,6 @@ typedef map<const DeltaArchiveManifest_InstallOperation*,
 
 // bytes
 const size_t kRootFSPartitionSize = static_cast<size_t>(2) * 1024 * 1024 * 1024;
-const uint64_t kVersionNumber = 1;
-const uint64_t kFullUpdateChunkSize = 1024 * 1024;  // bytes
 
 // Needed for testing purposes, in case we can't use actual filesystem objects.
 // TODO(garnold)(chromium:331965) Replace this hack with a properly injected
@@ -72,16 +88,6 @@ bool (*get_extents_with_chunk_func)(const std::string&, off_t, off_t,
     extent_mapper::ExtentsForFileChunkFibmap;
 
 namespace {
-const size_t kBlockSize = 4096;  // bytes
-const string kNonexistentPath = "";
-
-
-static const char* kInstallOperationTypes[] = {
-  "REPLACE",
-  "REPLACE_BZ",
-  "MOVE",
-  "BSDIFF"
-};
 
 // Stores all the extents of |path| into |extents|. Returns true on success.
 bool GatherExtents(const string& path,
@@ -1918,7 +1924,5 @@ void DeltaDiffGenerator::AddSignatureOp(uint64_t signature_blob_offset,
 }
 
 const char* const kBsdiffPath = "bsdiff";
-const char* const kBspatchPath = "bspatch";
-const char* const kDeltaMagic = "CrAU";
 
 };  // namespace chromeos_update_engine

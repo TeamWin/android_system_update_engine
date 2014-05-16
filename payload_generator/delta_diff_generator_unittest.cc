@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <map>
@@ -18,16 +18,17 @@
 #include <base/strings/string_util.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/cycle_breaker.h"
-#include "update_engine/delta_diff_generator.h"
 #include "update_engine/delta_performer.h"
-#include "update_engine/extent_mapper.h"
 #include "update_engine/extent_ranges.h"
-#include "update_engine/graph_types.h"
-#include "update_engine/graph_utils.h"
+#include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/cycle_breaker.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/extent_mapper.h"
+#include "update_engine/payload_generator/graph_types.h"
+#include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/topological_sort.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/test_utils.h"
-#include "update_engine/topological_sort.h"
 #include "update_engine/utils.h"
 
 using std::make_pair;

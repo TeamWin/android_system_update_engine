@@ -11,8 +11,6 @@
 
 #include <base/basictypes.h>
 
-#include "update_engine/delta_diff_generator.h"
-#include "update_engine/graph_types.h"
 #include "update_engine/update_metadata.pb.h"
 
 // An ExtentRanges object represents an unordered collection of extents (and

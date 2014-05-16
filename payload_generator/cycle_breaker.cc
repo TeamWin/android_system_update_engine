@@ -2,14 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "update_engine/cycle_breaker.h"
+#include "update_engine/payload_generator/cycle_breaker.h"
+
 #include <inttypes.h>
+
 #include <set>
 #include <utility>
+
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include "update_engine/graph_utils.h"
-#include "update_engine/tarjan.h"
+
+#include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/tarjan.h"
 #include "update_engine/utils.h"
 
 using std::make_pair;
@@ -21,12 +25,12 @@ namespace chromeos_update_engine {
 // This is the outer function from the original paper.
 void CycleBreaker::BreakCycles(const Graph& graph, set<Edge>* out_cut_edges) {
   cut_edges_.clear();
-  
+
   // Make a copy, which we will modify by removing edges. Thus, in each
   // iteration subgraph_ is the current subgraph or the original with
   // vertices we desire. This variable was "A_K" in the original paper.
   subgraph_ = graph;
-    
+
   // The paper calls for the "adjacency structure (i.e., graph) of
   // strong (-ly connected) component K with least vertex in subgraph
   // induced by {s, s + 1, ..., n}".
@@ -36,7 +40,7 @@ void CycleBreaker::BreakCycles(const Graph& graph, set<Edge>* out_cut_edges) {
 
   TarjanAlgorithm tarjan;
   skipped_ops_ = 0;
-    
+
   for (Graph::size_type i = 0; i < subgraph_.size(); i++) {
     DeltaArchiveManifest_InstallOperation_Type op_type = graph[i].op.type();
     if (op_type == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
@@ -68,7 +72,7 @@ void CycleBreaker::BreakCycles(const Graph& graph, set<Edge>* out_cut_edges) {
         // add a subgraph_ edge
         if (utils::MapContainsKey(subgraph_[*it].out_edges, *jt))
           subgraph_[*it].subgraph_edges.insert(*jt);
-      }        
+      }
     }
 
     current_vertex_ = i;
@@ -78,7 +82,7 @@ void CycleBreaker::BreakCycles(const Graph& graph, set<Edge>* out_cut_edges) {
     blocked_graph_.resize(subgraph_.size());
     Circuit(current_vertex_, 0);
   }
-  
+
   out_cut_edges->swap(cut_edges_);
   LOG(INFO) << "Cycle breaker skipped " << skipped_ops_ << " ops.";
   DCHECK(stack_.empty());

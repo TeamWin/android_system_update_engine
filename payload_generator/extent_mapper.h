@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_EXTENT_MAPPER_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_EXTENT_MAPPER_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_EXTENT_MAPPER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_EXTENT_MAPPER_H_
 
 #include <string>
 #include <vector>
-#include "base/basictypes.h"
+
+#include <base/basictypes.h>
+
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -41,4 +43,4 @@ bool GetFilesystemBlockSize(const std::string& path, uint32_t* out_blocksize);
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_EXTENT_MAPPER_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_EXTENT_MAPPER_H_

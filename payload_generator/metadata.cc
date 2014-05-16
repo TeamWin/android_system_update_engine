@@ -13,16 +13,16 @@
 #include <ext2fs/ext2fs.h>
 
 #include "update_engine/bzip.h"
-#include "update_engine/delta_diff_generator.h"
 #include "update_engine/extent_ranges.h"
-#include "update_engine/graph_utils.h"
-#include "update_engine/metadata.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/metadata.h"
 #include "update_engine/utils.h"
 
+using base::StringPrintf;
 using std::min;
 using std::string;
 using std::vector;
-using base::StringPrintf;
 
 namespace chromeos_update_engine {
 

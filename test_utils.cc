@@ -4,28 +4,29 @@
 
 #include "update_engine/test_utils.h"
 
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <set>
 #include <string>
 #include <vector>
 
+#include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include "base/logging.h"
+
 #include "update_engine/file_writer.h"
-#include "update_engine/filesystem_iterator.h"
+#include "update_engine/payload_generator/filesystem_iterator.h"
 #include "update_engine/utils.h"
 
+using base::StringPrintf;
 using std::set;
 using std::string;
 using std::vector;
-using base::StringPrintf;
 
 namespace chromeos_update_engine {
 

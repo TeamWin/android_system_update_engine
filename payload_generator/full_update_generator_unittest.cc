@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/full_update_generator.h"
+#include "update_engine/payload_generator/full_update_generator.h"
 #include "update_engine/test_utils.h"
 
 using std::string;

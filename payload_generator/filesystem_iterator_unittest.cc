@@ -2,16 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_generator/filesystem_iterator.h"
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 #include <set>
 #include <string>
 #include <vector>
-#include <gtest/gtest.h>
+
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include "update_engine/filesystem_iterator.h"
+#include <gtest/gtest.h>
+
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 

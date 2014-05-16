@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_generator/tarjan.h"
+
 #include <utility>
+
+#include <base/logging.h>
 #include <gtest/gtest.h>
-#include "base/logging.h"
-#include "update_engine/graph_types.h"
-#include "update_engine/tarjan.h"
+
+#include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/utils.h"
 
 using std::make_pair;
@@ -31,7 +34,7 @@ TEST(TarjanAlgorithmTest, SimpleTest) {
   const Graph::size_type kNodeCount = 8;
 
   Graph graph(kNodeCount);
-  
+
   graph[n_a].out_edges.insert(make_pair(n_e, EdgeProperties()));
   graph[n_a].out_edges.insert(make_pair(n_f, EdgeProperties()));
   graph[n_b].out_edges.insert(make_pair(n_a, EdgeProperties()));
@@ -44,9 +47,9 @@ TEST(TarjanAlgorithmTest, SimpleTest) {
   graph[n_f].out_edges.insert(make_pair(n_g, EdgeProperties()));
   graph[n_g].out_edges.insert(make_pair(n_h, EdgeProperties()));
   graph[n_h].out_edges.insert(make_pair(n_g, EdgeProperties()));
-  
+
   TarjanAlgorithm tarjan;
-  
+
   for (Vertex::Index i = n_a; i <= n_e; i++) {
     vector<Vertex::Index> vertex_indexes;
     tarjan.Execute(i, &graph, &vertex_indexes);
@@ -58,15 +61,15 @@ TEST(TarjanAlgorithmTest, SimpleTest) {
     EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_d));
     EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_e));
   }
-  
+
   {
     vector<Vertex::Index> vertex_indexes;
     tarjan.Execute(n_f, &graph, &vertex_indexes);
-    
+
     EXPECT_EQ(1, vertex_indexes.size());
     EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_f));
   }
-  
+
   for (Vertex::Index i = n_g; i <= n_h; i++) {
     vector<Vertex::Index> vertex_indexes;
     tarjan.Execute(i, &graph, &vertex_indexes);

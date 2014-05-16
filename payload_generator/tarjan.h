@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_TARJAN_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_TARJAN_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_TARJAN_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_TARJAN_H_
 
 // This is an implemenation of Tarjan's algorithm which finds all
 // Strongly Connected Components in a graph.
@@ -13,7 +13,8 @@
 // component containing the vertex passed in.
 
 #include <vector>
-#include "update_engine/graph_types.h"
+
+#include "update_engine/payload_generator/graph_types.h"
 
 namespace chromeos_update_engine {
 
@@ -36,4 +37,4 @@ class TarjanAlgorithm {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_TARJAN_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_TARJAN_H_

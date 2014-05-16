@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_DELTA_DIFF_GENERATOR_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_DELTA_DIFF_GENERATOR_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_
 
 #include <string>
 #include <vector>
-#include "base/basictypes.h"
-#include "update_engine/graph_types.h"
+
+#include <base/basictypes.h>
+
+#include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/update_metadata.pb.h"
 
 // There is one function in DeltaDiffGenerator of importance to users
@@ -267,10 +269,8 @@ class DeltaDiffGenerator {
 };
 
 extern const char* const kBsdiffPath;
-extern const char* const kBspatchPath;
-extern const char* const kDeltaMagic;
 extern const size_t kRootFSPartitionSize;
 
 };  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_DELTA_DIFF_GENERATOR_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_

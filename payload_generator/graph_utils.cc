@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "update_engine/graph_utils.h"
+#include "update_engine/payload_generator/graph_utils.h"
 
 #include <string>
 #include <utility>
@@ -10,6 +10,8 @@
 
 #include <base/basictypes.h>
 #include <base/logging.h>
+
+#include "update_engine/payload_constants.h"
 
 using std::make_pair;
 using std::pair;

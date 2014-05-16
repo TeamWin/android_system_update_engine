@@ -2,22 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "update_engine/extent_mapper.h"
-
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "update_engine/payload_generator/extent_mapper.h"
 
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/fs.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-#include <linux/fs.h>
-
-#include "update_engine/graph_types.h"
-#include "update_engine/graph_utils.h"
+#include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/graph_types.h"
+#include "update_engine/payload_generator/graph_utils.h"
 #include "update_engine/utils.h"
 
 using std::string;

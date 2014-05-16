@@ -9,9 +9,9 @@
 #include <base/strings/string_util.h>
 #include <openssl/pem.h>
 
-#include "update_engine/delta_diff_generator.h"
 #include "update_engine/delta_performer.h"
 #include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"

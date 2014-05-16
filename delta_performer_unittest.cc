@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <sys/mount.h>
 #include <inttypes.h>
+#include <sys/mount.h>
 
 #include <algorithm>
 #include <string>
@@ -17,13 +17,12 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
-#include "update_engine/delta_diff_generator.h"
 #include "update_engine/delta_performer.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/fake_hardware.h"
 #include "update_engine/fake_system_state.h"
-#include "update_engine/full_update_generator.h"
-#include "update_engine/graph_types.h"
+#include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_signer.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
@@ -35,8 +34,8 @@ namespace chromeos_update_engine {
 using std::min;
 using std::string;
 using std::vector;
-using testing::_;
 using testing::Return;
+using testing::_;
 
 extern const char* kUnittestPrivateKeyPath;
 extern const char* kUnittestPublicKeyPath;

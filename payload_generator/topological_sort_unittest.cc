@@ -4,9 +4,11 @@
 
 #include <utility>
 #include <vector>
+
 #include <gtest/gtest.h>
-#include "update_engine/graph_types.h"
-#include "update_engine/topological_sort.h"
+
+#include "update_engine/payload_generator/graph_types.h"
+#include "update_engine/payload_generator/topological_sort.h"
 
 using std::make_pair;
 using std::vector;
@@ -49,7 +51,7 @@ TEST(TopologicalSortTest, SimpleTest) {
   const Graph::size_type kNodeCount = counter++;
 
   Graph graph(kNodeCount);
-  
+
   graph[n_i].out_edges.insert(make_pair(n_j, EdgeProperties()));
   graph[n_i].out_edges.insert(make_pair(n_c, EdgeProperties()));
   graph[n_i].out_edges.insert(make_pair(n_e, EdgeProperties()));

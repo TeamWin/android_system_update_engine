@@ -2,15 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_GRAPH_TYPES_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_GRAPH_TYPES_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_GRAPH_TYPES_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_GRAPH_TYPES_H_
 
 #include <map>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
-#include "base/basictypes.h"
+
+#include <base/basictypes.h>
+
 #include "update_engine/update_metadata.pb.h"
 
 // A few classes that help in generating delta images use these types
@@ -73,10 +75,9 @@ typedef std::vector<Vertex> Graph;
 
 typedef std::pair<Vertex::Index, Vertex::Index> Edge;
 
-const uint64_t kSparseHole = kuint64max;
 const uint64_t kTempBlockStart = 1ULL << 60;
 COMPILE_ASSERT(kTempBlockStart != 0, kTempBlockStart_invalid);
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_GRAPH_TYPES_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_GRAPH_TYPES_H_

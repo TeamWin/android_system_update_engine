@@ -17,7 +17,6 @@
 
 #include "update_engine/fake_system_state.h"
 #include "update_engine/filesystem_copier_action.h"
-#include "update_engine/filesystem_iterator.h"
 #include "update_engine/mock_hardware.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/test_utils.h"

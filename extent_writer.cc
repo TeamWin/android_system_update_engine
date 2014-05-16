@@ -3,10 +3,13 @@
 // found in the LICENSE file.
 
 #include "update_engine/extent_writer.h"
+
 #include <errno.h>
 #include <unistd.h>
+
 #include <algorithm>
-#include "update_engine/graph_types.h"
+
+#include "update_engine/payload_constants.h"
 #include "update_engine/utils.h"
 
 using std::min;

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FILESYSTEM_ITERATOR_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_FILESYSTEM_ITERATOR_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_FILESYSTEM_ITERATOR_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_FILESYSTEM_ITERATOR_H_
 
 // This class is used to walk a filesystem. It will iterate over every file
 // on the same device as the file passed in the ctor. Directories will be
@@ -24,12 +24,13 @@
 // 3. If you don't want that, you can just check Stat().st_dev and skip
 //    foreign filesystems manually.
 
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <dirent.h>
 #include <unistd.h>
-#include <string>
+
 #include <set>
+#include <string>
 #include <vector>
 
 namespace chromeos_update_engine {
@@ -123,4 +124,4 @@ class FilesystemIterator {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_FILESYSTEM_ITERATOR_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_FILESYSTEM_ITERATOR_H_

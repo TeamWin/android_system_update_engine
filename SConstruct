@@ -206,28 +206,21 @@ sources = Split("""action_processor.cc
                    clock.cc
                    connection_manager.cc
                    constants.cc
-                   cycle_breaker.cc
                    dbus_service.cc
-                   delta_diff_generator.cc
                    delta_performer.cc
                    download_action.cc
-                   extent_mapper.cc
                    extent_ranges.cc
                    extent_writer.cc
-                   filesystem_copier_action.cc
-                   filesystem_iterator.cc
                    file_descriptor.cc
                    file_writer.cc
-                   full_update_generator.cc
+                   filesystem_copier_action.cc
                    gpio_handler.cc
-                   graph_utils.cc
                    hardware.cc
                    http_common.cc
                    http_fetcher.cc
                    hwid_override.cc
                    install_plan.cc
                    libcurl_http_fetcher.cc
-                   metadata.cc
                    metrics.cc
                    multi_range_http_fetcher.cc
                    omaha_hash_calculator.cc
@@ -235,14 +228,24 @@ sources = Split("""action_processor.cc
                    omaha_request_params.cc
                    omaha_response_handler_action.cc
                    p2p_manager.cc
+                   payload_constants.cc
+                   payload_generator/cycle_breaker.cc
+                   payload_generator/delta_diff_generator.cc
+                   payload_generator/extent_mapper.cc
+                   payload_generator/filesystem_iterator.cc
+                   payload_generator/full_update_generator.cc
+                   payload_generator/graph_utils.cc
+                   payload_generator/metadata.cc
+                   payload_generator/tarjan.cc
+                   payload_generator/topological_sort.cc
                    payload_signer.cc
                    payload_state.cc
                    policy_manager/boxed_value.cc
                    policy_manager/chromeos_policy.cc
                    policy_manager/evaluation_context.cc
                    policy_manager/event_loop.cc
-                   policy_manager/policy_manager.cc
                    policy_manager/policy.cc
+                   policy_manager/policy_manager.cc
                    policy_manager/real_config_provider.cc
                    policy_manager/real_device_policy_provider.cc
                    policy_manager/real_random_provider.cc
@@ -257,9 +260,7 @@ sources = Split("""action_processor.cc
                    real_system_state.cc
                    simple_key_value_store.cc
                    subprocess.cc
-                   tarjan.cc
                    terminator.cc
-                   topological_sort.cc
                    update_attempter.cc
                    update_check_scheduler.cc
                    update_metadata.pb.cc
@@ -273,32 +274,34 @@ unittest_sources = Split("""action_pipe_unittest.cc
                             certificate_checker_unittest.cc
                             chrome_browser_proxy_resolver_unittest.cc
                             connection_manager_unittest.cc
-                            cycle_breaker_unittest.cc
-                            delta_diff_generator_unittest.cc
                             delta_performer_unittest.cc
                             download_action_unittest.cc
-                            extent_mapper_unittest.cc
                             extent_ranges_unittest.cc
                             extent_writer_unittest.cc
                             fake_prefs.cc
                             fake_system_state.cc
                             file_writer_unittest.cc
                             filesystem_copier_action_unittest.cc
-                            filesystem_iterator_unittest.cc
-                            full_update_generator_unittest.cc
                             gpio_handler_unittest.cc
                             gpio_mock_file_descriptor.cc
                             gpio_mock_udev_interface.cc
-                            graph_utils_unittest.cc
                             http_fetcher_unittest.cc
                             hwid_override_unittest.cc
-                            metadata_unittest.cc
                             mock_http_fetcher.cc
                             omaha_hash_calculator_unittest.cc
                             omaha_request_action_unittest.cc
                             omaha_request_params_unittest.cc
                             omaha_response_handler_action_unittest.cc
                             p2p_manager_unittest.cc
+                            payload_generator/cycle_breaker_unittest.cc
+                            payload_generator/delta_diff_generator_unittest.cc
+                            payload_generator/extent_mapper_unittest.cc
+                            payload_generator/filesystem_iterator_unittest.cc
+                            payload_generator/full_update_generator_unittest.cc
+                            payload_generator/graph_utils_unittest.cc
+                            payload_generator/metadata_unittest.cc
+                            payload_generator/tarjan_unittest.cc
+                            payload_generator/topological_sort_unittest.cc
                             payload_signer_unittest.cc
                             payload_state_unittest.cc
                             policy_manager/boxed_value_unittest.cc
@@ -321,10 +324,8 @@ unittest_sources = Split("""action_pipe_unittest.cc
                             prefs_unittest.cc
                             simple_key_value_store_unittest.cc
                             subprocess_unittest.cc
-                            tarjan_unittest.cc
                             terminator_unittest.cc
                             test_utils.cc
-                            topological_sort_unittest.cc
                             update_attempter_unittest.cc
                             update_check_scheduler_unittest.cc
                             utils_unittest.cc
@@ -333,7 +334,7 @@ unittest_main = ['testrunner.cc']
 
 client_main = ['update_engine_client.cc']
 
-delta_generator_main = ['generate_delta_main.cc']
+delta_generator_main = ['payload_generator/generate_delta_main.cc']
 
 # Hack to generate header files first. They are generated as a side effect
 # of generating other files (usually their corresponding .c(c) files),

@@ -2,14 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_generator/cycle_breaker.h"
+
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <base/logging.h>
 #include <gtest/gtest.h>
-#include "base/logging.h"
-#include "update_engine/cycle_breaker.h"
-#include "update_engine/graph_types.h"
+
+#include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/utils.h"
 
 using std::make_pair;
@@ -59,10 +62,10 @@ TEST(CycleBreakerTest, SimpleTest) {
   graph[n_h].out_edges.insert(make_pair(n_g, EdgeProperties()));
 
   CycleBreaker breaker;
-  
+
   set<Edge> broken_edges;
   breaker.BreakCycles(graph, &broken_edges);
-  
+
   // The following cycles must be cut:
   // A->E->B
   // C->D->E
@@ -113,13 +116,13 @@ uint64_t weight) {
 // root, and that can massively speed up cycle cutting.
 TEST(CycleBreakerTest, AggressiveCutTest) {
   int counter = 0;
-  
+
   const int kNodesPerGroup = 4;
   const int kGroups = 33;
-  
+
   Graph graph(kGroups * kNodesPerGroup + 1);  // + 1 for the root node
   SetOpForNodes(&graph);
-  
+
   const Vertex::Index n_root = counter++;
 
   Vertex::Index last_hub = n_root;
@@ -129,7 +132,7 @@ TEST(CycleBreakerTest, AggressiveCutTest) {
       weight = 2;
     else if (i == (kGroups - 1))
       weight = 1;
-    
+
     const Vertex::Index next_hub = counter++;
 
     for (int j = 0; j < (kNodesPerGroup - 1); j++) {
@@ -139,18 +142,17 @@ TEST(CycleBreakerTest, AggressiveCutTest) {
     }
     last_hub = next_hub;
   }
-  
+
   graph[last_hub].out_edges.insert(EdgeWithWeight(n_root, 5));
-  
-  
+
   EXPECT_EQ(counter, graph.size());
 
   CycleBreaker breaker;
-  
+
   set<Edge> broken_edges;
   LOG(INFO) << "If this hangs for more than 1 second, the test has failed.";
   breaker.BreakCycles(graph, &broken_edges);
-  
+
   set<Edge> expected_cuts;
 
   for (Vertex::EdgeMap::const_iterator it = graph[n_root].out_edges.begin(),
@@ -198,7 +200,7 @@ TEST(CycleBreakerTest, WeightTest) {
   graph[n_i].out_edges.insert(EdgeWithWeight(n_j, 6));
 
   CycleBreaker breaker;
-  
+
   set<Edge> broken_edges;
   breaker.BreakCycles(graph, &broken_edges);
 
@@ -229,7 +231,7 @@ TEST(CycleBreakerTest, UnblockGraphTest) {
   graph[n_d].out_edges.insert(EdgeWithWeight(n_a, 2));
 
   CycleBreaker breaker;
-  
+
   set<Edge> broken_edges;
   breaker.BreakCycles(graph, &broken_edges);
 
@@ -254,10 +256,10 @@ TEST(CycleBreakerTest, SkipOpsTest) {
   graph[n_c].out_edges.insert(EdgeWithWeight(n_b, 1));
 
   CycleBreaker breaker;
-  
+
   set<Edge> broken_edges;
   breaker.BreakCycles(graph, &broken_edges);
-  
+
   EXPECT_EQ(2, breaker.skipped_ops());
 }
 

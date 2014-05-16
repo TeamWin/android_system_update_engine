@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_CYCLE_BREAKER_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_CYCLE_BREAKER_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_CYCLE_BREAKER_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_CYCLE_BREAKER_H_
 
 // This is a modified implementation of Donald B. Johnson's algorithm for
 // finding all elementary cycles (a.k.a. circuits) in a directed graph.
@@ -22,7 +22,8 @@
 
 #include <set>
 #include <vector>
-#include "update_engine/graph_types.h"
+
+#include "update_engine/payload_generator/graph_types.h"
 
 namespace chromeos_update_engine {
 
@@ -31,7 +32,7 @@ class CycleBreaker {
   CycleBreaker() : skipped_ops_(0) {}
   // out_cut_edges is replaced with the cut edges.
   void BreakCycles(const Graph& graph, std::set<Edge>* out_cut_edges);
-  
+
   size_t skipped_ops() const { return skipped_ops_; }
 
  private:
@@ -47,7 +48,7 @@ class CycleBreaker {
   Graph blocked_graph_;  // "B" in the paper
 
   std::set<Edge> cut_edges_;
-  
+
   // Number of operations skipped b/c we know they don't have any
   // incoming edges.
   size_t skipped_ops_;
@@ -55,4 +56,4 @@ class CycleBreaker {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_CYCLE_BREAKER_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_CYCLE_BREAKER_H_

@@ -1,11 +1,13 @@
 // Copyright (c) 2010 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#include "update_engine/payload_generator/tarjan.h"
 
 #include <algorithm>
 #include <vector>
-#include "base/logging.h"
-#include "update_engine/tarjan.h"
+
+#include <base/logging.h>
+
 #include "update_engine/utils.h"
 
 using std::min;
@@ -58,7 +60,7 @@ void TarjanAlgorithm::Tarjan(Vertex::Index vertex, Graph* graph) {
       stack_.pop_back();
       component.push_back(other_vertex);
     } while (other_vertex != vertex && !stack_.empty());
-      
+
     if (utils::VectorContainsValue(component, required_vertex_)) {
       components_.resize(components_.size() + 1);
       component.swap(components_.back());

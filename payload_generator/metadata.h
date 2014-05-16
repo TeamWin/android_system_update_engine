@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_METADATA_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_METADATA_H_
+#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_METADATA_H_
+#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_METADATA_H_
 
-#include "update_engine/delta_diff_generator.h"
-#include "update_engine/graph_types.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/graph_types.h"
 
 namespace chromeos_update_engine {
 
@@ -34,4 +34,4 @@ class Metadata {
 
 };  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_METADATA_H_
+#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_METADATA_H_
