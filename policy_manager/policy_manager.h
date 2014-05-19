@@ -42,14 +42,12 @@ class PolicyManager {
   //
   // An example call to this method is:
   //   pm.PolicyRequest(&Policy::SomePolicyMethod, &bool_result, arg1, arg2);
-  template<typename R, typename... Args>
+  template<typename R, typename... ActualArgs, typename... ExpectedArgs>
   EvalStatus PolicyRequest(
-      EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
-                                          State* state,
-                                          std::string* error,
-                                          R* result,
-                                          Args... args) const,
-      R* result, Args... args);
+      EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
+                                          std::string*, R*,
+                                          ExpectedArgs...) const,
+      R* result, ActualArgs...);
 
   // Evaluates the given |policy_method| policy with the provided |args|
   // arguments and calls the |callback| callback with the result when done.
@@ -59,15 +57,13 @@ class PolicyManager {
   // policy until another status is returned. If the policy implementation based
   // its return value solely on const variables, the callback will be called
   // with the EvalStatus::kAskMeAgainLater status.
-  template<typename R, typename... Args>
+  template<typename R, typename... ActualArgs, typename... ExpectedArgs>
   void AsyncPolicyRequest(
       base::Callback<void(EvalStatus, const R& result)> callback,
-      EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
-                                          State* state,
-                                          std::string* error,
-                                          R* result,
-                                          Args... args) const,
-      Args... args);
+      EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
+                                          std::string*, R*,
+                                          ExpectedArgs...) const,
+      ActualArgs... args);
 
  protected:
   // The PolicyManager receives ownership of the passed Policy instance.
@@ -90,11 +86,9 @@ class PolicyManager {
   template<typename R, typename... Args>
   EvalStatus EvaluatePolicy(
       EvaluationContext* ec,
-      EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
-                                          State* state,
-                                          std::string* error,
-                                          R* result,
-                                          Args... args) const,
+      EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
+                                          std::string*, R*,
+                                          Args...) const,
       R* result, Args... args);
 
   // OnPolicyReadyToEvaluate() is called by the main loop when the evaluation
@@ -107,11 +101,9 @@ class PolicyManager {
   void OnPolicyReadyToEvaluate(
       scoped_refptr<EvaluationContext> ec,
       base::Callback<void(EvalStatus status, const R& result)> callback,
-      EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
-                                          State* state,
-                                          std::string* error,
-                                          R* result,
-                                          Args... args) const,
+      EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
+                                          std::string*, R*,
+                                          Args...) const,
       Args... args);
 
   // The policy used by the PolicyManager. Note that since it is a const Policy,

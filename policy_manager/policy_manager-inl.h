@@ -17,11 +17,9 @@ namespace chromeos_policy_manager {
 template<typename R, typename... Args>
 EvalStatus PolicyManager::EvaluatePolicy(
     EvaluationContext* ec,
-    EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
-                                        State* state,
-                                        std::string* error,
-                                        R* result,
-                                        Args... args) const,
+    EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
+                                        std::string*, R*,
+                                        Args...) const,
     R* result, Args... args) {
   std::string error;
 
@@ -47,11 +45,9 @@ template<typename R, typename... Args>
 void PolicyManager::OnPolicyReadyToEvaluate(
     scoped_refptr<EvaluationContext> ec,
     base::Callback<void(EvalStatus status, const R& result)> callback,
-    EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
-                                        State* state,
-                                        std::string* error,
-                                        R* result,
-                                        Args... args) const,
+    EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
+                                        std::string*, R*,
+                                        Args...) const,
     Args... args) {
   ec->ResetEvaluation();
   R result;
@@ -78,32 +74,34 @@ void PolicyManager::OnPolicyReadyToEvaluate(
   }
 }
 
-template<typename R, typename... Args>
+template<typename R, typename... ActualArgs, typename... ExpectedArgs>
 EvalStatus PolicyManager::PolicyRequest(
-    EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
-                                        State* state,
-                                        std::string* error,
-                                        R* result,
-                                        Args... args) const,
-    R* result, Args... args) {
+    EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
+                                        std::string*, R*,
+                                        ExpectedArgs...) const,
+    R* result, ActualArgs... args) {
   scoped_refptr<EvaluationContext> ec(new EvaluationContext(clock_));
   // A PolicyRequest allways consists on a single evaluation on a new
   // EvaluationContext.
-  return EvaluatePolicy(ec, policy_method, result, args...);
+  // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
+  // explicitly instantiate EvaluatePolicy with the latter in lieu of the
+  // former.
+  return EvaluatePolicy<R, ExpectedArgs...>(ec, policy_method, result, args...);
 }
 
-template<typename R, typename... Args>
+template<typename R, typename... ActualArgs, typename... ExpectedArgs>
 void PolicyManager::AsyncPolicyRequest(
     base::Callback<void(EvalStatus, const R& result)> callback,
-    EvalStatus (Policy::*policy_method)(EvaluationContext* ec,
-                                        State* state,
-                                        std::string* error,
-                                        R* result,
-                                        Args... args) const,
-    Args... args) {
+    EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
+                                        std::string*, R*,
+                                        ExpectedArgs...) const,
+    ActualArgs... args) {
   scoped_refptr<EvaluationContext> ec = new EvaluationContext(clock_);
+  // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
+  // explicitly instantiate PolicyManager::OnPolicyReadyToEvaluate with the
+  // latter in lieu of the former.
   base::Closure closure = base::Bind(
-      &PolicyManager::OnPolicyReadyToEvaluate<R, Args...>,
+      &PolicyManager::OnPolicyReadyToEvaluate<R, ExpectedArgs...>,
       base::Unretained(this), ec, callback, policy_method, args...);
   RunFromMainLoop(closure);
 }
