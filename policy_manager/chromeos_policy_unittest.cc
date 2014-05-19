@@ -58,8 +58,8 @@ class PmChromeOSPolicyTest : public ::testing::Test {
     eval_ctx_->ResetEvaluation();
     EXPECT_EQ(expected,
               (policy_.*policy_method)(eval_ctx_, &fake_state_, &error, result))
-        << "Returned error: " << error;
-    // TODO(deymo): Dump the context of the EvaluationContext on failure.
+        << "Returned error: " << error
+        << "\nEvaluation context: " << eval_ctx_->DumpContext();
   }
 
   FakeClock fake_clock_;
