@@ -9,6 +9,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H_
 
+#include <base/callback.h>
+
 #include "update_engine/policy_manager/variable.h"
 
 namespace {
@@ -117,6 +119,37 @@ class ConstCopyVariable : public Variable<T> {
   // Value to be copied by GetValue().
   const T obj_;
 };
+
+// Variable class returning a copy of a value returned by a given function. The
+// function is called every time the variable is being polled.
+template<typename T>
+class CallCopyVariable : public Variable<T> {
+ public:
+  CallCopyVariable(const std::string& name, base::Callback<T(void)> func)
+      : Variable<T>(name, kVariableModePoll), func_(func) {}
+  CallCopyVariable(const std::string& name,
+                   const base::TimeDelta poll_interval,
+                   base::Callback<T(void)> func)
+      : Variable<T>(name, poll_interval), func_(func) {}
+
+ protected:
+  // Variable override.
+  virtual const T* GetValue(base::TimeDelta /* timeout */,
+                            std::string* /* errmsg */) {
+    if (func_.is_null())
+      return nullptr;
+    return new T(func_.Run());
+  }
+
+ private:
+  FRIEND_TEST(PmCallCopyVariableTest, SimpleTest);
+
+  // The function to be called, stored as a base::Callback.
+  base::Callback<T(void)> func_;
+
+  DISALLOW_COPY_AND_ASSIGN(CallCopyVariable);
+};
+
 
 // A Variable class to implement simple Async variables. It provides two methods
 // SetValue and UnsetValue to modify the current value of the variable and
