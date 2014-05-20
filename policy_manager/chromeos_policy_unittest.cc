@@ -54,8 +54,11 @@ class PmChromeOSPolicyTest : public ::testing::Test {
     fake_state_.device_policy_provider()->var_device_policy_is_loaded()->reset(
         new bool(false));
 
-    // For the purpose of the tests, this is an official build.
+    // For the purpose of the tests, this is an official build and OOBE was
+    // completed.
     fake_state_.system_provider()->var_is_official_build()->reset(
+        new bool(true));
+    fake_state_.system_provider()->var_is_oobe_complete()->reset(
         new bool(true));
 
     // Connection is wifi, untethered.
@@ -427,6 +430,31 @@ TEST_F(PmChromeOSPolicyTest,
   SetUpdateCheckAllowed(false);
   fake_state_.device_policy_provider()->var_scatter_factor()->reset(
       new TimeDelta(TimeDelta::FromSeconds(1)));
+
+  UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromSeconds(1));
+  update_state.scatter_check_threshold = 0;
+  update_state.scatter_check_threshold_min = 2;
+  update_state.scatter_check_threshold_max = 5;
+
+  // Check that the UpdateCanStart returns true.
+  UpdateCanStartResult result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
+                     true, update_state);
+  EXPECT_TRUE(result.update_can_start);
+  EXPECT_EQ(TimeDelta(), result.scatter_wait_period);
+  EXPECT_EQ(0, result.scatter_check_threshold);
+}
+
+TEST_F(PmChromeOSPolicyTest,
+       UpdateCanStartAllowedOobePreventsScattering) {
+  // The UpdateCanStart policy returns true; device policy is loaded and
+  // scattering would have applied, except that OOBE was not completed and so it
+  // is suppressed.
+
+  SetUpdateCheckAllowed(false);
+  fake_state_.device_policy_provider()->var_scatter_factor()->reset(
+      new TimeDelta(TimeDelta::FromSeconds(1)));
+  fake_state_.system_provider()->var_is_oobe_complete()->reset(new bool(false));
 
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromSeconds(1));
   update_state.scatter_check_threshold = 0;

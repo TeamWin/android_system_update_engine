@@ -69,6 +69,7 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
   }
 
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+  SystemProvider* const system_provider = state->system_provider();
 
   const bool* device_policy_is_loaded_p = ec->GetValue(
       dp_provider->var_device_policy_is_loaded());
@@ -82,14 +83,29 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
       return EvalStatus::kAskMeAgainLater;
     }
 
-    // Check whether scattering applies to this update attempt.
-    // TODO(garnold) We should not be scattering during OOBE. We'll need to read
-    // the OOBE status (via SystemProvider) and only scatter if not enacted.
-    // TODO(garnold) Current code further suppresses scattering if a "deadline"
+    // Check whether scattering applies to this update attempt. We should not be
+    // scattering if this is an interactive update check, or if OOBE is enabled
+    // but not completed.
+    //
+    // Note: current code further suppresses scattering if a "deadline"
     // attribute is found in the Omaha response. However, it appears that the
-    // presence of this attribute is merely indicative of an OOBE update, which
-    // we should support anyway (see above).
+    // presence of this attribute is merely indicative of an OOBE update, during
+    // which we suppress scattering anyway.
+    bool scattering_applies = false;
     if (!interactive) {
+      const bool* is_oobe_enabled_p = ec->GetValue(
+          state->config_provider()->var_is_oobe_enabled());
+      if (is_oobe_enabled_p && !(*is_oobe_enabled_p)) {
+        scattering_applies = true;
+      } else {
+        const bool* is_oobe_complete_p = ec->GetValue(
+            system_provider->var_is_oobe_complete());
+        scattering_applies = (is_oobe_complete_p && *is_oobe_complete_p);
+      }
+    }
+
+    // Compute scattering values.
+    if (scattering_applies) {
       UpdateScatteringResult scatter_result;
       EvalStatus scattering_status = UpdateScattering(
           ec, state, error, &scatter_result, update_state);
@@ -108,7 +124,7 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     // Determine whether HTTP downloads are forbidden by policy. This only
     // applies to official system builds; otherwise, HTTP is always enabled.
     const bool* is_official_build_p = ec->GetValue(
-        state->system_provider()->var_is_official_build());
+        system_provider->var_is_official_build());
     if (is_official_build_p && *is_official_build_p) {
       const bool* policy_http_downloads_enabled_p = ec->GetValue(
           dp_provider->var_http_downloads_enabled());
