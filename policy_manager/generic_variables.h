@@ -9,16 +9,11 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_POLICY_MANAGER_GENERIC_VARIABLES_H_
 
+#include <string>
+
 #include <base/callback.h>
 
 #include "update_engine/policy_manager/variable.h"
-
-namespace {
-
-const char* kCopyVariableDefaultErrMsg = "Requested value is not set";
-
-}  // namespace
-
 
 namespace chromeos_policy_manager {
 
@@ -34,52 +29,55 @@ namespace chromeos_policy_manager {
 //   class SomethingProvider {
 //    public:
 //      SomethingProvider(...) {
-//        var_something_foo = new CopyVariable<MyType>(foo_);
+//        var_something_foo = new PollCopyVariable<MyType>(foo_);
 //      }
 //      ...
 //    private:
 //     MyType foo_;
 //   };
 template<typename T>
-class CopyVariable : public Variable<T> {
+class PollCopyVariable : public Variable<T> {
  public:
   // Creates the variable returning copies of the passed |ref|. The reference to
   // this object is kept and it should be available whenever the GetValue()
   // method is called. If |is_set_p| is not null, then this flag will be
   // consulted prior to returning the value, and an |errmsg| will be returned if
   // it is not set.
-  CopyVariable(const std::string& name, VariableMode mode, const T& ref,
-               const bool* is_set_p, const std::string& errmsg)
-      : Variable<T>(name, mode), ref_(ref), is_set_p_(is_set_p),
+  PollCopyVariable(const std::string& name, const T& ref, const bool* is_set_p,
+                   const std::string& errmsg)
+      : Variable<T>(name, kVariableModePoll), ref_(ref), is_set_p_(is_set_p),
         errmsg_(errmsg) {}
-  CopyVariable(const std::string& name, VariableMode mode, const T& ref,
-               const bool* is_set_p)
-      : CopyVariable(name, mode, ref, is_set_p, kCopyVariableDefaultErrMsg) {}
-  CopyVariable(const std::string& name, VariableMode mode, const T& ref)
-      : CopyVariable(name, mode, ref, nullptr) {}
+  PollCopyVariable(const std::string& name, const T& ref, const bool* is_set_p)
+      : PollCopyVariable(name, ref, is_set_p, std::string()) {}
+  PollCopyVariable(const std::string& name, const T& ref)
+      : PollCopyVariable(name, ref, nullptr) {}
 
-  CopyVariable(const std::string& name, const base::TimeDelta poll_interval,
-               const T& ref, const bool* is_set_p, const std::string& errmsg)
+  PollCopyVariable(const std::string& name, const base::TimeDelta poll_interval,
+                   const T& ref, const bool* is_set_p,
+                   const std::string& errmsg)
       : Variable<T>(name, poll_interval), ref_(ref), is_set_p_(is_set_p),
         errmsg_(errmsg) {}
-  CopyVariable(const std::string& name, const base::TimeDelta poll_interval,
-               const T& ref, const bool* is_set_p)
-      : CopyVariable(name, poll_interval, ref, is_set_p,
-                     kCopyVariableDefaultErrMsg) {}
-  CopyVariable(const std::string& name, const base::TimeDelta poll_interval,
-               const T& ref)
-      : CopyVariable(name, poll_interval, ref, nullptr) {}
+  PollCopyVariable(const std::string& name, const base::TimeDelta poll_interval,
+                   const T& ref, const bool* is_set_p)
+      : PollCopyVariable(name, poll_interval, ref, is_set_p, std::string()) {}
+  PollCopyVariable(const std::string& name, const base::TimeDelta poll_interval,
+                   const T& ref)
+      : PollCopyVariable(name, poll_interval, ref, nullptr) {}
 
  protected:
-  FRIEND_TEST(PmCopyVariableTest, SimpleTest);
-  FRIEND_TEST(PmCopyVariableTest, UseCopyConstructorTest);
+  FRIEND_TEST(PmPollCopyVariableTest, SimpleTest);
+  FRIEND_TEST(PmPollCopyVariableTest, UseCopyConstructorTest);
 
   // Variable override.
   virtual inline const T* GetValue(base::TimeDelta /* timeout */,
                                    std::string* errmsg) {
     if (is_set_p_ && !(*is_set_p_)) {
-      if (errmsg)
-        *errmsg = errmsg_;
+      if (errmsg) {
+        if (errmsg_.empty())
+          *errmsg = "No value set for " + this->GetName();
+        else
+          *errmsg = errmsg_;
+      }
       return nullptr;
     }
     return new T(ref_);

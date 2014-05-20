@@ -16,13 +16,13 @@ using chromeos_update_engine::RunGMainLoopMaxIterations;
 
 namespace chromeos_policy_manager {
 
-class PmCopyVariableTest : public ::testing::Test {};
+class PmPollCopyVariableTest : public ::testing::Test {};
 
 
-TEST_F(PmCopyVariableTest, SimpleTest) {
+TEST_F(PmPollCopyVariableTest, SimpleTest) {
   // Tests that copies are generated as intended.
   int source = 5;
-  CopyVariable<int> var("var", kVariableModePoll, source);
+  PollCopyVariable<int> var("var", source);
 
   // Generate and validate a copy.
   scoped_ptr<const int> copy_1(var.GetValue(
@@ -40,11 +40,11 @@ TEST_F(PmCopyVariableTest, SimpleTest) {
   PmTestUtils::ExpectVariableHasValue(42, &var);
 }
 
-TEST_F(PmCopyVariableTest, SetFlagTest) {
+TEST_F(PmPollCopyVariableTest, SetFlagTest) {
   // Tests that the set flag is being referred to as expected.
   int source = 5;
   bool is_set = false;
-  CopyVariable<int> var("var", kVariableModePoll, source, &is_set);
+  PollCopyVariable<int> var("var", source, &is_set);
 
   // Flag marked unset, nothing should be returned.
   PmTestUtils::ExpectVariableNotSet(&var);
@@ -69,12 +69,12 @@ class CopyConstructorTestClass {
 };
 
 
-TEST_F(PmCopyVariableTest, UseCopyConstructorTest) {
+TEST_F(PmPollCopyVariableTest, UseCopyConstructorTest) {
   // Ensures that CopyVariables indeed uses the copy contructor.
   const CopyConstructorTestClass source;
   ASSERT_FALSE(source.copied_);
 
-  CopyVariable<CopyConstructorTestClass> var("var", kVariableModePoll, source);
+  PollCopyVariable<CopyConstructorTestClass> var("var", source);
   scoped_ptr<const CopyConstructorTestClass> copy(
       var.GetValue(PmTestUtils::DefaultTimeout(), NULL));
   PMTEST_ASSERT_NOT_NULL(copy.get());
