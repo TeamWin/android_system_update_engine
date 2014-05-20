@@ -4,10 +4,10 @@
 
 #include "update_engine/update_attempter.h"
 
-#include <string>
-#include <tr1/memory>
-#include <vector>
 #include <algorithm>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include <base/file_util.h>
 #include <base/logging.h>
@@ -17,8 +17,8 @@
 
 #include <glib.h>
 #include <metrics/metrics_library.h>
-#include <policy/libpolicy.h>
 #include <policy/device_policy.h>
+#include <policy/libpolicy.h>
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/clock_interface.h"
@@ -42,14 +42,14 @@
 #include "update_engine/update_check_scheduler.h"
 #include "update_engine/utils.h"
 
+using base::StringPrintf;
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
-using base::StringPrintf;
 using google::protobuf::NewPermanentCallback;
 using std::make_pair;
-using std::tr1::shared_ptr;
 using std::set;
+using std::shared_ptr;
 using std::string;
 using std::vector;
 

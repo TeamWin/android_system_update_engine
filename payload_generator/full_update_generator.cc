@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
-#include <tr1/memory>
+#include <memory>
 
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -18,8 +18,8 @@
 using std::deque;
 using std::max;
 using std::min;
+using std::shared_ptr;
 using std::string;
-using std::tr1::shared_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {

@@ -18,8 +18,8 @@
 
 #include "update_engine/utils.h"
 
+using std::shared_ptr;
 using std::string;
-using std::tr1::shared_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
