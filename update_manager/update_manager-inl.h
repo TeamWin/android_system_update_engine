@@ -28,13 +28,13 @@ EvalStatus UpdateManager::EvaluatePolicy(
                                                       result, args...);
 
   if (status == EvalStatus::kFailed) {
-    LOG(WARNING) << "PolicyRequest() failed with error: " << error;
+    LOG(WARNING) << "Policy request failed: " << error;
     error.clear();
     status = (default_policy_.*policy_method)(ec, state_.get(), &error,
                                               result, args...);
 
     if (status == EvalStatus::kFailed) {
-      LOG(WARNING) << "Request to DefaultPolicy also failed, passing error.";
+      LOG(WARNING) << "Request to default policy also failed: " << error;
     }
   }
   // TODO(deymo): Log the actual state used from the EvaluationContext.
@@ -86,7 +86,13 @@ EvalStatus UpdateManager::PolicyRequest(
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
   // explicitly instantiate EvaluatePolicy with the latter in lieu of the
   // former.
-  return EvaluatePolicy<R, ExpectedArgs...>(ec, policy_method, result, args...);
+  EvalStatus ret = EvaluatePolicy<R, ExpectedArgs...>(ec, policy_method, result,
+                                                      args...);
+  // Sync policy requests must not block, if they do then this is an error.
+  DCHECK(EvalStatus::kAskMeAgainLater != ret);
+  LOG_IF(WARNING, EvalStatus::kAskMeAgainLater == ret)
+      << "Sync request used with an async policy";
+  return ret;
 }
 
 template<typename R, typename... ActualArgs, typename... ExpectedArgs>

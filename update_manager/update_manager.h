@@ -34,11 +34,10 @@ class UpdateManager {
   // |policy_method|.
   //
   // When the policy request succeeds, the |result| is set and the method
-  // returns EvalStatus::kSucceeded, otherwise, the |result| may not be set.
-  // Also, if the policy implementation should block, this method returns
-  // immediately with EvalStatus::kAskMeAgainLater. In case of failure
-  // EvalStatus::kFailed is returned and the |error| message is set, which must
-  // not be NULL.
+  // returns EvalStatus::kSucceeded, otherwise, the |result| may not be set.  A
+  // policy called with this method should not block (i.e. return
+  // EvalStatus::kAskMeAgainLater), which is considered a programming error. On
+  // failure, EvalStatus::kFailed is returned.
   //
   // An example call to this method is:
   //   um.PolicyRequest(&Policy::SomePolicyMethod, &bool_result, arg1, arg2);
@@ -77,7 +76,7 @@ class UpdateManager {
  private:
   FRIEND_TEST(UmUpdateManagerTest, PolicyRequestCallsPolicy);
   FRIEND_TEST(UmUpdateManagerTest, PolicyRequestCallsDefaultOnError);
-  FRIEND_TEST(UmUpdateManagerTest, PolicyRequestDoesntBlock);
+  FRIEND_TEST(UmUpdateManagerTest, PolicyRequestDoesntBlockDeathTest);
   FRIEND_TEST(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation);
 
   // EvaluatePolicy() evaluates the passed |policy_method| method on the current

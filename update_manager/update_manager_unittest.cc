@@ -128,14 +128,16 @@ TEST_F(UmUpdateManagerTest, PolicyRequestCallsDefaultOnError) {
   EXPECT_TRUE(result.updates_enabled);
 }
 
-TEST_F(UmUpdateManagerTest, PolicyRequestDoesntBlock) {
+// This test only applies to debug builds where DCHECK is enabled.
+#if DCHECK_IS_ON
+TEST_F(UmUpdateManagerTest, PolicyRequestDoesntBlockDeathTest) {
+  // The update manager should die (DCHECK) if a policy called synchronously
+  // returns a kAskMeAgainLater value.
   UpdateCheckParams result;
   umut_->set_policy(new LazyPolicy());
-
-  EvalStatus status = umut_->PolicyRequest(
-      &Policy::UpdateCheckAllowed, &result);
-  EXPECT_EQ(EvalStatus::kAskMeAgainLater, status);
+  EXPECT_DEATH(umut_->PolicyRequest(&Policy::UpdateCheckAllowed, &result), "");
 }
+#endif  // DCHECK_IS_ON
 
 TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation) {
   // To avoid differences in code execution order between an AsyncPolicyRequest
