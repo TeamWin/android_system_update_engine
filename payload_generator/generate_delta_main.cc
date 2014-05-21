@@ -290,6 +290,11 @@ void ApplyDelta() {
 }
 
 int Main(int argc, char** argv) {
+  google::SetUsageMessage(
+      "Generates a payload to provide to ChromeOS' update_engine.\n\n"
+      "This tool can create full payloads and also delta payloads if the src\n"
+      "image is provided. It also provides debugging options to apply, sign\n"
+      "and verify payloads.");
   google::ParseCommandLineFlags(&argc, &argv, true);
   CommandLine::Init(argc, argv);
   Terminator::Init();
