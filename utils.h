@@ -105,6 +105,9 @@ bool FileExists(const char* path);
 // Returns true if |path| exists and is a symbolic link.
 bool IsSymlink(const char* path);
 
+// Returns true if |path| exists and is a directory.
+bool IsDir(const char* path);
+
 // The last 6 chars of path must be XXXXXX. They will be randomly changed
 // and a non-existent path will be returned. Intentionally makes a copy
 // of the string passed in.

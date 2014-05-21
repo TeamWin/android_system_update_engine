@@ -520,6 +520,12 @@ bool IsSymlink(const char* path) {
   return lstat(path, &stbuf) == 0 && S_ISLNK(stbuf.st_mode) != 0;
 }
 
+bool IsDir(const char* path) {
+  struct stat stbuf;
+  TEST_AND_RETURN_FALSE_ERRNO(lstat(path, &stbuf) == 0);
+  return S_ISDIR(stbuf.st_mode);
+}
+
 std::string TempFilename(string path) {
   static const string suffix("XXXXXX");
   CHECK(StringHasSuffix(path, suffix));

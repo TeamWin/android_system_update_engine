@@ -113,12 +113,6 @@ namespace chromeos_update_engine {
 
 namespace {
 
-bool IsDir(const char* path) {
-  struct stat stbuf;
-  TEST_AND_RETURN_FALSE_ERRNO(lstat(path, &stbuf) == 0);
-  return S_ISDIR(stbuf.st_mode);
-}
-
 void ParseSignatureSizes(const string& signature_sizes_flag,
                          vector<int>* signature_sizes) {
   signature_sizes->clear();
@@ -366,7 +360,8 @@ int Main(int argc, char** argv) {
     LOG(INFO) << "Generating delta update";
     CHECK(!FLAGS_old_dir.empty());
     CHECK(!FLAGS_new_dir.empty());
-    if ((!IsDir(FLAGS_old_dir.c_str())) || (!IsDir(FLAGS_new_dir.c_str()))) {
+    if (!utils::IsDir(FLAGS_old_dir.c_str()) ||
+        !utils::IsDir(FLAGS_new_dir.c_str())) {
       LOG(FATAL) << "old_dir or new_dir not directory";
     }
   } else {
