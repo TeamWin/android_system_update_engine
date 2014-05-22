@@ -321,10 +321,9 @@ static void GenerateDeltaFile(bool full_kernel,
 
     vector<char> zeros(16 * 1024, 0);
     EXPECT_EQ(zeros.size(),
-              file_util::WriteFile(
-                  base::FilePath(base::StringPrintf("%s/move-to-sparse",
-                                                    a_mnt.c_str())),
-                  zeros.data(), zeros.size()));
+              base::WriteFile(base::FilePath(base::StringPrintf(
+                                  "%s/move-to-sparse", a_mnt.c_str())),
+                              zeros.data(), zeros.size()));
 
     EXPECT_TRUE(
         WriteSparseFile(base::StringPrintf("%s/move-from-sparse",
@@ -382,10 +381,9 @@ static void GenerateDeltaFile(bool full_kernel,
 
     vector<char> zeros(16 * 1024, 0);
     EXPECT_EQ(zeros.size(),
-              file_util::WriteFile(
-                  base::FilePath(base::StringPrintf("%s/move-from-sparse",
-                                                    b_mnt.c_str())),
-                  zeros.data(), zeros.size()));
+              base::WriteFile(base::FilePath(base::StringPrintf(
+                                  "%s/move-from-sparse", b_mnt.c_str())),
+                              zeros.data(), zeros.size()));
 
     EXPECT_EQ(0, system(base::StringPrintf("dd if=/dev/zero "
                                            "of=%s/move-semi-sparse "

@@ -209,7 +209,7 @@ TEST_F(UpdateAttempterTest, RunAsRootConstructWithUpdatedMarkerTest) {
           &test_update_completed_marker, NULL));
   ScopedPathUnlinker completed_marker_unlinker(test_update_completed_marker);
   const base::FilePath marker(test_update_completed_marker);
-  EXPECT_EQ(0, file_util::WriteFile(marker, "", 0));
+  EXPECT_EQ(0, base::WriteFile(marker, "", 0));
   UpdateAttempterUnderTest attempter(&fake_system_state_, &dbus_,
                                      test_update_completed_marker);
   EXPECT_EQ(UPDATE_STATUS_UPDATED_NEED_REBOOT, attempter.status());

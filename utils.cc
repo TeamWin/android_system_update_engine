@@ -21,8 +21,9 @@
 #include <algorithm>
 #include <vector>
 
-#include <base/files/file_path.h>
 #include <base/file_util.h>
+#include <base/files/file_path.h>
+#include <base/files/scoped_file.h>
 #include <base/logging.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/rand_util.h>
@@ -72,7 +73,7 @@ namespace utils {
 static const char kCGroupDir[] = "/sys/fs/cgroup/cpu/update-engine";
 
 string ParseECVersion(string input_line) {
-  TrimWhitespaceASCII(input_line, TRIM_ALL, &input_line);
+  base::TrimWhitespaceASCII(input_line, base::TRIM_ALL, &input_line);
 
   // At this point we want to convert the format key=value pair from mosys to
   // a vector of key value pairs.
@@ -231,7 +232,7 @@ static bool ReadFileChunkAndAppend(const std::string& path,
                                    T* out_p) {
   CHECK_GE(offset, 0);
   CHECK(size == -1 || size >= 0);
-  file_util::ScopedFILE fp(fopen(path.c_str(), "r"));
+  base::ScopedFILE fp(fopen(path.c_str(), "r"));
   if (!fp.get())
     return false;
   if (offset) {
@@ -473,10 +474,10 @@ bool IsRemovableDevice(const std::string& device) {
   string removable;
   if (sysfs_block.empty() ||
       !base::ReadFileToString(base::FilePath(sysfs_block).Append("removable"),
-                                   &removable)) {
+                              &removable)) {
     return false;
   }
-  TrimWhitespaceASCII(removable, TRIM_ALL, &removable);
+  base::TrimWhitespaceASCII(removable, base::TRIM_ALL, &removable);
   return removable == "1";
 }
 

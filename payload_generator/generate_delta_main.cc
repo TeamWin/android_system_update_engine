@@ -299,8 +299,6 @@ int Main(int argc, char** argv) {
   log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
   log_settings.lock_log     = logging::DONT_LOCK_LOG_FILE;
   log_settings.delete_old   = logging::APPEND_TO_OLD_LOG_FILE;
-  log_settings.dcheck_state =
-    logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
 
   logging::InitLogging(log_settings);
 

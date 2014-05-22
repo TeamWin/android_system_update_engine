@@ -177,7 +177,7 @@ static string ReadValueFromCrosSystem(const string& key) {
                                              sizeof(value_buffer));
   if (rv != NULL) {
     string return_value(value_buffer);
-    TrimWhitespaceASCII(return_value, TRIM_ALL, &return_value);
+    base::TrimWhitespaceASCII(return_value, base::TRIM_ALL, &return_value);
     return return_value;
   }
 

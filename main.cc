@@ -132,8 +132,6 @@ void SetupLogging() {
   logging::LoggingSettings log_settings;
   log_settings.lock_log = logging::DONT_LOCK_LOG_FILE;
   log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
-  log_settings.dcheck_state =
-    logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
 
   if (FLAGS_logtostderr) {
     // Log to stderr initially.

@@ -29,9 +29,8 @@ class PrefsTest : public ::testing::Test {
   }
 
   bool SetValue(const string& key, const string& value) {
-    return file_util::WriteFile(prefs_dir_.Append(key),
-                                value.data(), value.length()) ==
-        static_cast<int>(value.length());
+    return base::WriteFile(prefs_dir_.Append(key), value.data(),
+                           value.length()) == static_cast<int>(value.length());
   }
 
   base::FilePath prefs_dir_;

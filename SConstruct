@@ -152,7 +152,7 @@ env['CCFLAGS'] = Split("""
     -D_POSIX_C_SOURCE=199309L""")
 env['CCFLAGS'] += env['CFLAGS']
 
-BASE_VER = os.environ.get('BASE_VER', '242728')
+BASE_VER = os.environ.get('BASE_VER', '271506')
 env['LIBS'] = Split("""bz2
                        crypto
                        curl

@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #include <base/files/file_path.h>
-#include <base/file_util.h>
+#include <base/files/scoped_file.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/policy_manager/real_random_provider.h"
@@ -58,7 +58,7 @@ class RandomSeedVariable : public Variable<uint64_t> {
   }
 
  private:
-  file_util::ScopedFILE fp_;
+  base::ScopedFILE fp_;
 
   DISALLOW_COPY_AND_ASSIGN(RandomSeedVariable);
 };

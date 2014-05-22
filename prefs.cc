@@ -34,9 +34,8 @@ bool Prefs::SetString(const std::string& key, const std::string& value) {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
   TEST_AND_RETURN_FALSE(base::CreateDirectory(filename.DirName()));
-  TEST_AND_RETURN_FALSE(
-      file_util::WriteFile(filename, value.data(), value.size()) ==
-      static_cast<int>(value.size()));
+  TEST_AND_RETURN_FALSE(base::WriteFile(filename, value.data(), value.size()) ==
+                        static_cast<int>(value.size()));
   return true;
 }
 
@@ -44,7 +43,7 @@ bool Prefs::GetInt64(const string& key, int64_t* value) {
   string str_value;
   if (!GetString(key, &str_value))
     return false;
-  TrimWhitespaceASCII(str_value, TRIM_ALL, &str_value);
+  base::TrimWhitespaceASCII(str_value, base::TRIM_ALL, &str_value);
   TEST_AND_RETURN_FALSE(base::StringToInt64(str_value, value));
   return true;
 }
@@ -57,7 +56,7 @@ bool Prefs::GetBoolean(const std::string& key, bool* value) {
   string str_value;
   if (!GetString(key, &str_value))
     return false;
-  TrimWhitespaceASCII(str_value, TRIM_ALL, &str_value);
+  base::TrimWhitespaceASCII(str_value, base::TRIM_ALL, &str_value);
   if (str_value == "false") {
     *value = false;
     return true;

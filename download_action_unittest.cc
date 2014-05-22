@@ -34,7 +34,7 @@ using testing::InSequence;
 using base::FilePath;
 using base::ReadFileToString;
 using base::StringPrintf;
-using file_util::WriteFile;
+using base::WriteFile;
 
 class DownloadActionTest : public ::testing::Test { };
 

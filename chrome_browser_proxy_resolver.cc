@@ -227,7 +227,7 @@ deque<string> ChromeBrowserProxyResolver::ParseProxyString(
   StringTokenizer entry_tok(input, ";");
   while (entry_tok.GetNext()) {
     string token = entry_tok.token();
-    TrimWhitespaceASCII(token, TRIM_ALL, &token);
+    base::TrimWhitespaceASCII(token, base::TRIM_ALL, &token);
 
     // Start by finding the first space (if any).
     std::string::iterator space;
@@ -251,7 +251,7 @@ deque<string> ChromeBrowserProxyResolver::ParseProxyString(
       continue;  // Invalid proxy scheme
 
     string host_and_port = string(space, token.end());
-    TrimWhitespaceASCII(host_and_port, TRIM_ALL, &host_and_port);
+    base::TrimWhitespaceASCII(host_and_port, base::TRIM_ALL, &host_and_port);
     if (scheme != "direct" && host_and_port.empty())
       continue;  // Must supply host/port when non-direct proxy used.
     ret.push_back(scheme + "://" + host_and_port);
