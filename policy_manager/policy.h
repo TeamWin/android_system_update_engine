@@ -43,7 +43,7 @@ struct UpdateState {
   int scatter_check_threshold;
   // Minimum/maximum check threshold values.
   // TODO(garnold) These appear to not be related to the current update and so
-  // should probably be obtained vs variables ia UpdaterProvider.
+  // should probably be obtained as variables via UpdaterProvider.
   int scatter_check_threshold_min;
   int scatter_check_threshold_max;
 };

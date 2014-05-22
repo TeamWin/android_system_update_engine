@@ -253,9 +253,6 @@ EvalStatus ChromeOSPolicy::UpdateScattering(
   //
   // If no wait period was previously determined, or it no longer fits in the
   // scatter factor, then generate a new one. Otherwise, keep the one we have.
-  // TODO(garnold) Current code (UpdateAttempter::GenerateNewWaitingPeriod())
-  // always generates a non-zero value, which seems to imply that *some*
-  // scattering always happens. Yet to validate whether this is intentional.
   TimeDelta wait_period = update_state.scatter_wait_period;
   if (wait_period == kZeroInterval || wait_period > *scatter_factor_p) {
     wait_period = TimeDelta::FromSeconds(
