@@ -187,9 +187,9 @@ TEST(UtilsTest, RecursiveUnlinkDirTest) {
 TEST(UtilsTest, IsSymlinkTest) {
   string temp_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("symlink-test.XXXXXX", &temp_dir));
-  string temp_file = temp_dir + "temp-file";
+  string temp_file = temp_dir + "/temp-file";
   EXPECT_TRUE(utils::WriteFile(temp_file.c_str(), "", 0));
-  string temp_symlink = temp_dir + "temp-symlink";
+  string temp_symlink = temp_dir + "/temp-symlink";
   EXPECT_EQ(0, symlink(temp_file.c_str(), temp_symlink.c_str()));
   EXPECT_FALSE(utils::IsSymlink(temp_dir.c_str()));
   EXPECT_FALSE(utils::IsSymlink(temp_file.c_str()));
@@ -201,9 +201,9 @@ TEST(UtilsTest, IsSymlinkTest) {
 TEST(UtilsTest, IsDirTest) {
   string temp_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("isdir-test.XXXXXX", &temp_dir));
-  string temp_file = temp_dir + "temp-file";
+  string temp_file = temp_dir + "/temp-file";
   EXPECT_TRUE(utils::WriteFile(temp_file.c_str(), "", 0));
-  string temp_symlink = temp_dir + "temp-symlink";
+  string temp_symlink = temp_dir + "/temp-symlink";
   EXPECT_EQ(0, symlink(temp_dir.c_str(), temp_symlink.c_str()));
   EXPECT_TRUE(utils::IsDir(temp_dir.c_str()));
   EXPECT_FALSE(utils::IsDir(temp_file.c_str()));
