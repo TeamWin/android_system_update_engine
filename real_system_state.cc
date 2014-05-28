@@ -7,7 +7,7 @@
 #include <base/file_util.h>
 
 #include "update_engine/constants.h"
-#include "update_engine/policy_manager/state_factory.h"
+#include "update_engine/update_manager/state_factory.h"
 #include "update_engine/utils.h"
 
 namespace chromeos_update_engine {
@@ -43,16 +43,16 @@ bool RealSystemState::Initialize() {
   p2p_manager_.reset(P2PManager::Construct(NULL, &prefs_, "cros_au",
                                            kMaxP2PFilesToKeep));
 
-  // Initialize the PolicyManager using the default State Factory.
-  chromeos_policy_manager::State* pm_state =
-      chromeos_policy_manager::DefaultStateFactory(
+  // Initialize the Update Manager using the default state factory.
+  chromeos_update_manager::State* um_state =
+      chromeos_update_manager::DefaultStateFactory(
           &policy_provider_, &dbus_, this);
-  if (!pm_state) {
-    LOG(ERROR) << "Failed to initialize the policy manager.";
+  if (!um_state) {
+    LOG(ERROR) << "Failed to initialize the Update Manager.";
     return false;
   }
-  policy_manager_.reset(
-      new chromeos_policy_manager::PolicyManager(&clock_, pm_state));
+  update_manager_.reset(
+      new chromeos_update_manager::UpdateManager(&clock_, um_state));
 
   if (!payload_state_.Initialize(this)) {
     LOG(ERROR) << "Failed to initialize the payload state object.";

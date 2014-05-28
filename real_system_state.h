@@ -7,18 +7,18 @@
 
 #include "update_engine/system_state.h"
 
-#include <policy/device_policy.h>
 #include <metrics/metrics_library.h>
+#include <policy/device_policy.h>
 
 #include "update_engine/clock.h"
 #include "update_engine/connection_manager.h"
 #include "update_engine/hardware.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
-#include "update_engine/policy_manager/policy_manager.h"
 #include "update_engine/prefs.h"
 #include "update_engine/real_dbus_wrapper.h"
 #include "update_engine/update_attempter.h"
+#include "update_engine/update_manager/update_manager.h"
 
 namespace chromeos_update_engine {
 
@@ -83,9 +83,9 @@ class RealSystemState : public SystemState {
     return p2p_manager_.get();
   }
 
-  virtual inline chromeos_policy_manager::PolicyManager* policy_manager()
+  virtual inline chromeos_update_manager::UpdateManager* update_manager()
       override {
-    return policy_manager_.get();
+    return update_manager_.get();
   }
 
   virtual inline bool system_rebooted() override {
@@ -130,7 +130,7 @@ class RealSystemState : public SystemState {
 
   scoped_ptr<P2PManager> p2p_manager_;
 
-  scoped_ptr<chromeos_policy_manager::PolicyManager> policy_manager_;
+  scoped_ptr<chromeos_update_manager::UpdateManager> update_manager_;
 
   policy::PolicyProvider policy_provider_;
 

@@ -7,11 +7,11 @@
 
 class MetricsLibraryInterface;
 
-namespace chromeos_policy_manager {
+namespace chromeos_update_manager {
 
-class PolicyManager;
+class UpdateManager;
 
-}  // namespace chromeos_policy_manager
+}  // namespace chromeos_update_manager
 
 namespace policy {
 
@@ -84,8 +84,8 @@ class SystemState {
   // Returns a pointer to the P2PManager singleton.
   virtual P2PManager* p2p_manager() = 0;
 
-  // Returns a pointer to the PolicyManager singleton.
-  virtual chromeos_policy_manager::PolicyManager* policy_manager() = 0;
+  // Returns a pointer to the UpdateManager singleton.
+  virtual chromeos_update_manager::UpdateManager* update_manager() = 0;
 
   // If true, this is the first instance of the update engine since the system
   // restarted. Important for tracking whether you are running instance of the

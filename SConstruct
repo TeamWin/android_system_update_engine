@@ -238,20 +238,6 @@ sources = Split("""action_processor.cc
                    payload_generator/topological_sort.cc
                    payload_signer.cc
                    payload_state.cc
-                   policy_manager/boxed_value.cc
-                   policy_manager/chromeos_policy.cc
-                   policy_manager/evaluation_context.cc
-                   policy_manager/event_loop.cc
-                   policy_manager/policy.cc
-                   policy_manager/policy_manager.cc
-                   policy_manager/real_config_provider.cc
-                   policy_manager/real_device_policy_provider.cc
-                   policy_manager/real_random_provider.cc
-                   policy_manager/real_shill_provider.cc
-                   policy_manager/real_system_provider.cc
-                   policy_manager/real_time_provider.cc
-                   policy_manager/real_updater_provider.cc
-                   policy_manager/state_factory.cc
                    postinstall_runner_action.cc
                    prefs.cc
                    proxy_resolver.cc
@@ -261,6 +247,20 @@ sources = Split("""action_processor.cc
                    terminator.cc
                    update_attempter.cc
                    update_check_scheduler.cc
+                   update_manager/boxed_value.cc
+                   update_manager/chromeos_policy.cc
+                   update_manager/evaluation_context.cc
+                   update_manager/event_loop.cc
+                   update_manager/policy.cc
+                   update_manager/real_config_provider.cc
+                   update_manager/real_device_policy_provider.cc
+                   update_manager/real_random_provider.cc
+                   update_manager/real_shill_provider.cc
+                   update_manager/real_system_provider.cc
+                   update_manager/real_time_provider.cc
+                   update_manager/real_updater_provider.cc
+                   update_manager/state_factory.cc
+                   update_manager/update_manager.cc
                    update_metadata.pb.cc
                    utils.cc""")
 main = ['main.cc']
@@ -299,22 +299,6 @@ unittest_sources = Split("""action_pipe_unittest.cc
                             payload_generator/topological_sort_unittest.cc
                             payload_signer_unittest.cc
                             payload_state_unittest.cc
-                            policy_manager/boxed_value_unittest.cc
-                            policy_manager/chromeos_policy_unittest.cc
-                            policy_manager/evaluation_context_unittest.cc
-                            policy_manager/event_loop_unittest.cc
-                            policy_manager/generic_variables_unittest.cc
-                            policy_manager/pmtest_utils.cc
-                            policy_manager/policy_manager_unittest.cc
-                            policy_manager/prng_unittest.cc
-                            policy_manager/real_config_provider_unittest.cc
-                            policy_manager/real_device_policy_provider_unittest.cc
-                            policy_manager/real_random_provider_unittest.cc
-                            policy_manager/real_shill_provider_unittest.cc
-                            policy_manager/real_system_provider_unittest.cc
-                            policy_manager/real_time_provider_unittest.cc
-                            policy_manager/real_updater_provider_unittest.cc
-                            policy_manager/variable_unittest.cc
                             postinstall_runner_action_unittest.cc
                             prefs_unittest.cc
                             simple_key_value_store_unittest.cc
@@ -323,6 +307,22 @@ unittest_sources = Split("""action_pipe_unittest.cc
                             test_utils.cc
                             update_attempter_unittest.cc
                             update_check_scheduler_unittest.cc
+                            update_manager/boxed_value_unittest.cc
+                            update_manager/chromeos_policy_unittest.cc
+                            update_manager/evaluation_context_unittest.cc
+                            update_manager/event_loop_unittest.cc
+                            update_manager/generic_variables_unittest.cc
+                            update_manager/prng_unittest.cc
+                            update_manager/real_config_provider_unittest.cc
+                            update_manager/real_device_policy_provider_unittest.cc
+                            update_manager/real_random_provider_unittest.cc
+                            update_manager/real_shill_provider_unittest.cc
+                            update_manager/real_system_provider_unittest.cc
+                            update_manager/real_time_provider_unittest.cc
+                            update_manager/real_updater_provider_unittest.cc
+                            update_manager/umtest_utils.cc
+                            update_manager/update_manager_unittest.cc
+                            update_manager/variable_unittest.cc
                             utils_unittest.cc
                             zip_unittest.cc""")
 unittest_main = ['testrunner.cc']

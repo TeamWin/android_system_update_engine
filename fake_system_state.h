@@ -16,10 +16,10 @@
 #include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
-#include "update_engine/policy_manager/fake_policy_manager.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_attempter_mock.h"
+#include "update_engine/update_manager/fake_update_manager.h"
 
 namespace chromeos_update_engine {
 
@@ -82,9 +82,9 @@ class FakeSystemState : public SystemState {
     return p2p_manager_;
   }
 
-  virtual inline chromeos_policy_manager::PolicyManager* policy_manager()
+  virtual inline chromeos_update_manager::UpdateManager* update_manager()
       override {
-    return policy_manager_;
+    return update_manager_;
   }
 
   virtual inline bool system_rebooted() override {
@@ -139,9 +139,9 @@ class FakeSystemState : public SystemState {
     p2p_manager_ = p2p_manager ? p2p_manager : &mock_p2p_manager_;
   }
 
-  inline void set_policy_manager(
-      chromeos_policy_manager::PolicyManager *policy_manager) {
-    policy_manager_ = policy_manager ? policy_manager : &fake_policy_manager_;
+  inline void set_update_manager(
+      chromeos_update_manager::UpdateManager *update_manager) {
+    update_manager_ = update_manager ? update_manager : &fake_update_manager_;
   }
 
   inline void set_system_rebooted(bool system_rebooted) {
@@ -203,9 +203,9 @@ class FakeSystemState : public SystemState {
     return &mock_p2p_manager_;
   }
 
-  inline chromeos_policy_manager::FakePolicyManager* fake_policy_manager() {
-    CHECK(policy_manager_ == &fake_policy_manager_);
-    return &fake_policy_manager_;
+  inline chromeos_update_manager::FakeUpdateManager* fake_update_manager() {
+    CHECK(update_manager_ == &fake_update_manager_);
+    return &fake_update_manager_;
   }
 
  private:
@@ -220,7 +220,7 @@ class FakeSystemState : public SystemState {
   testing::NiceMock<UpdateAttempterMock> mock_update_attempter_;
   OmahaRequestParams default_request_params_;
   testing::NiceMock<MockP2PManager> mock_p2p_manager_;
-  chromeos_policy_manager::FakePolicyManager fake_policy_manager_;
+  chromeos_update_manager::FakeUpdateManager fake_update_manager_;
 
   // Pointers to objects that client code can override. They are initialized to
   // the default implementations above.
@@ -234,7 +234,7 @@ class FakeSystemState : public SystemState {
   UpdateAttempter* update_attempter_;
   OmahaRequestParams* request_params_;
   P2PManager* p2p_manager_;
-  chromeos_policy_manager::PolicyManager* policy_manager_;
+  chromeos_update_manager::UpdateManager* update_manager_;
 
   // Other object pointers (not preinitialized).
   const policy::DevicePolicy* device_policy_;
