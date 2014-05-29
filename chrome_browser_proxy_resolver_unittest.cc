@@ -14,7 +14,7 @@ using std::deque;
 using std::string;
 using ::testing::_;
 using ::testing::Return;
-using ::testing::SetArgumentPointee;
+using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
 namespace chromeos_update_engine {
@@ -119,10 +119,11 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
   DBusMessage* kMockDbusMessage =
       reinterpret_cast<DBusMessage*>(number++);
 
-  const char kUrl[] = "http://example.com/blah";
+  char kUrl[] = "http://example.com/blah";
+  char kProxyConfig[] = "SOCKS5 192.168.52.83:5555;DIRECT";
 
-  MockDBusWrapper dbus_iface;
-  
+  testing::StrictMock<MockDBusWrapper> dbus_iface;
+
   EXPECT_CALL(dbus_iface, BusGet(_, _))
       .Times(2)
       .WillRepeatedly(Return(kMockSystemGBus));
@@ -140,17 +141,20 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
                               StrEq(kLibCrosServicePath),
                               StrEq(kLibCrosServiceInterface)))
       .WillOnce(Return(kMockDbusProxy));
-  if (chrome_alive)
-    EXPECT_CALL(dbus_iface, ProxyCall_3_0(
-        kMockDbusProxy,
-        StrEq(kLibCrosServiceResolveNetworkProxyMethodName),
-        _,
-        StrEq(kUrl),
-        StrEq(kLibCrosProxyResolveSignalInterface),
-        StrEq(kLibCrosProxyResolveName)))
-        .WillOnce(Return(chrome_alive ? TRUE : FALSE));
+  EXPECT_CALL(dbus_iface, ProxyUnref(kMockDbusProxy));
+
+  EXPECT_CALL(dbus_iface, ProxyCall_3_0(
+      kMockDbusProxy,
+      StrEq(kLibCrosServiceResolveNetworkProxyMethodName),
+      _,
+      StrEq(kUrl),
+      StrEq(kLibCrosProxyResolveSignalInterface),
+      StrEq(kLibCrosProxyResolveName)))
+      .WillOnce(Return(chrome_alive ? TRUE : FALSE));
+
   EXPECT_CALL(dbus_iface,
               DBusConnectionRemoveFilter(kMockSystemBus, _, _));
+
   if (chrome_replies) {
     EXPECT_CALL(dbus_iface,
                 DBusMessageIsSignal(kMockDbusMessage,
@@ -159,9 +163,8 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
         .WillOnce(Return(1));
     EXPECT_CALL(dbus_iface,
                 DBusMessageGetArgs_3(kMockDbusMessage, _, _, _, _))
-        .WillOnce(DoAll(SetArgumentPointee<2>(strdup(kUrl)),
-                        SetArgumentPointee<3>(
-                            strdup("SOCKS5 192.168.52.83:5555;DIRECT")),
+        .WillOnce(DoAll(SetArgPointee<2>(static_cast<char*>(kUrl)),
+                        SetArgPointee<3>(static_cast<char*>(kProxyConfig)),
                         Return(TRUE)));
   }
 
