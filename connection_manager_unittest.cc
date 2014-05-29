@@ -4,12 +4,14 @@
 
 #include <base/logging.h>
 #include <chromeos/dbus/service_constants.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <string>
 
 #include "update_engine/connection_manager.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_dbus_wrapper.h"
+#include "update_engine/test_utils.h"
 
 using std::set;
 using std::string;
@@ -33,7 +35,7 @@ class ConnectionManagerTest : public ::testing::Test {
 
  protected:
   void SetupMocks(const char* service_path);
-  void SetManagerReply(gconstpointer value, const GType& type);
+  void SetManagerReply(const char* reply_value, const GType& reply_type);
 
   // Sets the |service_type| Type and the |physical_technology|
   // PhysicalTechnology properties in the mocked service. If a NULL
@@ -54,7 +56,7 @@ class ConnectionManagerTest : public ::testing::Test {
   DBusGProxy* kMockFlimFlamServiceProxy_;
   DBusGConnection* kMockSystemBus_;
   const char* kServicePath_;
-  MockDBusWrapper dbus_iface_;
+  testing::StrictMock<MockDBusWrapper> dbus_iface_;
   ConnectionManager cmut_;  // ConnectionManager under test.
   FakeSystemState fake_system_state_;
 };
@@ -77,19 +79,29 @@ void ConnectionManagerTest::SetupMocks(const char* service_path) {
       .Times(AnyNumber());
 }
 
-void ConnectionManagerTest::SetManagerReply(gconstpointer reply_value,
+void ConnectionManagerTest::SetManagerReply(const char *reply_value,
                                             const GType& reply_type) {
-  // Initialize return value for D-Bus call to Manager object.
-  // TODO (jaysri): Free the objects allocated here.
-  GHashTable* manager_hash_table = g_hash_table_new(g_str_hash, g_str_equal);
+  ASSERT_TRUE(dbus_g_type_is_collection(reply_type));
 
-  GArray* array = g_array_new(FALSE, FALSE, sizeof(const char*));
+  // Create the GPtrArray array holding the |reply_value| pointer. The
+  // |reply_value| string is duplicated because it should be mutable on the
+  // interface and is because dbus-glib collections will g_free() each element
+  // of the GPtrArray automatically when the |array_as_value| GValue is unset.
+  // The g_strdup() is not being leaked.
+  GPtrArray* array = g_ptr_array_new();
   ASSERT_TRUE(array != NULL);
+  g_ptr_array_add(array, g_strdup(reply_value));
 
-  EXPECT_EQ(array, g_array_append_val(array, reply_value));
   GValue* array_as_value = g_new0(GValue, 1);
   EXPECT_EQ(array_as_value, g_value_init(array_as_value, reply_type));
   g_value_take_boxed(array_as_value, array);
+
+  // Initialize return value for D-Bus call to Manager object, which is a
+  // hash table of static strings (char*) in GValue* containing a single array.
+  GHashTable* manager_hash_table = g_hash_table_new_full(
+      g_str_hash, g_str_equal,
+      nullptr,  // no key_destroy_func because keys are static.
+      GValueFree);  // value_destroy_func
   g_hash_table_insert(manager_hash_table,
                       const_cast<char*>("Services"),
                       array_as_value);
@@ -115,36 +127,26 @@ void ConnectionManagerTest::SetManagerReply(gconstpointer reply_value,
 void ConnectionManagerTest::SetServiceReply(const char* service_type,
                                             const char* physical_technology,
                                             const char* service_tethering) {
-  // Initialize return value for D-Bus call to Service object.
-  // TODO (jaysri): Free the objects allocated here.
-  GHashTable* service_hash_table = g_hash_table_new(g_str_hash, g_str_equal);
-
-  GValue* service_type_value = g_new0(GValue, 1);
-  EXPECT_EQ(service_type_value,
-            g_value_init(service_type_value, G_TYPE_STRING));
-  g_value_set_static_string(service_type_value, service_type);
-
+  // Initialize return value for D-Bus call to Service object, which is a
+  // hash table of static strings (char*) in GValue*.
+  GHashTable* service_hash_table = g_hash_table_new_full(
+      g_str_hash, g_str_equal,
+      nullptr,  // no key_destroy_func because keys are static.
+      GValueFree);  // value_destroy_func
+  GValue* service_type_value = GValueNewString(service_type);
   g_hash_table_insert(service_hash_table,
                       const_cast<char*>("Type"),
                       service_type_value);
 
   if (physical_technology != NULL) {
-    GValue* physical_technology_value = g_new0(GValue, 1);
-    EXPECT_EQ(physical_technology_value,
-              g_value_init(physical_technology_value, G_TYPE_STRING));
-    g_value_set_static_string(physical_technology_value, physical_technology);
-
+    GValue* physical_technology_value = GValueNewString(physical_technology);
     g_hash_table_insert(service_hash_table,
                         const_cast<char*>("PhysicalTechnology"),
                         physical_technology_value);
   }
 
   if (service_tethering != NULL) {
-    GValue* service_tethering_value = g_new0(GValue, 1);
-    EXPECT_EQ(service_tethering_value,
-              g_value_init(service_tethering_value, G_TYPE_STRING));
-    g_value_set_static_string(service_tethering_value, service_tethering);
-
+    GValue* service_tethering_value = GValueNewString(service_tethering);
     g_hash_table_insert(service_hash_table,
                         const_cast<char*>("Tethering"),
                         service_tethering_value);
@@ -182,6 +184,7 @@ void ConnectionManagerTest::TestWithServiceType(
   NetworkTethering tethering;
   EXPECT_TRUE(cmut_.GetConnectionProperties(&dbus_iface_, &type, &tethering));
   EXPECT_EQ(expected_type, type);
+  testing::Mock::VerifyAndClearExpectations(&dbus_iface_);
 }
 
 void ConnectionManagerTest::TestWithServiceTethering(
@@ -412,8 +415,7 @@ TEST_F(ConnectionManagerTest, StringForConnectionTypeTest) {
 
 TEST_F(ConnectionManagerTest, MalformedServiceList) {
   SetupMocks("/service/guest-network");
-  string service_name(kServicePath_);
-  SetManagerReply(&service_name, DBUS_TYPE_G_STRING_ARRAY);
+  SetManagerReply(kServicePath_, DBUS_TYPE_G_STRING_ARRAY);
 
   NetworkConnectionType type;
   NetworkTethering tethering;

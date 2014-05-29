@@ -343,7 +343,7 @@ int RunGMainLoopMaxIterations(int iterations) {
 }
 
 GValue* GValueNewString(const char* str) {
-  GValue* gval = new GValue();
+  GValue* gval = g_new0(GValue, 1);
   g_value_init(gval, G_TYPE_STRING);
   g_value_set_string(gval, str);
   return gval;
@@ -352,7 +352,7 @@ GValue* GValueNewString(const char* str) {
 void GValueFree(gpointer arg) {
   auto gval = reinterpret_cast<GValue*>(arg);
   g_value_unset(gval);
-  delete gval;
+  g_free(gval);
 }
 
 }  // namespace chromeos_update_engine

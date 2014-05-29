@@ -84,12 +84,12 @@ bool GetDefaultServicePath(DBusWrapperInterface* dbus_iface, string* out_path) {
 
   GValue* value = reinterpret_cast<GValue*>(g_hash_table_lookup(hash_table,
                                                                 "Services"));
-  GArray* array = NULL;
+  GPtrArray* array = NULL;
   bool success = false;
   if (G_VALUE_HOLDS(value, DBUS_TYPE_G_OBJECT_PATH_ARRAY) &&
-      (array = reinterpret_cast<GArray*>(g_value_get_boxed(value))) &&
+      (array = reinterpret_cast<GPtrArray*>(g_value_get_boxed(value))) &&
       (array->len > 0)) {
-    *out_path = g_array_index(array, const char*, 0);
+    *out_path = static_cast<const char*>(g_ptr_array_index(array, 0));
     success = true;
   }
 
