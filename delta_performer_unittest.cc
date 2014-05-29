@@ -797,7 +797,7 @@ void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
                       SignatureTest signature_test,
                       bool hash_checks_mandatory) {
   DeltaState state;
-  DeltaPerformer *performer;
+  DeltaPerformer *performer = nullptr;
   GenerateDeltaFile(full_kernel, full_rootfs, noop, chunk_size,
                     signature_test, &state);
 
@@ -810,6 +810,7 @@ void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
                  &state, hash_checks_mandatory, kValidOperationData,
                  &performer);
   VerifyPayload(performer, &state, signature_test);
+  delete performer;
 }
 
 // Calls delta performer's Write method by pretending to pass in bytes from a
@@ -949,9 +950,10 @@ void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
   ScopedPathUnlinker delta_unlinker(state.delta_path);
   ScopedPathUnlinker old_kernel_unlinker(state.old_kernel);
   ScopedPathUnlinker new_kernel_unlinker(state.new_kernel);
-  DeltaPerformer *performer;
+  DeltaPerformer *performer = nullptr;
   ApplyDeltaFile(true, true, false, kSignatureGenerated,
                  &state, hash_checks_mandatory, op_hash_test, &performer);
+  delete performer;
 }
 
 
