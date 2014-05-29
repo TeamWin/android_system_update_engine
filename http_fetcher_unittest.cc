@@ -35,10 +35,10 @@ using std::string;
 using std::vector;
 
 using base::TimeDelta;
-using testing::_;
-using testing::SetArgumentPointee;
 using testing::DoAll;
 using testing::Return;
+using testing::SetArgumentPointee;
+using testing::_;
 
 namespace {
 
@@ -198,6 +198,7 @@ class AnyHttpFetcherTest {
       : mock_connection_manager_(&fake_system_state_) {
     fake_system_state_.set_connection_manager(&mock_connection_manager_);
   }
+  virtual ~AnyHttpFetcherTest() {}
 
   virtual HttpFetcher* NewLargeFetcher(size_t num_proxies) = 0;
   HttpFetcher* NewLargeFetcher() {
@@ -611,8 +612,9 @@ class AbortingHttpFetcherTestDelegate : public HttpFetcherDelegate {
     EXPECT_FALSE(once_);
     EXPECT_TRUE(callback_once_);
     callback_once_ = false;
-    // |fetcher| can be destroyed during this callback.
-    fetcher_.reset(NULL);
+    // The fetcher could have a callback scheduled on the ProxyResolver that
+    // can fire after this callback. We wait until the end of the test to
+    // delete the fetcher.
   }
   void TerminateTransfer() {
     CHECK(once_);

@@ -21,12 +21,16 @@ DirectProxyResolver::~DirectProxyResolver() {
 bool DirectProxyResolver::GetProxiesForUrl(const std::string& url,
                                            ProxiesResolvedFn callback,
                                            void* data) {
-  google::protobuf::Closure* closure =
-      google::protobuf::NewCallback(this,
-                                    &DirectProxyResolver::ReturnCallback,
-                                    callback,
-                                    data);
-  idle_callback_id_ = g_idle_add(utils::GlibRunClosure, closure);
+  google::protobuf::Closure* closure = google::protobuf::NewPermanentCallback(
+      this,
+      &DirectProxyResolver::ReturnCallback,
+      callback,
+      data);
+  idle_callback_id_ = g_idle_add_full(
+      G_PRIORITY_DEFAULT,
+      utils::GlibRunClosure,
+      closure,
+      utils::GlibDestroyClosure);
   return true;
 }
 

@@ -5,17 +5,17 @@
 #include "update_engine/utils.h"
 
 #include <attr/xattr.h>
-#include <sys/mount.h>
-#include <sys/resource.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mount.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -848,6 +848,10 @@ gboolean GlibRunClosure(gpointer data) {
       reinterpret_cast<google::protobuf::Closure*>(data);
   callback->Run();
   return FALSE;
+}
+
+void GlibDestroyClosure(gpointer data) {
+  delete reinterpret_cast<google::protobuf::Closure*>(data);
 }
 
 string FormatSecs(unsigned secs) {

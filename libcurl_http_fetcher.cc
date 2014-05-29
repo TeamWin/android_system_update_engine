@@ -16,9 +16,9 @@
 #include "update_engine/real_dbus_wrapper.h"
 #include "update_engine/utils.h"
 
-using google::protobuf::NewCallback;
-using std::max;
+using google::protobuf::NewPermanentCallback;
 using std::make_pair;
+using std::max;
 using std::string;
 
 // This is a concrete implementation of HttpFetcher that uses libcurl to do the
@@ -251,7 +251,7 @@ void LibcurlHttpFetcher::BeginTransfer(const std::string& url) {
   url_ = url;
   if (!ResolveProxiesForUrl(
           url_,
-          NewCallback(this, &LibcurlHttpFetcher::ProxiesResolved))) {
+          NewPermanentCallback(this, &LibcurlHttpFetcher::ProxiesResolved))) {
     LOG(ERROR) << "Couldn't resolve proxies";
     if (delegate_)
       delegate_->TransferComplete(this, false);

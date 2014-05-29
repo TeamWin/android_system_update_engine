@@ -7,10 +7,10 @@
 #include <map>
 #include <string>
 
-#include <base/strings/string_util.h>
 #include <base/strings/string_tokenizer.h>
-#include <dbus/dbus-glib.h>
+#include <base/strings/string_util.h>
 #include <dbus/dbus-glib-lowlevel.h>
+#include <dbus/dbus-glib.h>
 #include <google/protobuf/stubs/common.h>
 
 #include "update_engine/dbus_constants.h"
@@ -20,7 +20,7 @@ namespace chromeos_update_engine {
 
 using base::StringTokenizer;
 using google::protobuf::Closure;
-using google::protobuf::NewCallback;
+using google::protobuf::NewPermanentCallback;
 using std::deque;
 using std::make_pair;
 using std::multimap;
@@ -139,11 +139,13 @@ bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
   }
 
   callbacks_.insert(make_pair(url, make_pair(callback, data)));
-  Closure* closure = NewCallback(this,
-                                 &ChromeBrowserProxyResolver::HandleTimeout,
-                                 url);
+  Closure* closure = NewPermanentCallback(
+      this,
+      &ChromeBrowserProxyResolver::HandleTimeout,
+      url);
   GSource* timer = g_timeout_source_new_seconds(timeout);
-  g_source_set_callback(timer, &utils::GlibRunClosure, closure, NULL);
+  g_source_set_callback(
+      timer, utils::GlibRunClosure, closure, utils::GlibDestroyClosure);
   g_source_attach(timer, NULL);
   timers_.insert(make_pair(url, timer));
   return true;

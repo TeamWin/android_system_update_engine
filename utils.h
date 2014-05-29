@@ -318,8 +318,11 @@ int CompareCpuShares(CpuShares shares_lhs,
 // success, false otherwise.
 bool SetCpuShares(CpuShares shares);
 
-// Assumes data points to a Closure. Runs it and returns FALSE;
+// Assumes |data| points to a Closure. Runs it and returns FALSE;
 gboolean GlibRunClosure(gpointer data);
+
+// Destroys the Closure pointed by |data|.
+void GlibDestroyClosure(gpointer data);
 
 // Converts seconds into human readable notation including days, hours, minutes
 // and seconds. For example, 185 will yield 3m5s, 4300 will yield 1h11m40s, and

@@ -34,7 +34,11 @@ void HttpFetcher::SetPostData(const void* data, size_t size) {
 bool HttpFetcher::ResolveProxiesForUrl(const string& url, Closure* callback) {
   if (!proxy_resolver_) {
     LOG(INFO) << "Not resolving proxies (no proxy resolver).";
-    no_resolver_idle_id_ = g_idle_add(utils::GlibRunClosure, callback);
+    no_resolver_idle_id_ = g_idle_add_full(
+        G_PRIORITY_DEFAULT,
+        utils::GlibRunClosure,
+        callback,
+        utils::GlibDestroyClosure);
     return true;
   }
   CHECK_EQ(reinterpret_cast<Closure*>(NULL), callback_);
@@ -53,6 +57,7 @@ void HttpFetcher::ProxiesResolved(const std::deque<std::string>& proxies) {
   callback_ = NULL;
   // This may indirectly call back into ResolveProxiesForUrl():
   callback->Run();
+  delete callback;
 }
 
 }  // namespace chromeos_update_engine
