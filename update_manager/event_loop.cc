@@ -17,8 +17,11 @@ namespace {
 gboolean OnRanFromMainLoop(gpointer user_data) {
   Closure* callback_p = reinterpret_cast<Closure*>(user_data);
   callback_p->Run();
-  delete callback_p;
   return FALSE;  // Removes the source since a callback can only be called once.
+}
+
+void DestroyClosure(gpointer user_data) {
+  delete reinterpret_cast<Closure*>(user_data);
 }
 
 }  // namespace
@@ -30,16 +33,19 @@ EventId RunFromMainLoop(const Closure& callback) {
   return g_idle_add_full(G_PRIORITY_DEFAULT,
                          OnRanFromMainLoop,
                          reinterpret_cast<gpointer>(callback_p),
-                         NULL);
+                         DestroyClosure);
 }
 
 EventId RunFromMainLoopAfterTimeout(
     const Closure& callback,
     base::TimeDelta timeout) {
   Closure* callback_p = new Closure(callback);
-  return g_timeout_add_seconds(static_cast<guint>(ceil(timeout.InSecondsF())),
-                               OnRanFromMainLoop,
-                               reinterpret_cast<gpointer>(callback_p));
+  return g_timeout_add_seconds_full(
+      G_PRIORITY_DEFAULT,
+      static_cast<guint>(ceil(timeout.InSecondsF())),
+      OnRanFromMainLoop,
+      reinterpret_cast<gpointer>(callback_p),
+      DestroyClosure);
 }
 
 bool CancelMainLoopEvent(EventId event) {
