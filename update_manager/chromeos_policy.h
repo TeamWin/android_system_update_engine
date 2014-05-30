@@ -13,6 +13,12 @@
 
 namespace chromeos_update_manager {
 
+// Parameters for update download URL, as determined by UpdateDownloadUrl.
+struct UpdateDownloadUrlResult {
+  int url_idx;
+  int url_num_failures;
+};
+
 // Parameters for update scattering, as determined by UpdateNotScattering.
 struct UpdateScatteringResult {
   bool is_scattering;
@@ -44,6 +50,12 @@ class ChromeOSPolicy : public Policy {
       State* state,
       std::string* error,
       bool* result) const override;
+
+ protected:
+  // Policy override.
+  virtual std::string PolicyName() const override {
+    return "ChromeOSPolicy";
+  }
 
  private:
   friend class UmChromeOSPolicyTest;
@@ -86,18 +98,34 @@ class ChromeOSPolicy : public Policy {
   // TimeDelta.
   static base::TimeDelta FuzzedInterval(PRNG* prng, int interval, int fuzz);
 
+  // A private policy for determining which download URL to use. Within
+  // |update_state|, |download_urls| should contain the download URLs as listed
+  // in the Omaha response; |download_failures_max| the maximum number of
+  // failures per URL allowed per the response; |download_url_idx| the index of
+  // the previously used URL; |download_url_num_failures| the previously known
+  // number of failures associated with that URL; and |download_url_error_codes|
+  // the list of failures occurring since the latest evaluation.
+  //
+  // Upon successly deciding a URL to use, returns |EvalStatus::kSucceeded| and
+  // writes the current URL index and the number of failures associated with it
+  // in |result|. Otherwise, returns |EvalStatus::kFailed|.
+  EvalStatus UpdateDownloadUrl(EvaluationContext* ec, State* state,
+                               std::string* error,
+                               UpdateDownloadUrlResult* result,
+                               const UpdateState& update_state) const;
+
   // A private policy for checking whether scattering is due. Writes in |result|
   // the decision as to whether or not to scatter; a wallclock-based scatter
   // wait period, which ranges from zero (do not wait) and no greater than the
   // current scatter factor provided by the device policy (if available) or the
   // maximum wait period determined by Omaha; and an update check-based
   // threshold between zero (no threshold) and the maximum number determined by
-  // the update engine. Within |update_state|, |wait_period| should contain the
-  // last scattering period returned by this function, or zero if no wait period
-  // is known; |check_threshold| is the last update check threshold, or zero if
-  // no such threshold is known. If not scattering, or if any of the scattering
-  // values has changed, returns |EvalStatus::kSucceeded|; otherwise,
-  // |EvalStatus::kAskMeAgainLater|.
+  // the update engine. Within |update_state|, |scatter_wait_period| should
+  // contain the last scattering period returned by this function, or zero if no
+  // wait period is known; |scatter_check_threshold| is the last update check
+  // threshold, or zero if no such threshold is known. If not scattering, or if
+  // any of the scattering values has changed, returns |EvalStatus::kSucceeded|;
+  // otherwise, |EvalStatus::kAskMeAgainLater|.
   EvalStatus UpdateScattering(EvaluationContext* ec, State* state,
                               std::string* error,
                               UpdateScatteringResult* result,

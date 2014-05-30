@@ -35,9 +35,10 @@ class DefaultPolicy : public Policy {
       const bool interactive,
       const UpdateState& update_state) const override {
     result->update_can_start = true;
-    result->http_allowed = false;
     result->p2p_allowed = false;
     result->target_channel.clear();
+    result->download_url_idx = 0;
+    result->download_url_num_failures = 0;
     result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
     result->scatter_wait_period = base::TimeDelta();
     result->scatter_check_threshold = 0;
@@ -51,6 +52,12 @@ class DefaultPolicy : public Policy {
       bool* result) const override {
     *result = true;
     return EvalStatus::kSucceeded;
+  }
+
+ protected:
+  // Policy override.
+  virtual std::string PolicyName() const override {
+    return "DefaultPolicy";
   }
 
  private:

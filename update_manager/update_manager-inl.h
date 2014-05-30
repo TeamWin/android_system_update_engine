@@ -22,8 +22,10 @@ EvalStatus UpdateManager::EvaluatePolicy(
                                         Args...) const,
     R* result, Args... args) {
   std::string error;
+  const std::string policy_name = policy_->PolicyRequestName(policy_method);
 
   // First try calling the actual policy.
+  LOG(INFO) << "Evaluating " << policy_name << " START";
   EvalStatus status = (policy_.get()->*policy_method)(ec, state_.get(), &error,
                                                       result, args...);
 
@@ -37,6 +39,8 @@ EvalStatus UpdateManager::EvaluatePolicy(
       LOG(WARNING) << "Request to default policy also failed: " << error;
     }
   }
+  LOG(INFO) << "Evaluating " << policy_name << " END";
+
   // TODO(deymo): Log the actual state used from the EvaluationContext.
   return status;
 }

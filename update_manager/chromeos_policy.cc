@@ -9,17 +9,143 @@
 #include <string>
 
 #include <base/logging.h>
+#include <base/strings/string_util.h>
 #include <base/time/time.h>
 
+#include "update_engine/error_code.h"
 #include "update_engine/update_manager/device_policy_provider.h"
 #include "update_engine/update_manager/policy_utils.h"
 #include "update_engine/update_manager/shill_provider.h"
+#include "update_engine/utils.h"
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ErrorCode;
+using std::max;
 using std::min;
 using std::set;
 using std::string;
+
+namespace {
+
+// Increment |url_idx|, |url_num_failures| or none of them based on the provided
+// error code. If |url_idx| is incremented, then sets |url_num_failures| to zero
+// and returns true; otherwise, returns false.
+//
+// TODO(garnold) Adapted from PayloadState::UpdateFailed() (to be retired).
+bool HandleErrorCode(ErrorCode err_code, int* url_idx, int* url_num_failures) {
+  err_code = chromeos_update_engine::utils::GetBaseErrorCode(err_code);
+  switch (err_code) {
+    // Errors which are good indicators of a problem with a particular URL or
+    // the protocol used in the URL or entities in the communication channel
+    // (e.g. proxies). We should try the next available URL in the next update
+    // check to quickly recover from these errors.
+    case ErrorCode::kPayloadHashMismatchError:
+    case ErrorCode::kPayloadSizeMismatchError:
+    case ErrorCode::kDownloadPayloadVerificationError:
+    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
+    case ErrorCode::kSignedDeltaPayloadExpectedError:
+    case ErrorCode::kDownloadInvalidMetadataMagicString:
+    case ErrorCode::kDownloadSignatureMissingInManifest:
+    case ErrorCode::kDownloadManifestParseError:
+    case ErrorCode::kDownloadMetadataSignatureError:
+    case ErrorCode::kDownloadMetadataSignatureVerificationError:
+    case ErrorCode::kDownloadMetadataSignatureMismatch:
+    case ErrorCode::kDownloadOperationHashVerificationError:
+    case ErrorCode::kDownloadOperationExecutionError:
+    case ErrorCode::kDownloadOperationHashMismatch:
+    case ErrorCode::kDownloadInvalidMetadataSize:
+    case ErrorCode::kDownloadInvalidMetadataSignature:
+    case ErrorCode::kDownloadOperationHashMissingError:
+    case ErrorCode::kDownloadMetadataSignatureMissingError:
+    case ErrorCode::kPayloadMismatchedType:
+    case ErrorCode::kUnsupportedMajorPayloadVersion:
+    case ErrorCode::kUnsupportedMinorPayloadVersion:
+      LOG(INFO) << "Advancing download URL due to error "
+                << chromeos_update_engine::utils::CodeToString(err_code)
+                << " (" << static_cast<int>(err_code) << ")";
+      *url_idx += 1;
+      *url_num_failures = 0;
+      return true;
+
+    // Errors which seem to be just transient network/communication related
+    // failures and do not indicate any inherent problem with the URL itself.
+    // So, we should keep the current URL but just increment the
+    // failure count to give it more chances. This way, while we maximize our
+    // chances of downloading from the URLs that appear earlier in the response
+    // (because download from a local server URL that appears earlier in a
+    // response is preferable than downloading from the next URL which could be
+    // a internet URL and thus could be more expensive).
+    case ErrorCode::kError:
+    case ErrorCode::kDownloadTransferError:
+    case ErrorCode::kDownloadWriteError:
+    case ErrorCode::kDownloadStateInitializationError:
+    case ErrorCode::kOmahaErrorInHTTPResponse: // Aggregate for HTTP errors.
+      LOG(INFO) << "Incrementing URL failure count due to error "
+                << chromeos_update_engine::utils::CodeToString(err_code)
+                << " (" << static_cast<int>(err_code) << ")";
+      *url_num_failures += 1;
+      return false;
+
+    // Errors which are not specific to a URL and hence shouldn't result in
+    // the URL being penalized. This can happen in two cases:
+    // 1. We haven't started downloading anything: These errors don't cost us
+    // anything in terms of actual payload bytes, so we should just do the
+    // regular retries at the next update check.
+    // 2. We have successfully downloaded the payload: In this case, the
+    // payload attempt number would have been incremented and would take care
+    // of the backoff at the next update check.
+    // In either case, there's no need to update URL index or failure count.
+    case ErrorCode::kOmahaRequestError:
+    case ErrorCode::kOmahaResponseHandlerError:
+    case ErrorCode::kPostinstallRunnerError:
+    case ErrorCode::kFilesystemCopierError:
+    case ErrorCode::kInstallDeviceOpenError:
+    case ErrorCode::kKernelDeviceOpenError:
+    case ErrorCode::kDownloadNewPartitionInfoError:
+    case ErrorCode::kNewRootfsVerificationError:
+    case ErrorCode::kNewKernelVerificationError:
+    case ErrorCode::kPostinstallBootedFromFirmwareB:
+    case ErrorCode::kPostinstallFirmwareRONotUpdatable:
+    case ErrorCode::kOmahaRequestEmptyResponseError:
+    case ErrorCode::kOmahaRequestXMLParseError:
+    case ErrorCode::kOmahaResponseInvalid:
+    case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
+    case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+    case ErrorCode::kOmahaUpdateDeferredForBackoff:
+    case ErrorCode::kPostinstallPowerwashError:
+    case ErrorCode::kUpdateCanceledByChannelChange:
+      LOG(INFO) << "Not changing URL index or failure count due to error "
+                << chromeos_update_engine::utils::CodeToString(err_code)
+                << " (" << static_cast<int>(err_code) << ")";
+      return false;
+
+    case ErrorCode::kSuccess:                            // success code
+    case ErrorCode::kUmaReportedMax:                     // not an error code
+    case ErrorCode::kOmahaRequestHTTPResponseBase:       // aggregated already
+    case ErrorCode::kDevModeFlag:                       // not an error code
+    case ErrorCode::kResumedFlag:                        // not an error code
+    case ErrorCode::kTestImageFlag:                      // not an error code
+    case ErrorCode::kTestOmahaUrlFlag:                   // not an error code
+    case ErrorCode::kSpecialFlags:                       // not an error code
+      // These shouldn't happen. Enumerating these  explicitly here so that we
+      // can let the compiler warn about new error codes that are added to
+      // action_processor.h but not added here.
+      LOG(WARNING) << "Unexpected error "
+                   << chromeos_update_engine::utils::CodeToString(err_code)
+                   << " (" << static_cast<int>(err_code) << ")";
+    // Note: Not adding a default here so as to let the compiler warn us of
+    // any new enums that were added in the .h but not listed in this switch.
+  }
+  return false;
+}
+
+// Checks whether |download_url| can be used under given download restrictions.
+bool DownloadUrlIsUsable(const string& download_url, bool http_allowed) {
+  return http_allowed || !StartsWithASCII(download_url, "http://", false);
+}
+
+}  // namespace
 
 namespace chromeos_update_manager {
 
@@ -49,12 +175,13 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     const UpdateState& update_state) const {
   // Set the default return values.
   result->update_can_start = true;
-  result->http_allowed = true;
   result->p2p_allowed = false;
   result->target_channel.clear();
   result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
   result->scatter_wait_period = kZeroInterval;
   result->scatter_check_threshold = 0;
+  result->download_url_idx = -1;
+  result->download_url_num_failures = 0;
 
   // Make sure that we're not due for an update check.
   UpdateCheckParams check_result;
@@ -69,7 +196,6 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
   }
 
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
-  SystemProvider* const system_provider = state->system_provider();
 
   const bool* device_policy_is_loaded_p = ec->GetValue(
       dp_provider->var_device_policy_is_loaded());
@@ -99,7 +225,7 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
         scattering_applies = true;
       } else {
         const bool* is_oobe_complete_p = ec->GetValue(
-            system_provider->var_is_oobe_complete());
+            state->system_provider()->var_is_oobe_complete());
         scattering_applies = (is_oobe_complete_p && *is_oobe_complete_p);
       }
     }
@@ -119,17 +245,6 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
         }
         return scattering_status;
       }
-    }
-
-    // Determine whether HTTP downloads are forbidden by policy. This only
-    // applies to official system builds; otherwise, HTTP is always enabled.
-    const bool* is_official_build_p = ec->GetValue(
-        system_provider->var_is_official_build());
-    if (is_official_build_p && *is_official_build_p) {
-      const bool* policy_http_downloads_enabled_p = ec->GetValue(
-          dp_provider->var_http_downloads_enabled());
-      result->http_allowed =
-          !policy_http_downloads_enabled_p || *policy_http_downloads_enabled_p;
     }
 
     // Determine whether use of P2P is allowed by policy.
@@ -153,6 +268,23 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     const bool* updater_p2p_enabled_p = ec->GetValue(
         state->updater_provider()->var_p2p_enabled());
     result->p2p_allowed = updater_p2p_enabled_p && *updater_p2p_enabled_p;
+  }
+
+  // Determine the URL to download the update from. Note that a failure to find
+  // a download URL will only fail this policy iff no other means of download
+  // (such as P2P) are enabled.
+  UpdateDownloadUrlResult download_url_result;
+  EvalStatus download_url_status = UpdateDownloadUrl(
+      ec, state, error, &download_url_result, update_state);
+  if (download_url_status == EvalStatus::kSucceeded) {
+    result->download_url_idx = download_url_result.url_idx;
+    result->download_url_num_failures = download_url_result.url_num_failures;
+  } else if (!result->p2p_allowed) {
+    if (download_url_status != EvalStatus::kFailed) {
+      result->update_can_start = false;
+      result->cannot_start_reason = UpdateCannotStartReason::kCannotDownload;
+    }
+    return download_url_status;
   }
 
   return EvalStatus::kSucceeded;
@@ -303,9 +435,70 @@ TimeDelta ChromeOSPolicy::FuzzedInterval(PRNG* prng, int interval, int fuzz) {
   DCHECK_GE(fuzz, 0);
   int half_fuzz = fuzz / 2;
   // This guarantees the output interval is non negative.
-  int interval_min = std::max(interval - half_fuzz, 0);
+  int interval_min = max(interval - half_fuzz, 0);
   int interval_max = interval + half_fuzz;
   return TimeDelta::FromSeconds(prng->RandMinMax(interval_min, interval_max));
+}
+
+EvalStatus ChromeOSPolicy::UpdateDownloadUrl(
+    EvaluationContext* ec, State* state, std::string* error,
+    UpdateDownloadUrlResult* result, const UpdateState& update_state) const {
+  int url_idx = 0;
+  int url_num_failures = 0;
+  if (update_state.num_checks > 1) {
+    // Ignore negative URL indexes, which indicate that no previous suitable
+    // download URL was found.
+    url_idx = max(0, update_state.download_url_idx);
+    url_num_failures = update_state.download_url_num_failures;
+  }
+
+  // Preconditions / sanity checks.
+  DCHECK_GE(update_state.download_failures_max, 0);
+  DCHECK_LT(url_idx, static_cast<int>(update_state.download_urls.size()));
+  DCHECK_LE(url_num_failures, update_state.download_failures_max);
+
+  // Determine whether HTTP downloads are forbidden by policy. This only
+  // applies to official system builds; otherwise, HTTP is always enabled.
+  bool http_allowed = true;
+  const bool* is_official_build_p = ec->GetValue(
+      state->system_provider()->var_is_official_build());
+  if (is_official_build_p && *is_official_build_p) {
+    DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+    const bool* device_policy_is_loaded_p = ec->GetValue(
+        dp_provider->var_device_policy_is_loaded());
+    if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
+      const bool* policy_http_downloads_enabled_p = ec->GetValue(
+          dp_provider->var_http_downloads_enabled());
+      http_allowed = (!policy_http_downloads_enabled_p ||
+                      *policy_http_downloads_enabled_p);
+    }
+  }
+
+  // Process recent failures, stop if the URL index advances.
+  for (auto& err_code : update_state.download_url_error_codes) {
+    if (HandleErrorCode(err_code, &url_idx, &url_num_failures))
+      break;
+    if (url_num_failures > update_state.download_failures_max) {
+      url_idx++;
+      url_num_failures = 0;
+      break;
+    }
+  }
+  url_idx %= update_state.download_urls.size();
+
+  // Scan through URLs until a usable one is found.
+  const int start_url_idx = url_idx;
+  while (!DownloadUrlIsUsable(update_state.download_urls[url_idx],
+                              http_allowed)) {
+    url_idx = (url_idx + 1) % update_state.download_urls.size();
+    url_num_failures = 0;
+    if (url_idx == start_url_idx)
+      return EvalStatus::kFailed;  // No usable URLs.
+  }
+
+  result->url_idx = url_idx;
+  result->url_num_failures = url_num_failures;
+  return EvalStatus::kSucceeded;
 }
 
 EvalStatus ChromeOSPolicy::UpdateScattering(

@@ -25,6 +25,7 @@ using base::Bind;
 using base::Callback;
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::FakeClock;
 using std::pair;
 using std::string;
@@ -106,7 +107,9 @@ TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCheckAllowed) {
 
 TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCanStart) {
   const UpdateState update_state = {
-    FixedTime(), 1, TimeDelta::FromSeconds(15), TimeDelta::FromSeconds(60),
+    FixedTime(), 1,
+    vector<string>(1, "http://fake/url/"), 10, 0, 0, vector<ErrorCode>(),
+    TimeDelta::FromSeconds(15), TimeDelta::FromSeconds(60),
     4, 2, 8
   };
   UpdateCanStartResult result;
