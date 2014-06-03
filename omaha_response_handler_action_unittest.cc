@@ -85,8 +85,6 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
   string current_url = in.payload_urls.size() ? in.payload_urls[0] : "";
   EXPECT_CALL(*(fake_system_state->mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(current_url));
-  EXPECT_CALL(*(fake_system_state->mock_payload_state()), GetRollbackVersion())
-        .WillRepeatedly(Return(kBadVersion));
 
   OmahaResponseHandlerAction response_handler_action(
       fake_system_state,
@@ -196,33 +194,6 @@ TEST_F(OmahaResponseHandlerActionTest, NoUpdatesTest) {
   EXPECT_EQ("", install_plan.payload_hash);
   EXPECT_EQ("", install_plan.install_path);
   EXPECT_EQ("", install_plan.version);
-}
-
-TEST_F(OmahaResponseHandlerActionTest, RollbackVersionTest) {
-  string version_ok = "124.0.0";
-
-  InstallPlan install_plan;
-  OmahaResponse in;
-  in.update_exists = true;
-  in.version = kBadVersion;
-  in.payload_urls.push_back("http://foo/the_update_a.b.c.d.tgz");
-  in.more_info_url = "http://more/info";
-  in.hash = "HASHj+";
-  in.size = 12;
-  in.prompt = true;
-
-  // Version is blacklisted for first call so no update.
-  EXPECT_FALSE(DoTest(in, "/dev/sda5", "", &install_plan));
-  EXPECT_EQ("", install_plan.download_url);
-  EXPECT_EQ("", install_plan.payload_hash);
-  EXPECT_EQ("", install_plan.install_path);
-  EXPECT_EQ("", install_plan.version);
-
-  // Version isn't blacklisted.
-  in.version = version_ok;
-  EXPECT_TRUE(DoTest(in, "/dev/sda5", "", &install_plan));
-  EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
-  EXPECT_EQ(version_ok, install_plan.version);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {

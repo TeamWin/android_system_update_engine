@@ -249,6 +249,13 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // Callback used by LookupPayloadViaP2P().
   void OnLookupPayloadViaP2PCompleted(const std::string& url);
 
+  // Returns true if the current update should be ignored.
+  bool ShouldIgnoreUpdate(const OmahaResponse& response) const;
+
+  // Returns true if updates are allowed over the current type of connection.
+  // False otherwise.
+  bool IsUpdateAllowedOverCurrentConnection() const;
+
   // Global system context.
   SystemState* system_state_;
 

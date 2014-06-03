@@ -10,6 +10,7 @@
 #include <base/strings/string_util.h>
 #include <policy/device_policy.h>
 
+#include "update_engine/connection_manager.h"
 #include "update_engine/constants.h"
 #include "update_engine/delta_performer.h"
 #include "update_engine/hardware_interface.h"
@@ -47,17 +48,6 @@ void OmahaResponseHandlerAction::PerformAction() {
     got_no_update_response_ = true;
     LOG(INFO) << "There are no updates. Aborting.";
     return;
-  }
-
-  // Note: policy decision to not update to a version we rolled back from.
-  string rollback_version =
-      system_state_->payload_state()->GetRollbackVersion();
-  if(!rollback_version.empty()) {
-    LOG(INFO) << "Detected previous rollback from version " << rollback_version;
-    if(rollback_version == response.version) {
-      LOG(INFO) << "Received version that we rolled back from. Aborting.";
-      return;
-    }
   }
 
   // All decisions as to which URL should be used have already been done. So,

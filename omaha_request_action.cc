@@ -27,6 +27,7 @@
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/prefs_interface.h"
+#include "update_engine/real_dbus_wrapper.h"
 #include "update_engine/utils.h"
 
 using base::Time;
@@ -879,17 +880,9 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   output_object.update_exists = true;
   SetOutputObject(output_object);
 
-  if (params_->update_disabled()) {
-    LOG(INFO) << "Ignoring Omaha updates as updates are disabled by policy.";
+  if (ShouldIgnoreUpdate(output_object)) {
     output_object.update_exists = false;
     completer.set_code(kErrorCodeOmahaUpdateIgnoredPerPolicy);
-    // Note: We could technically delete the UpdateFirstSeenAt state here.
-    // If we do, it'll mean a device has to restart the UpdateFirstSeenAt
-    // and thus help scattering take effect when the AU is turned on again.
-    // On the other hand, it also increases the chance of update starvation if
-    // an admin turns AU on/off more frequently. We choose to err on the side
-    // of preventing starvation at the cost of not applying scattering in
-    // those cases.
     return;
   }
 
@@ -1357,6 +1350,57 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
 
   metrics::ReportUpdateCheckMetrics(system_state_,
                                     result, reaction, download_error_code);
+}
+
+bool OmahaRequestAction::ShouldIgnoreUpdate(
+    const OmahaResponse& response) const {
+  if (params_->update_disabled()) {
+    LOG(INFO) << "Ignoring Omaha updates as updates are disabled by policy.";
+    return true;
+  }
+
+  // Note: policy decision to not update to a version we rolled back from.
+  string rollback_version =
+      system_state_->payload_state()->GetRollbackVersion();
+  if(!rollback_version.empty()) {
+    LOG(INFO) << "Detected previous rollback from version " << rollback_version;
+    if(rollback_version == response.version) {
+      LOG(INFO) << "Received version that we rolled back from. Ignoring.";
+      return true;
+    }
+  }
+
+  if(!IsUpdateAllowedOverCurrentConnection()) {
+    LOG(INFO) << "Update is not allowed over current connection.";
+    return true;
+  }
+
+  // Note: We could technically delete the UpdateFirstSeenAt state when we
+  // return true. If we do, it'll mean a device has to restart the
+  // UpdateFirstSeenAt and thus help scattering take effect when the AU is
+  // turned on again. On the other hand, it also increases the chance of update
+  // starvation if an admin turns AU on/off more frequently. We choose to err on
+  // the side of preventing starvation at the cost of not applying scattering in
+  // those cases.
+  return false;
+}
+
+bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection() const {
+  NetworkConnectionType type;
+  NetworkTethering tethering;
+  RealDBusWrapper dbus_iface;
+  ConnectionManager* connection_manager = system_state_->connection_manager();
+  if (!connection_manager->GetConnectionProperties(&dbus_iface,
+                                                   &type, &tethering)) {
+    LOG(INFO) << "We could not determine our connection type. "
+              << "Defaulting to allow updates.";
+    return true;
+  }
+  bool is_allowed = connection_manager->IsUpdateAllowedOver(type, tethering);
+  LOG(INFO) << "We are connected via "
+            << connection_manager->StringForConnectionType(type)
+            << ", Updates allowed: " << (is_allowed ? "Yes" : "No");
+  return is_allowed;
 }
 
 }  // namespace chromeos_update_engine

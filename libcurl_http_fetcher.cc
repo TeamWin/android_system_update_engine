@@ -13,7 +13,6 @@
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/hardware_interface.h"
-#include "update_engine/real_dbus_wrapper.h"
 #include "update_engine/utils.h"
 
 using google::protobuf::NewPermanentCallback;
@@ -35,25 +34,6 @@ LibcurlHttpFetcher::~LibcurlHttpFetcher() {
   LOG_IF(ERROR, transfer_in_progress_)
       << "Destroying the fetcher while a transfer is in progress.";
   CleanUp();
-}
-
-// On error, returns false.
-bool LibcurlHttpFetcher::IsUpdateAllowedOverCurrentConnection() const {
-  NetworkConnectionType type;
-  NetworkTethering tethering;
-  RealDBusWrapper dbus_iface;
-  ConnectionManager* connection_manager = system_state_->connection_manager();
-  if (!connection_manager->GetConnectionProperties(&dbus_iface,
-                                                   &type, &tethering)) {
-    LOG(INFO) << "We could not determine our connection type. "
-              << "Defaulting to allow updates.";
-    return true;
-  }
-  bool is_allowed = connection_manager->IsUpdateAllowedOver(type, tethering);
-  LOG(INFO) << "We are connected via "
-            << connection_manager->StringForConnectionType(type)
-            << ", Updates allowed: " << (is_allowed ? "Yes" : "No");
-  return is_allowed;
 }
 
 bool LibcurlHttpFetcher::GetProxyType(const std::string& proxy,
@@ -161,15 +141,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_WRITEDATA, this), CURLE_OK);
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_WRITEFUNCTION,
                             StaticLibcurlWrite), CURLE_OK);
-
-  string url_to_use(url_);
-  if (!IsUpdateAllowedOverCurrentConnection()) {
-    LOG(INFO) << "Not initiating HTTP connection b/c updates are disabled "
-              << "over this connection";
-    url_to_use = "";  // Sabotage the URL
-  }
-
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_URL, url_to_use.c_str()),
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_URL, url_.c_str()),
            CURLE_OK);
 
   // If the connection drops under |low_speed_limit_bps_| (10
@@ -195,7 +167,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
   // Lock down the appropriate curl options for HTTP or HTTPS depending on
   // the url.
   if (GetSystemState()->hardware()->IsOfficialBuild()) {
-    if (StartsWithASCII(url_to_use, "http://", false))
+    if (StartsWithASCII(url_, "http://", false))
       SetCurlOptionsForHttp();
     else
       SetCurlOptionsForHttps();

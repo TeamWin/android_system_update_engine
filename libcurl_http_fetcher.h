@@ -14,7 +14,6 @@
 #include <glib.h>
 
 #include "update_engine/certificate_checker.h"
-#include "update_engine/connection_manager.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/http_fetcher.h"
 #include "update_engine/system_state.h"
@@ -194,10 +193,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // TransferTerminated callback so, after returning, this fetcher instance may
   // be destroyed.
   void ForceTransferTermination();
-
-  // Returns true if updates are allowed over the current type of connection.
-  // False otherwise.
-  bool IsUpdateAllowedOverCurrentConnection() const;
 
   // Sets the curl options for HTTP URL.
   void SetCurlOptionsForHttp();
