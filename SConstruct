@@ -156,7 +156,6 @@ BASE_VER = os.environ.get('BASE_VER', '271506')
 env['LIBS'] = Split("""bz2
                        crypto
                        curl
-                       dm-bht
                        ext2fs
                        gflags
                        glib-2.0
