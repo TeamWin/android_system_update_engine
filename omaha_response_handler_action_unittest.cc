@@ -37,7 +37,7 @@ class OmahaResponseHandlerActionProcessorDelegate
     : public ActionProcessorDelegate {
  public:
   OmahaResponseHandlerActionProcessorDelegate()
-      : code_(kErrorCodeError),
+      : code_(ErrorCode::kError),
         code_set_(false) {}
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
@@ -103,7 +103,7 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
   if (out)
     *out = collector_action.object();
   EXPECT_TRUE(delegate.code_set_);
-  return delegate.code_ == kErrorCodeSuccess;
+  return delegate.code_ == ErrorCode::kSuccess;
 }
 
 bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,

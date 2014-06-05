@@ -43,7 +43,13 @@ extern const char* kUnittestPrivateKey2Path;
 extern const char* kUnittestPublicKey2Path;
 
 static const size_t kBlockSize = 4096;
-static const char* kBogusMetadataSignature1 = "awSFIUdUZz2VWFiR+ku0Pj00V7bPQPQFYQSXjEXr3vaw3TE4xHV5CraY3/YrZpBvJ5z4dSBskoeuaO1TNC/S6E05t+yt36tE4Fh79tMnJ/z9fogBDXWgXLEUyG78IEQrYH6/eBsQGT2RJtBgXIXbZ9W+5G9KmGDoPOoiaeNsDuqHiBc/58OFsrxskH8E6vMSBmMGGk82mvgzic7ApcoURbCGey1b3Mwne/hPZ/bb9CIyky8Og9IfFMdL2uAweOIRfjoTeLYZpt+WN65Vu7jJ0cQN8e1y+2yka5112wpRf/LLtPgiAjEZnsoYpLUd7CoVpLRtClp97kN2+tXGNBQqkA==";
+static const char* kBogusMetadataSignature1 =
+    "awSFIUdUZz2VWFiR+ku0Pj00V7bPQPQFYQSXjEXr3vaw3TE4xHV5CraY3/YrZpBv"
+    "J5z4dSBskoeuaO1TNC/S6E05t+yt36tE4Fh79tMnJ/z9fogBDXWgXLEUyG78IEQr"
+    "YH6/eBsQGT2RJtBgXIXbZ9W+5G9KmGDoPOoiaeNsDuqHiBc/58OFsrxskH8E6vMS"
+    "BmMGGk82mvgzic7ApcoURbCGey1b3Mwne/hPZ/bb9CIyky8Og9IfFMdL2uAweOIR"
+    "fjoTeLYZpt+WN65Vu7jJ0cQN8e1y+2yka5112wpRf/LLtPgiAjEZnsoYpLUd7CoV"
+    "pLRtClp97kN2+tXGNBQqkA==";
 
 static const int kDefaultKernelSize = 4096; // Something small for a test
 static const char* kNewDataString = "This is new data.";
@@ -673,7 +679,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       int some_offset = state->metadata_size + 300;
       LOG(INFO) << "Tampered value at offset: " << some_offset;
       state->delta[some_offset]++;
-      expected_error = kErrorCodeDownloadOperationHashMismatch;
+      expected_error = ErrorCode::kDownloadOperationHashMismatch;
       continue_writing = false;
       break;
     }
@@ -681,7 +687,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
     case kValidOperationData:
     default:
       // no change.
-      expected_error = kErrorCodeSuccess;
+      expected_error = ErrorCode::kSuccess;
       continue_writing = true;
       break;
   }
@@ -694,7 +700,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                                                 count,
                                                 &actual_error));
     // Normally write_succeeded should be true every time and
-    // actual_error should be kErrorCodeSuccess. If so, continue the loop.
+    // actual_error should be ErrorCode::kSuccess. If so, continue the loop.
     // But if we seeded an operation hash error above, then write_succeeded
     // will be false. The failure may happen at any operation n. So, all
     // Writes until n-1 should succeed and the nth operation will fail with
@@ -709,7 +715,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       }
     }
 
-    EXPECT_EQ(kErrorCodeSuccess, actual_error);
+    EXPECT_EQ(ErrorCode::kSuccess, actual_error);
   }
 
   // If we had continued all the way through, Close should succeed.
@@ -729,7 +735,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
     return;
   }
 
-  int expected_times = (expected_result == kErrorCodeSuccess) ? 1 : 0;
+  int expected_times = (expected_result == ErrorCode::kSuccess) ? 1 : 0;
   EXPECT_CALL(*(state->fake_system_state.mock_payload_state()),
               DownloadComplete()).Times(expected_times);
 
@@ -740,7 +746,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
       state->delta.size()));
   LOG(INFO) << "Verified payload.";
 
-  if (expected_result != kErrorCodeSuccess) {
+  if (expected_result != ErrorCode::kSuccess) {
     // no need to verify new partition if VerifyPayload failed.
     return;
   }
@@ -778,13 +784,13 @@ void VerifyPayloadResult(DeltaPerformer* performer,
 void VerifyPayload(DeltaPerformer* performer,
                    DeltaState* state,
                    SignatureTest signature_test) {
-  ErrorCode expected_result = kErrorCodeSuccess;
+  ErrorCode expected_result = ErrorCode::kSuccess;
   switch (signature_test) {
     case kSignatureNone:
-      expected_result = kErrorCodeSignedDeltaPayloadExpectedError;
+      expected_result = ErrorCode::kSignedDeltaPayloadExpectedError;
       break;
     case kSignatureGeneratedShellBadKey:
-      expected_result = kErrorCodeDownloadPayloadPubKeyVerificationError;
+      expected_result = ErrorCode::kDownloadPayloadPubKeyVerificationError;
       break;
     default: break;  // appease gcc
   }
@@ -844,7 +850,7 @@ void DoMetadataSizeTest(uint64_t expected_metadata_size,
     EXPECT_TRUE(result);
   } else {
     EXPECT_FALSE(result);
-    EXPECT_EQ(kErrorCodeDownloadInvalidMetadataSize, error_code);
+    EXPECT_EQ(ErrorCode::kDownloadInvalidMetadataSize, error_code);
   }
 
   EXPECT_LT(performer.Close(), 0);
@@ -886,13 +892,13 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
     case kEmptyMetadataSignature:
       install_plan.metadata_signature.clear();
       expected_result = DeltaPerformer::kMetadataParseError;
-      expected_error = kErrorCodeDownloadMetadataSignatureMissingError;
+      expected_error = ErrorCode::kDownloadMetadataSignatureMissingError;
       break;
 
     case kInvalidMetadataSignature:
       install_plan.metadata_signature = kBogusMetadataSignature1;
       expected_result = DeltaPerformer::kMetadataParseError;
-      expected_error = kErrorCodeDownloadMetadataSignatureMismatch;
+      expected_error = ErrorCode::kDownloadMetadataSignatureMismatch;
       break;
 
     case kValidMetadataSignature:
@@ -907,14 +913,14 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
           &install_plan.metadata_signature));
       EXPECT_FALSE(install_plan.metadata_signature.empty());
       expected_result = DeltaPerformer::kMetadataParseSuccess;
-      expected_error = kErrorCodeSuccess;
+      expected_error = ErrorCode::kSuccess;
       break;
   }
 
   // Ignore the expected result/error if hash checks are not mandatory.
   if (!hash_checks_mandatory) {
     expected_result = DeltaPerformer::kMetadataParseSuccess;
-    expected_error = kErrorCodeSuccess;
+    expected_error = ErrorCode::kSuccess;
   }
 
   // Create the delta performer object.
@@ -930,7 +936,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
 
   // Init actual_error with an invalid value so that we make sure
   // ParsePayloadMetadata properly populates it in all cases.
-  actual_error = kErrorCodeUmaReportedMax;
+  actual_error = ErrorCode::kUmaReportedMax;
   actual_result = delta_performer.ParsePayloadMetadata(payload, &actual_error);
 
   EXPECT_EQ(expected_result, actual_result);
@@ -1008,7 +1014,8 @@ TEST(DeltaPerformerTest, ValidateManifestFullGoodTest) {
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(DeltaPerformer::kFullPayloadMinorVersion);
 
-  DeltaPerformerTest::RunManifestValidation(manifest, true, kErrorCodeSuccess);
+  DeltaPerformerTest::RunManifestValidation(manifest, true,
+                                            ErrorCode::kSuccess);
 }
 
 TEST(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
@@ -1020,14 +1027,16 @@ TEST(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
 
-  DeltaPerformerTest::RunManifestValidation(manifest, false, kErrorCodeSuccess);
+  DeltaPerformerTest::RunManifestValidation(manifest, false,
+                                            ErrorCode::kSuccess);
 }
 
 TEST(DeltaPerformerTest, ValidateManifestFullUnsetMinorVersion) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
 
-  DeltaPerformerTest::RunManifestValidation(manifest, true, kErrorCodeSuccess);
+  DeltaPerformerTest::RunManifestValidation(manifest, true,
+                                            ErrorCode::kSuccess);
 }
 
 TEST(DeltaPerformerTest, ValidateManifestDeltaUnsetMinorVersion) {
@@ -1036,7 +1045,7 @@ TEST(DeltaPerformerTest, ValidateManifestDeltaUnsetMinorVersion) {
 
   DeltaPerformerTest::RunManifestValidation(
       manifest, false,
-      kErrorCodeUnsupportedMinorPayloadVersion);
+      ErrorCode::kUnsupportedMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
@@ -1049,7 +1058,7 @@ TEST(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
 
   DeltaPerformerTest::RunManifestValidation(
       manifest, true,
-      kErrorCodePayloadMismatchedType);
+      ErrorCode::kPayloadMismatchedType);
 }
 
 TEST(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
@@ -1062,7 +1071,7 @@ TEST(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
 
   DeltaPerformerTest::RunManifestValidation(
       manifest, true,
-      kErrorCodePayloadMismatchedType);
+      ErrorCode::kPayloadMismatchedType);
 }
 
 TEST(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
@@ -1075,7 +1084,7 @@ TEST(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
 
   DeltaPerformerTest::RunManifestValidation(
       manifest, false,
-      kErrorCodeUnsupportedMinorPayloadVersion);
+      ErrorCode::kUnsupportedMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageTest) {

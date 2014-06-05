@@ -936,105 +936,107 @@ string ToString(PayloadType payload_type) {
 ErrorCode GetBaseErrorCode(ErrorCode code) {
   // Ignore the higher order bits in the code by applying the mask as
   // we want the enumerations to be in the small contiguous range
-  // with values less than kErrorCodeUmaReportedMax.
-  ErrorCode base_code = static_cast<ErrorCode>(code & ~kErrorCodeSpecialFlags);
+  // with values less than ErrorCode::kUmaReportedMax.
+  ErrorCode base_code = static_cast<ErrorCode>(
+      static_cast<int>(code) & ~static_cast<int>(ErrorCode::kSpecialFlags));
 
   // Make additional adjustments required for UMA and error classification.
   // TODO(jaysri): Move this logic to UeErrorCode.cc when we fix
   // chromium-os:34369.
-  if (base_code >= kErrorCodeOmahaRequestHTTPResponseBase) {
+  if (base_code >= ErrorCode::kOmahaRequestHTTPResponseBase) {
     // Since we want to keep the enums to a small value, aggregate all HTTP
     // errors into this one bucket for UMA and error classification purposes.
     LOG(INFO) << "Converting error code " << base_code
-              << " to kErrorCodeOmahaErrorInHTTPResponse";
-    base_code = kErrorCodeOmahaErrorInHTTPResponse;
+              << " to ErrorCode::kOmahaErrorInHTTPResponse";
+    base_code = ErrorCode::kOmahaErrorInHTTPResponse;
   }
 
   return base_code;
 }
 
 metrics::AttemptResult GetAttemptResult(ErrorCode code) {
-  ErrorCode base_code = static_cast<ErrorCode>(code & ~kErrorCodeSpecialFlags);
+  ErrorCode base_code = static_cast<ErrorCode>(
+      static_cast<int>(code) & ~static_cast<int>(ErrorCode::kSpecialFlags));
 
   switch (base_code) {
-    case kErrorCodeSuccess:
+    case ErrorCode::kSuccess:
       return metrics::AttemptResult::kUpdateSucceeded;
 
-    case kErrorCodeDownloadTransferError:
+    case ErrorCode::kDownloadTransferError:
       return metrics::AttemptResult::kPayloadDownloadError;
 
-    case kErrorCodeDownloadInvalidMetadataSize:
-    case kErrorCodeDownloadInvalidMetadataMagicString:
-    case kErrorCodeDownloadMetadataSignatureError:
-    case kErrorCodeDownloadMetadataSignatureVerificationError:
-    case kErrorCodePayloadMismatchedType:
-    case kErrorCodeUnsupportedMajorPayloadVersion:
-    case kErrorCodeUnsupportedMinorPayloadVersion:
-    case kErrorCodeDownloadNewPartitionInfoError:
-    case kErrorCodeDownloadSignatureMissingInManifest:
-    case kErrorCodeDownloadManifestParseError:
-    case kErrorCodeDownloadOperationHashMissingError:
+    case ErrorCode::kDownloadInvalidMetadataSize:
+    case ErrorCode::kDownloadInvalidMetadataMagicString:
+    case ErrorCode::kDownloadMetadataSignatureError:
+    case ErrorCode::kDownloadMetadataSignatureVerificationError:
+    case ErrorCode::kPayloadMismatchedType:
+    case ErrorCode::kUnsupportedMajorPayloadVersion:
+    case ErrorCode::kUnsupportedMinorPayloadVersion:
+    case ErrorCode::kDownloadNewPartitionInfoError:
+    case ErrorCode::kDownloadSignatureMissingInManifest:
+    case ErrorCode::kDownloadManifestParseError:
+    case ErrorCode::kDownloadOperationHashMissingError:
       return metrics::AttemptResult::kMetadataMalformed;
 
-    case kErrorCodeDownloadOperationHashMismatch:
-    case kErrorCodeDownloadOperationHashVerificationError:
+    case ErrorCode::kDownloadOperationHashMismatch:
+    case ErrorCode::kDownloadOperationHashVerificationError:
       return metrics::AttemptResult::kOperationMalformed;
 
-    case kErrorCodeDownloadOperationExecutionError:
-    case kErrorCodeInstallDeviceOpenError:
-    case kErrorCodeKernelDeviceOpenError:
-    case kErrorCodeDownloadWriteError:
-    case kErrorCodeFilesystemCopierError:
+    case ErrorCode::kDownloadOperationExecutionError:
+    case ErrorCode::kInstallDeviceOpenError:
+    case ErrorCode::kKernelDeviceOpenError:
+    case ErrorCode::kDownloadWriteError:
+    case ErrorCode::kFilesystemCopierError:
       return metrics::AttemptResult::kOperationExecutionError;
 
-    case kErrorCodeDownloadMetadataSignatureMismatch:
+    case ErrorCode::kDownloadMetadataSignatureMismatch:
       return metrics::AttemptResult::kMetadataVerificationFailed;
 
-    case kErrorCodePayloadSizeMismatchError:
-    case kErrorCodePayloadHashMismatchError:
-    case kErrorCodeDownloadPayloadVerificationError:
-    case kErrorCodeSignedDeltaPayloadExpectedError:
-    case kErrorCodeDownloadPayloadPubKeyVerificationError:
+    case ErrorCode::kPayloadSizeMismatchError:
+    case ErrorCode::kPayloadHashMismatchError:
+    case ErrorCode::kDownloadPayloadVerificationError:
+    case ErrorCode::kSignedDeltaPayloadExpectedError:
+    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
       return metrics::AttemptResult::kPayloadVerificationFailed;
 
-    case kErrorCodeNewRootfsVerificationError:
-    case kErrorCodeNewKernelVerificationError:
+    case ErrorCode::kNewRootfsVerificationError:
+    case ErrorCode::kNewKernelVerificationError:
       return metrics::AttemptResult::kVerificationFailed;
 
-    case kErrorCodePostinstallRunnerError:
-    case kErrorCodePostinstallBootedFromFirmwareB:
-    case kErrorCodePostinstallFirmwareRONotUpdatable:
+    case ErrorCode::kPostinstallRunnerError:
+    case ErrorCode::kPostinstallBootedFromFirmwareB:
+    case ErrorCode::kPostinstallFirmwareRONotUpdatable:
       return metrics::AttemptResult::kPostInstallFailed;
 
     // We should never get these errors in the update-attempt stage so
     // return internal error if this happens.
-    case kErrorCodeError:
-    case kErrorCodeOmahaRequestXMLParseError:
-    case kErrorCodeOmahaRequestError:
-    case kErrorCodeOmahaResponseHandlerError:
-    case kErrorCodeDownloadStateInitializationError:
-    case kErrorCodeOmahaRequestEmptyResponseError:
-    case kErrorCodeDownloadInvalidMetadataSignature:
-    case kErrorCodeOmahaResponseInvalid:
-    case kErrorCodeOmahaUpdateIgnoredPerPolicy:
-    case kErrorCodeOmahaUpdateDeferredPerPolicy:
-    case kErrorCodeOmahaErrorInHTTPResponse:
-    case kErrorCodeDownloadMetadataSignatureMissingError:
-    case kErrorCodeOmahaUpdateDeferredForBackoff:
-    case kErrorCodePostinstallPowerwashError:
-    case kErrorCodeUpdateCanceledByChannelChange:
+    case ErrorCode::kError:
+    case ErrorCode::kOmahaRequestXMLParseError:
+    case ErrorCode::kOmahaRequestError:
+    case ErrorCode::kOmahaResponseHandlerError:
+    case ErrorCode::kDownloadStateInitializationError:
+    case ErrorCode::kOmahaRequestEmptyResponseError:
+    case ErrorCode::kDownloadInvalidMetadataSignature:
+    case ErrorCode::kOmahaResponseInvalid:
+    case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
+    case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+    case ErrorCode::kOmahaErrorInHTTPResponse:
+    case ErrorCode::kDownloadMetadataSignatureMissingError:
+    case ErrorCode::kOmahaUpdateDeferredForBackoff:
+    case ErrorCode::kPostinstallPowerwashError:
+    case ErrorCode::kUpdateCanceledByChannelChange:
       return metrics::AttemptResult::kInternalError;
 
     // Special flags. These can't happen (we mask them out above) but
     // the compiler doesn't know that. Just break out so we can warn and
     // return |kInternalError|.
-    case kErrorCodeUmaReportedMax:
-    case kErrorCodeOmahaRequestHTTPResponseBase:
-    case kErrorCodeDevModeFlag:
-    case kErrorCodeResumedFlag:
-    case kErrorCodeTestImageFlag:
-    case kErrorCodeTestOmahaUrlFlag:
-    case kErrorCodeSpecialFlags:
+    case ErrorCode::kUmaReportedMax:
+    case ErrorCode::kOmahaRequestHTTPResponseBase:
+    case ErrorCode::kDevModeFlag:
+    case ErrorCode::kResumedFlag:
+    case ErrorCode::kTestImageFlag:
+    case ErrorCode::kTestOmahaUrlFlag:
+    case ErrorCode::kSpecialFlags:
       break;
   }
 
@@ -1044,10 +1046,13 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
 
 
 metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
-  ErrorCode base_code = static_cast<ErrorCode>(code & ~kErrorCodeSpecialFlags);
+  ErrorCode base_code = static_cast<ErrorCode>(
+      static_cast<int>(code) & ~static_cast<int>(ErrorCode::kSpecialFlags));
 
-  if (base_code >= kErrorCodeOmahaRequestHTTPResponseBase) {
-    int http_status = base_code - kErrorCodeOmahaRequestHTTPResponseBase;
+  if (base_code >= ErrorCode::kOmahaRequestHTTPResponseBase) {
+    int http_status =
+        static_cast<int>(base_code) -
+        static_cast<int>(ErrorCode::kOmahaRequestHTTPResponseBase);
     if (http_status >= 200 && http_status <= 599) {
       return static_cast<metrics::DownloadErrorCode>(
           static_cast<int>(metrics::DownloadErrorCode::kHttpStatus200) +
@@ -1062,73 +1067,73 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
   }
 
   switch (base_code) {
-    // Unfortunately, kErrorCodeDownloadTransferError is returned for a wide
+    // Unfortunately, ErrorCode::kDownloadTransferError is returned for a wide
     // variety of errors (proxy errors, host not reachable, timeouts etc.).
     //
     // For now just map that to kDownloading. See http://crbug.com/355745
     // for how we plan to add more detail in the future.
-    case kErrorCodeDownloadTransferError:
+    case ErrorCode::kDownloadTransferError:
       return metrics::DownloadErrorCode::kDownloadError;
 
     // All of these error codes are not related to downloading so break
     // out so we can warn and return InputMalformed.
-    case kErrorCodeSuccess:
-    case kErrorCodeError:
-    case kErrorCodeOmahaRequestError:
-    case kErrorCodeOmahaResponseHandlerError:
-    case kErrorCodeFilesystemCopierError:
-    case kErrorCodePostinstallRunnerError:
-    case kErrorCodePayloadMismatchedType:
-    case kErrorCodeInstallDeviceOpenError:
-    case kErrorCodeKernelDeviceOpenError:
-    case kErrorCodePayloadHashMismatchError:
-    case kErrorCodePayloadSizeMismatchError:
-    case kErrorCodeDownloadPayloadVerificationError:
-    case kErrorCodeDownloadNewPartitionInfoError:
-    case kErrorCodeDownloadWriteError:
-    case kErrorCodeNewRootfsVerificationError:
-    case kErrorCodeNewKernelVerificationError:
-    case kErrorCodeSignedDeltaPayloadExpectedError:
-    case kErrorCodeDownloadPayloadPubKeyVerificationError:
-    case kErrorCodePostinstallBootedFromFirmwareB:
-    case kErrorCodeDownloadStateInitializationError:
-    case kErrorCodeDownloadInvalidMetadataMagicString:
-    case kErrorCodeDownloadSignatureMissingInManifest:
-    case kErrorCodeDownloadManifestParseError:
-    case kErrorCodeDownloadMetadataSignatureError:
-    case kErrorCodeDownloadMetadataSignatureVerificationError:
-    case kErrorCodeDownloadMetadataSignatureMismatch:
-    case kErrorCodeDownloadOperationHashVerificationError:
-    case kErrorCodeDownloadOperationExecutionError:
-    case kErrorCodeDownloadOperationHashMismatch:
-    case kErrorCodeOmahaRequestEmptyResponseError:
-    case kErrorCodeOmahaRequestXMLParseError:
-    case kErrorCodeDownloadInvalidMetadataSize:
-    case kErrorCodeDownloadInvalidMetadataSignature:
-    case kErrorCodeOmahaResponseInvalid:
-    case kErrorCodeOmahaUpdateIgnoredPerPolicy:
-    case kErrorCodeOmahaUpdateDeferredPerPolicy:
-    case kErrorCodeOmahaErrorInHTTPResponse:
-    case kErrorCodeDownloadOperationHashMissingError:
-    case kErrorCodeDownloadMetadataSignatureMissingError:
-    case kErrorCodeOmahaUpdateDeferredForBackoff:
-    case kErrorCodePostinstallPowerwashError:
-    case kErrorCodeUpdateCanceledByChannelChange:
-    case kErrorCodePostinstallFirmwareRONotUpdatable:
-    case kErrorCodeUnsupportedMajorPayloadVersion:
-    case kErrorCodeUnsupportedMinorPayloadVersion:
+    case ErrorCode::kSuccess:
+    case ErrorCode::kError:
+    case ErrorCode::kOmahaRequestError:
+    case ErrorCode::kOmahaResponseHandlerError:
+    case ErrorCode::kFilesystemCopierError:
+    case ErrorCode::kPostinstallRunnerError:
+    case ErrorCode::kPayloadMismatchedType:
+    case ErrorCode::kInstallDeviceOpenError:
+    case ErrorCode::kKernelDeviceOpenError:
+    case ErrorCode::kPayloadHashMismatchError:
+    case ErrorCode::kPayloadSizeMismatchError:
+    case ErrorCode::kDownloadPayloadVerificationError:
+    case ErrorCode::kDownloadNewPartitionInfoError:
+    case ErrorCode::kDownloadWriteError:
+    case ErrorCode::kNewRootfsVerificationError:
+    case ErrorCode::kNewKernelVerificationError:
+    case ErrorCode::kSignedDeltaPayloadExpectedError:
+    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
+    case ErrorCode::kPostinstallBootedFromFirmwareB:
+    case ErrorCode::kDownloadStateInitializationError:
+    case ErrorCode::kDownloadInvalidMetadataMagicString:
+    case ErrorCode::kDownloadSignatureMissingInManifest:
+    case ErrorCode::kDownloadManifestParseError:
+    case ErrorCode::kDownloadMetadataSignatureError:
+    case ErrorCode::kDownloadMetadataSignatureVerificationError:
+    case ErrorCode::kDownloadMetadataSignatureMismatch:
+    case ErrorCode::kDownloadOperationHashVerificationError:
+    case ErrorCode::kDownloadOperationExecutionError:
+    case ErrorCode::kDownloadOperationHashMismatch:
+    case ErrorCode::kOmahaRequestEmptyResponseError:
+    case ErrorCode::kOmahaRequestXMLParseError:
+    case ErrorCode::kDownloadInvalidMetadataSize:
+    case ErrorCode::kDownloadInvalidMetadataSignature:
+    case ErrorCode::kOmahaResponseInvalid:
+    case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
+    case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+    case ErrorCode::kOmahaErrorInHTTPResponse:
+    case ErrorCode::kDownloadOperationHashMissingError:
+    case ErrorCode::kDownloadMetadataSignatureMissingError:
+    case ErrorCode::kOmahaUpdateDeferredForBackoff:
+    case ErrorCode::kPostinstallPowerwashError:
+    case ErrorCode::kUpdateCanceledByChannelChange:
+    case ErrorCode::kPostinstallFirmwareRONotUpdatable:
+    case ErrorCode::kUnsupportedMajorPayloadVersion:
+    case ErrorCode::kUnsupportedMinorPayloadVersion:
       break;
 
     // Special flags. These can't happen (we mask them out above) but
     // the compiler doesn't know that. Just break out so we can warn and
     // return |kInputMalformed|.
-    case kErrorCodeUmaReportedMax:
-    case kErrorCodeOmahaRequestHTTPResponseBase:
-    case kErrorCodeDevModeFlag:
-    case kErrorCodeResumedFlag:
-    case kErrorCodeTestImageFlag:
-    case kErrorCodeTestOmahaUrlFlag:
-    case kErrorCodeSpecialFlags:
+    case ErrorCode::kUmaReportedMax:
+    case ErrorCode::kOmahaRequestHTTPResponseBase:
+    case ErrorCode::kDevModeFlag:
+    case ErrorCode::kResumedFlag:
+    case ErrorCode::kTestImageFlag:
+    case ErrorCode::kTestOmahaUrlFlag:
+    case ErrorCode::kSpecialFlags:
       LOG(ERROR) << "Unexpected error code " << base_code;
       break;
   }
@@ -1175,7 +1180,8 @@ metrics::ConnectionType GetConnectionType(
 // bits of the given code. Returns an empty string if none of those bits are
 // set.
 string GetFlagNames(uint32_t code) {
-  uint32_t flags = code & kErrorCodeSpecialFlags;
+  uint32_t flags = (static_cast<uint32_t>(code) &
+                    static_cast<uint32_t>(ErrorCode::kSpecialFlags));
   string flag_names;
   string separator = "";
   for(size_t i = 0; i < sizeof(flags) * 8; i++) {
@@ -1197,7 +1203,8 @@ void SendErrorCodeToUma(SystemState* system_state, ErrorCode code) {
 
   // If the code doesn't have flags computed already, compute them now based on
   // the state of the current update attempt.
-  uint32_t flags = code & kErrorCodeSpecialFlags;
+  uint32_t flags =
+      static_cast<int>(code) & static_cast<int>(ErrorCode::kSpecialFlags);
   if (!flags)
     flags = system_state->update_attempter()->GetErrorCodeFlags();
 
@@ -1205,7 +1212,8 @@ void SendErrorCodeToUma(SystemState* system_state, ErrorCode code) {
   // flag, as it's perfectly normal for production devices to resume their
   // downloads and so we want to record those cases also in NormalErrorCodes
   // bucket.
-  string metric = (flags & ~kErrorCodeResumedFlag) ?
+  string metric =
+      flags & ~static_cast<uint32_t>(ErrorCode::kResumedFlag) ?
       "Installer.DevModeErrorCodes" : "Installer.NormalErrorCodes";
 
   LOG(INFO) << "Sending error code " << uma_error_code
@@ -1213,9 +1221,9 @@ void SendErrorCodeToUma(SystemState* system_state, ErrorCode code) {
             << " to UMA metric: " << metric
             << ". Flags = " << (flags ? GetFlagNames(flags) : "None");
 
-  system_state->metrics_lib()->SendEnumToUMA(metric,
-                                             uma_error_code,
-                                             kErrorCodeUmaReportedMax);
+  system_state->metrics_lib()->SendEnumToUMA(
+      metric, static_cast<int>(uma_error_code),
+      static_cast<int>(ErrorCode::kUmaReportedMax));
 }
 
 string CodeToString(ErrorCode code) {
@@ -1223,112 +1231,114 @@ string CodeToString(ErrorCode code) {
   // part) then strip off the flags part since the switch statement below
   // has case statements only for the base error code or a single flag but
   // doesn't support any combinations of those.
-  if ((code & kErrorCodeSpecialFlags) && (code & ~kErrorCodeSpecialFlags))
-    code = static_cast<ErrorCode>(code & ~kErrorCodeSpecialFlags);
+  if ((static_cast<int>(code) & static_cast<int>(ErrorCode::kSpecialFlags)) &&
+      (static_cast<int>(code) & ~static_cast<int>(ErrorCode::kSpecialFlags)))
+    code = static_cast<ErrorCode>(
+        static_cast<int>(code) & ~static_cast<int>(ErrorCode::kSpecialFlags));
   switch (code) {
-    case kErrorCodeSuccess: return "kErrorCodeSuccess";
-    case kErrorCodeError: return "kErrorCodeError";
-    case kErrorCodeOmahaRequestError: return "kErrorCodeOmahaRequestError";
-    case kErrorCodeOmahaResponseHandlerError:
-      return "kErrorCodeOmahaResponseHandlerError";
-    case kErrorCodeFilesystemCopierError:
-      return "kErrorCodeFilesystemCopierError";
-    case kErrorCodePostinstallRunnerError:
-      return "kErrorCodePostinstallRunnerError";
-    case kErrorCodePayloadMismatchedType:
-      return "kErrorCodePayloadMismatchedType";
-    case kErrorCodeInstallDeviceOpenError:
-      return "kErrorCodeInstallDeviceOpenError";
-    case kErrorCodeKernelDeviceOpenError:
-      return "kErrorCodeKernelDeviceOpenError";
-    case kErrorCodeDownloadTransferError:
-      return "kErrorCodeDownloadTransferError";
-    case kErrorCodePayloadHashMismatchError:
-      return "kErrorCodePayloadHashMismatchError";
-    case kErrorCodePayloadSizeMismatchError:
-      return "kErrorCodePayloadSizeMismatchError";
-    case kErrorCodeDownloadPayloadVerificationError:
-      return "kErrorCodeDownloadPayloadVerificationError";
-    case kErrorCodeDownloadNewPartitionInfoError:
-      return "kErrorCodeDownloadNewPartitionInfoError";
-    case kErrorCodeDownloadWriteError:
-      return "kErrorCodeDownloadWriteError";
-    case kErrorCodeNewRootfsVerificationError:
-      return "kErrorCodeNewRootfsVerificationError";
-    case kErrorCodeNewKernelVerificationError:
-      return "kErrorCodeNewKernelVerificationError";
-    case kErrorCodeSignedDeltaPayloadExpectedError:
-      return "kErrorCodeSignedDeltaPayloadExpectedError";
-    case kErrorCodeDownloadPayloadPubKeyVerificationError:
-      return "kErrorCodeDownloadPayloadPubKeyVerificationError";
-    case kErrorCodePostinstallBootedFromFirmwareB:
-      return "kErrorCodePostinstallBootedFromFirmwareB";
-    case kErrorCodeDownloadStateInitializationError:
-      return "kErrorCodeDownloadStateInitializationError";
-    case kErrorCodeDownloadInvalidMetadataMagicString:
-      return "kErrorCodeDownloadInvalidMetadataMagicString";
-    case kErrorCodeDownloadSignatureMissingInManifest:
-      return "kErrorCodeDownloadSignatureMissingInManifest";
-    case kErrorCodeDownloadManifestParseError:
-      return "kErrorCodeDownloadManifestParseError";
-    case kErrorCodeDownloadMetadataSignatureError:
-      return "kErrorCodeDownloadMetadataSignatureError";
-    case kErrorCodeDownloadMetadataSignatureVerificationError:
-      return "kErrorCodeDownloadMetadataSignatureVerificationError";
-    case kErrorCodeDownloadMetadataSignatureMismatch:
-      return "kErrorCodeDownloadMetadataSignatureMismatch";
-    case kErrorCodeDownloadOperationHashVerificationError:
-      return "kErrorCodeDownloadOperationHashVerificationError";
-    case kErrorCodeDownloadOperationExecutionError:
-      return "kErrorCodeDownloadOperationExecutionError";
-    case kErrorCodeDownloadOperationHashMismatch:
-      return "kErrorCodeDownloadOperationHashMismatch";
-    case kErrorCodeOmahaRequestEmptyResponseError:
-      return "kErrorCodeOmahaRequestEmptyResponseError";
-    case kErrorCodeOmahaRequestXMLParseError:
-      return "kErrorCodeOmahaRequestXMLParseError";
-    case kErrorCodeDownloadInvalidMetadataSize:
-      return "kErrorCodeDownloadInvalidMetadataSize";
-    case kErrorCodeDownloadInvalidMetadataSignature:
-      return "kErrorCodeDownloadInvalidMetadataSignature";
-    case kErrorCodeOmahaResponseInvalid:
-      return "kErrorCodeOmahaResponseInvalid";
-    case kErrorCodeOmahaUpdateIgnoredPerPolicy:
-      return "kErrorCodeOmahaUpdateIgnoredPerPolicy";
-    case kErrorCodeOmahaUpdateDeferredPerPolicy:
-      return "kErrorCodeOmahaUpdateDeferredPerPolicy";
-    case kErrorCodeOmahaErrorInHTTPResponse:
-      return "kErrorCodeOmahaErrorInHTTPResponse";
-    case kErrorCodeDownloadOperationHashMissingError:
-      return "kErrorCodeDownloadOperationHashMissingError";
-    case kErrorCodeDownloadMetadataSignatureMissingError:
-      return "kErrorCodeDownloadMetadataSignatureMissingError";
-    case kErrorCodeOmahaUpdateDeferredForBackoff:
-      return "kErrorCodeOmahaUpdateDeferredForBackoff";
-    case kErrorCodePostinstallPowerwashError:
-      return "kErrorCodePostinstallPowerwashError";
-    case kErrorCodeUpdateCanceledByChannelChange:
-      return "kErrorCodeUpdateCanceledByChannelChange";
-    case kErrorCodeUmaReportedMax:
-      return "kErrorCodeUmaReportedMax";
-    case kErrorCodeOmahaRequestHTTPResponseBase:
-      return "kErrorCodeOmahaRequestHTTPResponseBase";
-    case kErrorCodeResumedFlag:
+    case ErrorCode::kSuccess: return "ErrorCode::kSuccess";
+    case ErrorCode::kError: return "ErrorCode::kError";
+    case ErrorCode::kOmahaRequestError: return "ErrorCode::kOmahaRequestError";
+    case ErrorCode::kOmahaResponseHandlerError:
+      return "ErrorCode::kOmahaResponseHandlerError";
+    case ErrorCode::kFilesystemCopierError:
+      return "ErrorCode::kFilesystemCopierError";
+    case ErrorCode::kPostinstallRunnerError:
+      return "ErrorCode::kPostinstallRunnerError";
+    case ErrorCode::kPayloadMismatchedType:
+      return "ErrorCode::kPayloadMismatchedType";
+    case ErrorCode::kInstallDeviceOpenError:
+      return "ErrorCode::kInstallDeviceOpenError";
+    case ErrorCode::kKernelDeviceOpenError:
+      return "ErrorCode::kKernelDeviceOpenError";
+    case ErrorCode::kDownloadTransferError:
+      return "ErrorCode::kDownloadTransferError";
+    case ErrorCode::kPayloadHashMismatchError:
+      return "ErrorCode::kPayloadHashMismatchError";
+    case ErrorCode::kPayloadSizeMismatchError:
+      return "ErrorCode::kPayloadSizeMismatchError";
+    case ErrorCode::kDownloadPayloadVerificationError:
+      return "ErrorCode::kDownloadPayloadVerificationError";
+    case ErrorCode::kDownloadNewPartitionInfoError:
+      return "ErrorCode::kDownloadNewPartitionInfoError";
+    case ErrorCode::kDownloadWriteError:
+      return "ErrorCode::kDownloadWriteError";
+    case ErrorCode::kNewRootfsVerificationError:
+      return "ErrorCode::kNewRootfsVerificationError";
+    case ErrorCode::kNewKernelVerificationError:
+      return "ErrorCode::kNewKernelVerificationError";
+    case ErrorCode::kSignedDeltaPayloadExpectedError:
+      return "ErrorCode::kSignedDeltaPayloadExpectedError";
+    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
+      return "ErrorCode::kDownloadPayloadPubKeyVerificationError";
+    case ErrorCode::kPostinstallBootedFromFirmwareB:
+      return "ErrorCode::kPostinstallBootedFromFirmwareB";
+    case ErrorCode::kDownloadStateInitializationError:
+      return "ErrorCode::kDownloadStateInitializationError";
+    case ErrorCode::kDownloadInvalidMetadataMagicString:
+      return "ErrorCode::kDownloadInvalidMetadataMagicString";
+    case ErrorCode::kDownloadSignatureMissingInManifest:
+      return "ErrorCode::kDownloadSignatureMissingInManifest";
+    case ErrorCode::kDownloadManifestParseError:
+      return "ErrorCode::kDownloadManifestParseError";
+    case ErrorCode::kDownloadMetadataSignatureError:
+      return "ErrorCode::kDownloadMetadataSignatureError";
+    case ErrorCode::kDownloadMetadataSignatureVerificationError:
+      return "ErrorCode::kDownloadMetadataSignatureVerificationError";
+    case ErrorCode::kDownloadMetadataSignatureMismatch:
+      return "ErrorCode::kDownloadMetadataSignatureMismatch";
+    case ErrorCode::kDownloadOperationHashVerificationError:
+      return "ErrorCode::kDownloadOperationHashVerificationError";
+    case ErrorCode::kDownloadOperationExecutionError:
+      return "ErrorCode::kDownloadOperationExecutionError";
+    case ErrorCode::kDownloadOperationHashMismatch:
+      return "ErrorCode::kDownloadOperationHashMismatch";
+    case ErrorCode::kOmahaRequestEmptyResponseError:
+      return "ErrorCode::kOmahaRequestEmptyResponseError";
+    case ErrorCode::kOmahaRequestXMLParseError:
+      return "ErrorCode::kOmahaRequestXMLParseError";
+    case ErrorCode::kDownloadInvalidMetadataSize:
+      return "ErrorCode::kDownloadInvalidMetadataSize";
+    case ErrorCode::kDownloadInvalidMetadataSignature:
+      return "ErrorCode::kDownloadInvalidMetadataSignature";
+    case ErrorCode::kOmahaResponseInvalid:
+      return "ErrorCode::kOmahaResponseInvalid";
+    case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
+      return "ErrorCode::kOmahaUpdateIgnoredPerPolicy";
+    case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+      return "ErrorCode::kOmahaUpdateDeferredPerPolicy";
+    case ErrorCode::kOmahaErrorInHTTPResponse:
+      return "ErrorCode::kOmahaErrorInHTTPResponse";
+    case ErrorCode::kDownloadOperationHashMissingError:
+      return "ErrorCode::kDownloadOperationHashMissingError";
+    case ErrorCode::kDownloadMetadataSignatureMissingError:
+      return "ErrorCode::kDownloadMetadataSignatureMissingError";
+    case ErrorCode::kOmahaUpdateDeferredForBackoff:
+      return "ErrorCode::kOmahaUpdateDeferredForBackoff";
+    case ErrorCode::kPostinstallPowerwashError:
+      return "ErrorCode::kPostinstallPowerwashError";
+    case ErrorCode::kUpdateCanceledByChannelChange:
+      return "ErrorCode::kUpdateCanceledByChannelChange";
+    case ErrorCode::kUmaReportedMax:
+      return "ErrorCode::kUmaReportedMax";
+    case ErrorCode::kOmahaRequestHTTPResponseBase:
+      return "ErrorCode::kOmahaRequestHTTPResponseBase";
+    case ErrorCode::kResumedFlag:
       return "Resumed";
-    case kErrorCodeDevModeFlag:
+    case ErrorCode::kDevModeFlag:
       return "DevMode";
-    case kErrorCodeTestImageFlag:
+    case ErrorCode::kTestImageFlag:
       return "TestImage";
-    case kErrorCodeTestOmahaUrlFlag:
+    case ErrorCode::kTestOmahaUrlFlag:
       return "TestOmahaUrl";
-    case kErrorCodeSpecialFlags:
-      return "kErrorCodeSpecialFlags";
-    case kErrorCodePostinstallFirmwareRONotUpdatable:
-      return "kErrorCodePostinstallFirmwareRONotUpdatable";
-    case kErrorCodeUnsupportedMajorPayloadVersion:
-      return "kErrorCodeUnsupportedMajorPayloadVersion";
-    case kErrorCodeUnsupportedMinorPayloadVersion:
-      return "kErrorCodeUnsupportedMinorPayloadVersion";
+    case ErrorCode::kSpecialFlags:
+      return "ErrorCode::kSpecialFlags";
+    case ErrorCode::kPostinstallFirmwareRONotUpdatable:
+      return "ErrorCode::kPostinstallFirmwareRONotUpdatable";
+    case ErrorCode::kUnsupportedMajorPayloadVersion:
+      return "ErrorCode::kUnsupportedMajorPayloadVersion";
+    case ErrorCode::kUnsupportedMinorPayloadVersion:
+      return "ErrorCode::kUnsupportedMinorPayloadVersion";
     // Don't add a default case to let the compiler warn about newly added
     // error codes which should be added here.
   }

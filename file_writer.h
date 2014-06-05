@@ -41,7 +41,7 @@ class FileWriter {
   virtual bool Write(const void* bytes,
                      size_t count,
                      ErrorCode* error) {
-     *error = kErrorCodeDownloadWriteError;
+     *error = ErrorCode::kDownloadWriteError;
      return Write(bytes, count);
   }
 

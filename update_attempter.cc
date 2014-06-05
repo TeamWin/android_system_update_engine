@@ -89,24 +89,24 @@ const char* UpdateStatusToString(UpdateStatus status) {
   }
 }
 
-// Turns a generic kErrorCodeError to a generic error code specific
-// to |action| (e.g., kErrorCodeFilesystemCopierError). If |code| is
-// not kErrorCodeError, or the action is not matched, returns |code|
+// Turns a generic ErrorCode::kError to a generic error code specific
+// to |action| (e.g., ErrorCode::kFilesystemCopierError). If |code| is
+// not ErrorCode::kError, or the action is not matched, returns |code|
 // unchanged.
 ErrorCode GetErrorCodeForAction(AbstractAction* action,
                                      ErrorCode code) {
-  if (code != kErrorCodeError)
+  if (code != ErrorCode::kError)
     return code;
 
   const string type = action->Type();
   if (type == OmahaRequestAction::StaticType())
-    return kErrorCodeOmahaRequestError;
+    return ErrorCode::kOmahaRequestError;
   if (type == OmahaResponseHandlerAction::StaticType())
-    return kErrorCodeOmahaResponseHandlerError;
+    return ErrorCode::kOmahaResponseHandlerError;
   if (type == FilesystemCopierAction::StaticType())
-    return kErrorCodeFilesystemCopierError;
+    return ErrorCode::kFilesystemCopierError;
   if (type == PostinstallRunnerAction::StaticType())
-    return kErrorCodePostinstallRunnerError;
+    return ErrorCode::kPostinstallRunnerError;
 
   return code;
 }
@@ -850,7 +850,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
         "so requesting reboot from user.";
   }
 
-  if (code == kErrorCodeSuccess) {
+  if (code == ErrorCode::kSuccess) {
     WriteUpdateCompletedMarker();
     prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
     prefs_->SetString(kPrefsPreviousVersion,
@@ -957,12 +957,12 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
       }
     }
   }
-  if (code != kErrorCodeSuccess) {
+  if (code != ErrorCode::kSuccess) {
     // If the current state is at or past the download phase, count the failure
     // in case a switch to full update becomes necessary. Ignore network
     // transfer timeouts and failures.
     if (status_ >= UPDATE_STATUS_DOWNLOADING &&
-        code != kErrorCodeDownloadTransferError) {
+        code != ErrorCode::kDownloadTransferError) {
       MarkDeltaUpdateFailure();
     }
     // On failure, schedule an error event to be sent to Omaha.
@@ -1128,17 +1128,17 @@ uint32_t UpdateAttempter::GetErrorCodeFlags()  {
   uint32_t flags = 0;
 
   if (!system_state_->hardware()->IsNormalBootMode())
-    flags |= kErrorCodeDevModeFlag;
+    flags |= static_cast<uint32_t>(ErrorCode::kDevModeFlag);
 
   if (response_handler_action_.get() &&
       response_handler_action_->install_plan().is_resume)
-    flags |= kErrorCodeResumedFlag;
+    flags |= static_cast<uint32_t>(ErrorCode::kResumedFlag);
 
   if (!system_state_->hardware()->IsOfficialBuild())
-    flags |= kErrorCodeTestImageFlag;
+    flags |= static_cast<uint32_t>(ErrorCode::kTestImageFlag);
 
   if (omaha_request_params_->update_url() != kProductionOmahaUrl)
-    flags |= kErrorCodeTestOmahaUrlFlag;
+    flags |= static_cast<uint32_t>(ErrorCode::kTestOmahaUrlFlag);
 
   return flags;
 }
@@ -1152,7 +1152,7 @@ bool UpdateAttempter::ShouldCancel(ErrorCode* cancel_reason) {
                << params->target_channel()
                << " is different from the download channel: "
                << params->download_channel();
-    *cancel_reason = kErrorCodeUpdateCanceledByChannelChange;
+    *cancel_reason = ErrorCode::kUpdateCanceledByChannelChange;
     return true;
   }
 
@@ -1180,7 +1180,7 @@ void UpdateAttempter::CreatePendingErrorEvent(AbstractAction* action,
   // failure has not occurred while sending an error event -- in which case
   // don't schedule another. This shouldn't really happen but just in case...
   if ((action->Type() == OmahaResponseHandlerAction::StaticType() &&
-       code == kErrorCodeError) ||
+       code == ErrorCode::kError) ||
       status_ == UPDATE_STATUS_REPORTING_ERROR_EVENT) {
     return;
   }
@@ -1192,9 +1192,9 @@ void UpdateAttempter::CreatePendingErrorEvent(AbstractAction* action,
   // the switch cases below.
   OmahaEvent::Result event_result;
   switch (code) {
-    case kErrorCodeOmahaUpdateIgnoredPerPolicy:
-    case kErrorCodeOmahaUpdateDeferredPerPolicy:
-    case kErrorCodeOmahaUpdateDeferredForBackoff:
+    case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
+    case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+    case ErrorCode::kOmahaUpdateDeferredForBackoff:
       event_result = OmahaEvent::kResultUpdateDeferred;
       break;
     default:
@@ -1203,10 +1203,11 @@ void UpdateAttempter::CreatePendingErrorEvent(AbstractAction* action,
   }
 
   code = GetErrorCodeForAction(action, code);
-  fake_update_success_ = code == kErrorCodePostinstallBootedFromFirmwareB;
+  fake_update_success_ = code == ErrorCode::kPostinstallBootedFromFirmwareB;
 
   // Compute the final error code with all the bit flags to be sent to Omaha.
-  code = static_cast<ErrorCode>(code | GetErrorCodeFlags());
+  code = static_cast<ErrorCode>(
+      static_cast<uint32_t>(code) | GetErrorCodeFlags());
   error_event_.reset(new OmahaEvent(OmahaEvent::kTypeUpdateComplete,
                                     event_result,
                                     code));

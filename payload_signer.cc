@@ -187,7 +187,7 @@ bool PayloadSigner::LoadPayload(const string& payload_path,
   // Loads the payload and parses the manifest.
   TEST_AND_RETURN_FALSE(utils::ReadFile(payload_path, &payload));
   LOG(INFO) << "Payload size: " << payload.size();
-  ErrorCode error = kErrorCodeSuccess;
+  ErrorCode error = ErrorCode::kSuccess;
   InstallPlan install_plan;
   DeltaPerformer delta_performer(NULL, NULL, &install_plan);
   TEST_AND_RETURN_FALSE(

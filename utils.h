@@ -347,7 +347,7 @@ ErrorCode GetBaseErrorCode(ErrorCode code);
 
 // Transforms a ErrorCode value into a metrics::DownloadErrorCode.
 // This obviously only works for errors related to downloading so if |code|
-// is e.g. |kErrorCodeFilesystemCopierError| then
+// is e.g. |ErrorCode::kFilesystemCopierError| then
 // |kDownloadErrorCodeInputMalformed| is returned.
 metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code);
 
@@ -570,7 +570,7 @@ class ScopedActionCompleter {
                                  AbstractAction* action)
       : processor_(processor),
         action_(action),
-        code_(kErrorCodeError),
+        code_(ErrorCode::kError),
         should_complete_(true) {}
   ~ScopedActionCompleter() {
     if (should_complete_)

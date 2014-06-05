@@ -106,10 +106,10 @@ class DeltaPerformer : public FileWriter {
 
   // Verifies the downloaded payload against the signed hash included in the
   // payload, against the update check hash (which is in base64 format)  and
-  // size using the public key and returns kErrorCodeSuccess on success, an
+  // size using the public key and returns ErrorCode::kSuccess on success, an
   // error code on failure.  This method should be called after closing the
   // stream. Note this method skips the signed hash check if the public key is
-  // unavailable; it returns kErrorCodeSignedDeltaPayloadExpectedError if the
+  // unavailable; it returns ErrorCode::kSignedDeltaPayloadExpectedError if the
   // public key is available but the delta payload doesn't include a signature.
   ErrorCode VerifyPayload(const std::string& update_check_response_hash,
                                const uint64_t update_check_response_size);
@@ -225,14 +225,14 @@ class DeltaPerformer : public FileWriter {
 
   // Validates that the hash of the blobs corresponding to the given |operation|
   // matches what's specified in the manifest in the payload.
-  // Returns kErrorCodeSuccess on match or a suitable error code otherwise.
+  // Returns ErrorCode::kSuccess on match or a suitable error code otherwise.
   ErrorCode ValidateOperationHash(
       const DeltaArchiveManifest_InstallOperation& operation);
 
   // Interprets the given |protobuf| as a DeltaArchiveManifest protocol buffer
   // of the given protobuf_length and verifies that the signed hash of the
   // metadata matches what's specified in the install plan from Omaha.
-  // Returns kErrorCodeSuccess on match or a suitable error code otherwise.
+  // Returns ErrorCode::kSuccess on match or a suitable error code otherwise.
   // This method must be called before any part of the |protobuf| is parsed
   // so that a man-in-the-middle attack on the SSL connection to the payload
   // server doesn't exploit any vulnerability in the code that parses the

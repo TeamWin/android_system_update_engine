@@ -65,7 +65,7 @@ void ActionProcessor::ActionComplete(AbstractAction* actionptr,
   if (actions_.empty()) {
     LOG(INFO) << "ActionProcessor::ActionComplete: finished last action of"
                  " type " << old_type;
-  } else if (code != kErrorCodeSuccess) {
+  } else if (code != ErrorCode::kSuccess) {
     LOG(INFO) << "ActionProcessor::ActionComplete: " << old_type
               << " action failed. Aborting processing.";
     actions_.clear();

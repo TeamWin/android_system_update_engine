@@ -49,7 +49,7 @@ class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
  public:
   FilesystemCopierActionTestDelegate(GMainLoop* loop,
                                      FilesystemCopierAction* action)
-      : loop_(loop), action_(action), ran_(false), code_(kErrorCodeError) {}
+      : loop_(loop), action_(action), ran_(false), code_(ErrorCode::kError) {}
   void ExitMainLoop() {
     GMainContext* context = g_main_loop_get_context(loop_);
     // We cannot use g_main_context_pending() alone to determine if it is safe
@@ -242,18 +242,18 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
     success = success && is_delegate_ran;
   }
   if (run_out_of_space || terminate_early) {
-    EXPECT_EQ(kErrorCodeError, delegate.code());
-    return (kErrorCodeError == delegate.code());
+    EXPECT_EQ(ErrorCode::kError, delegate.code());
+    return (ErrorCode::kError == delegate.code());
   }
   if (verify_hash == 2) {
     ErrorCode expected_exit_code =
         (use_kernel_partition ?
-         kErrorCodeNewKernelVerificationError :
-         kErrorCodeNewRootfsVerificationError);
+         ErrorCode::kNewKernelVerificationError :
+         ErrorCode::kNewRootfsVerificationError);
     EXPECT_EQ(expected_exit_code, delegate.code());
     return (expected_exit_code == delegate.code());
   }
-  EXPECT_EQ(kErrorCodeSuccess, delegate.code());
+  EXPECT_EQ(ErrorCode::kSuccess, delegate.code());
 
   // Make sure everything in the out_image is there
   vector<char> a_out;
@@ -320,7 +320,7 @@ TEST_F(FilesystemCopierActionTest, MissingInputObjectTest) {
   processor.StartProcessing();
   EXPECT_FALSE(processor.IsRunning());
   EXPECT_TRUE(delegate.ran_);
-  EXPECT_EQ(kErrorCodeError, delegate.code_);
+  EXPECT_EQ(ErrorCode::kError, delegate.code_);
 }
 
 TEST_F(FilesystemCopierActionTest, ResumeTest) {
@@ -345,7 +345,7 @@ TEST_F(FilesystemCopierActionTest, ResumeTest) {
   processor.StartProcessing();
   EXPECT_FALSE(processor.IsRunning());
   EXPECT_TRUE(delegate.ran_);
-  EXPECT_EQ(kErrorCodeSuccess, delegate.code_);
+  EXPECT_EQ(ErrorCode::kSuccess, delegate.code_);
   EXPECT_EQ(kUrl, collector_action.object().download_url);
 }
 
@@ -378,7 +378,7 @@ TEST_F(FilesystemCopierActionTest, NonExistentDriveTest) {
   processor.StartProcessing();
   EXPECT_FALSE(processor.IsRunning());
   EXPECT_TRUE(delegate.ran_);
-  EXPECT_EQ(kErrorCodeError, delegate.code_);
+  EXPECT_EQ(ErrorCode::kError, delegate.code_);
 }
 
 TEST_F(FilesystemCopierActionTest, RunAsRootVerifyHashTest) {

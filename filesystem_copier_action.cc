@@ -79,7 +79,7 @@ void FilesystemCopierAction::PerformAction() {
     LOG(INFO) << "filesystem copying skipped on resumed update.";
     if (HasOutputPipe())
       SetOutputObject(install_plan_);
-    abort_action_completer.set_code(kErrorCodeSuccess);
+    abort_action_completer.set_code(ErrorCode::kSuccess);
     return;
   }
 
@@ -96,7 +96,7 @@ void FilesystemCopierAction::PerformAction() {
     LOG(INFO) << "filesystem copying skipped on full update.";
     if (HasOutputPipe())
       SetOutputObject(install_plan_);
-    abort_action_completer.set_code(kErrorCodeSuccess);
+    abort_action_completer.set_code(ErrorCode::kSuccess);
     return;
   }
 
@@ -169,7 +169,7 @@ void FilesystemCopierAction::Cleanup(ErrorCode code) {
   }
   if (cancelled_)
     return;
-  if (code == kErrorCodeSuccess && HasOutputPipe())
+  if (code == ErrorCode::kSuccess && HasOutputPipe())
     SetOutputObject(install_plan_);
   processor_->ActionComplete(this, code);
 }
@@ -268,7 +268,7 @@ void FilesystemCopierAction::SpawnAsyncActions() {
   }
   if (failed_ || cancelled_) {
     if (!reading && !writing) {
-      Cleanup(kErrorCodeError);
+      Cleanup(ErrorCode::kError);
     }
     return;
   }
@@ -302,18 +302,18 @@ void FilesystemCopierAction::SpawnAsyncActions() {
   }
   if (!reading && !writing) {
     // We're done!
-    ErrorCode code = kErrorCodeSuccess;
+    ErrorCode code = ErrorCode::kSuccess;
     if (hasher_.Finalize()) {
       LOG(INFO) << "Hash: " << hasher_.hash();
       if (verify_hash_) {
         if (copying_kernel_install_path_) {
           if (install_plan_.kernel_hash != hasher_.raw_hash()) {
-            code = kErrorCodeNewKernelVerificationError;
+            code = ErrorCode::kNewKernelVerificationError;
             LOG(ERROR) << "New kernel verification failed.";
           }
         } else {
           if (install_plan_.rootfs_hash != hasher_.raw_hash()) {
-            code = kErrorCodeNewRootfsVerificationError;
+            code = ErrorCode::kNewRootfsVerificationError;
             LOG(ERROR) << "New rootfs verification failed.";
           }
         }
@@ -326,7 +326,7 @@ void FilesystemCopierAction::SpawnAsyncActions() {
       }
     } else {
       LOG(ERROR) << "Unable to finalize the hash.";
-      code = kErrorCodeError;
+      code = ErrorCode::kError;
     }
     Cleanup(code);
   }

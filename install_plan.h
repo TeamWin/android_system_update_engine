@@ -102,7 +102,7 @@ class InstallPlanAction : public Action<InstallPlanAction> {
     if (HasOutputPipe()) {
       SetOutputObject(install_plan_);
     }
-    processor_->ActionComplete(this, kErrorCodeSuccess);
+    processor_->ActionComplete(this, ErrorCode::kSuccess);
   }
 
   InstallPlan* install_plan() { return &install_plan_; }

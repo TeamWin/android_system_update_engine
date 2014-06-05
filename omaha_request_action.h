@@ -54,11 +54,11 @@ struct OmahaEvent {
   OmahaEvent()
       : type(kTypeUnknown),
         result(kResultError),
-        error_code(kErrorCodeError) {}
+        error_code(ErrorCode::kError) {}
   explicit OmahaEvent(Type in_type)
       : type(in_type),
         result(kResultSuccess),
-        error_code(kErrorCodeSuccess) {}
+        error_code(ErrorCode::kSuccess) {}
   OmahaEvent(Type in_type, Result in_result, ErrorCode in_error_code)
       : type(in_type),
         result(in_result),

@@ -57,7 +57,7 @@ void OmahaResponseHandlerAction::PerformAction() {
     // This shouldn't happen as we should always supply the HTTPS backup URL.
     // Handling this anyway, just in case.
     LOG(ERROR) << "There are no suitable URLs in the response to use.";
-    completer.set_code(kErrorCodeOmahaResponseInvalid);
+    completer.set_code(ErrorCode::kOmahaResponseInvalid);
     return;
   }
 
@@ -126,7 +126,7 @@ void OmahaResponseHandlerAction::PerformAction() {
                    response.deadline.size());
   chmod(deadline_file_.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
-  completer.set_code(kErrorCodeSuccess);
+  completer.set_code(ErrorCode::kSuccess);
 }
 
 bool OmahaResponseHandlerAction::AreHashChecksMandatory(

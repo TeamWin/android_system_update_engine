@@ -47,7 +47,7 @@ class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
  public:
   PostinstActionProcessorDelegate()
       : loop_(NULL),
-        code_(kErrorCodeError),
+        code_(ErrorCode::kError),
         code_set_(false) {}
   void ProcessingDone(const ActionProcessor* processor,
                       ErrorCode code) {
@@ -192,7 +192,7 @@ void PostinstallRunnerActionTest::DoTest(
   ASSERT_FALSE(processor.IsRunning());
 
   EXPECT_TRUE(delegate.code_set_);
-  EXPECT_EQ(should_succeed, delegate.code_ == kErrorCodeSuccess);
+  EXPECT_EQ(should_succeed, delegate.code_ == ErrorCode::kSuccess);
   EXPECT_EQ(should_succeed, !collector_action.object().install_path.empty());
   if (should_succeed)
     EXPECT_TRUE(install_plan == collector_action.object());
@@ -208,7 +208,7 @@ void PostinstallRunnerActionTest::DoTest(
   }
 
   if (err_code == 2)
-    EXPECT_EQ(kErrorCodePostinstallBootedFromFirmwareB, delegate.code_);
+    EXPECT_EQ(ErrorCode::kPostinstallBootedFromFirmwareB, delegate.code_);
 
   struct stat stbuf;
   int rc = lstat((string(cwd) + "/postinst_called").c_str(), &stbuf);

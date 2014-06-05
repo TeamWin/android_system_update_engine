@@ -33,7 +33,7 @@ class ActionTestAction : public Action<ActionTestAction> {
   void PerformAction() {}
   void CompleteAction() {
     ASSERT_TRUE(processor());
-    processor()->ActionComplete(this, kErrorCodeSuccess);
+    processor()->ActionComplete(this, ErrorCode::kSuccess);
   }
   string Type() const { return "ActionTestAction"; }
 };

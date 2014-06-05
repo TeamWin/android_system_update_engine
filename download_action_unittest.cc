@@ -60,7 +60,7 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
     g_main_loop_quit(loop_);
     vector<char> found_data;
     ASSERT_TRUE(utils::ReadFile(path_, &found_data));
-    if (expected_code_ != kErrorCodeDownloadWriteError) {
+    if (expected_code_ != ErrorCode::kDownloadWriteError) {
       ASSERT_EQ(expected_data_.size(), found_data.size());
       for (unsigned i = 0; i < expected_data_.size(); i++) {
         EXPECT_EQ(expected_data_[i], found_data[i]);
@@ -76,7 +76,7 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
     if (type == DownloadAction::StaticType()) {
       EXPECT_EQ(expected_code_, code);
     } else {
-      EXPECT_EQ(kErrorCodeSuccess, code);
+      EXPECT_EQ(ErrorCode::kSuccess, code);
     }
   }
 
@@ -172,9 +172,9 @@ void TestWithData(const vector<char>& data,
     EXPECT_CALL(download_delegate, BytesReceived(_, _)).Times(AtLeast(1));
     EXPECT_CALL(download_delegate, SetDownloadStatus(false)).Times(1);
   }
-  ErrorCode expected_code = kErrorCodeSuccess;
+  ErrorCode expected_code = ErrorCode::kSuccess;
   if (fail_write > 0)
-    expected_code = kErrorCodeDownloadWriteError;
+    expected_code = ErrorCode::kDownloadWriteError;
   DownloadActionTestProcessorDelegate delegate(expected_code);
   delegate.loop_ = loop;
   delegate.expected_data_ = vector<char>(data.begin() + 1, data.end());
@@ -334,7 +334,7 @@ class DownloadActionTestAction : public Action<DownloadActionTestAction> {
     ASSERT_TRUE(HasInputObject());
     EXPECT_TRUE(expected_input_object_ == GetInputObject());
     ASSERT_TRUE(processor());
-    processor()->ActionComplete(this, kErrorCodeSuccess);
+    processor()->ActionComplete(this, ErrorCode::kSuccess);
   }
   string Type() const { return "DownloadActionTestAction"; }
   InstallPlan expected_input_object_;
@@ -501,7 +501,7 @@ protected:
                                               http_fetcher_));
     download_action_->SetTestFileWriter(&writer);
     BondActions(&feeder_action, download_action_.get());
-    DownloadActionTestProcessorDelegate delegate(kErrorCodeSuccess);
+    DownloadActionTestProcessorDelegate delegate(ErrorCode::kSuccess);
     delegate.loop_ = loop_;
     delegate.expected_data_ = vector<char>(data_.begin() + start_at_offset_,
                                            data_.end());

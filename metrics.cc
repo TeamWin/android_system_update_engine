@@ -276,14 +276,14 @@ void ReportUpdateAttemptMetrics(
       static_cast<int>(attempt_result),
       static_cast<int>(AttemptResult::kNumConstants));
 
-  if (internal_error_code != kErrorCodeSuccess) {
+  if (internal_error_code != ErrorCode::kSuccess) {
     metric = metrics::kMetricAttemptInternalErrorCode;
     LOG(INFO) << "Uploading " << internal_error_code
               << " for metric " <<  metric;
     system_state->metrics_lib()->SendEnumToUMA(
         metric,
-        internal_error_code,
-        kErrorCodeUmaReportedMax);
+        static_cast<int>(internal_error_code),
+        static_cast<int>(ErrorCode::kUmaReportedMax));
   }
 
   if (payload_download_error_code != DownloadErrorCode::kUnset) {

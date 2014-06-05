@@ -147,7 +147,7 @@ class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   OmahaRequestActionTestProcessorDelegate()
       : loop_(NULL),
-        expected_code_(kErrorCodeSuccess) {}
+        expected_code_(ErrorCode::kSuccess) {}
   virtual ~OmahaRequestActionTestProcessorDelegate() {
   }
   virtual void ProcessingDone(const ActionProcessor* processor,
@@ -163,7 +163,7 @@ class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
     if (action->Type() == OmahaRequestAction::StaticType())
       EXPECT_EQ(expected_code_, code);
     else
-      EXPECT_EQ(kErrorCodeSuccess, code);
+      EXPECT_EQ(ErrorCode::kSuccess, code);
   }
   GMainLoop *loop_;
   ErrorCode expected_code_;
@@ -195,7 +195,7 @@ class OutputObjectCollectorAction : public Action<OutputObjectCollectorAction> {
     has_input_object_ = HasInputObject();
     if (has_input_object_)
       omaha_response_ = GetInputObject();
-    processor_->ActionComplete(this, kErrorCodeSuccess);
+    processor_->ActionComplete(this, ErrorCode::kSuccess);
   }
   // Should never be called
   void TerminateProcessing() {
@@ -338,7 +338,7 @@ TEST(OmahaRequestActionTest, NoUpdateTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -367,7 +367,7 @@ TEST(OmahaRequestActionTest, ValidUpdateTest) {
                                         "20101020"),  // deadline
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -406,7 +406,7 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByPolicyTest) {
                                         ""),  // deadline
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaUpdateIgnoredPerPolicy,
+                      ErrorCode::kOmahaUpdateIgnoredPerPolicy,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kIgnored,
                       metrics::DownloadErrorCode::kUnset,
@@ -447,7 +447,7 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
                                         ""),  // deadline
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaUpdateIgnoredPerPolicy,
+                      ErrorCode::kOmahaUpdateIgnoredPerPolicy,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kIgnored,
                       metrics::DownloadErrorCode::kUnset,
@@ -482,7 +482,7 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
                                         ""),  // deadline
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaUpdateIgnoredPerPolicy,
+                      ErrorCode::kOmahaUpdateIgnoredPerPolicy,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kIgnored,
                       metrics::DownloadErrorCode::kUnset,
@@ -504,7 +504,7 @@ TEST(OmahaRequestActionTest, NoUpdatesSentWhenBlockedByPolicyTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -551,7 +551,7 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaUpdateDeferredPerPolicy,
+                      ErrorCode::kOmahaUpdateDeferredPerPolicy,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kDeferring,
                       metrics::DownloadErrorCode::kUnset,
@@ -583,7 +583,7 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -633,7 +633,7 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -683,7 +683,7 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -734,7 +734,7 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -788,7 +788,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaUpdateDeferredPerPolicy,
+                      ErrorCode::kOmahaUpdateDeferredPerPolicy,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kDeferring,
                       metrics::DownloadErrorCode::kUnset,
@@ -824,7 +824,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -876,7 +876,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaUpdateDeferredPerPolicy,
+                      ErrorCode::kOmahaUpdateDeferredPerPolicy,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kDeferring,
                       metrics::DownloadErrorCode::kUnset,
@@ -914,7 +914,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -959,7 +959,7 @@ TEST(OmahaRequestActionTest, InvalidXmlTest) {
                       "invalid xml>",
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaRequestXMLParseError,
+                      ErrorCode::kOmahaRequestXMLParseError,
                       metrics::CheckResult::kParsingError,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -979,7 +979,7 @@ TEST(OmahaRequestActionTest, EmptyResponseTest) {
                       "",
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaRequestEmptyResponseError,
+                      ErrorCode::kOmahaRequestEmptyResponseError,
                       metrics::CheckResult::kParsingError,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1003,7 +1003,7 @@ TEST(OmahaRequestActionTest, MissingStatusTest) {
       "<updatecheck/></app></response>",
       -1,
       false,  // ping_only
-      kErrorCodeOmahaResponseInvalid,
+      ErrorCode::kOmahaResponseInvalid,
       metrics::CheckResult::kParsingError,
       metrics::CheckReaction::kUnset,
       metrics::DownloadErrorCode::kUnset,
@@ -1027,7 +1027,7 @@ TEST(OmahaRequestActionTest, InvalidStatusTest) {
       "<updatecheck status=\"InvalidStatusTest\"/></app></response>",
       -1,
       false,  // ping_only
-      kErrorCodeOmahaResponseInvalid,
+      ErrorCode::kOmahaResponseInvalid,
       metrics::CheckResult::kParsingError,
       metrics::CheckReaction::kUnset,
       metrics::DownloadErrorCode::kUnset,
@@ -1051,7 +1051,7 @@ TEST(OmahaRequestActionTest, MissingNodesetTest) {
       "</app></response>",
       -1,
       false,  // ping_only
-      kErrorCodeOmahaResponseInvalid,
+      ErrorCode::kOmahaResponseInvalid,
       metrics::CheckResult::kParsingError,
       metrics::CheckReaction::kUnset,
       metrics::DownloadErrorCode::kUnset,
@@ -1089,7 +1089,7 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
                               input_response,
                               -1,
                               false,  // ping_only
-                              kErrorCodeSuccess,
+                              ErrorCode::kSuccess,
                               metrics::CheckResult::kUpdateAvailable,
                               metrics::CheckReaction::kUpdating,
                               metrics::DownloadErrorCode::kUnset,
@@ -1187,7 +1187,7 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
                       "invalid xml>",
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaRequestXMLParseError,
+                      ErrorCode::kOmahaRequestXMLParseError,
                       metrics::CheckResult::kParsingError,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1225,7 +1225,7 @@ TEST(OmahaRequestActionTest, XmlDecodeTest) {
                                         "&lt;20110101"),  // deadline
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -1258,7 +1258,7 @@ TEST(OmahaRequestActionTest, ParseIntTest) {
                                         "deadline"),
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -1282,7 +1282,7 @@ TEST(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kErrorCodeOmahaRequestXMLParseError,
+                               ErrorCode::kOmahaRequestXMLParseError,
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
@@ -1319,7 +1319,7 @@ TEST(OmahaRequestActionTest, FormatUpdateDisabledOutputTest) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kErrorCodeOmahaRequestXMLParseError,
+                               ErrorCode::kOmahaRequestXMLParseError,
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
@@ -1361,7 +1361,7 @@ TEST(OmahaRequestActionTest, FormatErrorEventOutputTest) {
   TestEvent(kDefaultTestParams,
             new OmahaEvent(OmahaEvent::kTypeDownloadComplete,
                            OmahaEvent::kResultError,
-                           kErrorCodeError),
+                           ErrorCode::kError),
             "invalid xml>",
             &post_data);
   // convert post_data to string
@@ -1371,7 +1371,7 @@ TEST(OmahaRequestActionTest, FormatErrorEventOutputTest) {
       "errorcode=\"%d\"></event>\n",
       OmahaEvent::kTypeDownloadComplete,
       OmahaEvent::kResultError,
-      kErrorCodeError);
+      static_cast<int>(ErrorCode::kError));
   EXPECT_NE(post_str.find(expected_event), string::npos);
   EXPECT_EQ(post_str.find("updatecheck"), string::npos);
 }
@@ -1435,7 +1435,7 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                                  "invalid xml>",
                                  -1,
                                  false,  // ping_only
-                                 kErrorCodeOmahaRequestXMLParseError,
+                                 ErrorCode::kOmahaRequestXMLParseError,
                                  metrics::CheckResult::kParsingError,
                                  metrics::CheckReaction::kUnset,
                                  metrics::DownloadErrorCode::kUnset,
@@ -1483,7 +1483,7 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                                  "invalid xml>",
                                  -1,
                                  false,  // ping_only
-                                 kErrorCodeOmahaRequestXMLParseError,
+                                 ErrorCode::kOmahaRequestXMLParseError,
                                  metrics::CheckResult::kParsingError,
                                  metrics::CheckReaction::kUnset,
                                  metrics::DownloadErrorCode::kUnset,
@@ -1502,19 +1502,19 @@ TEST(OmahaRequestActionTest, OmahaEventTest) {
   OmahaEvent default_event;
   EXPECT_EQ(OmahaEvent::kTypeUnknown, default_event.type);
   EXPECT_EQ(OmahaEvent::kResultError, default_event.result);
-  EXPECT_EQ(kErrorCodeError, default_event.error_code);
+  EXPECT_EQ(ErrorCode::kError, default_event.error_code);
 
   OmahaEvent success_event(OmahaEvent::kTypeUpdateDownloadStarted);
   EXPECT_EQ(OmahaEvent::kTypeUpdateDownloadStarted, success_event.type);
   EXPECT_EQ(OmahaEvent::kResultSuccess, success_event.result);
-  EXPECT_EQ(kErrorCodeSuccess, success_event.error_code);
+  EXPECT_EQ(ErrorCode::kSuccess, success_event.error_code);
 
   OmahaEvent error_event(OmahaEvent::kTypeUpdateDownloadFinished,
                          OmahaEvent::kResultError,
-                         kErrorCodeError);
+                         ErrorCode::kError);
   EXPECT_EQ(OmahaEvent::kTypeUpdateDownloadFinished, error_event.type);
   EXPECT_EQ(OmahaEvent::kResultError, error_event.result);
-  EXPECT_EQ(kErrorCodeError, error_event.error_code);
+  EXPECT_EQ(ErrorCode::kError, error_event.error_code);
 }
 
 TEST(OmahaRequestActionTest, PingTest) {
@@ -1544,7 +1544,7 @@ TEST(OmahaRequestActionTest, PingTest) {
                         GetNoUpdateResponse(OmahaRequestParams::kAppId),
                         -1,
                         ping_only,
-                        kErrorCodeSuccess,
+                        ErrorCode::kSuccess,
                         metrics::CheckResult::kUnset,
                         metrics::CheckReaction::kUnset,
                         metrics::DownloadErrorCode::kUnset,
@@ -1587,7 +1587,7 @@ TEST(OmahaRequestActionTest, ActivePingTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1622,7 +1622,7 @@ TEST(OmahaRequestActionTest, RollCallPingTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1658,7 +1658,7 @@ TEST(OmahaRequestActionTest, NoPingTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1688,7 +1688,7 @@ TEST(OmahaRequestActionTest, IgnoreEmptyPingTest) {
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       true,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUnset,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1727,7 +1727,7 @@ TEST(OmahaRequestActionTest, BackInTimePingTest) {
                       "<updatecheck status=\"noupdate\"/></app></response>",
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1767,7 +1767,7 @@ TEST(OmahaRequestActionTest, LastPingDayUpdateTest) {
                       "<updatecheck status=\"noupdate\"/></app></response>",
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1793,7 +1793,7 @@ TEST(OmahaRequestActionTest, NoElapsedSecondsTest) {
                       "<updatecheck status=\"noupdate\"/></app></response>",
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1819,7 +1819,7 @@ TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
                       "<updatecheck status=\"noupdate\"/></app></response>",
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
@@ -1837,7 +1837,7 @@ TEST(OmahaRequestActionTest, NoUniqueIDTest) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kErrorCodeOmahaRequestXMLParseError,
+                               ErrorCode::kOmahaRequestXMLParseError,
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
@@ -1851,6 +1851,8 @@ TEST(OmahaRequestActionTest, NoUniqueIDTest) {
 
 TEST(OmahaRequestActionTest, NetworkFailureTest) {
   OmahaResponse response;
+  const int http_error_code =
+      static_cast<int>(ErrorCode::kOmahaRequestHTTPResponseBase) + 501;
   ASSERT_FALSE(
       TestUpdateCheck(NULL,  // prefs
                       NULL,  // payload_state
@@ -1860,8 +1862,7 @@ TEST(OmahaRequestActionTest, NetworkFailureTest) {
                       "",
                       501,
                       false,  // ping_only
-                      static_cast<ErrorCode>(
-                          kErrorCodeOmahaRequestHTTPResponseBase + 501),
+                      static_cast<ErrorCode>(http_error_code),
                       metrics::CheckResult::kDownloadError,
                       metrics::CheckReaction::kUnset,
                       static_cast<metrics::DownloadErrorCode>(501),
@@ -1872,6 +1873,8 @@ TEST(OmahaRequestActionTest, NetworkFailureTest) {
 
 TEST(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
   OmahaResponse response;
+  const int http_error_code =
+      static_cast<int>(ErrorCode::kOmahaRequestHTTPResponseBase) + 999;
   ASSERT_FALSE(
       TestUpdateCheck(NULL,  // prefs
                       NULL,  // payload_state
@@ -1881,8 +1884,7 @@ TEST(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
                       "",
                       1500,
                       false,  // ping_only
-                      static_cast<ErrorCode>(
-                          kErrorCodeOmahaRequestHTTPResponseBase + 999),
+                      static_cast<ErrorCode>(http_error_code),
                       metrics::CheckResult::kDownloadError,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kHttpStatusOther,
@@ -1929,7 +1931,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeOmahaUpdateDeferredPerPolicy,
+                      ErrorCode::kOmahaUpdateDeferredPerPolicy,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kDeferring,
                       metrics::DownloadErrorCode::kUnset,
@@ -1965,7 +1967,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -2017,7 +2019,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -2068,7 +2070,7 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kErrorCodeOmahaRequestXMLParseError,
+                               ErrorCode::kOmahaRequestXMLParseError,
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
@@ -2119,7 +2121,7 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
                                "invalid xml>",
                                -1,
                                false,  // ping_only
-                               kErrorCodeOmahaRequestXMLParseError,
+                               ErrorCode::kOmahaRequestXMLParseError,
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
@@ -2183,7 +2185,7 @@ void P2PTest(bool initial_allow_p2p_for_downloading,
                                          omaha_disable_p2p_for_sharing),
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
@@ -2308,7 +2310,7 @@ bool InstallDateParseHelper(const std::string &elapsed_days,
                                          false), // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
-                      kErrorCodeSuccess,
+                      ErrorCode::kSuccess,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,

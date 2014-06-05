@@ -33,7 +33,7 @@ class ActionProcessorTestAction : public Action<ActionProcessorTestAction> {
   void PerformAction() {}
   void CompleteAction() {
     ASSERT_TRUE(processor());
-    processor()->ActionComplete(this, kErrorCodeSuccess);
+    processor()->ActionComplete(this, ErrorCode::kSuccess);
   }
   string Type() const { return "ActionProcessorTestAction"; }
 };
@@ -66,7 +66,7 @@ class MyActionProcessorDelegate : public ActionProcessorDelegate {
         processing_done_called_(false),
         processing_stopped_called_(false),
         action_completed_called_(false),
-        action_exit_code_(kErrorCodeError) {}
+        action_exit_code_(ErrorCode::kError) {}
 
   virtual void ProcessingDone(const ActionProcessor* processor,
                               ErrorCode code) {
