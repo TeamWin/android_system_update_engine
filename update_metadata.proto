@@ -46,6 +46,7 @@
 //   to block size.
 
 package chromeos_update_engine;
+option optimize_for = LITE_RUNTIME;
 
 // Data is packed into blocks on disk, always starting from the beginning
 // of the block. If a file's data is too large for one block, it overflows

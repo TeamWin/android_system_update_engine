@@ -42,7 +42,7 @@
         'proto_in_dir': '.',
         'proto_out_dir': 'include/update_engine',
         'exported_deps': [
-          'protobuf',
+          'protobuf-lite',
         ],
         'deps': ['<@(exported_deps)'],
       },
