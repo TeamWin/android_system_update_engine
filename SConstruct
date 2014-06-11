@@ -154,21 +154,11 @@ env['CCFLAGS'] += env['CFLAGS']
 
 BASE_VER = os.environ.get('BASE_VER', '271506')
 env['LIBS'] = Split("""bz2
-                       crypto
-                       curl
-                       ext2fs
                        gflags
-                       glib-2.0
-                       gthread-2.0
-                       metrics-%s
                        policy-%s
-                       protobuf
-                       pthread
                        rootdev
                        rt
-                       ssl
-                       vboot_host
-                       xml2""" % (BASE_VER, BASE_VER))
+                       vboot_host""" % (BASE_VER,))
 env['CPPPATH'] = ['..']
 env['BUILDERS']['ProtocolBuffer'] = proto_builder
 env['BUILDERS']['DbusBindings'] = dbus_bindings_builder
@@ -181,9 +171,22 @@ for key in Split('PKG_CONFIG_LIBDIR PKG_CONFIG_PATH'):
 
 pkgconfig = os.environ.get('PKG_CONFIG', 'pkg-config')
 
-env.ParseConfig(pkgconfig + ' --cflags --libs '
-                'dbus-1 dbus-glib-1 gio-2.0 gio-unix-2.0 glib-2.0 libchrome-%s '
-                'libchromeos-%s libxml-2.0' % (BASE_VER, BASE_VER))
+env.ParseConfig(pkgconfig + ' --cflags --libs ' + ' '.join((
+                'dbus-1',
+                'dbus-glib-1',
+                'ext2fs',
+                'gio-2.0',
+                'gio-unix-2.0',
+                'glib-2.0',
+                'gthread-2.0',
+                'libchrome-%s' % BASE_VER,
+                'libchromeos-%s' % BASE_VER,
+                'libcrypto',
+                'libcurl',
+                'libmetrics-%s' % BASE_VER,
+                'libssl',
+                'libxml-2.0',
+                'protobuf')))
 env.ProtocolBuffer('update_metadata.pb.cc', 'update_metadata.proto')
 env.PublicKey('unittest_key.pub.pem', 'unittest_key.pem')
 env.PublicKey('unittest_key2.pub.pem', 'unittest_key2.pem')
