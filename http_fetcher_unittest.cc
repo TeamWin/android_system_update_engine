@@ -679,6 +679,9 @@ TYPED_TEST(HttpFetcherTest, FlakyTest) {
 }
 
 namespace {
+// This delegate kills the server attached to it after receiving any bytes.
+// This can be used for testing what happens when you try to fetch data and
+// the server dies.
 class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
   FailureHttpFetcherTestDelegate(PythonHttpServer* server)
@@ -704,7 +707,7 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
   }
   virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
     EXPECT_FALSE(successful);
-    EXPECT_EQ(404, fetcher->http_response_code());
+    EXPECT_EQ(0, fetcher->http_response_code());
     g_main_loop_quit(loop_);
   }
   virtual void TransferTerminated(HttpFetcher* fetcher) {
@@ -717,6 +720,8 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
 
 
 TYPED_TEST(HttpFetcherTest, FailureTest) {
+  // This test ensures that a fetcher responds correctly when a server isn't
+  // available at all.
   if (this->test_.IsMock())
     return;
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -728,7 +733,7 @@ TYPED_TEST(HttpFetcherTest, FailureTest) {
 
     StartTransferArgs start_xfer_args = {
       fetcher.get(),
-      this->test_.SmallUrl(0)
+      "http://host_doesnt_exist99999999",
     };
 
     g_timeout_add(0, StartTransfer, &start_xfer_args);
@@ -740,18 +745,26 @@ TYPED_TEST(HttpFetcherTest, FailureTest) {
 }
 
 TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
+  // This test starts a new http server and kills it after receiving its first
+  // set of bytes. It test whether or not our fetcher eventually gives up on
+  // retries and aborts correctly.
   if (this->test_.IsMock())
     return;
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   {
-    FailureHttpFetcherTestDelegate delegate(new PythonHttpServer);
+    PythonHttpServer* server = new PythonHttpServer();
+    int port = server->GetPort();
+    ASSERT_TRUE(server->started_);
+
+    // Handles destruction and claims ownership.
+    FailureHttpFetcherTestDelegate delegate(server);
     delegate.loop_ = loop;
     scoped_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
     fetcher->set_delegate(&delegate);
 
     StartTransferArgs start_xfer_args = {
       fetcher.get(),
-      LocalServerUrlForPath(0,
+      LocalServerUrlForPath(port,
                             base::StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
                                                kFlakyTruncateLength,
                                                kFlakySleepEvery,
