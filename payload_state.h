@@ -5,6 +5,9 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_STATE_H_
 
+#include <string>
+#include <vector>
+
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 

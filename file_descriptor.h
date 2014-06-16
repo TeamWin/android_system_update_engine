@@ -82,7 +82,7 @@ class FileDescriptor {
 class EintrSafeFileDescriptor : public FileDescriptor {
  public:
   EintrSafeFileDescriptor() : fd_(-1) {}
-  virtual ~EintrSafeFileDescriptor() {};
+  virtual ~EintrSafeFileDescriptor() {}
 
   // Interface methods.
   virtual bool Open(const char* path, int flags, mode_t mode);

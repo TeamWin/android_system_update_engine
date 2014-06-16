@@ -66,7 +66,7 @@ gboolean LaunchEchoInMainLoop(gpointer data) {
   Subprocess::Get().Exec(cmd, CallbackEcho, data);
   return FALSE;
 }
-}  // namespace {}
+}  // namespace
 
 TEST(SubprocessTest, SimpleTest) {
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -154,7 +154,8 @@ gboolean StartAndCancelInRunLoop(gpointer data) {
       const char* listening_port_str =
           line + strlen(kServerListeningMsgPrefix);
       char* end_ptr;
-      long raw_port = strtol(listening_port_str, &end_ptr, 10);
+      long raw_port = strtol(listening_port_str,  // NOLINT(runtime/int)
+                             &end_ptr, 10);
       CHECK(!*end_ptr || *end_ptr == '\n');
       local_server_port = static_cast<in_port_t>(raw_port);
       break;
@@ -173,7 +174,7 @@ gboolean StartAndCancelInRunLoop(gpointer data) {
   Subprocess::Get().CancelExec(tag);
   return FALSE;
 }
-}  // namespace {}
+}  // namespace
 
 gboolean ExitWhenDone(gpointer data) {
   CancelTestData* cancel_test_data = reinterpret_cast<CancelTestData*>(data);

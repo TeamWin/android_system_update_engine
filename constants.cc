@@ -75,4 +75,4 @@ const char kPrefsUpdateTimestampStart[] = "update-timestamp-start";
 const char kPrefsUrlSwitchCount[] = "url-switch-count";
 const char kPrefsWallClockWaitPeriod[] = "wall-clock-wait-period";
 
-}
+}  // namespace chromeos_update_engine

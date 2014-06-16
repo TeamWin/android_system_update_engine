@@ -5,11 +5,13 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UTILS_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_UTILS_H_
 
-#include <algorithm>
 #include <errno.h>
+#include <unistd.h>
+
+#include <algorithm>
+#include <map>
 #include <set>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 #include <base/files/file_path.h>
@@ -108,13 +110,6 @@ bool IsSymlink(const char* path);
 // Returns true if |path| exists and is a directory.
 bool IsDir(const char* path);
 
-// The last 6 chars of path must be XXXXXX. They will be randomly changed
-// and a non-existent path will be returned. Intentionally makes a copy
-// of the string passed in.
-// NEVER CALL THIS FUNCTION UNLESS YOU ARE SURE
-// THAT YOUR PROCESS WILL BE THE ONLY THING WRITING FILES IN THIS DIRECTORY.
-std::string TempFilename(std::string path);
-
 // If |base_filename_template| is neither absolute (starts with "/") nor
 // explicitly relative to the current working directory (starts with "./" or
 // "../"), then it is prepended the value of TMPDIR, which defaults to /tmp if
@@ -184,7 +179,7 @@ bool IsRemovableDevice(const std::string& device);
 // Synchronously mount or unmount a filesystem. Return true on success.
 // Mounts as ext3 with default options.
 bool MountFilesystem(const std::string& device, const std::string& mountpoint,
-                     unsigned long flags);
+                     unsigned long flags);  // NOLINT(runtime/int)
 bool UnmountFilesystem(const std::string& mountpoint);
 
 // Returns the block count and the block byte size of the ext3 file system on

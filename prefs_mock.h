@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_MOCK_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_MOCK_H_
 
+#include <string>
+
 #include "gmock/gmock.h"
 #include "update_engine/constants.h"
 #include "update_engine/prefs_interface.h"

@@ -5,6 +5,7 @@
 #include "update_engine/payload_state.h"
 
 #include <algorithm>
+#include <string>
 
 #include <base/logging.h>
 #include <base/strings/string_util.h>
@@ -48,10 +49,9 @@ PayloadState::PayloadState()
       p2p_num_attempts_(0),
       attempt_num_bytes_downloaded_(0),
       attempt_connection_type_(metrics::ConnectionType::kUnknown),
-      attempt_type_(AttemptType::kUpdate)
-{
- for (int i = 0; i <= kNumDownloadSources; i++)
-  total_bytes_downloaded_[i] = current_bytes_downloaded_[i] = 0;
+      attempt_type_(AttemptType::kUpdate) {
+  for (int i = 0; i <= kNumDownloadSources; i++)
+    total_bytes_downloaded_[i] = current_bytes_downloaded_[i] = 0;
 }
 
 bool PayloadState::Initialize(SystemState* system_state) {
@@ -291,11 +291,12 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     // (because download from a local server URL that appears earlier in a
     // response is preferable than downloading from the next URL which could be
     // a internet URL and thus could be more expensive).
+
     case ErrorCode::kError:
     case ErrorCode::kDownloadTransferError:
     case ErrorCode::kDownloadWriteError:
     case ErrorCode::kDownloadStateInitializationError:
-    case ErrorCode::kOmahaErrorInHTTPResponse: // Aggregate for HTTP errors.
+    case ErrorCode::kOmahaErrorInHTTPResponse:  // Aggregate for HTTP errors.
       IncrementFailureCount();
       break;
 
@@ -497,7 +498,7 @@ void PayloadState::UpdateBackoffExpiryTime() {
   // Since we're doing left-shift below, make sure we don't shift more
   // than this. E.g. if int is 4-bytes, don't left-shift more than 30 bits,
   // since we don't expect value of kMaxBackoffDays to be more than 100 anyway.
-  int num_days = 1; // the value to be shifted.
+  int num_days = 1;  // the value to be shifted.
   const int kMaxShifts = (sizeof(num_days) * 8) - 2;
 
   // Normal backoff days is 2 raised to (payload_attempt_number - 1).
@@ -896,14 +897,14 @@ void PayloadState::ResetPersistedState() {
   SetUrlIndex(0);
   SetUrlFailureCount(0);
   SetUrlSwitchCount(0);
-  UpdateBackoffExpiryTime(); // This will reset the backoff expiry time.
+  UpdateBackoffExpiryTime();  // This will reset the backoff expiry time.
   SetUpdateTimestampStart(system_state_->clock()->GetWallclockTime());
-  SetUpdateTimestampEnd(Time()); // Set to null time
+  SetUpdateTimestampEnd(Time());  // Set to null time
   SetUpdateDurationUptime(TimeDelta::FromSeconds(0));
   ResetDownloadSourcesOnNewUpdate();
   ResetRollbackVersion();
   SetP2PNumAttempts(0);
-  SetP2PFirstAttemptTimestamp(Time()); // Set to null time
+  SetP2PFirstAttemptTimestamp(Time());  // Set to null time
 }
 
 void PayloadState::ResetRollbackVersion() {
@@ -1334,8 +1335,8 @@ void PayloadState::BootedIntoUpdate(TimeDelta time_to_reboot) {
   string metric = "Installer.TimeToRebootMinutes";
   system_state_->metrics_lib()->SendToUMA(metric,
                                           time_to_reboot.InMinutes(),
-                                          0,        // min: 0 minute
-                                          30*24*60, // max: 1 month (approx)
+                                          0,         // min: 0 minute
+                                          30*24*60,  // max: 1 month (approx)
                                           kNumDefaultUmaBuckets);
   LOG(INFO) << "Uploading " << utils::FormatTimeDelta(time_to_reboot)
             << " for metric " <<  metric;
@@ -1343,8 +1344,8 @@ void PayloadState::BootedIntoUpdate(TimeDelta time_to_reboot) {
   metric = metrics::kMetricTimeToRebootMinutes;
   system_state_->metrics_lib()->SendToUMA(metric,
                                           time_to_reboot.InMinutes(),
-                                          0,        // min: 0 minute
-                                          30*24*60, // max: 1 month (approx)
+                                          0,         // min: 0 minute
+                                          30*24*60,  // max: 1 month (approx)
                                           kNumDefaultUmaBuckets);
   LOG(INFO) << "Uploading " << utils::FormatTimeDelta(time_to_reboot)
             << " for metric " <<  metric;
@@ -1392,7 +1393,7 @@ void PayloadState::ReportFailedBootIfNeeded() {
       LOG(ERROR) << "Error reading TargetVersionInstalledFrom on reboot.";
       return;
     }
-    if (int(installed_from) ==
+    if (static_cast<int>(installed_from) ==
         utils::GetPartitionNumber(system_state_->hardware()->BootDevice())) {
       // A reboot was pending, but the chromebook is again in the same
       // BootDevice where the update was installed from.

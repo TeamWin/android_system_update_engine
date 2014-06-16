@@ -77,8 +77,6 @@ const unsigned char kDataSignature[] = {
   0x29, 0x93, 0x43, 0xc7, 0x43, 0xb9, 0xab, 0x7d
 };
 
-//class PayloadSignerTest : public ::testing::Test {};
-
 namespace {
 void SignSampleData(vector<char>* out_signature_blob) {
   string data_path;
@@ -99,7 +97,7 @@ void SignSampleData(vector<char>* out_signature_blob) {
       out_signature_blob));
   EXPECT_EQ(length, out_signature_blob->size());
 }
-}
+}  // namespace
 
 TEST(PayloadSignerTest, SimpleTest) {
   vector<char> signature_blob;

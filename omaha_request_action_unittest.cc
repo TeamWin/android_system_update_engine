@@ -58,13 +58,13 @@ OmahaRequestParams kDefaultTestParams(
     "OEM MODEL 09235 7471",
     "ChromeOSFirmware.1.0",
     "0X0A1",
-    false,  // delta okay
-    false,  // interactive
+    false,   // delta okay
+    false,   // interactive
     "http://url",
-    false,  // update_disabled
-    "",     // target_version_prefix
-    false,  // use_p2p_for_downloading
-    false); // use_p2p_for_sharing
+    false,   // update_disabled
+    "",      // target_version_prefix
+    false,   // use_p2p_for_downloading
+    false);  // use_p2p_for_sharing
 
 string GetNoUpdateResponse(const string& app_id) {
   return string(
@@ -138,9 +138,9 @@ string GetUpdateResponse(const string& app_id,
                             size,
                             deadline,
                             "7",
-                            "42", // elapsed_days
-                            false,  // disable_p2p_for_downloading
-                            false); // disable_p2p_for sharing
+                            "42",    // elapsed_days
+                            false,   // disable_p2p_for_downloading
+                            false);  // disable_p2p_for sharing
 }
 
 class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
@@ -174,7 +174,7 @@ gboolean StartProcessorInRunLoop(gpointer data) {
   processor->StartProcessing();
   return FALSE;
 }
-}  // namespace {}
+}  // namespace
 
 class OutputObjectCollectorAction;
 
@@ -229,7 +229,7 @@ bool TestUpdateCheck(PrefsInterface* prefs,
                      PayloadStateInterface *payload_state,
                      P2PManager *p2p_manager,
                      ConnectionManager *connection_manager,
-                     OmahaRequestParams& params,
+                     OmahaRequestParams* params,
                      const string& http_response,
                      int fail_http_response_code,
                      bool ping_only,
@@ -255,7 +255,7 @@ bool TestUpdateCheck(PrefsInterface* prefs,
     fake_system_state.set_p2p_manager(p2p_manager);
   if (connection_manager)
     fake_system_state.set_connection_manager(connection_manager);
-  fake_system_state.set_request_params(&params);
+  fake_system_state.set_request_params(params);
   OmahaRequestAction action(&fake_system_state,
                             NULL,
                             fetcher,
@@ -334,7 +334,7 @@ TEST(OmahaRequestActionTest, NoUpdateTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
@@ -354,13 +354,13 @@ TEST(OmahaRequestActionTest, ValidUpdateTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
                                         "http://more/info",
                                         "true",  // prompt
                                         "http://code/base/",  // dl url
-                                        "file.signed", // file name
+                                        "file.signed",  // file name
                                         "HASH1234=",  // checksum
                                         "false",  // needs admin
                                         "123",  // size
@@ -393,13 +393,13 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByPolicyTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
                                         "http://more/info",
                                         "true",  // prompt
                                         "http://code/base/",  // dl url
-                                        "file.signed", // file name
+                                        "file.signed",  // file name
                                         "HASH1234=",  // checksum
                                         "false",  // needs admin
                                         "123",  // size
@@ -420,7 +420,7 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   // Set up a connection manager that doesn't allow a valid update over
   // the current ethernet connection.
   MockConnectionManager mock_cm(NULL);
-  EXPECT_CALL(mock_cm, GetConnectionProperties(_,_,_))
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _, _))
     .WillRepeatedly(DoAll(SetArgumentPointee<1>(kNetEthernet),
                           SetArgumentPointee<2>(NetworkTethering::kUnknown),
                           Return(true)));
@@ -433,14 +433,14 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
       TestUpdateCheck(NULL,  // prefs
                       NULL,  // payload_state
                       NULL,  // p2p_manager
-                      &mock_cm, // connection_manager
-                      kDefaultTestParams,
+                      &mock_cm,  // connection_manager
+                      &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
                                         "http://more/info",
                                         "true",  // prompt
                                         "http://code/base/",  // dl url
-                                        "file.signed", // file name
+                                        "file.signed",  // file name
                                         "HASH1234=",  // checksum
                                         "false",  // needs admin
                                         "123",  // size
@@ -469,13 +469,13 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
                       &mock_payload_state,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         rollback_version,  // version
                                         "http://more/info",
                                         "true",  // prompt
                                         "http://code/base/",  // dl url
-                                        "file.signed", // file name
+                                        "file.signed",  // file name
                                         "HASH1234=",  // checksum
                                         "false",  // needs admin
                                         "123",  // size
@@ -500,7 +500,7 @@ TEST(OmahaRequestActionTest, NoUpdatesSentWhenBlockedByPolicyTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
@@ -534,21 +534,21 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateDeferredPerPolicy,
@@ -566,21 +566,21 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -616,21 +616,21 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -666,21 +666,21 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "0", // max days to scatter
-                                         "42", // elapsed_days
+                                         "0",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -717,21 +717,21 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -743,7 +743,7 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
 
   int64 count;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
-  ASSERT_TRUE(count == 0);
+  ASSERT_EQ(count, 0);
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -771,21 +771,21 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,    // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateDeferredPerPolicy,
@@ -797,7 +797,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
 
   int64 count;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
-  ASSERT_TRUE(count > 0);
+  ASSERT_GT(count, 0);
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
@@ -807,21 +807,21 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -859,21 +859,21 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateDeferredPerPolicy,
@@ -887,7 +887,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
   // count remains the same, as the decrementing happens in update_attempter
   // which this test doesn't exercise.
-  ASSERT_TRUE(count == 5);
+  ASSERT_EQ(count, 5);
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
@@ -897,21 +897,21 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -955,7 +955,7 @@ TEST(OmahaRequestActionTest, InvalidXmlTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       "invalid xml>",
                       -1,
                       false,  // ping_only
@@ -975,7 +975,7 @@ TEST(OmahaRequestActionTest, EmptyResponseTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       "",
                       -1,
                       false,  // ping_only
@@ -995,7 +995,7 @@ TEST(OmahaRequestActionTest, MissingStatusTest) {
       NULL,  // payload_state
       NULL,  // p2p_manager
       NULL,  // connection_manager
-      kDefaultTestParams,
+      &kDefaultTestParams,
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
       "<app appid=\"foo\" status=\"ok\">"
@@ -1019,7 +1019,7 @@ TEST(OmahaRequestActionTest, InvalidStatusTest) {
       NULL,  // payload_state
       NULL,  // p2p_manager
       NULL,  // connection_manager
-      kDefaultTestParams,
+      &kDefaultTestParams,
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
       "<app appid=\"foo\" status=\"ok\">"
@@ -1043,7 +1043,7 @@ TEST(OmahaRequestActionTest, MissingNodesetTest) {
       NULL,  // payload_state
       NULL,  // p2p_manager
       NULL,  // connection_manager
-      kDefaultTestParams,
+      &kDefaultTestParams,
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
       "<app appid=\"foo\" status=\"ok\">"
@@ -1085,7 +1085,7 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
                               NULL,  // payload_state
                               NULL,  // p2p_manager
                               NULL,  // connection_manager
-                              kDefaultTestParams,
+                              &kDefaultTestParams,
                               input_response,
                               -1,
                               false,  // ping_only
@@ -1122,7 +1122,7 @@ gboolean TerminateTransferTestStarter(gpointer data) {
   processor->StopProcessing();
   return FALSE;
 }
-}  // namespace {}
+}  // namespace
 
 TEST(OmahaRequestActionTest, TerminateTransferTest) {
   string http_response("doesn't matter");
@@ -1170,20 +1170,20 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
                             "<OEM MODEL>",
                             "ChromeOSFirmware.1.0",
                             "EC100",
-                            false,  // delta okay
-                            false,  // interactive
+                            false,   // delta okay
+                            false,   // interactive
                             "http://url",
-                            false,  // update_disabled
-                            "",     // target_version_prefix
-                            false,  // use_p2p_for_downloading
-                            false); // use_p2p_for_sharing
+                            false,   // update_disabled
+                            "",      // target_version_prefix
+                            false,   // use_p2p_for_downloading
+                            false);  // use_p2p_for_sharing
   OmahaResponse response;
   ASSERT_FALSE(
       TestUpdateCheck(NULL,  // prefs
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       "invalid xml>",
                       -1,
                       false,  // ping_only
@@ -1212,14 +1212,14 @@ TEST(OmahaRequestActionTest, XmlDecodeTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
                                         "testthe&lt;url",  // more info
                                         "true",  // prompt
                                         "testthe&amp;codebase/",  // dl url
-                                        "file.signed", // file name
-                                        "HASH1234=", // checksum
+                                        "file.signed",  // file name
+                                        "HASH1234=",  // checksum
                                         "false",  // needs admin
                                         "123",  // size
                                         "&lt;20110101"),  // deadline
@@ -1244,14 +1244,14 @@ TEST(OmahaRequestActionTest, ParseIntTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
                                         "theurl",  // more info
                                         "true",  // prompt
                                         "thecodebase/",  // dl url
-                                        "file.signed", // file name
-                                        "HASH1234=", // checksum
+                                        "file.signed",  // file name
+                                        "HASH1234=",  // checksum
                                         "false",  // needs admin
                                         // overflows int32:
                                         "123123123123123",  // size
@@ -1278,7 +1278,7 @@ TEST(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
                                NULL,  // payload_state
                                NULL,  // p2p_manager
                                NULL,  // connection_manager
-                               kDefaultTestParams,
+                               &kDefaultTestParams,
                                "invalid xml>",
                                -1,
                                false,  // ping_only
@@ -1315,7 +1315,7 @@ TEST(OmahaRequestActionTest, FormatUpdateDisabledOutputTest) {
                                NULL,  // payload_state
                                NULL,  // p2p_manager
                                NULL,  // connection_manager
-                               params,
+                               &params,
                                "invalid xml>",
                                -1,
                                false,  // ping_only
@@ -1426,12 +1426,12 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                               false,  // update_disabled
                               "",     // target_version_prefix
                               false,  // use_p2p_for_downloading
-                              false); // use_p2p_for_sharing
+                              false);  // use_p2p_for_sharing
     ASSERT_FALSE(TestUpdateCheck(NULL,  // prefs
                                  NULL,  // payload_state
                                  NULL,  // p2p_manager
                                  NULL,  // connection_manager
-                                 params,
+                                 &params,
                                  "invalid xml>",
                                  -1,
                                  false,  // ping_only
@@ -1474,12 +1474,12 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                               false,  // update_disabled
                               "",     // target_version_prefix
                               false,  // use_p2p_for_downloading
-                              false); // use_p2p_for_sharing
+                              false);  // use_p2p_for_sharing
     ASSERT_FALSE(TestUpdateCheck(NULL,  // prefs
                                  NULL,  // payload_state
                                  NULL,  // p2p_manager
                                  NULL,  // connection_manager
-                                 params,
+                                 &params,
                                  "invalid xml>",
                                  -1,
                                  false,  // ping_only
@@ -1540,7 +1540,7 @@ TEST(OmahaRequestActionTest, PingTest) {
                         NULL,  // payload_state
                         NULL,  // p2p_manager
                         NULL,  // connection_manager
-                        kDefaultTestParams,
+                        &kDefaultTestParams,
                         GetNoUpdateResponse(OmahaRequestParams::kAppId),
                         -1,
                         ping_only,
@@ -1583,7 +1583,7 @@ TEST(OmahaRequestActionTest, ActivePingTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
@@ -1618,7 +1618,7 @@ TEST(OmahaRequestActionTest, RollCallPingTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
@@ -1654,7 +1654,7 @@ TEST(OmahaRequestActionTest, NoPingTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       false,  // ping_only
@@ -1684,7 +1684,7 @@ TEST(OmahaRequestActionTest, IgnoreEmptyPingTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
                       true,  // ping_only
@@ -1720,7 +1720,7 @@ TEST(OmahaRequestActionTest, BackInTimePingTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"100\"/>"
                       "<app appid=\"foo\" status=\"ok\"><ping status=\"ok\"/>"
@@ -1760,7 +1760,7 @@ TEST(OmahaRequestActionTest, LastPingDayUpdateTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"200\"/>"
                       "<app appid=\"foo\" status=\"ok\"><ping status=\"ok\"/>"
@@ -1786,7 +1786,7 @@ TEST(OmahaRequestActionTest, NoElapsedSecondsTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart blah=\"200\"/>"
                       "<app appid=\"foo\" status=\"ok\"><ping status=\"ok\"/>"
@@ -1812,7 +1812,7 @@ TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"x\"/>"
                       "<app appid=\"foo\" status=\"ok\"><ping status=\"ok\"/>"
@@ -1833,7 +1833,7 @@ TEST(OmahaRequestActionTest, NoUniqueIDTest) {
                                NULL,  // payload_state
                                NULL,  // p2p_manager
                                NULL,  // connection_manager
-                               kDefaultTestParams,
+                               &kDefaultTestParams,
                                "invalid xml>",
                                -1,
                                false,  // ping_only
@@ -1858,7 +1858,7 @@ TEST(OmahaRequestActionTest, NetworkFailureTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       "",
                       501,
                       false,  // ping_only
@@ -1880,7 +1880,7 @@ TEST(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
                       NULL,  // payload_state
                       NULL,  // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       "",
                       1500,
                       false,  // ping_only
@@ -1914,21 +1914,21 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateDeferredPerPolicy,
@@ -1940,7 +1940,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
 
   int64 timestamp = 0;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
-  ASSERT_TRUE(timestamp > 0);
+  ASSERT_GT(timestamp, 0);
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
@@ -1950,21 +1950,21 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -2002,21 +2002,21 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      params,
+                      &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -2066,7 +2066,7 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
                                NULL,    // payload_state
                                NULL,    // p2p_manager
                                NULL,  // connection_manager
-                               params,
+                               &params,
                                "invalid xml>",
                                -1,
                                false,  // ping_only
@@ -2117,7 +2117,7 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
                                NULL,    // payload_state
                                NULL,    // p2p_manager
                                NULL,  // connection_manager
-                               params,
+                               &params,
                                "invalid xml>",
                                -1,
                                false,  // ping_only
@@ -2133,7 +2133,7 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
       "appid=\"{11111111-1111-1111-1111-111111111111}\" "
       "version=\"5.6.7.8\" "
       "track=\"canary-channel\" from_track=\"stable-channel\""));
-  EXPECT_EQ(string::npos, post_str.find( "from_version"));
+  EXPECT_EQ(string::npos, post_str.find("from_version"));
 
   ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
 }
@@ -2168,19 +2168,19 @@ void P2PTest(bool initial_allow_p2p_for_downloading,
                       &mock_payload_state,
                       &mock_p2p_manager,
                       NULL,  // connection_manager
-                      request_params,
+                      &request_params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
-                                         "42", // elapsed_days
+                                         "7",  // max days to scatter
+                                         "42",  // elapsed_days
                                          omaha_disable_p2p_for_downloading,
                                          omaha_disable_p2p_for_sharing),
                       -1,
@@ -2208,81 +2208,81 @@ void P2PTest(bool initial_allow_p2p_for_downloading,
 }
 
 TEST(OmahaRequestActionTest, P2PWithPeer) {
-  P2PTest(true,                  // initial_allow_p2p_for_downloading
-          true,                  // initial_allow_p2p_for_sharing
-          false,                 // omaha_disable_p2p_for_downloading
-          false,                 // omaha_disable_p2p_for_sharing
-          true,                  // payload_state_allow_p2p_attempt
-          true,                  // expect_p2p_client_lookup
-          "http://1.3.5.7/p2p",  // p2p_client_result_url
-          true,                  // expected_allow_p2p_for_downloading
-          true,                  // expected_allow_p2p_for_sharing
-          "http://1.3.5.7/p2p"); // expected_p2p_url
+  P2PTest(true,                   // initial_allow_p2p_for_downloading
+          true,                   // initial_allow_p2p_for_sharing
+          false,                  // omaha_disable_p2p_for_downloading
+          false,                  // omaha_disable_p2p_for_sharing
+          true,                   // payload_state_allow_p2p_attempt
+          true,                   // expect_p2p_client_lookup
+          "http://1.3.5.7/p2p",   // p2p_client_result_url
+          true,                   // expected_allow_p2p_for_downloading
+          true,                   // expected_allow_p2p_for_sharing
+          "http://1.3.5.7/p2p");  // expected_p2p_url
 }
 
 TEST(OmahaRequestActionTest, P2PWithoutPeer) {
-  P2PTest(true,                  // initial_allow_p2p_for_downloading
-          true,                  // initial_allow_p2p_for_sharing
-          false,                 // omaha_disable_p2p_for_downloading
-          false,                 // omaha_disable_p2p_for_sharing
-          true,                  // payload_state_allow_p2p_attempt
-          true,                  // expect_p2p_client_lookup
-          "",                    // p2p_client_result_url
-          false,                 // expected_allow_p2p_for_downloading
-          true,                  // expected_allow_p2p_for_sharing
-          "");                   // expected_p2p_url
+  P2PTest(true,                   // initial_allow_p2p_for_downloading
+          true,                   // initial_allow_p2p_for_sharing
+          false,                  // omaha_disable_p2p_for_downloading
+          false,                  // omaha_disable_p2p_for_sharing
+          true,                   // payload_state_allow_p2p_attempt
+          true,                   // expect_p2p_client_lookup
+          "",                     // p2p_client_result_url
+          false,                  // expected_allow_p2p_for_downloading
+          true,                   // expected_allow_p2p_for_sharing
+          "");                    // expected_p2p_url
 }
 
 TEST(OmahaRequestActionTest, P2PDownloadNotAllowed) {
-  P2PTest(false,                 // initial_allow_p2p_for_downloading
-          true,                  // initial_allow_p2p_for_sharing
-          false,                 // omaha_disable_p2p_for_downloading
-          false,                 // omaha_disable_p2p_for_sharing
-          true,                  // payload_state_allow_p2p_attempt
-          false,                 // expect_p2p_client_lookup
-          "unset",               // p2p_client_result_url
-          false,                 // expected_allow_p2p_for_downloading
-          true,                  // expected_allow_p2p_for_sharing
-          "");                   // expected_p2p_url
+  P2PTest(false,                  // initial_allow_p2p_for_downloading
+          true,                   // initial_allow_p2p_for_sharing
+          false,                  // omaha_disable_p2p_for_downloading
+          false,                  // omaha_disable_p2p_for_sharing
+          true,                   // payload_state_allow_p2p_attempt
+          false,                  // expect_p2p_client_lookup
+          "unset",                // p2p_client_result_url
+          false,                  // expected_allow_p2p_for_downloading
+          true,                   // expected_allow_p2p_for_sharing
+          "");                    // expected_p2p_url
 }
 
 TEST(OmahaRequestActionTest, P2PWithPeerDownloadDisabledByOmaha) {
-  P2PTest(true,                  // initial_allow_p2p_for_downloading
-          true,                  // initial_allow_p2p_for_sharing
-          true,                  // omaha_disable_p2p_for_downloading
-          false,                 // omaha_disable_p2p_for_sharing
-          true,                  // payload_state_allow_p2p_attempt
-          false,                 // expect_p2p_client_lookup
-          "unset",               // p2p_client_result_url
-          false,                 // expected_allow_p2p_for_downloading
-          true,                  // expected_allow_p2p_for_sharing
-          "");                   // expected_p2p_url
+  P2PTest(true,                   // initial_allow_p2p_for_downloading
+          true,                   // initial_allow_p2p_for_sharing
+          true,                   // omaha_disable_p2p_for_downloading
+          false,                  // omaha_disable_p2p_for_sharing
+          true,                   // payload_state_allow_p2p_attempt
+          false,                  // expect_p2p_client_lookup
+          "unset",                // p2p_client_result_url
+          false,                  // expected_allow_p2p_for_downloading
+          true,                   // expected_allow_p2p_for_sharing
+          "");                    // expected_p2p_url
 }
 
 TEST(OmahaRequestActionTest, P2PWithPeerSharingDisabledByOmaha) {
-  P2PTest(true,                  // initial_allow_p2p_for_downloading
-          true,                  // initial_allow_p2p_for_sharing
-          false,                 // omaha_disable_p2p_for_downloading
-          true,                  // omaha_disable_p2p_for_sharing
-          true,                  // payload_state_allow_p2p_attempt
-          true,                  // expect_p2p_client_lookup
-          "http://1.3.5.7/p2p",  // p2p_client_result_url
-          true,                  // expected_allow_p2p_for_downloading
-          false,                 // expected_allow_p2p_for_sharing
-          "http://1.3.5.7/p2p"); // expected_p2p_url
+  P2PTest(true,                   // initial_allow_p2p_for_downloading
+          true,                   // initial_allow_p2p_for_sharing
+          false,                  // omaha_disable_p2p_for_downloading
+          true,                   // omaha_disable_p2p_for_sharing
+          true,                   // payload_state_allow_p2p_attempt
+          true,                   // expect_p2p_client_lookup
+          "http://1.3.5.7/p2p",   // p2p_client_result_url
+          true,                   // expected_allow_p2p_for_downloading
+          false,                  // expected_allow_p2p_for_sharing
+          "http://1.3.5.7/p2p");  // expected_p2p_url
 }
 
 TEST(OmahaRequestActionTest, P2PWithPeerBothDisabledByOmaha) {
-  P2PTest(true,                  // initial_allow_p2p_for_downloading
-          true,                  // initial_allow_p2p_for_sharing
-          true,                  // omaha_disable_p2p_for_downloading
-          true,                  // omaha_disable_p2p_for_sharing
-          true,                  // payload_state_allow_p2p_attempt
-          false,                 // expect_p2p_client_lookup
-          "unset",               // p2p_client_result_url
-          false,                 // expected_allow_p2p_for_downloading
-          false,                 // expected_allow_p2p_for_sharing
-          "");                   // expected_p2p_url
+  P2PTest(true,                   // initial_allow_p2p_for_downloading
+          true,                   // initial_allow_p2p_for_sharing
+          true,                   // omaha_disable_p2p_for_downloading
+          true,                   // omaha_disable_p2p_for_sharing
+          true,                   // payload_state_allow_p2p_attempt
+          false,                  // expect_p2p_client_lookup
+          "unset",                // p2p_client_result_url
+          false,                  // expected_allow_p2p_for_downloading
+          false,                  // expected_allow_p2p_for_sharing
+          "");                    // expected_p2p_url
 }
 
 bool InstallDateParseHelper(const std::string &elapsed_days,
@@ -2293,21 +2293,21 @@ bool InstallDateParseHelper(const std::string &elapsed_days,
                       NULL,    // payload_state
                       NULL,    // p2p_manager
                       NULL,  // connection_manager
-                      kDefaultTestParams,
+                      &kDefaultTestParams,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
                                          "http://more/info",
                                          "true",  // prompt
                                          "http://code/base/",  // dl url
-                                         "file.signed", // file name
+                                         "file.signed",  // file name
                                          "HASH1234=",  // checksum
                                          "false",  // needs admin
                                          "123",  // size
                                          "",  // deadline
-                                         "7", // max days to scatter
+                                         "7",  // max days to scatter
                                          elapsed_days,
                                          false,  // disable_p2p_for_downloading
-                                         false), // disable_p2p_for sharing
+                                         false),  // disable_p2p_for sharing
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -2386,7 +2386,7 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
     FakeSystemState fake_system_state;
     fake_system_state.set_prefs(&prefs);
 
-    Time oobe_date = Time::FromTimeT(42); // Dec 31, 1969 16:00:42 PST.
+    Time oobe_date = Time::FromTimeT(42);  // Dec 31, 1969 16:00:42 PST.
     fake_system_state.fake_hardware()->SetIsOOBEComplete(oobe_date);
     EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state), -1);
     EXPECT_FALSE(prefs.Exists(kPrefsInstallDateDays));
@@ -2398,7 +2398,7 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
     FakeSystemState fake_system_state;
     fake_system_state.set_prefs(&prefs);
 
-    Time oobe_date = Time::FromTimeT(1169280000); // Jan 20, 2007 0:00 PST.
+    Time oobe_date = Time::FromTimeT(1169280000);  // Jan 20, 2007 0:00 PST.
     fake_system_state.fake_hardware()->SetIsOOBEComplete(oobe_date);
     EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state), 14);
     EXPECT_TRUE(prefs.Exists(kPrefsInstallDateDays));
@@ -2416,7 +2416,7 @@ TEST(OmahaRequestActionTest, GetInstallDate) {
     FakeSystemState fake_system_state;
     fake_system_state.set_prefs(&prefs);
 
-    Time oobe_date = Time::FromTimeT(1170144000); // Jan 30, 2007 0:00 PST.
+    Time oobe_date = Time::FromTimeT(1170144000);  // Jan 30, 2007 0:00 PST.
     fake_system_state.fake_hardware()->SetIsOOBEComplete(oobe_date);
     EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state), 14);
 

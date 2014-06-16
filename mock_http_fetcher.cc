@@ -109,7 +109,6 @@ void MockHttpFetcher::Pause() {
     g_source_destroy(timeout_source_);
     timeout_source_ = NULL;
   }
-
 }
 
 void MockHttpFetcher::Unpause() {

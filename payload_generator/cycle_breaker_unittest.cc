@@ -29,7 +29,7 @@ void SetOpForNodes(Graph* graph) {
     it->op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
   }
 }
-}  // namespace {}
+}  // namespace
 
 class CycleBreakerTest : public ::testing::Test {};
 
@@ -90,7 +90,7 @@ uint64_t weight) {
   props.extents[0].set_num_blocks(weight);
   return make_pair(dest, props);
 }
-}  // namespace {}
+}  // namespace
 
 
 // This creates a bunch of cycles like this:

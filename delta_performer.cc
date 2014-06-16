@@ -73,7 +73,7 @@ bool OpenFile(const char* path, int* fd, int* err) {
   return true;
 }
 
-}  // namespace {}
+}  // namespace
 
 
 // Computes the ratio of |part| and |total|, scaled to |norm|, using integer
@@ -278,7 +278,7 @@ void LogPartitionInfo(const DeltaArchiveManifest& manifest) {
     LogPartitionInfoHash(manifest.new_rootfs_info(), "new_rootfs_info");
 }
 
-}  // namespace {}
+}  // namespace
 
 uint64_t DeltaPerformer::GetVersionOffset() {
   // Manifest size is stored right after the magic string and the version.

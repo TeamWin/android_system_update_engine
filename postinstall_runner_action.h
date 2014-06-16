@@ -49,7 +49,7 @@ class PostinstallRunnerAction : public InstallPlanAction {
   const char* powerwash_marker_file_;
 
   // Special ctor + friend declaration for testing purposes.
-  PostinstallRunnerAction(const char* powerwash_marker_file)
+  explicit PostinstallRunnerAction(const char* powerwash_marker_file)
       : powerwash_marker_created_(false),
         powerwash_marker_file_(powerwash_marker_file) {}
 

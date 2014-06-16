@@ -51,7 +51,7 @@ static const char* kBogusMetadataSignature1 =
     "fjoTeLYZpt+WN65Vu7jJ0cQN8e1y+2yka5112wpRf/LLtPgiAjEZnsoYpLUd7CoV"
     "pLRtClp97kN2+tXGNBQqkA==";
 
-static const int kDefaultKernelSize = 4096; // Something small for a test
+static const int kDefaultKernelSize = 4096;  // Something small for a test
 static const char* kNewDataString = "This is new data.";
 
 namespace {
@@ -82,7 +82,7 @@ enum SignatureTest {
   kSignatureGenerator,  // Sign the payload at generation time.
   kSignatureGenerated,  // Sign the payload after it's generated.
   kSignatureGeneratedPlaceholder,  // Insert placeholder signatures, then real.
-  kSignatureGeneratedPlaceholderMismatch, // Insert a wrong sized placeholder.
+  kSignatureGeneratedPlaceholderMismatch,  // Insert a wrong sized placeholder.
   kSignatureGeneratedShell,  // Sign the generated payload through shell cmds.
   kSignatureGeneratedShellBadKey,  // Sign with a bad key through shell cmds.
   kSignatureGeneratedShellRotateCl1,  // Rotate key, test client v1
@@ -103,7 +103,7 @@ enum OperationHashTest {
   kValidOperationData,
 };
 
-} // namespace {}
+}  // namespace
 
 static void CompareFilesByBlock(const string& a_file, const string& b_file) {
   vector<char> a_data, b_data;
@@ -438,7 +438,7 @@ static void GenerateDeltaFile(bool full_kernel,
   FillWithData(&state->new_kernel_data);
 
   // change the new kernel data
-  strcpy(&state->new_kernel_data[0], kNewDataString);
+  strcpy(&state->new_kernel_data[0], kNewDataString);  // NOLINT(runtime/printf)
 
   if (noop) {
     state->old_kernel_data = state->new_kernel_data;
@@ -481,7 +481,6 @@ static void GenerateDeltaFile(bool full_kernel,
 
   if (signature_test == kSignatureGeneratedPlaceholder ||
       signature_test == kSignatureGeneratedPlaceholderMismatch) {
-
     int signature_size = GetSignatureSize(kUnittestPrivateKeyPath);
     LOG(INFO) << "Inserting placeholder signature.";
     ASSERT_TRUE(InsertSignaturePlaceholder(signature_size, state->delta_path,
@@ -547,7 +546,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       EXPECT_EQ(1, signature.version());
 
       uint64_t expected_sig_data_length = 0;
-      vector<string> key_paths (1, kUnittestPrivateKeyPath);
+      vector<string> key_paths{kUnittestPrivateKeyPath};
       if (signature_test == kSignatureGeneratedShellRotateCl1 ||
           signature_test == kSignatureGeneratedShellRotateCl2) {
         key_paths.push_back(kUnittestPrivateKey2Path);
@@ -580,7 +579,6 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
     EXPECT_EQ(manifest.new_image_info().build_version(), "test-build-version");
 
     if (!full_rootfs) {
-
       if (noop) {
         EXPECT_EQ(manifest.old_image_info().channel(), "test-channel");
         EXPECT_EQ(manifest.old_image_info().board(), "test-board");
@@ -672,7 +670,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
 
   ErrorCode expected_error, actual_error;
   bool continue_writing;
-  switch(op_hash_test) {
+  switch (op_hash_test) {
     case kInvalidOperationData: {
       // Muck with some random offset post the metadata size so that
       // some operation hash will result in a mismatch.
@@ -964,10 +962,9 @@ void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
 
 
 class DeltaPerformerTest : public ::testing::Test {
-
  public:
   // Test helper placed where it can easily be friended from DeltaPerformer.
-  static void RunManifestValidation(DeltaArchiveManifest& manifest,
+  static void RunManifestValidation(const DeltaArchiveManifest& manifest,
                                     bool full_payload,
                                     ErrorCode expected) {
     PrefsMock prefs;
@@ -1287,7 +1284,7 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   // Non-official build, non-existing public-key, key in response -> true
   fake_hardware->SetIsOfficialBuild(false);
   performer->public_key_path_ = non_existing_file;
-  install_plan.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
+  install_plan.public_key_rsa = "VGVzdAo=";  // result of 'echo "Test" | base64'
   EXPECT_TRUE(performer->GetPublicKeyFromResponse(&key_path));
   EXPECT_FALSE(key_path.empty());
   EXPECT_EQ(unlink(key_path.value().c_str()), 0);
@@ -1298,7 +1295,7 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   // Non-official build, existing public-key, key in response -> false
   fake_hardware->SetIsOfficialBuild(false);
   performer->public_key_path_ = existing_file;
-  install_plan.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
+  install_plan.public_key_rsa = "VGVzdAo=";  // result of 'echo "Test" | base64'
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
   fake_hardware->SetIsOfficialBuild(true);

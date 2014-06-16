@@ -58,7 +58,7 @@ static const char* kTagPublicKeyRsa = "PublicKeyRsa";
 
 namespace {
 
-const string kGupdateVersion("ChromeOSUpdateEngine-0.1.0.0");
+static const char* const kGupdateVersion = "ChromeOSUpdateEngine-0.1.0.0";
 
 // This is handy for passing strings into libxml2
 #define ConstXMLStr(x) (reinterpret_cast<const xmlChar*>(x))
@@ -278,7 +278,7 @@ string GetRequestXml(const OmahaEvent* event,
   return request_xml;
 }
 
-}  // namespace {}
+}  // namespace
 
 // Encodes XML entities in a given string with libxml2. input must be
 // UTF-8 formatted. Output will be UTF-8 formatted.
@@ -465,7 +465,7 @@ xmlXPathObject* GetNodeSet(xmlDoc* doc, const xmlChar* xpath) {
     LOG(ERROR) << "Unable to find " << xpath << " in XML document";
     return NULL;
   }
-  if(xmlXPathNodeSetIsEmpty(result->nodesetval)){
+  if (xmlXPathNodeSetIsEmpty(result->nodesetval)) {
     LOG(INFO) << "Nodeset is empty for " << xpath;
     xmlXPathFreeObject(result);
     return NULL;
@@ -526,7 +526,7 @@ bool UpdateLastPingDays(xmlDoc* doc, PrefsInterface* prefs) {
   prefs->SetInt64(kPrefsLastRollCallPingDay, daystart.ToInternalValue());
   return true;
 }
-}  // namespace {}
+}  // namespace
 
 bool OmahaRequestAction::ParseResponse(xmlDoc* doc,
                                        OmahaResponse* output_object,
@@ -1101,8 +1101,7 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
                                          update_first_seen_at_int)) {
       LOG(INFO) << "Persisted the new value for UpdateFirstSeenAt: "
                 << utils::ToString(update_first_seen_at);
-    }
-    else {
+    } else {
       // This seems like an unexpected error where the value cannot be
       // persisted for some reason. Just skip scattering in this
       // case to be safe.
@@ -1363,15 +1362,15 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(
   // Note: policy decision to not update to a version we rolled back from.
   string rollback_version =
       system_state_->payload_state()->GetRollbackVersion();
-  if(!rollback_version.empty()) {
+  if (!rollback_version.empty()) {
     LOG(INFO) << "Detected previous rollback from version " << rollback_version;
-    if(rollback_version == response.version) {
+    if (rollback_version == response.version) {
       LOG(INFO) << "Received version that we rolled back from. Ignoring.";
       return true;
     }
   }
 
-  if(!IsUpdateAllowedOverCurrentConnection()) {
+  if (!IsUpdateAllowedOverCurrentConnection()) {
     LOG(INFO) << "Update is not allowed over current connection.";
     return true;
   }

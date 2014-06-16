@@ -68,7 +68,7 @@ bool DownloadAction::SetupP2PSharingFd() {
 
   if (!p2p_manager->FileShare(p2p_file_id_, install_plan_.payload_size)) {
     LOG(ERROR) << "Unable to share file via p2p";
-    CloseP2PSharingFd(true); // delete p2p file
+    CloseP2PSharingFd(true);  // delete p2p file
     return false;
   }
 
@@ -78,7 +78,7 @@ bool DownloadAction::SetupP2PSharingFd() {
   p2p_sharing_fd_ = open(path.value().c_str(), O_WRONLY);
   if (p2p_sharing_fd_ == -1) {
     PLOG(ERROR) << "Error opening file " << path.value();
-    CloseP2PSharingFd(true); // Delete p2p file.
+    CloseP2PSharingFd(true);  // Delete p2p file.
     return false;
   }
 
@@ -89,7 +89,7 @@ bool DownloadAction::SetupP2PSharingFd() {
   // the process-wide umask is set to 0700 in main.cc.)
   if (fchmod(p2p_sharing_fd_, 0644) != 0) {
     PLOG(ERROR) << "Error setting mode 0644 on " << path.value();
-    CloseP2PSharingFd(true); // Delete p2p file.
+    CloseP2PSharingFd(true);  // Delete p2p file.
     return false;
   }
 
@@ -120,14 +120,14 @@ void DownloadAction::WriteToP2PFile(const char *data,
   struct stat statbuf;
   if (fstat(p2p_sharing_fd_, &statbuf) != 0) {
     PLOG(ERROR) << "Error getting file status for p2p file";
-    CloseP2PSharingFd(true); // Delete p2p file.
+    CloseP2PSharingFd(true);  // Delete p2p file.
     return;
   }
   if (statbuf.st_size < file_offset) {
     LOG(ERROR) << "Wanting to write to file offset " << file_offset
                << " but existing p2p file is only " << statbuf.st_size
                << " bytes.";
-    CloseP2PSharingFd(true); // Delete p2p file.
+    CloseP2PSharingFd(true);  // Delete p2p file.
     return;
   }
 
@@ -135,7 +135,7 @@ void DownloadAction::WriteToP2PFile(const char *data,
   if (cur_file_offset != static_cast<off_t>(file_offset)) {
     PLOG(ERROR) << "Error seeking to position "
                 << file_offset << " in p2p file";
-    CloseP2PSharingFd(true); // Delete p2p file.
+    CloseP2PSharingFd(true);  // Delete p2p file.
   } else {
     // OK, seeking worked, now write the data
     ssize_t bytes_written = write(p2p_sharing_fd_, data, length);
@@ -143,7 +143,7 @@ void DownloadAction::WriteToP2PFile(const char *data,
       PLOG(ERROR) << "Error writing "
                   << length << " bytes at file offset "
                   << file_offset << " in p2p file";
-      CloseP2PSharingFd(true); // Delete p2p file.
+      CloseP2PSharingFd(true);  // Delete p2p file.
     }
   }
 }
@@ -238,7 +238,7 @@ void DownloadAction::TerminateProcessing() {
   if (delegate_) {
     delegate_->SetDownloadStatus(false);  // Set to inactive.
   }
-  CloseP2PSharingFd(false); // Keep p2p file.
+  CloseP2PSharingFd(false);  // Keep p2p file.
   // Terminates the transfer. The action is terminated, if necessary, when the
   // TransferTerminated callback is received.
   http_fetcher_->TerminateTransfer();
@@ -323,4 +323,4 @@ void DownloadAction::TransferTerminated(HttpFetcher *fetcher) {
   }
 }
 
-};  // namespace {}
+}  // namespace chromeos_update_engine

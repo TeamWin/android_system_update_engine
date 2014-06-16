@@ -386,7 +386,7 @@ int Main(int argc, char** argv) {
   return 0;
 }
 
-}  // namespace {}
+}  // namespace
 
 }  // namespace chromeos_update_engine
 

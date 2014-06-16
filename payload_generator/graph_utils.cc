@@ -133,7 +133,7 @@ void DumpOutEdges(const Vertex::EdgeMap& out_edges) {
     DumpExtents(it->second.write_extents, 6);
   }
 }
-}  // namespace {}
+}  // namespace
 
 void DumpGraph(const Graph& graph) {
   LOG(INFO) << "Graph length: " << graph.size();

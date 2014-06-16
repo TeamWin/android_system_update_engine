@@ -32,7 +32,7 @@ static const unsigned char kRawExpectedRawHash[] = {
 };
 
 class OmahaHashCalculatorTest : public ::testing::Test {
-public:
+ public:
   const char *kExpectedRawHash;
   const char *kExpectedRawHashEnd;
 

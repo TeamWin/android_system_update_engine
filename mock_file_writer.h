@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_FILE_WRITER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_FILE_WRITER_H_
 
+#include <vector>
+
 #include "base/basictypes.h"
 #include "update_engine/file_writer.h"
 
@@ -43,6 +45,7 @@ class MockFileWriter : public FileWriter {
   const std::vector<char>& bytes() {
     return bytes_;
   }
+
  private:
   // The internal store of all bytes that have been written
   std::vector<char> bytes_;

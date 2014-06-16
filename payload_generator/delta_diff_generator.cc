@@ -663,7 +663,7 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
   return removed_bytes;
 }
 
-}  // namespace {}
+}  // namespace
 
 bool DeltaDiffGenerator::ReadFileToDiff(
     const string& old_filename,
@@ -893,7 +893,7 @@ vector<Extent> CompressExtents(const vector<uint64_t>& blocks) {
   return new_extents;
 }
 
-}  // namespace {}
+}  // namespace
 
 void DeltaDiffGenerator::SubstituteBlocks(
     Vertex* vertex,
@@ -1047,7 +1047,7 @@ class SortCutsByTopoOrderLess {
   vector<vector<Vertex::Index>::size_type>& table_;
 };
 
-}  // namespace {}
+}  // namespace
 
 void DeltaDiffGenerator::GenerateReverseTopoOrderMap(
     vector<Vertex::Index>& op_indexes,
@@ -1276,7 +1276,7 @@ bool AssignBlockForAdjoiningCuts(
   return true;
 }
 
-}  // namespace {}
+}  // namespace
 
 // Returns true if |op| is a no-op operation that doesn't do any useful work
 // (e.g., a move operation that copies blocks onto themselves).

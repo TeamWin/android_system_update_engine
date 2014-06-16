@@ -21,7 +21,6 @@ class Clock : public ClockInterface {
   virtual base::Time GetBootTime();
 
  private:
-
   DISALLOW_COPY_AND_ASSIGN(Clock);
 };
 

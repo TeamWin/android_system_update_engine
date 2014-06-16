@@ -30,11 +30,10 @@ using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
 #define UPDATE_ENGINE_SERVICE_TYPE_ERROR \
   (update_engine_service_error_get_type())
 
-typedef enum
-{
+enum UpdateEngineServiceError {
   UPDATE_ENGINE_SERVICE_ERROR_FAILED,
   UPDATE_ENGINE_SERVICE_NUM_ERRORS
-} UpdateEngineServiceError;
+};
 
 static GQuark update_engine_service_error_quark(void) {
   static GQuark ret = 0;
@@ -56,7 +55,7 @@ static GType update_engine_service_error_get_type(void) {
       { 0, 0, 0 }
     };
     G_STATIC_ASSERT(UPDATE_ENGINE_SERVICE_NUM_ERRORS ==
-                    G_N_ELEMENTS (values) - 1);
+                    G_N_ELEMENTS(values) - 1);
     etype = g_enum_register_static("UpdateEngineServiceError", values);
   }
 
@@ -111,9 +110,9 @@ static void update_engine_service_class_init(UpdateEngineServiceClass* klass) {
 }
 
 static void update_engine_service_init(UpdateEngineService* object) {
-  dbus_g_error_domain_register (UPDATE_ENGINE_SERVICE_ERROR,
-                                "org.chromium.UpdateEngine.Error",
-                                UPDATE_ENGINE_SERVICE_TYPE_ERROR);
+  dbus_g_error_domain_register(UPDATE_ENGINE_SERVICE_ERROR,
+                               "org.chromium.UpdateEngine.Error",
+                               UPDATE_ENGINE_SERVICE_TYPE_ERROR);
 }
 
 UpdateEngineService* update_engine_service_new(void) {
@@ -128,7 +127,7 @@ gboolean update_engine_service_attempt_update(UpdateEngineService* self,
   return update_engine_service_attempt_update_with_flags(self,
                                                          app_version,
                                                          omaha_url,
-                                                         0, // No flags set.
+                                                         0,  // No flags set.
                                                          error);
 }
 
@@ -195,8 +194,7 @@ gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
 
 gboolean update_engine_service_can_rollback(UpdateEngineService* self,
                                             gboolean* out_can_rollback,
-                                            GError **error)
-{
+                                            GError **error) {
   bool can_rollback = self->system_state_->update_attempter()->CanRollback();
   LOG(INFO) << "Checking to see if we can rollback . Result: " << can_rollback;
   *out_can_rollback = can_rollback;
@@ -218,7 +216,7 @@ gboolean update_engine_service_get_kernel_devices(UpdateEngineService* self,
                                                   GError **error) {
   auto devices = self->system_state_->update_attempter()->GetKernelDevices();
   std::string info;
-  for (auto&& device : devices) {
+  for (const auto& device : devices) {
     base::StringAppendF(&info, "%d:%s\n",
                         device.second ? 1 : 0, device.first.c_str());
   }

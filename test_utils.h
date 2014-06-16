@@ -70,7 +70,7 @@ inline int Chdir(const std::string& path) {
 
 void FillWithData(std::vector<char>* buffer);
 
-namespace {
+namespace {  // NOLINT(build/namespaces) - anon. NS in header file.
 // 300 byte pseudo-random string. Not null terminated.
 // This does not gzip compress well.
 const unsigned char kRandomString[] = {
@@ -114,7 +114,7 @@ const unsigned char kRandomString[] = {
   0xbe, 0x9f, 0xa3, 0x5d
 };
 
-}  // namespace {}
+}  // namespace
 
 // Creates an empty ext image.
 void CreateEmptyExtImageAtPath(const std::string& path,
@@ -263,7 +263,7 @@ class ScopedLoopMounter {
  public:
   explicit ScopedLoopMounter(const std::string& file_path,
                              std::string* mnt_path,
-                             unsigned long flags);
+                             unsigned long flags);  // NOLINT(runtime/int)
 
  private:
   // These objects must be destructed in the following order:

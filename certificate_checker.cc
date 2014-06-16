@@ -29,7 +29,7 @@ namespace {
 static const char* kReportToSendKey[2] =
     {kPrefsCertificateReportToSendUpdate,
      kPrefsCertificateReportToSendDownload};
-}  // namespace {}
+}  // namespace
 
 bool OpenSSLWrapper::GetCertificateDigest(X509_STORE_CTX* x509_ctx,
                                           int* out_depth,

@@ -154,7 +154,7 @@ class UpdateAttempterTest : public ::testing::Test {
   NiceMock<MockDBusWrapper> dbus_;
   UpdateAttempterUnderTest attempter_;
   NiceMock<ActionProcessorMock>* processor_;
-  NiceMock<PrefsMock>* prefs_; // shortcut to fake_system_state_->mock_prefs()
+  NiceMock<PrefsMock>* prefs_;  // shortcut to fake_system_state_->mock_prefs()
   NiceMock<MockConnectionManager> mock_connection_manager;
   GMainLoop* loop_;
 
@@ -410,7 +410,7 @@ gboolean UpdateAttempterTest::StaticNoScatteringDoneDuringManualUpdateTestStart(
 
 namespace {
 // Actions that will be built as part of an update check.
-const string kUpdateActionTypes[] = {
+const string kUpdateActionTypes[] = {  // NOLINT(runtime/string)
   OmahaRequestAction::StaticType(),
   OmahaResponseHandlerAction::StaticType(),
   FilesystemCopierAction::StaticType(),
@@ -425,12 +425,12 @@ const string kUpdateActionTypes[] = {
 };
 
 // Actions that will be built as part of a user-initiated rollback.
-const string kRollbackActionTypes[] = {
+const string kRollbackActionTypes[] = {  // NOLINT(runtime/string)
   InstallPlanAction::StaticType(),
   PostinstallRunnerAction::StaticType(),
 };
 
-}  // namespace {}
+}  // namespace
 
 void UpdateAttempterTest::UpdateTestStart() {
   attempter_.set_http_response_code(200);
@@ -643,7 +643,7 @@ void UpdateAttempterTest::ReadChannelFromPolicyTestStart() {
   fake_system_state_.set_device_policy(device_policy);
 
   EXPECT_CALL(*device_policy, GetReleaseChannelDelegated(_)).WillRepeatedly(
-      DoAll(SetArgumentPointee<0>(bool(false)),
+      DoAll(SetArgumentPointee<0>(bool(false)),  // NOLINT(readability/casting)
       Return(true)));
 
   EXPECT_CALL(*device_policy, GetReleaseChannel(_)).WillRepeatedly(

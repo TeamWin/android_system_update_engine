@@ -16,7 +16,7 @@ namespace chromeos_update_engine {
 // logic in update_engine.
 class MockConnectionManager : public ConnectionManager {
  public:
-  MockConnectionManager(SystemState* system_state)
+  explicit MockConnectionManager(SystemState* system_state)
       : ConnectionManager(system_state) {}
 
   MOCK_CONST_METHOD3(GetConnectionProperties,

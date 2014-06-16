@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_PAYLOAD_STATE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_PAYLOAD_STATE_H_
 
+#include <string>
+
 #include "gmock/gmock.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/payload_state_interface.h"

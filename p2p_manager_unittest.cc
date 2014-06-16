@@ -35,7 +35,7 @@ namespace chromeos_update_engine {
 // temporary p2p dir) for P2PManager and cleans up when the test is
 // done.
 class P2PManagerTest : public testing::Test {
-protected:
+ protected:
   P2PManagerTest() {}
   virtual ~P2PManagerTest() {}
 
@@ -100,7 +100,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingTrue) {
   scoped_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(
-      DoAll(testing::SetArgumentPointee<0>(bool(true)),
+      DoAll(testing::SetArgumentPointee<0>(true),
             testing::Return(true)));
   manager->SetDevicePolicy(device_policy.get());
   EXPECT_TRUE(manager->IsP2PEnabled());
@@ -126,7 +126,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingFalse) {
   scoped_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(
-      DoAll(testing::SetArgumentPointee<0>(bool(false)),
+      DoAll(testing::SetArgumentPointee<0>(false),
             testing::Return(true)));
   manager->SetDevicePolicy(device_policy.get());
   EXPECT_FALSE(manager->IsP2PEnabled());
@@ -243,7 +243,7 @@ static bool CheckP2PFile(const string& p2p_dir, const string& file_name,
       return false;
     }
     char* endp = NULL;
-    long long int val = strtoll(ea_value, &endp, 0);
+    long long int val = strtoll(ea_value, &endp, 0);  // NOLINT(runtime/int)
     if (endp == NULL || *endp != '\0') {
       LOG(ERROR) << "Error parsing xattr '" << ea_value
                  << "' as an integer";
@@ -477,4 +477,4 @@ TEST_F(P2PManagerTest, LookupURL) {
   g_main_loop_unref(loop);
 }
 
-} // namespace chromeos_update_engine
+}  // namespace chromeos_update_engine

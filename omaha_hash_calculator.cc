@@ -39,8 +39,8 @@ class ScopedBioHandle {
   BIO* bio() {
     return bio_;
   }
+
  private:
-  DISALLOW_COPY_AND_ASSIGN(ScopedBioHandle);
   BIO* bio_;
 
   void FreeCurrentBio() {
@@ -49,6 +49,8 @@ class ScopedBioHandle {
       bio_ = NULL;
     }
   }
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedBioHandle);
 };
 
 OmahaHashCalculator::OmahaHashCalculator() : valid_(false) {
@@ -61,8 +63,8 @@ OmahaHashCalculator::OmahaHashCalculator() : valid_(false) {
 bool OmahaHashCalculator::Update(const char* data, size_t length) {
   TEST_AND_RETURN_FALSE(valid_);
   TEST_AND_RETURN_FALSE(hash_.empty());
-  COMPILE_ASSERT(sizeof(size_t) <= sizeof(unsigned long),
-                 length_param_may_be_truncated_in_SHA256_Update);
+  static_assert(sizeof(size_t) <= sizeof(unsigned long),  // NOLINT(runtime/int)
+                "length param may be truncated in SHA256_Update");
   TEST_AND_RETURN_FALSE(SHA256_Update(&ctx_, data, length) == 1);
   return true;
 }
@@ -153,7 +155,7 @@ bool OmahaHashCalculator::Base64Decode(const string& raw_in,
 
   const int kOutBufferSize = 1024;
   char out_buffer[kOutBufferSize];
-  int num_bytes_read = 1; // any non-zero value is fine to enter the loop.
+  int num_bytes_read = 1;  // any non-zero value is fine to enter the loop.
   while (num_bytes_read > 0) {
     num_bytes_read = BIO_read(b64.bio(), &out_buffer, kOutBufferSize);
     for (int i = 0; i < num_bytes_read; i++)

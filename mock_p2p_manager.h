@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_P2P_MANAGER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_P2P_MANAGER_H_
 
+#include <string>
+
 #include "update_engine/fake_p2p_manager.h"
 
 #include <gmock/gmock.h>
@@ -13,7 +15,7 @@ namespace chromeos_update_engine {
 
 // A mocked, fake implementation of P2PManager.
 class MockP2PManager : public P2PManager {
-public:
+ public:
   MockP2PManager() {
     // Delegate all calls to the fake instance
     ON_CALL(*this, SetDevicePolicy(testing::_))
@@ -83,7 +85,7 @@ public:
     return fake_;
   }
 
-private:
+ private:
   // The underlying FakeP2PManager.
   FakeP2PManager fake_;
 

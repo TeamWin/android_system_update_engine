@@ -133,7 +133,6 @@ bool AddSignatureOpToPayload(const string& payload_path,
 
   // Is there already a signature op in place?
   if (manifest.has_signatures_size()) {
-
     // The signature op is tied to the size of the signature blob, but not it's
     // contents. We don't allow the manifest to change if there is already an op
     // present, because that might invalidate previously generated
@@ -177,7 +176,7 @@ bool AddSignatureOpToPayload(const string& payload_path,
   LOG(INFO) << "Signature Blob Offset: " << *out_signatures_offset;
   return true;
 }
-}  // namespace {}
+}  // namespace
 
 bool PayloadSigner::LoadPayload(const string& payload_path,
                  vector<char>* out_payload,

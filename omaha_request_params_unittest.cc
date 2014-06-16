@@ -79,7 +79,7 @@ string GetMachineType() {
     machine_type.erase(newline_pos);
   return machine_type;
 }
-}  // namespace {}
+}  // namespace
 
 TEST_F(OmahaRequestParamsTest, SimpleTest) {
   ASSERT_TRUE(WriteFileString(

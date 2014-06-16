@@ -28,7 +28,7 @@ namespace chromeos_update_engine {
 namespace {
 const int kNoNetworkRetrySeconds = 10;
 const char kCACertificatesPath[] = "/usr/share/chromeos-ca-certificates";
-}  // namespace {}
+}  // namespace
 
 LibcurlHttpFetcher::~LibcurlHttpFetcher() {
   LOG_IF(ERROR, transfer_in_progress_)
@@ -542,7 +542,7 @@ void LibcurlHttpFetcher::CleanUp() {
 }
 
 void LibcurlHttpFetcher::GetHttpResponseCode() {
-  long http_response_code = 0;
+  long http_response_code = 0;  // NOLINT(runtime/int) - curl needs long.
   if (curl_easy_getinfo(curl_handle_,
                         CURLINFO_RESPONSE_CODE,
                         &http_response_code) == CURLE_OK) {

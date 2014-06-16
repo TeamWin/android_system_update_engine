@@ -54,7 +54,7 @@ gboolean BroadcastStatus(void* arg) {
 
 gboolean UpdateEngineStarted(gpointer user_data) {
   reinterpret_cast<UpdateAttempter*>(user_data)->UpdateEngineStarted();
-  return FALSE; // Remove idle source (e.g. don't do the callback again)
+  return FALSE;  // Remove idle source (e.g. don't do the callback again)
 }
 
 namespace {
@@ -110,9 +110,9 @@ void SetupLogSymlink(const string& symlink_path, const string& log_path) {
 
 string GetTimeAsString(time_t utime) {
   struct tm tm;
-  CHECK(localtime_r(&utime, &tm) == &tm);
+  CHECK_EQ(localtime_r(&utime, &tm), &tm);
   char str[16];
-  CHECK(strftime(str, sizeof(str), "%Y%m%d-%H%M%S", &tm) == 15);
+  CHECK_EQ(strftime(str, sizeof(str), "%Y%m%d-%H%M%S", &tm), 15u);
   return str;
 }
 
@@ -146,7 +146,7 @@ void SetupLogging() {
   logging::InitLogging(log_settings);
 }
 
-}  // namespace {}
+}  // namespace
 }  // namespace chromeos_update_engine
 
 int main(int argc, char** argv) {

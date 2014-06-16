@@ -78,6 +78,7 @@ class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
   }
   bool ran() const { return ran_; }
   ErrorCode code() const { return code_; }
+
  private:
   GMainLoop* loop_;
   FilesystemCopierAction* action_;
@@ -420,7 +421,7 @@ TEST_F(FilesystemCopierActionTest, RunAsRootDetermineFilesystemSizeTest) {
     EXPECT_EQ(kint64max, action.filesystem_size_);
     {
       int fd = HANDLE_EINTR(open(img.c_str(), O_RDONLY));
-      EXPECT_TRUE(fd > 0);
+      EXPECT_GT(fd, 0);
       ScopedFdCloser fd_closer(&fd);
       action.DetermineFilesystemSize(fd);
     }

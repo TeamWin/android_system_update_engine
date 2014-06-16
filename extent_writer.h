@@ -82,7 +82,7 @@ class DirectExtentWriter : public ExtentWriter {
 
 class ZeroPadExtentWriter : public ExtentWriter {
  public:
-  ZeroPadExtentWriter(ExtentWriter* underlying_extent_writer)
+  explicit ZeroPadExtentWriter(ExtentWriter* underlying_extent_writer)
       : underlying_extent_writer_(underlying_extent_writer),
         block_size_(0),
         bytes_written_mod_block_size_(0) {}

@@ -4,6 +4,7 @@
 
 #include "update_engine/connection_manager.h"
 
+#include <set>
 #include <string>
 
 #include <base/stl_util.h>
@@ -136,8 +137,9 @@ bool GetServicePathProperties(DBusWrapperInterface* dbus_iface,
                                       &hash_table));
 
   // Populate the out_tethering.
-  GValue* value = (GValue*)g_hash_table_lookup(hash_table,
-                                               shill::kTetheringProperty);
+  GValue* value =
+      reinterpret_cast<GValue*>(g_hash_table_lookup(hash_table,
+                                                    shill::kTetheringProperty));
   const char* tethering_str = NULL;
 
   if (value != NULL)
@@ -150,15 +152,15 @@ bool GetServicePathProperties(DBusWrapperInterface* dbus_iface,
   }
 
   // Populate the out_type property.
-  value = (GValue*)g_hash_table_lookup(hash_table,
-                                       shill::kTypeProperty);
+  value = reinterpret_cast<GValue*>(g_hash_table_lookup(hash_table,
+                                                        shill::kTypeProperty));
   const char* type_str = NULL;
   bool success = false;
   if (value != NULL && (type_str = g_value_get_string(value)) != NULL) {
     success = true;
     if (!strcmp(type_str, shill::kTypeVPN)) {
-      value = (GValue*)g_hash_table_lookup(hash_table,
-                                           shill::kPhysicalTechnologyProperty);
+      value = reinterpret_cast<GValue*>(
+          g_hash_table_lookup(hash_table, shill::kPhysicalTechnologyProperty));
       if (value != NULL && (type_str = g_value_get_string(value)) != NULL) {
         *out_type = ParseConnectionType(type_str);
       } else {
@@ -175,7 +177,7 @@ bool GetServicePathProperties(DBusWrapperInterface* dbus_iface,
   return success;
 }
 
-}  // namespace {}
+}  // namespace
 
 ConnectionManager::ConnectionManager(SystemState *system_state)
     :  system_state_(system_state) {}

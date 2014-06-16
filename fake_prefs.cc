@@ -27,8 +27,8 @@ template<>
 FakePrefs::PrefType const FakePrefs::PrefConsts<string>::type =
     FakePrefs::PrefType::kString;
 template<>
-string FakePrefs::PrefValue::* const FakePrefs::PrefConsts<string>::member =
-    &FakePrefs::PrefValue::as_str;
+string FakePrefs::PrefValue::* const  // NOLINT(runtime/string), not static str.
+    FakePrefs::PrefConsts<string>::member = &FakePrefs::PrefValue::as_str;
 
 template<>
 FakePrefs::PrefType const FakePrefs::PrefConsts<int64_t>::type =

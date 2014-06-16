@@ -94,7 +94,7 @@ class MyActionProcessorDelegate : public ActionProcessorDelegate {
   bool action_completed_called_;
   ErrorCode action_exit_code_;
 };
-}  // namespace {}
+}  // namespace
 
 TEST(ActionProcessorTest, DelegateTest) {
   ActionProcessorTestAction action;

@@ -301,7 +301,7 @@ void VerifyAllPaths(const string& parent, set<string> expected_paths) {
 
 ScopedLoopMounter::ScopedLoopMounter(const string& file_path,
                                      string* mnt_path,
-                                     unsigned long flags) {
+                                     unsigned long flags) {  // NOLINT - long
   EXPECT_TRUE(utils::MakeTempDirectory("mnt.XXXXXX", mnt_path));
   dir_remover_.reset(new ScopedDirRemover(*mnt_path));
 

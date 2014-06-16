@@ -38,7 +38,7 @@ void PostinstallRunnerAction::PerformAction() {
                                            &temp_rootfs_dir_));
   ScopedDirRemover temp_dir_remover(temp_rootfs_dir_);
 
-  unsigned long mountflags = MS_RDONLY;
+  unsigned long mountflags = MS_RDONLY;  // NOLINT(runtime/int)
   int rc = mount(install_device.c_str(),
                  temp_rootfs_dir_.c_str(),
                  "ext2",

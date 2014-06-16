@@ -6,8 +6,10 @@
 
 #include <algorithm>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include <base/file_util.h>
 #include <base/logging.h>
@@ -62,7 +64,7 @@ const int kMaxConsecutiveObeyProxyRequests = 20;
 
 const char* kUpdateCompletedMarker =
     "/var/run/update_engine_autoupdate_completed";
-}  // namespace {}
+}  // namespace
 
 const char* UpdateStatusToString(UpdateStatus status) {
   switch (status) {
@@ -368,8 +370,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     if (!device_policy->GetReleaseChannelDelegated(&delegated) || delegated) {
       LOG(INFO) << "Channel settings are delegated to user by policy. "
                    "Ignoring ReleaseChannel policy value";
-    }
-    else {
+    } else {
       LOG(INFO) << "Channel settings are not delegated to the user by policy";
       string target_channel;
       if (device_policy->GetReleaseChannel(&target_channel) &&
@@ -439,7 +440,7 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
   if (device_policy) {
     int64 new_scatter_factor_in_secs = 0;
     device_policy->GetScatterFactorInSeconds(&new_scatter_factor_in_secs);
-    if (new_scatter_factor_in_secs < 0) // sanitize input, just in case.
+    if (new_scatter_factor_in_secs < 0)  // sanitize input, just in case.
       new_scatter_factor_in_secs  = 0;
     scatter_factor_ = TimeDelta::FromSeconds(new_scatter_factor_in_secs);
   }
@@ -482,8 +483,7 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
         LOG(INFO) << "Using persisted wall-clock waiting period: " <<
             utils::FormatSecs(
                 omaha_request_params_->waiting_period().InSeconds());
-      }
-      else {
+      } else {
         // This means there's no persisted value for the waiting period
         // available or its value is invalid given the new scatter_factor value.
         // So, we should go ahead and regenerate a new value for the
@@ -741,14 +741,14 @@ std::string UpdateAttempter::GetRollbackPartition() const {
       system_state_->hardware()->BootKernelDevice();
 
   LOG(INFO) << "UpdateAttempter::GetRollbackPartition";
-  for (auto&& name : kernel_devices)
+  for (const auto& name : kernel_devices)
     LOG(INFO) << "  Available kernel device = " << name;
   LOG(INFO) << "  Boot kernel device =      " << boot_kernel_device;
 
   auto current = std::find(kernel_devices.begin(), kernel_devices.end(),
                            boot_kernel_device);
 
-  if(current == kernel_devices.end()) {
+  if (current == kernel_devices.end()) {
     LOG(ERROR) << "Unable to find the boot kernel device in the list of "
                << "available devices";
     return std::string();

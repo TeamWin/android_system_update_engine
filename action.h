@@ -7,8 +7,8 @@
 
 #include <stdio.h>
 
-#include <iostream>
 #include <memory>
+#include <string>
 
 #include <base/basictypes.h>
 #include <base/logging.h>
@@ -58,10 +58,10 @@
 // DownloadAction::InputObjectType.
 //
 // Each concrete Action class derives from Action<T>. This means that during
-// template instatiation of Action<T>, T is declared but not defined, which
+// template instantiation of Action<T>, T is declared but not defined, which
 // means that T::InputObjectType (and OutputObjectType) is not defined.
 // However, the traits class is constructed in such a way that it will be
-// template instatiated first, so Action<T> *can* find the types it needs by
+// template instantiated first, so Action<T> *can* find the types it needs by
 // consulting ActionTraits<T>::InputObjectType (and OutputObjectType).
 // This is why the ActionTraits classes are needed.
 
@@ -109,7 +109,7 @@ class AbstractAction {
   // ActionProcessor::ActionComplete() because the processor knows this
   // action is terminating.
   // Only the ActionProcessor should call this.
-  virtual void TerminateProcessing() {};
+  virtual void TerminateProcessing() {}
 
   // These methods are useful for debugging. TODO(adlr): consider using
   // std::type_info for this?

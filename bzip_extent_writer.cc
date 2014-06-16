@@ -17,9 +17,9 @@ bool BzipExtentWriter::Init(int fd,
                             uint32_t block_size) {
   // Init bzip2 stream
   int rc = BZ2_bzDecompressInit(&stream_,
-                                0,  // verbosity. (0 == silent)
-                                0  // 0 = faster algo, more memory
-                                );
+                                0,   // verbosity. (0 == silent)
+                                0);  // 0 = faster algo, more memory
+
   TEST_AND_RETURN_FALSE(rc == BZ_OK);
 
   return next_->Init(fd, extents, block_size);

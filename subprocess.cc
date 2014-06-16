@@ -109,7 +109,7 @@ char** ArgPointer() {
 
 class ScopedFreeArgPointer {
  public:
-  ScopedFreeArgPointer(char** arr) : arr_(arr) {}
+  explicit ScopedFreeArgPointer(char** arr) : arr_(arr) {}
   ~ScopedFreeArgPointer() {
     if (!arr_)
       return;
@@ -121,7 +121,7 @@ class ScopedFreeArgPointer {
   char** arr_;
   DISALLOW_COPY_AND_ASSIGN(ScopedFreeArgPointer);
 };
-}  // namespace {}
+}  // namespace
 
 uint32_t Subprocess::Exec(const vector<string>& cmd,
                           ExecCallback callback,

@@ -5,6 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_HTTP_FETCHER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_HTTP_FETCHER_H_
 
+#include <string>
 #include <vector>
 
 #include <base/logging.h>

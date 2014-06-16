@@ -4,8 +4,10 @@
 
 #include "update_engine/chrome_browser_proxy_resolver.h"
 
+#include <deque>
 #include <map>
 #include <string>
+#include <utility>
 
 #include <base/strings/string_tokenizer.h>
 #include <base/strings/string_util.h>
@@ -48,7 +50,7 @@ namespace {
 
 const int kTimeout = 5;  // seconds
 
-}  // namespace {}
+}  // namespace
 
 ChromeBrowserProxyResolver::ChromeBrowserProxyResolver(
     DBusWrapperInterface* dbus)
@@ -123,7 +125,6 @@ bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
                               url.c_str(),
                               kLibCrosProxyResolveSignalInterface,
                               kLibCrosProxyResolveName)) {
-
       if (error) {
         LOG(WARNING) << "dbus_g_proxy_call failed, continuing with no proxy: "
                      << utils::GetAndFreeGError(&error);

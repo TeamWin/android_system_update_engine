@@ -194,7 +194,7 @@ void WatchForUpdates() {
                           G_TYPE_STRING,
                           G_TYPE_INT64,
                           G_TYPE_INVALID);
-  GMainLoop* loop = g_main_loop_new (NULL, TRUE);
+  GMainLoop* loop = g_main_loop_new(NULL, TRUE);
   dbus_g_proxy_connect_signal(proxy,
                               kStatusUpdate,
                               G_CALLBACK(StatusUpdateSignalHandler),
@@ -393,10 +393,10 @@ static gboolean CompleteUpdateSource(gpointer data) {
 }
 
 // This is similar to watching for updates but rather than registering
-// a signal watch, activelly poll the daemon just in case it stops
+// a signal watch, actively poll the daemon just in case it stops
 // sending notifications.
 void CompleteUpdate() {
-  GMainLoop* loop = g_main_loop_new (NULL, TRUE);
+  GMainLoop* loop = g_main_loop_new(NULL, TRUE);
   g_timeout_add_seconds(5, CompleteUpdateSource, NULL);
   g_main_loop_run(loop);
   g_main_loop_unref(loop);
@@ -529,7 +529,7 @@ bool BlockUntilRebootIsNeeded() {
   return ret;
 }
 
-}  // namespace {}
+}  // namespace
 
 int main(int argc, char** argv) {
   // Boilerplate init commands.
@@ -591,9 +591,9 @@ int main(int argc, char** argv) {
     if (rollback_partition.empty()) {
       rollback_partition = "UNAVAILABLE";
       can_rollback = false;
-    }
-    else
+    } else {
       rollback_partition = "AVAILABLE: " + rollback_partition;
+    }
 
     LOG(INFO) << "Rollback partition: " << rollback_partition;
     if (!can_rollback) {
@@ -633,7 +633,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if(FLAGS_rollback) {
+  if (FLAGS_rollback) {
     LOG(INFO) << "Requesting rollback.";
     CHECK(Rollback(FLAGS_powerwash)) << "Request for rollback failed.";
   }
@@ -654,8 +654,7 @@ int main(int argc, char** argv) {
   // These final options are all mutually exclusive with one another.
   if (FLAGS_follow + FLAGS_watch_for_updates + FLAGS_reboot +
       FLAGS_status + FLAGS_is_reboot_needed +
-      FLAGS_block_until_reboot_is_needed > 1)
-  {
+      FLAGS_block_until_reboot_is_needed > 1) {
     LOG(ERROR) << "Multiple exclusive options selected. "
                << "Select only one of --follow, --watch_for_updates, --reboot, "
                << "--is_reboot_needed, --block_until_reboot_is_needed, "

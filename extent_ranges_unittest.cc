@@ -106,7 +106,7 @@ void ExpectFalseRangesOverlap(uint64_t a_start, uint64_t a_num,
                                                            a_num)));
 }
 
-}  // namespace {}
+}  // namespace
 
 TEST(ExtentRangesTest, ExtentsOverlapTest) {
   ExpectRangesOverlapOrTouch(10, 20, 30, 10);

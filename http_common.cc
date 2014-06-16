@@ -71,4 +71,4 @@ const char *GetHttpContentTypeString(HttpContentType type) {
   return (is_found ? http_content_type_table[i].str : NULL);
 }
 
-} //  namespace chromeos_update_engine
+}  // namespace chromeos_update_engine

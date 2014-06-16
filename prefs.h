@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_PREFS_H_
 
+#include <string>
+
 #include <base/files/file_path.h>
 #include "gtest/gtest_prod.h"  // for FRIEND_TEST
 #include "update_engine/prefs_interface.h"

@@ -109,7 +109,7 @@ gboolean SendReply(gpointer data) {
 // chrome. If there's no reply, the resolver should time out.
 // If chrome_alive is false, assume that sending to chrome fails.
 void RunTest(bool chrome_replies, bool chrome_alive) {
-  long number = 1;
+  intptr_t number = 1;
   DBusGConnection* kMockSystemGBus =
       reinterpret_cast<DBusGConnection*>(number++);
   DBusConnection* kMockSystemBus =
@@ -188,7 +188,7 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
   g_main_loop_run(loop);
   g_main_loop_unref(loop);
 }
-}  // namespace {}
+}  // namespace
 
 TEST(ChromeBrowserProxyResolverTest, SuccessTest) {
   RunTest(true, true);

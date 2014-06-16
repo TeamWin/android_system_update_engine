@@ -191,7 +191,7 @@ void TestWithData(const vector<char>& data,
   g_main_loop_run(loop);
   g_main_loop_unref(loop);
 }
-}  // namespace {}
+}  // namespace
 
 TEST(DownloadActionTest, SimpleTest) {
   vector<char> small;
@@ -301,7 +301,7 @@ void TestTerminateEarly(bool use_download_delegate) {
     EXPECT_EQ(kMockHttpFetcherChunkSize, resulting_file_size);
 }
 
-}  // namespace {}
+}  // namespace
 
 TEST(DownloadActionTest, TerminateEarlyTest) {
   TestTerminateEarly(true);
@@ -359,7 +359,7 @@ gboolean PassObjectOutTestStarter(gpointer data) {
   processor->StartProcessing();
   return FALSE;
 }
-}
+}  // namespace
 
 TEST(DownloadActionTest, PassObjectOutTest) {
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -438,7 +438,7 @@ gboolean StartProcessorInRunLoopForP2P(gpointer user_data) {
 
 // Test fixture for P2P tests.
 class P2PDownloadActionTest : public testing::Test {
-protected:
+ protected:
   P2PDownloadActionTest()
     : loop_(NULL),
       start_at_offset_(0) {}
@@ -532,7 +532,7 @@ protected:
   // The data being downloaded.
   string data_;
 
-private:
+ private:
   // Callback used in StartDownload() method.
   static gboolean StartProcessorInRunLoopForP2P(gpointer user_data) {
     class P2PDownloadActionTest *test =
@@ -556,8 +556,8 @@ TEST_F(P2PDownloadActionTest, IsWrittenTo) {
     return;
   }
 
-  SetupDownload(0);    // starting_offset
-  StartDownload(true); // use_p2p_to_share
+  SetupDownload(0);     // starting_offset
+  StartDownload(true);  // use_p2p_to_share
 
   // Check the p2p file and its content matches what was sent.
   string file_id = download_action_->p2p_file_id();
@@ -577,8 +577,8 @@ TEST_F(P2PDownloadActionTest, DeleteIfHoleExists) {
     return;
   }
 
-  SetupDownload(1000); // starting_offset
-  StartDownload(true); // use_p2p_to_share
+  SetupDownload(1000);  // starting_offset
+  StartDownload(true);  // use_p2p_to_share
 
   // DownloadAction should convey that the file is not being shared.
   // and that we don't have any p2p files.
@@ -593,7 +593,7 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
     return;
   }
 
-  SetupDownload(1000); // starting_offset
+  SetupDownload(1000);  // starting_offset
 
   // Prepare the file with existing data before starting to write to
   // it via DownloadAction.
@@ -605,7 +605,7 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
   ASSERT_EQ(WriteFile(p2p_manager_->FileGetPath(file_id), existing_data.c_str(),
                       1000), 1000);
 
-  StartDownload(true); // use_p2p_to_share
+  StartDownload(true);  // use_p2p_to_share
 
   // DownloadAction should convey the same file_id and the file should
   // have the expected size.
@@ -628,7 +628,7 @@ TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
     return;
   }
 
-  SetupDownload(1000); // starting_offset
+  SetupDownload(1000);  // starting_offset
 
   // Prepare the file with all existing data before starting to write
   // to it via DownloadAction.
@@ -644,7 +644,7 @@ TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
   EXPECT_EQ(p2p_manager_->FileGetSize(file_id), 1000);
   EXPECT_EQ(p2p_manager_->CountSharedFiles(), 1);
 
-  StartDownload(false); // use_p2p_to_share
+  StartDownload(false);  // use_p2p_to_share
 
   // DownloadAction should have deleted the p2p file. Check that it's gone.
   EXPECT_EQ(p2p_manager_->FileGetSize(file_id), -1);

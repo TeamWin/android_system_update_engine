@@ -4,6 +4,9 @@
 
 #include <base/strings/stringprintf.h>
 
+#include <algorithm>
+#include <string>
+
 #include "update_engine/multi_range_http_fetcher.h"
 #include "update_engine/utils.h"
 
@@ -41,7 +44,7 @@ void MultiRangeHttpFetcher::TerminateTransfer() {
     return;
   }
   terminating_ = true;
-    
+
   if (!pending_transfer_ended_) {
     base_fetcher_->TerminateTransfer();
   }

@@ -22,8 +22,8 @@
 #include <sys/statvfs.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <unistd.h>
 
+#include <algorithm>
 #include <map>
 #include <utility>
 #include <vector>
@@ -54,11 +54,11 @@ const char kDefaultP2PDir[] = "/var/cache/p2p";
 // p2p ddoc for details.
 const char kCrosP2PFileSizeXAttrName[] = "user.cros-p2p-filesize";
 
-} // namespace
+}  // namespace
 
 // The default P2PManager::Configuration implementation.
 class ConfigurationImpl : public P2PManager::Configuration {
-public:
+ public:
   ConfigurationImpl() {}
 
   virtual ~ConfigurationImpl() {}
@@ -84,13 +84,13 @@ public:
     return args;
   }
 
-private:
+ private:
   DISALLOW_COPY_AND_ASSIGN(ConfigurationImpl);
 };
 
 // The default P2PManager implementation.
 class P2PManagerImpl : public P2PManager {
-public:
+ public:
   P2PManagerImpl(Configuration *configuration,
                  PrefsInterface *prefs,
                  const string& file_extension,
@@ -116,7 +116,7 @@ public:
   virtual bool FileMakeVisible(const string& file_id);
   virtual int CountSharedFiles();
 
-private:
+ private:
   // Enumeration for specifying visibility.
   enum Visibility {
     kVisible,
@@ -224,9 +224,9 @@ bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
   vector<string> args = configuration_->GetInitctlArgs(should_be_running);
   scoped_ptr<gchar*, GLibStrvFreeDeleter> argv(
       utils::StringVectorToGStrv(args));
-  if (!g_spawn_sync(NULL, // working_directory
+  if (!g_spawn_sync(NULL,  // working_directory
                     argv.get(),
-                    NULL, // envp
+                    NULL,  // envp
                     static_cast<GSpawnFlags>(G_SPAWN_SEARCH_PATH),
                     NULL, NULL,      // child_setup, user_data
                     NULL,            // standard_output
@@ -362,8 +362,8 @@ bool P2PManagerImpl::PerformHousekeeping() {
 
 // Helper class for implementing LookupUrlForFile().
 class LookupData {
-public:
-  LookupData(P2PManager::LookupCallback callback)
+ public:
+  explicit LookupData(P2PManager::LookupCallback callback)
     : callback_(callback),
       pid_(0),
       stdout_fd_(-1),
@@ -392,17 +392,17 @@ public:
     // guarantee is useful for testing).
 
     GError *error = NULL;
-    if (!g_spawn_async_with_pipes(NULL, // working_directory
+    if (!g_spawn_async_with_pipes(NULL,  // working_directory
                                   argv,
-                                  NULL, // envp
+                                  NULL,  // envp
                                   static_cast<GSpawnFlags>(G_SPAWN_SEARCH_PATH |
                                                      G_SPAWN_DO_NOT_REAP_CHILD),
-                                  NULL, // child_setup
+                                  NULL,  // child_setup
                                   this,
                                   &pid_,
-                                  NULL, // standard_input
+                                  NULL,  // standard_input
                                   &stdout_fd_,
-                                  NULL, // standard_error
+                                  NULL,  // standard_error
                                   &error)) {
       LOG(ERROR) << "Error spawning p2p-client: "
                  << utils::GetAndFreeGError(&error);
@@ -415,21 +415,21 @@ public:
         io_channel,
         static_cast<GIOCondition>(G_IO_IN | G_IO_PRI | G_IO_ERR | G_IO_HUP),
         OnIOChannelActivity, this);
-    CHECK(stdout_channel_source_id_ != 0);
+    CHECK_NE(stdout_channel_source_id_, 0u);
     g_io_channel_unref(io_channel);
 
     child_watch_source_id_ = g_child_watch_add(pid_, OnChildWatchActivity,
                                                this);
-    CHECK(child_watch_source_id_ != 0);
+    CHECK_NE(child_watch_source_id_, 0u);
 
     if (timeout.ToInternalValue() > 0) {
       timeout_source_id_ = g_timeout_add(timeout.InMilliseconds(),
                                          OnTimeout, this);
-      CHECK(timeout_source_id_ != 0);
+      CHECK_NE(timeout_source_id_, 0u);
     }
   }
 
-private:
+ private:
   void ReportErrorAndDeleteInIdle() {
     g_idle_add(static_cast<GSourceFunc>(OnIdleForReportErrorAndDelete), this);
   }
@@ -438,7 +438,7 @@ private:
     LookupData *lookup_data = reinterpret_cast<LookupData*>(user_data);
     lookup_data->ReportError();
     delete lookup_data;
-    return FALSE; // Remove source.
+    return FALSE;  // Remove source.
   }
 
   void IssueCallback(const string& url) {
@@ -501,7 +501,7 @@ private:
         g_free(str);
       }
     }
-    return TRUE; // Don't remove source.
+    return TRUE;  // Don't remove source.
   }
 
   static void OnChildWatchActivity(GPid pid,
@@ -526,7 +526,7 @@ private:
     LookupData *lookup_data = reinterpret_cast<LookupData*>(user_data);
     lookup_data->ReportError();
     delete lookup_data;
-    return TRUE; // Don't remove source.
+    return TRUE;  // Don't remove source.
   }
 
   P2PManager::LookupCallback callback_;
@@ -603,7 +603,7 @@ bool P2PManagerImpl::FileShare(const string& file_id,
   // space) and set the user.cros-p2p-filesize xattr.
   if (expected_size != 0) {
     if (fallocate(fd,
-                  FALLOC_FL_KEEP_SIZE, // Keep file size as 0.
+                  FALLOC_FL_KEEP_SIZE,  // Keep file size as 0.
                   0,
                   expected_size) != 0) {
       if (errno == ENOSYS || errno == EOPNOTSUPP) {
@@ -716,7 +716,7 @@ ssize_t P2PManagerImpl::FileGetExpectedSize(const string& file_id) {
   }
 
   char* endp = NULL;
-  long long int val = strtoll(ea_value, &endp, 0);
+  long long int val = strtoll(ea_value, &endp, 0);  // NOLINT(runtime/int)
   if (*endp != '\0') {
     LOG(ERROR) << "Error parsing the value '" << ea_value
                << "' of the xattr " << kCrosP2PFileSizeXAttrName

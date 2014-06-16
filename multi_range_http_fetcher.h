@@ -6,6 +6,7 @@
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_MULTI_RANGE_HTTP_FETCHER_H_
 
 #include <deque>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -106,7 +107,7 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
   class Range {
    public:
     Range(off_t offset, size_t length) : offset_(offset), length_(length) {}
-    Range(off_t offset) : offset_(offset), length_(0) {}
+    explicit Range(off_t offset) : offset_(offset), length_(0) {}
 
     inline off_t offset() const { return offset_; }
     inline size_t length() const { return length_; }

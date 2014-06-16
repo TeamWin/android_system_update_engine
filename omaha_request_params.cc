@@ -114,14 +114,14 @@ bool OmahaRequestParams::Init(const std::string& in_app_version,
 }
 
 bool OmahaRequestParams::CollectECFWVersions() const {
-  return (
+  return {
       StartsWithASCII(hwid_, string("SAMS ALEX"), true) ||
       StartsWithASCII(hwid_, string("BUTTERFLY"), true) ||
       StartsWithASCII(hwid_, string("LUMPY"), true) ||
       StartsWithASCII(hwid_, string("PARROT"), true) ||
       StartsWithASCII(hwid_, string("SPRING"), true) ||
       StartsWithASCII(hwid_, string("SNOW"), true)
-  );
+  };
 }
 
 bool OmahaRequestParams::SetTargetChannel(const std::string& new_target_channel,
@@ -179,8 +179,8 @@ void OmahaRequestParams::SetIsPowerwashAllowedFromLsbValue() {
   string is_powerwash_allowed_str = GetLsbValue(
       kIsPowerwashAllowedKey,
       "false",
-      NULL, // no need to validate
-      true); // always get it from stateful, as that's the only place it'll be
+      NULL,   // no need to validate
+      true);  // always get it from stateful, as that's the only place it'll be
   bool is_powerwash_allowed_new_value = (is_powerwash_allowed_str == "true");
   if (is_powerwash_allowed_ != is_powerwash_allowed_new_value) {
     is_powerwash_allowed_ = is_powerwash_allowed_new_value;

@@ -54,7 +54,7 @@ int64_t BlocksInExtents(
   }
   return ret;
 }
-}  // namespace {}
+}  // namespace
 
 class DeltaDiffGeneratorTest : public ::testing::Test {
  protected:
@@ -660,7 +660,7 @@ void DumpVect(const vector<T>& vect) {
   LOG(INFO) << "{" << ss.str() << "}";
 }
 
-}  // namespace {}
+}  // namespace
 
 TEST_F(DeltaDiffGeneratorTest, RunAsRootAssignTempBlocksTest) {
   Graph graph(9);

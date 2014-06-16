@@ -205,7 +205,7 @@ TEST_F(UpdateCheckSchedulerTest, ScheduleCheckDisabledTest) {
 
 TEST_F(UpdateCheckSchedulerTest, ScheduleCheckEnabledTest) {
   int interval_min, interval_max;
-  FuzzRange(100, 10, &interval_min,&interval_max);
+  FuzzRange(100, 10, &interval_min, &interval_max);
   EXPECT_CALL(scheduler_,
               GTimeoutAddSeconds(AllOf(Ge(interval_min), Le(interval_max)),
                                  scheduler_.StaticCheck)).Times(1);

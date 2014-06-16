@@ -34,7 +34,7 @@ namespace chromeos_update_engine {
 
 namespace {
 const off_t kCopyFileBufferSize = 128 * 1024;
-}  // namespace {}
+}  // namespace
 
 FilesystemCopierAction::FilesystemCopierAction(
     SystemState* system_state,

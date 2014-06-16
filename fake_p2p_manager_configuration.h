@@ -8,6 +8,9 @@
 #include "update_engine/p2p_manager.h"
 #include "update_engine/utils.h"
 
+#include <string>
+#include <vector>
+
 #include <glib.h>
 
 #include <base/logging.h>
@@ -18,7 +21,7 @@ namespace chromeos_update_engine {
 // Configuration for P2PManager for use in unit tests. Instead of
 // /var/cache/p2p, a temporary directory is used.
 class FakeP2PManagerConfiguration : public P2PManager::Configuration {
-public:
+ public:
   FakeP2PManagerConfiguration()
     : p2p_client_cmdline_format_("p2p-client --get-url=%s --minimum-size=%zu") {
     EXPECT_TRUE(utils::MakeTempDirectory("/tmp/p2p-tc.XXXXXX", &p2p_dir_));
@@ -35,7 +38,7 @@ public:
   // P2PManager::Configuration override
   virtual base::FilePath GetP2PDir() {
     return base::FilePath(p2p_dir_);
-  };
+  }
 
   // P2PManager::Configuration override
   virtual std::vector<std::string> GetInitctlArgs(bool is_start) {
@@ -75,7 +78,7 @@ public:
     p2p_client_cmdline_format_ = command_line_format;
   }
 
-private:
+ private:
   // Helper for parsing and splitting |command_line| into an argument
   // vector in much the same way a shell would except for not
   // supporting wildcards, globs, operators etc. See

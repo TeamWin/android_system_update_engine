@@ -128,7 +128,8 @@ class PythonHttpServer : public HttpServer {
     CHECK_EQ(strstr(line, kServerListeningMsgPrefix), line);
     const char* listening_port_str = line + listening_msg_prefix_len;
     char* end_ptr;
-    long raw_port = strtol(listening_port_str, &end_ptr, 10);
+    long raw_port = strtol(listening_port_str,  // NOLINT(runtime/int)
+                           &end_ptr, 10);
     CHECK(!*end_ptr || *end_ptr == '\n');
     port_ = static_cast<in_port_t>(raw_port);
     CHECK_GT(port_, 0);
@@ -228,7 +229,7 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
   using AnyHttpFetcherTest::NewLargeFetcher;
   virtual HttpFetcher* NewLargeFetcher(size_t num_proxies) {
     vector<char> big_data(1000000);
-    CHECK(num_proxies > 0);
+    CHECK_GT(num_proxies, 0u);
     proxy_resolver_.set_num_proxies(num_proxies);
     return new MockHttpFetcher(
         big_data.data(),
@@ -239,7 +240,7 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewSmallFetcher;
   virtual HttpFetcher* NewSmallFetcher(size_t num_proxies) {
-    CHECK(num_proxies > 0);
+    CHECK_GT(num_proxies, 0u);
     proxy_resolver_.set_num_proxies(num_proxies);
     return new MockHttpFetcher(
         "x",
@@ -260,7 +261,7 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewLargeFetcher;
   virtual HttpFetcher* NewLargeFetcher(size_t num_proxies) {
-    CHECK(num_proxies > 0);
+    CHECK_GT(num_proxies, 0u);
     proxy_resolver_.set_num_proxies(num_proxies);
     LibcurlHttpFetcher *ret = new
         LibcurlHttpFetcher(reinterpret_cast<ProxyResolver*>(&proxy_resolver_),
@@ -307,7 +308,7 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewLargeFetcher;
   virtual HttpFetcher* NewLargeFetcher(size_t num_proxies) {
-    CHECK(num_proxies > 0);
+    CHECK_GT(num_proxies, 0u);
     proxy_resolver_.set_num_proxies(num_proxies);
     ProxyResolver* resolver =
         reinterpret_cast<ProxyResolver*>(&proxy_resolver_);
@@ -349,7 +350,7 @@ class HttpFetcherTest : public ::testing::Test {
  private:
   static void TypeConstraint(T *a) {
     AnyHttpFetcherTest *b = a;
-    if (b == 0) // Silence compiler warning of unused variable.
+    if (b == 0)  // Silence compiler warning of unused variable.
       *b = a;
   }
 };
@@ -411,7 +412,7 @@ gboolean StartTransfer(gpointer data) {
   args->http_fetcher->BeginTransfer(args->url);
   return FALSE;
 }
-}  // namespace {}
+}  // namespace
 
 TYPED_TEST(HttpFetcherTest, SimpleTest) {
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -524,7 +525,7 @@ gboolean UnpausingTimeoutCallback(gpointer data) {
     delegate->Unpause();
   return TRUE;
 }
-}  // namespace {}
+}  // namespace
 
 TYPED_TEST(HttpFetcherTest, PauseTest) {
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -592,7 +593,7 @@ gboolean AbortingTimeoutCallback(gpointer data) {
     return FALSE;
   }
 }
-}  // namespace {}
+}  // namespace
 
 TYPED_TEST(HttpFetcherTest, AbortTest) {
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -641,7 +642,7 @@ class FlakyHttpFetcherTestDelegate : public HttpFetcherDelegate {
   string data;
   GMainLoop* loop_;
 };
-}  // namespace {}
+}  // namespace
 
 TYPED_TEST(HttpFetcherTest, FlakyTest) {
   if (this->test_.IsMock())
@@ -684,7 +685,7 @@ namespace {
 // the server dies.
 class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  FailureHttpFetcherTestDelegate(PythonHttpServer* server)
+  explicit FailureHttpFetcherTestDelegate(PythonHttpServer* server)
       : loop_(NULL),
         server_(server) {}
 
@@ -716,7 +717,7 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
   GMainLoop* loop_;
   PythonHttpServer* server_;
 };
-}  // namespace {}
+}  // namespace
 
 
 TYPED_TEST(HttpFetcherTest, FailureTest) {
@@ -786,7 +787,7 @@ const HttpResponseCode kRedirectCodes[] = {
 
 class RedirectHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  RedirectHttpFetcherTestDelegate(bool expected_successful)
+  explicit RedirectHttpFetcherTestDelegate(bool expected_successful)
       : expected_successful_(expected_successful) {}
   virtual void ReceivedBytes(HttpFetcher* fetcher,
                              const char* bytes, int length) {
@@ -794,9 +795,9 @@ class RedirectHttpFetcherTestDelegate : public HttpFetcherDelegate {
   }
   virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
     EXPECT_EQ(expected_successful_, successful);
-    if (expected_successful_)
+    if (expected_successful_) {
       EXPECT_EQ(kHttpResponseOk, fetcher->http_response_code());
-    else {
+    } else {
       EXPECT_GE(fetcher->http_response_code(), kHttpResponseMovedPermanently);
       EXPECT_LE(fetcher->http_response_code(), kHttpResponseTempRedirect);
     }
@@ -838,7 +839,7 @@ void RedirectTest(const HttpServer* server,
   }
   g_main_loop_unref(loop);
 }
-}  // namespace {}
+}  // namespace
 
 TYPED_TEST(HttpFetcherTest, SimpleRedirectTest) {
   if (this->test_.IsMock())
@@ -890,7 +891,7 @@ TYPED_TEST(HttpFetcherTest, BeyondMaxRedirectTest) {
 namespace {
 class MultiHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  MultiHttpFetcherTestDelegate(int expected_response_code)
+  explicit MultiHttpFetcherTestDelegate(int expected_response_code)
       : expected_response_code_(expected_response_code) {}
 
   virtual void ReceivedBytes(HttpFetcher* fetcher,
@@ -962,7 +963,7 @@ void MultiTest(HttpFetcher* fetcher_in,
   }
   g_main_loop_unref(loop);
 }
-}  // namespace {}
+}  // namespace
 
 TYPED_TEST(HttpFetcherTest, MultiHttpFetcherSimpleTest) {
   if (!this->test_.IsMulti())

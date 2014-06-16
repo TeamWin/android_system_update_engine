@@ -5,7 +5,7 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_ERROR_CODE_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_ERROR_CODE_H_
 
-#include <ostream>
+#include <ostream>  // NOLINT(readability/streams)
 
 namespace chromeos_update_engine {
 

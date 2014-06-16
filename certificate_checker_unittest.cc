@@ -55,7 +55,7 @@ class CertificateCheckerTest : public testing::Test {
   virtual void TearDown() {}
 
   FakeSystemState fake_system_state_;
-  PrefsMock* prefs_; // shortcut to fake_system_state_.mock_prefs()
+  PrefsMock* prefs_;  // shortcut to fake_system_state_.mock_prefs()
   OpenSSLWrapperMock openssl_wrapper_;
   // Parameters of our mock certificate digest.
   int depth_;
@@ -129,8 +129,8 @@ TEST_F(CertificateCheckerTest, FailedCertificate) {
   EXPECT_CALL(*prefs_, SetString(kPrefsCertificateReportToSendUpdate,
                                 kCertFailed))
       .WillOnce(Return(true));
-  EXPECT_CALL(*prefs_, GetString(_,_)).Times(0);
-  EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(_,_,_,_)).Times(0);
+  EXPECT_CALL(*prefs_, GetString(_, _)).Times(0);
+  EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(_, _, _, _)).Times(0);
   ASSERT_FALSE(CertificateChecker::CheckCertificateChange(
       server_to_check_, 0, NULL));
 }
@@ -164,7 +164,7 @@ TEST_F(CertificateCheckerTest, FlushNothingToReport) {
       .WillOnce(Return(false));
   EXPECT_CALL(*fake_system_state_.mock_metrics_lib(),
               SendUserActionToUMA(_)).Times(0);
-  EXPECT_CALL(*prefs_, SetString(_,_)).Times(0);
+  EXPECT_CALL(*prefs_, SetString(_, _)).Times(0);
   CertificateChecker::FlushReport();
 }
 

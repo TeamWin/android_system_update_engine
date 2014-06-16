@@ -455,7 +455,7 @@ void HandleDefault(int fd, const HttpRequest& request) {
 // Break a URL into terms delimited by slashes.
 class UrlTerms {
  public:
-  UrlTerms(string &url, size_t num_terms) {
+  UrlTerms(const string &url, size_t num_terms) {
     // URL must be non-empty and start with a slash.
     CHECK_GT(url.size(), static_cast<size_t>(0));
     CHECK_EQ(url[0], '/');
@@ -476,8 +476,8 @@ class UrlTerms {
   inline int GetInt(const off_t index) const {
     return atoi(GetCStr(index));
   }
-  inline long GetLong(const off_t index) const {
-    return atol(GetCStr(index));
+  inline size_t GetSizeT(const off_t index) const {
+    return static_cast<size_t>(atol(GetCStr(index)));
   }
 
  private:
@@ -494,18 +494,18 @@ void HandleConnection(int fd) {
     HandleQuit(fd);
   } else if (StartsWithASCII(url, "/download/", true)) {
     const UrlTerms terms(url, 2);
-    HandleGet(fd, request, terms.GetLong(1));
+    HandleGet(fd, request, terms.GetSizeT(1));
   } else if (StartsWithASCII(url, "/flaky/", true)) {
     const UrlTerms terms(url, 5);
-    HandleGet(fd, request, terms.GetLong(1), terms.GetLong(2), terms.GetLong(3),
-              terms.GetLong(4));
+    HandleGet(fd, request, terms.GetSizeT(1), terms.GetSizeT(2),
+              terms.GetInt(3), terms.GetInt(4));
   } else if (url.find("/redirect/") == 0) {
     HandleRedirect(fd, request);
   } else if (url == "/error") {
     HandleError(fd, request);
   } else if (StartsWithASCII(url, "/error-if-offset/", true)) {
     const UrlTerms terms(url, 3);
-    HandleErrorIfOffset(fd, request, terms.GetLong(1), terms.GetInt(2));
+    HandleErrorIfOffset(fd, request, terms.GetSizeT(1), terms.GetInt(2));
   } else {
     HandleDefault(fd, request);
   }
@@ -515,7 +515,7 @@ void HandleConnection(int fd) {
 
 }  // namespace chromeos_update_engine
 
-using namespace chromeos_update_engine;
+using namespace chromeos_update_engine;  // NOLINT(build/namespaces)
 
 
 void usage(const char *prog_arg) {

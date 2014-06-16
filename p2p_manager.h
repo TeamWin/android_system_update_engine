@@ -21,11 +21,11 @@ namespace chromeos_update_engine {
 
 // Interface for sharing and discovering files via p2p.
 class P2PManager {
-public:
+ public:
   // Interface used for P2PManager implementations. The sole reason
   // for this interface is unit testing.
   class Configuration {
-  public:
+   public:
     virtual ~Configuration() {}
 
     // Gets the path to the p2p dir being used, e.g. /var/cache/p2p.

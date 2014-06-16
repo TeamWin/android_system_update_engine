@@ -112,8 +112,8 @@ TEST_F(MetadataTest, RunAsRootReadMetadata) {
   //   - test_file indirect block (inode 12)
   struct {
     string metadata_name;
-    off_t start_block; // Set to -1 to skip start block verification
-    off_t num_blocks; // Set to -1 to skip num blocks verification
+    off_t start_block;  // Set to -1 to skip start block verification
+    off_t num_blocks;   // Set to -1 to skip num blocks verification
   } exp_results[] =
       {{"<rootfs-bg-0-0-metadata>", 0, 104},
        {"<rootfs-bg-0-1-metadata>", 104, 104},

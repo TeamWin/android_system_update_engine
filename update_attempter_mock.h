@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_ATTEMPTER_MOCK_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_ATTEMPTER_MOCK_H_
 
+#include <string>
+
 #include "update_engine/update_attempter.h"
 
 #include <gmock/gmock.h>

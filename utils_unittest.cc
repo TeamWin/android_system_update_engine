@@ -96,8 +96,10 @@ TEST(UtilsTest, NormalizePathTest) {
                                                       true));
   EXPECT_EQ("\\\\", utils::NormalizePath("\\\\", false));
   EXPECT_EQ("\\\\", utils::NormalizePath("\\\\", true));
-  EXPECT_EQ("\\:/;$PATH\n\\", utils::NormalizePath("\\://;$PATH\n\\", false));
-  EXPECT_EQ("\\:/;$PATH\n\\", utils::NormalizePath("\\://;$PATH\n\\", true));
+  EXPECT_EQ("\\:/;$PATH\n\\",
+            utils::NormalizePath("\\://;$PATH\n\\", false));
+  EXPECT_EQ("\\:/;$PATH\n\\",
+            utils::NormalizePath("\\://;$PATH\n\\", true));
   EXPECT_EQ("/spaces s/ ok/s / / /",
             utils::NormalizePath("/spaces s/ ok/s / / /", false));
   EXPECT_EQ("/spaces s/ ok/s / / ",
@@ -210,14 +212,6 @@ TEST(UtilsTest, IsDirTest) {
   EXPECT_FALSE(utils::IsDir(temp_symlink.c_str()));
   EXPECT_FALSE(utils::IsDir("/non/existent/path"));
   ASSERT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
-}
-
-TEST(UtilsTest, TempFilenameTest) {
-  const string original = "/foo.XXXXXX";
-  const string result = utils::TempFilename(original);
-  EXPECT_EQ(original.size(), result.size());
-  EXPECT_TRUE(utils::StringHasPrefix(result, "/foo."));
-  EXPECT_FALSE(utils::StringHasSuffix(result, "XXXXXX"));
 }
 
 TEST(UtilsTest, GetDiskNameTest) {
@@ -408,7 +402,7 @@ gboolean  TerminateScheduleCrashReporterUploadTest(void* arg) {
   g_main_loop_quit(loop);
   return FALSE;  // Don't call this callback again
 }
-}  // namespace {}
+}  // namespace
 
 TEST(UtilsTest, ScheduleCrashReporterUploadTest) {
   // Not much to test. At least this tests for memory leaks, crashes,
@@ -551,7 +545,7 @@ TEST(UtilsTest, ConvertToOmahaInstallDate) {
   // offset which is one hour. Conveniently, if the function were
   // someday modified to be DST aware, this test would have to be
   // modified as well.
-  const time_t dst_time = 1180940400; // Jun 4, 2007 0:00 PDT.
+  const time_t dst_time = 1180940400;  // Jun 4, 2007 0:00 PDT.
   const time_t fudge = 3600;
   int value1, value2;
   EXPECT_TRUE(utils::ConvertToOmahaInstallDate(

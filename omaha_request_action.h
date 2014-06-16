@@ -48,7 +48,7 @@ struct OmahaEvent {
     kResultError = 0,
     kResultSuccess = 1,
     kResultSuccessReboot = 2,
-    kResultUpdateDeferred = 9, // When we ignore/defer updates due to policy.
+    kResultUpdateDeferred = 9,  // When we ignore/defer updates due to policy.
   };
 
   OmahaEvent()

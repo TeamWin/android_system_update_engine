@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include <base/file_util.h>
@@ -174,7 +175,6 @@ bool PReadAll(int fd, void* buf, size_t count, off_t offset,
   }
   *out_bytes_read = bytes_read;
   return true;
-
 }
 
 // Append |nbytes| of content from |buf| to the vector pointed to by either
@@ -327,7 +327,7 @@ class ScopedDirCloser {
  private:
   DIR** dir_;
 };
-}  // namespace {}
+}  // namespace
 
 bool RecursiveUnlinkDir(const std::string& path) {
   struct stat stbuf;
@@ -527,27 +527,6 @@ bool IsDir(const char* path) {
   return S_ISDIR(stbuf.st_mode);
 }
 
-std::string TempFilename(string path) {
-  static const string suffix("XXXXXX");
-  CHECK(StringHasSuffix(path, suffix));
-  do {
-    string new_suffix;
-    for (unsigned int i = 0; i < suffix.size(); i++) {
-      int r = rand() % (26 * 2 + 10);  // [a-zA-Z0-9]
-      if (r < 26)
-        new_suffix.append(1, 'a' + r);
-      else if (r < (26 * 2))
-        new_suffix.append(1, 'A' + r - 26);
-      else
-        new_suffix.append(1, '0' + r - (26 * 2));
-    }
-    CHECK_EQ(new_suffix.size(), suffix.size());
-    path.resize(path.size() - new_suffix.size());
-    path.append(new_suffix);
-  } while (FileExists(path.c_str()));
-  return path;
-}
-
 // If |path| is absolute, or explicit relative to the current working directory,
 // leaves it as is. Otherwise, if TMPDIR is defined in the environment and is
 // non-empty, prepends it to |path|. Otherwise, prepends /tmp.  Returns the
@@ -612,7 +591,7 @@ bool StringHasPrefix(const std::string& str, const std::string& prefix) {
 
 bool MountFilesystem(const string& device,
                      const string& mountpoint,
-                     unsigned long mountflags) {
+                     unsigned long mountflags) {  // NOLINT(runtime/int)
   int rc = mount(device.c_str(), mountpoint.c_str(), "ext3", mountflags, NULL);
   if (rc < 0) {
     string msg = ErrnoNumberAsString(errno);
@@ -802,7 +781,7 @@ namespace {
 // consistent stack trace.
 gboolean TriggerCrashReporterUpload(void* unused) {
   pid_t pid = fork();
-  CHECK(pid >= 0) << "fork failed";  // fork() failed. Something is very wrong.
+  CHECK_GE(pid, 0) << "fork failed";  // fork() failed. Something is very wrong.
   if (pid == 0) {
     // We are the child. Crash.
     abort();  // never returns
@@ -812,7 +791,7 @@ gboolean TriggerCrashReporterUpload(void* unused) {
   LOG_IF(ERROR, result < 0) << "waitpid() failed";
   return FALSE;  // Don't call this callback again
 }
-}  // namespace {}
+}  // namespace
 
 void ScheduleCrashReporterUpload() {
   g_idle_add(&TriggerCrashReporterUpload, NULL);
@@ -822,8 +801,8 @@ bool SetCpuShares(CpuShares shares) {
   string string_shares = base::IntToString(static_cast<int>(shares));
   string cpu_shares_file = string(utils::kCGroupDir) + "/cpu.shares";
   LOG(INFO) << "Setting cgroup cpu shares to  " << string_shares;
-  if(utils::WriteFile(cpu_shares_file.c_str(), string_shares.c_str(),
-                      string_shares.size())){
+  if (utils::WriteFile(cpu_shares_file.c_str(), string_shares.c_str(),
+                       string_shares.size())) {
     return true;
   } else {
     LOG(ERROR) << "Failed to change cgroup cpu shares to "<< string_shares
@@ -1184,7 +1163,7 @@ string GetFlagNames(uint32_t code) {
                     static_cast<uint32_t>(ErrorCode::kSpecialFlags));
   string flag_names;
   string separator = "";
-  for(size_t i = 0; i < sizeof(flags) * 8; i++) {
+  for (size_t i = 0; i < sizeof(flags) * 8; i++) {
     uint32_t flag = flags & (1 << i);
     if (flag) {
       flag_names += separator + CodeToString(static_cast<ErrorCode>(flag));

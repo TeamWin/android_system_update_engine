@@ -34,7 +34,7 @@ bool IndexOf(const vector<T>& vect,
   }
   return false;
 }
-}  // namespace {}
+}  // namespace
 
 TEST(TopologicalSortTest, SimpleTest) {
   int counter = 0;

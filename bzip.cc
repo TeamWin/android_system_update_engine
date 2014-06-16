@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -59,7 +59,7 @@ bool BzipData(const char* const in,
   // Try increasing buffer size until it works
   size_t buf_size = in_size;
   out->resize(buf_size);
-  
+
   for (;;) {
     uint32_t data_size = buf_size;
     int rc = F(&(*out)[0], &data_size, in, in_size);
@@ -69,14 +69,14 @@ bool BzipData(const char* const in,
       out->resize(data_size);
       return true;
     }
-    
+
     // Data didn't fit; double the buffer size.
     buf_size *= 2;
     out->resize(buf_size);
   }
 }
 
-}  // namespace {}
+}  // namespace
 
 bool BzipDecompress(const std::vector<char>& in, std::vector<char>* out) {
   return BzipData<BzipBuffToBuffDecompress>(&in[0],
@@ -103,7 +103,7 @@ bool BzipString(const std::string& str,
   out->insert(out->end(), temp.begin(), temp.end());
   return true;
 }
-}  // namespace {}
+}  // namespace
 
 bool BzipCompressString(const std::string& str,
                         std::vector<char>* out) {
@@ -115,4 +115,4 @@ bool BzipDecompressString(const std::string& str,
   return BzipString<BzipData<BzipBuffToBuffDecompress> >(str, out);
 }
 
-} // namespace chromeos_update_engine
+}  // namespace chromeos_update_engine

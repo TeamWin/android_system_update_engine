@@ -52,7 +52,7 @@ class OmahaResponseHandlerActionProcessorDelegate
 };
 
 namespace {
-const string kLongName =
+const char* const kLongName =
     "very_long_name_and_no_slashes-very_long_name_and_no_slashes"
     "very_long_name_and_no_slashes-very_long_name_and_no_slashes"
     "very_long_name_and_no_slashes-very_long_name_and_no_slashes"
@@ -61,8 +61,8 @@ const string kLongName =
     "very_long_name_and_no_slashes-very_long_name_and_no_slashes"
     "very_long_name_and_no_slashes-very_long_name_and_no_slashes"
     "-the_update_a.b.c.d_DELTA_.tgz";
-const string kBadVersion = "don't update me";
-}  // namespace {}
+const char* const kBadVersion = "don't update me";
+}  // namespace
 
 bool OmahaResponseHandlerActionTest::DoTestCommon(
     FakeSystemState* fake_system_state,
@@ -76,7 +76,7 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
 
   ObjectFeederAction<OmahaResponse> feeder_action;
   feeder_action.set_obj(in);
-  if (in.update_exists and in.version != kBadVersion) {
+  if (in.update_exists && in.version != kBadVersion) {
     EXPECT_CALL(*(fake_system_state->mock_prefs()),
                 SetString(kPrefsUpdateCheckResponseHash, in.hash))
         .WillOnce(Return(true));

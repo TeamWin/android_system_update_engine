@@ -105,7 +105,7 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   OmahaResponse response;
   FakeSystemState fake_system_state;
   NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
+  EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
@@ -153,7 +153,7 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   response.metadata_signature = "msign";
   FakeSystemState fake_system_state;
   NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
+  EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
@@ -206,7 +206,7 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   response.metadata_signature = "metasign";
   FakeSystemState fake_system_state;
   NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
+  EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsFullPayloadAttemptNumber, 0))
@@ -253,7 +253,7 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
   PayloadState payload_state;
 
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
+  EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   // Payload attempt should start with 0 and then advance to 1.
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
@@ -367,7 +367,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   int progress_bytes = 100;
   NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
 
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
+  EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(2));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
@@ -512,7 +512,7 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
   FakeSystemState fake_system_state;
   NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
 
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
+  EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
@@ -558,7 +558,7 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
   FakeSystemState fake_system_state;
   NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
 
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AnyNumber());
+  EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 1))
@@ -623,7 +623,7 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   FakeSystemState fake_system_state2;
   NiceMock<PrefsMock>* prefs2 = fake_system_state2.mock_prefs();
   EXPECT_CALL(*prefs2, Exists(_)).WillRepeatedly(Return(true));
-  EXPECT_CALL(*prefs2, GetInt64(_,_)).Times(AtLeast(1));
+  EXPECT_CALL(*prefs2, GetInt64(_, _)).Times(AtLeast(1));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsPayloadAttemptNumber, _))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsFullPayloadAttemptNumber, _))
@@ -657,7 +657,7 @@ TEST(PayloadStateTest, NoBackoffInteractiveChecks) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   OmahaRequestParams params(&fake_system_state);
-  params.Init("", "", true); // is_interactive = True.
+  params.Init("", "", true);  // is_interactive = True.
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -680,7 +680,7 @@ TEST(PayloadStateTest, NoBackoffForP2PUpdates) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   OmahaRequestParams params(&fake_system_state);
-  params.Init("", "", false); // is_interactive = False.
+  params.Init("", "", false);  // is_interactive = False.
   fake_system_state.set_request_params(&params);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -1025,7 +1025,7 @@ TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
   PayloadState payload_state;
 
   NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
-  EXPECT_CALL(*prefs, SetInt64(_,_)).Times(AtLeast(0));
+  EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AtLeast(0));
   EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 1)).Times(AtLeast(1));
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
@@ -1148,7 +1148,8 @@ TEST(PayloadStateTest, DurationsAreCorrect) {
   PayloadState payload_state2;
   EXPECT_TRUE(payload_state2.Initialize(&fake_system_state));
   EXPECT_EQ(payload_state2.GetUpdateDuration().InMicroseconds(), 10000000);
-  EXPECT_EQ(payload_state2.GetUpdateDurationUptime().InMicroseconds(),10000000);
+  EXPECT_EQ(payload_state2.GetUpdateDurationUptime().InMicroseconds(),
+            10000000);
 
   // Advance wall-clock by 7 seconds and monotonic clock by 6 seconds
   // and check that the durations are increased accordingly.
@@ -1156,7 +1157,8 @@ TEST(PayloadStateTest, DurationsAreCorrect) {
   fake_clock.SetMonotonicTime(Time::FromInternalValue(6005000));
   payload_state2.UpdateSucceeded();
   EXPECT_EQ(payload_state2.GetUpdateDuration().InMicroseconds(), 17000000);
-  EXPECT_EQ(payload_state2.GetUpdateDurationUptime().InMicroseconds(),16000000);
+  EXPECT_EQ(payload_state2.GetUpdateDurationUptime().InMicroseconds(),
+            16000000);
 
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
@@ -1824,4 +1826,4 @@ TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
-}
+}  // namespace chromeos_update_engine

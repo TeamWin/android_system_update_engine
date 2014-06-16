@@ -425,7 +425,7 @@ bool ReadInodeMetadata(Graph* graph,
   return true;
 }
 
-}  // namespace {}
+}  // namespace
 
 // Reads metadata from old image and new image and determines
 // the smallest way to encode the metadata for the diff.

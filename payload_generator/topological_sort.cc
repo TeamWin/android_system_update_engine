@@ -31,7 +31,7 @@ void TopologicalSortVisit(const Graph& graph,
   // Visit this node.
   nodes->push_back(node);
 }
-}  // namespace {}
+}  // namespace
 
 void TopologicalSort(const Graph& graph, vector<Vertex::Index>* out) {
   set<Vertex::Index> visited_nodes;

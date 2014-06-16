@@ -17,7 +17,7 @@ namespace chromeos_update_engine {
 
 namespace {
   const size_t kBlockSize = 4096;
-}  // namespace {}
+}  // namespace
 
 
 class FullUpdateGeneratorTest : public ::testing::Test { };

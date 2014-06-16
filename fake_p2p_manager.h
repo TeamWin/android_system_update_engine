@@ -5,13 +5,15 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_H_
 
+#include <string>
+
 #include "update_engine/p2p_manager.h"
 
 namespace chromeos_update_engine {
 
 // A fake implementation of P2PManager.
 class FakeP2PManager : public P2PManager {
-public:
+ public:
   FakeP2PManager() :
     is_p2p_enabled_(false),
     ensure_p2p_running_result_(false),
@@ -102,7 +104,7 @@ public:
     lookup_url_for_file_result_ = url;
   }
 
-private:
+ private:
   bool is_p2p_enabled_;
   bool ensure_p2p_running_result_;
   bool ensure_p2p_not_running_result_;

@@ -25,11 +25,11 @@ class SystemState;
 // essential state needed for the processing of the request/response.  The
 // strings in this struct should not be XML escaped.
 //
-// TODO (jaysri): chromium-os:39752 tracks the need to rename this class to
+// TODO(jaysri): chromium-os:39752 tracks the need to rename this class to
 // reflect its lifetime more appropriately.
 class OmahaRequestParams {
  public:
-  OmahaRequestParams(SystemState* system_state)
+  explicit OmahaRequestParams(SystemState* system_state)
       : system_state_(system_state),
         os_platform_(kOsPlatform),
         os_version_(kOsVersion),

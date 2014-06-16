@@ -4,6 +4,7 @@
 
 #include "update_engine/extent_ranges.h"
 
+#include <algorithm>
 #include <set>
 #include <utility>
 #include <vector>
@@ -62,7 +63,7 @@ Extent UnionOverlappingExtents(const Extent& first, const Extent& second) {
   return ExtentForRange(start, end - start);
 }
 
-}  // namespace {}
+}  // namespace
 
 void ExtentRanges::AddExtent(Extent extent) {
   if (extent.start_block() == kSparseHole || extent.num_blocks() == 0)
@@ -105,7 +106,7 @@ ExtentRanges::ExtentSet SubtractOverlappingExtents(const Extent& base,
   }
   return ret;
 }
-}  // namespace {}
+}  // namespace
 
 void ExtentRanges::SubtractExtent(const Extent& extent) {
   if (extent.start_block() == kSparseHole || extent.num_blocks() == 0)

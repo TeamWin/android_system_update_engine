@@ -7,7 +7,6 @@
 
 #include "update_engine/terminator.h"
 
-using std::string;
 using testing::ExitedWithCode;
 
 namespace chromeos_update_engine {
@@ -36,7 +35,7 @@ void UnblockExitThroughUnblocker() {
 void RaiseSIGTERM() {
   ASSERT_EXIT(raise(SIGTERM), ExitedWithCode(2), "");
 }
-}  // namespace {}
+}  // namespace
 
 TEST_F(TerminatorTest, HandleSignalTest) {
   Terminator::set_exit_blocked(true);

@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 
 #include <base/basictypes.h>
 #include <base/logging.h>
@@ -214,7 +215,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // the glib main loop. libcurl may open/close descriptors and switch their
   // directions so maintain two separate lists so that watch conditions can be
   // set appropriately.
-  typedef std::map<int, std::pair<GIOChannel*, guint> > IOChannels;
+  typedef std::map<int, std::pair<GIOChannel*, guint>> IOChannels;
   IOChannels io_channels_[2];
 
   // if non-NULL, a timer we're waiting on. glib main loop will call us back

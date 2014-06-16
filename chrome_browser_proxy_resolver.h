@@ -5,8 +5,10 @@
 #ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_CHROME_BROWSER_PROXY_RESOLVER_H_
 #define CHROMEOS_PLATFORM_UPDATE_ENGINE_CHROME_BROWSER_PROXY_RESOLVER_H_
 
+#include <deque>
 #include <map>
 #include <string>
+#include <utility>
 
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-lowlevel.h>
@@ -60,11 +62,11 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
       DBusMessage* message);
   // Handle no reply:
   void HandleTimeout(std::string source_url);
-  
+
   // Parses a string-encoded list of proxies and returns a deque
   // of individual proxies. The last one will always be kNoProxy.
   static std::deque<std::string> ParseProxyString(const std::string& input);
-  
+
   // Deletes internal state for the first instance of url in the state.
   // If delete_timer is set, calls g_source_destroy on the timer source.
   // Returns the callback in an out parameter. Returns true on success.

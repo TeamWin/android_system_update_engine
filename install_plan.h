@@ -95,7 +95,7 @@ class ActionTraits<InstallPlanAction> {
 class InstallPlanAction : public Action<InstallPlanAction> {
  public:
   InstallPlanAction() {}
-  InstallPlanAction(const InstallPlan& install_plan):
+  explicit InstallPlanAction(const InstallPlan& install_plan):
     install_plan_(install_plan) {}
 
   virtual void PerformAction() {
@@ -116,7 +116,7 @@ class InstallPlanAction : public Action<InstallPlanAction> {
  private:
   InstallPlan install_plan_;
 
-  DISALLOW_COPY_AND_ASSIGN (InstallPlanAction);
+  DISALLOW_COPY_AND_ASSIGN(InstallPlanAction);
 };
 
 }  // namespace chromeos_update_engine

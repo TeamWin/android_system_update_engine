@@ -83,7 +83,7 @@ class DownloadAction : public InstallPlanAction,
 
   // Returns the p2p file id for the file being written or the empty
   // string if we're not writing to a p2p file.
-  std::string p2p_file_id() { return p2p_file_id_; };
+  std::string p2p_file_id() { return p2p_file_id_; }
 
  private:
   // Closes the file descriptor for the p2p file being written and

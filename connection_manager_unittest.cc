@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <set>
+#include <string>
+
 #include <base/logging.h>
 #include <chromeos/dbus/service_constants.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <string>
 
 #include "update_engine/connection_manager.h"
 #include "update_engine/fake_system_state.h"

@@ -18,7 +18,7 @@ namespace chromeos_update_engine {
 
 class BzipExtentWriter : public ExtentWriter {
  public:
-  BzipExtentWriter(ExtentWriter* next) : next_(next) {
+  explicit BzipExtentWriter(ExtentWriter* next) : next_(next) {
     memset(&stream_, 0, sizeof(stream_));
   }
   ~BzipExtentWriter() {}

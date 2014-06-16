@@ -7,6 +7,7 @@
 
 #include <inttypes.h>
 
+#include <string>
 #include <vector>
 
 #include <base/time/time.h>
