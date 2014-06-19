@@ -8,6 +8,7 @@
 #include <base/callback.h>
 #include <base/memory/ref_counted.h>
 #include <base/memory/scoped_ptr.h>
+#include <base/time/time.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/update_manager/default_policy.h"
@@ -22,7 +23,7 @@ class UpdateManager {
   // Creates the UpdateManager instance, assuming ownership on the provided
   // |state|.
   UpdateManager(chromeos_update_engine::ClockInterface* clock,
-                State* state);
+                base::TimeDelta evaluation_timeout, State* state);
 
   virtual ~UpdateManager() {}
 
@@ -118,6 +119,9 @@ class UpdateManager {
 
   // Pointer to the mockable clock interface;
   chromeos_update_engine::ClockInterface* clock_;
+
+  // Timeout for a policy evaluation.
+  const base::TimeDelta evaluation_timeout_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateManager);
 };

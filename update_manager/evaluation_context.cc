@@ -20,8 +20,10 @@ using std::string;
 
 namespace chromeos_update_manager {
 
-EvaluationContext::EvaluationContext(ClockInterface* clock)
+EvaluationContext::EvaluationContext(ClockInterface* clock,
+                                     TimeDelta evaluation_timeout)
     : clock_(clock),
+      evaluation_timeout_(evaluation_timeout),
       weak_ptr_factory_(this) {
   ResetEvaluation();
 }

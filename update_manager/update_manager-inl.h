@@ -84,7 +84,8 @@ EvalStatus UpdateManager::PolicyRequest(
                                         std::string*, R*,
                                         ExpectedArgs...) const,
     R* result, ActualArgs... args) {
-  scoped_refptr<EvaluationContext> ec(new EvaluationContext(clock_));
+  scoped_refptr<EvaluationContext> ec(
+      new EvaluationContext(clock_, evaluation_timeout_));
   // A PolicyRequest allways consists on a single evaluation on a new
   // EvaluationContext.
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
@@ -106,7 +107,8 @@ void UpdateManager::AsyncPolicyRequest(
                                         std::string*, R*,
                                         ExpectedArgs...) const,
     ActualArgs... args) {
-  scoped_refptr<EvaluationContext> ec = new EvaluationContext(clock_);
+  scoped_refptr<EvaluationContext> ec =
+      new EvaluationContext(clock_, evaluation_timeout_);
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
   // explicitly instantiate UpdateManager::OnPolicyReadyToEvaluate with the
   // latter in lieu of the former.

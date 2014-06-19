@@ -10,8 +10,8 @@
 namespace chromeos_update_manager {
 
 UpdateManager::UpdateManager(chromeos_update_engine::ClockInterface* clock,
-                             State* state)
-      : state_(state), clock_(clock) {
+                             base::TimeDelta evaluation_timeout, State* state)
+      : state_(state), clock_(clock), evaluation_timeout_(evaluation_timeout) {
   // TODO(deymo): Make it possible to replace this policy with a different
   // implementation with a build-time flag.
   policy_.reset(new ChromeOSPolicy());

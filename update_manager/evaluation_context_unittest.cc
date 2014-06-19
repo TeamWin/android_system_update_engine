@@ -50,7 +50,7 @@ class UmEvaluationContextTest : public ::testing::Test {
     fake_clock_.SetMonotonicTime(Time::FromInternalValue(12345678L));
     // Mar 2, 2006 1:23:45 UTC is 1141262625 since the Unix Epoch.
     fake_clock_.SetWallclockTime(Time::FromTimeT(1141262625));
-    eval_ctx_ = new EvaluationContext(&fake_clock_);
+    eval_ctx_ = new EvaluationContext(&fake_clock_, default_timeout_);
   }
 
   virtual void TearDown() {
@@ -62,8 +62,6 @@ class UmEvaluationContextTest : public ::testing::Test {
     EXPECT_TRUE(fake_poll_var_.observer_list_.empty());
   }
 
-  // TODO(deymo): Update the default timeout to the one passed on construction.
-  // See crbug.com/363790
   base::TimeDelta default_timeout_ = base::TimeDelta::FromSeconds(5);
 
   FakeClock fake_clock_;

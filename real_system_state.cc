@@ -5,6 +5,7 @@
 #include "update_engine/real_system_state.h"
 
 #include <base/file_util.h>
+#include <base/time/time.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/update_manager/state_factory.h"
@@ -52,7 +53,8 @@ bool RealSystemState::Initialize() {
     return false;
   }
   update_manager_.reset(
-      new chromeos_update_manager::UpdateManager(&clock_, um_state));
+      new chromeos_update_manager::UpdateManager(
+          &clock_, base::TimeDelta::FromSeconds(5), um_state));
 
   if (!payload_state_.Initialize(this)) {
     LOG(ERROR) << "Failed to initialize the payload state object.";

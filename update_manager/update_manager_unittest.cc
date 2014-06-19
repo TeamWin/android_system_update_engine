@@ -58,7 +58,8 @@ class UmUpdateManagerTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     fake_state_ = new FakeState();
-    umut_.reset(new UpdateManager(&fake_clock_, fake_state_));
+    umut_.reset(new UpdateManager(&fake_clock_, TimeDelta::FromSeconds(5),
+                                  fake_state_));
   }
 
   FakeState* fake_state_;  // Owned by the umut_.

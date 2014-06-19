@@ -30,7 +30,7 @@ class UmChromeOSPolicyTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     SetUpDefaultClock();
-    eval_ctx_ = new EvaluationContext(&fake_clock_);
+    eval_ctx_ = new EvaluationContext(&fake_clock_, TimeDelta::FromSeconds(5));
     SetUpDefaultState();
     SetUpDefaultDevicePolicy();
   }

@@ -51,7 +51,8 @@ class EvaluationContext :
     public base::RefCounted<EvaluationContext>,
     private BaseVariable::ObserverInterface {
  public:
-  explicit EvaluationContext(chromeos_update_engine::ClockInterface* clock);
+  explicit EvaluationContext(chromeos_update_engine::ClockInterface* clock,
+                             base::TimeDelta evaluation_timeout);
   ~EvaluationContext();
 
   // Returns a pointer to the value returned by the passed variable |var|. The
@@ -138,8 +139,7 @@ class EvaluationContext :
 
   // The timeout of an evaluation, used to compute the RemainingTime() of an
   // evaluation.
-  // TODO(deymo): Receive the timeout from the UpdateManager. crbug.com/363790
-  base::TimeDelta evaluation_timeout_ = base::TimeDelta::FromSeconds(5);
+  const base::TimeDelta evaluation_timeout_;
 
   // The timestamp in the ClockInterface::GetMonotonicTime() scale at which the
   // current evaluation should finish. This is used to compute the
