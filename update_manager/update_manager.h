@@ -53,6 +53,7 @@ class UpdateManager {
 
   // Evaluates the given |policy_method| policy with the provided |args|
   // arguments and calls the |callback| callback with the result when done.
+  // Evaluation is not allowed to exceed |request_timeout|.
   //
   // If the policy implementation should block, returning a
   // EvalStatus::kAskMeAgainLater status the Update Manager will re-evaluate the
@@ -62,6 +63,7 @@ class UpdateManager {
   template<typename R, typename... ActualArgs, typename... ExpectedArgs>
   void AsyncPolicyRequest(
       base::Callback<void(EvalStatus, const R& result)> callback,
+      base::TimeDelta request_timeout,
       EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
                                           std::string*, R*,
                                           ExpectedArgs...) const,
@@ -81,6 +83,8 @@ class UpdateManager {
   FRIEND_TEST(UmUpdateManagerTest, PolicyRequestCallsDefaultOnError);
   FRIEND_TEST(UmUpdateManagerTest, PolicyRequestDoesntBlockDeathTest);
   FRIEND_TEST(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation);
+  FRIEND_TEST(UmUpdateManagerTest, AsyncPolicyRequestDoesNotTimeOut);
+  FRIEND_TEST(UmUpdateManagerTest, AsyncPolicyRequestTimesOut);
 
   // EvaluatePolicy() evaluates the passed |policy_method| method on the current
   // policy with the given |args| arguments. If the method fails, the default

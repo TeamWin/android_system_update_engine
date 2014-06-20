@@ -73,7 +73,8 @@ class UmEvaluationContextTest : public ::testing::Test {
     fake_clock_.SetMonotonicTime(Time::FromInternalValue(12345678L));
     // Mar 2, 2006 1:23:45 UTC is 1141262625 since the Unix Epoch.
     fake_clock_.SetWallclockTime(Time::FromTimeT(1141262625));
-    eval_ctx_ = new EvaluationContext(&fake_clock_, default_timeout_);
+    eval_ctx_ = new EvaluationContext(&fake_clock_, default_timeout_,
+                                      default_timeout_);
   }
 
   virtual void TearDown() {
@@ -181,7 +182,7 @@ TEST_F(UmEvaluationContextTest, GetValueMixedTypes) {
 }
 
 // Test that we don't schedule an event if there's no variable to wait for.
-TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithoutVariablesTest) {
+TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithoutVariables) {
   fake_const_var_.reset(new string("Hello world!"));
   EXPECT_EQ(*eval_ctx_->GetValue(&fake_const_var_), "Hello world!");
 
@@ -189,7 +190,7 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithoutVariablesTest) {
 }
 
 // Test that reevaluation occurs when an async variable it depends on changes.
-TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithVariablesTest) {
+TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithVariables) {
   fake_async_var_.reset(new string("Async value"));
   eval_ctx_->GetValue(&fake_async_var_);
 
@@ -208,7 +209,7 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithVariablesTest) {
 }
 
 // Test that we don't re-schedule the events if we are attending one.
-TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutCalledTwiceTest) {
+TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutCalledTwice) {
   fake_async_var_.reset(new string("Async value"));
   eval_ctx_->GetValue(&fake_async_var_);
 
@@ -222,24 +223,8 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutCalledTwiceTest) {
   EXPECT_TRUE(value);
 }
 
-// Test that we clear the events when destroying the EvaluationContext.
-TEST_F(UmEvaluationContextTest, RemoveObserversAndTimeoutTest) {
-  fake_async_var_.reset(new string("Async value"));
-  eval_ctx_->GetValue(&fake_async_var_);
-
-  bool value = false;
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
-  eval_ctx_ = NULL;
-
-  // This should not trigger the callback since the EvaluationContext waiting
-  // for it is gone, and it should have remove all its observers.
-  fake_async_var_.NotifyValueChanged();
-  RunGMainLoopMaxIterations(100);
-  EXPECT_FALSE(value);
-}
-
 // Test that reevaluation occurs when a polling timeout fires.
-TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutRunsFromTimeoutTest) {
+TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutRunsFromTimeout) {
   fake_poll_var_.reset(new string("Polled value"));
   eval_ctx_->GetValue(&fake_poll_var_);
 
@@ -250,6 +235,40 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutRunsFromTimeoutTest) {
   EXPECT_FALSE(value);
   RunGMainLoopUntil(10000, Bind(&GetBoolean, &value));
   EXPECT_TRUE(value);
+}
+
+// Test that callback is called when evaluation context expires, and that it
+// cannot be used again.
+TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutExpires) {
+  fake_async_var_.reset(new string("Async value"));
+  eval_ctx_->GetValue(&fake_async_var_);
+
+  bool value = false;
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
+  // Check that the scheduled callback isn't run until the timeout occurs.
+  RunGMainLoopMaxIterations(10);
+  EXPECT_FALSE(value);
+  RunGMainLoopUntil(10000, Bind(&GetBoolean, &value));
+  EXPECT_TRUE(value);
+
+  // Ensure that we cannot reschedule an evaluation.
+  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+}
+
+// Test that we clear the events when destroying the EvaluationContext.
+TEST_F(UmEvaluationContextTest, RemoveObserversAndTimeoutTest) {
+  fake_async_var_.reset(new string("Async value"));
+  eval_ctx_->GetValue(&fake_async_var_);
+
+  bool value = false;
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
+  eval_ctx_ = nullptr;
+
+  // This should not trigger the callback since the EvaluationContext waiting
+  // for it is gone, and it should have remove all its observers.
+  fake_async_var_.NotifyValueChanged();
+  RunGMainLoopMaxIterations(100);
+  EXPECT_FALSE(value);
 }
 
 // Scheduling two reevaluations from the callback should succeed.
@@ -294,13 +313,14 @@ TEST_F(UmEvaluationContextTest, TimeoutEventAfterDeleteTest) {
   // 1 second to give time to the main loop to trigger the timeout Event (of 0
   // seconds). Our callback should not be called because the EvaluationContext
   // was removed before the timeout event is attended.
-  eval_ctx_ = NULL;
+  eval_ctx_ = nullptr;
   RunGMainLoopUntil(1000, Bind(&GetBoolean, &value));
   EXPECT_FALSE(value);
 }
 
 TEST_F(UmEvaluationContextTest, DefaultTimeout) {
-  // Test that the RemainingTime() uses the default timeout on setup.
+  // Test that the evaluation timeout calculation uses the default timeout on
+  // setup.
   EXPECT_CALL(mock_var_async_, GetValue(default_timeout_, _))
       .WillOnce(Return(nullptr));
   UMTEST_EXPECT_NULL(eval_ctx_->GetValue(&mock_var_async_));

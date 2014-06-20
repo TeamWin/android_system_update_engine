@@ -32,7 +32,7 @@ namespace chromeos_update_manager {
 //
 // Example:
 //
-//   scoped_refptr<EvaluationContext> ec = new EvaluationContext;
+//   scoped_refptr<EvaluationContext> ec = new EvaluationContext(...);
 //
 //   ...
 //   // The following call to ResetEvaluation() is optional. Use it to reset the
@@ -51,8 +51,12 @@ namespace chromeos_update_manager {
 class EvaluationContext : public base::RefCounted<EvaluationContext>,
                           private BaseVariable::ObserverInterface {
  public:
-  explicit EvaluationContext(chromeos_update_engine::ClockInterface* clock,
-                             base::TimeDelta evaluation_timeout);
+  EvaluationContext(chromeos_update_engine::ClockInterface* clock,
+                    base::TimeDelta evaluation_timeout,
+                    base::TimeDelta expiration_timeout);
+  EvaluationContext(chromeos_update_engine::ClockInterface* clock,
+                    base::TimeDelta evaluation_timeout)
+      : EvaluationContext(clock, evaluation_timeout, base::TimeDelta::Max()) {}
   ~EvaluationContext();
 
   // Returns a pointer to the value returned by the passed variable |var|. The
@@ -64,10 +68,13 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   template<typename T>
   const T* GetValue(Variable<T>* var);
 
-  // Returns whether the passed |timestamp| is greater than the evaluation
-  // time. The |timestamp| value should be in the same scale as the values
-  // returned by ClockInterface::GetWallclockTime().
+  // Returns whether the passed |timestamp| is less than the evaluation time.
+  // The |timestamp| value should be in the same scale as the values returned by
+  // ClockInterface::GetWallclockTime().
   bool IsTimeGreaterThan(base::Time timestamp);
+
+  // Returns whether the evaluation context has expired.
+  bool is_expired() const { return is_expired_; }
 
   // TODO(deymo): Move the following methods to an interface only visible by the
   // UpdateManager class and not the policy implementations.
@@ -78,9 +85,9 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   void ResetEvaluation();
 
   // Schedules the passed |callback| closure to be called when a cached
-  // variable changes its value or a polling interval passes. If none of these
-  // events can happen, for example if there's no cached variable, this method
-  // returns false.
+  // variable changes its value, a polling interval passes, or the context
+  // expiration occurs. If none of these events can happen, for example if
+  // there's no cached variable, this method returns false.
   //
   // Right before the passed closure is called the EvaluationContext is
   // reseted, removing all the non-const cached values.
@@ -101,15 +108,21 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // BaseVariable::ObserverInterface override.
   void ValueChanged(BaseVariable* var);
 
-  // Called from the main loop when the scheduled poll timeout has passed.
-  void OnPollTimeout();
+  // Called from the main loop when a scheduled timeout has passed.
+  void OnTimeout();
 
-  // Removes the observers from the used Variables and cancels the poll timeout
-  // and executes the scheduled callback, if any.
-  void OnValueChangedOrPollTimeout();
+  // Removes the observers from the used Variables and cancels the timeout,
+  // then executes the scheduled callback.
+  void OnValueChangedOrTimeout();
 
-  // The remaining time for the current evaluation.
-  base::TimeDelta RemainingTime() const;
+  // If |monotonic_deadline| is not Time::Max(), returns the remaining time
+  // until it is reached, or zero if it has passed. Otherwise, returns
+  // TimeDelta::Max().
+  base::TimeDelta RemainingTime(base::Time monotonic_deadline) const;
+
+  // Returns a monotonic clock timestamp at which |timeout| will have elapsed
+  // since the current time.
+  base::Time MonotonicDeadline(base::TimeDelta timeout);
 
   // A map to hold the cached values for every variable.
   typedef std::map<BaseVariable*, BoxedValue> ValueCacheMap;
@@ -117,15 +130,24 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // The cached values of the called Variables.
   ValueCacheMap value_cache_;
 
-  // A pointer to a copy of the closure passed to RunOnValueChangeOrTimeout().
-  scoped_ptr<base::Closure> value_changed_callback_;
+  // A callback used for triggering re-evaluation upon a value change or poll
+  // timeout, or notifying about the evaluation context expiration. It is up to
+  // the caller to determine whether or not expiration occured via is_expired().
+  scoped_ptr<base::Closure> callback_;
 
   // The EventId returned by the event loop identifying the timeout callback.
-  // Used to cancel the timeout callback.
-  EventId poll_timeout_event_ = kEventIdNull;
+  // Used for canceling the timeout callback.
+  EventId timeout_event_ = kEventIdNull;
+
+  // Whether a timeout event firing marks the expiration of the evaluation
+  // context.
+  bool timeout_marks_expiration_;
+
+  // Whether the evaluation context has indeed expired.
+  bool is_expired_ = false;
 
   // Pointer to the mockable clock interface;
-  chromeos_update_engine::ClockInterface* clock_;
+  chromeos_update_engine::ClockInterface* const clock_;
 
   // The timestamp when the evaluation of this EvaluationContext started. This
   // value is reset every time ResetEvaluation() is called. The time source
@@ -139,14 +161,16 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // GetWallclockTime() at some point of the evaluation.
   base::Time reevaluation_time_;
 
-  // The timeout of an evaluation, used to compute the RemainingTime() of an
-  // evaluation.
+  // The timeout of an evaluation.
   const base::TimeDelta evaluation_timeout_;
 
   // The timestamp in the ClockInterface::GetMonotonicTime() scale at which the
-  // current evaluation should finish. This is used to compute the
-  // RemainingTime().
+  // current evaluation should finish.
   base::Time evaluation_monotonic_deadline_;
+
+  // The monotonic clock deadline at which expiration occurs. This is set once
+  // during construction.
+  const base::Time expiration_monotonic_deadline_;
 
   base::WeakPtrFactory<EvaluationContext> weak_ptr_factory_;
 

@@ -25,7 +25,8 @@ const T* EvaluationContext::GetValue(Variable<T>* var) {
 
   // Get the value from the variable if not found on the cache.
   std::string errmsg;
-  const T* result = var->GetValue(RemainingTime(), &errmsg);
+  const T* result = var->GetValue(RemainingTime(evaluation_monotonic_deadline_),
+                                  &errmsg);
   if (result == nullptr) {
     LOG(WARNING) << "Error reading Variable " << var->GetName() << ": \""
         << errmsg << "\"";

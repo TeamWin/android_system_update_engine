@@ -4,6 +4,7 @@
 
 #include "update_engine/update_manager/evaluation_context.h"
 
+#include <algorithm>
 #include <string>
 
 #include <base/bind.h>
@@ -21,9 +22,11 @@ using std::string;
 namespace chromeos_update_manager {
 
 EvaluationContext::EvaluationContext(ClockInterface* clock,
-                                     TimeDelta evaluation_timeout)
+                                     TimeDelta evaluation_timeout,
+                                     TimeDelta expiration_timeout)
     : clock_(clock),
       evaluation_timeout_(evaluation_timeout),
+      expiration_monotonic_deadline_(MonotonicDeadline(expiration_timeout)),
       weak_ptr_factory_(this) {
   ResetEvaluation();
 }
@@ -37,31 +40,42 @@ void EvaluationContext::RemoveObserversAndTimeout() {
     if (it.first->GetMode() == kVariableModeAsync)
       it.first->RemoveObserver(this);
   }
-  CancelMainLoopEvent(poll_timeout_event_);
-  poll_timeout_event_ = kEventIdNull;
+  CancelMainLoopEvent(timeout_event_);
+  timeout_event_ = kEventIdNull;
 }
 
-TimeDelta EvaluationContext::RemainingTime() const {
-  return evaluation_monotonic_deadline_ - clock_->GetMonotonicTime();
+TimeDelta EvaluationContext::RemainingTime(Time monotonic_deadline) const {
+  if (monotonic_deadline.is_max())
+    return TimeDelta::Max();
+  TimeDelta remaining = monotonic_deadline - clock_->GetMonotonicTime();
+  return std::max(remaining, TimeDelta());
+}
+
+Time EvaluationContext::MonotonicDeadline(TimeDelta timeout) {
+  return (timeout.is_max() ? Time::Max() :
+          clock_->GetMonotonicTime() + timeout);
 }
 
 void EvaluationContext::ValueChanged(BaseVariable* var) {
-  DLOG(INFO) << "ValueChanged for variable " << var->GetName();
-  OnValueChangedOrPollTimeout();
+  DLOG(INFO) << "ValueChanged() called for variable " << var->GetName();
+  OnValueChangedOrTimeout();
 }
 
-void EvaluationContext::OnPollTimeout() {
-  DLOG(INFO) << "OnPollTimeout() called.";
-  poll_timeout_event_ = kEventIdNull;
-  OnValueChangedOrPollTimeout();
+void EvaluationContext::OnTimeout() {
+  DLOG(INFO) << "OnTimeout() called due to "
+             << (timeout_marks_expiration_ ? "expiration" : "poll interval");
+  timeout_event_ = kEventIdNull;
+  is_expired_ = timeout_marks_expiration_;
+  OnValueChangedOrTimeout();
 }
 
-void EvaluationContext::OnValueChangedOrPollTimeout() {
+void EvaluationContext::OnValueChangedOrTimeout() {
   RemoveObserversAndTimeout();
 
-  // Copy the callback handle locally, allowing the callback code to reset it.
-  scoped_ptr<Closure> callback(value_changed_callback_.release());
-  if (callback.get() != NULL)
+  // Copy the callback handle locally, allowing it to be reassigned.
+  scoped_ptr<Closure> callback(callback_.release());
+
+  if (callback.get())
     callback->Run();
 }
 
@@ -80,8 +94,7 @@ void EvaluationContext::ResetEvaluation() {
   // values for the current evaluation. The second is a deadline for the
   // evaluation which required a monotonic source of time.
   evaluation_start_ = clock_->GetWallclockTime();
-  evaluation_monotonic_deadline_ =
-      clock_->GetMonotonicTime() + evaluation_timeout_;
+  evaluation_monotonic_deadline_ = MonotonicDeadline(evaluation_timeout_);
   reevaluation_time_ = Time::Max();
 
   // Remove the cached values of non-const variables
@@ -95,54 +108,66 @@ void EvaluationContext::ResetEvaluation() {
 }
 
 bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
-  TimeDelta reeval_timeout;
-  bool reeval_timeout_set = false;
-  bool waiting_for_value_change = false;
-
-  // Check if a reevaluation should be triggered due to a IsTimeGreaterThan()
-  // call.
-  if (reevaluation_time_ != Time::Max()) {
-    reeval_timeout = reevaluation_time_ - evaluation_start_;
-    reeval_timeout_set = true;
-  }
-
-  if (value_changed_callback_.get() != NULL) {
+  // Check that the method was not called more than once.
+  if (callback_.get() != nullptr) {
     LOG(ERROR) << "RunOnValueChangeOrTimeout called more than once.";
     return false;
   }
 
+  // Check that the context did not yet expire.
+  if (is_expired()) {
+    LOG(ERROR) << "RunOnValueChangeOrTimeout called on an expired context.";
+    return false;
+  }
+
+  TimeDelta timeout(TimeDelta::Max());
+  bool waiting_for_value_change = false;
+
+  // Handle reevaluation due to a IsTimeGreaterThan() call.
+  if (!reevaluation_time_.is_max())
+    timeout = reevaluation_time_ - evaluation_start_;
+
+  // Handle reevaluation due to async or poll variables.
   for (auto& it : value_cache_) {
     switch (it.first->GetMode()) {
       case kVariableModeAsync:
-        waiting_for_value_change = true;
         DLOG(INFO) << "Waiting for value on " << it.first->GetName();
         it.first->AddObserver(this);
+        waiting_for_value_change = true;
         break;
       case kVariableModePoll:
-        if (!reeval_timeout_set || reeval_timeout > it.first->GetPollInterval())
-          reeval_timeout = it.first->GetPollInterval();
-        reeval_timeout_set = true;
+        timeout = std::min(timeout, it.first->GetPollInterval());
         break;
       case kVariableModeConst:
         // Ignored.
         break;
     }
   }
+
   // Check if the re-evaluation is actually being scheduled. If there are no
   // events waited for, this function should return false.
-  if (!waiting_for_value_change && !reeval_timeout_set)
+  if (!waiting_for_value_change && timeout.is_max())
     return false;
-  if (reeval_timeout_set) {
-    DLOG(INFO)
-        << "Waiting for poll timeout in "
-        << chromeos_update_engine::utils::FormatTimeDelta(reeval_timeout);
-    poll_timeout_event_ = RunFromMainLoopAfterTimeout(
-        base::Bind(&EvaluationContext::OnPollTimeout,
+
+  // Ensure that we take into account the expiration timeout.
+  TimeDelta expiration = RemainingTime(expiration_monotonic_deadline_);
+  timeout_marks_expiration_ = expiration < timeout;
+  if (timeout_marks_expiration_)
+    timeout = expiration;
+
+  // Store the reevaluation callback.
+  callback_.reset(new Closure(callback));
+
+  // Schedule a timeout event, if one is set.
+  if (!timeout.is_max()) {
+    DLOG(INFO) << "Waiting for timeout in "
+               << chromeos_update_engine::utils::FormatTimeDelta(timeout);
+    timeout_event_ = RunFromMainLoopAfterTimeout(
+        base::Bind(&EvaluationContext::OnTimeout,
                    weak_ptr_factory_.GetWeakPtr()),
-        reeval_timeout);
+        timeout);
   }
 
-  value_changed_callback_.reset(new Closure(callback));
   return true;
 }
 

@@ -21,24 +21,41 @@ EvalStatus UpdateManager::EvaluatePolicy(
                                         std::string*, R*,
                                         Args...) const,
     R* result, Args... args) {
-  std::string error;
   const std::string policy_name = policy_->PolicyRequestName(policy_method);
+  const bool timed_out = ec->is_expired();
 
-  // First try calling the actual policy.
+  // Reset the evaluation context.
+  ec->ResetEvaluation();
+
   LOG(INFO) << "Evaluating " << policy_name << " START";
-  EvalStatus status = (policy_.get()->*policy_method)(ec, state_.get(), &error,
-                                                      result, args...);
 
+  // First try calling the actual policy, if the request did not time out.
+  EvalStatus status = EvalStatus::kFailed;
+  if (timed_out) {
+    LOG(WARNING) << "Skipping reevaluation because the request timed out.";
+  } else {
+    std::string error;
+    status = (policy_.get()->*policy_method)(ec, state_.get(), &error, result,
+                                             args...);
+    LOG_IF(WARNING, status == EvalStatus::kFailed)
+        << "Evaluating policy failed: " << error;
+  }
+
+  // If evaluating the main policy failed, defer to the default policy.
   if (status == EvalStatus::kFailed) {
-    LOG(WARNING) << "Policy request failed: " << error;
-    error.clear();
-    status = (default_policy_.*policy_method)(ec, state_.get(), &error,
-                                              result, args...);
+    std::string error;
+    status = (default_policy_.*policy_method)(ec, state_.get(), &error, result,
+                                              args...);
+    LOG_IF(WARNING, status == EvalStatus::kFailed)
+        << "Evaluating default policy failed: " << error;
 
-    if (status == EvalStatus::kFailed) {
-      LOG(WARNING) << "Request to default policy also failed: " << error;
+    if (timed_out && status == EvalStatus::kAskMeAgainLater) {
+      LOG(WARNING) << "Default policy would block but request timed out, "
+                   << "forcing failure.";
+      status = EvalStatus::kFailed;
     }
   }
+
   LOG(INFO) << "Evaluating " << policy_name << " END";
 
   // TODO(deymo): Log the actual state used from the EvaluationContext.
@@ -53,7 +70,7 @@ void UpdateManager::OnPolicyReadyToEvaluate(
                                         std::string*, R*,
                                         Args...) const,
     Args... args) {
-  ec->ResetEvaluation();
+  // Evaluate the policy.
   R result;
   EvalStatus status = EvaluatePolicy(ec, policy_method, &result, args...);
 
@@ -62,20 +79,22 @@ void UpdateManager::OnPolicyReadyToEvaluate(
     callback.Run(status, result);
     return;
   }
-  // Re-schedule the policy request based on used variables.
-  base::Closure closure = base::Bind(
-      &UpdateManager::OnPolicyReadyToEvaluate<R, Args...>,
-      base::Unretained(this), ec, callback, policy_method, args...);
 
-  if (!ec->RunOnValueChangeOrTimeout(closure)) {
-    // The policy method didn't use any non-const variable nor there's any
-    // time-based event that will change the status of evaluation. We call the
-    // callback with EvalStatus::kAskMeAgainLater.
-    LOG(ERROR) << "Policy implementation didn't use any non-const variable "
-                  "but returned kAskMeAgainLater.";
-    callback.Run(EvalStatus::kAskMeAgainLater, result);
-    return;
-  }
+  // Re-schedule the policy request based on used variables.
+  base::Closure reeval_callback = base::Bind(
+      &UpdateManager::OnPolicyReadyToEvaluate<R, Args...>,
+      base::Unretained(this), ec, callback,
+      policy_method, args...);
+  if (ec->RunOnValueChangeOrTimeout(reeval_callback))
+    return;  // Reevaluation scheduled successfully.
+
+  // Scheduling a reevaluation can fail because policy method didn't use any
+  // non-const variable nor there's any time-based event that will change the
+  // status of evaluation.  Alternatively, this may indicate an error in the use
+  // of the scheduling interface.
+  LOG(ERROR) << "Failed to schedule a reevaluation of policy "
+             << policy_->PolicyRequestName(policy_method) << "; this is a bug.";
+  callback.Run(status, result);
 }
 
 template<typename R, typename... ActualArgs, typename... ExpectedArgs>
@@ -96,26 +115,27 @@ EvalStatus UpdateManager::PolicyRequest(
   // Sync policy requests must not block, if they do then this is an error.
   DCHECK(EvalStatus::kAskMeAgainLater != ret);
   LOG_IF(WARNING, EvalStatus::kAskMeAgainLater == ret)
-      << "Sync request used with an async policy";
+      << "Sync request used with an async policy; this is a bug";
   return ret;
 }
 
 template<typename R, typename... ActualArgs, typename... ExpectedArgs>
 void UpdateManager::AsyncPolicyRequest(
     base::Callback<void(EvalStatus, const R& result)> callback,
+    base::TimeDelta request_timeout,
     EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
                                         std::string*, R*,
                                         ExpectedArgs...) const,
     ActualArgs... args) {
   scoped_refptr<EvaluationContext> ec =
-      new EvaluationContext(clock_, evaluation_timeout_);
+      new EvaluationContext(clock_, evaluation_timeout_, request_timeout);
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
   // explicitly instantiate UpdateManager::OnPolicyReadyToEvaluate with the
   // latter in lieu of the former.
-  base::Closure closure = base::Bind(
+  base::Closure eval_callback = base::Bind(
       &UpdateManager::OnPolicyReadyToEvaluate<R, ExpectedArgs...>,
       base::Unretained(this), ec, callback, policy_method, args...);
-  RunFromMainLoop(closure);
+  RunFromMainLoop(eval_callback);
 }
 
 }  // namespace chromeos_update_manager
