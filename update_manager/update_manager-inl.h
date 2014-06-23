@@ -38,7 +38,8 @@ EvalStatus UpdateManager::EvaluatePolicy(
     status = (policy_.get()->*policy_method)(ec, state_.get(), &error, result,
                                              args...);
     LOG_IF(WARNING, status == EvalStatus::kFailed)
-        << "Evaluating policy failed: " << error;
+        << "Evaluating policy failed: " << error
+        << "\nEvaluation context: " << ec->DumpContext();
   }
 
   // If evaluating the main policy failed, defer to the default policy.
@@ -58,7 +59,6 @@ EvalStatus UpdateManager::EvaluatePolicy(
 
   LOG(INFO) << "Evaluating " << policy_name << " END";
 
-  // TODO(deymo): Log the actual state used from the EvaluationContext.
   return status;
 }
 

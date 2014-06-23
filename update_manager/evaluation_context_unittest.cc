@@ -400,7 +400,7 @@ TEST_F(UmEvaluationContextTest, DumpContext) {
             "      \"fake_int\": \"42\",\n"
             "      \"fake_poll\": \"Hello \\\"world\\\"!\"\n"
             "   }\n"
-            "}\n",
+            "}",
             eval_ctx_->DumpContext());
 }
 
