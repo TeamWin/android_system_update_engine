@@ -66,11 +66,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // the system. Non-empty |in_app_version| or |in_update_url| prevents
   // automatic detection of the parameter.  If |obey_proxies| is true, the
   // update will likely respect Chrome's proxy setting. For security reasons, we
-  // may still not honor them.  Interactive should be true if this was called
-  // from the user (ie dbus).  |is_test| will lead to using an alternative test
-  // server URL, if |omaha_url| is empty. |is_user_initiated| will be true
-  // only if the update is being kicked off through dbus and will be false for
-  // other types of kick off such as scheduled updates.
+  // may still not honor them. |interactive| should be true if this was called
+  // from the user (ie dbus).
   virtual void Update(const std::string& app_version,
                       const std::string& omaha_url,
                       bool obey_proxies,
