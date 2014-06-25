@@ -14,12 +14,6 @@ extern "C" {
 #include "vboot/vboot_host.h"
 }
 
-// We don't use these variables, but libcgpt needs them defined to link.
-// TODO(dgarrett) chromium:318536
-const char* progname = "";
-const char* command = "";
-void (*uuid_generator)(uint8_t* buffer) = NULL;
-
 #include "update_engine/hwid_override.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
