@@ -27,6 +27,11 @@ std::string ToString(EvalStatus status);
 // UpdateCheckAllowed policy.
 struct UpdateCheckParams {
   bool updates_enabled;  // Whether the auto-updates are enabled on this build.
+
+  // Attributes pertaining to the case where update checks are allowed.
+  //
+  // A target channel, if so imposed by policy; otherwise, an empty string.
+  std::string target_channel;
 };
 
 // Input arguments to UpdateCanStart.
@@ -77,12 +82,11 @@ struct UpdateState {
 enum class UpdateCannotStartReason {
   kUndefined,
   kCheckDue,
-  kDisabledByPolicy,
   kScattering,
   kCannotDownload,
 };
 
-struct UpdateCanStartResult {
+struct UpdateDownloadParams {
   // Whether the update attempt is allowed to proceed.
   bool update_can_start;
 
@@ -90,7 +94,6 @@ struct UpdateCanStartResult {
   // engine uses them to choose the means for downloading and applying an
   // update.
   bool p2p_allowed;
-  std::string target_channel;
   // The index of the download URL to use, and the number of failures associated
   // with this URL. An index value of -1 indicates that no suitable URL is
   // available, but there may be other means for download (like P2P).
@@ -164,7 +167,7 @@ class Policy {
       EvaluationContext* ec,
       State* state,
       std::string* error,
-      UpdateCanStartResult* result,
+      UpdateDownloadParams* result,
       const bool interactive,
       const UpdateState& update_state) const = 0;
 

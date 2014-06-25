@@ -152,17 +152,44 @@ namespace chromeos_update_manager {
 EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
     EvaluationContext* ec, State* state, string* error,
     UpdateCheckParams* result) const {
+  // Set the default return values.
+  result->updates_enabled = true;
+  result->target_channel.clear();
+
+  DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+
+  const bool* device_policy_is_loaded_p = ec->GetValue(
+      dp_provider->var_device_policy_is_loaded());
+  if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
+    // Check whether updates are disabled by policy.
+    const bool* update_disabled_p = ec->GetValue(
+        dp_provider->var_update_disabled());
+    if (update_disabled_p && *update_disabled_p) {
+      result->updates_enabled = false;
+      return EvalStatus::kAskMeAgainLater;
+    }
+
+    // Determine whether a target channel is dictated by policy.
+    const bool* release_channel_delegated_p = ec->GetValue(
+        dp_provider->var_release_channel_delegated());
+    if (release_channel_delegated_p && !(*release_channel_delegated_p)) {
+      const string* release_channel_p = ec->GetValue(
+          dp_provider->var_release_channel());
+      if (release_channel_p)
+        result->target_channel = *release_channel_p;
+    }
+  }
+
+  // Ensure that update checks are timed properly.
   Time next_update_check;
   if (NextUpdateCheckTime(ec, state, error, &next_update_check) !=
       EvalStatus::kSucceeded) {
     return EvalStatus::kFailed;
   }
-
   if (!ec->IsTimeGreaterThan(next_update_check))
     return EvalStatus::kAskMeAgainLater;
 
   // It is time to check for an update.
-  result->updates_enabled = true;
   return EvalStatus::kSucceeded;
 }
 
@@ -170,13 +197,12 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     EvaluationContext* ec,
     State* state,
     string* error,
-    UpdateCanStartResult* result,
+    UpdateDownloadParams* result,
     const bool interactive,
     const UpdateState& update_state) const {
   // Set the default return values.
   result->update_can_start = true;
   result->p2p_allowed = false;
-  result->target_channel.clear();
   result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
   result->scatter_wait_period = kZeroInterval;
   result->scatter_check_threshold = 0;
@@ -200,15 +226,6 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
   const bool* device_policy_is_loaded_p = ec->GetValue(
       dp_provider->var_device_policy_is_loaded());
   if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
-    // Ensure that update is enabled.
-    const bool* update_disabled_p = ec->GetValue(
-        dp_provider->var_update_disabled());
-    if (update_disabled_p && *update_disabled_p) {
-      result->update_can_start = false;
-      result->cannot_start_reason = UpdateCannotStartReason::kDisabledByPolicy;
-      return EvalStatus::kAskMeAgainLater;
-    }
-
     // Check whether scattering applies to this update attempt. We should not be
     // scattering if this is an interactive update check, or if OOBE is enabled
     // but not completed.
@@ -251,16 +268,6 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     const bool* policy_au_p2p_enabled_p = ec->GetValue(
         dp_provider->var_au_p2p_enabled());
     result->p2p_allowed = policy_au_p2p_enabled_p && *policy_au_p2p_enabled_p;
-
-    // Determine whether a target channel is dictated by policy.
-    const bool* release_channel_delegated_p = ec->GetValue(
-        dp_provider->var_release_channel_delegated());
-    if (release_channel_delegated_p && !(*release_channel_delegated_p)) {
-      const string* release_channel_p = ec->GetValue(
-          dp_provider->var_release_channel());
-      if (release_channel_p)
-        result->target_channel = *release_channel_p;
-    }
   }
 
   // Enable P2P, if so mandated by the updater configuration.

@@ -113,7 +113,7 @@ TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCanStart) {
     TimeDelta::FromSeconds(15), TimeDelta::FromSeconds(60),
     4, 2, 8
   };
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   EXPECT_EQ(EvalStatus::kSucceeded,
             umut_->PolicyRequest(&Policy::UpdateCanStart, &result, true,
                                  update_state));

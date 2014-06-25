@@ -26,6 +26,7 @@ class DefaultPolicy : public Policy {
       EvaluationContext* ec, State* state, std::string* error,
       UpdateCheckParams* result) const override {
     result->updates_enabled = true;
+    result->target_channel.clear();
     return EvalStatus::kSucceeded;
   }
 
@@ -33,12 +34,11 @@ class DefaultPolicy : public Policy {
       EvaluationContext* ec,
       State* state,
       std::string* error,
-      UpdateCanStartResult* result,
+      UpdateDownloadParams* result,
       const bool interactive,
       const UpdateState& update_state) const override {
     result->update_can_start = true;
     result->p2p_allowed = false;
-    result->target_channel.clear();
     result->download_url_idx = 0;
     result->download_url_num_failures = 0;
     result->cannot_start_reason = UpdateCannotStartReason::kUndefined;

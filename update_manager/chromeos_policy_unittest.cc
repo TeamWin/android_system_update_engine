@@ -205,6 +205,38 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {
                      &Policy::UpdateCheckAllowed, &result);
 }
 
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
+  // Update check is allowed, reponse includes attributes for use in the
+  // request.
+  SetUpdateCheckAllowed(true);
+
+  // Override specific device policy attributes.
+  fake_state_.device_policy_provider()->var_release_channel_delegated()->
+      reset(new bool(false));
+  fake_state_.device_policy_provider()->var_release_channel()->
+      reset(new string("foo-channel"));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCheckAllowed, &result);
+  EXPECT_TRUE(result.updates_enabled);
+  EXPECT_EQ("foo-channel", result.target_channel);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedUpdatesDisabled) {
+  // UpdateCheckAllowed should return kAskMeAgainLater because a device policy
+  // is loaded and prohibits updates.
+
+  SetUpdateCheckAllowed(false);
+  fake_state_.device_policy_provider()->var_update_disabled()->reset(
+      new bool(true));
+
+  // Check that the UpdateCanStart returns false.
+  UpdateCheckParams result;
+  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
+                     &Policy::UpdateCheckAllowed, &result);
+}
+
 TEST_F(UmChromeOSPolicyTest, UpdateCanStartFailsCheckAllowedError) {
   // The UpdateCanStart policy fails, not being able to query
   // UpdateCheckAllowed.
@@ -214,7 +246,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartFailsCheckAllowedError) {
 
   // Check that the UpdateCanStart fails.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kFailed,
                      &Policy::UpdateCanStart, &result, false, update_state);
 }
@@ -227,7 +259,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartNotAllowedCheckDue) {
 
   // Check that the UpdateCanStart returns false.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCanStart, &result, false, update_state);
   EXPECT_FALSE(result.update_can_start);
@@ -243,12 +275,11 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedNoDevicePolicy) {
 
   // Check that the UpdateCanStart returns true with no further attributes.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCanStart, &result, false, update_state);
   EXPECT_TRUE(result.update_can_start);
   EXPECT_FALSE(result.p2p_allowed);
-  EXPECT_TRUE(result.target_channel.empty());
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_failures);
 }
@@ -261,32 +292,13 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedBlankPolicy) {
 
   // Check that the UpdateCanStart returns true.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCanStart, &result, false, update_state);
   EXPECT_TRUE(result.update_can_start);
   EXPECT_FALSE(result.p2p_allowed);
-  EXPECT_TRUE(result.target_channel.empty());
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_failures);
-}
-
-TEST_F(UmChromeOSPolicyTest, UpdateCanStartNotAllowedUpdatesDisabled) {
-  // The UpdateCanStart should return false (kAskMeAgainlater) because a device
-  // policy is loaded and prohibits updates.
-
-  SetUpdateCheckAllowed(false);
-  fake_state_.device_policy_provider()->var_update_disabled()->reset(
-      new bool(true));
-
-  // Check that the UpdateCanStart returns false.
-  UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
-  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
-                     &Policy::UpdateCanStart, &result, false, update_state);
-  EXPECT_FALSE(result.update_can_start);
-  EXPECT_EQ(UpdateCannotStartReason::kDisabledByPolicy,
-            result.cannot_start_reason);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCanStartFailsScatteringFailed) {
@@ -301,7 +313,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartFailsScatteringFailed) {
 
   // Check that the UpdateCanStart fails.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromSeconds(1));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kFailed,
                      &Policy::UpdateCanStart, &result, false, update_state);
 }
@@ -321,7 +333,7 @@ TEST_F(UmChromeOSPolicyTest,
 
   // Check that the UpdateCanStart returns false and a new wait period
   // generated.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_FALSE(result.update_can_start);
@@ -345,7 +357,7 @@ TEST_F(UmChromeOSPolicyTest,
 
   // Check that the UpdateCanStart returns false and a new wait period
   // generated.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kAskMeAgainLater, &Policy::UpdateCanStart,
                      &result, false, update_state);
   EXPECT_FALSE(result.update_can_start);
@@ -371,7 +383,7 @@ TEST_F(UmChromeOSPolicyTest,
   update_state.scatter_check_threshold_max = 5;
 
   // Check that the UpdateCanStart returns false.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_FALSE(result.update_can_start);
@@ -395,7 +407,7 @@ TEST_F(UmChromeOSPolicyTest,
   update_state.scatter_check_threshold_max = 5;
 
   // Check that the UpdateCanStart returns false.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_FALSE(result.update_can_start);
@@ -420,7 +432,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedScatteringSatisfied) {
   update_state.scatter_check_threshold_max = 5;
 
   // Check that the UpdateCanStart returns true.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_TRUE(result.update_can_start);
@@ -446,7 +458,7 @@ TEST_F(UmChromeOSPolicyTest,
   update_state.scatter_check_threshold_max = 5;
 
   // Check that the UpdateCanStart returns true.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      true, update_state);
   EXPECT_TRUE(result.update_can_start);
@@ -473,7 +485,7 @@ TEST_F(UmChromeOSPolicyTest,
   update_state.scatter_check_threshold_max = 5;
 
   // Check that the UpdateCanStart returns true.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      true, update_state);
   EXPECT_TRUE(result.update_can_start);
@@ -494,19 +506,14 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithAttributes) {
       new bool(true));
   fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(
       new bool(true));
-  fake_state_.device_policy_provider()->var_release_channel_delegated()->
-      reset(new bool(false));
-  fake_state_.device_policy_provider()->var_release_channel()->
-      reset(new string("foo-channel"));
 
   // Check that the UpdateCanStart returns true.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_TRUE(result.update_can_start);
   EXPECT_TRUE(result.p2p_allowed);
-  EXPECT_EQ("foo-channel", result.target_channel);
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_failures);
 }
@@ -523,7 +530,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithP2PFromUpdater) {
 
   // Check that the UpdateCanStart returns true.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_TRUE(result.update_can_start);
@@ -548,7 +555,7 @@ TEST_F(UmChromeOSPolicyTest,
 
   // Check that the UpdateCanStart returns true.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_TRUE(result.update_can_start);
@@ -572,7 +579,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithHttpsUrl) {
   update_state.download_urls.push_back("https://secure/url/");
 
   // Check that the UpdateCanStart returns true.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_TRUE(result.update_can_start);
@@ -601,7 +608,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithSecondUrlMaxExceeded) {
       ErrorCode::kDownloadWriteError);
 
   // Check that the UpdateCanStart returns true.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_TRUE(result.update_can_start);
@@ -625,7 +632,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithSecondUrlHardError) {
       ErrorCode::kPayloadHashMismatchError);
 
   // Check that the UpdateCanStart returns true.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_TRUE(result.update_can_start);
@@ -650,7 +657,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedUrlWrapsAround) {
       ErrorCode::kPayloadHashMismatchError);
 
   // Check that the UpdateCanStart returns true.
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_TRUE(result.update_can_start);
@@ -671,7 +678,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartNotAllowedNoUsableUrls) {
 
   // Check that the UpdateCanStart returns false.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kFailed, &Policy::UpdateCanStart, &result,
                      false, update_state);
 }
@@ -691,7 +698,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedNoUsableUrlsButP2PEnabled) {
 
   // Check that the UpdateCanStart returns true.
   UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
-  UpdateCanStartResult result;
+  UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      false, update_state);
   EXPECT_TRUE(result.update_can_start);
