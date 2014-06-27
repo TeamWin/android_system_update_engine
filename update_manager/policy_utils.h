@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_
+#ifndef UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_
+#define UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_
 
 #include "update_engine/update_manager/policy.h"
 
@@ -23,4 +23,4 @@
       } \
     } while (false)
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_
+#endif  // UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_

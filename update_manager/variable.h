@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_VARIABLE_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_VARIABLE_H_
+#ifndef UPDATE_ENGINE_UPDATE_MANAGER_VARIABLE_H_
+#define UPDATE_ENGINE_UPDATE_MANAGER_VARIABLE_H_
 
 #include <algorithm>
 #include <list>
@@ -200,4 +200,4 @@ class Variable : public BaseVariable {
 
 }  // namespace chromeos_update_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_VARIABLE_H_
+#endif  // UPDATE_ENGINE_UPDATE_MANAGER_VARIABLE_H_

@@ -6,8 +6,8 @@
 // used by any state provider to implement simple variables to avoid repeat the
 // same common code on different state providers.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_GENERIC_VARIABLES_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_GENERIC_VARIABLES_H_
+#ifndef UPDATE_ENGINE_UPDATE_MANAGER_GENERIC_VARIABLES_H_
+#define UPDATE_ENGINE_UPDATE_MANAGER_GENERIC_VARIABLES_H_
 
 #include <string>
 
@@ -203,4 +203,4 @@ class AsyncCopyVariable : public Variable<T> {
 
 }  // namespace chromeos_update_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_GENERIC_VARIABLES_H_
+#endif  // UPDATE_ENGINE_UPDATE_MANAGER_GENERIC_VARIABLES_H_

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_UMTEST_UTILS_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_UMTEST_UTILS_H_
+#ifndef UPDATE_ENGINE_UPDATE_MANAGER_UMTEST_UTILS_H_
+#define UPDATE_ENGINE_UPDATE_MANAGER_UMTEST_UTILS_H_
 
-#include <iostream>
+#include <iostream>  // NOLINT(readability/streams)
 
 #include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
@@ -67,4 +67,4 @@ void PrintTo(const EvalStatus& status, ::std::ostream* os);
 
 }  // namespace chromeos_update_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_UMTEST_UTILS_H_
+#endif  // UPDATE_ENGINE_UPDATE_MANAGER_UMTEST_UTILS_H_

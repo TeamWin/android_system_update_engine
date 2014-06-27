@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_H_
+#ifndef UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_H_
+#define UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_H_
 
 #include <map>
+#include <string>
 
 #include <base/callback.h>
 #include <base/memory/ref_counted.h>
@@ -47,9 +48,8 @@ namespace chromeos_update_manager {
 //   // If the provided |closure| wants to re-evaluate the policy, it should
 //   // call ec->ResetEvaluation() to start a new evaluation.
 //
-class EvaluationContext :
-    public base::RefCounted<EvaluationContext>,
-    private BaseVariable::ObserverInterface {
+class EvaluationContext : public base::RefCounted<EvaluationContext>,
+                          private BaseVariable::ObserverInterface {
  public:
   explicit EvaluationContext(chromeos_update_engine::ClockInterface* clock,
                              base::TimeDelta evaluation_timeout);
@@ -156,4 +156,4 @@ class EvaluationContext :
 // Include the implementation of the template methods.
 #include "update_engine/update_manager/evaluation_context-inl.h"
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_H_
+#endif  // UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_H_

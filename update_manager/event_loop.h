@@ -6,8 +6,8 @@
 // be replaced by the libbase main loop once the process is migrated to that
 // main loop.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_EVENT_LOOP_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_EVENT_LOOP_H_
+#ifndef UPDATE_ENGINE_UPDATE_MANAGER_EVENT_LOOP_H_
+#define UPDATE_ENGINE_UPDATE_MANAGER_EVENT_LOOP_H_
 
 #include <glib.h>
 
@@ -34,4 +34,4 @@ bool CancelMainLoopEvent(EventId event);
 
 }  // namespace chromeos_update_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_EVENT_LOOP_H_
+#endif  // UPDATE_ENGINE_UPDATE_MANAGER_EVENT_LOOP_H_

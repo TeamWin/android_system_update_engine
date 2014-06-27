@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_INL_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_INL_H_
+#ifndef UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_INL_H_
+#define UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_INL_H_
+
+#include <string>
 
 #include <base/logging.h>
 
@@ -38,4 +40,4 @@ const T* EvaluationContext::GetValue(Variable<T>* var) {
 
 }  // namespace chromeos_update_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_INL_H_
+#endif  // UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_INL_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_REAL_STATE_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_REAL_STATE_H_
+#ifndef UPDATE_ENGINE_UPDATE_MANAGER_REAL_STATE_H_
+#define UPDATE_ENGINE_UPDATE_MANAGER_REAL_STATE_H_
 
 #include <base/memory/scoped_ptr.h>
 
@@ -67,4 +67,4 @@ class RealState : public State {
 
 }  // namespace chromeos_update_manager
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_UPDATE_MANAGER_REAL_STATE_H_
+#endif  // UPDATE_ENGINE_UPDATE_MANAGER_REAL_STATE_H_
