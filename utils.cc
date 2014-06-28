@@ -765,17 +765,6 @@ string GetAndFreeGError(GError** error) {
   return message;
 }
 
-bool Reboot() {
-  vector<string> command;
-  command.push_back("/sbin/shutdown");
-  command.push_back("-r");
-  command.push_back("now");
-  int rc = 0;
-  Subprocess::SynchronousExec(command, &rc, NULL);
-  TEST_AND_RETURN_FALSE(rc == 0);
-  return true;
-}
-
 namespace {
 // Do the actual trigger. We do it as a main-loop callback to (try to) get a
 // consistent stack trace.

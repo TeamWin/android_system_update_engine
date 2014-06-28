@@ -14,6 +14,7 @@
 #include <base/file_util.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
+#include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <chromeos/dbus/service_constants.h>
 
@@ -26,6 +27,7 @@
 #include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"
 #include "update_engine/dbus_service.h"
+#include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/download_action.h"
 #include "update_engine/filesystem_copier_action.h"
 #include "update_engine/hardware_interface.h"
@@ -122,13 +124,15 @@ UpdateAttempter::UpdateAttempter(SystemState* system_state,
                                  const std::string& update_completed_marker)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
+      dbus_iface_(dbus_iface),
       chrome_proxy_resolver_(dbus_iface),
       update_completed_marker_(update_completed_marker) {
   if (!update_completed_marker_.empty() &&
-      utils::FileExists(update_completed_marker_.c_str()))
+      utils::FileExists(update_completed_marker_.c_str())) {
     status_ = UPDATE_STATUS_UPDATED_NEED_REBOOT;
-  else
+  } else {
     status_ = UPDATE_STATUS_IDLE;
+  }
 }
 
 void UpdateAttempter::Init() {
@@ -812,8 +816,11 @@ bool UpdateAttempter::RebootIfNeeded() {
               << UpdateStatusToString(status_) << ", so not rebooting.";
     return false;
   }
-  TEST_AND_RETURN_FALSE(utils::Reboot());
-  return true;
+
+  if (USE_POWER_MANAGEMENT && RequestPowerManagerReboot())
+    return true;
+
+  return RebootDirectly();
 }
 
 void UpdateAttempter::WriteUpdateCompletedMarker() {
@@ -826,6 +833,49 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
   utils::WriteFile(update_completed_marker_.c_str(),
                    contents.c_str(),
                    contents.length());
+}
+
+bool UpdateAttempter::RequestPowerManagerReboot() {
+  GError* error = NULL;
+  DBusGConnection* bus = dbus_iface_->BusGet(DBUS_BUS_SYSTEM, &error);
+  if (!bus) {
+    LOG(ERROR) << "Failed to get system bus: "
+               << utils::GetAndFreeGError(&error);
+    return false;
+  }
+
+  LOG(INFO) << "Calling " << power_manager::kPowerManagerInterface << "."
+            << power_manager::kRequestRestartMethod;
+  DBusGProxy* proxy = dbus_iface_->ProxyNewForName(
+      bus,
+      power_manager::kPowerManagerServiceName,
+      power_manager::kPowerManagerServicePath,
+      power_manager::kPowerManagerInterface);
+  const gboolean success = dbus_iface_->ProxyCall_1_0(
+      proxy,
+      power_manager::kRequestRestartMethod,
+      &error,
+      power_manager::REQUEST_RESTART_FOR_UPDATE);
+  dbus_iface_->ProxyUnref(proxy);
+
+  if (!success) {
+    LOG(ERROR) << "Failed to call " << power_manager::kRequestRestartMethod
+               << ": " << utils::GetAndFreeGError(&error);
+    return false;
+  }
+
+  return true;
+}
+
+bool UpdateAttempter::RebootDirectly() {
+  vector<string> command;
+  command.push_back("/sbin/shutdown");
+  command.push_back("-r");
+  command.push_back("now");
+  LOG(INFO) << "Running \"" << JoinString(command, ' ') << "\"";
+  int rc = 0;
+  Subprocess::SynchronousExec(command, &rc, NULL);
+  return rc == 0;
 }
 
 // Delegate methods:

@@ -223,9 +223,6 @@ bool GetBootloader(BootLoader* out_bootloader);
 // object and resets error to NULL.
 std::string GetAndFreeGError(GError** error);
 
-// Initiates a system reboot. Returns true on success, false otherwise.
-bool Reboot();
-
 // Schedules a Main Loop callback to trigger the crash reporter to perform an
 // upload as if this process had crashed.
 void ScheduleCrashReporterUpload();

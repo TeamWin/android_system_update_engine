@@ -26,6 +26,10 @@ class MockDBusWrapper : public DBusWrapperInterface {
                                        const char *method,
                                        GError **error,
                                        GHashTable** out1));
+  MOCK_METHOD4(ProxyCall_1_0, gboolean(DBusGProxy *proxy,
+                                       const char *method,
+                                       GError **error,
+                                       gint in1));
   MOCK_METHOD6(ProxyCall_3_0, gboolean(DBusGProxy* proxy,
                                        const char* method,
                                        GError** error,

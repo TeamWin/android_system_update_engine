@@ -34,6 +34,7 @@ namespace policy {
 
 namespace chromeos_update_engine {
 
+class DBusWrapperInterface;
 class UpdateCheckScheduler;
 
 enum UpdateStatus {
@@ -347,6 +348,14 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // |update_completed_marker_| is empty.
   void WriteUpdateCompletedMarker();
 
+  // Sends a D-Bus message to the Chrome OS power manager asking it to reboot
+  // the system. Returns true on success.
+  bool RequestPowerManagerReboot();
+
+  // Reboots the system directly by calling /sbin/shutdown. Returns true on
+  // success.
+  bool RebootDirectly();
+
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is
   // set back in the middle of an update.
@@ -358,6 +367,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // External state of the system outside the update_engine process
   // carved out separately to mock out easily in unit tests.
   SystemState* system_state_;
+
+  // Interface for getting D-Bus connections.
+  DBusWrapperInterface* dbus_iface_ = nullptr;
 
   // If non-null, this UpdateAttempter will send status updates over this
   // dbus service.
