@@ -358,7 +358,6 @@ EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(
     return EvalStatus::kSucceeded;
 
   // Check whether the device policy specifically allows this connection.
-  bool user_settings_can_override = false;
   if (device_policy_can_override) {
     DevicePolicyProvider* const dp_provider = state->device_policy_provider();
     const bool* device_policy_is_loaded_p = ec->GetValue(
@@ -371,23 +370,18 @@ EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(
           *result = true;
           return EvalStatus::kSucceeded;
         }
-      } else {
-        user_settings_can_override = true;
+      } else if (conn_type == ConnectionType::kCellular) {
+        // Local user settings can allow updates over cellular iff a policy was
+        // loaded but no allowed connections were specified in it.
+        const bool* update_over_cellular_allowed_p = ec->GetValue(
+            state->updater_provider()->var_cellular_enabled());
+        if (update_over_cellular_allowed_p && *update_over_cellular_allowed_p)
+          *result = true;
       }
     }
   }
 
-  // Local user settings can allow updates iff a policy was loaded but no
-  // allowed connections were specified in it. In all other cases, we either
-  // stick with the default or use the values determined by the policy.
-  if (user_settings_can_override) {
-    const bool* update_over_cellular_allowed_p = ec->GetValue(
-        state->updater_provider()->var_cellular_enabled());
-    if (update_over_cellular_allowed_p && *update_over_cellular_allowed_p)
-      *result = true;
-  }
-
-  return EvalStatus::kSucceeded;
+  return (*result ? EvalStatus::kSucceeded : EvalStatus::kAskMeAgainLater);
 }
 
 EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,

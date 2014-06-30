@@ -741,9 +741,8 @@ TEST_F(UmChromeOSPolicyTest,
       reset(new ConnectionTethering(ConnectionTethering::kConfirmed));
 
   bool result;
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
+  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
                      &Policy::UpdateDownloadAllowed, &result);
-  EXPECT_FALSE(result);
 }
 
 TEST_F(UmChromeOSPolicyTest,
@@ -786,9 +785,8 @@ TEST_F(UmChromeOSPolicyTest,
       reset(new ConnectionType(ConnectionType::kBluetooth));
 
   bool result;
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
+  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
                      &Policy::UpdateDownloadAllowed, &result);
-  EXPECT_FALSE(result);
 }
 
 TEST_F(UmChromeOSPolicyTest,
@@ -804,9 +802,8 @@ TEST_F(UmChromeOSPolicyTest,
       reset(new set<ConnectionType>(allowed_connections));
 
   bool result;
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
+  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
                      &Policy::UpdateDownloadAllowed, &result);
-  EXPECT_FALSE(result);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionNotAllowedCellularDefault) {
@@ -816,9 +813,8 @@ TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionNotAllowedCellularDefault) {
       reset(new ConnectionType(ConnectionType::kCellular));
 
   bool result;
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
+  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
                      &Policy::UpdateDownloadAllowed, &result);
-  EXPECT_FALSE(result);
 }
 
 TEST_F(UmChromeOSPolicyTest,
