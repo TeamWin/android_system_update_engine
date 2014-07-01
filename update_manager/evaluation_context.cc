@@ -59,10 +59,10 @@ void EvaluationContext::OnPollTimeout() {
 void EvaluationContext::OnValueChangedOrPollTimeout() {
   RemoveObserversAndTimeout();
 
-  if (value_changed_callback_.get() != NULL) {
-    value_changed_callback_->Run();
-    value_changed_callback_.reset();
-  }
+  // Copy the callback handle locally, allowing the callback code to reset it.
+  scoped_ptr<Closure> callback(value_changed_callback_.release());
+  if (callback.get() != NULL)
+    callback->Run();
 }
 
 bool EvaluationContext::IsTimeGreaterThan(base::Time timestamp) {
@@ -133,6 +133,9 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
   if (!waiting_for_value_change && !reeval_timeout_set)
     return false;
   if (reeval_timeout_set) {
+    DLOG(INFO)
+        << "Waiting for poll timeout in "
+        << chromeos_update_engine::utils::FormatTimeDelta(reeval_timeout);
     poll_timeout_event_ = RunFromMainLoopAfterTimeout(
         base::Bind(&EvaluationContext::OnPollTimeout,
                    weak_ptr_factory_.GetWeakPtr()),

@@ -16,6 +16,7 @@
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::Bind;
+using base::Closure;
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
@@ -25,6 +26,8 @@ using std::string;
 using testing::Return;
 using testing::StrictMock;
 using testing::_;
+
+namespace chromeos_update_manager {
 
 namespace {
 
@@ -39,9 +42,29 @@ bool GetBoolean(bool* value) {
   return *value;
 }
 
-}  // namespace
+template<typename T>
+void ReadVar(scoped_refptr<EvaluationContext> ec, Variable<T>* var) {
+  ec->GetValue(var);
+}
 
-namespace chromeos_update_manager {
+// Runs |evaluation|; if the value pointed by |count_p| is greater than zero,
+// decrement it and schedule a reevaluation; otherwise, writes true to |done_p|.
+void EvaluateRepeatedly(Closure evaluation, scoped_refptr<EvaluationContext> ec,
+                        int* count_p, bool* done_p) {
+  evaluation.Run();
+
+  // Schedule reevaluation if needed.
+  if (*count_p > 0) {
+    Closure closure = Bind(EvaluateRepeatedly, evaluation, ec, count_p, done_p);
+    ASSERT_TRUE(ec->RunOnValueChangeOrTimeout(closure))
+        << "Failed to schedule reevaluation, count_p=" << *count_p;
+    (*count_p)--;
+  } else {
+    *done_p = true;
+  }
+}
+
+}  // namespace
 
 class UmEvaluationContextTest : public ::testing::Test {
  protected:
@@ -54,7 +77,19 @@ class UmEvaluationContextTest : public ::testing::Test {
   }
 
   virtual void TearDown() {
-    eval_ctx_ = NULL;
+    // Ensure that the evaluation context did not leak and is actually being
+    // destroyed.
+    if (eval_ctx_) {
+      base::WeakPtr<EvaluationContext> eval_ctx_weak_alias =
+          eval_ctx_->weak_ptr_factory_.GetWeakPtr();
+      UMTEST_ASSERT_NOT_NULL(eval_ctx_weak_alias.get());
+      eval_ctx_ = nullptr;
+      UMTEST_EXPECT_NULL(eval_ctx_weak_alias.get())
+          << "The evaluation context was not destroyed! This is likely a bug "
+             "in how the test was written, look for leaking handles to the EC, "
+             "possibly through closure objects.";
+    }
+
     // Check that the evaluation context removed all the observers.
     EXPECT_TRUE(fake_int_var_.observer_list_.empty());
     EXPECT_TRUE(fake_async_var_.observer_list_.empty());
@@ -76,10 +111,10 @@ class UmEvaluationContextTest : public ::testing::Test {
   FakeVariable<string> fake_const_var_ = {"fake_const", kVariableModeConst};
   FakeVariable<string> fake_poll_var_ = {"fake_poll",
                                          TimeDelta::FromSeconds(1)};
-  StrictMock<MockVariable<string>> mock_var_async_{"mock_var_async",
-                                                   kVariableModeAsync};
-  StrictMock<MockVariable<string>> mock_var_poll_{"mock_var_poll",
-                                                  kVariableModePoll};
+  StrictMock<MockVariable<string>> mock_var_async_ {
+    "mock_var_async", kVariableModeAsync};
+  StrictMock<MockVariable<string>> mock_var_poll_ {
+    "mock_var_poll", kVariableModePoll};
 };
 
 TEST_F(UmEvaluationContextTest, GetValueFails) {
@@ -153,7 +188,7 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithoutVariablesTest) {
   EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
 }
 
-// Test that we don't schedule an event if there's no variable to wait for.
+// Test that reevaluation occurs when an async variable it depends on changes.
 TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithVariablesTest) {
   fake_async_var_.reset(new string("Async value"));
   eval_ctx_->GetValue(&fake_async_var_);
@@ -203,7 +238,7 @@ TEST_F(UmEvaluationContextTest, RemoveObserversAndTimeoutTest) {
   EXPECT_FALSE(value);
 }
 
-// Test that we don't schedule an event if there's no variable to wait for.
+// Test that reevaluation occurs when a polling timeout fires.
 TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutRunsFromTimeoutTest) {
   fake_poll_var_.reset(new string("Polled value"));
   eval_ctx_->GetValue(&fake_poll_var_);
@@ -215,6 +250,25 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutRunsFromTimeoutTest) {
   EXPECT_FALSE(value);
   RunGMainLoopUntil(10000, Bind(&GetBoolean, &value));
   EXPECT_TRUE(value);
+}
+
+// Scheduling two reevaluations from the callback should succeed.
+TEST_F(UmEvaluationContextTest,
+       RunOnValueChangeOrTimeoutReevaluatesRepeatedly) {
+  fake_poll_var_.reset(new string("Polled value"));
+  Closure evaluation = Bind(ReadVar<string>, eval_ctx_, &fake_poll_var_);
+  int num_reevaluations = 2;
+  bool done = false;
+
+  // Run the evaluation once.
+  evaluation.Run();
+
+  // Schedule repeated reevaluations.
+  Closure closure = Bind(EvaluateRepeatedly, evaluation, eval_ctx_,
+                         &num_reevaluations, &done);
+  ASSERT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(closure));
+  RunGMainLoopUntil(10000, Bind(&GetBoolean, &done));
+  EXPECT_EQ(0, num_reevaluations);
 }
 
 // Test that we can delete the EvaluationContext while having pending events.

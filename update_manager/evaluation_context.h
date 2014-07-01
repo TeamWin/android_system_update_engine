@@ -92,6 +92,8 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   std::string DumpContext() const;
 
  private:
+  friend class UmEvaluationContextTest;
+
   // Removes all the Observers and timeout callbacks scheduled by
   // RunOnValueChangeOrTimeout(). This method is idempotent.
   void RemoveObserversAndTimeout();
