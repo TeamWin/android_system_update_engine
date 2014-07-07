@@ -47,7 +47,7 @@ class UmChromeOSPolicyTest : public ::testing::Test {
     fake_state_.updater_provider()->var_last_checked_time()->reset(
         new Time(fake_clock_.GetWallclockTime()));
     fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-        reset(new unsigned int(0));
+        reset(new unsigned int(0));  // NOLINT(readability/casting)
 
     fake_state_.random_provider()->var_seed()->reset(
         new uint64_t(4));  // chosen by fair dice roll.
@@ -160,7 +160,7 @@ TEST_F(UmChromeOSPolicyTest, ExponentialBackoffIsCapped) {
   Time next_update_check;
 
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-      reset(new unsigned int(100));
+      reset(new unsigned int(100));  // NOLINT(readability/casting)
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
 
@@ -700,7 +700,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedNoUsableUrlsButP2PEnabled) {
   EXPECT_EQ(0, result.download_url_num_failures);
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionAllowedEthernetDefault) {
+TEST_F(UmChromeOSPolicyTest, UpdateDownloadAllowedEthernetDefault) {
   // Ethernet is always allowed.
 
   fake_state_.shill_provider()->var_conn_type()->
@@ -708,11 +708,11 @@ TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionAllowedEthernetDefault) {
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_TRUE(result);
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionAllowedWifiDefault) {
+TEST_F(UmChromeOSPolicyTest, UpdateDownloadAllowedWifiDefault) {
   // Wifi is allowed if not tethered.
 
   fake_state_.shill_provider()->var_conn_type()->
@@ -720,7 +720,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionAllowedWifiDefault) {
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_TRUE(result);
 }
 
@@ -735,12 +735,12 @@ TEST_F(UmChromeOSPolicyTest,
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_FALSE(result);
 }
 
 TEST_F(UmChromeOSPolicyTest,
-       UpdateCurrentConnectionAllowedWifiTetheredPolicyOverride) {
+       UpdateDownloadAllowedWifiTetheredPolicyOverride) {
   // Tethered wifi can be allowed by policy.
 
   fake_state_.shill_provider()->var_conn_type()->
@@ -755,11 +755,11 @@ TEST_F(UmChromeOSPolicyTest,
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_TRUE(result);
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionAllowedWimaxDefault) {
+TEST_F(UmChromeOSPolicyTest, UpdateDownloadAllowedWimaxDefault) {
   // Wimax is always allowed.
 
   fake_state_.shill_provider()->var_conn_type()->
@@ -767,7 +767,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionAllowedWimaxDefault) {
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_TRUE(result);
 }
 
@@ -780,7 +780,7 @@ TEST_F(UmChromeOSPolicyTest,
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_FALSE(result);
 }
 
@@ -798,7 +798,7 @@ TEST_F(UmChromeOSPolicyTest,
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_FALSE(result);
 }
 
@@ -810,12 +810,12 @@ TEST_F(UmChromeOSPolicyTest, UpdateCurrentConnectionNotAllowedCellularDefault) {
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_FALSE(result);
 }
 
 TEST_F(UmChromeOSPolicyTest,
-       UpdateCurrentConnectionAllowedCellularPolicyOverride) {
+       UpdateDownloadAllowedCellularPolicyOverride) {
   // Update over cellular can be enabled by policy.
 
   fake_state_.shill_provider()->var_conn_type()->
@@ -828,12 +828,12 @@ TEST_F(UmChromeOSPolicyTest,
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_TRUE(result);
 }
 
 TEST_F(UmChromeOSPolicyTest,
-       UpdateCurrentConnectionAllowedCellularUserOverride) {
+       UpdateDownloadAllowedCellularUserOverride) {
   // Update over cellular can be enabled by user settings, but only if policy
   // is present and does not determine allowed connections.
 
@@ -846,7 +846,7 @@ TEST_F(UmChromeOSPolicyTest,
 
   bool result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
-                     &Policy::UpdateCurrentConnectionAllowed, &result);
+                     &Policy::UpdateDownloadAllowed, &result);
   EXPECT_TRUE(result);
 }
 

@@ -80,7 +80,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_idx, int* url_num_failures) {
     case ErrorCode::kDownloadTransferError:
     case ErrorCode::kDownloadWriteError:
     case ErrorCode::kDownloadStateInitializationError:
-    case ErrorCode::kOmahaErrorInHTTPResponse: // Aggregate for HTTP errors.
+    case ErrorCode::kOmahaErrorInHTTPResponse:  // Aggregate for HTTP errors.
       LOG(INFO) << "Incrementing URL failure count due to error "
                 << chromeos_update_engine::utils::CodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
@@ -301,7 +301,7 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
 // updates over a cellular network (disabled by default). We may want to
 // revisit this semantics, allowing greater flexibility in defining specific
 // permissions over all types of networks.
-EvalStatus ChromeOSPolicy::UpdateCurrentConnectionAllowed(
+EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(
     EvaluationContext* ec,
     State* state,
     string* error,

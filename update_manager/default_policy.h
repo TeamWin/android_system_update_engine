@@ -47,7 +47,7 @@ class DefaultPolicy : public Policy {
     return EvalStatus::kSucceeded;
   }
 
-  virtual EvalStatus UpdateCurrentConnectionAllowed(
+  virtual EvalStatus UpdateDownloadAllowed(
       EvaluationContext* ec,
       State* state,
       std::string* error,

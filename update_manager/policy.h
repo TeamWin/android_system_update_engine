@@ -131,9 +131,9 @@ class Policy {
     if (reinterpret_cast<typeof(&Policy::UpdateCanStart)>(
             policy_method) == &Policy::UpdateCanStart)
       return class_name + "UpdateCanStart";
-    if (reinterpret_cast<typeof(&Policy::UpdateCurrentConnectionAllowed)>(
-            policy_method) == &Policy::UpdateCurrentConnectionAllowed)
-      return class_name + "UpdateCurrentConnectionAllowed";
+    if (reinterpret_cast<typeof(&Policy::UpdateDownloadAllowed)>(
+            policy_method) == &Policy::UpdateDownloadAllowed)
+      return class_name + "UpdateDownloadAllowed";
 
     NOTREACHED();
     return class_name + "(unknown)";
@@ -168,12 +168,13 @@ class Policy {
       const bool interactive,
       const UpdateState& update_state) const = 0;
 
-  // Checks whether updating is allowed over the current network connection
-  // Consults the shill provider as well as the device policy (if available).
+  // Checks whether downloading of an update is allowed; currently, this checks
+  // whether the network connection type is suitable for updating over.  May
+  // consult the shill provider as well as the device policy (if available).
   // Returns |EvalStatus::kSucceeded|, setting |result| according to whether or
   // not the current connection can be used; on failure, returns
   // |EvalStatus::kFailed| and sets |error| accordingly.
-  virtual EvalStatus UpdateCurrentConnectionAllowed(
+  virtual EvalStatus UpdateDownloadAllowed(
       EvaluationContext* ec,
       State* state,
       std::string* error,

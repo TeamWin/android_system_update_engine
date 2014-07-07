@@ -47,7 +47,7 @@ class ChromeOSPolicy : public Policy {
       const bool interactive,
       const UpdateState& update_state) const override;
 
-  virtual EvalStatus UpdateCurrentConnectionAllowed(
+  virtual EvalStatus UpdateDownloadAllowed(
       EvaluationContext* ec,
       State* state,
       std::string* error,
