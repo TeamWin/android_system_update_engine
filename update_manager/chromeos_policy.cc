@@ -156,6 +156,14 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   result->updates_enabled = true;
   result->target_channel.clear();
 
+  // Unofficial builds should not perform any automatic update checks.
+  const bool* is_official_build_p = ec->GetValue(
+      state->system_provider()->var_is_official_build());
+  if (is_official_build_p && !(*is_official_build_p)) {
+    result->updates_enabled = false;
+    return EvalStatus::kSucceeded;
+  }
+
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
 
   const bool* device_policy_is_loaded_p = ec->GetValue(

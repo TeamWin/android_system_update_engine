@@ -277,7 +277,21 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   EXPECT_EQ("foo-channel", result.target_channel);
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedUpdatesDisabled) {
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCheckAllowedUpdatesDisabledForUnofficialBuilds) {
+  // UpdateCheckAllowed should return false (kSucceeded) if this is an
+  // unofficial build; we don't want periodic update checks on developer images.
+
+  fake_state_.system_provider()->var_is_official_build()->reset(
+      new bool(false));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCheckAllowed, &result);
+  EXPECT_FALSE(result.updates_enabled);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedUpdatesDisabledByPolicy) {
   // UpdateCheckAllowed should return kAskMeAgainLater because a device policy
   // is loaded and prohibits updates.
 
@@ -285,7 +299,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedUpdatesDisabled) {
   fake_state_.device_policy_provider()->var_update_disabled()->reset(
       new bool(true));
 
-  // Check that the UpdateCanStart returns false.
   UpdateCheckParams result;
   ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
                      &Policy::UpdateCheckAllowed, &result);
