@@ -156,9 +156,12 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   result->updates_enabled = true;
   result->target_channel.clear();
 
+  DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+  SystemProvider* const system_provider = state->system_provider();
+
   // Unofficial builds should not perform any automatic update checks.
   const bool* is_official_build_p = ec->GetValue(
-      state->system_provider()->var_is_official_build());
+      system_provider->var_is_official_build());
   if (is_official_build_p && !(*is_official_build_p)) {
     result->updates_enabled = false;
     return EvalStatus::kSucceeded;
@@ -166,13 +169,21 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
 
   // Do not perform any automatic update checks if booted from removable device.
   const bool* is_boot_device_removable_p = ec->GetValue(
-      state->system_provider()->var_is_boot_device_removable());
+      system_provider->var_is_boot_device_removable());
   if (is_boot_device_removable_p && *is_boot_device_removable_p) {
     result->updates_enabled = false;
     return EvalStatus::kSucceeded;
   }
 
-  DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+  // If OOBE is enabled, wait until it is completed.
+  const bool* is_oobe_enabled_p = ec->GetValue(
+      state->config_provider()->var_is_oobe_enabled());
+  if (is_oobe_enabled_p && *is_oobe_enabled_p) {
+    const bool* is_oobe_complete_p = ec->GetValue(
+        system_provider->var_is_oobe_complete());
+    if (is_oobe_complete_p && !(*is_oobe_complete_p))
+      return EvalStatus::kAskMeAgainLater;
+  }
 
   const bool* device_policy_is_loaded_p = ec->GetValue(
       dp_provider->var_device_policy_is_loaded());
@@ -180,10 +191,8 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
     // Check whether updates are disabled by policy.
     const bool* update_disabled_p = ec->GetValue(
         dp_provider->var_update_disabled());
-    if (update_disabled_p && *update_disabled_p) {
-      result->updates_enabled = false;
+    if (update_disabled_p && *update_disabled_p)
       return EvalStatus::kAskMeAgainLater;
-    }
 
     // Determine whether a target channel is dictated by policy.
     const bool* release_channel_delegated_p = ec->GetValue(

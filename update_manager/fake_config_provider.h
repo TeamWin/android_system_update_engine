@@ -15,13 +15,12 @@ class FakeConfigProvider : public ConfigProvider {
  public:
   FakeConfigProvider() {}
 
- protected:
   virtual FakeVariable<bool>* var_is_oobe_enabled() override {
     return &var_is_oobe_enabled_;
   }
 
  private:
-  FakeVariable<bool> var_is_oobe_enabled_{
+  FakeVariable<bool> var_is_oobe_enabled_{  // NOLINT(whitespace/braces)
       "is_oobe_enabled", kVariableModeConst};
 
   DISALLOW_COPY_AND_ASSIGN(FakeConfigProvider);

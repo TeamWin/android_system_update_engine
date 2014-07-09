@@ -57,6 +57,10 @@ class UmChromeOSPolicyTest : public ::testing::Test {
     fake_state_.device_policy_provider()->var_device_policy_is_loaded()->reset(
         new bool(false));
 
+    // OOBE is enabled by default.
+    fake_state_.config_provider()->var_is_oobe_enabled()->reset(
+        new bool(true));
+
     // For the purpose of the tests, this is an official build and OOBE was
     // completed.
     fake_state_.system_provider()->var_is_official_build()->reset(
@@ -259,6 +263,43 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {
   fake_clock_.SetWallclockTime(next_update_check + TimeDelta::FromSeconds(1));
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
+  EXPECT_TRUE(result.updates_enabled);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE) {
+  // Update checks are defferred until OOBE is completed.
+
+  // Ensure that update is not allowed even if wait period is satisfied.
+  Time next_update_check;
+  Time last_checked_time =
+      fake_clock_.GetWallclockTime() + TimeDelta::FromMinutes(1234);
+
+  fake_state_.updater_provider()->var_last_checked_time()->reset(
+      new Time(last_checked_time));
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
+
+  SetUpDefaultClock();
+  SetUpDefaultState();
+  fake_state_.updater_provider()->var_last_checked_time()->reset(
+      new Time(last_checked_time));
+  fake_clock_.SetWallclockTime(next_update_check + TimeDelta::FromSeconds(1));
+  fake_state_.system_provider()->var_is_oobe_complete()->reset(
+      new bool(false));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
+                     &Policy::UpdateCheckAllowed, &result);
+
+  // Now check that it is allowed if OOBE is completed.
+  SetUpDefaultClock();
+  SetUpDefaultState();
+  fake_state_.updater_provider()->var_last_checked_time()->reset(
+      new Time(last_checked_time));
+  fake_clock_.SetWallclockTime(next_update_check + TimeDelta::FromSeconds(1));
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCheckAllowed, &result);
+  EXPECT_TRUE(result.updates_enabled);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {

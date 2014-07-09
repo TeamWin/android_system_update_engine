@@ -67,6 +67,7 @@ class ChromeOSPolicy : public Policy {
   FRIEND_TEST(UmChromeOSPolicyTest, RecurringCheckBackoffIntervalAndFuzz);
   FRIEND_TEST(UmChromeOSPolicyTest, ExponentialBackoffIsCapped);
   FRIEND_TEST(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout);
+  FRIEND_TEST(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE);
   FRIEND_TEST(UmChromeOSPolicyTest,
               UpdateCanStartNotAllowedScatteringNewWaitPeriodApplies);
   FRIEND_TEST(UmChromeOSPolicyTest,
