@@ -147,13 +147,62 @@ class UmChromeOSPolicyTest : public ::testing::Test {
 TEST_F(UmChromeOSPolicyTest, FirstCheckIsAtMostInitialIntervalAfterStart) {
   Time next_update_check;
 
+  // Set the last update time so it'll appear as if this is a first update check
+  // in the lifetime of the current updater.
+  fake_state_.updater_provider()->var_last_checked_time()->reset(
+      new Time(fake_clock_.GetWallclockTime() - TimeDelta::FromMinutes(10)));
+
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
 
   EXPECT_LE(fake_clock_.GetWallclockTime(), next_update_check);
-  EXPECT_GE(fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-      ChromeOSPolicy::kTimeoutInitialInterval +
-      ChromeOSPolicy::kTimeoutRegularFuzz), next_update_check);
+  EXPECT_GE(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
+          ChromeOSPolicy::kTimeoutInitialInterval +
+          ChromeOSPolicy::kTimeoutRegularFuzz / 2),
+      next_update_check);
+}
+
+TEST_F(UmChromeOSPolicyTest, RecurringCheckBaseIntervalAndFuzz) {
+  // Ensure that we're using the correct interval (kPeriodicInterval) and fuzz
+  // (kTimeoutRegularFuzz) as base values for period updates.
+  Time next_update_check;
+
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
+
+  EXPECT_LE(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
+          ChromeOSPolicy::kTimeoutPeriodicInterval -
+          ChromeOSPolicy::kTimeoutRegularFuzz / 2),
+      next_update_check);
+  EXPECT_GE(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
+          ChromeOSPolicy::kTimeoutPeriodicInterval +
+          ChromeOSPolicy::kTimeoutRegularFuzz / 2),
+      next_update_check);
+}
+
+TEST_F(UmChromeOSPolicyTest, RecurringCheckBackoffIntervalAndFuzz) {
+  // Ensure that we're properly backing off and fuzzing in the presence of
+  // failed updates attempts.
+  Time next_update_check;
+
+  fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
+      reset(new unsigned int(2));  // NOLINT(readability/casting)
+
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
+
+  int expected_interval = ChromeOSPolicy::kTimeoutPeriodicInterval * 4;
+  EXPECT_LE(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
+          expected_interval - expected_interval / 2),
+      next_update_check);
+  EXPECT_GE(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
+          expected_interval + expected_interval / 2),
+      next_update_check);
 }
 
 TEST_F(UmChromeOSPolicyTest, ExponentialBackoffIsCapped) {
@@ -161,15 +210,20 @@ TEST_F(UmChromeOSPolicyTest, ExponentialBackoffIsCapped) {
 
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
       reset(new unsigned int(100));  // NOLINT(readability/casting)
+
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
 
-  EXPECT_LE(fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-      ChromeOSPolicy::kTimeoutMaxBackoffInterval -
-      ChromeOSPolicy::kTimeoutRegularFuzz - 1), next_update_check);
-  EXPECT_GE(fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
-      ChromeOSPolicy::kTimeoutMaxBackoffInterval +
-      ChromeOSPolicy::kTimeoutRegularFuzz), next_update_check);
+  EXPECT_LE(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
+          ChromeOSPolicy::kTimeoutMaxBackoffInterval -
+          ChromeOSPolicy::kTimeoutMaxBackoffInterval / 2),
+      next_update_check);
+  EXPECT_GE(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
+          ChromeOSPolicy::kTimeoutMaxBackoffInterval +
+          ChromeOSPolicy::kTimeoutMaxBackoffInterval /2),
+      next_update_check);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {

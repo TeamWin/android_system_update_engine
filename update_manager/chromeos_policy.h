@@ -63,6 +63,8 @@ class ChromeOSPolicy : public Policy {
   friend class UmChromeOSPolicyTest;
   FRIEND_TEST(UmChromeOSPolicyTest,
               FirstCheckIsAtMostInitialIntervalAfterStart);
+  FRIEND_TEST(UmChromeOSPolicyTest, RecurringCheckBaseIntervalAndFuzz);
+  FRIEND_TEST(UmChromeOSPolicyTest, RecurringCheckBackoffIntervalAndFuzz);
   FRIEND_TEST(UmChromeOSPolicyTest, ExponentialBackoffIsCapped);
   FRIEND_TEST(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout);
   FRIEND_TEST(UmChromeOSPolicyTest,

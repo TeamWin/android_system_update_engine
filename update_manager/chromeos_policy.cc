@@ -406,28 +406,35 @@ EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,
 
   PRNG prng(*seed);
 
+  // If this is the first attempt, compute and return an initial value.
   if (!last_checked_time || *last_checked_time < *updater_started_time) {
-    // First attempt.
     *next_update_check = *updater_started_time + FuzzedInterval(
         &prng, kTimeoutInitialInterval, kTimeoutRegularFuzz);
     return EvalStatus::kSucceeded;
   }
-  // Check for previous failed attempts to implement the exponential backoff.
+
+  // Check for previous failed attempts to implement an exponential backoff.
   const unsigned int* consecutive_failed_update_checks = ec->GetValue(
       state->updater_provider()->var_consecutive_failed_update_checks());
   POLICY_CHECK_VALUE_AND_FAIL(consecutive_failed_update_checks, error);
 
-  int interval = kTimeoutInitialInterval;
+  int interval = kTimeoutPeriodicInterval;
+  int fuzz = kTimeoutRegularFuzz;
   for (unsigned int i = 0; i < *consecutive_failed_update_checks; ++i) {
     interval *= 2;
+    fuzz = 0;  // In case of backoff, fuzz is different (see below).
     if (interval > kTimeoutMaxBackoffInterval) {
       interval = kTimeoutMaxBackoffInterval;
       break;
     }
   }
 
+  // Defer to a fuzz of +/-(interval / 2) in case of backoff.
+  if (fuzz == 0)
+    fuzz = interval;
+
   *next_update_check = *last_checked_time + FuzzedInterval(
-      &prng, interval, kTimeoutRegularFuzz);
+      &prng, interval, fuzz);
   return EvalStatus::kSucceeded;
 }
 
