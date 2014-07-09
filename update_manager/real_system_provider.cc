@@ -43,6 +43,10 @@ bool RealSystemProvider::Init() {
           base::Bind(&chromeos_update_engine::HardwareInterface::IsOOBEComplete,
                      base::Unretained(hardware_), nullptr)));
 
+  var_is_boot_device_removable_.reset(
+      new ConstCopyVariable<bool>("is_boot_device_removable",
+                                  hardware_->IsBootDeviceRemovable()));
+
   return true;
 }
 

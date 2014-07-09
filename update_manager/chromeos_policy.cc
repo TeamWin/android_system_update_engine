@@ -164,6 +164,14 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
     return EvalStatus::kSucceeded;
   }
 
+  // Do not perform any automatic update checks if booted from removable device.
+  const bool* is_boot_device_removable_p = ec->GetValue(
+      state->system_provider()->var_is_boot_device_removable());
+  if (is_boot_device_removable_p && *is_boot_device_removable_p) {
+    result->updates_enabled = false;
+    return EvalStatus::kSucceeded;
+  }
+
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
 
   const bool* device_policy_is_loaded_p = ec->GetValue(

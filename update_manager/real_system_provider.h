@@ -36,10 +36,15 @@ class RealSystemProvider : public SystemProvider {
     return var_is_oobe_complete_.get();
   }
 
+  virtual Variable<bool>* var_is_boot_device_removable() override {
+    return var_is_boot_device_removable_.get();
+  }
+
  private:
   scoped_ptr<Variable<bool>> var_is_normal_boot_mode_;
   scoped_ptr<Variable<bool>> var_is_official_build_;
   scoped_ptr<Variable<bool>> var_is_oobe_complete_;
+  scoped_ptr<Variable<bool>> var_is_boot_device_removable_;
 
   chromeos_update_engine::HardwareInterface* hardware_;
 
