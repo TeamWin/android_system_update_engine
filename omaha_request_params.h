@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_OMAHA_REQUEST_PARAMS_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_OMAHA_REQUEST_PARAMS_H_
+#ifndef UPDATE_ENGINE_OMAHA_REQUEST_PARAMS_H_
+#define UPDATE_ENGINE_OMAHA_REQUEST_PARAMS_H_
 
 #include <string>
 
@@ -263,7 +263,8 @@ class OmahaRequestParams {
 
   // Use a validator that is a non-static member of this class so that its
   // inputs can be mocked in unit tests (e.g., build type for IsValidChannel).
-  typedef bool(OmahaRequestParams::*ValueValidator)(
+  typedef bool(
+      OmahaRequestParams::*ValueValidator)(  // NOLINT(readability/casting)
       const std::string&) const;
 
   // Returns true if parameter values should be locked down for security
@@ -403,4 +404,4 @@ class OmahaRequestParams {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_OMAHA_REQUEST_PARAMS_H_
+#endif  // UPDATE_ENGINE_OMAHA_REQUEST_PARAMS_H_

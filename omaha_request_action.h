@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_OMAHA_REQUEST_ACTION_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_OMAHA_REQUEST_ACTION_H_
+#ifndef UPDATE_ENGINE_OMAHA_REQUEST_ACTION_H_
+#define UPDATE_ENGINE_OMAHA_REQUEST_ACTION_H_
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -285,4 +285,4 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_OMAHA_REQUEST_ACTION_H_
+#endif  // UPDATE_ENGINE_OMAHA_REQUEST_ACTION_H_

@@ -982,11 +982,11 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
   const string type = action->Type();
   if (type == DownloadAction::StaticType()) {
     download_progress_ = 0.0;
-    DownloadAction* download_action = dynamic_cast<DownloadAction*>(action);
+    DownloadAction* download_action = static_cast<DownloadAction*>(action);
     http_response_code_ = download_action->GetHTTPResponseCode();
   } else if (type == OmahaRequestAction::StaticType()) {
     OmahaRequestAction* omaha_request_action =
-        dynamic_cast<OmahaRequestAction*>(action);
+        static_cast<OmahaRequestAction*>(action);
     // If the request is not an event, then it's the update-check.
     if (!omaha_request_action->IsEvent()) {
       http_response_code_ = omaha_request_action->GetHTTPResponseCode();
@@ -1365,7 +1365,7 @@ void UpdateAttempter::MarkDeltaUpdateFailure() {
 
 void UpdateAttempter::SetupDownload() {
   MultiRangeHttpFetcher* fetcher =
-      dynamic_cast<MultiRangeHttpFetcher*>(download_action_->http_fetcher());
+      static_cast<MultiRangeHttpFetcher*>(download_action_->http_fetcher());
   fetcher->ClearRanges();
   if (response_handler_action_->install_plan().is_resume) {
     // Resuming an update so fetch the update manifest metadata first.

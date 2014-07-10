@@ -67,24 +67,33 @@ class FakeUpdaterProvider : public UpdaterProvider {
   }
 
  private:
-  FakeVariable<base::Time> var_updater_started_time_{
-      "updater_started_time", kVariableModePoll};
-  FakeVariable<base::Time> var_last_checked_time_{
-      "last_checked_time", kVariableModePoll};
-  FakeVariable<base::Time> var_update_completed_time_{
-      "update_completed_time", kVariableModePoll};
-  FakeVariable<double> var_progress_{"progress", kVariableModePoll};
-  FakeVariable<Stage> var_stage_{"stage", kVariableModePoll};
-  FakeVariable<std::string> var_new_version_{"new_version", kVariableModePoll};
-  FakeVariable<int64_t> var_payload_size_{"payload_size", kVariableModePoll};
-  FakeVariable<std::string> var_curr_channel_{
-      "curr_channel", kVariableModePoll};
-  FakeVariable<std::string> var_new_channel_{"new_channel", kVariableModePoll};
-  FakeVariable<bool> var_p2p_enabled_{"p2p_enabled", kVariableModePoll};
-  FakeVariable<bool> var_cellular_enabled_{
-      "cellular_enabled", kVariableModePoll};
-  FakeVariable<unsigned int> var_consecutive_failed_update_checks_{
-      "consecutive_failed_update_checks", kVariableModePoll};
+  FakeVariable<base::Time>
+      var_updater_started_time_{  // NOLINT(whitespace/braces)
+    "updater_started_time", kVariableModePoll};
+  FakeVariable<base::Time> var_last_checked_time_{  // NOLINT(whitespace/braces)
+    "last_checked_time", kVariableModePoll};
+  FakeVariable<base::Time>
+      var_update_completed_time_{  // NOLINT(whitespace/braces)
+    "update_completed_time", kVariableModePoll};
+  FakeVariable<double> var_progress_{  // NOLINT(whitespace/braces)
+    "progress", kVariableModePoll};
+  FakeVariable<Stage> var_stage_{  // NOLINT(whitespace/braces)
+    "stage", kVariableModePoll};
+  FakeVariable<std::string> var_new_version_{  // NOLINT(whitespace/braces)
+    "new_version", kVariableModePoll};
+  FakeVariable<int64_t> var_payload_size_{  // NOLINT(whitespace/braces)
+    "payload_size", kVariableModePoll};
+  FakeVariable<std::string> var_curr_channel_{  // NOLINT(whitespace/braces)
+    "curr_channel", kVariableModePoll};
+  FakeVariable<std::string> var_new_channel_{  // NOLINT(whitespace/braces)
+    "new_channel", kVariableModePoll};
+  FakeVariable<bool> var_p2p_enabled_{  // NOLINT(whitespace/braces)
+    "p2p_enabled", kVariableModePoll};
+  FakeVariable<bool> var_cellular_enabled_{  // NOLINT(whitespace/braces)
+    "cellular_enabled", kVariableModePoll};
+  FakeVariable<unsigned int>
+      var_consecutive_failed_update_checks_{  // NOLINT(whitespace/braces)
+    "consecutive_failed_update_checks", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeUpdaterProvider);
 };

@@ -5,8 +5,8 @@
 // This file contains general definitions used in implementing, testing and
 // emulating communication over HTTP.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H_
+#ifndef UPDATE_ENGINE_HTTP_COMMON_H_
+#define UPDATE_ENGINE_HTTP_COMMON_H_
 
 #include <cstdlib>
 
@@ -59,4 +59,4 @@ const char *GetHttpContentTypeString(HttpContentType type);
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_HTTP_COMMON_H_
+#endif  // UPDATE_ENGINE_HTTP_COMMON_H_

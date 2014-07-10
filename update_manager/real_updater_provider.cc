@@ -141,8 +141,10 @@ const StageVariable::CurrOpStrToStage StageVariable::curr_op_str_to_stage[] = {
   {update_engine::kUpdateStatusVerifying, Stage::kVerifying},
   {update_engine::kUpdateStatusFinalizing, Stage::kFinalizing},
   {update_engine::kUpdateStatusUpdatedNeedReboot, Stage::kUpdatedNeedReboot},
-  {update_engine::kUpdateStatusReportingErrorEvent,
-   Stage::kReportingErrorEvent},
+  {  // NOLINT(whitespace/braces)
+    update_engine::kUpdateStatusReportingErrorEvent,
+    Stage::kReportingErrorEvent
+  },
   {update_engine::kUpdateStatusAttemptingRollback, Stage::kAttemptingRollback},
 };
 
@@ -310,8 +312,8 @@ class BooleanPrefVariable : public UpdaterVariableBase<bool> {
 };
 
 // A variable returning the number of consecutive failed update checks.
-class ConsecutiveFailedUpdateChecksVariable :
-    public UpdaterVariableBase<unsigned int> {
+class ConsecutiveFailedUpdateChecksVariable
+    : public UpdaterVariableBase<unsigned int> {
  public:
   using UpdaterVariableBase<unsigned int>::UpdaterVariableBase;
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_PAYLOAD_STATE_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_PAYLOAD_STATE_H_
+#ifndef UPDATE_ENGINE_MOCK_PAYLOAD_STATE_H_
+#define UPDATE_ENGINE_MOCK_PAYLOAD_STATE_H_
 
 #include <string>
 
@@ -35,7 +35,7 @@ class MockPayloadState: public PayloadStateInterface {
                void(const std::string& target_version_uid));
   MOCK_METHOD0(P2PNewAttempt, void());
   MOCK_METHOD0(P2PAttemptAllowed, bool());
-  MOCK_METHOD1(SetUsingP2PForDownloading, void(bool));
+  MOCK_METHOD1(SetUsingP2PForDownloading, void(bool value));
 
   // Getters.
   MOCK_METHOD0(GetResponseSignature, std::string());
@@ -59,4 +59,4 @@ class MockPayloadState: public PayloadStateInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_MOCK_PAYLOAD_STATE_H_
+#endif  // UPDATE_ENGINE_MOCK_PAYLOAD_STATE_H_

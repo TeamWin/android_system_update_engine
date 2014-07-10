@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
+#ifndef UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
+#define UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
 
 #include "update_engine/p2p_manager.h"
 #include "update_engine/utils.h"
@@ -120,4 +120,4 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
+#endif  // UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_HARDWARE_INTERFACE_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_HARDWARE_INTERFACE_H_
+#ifndef UPDATE_ENGINE_HARDWARE_INTERFACE_H_
+#define UPDATE_ENGINE_HARDWARE_INTERFACE_H_
 
 #include <string>
 #include <vector>
@@ -71,4 +71,4 @@ class HardwareInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_HARDWARE_INTERFACE_H_
+#endif  // UPDATE_ENGINE_HARDWARE_INTERFACE_H_
