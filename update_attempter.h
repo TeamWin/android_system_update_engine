@@ -195,9 +195,14 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // This will return an empty string otherwise.
   std::string const& GetPrevVersion() const { return prev_version_; }
 
-  // Returns the nubmer of consecutive failed update checks.
+  // Returns the number of consecutive failed update checks.
   virtual unsigned int consecutive_failed_update_checks() const {
     return consecutive_failed_update_checks_;
+  }
+
+  // Returns the poll interval dictated by Omaha, if provided; zero otherwise.
+  virtual unsigned int server_dictated_poll_interval() const {
+    return server_dictated_poll_interval_;
   }
 
  private:
@@ -457,6 +462,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // The number of consecutive failed update checks. Needed for calculating the
   // next update check interval.
   unsigned int consecutive_failed_update_checks_ = 0;
+
+  // The poll interval (in seconds) that was dictated by Omaha, if any; zero
+  // otherwise. This is needed for calculating the update check interval.
+  unsigned int server_dictated_poll_interval_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

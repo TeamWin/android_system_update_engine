@@ -454,4 +454,13 @@ TEST_F(UmRealUpdaterProviderTest, GetConsecutiveFailedUpdateChecks) {
       kNumFailedChecks, provider_->var_consecutive_failed_update_checks());
 }
 
+TEST_F(UmRealUpdaterProviderTest, GetServerDictatedPollInterval) {
+  const unsigned int kPollInterval = 2 * 60 * 60;  // Two hours.
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
+              server_dictated_poll_interval())
+      .WillRepeatedly(Return(kPollInterval));
+  UmTestUtils::ExpectVariableHasValue(
+      kPollInterval, provider_->var_server_dictated_poll_interval());
+}
+
 }  // namespace chromeos_update_manager

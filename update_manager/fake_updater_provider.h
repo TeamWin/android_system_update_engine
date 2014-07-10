@@ -66,6 +66,11 @@ class FakeUpdaterProvider : public UpdaterProvider {
     return &var_consecutive_failed_update_checks_;
   }
 
+  virtual FakeVariable<unsigned int>*
+      var_server_dictated_poll_interval() override {
+    return &var_server_dictated_poll_interval_;
+  }
+
  private:
   FakeVariable<base::Time>
       var_updater_started_time_{  // NOLINT(whitespace/braces)
@@ -94,6 +99,9 @@ class FakeUpdaterProvider : public UpdaterProvider {
   FakeVariable<unsigned int>
       var_consecutive_failed_update_checks_{  // NOLINT(whitespace/braces)
     "consecutive_failed_update_checks", kVariableModePoll};
+  FakeVariable<unsigned int>
+      var_server_dictated_poll_interval_{  // NOLINT(whitespace/braces)
+    "server_dictated_poll_interval", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeUpdaterProvider);
 };

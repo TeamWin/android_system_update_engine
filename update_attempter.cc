@@ -999,11 +999,13 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
         consecutive_failed_update_checks_ = 0;
       }
 
-      // Forward the server-dictated poll interval to the update check
-      // scheduler, if any.
+      // Store the server-dictated poll interval, if any.
+      server_dictated_poll_interval_ =
+          std::max(0, omaha_request_action->GetOutputObject().poll_interval);
+      // TODO(garnold) Remove this once we deploy Update Manager.
       if (update_check_scheduler_) {
         update_check_scheduler_->set_poll_interval(
-            omaha_request_action->GetOutputObject().poll_interval);
+            server_dictated_poll_interval_);
       }
     }
   }

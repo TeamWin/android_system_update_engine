@@ -79,6 +79,9 @@ class UpdaterProvider : public Provider {
   // A variable returning the number of consecutive failed update checks.
   virtual Variable<unsigned int>* var_consecutive_failed_update_checks() = 0;
 
+  // A server-dictated update check interval in seconds, if one was given.
+  virtual Variable<unsigned int>* var_server_dictated_poll_interval() = 0;
+
  protected:
   UpdaterProvider() {}
 

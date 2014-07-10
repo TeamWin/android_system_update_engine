@@ -31,6 +31,8 @@ class UpdateAttempterMock : public UpdateAttempter {
   MOCK_METHOD1(GetBootTimeAtUpdate, bool(base::Time* out_boot_time));
 
   MOCK_CONST_METHOD0(consecutive_failed_update_checks, unsigned int(void));
+
+  MOCK_CONST_METHOD0(server_dictated_poll_interval, unsigned int(void));
 };
 
 }  // namespace chromeos_update_engine

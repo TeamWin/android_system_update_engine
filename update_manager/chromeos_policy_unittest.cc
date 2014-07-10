@@ -48,6 +48,8 @@ class UmChromeOSPolicyTest : public ::testing::Test {
         new Time(fake_clock_.GetWallclockTime()));
     fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
         reset(new unsigned int(0));  // NOLINT(readability/casting)
+    fake_state_.updater_provider()->var_server_dictated_poll_interval()->
+        reset(new unsigned int(0));  // NOLINT(readability/casting)
 
     fake_state_.random_provider()->var_seed()->reset(
         new uint64_t(4));  // chosen by fair dice roll.
@@ -208,6 +210,30 @@ TEST_F(UmChromeOSPolicyTest, RecurringCheckBackoffIntervalAndFuzz) {
   EXPECT_GE(
       fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
           expected_interval + expected_interval / 2),
+      next_update_check);
+}
+
+TEST_F(UmChromeOSPolicyTest, RecurringCheckServerDictatedPollInterval) {
+  // Policy honors the server provided check poll interval.
+  Time next_update_check;
+
+  const unsigned int kInterval = ChromeOSPolicy::kTimeoutPeriodicInterval * 4;
+  fake_state_.updater_provider()->var_server_dictated_poll_interval()->
+      reset(new unsigned int(kInterval));  // NOLINT(readability/casting)
+  // We should not be backing off in this case.
+  fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
+      reset(new unsigned int(2));  // NOLINT(readability/casting)
+
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
+
+  EXPECT_LE(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
+          kInterval - kInterval / 2),
+      next_update_check);
+  EXPECT_GE(
+      fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(
+          kInterval + kInterval / 2),
       next_update_check);
 }
 

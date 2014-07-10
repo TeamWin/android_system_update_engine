@@ -412,6 +412,8 @@ EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(
 EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,
                                                State* state, string* error,
                                                Time* next_update_check) const {
+  UpdaterProvider* const updater_provider = state->updater_provider();
+
   // Don't check for updates too often. We limit the update checks to once every
   // some interval. The interval is kTimeoutInitialInterval the first time and
   // kTimeoutPeriodicInterval for the subsequent update checks. If the update
@@ -420,11 +422,11 @@ EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,
   // many chromebooks running update checks at the exact same time, we add some
   // fuzz to the interval.
   const Time* updater_started_time =
-      ec->GetValue(state->updater_provider()->var_updater_started_time());
+      ec->GetValue(updater_provider->var_updater_started_time());
   POLICY_CHECK_VALUE_AND_FAIL(updater_started_time, error);
 
   const base::Time* last_checked_time =
-      ec->GetValue(state->updater_provider()->var_last_checked_time());
+      ec->GetValue(updater_provider->var_last_checked_time());
 
   const uint64_t* seed = ec->GetValue(state->random_provider()->var_seed());
   POLICY_CHECK_VALUE_AND_FAIL(seed, error);
@@ -438,23 +440,43 @@ EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,
     return EvalStatus::kSucceeded;
   }
 
-  // Check for previous failed attempts to implement an exponential backoff.
-  const unsigned int* consecutive_failed_update_checks = ec->GetValue(
-      state->updater_provider()->var_consecutive_failed_update_checks());
-  POLICY_CHECK_VALUE_AND_FAIL(consecutive_failed_update_checks, error);
+  // Check whether the server is enforcing a poll interval; if not, this value
+  // will be zero.
+  const unsigned int* server_dictated_poll_interval = ec->GetValue(
+      updater_provider->var_server_dictated_poll_interval());
+  POLICY_CHECK_VALUE_AND_FAIL(server_dictated_poll_interval, error);
 
-  int interval = kTimeoutPeriodicInterval;
-  int fuzz = kTimeoutRegularFuzz;
-  for (unsigned int i = 0; i < *consecutive_failed_update_checks; ++i) {
-    interval *= 2;
-    fuzz = 0;  // In case of backoff, fuzz is different (see below).
-    if (interval > kTimeoutMaxBackoffInterval) {
-      interval = kTimeoutMaxBackoffInterval;
-      break;
+  int interval = *server_dictated_poll_interval;
+  int fuzz = 0;
+
+  // If no poll interval was dictated by server compute a backoff period,
+  // starting from a predetermined base periodic interval and increasing
+  // exponentially by the number of consecutive failed attempts.
+  if (interval == 0) {
+    const unsigned int* consecutive_failed_update_checks = ec->GetValue(
+        updater_provider->var_consecutive_failed_update_checks());
+    POLICY_CHECK_VALUE_AND_FAIL(consecutive_failed_update_checks, error);
+
+    interval = kTimeoutPeriodicInterval;
+    unsigned int num_failures = *consecutive_failed_update_checks;
+    while (interval < kTimeoutMaxBackoffInterval && num_failures) {
+      interval *= 2;
+      num_failures--;
     }
   }
 
-  // Defer to a fuzz of +/-(interval / 2) in case of backoff.
+  // We cannot backoff longer than the predetermined maximum interval.
+  if (interval > kTimeoutMaxBackoffInterval)
+    interval = kTimeoutMaxBackoffInterval;
+
+  // We cannot backoff shorter than the predetermined periodic interval. Also,
+  // in this case set the fuzz to a predetermined regular value.
+  if (interval <= kTimeoutPeriodicInterval) {
+    interval = kTimeoutPeriodicInterval;
+    fuzz = kTimeoutRegularFuzz;
+  }
+
+  // If not otherwise determined, defer to a fuzz of +/-(interval / 2).
   if (fuzz == 0)
     fuzz = interval;
 
