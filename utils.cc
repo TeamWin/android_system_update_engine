@@ -669,6 +669,27 @@ bool GetFilesystemSizeFromFD(int fd,
   return true;
 }
 
+string GetPathOnBoard(const string& command) {
+  int return_code = 0;
+  string command_path;
+  // TODO(deymo): prepend SYSROOT to each PATH instead of the result.
+  if (!Subprocess::SynchronousExec(
+      {"which", command}, &return_code, &command_path)) {
+    return command;
+  }
+  if (return_code != 0)
+    return command;
+
+  base::TrimWhitespaceASCII(command_path, base::TRIM_ALL, &command_path);
+  const char* env_sysroot = getenv("SYSROOT");
+  if (env_sysroot) {
+    string sysroot_command_path = env_sysroot + command_path;
+    if (utils::FileExists(sysroot_command_path.c_str()))
+      return sysroot_command_path;
+  }
+  return command_path;
+}
+
 // Tries to parse the header of an ELF file to obtain a human-readable
 // description of it on the |output| string.
 static bool GetFileFormatELF(const char* buffer, size_t size, string* output) {

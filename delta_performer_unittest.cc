@@ -196,9 +196,9 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   // Generates a new private key that will not match the public key.
   if (signature_test == kSignatureGeneratedShellBadKey) {
     LOG(INFO) << "Generating a mismatched private key.";
-    ASSERT_EQ(0,
-              System(base::StringPrintf("openssl genrsa -out %s 2048",
-                                        private_key_path.c_str())));
+    ASSERT_EQ(0, System(base::StringPrintf(
+        "%s genrsa -out %s 2048",
+        utils::GetPathOnBoard("openssl").c_str(), private_key_path.c_str())));
   }
   int signature_size = GetSignatureSize(private_key_path);
   string hash_file;
@@ -230,7 +230,8 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   ScopedPathUnlinker sig_unlinker(sig_file);
   ASSERT_EQ(0,
             System(base::StringPrintf(
-                "openssl rsautl -raw -sign -inkey %s -in %s -out %s",
+                "%s rsautl -raw -sign -inkey %s -in %s -out %s",
+                utils::GetPathOnBoard("openssl").c_str(),
                 private_key_path.c_str(),
                 hash_file.c_str(),
                 sig_file.c_str())));
@@ -241,7 +242,8 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
       signature_test == kSignatureGeneratedShellRotateCl2) {
     ASSERT_EQ(0,
               System(base::StringPrintf(
-                  "openssl rsautl -raw -sign -inkey %s -in %s -out %s",
+                  "%s rsautl -raw -sign -inkey %s -in %s -out %s",
+                  utils::GetPathOnBoard("openssl").c_str(),
                   kUnittestPrivateKey2Path,
                   hash_file.c_str(),
                   sig_file2.c_str())));
