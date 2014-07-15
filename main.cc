@@ -26,7 +26,6 @@
 #include "update_engine/subprocess.h"
 #include "update_engine/terminator.h"
 #include "update_engine/update_attempter.h"
-#include "update_engine/update_check_scheduler.h"
 extern "C" {
 #include "update_engine/update_engine.dbusserver.h"
 }
@@ -194,10 +193,8 @@ int main(int argc, char** argv) {
   update_attempter->set_dbus_service(service);
   chromeos_update_engine::SetupDbusService(service);
 
-  // Schedule periodic update checks.
-  chromeos_update_engine::UpdateCheckScheduler scheduler(update_attempter,
-                                                         &real_system_state);
-  scheduler.Run();
+  // Initiate update checks.
+  update_attempter->ScheduleUpdates();
 
   // Update boot flags after 45 seconds.
   g_timeout_add_seconds(45,

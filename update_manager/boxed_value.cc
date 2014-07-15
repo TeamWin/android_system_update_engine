@@ -24,56 +24,56 @@ namespace chromeos_update_manager {
 // Keep in sync with boxed_value_unitttest.cc.
 
 template<>
-string BoxedValue::ValuePrinter<string>(const void *value) {
+string BoxedValue::ValuePrinter<string>(const void* value) {
   const string* val = reinterpret_cast<const string*>(value);
   return *val;
 }
 
 template<>
-string BoxedValue::ValuePrinter<int>(const void *value) {
+string BoxedValue::ValuePrinter<int>(const void* value) {
   const int* val = reinterpret_cast<const int*>(value);
   return base::IntToString(*val);
 }
 
 template<>
-string BoxedValue::ValuePrinter<unsigned int>(const void *value) {
+string BoxedValue::ValuePrinter<unsigned int>(const void* value) {
   const unsigned int* val = reinterpret_cast<const unsigned int*>(value);
   return base::UintToString(*val);
 }
 
 template<>
-string BoxedValue::ValuePrinter<int64_t>(const void *value) {
+string BoxedValue::ValuePrinter<int64_t>(const void* value) {
   const int64_t* val = reinterpret_cast<const int64_t*>(value);
   return base::Int64ToString(*val);
 }
 
 template<>
-string BoxedValue::ValuePrinter<uint64_t>(const void *value) {
+string BoxedValue::ValuePrinter<uint64_t>(const void* value) {
   const uint64_t* val =
     reinterpret_cast<const uint64_t*>(value);
   return base::Uint64ToString(static_cast<uint64_t>(*val));
 }
 
 template<>
-string BoxedValue::ValuePrinter<bool>(const void *value) {
+string BoxedValue::ValuePrinter<bool>(const void* value) {
   const bool* val = reinterpret_cast<const bool*>(value);
   return *val ? "true" : "false";
 }
 
 template<>
-string BoxedValue::ValuePrinter<double>(const void *value) {
+string BoxedValue::ValuePrinter<double>(const void* value) {
   const double* val = reinterpret_cast<const double*>(value);
   return base::DoubleToString(*val);
 }
 
 template<>
-string BoxedValue::ValuePrinter<base::Time>(const void *value) {
+string BoxedValue::ValuePrinter<base::Time>(const void* value) {
   const base::Time* val = reinterpret_cast<const base::Time*>(value);
   return chromeos_update_engine::utils::ToString(*val);
 }
 
 template<>
-string BoxedValue::ValuePrinter<base::TimeDelta>(const void *value) {
+string BoxedValue::ValuePrinter<base::TimeDelta>(const void* value) {
   const base::TimeDelta* val = reinterpret_cast<const base::TimeDelta*>(value);
   return chromeos_update_engine::utils::FormatTimeDelta(*val);
 }
@@ -98,13 +98,13 @@ static std::string ConnectionTypeToString(ConnectionType type) {
 }
 
 template<>
-string BoxedValue::ValuePrinter<ConnectionType>(const void *value) {
+string BoxedValue::ValuePrinter<ConnectionType>(const void* value) {
   const ConnectionType* val = reinterpret_cast<const ConnectionType*>(value);
   return ConnectionTypeToString(*val);
 }
 
 template<>
-string BoxedValue::ValuePrinter<set<ConnectionType>>(const void *value) {
+string BoxedValue::ValuePrinter<set<ConnectionType>>(const void* value) {
   string ret = "";
   const set<ConnectionType>* val =
       reinterpret_cast<const set<ConnectionType>*>(value);
@@ -118,7 +118,7 @@ string BoxedValue::ValuePrinter<set<ConnectionType>>(const void *value) {
 }
 
 template<>
-string BoxedValue::ValuePrinter<ConnectionTethering>(const void *value) {
+string BoxedValue::ValuePrinter<ConnectionTethering>(const void* value) {
   const ConnectionTethering* val =
       reinterpret_cast<const ConnectionTethering*>(value);
   switch (*val) {
@@ -136,7 +136,7 @@ string BoxedValue::ValuePrinter<ConnectionTethering>(const void *value) {
 }
 
 template<>
-string BoxedValue::ValuePrinter<Stage>(const void *value) {
+string BoxedValue::ValuePrinter<Stage>(const void* value) {
   const Stage* val = reinterpret_cast<const Stage*>(value);
   switch (*val) {
     case Stage::kIdle:
@@ -157,6 +157,22 @@ string BoxedValue::ValuePrinter<Stage>(const void *value) {
       return "Reporting Error Event";
     case Stage::kAttemptingRollback:
       return "Attempting Rollback";
+  }
+  NOTREACHED();
+  return "Unknown";
+}
+
+template<>
+string BoxedValue::ValuePrinter<UpdateRequestStatus>(const void* value) {
+  const UpdateRequestStatus* val =
+      reinterpret_cast<const UpdateRequestStatus*>(value);
+  switch (*val) {
+    case UpdateRequestStatus::kNone:
+      return "None";
+    case UpdateRequestStatus::kInteractive:
+      return "Interactive";
+    case UpdateRequestStatus::kPeriodic:
+      return "Periodic";
   }
   NOTREACHED();
   return "Unknown";

@@ -350,35 +350,39 @@ class ServerDictatedPollIntervalVariable
   DISALLOW_COPY_AND_ASSIGN(ServerDictatedPollIntervalVariable);
 };
 
-// An async variable that tracks changes to interactive update requests.
-class InteractiveUpdateRequestedVariable : public UpdaterVariableBase<bool> {
+// An async variable that tracks changes to forced update requests.
+class ForcedUpdateRequestedVariable
+    : public UpdaterVariableBase<UpdateRequestStatus> {
  public:
-  InteractiveUpdateRequestedVariable(const string& name,
-                                     SystemState* system_state)
-      : UpdaterVariableBase<bool>::UpdaterVariableBase(name, kVariableModeAsync,
-                                                       system_state) {
-    system_state->update_attempter()->set_interactive_update_pending_callback(
-        new base::Callback<void(bool)>(  // NOLINT(readability/function)
-            base::Bind(&InteractiveUpdateRequestedVariable::Reset,
+  ForcedUpdateRequestedVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<UpdateRequestStatus>::UpdaterVariableBase(
+          name, kVariableModeAsync, system_state) {
+    system_state->update_attempter()->set_forced_update_pending_callback(
+        new base::Callback<void(bool, bool)>(  // NOLINT(readability/function)
+            base::Bind(&ForcedUpdateRequestedVariable::Reset,
                        base::Unretained(this))));
   }
 
  private:
-  const bool* GetValue(TimeDelta /* timeout */,
-                       string* /* errmsg */) override {
-    return new bool(interactive_update_requested_);
+  const UpdateRequestStatus* GetValue(TimeDelta /* timeout */,
+                                      string* /* errmsg */) override {
+    return new UpdateRequestStatus(update_request_status_);
   }
 
-  void Reset(bool value) {
-    if (interactive_update_requested_ != value) {
-      interactive_update_requested_ = value;
+  void Reset(bool forced_update_requested, bool is_interactive) {
+    UpdateRequestStatus new_value = UpdateRequestStatus::kNone;
+    if (forced_update_requested)
+      new_value = (is_interactive ? UpdateRequestStatus::kInteractive :
+                   UpdateRequestStatus::kPeriodic);
+    if (update_request_status_ != new_value) {
+      update_request_status_ = new_value;
       NotifyValueChanged();
     }
   }
 
-  bool interactive_update_requested_ = false;
+  UpdateRequestStatus update_request_status_ = UpdateRequestStatus::kNone;
 
-  DISALLOW_COPY_AND_ASSIGN(InteractiveUpdateRequestedVariable);
+  DISALLOW_COPY_AND_ASSIGN(ForcedUpdateRequestedVariable);
 };
 
 // RealUpdaterProvider methods.
@@ -413,8 +417,8 @@ RealUpdaterProvider::RealUpdaterProvider(SystemState* system_state)
     var_server_dictated_poll_interval_(
         new ServerDictatedPollIntervalVariable(
             "server_dictated_poll_interval", system_state_)),
-    var_interactive_update_requested_(
-        new InteractiveUpdateRequestedVariable(
-            "interactive_update_requested", system_state_)) {}
+    var_forced_update_requested_(
+        new ForcedUpdateRequestedVariable(
+            "forced_update_requested", system_state_)) {}
 
 }  // namespace chromeos_update_manager

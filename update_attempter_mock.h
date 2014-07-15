@@ -17,8 +17,10 @@ class UpdateAttempterMock : public UpdateAttempter {
  public:
   using UpdateAttempter::UpdateAttempter;
 
-  MOCK_METHOD4(Update, void(const std::string& app_version,
+  MOCK_METHOD6(Update, void(const std::string& app_version,
                             const std::string& omaha_url,
+                            const std::string& target_channel,
+                            const std::string& target_version_prefix,
                             bool obey_proxies,
                             bool interactive));
 

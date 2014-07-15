@@ -26,6 +26,12 @@ enum class Stage {
   kAttemptingRollback,
 };
 
+enum class UpdateRequestStatus {
+  kNone,
+  kInteractive,
+  kPeriodic,
+};
+
 // Provider for Chrome OS update related information.
 class UpdaterProvider : public Provider {
  public:
@@ -82,9 +88,10 @@ class UpdaterProvider : public Provider {
   // A server-dictated update check interval in seconds, if one was given.
   virtual Variable<unsigned int>* var_server_dictated_poll_interval() = 0;
 
-  // A variable denoting whether a request for an interactive update was
-  // received but no update check performed yet.
-  virtual Variable<bool>* var_interactive_update_requested() = 0;
+  // A variable denoting whether a forced update was request but no update check
+  // performed yet; also tells whether this request is for an interactive or
+  // scheduled update.
+  virtual Variable<UpdateRequestStatus>* var_forced_update_requested() = 0;
 
  protected:
   UpdaterProvider() {}

@@ -47,11 +47,11 @@ class UmChromeOSPolicyTest : public ::testing::Test {
     fake_state_.updater_provider()->var_last_checked_time()->reset(
         new Time(fake_clock_.GetWallclockTime()));
     fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-        reset(new unsigned int(0));  // NOLINT(readability/casting)
+        reset(new unsigned int{0});
     fake_state_.updater_provider()->var_server_dictated_poll_interval()->
-        reset(new unsigned int(0));  // NOLINT(readability/casting)
-    fake_state_.updater_provider()->var_interactive_update_requested()->
-        reset(new bool(false));  // NOLINT(readability/casting)
+        reset(new unsigned int{0});
+    fake_state_.updater_provider()->var_forced_update_requested()->
+        reset(new UpdateRequestStatus{UpdateRequestStatus::kNone});
 
     fake_state_.random_provider()->var_seed()->reset(
         new uint64_t(4));  // chosen by fair dice roll.
@@ -199,7 +199,7 @@ TEST_F(UmChromeOSPolicyTest, RecurringCheckBackoffIntervalAndFuzz) {
   Time next_update_check;
 
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-      reset(new unsigned int(2));  // NOLINT(readability/casting)
+      reset(new unsigned int{2});
 
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
@@ -221,10 +221,10 @@ TEST_F(UmChromeOSPolicyTest, RecurringCheckServerDictatedPollInterval) {
 
   const unsigned int kInterval = ChromeOSPolicy::kTimeoutPeriodicInterval * 4;
   fake_state_.updater_provider()->var_server_dictated_poll_interval()->
-      reset(new unsigned int(kInterval));  // NOLINT(readability/casting)
+      reset(new unsigned int{kInterval});
   // We should not be backing off in this case.
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-      reset(new unsigned int(2));  // NOLINT(readability/casting)
+      reset(new unsigned int{2});
 
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
@@ -243,7 +243,7 @@ TEST_F(UmChromeOSPolicyTest, ExponentialBackoffIsCapped) {
   Time next_update_check;
 
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->
-      reset(new unsigned int(100));  // NOLINT(readability/casting)
+      reset(new unsigned int{100});
 
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &ChromeOSPolicy::NextUpdateCheckTime, &next_update_check);
@@ -394,19 +394,35 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedUpdatesDisabledByPolicy) {
                      &Policy::UpdateCheckAllowed, &result);
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedInteractiveUpdateRequested) {
-  // UpdateCheckAllowed should return true because an interactive update request
-  // was signaled.
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCheckAllowedForcedUpdateRequestedInteractive) {
+  // UpdateCheckAllowed should return true because a forced update request was
+  // signaled for an interactive update.
 
   SetUpdateCheckAllowed(true);
-  fake_state_.updater_provider()->var_interactive_update_requested()->reset(
-      new bool(true));
+  fake_state_.updater_provider()->var_forced_update_requested()->reset(
+      new UpdateRequestStatus(UpdateRequestStatus::kInteractive));
 
   UpdateCheckParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
   EXPECT_TRUE(result.is_interactive);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedForcedUpdateRequestedPeriodic) {
+  // UpdateCheckAllowed should return true because a forced update request was
+  // signaled for a periodic check.
+
+  SetUpdateCheckAllowed(true);
+  fake_state_.updater_provider()->var_forced_update_requested()->reset(
+      new UpdateRequestStatus(UpdateRequestStatus::kPeriodic));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCheckAllowed, &result);
+  EXPECT_TRUE(result.updates_enabled);
+  EXPECT_FALSE(result.is_interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCanStartFailsCheckAllowedError) {

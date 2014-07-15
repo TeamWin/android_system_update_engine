@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include <base/bind.h>
 #include <base/file_util.h>
 #include <base/logging.h>
 #include <base/rand_util.h>
@@ -46,13 +47,20 @@
 #include "update_engine/prefs_interface.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/system_state.h"
-#include "update_engine/update_check_scheduler.h"
+#include "update_engine/update_manager/policy.h"
+#include "update_engine/update_manager/update_manager.h"
 #include "update_engine/utils.h"
 
+using base::Bind;
+using base::Callback;
 using base::StringPrintf;
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
+using chromeos_update_manager::EvalStatus;
+using chromeos_update_manager::Policy;
+using chromeos_update_manager::UpdateCheckParams;
+using google::protobuf::NewPermanentCallback;
 using std::make_pair;
 using std::set;
 using std::shared_ptr;
@@ -137,6 +145,10 @@ UpdateAttempter::UpdateAttempter(SystemState* system_state,
   }
 }
 
+UpdateAttempter::~UpdateAttempter() {
+  CleanupCpuSharesManagement();
+}
+
 void UpdateAttempter::Init() {
   // Pulling from the SystemState can only be done after construction, since
   // this is an aggregate of various objects (such as the UpdateAttempter),
@@ -145,8 +157,16 @@ void UpdateAttempter::Init() {
   omaha_request_params_ = system_state_->request_params();
 }
 
-UpdateAttempter::~UpdateAttempter() {
-  CleanupCpuSharesManagement();
+void UpdateAttempter::ScheduleUpdates() {
+  chromeos_update_manager::UpdateManager* const update_manager =
+      system_state_->update_manager();
+  CHECK(update_manager);
+  Callback<void(EvalStatus, const UpdateCheckParams&)> callback = Bind(
+      &UpdateAttempter::OnUpdateScheduled, base::Unretained(this));
+  // We limit the async policy request to a reasonably short time, to avoid a
+  // starvation due to a transient bug.
+  update_manager->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
+  waiting_for_scheduled_check_ = true;
 }
 
 bool UpdateAttempter::CheckAndReportDailyMetrics() {
@@ -222,16 +242,19 @@ void UpdateAttempter::ReportOSAge() {
 
 void UpdateAttempter::Update(const string& app_version,
                              const string& omaha_url,
+                             const string& target_channel,
+                             const string& target_version_prefix,
                              bool obey_proxies,
                              bool interactive) {
-  // This is called at least every 4 hours (see the constant
-  // UpdateCheckScheduler::kTimeoutMaxBackoffInterval) so it's
-  // appropriate to use as a hook for reporting daily metrics.
+  // This is normally called frequently enough so it's appropriate to use as a
+  // hook for reporting daily metrics.
+  // TODO(garnold) This should be hooked to a separate (reliable and consistent)
+  // timeout event.
   CheckAndReportDailyMetrics();
 
   // Notify of the new update attempt, clearing prior interactive requests.
-  if (interactive_update_pending_callback_.get())
-    interactive_update_pending_callback_->Run(false);
+  if (forced_update_pending_callback_.get())
+    forced_update_pending_callback_->Run(false, false);
 
   chrome_proxy_resolver_.Init();
   fake_update_success_ = false;
@@ -257,6 +280,8 @@ void UpdateAttempter::Update(const string& app_version,
 
   if (!CalculateUpdateParams(app_version,
                              omaha_url,
+                             target_channel,
+                             target_version_prefix,
                              obey_proxies,
                              interactive)) {
     return;
@@ -265,6 +290,11 @@ void UpdateAttempter::Update(const string& app_version,
   BuildUpdateActions(interactive);
 
   SetStatusAndNotify(UPDATE_STATUS_CHECKING_FOR_UPDATE);
+
+  // Update the last check time here; it may be re-updated when an Omaha
+  // response is received, but this will prevent us from repeatedly scheduling
+  // checks in the case where a response is not received.
+  UpdateLastCheckedTime();
 
   // Just in case we didn't update boot flags yet, make sure they're updated
   // before any update processing starts.
@@ -325,32 +355,15 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
 
 bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             const string& omaha_url,
+                                            const string& target_channel,
+                                            const string& target_version_prefix,
                                             bool obey_proxies,
                                             bool interactive) {
   http_response_code_ = 0;
 
-  RefreshDevicePolicy();
-  const policy::DevicePolicy* device_policy = system_state_->device_policy();
-  if (device_policy) {
-    bool update_disabled = false;
-    if (device_policy->GetUpdateDisabled(&update_disabled))
-      omaha_request_params_->set_update_disabled(update_disabled);
-
-    string target_version_prefix;
-    if (device_policy->GetTargetVersionPrefix(&target_version_prefix))
-      omaha_request_params_->set_target_version_prefix(target_version_prefix);
-
-    set<string> allowed_types;
-    string allowed_types_str;
-    if (device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
-      set<string>::const_iterator iter;
-      for (iter = allowed_types.begin(); iter != allowed_types.end(); ++iter)
-        allowed_types_str += *iter + " ";
-    }
-
-    LOG(INFO) << "Networks over which updates are allowed per policy : "
-              << (allowed_types_str.empty() ? "all" : allowed_types_str);
-  }
+  // Set the target version prefix, if provided.
+  if (!target_version_prefix.empty())
+    omaha_request_params_->set_target_version_prefix(target_version_prefix);
 
   CalculateScatteringParams(interactive);
 
@@ -374,34 +387,21 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     return false;
   }
 
-  // Set the target channel iff ReleaseChannelDelegated policy is set to
-  // false and a non-empty ReleaseChannel policy is present. If delegated
-  // is true, we'll ignore ReleaseChannel policy value.
-  if (device_policy) {
-    bool delegated = false;
-    if (!device_policy->GetReleaseChannelDelegated(&delegated) || delegated) {
-      LOG(INFO) << "Channel settings are delegated to user by policy. "
-                   "Ignoring ReleaseChannel policy value";
-    } else {
-      LOG(INFO) << "Channel settings are not delegated to the user by policy";
-      string target_channel;
-      if (device_policy->GetReleaseChannel(&target_channel) &&
-          !target_channel.empty()) {
-        // Pass in false for powerwash_allowed until we add it to the policy
-        // protobuf.
-        LOG(INFO) << "Setting target channel from ReleaseChannel policy value";
-        omaha_request_params_->SetTargetChannel(target_channel, false);
+  // Set the target channel, if one was provided.
+  if (target_channel.empty()) {
+    LOG(INFO) << "No target channel mandated by policy.";
+  } else {
+    LOG(INFO) << "Setting target channel as mandated: " << target_channel;
+    // Pass in false for powerwash_allowed until we add it to the policy
+    // protobuf.
+    omaha_request_params_->SetTargetChannel(target_channel, false);
 
-        // Since this is the beginning of a new attempt, update the download
-        // channel. The download channel won't be updated until the next
-        // attempt, even if target channel changes meanwhile, so that how we'll
-        // know if we should cancel the current download attempt if there's
-        // such a change in target channel.
-        omaha_request_params_->UpdateDownloadChannel();
-      } else {
-        LOG(INFO) << "No ReleaseChannel specified in policy";
-      }
-    }
+    // Since this is the beginning of a new attempt, update the download
+    // channel. The download channel won't be updated until the next attempt,
+    // even if target channel changes meanwhile, so that how we'll know if we
+    // should cancel the current download attempt if there's such a change in
+    // target channel.
+    omaha_request_params_->UpdateDownloadChannel();
   }
 
   LOG(INFO) << "update_disabled = "
@@ -805,19 +805,11 @@ std::vector<std::pair<std::string, bool>>
 void UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
                                      bool interactive) {
-  LOG(INFO) << "Interactive update check requested.";
-  if (interactive_update_pending_callback_.get())
-    interactive_update_pending_callback_->Run(true);
-
-  if (status_ != UPDATE_STATUS_IDLE) {
-    LOG(INFO) << "Skipping update check because current status is "
-              << UpdateStatusToString(status_);
-    return;
-  }
-
-  // Pass through the interactive flag, in case we want to simulate a scheduled
-  // test.
-  Update(app_version, omaha_url, true, interactive);
+  LOG(INFO) << "Forced update check requested.";
+  forced_app_version_ = app_version;
+  forced_omaha_url_ = omaha_url;
+  if (forced_update_pending_callback_.get())
+    forced_update_pending_callback_->Run(true, interactive);
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
@@ -886,6 +878,51 @@ bool UpdateAttempter::RebootDirectly() {
   int rc = 0;
   Subprocess::SynchronousExec(command, &rc, nullptr);
   return rc == 0;
+}
+
+void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
+                                        const UpdateCheckParams& params) {
+  waiting_for_scheduled_check_ = false;
+
+  if (status == EvalStatus::kSucceeded) {
+    if (!params.updates_enabled) {
+      LOG(WARNING) << "Updates permanently disabled.";
+      return;
+    }
+
+    LOG(INFO) << "Running "
+              << (params.is_interactive ? "interactive" : "periodic")
+              << " update.";
+
+    string app_version, omaha_url;
+    if (params.is_interactive) {
+      app_version = forced_app_version_;
+      omaha_url = forced_omaha_url_;
+    } else {
+      // Flush previously generated UMA reports before periodic updates.
+      CertificateChecker::FlushReport();
+    }
+
+    Update(app_version, omaha_url, params.target_channel,
+           params.target_version_prefix, false, params.is_interactive);
+  } else {
+    LOG(WARNING)
+        << "Update check scheduling failed (possibly timed out); retrying.";
+    ScheduleUpdates();
+  }
+
+  // This check ensures that future update checks will be or are already
+  // scheduled. The check should never fail. A check failure means that there's
+  // a bug that will most likely prevent further automatic update checks. It
+  // seems better to crash in such cases and restart the update_engine daemon
+  // into, hopefully, a known good state.
+  CHECK((this->status() != UPDATE_STATUS_IDLE &&
+         this->status() != UPDATE_STATUS_UPDATED_NEED_REBOOT) ||
+        waiting_for_scheduled_check_);
+}
+
+void UpdateAttempter::UpdateLastCheckedTime() {
+  last_checked_time_ = system_state_->clock()->GetWallclockTime().ToTimeT();
 }
 
 // Delegate methods:
@@ -1012,11 +1049,6 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
       // Store the server-dictated poll interval, if any.
       server_dictated_poll_interval_ =
           std::max(0, omaha_request_action->GetOutputObject().poll_interval);
-      // TODO(garnold) Remove this once we deploy Update Manager.
-      if (update_check_scheduler_) {
-        update_check_scheduler_->set_poll_interval(
-            server_dictated_poll_interval_);
-      }
     }
   }
   if (code != ErrorCode::kSuccess) {
@@ -1039,7 +1071,7 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     // cases when the server and the client are unable to initiate the download.
     CHECK(action == response_handler_action_.get());
     const InstallPlan& plan = response_handler_action_->install_plan();
-    last_checked_time_ = time(nullptr);
+    UpdateLastCheckedTime();
     new_version_ = plan.version;
     new_payload_size_ = plan.payload_size;
     SetupDownload();
@@ -1223,8 +1255,10 @@ bool UpdateAttempter::ShouldCancel(ErrorCode* cancel_reason) {
 
 void UpdateAttempter::SetStatusAndNotify(UpdateStatus status) {
   status_ = status;
-  if (update_check_scheduler_) {
-    update_check_scheduler_->SetUpdateStatus(status_);
+  // If not updating, schedule subsequent update checks.
+  if (status_ == UPDATE_STATUS_IDLE ||
+      status_ == UPDATE_STATUS_UPDATED_NEED_REBOOT) {
+    ScheduleUpdates();
   }
   BroadcastStatus();
 }
@@ -1423,6 +1457,11 @@ void UpdateAttempter::PingOmaha() {
   } else {
     LOG(WARNING) << "Action processor running, Omaha ping suppressed.";
   }
+
+  // Update the last check time here; it may be re-updated when an Omaha
+  // response is received, but this will prevent us from repeatedly scheduling
+  // checks in the case where a response is not received.
+  UpdateLastCheckedTime();
 
   // Update the status which will schedule the next update check
   SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT);

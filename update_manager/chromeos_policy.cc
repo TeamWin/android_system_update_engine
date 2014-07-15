@@ -168,6 +168,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   const bool* is_boot_device_removable_p = ec->GetValue(
       system_provider->var_is_boot_device_removable());
   if (is_boot_device_removable_p && *is_boot_device_removable_p) {
+    LOG(INFO) << "Booted from removable device, disabling update checks.";
     result->updates_enabled = false;
     return EvalStatus::kSucceeded;
   }
@@ -178,8 +179,10 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
     // Check whether updates are disabled by policy.
     const bool* update_disabled_p = ec->GetValue(
         dp_provider->var_update_disabled());
-    if (update_disabled_p && *update_disabled_p)
+    if (update_disabled_p && *update_disabled_p) {
+      LOG(INFO) << "Updates disabled by policy, blocking update checks.";
       return EvalStatus::kAskMeAgainLater;
+    }
 
     // Determine whether a target version prefix is dictated by policy.
     const string* target_version_prefix_p = ec->GetValue(
@@ -199,10 +202,15 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   }
 
   // First, check to see if an interactive update was requested.
-  const bool* interactive_update_requested_p = ec->GetValue(
-      updater_provider->var_interactive_update_requested());
-  if (interactive_update_requested_p && *interactive_update_requested_p) {
-    result->is_interactive = true;
+  const UpdateRequestStatus* forced_update_requested_p = ec->GetValue(
+      updater_provider->var_forced_update_requested());
+  if (forced_update_requested_p &&
+      *forced_update_requested_p != UpdateRequestStatus::kNone) {
+    result->is_interactive =
+        (*forced_update_requested_p == UpdateRequestStatus::kInteractive);
+    LOG(INFO) << "Forced update signaled ("
+              << (result->is_interactive ?  "interactive" : "periodic")
+              << "), allowing update check.";
     return EvalStatus::kSucceeded;
   }
 
@@ -214,6 +222,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   const bool* is_official_build_p = ec->GetValue(
       system_provider->var_is_official_build());
   if (is_official_build_p && !(*is_official_build_p)) {
+    LOG(INFO) << "Unofficial build, blocking periodic update checks.";
     return EvalStatus::kAskMeAgainLater;
   }
 
@@ -223,8 +232,10 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   if (is_oobe_enabled_p && *is_oobe_enabled_p) {
     const bool* is_oobe_complete_p = ec->GetValue(
         system_provider->var_is_oobe_complete());
-    if (is_oobe_complete_p && !(*is_oobe_complete_p))
+    if (is_oobe_complete_p && !(*is_oobe_complete_p)) {
+      LOG(INFO) << "OOBE not completed, blocking update checks.";
       return EvalStatus::kAskMeAgainLater;
+    }
   }
 
   // Ensure that periodic update checks are timed properly.
@@ -233,10 +244,14 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
       EvalStatus::kSucceeded) {
     return EvalStatus::kFailed;
   }
-  if (!ec->IsWallclockTimeGreaterThan(next_update_check))
+  if (!ec->IsWallclockTimeGreaterThan(next_update_check)) {
+    LOG(INFO) << "Periodic check interval not satisfied, blocking until "
+              << chromeos_update_engine::utils::ToString(next_update_check);
     return EvalStatus::kAskMeAgainLater;
+  }
 
   // It is time to check for an update.
+  LOG(INFO) << "Allowing update check.";
   return EvalStatus::kSucceeded;
 }
 

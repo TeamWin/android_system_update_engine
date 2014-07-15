@@ -24,7 +24,6 @@
 #include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/update_attempter.h"
-#include "update_engine/update_check_scheduler.h"
 #include "update_engine/utils.h"
 
 using base::Time;
@@ -57,6 +56,26 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
                            DBusWrapperInterface* dbus_iface,
                            const std::string& update_completed_marker)
       : UpdateAttempter(system_state, dbus_iface, update_completed_marker) {}
+
+  // Wrap the update scheduling method, allowing us to opt out of scheduled
+  // updates for testing purposes.
+  void ScheduleUpdates() override {
+    schedule_updates_called_ = true;
+    if (do_schedule_updates_) {
+      UpdateAttempter::ScheduleUpdates();
+    } else {
+      LOG(INFO) << "[TEST] Update scheduling disabled.";
+    }
+  }
+  void EnableScheduleUpdates() { do_schedule_updates_ = true; }
+  void DisableScheduleUpdates() { do_schedule_updates_ = false; }
+
+  // Indicates whether ScheduleUpdates() was called.
+  bool schedule_updates_called() const { return schedule_updates_called_; }
+
+ private:
+  bool schedule_updates_called_ = false;
+  bool do_schedule_updates_ = true;
 };
 
 class UpdateAttempterTest : public ::testing::Test {
@@ -84,7 +103,6 @@ class UpdateAttempterTest : public ::testing::Test {
 
     EXPECT_EQ(nullptr, attempter_.dbus_service_);
     EXPECT_NE(nullptr, attempter_.system_state_);
-    EXPECT_EQ(nullptr, attempter_.update_check_scheduler_);
     EXPECT_EQ(0, attempter_.http_response_code_);
     EXPECT_EQ(utils::kCpuSharesNormal, attempter_.shares_);
     EXPECT_EQ(nullptr, attempter_.manage_shares_source_);
@@ -120,16 +138,6 @@ class UpdateAttempterTest : public ::testing::Test {
 
   void PingOmahaTestStart();
   static gboolean StaticPingOmahaTestStart(gpointer data);
-
-  void ReadChannelFromPolicyTestStart();
-  static gboolean StaticReadChannelFromPolicyTestStart(gpointer data);
-
-  void ReadUpdateDisabledFromPolicyTestStart();
-  static gboolean StaticReadUpdateDisabledFromPolicyTestStart(gpointer data);
-
-  void ReadTargetVersionPrefixFromPolicyTestStart();
-  static gboolean StaticReadTargetVersionPrefixFromPolicyTestStart(
-      gpointer data);
 
   void ReadScatterFactorFromPolicyTestStart();
   static gboolean StaticReadScatterFactorFromPolicyTestStart(
@@ -200,13 +208,11 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   OmahaResponse response;
   response.poll_interval = 234;
   action.SetOutputObject(response);
-  UpdateCheckScheduler scheduler(&attempter_, &fake_system_state_);
-  attempter_.set_update_check_scheduler(&scheduler);
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_EQ(500, attempter_.http_response_code());
   EXPECT_EQ(UPDATE_STATUS_IDLE, attempter_.status());
-  EXPECT_EQ(234, scheduler.poll_interval());
+  EXPECT_EQ(234, attempter_.server_dictated_poll_interval_);
   ASSERT_TRUE(attempter_.error_event_.get() == nullptr);
 }
 
@@ -374,27 +380,6 @@ gboolean UpdateAttempterTest::StaticPingOmahaTestStart(gpointer data) {
   return FALSE;
 }
 
-gboolean UpdateAttempterTest::StaticReadChannelFromPolicyTestStart(
-    gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->ReadChannelFromPolicyTestStart();
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticReadUpdateDisabledFromPolicyTestStart(
-    gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->ReadUpdateDisabledFromPolicyTestStart();
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticReadTargetVersionPrefixFromPolicyTestStart(
-    gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->ReadTargetVersionPrefixFromPolicyTestStart();
-  return FALSE;
-}
-
 gboolean UpdateAttempterTest::StaticReadScatterFactorFromPolicyTestStart(
     gpointer data) {
   UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
@@ -450,7 +435,7 @@ void UpdateAttempterTest::UpdateTestStart() {
   }
   EXPECT_CALL(*processor_, StartProcessing()).Times(1);
 
-  attempter_.Update("", "", false, false);
+  attempter_.Update("", "", "", "", false, false);
   g_idle_add(&StaticUpdateTestVerify, this);
 }
 
@@ -587,17 +572,18 @@ void UpdateAttempterTest::PingOmahaTestStart() {
 }
 
 TEST_F(UpdateAttempterTest, PingOmahaTest) {
-  UpdateCheckScheduler scheduler(&attempter_, &fake_system_state_);
-  scheduler.enabled_ = true;
-  EXPECT_FALSE(scheduler.scheduled_);
-  attempter_.set_update_check_scheduler(&scheduler);
+  EXPECT_FALSE(attempter_.waiting_for_scheduled_check_);
+  EXPECT_FALSE(attempter_.schedule_updates_called());
+  // Disable scheduling of subsequnet checks; we're using the DefaultPolicy in
+  // testing, which is more permissive than we want to handle here.
+  attempter_.DisableScheduleUpdates();
   loop_ = g_main_loop_new(g_main_context_default(), FALSE);
   g_idle_add(&StaticPingOmahaTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
   loop_ = nullptr;
   EXPECT_EQ(UPDATE_STATUS_UPDATED_NEED_REBOOT, attempter_.status());
-  EXPECT_EQ(true, scheduler.scheduled_);
+  EXPECT_TRUE(attempter_.schedule_updates_called());
 }
 
 TEST_F(UpdateAttempterTest, CreatePendingErrorEventTest) {
@@ -630,70 +616,6 @@ TEST_F(UpdateAttempterTest, CreatePendingErrorEventResumedTest) {
           static_cast<int>(ErrorCode::kResumedFlag) |
           static_cast<int>(ErrorCode::kTestOmahaUrlFlag)),
       attempter_.error_event_->error_code);
-}
-
-TEST_F(UpdateAttempterTest, ReadChannelFromPolicy) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticReadChannelFromPolicyTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
-}
-
-void UpdateAttempterTest::ReadChannelFromPolicyTestStart() {
-  // Tests that the update channel (aka release channel) is properly fetched
-  // from the device policy.
-
-  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
-  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
-
-  EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy);
-
-  EXPECT_CALL(*device_policy, GetReleaseChannelDelegated(_)).WillRepeatedly(
-      DoAll(SetArgumentPointee<0>(bool(false)),  // NOLINT(readability/casting)
-      Return(true)));
-
-  EXPECT_CALL(*device_policy, GetReleaseChannel(_)).WillRepeatedly(
-      DoAll(SetArgumentPointee<0>(std::string("beta-channel")),
-      Return(true)));
-
-  ASSERT_FALSE(test_dir_.empty());
-  attempter_.omaha_request_params_->set_root(test_dir_);
-  attempter_.Update("", "", false, false);
-  EXPECT_EQ("beta-channel",
-            attempter_.omaha_request_params_->target_channel());
-
-  g_idle_add(&StaticQuitMainLoop, this);
-}
-
-TEST_F(UpdateAttempterTest, ReadUpdateDisabledFromPolicy) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticReadUpdateDisabledFromPolicyTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
-}
-
-void UpdateAttempterTest::ReadUpdateDisabledFromPolicyTestStart() {
-  // Tests that the update_disbled flag is properly fetched
-  // from the device policy.
-
-  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
-  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
-
-  EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy);
-
-  EXPECT_CALL(*device_policy, GetUpdateDisabled(_))
-      .WillRepeatedly(DoAll(
-          SetArgumentPointee<0>(true),
-          Return(true)));
-
-  attempter_.Update("", "", false, false);
-  EXPECT_TRUE(attempter_.omaha_request_params_->update_disabled());
-
-  g_idle_add(&StaticQuitMainLoop, this);
 }
 
 TEST_F(UpdateAttempterTest, P2PNotStartedAtStartupWhenNotEnabled) {
@@ -740,7 +662,7 @@ void UpdateAttempterTest::P2PNotEnabledStart() {
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
-  attempter_.Update("", "", false, false);
+  attempter_.Update("", "", "", "", false, false);
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
@@ -768,7 +690,7 @@ void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(false);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
-  attempter_.Update("", "", false, false);
+  attempter_.Update("", "", "", "", false, false);
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
@@ -796,7 +718,7 @@ void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
-  attempter_.Update("", "", false, false);
+  attempter_.Update("", "", "", "", false, false);
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
@@ -823,7 +745,7 @@ void UpdateAttempterTest::P2PEnabledStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
-  attempter_.Update("", "", false, false);
+  attempter_.Update("", "", "", "", false, false);
   EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
@@ -851,44 +773,11 @@ void UpdateAttempterTest::P2PEnabledInteractiveStart() {
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
-  attempter_.Update("", "", false, true /* interactive */);
+  attempter_.Update("", "", "", "", false, true /* interactive */);
   EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
   EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
 }
-
-TEST_F(UpdateAttempterTest, ReadTargetVersionPrefixFromPolicy) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticReadTargetVersionPrefixFromPolicyTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
-}
-
-void UpdateAttempterTest::ReadTargetVersionPrefixFromPolicyTestStart() {
-  // Tests that the target_version_prefix value is properly fetched
-  // from the device policy.
-
-  const std::string target_version_prefix = "1412.";
-
-  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
-  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
-
-  EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy);
-
-  EXPECT_CALL(*device_policy, GetTargetVersionPrefix(_))
-      .WillRepeatedly(DoAll(
-          SetArgumentPointee<0>(target_version_prefix),
-          Return(true)));
-
-  attempter_.Update("", "", false, false);
-  EXPECT_EQ(target_version_prefix.c_str(),
-            attempter_.omaha_request_params_->target_version_prefix());
-
-  g_idle_add(&StaticQuitMainLoop, this);
-}
-
 
 TEST_F(UpdateAttempterTest, ReadScatterFactorFromPolicy) {
   loop_ = g_main_loop_new(g_main_context_default(), FALSE);
@@ -914,7 +803,7 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
           SetArgumentPointee<0>(scatter_factor_in_seconds),
           Return(true)));
 
-  attempter_.Update("", "", false, false);
+  attempter_.Update("", "", "", "", false, false);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   g_idle_add(&StaticQuitMainLoop, this);
@@ -959,7 +848,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
           SetArgumentPointee<0>(scatter_factor_in_seconds),
           Return(true)));
 
-  attempter_.Update("", "", false, false);
+  attempter_.Update("", "", "", "", false, false);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   // Make sure the file still exists.
@@ -975,7 +864,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   // However, if the count is already 0, it's not decremented. Test that.
   initial_value = 0;
   EXPECT_TRUE(prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
-  attempter_.Update("", "", false, false);
+  attempter_.Update("", "", "", "", false, false);
   EXPECT_TRUE(prefs.Exists(kPrefsUpdateCheckCount));
   EXPECT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
   EXPECT_EQ(initial_value, new_value);
@@ -1026,7 +915,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
           Return(true)));
 
   // Trigger an interactive check so we can test that scattering is disabled.
-  attempter_.Update("", "", false, true);
+  attempter_.Update("", "", "", "", false, true);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   // Make sure scattering is disabled for manual (i.e. user initiated) update
@@ -1049,7 +938,7 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
   string temp_dir;
 
   // We need persistent preferences for this test
-  EXPECT_TRUE(utils::MakeTempDirectory("UpdateCheckScheduler.XXXXXX",
+  EXPECT_TRUE(utils::MakeTempDirectory("UpdateAttempterTest.XXXXXX",
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
   fake_system_state_.set_clock(&fake_clock);

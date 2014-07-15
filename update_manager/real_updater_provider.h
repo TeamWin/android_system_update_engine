@@ -81,8 +81,8 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_server_dictated_poll_interval_.get();
   }
 
-  Variable<bool>* var_interactive_update_requested() override {
-    return var_interactive_update_requested_.get();
+  Variable<UpdateRequestStatus>* var_forced_update_requested() override {
+    return var_forced_update_requested_.get();
   }
 
  private:
@@ -103,7 +103,7 @@ class RealUpdaterProvider : public UpdaterProvider {
   scoped_ptr<Variable<bool>> var_cellular_enabled_;
   scoped_ptr<Variable<unsigned int>> var_consecutive_failed_update_checks_;
   scoped_ptr<Variable<unsigned int>> var_server_dictated_poll_interval_;
-  scoped_ptr<Variable<bool>> var_interactive_update_requested_;
+  scoped_ptr<Variable<UpdateRequestStatus>> var_forced_update_requested_;
 
   DISALLOW_COPY_AND_ASSIGN(RealUpdaterProvider);
 };

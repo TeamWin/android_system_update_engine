@@ -534,7 +534,7 @@ namespace {
 // error.
 off_t ParseInt(const string& str) {
   off_t ret = 0;
-  int rc = sscanf(str.c_str(), "%" PRIi64, &ret);
+  int rc = sscanf(str.c_str(), "%" PRIi64, &ret);  // NOLINT(runtime/printf)
   if (rc < 1) {
     // failure
     return 0;
@@ -575,18 +575,17 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 
   // chromium-os:37289: The PollInterval is not supported by Omaha server
   // currently.  But still keeping this existing code in case we ever decide to
-  // slow down the request rate from the server-side. Note that the
-  // PollInterval is not persisted, so it has to be sent by the server on every
-  // response to guarantee that the UpdateCheckScheduler uses this value
-  // (otherwise, if the device got rebooted after the last server-indicated
-  // value, it'll revert to the default value). Also kDefaultMaxUpdateChecks
-  // value for the scattering logic is based on the assumption that we perform
-  // an update check every hour so that the max value of 8 will roughly be
-  // equivalent to one work day. If we decide to use PollInterval permanently,
-  // we should update the max_update_checks_allowed to take PollInterval into
-  // account.  Note: The parsing for PollInterval happens even before parsing
-  // of the status because we may want to specify the PollInterval even when
-  // there's no update.
+  // slow down the request rate from the server-side. Note that the PollInterval
+  // is not persisted, so it has to be sent by the server on every response to
+  // guarantee that the scheduler uses this value (otherwise, if the device got
+  // rebooted after the last server-indicated value, it'll revert to the default
+  // value). Also kDefaultMaxUpdateChecks value for the scattering logic is
+  // based on the assumption that we perform an update check every hour so that
+  // the max value of 8 will roughly be equivalent to one work day. If we decide
+  // to use PollInterval permanently, we should update the
+  // max_update_checks_allowed to take PollInterval into account.  Note: The
+  // parsing for PollInterval happens even before parsing of the status because
+  // we may want to specify the PollInterval even when there's no update.
   base::StringToInt(parser_data->updatecheck_poll_interval,
                     &output_object->poll_interval);
 

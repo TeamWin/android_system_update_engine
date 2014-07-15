@@ -25,6 +25,8 @@
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/proxy_resolver.h"
 #include "update_engine/system_state.h"
+#include "update_engine/update_manager/policy.h"
+#include "update_engine/update_manager/update_manager.h"
 
 class MetricsLibraryInterface;
 struct UpdateEngineService;
@@ -36,7 +38,6 @@ class PolicyProvider;
 namespace chromeos_update_engine {
 
 class DBusWrapperInterface;
-class UpdateCheckScheduler;
 
 enum UpdateStatus {
   UPDATE_STATUS_IDLE = 0,
@@ -64,14 +65,20 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Further initialization to be done post construction.
   void Init();
 
+  // Initiates scheduling of update checks.
+  virtual void ScheduleUpdates();
+
   // Checks for update and, if a newer version is available, attempts to update
   // the system. Non-empty |in_app_version| or |in_update_url| prevents
-  // automatic detection of the parameter.  If |obey_proxies| is true, the
-  // update will likely respect Chrome's proxy setting. For security reasons, we
-  // may still not honor them. |interactive| should be true if this was called
-  // from the user (ie dbus).
+  // automatic detection of the parameter.  |target_channel| denotes a
+  // policy-mandated channel we are updating to, if not empty. If |obey_proxies|
+  // is true, the update will likely respect Chrome's proxy setting. For
+  // security reasons, we may still not honor them. |interactive| should be true
+  // if this was called from the user (ie dbus).
   virtual void Update(const std::string& app_version,
                       const std::string& omaha_url,
+                      const std::string& target_channel,
+                      const std::string& target_version_prefix,
                       bool obey_proxies,
                       bool interactive);
 
@@ -123,13 +130,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   void set_dbus_service(struct UpdateEngineService* dbus_service) {
     dbus_service_ = dbus_service;
-  }
-
-  UpdateCheckScheduler* update_check_scheduler() const {
-    return update_check_scheduler_;
-  }
-  void set_update_check_scheduler(UpdateCheckScheduler* scheduler) {
-    update_check_scheduler_ = scheduler;
   }
 
   // This is the internal entry point for going through an
@@ -206,14 +206,17 @@ class UpdateAttempter : public ActionProcessorDelegate,
     return server_dictated_poll_interval_;
   }
 
-  // Sets a callback to be used when either an interactive update request is
-  // received (true) or cleared by an update attempt (false). Takes ownership of
-  // the callback object. A null value disables callback on these events. Note
-  // that only one callback can be set, so effectively at most one client can be
-  // notified.
-  virtual void set_interactive_update_pending_callback(
-      base::Callback<void(bool)>* callback) {  // NOLINT(readability/function)
-    interactive_update_pending_callback_.reset(callback);
+  // Sets a callback to be used when either a forced update request is received
+  // (first argument set to true) or cleared by an update attempt (first
+  // argument set to false). The callback further encodes whether the forced
+  // check is an interactive one (second argument set to true). Takes ownership
+  // of the callback object. A null value disables callback on these events.
+  // Note that only one callback can be set, so effectively at most one client
+  // can be notified.
+  virtual void set_forced_update_pending_callback(
+      base::Callback<void(bool, bool)>*  // NOLINT(readability/function)
+      callback) {
+    forced_update_pending_callback_.reset(callback);
   }
 
  private:
@@ -317,6 +320,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Update() method for the meaning of the parametes.
   bool CalculateUpdateParams(const std::string& app_version,
                              const std::string& omaha_url,
+                             const std::string& target_channel,
+                             const std::string& target_version_prefix,
                              bool obey_proxies,
                              bool interactive);
 
@@ -372,6 +377,16 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // success.
   bool RebootDirectly();
 
+  // Callback for the async UpdateCheckAllowed policy request. If |status| is
+  // |EvalStatus::kSucceeded|, either runs or suppresses periodic update checks,
+  // based on the content of |params|. Otherwise, retries the policy request.
+  void OnUpdateScheduled(
+      chromeos_update_manager::EvalStatus status,
+      const chromeos_update_manager::UpdateCheckParams& params);
+
+  // Updates the time an update was last attempted to the current time.
+  void UpdateLastCheckedTime();
+
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is
   // set back in the middle of an update.
@@ -401,9 +416,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // copy of system_state->prefs() because it's used in many methods and
   // is convenient this way.
   PrefsInterface* prefs_ = nullptr;
-
-  // The current UpdateCheckScheduler to notify of state transitions.
-  UpdateCheckScheduler* update_check_scheduler_ = nullptr;
 
   // Pending error event, if any.
   scoped_ptr<OmahaEvent> error_event_;
@@ -481,10 +493,21 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // otherwise. This is needed for calculating the update check interval.
   unsigned int server_dictated_poll_interval_ = 0;
 
-  // A callback to use when either an interactive update request is received
-  // (true) or cleared by an update attempt (false).
-  scoped_ptr<base::Callback<void(bool)>>  // NOLINT(readability/function)
-      interactive_update_pending_callback_;
+  // Tracks whether we have scheduled update checks.
+  bool waiting_for_scheduled_check_ = false;
+
+  // A callback to use when a forced update request is either received (true) or
+  // cleared by an update attempt (false). The second argument indicates whether
+  // this is an interactive update, and its value is significant iff the first
+  // argument is true.
+  scoped_ptr<base::Callback<void(bool, bool)>>  // NOLINT(readability/function)
+      forced_update_pending_callback_;
+
+  // The |app_version| and |omaha_url| parameters received during the latest
+  // forced update request. They are retrieved for use once the update is
+  // actually scheduled.
+  std::string forced_app_version_;
+  std::string forced_omaha_url_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

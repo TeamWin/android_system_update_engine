@@ -69,8 +69,8 @@ class FakeUpdaterProvider : public UpdaterProvider {
     return &var_server_dictated_poll_interval_;
   }
 
-  FakeVariable<bool>* var_interactive_update_requested() override {
-    return &var_interactive_update_requested_;
+  FakeVariable<UpdateRequestStatus>* var_forced_update_requested() override {
+    return &var_forced_update_requested_;
   }
 
  private:
@@ -104,9 +104,9 @@ class FakeUpdaterProvider : public UpdaterProvider {
   FakeVariable<unsigned int>
       var_server_dictated_poll_interval_{  // NOLINT(whitespace/braces)
     "server_dictated_poll_interval", kVariableModePoll};
-  FakeVariable<bool>
-      var_interactive_update_requested_{  // NOLINT(whitespace/braces)
-    "interactive_update_requested", kVariableModeAsync};
+  FakeVariable<UpdateRequestStatus>
+      var_forced_update_requested_{  // NOLINT(whitespace/braces)
+    "forced_update_requested", kVariableModeAsync};
 
   DISALLOW_COPY_AND_ASSIGN(FakeUpdaterProvider);
 };

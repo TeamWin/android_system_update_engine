@@ -74,7 +74,7 @@ TEST(UmBoxedValueTest, MoveConstructor) {
 TEST(UmBoxedValueTest, MixedList) {
   list<BoxedValue> lst;
   // This is mostly a compile test.
-  lst.emplace_back(new const int(42));  // NOLINT(readability/casting)
+  lst.emplace_back(new const int{42});
   lst.emplace_back(new const string("Hello world!"));
   bool marker;
   lst.emplace_back(new const DeleterMarker(&marker));
