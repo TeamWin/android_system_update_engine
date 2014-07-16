@@ -42,6 +42,17 @@
       'variables': {
         'proto_in_dir': '.',
         'proto_out_dir': 'include/update_engine',
+        'exported_deps': [
+          'protobuf',
+        ],
+        'deps': ['<@(exported_deps)'],
+      },
+      'all_dependent_settings': {
+        'variables': {
+          'deps': [
+            '<@(exported_deps)',
+          ],
+        },
       },
       'sources': [
         'update_metadata.proto'
@@ -100,7 +111,6 @@
           'libmetrics-<(libbase_ver)',
           'libssl',
           'libxml-2.0',
-          'protobuf',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -157,16 +167,6 @@
         'omaha_response_handler_action.cc',
         'p2p_manager.cc',
         'payload_constants.cc',
-        'payload_generator/cycle_breaker.cc',
-        'payload_generator/delta_diff_generator.cc',
-        'payload_generator/extent_mapper.cc',
-        'payload_generator/filesystem_iterator.cc',
-        'payload_generator/full_update_generator.cc',
-        'payload_generator/graph_utils.cc',
-        'payload_generator/metadata.cc',
-        'payload_generator/payload_signer.cc',
-        'payload_generator/tarjan.cc',
-        'payload_generator/topological_sort.cc',
         'payload_state.cc',
         'payload_verifier.cc',
         'postinstall_runner_action.cc',
@@ -213,11 +213,37 @@
         'update_engine_client.cc',
       ]
     },
+    # server-side code. This is used for delta_generator and unittests but not
+    # for any client code.
+    {
+      'target_name': 'libpayload_generator',
+      'type': 'static_library',
+      'dependencies': [
+        'update_metadata-protos',
+      ],
+      # TODO(deymo): Add here the payload_generator dependencies not in
+      # libupdate_engine.
+      'sources': [
+        'payload_generator/cycle_breaker.cc',
+        'payload_generator/delta_diff_generator.cc',
+        'payload_generator/extent_mapper.cc',
+        'payload_generator/filesystem_iterator.cc',
+        'payload_generator/full_update_generator.cc',
+        'payload_generator/graph_utils.cc',
+        'payload_generator/metadata.cc',
+        'payload_generator/payload_signer.cc',
+        'payload_generator/tarjan.cc',
+        'payload_generator/topological_sort.cc',
+      ],
+    },
     # server-side delta generator.
     {
       'target_name': 'delta_generator',
       'type': 'executable',
-      'dependencies': ['libupdate_engine'],
+      'dependencies': [
+        'libupdate_engine',
+        'libpayload_generator',
+      ],
       'link_settings': {
         'ldflags!': [
           '-pie',
@@ -258,7 +284,10 @@
         {
           'target_name': 'update_engine_unittests',
           'type': 'executable',
-          'dependencies': ['libupdate_engine'],
+          'dependencies': [
+            'libupdate_engine',
+            'libpayload_generator',
+          ],
           'includes': ['../common-mk/common_test.gypi'],
           'defines': [
             'SYSROOT="<(sysroot)"',
