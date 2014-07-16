@@ -437,7 +437,8 @@ TEST_F(P2PManagerTest, LookupURL) {
 
   // Emulate p2p-client returning valid URL with "fooX", 42 and "cros_au"
   // being propagated in the right places.
-  test_conf_->SetP2PClientCommandLine("echo 'http://1.2.3.4/%s_%zu'");
+  test_conf_->SetP2PClientCommandLine(
+      "echo 'http://1.2.3.4/{file_id}_{minsize}'");
   manager->LookupUrlForFile("fooX", 42, TimeDelta(),
                             base::Bind(ExpectUrl,
                                        "http://1.2.3.4/fooX.cros_au_42", loop));

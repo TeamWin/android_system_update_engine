@@ -14,6 +14,7 @@
 #include <glib.h>
 
 #include <base/logging.h>
+#include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
 namespace chromeos_update_engine {
@@ -23,7 +24,8 @@ namespace chromeos_update_engine {
 class FakeP2PManagerConfiguration : public P2PManager::Configuration {
  public:
   FakeP2PManagerConfiguration()
-    : p2p_client_cmdline_format_("p2p-client --get-url=%s --minimum-size=%zu") {
+    : p2p_client_cmdline_format_(
+        "p2p-client --get-url={file_id} --minimum-size={minsize}") {
     EXPECT_TRUE(utils::MakeTempDirectory("/tmp/p2p-tc.XXXXXX", &p2p_dir_));
     SetInitctlStartCommandLine("initctl start p2p");
     SetInitctlStopCommandLine("initctl stop p2p");
@@ -48,9 +50,14 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
   // P2PManager::Configuration override
   virtual std::vector<std::string> GetP2PClientArgs(const std::string &file_id,
                                                     size_t minimum_size) {
-    std::string formatted_command_line =
-        base::StringPrintf(p2p_client_cmdline_format_.c_str(),
-                           file_id.c_str(), minimum_size);
+    std::string formatted_command_line = p2p_client_cmdline_format_;
+    // Replace {variable} on the passed string.
+    ReplaceSubstringsAfterOffset(
+        &formatted_command_line, 0, "{file_id}", file_id);
+    ReplaceSubstringsAfterOffset(
+        &formatted_command_line, 0,
+        "{minsize}", base::StringPrintf("%zu", minimum_size));
+
     return ParseCommandLine(formatted_command_line);
   }
 
@@ -66,14 +73,13 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
     initctl_stop_args_ = ParseCommandLine(command_line);
   }
 
-  // Use |command_line_format| instead of "p2p-client --get-url=%s
-  // --minimum-size=%zu" when attempting to look up a file using
+  // Use |command_line_format| instead of "p2p-client --get-url={file_id}
+  // --minimum-size={minsize}" when attempting to look up a file using
   // p2p-client(1).
   //
-  // The passed |command_line_format| argument should be a
-  // printf()-style format string taking two arguments, the first
-  // being the a C string for the p2p file id (e.g. %s) and the second
-  // being a size_t with the minimum_size.
+  // The passed |command_line_format| argument can have "{file_id}" and
+  // "{minsize}" as substrings, that will be replaced by the corresponding
+  // values passed to GetP2PClientArgs().
   void SetP2PClientCommandLine(const std::string &command_line_format) {
     p2p_client_cmdline_format_ = command_line_format;
   }
@@ -111,8 +117,8 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
   // Argument vector for stopping p2p.
   std::vector<std::string> initctl_stop_args_;
 
-  // A printf()-style format string for generating the p2p-client format.
-  // See the SetP2PClientCommandLine() for details.
+  // A string for generating the p2p-client command. See the
+  // SetP2PClientCommandLine() for details.
   std::string p2p_client_cmdline_format_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeP2PManagerConfiguration);
