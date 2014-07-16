@@ -21,7 +21,8 @@
 
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
-#include "update_engine/payload_signer.h"
+#include "update_engine/payload_generator/payload_signer.h"
+#include "update_engine/payload_verifier.h"
 #include "update_engine/prefs.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/terminator.h"
@@ -142,7 +143,6 @@ bool ParseImageInfo(const string& channel,
                     const string& build_channel,
                     const string& build_version,
                     ImageInfo* image_info) {
-
   // All of these arguments should be present or missing.
   bool empty = channel.empty();
 
@@ -237,8 +237,8 @@ void VerifySignedPayload() {
       << "Must pass --in_file to verify signed payload.";
   LOG_IF(FATAL, FLAGS_public_key.empty())
       << "Must pass --public_key to verify signed payload.";
-  CHECK(PayloadSigner::VerifySignedPayload(FLAGS_in_file, FLAGS_public_key,
-                                           FLAGS_public_key_version));
+  CHECK(PayloadVerifier::VerifySignedPayload(FLAGS_in_file, FLAGS_public_key,
+                                             FLAGS_public_key_version));
   LOG(INFO) << "Done verifying signed payload.";
 }
 

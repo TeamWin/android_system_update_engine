@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_generator/payload_signer.h"
+
 #include <string>
 #include <vector>
+
+#include <base/logging.h>
 #include <gtest/gtest.h>
-#include "base/logging.h"
-#include "update_engine/payload_signer.h"
+
+#include "update_engine/payload_verifier.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
 
@@ -122,13 +126,13 @@ TEST(PayloadSignerTest, VerifySignatureTest) {
   SignSampleData(&signature_blob);
 
   vector<char> hash_data;
-  EXPECT_TRUE(PayloadSigner::VerifySignature(signature_blob,
+  EXPECT_TRUE(PayloadVerifier::VerifySignature(signature_blob,
                                              kUnittestPublicKeyPath,
                                              &hash_data));
   vector<char> padded_hash_data(reinterpret_cast<const char *>(kDataHash),
                                 reinterpret_cast<const char *>(kDataHash +
                                                          sizeof(kDataHash)));
-  PayloadSigner::PadRSA2048SHA256Hash(&padded_hash_data);
+  PayloadVerifier::PadRSA2048SHA256Hash(&padded_hash_data);
   ASSERT_EQ(padded_hash_data.size(), hash_data.size());
   for (size_t i = 0; i < padded_hash_data.size(); i++) {
     EXPECT_EQ(padded_hash_data[i], hash_data[i]);

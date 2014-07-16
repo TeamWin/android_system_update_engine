@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_generator/delta_diff_generator.h"
+
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -22,7 +24,6 @@
 #include "update_engine/extent_ranges.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/cycle_breaker.h"
-#include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_mapper.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
@@ -91,7 +92,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveSmallTest) {
                                                  new_path(),
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
-                                                 true, // bsdiff_allowed
+                                                 true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true));
@@ -181,7 +182,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
                                                  new_path(),
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
-                                                 true, // bsdiff_allowed
+                                                 true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true));
@@ -245,7 +246,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffSmallTest) {
                                                  new_path(),
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
-                                                 true, // bsdiff_allowed
+                                                 true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true));
@@ -278,7 +279,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedTest) {
                                                  new_path(),
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
-                                                 false, // bsdiff_allowed
+                                                 false,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true));
@@ -304,7 +305,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedMoveTest) {
                                                  new_path(),
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
-                                                 false, // bsdiff_allowed
+                                                 false,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true));
@@ -331,7 +332,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootReplaceSmallTest) {
                                                    new_path(),
                                                    0,  // chunk_offset
                                                    -1,  // chunk_size
-                                                   true, // bsdiff_allowed
+                                                   true,  // bsdiff_allowed
                                                    &data,
                                                    &op,
                                                    true));
@@ -365,7 +366,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNoGatherExtentsSmallTest) {
                                                  new_path(),
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
-                                                 true, // bsdiff_allowed
+                                                 true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  false));
@@ -398,7 +399,7 @@ void OpAppendExtent(DeltaArchiveManifest_InstallOperation* op,
   extent->set_start_block(start);
   extent->set_num_blocks(length);
 }
-}
+}  // namespace
 
 TEST_F(DeltaDiffGeneratorTest, SubstituteBlocksTest) {
   vector<Extent> remove_blocks;
@@ -498,8 +499,8 @@ TEST_F(DeltaDiffGeneratorTest, CutEdgesTest) {
   cycle_breaker.BreakCycles(graph, &cut_edges);
 
   EXPECT_EQ(1, cut_edges.size());
-  EXPECT_TRUE(cut_edges.end() != cut_edges.find(make_pair<Vertex::Index>(1,
-                                                                         0)));
+  EXPECT_TRUE(cut_edges.end() != cut_edges.find(
+      std::pair<Vertex::Index, Vertex::Index>(1, 0)));
 
   vector<CutEdgeVertexes> cuts;
   EXPECT_TRUE(DeltaDiffGenerator::CutEdges(&graph, cut_edges, &cuts));

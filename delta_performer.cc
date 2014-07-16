@@ -25,8 +25,8 @@
 #include "update_engine/extent_writer.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/payload_constants.h"
-#include "update_engine/payload_signer.h"
 #include "update_engine/payload_state_interface.h"
+#include "update_engine/payload_verifier.h"
 #include "update_engine/prefs_interface.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/terminator.h"
@@ -890,9 +890,9 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
             << path_to_public_key.value();
 
   vector<char> expected_metadata_hash;
-  if (!PayloadSigner::GetRawHashFromSignature(metadata_signature,
-                                              path_to_public_key.value(),
-                                              &expected_metadata_hash)) {
+  if (!PayloadVerifier::GetRawHashFromSignature(metadata_signature,
+                                                path_to_public_key.value(),
+                                                &expected_metadata_hash)) {
     LOG(ERROR) << "Unable to compute expected hash from metadata signature";
     return ErrorCode::kDownloadMetadataSignatureError;
   }
@@ -905,7 +905,7 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   }
 
   vector<char> calculated_metadata_hash = metadata_hasher.raw_hash();
-  PayloadSigner::PadRSA2048SHA256Hash(&calculated_metadata_hash);
+  PayloadVerifier::PadRSA2048SHA256Hash(&calculated_metadata_hash);
   if (calculated_metadata_hash.empty()) {
     LOG(ERROR) << "Computed actual hash of metadata is empty.";
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
@@ -1078,7 +1078,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
                       !signatures_message_data_.empty());
   vector<char> signed_hash_data;
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
-                      PayloadSigner::VerifySignature(
+                      PayloadVerifier::VerifySignature(
                           signatures_message_data_,
                           path_to_public_key.value(),
                           &signed_hash_data));
@@ -1088,7 +1088,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       signed_hasher.Finalize());
   vector<char> hash_data = signed_hasher.raw_hash();
-  PayloadSigner::PadRSA2048SHA256Hash(&hash_data);
+  PayloadVerifier::PadRSA2048SHA256Hash(&hash_data);
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       !hash_data.empty());
   if (hash_data != signed_hash_data) {

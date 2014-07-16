@@ -39,8 +39,9 @@
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
 #include "update_engine/payload_generator/metadata.h"
+#include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_generator/topological_sort.h"
-#include "update_engine/payload_signer.h"
+#include "update_engine/payload_verifier.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
@@ -60,7 +61,7 @@ const uint64_t kVersionNumber = 1;
 const uint64_t kFullUpdateChunkSize = 1024 * 1024;  // bytes
 
 const size_t kBlockSize = 4096;  // bytes
-const string kNonexistentPath = "";
+const char kEmptyPath[] = "";
 
 static const char* kInstallOperationTypes[] = {
   "REPLACE",
@@ -81,7 +82,7 @@ typedef map<const DeltaArchiveManifest_InstallOperation*,
 const size_t kRootFSPartitionSize = static_cast<size_t>(2) * 1024 * 1024 * 1024;
 
 // Needed for testing purposes, in case we can't use actual filesystem objects.
-// TODO(garnold)(chromium:331965) Replace this hack with a properly injected
+// TODO(garnold) (chromium:331965) Replace this hack with a properly injected
 // parameter in form of a mockable abstract class.
 bool (*get_extents_with_chunk_func)(const std::string&, off_t, off_t,
                                     std::vector<Extent>*) =
@@ -122,7 +123,7 @@ bool DeltaReadFile(Graph* graph,
   vector<char> data;
   DeltaArchiveManifest_InstallOperation operation;
 
-  string old_path = (old_root == kNonexistentPath) ? kNonexistentPath :
+  string old_path = (old_root == kEmptyPath) ? kEmptyPath :
       old_root + path;
 
   // If bsdiff breaks again, blacklist the problem file by using:
@@ -243,7 +244,7 @@ bool DeltaReadFiles(Graph* graph,
                                           blocks,
                                           (should_diff_from_source ?
                                            old_root :
-                                           kNonexistentPath),
+                                           kEmptyPath),
                                           new_root,
                                           fs_iter.GetPartialPath(),
                                           offset,
@@ -470,7 +471,7 @@ bool DeltaCompressKernelPartition(
                                          new_kernel_part,
                                          0,  // chunk_offset
                                          -1,  // chunk_size
-                                         true, // bsdiff_allowed
+                                         true,  // bsdiff_allowed
                                          &data,
                                          &op,
                                          false));
@@ -1038,19 +1039,20 @@ namespace {
 
 class SortCutsByTopoOrderLess {
  public:
-  SortCutsByTopoOrderLess(vector<vector<Vertex::Index>::size_type>& table)
+  explicit SortCutsByTopoOrderLess(
+      const vector<vector<Vertex::Index>::size_type>& table)
       : table_(table) {}
   bool operator()(const CutEdgeVertexes& a, const CutEdgeVertexes& b) {
     return table_[a.old_dst] < table_[b.old_dst];
   }
  private:
-  vector<vector<Vertex::Index>::size_type>& table_;
+  const vector<vector<Vertex::Index>::size_type>& table_;
 };
 
 }  // namespace
 
 void DeltaDiffGenerator::GenerateReverseTopoOrderMap(
-    vector<Vertex::Index>& op_indexes,
+    const vector<Vertex::Index>& op_indexes,
     vector<vector<Vertex::Index>::size_type>* reverse_op_indexes) {
   vector<vector<Vertex::Index>::size_type> table(op_indexes.size());
   for (vector<Vertex::Index>::size_type i = 0, e = op_indexes.size();
@@ -1064,8 +1066,9 @@ void DeltaDiffGenerator::GenerateReverseTopoOrderMap(
   reverse_op_indexes->swap(table);
 }
 
-void DeltaDiffGenerator::SortCutsByTopoOrder(vector<Vertex::Index>& op_indexes,
-                                             vector<CutEdgeVertexes>* cuts) {
+void DeltaDiffGenerator::SortCutsByTopoOrder(
+    const vector<Vertex::Index>& op_indexes,
+    vector<CutEdgeVertexes>* cuts) {
   // first, make a reverse lookup table.
   vector<vector<Vertex::Index>::size_type> table;
   GenerateReverseTopoOrderMap(op_indexes, &table);
@@ -1438,7 +1441,7 @@ bool DeltaDiffGenerator::ConvertCutToFullOp(Graph* graph,
     TEST_AND_RETURN_FALSE(DeltaReadFile(graph,
                                         cut.old_dst,
                                         NULL,
-                                        kNonexistentPath,
+                                        kEmptyPath,
                                         new_root,
                                         (*graph)[cut.old_dst].file_name,
                                         (*graph)[cut.old_dst].chunk_offset,
@@ -1563,7 +1566,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
         << "Old and new images have different block counts.";
 
     // If new_image_info is present, old_image_info must be present.
-    TEST_AND_RETURN_FALSE((bool)old_image_info == (bool)new_image_info);
+    TEST_AND_RETURN_FALSE(!old_image_info == !new_image_info);
   } else {
     // old_image_info must not be present for a full update.
     TEST_AND_RETURN_FALSE(!old_image_info);

@@ -23,7 +23,8 @@
 #include "update_engine/fake_system_state.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
-#include "update_engine/payload_signer.h"
+#include "update_engine/payload_generator/payload_signer.h"
+#include "update_engine/payload_verifier.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/update_metadata.pb.h"
@@ -172,7 +173,7 @@ static void SignGeneratedPayload(const string& payload_path,
       vector<vector<char> >(1, signature),
       payload_path,
       out_metadata_size));
-  EXPECT_TRUE(PayloadSigner::VerifySignedPayload(
+  EXPECT_TRUE(PayloadVerifier::VerifySignedPayload(
       payload_path,
       kUnittestPublicKeyPath,
       kSignatureMessageOriginalVersion));
@@ -222,7 +223,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   // Pad the hash
   vector<char> hash;
   ASSERT_TRUE(utils::ReadFile(hash_file, &hash));
-  ASSERT_TRUE(PayloadSigner::PadRSA2048SHA256Hash(&hash));
+  ASSERT_TRUE(PayloadVerifier::PadRSA2048SHA256Hash(&hash));
   ASSERT_TRUE(WriteFileVector(hash_file, hash));
 
   string sig_file;
@@ -521,10 +522,10 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   // Check the metadata.
   {
     DeltaArchiveManifest manifest;
-    EXPECT_TRUE(PayloadSigner::LoadPayload(state->delta_path,
-                                           &state->delta,
-                                           &manifest,
-                                           &state->metadata_size));
+    EXPECT_TRUE(PayloadVerifier::LoadPayload(state->delta_path,
+                                             &state->delta,
+                                             &manifest,
+                                             &state->metadata_size));
     LOG(INFO) << "Metadata size: " << state->metadata_size;
 
 

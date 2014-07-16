@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_
+#ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_
+#define UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -167,8 +168,9 @@ class DeltaDiffGenerator {
 
   // Sorts the vector |cuts| by its |cuts[].old_dest| member. Order is
   // determined by the order of elements in op_indexes.
-  static void SortCutsByTopoOrder(std::vector<Vertex::Index>& op_indexes,
-                                  std::vector<CutEdgeVertexes>* cuts);
+  static void SortCutsByTopoOrder(
+      const std::vector<Vertex::Index>& op_indexes,
+      std::vector<CutEdgeVertexes>* cuts);
 
   // Returns true iff there are no extents in the graph that refer to temp
   // blocks. Temp blocks are in the range [kTempBlockStart, kSparseHole).
@@ -211,7 +213,7 @@ class DeltaDiffGenerator {
   // which the op is performed -> graph vertex index, and produces the
   // reverse: a mapping from graph vertex index -> op_indexes index.
   static void GenerateReverseTopoOrderMap(
-      std::vector<Vertex::Index>& op_indexes,
+      const std::vector<Vertex::Index>& op_indexes,
       std::vector<std::vector<Vertex::Index>::size_type>* reverse_op_indexes);
 
   // Takes a |graph|, which has edges that must be cut, as listed in
@@ -264,7 +266,7 @@ class DeltaDiffGenerator {
                              DeltaArchiveManifest* manifest);
 
  private:
- // This should never be constructed
+  // This should never be constructed.
   DISALLOW_IMPLICIT_CONSTRUCTORS(DeltaDiffGenerator);
 };
 
@@ -273,4 +275,4 @@ extern const size_t kRootFSPartitionSize;
 
 };  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_
+#endif  // UPDATE_ENGINE_PAYLOAD_GENERATOR_DELTA_DIFF_GENERATOR_H_
