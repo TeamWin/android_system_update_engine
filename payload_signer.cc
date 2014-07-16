@@ -230,10 +230,6 @@ bool PayloadSigner::SignHash(const vector<char>& hash,
   cmd[cmd.size() - 3] = hash_path;
   cmd[cmd.size() - 1] = sig_path;
 
-  // When running unittests, we need to use the openssl version from the
-  // SYSROOT instead of the one on the $PATH (host).
-  cmd[0] = utils::GetPathOnBoard("openssl");
-
   int return_code = 0;
   TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &return_code, NULL));
   TEST_AND_RETURN_FALSE(return_code == 0);
