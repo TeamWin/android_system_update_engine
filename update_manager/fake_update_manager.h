@@ -17,7 +17,7 @@ class FakeUpdateManager : public UpdateManager {
   explicit FakeUpdateManager(chromeos_update_engine::ClockInterface* clock)
       : UpdateManager(clock, base::TimeDelta::FromSeconds(5), new FakeState()) {
     // The FakeUpdateManager uses a DefaultPolicy.
-    set_policy(new DefaultPolicy());
+    set_policy(new DefaultPolicy(clock));
   }
 
   // UpdateManager overrides.

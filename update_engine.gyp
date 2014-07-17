@@ -179,6 +179,7 @@
         'update_check_scheduler.cc',
         'update_manager/boxed_value.cc',
         'update_manager/chromeos_policy.cc',
+        'update_manager/default_policy.cc',
         'update_manager/evaluation_context.cc',
         'update_manager/event_loop.cc',
         'update_manager/policy.cc',
