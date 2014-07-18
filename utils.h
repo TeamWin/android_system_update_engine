@@ -17,7 +17,6 @@
 #include <base/files/file_path.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/time/time.h>
-#include <ext2fs/ext2fs.h>
 #include <glib.h>
 #include "metrics/metrics_library.h"
 
@@ -491,17 +490,6 @@ class ScopedEintrSafeFdCloser {
   int* fd_;
   bool should_close_;
   DISALLOW_COPY_AND_ASSIGN(ScopedEintrSafeFdCloser);
-};
-
-// Utility class to close a file system
-class ScopedExt2fsCloser {
- public:
-  explicit ScopedExt2fsCloser(ext2_filsys filsys) : filsys_(filsys) {}
-  ~ScopedExt2fsCloser() { ext2fs_close(filsys_); }
-
- private:
-  ext2_filsys filsys_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedExt2fsCloser);
 };
 
 // Utility class to delete a file when it goes out of scope.

@@ -99,7 +99,6 @@
         'exported_deps': [
           'dbus-1',
           'dbus-glib-1',
-          'ext2fs',
           'gio-2.0',
           'gio-unix-2.0',
           'glib-2.0',
@@ -221,8 +220,26 @@
       'dependencies': [
         'update_metadata-protos',
       ],
-      # TODO(deymo): Add here the payload_generator dependencies not in
-      # libupdate_engine.
+      'variables': {
+        'exported_deps': [
+          'ext2fs',
+        ],
+        'deps': ['<@(exported_deps)'],
+      },
+      'all_dependent_settings': {
+        'variables': {
+          'deps': [
+            '<@(exported_deps)',
+          ],
+        },
+      },
+      'link_settings': {
+        'variables': {
+          'deps': [
+            '<@(exported_deps)',
+          ],
+        },
+      },
       'sources': [
         'payload_generator/cycle_breaker.cc',
         'payload_generator/delta_diff_generator.cc',

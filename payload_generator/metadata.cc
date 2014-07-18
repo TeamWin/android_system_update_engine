@@ -15,6 +15,7 @@
 #include "update_engine/bzip.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/ext2_utils.h"
 #include "update_engine/payload_generator/graph_utils.h"
 #include "update_engine/payload_generator/metadata.h"
 #include "update_engine/utils.h"
