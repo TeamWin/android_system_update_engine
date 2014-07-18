@@ -85,7 +85,7 @@ std::vector<std::string> Hardware::GetKernelDevices() const {
 
   std::string disk_name = utils::GetDiskName(Hardware::BootKernelDevice());
   if (disk_name.empty()) {
-    LOG(ERROR) << "Failed to get the cuurent kernel boot disk name";
+    LOG(ERROR) << "Failed to get the current kernel boot disk name";
     return std::vector<std::string>();
   }
 

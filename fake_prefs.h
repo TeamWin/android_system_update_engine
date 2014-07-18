@@ -52,7 +52,7 @@ class FakePrefs : public PrefsInterface {
     PrefValue value;
   };
 
-  // Class to store compile-time type dependant constants.
+  // Class to store compile-time type-dependent constants.
   template<typename T>
   class PrefConsts {
    public:

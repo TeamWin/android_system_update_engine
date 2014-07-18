@@ -75,7 +75,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_idx, int* url_num_failures) {
     // chances of downloading from the URLs that appear earlier in the response
     // (because download from a local server URL that appears earlier in a
     // response is preferable than downloading from the next URL which could be
-    // a internet URL and thus could be more expensive).
+    // an Internet URL and thus could be more expensive).
     case ErrorCode::kError:
     case ErrorCode::kDownloadTransferError:
     case ErrorCode::kDownloadWriteError:
@@ -94,7 +94,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_idx, int* url_num_failures) {
     // regular retries at the next update check.
     // 2. We have successfully downloaded the payload: In this case, the
     // payload attempt number would have been incremented and would take care
-    // of the backoff at the next update check.
+    // of the back-off at the next update check.
     // In either case, there's no need to update URL index or failure count.
     case ErrorCode::kOmahaRequestError:
     case ErrorCode::kOmahaResponseHandlerError:
@@ -449,7 +449,7 @@ EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,
   int interval = *server_dictated_poll_interval;
   int fuzz = 0;
 
-  // If no poll interval was dictated by server compute a backoff period,
+  // If no poll interval was dictated by server compute a back-off period,
   // starting from a predetermined base periodic interval and increasing
   // exponentially by the number of consecutive failed attempts.
   if (interval == 0) {
@@ -465,11 +465,11 @@ EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,
     }
   }
 
-  // We cannot backoff longer than the predetermined maximum interval.
+  // We cannot back off longer than the predetermined maximum interval.
   if (interval > kTimeoutMaxBackoffInterval)
     interval = kTimeoutMaxBackoffInterval;
 
-  // We cannot backoff shorter than the predetermined periodic interval. Also,
+  // We cannot back off shorter than the predetermined periodic interval. Also,
   // in this case set the fuzz to a predetermined regular value.
   if (interval <= kTimeoutPeriodicInterval) {
     interval = kTimeoutPeriodicInterval;

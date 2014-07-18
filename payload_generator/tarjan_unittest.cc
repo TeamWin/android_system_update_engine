@@ -4,6 +4,7 @@
 
 #include "update_engine/payload_generator/tarjan.h"
 
+#include <string>
 #include <utility>
 
 #include <base/logging.h>

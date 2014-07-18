@@ -14,12 +14,12 @@ namespace chromeos_update_manager {
 // BoxedValue is a class to hold pointers of a given type that deletes them when
 // the instance goes out of scope, as scoped_ptr<T> does. The main difference
 // with it is that the type T is not part of the class, i.e., this isn't a
-// parametric class. The class has a parametric contructor that accepts a
+// parametric class. The class has a parametric constructor that accepts a
 // const T* which will define the type of the object passed on delete.
 //
 // It is safe to use this class in linked containers such as std::list and
 // std::map but the object can't be copied. This means that you need to
-// construct the BoxedValue inplace using a container method like emplace()
+// construct the BoxedValue in place using a container method like emplace()
 // or move it with std::move().
 //
 //   list<BoxedValue> lst;
@@ -54,10 +54,10 @@ class BoxedValue {
 
   // The move constructor takes ownership of the pointer since the semantics of
   // it allows to render the passed BoxedValue undefined. You need to use the
-  // move constructor explictly preventing it from accidental references,
+  // move constructor explicitly preventing it from accidental references,
   // like in:
   //   BoxedValue new_box(std::move(other_box));
-  BoxedValue(BoxedValue&& other)
+  BoxedValue(BoxedValue&& other)  // NOLINT(build/c++11)
       : value_(other.value_), deleter_(other.deleter_),
         printer_(other.printer_) {
     other.value_ = NULL;

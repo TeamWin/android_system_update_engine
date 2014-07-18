@@ -37,7 +37,7 @@ class DevicePolicyProvider : public Provider {
   // Returns a non-negative scatter interval used for updates.
   virtual Variable<base::TimeDelta>* var_scatter_factor() = 0;
 
-  // Variable returing the set of connection types allowed for updates. The
+  // Variable returning the set of connection types allowed for updates. The
   // identifiers returned are consistent with the ones returned by the
   // ShillProvider.
   virtual Variable<std::set<ConnectionType>>*

@@ -162,7 +162,7 @@ class Policy {
   // that need to be persisted has changed, returns
   // EvalStatus::kAskMeAgainLater. Arguments include an |interactive| flag that
   // tells whether the update is user initiated, and an |update_state| that
-  // encapsulates data pertaining to the currnet ongoing update process.
+  // encapsulates data pertaining to the current ongoing update process.
   virtual EvalStatus UpdateCanStart(
       EvaluationContext* ec,
       State* state,

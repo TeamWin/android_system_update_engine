@@ -297,7 +297,7 @@ class OmahaRequestParams {
   // Fetches the value for a given key from
   // /mnt/stateful_partition/etc/lsb-release if possible and |stateful_override|
   // is true. Failing that, it looks for the key in /etc/lsb-release. If
-  // |validator| is non-NULL, uses it to validate and ignore invalid valies.
+  // |validator| is non-NULL, uses it to validate and ignore invalid values.
   std::string GetLsbValue(const std::string& key,
                           const std::string& default_value,
                           ValueValidator validator,

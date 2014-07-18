@@ -31,7 +31,7 @@ class FileWriter {
   virtual int Open(const char* path, int flags, mode_t mode) = 0;
 
   // Wrapper around write. Returns true if all requested bytes
-  // were written, or false on any error, reguardless of progress.
+  // were written, or false on any error, regardless of progress.
   virtual bool Write(const void* bytes, size_t count) = 0;
 
   // Same as the Write method above but returns a detailed |error| code

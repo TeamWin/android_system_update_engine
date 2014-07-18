@@ -7,6 +7,8 @@
 #include <fcntl.h>
 #include <inttypes.h>
 
+#include <algorithm>
+#include <deque>
 #include <memory>
 
 #include <base/strings/string_util.h>
@@ -153,7 +155,7 @@ bool FullUpdateGenerator::Run(
         offset += chunk_size;
       }
 
-      // Need to wait for a chunk processor to complete and process its ouput
+      // Need to wait for a chunk processor to complete and process its output
       // before spawning new processors.
       shared_ptr<ChunkProcessor> processor = threads.front();
       threads.pop_front();

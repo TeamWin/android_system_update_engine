@@ -366,7 +366,7 @@ void ReportSuccessfulUpdateMetrics(
 
     // Only consider this download source (and send byte counts) as
     // having been used if we downloaded a non-trivial amount of bytes
-    // (e.g. at least 1 MiB) that contributed to the the
+    // (e.g. at least 1 MiB) that contributed to the
     // update. Otherwise we're going to end up with a lot of zero-byte
     // events in the histogram.
 

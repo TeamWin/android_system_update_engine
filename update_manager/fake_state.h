@@ -33,7 +33,7 @@ class FakeState : public State {
 
   virtual ~FakeState() {}
 
-  // Downcasted detters to access the fake instances during testing.
+  // Downcasted getters to access the fake instances during testing.
   virtual FakeConfigProvider* config_provider() override {
     return &config_provider_;
   }

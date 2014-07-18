@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_TARJAN_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_TARJAN_H_
+#ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_TARJAN_H_
+#define UPDATE_ENGINE_PAYLOAD_GENERATOR_TARJAN_H_
 
-// This is an implemenation of Tarjan's algorithm which finds all
+// This is an implementation of Tarjan's algorithm which finds all
 // Strongly Connected Components in a graph.
 
 // Note: a true Tarjan algorithm would find all strongly connected components
@@ -37,4 +37,4 @@ class TarjanAlgorithm {
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_TARJAN_H_
+#endif  // UPDATE_ENGINE_PAYLOAD_GENERATOR_TARJAN_H_

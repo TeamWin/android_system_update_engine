@@ -106,7 +106,7 @@ class LazyPolicy : public DefaultPolicy {
 
 // A policy that sleeps and returns EvalStatus::kAskMeAgainlater. Will check
 // that time is greater than a given threshold (if non-zero). Increments a
-// counter every time it is being querie, if a pointer to it is provided.
+// counter every time it is being queried, if a pointer to it is provided.
 class DelayPolicy : public DefaultPolicy {
  public:
   DelayPolicy(int sleep_secs, base::Time time_threshold, int* num_called_p)

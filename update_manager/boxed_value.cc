@@ -137,7 +137,7 @@ template<>
 string BoxedValue::ValuePrinter<Stage>(const void *value) {
   const Stage* val = reinterpret_cast<const Stage*>(value);
   switch (*val) {
-   case Stage::kIdle:
+    case Stage::kIdle:
       return "Idle";
     case Stage::kCheckingForUpdate:
       return "Checking For Update";

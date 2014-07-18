@@ -97,7 +97,7 @@ class MockHttpFetcher : public HttpFetcher {
   // already a timeout callback, and it should be deleted by the caller,
   // this will return false; otherwise true is returned.
   // If skip_delivery is true, no bytes will be delivered, but the callbacks
-  // still still be set if needed
+  // still be set if needed.
   bool SendData(bool skip_delivery);
 
   // Callback for when our glib main loop callback is called

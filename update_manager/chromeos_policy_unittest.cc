@@ -293,7 +293,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE) {
-  // Update checks are defferred until OOBE is completed.
+  // Update checks are deferred until OOBE is completed.
 
   // Ensure that update is not allowed even if wait period is satisfied.
   Time next_update_check;
@@ -329,7 +329,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE) {
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
-  // Update check is allowed, reponse includes attributes for use in the
+  // Update check is allowed, response includes attributes for use in the
   // request.
   SetUpdateCheckAllowed(true);
 

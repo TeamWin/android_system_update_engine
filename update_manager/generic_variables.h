@@ -153,7 +153,7 @@ class CallCopyVariable : public Variable<T> {
 // SetValue and UnsetValue to modify the current value of the variable and
 // notify the registered observers whenever the value changed.
 //
-// The type T needs to be copy-constructable, default-constructable and have an
+// The type T needs to be copy-constructible, default-constructible and have an
 // operator== (to determine if the value changed), which makes this class
 // suitable for basic types.
 template<typename T>

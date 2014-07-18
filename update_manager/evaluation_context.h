@@ -43,7 +43,7 @@ namespace chromeos_update_manager {
 //
 //   ...
 //   // Run a closure when any of the used async variables changes its value or
-//   // the timeout for requery the values happens again.
+//   // the timeout for re-query the values happens again.
 //   ec->RunOnValueChangeOrTimeout(closure);
 //   // If the provided |closure| wants to re-evaluate the policy, it should
 //   // call ec->ResetEvaluation() to start a new evaluation.
@@ -132,7 +132,8 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
 
   // A callback used for triggering re-evaluation upon a value change or poll
   // timeout, or notifying about the evaluation context expiration. It is up to
-  // the caller to determine whether or not expiration occured via is_expired().
+  // the caller to determine whether or not expiration occurred via
+  // is_expired().
   scoped_ptr<base::Closure> callback_;
 
   // The EventId returned by the event loop identifying the timeout callback.

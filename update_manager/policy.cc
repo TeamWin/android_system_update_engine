@@ -22,4 +22,4 @@ string ToString(EvalStatus status) {
   return "Invalid";
 }
 
-}  // namespace chromeos_update_engine
+}  // namespace chromeos_update_manager

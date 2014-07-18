@@ -17,7 +17,7 @@
 // a big thanks to that team for their high quality design, implementation,
 // and documentation.
 
-// See action.h for an overview of this class and other other Action* classes.
+// See action.h for an overview of this class and other Action* classes.
 
 // An ActionProcessor keeps a queue of Actions and processes them in order.
 
@@ -67,7 +67,7 @@ class ActionProcessor {
   // they'll be processed.
   std::deque<AbstractAction*> actions_;
 
-  // A pointer to the currrently processing Action, if any.
+  // A pointer to the currently processing Action, if any.
   AbstractAction* current_action_;
 
   // A pointer to the delegate, or NULL if none.

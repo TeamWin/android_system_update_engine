@@ -117,7 +117,7 @@ void OmahaResponseHandlerAction::PerformAction() {
   // Send the deadline data (if any) to Chrome through a file. This is a pretty
   // hacky solution but should be OK for now.
   //
-  // TODO(petkov): Rearchitect this to avoid communication through a
+  // TODO(petkov): Re-architect this to avoid communication through a
   // file. Ideally, we would include this information in D-Bus's GetStatus
   // method and UpdateStatus signal. A potential issue is that update_engine may
   // be unresponsive during an update download.

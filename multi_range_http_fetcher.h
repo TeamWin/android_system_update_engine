@@ -17,7 +17,7 @@
 // This class is a simple wrapper around an HttpFetcher. The client
 // specifies a vector of byte ranges. MultiRangeHttpFetcher will fetch bytes
 // from those offsets, using the same bash fetcher for all ranges. Thus, the
-// fetcher must support beginning a transfter after one has stopped. Pass -1
+// fetcher must support beginning a transfer after one has stopped. Pass -1
 // as a length to specify unlimited length. It really only would make sense
 // for the last range specified to have unlimited length, tho it is legal for
 // other entries to have unlimited length.

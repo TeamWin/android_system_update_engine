@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_FILESYSTEM_ITERATOR_H_
-#define CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_FILESYSTEM_ITERATOR_H_
+#ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_FILESYSTEM_ITERATOR_H_
+#define UPDATE_ENGINE_PAYLOAD_GENERATOR_FILESYSTEM_ITERATOR_H_
 
 // This class is used to walk a filesystem. It will iterate over every file
 // on the same device as the file passed in the ctor. Directories will be
@@ -76,6 +76,7 @@ class FilesystemIterator {
   bool IsErr() const {
     return is_err_;
   }
+
  private:
   // Helper for Increment.
   void IncrementInternal();
@@ -105,7 +106,7 @@ class FilesystemIterator {
   // The device of the root path we've been asked to iterate.
   dev_t root_dev_;
 
-  // The root path we've been asked to iteratate.
+  // The root path we've been asked to iterate.
   std::string root_path_;
 
   // Exclude items w/ this prefix.
@@ -118,10 +119,10 @@ class FilesystemIterator {
   // or error occurs.
   bool is_end_;
 
-  // Generally false; set to true if an error occurrs.
+  // Generally false; set to true if an error occurs.
   bool is_err_;
 };
 
 }  // namespace chromeos_update_engine
 
-#endif  // CHROMEOS_PLATFORM_UPDATE_ENGINE_PAYLOAD_GENERATOR_FILESYSTEM_ITERATOR_H_
+#endif  // UPDATE_ENGINE_PAYLOAD_GENERATOR_FILESYSTEM_ITERATOR_H_

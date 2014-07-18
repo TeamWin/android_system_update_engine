@@ -65,7 +65,7 @@ class UmRealShillProviderTest : public ::testing::Test {
   virtual void SetUp() {
     // By default, initialize the provider so that it gets an initial connection
     // status from shill. This simulates the common case where shill is
-    // available and respoding during RealShillProvider initialization.
+    // available and responding during RealShillProvider initialization.
     Init(true);
   }
 
@@ -121,7 +121,7 @@ class UmRealShillProviderTest : public ::testing::Test {
       SetupGetPropertiesFail(kFakeManagerProxy);
     }
 
-    // Check that provider initializes corrrectly.
+    // Check that provider initializes correctly.
     ASSERT_TRUE(provider_->Init());
 
     // All mocked calls should have been exercised by now.

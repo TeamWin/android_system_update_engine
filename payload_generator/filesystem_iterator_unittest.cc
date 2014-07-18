@@ -60,7 +60,7 @@ TEST_F(FilesystemIteratorTest, RunAsRootSuccessTest) {
                                   &sub_image, NULL));
   ScopedPathUnlinker sub_image_unlinker(sub_image);
 
-  // Create uniqely named main/sub mount points.
+  // Create uniquely named main/sub mount points.
   string main_image_mount_point;
   ASSERT_TRUE(utils::MakeTempDirectory(
           "FilesystemIteratorTest.mount-XXXXXX",

@@ -123,7 +123,7 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
   UmTestUtils::ExpectVariableHasValue(true,
                                       provider_->var_device_policy_is_loaded());
 
-  // Test that at least one variable is set, to ensure the refresh ocurred.
+  // Test that at least one variable is set, to ensure the refresh occurred.
   UmTestUtils::ExpectVariableHasValue(string("mychannel"),
                                       provider_->var_release_channel());
   UmTestUtils::ExpectVariableNotSet(

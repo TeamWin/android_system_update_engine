@@ -112,9 +112,9 @@ class ChromeOSPolicy : public Policy {
   // number of failures associated with that URL; and |download_url_error_codes|
   // the list of failures occurring since the latest evaluation.
   //
-  // Upon successly deciding a URL to use, returns |EvalStatus::kSucceeded| and
-  // writes the current URL index and the number of failures associated with it
-  // in |result|. Otherwise, returns |EvalStatus::kFailed|.
+  // Upon successfully deciding a URL to use, returns |EvalStatus::kSucceeded|
+  // and writes the current URL index and the number of failures associated with
+  // it in |result|. Otherwise, returns |EvalStatus::kFailed|.
   EvalStatus UpdateDownloadUrl(EvaluationContext* ec, State* state,
                                std::string* error,
                                UpdateDownloadUrlResult* result,

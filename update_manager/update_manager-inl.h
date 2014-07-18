@@ -105,7 +105,7 @@ EvalStatus UpdateManager::PolicyRequest(
     R* result, ActualArgs... args) {
   scoped_refptr<EvaluationContext> ec(
       new EvaluationContext(clock_, evaluation_timeout_));
-  // A PolicyRequest allways consists on a single evaluation on a new
+  // A PolicyRequest always consists on a single evaluation on a new
   // EvaluationContext.
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
   // explicitly instantiate EvaluatePolicy with the latter in lieu of the

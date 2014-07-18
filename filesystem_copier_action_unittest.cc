@@ -53,7 +53,7 @@ class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
   void ExitMainLoop() {
     GMainContext* context = g_main_loop_get_context(loop_);
     // We cannot use g_main_context_pending() alone to determine if it is safe
-    // to quit the main loop here becasuse g_main_context_pending() may return
+    // to quit the main loop here because g_main_context_pending() may return
     // FALSE when g_input_stream_read_async() in FilesystemCopierAction has
     // been cancelled but the callback has not yet been invoked.
     while (g_main_context_pending(context) || action_->IsCleanupPending()) {
@@ -107,7 +107,7 @@ gboolean StartProcessorInRunLoop(gpointer data) {
 // TODO(garnold) Temporarily disabling this test, see chromium-os:31082 for
 // details; still trying to track down the root cause for these rare write
 // failures and whether or not they are due to the test setup or an inherent
-// issue with the chroot environiment, library versions we use, etc.
+// issue with the chroot environment, library versions we use, etc.
 TEST_F(FilesystemCopierActionTest, DISABLED_RunAsRootSimpleTest) {
   ASSERT_EQ(0, getuid());
   bool test = DoTest(false, false, true, 0);

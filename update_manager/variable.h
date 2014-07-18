@@ -40,7 +40,7 @@ enum VariableMode {
 };
 
 // This class is a base class with the common functionality that doesn't
-// deppend on the variable's type, implemented by all the variables.
+// depend on the variable's type, implemented by all the variables.
 class BaseVariable {
  public:
   // Interface for observing changes on variable value.

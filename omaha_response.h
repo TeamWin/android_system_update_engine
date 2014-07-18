@@ -61,7 +61,7 @@ struct OmahaResponse {
   // False if it's a full payload.
   bool is_delta_payload;
 
-  // True if the Omaha rule instructs us to disable the backoff logic
+  // True if the Omaha rule instructs us to disable the back-off logic
   // on the client altogether. False otherwise.
   bool disable_payload_backoff;
 

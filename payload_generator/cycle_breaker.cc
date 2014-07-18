@@ -7,6 +7,7 @@
 #include <inttypes.h>
 
 #include <set>
+#include <string>
 #include <utility>
 
 #include <base/strings/string_util.h>
@@ -151,10 +152,9 @@ bool CycleBreaker::Circuit(Vertex::Index vertex, Vertex::Index depth) {
     if (counter == 10000) {
       counter = 0;
       std::string stack_str;
-      for (vector<Vertex::Index>::const_iterator it = stack_.begin();
-           it != stack_.end(); ++it) {
-        stack_str += base::StringPrintf("%lu -> ",
-                                        static_cast<long unsigned int>(*it));
+      for (Vertex::Index index : stack_) {
+        stack_str += std::to_string(index);
+        stack_str += " -> ";
       }
       LOG(INFO) << "stack: " << stack_str;
     }

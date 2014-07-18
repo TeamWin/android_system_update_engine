@@ -14,6 +14,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"

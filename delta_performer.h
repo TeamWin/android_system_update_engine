@@ -210,7 +210,7 @@ class DeltaPerformer : public FileWriter {
       const DeltaArchiveManifest_InstallOperation& op);
 
   // Verifies that the expected source partition hashes (if present) match the
-  // hashes for the current partitions. Returns true if there're no expected
+  // hashes for the current partitions. Returns true if there are no expected
   // hashes in the payload (e.g., if it's a new-style full update) or if the
   // hashes match; returns false otherwise.
   bool VerifySourcePartitions();

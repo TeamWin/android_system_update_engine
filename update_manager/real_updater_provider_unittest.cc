@@ -66,7 +66,7 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
     fake_clock_ = fake_sys_state_.fake_clock();
     provider_.reset(new RealUpdaterProvider(&fake_sys_state_));
     UMTEST_ASSERT_NOT_NULL(provider_.get());
-    // Check that provider initializes corrrectly.
+    // Check that provider initializes correctly.
     ASSERT_TRUE(provider_->Init());
   }
 

@@ -4,6 +4,8 @@
 
 #include "update_engine/update_manager/real_time_provider.h"
 
+#include <string>
+
 #include <base/time/time.h>
 
 #include "update_engine/clock_interface.h"

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This provides access to timestamps with nano-second resolution in
+// This provides access to timestamps with nanosecond resolution in
 // struct stat, See NOTES in stat(2) for details.
 #ifndef _BSD_SOURCE
 #define _BSD_SOURCE
@@ -388,7 +388,7 @@ class LookupData {
   void InitiateLookup(gchar **argv, TimeDelta timeout) {
     // NOTE: if we fail early (i.e. in this method), we need to schedule
     // an idle to report the error. This is because we guarantee that
-    // the callback is always called from from the GLib mainloop (this
+    // the callback is always called from the GLib mainloop (this
     // guarantee is useful for testing).
 
     GError *error = NULL;

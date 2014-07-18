@@ -1264,7 +1264,7 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   //
   //  1. Whether it's an official build; and
   //  2. Whether the Public RSA key to be used is in the root filesystem; and
-  //  3. Whether the reponse has a public key
+  //  3. Whether the response has a public key
   //
   // We test all eight combinations to ensure that we only use the
   // public key in the response if

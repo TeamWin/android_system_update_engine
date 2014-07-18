@@ -112,7 +112,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingTrue) {
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
-// Check that IsP2PEnabled() corrresponds to the value of the crosh
+// Check that IsP2PEnabled() corresponds to the value of the crosh
 // flag if Enterprise Policy indicates that p2p is not to be used.
 TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingFalse) {
   string temp_dir;

@@ -164,7 +164,7 @@ gboolean update_engine_service_emit_status_update(
     gint64 new_size);
 
 // Returns the version string of OS that was used before the last reboot
-// into an updated version. This is avalable only when rebooting into an
+// into an updated version. This is available only when rebooting into an
 // update from previous version, otherwise an empty string is returned.
 gboolean update_engine_service_get_prev_version(
     UpdateEngineService* self,

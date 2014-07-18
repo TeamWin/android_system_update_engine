@@ -70,7 +70,7 @@ class CopyConstructorTestClass {
 
 
 TEST_F(UmPollCopyVariableTest, UseCopyConstructorTest) {
-  // Ensures that CopyVariables indeed uses the copy contructor.
+  // Ensures that CopyVariables indeed uses the copy constructor.
   const CopyConstructorTestClass source;
   ASSERT_FALSE(source.copied_);
 

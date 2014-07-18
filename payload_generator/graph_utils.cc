@@ -139,7 +139,7 @@ void DumpGraph(const Graph& graph) {
   LOG(INFO) << "Graph length: " << graph.size();
   for (Graph::size_type i = 0, e = graph.size(); i != e; ++i) {
     string type_str = "UNK";
-    switch(graph[i].op.type()) {
+    switch (graph[i].op.type()) {
       case DeltaArchiveManifest_InstallOperation_Type_BSDIFF:
         type_str = "BSDIFF";
         break;

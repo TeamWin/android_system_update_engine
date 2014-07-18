@@ -44,7 +44,7 @@ class ShillProvider : public Provider {
   // not connected.
   virtual Variable<ConnectionTethering>* var_conn_tethering() = 0;
 
-  // A variable retruning the time when network connection last changed.
+  // A variable returning the time when network connection last changed.
   // Initialized to current time.
   virtual Variable<base::Time>* var_conn_last_changed() = 0;
 

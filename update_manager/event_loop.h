@@ -18,7 +18,7 @@ namespace chromeos_update_manager {
 
 typedef guint EventId;
 
-// A null EventId doesn't idenify any valid event.
+// A null EventId doesn't identify any valid event.
 static constexpr EventId kEventIdNull = 0;
 
 // Schedules the passed |callback| to run from the GLib's main loop after a

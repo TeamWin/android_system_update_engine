@@ -125,7 +125,7 @@ const int kDownloadMaxRedirects = 10;
 // The minimum average speed that downloads must sustain...
 //
 // This is set low because some devices may have very poor
-// connecticity and we want to make as much forward progress as
+// connectivity and we want to make as much forward progress as
 // possible. For p2p this is high (25 kB/second) since we can assume
 // high bandwidth (same LAN) and we want to fail fast.
 const int kDownloadLowSpeedLimitBps = 1;

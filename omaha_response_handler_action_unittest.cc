@@ -99,7 +99,7 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
   processor.EnqueueAction(&collector_action);
   processor.StartProcessing();
   EXPECT_TRUE(!processor.IsRunning())
-      << "Update test to handle non-asynch actions";
+      << "Update test to handle non-async actions";
   if (out)
     *out = collector_action.object();
   EXPECT_TRUE(delegate.code_set_);

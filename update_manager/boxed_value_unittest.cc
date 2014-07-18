@@ -28,7 +28,7 @@ namespace chromeos_update_manager {
 // The DeleterMarker flags a bool variable when the class is destroyed.
 class DeleterMarker {
  public:
-  DeleterMarker(bool* marker) : marker_(marker) { *marker_ = false; }
+  explicit DeleterMarker(bool* marker) : marker_(marker) { *marker_ = false; }
 
   ~DeleterMarker() { *marker_ = true; }
 
@@ -74,7 +74,7 @@ TEST(UmBoxedValueTest, MoveConstructor) {
 TEST(UmBoxedValueTest, MixedList) {
   list<BoxedValue> lst;
   // This is mostly a compile test.
-  lst.emplace_back(new const int(42));
+  lst.emplace_back(new const int(42));  // NOLINT(readability/casting)
   lst.emplace_back(new const string("Hello world!"));
   bool marker;
   lst.emplace_back(new const DeleterMarker(&marker));
@@ -103,14 +103,15 @@ TEST(UmBoxedValueTest, IntToString) {
 }
 
 TEST(UmBoxedValueTest, Int64ToString) {
-  // -123456789012345 doensn't fit in 32-bit integers.
+  // -123456789012345 doesn't fit in 32-bit integers.
   EXPECT_EQ("-123456789012345", BoxedValue(
       new int64_t(-123456789012345LL)).ToString());
 }
 
 TEST(UmBoxedValueTest, UnsignedIntToString) {
   // 4294967295 is the biggest possible 32-bit unsigned integer.
-  EXPECT_EQ("4294967295", BoxedValue(new unsigned int(4294967295U)).ToString());
+  EXPECT_EQ("4294967295",
+            BoxedValue(new unsigned int(4294967295U)).ToString());  // NOLINT
 }
 
 TEST(UmBoxedValueTest, UnsignedInt64ToString) {

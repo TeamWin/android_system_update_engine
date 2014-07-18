@@ -218,7 +218,7 @@ bool DeltaReadFiles(Graph* graph,
     // duplicate work. Here, we avoid visiting each source image inode
     // more than once. Technically, we could have multiple operations
     // that read the same blocks from the source image for diffing, but
-    // we choose not to to avoid complexity. Eventually we will move away
+    // we choose not to avoid complexity. Eventually we will move away
     // from using a graph/cycle detection/etc to generate diffs, and at that
     // time, it will be easy (non-complex) to have many operations read
     // from the same source blocks. At that time, this code can die. -adlr
@@ -1122,7 +1122,7 @@ bool TempBlocksExistInExtents(const T& extents) {
   return false;
 }
 
-// Convertes the cuts, which must all have the same |old_dst| member,
+// Converts the cuts, which must all have the same |old_dst| member,
 // to full. It does this by converting the |old_dst| to REPLACE or
 // REPLACE_BZ, dropping all incoming edges to |old_dst|, and marking
 // all temp nodes invalid.
