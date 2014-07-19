@@ -50,6 +50,8 @@ class UmChromeOSPolicyTest : public ::testing::Test {
         reset(new unsigned int(0));  // NOLINT(readability/casting)
     fake_state_.updater_provider()->var_server_dictated_poll_interval()->
         reset(new unsigned int(0));  // NOLINT(readability/casting)
+    fake_state_.updater_provider()->var_interactive_update_requested()->
+        reset(new bool(false));  // NOLINT(readability/casting)
 
     fake_state_.random_provider()->var_seed()->reset(
         new uint64_t(4));  // chosen by fair dice roll.
@@ -290,6 +292,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForTheTimeout) {
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
+  EXPECT_FALSE(result.is_interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE) {
@@ -326,6 +329,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWaitsForOOBE) {
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
+  EXPECT_FALSE(result.is_interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
@@ -344,20 +348,20 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
   EXPECT_EQ("foo-channel", result.target_channel);
+  EXPECT_FALSE(result.is_interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest,
        UpdateCheckAllowedUpdatesDisabledForUnofficialBuilds) {
-  // UpdateCheckAllowed should return false (kSucceeded) if this is an
-  // unofficial build; we don't want periodic update checks on developer images.
+  // UpdateCheckAllowed should return kAskMeAgainLater if this is an unofficial
+  // build; we don't want periodic update checks on developer images.
 
   fake_state_.system_provider()->var_is_official_build()->reset(
       new bool(false));
 
   UpdateCheckParams result;
-  ExpectPolicyStatus(EvalStatus::kSucceeded,
+  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
                      &Policy::UpdateCheckAllowed, &result);
-  EXPECT_FALSE(result.updates_enabled);
 }
 
 TEST_F(UmChromeOSPolicyTest,
@@ -385,6 +389,21 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedUpdatesDisabledByPolicy) {
   UpdateCheckParams result;
   ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
                      &Policy::UpdateCheckAllowed, &result);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedInteractiveUpdateRequested) {
+  // UpdateCheckAllowed should return true because an interactive update request
+  // was signaled.
+
+  SetUpdateCheckAllowed(true);
+  fake_state_.updater_provider()->var_interactive_update_requested()->reset(
+      new bool(true));
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded,
+                     &Policy::UpdateCheckAllowed, &result);
+  EXPECT_TRUE(result.updates_enabled);
+  EXPECT_TRUE(result.is_interactive);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCanStartFailsCheckAllowedError) {

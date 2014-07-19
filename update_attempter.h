@@ -12,6 +12,7 @@
 #include <vector>
 #include <utility>
 
+#include <base/bind.h>
 #include <base/time/time.h>
 #include <glib.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
@@ -203,6 +204,16 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Returns the poll interval dictated by Omaha, if provided; zero otherwise.
   virtual unsigned int server_dictated_poll_interval() const {
     return server_dictated_poll_interval_;
+  }
+
+  // Sets a callback to be used when either an interactive update request is
+  // received (true) or cleared by an update attempt (false). Takes ownership of
+  // the callback object. A null value disables callback on these events. Note
+  // that only one callback can be set, so effectively at most one client can be
+  // notified.
+  virtual void set_interactive_update_pending_callback(
+      base::Callback<void(bool)>* callback) {  // NOLINT(readability/function)
+    interactive_update_pending_callback_.reset(callback);
   }
 
  private:
@@ -466,6 +477,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // The poll interval (in seconds) that was dictated by Omaha, if any; zero
   // otherwise. This is needed for calculating the update check interval.
   unsigned int server_dictated_poll_interval_ = 0;
+
+  // A callback to use when either an interactive update request is received
+  // (true) or cleared by an update attempt (false).
+  scoped_ptr<base::Callback<void(bool)>>  // NOLINT(readability/function)
+      interactive_update_pending_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

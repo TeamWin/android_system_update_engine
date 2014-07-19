@@ -198,8 +198,8 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation) {
   umut_->set_policy(new FailingPolicy());
 
   vector<pair<EvalStatus, UpdateCheckParams>> calls;
-  Callback<void(EvalStatus, const UpdateCheckParams& result)> callback =
-      Bind(AccumulateCallsCallback<UpdateCheckParams>, &calls);
+  Callback<void(EvalStatus, const UpdateCheckParams&)> callback = Bind(
+      AccumulateCallsCallback<UpdateCheckParams>, &calls);
 
   umut_->AsyncPolicyRequest(callback, base::TimeDelta::FromSeconds(5),
                             &Policy::UpdateCheckAllowed);

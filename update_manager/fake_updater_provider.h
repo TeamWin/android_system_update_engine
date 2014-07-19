@@ -71,6 +71,10 @@ class FakeUpdaterProvider : public UpdaterProvider {
     return &var_server_dictated_poll_interval_;
   }
 
+  virtual FakeVariable<bool>* var_interactive_update_requested() override {
+    return &var_interactive_update_requested_;
+  }
+
  private:
   FakeVariable<base::Time>
       var_updater_started_time_{  // NOLINT(whitespace/braces)
@@ -102,6 +106,9 @@ class FakeUpdaterProvider : public UpdaterProvider {
   FakeVariable<unsigned int>
       var_server_dictated_poll_interval_{  // NOLINT(whitespace/braces)
     "server_dictated_poll_interval", kVariableModePoll};
+  FakeVariable<bool>
+      var_interactive_update_requested_{  // NOLINT(whitespace/braces)
+    "interactive_update_requested", kVariableModeAsync};
 
   DISALLOW_COPY_AND_ASSIGN(FakeUpdaterProvider);
 };

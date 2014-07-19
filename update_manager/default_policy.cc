@@ -24,6 +24,7 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(
     UpdateCheckParams* result) const {
   result->updates_enabled = true;
   result->target_channel.clear();
+  result->is_interactive = false;
 
   // Ensure that the minimum interval is set. If there's no clock, this defaults
   // to always allowing the update.

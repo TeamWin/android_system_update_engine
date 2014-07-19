@@ -225,6 +225,10 @@ void UpdateAttempter::Update(const string& app_version,
   // appropriate to use as a hook for reporting daily metrics.
   CheckAndReportDailyMetrics();
 
+  // Notify of the new update attempt, clearing prior interactive requests.
+  if (interactive_update_pending_callback_.get())
+    interactive_update_pending_callback_->Run(false);
+
   chrome_proxy_resolver_.Init();
   fake_update_success_ = false;
   if (status_ == UPDATE_STATUS_UPDATED_NEED_REBOOT) {
@@ -797,7 +801,9 @@ std::vector<std::pair<std::string, bool>>
 void UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
                                      bool interactive) {
-  LOG(INFO) << "New update check requested";
+  LOG(INFO) << "Interactive update check requested.";
+  if (interactive_update_pending_callback_.get())
+    interactive_update_pending_callback_->Run(true);
 
   if (status_ != UPDATE_STATUS_IDLE) {
     LOG(INFO) << "Skipping update check because current status is "

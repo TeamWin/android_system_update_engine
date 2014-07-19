@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include <base/bind.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 #include <chromeos/dbus/service_constants.h>
@@ -31,8 +32,9 @@ namespace chromeos_update_manager {
 template<typename T>
 class UpdaterVariableBase : public Variable<T> {
  public:
-  UpdaterVariableBase(const string& name, SystemState* system_state)
-      : Variable<T>(name, kVariableModePoll), system_state_(system_state) {}
+  UpdaterVariableBase(const string& name, VariableMode mode,
+                      SystemState* system_state)
+      : Variable<T>(name, mode), system_state_(system_state) {}
 
  protected:
   // The system state used for pulling information from the updater.
@@ -72,7 +74,8 @@ class GetStatusHelper {
 // A variable reporting the time when a last update check was issued.
 class LastCheckedTimeVariable : public UpdaterVariableBase<Time> {
  public:
-  using UpdaterVariableBase<Time>::UpdaterVariableBase;
+  LastCheckedTimeVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<Time>(name, kVariableModePoll, system_state) {}
 
  private:
   virtual const Time* GetValue(TimeDelta /* timeout */,
@@ -91,7 +94,8 @@ class LastCheckedTimeVariable : public UpdaterVariableBase<Time> {
 // between 0.0 and 1.0.
 class ProgressVariable : public UpdaterVariableBase<double> {
  public:
-  using UpdaterVariableBase<double>::UpdaterVariableBase;
+  ProgressVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<double>(name, kVariableModePoll, system_state) {}
 
  private:
   virtual const double* GetValue(TimeDelta /* timeout */,
@@ -117,7 +121,8 @@ class ProgressVariable : public UpdaterVariableBase<double> {
 // A variable reporting the stage in which the update process is.
 class StageVariable : public UpdaterVariableBase<Stage> {
  public:
-  using UpdaterVariableBase<Stage>::UpdaterVariableBase;
+  StageVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<Stage>(name, kVariableModePoll, system_state) {}
 
  private:
   struct CurrOpStrToStage {
@@ -166,7 +171,8 @@ const Stage* StageVariable::GetValue(TimeDelta /* timeout */,
 // A variable reporting the version number that an update is updating to.
 class NewVersionVariable : public UpdaterVariableBase<string> {
  public:
-  using UpdaterVariableBase<string>::UpdaterVariableBase;
+  NewVersionVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<string>(name, kVariableModePoll, system_state) {}
 
  private:
   virtual const string* GetValue(TimeDelta /* timeout */,
@@ -184,7 +190,8 @@ class NewVersionVariable : public UpdaterVariableBase<string> {
 // A variable reporting the size of the update being processed in bytes.
 class PayloadSizeVariable : public UpdaterVariableBase<int64_t> {
  public:
-  using UpdaterVariableBase<int64_t>::UpdaterVariableBase;
+  PayloadSizeVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<int64_t>(name, kVariableModePoll, system_state) {}
 
  private:
   virtual const int64_t* GetValue(TimeDelta /* timeout */,
@@ -214,7 +221,8 @@ class PayloadSizeVariable : public UpdaterVariableBase<int64_t> {
 // policy request.
 class UpdateCompletedTimeVariable : public UpdaterVariableBase<Time> {
  public:
-  using UpdaterVariableBase<Time>::UpdaterVariableBase;
+  UpdateCompletedTimeVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<Time>(name, kVariableModePoll, system_state) {}
 
  private:
   virtual const Time* GetValue(TimeDelta /* timeout */,
@@ -244,7 +252,8 @@ class UpdateCompletedTimeVariable : public UpdaterVariableBase<Time> {
 // Variables reporting the current image channel.
 class CurrChannelVariable : public UpdaterVariableBase<string> {
  public:
-  using UpdaterVariableBase<string>::UpdaterVariableBase;
+  CurrChannelVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<string>(name, kVariableModePoll, system_state) {}
 
  private:
   virtual const string* GetValue(TimeDelta /* timeout */,
@@ -265,7 +274,8 @@ class CurrChannelVariable : public UpdaterVariableBase<string> {
 // Variables reporting the new image channel.
 class NewChannelVariable : public UpdaterVariableBase<string> {
  public:
-  using UpdaterVariableBase<string>::UpdaterVariableBase;
+  NewChannelVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<string>(name, kVariableModePoll, system_state) {}
 
  private:
   virtual const string* GetValue(TimeDelta /* timeout */,
@@ -288,7 +298,7 @@ class BooleanPrefVariable : public UpdaterVariableBase<bool> {
  public:
   BooleanPrefVariable(const string& name, SystemState* system_state,
                       const char* key, bool default_val)
-      : UpdaterVariableBase<bool>(name, system_state),
+      : UpdaterVariableBase<bool>(name, kVariableModePoll, system_state),
         key_(key), default_val_(default_val) {}
 
  private:
@@ -315,7 +325,10 @@ class BooleanPrefVariable : public UpdaterVariableBase<bool> {
 class ConsecutiveFailedUpdateChecksVariable
     : public UpdaterVariableBase<unsigned int> {
  public:
-  using UpdaterVariableBase<unsigned int>::UpdaterVariableBase;
+  ConsecutiveFailedUpdateChecksVariable(const string& name,
+                                        SystemState* system_state)
+      : UpdaterVariableBase<unsigned int>(name, kVariableModePoll,
+                                          system_state) {}
 
  private:
   virtual const unsigned int* GetValue(TimeDelta /* timeout */,
@@ -331,7 +344,10 @@ class ConsecutiveFailedUpdateChecksVariable
 class ServerDictatedPollIntervalVariable
     : public UpdaterVariableBase<unsigned int> {
  public:
-  using UpdaterVariableBase<unsigned int>::UpdaterVariableBase;
+  ServerDictatedPollIntervalVariable(const string& name,
+                                     SystemState* system_state)
+      : UpdaterVariableBase<unsigned int>(name, kVariableModePoll,
+                                          system_state) {}
 
  private:
   virtual const unsigned int* GetValue(TimeDelta /* timeout */,
@@ -341,6 +357,37 @@ class ServerDictatedPollIntervalVariable
   }
 
   DISALLOW_COPY_AND_ASSIGN(ServerDictatedPollIntervalVariable);
+};
+
+// An async variable that tracks changes to interactive update requests.
+class InteractiveUpdateRequestedVariable : public UpdaterVariableBase<bool> {
+ public:
+  InteractiveUpdateRequestedVariable(const string& name,
+                                     SystemState* system_state)
+      : UpdaterVariableBase<bool>::UpdaterVariableBase(name, kVariableModeAsync,
+                                                       system_state) {
+    system_state->update_attempter()->set_interactive_update_pending_callback(
+        new base::Callback<void(bool)>(  // NOLINT(readability/function)
+            base::Bind(&InteractiveUpdateRequestedVariable::Reset,
+                       base::Unretained(this))));
+  }
+
+ private:
+  virtual const bool* GetValue(TimeDelta /* timeout */,
+                               string* /* errmsg */) override {
+    return new bool(interactive_update_requested_);
+  }
+
+  void Reset(bool value) {
+    if (interactive_update_requested_ != value) {
+      interactive_update_requested_ = value;
+      NotifyValueChanged();
+    }
+  }
+
+  bool interactive_update_requested_ = false;
+
+  DISALLOW_COPY_AND_ASSIGN(InteractiveUpdateRequestedVariable);
 };
 
 // RealUpdaterProvider methods.
@@ -374,6 +421,9 @@ RealUpdaterProvider::RealUpdaterProvider(SystemState* system_state)
             "consecutive_failed_update_checks", system_state_)),
     var_server_dictated_poll_interval_(
         new ServerDictatedPollIntervalVariable(
-            "server_dictated_poll_interval", system_state_)) {}
+            "server_dictated_poll_interval", system_state_)),
+    var_interactive_update_requested_(
+        new InteractiveUpdateRequestedVariable(
+            "interactive_update_requested", system_state_)) {}
 
 }  // namespace chromeos_update_manager

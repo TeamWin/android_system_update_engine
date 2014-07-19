@@ -32,6 +32,9 @@ struct UpdateCheckParams {
   //
   // A target channel, if so imposed by policy; otherwise, an empty string.
   std::string target_channel;
+
+  // Whether the allowed update is interactive (user-initiated) or periodic.
+  bool is_interactive;
 };
 
 // Input arguments to UpdateCanStart.

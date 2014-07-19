@@ -155,34 +155,19 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   // Set the default return values.
   result->updates_enabled = true;
   result->target_channel.clear();
+  result->is_interactive = false;
 
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+  UpdaterProvider* const updater_provider = state->updater_provider();
   SystemProvider* const system_provider = state->system_provider();
 
-  // Unofficial builds should not perform any automatic update checks.
-  const bool* is_official_build_p = ec->GetValue(
-      system_provider->var_is_official_build());
-  if (is_official_build_p && !(*is_official_build_p)) {
-    result->updates_enabled = false;
-    return EvalStatus::kSucceeded;
-  }
-
-  // Do not perform any automatic update checks if booted from removable device.
+  // Do not perform any updates if booted from removable device. This decision
+  // is final.
   const bool* is_boot_device_removable_p = ec->GetValue(
       system_provider->var_is_boot_device_removable());
   if (is_boot_device_removable_p && *is_boot_device_removable_p) {
     result->updates_enabled = false;
     return EvalStatus::kSucceeded;
-  }
-
-  // If OOBE is enabled, wait until it is completed.
-  const bool* is_oobe_enabled_p = ec->GetValue(
-      state->config_provider()->var_is_oobe_enabled());
-  if (is_oobe_enabled_p && *is_oobe_enabled_p) {
-    const bool* is_oobe_complete_p = ec->GetValue(
-        system_provider->var_is_oobe_complete());
-    if (is_oobe_complete_p && !(*is_oobe_complete_p))
-      return EvalStatus::kAskMeAgainLater;
   }
 
   const bool* device_policy_is_loaded_p = ec->GetValue(
@@ -205,7 +190,36 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
     }
   }
 
-  // Ensure that update checks are timed properly.
+  // First, check to see if an interactive update was requested.
+  const bool* interactive_update_requested_p = ec->GetValue(
+      updater_provider->var_interactive_update_requested());
+  if (interactive_update_requested_p && *interactive_update_requested_p) {
+    result->is_interactive = true;
+    return EvalStatus::kSucceeded;
+  }
+
+  // The logic thereafter applies to periodic updates. Bear in mind that we
+  // should not return a final "no" if any of these criteria are not satisfied,
+  // because the system may still update due to an interactive update request.
+
+  // Unofficial builds should not perform periodic update checks.
+  const bool* is_official_build_p = ec->GetValue(
+      system_provider->var_is_official_build());
+  if (is_official_build_p && !(*is_official_build_p)) {
+    return EvalStatus::kAskMeAgainLater;
+  }
+
+  // If OOBE is enabled, wait until it is completed.
+  const bool* is_oobe_enabled_p = ec->GetValue(
+      state->config_provider()->var_is_oobe_enabled());
+  if (is_oobe_enabled_p && *is_oobe_enabled_p) {
+    const bool* is_oobe_complete_p = ec->GetValue(
+        system_provider->var_is_oobe_complete());
+    if (is_oobe_complete_p && !(*is_oobe_complete_p))
+      return EvalStatus::kAskMeAgainLater;
+  }
+
+  // Ensure that periodic update checks are timed properly.
   Time next_update_check;
   if (NextUpdateCheckTime(ec, state, error, &next_update_check) !=
       EvalStatus::kSucceeded) {

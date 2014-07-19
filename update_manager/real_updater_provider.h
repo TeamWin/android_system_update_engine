@@ -83,6 +83,10 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_server_dictated_poll_interval_.get();
   }
 
+  virtual Variable<bool>* var_interactive_update_requested() override {
+    return var_interactive_update_requested_.get();
+  }
+
  private:
   // A pointer to the update engine's system state aggregator.
   chromeos_update_engine::SystemState* system_state_;
@@ -101,6 +105,7 @@ class RealUpdaterProvider : public UpdaterProvider {
   scoped_ptr<Variable<bool>> var_cellular_enabled_;
   scoped_ptr<Variable<unsigned int>> var_consecutive_failed_update_checks_;
   scoped_ptr<Variable<unsigned int>> var_server_dictated_poll_interval_;
+  scoped_ptr<Variable<bool>> var_interactive_update_requested_;
 
   DISALLOW_COPY_AND_ASSIGN(RealUpdaterProvider);
 };
