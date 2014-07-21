@@ -338,6 +338,8 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   SetUpdateCheckAllowed(true);
 
   // Override specific device policy attributes.
+  fake_state_.device_policy_provider()->var_target_version_prefix()->
+      reset(new string("1.2"));
   fake_state_.device_policy_provider()->var_release_channel_delegated()->
       reset(new bool(false));
   fake_state_.device_policy_provider()->var_release_channel()->
@@ -347,6 +349,7 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedWithAttributes) {
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
+  EXPECT_EQ("1.2", result.target_version_prefix);
   EXPECT_EQ("foo-channel", result.target_channel);
   EXPECT_FALSE(result.is_interactive);
 }

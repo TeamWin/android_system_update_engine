@@ -30,6 +30,8 @@ struct UpdateCheckParams {
 
   // Attributes pertaining to the case where update checks are allowed.
   //
+  // A target version prefix, if imposed by policy; otherwise, an empty string.
+  std::string target_version_prefix;
   // A target channel, if so imposed by policy; otherwise, an empty string.
   std::string target_channel;
 

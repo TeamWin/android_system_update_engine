@@ -155,6 +155,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   // Set the default return values.
   result->updates_enabled = true;
   result->target_channel.clear();
+  result->target_version_prefix.clear();
   result->is_interactive = false;
 
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
@@ -178,6 +179,12 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
         dp_provider->var_update_disabled());
     if (update_disabled_p && *update_disabled_p)
       return EvalStatus::kAskMeAgainLater;
+
+    // Determine whether a target version prefix is dictated by policy.
+    const string* target_version_prefix_p = ec->GetValue(
+        dp_provider->var_target_version_prefix());
+    if (target_version_prefix_p)
+      result->target_version_prefix = *target_version_prefix_p;
 
     // Determine whether a target channel is dictated by policy.
     const bool* release_channel_delegated_p = ec->GetValue(
