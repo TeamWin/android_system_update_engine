@@ -6,6 +6,7 @@
 #define UPDATE_ENGINE_UPDATE_MANAGER_POLICY_H_
 
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "update_engine/error_code.h"
@@ -41,38 +42,67 @@ struct UpdateCheckParams {
 
 // Input arguments to UpdateCanStart.
 //
-// A snapshot of the state of the current update process.
+// A snapshot of the state of the current update process. This includes
+// everything that a policy might need and that occurred since the first time
+// the current payload was first seen and attempted (consecutively).
 struct UpdateState {
-  // Information pertaining to the Omaha update response.
+  // Information pertaining to the current update payload and/or check.
   //
-  // Time when update was first offered by Omaha.
+  // Whether the current update check is an interactive one. The caller should
+  // feed the value returned by the preceding call to UpdateCheckAllowed().
+  bool is_interactive;
+  // Whether it is a delta payload.
+  bool is_delta_payload;
+  // Wallclock time when payload was first (consecutively) offered by Omaha.
   base::Time first_seen;
-  // Number of update checks returning the current update.
+  // Number of consecutive update checks returning the current update.
   int num_checks;
+  // Number of update payload failures and the wallclock time when it was last
+  // updated by the updater. These should both be nullified whenever a new
+  // update is seen; they are updated at the policy's descretion (via
+  // UpdateDownloadParams.do_increment_failures) once all of the usable download
+  // URLs for the payload have been used without success. They should be
+  // persisted across reboots.
+  int num_failures;
+  base::Time failures_last_updated;
 
-  // Information pertaining to the update download URL.
+  // Information pertaining to downloading and applying of the current update.
   //
   // An array of download URLs provided by Omaha.
   std::vector<std::string> download_urls;
-  // Max number of failures allowed per download URL.
-  int download_failures_max;
-  // The index of the URL to use, as previously determined by the policy. This
-  // number is significant iff |num_checks| is greater than 1.
-  int download_url_idx;
-  // The number of failures already associated with this URL.
-  int download_url_num_failures;
-  // An array of failure error codes that occurred since the latest reported
-  // ones (included in the number above).
-  std::vector<chromeos_update_engine::ErrorCode> download_url_error_codes;
+  // Max number of errors allowed per download URL.
+  int download_errors_max;
+  // The index of the URL to download from, as determined in the previous call
+  // to the policy. For a newly seen payload, this should be -1.
+  int last_download_url_idx;
+  // The number of successive download errors pertaining to this last URL, as
+  // determined in the previous call to the policy. For a newly seen payload,
+  // this should be zero.
+  int last_download_url_num_errors;
+  // An array of errors that occurred while trying to download this update since
+  // the previous call to this policy has returned, or since this payload was
+  // first seen, or since the updater process has started (whichever is later).
+  // Includes the URL index attempted, the error code, and the wallclock-based
+  // timestamp when it occurred.
+  std::vector<std::tuple<int, chromeos_update_engine::ErrorCode, base::Time>>
+      download_errors;
+
+  // Information pertaining to update backoff mechanism.
+  //
+  // The currently known (persisted) wallclock-based backoff expiration time;
+  // zero if none.
+  base::Time backoff_expiry;
+  // Whether backoff is disabled by Omaha.
+  bool is_backoff_disabled;
 
   // Information pertaining to update scattering.
   //
-  // Scattering wallclock-based wait period, as returned by the policy.
+  // The currently knwon (persisted) scattering wallclock-based wait period and
+  // update check threshold; zero if none.
   base::TimeDelta scatter_wait_period;
+  int scatter_check_threshold;
   // Maximum wait period allowed for this update, as determined by Omaha.
   base::TimeDelta scatter_wait_period_max;
-  // Scattering update check threshold, as returned by the policy.
-  int scatter_check_threshold;
   // Minimum/maximum check threshold values.
   // TODO(garnold) These appear to not be related to the current update and so
   // should probably be obtained as variables via UpdaterProvider.
@@ -88,29 +118,46 @@ enum class UpdateCannotStartReason {
   kUndefined,
   kCheckDue,
   kScattering,
+  kBackoff,
   kCannotDownload,
 };
 
 struct UpdateDownloadParams {
   // Whether the update attempt is allowed to proceed.
   bool update_can_start;
+  // If update cannot proceed, a reason code for why it cannot do so.
+  UpdateCannotStartReason cannot_start_reason;
 
   // Attributes pertaining to the case where update is allowed. The update
   // engine uses them to choose the means for downloading and applying an
   // update.
-  bool p2p_allowed;
-  // The index of the download URL to use, and the number of failures associated
-  // with this URL. An index value of -1 indicates that no suitable URL is
-  // available, but there may be other means for download (like P2P).
+  //
+  // The index of the download URL to use, or -1 if no suitable URL was found;
+  // in the latter case, there may still be other means for download (like P2P).
+  // This value needs to be persisted and handed back to the policy on the next
+  // time it is called.
   int download_url_idx;
-  int download_url_num_failures;
+  // The number of download errors associated with this download URL. This value
+  // needs to be persisted and handed back to the policy on the next time it is
+  // called.
+  int download_url_num_errors;
+  // Whether P2P downloads are allowed.
+  bool p2p_allowed;
 
-  // Attributes pertaining to the case where update is not allowed. Some are
-  // needed for storing values to persistent storage, others for
-  // logging/metrics.
-  UpdateCannotStartReason cannot_start_reason;
-  base::TimeDelta scatter_wait_period;  // Needs to be persisted.
-  int scatter_check_threshold;  // Needs to be persisted.
+  // Other values that need to be persisted and handed to the policy as need on
+  // the next call.
+  //
+  // Whether an update failure has been identified by the policy. The client
+  // should increment and persist its update failure count, and record the time
+  // when this was done; it needs to hand these values back to the policy
+  // (UpdateState.{num_failures,failures_last_updated}) on the next time it is
+  // called.
+  bool do_increment_failures;
+  // The current backof expiry.
+  base::Time backoff_expiry;
+  // The scattering wait period and check threshold.
+  base::TimeDelta scatter_wait_period;
+  int scatter_check_threshold;
 };
 
 // The Policy class is an interface to the ensemble of policy requests that the
@@ -165,22 +212,20 @@ class Policy {
   // processed, or the attempt needs to be aborted. In cases where the update
   // needs to wait for some condition to be satisfied, but none of the values
   // that need to be persisted has changed, returns
-  // EvalStatus::kAskMeAgainLater. Arguments include an |interactive| flag that
-  // tells whether the update is user initiated, and an |update_state| that
+  // EvalStatus::kAskMeAgainLater. Arguments include an |update_state| that
   // encapsulates data pertaining to the current ongoing update process.
   virtual EvalStatus UpdateCanStart(
       EvaluationContext* ec,
       State* state,
       std::string* error,
       UpdateDownloadParams* result,
-      const bool interactive,
       const UpdateState& update_state) const = 0;
 
   // Checks whether downloading of an update is allowed; currently, this checks
   // whether the network connection type is suitable for updating over.  May
   // consult the shill provider as well as the device policy (if available).
   // Returns |EvalStatus::kSucceeded|, setting |result| according to whether or
-  // not the current connection can be used; on failure, returns
+  // not the current connection can be used; on error, returns
   // |EvalStatus::kFailed| and sets |error| accordingly.
   virtual EvalStatus UpdateDownloadAllowed(
       EvaluationContext* ec,

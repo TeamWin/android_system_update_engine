@@ -15,13 +15,21 @@
 
 namespace chromeos_update_manager {
 
-// Parameters for update download URL, as determined by UpdateDownloadUrl.
-struct UpdateDownloadUrlResult {
+// Output information from UpdateBackoffAndDownloadUrl.
+struct UpdateBackoffAndDownloadUrlResult {
+  // Whether the failed attempt count (maintained by the caller) needs to be
+  // incremented.
+  bool do_increment_failures;
+  // The current backoff expiry. Null if backoff is not in effect.
+  base::Time backoff_expiry;
+  // The new URL index to use and number of download errors associated with it.
+  // Significant iff |do_increment_failures| is false and |backoff_expiry| is
+  // null. Negative value means no usable URL was found.
   int url_idx;
-  int url_num_failures;
+  int url_num_errors;
 };
 
-// Parameters for update scattering, as determined by UpdateNotScattering.
+// Parameters for update scattering, as returned by UpdateScattering.
 struct UpdateScatteringResult {
   bool is_scattering;
   base::TimeDelta wait_period;
@@ -44,7 +52,6 @@ class ChromeOSPolicy : public Policy {
       State* state,
       std::string* error,
       UpdateDownloadParams* result,
-      const bool interactive,
       const UpdateState& update_state) const override;
 
   EvalStatus UpdateDownloadAllowed(
@@ -90,6 +97,10 @@ class ChromeOSPolicy : public Policy {
   static const int kTimeoutMaxBackoffInterval;
   static const int kTimeoutRegularFuzz;
 
+  // Maximum update attempt backoff interval and fuzz.
+  static const int kAttemptBackoffMaxIntervalInDays;
+  static const int kAttemptBackoffFuzzInHours;
+
   // A private policy implementation returning the wallclock timestamp when
   // the next update check should happen.
   // TODO(garnold) We should probably change that to infer a monotonic
@@ -105,21 +116,33 @@ class ChromeOSPolicy : public Policy {
   // TimeDelta.
   static base::TimeDelta FuzzedInterval(PRNG* prng, int interval, int fuzz);
 
-  // A private policy for determining which download URL to use. Within
-  // |update_state|, |download_urls| should contain the download URLs as listed
-  // in the Omaha response; |download_failures_max| the maximum number of
-  // failures per URL allowed per the response; |download_url_idx| the index of
-  // the previously used URL; |download_url_num_failures| the previously known
-  // number of failures associated with that URL; and |download_url_error_codes|
-  // the list of failures occurring since the latest evaluation.
+  // A private policy for determining backoff and the download URL to use.
+  // Within |update_state|, |backoff_expiry| and |is_backoff_disabled| are used
+  // for determining whether backoff is still in effect; if not,
+  // |download_errors| is scanned past |failures_last_updated|, and a new
+  // download URL from |download_urls| is found and written to |result->url_idx|
+  // (-1 means no usable URL exists); |download_errors_max| determines the
+  // maximum number of attempts per URL, according to the Omaha response. If an
+  // update failure is identified then |result->do_increment_failures| is set to
+  // true; if backoff is enabled, a new backoff period is computed (from the
+  // time of failure) based on |num_failures|. Otherwise, backoff expiry is
+  // nullified, indicating that no backoff is in effect.
   //
-  // Upon successfully deciding a URL to use, returns |EvalStatus::kSucceeded|
-  // and writes the current URL index and the number of failures associated with
-  // it in |result|. Otherwise, returns |EvalStatus::kFailed|.
-  EvalStatus UpdateDownloadUrl(EvaluationContext* ec, State* state,
-                               std::string* error,
-                               UpdateDownloadUrlResult* result,
-                               const UpdateState& update_state) const;
+  // If backing off but the previous backoff expiry is unchanged, returns
+  // |EvalStatus::kAskMeAgainLater|. Otherwise:
+  //
+  // * If backing off with a new expiry time, then |result->backoff_expiry| is
+  //   set to this time.
+  //
+  // * Else, |result->backoff_expiry| is set to null, indicating that no backoff
+  //   is in effect.
+  //
+  // In any of these cases, returns |EvalStatus::kSucceeded|. If an error
+  // occurred, returns |EvalStatus::kFailed|.
+  EvalStatus UpdateBackoffAndDownloadUrl(
+      EvaluationContext* ec, State* state, std::string* error,
+      UpdateBackoffAndDownloadUrlResult* result,
+      const UpdateState& update_state) const;
 
   // A private policy for checking whether scattering is due. Writes in |result|
   // the decision as to whether or not to scatter; a wallclock-based scatter

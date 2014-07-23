@@ -57,30 +57,13 @@ class DefaultPolicy : public Policy {
       UpdateCheckParams* result) const override;
 
   EvalStatus UpdateCanStart(
-      EvaluationContext* ec,
-      State* state,
-      std::string* error,
+      EvaluationContext* ec, State* state, std::string* error,
       UpdateDownloadParams* result,
-      const bool interactive,
-      const UpdateState& update_state) const override {
-    result->update_can_start = true;
-    result->p2p_allowed = false;
-    result->download_url_idx = 0;
-    result->download_url_num_failures = 0;
-    result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
-    result->scatter_wait_period = base::TimeDelta();
-    result->scatter_check_threshold = 0;
-    return EvalStatus::kSucceeded;
-  }
+      const UpdateState& update_state) const override;
 
   EvalStatus UpdateDownloadAllowed(
-      EvaluationContext* ec,
-      State* state,
-      std::string* error,
-      bool* result) const override {
-    *result = true;
-    return EvalStatus::kSucceeded;
-  }
+      EvaluationContext* ec, State* state, std::string* error,
+      bool* result) const override;
 
  protected:
   // Policy override.

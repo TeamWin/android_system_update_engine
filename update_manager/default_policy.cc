@@ -41,4 +41,31 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(
   return EvalStatus::kAskMeAgainLater;
 }
 
+EvalStatus DefaultPolicy::UpdateCanStart(
+    EvaluationContext* ec,
+    State* state,
+    std::string* error,
+    UpdateDownloadParams* result,
+    const UpdateState& update_state) const {
+  result->update_can_start = true;
+  result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
+  result->download_url_idx = 0;
+  result->download_url_num_errors = 0;
+  result->p2p_allowed = false;
+  result->do_increment_failures = false;
+  result->backoff_expiry = base::Time();
+  result->scatter_wait_period = base::TimeDelta();
+  result->scatter_check_threshold = 0;
+  return EvalStatus::kSucceeded;
+}
+
+EvalStatus DefaultPolicy::UpdateDownloadAllowed(
+    EvaluationContext* ec,
+    State* state,
+    std::string* error,
+    bool* result) const {
+  *result = true;
+  return EvalStatus::kSucceeded;
+}
+
 }  // namespace chromeos_update_manager

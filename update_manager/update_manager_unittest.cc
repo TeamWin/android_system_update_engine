@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -31,6 +32,7 @@ using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::FakeClock;
 using std::pair;
 using std::string;
+using std::tuple;
 using std::vector;
 using testing::Return;
 using testing::StrictMock;
@@ -161,15 +163,29 @@ TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCheckAllowed) {
 }
 
 TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCanStart) {
-  const UpdateState update_state = {
-    FixedTime(), 1,
-    vector<string>(1, "http://fake/url/"), 10, 0, 0, vector<ErrorCode>(),
-    TimeDelta::FromSeconds(15), TimeDelta::FromSeconds(60),
-    4, 2, 8
-  };
+  UpdateState update_state = UpdateState();
+  update_state.is_interactive = true;
+  update_state.is_delta_payload = false;
+  update_state.first_seen = FixedTime();
+  update_state.num_checks = 1;
+  update_state.num_failures = 0;
+  update_state.failures_last_updated = Time();
+  update_state.download_urls = vector<string>{"http://fake/url/"};
+  update_state.download_errors_max = 10;
+  update_state.last_download_url_idx = -1;
+  update_state.last_download_url_num_errors = 0;
+  update_state.download_errors = vector<tuple<int, ErrorCode, Time>>();
+  update_state.backoff_expiry = Time();
+  update_state.is_backoff_disabled = false;
+  update_state.scatter_wait_period = TimeDelta::FromSeconds(15);
+  update_state.scatter_check_threshold = 4;
+  update_state.scatter_wait_period_max = TimeDelta::FromSeconds(60);
+  update_state.scatter_check_threshold_min = 2;
+  update_state.scatter_check_threshold_max = 8;
+
   UpdateDownloadParams result;
   EXPECT_EQ(EvalStatus::kSucceeded,
-            umut_->PolicyRequest(&Policy::UpdateCanStart, &result, true,
+            umut_->PolicyRequest(&Policy::UpdateCanStart, &result,
                                  update_state));
 }
 

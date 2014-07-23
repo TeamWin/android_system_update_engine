@@ -21,6 +21,7 @@
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::ErrorCode;
+using std::get;
 using std::max;
 using std::min;
 using std::set;
@@ -28,12 +29,13 @@ using std::string;
 
 namespace {
 
-// Increment |url_idx|, |url_num_failures| or none of them based on the provided
-// error code. If |url_idx| is incremented, then sets |url_num_failures| to zero
-// and returns true; otherwise, returns false.
+// Examines |err_code| and decides whether the URL index needs to be advanced,
+// the error count for the URL incremented, or none of the above. In the first
+// case, returns true; in the second case, increments |*url_num_error_p| and
+// returns false; otherwise just returns false.
 //
 // TODO(garnold) Adapted from PayloadState::UpdateFailed() (to be retired).
-bool HandleErrorCode(ErrorCode err_code, int* url_idx, int* url_num_failures) {
+bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
   err_code = chromeos_update_engine::utils::GetBaseErrorCode(err_code);
   switch (err_code) {
     // Errors which are good indicators of a problem with a particular URL or
@@ -64,8 +66,6 @@ bool HandleErrorCode(ErrorCode err_code, int* url_idx, int* url_num_failures) {
       LOG(INFO) << "Advancing download URL due to error "
                 << chromeos_update_engine::utils::CodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
-      *url_idx += 1;
-      *url_num_failures = 0;
       return true;
 
     // Errors which seem to be just transient network/communication related
@@ -84,7 +84,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_idx, int* url_num_failures) {
       LOG(INFO) << "Incrementing URL failure count due to error "
                 << chromeos_update_engine::utils::CodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
-      *url_num_failures += 1;
+      *url_num_error_p += 1;
       return false;
 
     // Errors which are not specific to a URL and hence shouldn't result in
@@ -141,9 +141,9 @@ bool HandleErrorCode(ErrorCode err_code, int* url_idx, int* url_num_failures) {
   return false;
 }
 
-// Checks whether |download_url| can be used under given download restrictions.
-bool DownloadUrlIsUsable(const string& download_url, bool http_allowed) {
-  return http_allowed || !StartsWithASCII(download_url, "http://", false);
+// Checks whether |url| can be used under given download restrictions.
+bool IsUrlUsable(const string& url, bool http_allowed) {
+  return http_allowed || !StartsWithASCII(url, "http://", false);
 }
 
 }  // namespace
@@ -154,6 +154,8 @@ const int ChromeOSPolicy::kTimeoutInitialInterval =  7 * 60;
 const int ChromeOSPolicy::kTimeoutPeriodicInterval = 45 * 60;
 const int ChromeOSPolicy::kTimeoutMaxBackoffInterval = 4 * 60 * 60;
 const int ChromeOSPolicy::kTimeoutRegularFuzz = 10 * 60;
+const int ChromeOSPolicy::kAttemptBackoffMaxIntervalInDays = 16;
+const int ChromeOSPolicy::kAttemptBackoffFuzzInHours = 12;
 
 EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
     EvaluationContext* ec, State* state, string* error,
@@ -265,16 +267,20 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     State* state,
     string* error,
     UpdateDownloadParams* result,
-    const bool interactive,
     const UpdateState& update_state) const {
-  // Set the default return values.
+  // Set the default return values. Note that we set persisted values (backoff,
+  // scattering) to the same values presented in the update state. The reason is
+  // that preemptive returns, such as the case where an update check is due,
+  // should not clear off the said values; rather, it is the deliberate
+  // inference of new values that should cause them to be reset.
   result->update_can_start = true;
-  result->p2p_allowed = false;
   result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
-  result->scatter_wait_period = kZeroInterval;
-  result->scatter_check_threshold = 0;
   result->download_url_idx = -1;
-  result->download_url_num_failures = 0;
+  result->p2p_allowed = false;
+  result->do_increment_failures = false;
+  result->backoff_expiry = update_state.backoff_expiry;
+  result->scatter_wait_period = update_state.scatter_wait_period;
+  result->scatter_check_threshold = update_state.scatter_check_threshold;
 
   // Make sure that we're not due for an update check.
   UpdateCheckParams check_result;
@@ -286,6 +292,27 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     result->update_can_start = false;
     result->cannot_start_reason = UpdateCannotStartReason::kCheckDue;
     return EvalStatus::kSucceeded;
+  }
+
+  // Check whether backoff applies, and if not then which URL can be used for
+  // downloading. These require scanning the download error log, and so they are
+  // done together.
+  UpdateBackoffAndDownloadUrlResult backoff_url_result;
+  EvalStatus backoff_url_status = UpdateBackoffAndDownloadUrl(
+      ec, state, error, &backoff_url_result, update_state);
+  if (backoff_url_status != EvalStatus::kFailed) {
+    result->download_url_idx = backoff_url_result.url_idx;
+    result->download_url_num_errors = backoff_url_result.url_num_errors;
+    result->do_increment_failures = backoff_url_result.do_increment_failures;
+    result->backoff_expiry = backoff_url_result.backoff_expiry;
+  }
+  if (backoff_url_status != EvalStatus::kSucceeded ||
+      !backoff_url_result.backoff_expiry.is_null()) {
+    if (backoff_url_status != EvalStatus::kFailed) {
+      result->update_can_start = false;
+      result->cannot_start_reason = UpdateCannotStartReason::kBackoff;
+    }
+    return backoff_url_status;
   }
 
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
@@ -302,7 +329,9 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     // presence of this attribute is merely indicative of an OOBE update, during
     // which we suppress scattering anyway.
     bool scattering_applies = false;
-    if (!interactive) {
+    result->scatter_wait_period = kZeroInterval;
+    result->scatter_check_threshold = 0;
+    if (!update_state.is_interactive) {
       const bool* is_oobe_enabled_p = ec->GetValue(
           state->config_provider()->var_is_oobe_enabled());
       if (is_oobe_enabled_p && !(*is_oobe_enabled_p)) {
@@ -344,21 +373,12 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     result->p2p_allowed = updater_p2p_enabled_p && *updater_p2p_enabled_p;
   }
 
-  // Determine the URL to download the update from. Note that a failure to find
-  // a download URL will only fail this policy iff no other means of download
-  // (such as P2P) are enabled.
-  UpdateDownloadUrlResult download_url_result;
-  EvalStatus download_url_status = UpdateDownloadUrl(
-      ec, state, error, &download_url_result, update_state);
-  if (download_url_status == EvalStatus::kSucceeded) {
-    result->download_url_idx = download_url_result.url_idx;
-    result->download_url_num_failures = download_url_result.url_num_failures;
-  } else if (!result->p2p_allowed) {
-    if (download_url_status != EvalStatus::kFailed) {
-      result->update_can_start = false;
-      result->cannot_start_reason = UpdateCannotStartReason::kCannotDownload;
-    }
-    return download_url_status;
+  // Store the download URL and failure increment flag. Note that no URL will
+  // only terminate evaluation if no other means of download (such as P2P) are
+  // enabled.
+  if (result->download_url_idx < 0 && !result->p2p_allowed) {
+    result->update_can_start = false;
+    result->cannot_start_reason = UpdateCannotStartReason::kCannotDownload;
   }
 
   return EvalStatus::kSucceeded;
@@ -537,29 +557,48 @@ TimeDelta ChromeOSPolicy::FuzzedInterval(PRNG* prng, int interval, int fuzz) {
   return TimeDelta::FromSeconds(prng->RandMinMax(interval_min, interval_max));
 }
 
-EvalStatus ChromeOSPolicy::UpdateDownloadUrl(
+EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
     EvaluationContext* ec, State* state, std::string* error,
-    UpdateDownloadUrlResult* result, const UpdateState& update_state) const {
-  int url_idx = 0;
-  int url_num_failures = 0;
-  if (update_state.num_checks > 1) {
-    // Ignore negative URL indexes, which indicate that no previous suitable
-    // download URL was found.
-    url_idx = max(0, update_state.download_url_idx);
-    url_num_failures = update_state.download_url_num_failures;
+    UpdateBackoffAndDownloadUrlResult* result,
+    const UpdateState& update_state) const {
+  // Sanity checks.
+  DCHECK_GE(update_state.download_errors_max, 0);
+
+  // Set default result values.
+  result->do_increment_failures = false;
+  result->backoff_expiry = update_state.backoff_expiry;
+  result->url_idx = -1;
+  result->url_num_errors = 0;
+
+  const bool* is_official_build_p = ec->GetValue(
+      state->system_provider()->var_is_official_build());
+  bool is_official_build = (is_official_build_p ? *is_official_build_p : true);
+
+  // Check whether backoff is enabled.
+  bool may_backoff = false;
+  if (update_state.is_backoff_disabled) {
+    LOG(INFO) << "Backoff disabled by Omaha.";
+  } else if (update_state.is_interactive) {
+    LOG(INFO) << "No backoff for interactive updates.";
+  } else if (update_state.is_delta_payload) {
+    LOG(INFO) << "No backoff for delta payloads.";
+  } else if (!is_official_build) {
+    LOG(INFO) << "No backoff for unofficial builds.";
+  } else {
+    may_backoff = true;
   }
 
-  // Preconditions / sanity checks.
-  DCHECK_GE(update_state.download_failures_max, 0);
-  DCHECK_LT(url_idx, static_cast<int>(update_state.download_urls.size()));
-  DCHECK_LE(url_num_failures, update_state.download_failures_max);
+  // If previous backoff still in effect, block.
+  if (may_backoff && !update_state.backoff_expiry.is_null() &&
+      !ec->IsWallclockTimeGreaterThan(update_state.backoff_expiry)) {
+    LOG(INFO) << "Previous backoff has not expired, waiting.";
+    return EvalStatus::kAskMeAgainLater;
+  }
 
   // Determine whether HTTP downloads are forbidden by policy. This only
   // applies to official system builds; otherwise, HTTP is always enabled.
   bool http_allowed = true;
-  const bool* is_official_build_p = ec->GetValue(
-      state->system_provider()->var_is_official_build());
-  if (is_official_build_p && *is_official_build_p) {
+  if (is_official_build) {
     DevicePolicyProvider* const dp_provider = state->device_policy_provider();
     const bool* device_policy_is_loaded_p = ec->GetValue(
         dp_provider->var_device_policy_is_loaded());
@@ -571,30 +610,140 @@ EvalStatus ChromeOSPolicy::UpdateDownloadUrl(
     }
   }
 
-  // Process recent failures, stop if the URL index advances.
-  for (auto& err_code : update_state.download_url_error_codes) {
-    if (HandleErrorCode(err_code, &url_idx, &url_num_failures))
-      break;
-    if (url_num_failures > update_state.download_failures_max) {
-      url_idx++;
-      url_num_failures = 0;
-      break;
+  int url_idx = update_state.last_download_url_idx;
+  if (url_idx < 0)
+    url_idx = -1;
+  bool do_advance_url = false;
+  bool is_failure_occurred = false;
+  Time err_time;
+
+  // Scan the relevant part of the download error log, tracking which URLs are
+  // being used, and accounting the number of errors for each URL. Note that
+  // this process may not traverse all errors provided, as it may decide to bail
+  // out midway depending on the particular errors exhibited, the number of
+  // failures allowed, etc. When this ends, |url_idx| will point to the last URL
+  // used (-1 if starting fresh), |do_advance_url| will determine whether the
+  // URL needs to be advanced, and |err_time| the point in time when the last
+  // reported error occurred.  Additionally, if the error log indicates that an
+  // update attempt has failed (abnormal), then |is_failure_occurred| will be
+  // set to true.
+  const int num_urls = update_state.download_urls.size();
+  int prev_url_idx = -1;
+  int url_num_errors = update_state.last_download_url_num_errors;
+  Time prev_err_time;
+  bool is_first = true;
+  for (const auto& err_tuple : update_state.download_errors) {
+    // Do some sanity checks.
+    int used_url_idx = get<0>(err_tuple);
+    if (is_first && url_idx >= 0 && used_url_idx != url_idx) {
+      LOG(WARNING) << "First URL in error log (" << used_url_idx
+                   << ") not as expected (" << url_idx << ")";
     }
-  }
-  url_idx %= update_state.download_urls.size();
+    is_first = false;
+    url_idx = used_url_idx;
+    if (url_idx < 0 || url_idx >= num_urls) {
+      LOG(ERROR) << "Download error log contains an invalid URL index ("
+                 << url_idx << ")";
+      return EvalStatus::kFailed;
+    }
+    err_time = get<2>(err_tuple);
+    if (!(prev_err_time.is_null() || err_time >= prev_err_time)) {
+      // TODO(garnold) Monotonicity cannot really be assumed when dealing with
+      // wallclock-based timestamps. However, we're making a simplifying
+      // assumption so as to keep the policy implementation straightforward, for
+      // now. In general, we should convert all timestamp handling in the
+      // UpdateManager to use monotonic time (instead of wallclock), including
+      // the computation of various expiration times (backoff, scattering, etc).
+      // The client will do whatever conversions necessary when
+      // persisting/retrieving these values across reboots. See chromium:408794.
+      LOG(ERROR) << "Download error timestamps not monotonically increasing.";
+      return EvalStatus::kFailed;
+    }
+    prev_err_time = err_time;
 
-  // Scan through URLs until a usable one is found.
-  const int start_url_idx = url_idx;
-  while (!DownloadUrlIsUsable(update_state.download_urls[url_idx],
-                              http_allowed)) {
-    url_idx = (url_idx + 1) % update_state.download_urls.size();
-    url_num_failures = 0;
-    if (url_idx == start_url_idx)
-      return EvalStatus::kFailed;  // No usable URLs.
+    // Ignore errors that happened before the last known failed attempt.
+    if (!update_state.failures_last_updated.is_null() &&
+        err_time <= update_state.failures_last_updated)
+      continue;
+
+    if (prev_url_idx >= 0) {
+      if (url_idx < prev_url_idx) {
+        LOG(ERROR) << "The URLs in the download error log have wrapped around ("
+                   << prev_url_idx << "->" << url_idx
+                   << "). This should not have happened and means that there's "
+                      "a bug. To be conservative, we record a failed attempt "
+                      "(invalidating the rest of the error log) and resume "
+                      "download from the first usable URL.";
+        url_idx = -1;
+        is_failure_occurred = true;
+        break;
+      }
+
+      if (url_idx > prev_url_idx) {
+        url_num_errors = 0;
+        do_advance_url = false;
+      }
+    }
+
+    if (HandleErrorCode(get<1>(err_tuple), &url_num_errors) ||
+        url_num_errors > update_state.download_errors_max)
+      do_advance_url = true;
+
+    prev_url_idx = url_idx;
   }
 
+  // If required, advance to the next usable URL. If the URLs wraparound, we
+  // mark an update attempt failure. Also be sure to set the download error
+  // count to zero.
+  if (url_idx < 0 || do_advance_url) {
+    url_num_errors = 0;
+    int start_url_idx = -1;
+    do {
+      if (++url_idx == num_urls) {
+        url_idx = 0;
+        // We only mark failure if an actual advancing of a URL was required.
+        if (do_advance_url)
+          is_failure_occurred = true;
+      }
+
+      if (start_url_idx < 0)
+        start_url_idx = url_idx;
+      else if (url_idx == start_url_idx)
+        url_idx = -1;  // No usable URL.
+    } while (url_idx >= 0 &&
+             !IsUrlUsable(update_state.download_urls[url_idx], http_allowed));
+  }
+
+  // If we have a download URL but a failure was observed, compute a new backoff
+  // expiry (if allowed). The backoff period is generally 2 ^ (num_failures - 1)
+  // days, bounded by the size of int and kAttemptBackoffMaxIntervalInDays, and
+  // fuzzed by kAttemptBackoffFuzzInHours hours. Backoff expiry is computed from
+  // the latest recorded time of error.
+  Time backoff_expiry;
+  if (url_idx >= 0 && is_failure_occurred && may_backoff) {
+    CHECK(!err_time.is_null())
+        << "We must have an error timestamp if a failure occurred!";
+    const uint64_t* seed = ec->GetValue(state->random_provider()->var_seed());
+    POLICY_CHECK_VALUE_AND_FAIL(seed, error);
+    PRNG prng(*seed);
+    int exp = std::min(update_state.num_failures,
+                       static_cast<int>(sizeof(int)) * 8 - 2);
+    TimeDelta backoff_interval = TimeDelta::FromDays(
+        std::min(1 << exp, kAttemptBackoffMaxIntervalInDays));
+    TimeDelta backoff_fuzz = TimeDelta::FromHours(kAttemptBackoffFuzzInHours);
+    TimeDelta wait_period = FuzzedInterval(&prng, backoff_interval.InSeconds(),
+                                           backoff_fuzz.InSeconds());
+    backoff_expiry = err_time + wait_period;
+
+    // If the newly computed backoff already expired, nullify it.
+    if (ec->IsWallclockTimeGreaterThan(backoff_expiry))
+      backoff_expiry = Time();
+  }
+
+  result->do_increment_failures = is_failure_occurred;
+  result->backoff_expiry = backoff_expiry;
   result->url_idx = url_idx;
-  result->url_num_failures = url_num_failures;
+  result->url_num_errors = url_num_errors;
   return EvalStatus::kSucceeded;
 }
 
@@ -642,7 +791,7 @@ EvalStatus ChromeOSPolicy::UpdateScattering(
         prng.RandMinMax(1, scatter_factor_p->InSeconds()));
   }
 
-  // If we surpass the wait period or the max scatter period associated with
+  // If we surpassed the wait period or the max scatter period associated with
   // the update, then no wait is needed.
   Time wait_expires = (update_state.first_seen +
                        min(wait_period, update_state.scatter_wait_period_max));
