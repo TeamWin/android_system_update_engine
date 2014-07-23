@@ -211,7 +211,7 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
       EvalStatus::kSucceeded) {
     return EvalStatus::kFailed;
   }
-  if (!ec->IsTimeGreaterThan(next_update_check))
+  if (!ec->IsWallclockTimeGreaterThan(next_update_check))
     return EvalStatus::kAskMeAgainLater;
 
   // It is time to check for an update.
@@ -604,7 +604,7 @@ EvalStatus ChromeOSPolicy::UpdateScattering(
   // the update, then no wait is needed.
   Time wait_expires = (update_state.first_seen +
                        min(wait_period, update_state.scatter_wait_period_max));
-  if (ec->IsTimeGreaterThan(wait_expires))
+  if (ec->IsWallclockTimeGreaterThan(wait_expires))
     wait_period = kZeroInterval;
 
   // Step 2: Maintain the update check threshold count.

@@ -28,7 +28,8 @@ namespace chromeos_update_manager {
 // same policy request (an AsyncPolicyRequest might involve several
 // re-evaluations). Each evaluation of the EvaluationContext is run at a given
 // point in time, which is used as a reference for the evaluation timeout and
-// the time based queries of the policy, such as IsTimeGreaterThan().
+// the time based queries of the policy, such as
+// Is{Wallclock,Monotonic}TimeGreaterThan().
 //
 // Example:
 //
@@ -68,10 +69,11 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   template<typename T>
   const T* GetValue(Variable<T>* var);
 
-  // Returns whether the passed |timestamp| is less than the evaluation time.
-  // The |timestamp| value should be in the same scale as the values returned by
-  // ClockInterface::GetWallclockTime().
-  bool IsTimeGreaterThan(base::Time timestamp);
+  // Returns whether the evaluation time has surpassed |timestamp|, on either
+  // the ClockInterface::GetWallclockTime() or
+  // ClockInterface::GetMonotonicTime() scales, respectively.
+  bool IsWallclockTimeGreaterThan(base::Time timestamp);
+  bool IsMonotonicTimeGreaterThan(base::Time timestamp);
 
   // Returns whether the evaluation context has expired.
   bool is_expired() const { return is_expired_; }
@@ -150,17 +152,21 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // Pointer to the mockable clock interface;
   chromeos_update_engine::ClockInterface* const clock_;
 
-  // The timestamp when the evaluation of this EvaluationContext started. This
-  // value is reset every time ResetEvaluation() is called. The time source
-  // used is the ClockInterface::GetWallclockTime().
-  base::Time evaluation_start_;
+  // The timestamps when the evaluation of this EvaluationContext started,
+  // corresponding to ClockInterface::GetWallclockTime() and
+  // ClockInterface::GetMonotonicTime(), respectively. These values are reset
+  // every time ResetEvaluation() is called.
+  base::Time evaluation_start_wallclock_;
+  base::Time evaluation_start_monotonic_;
 
-  // The timestamp measured on the GetWallclockTime() scale, when a reevaluation
-  // should be triggered due to IsTimeGreaterThan() calls value changes. This
-  // timestamp is greater or equal to |evaluation_start_| since it is a
-  // timestamp in the future, but it can be lower than the current
-  // GetWallclockTime() at some point of the evaluation.
-  base::Time reevaluation_time_;
+  // The timestamps when a reevaluation should be triggered due to various
+  // expected value changes, corresponding to ClockInterface::GetWallclockTime()
+  // and ClockInterface::GetMonotonicTIme(), respectively. These timestamps are
+  // greater or equal to corresponding |evaluation_start_{wallclock,monotonic}_|
+  // counterparts since they are in the future; however, they may be smaller
+  // than the current corresponding times during the course of evaluation.
+  base::Time reevaluation_time_wallclock_;
+  base::Time reevaluation_time_monotonic_;
 
   // The timeout of an evaluation.
   const base::TimeDelta evaluation_timeout_;

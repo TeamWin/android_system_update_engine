@@ -20,6 +20,31 @@ using base::TimeDelta;
 using chromeos_update_engine::ClockInterface;
 using std::string;
 
+namespace {
+
+// Returns whether |curr_time| surpassed |ref_time|; if not, also checks whether
+// |ref_time| is sooner than the current value of |*reeval_time|, in which case
+// the latter is updated to the former.
+bool IsTimeGreaterThanHelper(base::Time ref_time, base::Time curr_time,
+                             base::Time* reeval_time) {
+  if (curr_time > ref_time)
+    return true;
+  // Remember the nearest reference we've checked against in this evaluation.
+  if (*reeval_time > ref_time)
+    *reeval_time = ref_time;
+  return false;
+}
+
+// If |expires| never happens (maximal value), returns the maximal interval;
+// otherwise, returns the difference between |expires| and |curr|.
+TimeDelta GetTimeout(base::Time curr, base::Time expires) {
+  if (expires.is_max())
+    return TimeDelta::Max();
+  return expires - curr;
+}
+
+}  // namespace
+
 namespace chromeos_update_manager {
 
 EvaluationContext::EvaluationContext(ClockInterface* clock,
@@ -80,23 +105,22 @@ void EvaluationContext::OnValueChangedOrTimeout() {
     callback->Run();
 }
 
-bool EvaluationContext::IsTimeGreaterThan(base::Time timestamp) {
-  if (evaluation_start_ > timestamp)
-    return true;
-  // We need to keep track of these calls to trigger a reevaluation.
-  if (reevaluation_time_ > timestamp)
-    reevaluation_time_ = timestamp;
-  return false;
+bool EvaluationContext::IsWallclockTimeGreaterThan(base::Time timestamp) {
+  return IsTimeGreaterThanHelper(timestamp, evaluation_start_wallclock_,
+                                 &reevaluation_time_wallclock_);
+}
+
+bool EvaluationContext::IsMonotonicTimeGreaterThan(base::Time timestamp) {
+  return IsTimeGreaterThanHelper(timestamp, evaluation_start_monotonic_,
+                                 &reevaluation_time_monotonic_);
 }
 
 void EvaluationContext::ResetEvaluation() {
-  // It is not important if these two values are not in sync. The first value is
-  // a reference in time when the evaluation started, to device time-based
-  // values for the current evaluation. The second is a deadline for the
-  // evaluation which required a monotonic source of time.
-  evaluation_start_ = clock_->GetWallclockTime();
+  evaluation_start_wallclock_ = clock_->GetWallclockTime();
+  evaluation_start_monotonic_ = clock_->GetMonotonicTime();
+  reevaluation_time_wallclock_ = Time::Max();
+  reevaluation_time_monotonic_ = Time::Max();
   evaluation_monotonic_deadline_ = MonotonicDeadline(evaluation_timeout_);
-  reevaluation_time_ = Time::Max();
 
   // Remove the cached values of non-const variables
   for (auto it = value_cache_.begin(); it != value_cache_.end(); ) {
@@ -121,14 +145,15 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
     return false;
   }
 
-  TimeDelta timeout(TimeDelta::Max());
-  bool waiting_for_value_change = false;
-
-  // Handle reevaluation due to a IsTimeGreaterThan() call.
-  if (!reevaluation_time_.is_max())
-    timeout = reevaluation_time_ - evaluation_start_;
+  // Handle reevaluation due to a Is{Wallclock,Monotonic}TimeGreaterThan(). We
+  // choose the smaller of the differences between evaluation start time and
+  // reevaluation time among the wallclock and monotonic scales.
+  TimeDelta timeout = std::min(
+      GetTimeout(evaluation_start_wallclock_, reevaluation_time_wallclock_),
+      GetTimeout(evaluation_start_monotonic_, reevaluation_time_monotonic_));
 
   // Handle reevaluation due to async or poll variables.
+  bool waiting_for_value_change = false;
   for (auto& it : value_cache_) {
     switch (it.first->GetMode()) {
       case kVariableModeAsync:
@@ -180,8 +205,12 @@ string EvaluationContext::DumpContext() const {
 
   base::DictionaryValue value;
   value.Set("variables", variables);  // Adopts |variables|.
-  value.SetString("evaluation_start",
-                  chromeos_update_engine::utils::ToString(evaluation_start_));
+  value.SetString(
+      "evaluation_start_wallclock",
+      chromeos_update_engine::utils::ToString(evaluation_start_wallclock_));
+  value.SetString(
+      "evaluation_start_monotonic",
+      chromeos_update_engine::utils::ToString(evaluation_start_monotonic_));
 
   string json_str;
   base::JSONWriter::WriteWithOptions(&value,

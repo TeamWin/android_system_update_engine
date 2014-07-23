@@ -69,9 +69,9 @@ void EvaluateRepeatedly(Closure evaluation, scoped_refptr<EvaluationContext> ec,
 class UmEvaluationContextTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    // Set the clock to a fixed values.
-    fake_clock_.SetMonotonicTime(Time::FromInternalValue(12345678L));
-    // Mar 2, 2006 1:23:45 UTC is 1141262625 since the Unix Epoch.
+    // Apr 22, 2009 19:25:00 UTC (this is a random reference point).
+    fake_clock_.SetMonotonicTime(Time::FromTimeT(1240428300));
+    // Mar 2, 2006 1:23:45 UTC.
     fake_clock_.SetWallclockTime(Time::FromTimeT(1141262625));
     eval_ctx_ = new EvaluationContext(&fake_clock_, default_timeout_,
                                       default_timeout_);
@@ -337,42 +337,89 @@ TEST_F(UmEvaluationContextTest, TimeoutUpdatesWithMonotonicTime) {
   UMTEST_EXPECT_NULL(eval_ctx_->GetValue(&mock_var_async_));
 }
 
-TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimes) {
+TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimesWallclock) {
   base::Time cur_time = fake_clock_.GetWallclockTime();
   // Advance the time on the clock but don't call ResetEvaluation yet.
   fake_clock_.SetWallclockTime(cur_time + TimeDelta::FromSeconds(4));
 
-  EXPECT_TRUE(eval_ctx_->IsTimeGreaterThan(cur_time -
-                                           TimeDelta::FromSeconds(1)));
-  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(cur_time));
-  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(cur_time +
-                                            TimeDelta::FromSeconds(1)));
+  EXPECT_TRUE(eval_ctx_->IsWallclockTimeGreaterThan(
+          cur_time - TimeDelta::FromSeconds(1)));
+  EXPECT_FALSE(eval_ctx_->IsWallclockTimeGreaterThan(cur_time));
+  EXPECT_FALSE(eval_ctx_->IsWallclockTimeGreaterThan(
+          cur_time + TimeDelta::FromSeconds(1)));
   // Call ResetEvaluation now, which should use the new evaluation time.
   eval_ctx_->ResetEvaluation();
 
   cur_time = fake_clock_.GetWallclockTime();
-  EXPECT_TRUE(eval_ctx_->IsTimeGreaterThan(cur_time -
-                                           TimeDelta::FromSeconds(1)));
-  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(cur_time));
-  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(cur_time +
-                                            TimeDelta::FromSeconds(1)));
+  EXPECT_TRUE(eval_ctx_->IsWallclockTimeGreaterThan(
+          cur_time - TimeDelta::FromSeconds(1)));
+  EXPECT_FALSE(eval_ctx_->IsWallclockTimeGreaterThan(cur_time));
+  EXPECT_FALSE(eval_ctx_->IsWallclockTimeGreaterThan(
+          cur_time + TimeDelta::FromSeconds(1)));
 }
 
-TEST_F(UmEvaluationContextTest, IsTimeGreaterThanSignalsTriggerReevaluation) {
-  EXPECT_FALSE(eval_ctx_->IsTimeGreaterThan(
+TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimesMonotonic) {
+  base::Time cur_time = fake_clock_.GetMonotonicTime();
+  // Advance the time on the clock but don't call ResetEvaluation yet.
+  fake_clock_.SetMonotonicTime(cur_time + TimeDelta::FromSeconds(4));
+
+  EXPECT_TRUE(eval_ctx_->IsMonotonicTimeGreaterThan(
+          cur_time - TimeDelta::FromSeconds(1)));
+  EXPECT_FALSE(eval_ctx_->IsMonotonicTimeGreaterThan(cur_time));
+  EXPECT_FALSE(eval_ctx_->IsMonotonicTimeGreaterThan(
+          cur_time + TimeDelta::FromSeconds(1)));
+  // Call ResetEvaluation now, which should use the new evaluation time.
+  eval_ctx_->ResetEvaluation();
+
+  cur_time = fake_clock_.GetMonotonicTime();
+  EXPECT_TRUE(eval_ctx_->IsMonotonicTimeGreaterThan(
+          cur_time - TimeDelta::FromSeconds(1)));
+  EXPECT_FALSE(eval_ctx_->IsMonotonicTimeGreaterThan(cur_time));
+  EXPECT_FALSE(eval_ctx_->IsMonotonicTimeGreaterThan(
+          cur_time + TimeDelta::FromSeconds(1)));
+}
+
+TEST_F(UmEvaluationContextTest,
+       IsWallclockTimeGreaterThanSignalsTriggerReevaluation) {
+  EXPECT_FALSE(eval_ctx_->IsWallclockTimeGreaterThan(
       fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(1)));
 
-  // The "false" from IsTimeGreaterThan means that's not that timestamp yet, so
-  // this should schedule a callback for when that happens.
+  // The "false" from IsWallclockTimeGreaterThan means that's not that timestamp
+  // yet, so this should schedule a callback for when that happens.
   EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
 }
 
-TEST_F(UmEvaluationContextTest, IsTimeGreaterThanDoesntRecordPastTimestamps) {
-  // IsTimeGreaterThan() should ignore timestamps on the past for reevaluation.
-  EXPECT_TRUE(eval_ctx_->IsTimeGreaterThan(
+TEST_F(UmEvaluationContextTest,
+       IsMonotonicTimeGreaterThanSignalsTriggerReevaluation) {
+  EXPECT_FALSE(eval_ctx_->IsMonotonicTimeGreaterThan(
+      fake_clock_.GetMonotonicTime() + TimeDelta::FromSeconds(1)));
+
+  // The "false" from IsMonotonicTimeGreaterThan means that's not that timestamp
+  // yet, so this should schedule a callback for when that happens.
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+}
+
+TEST_F(UmEvaluationContextTest,
+       IsWallclockTimeGreaterThanDoesntRecordPastTimestamps) {
+  // IsWallclockTimeGreaterThan() should ignore timestamps on the past for
+  // reevaluation.
+  EXPECT_TRUE(eval_ctx_->IsWallclockTimeGreaterThan(
       fake_clock_.GetWallclockTime() - TimeDelta::FromSeconds(20)));
-  EXPECT_TRUE(eval_ctx_->IsTimeGreaterThan(
+  EXPECT_TRUE(eval_ctx_->IsWallclockTimeGreaterThan(
       fake_clock_.GetWallclockTime() - TimeDelta::FromSeconds(1)));
+
+  // Callback should not be scheduled.
+  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+}
+
+TEST_F(UmEvaluationContextTest,
+       IsMonotonicTimeGreaterThanDoesntRecordPastTimestamps) {
+  // IsMonotonicTimeGreaterThan() should ignore timestamps on the past for
+  // reevaluation.
+  EXPECT_TRUE(eval_ctx_->IsMonotonicTimeGreaterThan(
+      fake_clock_.GetMonotonicTime() - TimeDelta::FromSeconds(20)));
+  EXPECT_TRUE(eval_ctx_->IsMonotonicTimeGreaterThan(
+      fake_clock_.GetMonotonicTime() - TimeDelta::FromSeconds(1)));
 
   // Callback should not be scheduled.
   EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
@@ -391,10 +438,11 @@ TEST_F(UmEvaluationContextTest, DumpContext) {
   eval_ctx_->GetValue(&fake_poll_var_);
 
   // Note that the variables are printed in alphabetical order. Also
-  // see UmEvaluationContextText::SetUp() where the value used for
-  // |evaluation_start| is set.
+  // see UmEvaluationContextText::SetUp() where the values used for
+  // |evaluation_start_{monotonic,wallclock| are set.
   EXPECT_EQ("{\n"
-            "   \"evaluation_start\": \"3/2/2006 1:23:45 GMT\",\n"
+            "   \"evaluation_start_monotonic\": \"4/22/2009 19:25:00 GMT\",\n"
+            "   \"evaluation_start_wallclock\": \"3/2/2006 1:23:45 GMT\",\n"
             "   \"variables\": {\n"
             "      \"fail_var\": \"(no value)\",\n"
             "      \"fake_int\": \"42\",\n"

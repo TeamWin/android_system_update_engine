@@ -122,7 +122,7 @@ class DelayPolicy : public DefaultPolicy {
     // non-constant dependency. The threshold is far enough in the future to
     // ensure that it does not fire immediately.
     if (time_threshold_ < base::Time::Max())
-      ec->IsTimeGreaterThan(time_threshold_);
+      ec->IsWallclockTimeGreaterThan(time_threshold_);
     return EvalStatus::kAskMeAgainLater;
   }
 

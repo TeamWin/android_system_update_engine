@@ -95,6 +95,10 @@ class ChromeOSPolicy : public Policy {
 
   // A private policy implementation returning the wallclock timestamp when
   // the next update check should happen.
+  // TODO(garnold) We should probably change that to infer a monotonic
+  // timestamp, which will make the update check intervals more resilient to
+  // clock skews. Might require switching some of the variables exported by the
+  // UpdaterProvider to report monotonic time, as well.
   EvalStatus NextUpdateCheckTime(EvaluationContext* ec, State* state,
                                  std::string* error,
                                  base::Time* next_update_check) const;
