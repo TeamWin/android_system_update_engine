@@ -222,10 +222,6 @@ enum BootLoader {
 // param. Returns true on success.
 bool GetBootloader(BootLoader* out_bootloader);
 
-// Returns the error message, if any, from a GError pointer. Frees the GError
-// object and resets error to NULL.
-std::string GetAndFreeGError(GError** error);
-
 // Schedules a Main Loop callback to trigger the crash reporter to perform an
 // upload as if this process had crashed.
 void ScheduleCrashReporterUpload();

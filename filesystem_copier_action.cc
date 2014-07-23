@@ -20,6 +20,7 @@
 #include <gio/gunixoutputstream.h>
 #include <glib.h>
 
+#include "update_engine/glib_utils.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/system_state.h"

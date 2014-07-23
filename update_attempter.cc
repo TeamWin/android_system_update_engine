@@ -8,8 +8,8 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include <base/file_util.h>
 #include <base/logging.h>
@@ -30,6 +30,7 @@
 #include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/download_action.h"
 #include "update_engine/filesystem_copier_action.h"
+#include "update_engine/glib_utils.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/metrics.h"

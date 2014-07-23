@@ -16,6 +16,7 @@
 #include <google/protobuf/stubs/common.h>
 
 #include "update_engine/dbus_constants.h"
+#include "update_engine/glib_utils.h"
 #include "update_engine/utils.h"
 
 namespace chromeos_update_engine {

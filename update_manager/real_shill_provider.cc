@@ -10,7 +10,7 @@
 #include <base/strings/stringprintf.h>
 #include <chromeos/dbus/service_constants.h>
 
-#include "update_engine/utils.h"
+#include "update_engine/glib_utils.h"
 
 using std::string;
 

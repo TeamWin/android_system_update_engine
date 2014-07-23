@@ -773,19 +773,6 @@ bool GetBootloader(BootLoader* out_bootloader) {
   return true;
 }
 
-string GetAndFreeGError(GError** error) {
-  if (!*error) {
-    return "Unknown GLib error.";
-  }
-  string message =
-      base::StringPrintf("GError(%d): %s",
-                         (*error)->code,
-                         (*error)->message ? (*error)->message : "(unknown)");
-  g_error_free(*error);
-  *error = NULL;
-  return message;
-}
-
 namespace {
 // Do the actual trigger. We do it as a main-loop callback to (try to) get a
 // consistent stack trace.

@@ -92,8 +92,6 @@
       'type': 'static_library',
       'dependencies': [
         'update_metadata-protos',
-        'update_engine-dbus-client',
-        'update_engine-dbus-server',
       ],
       'variables': {
         'exported_deps': [
@@ -152,6 +150,7 @@
         'file_descriptor.cc',
         'file_writer.cc',
         'filesystem_copier_action.cc',
+        'glib_utils.cc',
         'hardware.cc',
         'http_common.cc',
         'http_fetcher.cc',
@@ -199,7 +198,10 @@
     {
       'target_name': 'update_engine',
       'type': 'executable',
-      'dependencies': ['libupdate_engine'],
+      'dependencies': [
+        'libupdate_engine',
+        'update_engine-dbus-server',
+      ],
       'sources': [
         'main.cc',
       ]
@@ -208,8 +210,32 @@
     {
       'target_name': 'update_engine_client',
       'type': 'executable',
-      'dependencies': ['libupdate_engine'],
+      'dependencies': [
+        'update_engine-dbus-client',
+      ],
+      'variables': {
+        'exported_deps': [
+          'dbus-1',
+          'dbus-glib-1',
+          'glib-2.0',
+          'gthread-2.0',
+          'libchrome-<(libbase_ver)',
+          'libchromeos-<(libbase_ver)',
+        ],
+        'deps': ['<@(exported_deps)'],
+      },
+      'link_settings': {
+        'variables': {
+          'deps': [
+            '<@(exported_deps)',
+          ],
+        },
+        'libraries': [
+          '-lgflags',
+        ],
+      },
       'sources': [
+        'glib_utils.cc',
         'update_engine_client.cc',
       ]
     },

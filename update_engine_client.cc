@@ -4,24 +4,24 @@
 
 #include <string>
 
+#include <base/logging.h>
 #include <chromeos/dbus/service_constants.h>
 #include <dbus/dbus.h>
 #include <gflags/gflags.h>
 #include <glib.h>
 
 #include "update_engine/dbus_constants.h"
-#include "update_engine/subprocess.h"
-#include "update_engine/utils.h"
+#include "update_engine/glib_utils.h"
 
 extern "C" {
 #include "update_engine/update_engine.dbusclient.h"
 }
 
-using chromeos_update_engine::kUpdateEngineServiceName;
-using chromeos_update_engine::kUpdateEngineServicePath;
-using chromeos_update_engine::kUpdateEngineServiceInterface;
 using chromeos_update_engine::AttemptUpdateFlags;
 using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
+using chromeos_update_engine::kUpdateEngineServiceInterface;
+using chromeos_update_engine::kUpdateEngineServiceName;
+using chromeos_update_engine::kUpdateEngineServicePath;
 using chromeos_update_engine::utils::GetAndFreeGError;
 using std::string;
 
@@ -535,7 +535,6 @@ int main(int argc, char** argv) {
   // Boilerplate init commands.
   g_type_init();
   dbus_threads_init_default();
-  chromeos_update_engine::Subprocess::Init();
   google::ParseCommandLineFlags(&argc, &argv, true);
 
   // Update the status if requested.

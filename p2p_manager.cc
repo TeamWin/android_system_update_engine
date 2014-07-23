@@ -32,6 +32,7 @@
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
 
+#include "update_engine/glib_utils.h"
 #include "update_engine/utils.h"
 
 using base::FilePath;

@@ -16,7 +16,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/utils.h"
+#include "update_engine/glib_utils.h"
 
 using std::shared_ptr;
 using std::string;
