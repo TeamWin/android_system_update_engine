@@ -26,11 +26,10 @@
 #include "update_engine/terminator.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/update_check_scheduler.h"
-#include "update_engine/utils.h"
-
 extern "C" {
 #include "update_engine/update_engine.dbusserver.h"
 }
+#include "update_engine/utils.h"
 
 DEFINE_bool(logtostderr, false,
             "Write logs to stderr instead of to a file in log_dir.");

@@ -8,8 +8,8 @@
 
 #include <base/logging.h>
 
-#include "update_engine/constants.h"
 #include "update_engine/clock_interface.h"
+#include "update_engine/constants.h"
 #include "update_engine/prefs_interface.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"

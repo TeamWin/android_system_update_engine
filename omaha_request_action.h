@@ -5,9 +5,9 @@
 #ifndef UPDATE_ENGINE_OMAHA_REQUEST_ACTION_H_
 #define UPDATE_ENGINE_OMAHA_REQUEST_ACTION_H_
 
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <fcntl.h>
 
 #include <string>
 #include <vector>

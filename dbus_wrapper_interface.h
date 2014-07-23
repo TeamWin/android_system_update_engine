@@ -7,8 +7,8 @@
 
 // A mockable interface for DBus.
 
-#include <dbus/dbus-glib.h>
 #include <dbus/dbus.h>
+#include <dbus/dbus-glib.h>
 
 #ifndef DBUS_TYPE_G_OBJECT_PATH_ARRAY
 #define DBUS_TYPE_G_OBJECT_PATH_ARRAY \

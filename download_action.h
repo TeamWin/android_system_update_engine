@@ -5,9 +5,9 @@
 #ifndef UPDATE_ENGINE_DOWNLOAD_ACTION_H_
 #define UPDATE_ENGINE_DOWNLOAD_ACTION_H_
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <string>
 

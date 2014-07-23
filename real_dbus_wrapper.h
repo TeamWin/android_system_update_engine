@@ -8,8 +8,8 @@
 // A mockable interface for DBus.
 
 #include <base/macros.h>
-#include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus-glib.h>
+#include <dbus/dbus-glib-lowlevel.h>
 
 #include "update_engine/dbus_wrapper_interface.h"
 

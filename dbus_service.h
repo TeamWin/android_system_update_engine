@@ -6,6 +6,7 @@
 #define UPDATE_ENGINE_DBUS_SERVICE_H_
 
 #include <inttypes.h>
+
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-bindings.h>
 #include <dbus/dbus-glib-lowlevel.h>

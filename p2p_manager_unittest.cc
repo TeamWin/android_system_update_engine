@@ -4,11 +4,11 @@
 
 #include <glib.h>
 
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <dirent.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
-#include <attr/xattr.h>
+#include <attr/xattr.h>  // NOLINT - requires typed defined in unistd.h
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -19,8 +19,8 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#include "update_engine/p2p_manager.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
+#include "update_engine/p2p_manager.h"
 #include "update_engine/prefs.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"

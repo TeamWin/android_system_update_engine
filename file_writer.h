@@ -5,9 +5,9 @@
 #ifndef UPDATE_ENGINE_FILE_WRITER_H_
 #define UPDATE_ENGINE_FILE_WRITER_H_
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <base/logging.h>
