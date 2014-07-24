@@ -1150,7 +1150,6 @@ TEST(OmahaRequestActionTest, TerminateTransferTest) {
 TEST(OmahaRequestActionTest, XmlEncodeTest) {
   EXPECT_EQ("ab", XmlEncode("ab"));
   EXPECT_EQ("a&lt;b", XmlEncode("a<b"));
-  EXPECT_EQ("foo-&#x3A9;", XmlEncode("foo-\xce\xa9"));
   EXPECT_EQ("&lt;&amp;&gt;", XmlEncode("<&>"));
   EXPECT_EQ("&amp;lt;&amp;amp;&amp;gt;", XmlEncode("&lt;&amp;&gt;"));
 

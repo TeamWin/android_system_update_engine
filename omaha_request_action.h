@@ -14,7 +14,6 @@
 
 #include <base/memory/scoped_ptr.h>
 #include <curl/curl.h>
-#include <libxml/parser.h>
 
 #include "update_engine/action.h"
 #include "update_engine/http_fetcher.h"
@@ -73,6 +72,9 @@ class NoneType;
 class OmahaRequestAction;
 class OmahaRequestParams;
 class PrefsInterface;
+
+// This struct is declared in the .cc file.
+struct OmahaParserData;
 
 template<>
 class ActionTraits<OmahaRequestAction> {
@@ -165,7 +167,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // |install_date_days| field of |output_object| to the value of the
   // elapsed_days attribute of the daystart element. Returns True if
   // the value was set, False if it wasn't found.
-  static bool ParseInstallDate(xmlDoc* doc,
+  static bool ParseInstallDate(OmahaParserData* parser_data,
                                OmahaResponse* output_object);
 
   // Returns True if the kPrefsInstallDateDays state variable is set,
@@ -207,35 +209,35 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // helper methods below and populates the |output_object| with the relevant
   // values. Returns true if we should continue the parsing.  False otherwise,
   // in which case it sets any error code using |completer|.
-  bool ParseResponse(xmlDoc* doc,
+  bool ParseResponse(OmahaParserData* parser_data,
                      OmahaResponse* output_object,
                      ScopedActionCompleter* completer);
 
   // Parses the status property in the given update_check_node and populates
   // |output_object| if valid. Returns true if we should continue the parsing.
   // False otherwise, in which case it sets any error code using |completer|.
-  bool ParseStatus(xmlNode* update_check_node,
+  bool ParseStatus(OmahaParserData* parser_data,
                    OmahaResponse* output_object,
                    ScopedActionCompleter* completer);
 
   // Parses the URL nodes in the given XML document and populates
   // |output_object| if valid. Returns true if we should continue the parsing.
   // False otherwise, in which case it sets any error code using |completer|.
-  bool ParseUrls(xmlDoc* doc,
+  bool ParseUrls(OmahaParserData* parser_data,
                  OmahaResponse* output_object,
                  ScopedActionCompleter* completer);
 
   // Parses the package node in the given XML document and populates
   // |output_object| if valid. Returns true if we should continue the parsing.
   // False otherwise, in which case it sets any error code using |completer|.
-  bool ParsePackage(xmlDoc* doc,
+  bool ParsePackage(OmahaParserData* parser_data,
                     OmahaResponse* output_object,
                     ScopedActionCompleter* completer);
 
   // Parses the other parameters in the given XML document and populates
   // |output_object| if valid. Returns true if we should continue the parsing.
   // False otherwise, in which case it sets any error code using |completer|.
-  bool ParseParams(xmlDoc* doc,
+  bool ParseParams(OmahaParserData* parser_data,
                    OmahaResponse* output_object,
                    ScopedActionCompleter* completer);
 

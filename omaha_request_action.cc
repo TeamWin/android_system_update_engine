@@ -6,8 +6,10 @@
 
 #include <inttypes.h>
 
+#include <map>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include <base/bind.h>
 #include <base/logging.h>
@@ -16,8 +18,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <libxml/xpath.h>
-#include <libxml/xpathInternals.h>
+#include <expat.h>
 
 #include "update_engine/action_pipe.h"
 #include "update_engine/constants.h"
@@ -32,7 +33,9 @@
 
 using base::Time;
 using base::TimeDelta;
+using std::map;
 using std::string;
+using std::vector;
 
 namespace chromeos_update_engine {
 
@@ -59,35 +62,6 @@ static const char* kTagPublicKeyRsa = "PublicKeyRsa";
 namespace {
 
 static const char* const kGupdateVersion = "ChromeOSUpdateEngine-0.1.0.0";
-
-// This is handy for passing strings into libxml2
-#define ConstXMLStr(x) (reinterpret_cast<const xmlChar*>(x))
-
-// These are for scoped_ptr with a custom free function to be specified.
-class ScopedPtrXmlDocFree {
- public:
-  inline void operator()(void* x) const {
-    xmlFreeDoc(reinterpret_cast<xmlDoc*>(x));
-  }
-};
-class ScopedPtrXmlFree {
- public:
-  inline void operator()(void* x) const {
-    xmlFree(x);
-  }
-};
-class ScopedPtrXmlXPathObjectFree {
- public:
-  inline void operator()(void* x) const {
-    xmlXPathFreeObject(reinterpret_cast<xmlXPathObject*>(x));
-  }
-};
-class ScopedPtrXmlXPathContextFree {
- public:
-  inline void operator()(void* x) const {
-    xmlXPathFreeContext(reinterpret_cast<xmlXPathContext*>(x));
-  }
-};
 
 // Returns true if |ping_days| has a value that needs to be sent,
 // false otherwise.
@@ -280,20 +254,99 @@ string GetRequestXml(const OmahaEvent* event,
 
 }  // namespace
 
-// Encodes XML entities in a given string with libxml2. input must be
-// UTF-8 formatted. Output will be UTF-8 formatted.
+// Struct used for holding data obtained when parsing the XML.
+struct OmahaParserData {
+  // This is the state of the parser as it's processing the XML.
+  bool failed = false;
+  string current_path;
+
+  // These are the values extracted from the XML.
+  string updatecheck_status;
+  string updatecheck_poll_interval;
+  string daystart_elapsed_days;
+  string daystart_elapsed_seconds;
+  vector<string> url_codebase;
+  string package_name;
+  string package_size;
+  string manifest_version;
+  map<string, string> action_postinstall_attrs;
+};
+
+namespace {
+
+// Callback function invoked by expat.
+void ParserHandlerStart(void* user_data, const XML_Char* element,
+                        const XML_Char** attr) {
+  OmahaParserData* data = reinterpret_cast<OmahaParserData*>(user_data);
+
+  if (data->failed)
+    return;
+
+  data->current_path += string("/") + element;
+
+  map<string, string> attrs;
+  if (attr != nullptr) {
+    for (int n = 0; attr[n] != nullptr && attr[n+1] != nullptr; n += 2) {
+      string key = attr[n];
+      string value = attr[n + 1];
+      attrs[key] = value;
+    }
+  }
+
+  if (data->current_path == "/response/app/updatecheck") {
+    // There is only supposed to be a single <updatecheck> element.
+    data->updatecheck_status = attrs["status"];
+    data->updatecheck_poll_interval = attrs["PollInterval"];
+  } else if (data->current_path == "/response/daystart") {
+    // Get the install-date.
+    data->daystart_elapsed_days = attrs["elapsed_days"];
+    data->daystart_elapsed_seconds = attrs["elapsed_seconds"];
+  } else if (data->current_path == "/response/app/updatecheck/urls/url") {
+    // Look at all <url> elements.
+    data->url_codebase.push_back(attrs["codebase"]);
+  } else if (data->package_name.empty() && data->current_path ==
+             "/response/app/updatecheck/manifest/packages/package") {
+    // Only look at the first <package>.
+    data->package_name = attrs["name"];
+    data->package_size = attrs["size"];
+  } else if (data->current_path == "/response/app/updatecheck/manifest") {
+    // Get the version.
+    data->manifest_version = attrs[kTagVersion];
+  } else if (data->current_path ==
+             "/response/app/updatecheck/manifest/actions/action") {
+    // We only care about the postinstall action.
+    if (attrs["event"] == "postinstall") {
+      data->action_postinstall_attrs = attrs;
+    }
+  }
+}
+
+// Callback function invoked by expat.
+void ParserHandlerEnd(void* user_data, const XML_Char* element) {
+  OmahaParserData* data = reinterpret_cast<OmahaParserData*>(user_data);
+  if (data->failed)
+    return;
+
+  const string path_suffix = string("/") + element;
+
+  if (!EndsWith(data->current_path, path_suffix, true)) {
+    LOG(ERROR) << "Unexpected end element '" << element
+               << "' with current_path='" << data->current_path << "'";
+    data->failed = true;
+    return;
+  }
+  data->current_path.resize(data->current_path.size() - path_suffix.size());
+}
+
+}  // namespace
+
+// Escapes text so it can be included as character data and attribute
+// values. The |input| string must be valid UTF-8.
 string XmlEncode(const string& input) {
-  //  // TODO(adlr): if allocating a new xmlDoc each time is taking up too much
-  //  // cpu, considering creating one and caching it.
-  //  scoped_ptr<xmlDoc, ScopedPtrXmlDocFree> xml_doc(
-  //      xmlNewDoc(ConstXMLStr("1.0")));
-  //  if (!xml_doc.get()) {
-  //    LOG(ERROR) << "Unable to create xmlDoc";
-  //    return "";
-  //  }
-  scoped_ptr<xmlChar, ScopedPtrXmlFree> str(
-      xmlEncodeEntitiesReentrant(NULL, ConstXMLStr(input.c_str())));
-  return string(reinterpret_cast<const char *>(str.get()));
+  gchar* escaped = g_markup_escape_text(input.c_str(), input.size());
+  string ret = string(escaped);
+  g_free(escaped);
+  return ret;
 }
 
 OmahaRequestAction::OmahaRequestAction(SystemState* system_state,
@@ -446,45 +499,6 @@ void OmahaRequestAction::ReceivedBytes(HttpFetcher *fetcher,
 }
 
 namespace {
-// If non-NULL response, caller is responsible for calling xmlXPathFreeObject()
-// on the returned object.
-// This code is roughly based on the libxml tutorial at:
-// http://xmlsoft.org/tutorial/apd.html
-xmlXPathObject* GetNodeSet(xmlDoc* doc, const xmlChar* xpath) {
-  xmlXPathObject* result = NULL;
-
-  scoped_ptr<xmlXPathContext, ScopedPtrXmlXPathContextFree> context(
-      xmlXPathNewContext(doc));
-  if (!context.get()) {
-    LOG(ERROR) << "xmlXPathNewContext() returned NULL";
-    return NULL;
-  }
-
-  result = xmlXPathEvalExpression(xpath, context.get());
-  if (result == NULL) {
-    LOG(ERROR) << "Unable to find " << xpath << " in XML document";
-    return NULL;
-  }
-  if (xmlXPathNodeSetIsEmpty(result->nodesetval)) {
-    LOG(INFO) << "Nodeset is empty for " << xpath;
-    xmlXPathFreeObject(result);
-    return NULL;
-  }
-  return result;
-}
-
-// Returns the string value of a named attribute on a node, or empty string
-// if no such node exists. If the attribute exists and has a value of
-// empty string, there's no way to distinguish that from the attribute
-// not existing.
-string XmlGetProperty(xmlNode* node, const char* name) {
-  if (!xmlHasProp(node, ConstXMLStr(name)))
-    return "";
-  scoped_ptr<xmlChar, ScopedPtrXmlFree> str(
-      xmlGetProp(node, ConstXMLStr(name)));
-  string ret(reinterpret_cast<const char *>(str.get()));
-  return ret;
-}
 
 // Parses a 64 bit base-10 int from a string and returns it. Returns 0
 // on error. If the string contains "0", that's indistinguishable from
@@ -499,24 +513,18 @@ off_t ParseInt(const string& str) {
   return ret;
 }
 
+// Parses |str| and returns |true| if, and only if, its value is "true".
+bool ParseBool(const string& str) {
+  return str == "true";
+}
+
 // Update the last ping day preferences based on the server daystart
 // response. Returns true on success, false otherwise.
-bool UpdateLastPingDays(xmlDoc* doc, PrefsInterface* prefs) {
-  static const char kDaystartNodeXpath[] = "/response/daystart";
-
-  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
-      xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kDaystartNodeXpath)));
-  TEST_AND_RETURN_FALSE(xpath_nodeset.get());
-  xmlNodeSet* nodeset = xpath_nodeset->nodesetval;
-  TEST_AND_RETURN_FALSE(nodeset && nodeset->nodeNr >= 1);
-  xmlNode* daystart_node = nodeset->nodeTab[0];
-  TEST_AND_RETURN_FALSE(xmlHasProp(daystart_node,
-                                   ConstXMLStr("elapsed_seconds")));
-
+bool UpdateLastPingDays(OmahaParserData *parser_data, PrefsInterface* prefs) {
   int64_t elapsed_seconds = 0;
-  TEST_AND_RETURN_FALSE(base::StringToInt64(XmlGetProperty(daystart_node,
-                                                           "elapsed_seconds"),
-                                            &elapsed_seconds));
+  TEST_AND_RETURN_FALSE(
+      base::StringToInt64(parser_data->daystart_elapsed_seconds,
+                          &elapsed_seconds));
   TEST_AND_RETURN_FALSE(elapsed_seconds >= 0);
 
   // Remember the local time that matches the server's last midnight
@@ -528,22 +536,13 @@ bool UpdateLastPingDays(xmlDoc* doc, PrefsInterface* prefs) {
 }
 }  // namespace
 
-bool OmahaRequestAction::ParseResponse(xmlDoc* doc,
+bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
                                        OmahaResponse* output_object,
                                        ScopedActionCompleter* completer) {
-  static const char* kUpdatecheckNodeXpath("/response/app/updatecheck");
-
-  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
-      xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kUpdatecheckNodeXpath)));
-  if (!xpath_nodeset.get()) {
+  if (parser_data->updatecheck_status.empty()) {
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
-
-  xmlNodeSet* nodeset = xpath_nodeset->nodesetval;
-  CHECK(nodeset) << "XPath missing UpdateCheck NodeSet";
-  CHECK_GE(nodeset->nodeNr, 1);
-  xmlNode* update_check_node = nodeset->nodeTab[0];
 
   // chromium-os:37289: The PollInterval is not supported by Omaha server
   // currently.  But still keeping this existing code in case we ever decide to
@@ -559,14 +558,15 @@ bool OmahaRequestAction::ParseResponse(xmlDoc* doc,
   // account.  Note: The parsing for PollInterval happens even before parsing
   // of the status because we may want to specify the PollInterval even when
   // there's no update.
-  base::StringToInt(XmlGetProperty(update_check_node, "PollInterval"),
+  base::StringToInt(parser_data->updatecheck_poll_interval,
                     &output_object->poll_interval);
 
   // Check for the "elapsed_days" attribute in the "daystart"
   // element. This is the number of days since Jan 1 2007, 0:00
   // PST. If we don't have a persisted value of the Omaha InstallDate,
   // we'll use it to calculate it and then persist it.
-  if (ParseInstallDate(doc, output_object) && !HasInstallDate(system_state_)) {
+  if (ParseInstallDate(parser_data, output_object) &&
+      !HasInstallDate(system_state_)) {
     // Since output_object->install_date_days is never negative, the
     // elapsed_days -> install-date calculation is reduced to simply
     // rounding down to the nearest number divisible by 7.
@@ -581,34 +581,27 @@ bool OmahaRequestAction::ParseResponse(xmlDoc* doc,
     }
   }
 
-  if (!ParseStatus(update_check_node, output_object, completer))
+  if (!ParseStatus(parser_data, output_object, completer))
     return false;
 
   // Note: ParseUrls MUST be called before ParsePackage as ParsePackage
   // appends the package name to the URLs populated in this method.
-  if (!ParseUrls(doc, output_object, completer))
+  if (!ParseUrls(parser_data, output_object, completer))
     return false;
 
-  if (!ParsePackage(doc, output_object, completer))
+  if (!ParsePackage(parser_data, output_object, completer))
     return false;
 
-  if (!ParseParams(doc, output_object, completer))
+  if (!ParseParams(parser_data, output_object, completer))
     return false;
 
   return true;
 }
 
-bool OmahaRequestAction::ParseStatus(xmlNode* update_check_node,
+bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
-  // Get status.
-  if (!xmlHasProp(update_check_node, ConstXMLStr("status"))) {
-    LOG(ERROR) << "Omaha Response missing status";
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
-  const string status(XmlGetProperty(update_check_node, "status"));
+  const string& status = parser_data->updatecheck_status;
   if (status == "noupdate") {
     LOG(INFO) << "No update.";
     output_object->update_exists = false;
@@ -626,28 +619,18 @@ bool OmahaRequestAction::ParseStatus(xmlNode* update_check_node,
   return true;
 }
 
-bool OmahaRequestAction::ParseUrls(xmlDoc* doc,
+bool OmahaRequestAction::ParseUrls(OmahaParserData* parser_data,
                                    OmahaResponse* output_object,
                                    ScopedActionCompleter* completer) {
-  // Get the update URL.
-  static const char* kUpdateUrlNodeXPath("/response/app/updatecheck/urls/url");
-
-  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
-      xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kUpdateUrlNodeXPath)));
-  if (!xpath_nodeset.get()) {
+  if (parser_data->url_codebase.empty()) {
+    LOG(ERROR) << "No Omaha Response URLs";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
 
-  xmlNodeSet* nodeset = xpath_nodeset->nodesetval;
-  CHECK(nodeset) << "XPath missing " << kUpdateUrlNodeXPath;
-  CHECK_GE(nodeset->nodeNr, 1);
-
-  LOG(INFO) << "Found " << nodeset->nodeNr << " url(s)";
+  LOG(INFO) << "Found " << parser_data->url_codebase.size() << " url(s)";
   output_object->payload_urls.clear();
-  for (int i = 0; i < nodeset->nodeNr; i++) {
-    xmlNode* url_node = nodeset->nodeTab[i];
-    const string codebase(XmlGetProperty(url_node, "codebase"));
+  for (const auto& codebase : parser_data->url_codebase) {
     if (codebase.empty()) {
       LOG(ERROR) << "Omaha Response URL has empty codebase";
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
@@ -659,34 +642,10 @@ bool OmahaRequestAction::ParseUrls(xmlDoc* doc,
   return true;
 }
 
-bool OmahaRequestAction::ParsePackage(xmlDoc* doc,
+bool OmahaRequestAction::ParsePackage(OmahaParserData* parser_data,
                                       OmahaResponse* output_object,
                                       ScopedActionCompleter* completer) {
-  // Get the package node.
-  static const char* kPackageNodeXPath(
-      "/response/app/updatecheck/manifest/packages/package");
-
-  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
-      xpath_nodeset(GetNodeSet(doc, ConstXMLStr(kPackageNodeXPath)));
-  if (!xpath_nodeset.get()) {
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
-  xmlNodeSet* nodeset = xpath_nodeset->nodesetval;
-  CHECK(nodeset) << "XPath missing " << kPackageNodeXPath;
-  CHECK_GE(nodeset->nodeNr, 1);
-
-  // We only care about the first package.
-  LOG(INFO) << "Processing first of " << nodeset->nodeNr << " package(s)";
-  xmlNode* package_node = nodeset->nodeTab[0];
-
-  // Get package properties one by one.
-
-  // Parse the payload name to be appended to the base Url value.
-  const string package_name(XmlGetProperty(package_node, "name"));
-  LOG(INFO) << "Omaha Response package name = " << package_name;
-  if (package_name.empty()) {
+  if (parser_data->package_name.empty()) {
     LOG(ERROR) << "Omaha Response has empty package name";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
@@ -695,11 +654,11 @@ bool OmahaRequestAction::ParsePackage(xmlDoc* doc,
   // Append the package name to each URL in our list so that we don't
   // propagate the urlBase vs packageName distinctions beyond this point.
   // From now on, we only need to use payload_urls.
-  for (size_t i = 0; i < output_object->payload_urls.size(); i++)
-    output_object->payload_urls[i] += package_name;
+  for (auto& payload_url : output_object->payload_urls)
+    payload_url += parser_data->package_name;
 
   // Parse the payload size.
-  off_t size = ParseInt(XmlGetProperty(package_node, "size"));
+  off_t size = ParseInt(parser_data->package_size);
   if (size <= 0) {
     LOG(ERROR) << "Omaha Response has invalid payload size: " << size;
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
@@ -712,30 +671,10 @@ bool OmahaRequestAction::ParsePackage(xmlDoc* doc,
   return true;
 }
 
-bool OmahaRequestAction::ParseParams(xmlDoc* doc,
+bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
-  // XPath location for response elements we care about.
-  static const char* kManifestNodeXPath("/response/app/updatecheck/manifest");\
-  static const char* kActionNodeXPath(
-        "/response/app/updatecheck/manifest/actions/action");
-
-  // Get the manifest node where version is present.
-  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
-      xpath_manifest_nodeset(GetNodeSet(doc, ConstXMLStr(kManifestNodeXPath)));
-  if (!xpath_manifest_nodeset.get()) {
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
-  // Grab the only matching node there should be from the xpath.
-  xmlNodeSet* nodeset = xpath_manifest_nodeset->nodesetval;
-  CHECK(nodeset) << "XPath missing " << kManifestNodeXPath;
-  CHECK_GE(nodeset->nodeNr, 1);
-  xmlNode* manifest_node = nodeset->nodeTab[0];
-
-  // Set the version.
-  output_object->version = XmlGetProperty(manifest_node, kTagVersion);
+  output_object->version = parser_data->manifest_version;
   if (output_object->version.empty()) {
     LOG(ERROR) << "Omaha Response does not have version in manifest!";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
@@ -745,39 +684,14 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
   LOG(INFO) << "Received omaha response to update to version "
             << output_object->version;
 
-  // Grab the action nodes.
-  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
-      xpath_action_nodeset(GetNodeSet(doc, ConstXMLStr(kActionNodeXPath)));
-  if (!xpath_action_nodeset.get()) {
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
-  // We only care about the action that has event "postinstall", because this is
-  // where Omaha puts all the generic name/value pairs in the rule.
-  nodeset = xpath_action_nodeset->nodesetval;
-  CHECK(nodeset) << "XPath missing " << kActionNodeXPath;
-  LOG(INFO) << "Found " << nodeset->nodeNr
-            << " action(s). Processing the postinstall action.";
-
-  // pie_action_node holds the action node corresponding to the
-  // postinstall event action, if present.
-  xmlNode* pie_action_node = NULL;
-  for (int i = 0; i < nodeset->nodeNr; i++) {
-    xmlNode* action_node = nodeset->nodeTab[i];
-    if (XmlGetProperty(action_node, "event") == "postinstall") {
-      pie_action_node = action_node;
-      break;
-    }
-  }
-
-  if (!pie_action_node) {
+  map<string, string> attrs = parser_data->action_postinstall_attrs;
+  if (attrs.empty()) {
     LOG(ERROR) << "Omaha Response has no postinstall event action";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
 
-  output_object->hash = XmlGetProperty(pie_action_node, kTagSha256);
+  output_object->hash = attrs[kTagSha256];
   if (output_object->hash.empty()) {
     LOG(ERROR) << "Omaha Response has empty sha256 value";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
@@ -785,36 +699,31 @@ bool OmahaRequestAction::ParseParams(xmlDoc* doc,
   }
 
   // Get the optional properties one by one.
-  output_object->more_info_url = XmlGetProperty(pie_action_node, kTagMoreInfo);
-  output_object->metadata_size =
-      ParseInt(XmlGetProperty(pie_action_node, kTagMetadataSize));
-  output_object->metadata_signature =
-      XmlGetProperty(pie_action_node, kTagMetadataSignatureRsa);
-  output_object->prompt = XmlGetProperty(pie_action_node, kTagPrompt) == "true";
-  output_object->deadline = XmlGetProperty(pie_action_node, kTagDeadline);
-  output_object->max_days_to_scatter =
-      ParseInt(XmlGetProperty(pie_action_node, kTagMaxDaysToScatter));
+  output_object->more_info_url = attrs[kTagMoreInfo];
+  output_object->metadata_size = ParseInt(attrs[kTagMetadataSize]);
+  output_object->metadata_signature = attrs[kTagMetadataSignatureRsa];
+  output_object->prompt = ParseBool(attrs[kTagPrompt]);
+  output_object->deadline = attrs[kTagDeadline];
+  output_object->max_days_to_scatter = ParseInt(attrs[kTagMaxDaysToScatter]);
   output_object->disable_p2p_for_downloading =
-      (XmlGetProperty(pie_action_node, kTagDisableP2PForDownloading) == "true");
+      ParseBool(attrs[kTagDisableP2PForDownloading]);
   output_object->disable_p2p_for_sharing =
-      (XmlGetProperty(pie_action_node, kTagDisableP2PForSharing) == "true");
-  output_object->public_key_rsa =
-      XmlGetProperty(pie_action_node, kTagPublicKeyRsa);
+      ParseBool(attrs[kTagDisableP2PForSharing]);
+  output_object->public_key_rsa = attrs[kTagPublicKeyRsa];
 
-  string max = XmlGetProperty(pie_action_node, kTagMaxFailureCountPerUrl);
+  string max = attrs[kTagMaxFailureCountPerUrl];
   if (!base::StringToUint(max, &output_object->max_failure_count_per_url))
     output_object->max_failure_count_per_url = kDefaultMaxFailureCountPerUrl;
 
-  output_object->is_delta_payload =
-      XmlGetProperty(pie_action_node, kTagIsDeltaPayload) == "true";
+  output_object->is_delta_payload = ParseBool(attrs[kTagIsDeltaPayload]);
 
   output_object->disable_payload_backoff =
-      XmlGetProperty(pie_action_node, kTagDisablePayloadBackoff) == "true";
+      ParseBool(attrs[kTagDisablePayloadBackoff]);
 
   return true;
 }
 
-// If the transfer was successful, this uses libxml2 to parse the response
+// If the transfer was successful, this uses expat to parse the response
 // and fill in the appropriate fields of the output object. Also, notifies
 // the processor that we're done.
 void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
@@ -847,10 +756,15 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
     return;
   }
 
-  // parse our response and fill the fields in the output object
-  scoped_ptr<xmlDoc, ScopedPtrXmlDocFree> doc(
-      xmlParseMemory(&response_buffer_[0], response_buffer_.size()));
-  if (!doc.get()) {
+  XML_Parser parser = XML_ParserCreate(nullptr);
+  OmahaParserData parser_data;
+  XML_SetUserData(parser, &parser_data);
+  XML_SetElementHandler(parser, ParserHandlerStart, ParserHandlerEnd);
+  XML_Status res = XML_Parse(parser, &response_buffer_[0],
+                             response_buffer_.size(), XML_TRUE);
+  XML_ParserFree(parser);
+
+  if (res != XML_STATUS_OK || parser_data.failed) {
     LOG(ERROR) << "Omaha response not valid XML";
     completer.set_code(response_buffer_.empty() ?
                        ErrorCode::kOmahaRequestEmptyResponseError :
@@ -864,7 +778,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
       ShouldPing(ping_roll_call_days_) ||
       ping_active_days_ == kPingTimeJump ||
       ping_roll_call_days_ == kPingTimeJump) {
-    LOG_IF(ERROR, !UpdateLastPingDays(doc.get(), system_state_->prefs()))
+    LOG_IF(ERROR, !UpdateLastPingDays(&parser_data, system_state_->prefs()))
         << "Failed to update the last ping day preferences!";
   }
 
@@ -876,7 +790,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   }
 
   OmahaResponse output_object;
-  if (!ParseResponse(doc.get(), &output_object, &completer))
+  if (!ParseResponse(&parser_data, &output_object, &completer))
     return;
   output_object.update_exists = true;
   SetOutputObject(output_object);
@@ -1225,24 +1139,10 @@ bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
 }
 
 // static
-bool OmahaRequestAction::ParseInstallDate(xmlDoc* doc,
+bool OmahaRequestAction::ParseInstallDate(OmahaParserData* parser_data,
                                           OmahaResponse* output_object) {
-  scoped_ptr<xmlXPathObject, ScopedPtrXmlXPathObjectFree>
-      xpath_nodeset(GetNodeSet(doc, ConstXMLStr("/response/daystart")));
-
-  if (xpath_nodeset.get() == NULL)
-    return false;
-
-  xmlNodeSet* nodeset = xpath_nodeset->nodesetval;
-  if (nodeset == NULL || nodeset->nodeNr < 1)
-    return false;
-
-  xmlNode* daystart_node = nodeset->nodeTab[0];
-  if (!xmlHasProp(daystart_node, ConstXMLStr("elapsed_days")))
-    return false;
-
   int64_t elapsed_days = 0;
-  if (!base::StringToInt64(XmlGetProperty(daystart_node, "elapsed_days"),
+  if (!base::StringToInt64(parser_data->daystart_elapsed_days,
                            &elapsed_days))
     return false;
 

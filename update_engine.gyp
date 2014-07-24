@@ -107,7 +107,7 @@
           'libcurl',
           'libmetrics-<(libbase_ver)',
           'libssl',
-          'libxml-2.0',
+          'expat'
         ],
         'deps': ['<@(exported_deps)'],
       },
