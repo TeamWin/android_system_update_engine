@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <stdint.h>
+
 #include <set>
 #include <string>
 
@@ -49,7 +51,7 @@ template<>
 string BoxedValue::ValuePrinter<uint64_t>(const void *value) {
   const uint64_t* val =
     reinterpret_cast<const uint64_t*>(value);
-  return base::Uint64ToString(static_cast<uint64>(*val));
+  return base::Uint64ToString(static_cast<uint64_t>(*val));
 }
 
 template<>

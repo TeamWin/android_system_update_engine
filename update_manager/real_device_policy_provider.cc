@@ -4,6 +4,8 @@
 
 #include "update_engine/update_manager/real_device_policy_provider.h"
 
+#include <stdint.h>
+
 #include <base/logging.h>
 #include <base/time/time.h>
 #include <policy/device_policy.h>
@@ -94,7 +96,7 @@ bool RealDevicePolicyProvider::ConvertAllowedConnectionTypesForUpdate(
 
 bool RealDevicePolicyProvider::ConvertScatterFactor(
     base::TimeDelta* scatter_factor) const {
-  int64 scatter_factor_in_seconds;
+  int64_t scatter_factor_in_seconds;
   if (!policy_provider_->GetDevicePolicy().GetScatterFactorInSeconds(
       &scatter_factor_in_seconds)) {
     return false;
