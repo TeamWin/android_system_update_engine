@@ -54,7 +54,8 @@ bool RealSystemState::Initialize() {
   }
   update_manager_.reset(
       new chromeos_update_manager::UpdateManager(
-          &clock_, base::TimeDelta::FromSeconds(5), um_state));
+          &clock_, base::TimeDelta::FromSeconds(5),
+          base::TimeDelta::FromHours(12), um_state));
 
   if (!payload_state_.Initialize(this)) {
     LOG(ERROR) << "Failed to initialize the payload state object.";

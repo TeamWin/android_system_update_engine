@@ -25,7 +25,8 @@ class UpdateManager {
   // Creates the UpdateManager instance, assuming ownership on the provided
   // |state|.
   UpdateManager(chromeos_update_engine::ClockInterface* clock,
-                base::TimeDelta evaluation_timeout, State* state);
+                base::TimeDelta evaluation_timeout,
+                base::TimeDelta expiration_timeout, State* state);
 
   virtual ~UpdateManager() {}
 
@@ -53,17 +54,15 @@ class UpdateManager {
 
   // Evaluates the given |policy_method| policy with the provided |args|
   // arguments and calls the |callback| callback with the result when done.
-  // Evaluation is not allowed to exceed |request_timeout|.
   //
   // If the policy implementation should block, returning a
   // EvalStatus::kAskMeAgainLater status the Update Manager will re-evaluate the
   // policy until another status is returned. If the policy implementation based
   // its return value solely on const variables, the callback will be called
-  // with the EvalStatus::kAskMeAgainLater status.
+  // with the EvalStatus::kAskMeAgainLater status (which indicates an error).
   template<typename R, typename... ActualArgs, typename... ExpectedArgs>
   void AsyncPolicyRequest(
       base::Callback<void(EvalStatus, const R& result)> callback,
-      base::TimeDelta request_timeout,
       EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
                                           std::string*, R*,
                                           ExpectedArgs...) const,
@@ -83,7 +82,7 @@ class UpdateManager {
   FRIEND_TEST(UmUpdateManagerTest, PolicyRequestCallsDefaultOnError);
   FRIEND_TEST(UmUpdateManagerTest, PolicyRequestDoesntBlockDeathTest);
   FRIEND_TEST(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation);
-  FRIEND_TEST(UmUpdateManagerTest, AsyncPolicyRequestDoesNotTimeOut);
+  FRIEND_TEST(UmUpdateManagerTest, AsyncPolicyRequestTimeoutDoesNotFire);
   FRIEND_TEST(UmUpdateManagerTest, AsyncPolicyRequestTimesOut);
 
   // EvaluatePolicy() evaluates the passed |policy_method| method on the current
@@ -128,6 +127,9 @@ class UpdateManager {
 
   // Timeout for a policy evaluation.
   const base::TimeDelta evaluation_timeout_;
+
+  // Timeout for expiration of the evaluation context, used for async requests.
+  const base::TimeDelta expiration_timeout_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateManager);
 };

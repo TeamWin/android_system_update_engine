@@ -61,7 +61,7 @@ class UmUpdateManagerTest : public ::testing::Test {
   virtual void SetUp() {
     fake_state_ = new FakeState();
     umut_.reset(new UpdateManager(&fake_clock_, TimeDelta::FromSeconds(5),
-                                  fake_state_));
+                                  TimeDelta::FromSeconds(1), fake_state_));
   }
 
   FakeState* fake_state_;  // Owned by the umut_.
@@ -104,12 +104,14 @@ class LazyPolicy : public DefaultPolicy {
   virtual std::string PolicyName() const override { return "LazyPolicy"; }
 };
 
-// A policy that sleeps and returns EvalStatus::kAskMeAgainlater. Will check
-// that time is greater than a given threshold (if non-zero). Increments a
-// counter every time it is being queried, if a pointer to it is provided.
+// A policy that sleeps for a predetermined amount of time, then checks for a
+// wallclock-based time threshold (if given) and returns
+// EvalStatus::kAskMeAgainLater if not passed; otherwise, returns
+// EvalStatus::kSucceeded. Increments a counter every time it is being queried,
+// if a pointer to it is provided.
 class DelayPolicy : public DefaultPolicy {
  public:
-  DelayPolicy(int sleep_secs, base::Time time_threshold, int* num_called_p)
+  DelayPolicy(int sleep_secs, Time time_threshold, int* num_called_p)
       : sleep_secs_(sleep_secs), time_threshold_(time_threshold),
         num_called_p_(num_called_p) {}
   virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
@@ -117,12 +119,17 @@ class DelayPolicy : public DefaultPolicy {
                                         UpdateCheckParams* result) const {
     if (num_called_p_)
       (*num_called_p_)++;
-    sleep(sleep_secs_);
-    // We check for a time threshold to ensure that the policy has some
-    // non-constant dependency. The threshold is far enough in the future to
-    // ensure that it does not fire immediately.
-    if (time_threshold_ < base::Time::Max())
-      ec->IsWallclockTimeGreaterThan(time_threshold_);
+
+    // Sleep for a predetermined amount of time.
+    if (sleep_secs_ > 0)
+      sleep(sleep_secs_);
+
+    // Check for a time threshold. This can be used to ensure that the policy
+    // has some non-constant dependency.
+    if (time_threshold_ < Time::Max() &&
+        ec->IsWallclockTimeGreaterThan(time_threshold_))
+      return EvalStatus::kSucceeded;
+
     return EvalStatus::kAskMeAgainLater;
   }
 
@@ -131,7 +138,7 @@ class DelayPolicy : public DefaultPolicy {
 
  private:
   int sleep_secs_;
-  base::Time time_threshold_;
+  Time time_threshold_;
   int* num_called_p_;
 };
 
@@ -201,15 +208,14 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation) {
   Callback<void(EvalStatus, const UpdateCheckParams&)> callback = Bind(
       AccumulateCallsCallback<UpdateCheckParams>, &calls);
 
-  umut_->AsyncPolicyRequest(callback, base::TimeDelta::FromSeconds(5),
-                            &Policy::UpdateCheckAllowed);
+  umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // The callback should wait until we run the main loop for it to be executed.
   EXPECT_EQ(0, calls.size());
   chromeos_update_engine::RunGMainLoopMaxIterations(100);
   EXPECT_EQ(1, calls.size());
 }
 
-TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDoesNotTimeOut) {
+TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimeoutDoesNotFire) {
   // Set up an async policy call to return immediately, then wait a little and
   // ensure that the timeout event does not fire.
   int num_called = 0;
@@ -219,8 +225,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDoesNotTimeOut) {
   Callback<void(EvalStatus, const UpdateCheckParams&)> callback =
       Bind(AccumulateCallsCallback<UpdateCheckParams>, &calls);
 
-  umut_->AsyncPolicyRequest(callback, base::TimeDelta::FromSeconds(1),
-                            &Policy::UpdateCheckAllowed);
+  umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // Run the main loop, ensure that policy was attempted once before deferring
   // to the default.
   chromeos_update_engine::RunGMainLoopMaxIterations(100);
@@ -236,33 +241,42 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDoesNotTimeOut) {
 }
 
 TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
-  // Set up an async policy call to exceed its overall execution time, and make
-  // sure that it is aborted. Also ensure that the async call is not reattempted
-  // after the timeout fires by waiting pas the time threshold for reevaluation.
+  // Set up an async policy call to exceed its expiration timeout, make sure
+  // that the default policy was not used (no callback) and that evaluation is
+  // reattempted.
   int num_called = 0;
   umut_->set_policy(new DelayPolicy(
-          2, fake_clock_.GetWallclockTime() + base::TimeDelta::FromSeconds(3),
+          0, fake_clock_.GetWallclockTime() + TimeDelta::FromSeconds(3),
           &num_called));
 
   vector<pair<EvalStatus, UpdateCheckParams>> calls;
   Callback<void(EvalStatus, const UpdateCheckParams&)> callback =
       Bind(AccumulateCallsCallback<UpdateCheckParams>, &calls);
 
-  umut_->AsyncPolicyRequest(callback, base::TimeDelta::FromSeconds(1),
-                            &Policy::UpdateCheckAllowed);
+  umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // Run the main loop, ensure that policy was attempted once but the callback
   // was not invoked.
   chromeos_update_engine::RunGMainLoopMaxIterations(100);
   EXPECT_EQ(1, num_called);
   EXPECT_EQ(0, calls.size());
-  // Wait for the time threshold to be satisfied, run the main loop again,
-  // ensure that reevaluation was not attempted but the callback invoked.
+  // Wait for the expiration timeout to expire, run the main loop again,
+  // ensure that reevaluation occurred but callback was not invoked (i.e.
+  // default policy was not consulted).
   sleep(2);
+  fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
+                               TimeDelta::FromSeconds(2));
   chromeos_update_engine::RunGMainLoopMaxIterations(10);
-  EXPECT_EQ(1, num_called);
+  EXPECT_EQ(2, num_called);
+  EXPECT_EQ(0, calls.size());
+  // Wait for reevaluation due to delay to happen, ensure that it occurs and
+  // that the callback is invoked.
+  sleep(2);
+  fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
+                               TimeDelta::FromSeconds(2));
+  chromeos_update_engine::RunGMainLoopMaxIterations(10);
+  EXPECT_EQ(3, num_called);
   ASSERT_EQ(1, calls.size());
   EXPECT_EQ(EvalStatus::kSucceeded, calls[0].first);
-  EXPECT_EQ(true, calls[0].second.updates_enabled);
 }
 
 }  // namespace chromeos_update_manager

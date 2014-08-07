@@ -238,7 +238,7 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutRunsFromTimeout) {
 }
 
 // Test that callback is called when evaluation context expires, and that it
-// cannot be used again.
+// cannot be used again unless the expiration deadline is reset.
 TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutExpires) {
   fake_async_var_.reset(new string("Async value"));
   eval_ctx_->GetValue(&fake_async_var_);
@@ -253,6 +253,10 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutExpires) {
 
   // Ensure that we cannot reschedule an evaluation.
   EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
+
+  // Ensure that we can reschedule an evaluation after resetting expiration.
+  eval_ctx_->ResetExpiration();
+  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&DoNothing)));
 }
 
 // Test that we clear the events when destroying the EvaluationContext.

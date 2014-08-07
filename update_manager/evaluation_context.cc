@@ -52,9 +52,10 @@ EvaluationContext::EvaluationContext(ClockInterface* clock,
                                      TimeDelta expiration_timeout)
     : clock_(clock),
       evaluation_timeout_(evaluation_timeout),
-      expiration_monotonic_deadline_(MonotonicDeadline(expiration_timeout)),
+      expiration_timeout_(expiration_timeout),
       weak_ptr_factory_(this) {
   ResetEvaluation();
+  ResetExpiration();
 }
 
 EvaluationContext::~EvaluationContext() {
@@ -130,6 +131,11 @@ void EvaluationContext::ResetEvaluation() {
       it = value_cache_.erase(it);
     }
   }
+}
+
+void EvaluationContext::ResetExpiration() {
+  expiration_monotonic_deadline_ = MonotonicDeadline(expiration_timeout_);
+  is_expired_ = false;
 }
 
 bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {

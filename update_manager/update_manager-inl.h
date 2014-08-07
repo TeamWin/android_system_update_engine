@@ -21,43 +21,43 @@ EvalStatus UpdateManager::EvaluatePolicy(
                                         std::string*, R*,
                                         Args...) const,
     R* result, Args... args) {
-  const std::string policy_name = policy_->PolicyRequestName(policy_method);
-  const bool timed_out = ec->is_expired();
+  // If expiration timeout fired, dump the context and reset expiration.
+  // IMPORTANT: We must still proceed with evaluation of the policy in this
+  // case, so that the evaluation time (and corresponding reevaluation timeouts)
+  // are readjusted.
+  if (ec->is_expired()) {
+    LOG(WARNING) << "Request timed out, evaluation context: "
+                 << ec->DumpContext();
+    ec->ResetExpiration();
+  }
 
   // Reset the evaluation context.
   ec->ResetEvaluation();
 
-  LOG(INFO) << "Evaluating " << policy_name << " START";
+  const std::string policy_name = policy_->PolicyRequestName(policy_method);
+  LOG(INFO) << policy_name << ": START";
 
-  // First try calling the actual policy, if the request did not time out.
-  EvalStatus status = EvalStatus::kFailed;
-  if (timed_out) {
-    LOG(WARNING) << "Skipping reevaluation because the request timed out.";
-  } else {
-    std::string error;
-    status = (policy_.get()->*policy_method)(ec, state_.get(), &error, result,
-                                             args...);
-    LOG_IF(WARNING, status == EvalStatus::kFailed)
-        << "Evaluating policy failed: " << error
-        << "\nEvaluation context: " << ec->DumpContext();
-  }
-
+  // First try calling the actual policy.
+  std::string error;
+  EvalStatus status = (policy_.get()->*policy_method)(ec, state_.get(), &error,
+                                                      result, args...);
   // If evaluating the main policy failed, defer to the default policy.
   if (status == EvalStatus::kFailed) {
-    std::string error;
+    LOG(WARNING) << "Evaluating policy failed: " << error
+                 << "\nEvaluation context: " << ec->DumpContext();
+    error.clear();
     status = (default_policy_.*policy_method)(ec, state_.get(), &error, result,
                                               args...);
-    LOG_IF(WARNING, status == EvalStatus::kFailed)
-        << "Evaluating default policy failed: " << error;
-
-    if (timed_out && status == EvalStatus::kAskMeAgainLater) {
-      LOG(WARNING) << "Default policy would block but request timed out, "
-                   << "forcing failure.";
+    if (status == EvalStatus::kFailed) {
+      LOG(WARNING) << "Evaluating default policy failed: " << error;
+    } else if (status == EvalStatus::kAskMeAgainLater) {
+      LOG(ERROR)
+          << "Default policy would block; this is a bug, forcing failure.";
       status = EvalStatus::kFailed;
     }
   }
 
-  LOG(INFO) << "Evaluating " << policy_name << " END";
+  LOG(INFO) << policy_name << ": END";
 
   return status;
 }
@@ -122,13 +122,12 @@ EvalStatus UpdateManager::PolicyRequest(
 template<typename R, typename... ActualArgs, typename... ExpectedArgs>
 void UpdateManager::AsyncPolicyRequest(
     base::Callback<void(EvalStatus, const R& result)> callback,
-    base::TimeDelta request_timeout,
     EvalStatus (Policy::*policy_method)(EvaluationContext*, State*,
                                         std::string*, R*,
                                         ExpectedArgs...) const,
     ActualArgs... args) {
   scoped_refptr<EvaluationContext> ec =
-      new EvaluationContext(clock_, evaluation_timeout_, request_timeout);
+      new EvaluationContext(clock_, evaluation_timeout_, expiration_timeout_);
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
   // explicitly instantiate UpdateManager::OnPolicyReadyToEvaluate with the
   // latter in lieu of the former.

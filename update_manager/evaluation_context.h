@@ -86,6 +86,11 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // be called right before any new evaluation starts.
   void ResetEvaluation();
 
+  // Clears the expiration status of the EvaluationContext and resets its
+  // expiration timeout based on |expiration_timeout_|. This should be called if
+  // expiration occurred, prior to re-evaluating the policy.
+  void ResetExpiration();
+
   // Schedules the passed |callback| closure to be called when a cached
   // variable changes its value, a polling interval passes, or the context
   // expiration occurs. If none of these events can happen, for example if
@@ -175,9 +180,11 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // current evaluation should finish.
   base::Time evaluation_monotonic_deadline_;
 
-  // The monotonic clock deadline at which expiration occurs. This is set once
-  // during construction.
-  const base::Time expiration_monotonic_deadline_;
+  // The expiration timeout of the evaluation context.
+  const base::TimeDelta expiration_timeout_;
+
+  // The monotonic clock deadline at which expiration occurs.
+  base::Time expiration_monotonic_deadline_;
 
   base::WeakPtrFactory<EvaluationContext> weak_ptr_factory_;
 
