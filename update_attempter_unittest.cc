@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <stdint.h>
+
 #include <base/file_util.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
@@ -893,7 +895,7 @@ TEST_F(UpdateAttempterTest, ReadScatterFactorFromPolicy) {
 // Tests that the scatter_factor_in_seconds value is properly fetched
 // from the device policy.
 void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
-  int64 scatter_factor_in_seconds = 36000;
+  int64_t scatter_factor_in_seconds = 36000;
 
   policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
@@ -923,7 +925,7 @@ TEST_F(UpdateAttempterTest, DecrementUpdateCheckCountTest) {
 void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   // Tests that the scatter_factor_in_seconds value is properly fetched
   // from the device policy and is decremented if value > 0.
-  int64 initial_value = 5;
+  int64_t initial_value = 5;
   Prefs prefs;
   attempter_.prefs_ = &prefs;
 
@@ -938,7 +940,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
       << "Failed to initialize preferences.";
   EXPECT_TRUE(prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
 
-  int64 scatter_factor_in_seconds = 10;
+  int64_t scatter_factor_in_seconds = 10;
 
   policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
@@ -957,7 +959,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   // Make sure the file still exists.
   EXPECT_TRUE(prefs.Exists(kPrefsUpdateCheckCount));
 
-  int64 new_value;
+  int64_t new_value;
   EXPECT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
   EXPECT_EQ(initial_value - 1, new_value);
 
@@ -986,7 +988,7 @@ TEST_F(UpdateAttempterTest, NoScatteringDoneDuringManualUpdateTestStart) {
 void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   // Tests that no scattering logic is enabled if the update check
   // is manually done (as opposed to a scheduled update check)
-  int64 initial_value = 8;
+  int64_t initial_value = 8;
   Prefs prefs;
   attempter_.prefs_ = &prefs;
 
@@ -1004,7 +1006,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
 
   // make sure scatter_factor is non-zero as scattering is disabled
   // otherwise.
-  int64 scatter_factor_in_seconds = 50;
+  int64_t scatter_factor_in_seconds = 50;
 
   policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
   attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));

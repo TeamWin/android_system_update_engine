@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <glib.h>
+#include <stdint.h>
+
 #include <string>
 #include <vector>
-
-#include <glib.h>
 
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -741,7 +742,7 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
                       &response,
                       NULL));
 
-  int64 count;
+  int64_t count;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
   ASSERT_EQ(count, 0);
   EXPECT_TRUE(response.update_exists);
@@ -795,7 +796,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                       &response,
                       NULL));
 
-  int64 count;
+  int64_t count;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
   ASSERT_GT(count, 0);
   EXPECT_FALSE(response.update_exists);
@@ -883,7 +884,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                       &response,
                       NULL));
 
-  int64 count;
+  int64_t count;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
   // count remains the same, as the decrementing happens in update_attempter
   // which this test doesn't exercise.
@@ -1252,7 +1253,7 @@ TEST(OmahaRequestActionTest, ParseIntTest) {
                                         "file.signed",  // file name
                                         "HASH1234=",  // checksum
                                         "false",  // needs admin
-                                        // overflows int32:
+                                        // overflows int32_t:
                                         "123123123123123",  // size
                                         "deadline"),
                       -1,
@@ -1937,7 +1938,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                       &response,
                       NULL));
 
-  int64 timestamp = 0;
+  int64_t timestamp = 0;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
   ASSERT_GT(timestamp, 0);
   EXPECT_FALSE(response.update_exists);
@@ -2028,7 +2029,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   EXPECT_TRUE(response.update_exists);
 
   // Make sure the timestamp t1 is unchanged showing that it was reused.
-  int64 timestamp = 0;
+  int64_t timestamp = 0;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
   ASSERT_TRUE(timestamp == t1.ToInternalValue());
 }

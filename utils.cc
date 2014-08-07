@@ -4,6 +4,8 @@
 
 #include "update_engine/utils.h"
 
+#include <stdint.h>
+
 #include <attr/xattr.h>
 #include <dirent.h>
 #include <errno.h>
@@ -732,7 +734,7 @@ static bool GetFileFormatELF(const char* buffer, size_t size, string* output) {
   // 0x12: e_machine, 2 byte endianness based on ei_data
   if (size < 0x12 + 2)
     return true;
-  uint16 e_machine = *reinterpret_cast<const uint16*>(buffer+0x12);
+  uint16_t e_machine = *reinterpret_cast<const uint16_t*>(buffer+0x12);
   // Fix endianess regardless of the host endianess.
   if (ei_data == 1)
     e_machine = le16toh(e_machine);
@@ -1373,8 +1375,8 @@ bool GetInstallDev(const std::string& boot_dev, std::string* install_dev) {
 }
 
 Time TimeFromStructTimespec(struct timespec *ts) {
-  int64 us = static_cast<int64>(ts->tv_sec) * Time::kMicrosecondsPerSecond +
-      static_cast<int64>(ts->tv_nsec) / Time::kNanosecondsPerMicrosecond;
+  int64_t us = static_cast<int64_t>(ts->tv_sec) * Time::kMicrosecondsPerSecond +
+      static_cast<int64_t>(ts->tv_nsec) / Time::kNanosecondsPerMicrosecond;
   return Time::UnixEpoch() + TimeDelta::FromMicroseconds(us);
 }
 

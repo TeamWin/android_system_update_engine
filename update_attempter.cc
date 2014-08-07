@@ -4,6 +4,8 @@
 
 #include "update_engine/update_attempter.h"
 
+#include <stdint.h>
+
 #include <algorithm>
 #include <memory>
 #include <set>
@@ -447,7 +449,7 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
   TimeDelta old_scatter_factor = scatter_factor_;
   const policy::DevicePolicy* device_policy = system_state_->device_policy();
   if (device_policy) {
-    int64 new_scatter_factor_in_secs = 0;
+    int64_t new_scatter_factor_in_secs = 0;
     device_policy->GetScatterFactorInSeconds(&new_scatter_factor_in_secs);
     if (new_scatter_factor_in_secs < 0)  // sanitize input, just in case.
       new_scatter_factor_in_secs  = 0;
@@ -474,7 +476,7 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
     //    (omaha_request_params_->waiting_period will be zero in this case).
     // 2. Admin has changed the scattering policy value.
     //    (new scattering value will be different from old one in this case).
-    int64 wait_period_in_secs = 0;
+    int64_t wait_period_in_secs = 0;
     if (omaha_request_params_->waiting_period().InSeconds() == 0) {
       // First case. Check if we have a suitable value to set for
       // the waiting period.
@@ -1427,7 +1429,7 @@ void UpdateAttempter::PingOmaha() {
 
 
 bool UpdateAttempter::DecrementUpdateCheckCount() {
-  int64 update_check_count_value;
+  int64_t update_check_count_value;
 
   if (!prefs_->Exists(kPrefsUpdateCheckCount)) {
     // This file does not exist. This means we haven't started our update

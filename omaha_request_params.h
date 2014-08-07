@@ -5,6 +5,8 @@
 #ifndef UPDATE_ENGINE_OMAHA_REQUEST_PARAMS_H_
 #define UPDATE_ENGINE_OMAHA_REQUEST_PARAMS_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include <base/basictypes.h>
@@ -163,17 +165,17 @@ class OmahaRequestParams {
     return update_check_count_wait_enabled_;
   }
 
-  inline void set_min_update_checks_needed(int64 min) {
+  inline void set_min_update_checks_needed(int64_t min) {
     min_update_checks_needed_ = min;
   }
-  inline int64 min_update_checks_needed() const {
+  inline int64_t min_update_checks_needed() const {
     return min_update_checks_needed_;
   }
 
-  inline void set_max_update_checks_allowed(int64 max) {
+  inline void set_max_update_checks_allowed(int64_t max) {
     max_update_checks_allowed_ = max;
   }
-  inline int64 max_update_checks_allowed() const {
+  inline int64_t max_update_checks_allowed() const {
     return max_update_checks_allowed_;
   }
 
@@ -213,8 +215,8 @@ class OmahaRequestParams {
   static const char* const kUpdateUrl;
   static const char* const kUpdateChannelKey;
   static const char* const kIsPowerwashAllowedKey;
-  static const int64 kDefaultMinUpdateChecks = 0;
-  static const int64 kDefaultMaxUpdateChecks = 8;
+  static const int64_t kDefaultMinUpdateChecks = 0;
+  static const int64_t kDefaultMaxUpdateChecks = 8;
 
   // Initializes all the data in the object. Non-empty
   // |in_app_version| or |in_update_url| prevents automatic detection
@@ -372,8 +374,8 @@ class OmahaRequestParams {
   // values establish the bounds for a random number to be chosen within that
   // range to enable such a wait.
   bool update_check_count_wait_enabled_;
-  int64 min_update_checks_needed_;
-  int64 max_update_checks_allowed_;
+  int64_t min_update_checks_needed_;
+  int64_t max_update_checks_allowed_;
 
   // True if we are allowed to do powerwash, if required, on a channel change.
   bool is_powerwash_allowed_;

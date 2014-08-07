@@ -5,6 +5,8 @@
 #ifndef UPDATE_ENGINE_PREFS_INTERFACE_H_
 #define UPDATE_ENGINE_PREFS_INTERFACE_H_
 
+#include <stdint.h>
+
 #include <string>
 
 namespace chromeos_update_engine {
@@ -25,12 +27,12 @@ class PrefsInterface {
   // false otherwise.
   virtual bool SetString(const std::string& key, const std::string& value) = 0;
 
-  // Gets an int64 |value| associated with |key|. Returns true on
+  // Gets an int64_t |value| associated with |key|. Returns true on
   // success, false on failure (including when the |key| is not
   // present in the store).
   virtual bool GetInt64(const std::string& key, int64_t* value) = 0;
 
-  // Associates |key| with an int64 |value|. Returns true on success,
+  // Associates |key| with an int64_t |value|. Returns true on success,
   // false otherwise.
   virtual bool SetInt64(const std::string& key, const int64_t value) = 0;
 

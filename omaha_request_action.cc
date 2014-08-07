@@ -984,7 +984,7 @@ OmahaRequestAction::WallClockWaitResult
 OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
     OmahaResponse* output_object) {
   Time update_first_seen_at;
-  int64 update_first_seen_at_int;
+  int64_t update_first_seen_at_int;
 
   if (system_state_->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
     if (system_state_->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
@@ -1084,7 +1084,7 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
 }
 
 bool OmahaRequestAction::IsUpdateCheckCountBasedWaitingSatisfied() {
-  int64 update_check_count_value;
+  int64_t update_check_count_value;
 
   if (system_state_->prefs()->Exists(kPrefsUpdateCheckCount)) {
     if (!system_state_->prefs()->GetInt64(kPrefsUpdateCheckCount,
