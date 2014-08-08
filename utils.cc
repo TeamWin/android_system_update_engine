@@ -8,6 +8,7 @@
 
 #include <attr/xattr.h>
 #include <dirent.h>
+#include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -696,18 +697,18 @@ string GetPathOnBoard(const string& command) {
 // description of it on the |output| string.
 static bool GetFileFormatELF(const char* buffer, size_t size, string* output) {
   // 0x00: EI_MAG - ELF magic header, 4 bytes.
-  if (size < 4 || memcmp(buffer, "\x7F""ELF", 4) != 0)
+  if (size < SELFMAG || memcmp(buffer, ELFMAG, SELFMAG) != 0)
     return false;
   *output = "ELF";
 
   // 0x04: EI_CLASS, 1 byte.
-  if (size < 0x04 + 1)
+  if (size < EI_CLASS + 1)
     return true;
-  switch (buffer[4]) {
-    case 1:
+  switch (buffer[EI_CLASS]) {
+    case ELFCLASS32:
       *output += " 32-bit";
       break;
-    case 2:
+    case ELFCLASS64:
       *output += " 64-bit";
       break;
     default:
@@ -715,14 +716,14 @@ static bool GetFileFormatELF(const char* buffer, size_t size, string* output) {
   }
 
   // 0x05: EI_DATA, endianness, 1 byte.
-  if (size < 0x05 + 1)
+  if (size < EI_DATA + 1)
     return true;
-  char ei_data = buffer[5];
+  char ei_data = buffer[EI_DATA];
   switch (ei_data) {
-    case 1:
+    case ELFDATA2LSB:
       *output += " little-endian";
       break;
-    case 2:
+    case ELFDATA2MSB:
       *output += " big-endian";
       break;
     default:
@@ -731,24 +732,29 @@ static bool GetFileFormatELF(const char* buffer, size_t size, string* output) {
       return true;
   }
 
-  // 0x12: e_machine, 2 byte endianness based on ei_data
-  if (size < 0x12 + 2)
+  const Elf32_Ehdr* hdr = reinterpret_cast<const Elf32_Ehdr*>(buffer);
+  // 0x12: e_machine, 2 byte endianness based on ei_data. The position (0x12)
+  // and size is the same for both 32 and 64 bits.
+  if (size < offsetof(Elf32_Ehdr, e_machine) + sizeof(hdr->e_machine))
     return true;
-  uint16_t e_machine = *reinterpret_cast<const uint16_t*>(buffer+0x12);
+  uint16_t e_machine;
   // Fix endianess regardless of the host endianess.
-  if (ei_data == 1)
-    e_machine = le16toh(e_machine);
+  if (ei_data == ELFDATA2LSB)
+    e_machine = le16toh(hdr->e_machine);
   else
-    e_machine = be16toh(e_machine);
+    e_machine = be16toh(hdr->e_machine);
 
   switch (e_machine) {
-    case 0x03:
+    case EM_386:
       *output += " x86";
       break;
-    case 0x28:
+    case EM_MIPS:
+      *output += " mips";
+      break;
+    case EM_ARM:
       *output += " arm";
       break;
-    case 0x3E:
+    case EM_X86_64:
       *output += " x86-64";
       break;
     default:
