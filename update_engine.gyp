@@ -21,7 +21,6 @@
     ],
     'cflags_cc': [
       '-fno-strict-aliasing',
-      '-std=gnu++11',
     ],
     'ldflags': [
       '-Wl,--gc-sections',
