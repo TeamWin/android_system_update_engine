@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 
+#include <base/bind.h>
 #include <base/callback.h>
 #include <base/memory/ref_counted.h>
 #include <base/memory/scoped_ptr.h>
@@ -52,12 +53,16 @@ namespace chromeos_update_manager {
 class EvaluationContext : public base::RefCounted<EvaluationContext>,
                           private BaseVariable::ObserverInterface {
  public:
-  EvaluationContext(chromeos_update_engine::ClockInterface* clock,
-                    base::TimeDelta evaluation_timeout,
-                    base::TimeDelta expiration_timeout);
+  EvaluationContext(
+      chromeos_update_engine::ClockInterface* clock,
+      base::TimeDelta evaluation_timeout,
+      base::TimeDelta expiration_timeout,
+      scoped_ptr<base::Callback<void(EvaluationContext*)>> unregister_cb);
   EvaluationContext(chromeos_update_engine::ClockInterface* clock,
                     base::TimeDelta evaluation_timeout)
-      : EvaluationContext(clock, evaluation_timeout, base::TimeDelta::Max()) {}
+      : EvaluationContext(
+          clock, evaluation_timeout, base::TimeDelta::Max(),
+          scoped_ptr<base::Callback<void(EvaluationContext*)>>()) {}
   ~EvaluationContext();
 
   // Returns a pointer to the value returned by the passed variable |var|. The
@@ -105,12 +110,13 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // to help with debugging and the format may change in the future.
   std::string DumpContext() const;
 
+  // Removes all the Observers callbacks and timeout events scheduled by
+  // RunOnValueChangeOrTimeout(). Also releases and returns the closure
+  // associated with these events. This method is idempotent.
+  scoped_ptr<base::Closure> RemoveObserversAndTimeout();
+
  private:
   friend class UmEvaluationContextTest;
-
-  // Removes all the Observers and timeout callbacks scheduled by
-  // RunOnValueChangeOrTimeout(). This method is idempotent.
-  void RemoveObserversAndTimeout();
 
   // BaseVariable::ObserverInterface override.
   void ValueChanged(BaseVariable* var);
@@ -185,6 +191,9 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
 
   // The monotonic clock deadline at which expiration occurs.
   base::Time expiration_monotonic_deadline_;
+
+  // A callback for unregistering the context upon destruction.
+  scoped_ptr<base::Callback<void(EvaluationContext*)>> unregister_cb_;
 
   base::WeakPtrFactory<EvaluationContext> weak_ptr_factory_;
 

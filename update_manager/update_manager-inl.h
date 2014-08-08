@@ -127,7 +127,16 @@ void UpdateManager::AsyncPolicyRequest(
                                         ExpectedArgs...) const,
     ActualArgs... args) {
   scoped_refptr<EvaluationContext> ec =
-      new EvaluationContext(clock_, evaluation_timeout_, expiration_timeout_);
+      new EvaluationContext(
+          clock_, evaluation_timeout_, expiration_timeout_,
+          scoped_ptr<base::Callback<void(EvaluationContext*)>>(
+              new base::Callback<void(EvaluationContext*)>(
+                  base::Bind(&UpdateManager::UnregisterEvalContext,
+                             weak_ptr_factory_.GetWeakPtr()))));
+  if (!ec_repo_.insert(ec.get()).second) {
+    LOG(ERROR) << "Failed to register evaluation context; this is a bug.";
+  }
+
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
   // explicitly instantiate UpdateManager::OnPolicyReadyToEvaluate with the
   // latter in lieu of the former.

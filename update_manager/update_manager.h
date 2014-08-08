@@ -5,6 +5,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_UPDATE_MANAGER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_UPDATE_MANAGER_H_
 
+#include <set>
 #include <string>
 
 #include <base/callback.h>
@@ -14,10 +15,20 @@
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/update_manager/default_policy.h"
+#include "update_engine/update_manager/evaluation_context.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/state.h"
 
 namespace chromeos_update_manager {
+
+// Comparator for scoped_refptr objects.
+template<typename T>
+struct ScopedRefPtrLess {
+  bool operator()(const scoped_refptr<T>& first,
+                  const scoped_refptr<T>& second) const {
+    return first.get() < second.get();
+  }
+};
 
 // The main Update Manager singleton class.
 class UpdateManager {
@@ -28,7 +39,7 @@ class UpdateManager {
                 base::TimeDelta evaluation_timeout,
                 base::TimeDelta expiration_timeout, State* state);
 
-  virtual ~UpdateManager() {}
+  virtual ~UpdateManager();
 
   // PolicyRequest() evaluates the given policy with the provided arguments and
   // returns the result. The |policy_method| is the pointer-to-method of the
@@ -111,6 +122,9 @@ class UpdateManager {
                                           Args...) const,
       Args... args);
 
+  // Unregisters (removes from repo) a previously created EvaluationContext.
+  void UnregisterEvalContext(EvaluationContext* ec);
+
   // The policy used by the UpdateManager. Note that since it is a const Policy,
   // policy implementations are not allowed to persist state on this class.
   scoped_ptr<const Policy> policy_;
@@ -130,6 +144,16 @@ class UpdateManager {
 
   // Timeout for expiration of the evaluation context, used for async requests.
   const base::TimeDelta expiration_timeout_;
+
+  // Repository of previously created EvaluationContext objects. These are being
+  // unregistered (and the reference released) when the context is being
+  // destructed; alternatively, when the UpdateManager instance is destroyed, it
+  // will remove all pending events associated with all outstanding contexts
+  // (which should, in turn, trigger their destruction).
+  std::set<scoped_refptr<EvaluationContext>,
+           ScopedRefPtrLess<EvaluationContext>> ec_repo_;
+
+  base::WeakPtrFactory<UpdateManager> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateManager);
 };
