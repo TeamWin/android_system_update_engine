@@ -30,7 +30,7 @@ class MetricsLibraryInterface;
 struct UpdateEngineService;
 
 namespace policy {
-  class PolicyProvider;
+class PolicyProvider;
 }
 
 namespace chromeos_update_engine {

@@ -32,25 +32,25 @@ class RealState : public State {
       updater_provider_(updater_provider) {}
 
   // These methods return the given provider.
-  virtual ConfigProvider* config_provider() override {
+  ConfigProvider* config_provider() override {
     return config_provider_.get();
   }
-  virtual DevicePolicyProvider* device_policy_provider() override {
+  DevicePolicyProvider* device_policy_provider() override {
     return device_policy_provider_.get();
   }
-  virtual RandomProvider* random_provider() override {
+  RandomProvider* random_provider() override {
     return random_provider_.get();
   }
-  virtual ShillProvider* shill_provider() override {
+  ShillProvider* shill_provider() override {
     return shill_provider_.get();
   }
-  virtual SystemProvider* system_provider() override {
+  SystemProvider* system_provider() override {
     return system_provider_.get();
   }
-  virtual TimeProvider* time_provider() override {
+  TimeProvider* time_provider() override {
     return time_provider_.get();
   }
-  virtual UpdaterProvider* updater_provider() override {
+  UpdaterProvider* updater_provider() override {
     return updater_provider_.get();
   }
 

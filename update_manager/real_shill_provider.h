@@ -34,19 +34,19 @@ class RealShillProvider : public ShillProvider {
   // Initializes the provider and returns whether it succeeded.
   bool Init();
 
-  virtual Variable<bool>* var_is_connected() override {
+  Variable<bool>* var_is_connected() override {
     return &var_is_connected_;
   }
 
-  virtual Variable<ConnectionType>* var_conn_type() override {
+  Variable<ConnectionType>* var_conn_type() override {
     return &var_conn_type_;
   }
 
-  virtual Variable<ConnectionTethering>* var_conn_tethering() override {
+  Variable<ConnectionTethering>* var_conn_tethering() override {
     return &var_conn_tethering_;
   }
 
-  virtual Variable<base::Time>* var_conn_last_changed() override {
+  Variable<base::Time>* var_conn_last_changed() override {
     return &var_conn_last_changed_;
   }
 

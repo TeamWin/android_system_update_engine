@@ -22,11 +22,11 @@ class RealTimeProvider : public TimeProvider {
   // Initializes the provider and returns whether it succeeded.
   bool Init();
 
-  virtual Variable<base::Time>* var_curr_date() override {
+  Variable<base::Time>* var_curr_date() override {
     return var_curr_date_.get();
   }
 
-  virtual Variable<int>* var_curr_hour() override {
+  Variable<int>* var_curr_hour() override {
     return var_curr_hour_.get();
   }
 

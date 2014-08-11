@@ -27,44 +27,44 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   // Initializes the provider and returns whether it succeeded.
   bool Init();
 
-  virtual Variable<bool>* var_device_policy_is_loaded() override {
+  Variable<bool>* var_device_policy_is_loaded() override {
     return &var_device_policy_is_loaded_;
   }
 
-  virtual Variable<std::string>* var_release_channel() override {
+  Variable<std::string>* var_release_channel() override {
     return &var_release_channel_;
   }
 
-  virtual Variable<bool>* var_release_channel_delegated() override {
+  Variable<bool>* var_release_channel_delegated() override {
     return &var_release_channel_delegated_;
   }
 
-  virtual Variable<bool>* var_update_disabled() override {
+  Variable<bool>* var_update_disabled() override {
     return &var_update_disabled_;
   }
 
-  virtual Variable<std::string>* var_target_version_prefix() override {
+  Variable<std::string>* var_target_version_prefix() override {
     return &var_target_version_prefix_;
   }
 
-  virtual Variable<base::TimeDelta>* var_scatter_factor() override {
+  Variable<base::TimeDelta>* var_scatter_factor() override {
     return &var_scatter_factor_;
   }
 
-  virtual Variable<std::set<ConnectionType>>*
+  Variable<std::set<ConnectionType>>*
       var_allowed_connection_types_for_update() override {
     return &var_allowed_connection_types_for_update_;
   }
 
-  virtual Variable<std::string>* var_get_owner() override {
+  Variable<std::string>* var_get_owner() override {
     return &var_get_owner_;
   }
 
-  virtual Variable<bool>* var_http_downloads_enabled() override {
+  Variable<bool>* var_http_downloads_enabled() override {
     return &var_http_downloads_enabled_;
   }
 
-  virtual Variable<bool>* var_au_p2p_enabled() override {
+  Variable<bool>* var_au_p2p_enabled() override {
     return &var_au_p2p_enabled_;
   }
 

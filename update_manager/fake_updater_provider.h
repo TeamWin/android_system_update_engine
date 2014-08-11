@@ -17,61 +17,59 @@ class FakeUpdaterProvider : public UpdaterProvider {
  public:
   FakeUpdaterProvider() {}
 
-  virtual FakeVariable<base::Time>* var_updater_started_time() override {
+  FakeVariable<base::Time>* var_updater_started_time() override {
     return &var_updater_started_time_;
   }
 
-  virtual FakeVariable<base::Time>* var_last_checked_time() override {
+  FakeVariable<base::Time>* var_last_checked_time() override {
     return &var_last_checked_time_;
   }
 
-  virtual FakeVariable<base::Time>* var_update_completed_time() override {
+  FakeVariable<base::Time>* var_update_completed_time() override {
     return &var_update_completed_time_;
   }
 
-  virtual FakeVariable<double>* var_progress() override {
+  FakeVariable<double>* var_progress() override {
     return &var_progress_;
   }
 
-  virtual FakeVariable<Stage>* var_stage() override {
+  FakeVariable<Stage>* var_stage() override {
     return &var_stage_;
   }
 
-  virtual FakeVariable<std::string>* var_new_version() override {
+  FakeVariable<std::string>* var_new_version() override {
     return &var_new_version_;
   }
 
-  virtual FakeVariable<int64_t>* var_payload_size() override {
+  FakeVariable<int64_t>* var_payload_size() override {
     return &var_payload_size_;
   }
 
-  virtual FakeVariable<std::string>* var_curr_channel() override {
+  FakeVariable<std::string>* var_curr_channel() override {
     return &var_curr_channel_;
   }
 
-  virtual FakeVariable<std::string>* var_new_channel() override {
+  FakeVariable<std::string>* var_new_channel() override {
     return &var_new_channel_;
   }
 
-  virtual FakeVariable<bool>* var_p2p_enabled() override {
+  FakeVariable<bool>* var_p2p_enabled() override {
     return &var_p2p_enabled_;
   }
 
-  virtual FakeVariable<bool>* var_cellular_enabled() override {
+  FakeVariable<bool>* var_cellular_enabled() override {
     return &var_cellular_enabled_;
   }
 
-  virtual FakeVariable<unsigned int>*
-      var_consecutive_failed_update_checks() override {
+  FakeVariable<unsigned int>* var_consecutive_failed_update_checks() override {
     return &var_consecutive_failed_update_checks_;
   }
 
-  virtual FakeVariable<unsigned int>*
-      var_server_dictated_poll_interval() override {
+  FakeVariable<unsigned int>* var_server_dictated_poll_interval() override {
     return &var_server_dictated_poll_interval_;
   }
 
-  virtual FakeVariable<bool>* var_interactive_update_requested() override {
+  FakeVariable<bool>* var_interactive_update_requested() override {
     return &var_interactive_update_requested_;
   }
 

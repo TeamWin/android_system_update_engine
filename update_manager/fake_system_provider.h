@@ -15,19 +15,19 @@ class FakeSystemProvider : public SystemProvider {
  public:
   FakeSystemProvider() {}
 
-  virtual FakeVariable<bool>* var_is_normal_boot_mode() override {
+  FakeVariable<bool>* var_is_normal_boot_mode() override {
     return &var_is_normal_boot_mode_;
   }
 
-  virtual FakeVariable<bool>* var_is_official_build() override {
+  FakeVariable<bool>* var_is_official_build() override {
     return &var_is_official_build_;
   }
 
-  virtual FakeVariable<bool>* var_is_oobe_complete() override {
+  FakeVariable<bool>* var_is_oobe_complete() override {
     return &var_is_oobe_complete_;
   }
 
-  virtual FakeVariable<bool>* var_is_boot_device_removable() override {
+  FakeVariable<bool>* var_is_boot_device_removable() override {
     return &var_is_boot_device_removable_;
   }
 

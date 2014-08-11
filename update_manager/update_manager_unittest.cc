@@ -58,7 +58,7 @@ namespace chromeos_update_manager {
 
 class UmUpdateManagerTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     fake_state_ = new FakeState();
     umut_.reset(new UpdateManager(&fake_clock_, TimeDelta::FromSeconds(5),
                                   TimeDelta::FromSeconds(1), fake_state_));
@@ -76,9 +76,9 @@ class FailingPolicy : public DefaultPolicy {
  public:
   explicit FailingPolicy(int* num_called_p) : num_called_p_(num_called_p) {}
   FailingPolicy() : FailingPolicy(nullptr) {}
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
-                                        string* error,
-                                        UpdateCheckParams* result) const {
+  EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
+                                string* error,
+                                UpdateCheckParams* result) const override {
     if (num_called_p_)
       (*num_called_p_)++;
     *error = "FailingPolicy failed.";
@@ -86,7 +86,7 @@ class FailingPolicy : public DefaultPolicy {
   }
 
  protected:
-  virtual std::string PolicyName() const override { return "FailingPolicy"; }
+  std::string PolicyName() const override { return "FailingPolicy"; }
 
  private:
   int* num_called_p_;
@@ -94,14 +94,14 @@ class FailingPolicy : public DefaultPolicy {
 
 // The LazyPolicy always returns EvalStatus::kAskMeAgainLater.
 class LazyPolicy : public DefaultPolicy {
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
-                                        string* error,
-                                        UpdateCheckParams* result) const {
+  EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
+                                string* error,
+                                UpdateCheckParams* result) const override {
     return EvalStatus::kAskMeAgainLater;
   }
 
  protected:
-  virtual std::string PolicyName() const override { return "LazyPolicy"; }
+  std::string PolicyName() const override { return "LazyPolicy"; }
 };
 
 // A policy that sleeps for a predetermined amount of time, then checks for a
@@ -114,9 +114,9 @@ class DelayPolicy : public DefaultPolicy {
   DelayPolicy(int sleep_secs, Time time_threshold, int* num_called_p)
       : sleep_secs_(sleep_secs), time_threshold_(time_threshold),
         num_called_p_(num_called_p) {}
-  virtual EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
-                                        string* error,
-                                        UpdateCheckParams* result) const {
+  EvalStatus UpdateCheckAllowed(EvaluationContext* ec, State* state,
+                                string* error,
+                                UpdateCheckParams* result) const override {
     if (num_called_p_)
       (*num_called_p_)++;
 
@@ -134,7 +134,7 @@ class DelayPolicy : public DefaultPolicy {
   }
 
  protected:
-  virtual std::string PolicyName() const override { return "DelayPolicy"; }
+  std::string PolicyName() const override { return "DelayPolicy"; }
 
  private:
   int sleep_secs_;

@@ -31,53 +31,45 @@ class FakeHardware : public HardwareInterface {
       ec_version_("Fake EC v1.0a") {}
 
   // HardwareInterface methods.
-  virtual std::string BootKernelDevice() const override {
-    return kernel_device_;
-  }
+  std::string BootKernelDevice() const override { return kernel_device_; }
 
-  virtual std::string BootDevice() const override { return boot_device_; }
+  std::string BootDevice() const override { return boot_device_; }
 
-  virtual bool IsBootDeviceRemovable() const override {
+  bool IsBootDeviceRemovable() const override {
     return is_boot_device_removable_;
   }
 
-  virtual std::vector<std::string> GetKernelDevices() const override {
+  std::vector<std::string> GetKernelDevices() const override {
     return kernel_devices_;
   }
 
-  virtual bool IsKernelBootable(const std::string& kernel_device,
-                                bool* bootable) const override {
+  bool IsKernelBootable(const std::string& kernel_device,
+                        bool* bootable) const override {
     auto i = is_bootable_.find(kernel_device);
     *bootable = (i != is_bootable_.end()) ? i->second : true;
     return true;
   }
 
-  virtual bool MarkKernelUnbootable(const std::string& kernel_device) override {
+  bool MarkKernelUnbootable(const std::string& kernel_device) override {
     is_bootable_[kernel_device] = false;
     return true;
   }
 
-  virtual bool IsOfficialBuild() const override { return is_official_build_; }
+  bool IsOfficialBuild() const override { return is_official_build_; }
 
-  virtual bool IsNormalBootMode() const override {
-    return is_normal_boot_mode_;
-  }
+  bool IsNormalBootMode() const override { return is_normal_boot_mode_; }
 
-  virtual bool IsOOBEComplete(base::Time* out_time_of_oobe) const override {
+  bool IsOOBEComplete(base::Time* out_time_of_oobe) const override {
     if (out_time_of_oobe != nullptr)
       *out_time_of_oobe = oobe_timestamp_;
     return is_oobe_complete_;
   }
 
-  virtual std::string GetHardwareClass() const override {
-    return hardware_class_;
-  }
+  std::string GetHardwareClass() const override { return hardware_class_; }
 
-  virtual std::string GetFirmwareVersion() const override {
-    return firmware_version_;
-  }
+  std::string GetFirmwareVersion() const override { return firmware_version_; }
 
-  virtual std::string GetECVersion() const override { return ec_version_; }
+  std::string GetECVersion() const override { return ec_version_; }
 
   // Setters
   void SetBootDevice(const std::string& boot_device) {

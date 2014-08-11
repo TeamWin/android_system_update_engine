@@ -35,11 +35,11 @@ class ChromeOSPolicy : public Policy {
   virtual ~ChromeOSPolicy() {}
 
   // Policy overrides.
-  virtual EvalStatus UpdateCheckAllowed(
+  EvalStatus UpdateCheckAllowed(
       EvaluationContext* ec, State* state, std::string* error,
       UpdateCheckParams* result) const override;
 
-  virtual EvalStatus UpdateCanStart(
+  EvalStatus UpdateCanStart(
       EvaluationContext* ec,
       State* state,
       std::string* error,
@@ -47,7 +47,7 @@ class ChromeOSPolicy : public Policy {
       const bool interactive,
       const UpdateState& update_state) const override;
 
-  virtual EvalStatus UpdateDownloadAllowed(
+  EvalStatus UpdateDownloadAllowed(
       EvaluationContext* ec,
       State* state,
       std::string* error,
@@ -55,9 +55,7 @@ class ChromeOSPolicy : public Policy {
 
  protected:
   // Policy override.
-  virtual std::string PolicyName() const override {
-    return "ChromeOSPolicy";
-  }
+  std::string PolicyName() const override { return "ChromeOSPolicy"; }
 
  private:
   friend class UmChromeOSPolicyTest;

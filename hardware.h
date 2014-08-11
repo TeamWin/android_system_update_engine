@@ -18,22 +18,22 @@ namespace chromeos_update_engine {
 class Hardware : public HardwareInterface {
  public:
   Hardware();
-  virtual ~Hardware() override;
+  ~Hardware() override;
 
   // HardwareInterface methods.
-  virtual std::string BootKernelDevice() const override;
-  virtual std::string BootDevice() const override;
-  virtual bool IsBootDeviceRemovable() const override;
-  virtual std::vector<std::string> GetKernelDevices() const override;
-  virtual bool IsKernelBootable(const std::string& kernel_device,
-                                bool* bootable) const override;
-  virtual bool MarkKernelUnbootable(const std::string& kernel_device) override;
-  virtual bool IsOfficialBuild() const override;
-  virtual bool IsNormalBootMode() const override;
-  virtual bool IsOOBEComplete(base::Time* out_time_of_oobe) const override;
-  virtual std::string GetHardwareClass() const override;
-  virtual std::string GetFirmwareVersion() const override;
-  virtual std::string GetECVersion() const override;
+  std::string BootKernelDevice() const override;
+  std::string BootDevice() const override;
+  bool IsBootDeviceRemovable() const override;
+  std::vector<std::string> GetKernelDevices() const override;
+  bool IsKernelBootable(const std::string& kernel_device,
+                        bool* bootable) const override;
+  bool MarkKernelUnbootable(const std::string& kernel_device) override;
+  bool IsOfficialBuild() const override;
+  bool IsNormalBootMode() const override;
+  bool IsOOBEComplete(base::Time* out_time_of_oobe) const override;
+  std::string GetHardwareClass() const override;
+  std::string GetFirmwareVersion() const override;
+  std::string GetECVersion() const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Hardware);

@@ -15,7 +15,7 @@ class FakeRandomProvider : public RandomProvider {
  public:
   FakeRandomProvider() {}
 
-  virtual FakeVariable<uint64_t>* var_seed() override { return &var_seed_; }
+  FakeVariable<uint64_t>* var_seed() override { return &var_seed_; }
 
  private:
   FakeVariable<uint64_t> var_seed_{"seed", kVariableModePoll};

@@ -52,11 +52,11 @@ class DefaultPolicy : public Policy {
   virtual ~DefaultPolicy() {}
 
   // Policy overrides.
-  virtual EvalStatus UpdateCheckAllowed(
+  EvalStatus UpdateCheckAllowed(
       EvaluationContext* ec, State* state, std::string* error,
       UpdateCheckParams* result) const override;
 
-  virtual EvalStatus UpdateCanStart(
+  EvalStatus UpdateCanStart(
       EvaluationContext* ec,
       State* state,
       std::string* error,
@@ -73,7 +73,7 @@ class DefaultPolicy : public Policy {
     return EvalStatus::kSucceeded;
   }
 
-  virtual EvalStatus UpdateDownloadAllowed(
+  EvalStatus UpdateDownloadAllowed(
       EvaluationContext* ec,
       State* state,
       std::string* error,
@@ -84,9 +84,7 @@ class DefaultPolicy : public Policy {
 
  protected:
   // Policy override.
-  virtual std::string PolicyName() const override {
-    return "DefaultPolicy";
-  }
+  std::string PolicyName() const override { return "DefaultPolicy"; }
 
  private:
   // A clock interface.

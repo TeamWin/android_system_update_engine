@@ -24,19 +24,19 @@ class RealSystemProvider : public SystemProvider {
   // Initializes the provider and returns whether it succeeded.
   bool Init();
 
-  virtual Variable<bool>* var_is_normal_boot_mode() override {
+  Variable<bool>* var_is_normal_boot_mode() override {
     return var_is_normal_boot_mode_.get();
   }
 
-  virtual Variable<bool>* var_is_official_build() override {
+  Variable<bool>* var_is_official_build() override {
     return var_is_official_build_.get();
   }
 
-  virtual Variable<bool>* var_is_oobe_complete() override {
+  Variable<bool>* var_is_oobe_complete() override {
     return var_is_oobe_complete_.get();
   }
 
-  virtual Variable<bool>* var_is_boot_device_removable() override {
+  Variable<bool>* var_is_boot_device_removable() override {
     return var_is_boot_device_removable_.get();
   }
 

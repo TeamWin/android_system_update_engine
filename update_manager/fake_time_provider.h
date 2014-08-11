@@ -15,13 +15,8 @@ class FakeTimeProvider : public TimeProvider {
  public:
   FakeTimeProvider() {}
 
-  virtual FakeVariable<base::Time>* var_curr_date() override {
-    return &var_curr_date_;
-  }
-
-  virtual FakeVariable<int>* var_curr_hour() override {
-    return &var_curr_hour_;
-  }
+  FakeVariable<base::Time>* var_curr_date() override { return &var_curr_date_; }
+  FakeVariable<int>* var_curr_hour() override { return &var_curr_hour_; }
 
  private:
   FakeVariable<base::Time> var_curr_date_{"curr_date", kVariableModePoll};

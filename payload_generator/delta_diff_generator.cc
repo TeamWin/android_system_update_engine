@@ -262,8 +262,7 @@ bool DeltaReadFiles(Graph* graph,
 // these blocks.
 class DummyExtentAllocator {
  public:
-  explicit DummyExtentAllocator()
-      : next_block_(kTempBlockStart) {}
+  DummyExtentAllocator() : next_block_(kTempBlockStart) {}
   vector<Extent> Allocate(const uint64_t block_count) {
     vector<Extent> ret(1);
     ret[0].set_start_block(next_block_);

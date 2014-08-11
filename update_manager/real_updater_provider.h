@@ -29,61 +29,59 @@ class RealUpdaterProvider : public UpdaterProvider {
   // Initializes the provider and returns whether it succeeded.
   bool Init() { return true; }
 
-  virtual Variable<base::Time>* var_updater_started_time() override {
+  Variable<base::Time>* var_updater_started_time() override {
     return &var_updater_started_time_;
   }
 
-  virtual Variable<base::Time>* var_last_checked_time() override {
+  Variable<base::Time>* var_last_checked_time() override {
     return var_last_checked_time_.get();
   }
 
-  virtual Variable<base::Time>* var_update_completed_time() override {
+  Variable<base::Time>* var_update_completed_time() override {
     return var_update_completed_time_.get();
   }
 
-  virtual Variable<double>* var_progress() override {
+  Variable<double>* var_progress() override {
     return var_progress_.get();
   }
 
-  virtual Variable<Stage>* var_stage() override {
+  Variable<Stage>* var_stage() override {
     return var_stage_.get();
   }
 
-  virtual Variable<std::string>* var_new_version() override {
+  Variable<std::string>* var_new_version() override {
     return var_new_version_.get();
   }
 
-  virtual Variable<int64_t>* var_payload_size() override {
+  Variable<int64_t>* var_payload_size() override {
     return var_payload_size_.get();
   }
 
-  virtual Variable<std::string>* var_curr_channel() override {
+  Variable<std::string>* var_curr_channel() override {
     return var_curr_channel_.get();
   }
 
-  virtual Variable<std::string>* var_new_channel() override {
+  Variable<std::string>* var_new_channel() override {
     return var_new_channel_.get();
   }
 
-  virtual Variable<bool>* var_p2p_enabled() override {
+  Variable<bool>* var_p2p_enabled() override {
     return var_p2p_enabled_.get();
   }
 
-  virtual Variable<bool>* var_cellular_enabled() override {
+  Variable<bool>* var_cellular_enabled() override {
     return var_cellular_enabled_.get();
   }
 
-  virtual Variable<unsigned int>*
-      var_consecutive_failed_update_checks() override {
+  Variable<unsigned int>* var_consecutive_failed_update_checks() override {
     return var_consecutive_failed_update_checks_.get();
   }
 
-  virtual Variable<unsigned int>*
-      var_server_dictated_poll_interval() override {
+  Variable<unsigned int>* var_server_dictated_poll_interval() override {
     return var_server_dictated_poll_interval_.get();
   }
 
-  virtual Variable<bool>* var_interactive_update_requested() override {
+  Variable<bool>* var_interactive_update_requested() override {
     return var_interactive_update_requested_.get();
   }
 

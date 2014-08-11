@@ -78,8 +78,7 @@ class LastCheckedTimeVariable : public UpdaterVariableBase<Time> {
       : UpdaterVariableBase<Time>(name, kVariableModePoll, system_state) {}
 
  private:
-  virtual const Time* GetValue(TimeDelta /* timeout */,
-                               string* errmsg) override {
+  const Time* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     GetStatusHelper raw(system_state(), errmsg);
     if (!raw.is_success())
       return NULL;
@@ -98,8 +97,7 @@ class ProgressVariable : public UpdaterVariableBase<double> {
       : UpdaterVariableBase<double>(name, kVariableModePoll, system_state) {}
 
  private:
-  virtual const double* GetValue(TimeDelta /* timeout */,
-                                 string* errmsg) override {
+  const double* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     GetStatusHelper raw(system_state(), errmsg);
     if (!raw.is_success())
       return NULL;
@@ -132,8 +130,7 @@ class StageVariable : public UpdaterVariableBase<Stage> {
   static const CurrOpStrToStage curr_op_str_to_stage[];
 
   // Note: the method is defined outside the class so arraysize can work.
-  virtual const Stage* GetValue(TimeDelta /* timeout */,
-                                string* errmsg) override;
+  const Stage* GetValue(TimeDelta /* timeout */, string* errmsg) override;
 
   DISALLOW_COPY_AND_ASSIGN(StageVariable);
 };
@@ -175,8 +172,7 @@ class NewVersionVariable : public UpdaterVariableBase<string> {
       : UpdaterVariableBase<string>(name, kVariableModePoll, system_state) {}
 
  private:
-  virtual const string* GetValue(TimeDelta /* timeout */,
-                                 string* errmsg) override {
+  const string* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     GetStatusHelper raw(system_state(), errmsg);
     if (!raw.is_success())
       return NULL;
@@ -194,8 +190,7 @@ class PayloadSizeVariable : public UpdaterVariableBase<int64_t> {
       : UpdaterVariableBase<int64_t>(name, kVariableModePoll, system_state) {}
 
  private:
-  virtual const int64_t* GetValue(TimeDelta /* timeout */,
-                                 string* errmsg) override {
+  const int64_t* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     GetStatusHelper raw(system_state(), errmsg);
     if (!raw.is_success())
       return NULL;
@@ -225,8 +220,7 @@ class UpdateCompletedTimeVariable : public UpdaterVariableBase<Time> {
       : UpdaterVariableBase<Time>(name, kVariableModePoll, system_state) {}
 
  private:
-  virtual const Time* GetValue(TimeDelta /* timeout */,
-                               string* errmsg) override {
+  const Time* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     Time update_boottime;
     if (!system_state()->update_attempter()->GetBootTimeAtUpdate(
             &update_boottime)) {
@@ -256,8 +250,7 @@ class CurrChannelVariable : public UpdaterVariableBase<string> {
       : UpdaterVariableBase<string>(name, kVariableModePoll, system_state) {}
 
  private:
-  virtual const string* GetValue(TimeDelta /* timeout */,
-                                 string* errmsg) override {
+  const string* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     OmahaRequestParams* request_params = system_state()->request_params();
     string channel = request_params->current_channel();
     if (channel.empty()) {
@@ -278,8 +271,7 @@ class NewChannelVariable : public UpdaterVariableBase<string> {
       : UpdaterVariableBase<string>(name, kVariableModePoll, system_state) {}
 
  private:
-  virtual const string* GetValue(TimeDelta /* timeout */,
-                                 string* errmsg) override {
+  const string* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     OmahaRequestParams* request_params = system_state()->request_params();
     string channel = request_params->target_channel();
     if (channel.empty()) {
@@ -302,8 +294,7 @@ class BooleanPrefVariable : public UpdaterVariableBase<bool> {
         key_(key), default_val_(default_val) {}
 
  private:
-  virtual const bool* GetValue(TimeDelta /* timeout */,
-                               string* errmsg) override {
+  const bool* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     bool result = default_val_;
     chromeos_update_engine::PrefsInterface* prefs = system_state()->prefs();
     if (prefs && prefs->Exists(key_) && !prefs->GetBoolean(key_, &result)) {
@@ -331,8 +322,8 @@ class ConsecutiveFailedUpdateChecksVariable
                                           system_state) {}
 
  private:
-  virtual const unsigned int* GetValue(TimeDelta /* timeout */,
-                                       string* /* errmsg */) override {
+  const unsigned int* GetValue(TimeDelta /* timeout */,
+                               string* /* errmsg */) override {
     return new unsigned int(
         system_state()->update_attempter()->consecutive_failed_update_checks());
   }
@@ -350,8 +341,8 @@ class ServerDictatedPollIntervalVariable
                                           system_state) {}
 
  private:
-  virtual const unsigned int* GetValue(TimeDelta /* timeout */,
-                                       string* /* errmsg */) override {
+  const unsigned int* GetValue(TimeDelta /* timeout */,
+                               string* /* errmsg */) override {
     return new unsigned int(
         system_state()->update_attempter()->server_dictated_poll_interval());
   }
@@ -373,8 +364,8 @@ class InteractiveUpdateRequestedVariable : public UpdaterVariableBase<bool> {
   }
 
  private:
-  virtual const bool* GetValue(TimeDelta /* timeout */,
-                               string* /* errmsg */) override {
+  const bool* GetValue(TimeDelta /* timeout */,
+                       string* /* errmsg */) override {
     return new bool(interactive_update_requested_);
   }
 

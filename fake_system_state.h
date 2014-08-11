@@ -33,63 +33,52 @@ class FakeSystemState : public SystemState {
   // various members, either the default (fake/mock) or the one set to override
   // it by client code.
 
-  virtual inline ClockInterface* clock() override {
-    return clock_;
-  }
+  inline ClockInterface* clock() override { return clock_; }
 
-  virtual inline void set_device_policy(
+  inline void set_device_policy(
       const policy::DevicePolicy* device_policy) override {
     device_policy_ = device_policy;
   }
 
-  virtual inline const policy::DevicePolicy* device_policy() override {
+  inline const policy::DevicePolicy* device_policy() override {
     return device_policy_;
   }
 
-  virtual inline ConnectionManager* connection_manager() override {
+  inline ConnectionManager* connection_manager() override {
     return connection_manager_;
   }
 
-  virtual inline HardwareInterface* hardware() override {
-    return hardware_;
-  }
+  inline HardwareInterface* hardware() override { return hardware_; }
 
-  virtual inline MetricsLibraryInterface* metrics_lib() override {
+  inline MetricsLibraryInterface* metrics_lib() override {
     return metrics_lib_;
   }
 
-  virtual inline PrefsInterface* prefs() override {
-    return prefs_;
-  }
+  inline PrefsInterface* prefs() override { return prefs_; }
 
-  virtual inline PrefsInterface* powerwash_safe_prefs() override {
+  inline PrefsInterface* powerwash_safe_prefs() override {
     return powerwash_safe_prefs_;
   }
 
-  virtual inline PayloadStateInterface* payload_state() override {
+  inline PayloadStateInterface* payload_state() override {
     return payload_state_;
   }
 
-  virtual inline UpdateAttempter* update_attempter() override {
+  inline UpdateAttempter* update_attempter() override {
     return update_attempter_;
   }
 
-  virtual inline OmahaRequestParams* request_params() override {
+  inline OmahaRequestParams* request_params() override {
     return request_params_;
   }
 
-  virtual inline P2PManager* p2p_manager() override {
-    return p2p_manager_;
-  }
+  inline P2PManager* p2p_manager() override { return p2p_manager_; }
 
-  virtual inline chromeos_update_manager::UpdateManager* update_manager()
-      override {
+  inline chromeos_update_manager::UpdateManager* update_manager() override {
     return update_manager_;
   }
 
-  virtual inline bool system_rebooted() override {
-    return fake_system_rebooted_;
-  }
+  inline bool system_rebooted() override { return fake_system_rebooted_; }
 
   // Setters for the various members, can be used for overriding the default
   // implementations. For convenience, setting to a null pointer will restore
