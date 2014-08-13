@@ -1150,7 +1150,7 @@ void UpdateAttempter::UpdateBootFlags() {
   // the script runtime.
   update_boot_flags_running_ = true;
   LOG(INFO) << "Updating boot flags...";
-  vector<string> cmd(1, "/usr/sbin/chromeos-setgoodkernel");
+  vector<string> cmd{set_good_kernel_cmd_};
   if (!Subprocess::Get().Exec(cmd, StaticCompleteUpdateBootFlags, this)) {
     CompleteUpdateBootFlags(1);
   }

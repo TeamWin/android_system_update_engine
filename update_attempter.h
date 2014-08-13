@@ -457,6 +457,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // True if UpdateBootFlags is running.
   bool update_boot_flags_running_ = false;
 
+  // The command to run to set the current kernel as good.
+  std::string set_good_kernel_cmd_ = "/usr/sbin/chromeos-setgoodkernel";
+
   // True if the action processor needs to be started by the boot flag updater.
   bool start_action_processor_ = false;
 

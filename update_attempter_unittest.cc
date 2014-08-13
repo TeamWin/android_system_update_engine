@@ -71,6 +71,12 @@ class UpdateAttempterTest : public ::testing::Test {
 
     // Finish initializing the attempter.
     attempter_.Init();
+
+    // We set the set_good_kernel command to a non-existent path so it fails to
+    // run it. This avoids the async call to the command and continues the
+    // update process right away. Tests testing that behavior can override the
+    // default set_good_kernel command if needed.
+    attempter_.set_good_kernel_cmd_ = "/path/to/non-existent/command";
   }
 
   virtual void SetUp() {
