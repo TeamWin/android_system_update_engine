@@ -16,28 +16,28 @@
 namespace chromeos_update_engine {
 
 class RealDBusWrapper : public DBusWrapperInterface {
-  virtual DBusGProxy* ProxyNewForName(DBusGConnection* connection,
-                                      const char* name,
-                                      const char* path,
-                                      const char* interface) OVERRIDE {
+  DBusGProxy* ProxyNewForName(DBusGConnection* connection,
+                              const char* name,
+                              const char* path,
+                              const char* interface) override {
     return dbus_g_proxy_new_for_name(connection,
                                      name,
                                      path,
                                      interface);
   }
 
-  virtual void ProxyUnref(DBusGProxy* proxy) OVERRIDE {
+  void ProxyUnref(DBusGProxy* proxy) override {
     g_object_unref(proxy);
   }
 
-  virtual DBusGConnection* BusGet(DBusBusType type, GError** error) OVERRIDE {
+  DBusGConnection* BusGet(DBusBusType type, GError** error) override {
     return dbus_g_bus_get(type, error);
   }
 
-  virtual gboolean ProxyCall_0_1(DBusGProxy* proxy,
-                                 const char* method,
-                                 GError** error,
-                                 GHashTable** out1) OVERRIDE {
+  gboolean ProxyCall_0_1(DBusGProxy* proxy,
+                         const char* method,
+                         GError** error,
+                         GHashTable** out1) override {
     return dbus_g_proxy_call(proxy, method, error, G_TYPE_INVALID,
                              dbus_g_type_get_map("GHashTable",
                                                  G_TYPE_STRING,
@@ -45,89 +45,88 @@ class RealDBusWrapper : public DBusWrapperInterface {
                              out1, G_TYPE_INVALID);
   }
 
-  virtual gboolean ProxyCall_1_0(DBusGProxy* proxy,
-                                 const char* method,
-                                 GError** error,
-                                 gint in1) OVERRIDE {
+  gboolean ProxyCall_1_0(DBusGProxy* proxy,
+                         const char* method,
+                         GError** error,
+                         gint in1) override {
     return dbus_g_proxy_call(proxy, method, error,
                              G_TYPE_INT, in1,
                              G_TYPE_INVALID, G_TYPE_INVALID);
   }
 
-  virtual gboolean ProxyCall_3_0(DBusGProxy* proxy,
-                                 const char* method,
-                                 GError** error,
-                                 const char* in1,
-                                 const char* in2,
-                                 const char* in3) OVERRIDE {
+  gboolean ProxyCall_3_0(DBusGProxy* proxy,
+                         const char* method,
+                         GError** error,
+                         const char* in1,
+                         const char* in2,
+                         const char* in3) override {
     return dbus_g_proxy_call(
         proxy, method, error,
         G_TYPE_STRING, in1, G_TYPE_STRING, in2, G_TYPE_STRING, in3,
         G_TYPE_INVALID, G_TYPE_INVALID);
   }
 
-  virtual void ProxyAddSignal_2(DBusGProxy* proxy,
-                                const char* signal_name,
-                                GType type1,
-                                GType type2) OVERRIDE {
+  void ProxyAddSignal_2(DBusGProxy* proxy,
+                        const char* signal_name,
+                        GType type1,
+                        GType type2) override {
     dbus_g_proxy_add_signal(proxy, signal_name, type1, type2, G_TYPE_INVALID);
   }
 
-  virtual void ProxyConnectSignal(DBusGProxy* proxy,
-                                  const char* signal_name,
-                                  GCallback handler,
-                                  void* data,
-                                  GClosureNotify free_data_func) OVERRIDE {
+  void ProxyConnectSignal(DBusGProxy* proxy,
+                          const char* signal_name,
+                          GCallback handler,
+                          void* data,
+                          GClosureNotify free_data_func) override {
     dbus_g_proxy_connect_signal(proxy, signal_name, handler, data,
                                 free_data_func);
   }
 
-  virtual void ProxyDisconnectSignal(DBusGProxy* proxy,
-                                     const char* signal_name,
-                                     GCallback handler,
-                                     void* data) OVERRIDE {
+  void ProxyDisconnectSignal(DBusGProxy* proxy,
+                             const char* signal_name,
+                             GCallback handler,
+                             void* data) override {
     dbus_g_proxy_disconnect_signal(proxy, signal_name, handler, data);
   }
 
-  virtual DBusConnection* ConnectionGetConnection(
-      DBusGConnection* gbus) OVERRIDE {
+  DBusConnection* ConnectionGetConnection(DBusGConnection* gbus) override {
     return dbus_g_connection_get_connection(gbus);
   }
 
-  virtual void DBusBusAddMatch(DBusConnection* connection,
-                               const char* rule,
-                               DBusError* error) OVERRIDE {
+  void DBusBusAddMatch(DBusConnection* connection,
+                       const char* rule,
+                       DBusError* error) override {
     dbus_bus_add_match(connection, rule, error);
   }
 
-  virtual dbus_bool_t DBusConnectionAddFilter(
+  dbus_bool_t DBusConnectionAddFilter(
       DBusConnection* connection,
       DBusHandleMessageFunction function,
       void* user_data,
-      DBusFreeFunction free_data_function) OVERRIDE {
+      DBusFreeFunction free_data_function) override {
     return dbus_connection_add_filter(connection,
                                       function,
                                       user_data,
                                       free_data_function);
   }
 
-  virtual void DBusConnectionRemoveFilter(DBusConnection* connection,
-                                          DBusHandleMessageFunction function,
-                                          void* user_data) OVERRIDE {
+  void DBusConnectionRemoveFilter(DBusConnection* connection,
+                                  DBusHandleMessageFunction function,
+                                  void* user_data) override {
     dbus_connection_remove_filter(connection, function, user_data);
   }
 
   dbus_bool_t DBusMessageIsSignal(DBusMessage* message,
                                   const char* interface,
-                                  const char* signal_name) OVERRIDE {
+                                  const char* signal_name) override {
     return dbus_message_is_signal(message, interface, signal_name);
   }
 
-  virtual dbus_bool_t DBusMessageGetArgs_3(DBusMessage* message,
-                                           DBusError* error,
-                                           char** out1,
-                                           char** out2,
-                                           char** out3) OVERRIDE {
+  dbus_bool_t DBusMessageGetArgs_3(DBusMessage* message,
+                                   DBusError* error,
+                                   char** out1,
+                                   char** out2,
+                                   char** out3) override {
     return dbus_message_get_args(message, error,
                                  DBUS_TYPE_STRING, out1,
                                  DBUS_TYPE_STRING, out2,
