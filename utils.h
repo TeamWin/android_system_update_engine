@@ -326,7 +326,8 @@ std::string FormatSecs(unsigned secs);
 // as necessary; for example, an output of 5d2h0m15.053s means that the input
 // time was precise to the milliseconds only. Zero padding not applied, except
 // for fractions. Seconds are always shown, but fractions thereof are only shown
-// when applicable.
+// when applicable. If |delta| is negative, the output will have a leading '-'
+// followed by the absolute duration.
 std::string FormatTimeDelta(base::TimeDelta delta);
 
 // This method transforms the given error code to be suitable for UMA and

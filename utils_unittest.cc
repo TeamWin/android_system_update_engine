@@ -459,6 +459,8 @@ TEST(UtilsTest, FormatTimeDeltaTest) {
   EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(200000) +
                                    base::TimeDelta::FromMilliseconds(1)),
             "2d7h33m20.001s");
+  EXPECT_EQ(utils::FormatTimeDelta(base::TimeDelta::FromSeconds(-1)),
+            "-1s");
 }
 
 TEST(UtilsTest, TimeFromStructTimespecTest) {

@@ -843,6 +843,14 @@ string FormatSecs(unsigned secs) {
 }
 
 string FormatTimeDelta(TimeDelta delta) {
+  string str;
+
+  // Handle negative durations by prefixing with a minus.
+  if (delta.ToInternalValue() < 0) {
+    delta *= -1;
+    str = "-";
+  }
+
   // Canonicalize into days, hours, minutes, seconds and microseconds.
   unsigned days = delta.InDays();
   delta -= TimeDelta::FromDays(days);
@@ -854,8 +862,6 @@ string FormatTimeDelta(TimeDelta delta) {
   delta -= TimeDelta::FromSeconds(secs);
   unsigned usecs = delta.InMicroseconds();
 
-  // Construct and return string.
-  string str;
   if (days)
     base::StringAppendF(&str, "%ud", days);
   if (days || hours)
