@@ -10,9 +10,9 @@
 #include <vector>
 
 #include <base/basictypes.h>
+#include <base/callback.h>
 #include <base/logging.h>
 #include <glib.h>
-#include <google/protobuf/stubs/common.h>
 
 #include "update_engine/http_common.h"
 #include "update_engine/proxy_resolver.h"
@@ -59,8 +59,7 @@ class HttpFetcher {
 
   // Proxy methods to set the proxies, then to pop them off.
   // Returns true on success.
-  bool ResolveProxiesForUrl(const std::string& url,
-                            google::protobuf::Closure* callback);
+  bool ResolveProxiesForUrl(const std::string& url, base::Closure* callback);
 
   void SetProxies(const std::deque<std::string>& proxies) {
     proxies_ = proxies;
@@ -150,7 +149,7 @@ class HttpFetcher {
   guint no_resolver_idle_id_;
 
   // Callback for when we are resolving proxies
-  google::protobuf::Closure* callback_;
+  base::Closure* callback_;
 
   // Global system context.
   SystemState* system_state_;

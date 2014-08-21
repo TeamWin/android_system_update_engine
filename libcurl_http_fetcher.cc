@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string>
 
+#include <base/bind.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -15,7 +16,6 @@
 #include "update_engine/hardware_interface.h"
 #include "update_engine/utils.h"
 
-using google::protobuf::NewPermanentCallback;
 using std::make_pair;
 using std::max;
 using std::string;
@@ -221,9 +221,9 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttps() {
 void LibcurlHttpFetcher::BeginTransfer(const std::string& url) {
   CHECK(!transfer_in_progress_);
   url_ = url;
-  if (!ResolveProxiesForUrl(
-          url_,
-          NewPermanentCallback(this, &LibcurlHttpFetcher::ProxiesResolved))) {
+  auto closure = base::Bind(&LibcurlHttpFetcher::ProxiesResolved,
+                            base::Unretained(this));
+  if (!ResolveProxiesForUrl(url_, new base::Closure(closure))) {
     LOG(ERROR) << "Couldn't resolve proxies";
     if (delegate_)
       delegate_->TransferComplete(this, false);

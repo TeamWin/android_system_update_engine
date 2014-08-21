@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include <base/callback.h>
 #include <base/file_util.h>
 #include <base/files/file_path.h>
 #include <base/files/scoped_file.h>
@@ -36,7 +37,6 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <glib.h>
-#include <google/protobuf/stubs/common.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"
@@ -828,14 +828,13 @@ int FuzzInt(int value, unsigned int range) {
 }
 
 gboolean GlibRunClosure(gpointer data) {
-  google::protobuf::Closure* callback =
-      reinterpret_cast<google::protobuf::Closure*>(data);
+  base::Closure* callback = reinterpret_cast<base::Closure*>(data);
   callback->Run();
   return FALSE;
 }
 
 void GlibDestroyClosure(gpointer data) {
-  delete reinterpret_cast<google::protobuf::Closure*>(data);
+  delete reinterpret_cast<base::Closure*>(data);
 }
 
 string FormatSecs(unsigned secs) {

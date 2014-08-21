@@ -4,7 +4,7 @@
 
 #include "update_engine/http_fetcher.h"
 
-using google::protobuf::Closure;
+using base::Closure;
 using std::deque;
 using std::string;
 

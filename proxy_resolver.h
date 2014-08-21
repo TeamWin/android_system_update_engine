@@ -10,7 +10,6 @@
 #include <string>
 
 #include <base/logging.h>
-#include <google/protobuf/stubs/common.h>
 
 #include "update_engine/utils.h"
 

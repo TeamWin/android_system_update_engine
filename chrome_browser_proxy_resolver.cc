@@ -9,11 +9,11 @@
 #include <string>
 #include <utility>
 
+#include <base/bind.h>
 #include <base/strings/string_tokenizer.h>
 #include <base/strings/string_util.h>
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus-glib.h>
-#include <google/protobuf/stubs/common.h>
 
 #include "update_engine/dbus_constants.h"
 #include "update_engine/glib_utils.h"
@@ -22,8 +22,6 @@
 namespace chromeos_update_engine {
 
 using base::StringTokenizer;
-using google::protobuf::Closure;
-using google::protobuf::NewPermanentCallback;
 using std::deque;
 using std::make_pair;
 using std::multimap;
@@ -141,10 +139,10 @@ bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
   }
 
   callbacks_.insert(make_pair(url, make_pair(callback, data)));
-  Closure* closure = NewPermanentCallback(
-      this,
+  base::Closure* closure = new base::Closure(base::Bind(
       &ChromeBrowserProxyResolver::HandleTimeout,
-      url);
+      base::Unretained(this),
+      url));
   GSource* timer = g_timeout_source_new_seconds(timeout);
   g_source_set_callback(
       timer, utils::GlibRunClosure, closure, utils::GlibDestroyClosure);

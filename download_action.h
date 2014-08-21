@@ -13,7 +13,6 @@
 
 #include <base/memory/scoped_ptr.h>
 #include <curl/curl.h>
-#include <google/protobuf/stubs/common.h>
 
 #include "update_engine/action.h"
 #include "update_engine/delta_performer.h"

@@ -4,6 +4,8 @@
 
 #include "update_engine/proxy_resolver.h"
 
+#include <base/bind.h>
+
 using std::deque;
 using std::string;
 
@@ -21,11 +23,11 @@ DirectProxyResolver::~DirectProxyResolver() {
 bool DirectProxyResolver::GetProxiesForUrl(const std::string& url,
                                            ProxiesResolvedFn callback,
                                            void* data) {
-  google::protobuf::Closure* closure = google::protobuf::NewPermanentCallback(
-      this,
+  base::Closure* closure = new base::Closure(base::Bind(
       &DirectProxyResolver::ReturnCallback,
+      base::Unretained(this),
       callback,
-      data);
+      data));
   idle_callback_id_ = g_idle_add_full(
       G_PRIORITY_DEFAULT,
       utils::GlibRunClosure,

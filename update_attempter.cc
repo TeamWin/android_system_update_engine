@@ -53,7 +53,6 @@ using base::StringPrintf;
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
-using google::protobuf::NewPermanentCallback;
 using std::make_pair;
 using std::set;
 using std::shared_ptr;
