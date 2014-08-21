@@ -193,7 +193,8 @@ void UpdateAttempter::ReportOSAge() {
     return;
 
   if (stat("/etc/lsb-release", &sb) != 0) {
-    PLOG(ERROR) << "Error getting file status for /etc/lsb-release";
+    PLOG(ERROR) << "Error getting file status for /etc/lsb-release "
+                << "(Note: this may happen in some unit tests)";
     return;
   }
 
@@ -202,7 +203,8 @@ void UpdateAttempter::ReportOSAge() {
   base::TimeDelta age = now - lsb_release_timestamp;
   if (age.InSeconds() < 0) {
     LOG(ERROR) << "The OS age (" << utils::FormatTimeDelta(age)
-               << ") is negative. Maybe the clock is wrong?";
+               << ") is negative. Maybe the clock is wrong? "
+               << "(Note: this may happen in some unit tests.)";
     return;
   }
 
