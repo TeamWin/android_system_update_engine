@@ -75,6 +75,18 @@ string GetNoUpdateResponse(const string& app_id) {
       "status=\"ok\"/><updatecheck status=\"noupdate\"/></app></response>";
 }
 
+string GetNoUpdateResponseWithEntity(const string& app_id) {
+  return string(
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+      "<!DOCTYPE response ["
+      "<!ENTITY CrOS \"ChromeOS\">"
+      "]>"
+      "<response protocol=\"3.0\">"
+      "<daystart elapsed_seconds=\"100\"/>"
+      "<app appid=\"") + app_id + "\" status=\"ok\"><ping "
+      "status=\"ok\"/><updatecheck status=\"noupdate\"/></app></response>";
+}
+
 string GetUpdateResponse2(const string& app_id,
                           const string& version,
                           const string& more_info_url,
@@ -326,6 +338,26 @@ void TestEvent(OmahaRequestParams params,
   g_main_loop_unref(loop);
   if (out_post_data)
     *out_post_data = fetcher->post_data();
+}
+
+TEST(OmahaRequestActionTest, RejectEntities) {
+  OmahaResponse response;
+  ASSERT_FALSE(
+      TestUpdateCheck(NULL,  // prefs
+                      NULL,  // payload_state
+                      NULL,  // p2p_manager
+                      NULL,  // connection_manager
+                      &kDefaultTestParams,
+                      GetNoUpdateResponseWithEntity(OmahaRequestParams::kAppId),
+                      -1,
+                      false,  // ping_only
+                      ErrorCode::kOmahaRequestXMLHasEntityDecl,
+                      metrics::CheckResult::kParsingError,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
+                      &response,
+                      NULL));
+  EXPECT_FALSE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, NoUpdateTest) {

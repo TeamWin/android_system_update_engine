@@ -256,8 +256,14 @@ string GetRequestXml(const OmahaEvent* event,
 
 // Struct used for holding data obtained when parsing the XML.
 struct OmahaParserData {
+  explicit OmahaParserData(XML_Parser _xml_parser) : xml_parser(_xml_parser) {}
+
+  // Pointer to the expat XML_Parser object.
+  XML_Parser xml_parser;
+
   // This is the state of the parser as it's processing the XML.
   bool failed = false;
+  bool entity_decl = false;
   string current_path;
 
   // These are the values extracted from the XML.
@@ -336,6 +342,29 @@ void ParserHandlerEnd(void* user_data, const XML_Char* element) {
     return;
   }
   data->current_path.resize(data->current_path.size() - path_suffix.size());
+}
+
+// Callback function invoked by expat.
+//
+// This is called for entity declarations. Since Omaha is guaranteed
+// to never return any XML with entities our course of action is to
+// just stop parsing. This avoids potential resource exhaustion
+// problems AKA the "billion laughs". CVE-2013-0340.
+void ParserHandlerEntityDecl(void *user_data,
+                             const XML_Char *entity_name,
+                             int is_parameter_entity,
+                             const XML_Char *value,
+                             int value_length,
+                             const XML_Char *base,
+                             const XML_Char *system_id,
+                             const XML_Char *public_id,
+                             const XML_Char *notation_name) {
+  OmahaParserData* data = reinterpret_cast<OmahaParserData*>(user_data);
+
+  LOG(ERROR) << "XML entities are not supported. Aborting parsing.";
+  data->failed = true;
+  data->entity_decl = true;
+  XML_StopParser(data->xml_parser, false);
 }
 
 }  // namespace
@@ -757,18 +786,23 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   }
 
   XML_Parser parser = XML_ParserCreate(nullptr);
-  OmahaParserData parser_data;
+  OmahaParserData parser_data(parser);
   XML_SetUserData(parser, &parser_data);
   XML_SetElementHandler(parser, ParserHandlerStart, ParserHandlerEnd);
+  XML_SetEntityDeclHandler(parser, ParserHandlerEntityDecl);
   XML_Status res = XML_Parse(parser, &response_buffer_[0],
                              response_buffer_.size(), XML_TRUE);
   XML_ParserFree(parser);
 
   if (res != XML_STATUS_OK || parser_data.failed) {
     LOG(ERROR) << "Omaha response not valid XML";
-    completer.set_code(response_buffer_.empty() ?
-                       ErrorCode::kOmahaRequestEmptyResponseError :
-                       ErrorCode::kOmahaRequestXMLParseError);
+    ErrorCode error_code = ErrorCode::kOmahaRequestXMLParseError;
+    if (response_buffer_.empty()) {
+      error_code = ErrorCode::kOmahaRequestEmptyResponseError;
+    } else if (parser_data.entity_decl) {
+      error_code = ErrorCode::kOmahaRequestXMLHasEntityDecl;
+    }
+    completer.set_code(error_code);
     return;
   }
 

@@ -1014,6 +1014,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kOmahaUpdateDeferredForBackoff:
     case ErrorCode::kPostinstallPowerwashError:
     case ErrorCode::kUpdateCanceledByChannelChange:
+    case ErrorCode::kOmahaRequestXMLHasEntityDecl:
       return metrics::AttemptResult::kInternalError;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -1111,6 +1112,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kPostinstallFirmwareRONotUpdatable:
     case ErrorCode::kUnsupportedMajorPayloadVersion:
     case ErrorCode::kUnsupportedMinorPayloadVersion:
+    case ErrorCode::kOmahaRequestXMLHasEntityDecl:
       break;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -1328,6 +1330,8 @@ string CodeToString(ErrorCode code) {
       return "ErrorCode::kUnsupportedMajorPayloadVersion";
     case ErrorCode::kUnsupportedMinorPayloadVersion:
       return "ErrorCode::kUnsupportedMinorPayloadVersion";
+    case ErrorCode::kOmahaRequestXMLHasEntityDecl:
+      return "ErrorCode::kOmahaRequestXMLHasEntityDecl";
     // Don't add a default case to let the compiler warn about newly added
     // error codes which should be added here.
   }

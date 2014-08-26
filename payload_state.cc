@@ -328,6 +328,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kOmahaUpdateDeferredForBackoff:
     case ErrorCode::kPostinstallPowerwashError:
     case ErrorCode::kUpdateCanceledByChannelChange:
+    case ErrorCode::kOmahaRequestXMLHasEntityDecl:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 

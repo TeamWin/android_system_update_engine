@@ -57,6 +57,7 @@ enum class ErrorCode : int {
   kPostinstallFirmwareRONotUpdatable = 43,
   kUnsupportedMajorPayloadVersion = 44,
   kUnsupportedMinorPayloadVersion = 45,
+  kOmahaRequestXMLHasEntityDecl = 46,
 
   // VERY IMPORTANT! When adding new error codes:
   //
