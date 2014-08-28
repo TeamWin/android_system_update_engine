@@ -77,10 +77,10 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   const vector<char>::size_type kDecompressedLength = 2048 * 1024;  // 2 MiB
   string decompressed_path;
   ASSERT_TRUE(utils::MakeTempFile("BzipExtentWriterTest-decompressed-XXXXXX",
-                                  &decompressed_path, NULL));
+                                  &decompressed_path, nullptr));
   string compressed_path;
   ASSERT_TRUE(utils::MakeTempFile("BzipExtentWriterTest-compressed-XXXXXX",
-                                  &compressed_path, NULL));
+                                  &compressed_path, nullptr));
   const size_t kChunkSize = 3;
 
   vector<Extent> extents;

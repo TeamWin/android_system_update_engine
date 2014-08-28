@@ -49,7 +49,7 @@ class P2PManager {
   typedef base::Callback<void(const std::string& url)> LookupCallback;
 
   // Use the device policy specified by |device_policy|. If this is
-  // NULL, then no device policy is used.
+  // null, then no device policy is used.
   virtual void SetDevicePolicy(const policy::DevicePolicy* device_policy) = 0;
 
   // Returns true if - and only if - P2P should be used on this
@@ -133,7 +133,7 @@ class P2PManager {
   virtual ssize_t FileGetExpectedSize(const std::string& file_id) = 0;
 
   // Gets whether the file identified by |file_id| is publicly
-  // visible. If |out_result| is not NULL, the result is returned
+  // visible. If |out_result| is not null, the result is returned
   // there. Returns false if an error occurs.
   virtual bool FileGetVisible(const std::string& file_id,
                               bool *out_result) = 0;
@@ -152,7 +152,7 @@ class P2PManager {
   // Creates a suitable P2PManager instance and initializes the object
   // so it's ready for use. The |file_extension| parameter is used to
   // identify your application, use e.g. "cros_au".  If
-  // |configuration| is non-NULL, the P2PManager will take ownership
+  // |configuration| is non-null, the P2PManager will take ownership
   // of the Configuration object and use it (hence, it must be
   // heap-allocated).
   //

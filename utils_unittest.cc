@@ -315,9 +315,9 @@ TEST(UtilsTest, ApplyMapTest) {
 
 TEST(UtilsTest, RunAsRootGetFilesystemSizeTest) {
   string img;
-  EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, nullptr));
   ScopedPathUnlinker img_unlinker(img);
-  CreateExtImageAtPath(img, NULL);
+  CreateExtImageAtPath(img, nullptr);
   // Extend the "partition" holding the file system from 10MiB to 20MiB.
   EXPECT_EQ(0, System(base::StringPrintf(
       "dd if=/dev/zero of=%s seek=20971519 bs=1 count=1",

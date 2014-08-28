@@ -185,7 +185,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   if (signature_test == kSignatureGeneratedShellBadKey) {
     ASSERT_TRUE(utils::MakeTempFile("key.XXXXXX",
                                     &private_key_path,
-                                    NULL));
+                                    nullptr));
   } else {
     ASSERT_TRUE(signature_test == kSignatureGeneratedShell ||
                 signature_test == kSignatureGeneratedShellRotateCl1 ||
@@ -203,7 +203,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   }
   int signature_size = GetSignatureSize(private_key_path);
   string hash_file;
-  ASSERT_TRUE(utils::MakeTempFile("hash.XXXXXX", &hash_file, NULL));
+  ASSERT_TRUE(utils::MakeTempFile("hash.XXXXXX", &hash_file, nullptr));
   ScopedPathUnlinker hash_unlinker(hash_file);
   string signature_size_string;
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
@@ -227,7 +227,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   ASSERT_TRUE(WriteFileVector(hash_file, hash));
 
   string sig_file;
-  ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file, NULL));
+  ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file, nullptr));
   ScopedPathUnlinker sig_unlinker(sig_file);
   ASSERT_EQ(0,
             System(base::StringPrintf(
@@ -237,7 +237,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
                 hash_file.c_str(),
                 sig_file.c_str())));
   string sig_file2;
-  ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file2, NULL));
+  ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file2, nullptr));
   ScopedPathUnlinker sig2_unlinker(sig_file2);
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2) {
@@ -279,9 +279,9 @@ static void GenerateDeltaFile(bool full_kernel,
                               off_t chunk_size,
                               SignatureTest signature_test,
                               DeltaState *state) {
-  EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &state->a_img, NULL));
-  EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &state->b_img, NULL));
-  CreateExtImageAtPath(state->a_img, NULL);
+  EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &state->a_img, nullptr));
+  EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &state->b_img, nullptr));
+  CreateExtImageAtPath(state->a_img, nullptr);
 
   state->image_size = static_cast<int>(utils::FileSize(state->a_img));
 
@@ -357,7 +357,7 @@ static void GenerateDeltaFile(bool full_kernel,
                                base::FilePath(state->b_img)));
     old_image_info = new_image_info;
   } else {
-    CreateExtImageAtPath(state->b_img, NULL);
+    CreateExtImageAtPath(state->b_img, nullptr);
     EXPECT_EQ(0, System(base::StringPrintf(
         "dd if=/dev/zero of=%s seek=%d bs=1 count=1",
         state->b_img.c_str(),
@@ -428,12 +428,12 @@ static void GenerateDeltaFile(bool full_kernel,
   string old_kernel;
   EXPECT_TRUE(utils::MakeTempFile("old_kernel.XXXXXX",
                                   &state->old_kernel,
-                                  NULL));
+                                  nullptr));
 
   string new_kernel;
   EXPECT_TRUE(utils::MakeTempFile("new_kernel.XXXXXX",
                                   &state->new_kernel,
-                                  NULL));
+                                  nullptr));
 
   state->old_kernel_data.resize(kDefaultKernelSize);
   state->new_kernel_data.resize(state->old_kernel_data.size());
@@ -457,7 +457,7 @@ static void GenerateDeltaFile(bool full_kernel,
 
   EXPECT_TRUE(utils::MakeTempFile("delta.XXXXXX",
                                   &state->delta_path,
-                                  NULL));
+                                  nullptr));
   LOG(INFO) << "delta path: " << state->delta_path;
   {
     string a_mnt, b_mnt;
@@ -477,7 +477,7 @@ static void GenerateDeltaFile(bool full_kernel,
             private_key,
             chunk_size,
             kRootFSPartitionSize,
-            full_rootfs ? NULL : &old_image_info,
+            full_rootfs ? nullptr : &old_image_info,
             &new_image_info,
             &state->metadata_size));
   }
@@ -732,7 +732,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
                          DeltaState* state,
                          ErrorCode expected_result) {
   if (!performer) {
-    EXPECT_TRUE(!"Skipping payload verification since performer is NULL.");
+    EXPECT_TRUE(!"Skipping payload verification since performer is null.");
     return;
   }
 

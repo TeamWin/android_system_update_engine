@@ -101,7 +101,7 @@ TEST(SubprocessTest, SynchronousEchoNoOutputTest) {
   cmd.push_back("-c");
   cmd.push_back("echo test");
   int rc = -1;
-  ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, NULL));
+  ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, nullptr));
   EXPECT_EQ(0, rc);
 }
 
@@ -136,7 +136,7 @@ gboolean StartAndCancelInRunLoop(gpointer data) {
   vector<string> cmd;
   cmd.push_back("./test_http_server");
   cmd.push_back(temp_file_name);
-  uint32_t tag = Subprocess::Get().Exec(cmd, CallbackBad, NULL);
+  uint32_t tag = Subprocess::Get().Exec(cmd, CallbackBad, nullptr);
   EXPECT_NE(0, tag);
   cancel_test_data->spawned = true;
   printf("test http server spawned\n");

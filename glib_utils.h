@@ -13,7 +13,7 @@ namespace chromeos_update_engine {
 namespace utils {
 
 // Returns the error message, if any, from a GError pointer. Frees the GError
-// object and resets error to NULL.
+// object and resets error to null.
 std::string GetAndFreeGError(GError** error);
 
 }  // namespace utils

@@ -95,11 +95,13 @@ class PythonHttpServer : public HttpServer {
     // Spawn the server process.
     gchar *argv[] = {
       const_cast<gchar*>("./test_http_server"),
-      NULL };
+      nullptr
+    };
     GError *err;
     gint server_stdout = -1;
-    if (!g_spawn_async_with_pipes(NULL, argv, NULL, G_SPAWN_DO_NOT_REAP_CHILD,
-                                  NULL, NULL, &pid_, NULL, &server_stdout, NULL,
+    if (!g_spawn_async_with_pipes(nullptr, argv, nullptr,
+                                  G_SPAWN_DO_NOT_REAP_CHILD, nullptr, nullptr,
+                                  &pid_, nullptr, &server_stdout, nullptr,
                                   &err)) {
       LOG(ERROR) << "failed to spawn http server process";
       return;
@@ -612,8 +614,8 @@ TYPED_TEST(HttpFetcherTest, AbortTest) {
     GSource* timeout_source_;
     timeout_source_ = g_timeout_source_new(0);  // ms
     g_source_set_callback(timeout_source_, AbortingTimeoutCallback, &delegate,
-                          NULL);
-    g_source_attach(timeout_source_, NULL);
+                          nullptr);
+    g_source_attach(timeout_source_, nullptr);
     delegate.fetcher_->BeginTransfer(this->test_.BigUrl(server->GetPort()));
 
     g_main_loop_run(loop);
@@ -686,7 +688,7 @@ namespace {
 class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
   explicit FailureHttpFetcherTestDelegate(PythonHttpServer* server)
-      : loop_(NULL),
+      : loop_(nullptr),
         server_(server) {}
 
   virtual ~FailureHttpFetcherTestDelegate() {
@@ -703,7 +705,7 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
       LOG(INFO) << "Stopping server in ReceivedBytes";
       delete server_;
       LOG(INFO) << "server stopped";
-      server_ = NULL;
+      server_ = nullptr;
     }
   }
   virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
@@ -727,7 +729,7 @@ TYPED_TEST(HttpFetcherTest, FailureTest) {
     return;
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   {
-    FailureHttpFetcherTestDelegate delegate(NULL);
+    FailureHttpFetcherTestDelegate delegate(nullptr);
     delegate.loop_ = loop;
     scoped_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
     fetcher->set_delegate(&delegate);
@@ -906,7 +908,7 @@ class MultiHttpFetcherTestDelegate : public HttpFetcherDelegate {
     if (expected_response_code_ != 0)
       EXPECT_EQ(expected_response_code_, fetcher->http_response_code());
     // Destroy the fetcher (because we're allowed to).
-    fetcher_.reset(NULL);
+    fetcher_.reset(nullptr);
     g_main_loop_quit(loop_);
   }
 

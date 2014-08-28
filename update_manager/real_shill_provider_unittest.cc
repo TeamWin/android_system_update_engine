@@ -82,7 +82,7 @@ class UmRealShillProviderTest : public ::testing::Test {
       Shutdown();
 
     provider_.reset(new RealShillProvider(&mock_dbus_, &fake_clock_));
-    UMTEST_ASSERT_NOT_NULL(provider_.get());
+    ASSERT_NE(nullptr, provider_.get());
     fake_clock_.SetWallclockTime(InitTime());
 
     // A DBus connection should only be obtained once.

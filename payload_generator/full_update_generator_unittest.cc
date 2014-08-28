@@ -35,14 +35,14 @@ TEST(FullUpdateGeneratorTest, RunTest) {
   string new_root_path;
   EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_R.XXXXXX",
                                   &new_root_path,
-                                  NULL));
+                                  nullptr));
   ScopedPathUnlinker new_root_path_unlinker(new_root_path);
   EXPECT_TRUE(WriteFileVector(new_root_path, new_root));
 
   string new_kern_path;
   EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_K.XXXXXX",
                                   &new_kern_path,
-                                  NULL));
+                                  nullptr));
   ScopedPathUnlinker new_kern_path_unlinker(new_kern_path);
   EXPECT_TRUE(WriteFileVector(new_kern_path, new_kern));
 

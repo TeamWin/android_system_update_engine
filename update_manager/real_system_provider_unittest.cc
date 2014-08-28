@@ -25,9 +25,9 @@ class UmRealSystemProviderTest : public ::testing::Test {
 };
 
 TEST_F(UmRealSystemProviderTest, InitTest) {
-  UMTEST_EXPECT_NOT_NULL(provider_->var_is_normal_boot_mode());
-  UMTEST_EXPECT_NOT_NULL(provider_->var_is_official_build());
-  UMTEST_EXPECT_NOT_NULL(provider_->var_is_oobe_complete());
+  EXPECT_NE(nullptr, provider_->var_is_normal_boot_mode());
+  EXPECT_NE(nullptr, provider_->var_is_official_build());
+  EXPECT_NE(nullptr, provider_->var_is_oobe_complete());
 }
 
 TEST_F(UmRealSystemProviderTest, IsOOBECompleteTrue) {

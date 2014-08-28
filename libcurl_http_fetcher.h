@@ -30,10 +30,10 @@ class LibcurlHttpFetcher : public HttpFetcher {
   LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
                      SystemState* system_state)
       : HttpFetcher(proxy_resolver, system_state),
-        curl_multi_handle_(NULL),
-        curl_handle_(NULL),
-        curl_http_headers_(NULL),
-        timeout_source_(NULL),
+        curl_multi_handle_(nullptr),
+        curl_handle_(nullptr),
+        curl_http_headers_(nullptr),
+        timeout_source_(nullptr),
         transfer_in_progress_(false),
         transfer_size_(0),
         bytes_downloaded_(0),
@@ -218,7 +218,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
   typedef std::map<int, std::pair<GIOChannel*, guint>> IOChannels;
   IOChannels io_channels_[2];
 
-  // if non-NULL, a timer we're waiting on. glib main loop will call us back
+  // if non-null, a timer we're waiting on. glib main loop will call us back
   // when it fires.
   GSource* timeout_source_;
 

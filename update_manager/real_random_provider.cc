@@ -51,7 +51,7 @@ class RandomSeedVariable : public Variable<uint64_t> {
           *errmsg = base::StringPrintf(
               "Error reading from the random device: %s", kRandomDevice);
         }
-        return NULL;
+        return nullptr;
       }
       buf_rd += rd;
     }

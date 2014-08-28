@@ -319,7 +319,7 @@ static gboolean RunGMainLoopOnTimeout(gpointer user_data) {
 }
 
 void RunGMainLoopUntil(int timeout_msec, base::Callback<bool()> terminate) {
-  GMainLoop* loop = g_main_loop_new(NULL, FALSE);
+  GMainLoop* loop = g_main_loop_new(nullptr, FALSE);
   GMainContext* context = g_main_context_default();
 
   bool timeout = false;

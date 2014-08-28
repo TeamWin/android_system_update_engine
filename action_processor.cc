@@ -12,7 +12,7 @@ using std::string;
 namespace chromeos_update_engine {
 
 ActionProcessor::ActionProcessor()
-    : current_action_(NULL), delegate_(NULL) {}
+    : current_action_(nullptr), delegate_(nullptr) {}
 
 ActionProcessor::~ActionProcessor() {
   if (IsRunning()) {
@@ -20,7 +20,7 @@ ActionProcessor::~ActionProcessor() {
   }
   for (std::deque<AbstractAction*>::iterator it = actions_.begin();
        it != actions_.end(); ++it) {
-    (*it)->SetProcessor(NULL);
+    (*it)->SetProcessor(nullptr);
   }
 }
 
@@ -45,10 +45,10 @@ void ActionProcessor::StopProcessing() {
   CHECK(current_action_);
   current_action_->TerminateProcessing();
   CHECK(current_action_);
-  current_action_->SetProcessor(NULL);
+  current_action_->SetProcessor(nullptr);
   LOG(INFO) << "ActionProcessor::StopProcessing: aborted "
             << current_action_->Type();
-  current_action_ = NULL;
+  current_action_ = nullptr;
   if (delegate_)
     delegate_->ProcessingStopped(this);
 }
@@ -60,8 +60,8 @@ void ActionProcessor::ActionComplete(AbstractAction* actionptr,
     delegate_->ActionCompleted(this, actionptr, code);
   string old_type = current_action_->Type();
   current_action_->ActionCompleted(code);
-  current_action_->SetProcessor(NULL);
-  current_action_ = NULL;
+  current_action_->SetProcessor(nullptr);
+  current_action_ = nullptr;
   if (actions_.empty()) {
     LOG(INFO) << "ActionProcessor::ActionComplete: finished last action of"
                  " type " << old_type;

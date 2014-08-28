@@ -64,9 +64,9 @@ class DeltaDiffGeneratorTest : public ::testing::Test {
 
   virtual void SetUp() {
     ASSERT_TRUE(utils::MakeTempFile("DeltaDiffGeneratorTest-old_path-XXXXXX",
-                                    &old_path_, NULL));
+                                    &old_path_, nullptr));
     ASSERT_TRUE(utils::MakeTempFile("DeltaDiffGeneratorTest-new_path-XXXXXX",
-                                    &new_path_, NULL));
+                                    &new_path_, nullptr));
   }
 
   virtual void TearDown() {
@@ -556,8 +556,8 @@ TEST_F(DeltaDiffGeneratorTest, CutEdgesTest) {
 
 TEST_F(DeltaDiffGeneratorTest, ReorderBlobsTest) {
   string orig_blobs;
-  EXPECT_TRUE(
-      utils::MakeTempFile("ReorderBlobsTest.orig.XXXXXX", &orig_blobs, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("ReorderBlobsTest.orig.XXXXXX", &orig_blobs,
+                                  nullptr));
 
   string orig_data = "abcd";
   EXPECT_TRUE(
@@ -565,7 +565,7 @@ TEST_F(DeltaDiffGeneratorTest, ReorderBlobsTest) {
 
   string new_blobs;
   EXPECT_TRUE(
-      utils::MakeTempFile("ReorderBlobsTest.new.XXXXXX", &new_blobs, NULL));
+      utils::MakeTempFile("ReorderBlobsTest.new.XXXXXX", &new_blobs, nullptr));
 
   DeltaArchiveManifest manifest;
   DeltaArchiveManifest_InstallOperation* op =
@@ -718,7 +718,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootAssignTempBlocksTest) {
 
   int fd;
   EXPECT_TRUE(utils::MakeTempFile("AssignTempBlocksTestData.XXXXXX",
-                                  NULL,
+                                  nullptr,
                                   &fd));
   ScopedFdCloser fd_closer(&fd);
   off_t data_file_size = 0;
@@ -835,7 +835,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootNoSparseAsTempTest) {
 
   int fd = -1;
   EXPECT_TRUE(utils::MakeTempFile("NoSparseAsTempTestData.XXXXXX",
-                                  NULL,
+                                  nullptr,
                                   &fd));
   ScopedFdCloser fd_closer(&fd);
   off_t data_file_size = 0;
@@ -1096,7 +1096,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootAssignTempBlocksReuseTest) {
 
   int fd;
   EXPECT_TRUE(utils::MakeTempFile("AssignTempBlocksReuseTest.XXXXXX",
-                                  NULL,
+                                  nullptr,
                                   &fd));
   ScopedFdCloser fd_closer(&fd);
   off_t data_file_size = 0;

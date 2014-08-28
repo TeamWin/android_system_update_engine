@@ -22,7 +22,7 @@ class UmRealTimeProviderTest : public ::testing::Test {
   virtual void SetUp() {
     // The provider initializes correctly.
     provider_.reset(new RealTimeProvider(&fake_clock_));
-    UMTEST_ASSERT_NOT_NULL(provider_.get());
+    ASSERT_NE(nullptr, provider_.get());
     ASSERT_TRUE(provider_->Init());
   }
 

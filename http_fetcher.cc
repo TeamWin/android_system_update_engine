@@ -41,7 +41,7 @@ bool HttpFetcher::ResolveProxiesForUrl(const string& url, Closure* callback) {
         utils::GlibDestroyClosure);
     return true;
   }
-  CHECK_EQ(reinterpret_cast<Closure*>(NULL), callback_);
+  CHECK_EQ(static_cast<Closure*>(nullptr), callback_);
   callback_ = callback;
   return proxy_resolver_->GetProxiesForUrl(url,
                                            &HttpFetcher::StaticProxiesResolved,
@@ -52,9 +52,9 @@ void HttpFetcher::ProxiesResolved(const std::deque<std::string>& proxies) {
   no_resolver_idle_id_ = 0;
   if (!proxies.empty())
     SetProxies(proxies);
-  CHECK_NE(reinterpret_cast<Closure*>(NULL), callback_);
+  CHECK_NE(static_cast<Closure*>(nullptr), callback_);
   Closure* callback = callback_;
-  callback_ = NULL;
+  callback_ = nullptr;
   // This may indirectly call back into ResolveProxiesForUrl():
   callback->Run();
   delete callback;

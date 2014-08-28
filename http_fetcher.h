@@ -37,11 +37,11 @@ class HttpFetcher {
   HttpFetcher(ProxyResolver* proxy_resolver, SystemState* system_state)
       : post_data_set_(false),
         http_response_code_(0),
-        delegate_(NULL),
+        delegate_(nullptr),
         proxies_(1, kNoProxy),
         proxy_resolver_(proxy_resolver),
         no_resolver_idle_id_(0),
-        callback_(NULL),
+        callback_(nullptr),
         system_state_(system_state) {}
   virtual ~HttpFetcher();
 
@@ -137,7 +137,7 @@ class HttpFetcher {
   // set to the response code when the transfer is complete.
   int http_response_code_;
 
-  // The delegate; may be NULL.
+  // The delegate; may be null.
   HttpFetcherDelegate* delegate_;
 
   // Proxy servers

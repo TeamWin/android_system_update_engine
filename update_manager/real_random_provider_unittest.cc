@@ -17,7 +17,7 @@ class UmRealRandomProviderTest : public ::testing::Test {
   virtual void SetUp() {
     // The provider initializes correctly.
     provider_.reset(new RealRandomProvider());
-    UMTEST_ASSERT_NOT_NULL(provider_.get());
+    ASSERT_NE(nullptr, provider_.get());
     ASSERT_TRUE(provider_->Init());
 
     provider_->var_seed();
@@ -28,14 +28,14 @@ class UmRealRandomProviderTest : public ::testing::Test {
 
 TEST_F(UmRealRandomProviderTest, InitFinalize) {
   // The provider initializes all variables with valid objects.
-  UMTEST_EXPECT_NOT_NULL(provider_->var_seed());
+  EXPECT_NE(nullptr, provider_->var_seed());
 }
 
 TEST_F(UmRealRandomProviderTest, GetRandomValues) {
   // Should not return the same random seed repeatedly.
   scoped_ptr<const uint64_t> value(
       provider_->var_seed()->GetValue(UmTestUtils::DefaultTimeout(), nullptr));
-  UMTEST_ASSERT_NOT_NULL(value.get());
+  ASSERT_NE(nullptr, value.get());
 
   // Test that at least the returned values are different. This test fails,
   // by design, once every 2^320 runs.
@@ -44,7 +44,7 @@ TEST_F(UmRealRandomProviderTest, GetRandomValues) {
     scoped_ptr<const uint64_t> other_value(
         provider_->var_seed()->GetValue(UmTestUtils::DefaultTimeout(),
                                         nullptr));
-    UMTEST_ASSERT_NOT_NULL(other_value.get());
+    ASSERT_NE(nullptr, other_value.get());
     is_same_value = is_same_value && *other_value == *value;
   }
   EXPECT_FALSE(is_same_value);

@@ -32,9 +32,9 @@ class MetadataTest : public ::testing::Test {
 
 TEST_F(MetadataTest, RunAsRootReadMetadataDissimilarFileSystems) {
   string a_img, b_img;
-  EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &a_img, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &a_img, nullptr));
   ScopedPathUnlinker a_img_unlinker(a_img);
-  EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &b_img, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &b_img, nullptr));
   ScopedPathUnlinker b_img_unlinker(b_img);
 
   CreateEmptyExtImageAtPath(a_img, 10485759, 4096);
@@ -47,7 +47,7 @@ TEST_F(MetadataTest, RunAsRootReadMetadataDissimilarFileSystems) {
                                           a_img,
                                           b_img,
                                           0,
-                                          NULL));
+                                          nullptr));
   EXPECT_EQ(graph.size(), 0);
 
   CreateEmptyExtImageAtPath(a_img, 10485759, 4096);
@@ -60,17 +60,17 @@ TEST_F(MetadataTest, RunAsRootReadMetadataDissimilarFileSystems) {
                                           a_img,
                                           b_img,
                                           0,
-                                          NULL));
+                                          nullptr));
   EXPECT_EQ(graph.size(), 0);
 }
 
 TEST_F(MetadataTest, RunAsRootReadMetadata) {
   string a_img, b_img, data_file;
-  EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &a_img, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &a_img, nullptr));
   ScopedPathUnlinker a_img_unlinker(a_img);
-  EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &b_img, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &b_img, nullptr));
   ScopedPathUnlinker b_img_unlinker(b_img);
-  EXPECT_TRUE(utils::MakeTempFile("data_file.XXXXXX", &data_file, NULL));
+  EXPECT_TRUE(utils::MakeTempFile("data_file.XXXXXX", &data_file, nullptr));
   ScopedPathUnlinker data_file_unlinker(data_file);
 
   const size_t image_size = (256 * 1024 * 1024);  // Enough for 2 block groups

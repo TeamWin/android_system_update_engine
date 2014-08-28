@@ -52,10 +52,10 @@ bool OpenSSLWrapper::GetCertificateDigest(X509_STORE_CTX* x509_ctx,
 }
 
 // static
-SystemState* CertificateChecker::system_state_ = NULL;
+SystemState* CertificateChecker::system_state_ = nullptr;
 
 // static
-OpenSSLWrapper* CertificateChecker::openssl_wrapper_ = NULL;
+OpenSSLWrapper* CertificateChecker::openssl_wrapper_ = nullptr;
 
 // static
 CURLcode CertificateChecker::ProcessSSLContext(CURL* curl_handle,
@@ -103,8 +103,8 @@ bool CertificateChecker::CheckCertificateChange(
   static const char kUMAActionCertChanged[] =
       "Updater.ServerCertificateChanged";
   static const char kUMAActionCertFailed[] = "Updater.ServerCertificateFailed";
-  TEST_AND_RETURN_FALSE(system_state_ != NULL);
-  TEST_AND_RETURN_FALSE(system_state_->prefs() != NULL);
+  TEST_AND_RETURN_FALSE(system_state_ != nullptr);
+  TEST_AND_RETURN_FALSE(system_state_->prefs() != nullptr);
   TEST_AND_RETURN_FALSE(server_to_check != kNone);
 
   // If pre-verification failed, we are not interested in the current

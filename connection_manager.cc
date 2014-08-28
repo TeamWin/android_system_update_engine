@@ -32,7 +32,7 @@ bool GetFlimFlamProxy(DBusWrapperInterface* dbus_iface,
                       DBusGProxy** out_proxy) {
   DBusGConnection* bus;
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   bus = dbus_iface->BusGet(DBUS_BUS_SYSTEM, &error);
   if (!bus) {
@@ -52,7 +52,7 @@ bool GetProperties(DBusWrapperInterface* dbus_iface,
                    const char* interface,
                    GHashTable** out_hash_table) {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   TEST_AND_RETURN_FALSE(GetFlimFlamProxy(dbus_iface,
                                          path,
@@ -76,7 +76,7 @@ bool GetProperties(DBusWrapperInterface* dbus_iface,
 // there's no network up.
 // Returns true on success.
 bool GetDefaultServicePath(DBusWrapperInterface* dbus_iface, string* out_path) {
-  GHashTable* hash_table = NULL;
+  GHashTable* hash_table = nullptr;
 
   TEST_AND_RETURN_FALSE(GetProperties(dbus_iface,
                                       shill::kFlimflamServicePath,
@@ -85,7 +85,7 @@ bool GetDefaultServicePath(DBusWrapperInterface* dbus_iface, string* out_path) {
 
   GValue* value = reinterpret_cast<GValue*>(g_hash_table_lookup(hash_table,
                                                                 "Services"));
-  GPtrArray* array = NULL;
+  GPtrArray* array = nullptr;
   bool success = false;
   if (G_VALUE_HOLDS(value, DBUS_TYPE_G_OBJECT_PATH_ARRAY) &&
       (array = reinterpret_cast<GPtrArray*>(g_value_get_boxed(value))) &&
@@ -129,7 +129,7 @@ bool GetServicePathProperties(DBusWrapperInterface* dbus_iface,
                               const string& path,
                               NetworkConnectionType* out_type,
                               NetworkTethering* out_tethering) {
-  GHashTable* hash_table = NULL;
+  GHashTable* hash_table = nullptr;
 
   TEST_AND_RETURN_FALSE(GetProperties(dbus_iface,
                                       path.c_str(),
@@ -140,11 +140,11 @@ bool GetServicePathProperties(DBusWrapperInterface* dbus_iface,
   GValue* value =
       reinterpret_cast<GValue*>(g_hash_table_lookup(hash_table,
                                                     shill::kTetheringProperty));
-  const char* tethering_str = NULL;
+  const char* tethering_str = nullptr;
 
-  if (value != NULL)
+  if (value != nullptr)
     tethering_str = g_value_get_string(value);
-  if (tethering_str != NULL) {
+  if (tethering_str != nullptr) {
     *out_tethering = ParseTethering(tethering_str);
   } else {
     // Set to Unknown if not present.
@@ -154,14 +154,15 @@ bool GetServicePathProperties(DBusWrapperInterface* dbus_iface,
   // Populate the out_type property.
   value = reinterpret_cast<GValue*>(g_hash_table_lookup(hash_table,
                                                         shill::kTypeProperty));
-  const char* type_str = NULL;
+  const char* type_str = nullptr;
   bool success = false;
-  if (value != NULL && (type_str = g_value_get_string(value)) != NULL) {
+  if (value != nullptr && (type_str = g_value_get_string(value)) != nullptr) {
     success = true;
     if (!strcmp(type_str, shill::kTypeVPN)) {
       value = reinterpret_cast<GValue*>(
           g_hash_table_lookup(hash_table, shill::kPhysicalTechnologyProperty));
-      if (value != NULL && (type_str = g_value_get_string(value)) != NULL) {
+      if (value != nullptr &&
+          (type_str = g_value_get_string(value)) != nullptr) {
         *out_type = ParseConnectionType(type_str);
       } else {
         LOG(ERROR) << "No PhysicalTechnology property found for a VPN"

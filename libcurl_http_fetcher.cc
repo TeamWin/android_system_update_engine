@@ -105,7 +105,8 @@ void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
       const string content_type_attr =
         base::StringPrintf("Content-Type: %s",
                            GetHttpContentTypeString(post_content_type_));
-      curl_http_headers_ = curl_slist_append(NULL, content_type_attr.c_str());
+      curl_http_headers_ = curl_slist_append(nullptr,
+                                             content_type_attr.c_str());
       CHECK(curl_http_headers_);
       CHECK_EQ(
           curl_easy_setopt(curl_handle_, CURLOPT_HTTPHEADER,
@@ -476,8 +477,9 @@ void LibcurlHttpFetcher::SetupMainloopSources() {
   if (!timeout_source_) {
     LOG(INFO) << "Setting up timeout source: " << idle_seconds_ << " seconds.";
     timeout_source_ = g_timeout_source_new_seconds(idle_seconds_);
-    g_source_set_callback(timeout_source_, StaticTimeoutCallback, this, NULL);
-    g_source_attach(timeout_source_, NULL);
+    g_source_set_callback(timeout_source_, StaticTimeoutCallback, this,
+                          nullptr);
+    g_source_attach(timeout_source_, nullptr);
   }
 }
 
@@ -510,7 +512,7 @@ gboolean LibcurlHttpFetcher::TimeoutCallback() {
 void LibcurlHttpFetcher::CleanUp() {
   if (timeout_source_) {
     g_source_destroy(timeout_source_);
-    timeout_source_ = NULL;
+    timeout_source_ = nullptr;
   }
 
   for (size_t t = 0; t < arraysize(io_channels_); ++t) {
@@ -524,7 +526,7 @@ void LibcurlHttpFetcher::CleanUp() {
 
   if (curl_http_headers_) {
     curl_slist_free_all(curl_http_headers_);
-    curl_http_headers_ = NULL;
+    curl_http_headers_ = nullptr;
   }
   if (curl_handle_) {
     if (curl_multi_handle_) {
@@ -532,11 +534,11 @@ void LibcurlHttpFetcher::CleanUp() {
                CURLM_OK);
     }
     curl_easy_cleanup(curl_handle_);
-    curl_handle_ = NULL;
+    curl_handle_ = nullptr;
   }
   if (curl_multi_handle_) {
     CHECK_EQ(curl_multi_cleanup(curl_multi_handle_), CURLM_OK);
-    curl_multi_handle_ = NULL;
+    curl_multi_handle_ = nullptr;
   }
   transfer_in_progress_ = false;
 }

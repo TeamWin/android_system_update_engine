@@ -50,7 +50,7 @@ const char *GetHttpResponseDescription(HttpResponseCode code) {
 }
 
 HttpResponseCode StringToHttpResponseCode(const char *s) {
-  return static_cast<HttpResponseCode>(strtoul(s, NULL, 10));
+  return static_cast<HttpResponseCode>(strtoul(s, nullptr, 10));
 }
 
 
@@ -68,7 +68,7 @@ const char *GetHttpContentTypeString(HttpContentType type) {
     if ((is_found = (http_content_type_table[i].type == type)))
       break;
 
-  return (is_found ? http_content_type_table[i].str : NULL);
+  return (is_found ? http_content_type_table[i].str : nullptr);
 }
 
 }  // namespace chromeos_update_engine

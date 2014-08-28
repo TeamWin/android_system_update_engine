@@ -32,9 +32,9 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
     : prefs_(prefs),
       system_state_(system_state),
       http_fetcher_(http_fetcher),
-      writer_(NULL),
+      writer_(nullptr),
       code_(ErrorCode::kSuccess),
-      delegate_(NULL),
+      delegate_(nullptr),
       bytes_received_(0),
       p2p_sharing_fd_(-1),
       p2p_visible_(true) {}
@@ -188,7 +188,7 @@ void DownloadAction::PerformAction() {
     delegate_->SetDownloadStatus(true);  // Set to active.
   }
 
-  if (system_state_ != NULL) {
+  if (system_state_ != nullptr) {
     string file_id = utils::CalculateP2PFileId(install_plan_.payload_hash,
                                                install_plan_.payload_size);
     if (system_state_->request_params()->use_p2p_for_sharing()) {
@@ -216,7 +216,7 @@ void DownloadAction::PerformAction() {
 
   // Tweak timeouts on the HTTP fetcher if we're downloading from a
   // local peer.
-  if (system_state_ != NULL &&
+  if (system_state_ != nullptr &&
       system_state_->request_params()->use_p2p_for_downloading() &&
       system_state_->request_params()->p2p_url() ==
       install_plan_.download_url) {
@@ -233,7 +233,7 @@ void DownloadAction::PerformAction() {
 void DownloadAction::TerminateProcessing() {
   if (writer_) {
     writer_->Close();
-    writer_ = NULL;
+    writer_ = nullptr;
   }
   if (delegate_) {
     delegate_->SetDownloadStatus(false);  // Set to inactive.
@@ -285,7 +285,7 @@ void DownloadAction::ReceivedBytes(HttpFetcher *fetcher,
 void DownloadAction::TransferComplete(HttpFetcher *fetcher, bool successful) {
   if (writer_) {
     LOG_IF(WARNING, writer_->Close() != 0) << "Error closing the writer.";
-    writer_ = NULL;
+    writer_ = nullptr;
   }
   if (delegate_) {
     delegate_->SetDownloadStatus(false);  // Set to inactive.

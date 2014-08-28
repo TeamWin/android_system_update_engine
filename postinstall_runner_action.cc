@@ -43,7 +43,7 @@ void PostinstallRunnerAction::PerformAction() {
                  temp_rootfs_dir_.c_str(),
                  "ext2",
                  mountflags,
-                 NULL);
+                 nullptr);
   // TODO(sosa): Remove once crbug.com/208022 is resolved.
   if (rc < 0) {
     LOG(INFO) << "Failed to mount install part "
@@ -52,7 +52,7 @@ void PostinstallRunnerAction::PerformAction() {
                temp_rootfs_dir_.c_str(),
                "ext3",
                mountflags,
-               NULL);
+               nullptr);
   }
   if (rc < 0) {
     LOG(ERROR) << "Unable to mount destination device " << install_device

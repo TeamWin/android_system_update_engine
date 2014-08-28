@@ -103,7 +103,7 @@ TEST_F(OmahaHashCalculatorTest, BigTest) {
 TEST_F(OmahaHashCalculatorTest, UpdateFileSimpleTest) {
   string data_path;
   ASSERT_TRUE(
-      utils::MakeTempFile("data.XXXXXX", &data_path, NULL));
+      utils::MakeTempFile("data.XXXXXX", &data_path, nullptr));
   ScopedPathUnlinker data_path_unlinker(data_path);
   ASSERT_TRUE(utils::WriteFile(data_path.c_str(), "hi", 2));
 
@@ -128,7 +128,7 @@ TEST_F(OmahaHashCalculatorTest, UpdateFileSimpleTest) {
 TEST_F(OmahaHashCalculatorTest, RawHashOfFileSimpleTest) {
   string data_path;
   ASSERT_TRUE(
-      utils::MakeTempFile("data.XXXXXX", &data_path, NULL));
+      utils::MakeTempFile("data.XXXXXX", &data_path, nullptr));
   ScopedPathUnlinker data_path_unlinker(data_path);
   ASSERT_TRUE(utils::WriteFile(data_path.c_str(), "hi", 2));
 

@@ -87,7 +87,7 @@ bool PayloadVerifier::LoadPayload(const string& payload_path,
   LOG(INFO) << "Payload size: " << payload.size();
   ErrorCode error = ErrorCode::kSuccess;
   InstallPlan install_plan;
-  DeltaPerformer delta_performer(NULL, NULL, &install_plan);
+  DeltaPerformer delta_performer(nullptr, nullptr, &install_plan);
   TEST_AND_RETURN_FALSE(
       delta_performer.ParsePayloadMetadata(payload, &error) ==
       DeltaPerformer::kMetadataParseSuccess);
@@ -154,9 +154,9 @@ bool PayloadVerifier::GetRawHashFromSignature(
   }
 
   char dummy_password[] = { ' ', 0 };  // Ensure no password is read from stdin.
-  RSA* rsa = PEM_read_RSA_PUBKEY(fpubkey, NULL, NULL, dummy_password);
+  RSA* rsa = PEM_read_RSA_PUBKEY(fpubkey, nullptr, nullptr, dummy_password);
   fclose(fpubkey);
-  TEST_AND_RETURN_FALSE(rsa != NULL);
+  TEST_AND_RETURN_FALSE(rsa != nullptr);
   unsigned int keysize = RSA_size(rsa);
   if (sig_data.size() > 2 * keysize) {
     LOG(ERROR) << "Signature size is too big for public key size.";

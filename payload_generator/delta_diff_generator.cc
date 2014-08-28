@@ -105,7 +105,7 @@ bool GatherExtents(const string& path,
 // For a given regular file which must exist at new_root + path, and
 // may exist at old_root + path, creates a new InstallOperation and
 // adds it to the graph. Also, populates the |blocks| array as
-// necessary, if |blocks| is non-NULL.  Also, writes the data
+// necessary, if |blocks| is non-null.  Also, writes the data
 // necessary to send the file down to the client into data_fd, which
 // has length *data_file_size. *data_file_size is updated
 // appropriately. If |existing_vertex| is no kInvalidIndex, use that
@@ -296,7 +296,7 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
   string temp_file_path;
   TEST_AND_RETURN_FALSE(utils::MakeTempFile("CrAU_temp_data.XXXXXX",
                                             &temp_file_path,
-                                            NULL));
+                                            nullptr));
 
   FILE* file = fopen(temp_file_path.c_str(), "w");
   TEST_AND_RETURN_FALSE(file);
@@ -364,11 +364,11 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
       }
     }
   }
-  BZ2_bzWriteClose(&err, bz_file, 0, NULL, NULL);
+  BZ2_bzWriteClose(&err, bz_file, 0, nullptr, nullptr);
   TEST_AND_RETURN_FALSE(err == BZ_OK);
-  bz_file = NULL;
+  bz_file = nullptr;
   TEST_AND_RETURN_FALSE_ERRNO(0 == fclose(file));
-  file = NULL;
+  file = nullptr;
 
   vector<char> compressed_data;
   LOG(INFO) << "Reading compressed data off disk";
@@ -1385,7 +1385,7 @@ bool DeltaDiffGenerator::ReorderDataBlobs(
 
   for (int i = 0; i < (manifest->install_operations_size() +
                        manifest->kernel_install_operations_size()); i++) {
-    DeltaArchiveManifest_InstallOperation* op = NULL;
+    DeltaArchiveManifest_InstallOperation* op = nullptr;
     if (i < manifest->install_operations_size()) {
       op = manifest->mutable_install_operations(i);
     } else {
@@ -1439,7 +1439,7 @@ bool DeltaDiffGenerator::ConvertCutToFullOp(Graph* graph,
 
     TEST_AND_RETURN_FALSE(DeltaReadFile(graph,
                                         cut.old_dst,
-                                        NULL,
+                                        nullptr,
                                         kEmptyPath,
                                         new_root,
                                         (*graph)[cut.old_dst].file_name,
@@ -1719,7 +1719,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   TEST_AND_RETURN_FALSE(utils::MakeTempFile(
       "CrAU_temp_data.ordered.XXXXXX",
       &ordered_blobs_path,
-      NULL));
+      nullptr));
   ScopedPathUnlinker ordered_blobs_unlinker(ordered_blobs_path);
   TEST_AND_RETURN_FALSE(ReorderDataBlobs(&manifest,
                                          temp_file_path,
@@ -1838,7 +1838,7 @@ bool DeltaDiffGenerator::BsdiffFiles(const string& old_file,
   string patch_file_path;
 
   TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile(kPatchFile, &patch_file_path, NULL));
+      utils::MakeTempFile(kPatchFile, &patch_file_path, nullptr));
 
   vector<string> cmd;
   cmd.push_back(kBsdiffPath);
@@ -1848,7 +1848,7 @@ bool DeltaDiffGenerator::BsdiffFiles(const string& old_file,
 
   int rc = 1;
   vector<char> patch_file;
-  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &rc, NULL));
+  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &rc, nullptr));
   TEST_AND_RETURN_FALSE(rc == 0);
   TEST_AND_RETURN_FALSE(utils::ReadFile(patch_file_path, out));
   unlink(patch_file_path.c_str());

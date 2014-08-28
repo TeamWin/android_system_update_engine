@@ -92,7 +92,7 @@ TEST_F(ExtentWriterTest, ZeroLengthTest) {
 
   DirectExtentWriter direct_writer;
   EXPECT_TRUE(direct_writer.Init(fd(), extents, kBlockSize));
-  EXPECT_TRUE(direct_writer.Write(NULL, 0));
+  EXPECT_TRUE(direct_writer.Write(nullptr, 0));
   EXPECT_TRUE(direct_writer.End());
 }
 

@@ -264,7 +264,7 @@ void ApplyDelta() {
                                   kern_info.hash().end());
   install_plan.rootfs_hash.assign(root_info.hash().begin(),
                                   root_info.hash().end());
-  DeltaPerformer performer(&prefs, NULL, &install_plan);
+  DeltaPerformer performer(&prefs, nullptr, &install_plan);
   CHECK_EQ(performer.Open(FLAGS_old_image.c_str(), 0, 0), 0);
   CHECK(performer.OpenKernel(FLAGS_old_kernel.c_str()));
   vector<char> buf(1024 * 1024);
@@ -378,7 +378,7 @@ int Main(int argc, char** argv) {
       FLAGS_private_key,
       FLAGS_chunk_size,
       FLAGS_rootfs_partition_size,
-      is_delta ? &old_image_info : NULL,
+      is_delta ? &old_image_info : nullptr,
       &new_image_info,
       &metadata_size)) {
     return 1;

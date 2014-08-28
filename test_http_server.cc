@@ -604,7 +604,7 @@ int main(int argc, char** argv) {
 
   while (1) {
     LOG(INFO) << "pid(" << getpid() <<  "): waiting to accept new connection";
-    int client_fd = accept(listen_fd, NULL, NULL);
+    int client_fd = accept(listen_fd, nullptr, nullptr);
     LOG(INFO) << "got past accept";
     if (client_fd < 0)
       LOG(FATAL) << "ERROR on accept";

@@ -26,8 +26,8 @@ TEST_F(UmPollCopyVariableTest, SimpleTest) {
 
   // Generate and validate a copy.
   scoped_ptr<const int> copy_1(var.GetValue(
-          UmTestUtils::DefaultTimeout(), NULL));
-  UMTEST_ASSERT_NOT_NULL(copy_1.get());
+          UmTestUtils::DefaultTimeout(), nullptr));
+  ASSERT_NE(nullptr, copy_1.get());
   EXPECT_EQ(5, *copy_1);
 
   // Assign a different value to the source variable.
@@ -76,8 +76,8 @@ TEST_F(UmPollCopyVariableTest, UseCopyConstructorTest) {
 
   PollCopyVariable<CopyConstructorTestClass> var("var", source);
   scoped_ptr<const CopyConstructorTestClass> copy(
-      var.GetValue(UmTestUtils::DefaultTimeout(), NULL));
-  UMTEST_ASSERT_NOT_NULL(copy.get());
+      var.GetValue(UmTestUtils::DefaultTimeout(), nullptr));
+  ASSERT_NE(nullptr, copy.get());
   EXPECT_TRUE(copy->copied_);
 }
 
@@ -117,7 +117,7 @@ TEST_F(UmCallCopyVariableTest, SimpleTest) {
   scoped_ptr<const CopyConstructorTestClass> copy(
       var.GetValue(UmTestUtils::DefaultTimeout(), nullptr));
   EXPECT_EQ(6, test_obj.val_);  // Check that the function was called.
-  UMTEST_ASSERT_NOT_NULL(copy.get());
+  ASSERT_NE(nullptr, copy.get());
   EXPECT_TRUE(copy->copied_);
   EXPECT_EQ(12, copy->val_);  // Check that copying occurred once.
 }

@@ -70,7 +70,7 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // returned object is valid during the life of the evaluation, even if the
   // passed Variable changes it.
   //
-  // In case of error, a NULL value is returned.
+  // In case of error, a null value is returned.
   template<typename T>
   const T* GetValue(Variable<T>* var);
 

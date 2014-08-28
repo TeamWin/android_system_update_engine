@@ -37,7 +37,7 @@ namespace utils {
 // down.
 base::Time TimeFromStructTimespec(struct timespec *ts);
 
-// Converts a vector of strings to a NULL-terminated array of
+// Converts a vector of strings to a NUL-terminated array of
 // strings. The resulting array should be freed with g_strfreev()
 // when are you done with it.
 gchar** StringVectorToGStrv(const std::vector<std::string> &vector);
@@ -114,9 +114,9 @@ bool IsDir(const char* path);
 // "../"), then it is prepended the value of TMPDIR, which defaults to /tmp if
 // it isn't set or is empty.  It then calls mkstemp(3) with the resulting
 // template.  Writes the name of a new temporary file to |filename|. If |fd| is
-// non-NULL, the file descriptor returned by mkstemp is written to it and kept
-// open; otherwise, it is closed. The template must end with "XXXXXX". Returns
-// true on success.
+// non-null, the file descriptor returned by mkstemp is written to it and
+// kept open; otherwise, it is closed. The template must end with "XXXXXX".
+// Returns true on success.
 bool MakeTempFile(const std::string& base_filename_template,
                   std::string* filename,
                   int* fd);
@@ -149,7 +149,7 @@ int GetPartitionNumber(const std::string& partition_name);
 // number. For example, "/dev/sda3" will be split into {"/dev/sda", 3} and
 // "/dev/mmcblk0p2" into {"/dev/mmcblk0", 2}
 // Returns false when malformed device name is passed in.
-// If both output parameters are omitted (nullptr), can be used
+// If both output parameters are omitted (null), can be used
 // just to test the validity of the device name. Note that the function
 // simply checks if the device name looks like a valid device, no other
 // checks are performed (i.e. it doesn't check if the device actually exists).
@@ -363,12 +363,12 @@ void SendErrorCodeToUma(SystemState* system_state, ErrorCode code);
 std::string CodeToString(ErrorCode code);
 
 // Creates the powerwash marker file with the appropriate commands in it.  Uses
-// |file_path| as the path to the marker file if non-NULL, otherwise uses the
+// |file_path| as the path to the marker file if non-null, otherwise uses the
 // global default. Returns true if successfully created.  False otherwise.
 bool CreatePowerwashMarkerFile(const char* file_path);
 
 // Deletes the marker file used to trigger Powerwash using clobber-state.  Uses
-// |file_path| as the path to the marker file if non-NULL, otherwise uses the
+// |file_path| as the path to the marker file if non-null, otherwise uses the
 // global default. Returns true if successfully deleted. False otherwise.
 bool DeletePowerwashMarkerFile(const char* file_path);
 

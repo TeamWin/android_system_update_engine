@@ -159,7 +159,7 @@ string GetUpdateResponse(const string& app_id,
 class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   OmahaRequestActionTestProcessorDelegate()
-      : loop_(NULL),
+      : loop_(nullptr),
         expected_code_(ErrorCode::kSuccess) {}
   virtual ~OmahaRequestActionTestProcessorDelegate() {
   }
@@ -224,11 +224,11 @@ class OutputObjectCollectorAction : public Action<OutputObjectCollectorAction> {
 };
 
 // Returns true iff an output response was obtained from the
-// OmahaRequestAction. |prefs| may be NULL, in which case a local PrefsMock is
-// used. |payload_state| may be NULL, in which case a local mock is used.
-// |p2p_manager| may be NULL, in which case a local mock is used.
-// |connection_manager| may be NULL, in which case a local mock is used.
-// out_response may be NULL. If |fail_http_response_code| is non-negative,
+// OmahaRequestAction. |prefs| may be null, in which case a local PrefsMock
+// is used. |payload_state| may be null, in which case a local mock is used.
+// |p2p_manager| may be null, in which case a local mock is used.
+// |connection_manager| may be null, in which case a local mock is used.
+// out_response may be null. If |fail_http_response_code| is non-negative,
 // the transfer will fail with that code. |ping_only| is passed through to the
 // OmahaRequestAction constructor. out_post_data may be null; if non-null, the
 // post-data received by the mock HttpFetcher is returned.
@@ -255,7 +255,7 @@ bool TestUpdateCheck(PrefsInterface* prefs,
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
                                                  http_response.size(),
-                                                 NULL);
+                                                 nullptr);
   if (fail_http_response_code >= 0) {
     fetcher->FailTransfer(fail_http_response_code);
   }
@@ -270,7 +270,7 @@ bool TestUpdateCheck(PrefsInterface* prefs,
     fake_system_state.set_connection_manager(connection_manager);
   fake_system_state.set_request_params(params);
   OmahaRequestAction action(&fake_system_state,
-                            NULL,
+                            nullptr,
                             fetcher,
                             ping_only);
   OmahaRequestActionTestProcessorDelegate delegate;
@@ -323,7 +323,7 @@ void TestEvent(OmahaRequestParams params,
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
                                                  http_response.size(),
-                                                 NULL);
+                                                 nullptr);
   FakeSystemState fake_system_state;
   fake_system_state.set_request_params(&params);
   OmahaRequestAction action(&fake_system_state, event, fetcher, false);
@@ -343,10 +343,10 @@ void TestEvent(OmahaRequestParams params,
 TEST(OmahaRequestActionTest, RejectEntities) {
   OmahaResponse response;
   ASSERT_FALSE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetNoUpdateResponseWithEntity(OmahaRequestParams::kAppId),
                       -1,
@@ -356,17 +356,17 @@ TEST(OmahaRequestActionTest, RejectEntities) {
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, NoUpdateTest) {
   OmahaResponse response;
   ASSERT_TRUE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -376,17 +376,17 @@ TEST(OmahaRequestActionTest, NoUpdateTest) {
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, ValidUpdateTest) {
   OmahaResponse response;
   ASSERT_TRUE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
@@ -405,7 +405,7 @@ TEST(OmahaRequestActionTest, ValidUpdateTest) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ("1.2.3.4", response.version);
@@ -422,10 +422,10 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByPolicyTest) {
   OmahaRequestParams params = kDefaultTestParams;
   params.set_update_disabled(true);
   ASSERT_FALSE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
@@ -444,7 +444,7 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByPolicyTest) {
                       metrics::CheckReaction::kIgnored,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
@@ -452,7 +452,7 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   OmahaResponse response;
   // Set up a connection manager that doesn't allow a valid update over
   // the current ethernet connection.
-  MockConnectionManager mock_cm(NULL);
+  MockConnectionManager mock_cm(nullptr);
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _, _))
     .WillRepeatedly(DoAll(SetArgumentPointee<1>(kNetEthernet),
                           SetArgumentPointee<2>(NetworkTethering::kUnknown),
@@ -463,9 +463,9 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
     .WillRepeatedly(Return(shill::kTypeEthernet));
 
   ASSERT_FALSE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
                       &mock_cm,  // connection_manager
                       &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
@@ -485,7 +485,7 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
                       metrics::CheckReaction::kIgnored,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
@@ -498,10 +498,10 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
     .WillRepeatedly(Return(rollback_version));
 
   ASSERT_FALSE(
-      TestUpdateCheck(NULL,  // prefs
+      TestUpdateCheck(nullptr,  // prefs
                       &mock_payload_state,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         rollback_version,  // version
@@ -520,7 +520,7 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
                       metrics::CheckReaction::kIgnored,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
@@ -529,10 +529,10 @@ TEST(OmahaRequestActionTest, NoUpdatesSentWhenBlockedByPolicyTest) {
   OmahaRequestParams params = kDefaultTestParams;
   params.set_update_disabled(true);
   ASSERT_TRUE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -542,7 +542,7 @@ TEST(OmahaRequestActionTest, NoUpdatesSentWhenBlockedByPolicyTest) {
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
@@ -564,9 +564,9 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
 
   ASSERT_FALSE(
       TestUpdateCheck(&prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -589,16 +589,16 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                       metrics::CheckReaction::kDeferring,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -621,7 +621,7 @@ TEST(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -646,9 +646,9 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
 
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -671,7 +671,7 @@ TEST(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -696,9 +696,9 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
 
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -721,7 +721,7 @@ TEST(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -747,9 +747,9 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
 
   ASSERT_TRUE(TestUpdateCheck(
                       &prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -772,7 +772,7 @@ TEST(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
 
   int64_t count;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
@@ -801,9 +801,9 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
 
   ASSERT_FALSE(TestUpdateCheck(
                       &prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,    // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -826,7 +826,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                       metrics::CheckReaction::kDeferring,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
 
   int64_t count;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
@@ -837,9 +837,9 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -862,7 +862,7 @@ TEST(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -889,9 +889,9 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
 
   ASSERT_FALSE(TestUpdateCheck(
                       &prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -914,7 +914,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                       metrics::CheckReaction::kDeferring,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
 
   int64_t count;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &count));
@@ -927,9 +927,9 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -952,7 +952,7 @@ TEST(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -964,10 +964,10 @@ TEST(OmahaRequestActionTest, NoOutputPipeTest) {
   FakeSystemState fake_system_state;
   OmahaRequestParams params = kDefaultTestParams;
   fake_system_state.set_request_params(&params);
-  OmahaRequestAction action(&fake_system_state, NULL,
+  OmahaRequestAction action(&fake_system_state, nullptr,
                             new MockHttpFetcher(http_response.data(),
                                                 http_response.size(),
-                                                NULL),
+                                                nullptr),
                             false);
   OmahaRequestActionTestProcessorDelegate delegate;
   delegate.loop_ = loop;
@@ -984,10 +984,10 @@ TEST(OmahaRequestActionTest, NoOutputPipeTest) {
 TEST(OmahaRequestActionTest, InvalidXmlTest) {
   OmahaResponse response;
   ASSERT_FALSE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       "invalid xml>",
                       -1,
@@ -997,17 +997,17 @@ TEST(OmahaRequestActionTest, InvalidXmlTest) {
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, EmptyResponseTest) {
   OmahaResponse response;
   ASSERT_FALSE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       "",
                       -1,
@@ -1017,17 +1017,17 @@ TEST(OmahaRequestActionTest, EmptyResponseTest) {
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, MissingStatusTest) {
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck(
-      NULL,  // prefs
-      NULL,  // payload_state
-      NULL,  // p2p_manager
-      NULL,  // connection_manager
+      nullptr,  // prefs
+      nullptr,  // payload_state
+      nullptr,  // p2p_manager
+      nullptr,  // connection_manager
       &kDefaultTestParams,
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
@@ -1041,17 +1041,17 @@ TEST(OmahaRequestActionTest, MissingStatusTest) {
       metrics::CheckReaction::kUnset,
       metrics::DownloadErrorCode::kUnset,
       &response,
-      NULL));
+      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, InvalidStatusTest) {
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck(
-      NULL,  // prefs
-      NULL,  // payload_state
-      NULL,  // p2p_manager
-      NULL,  // connection_manager
+      nullptr,  // prefs
+      nullptr,  // payload_state
+      nullptr,  // p2p_manager
+      nullptr,  // connection_manager
       &kDefaultTestParams,
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
@@ -1065,17 +1065,17 @@ TEST(OmahaRequestActionTest, InvalidStatusTest) {
       metrics::CheckReaction::kUnset,
       metrics::DownloadErrorCode::kUnset,
       &response,
-      NULL));
+      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
 TEST(OmahaRequestActionTest, MissingNodesetTest) {
   OmahaResponse response;
   ASSERT_FALSE(TestUpdateCheck(
-      NULL,  // prefs
-      NULL,  // payload_state
-      NULL,  // p2p_manager
-      NULL,  // connection_manager
+      nullptr,  // prefs
+      nullptr,  // payload_state
+      nullptr,  // p2p_manager
+      nullptr,  // connection_manager
       &kDefaultTestParams,
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
@@ -1089,7 +1089,7 @@ TEST(OmahaRequestActionTest, MissingNodesetTest) {
       metrics::CheckReaction::kUnset,
       metrics::DownloadErrorCode::kUnset,
       &response,
-      NULL));
+      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
@@ -1114,10 +1114,10 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
   LOG(INFO) << "Input Response = " << input_response;
 
   OmahaResponse response;
-  ASSERT_TRUE(TestUpdateCheck(NULL,  // prefs
-                              NULL,  // payload_state
-                              NULL,  // p2p_manager
-                              NULL,  // connection_manager
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // prefs
+                              nullptr,  // payload_state
+                              nullptr,  // p2p_manager
+                              nullptr,  // connection_manager
                               &kDefaultTestParams,
                               input_response,
                               -1,
@@ -1127,7 +1127,7 @@ TEST(OmahaRequestActionTest, MissingFieldTest) {
                               metrics::CheckReaction::kUpdating,
                               metrics::DownloadErrorCode::kUnset,
                               &response,
-                              NULL));
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ("10.2.3.4", response.version);
   EXPECT_EQ("http://missing/field/test/f", response.payload_urls[0]);
@@ -1164,10 +1164,10 @@ TEST(OmahaRequestActionTest, TerminateTransferTest) {
   FakeSystemState fake_system_state;
   OmahaRequestParams params = kDefaultTestParams;
   fake_system_state.set_request_params(&params);
-  OmahaRequestAction action(&fake_system_state, NULL,
+  OmahaRequestAction action(&fake_system_state, nullptr,
                             new MockHttpFetcher(http_response.data(),
                                                 http_response.size(),
-                                                NULL),
+                                                nullptr),
                             false);
   TerminateEarlyTestProcessorDelegate delegate;
   delegate.loop_ = loop;
@@ -1211,10 +1211,10 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
                             false);  // use_p2p_for_sharing
   OmahaResponse response;
   ASSERT_FALSE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       "invalid xml>",
                       -1,
@@ -1240,10 +1240,10 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
 TEST(OmahaRequestActionTest, XmlDecodeTest) {
   OmahaResponse response;
   ASSERT_TRUE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
@@ -1262,7 +1262,7 @@ TEST(OmahaRequestActionTest, XmlDecodeTest) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
 
   EXPECT_EQ(response.more_info_url, "testthe<url");
   EXPECT_EQ(response.payload_urls[0], "testthe&codebase/file.signed");
@@ -1272,10 +1272,10 @@ TEST(OmahaRequestActionTest, XmlDecodeTest) {
 TEST(OmahaRequestActionTest, ParseIntTest) {
   OmahaResponse response;
   ASSERT_TRUE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetUpdateResponse(OmahaRequestParams::kAppId,
                                         "1.2.3.4",  // version
@@ -1295,7 +1295,7 @@ TEST(OmahaRequestActionTest, ParseIntTest) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
 
   EXPECT_EQ(response.size, 123123123123123ll);
 }
@@ -1307,9 +1307,9 @@ TEST(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
       .WillOnce(DoAll(SetArgumentPointee<1>(string("")), Return(true)));
   EXPECT_CALL(prefs, SetString(kPrefsPreviousVersion, _)).Times(1);
   ASSERT_FALSE(TestUpdateCheck(&prefs,
-                               NULL,  // payload_state
-                               NULL,  // p2p_manager
-                               NULL,  // connection_manager
+                               nullptr,  // payload_state
+                               nullptr,  // p2p_manager
+                               nullptr,  // connection_manager
                                &kDefaultTestParams,
                                "invalid xml>",
                                -1,
@@ -1318,7 +1318,7 @@ TEST(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
-                               NULL,  // response
+                               nullptr,  // response
                                &post_data));
   // convert post_data to string
   string post_str(&post_data[0], post_data.size());
@@ -1344,9 +1344,9 @@ TEST(OmahaRequestActionTest, FormatUpdateDisabledOutputTest) {
   OmahaRequestParams params = kDefaultTestParams;
   params.set_update_disabled(true);
   ASSERT_FALSE(TestUpdateCheck(&prefs,
-                               NULL,  // payload_state
-                               NULL,  // p2p_manager
-                               NULL,  // connection_manager
+                               nullptr,  // payload_state
+                               nullptr,  // p2p_manager
+                               nullptr,  // connection_manager
                                &params,
                                "invalid xml>",
                                -1,
@@ -1355,7 +1355,7 @@ TEST(OmahaRequestActionTest, FormatUpdateDisabledOutputTest) {
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
-                               NULL,  // response
+                               nullptr,  // response
                                &post_data));
   // convert post_data to string
   string post_str(&post_data[0], post_data.size());
@@ -1415,10 +1415,10 @@ TEST(OmahaRequestActionTest, IsEventTest) {
   fake_system_state.set_request_params(&params);
   OmahaRequestAction update_check_action(
       &fake_system_state,
-      NULL,
+      nullptr,
       new MockHttpFetcher(http_response.data(),
                           http_response.size(),
-                          NULL),
+                          nullptr),
       false);
   EXPECT_FALSE(update_check_action.IsEvent());
 
@@ -1429,7 +1429,7 @@ TEST(OmahaRequestActionTest, IsEventTest) {
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
       new MockHttpFetcher(http_response.data(),
                           http_response.size(),
-                          NULL),
+                          nullptr),
       false);
   EXPECT_TRUE(event_action.IsEvent());
 }
@@ -1459,10 +1459,10 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                               "",     // target_version_prefix
                               false,  // use_p2p_for_downloading
                               false);  // use_p2p_for_sharing
-    ASSERT_FALSE(TestUpdateCheck(NULL,  // prefs
-                                 NULL,  // payload_state
-                                 NULL,  // p2p_manager
-                                 NULL,  // connection_manager
+    ASSERT_FALSE(TestUpdateCheck(nullptr,  // prefs
+                                 nullptr,  // payload_state
+                                 nullptr,  // p2p_manager
+                                 nullptr,  // connection_manager
                                  &params,
                                  "invalid xml>",
                                  -1,
@@ -1471,7 +1471,7 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                                  metrics::CheckResult::kParsingError,
                                  metrics::CheckReaction::kUnset,
                                  metrics::DownloadErrorCode::kUnset,
-                                 NULL,
+                                 nullptr,
                                  &post_data));
     // convert post_data to string
     string post_str(post_data.data(), post_data.size());
@@ -1507,10 +1507,10 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                               "",     // target_version_prefix
                               false,  // use_p2p_for_downloading
                               false);  // use_p2p_for_sharing
-    ASSERT_FALSE(TestUpdateCheck(NULL,  // prefs
-                                 NULL,  // payload_state
-                                 NULL,  // p2p_manager
-                                 NULL,  // connection_manager
+    ASSERT_FALSE(TestUpdateCheck(nullptr,  // prefs
+                                 nullptr,  // payload_state
+                                 nullptr,  // p2p_manager
+                                 nullptr,  // connection_manager
                                  &params,
                                  "invalid xml>",
                                  -1,
@@ -1519,7 +1519,7 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                                  metrics::CheckResult::kParsingError,
                                  metrics::CheckReaction::kUnset,
                                  metrics::DownloadErrorCode::kUnset,
-                                 NULL,
+                                 nullptr,
                                  &post_data));
     // convert post_data to string
     string post_str(&post_data[0], post_data.size());
@@ -1569,9 +1569,9 @@ TEST(OmahaRequestActionTest, PingTest) {
     vector<char> post_data;
     ASSERT_TRUE(
         TestUpdateCheck(&prefs,
-                        NULL,  // payload_state
-                        NULL,  // p2p_manager
-                        NULL,  // connection_manager
+                        nullptr,  // payload_state
+                        nullptr,  // p2p_manager
+                        nullptr,  // connection_manager
                         &kDefaultTestParams,
                         GetNoUpdateResponse(OmahaRequestParams::kAppId),
                         -1,
@@ -1580,7 +1580,7 @@ TEST(OmahaRequestActionTest, PingTest) {
                         metrics::CheckResult::kUnset,
                         metrics::CheckReaction::kUnset,
                         metrics::DownloadErrorCode::kUnset,
-                        NULL,
+                        nullptr,
                         &post_data));
     string post_str(&post_data[0], post_data.size());
     EXPECT_NE(post_str.find("<ping active=\"1\" a=\"6\" r=\"5\"></ping>"),
@@ -1612,9 +1612,9 @@ TEST(OmahaRequestActionTest, ActivePingTest) {
   vector<char> post_data;
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -1623,7 +1623,7 @@ TEST(OmahaRequestActionTest, ActivePingTest) {
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
-                      NULL,
+                      nullptr,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
   EXPECT_NE(post_str.find("<ping active=\"1\" a=\"3\"></ping>"),
@@ -1647,9 +1647,9 @@ TEST(OmahaRequestActionTest, RollCallPingTest) {
   vector<char> post_data;
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -1658,7 +1658,7 @@ TEST(OmahaRequestActionTest, RollCallPingTest) {
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
-                      NULL,
+                      nullptr,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
   EXPECT_NE(post_str.find("<ping active=\"1\" r=\"4\"></ping>\n"),
@@ -1683,9 +1683,9 @@ TEST(OmahaRequestActionTest, NoPingTest) {
   vector<char> post_data;
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -1694,7 +1694,7 @@ TEST(OmahaRequestActionTest, NoPingTest) {
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
-                      NULL,
+                      nullptr,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
   EXPECT_EQ(post_str.find("ping"), string::npos);
@@ -1713,9 +1713,9 @@ TEST(OmahaRequestActionTest, IgnoreEmptyPingTest) {
   vector<char> post_data;
   EXPECT_TRUE(
       TestUpdateCheck(&prefs,
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
                       -1,
@@ -1724,7 +1724,7 @@ TEST(OmahaRequestActionTest, IgnoreEmptyPingTest) {
                       metrics::CheckResult::kUnset,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
-                      NULL,
+                      nullptr,
                       &post_data));
   EXPECT_EQ(post_data.size(), 0);
 }
@@ -1749,9 +1749,9 @@ TEST(OmahaRequestActionTest, BackInTimePingTest) {
   vector<char> post_data;
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"100\"/>"
@@ -1763,7 +1763,7 @@ TEST(OmahaRequestActionTest, BackInTimePingTest) {
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
-                      NULL,
+                      nullptr,
                       &post_data));
   string post_str(&post_data[0], post_data.size());
   EXPECT_EQ(post_str.find("ping"), string::npos);
@@ -1789,9 +1789,9 @@ TEST(OmahaRequestActionTest, LastPingDayUpdateTest) {
       .WillOnce(Return(true));
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"200\"/>"
@@ -1803,8 +1803,8 @@ TEST(OmahaRequestActionTest, LastPingDayUpdateTest) {
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
-                      NULL,
-                      NULL));
+                      nullptr,
+                      nullptr));
 }
 
 TEST(OmahaRequestActionTest, NoElapsedSecondsTest) {
@@ -1815,9 +1815,9 @@ TEST(OmahaRequestActionTest, NoElapsedSecondsTest) {
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart blah=\"200\"/>"
@@ -1829,8 +1829,8 @@ TEST(OmahaRequestActionTest, NoElapsedSecondsTest) {
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
-                      NULL,
-                      NULL));
+                      nullptr,
+                      nullptr));
 }
 
 TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
@@ -1841,9 +1841,9 @@ TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
                       "protocol=\"3.0\"><daystart elapsed_seconds=\"x\"/>"
@@ -1855,16 +1855,16 @@ TEST(OmahaRequestActionTest, BadElapsedSecondsTest) {
                       metrics::CheckResult::kNoUpdateAvailable,
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
-                      NULL,
-                      NULL));
+                      nullptr,
+                      nullptr));
 }
 
 TEST(OmahaRequestActionTest, NoUniqueIDTest) {
   vector<char> post_data;
-  ASSERT_FALSE(TestUpdateCheck(NULL,  // prefs
-                               NULL,  // payload_state
-                               NULL,  // p2p_manager
-                               NULL,  // connection_manager
+  ASSERT_FALSE(TestUpdateCheck(nullptr,  // prefs
+                               nullptr,  // payload_state
+                               nullptr,  // p2p_manager
+                               nullptr,  // connection_manager
                                &kDefaultTestParams,
                                "invalid xml>",
                                -1,
@@ -1873,7 +1873,7 @@ TEST(OmahaRequestActionTest, NoUniqueIDTest) {
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
-                               NULL,  // response
+                               nullptr,  // response
                                &post_data));
   // convert post_data to string
   string post_str(&post_data[0], post_data.size());
@@ -1886,10 +1886,10 @@ TEST(OmahaRequestActionTest, NetworkFailureTest) {
   const int http_error_code =
       static_cast<int>(ErrorCode::kOmahaRequestHTTPResponseBase) + 501;
   ASSERT_FALSE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       "",
                       501,
@@ -1899,7 +1899,7 @@ TEST(OmahaRequestActionTest, NetworkFailureTest) {
                       metrics::CheckReaction::kUnset,
                       static_cast<metrics::DownloadErrorCode>(501),
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
@@ -1908,10 +1908,10 @@ TEST(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
   const int http_error_code =
       static_cast<int>(ErrorCode::kOmahaRequestHTTPResponseBase) + 999;
   ASSERT_FALSE(
-      TestUpdateCheck(NULL,  // prefs
-                      NULL,  // payload_state
-                      NULL,  // p2p_manager
-                      NULL,  // connection_manager
+      TestUpdateCheck(nullptr,  // prefs
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       "",
                       1500,
@@ -1921,7 +1921,7 @@ TEST(OmahaRequestActionTest, NetworkFailureBadHTTPCodeTest) {
                       metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kHttpStatusOther,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_FALSE(response.update_exists);
 }
 
@@ -1943,9 +1943,9 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
 
   ASSERT_FALSE(TestUpdateCheck(
                       &prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -1968,7 +1968,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                       metrics::CheckReaction::kDeferring,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
 
   int64_t timestamp = 0;
   ASSERT_TRUE(prefs.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
@@ -1979,9 +1979,9 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -2004,7 +2004,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -2031,9 +2031,9 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   ASSERT_TRUE(prefs.SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
   ASSERT_TRUE(TestUpdateCheck(
                       &prefs,  // prefs
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -2056,7 +2056,7 @@ TEST(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
 
   EXPECT_TRUE(response.update_exists);
 
@@ -2095,9 +2095,9 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   EXPECT_TRUE(params.to_more_stable_channel());
   EXPECT_TRUE(params.is_powerwash_allowed());
   ASSERT_FALSE(TestUpdateCheck(&prefs,
-                               NULL,    // payload_state
-                               NULL,    // p2p_manager
-                               NULL,  // connection_manager
+                               nullptr,  // payload_state
+                               nullptr,  // p2p_manager
+                               nullptr,  // connection_manager
                                &params,
                                "invalid xml>",
                                -1,
@@ -2106,7 +2106,7 @@ TEST(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
-                               NULL,  // response
+                               nullptr,  // response
                                &post_data));
   // convert post_data to string
   string post_str(&post_data[0], post_data.size());
@@ -2146,9 +2146,9 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   EXPECT_FALSE(params.to_more_stable_channel());
   EXPECT_FALSE(params.is_powerwash_allowed());
   ASSERT_FALSE(TestUpdateCheck(&prefs,
-                               NULL,    // payload_state
-                               NULL,    // p2p_manager
-                               NULL,  // connection_manager
+                               nullptr,  // payload_state
+                               nullptr,  // p2p_manager
+                               nullptr,  // connection_manager
                                &params,
                                "invalid xml>",
                                -1,
@@ -2157,7 +2157,7 @@ TEST(OmahaRequestActionTest, TestChangingToLessStableChannel) {
                                metrics::CheckResult::kParsingError,
                                metrics::CheckReaction::kUnset,
                                metrics::DownloadErrorCode::kUnset,
-                               NULL,  // response
+                               nullptr,  // response
                                &post_data));
   // convert post_data to string
   string post_str(&post_data[0], post_data.size());
@@ -2196,10 +2196,10 @@ void P2PTest(bool initial_allow_p2p_for_downloading,
       .Times(expect_p2p_client_lookup ? 1 : 0);
 
   ASSERT_TRUE(
-      TestUpdateCheck(NULL,  // prefs
+      TestUpdateCheck(nullptr,  // prefs
                       &mock_payload_state,
                       &mock_p2p_manager,
-                      NULL,  // connection_manager
+                      nullptr,  // connection_manager
                       &request_params,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -2222,7 +2222,7 @@ void P2PTest(bool initial_allow_p2p_for_downloading,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
-                      NULL));
+                      nullptr));
   EXPECT_TRUE(response.update_exists);
 
   EXPECT_EQ(response.disable_p2p_for_downloading,
@@ -2322,9 +2322,9 @@ bool InstallDateParseHelper(const std::string &elapsed_days,
                             OmahaResponse *response) {
   return
       TestUpdateCheck(prefs,
-                      NULL,    // payload_state
-                      NULL,    // p2p_manager
-                      NULL,  // connection_manager
+                      nullptr,  // payload_state
+                      nullptr,  // p2p_manager
+                      nullptr,  // connection_manager
                       &kDefaultTestParams,
                       GetUpdateResponse2(OmahaRequestParams::kAppId,
                                          "1.2.3.4",  // version
@@ -2347,7 +2347,7 @@ bool InstallDateParseHelper(const std::string &elapsed_days,
                       metrics::CheckReaction::kUpdating,
                       metrics::DownloadErrorCode::kUnset,
                       response,
-                      NULL);
+                      nullptr);
 }
 
 TEST(OmahaRequestActionTest, ParseInstallDateFromResponse) {

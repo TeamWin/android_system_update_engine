@@ -65,7 +65,7 @@ gboolean Subprocess::GStdoutWatchCallback(GIOChannel* source,
                                  buf,
                                  arraysize(buf),
                                  &bytes_read,
-                                 NULL) == G_IO_STATUS_NORMAL &&
+                                 nullptr) == G_IO_STATUS_NORMAL &&
          bytes_read > 0) {
     stdout->append(buf, bytes_read);
   }
@@ -76,7 +76,7 @@ namespace {
 void FreeArgv(char** argv) {
   for (int i = 0; argv[i]; i++) {
     free(argv[i]);
-    argv[i] = NULL;
+    argv[i] = nullptr;
   }
 }
 
@@ -86,7 +86,7 @@ void FreeArgvInError(char** argv) {
 }
 
 // Note: Caller responsible for free()ing the returned value!
-// Will return NULL on failure and free any allocated memory.
+// Will return null on failure and free any allocated memory.
 char** ArgPointer() {
   const char* keys[] = {"LD_LIBRARY_PATH", "PATH"};
   char** ret = new char*[arraysize(keys) + 1];
@@ -98,12 +98,12 @@ char** ArgPointer() {
       if (!ret[pointer]) {
         FreeArgv(ret);
         delete [] ret;
-        return NULL;
+        return nullptr;
       }
       ++pointer;
     }
   }
-  ret[pointer] = NULL;
+  ret[pointer] = nullptr;
   return ret;
 }
 
@@ -131,15 +131,15 @@ uint32_t Subprocess::Exec(const vector<string>& cmd,
   for (unsigned int i = 0; i < cmd.size(); i++) {
     argv[i] = strdup(cmd[i].c_str());
     if (!argv[i]) {
-      FreeArgvInError(argv.get());  // NULL in argv[i] terminates argv.
+      FreeArgvInError(argv.get());  // null in argv[i] terminates argv.
       return 0;
     }
   }
-  argv[cmd.size()] = NULL;
+  argv[cmd.size()] = nullptr;
 
   char** argp = ArgPointer();
   if (!argp) {
-    FreeArgvInError(argv.get());  // NULL in argv[i] terminates argv.
+    FreeArgvInError(argv.get());  // null in argv[i] terminates argv.
     return 0;
   }
   ScopedFreeArgPointer argp_free(argp);
@@ -150,16 +150,16 @@ uint32_t Subprocess::Exec(const vector<string>& cmd,
   gint stdout_fd = -1;
   GError* error = nullptr;
   bool success = g_spawn_async_with_pipes(
-      NULL,  // working directory
+      nullptr,  // working directory
       argv.get(),
       argp,
       G_SPAWN_DO_NOT_REAP_CHILD,  // flags
       GRedirectStderrToStdout,  // child setup function
-      NULL,  // child setup data pointer
+      nullptr,  // child setup data pointer
       &child_pid,
-      NULL,
+      nullptr,
       &stdout_fd,
-      NULL,
+      nullptr,
       &error);
   FreeArgv(argv.get());
   if (!success) {
@@ -172,9 +172,9 @@ uint32_t Subprocess::Exec(const vector<string>& cmd,
 
   // Capture the subprocess output.
   record->gioout = g_io_channel_unix_new(stdout_fd);
-  g_io_channel_set_encoding(record->gioout, NULL, NULL);
+  g_io_channel_set_encoding(record->gioout, nullptr, nullptr);
   LOG_IF(WARNING,
-         g_io_channel_set_flags(record->gioout, G_IO_FLAG_NONBLOCK, NULL) !=
+         g_io_channel_set_flags(record->gioout, G_IO_FLAG_NONBLOCK, nullptr) !=
          G_IO_STATUS_NORMAL) << "Unable to set non-blocking I/O mode.";
   record->gioout_tag = g_io_add_watch(
       record->gioout,
@@ -185,7 +185,7 @@ uint32_t Subprocess::Exec(const vector<string>& cmd,
 }
 
 void Subprocess::CancelExec(uint32_t tag) {
-  subprocess_records_[tag]->callback = NULL;
+  subprocess_records_[tag]->callback = nullptr;
 }
 
 bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
@@ -195,35 +195,35 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
   if (stdout) {
     *stdout = "";
   }
-  GError* err = NULL;
+  GError* err = nullptr;
   scoped_ptr<char*[]> argv(new char*[cmd.size() + 1]);
   for (unsigned int i = 0; i < cmd.size(); i++) {
     argv[i] = strdup(cmd[i].c_str());
     if (!argv[i]) {
-      FreeArgvInError(argv.get());  // NULL in argv[i] terminates argv.
+      FreeArgvInError(argv.get());  // null in argv[i] terminates argv.
       return false;
     }
   }
-  argv[cmd.size()] = NULL;
+  argv[cmd.size()] = nullptr;
 
   char** argp = ArgPointer();
   if (!argp) {
-    FreeArgvInError(argv.get());  // NULL in argv[i] terminates argv.
+    FreeArgvInError(argv.get());  // null in argv[i] terminates argv.
     return false;
   }
   ScopedFreeArgPointer argp_free(argp);
 
   char* child_stdout;
   bool success = g_spawn_sync(
-      NULL,  // working directory
+      nullptr,  // working directory
       argv.get(),
       argp,
       static_cast<GSpawnFlags>(G_SPAWN_STDERR_TO_DEV_NULL |
                                G_SPAWN_SEARCH_PATH | flags),  // flags
       GRedirectStderrToStdout,  // child setup function
-      NULL,  // data for child setup function
+      nullptr,  // data for child setup function
       &child_stdout,
-      NULL,
+      nullptr,
       return_code,
       &err);
   FreeArgv(argv.get());
@@ -258,6 +258,6 @@ bool Subprocess::SubprocessInFlight() {
   return false;
 }
 
-Subprocess* Subprocess::subprocess_singleton_ = NULL;
+Subprocess* Subprocess::subprocess_singleton_ = nullptr;
 
 }  // namespace chromeos_update_engine

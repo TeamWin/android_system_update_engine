@@ -70,7 +70,7 @@ namespace chromeos_update_engine {
 // It is handy to have a non-templated base class of all Actions.
 class AbstractAction {
  public:
-  AbstractAction() : processor_(NULL) {}
+  AbstractAction() : processor_(nullptr) {}
 
   // Begin performing the action. Since this code is asynchronous, when this
   // method returns, it means only that the action has started, not necessarily

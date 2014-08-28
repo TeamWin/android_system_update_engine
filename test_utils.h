@@ -153,7 +153,7 @@ class ScopedLoopbackDeviceBinder {
       args.push_back("-d");
       args.push_back(dev_);
       int return_code = 0;
-      EXPECT_TRUE(Subprocess::SynchronousExec(args, &return_code, NULL));
+      EXPECT_TRUE(Subprocess::SynchronousExec(args, &return_code, nullptr));
       if (return_code == 0) {
         return;
       }
@@ -180,7 +180,7 @@ class ScopedTempFile {
   ScopedTempFile() {
     EXPECT_TRUE(utils::MakeTempFile("/tmp/update_engine_test_temp_file.XXXXXX",
                                     &path_,
-                                    NULL));
+                                    nullptr));
     unlinker_.reset(new ScopedPathUnlinker(path_));
   }
   const std::string& GetPath() { return path_; }

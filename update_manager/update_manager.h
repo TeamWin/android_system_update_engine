@@ -44,8 +44,8 @@ class UpdateManager {
   // PolicyRequest() evaluates the given policy with the provided arguments and
   // returns the result. The |policy_method| is the pointer-to-method of the
   // Policy class for the policy request to call. The UpdateManager will call
-  // this method on the right policy. The pointer |result| must not be NULL and
-  // the remaining |args| depend on the arguments required by the passed
+  // this method on the right policy. The pointer |result| must not be null
+  // and the remaining |args| depend on the arguments required by the passed
   // |policy_method|.
   //
   // When the policy request succeeds, the |result| is set and the method

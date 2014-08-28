@@ -72,7 +72,7 @@ class CertificateCheckerTest : public testing::Test {
 
 // check certificate change, new
 TEST_F(CertificateCheckerTest, NewCertificate) {
-  EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(NULL, _, _, _))
+  EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(nullptr, _, _, _))
       .WillOnce(DoAll(
           SetArgumentPointee<1>(depth_),
           SetArgumentPointee<2>(length_),
@@ -83,12 +83,12 @@ TEST_F(CertificateCheckerTest, NewCertificate) {
   EXPECT_CALL(*prefs_, SetString(cert_key_, digest_hex_))
       .WillOnce(Return(true));
   ASSERT_TRUE(CertificateChecker::CheckCertificateChange(
-      server_to_check_, 1, NULL));
+      server_to_check_, 1, nullptr));
 }
 
 // check certificate change, unchanged
 TEST_F(CertificateCheckerTest, SameCertificate) {
-  EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(NULL, _, _, _))
+  EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(nullptr, _, _, _))
       .WillOnce(DoAll(
           SetArgumentPointee<1>(depth_),
           SetArgumentPointee<2>(length_),
@@ -100,12 +100,12 @@ TEST_F(CertificateCheckerTest, SameCertificate) {
           Return(true)));
   EXPECT_CALL(*prefs_, SetString(_, _)).Times(0);
   ASSERT_TRUE(CertificateChecker::CheckCertificateChange(
-      server_to_check_, 1, NULL));
+      server_to_check_, 1, nullptr));
 }
 
 // check certificate change, changed
 TEST_F(CertificateCheckerTest, ChangedCertificate) {
-  EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(NULL, _, _, _))
+  EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(nullptr, _, _, _))
       .WillOnce(DoAll(
           SetArgumentPointee<1>(depth_),
           SetArgumentPointee<2>(length_),
@@ -121,7 +121,7 @@ TEST_F(CertificateCheckerTest, ChangedCertificate) {
   EXPECT_CALL(*prefs_, SetString(cert_key_, digest_hex_))
       .WillOnce(Return(true));
   ASSERT_TRUE(CertificateChecker::CheckCertificateChange(
-      server_to_check_, 1, NULL));
+      server_to_check_, 1, nullptr));
 }
 
 // check certificate change, failed
@@ -132,7 +132,7 @@ TEST_F(CertificateCheckerTest, FailedCertificate) {
   EXPECT_CALL(*prefs_, GetString(_, _)).Times(0);
   EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(_, _, _, _)).Times(0);
   ASSERT_FALSE(CertificateChecker::CheckCertificateChange(
-      server_to_check_, 0, NULL));
+      server_to_check_, 0, nullptr));
 }
 
 // flush send report

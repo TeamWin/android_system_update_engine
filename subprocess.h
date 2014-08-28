@@ -64,9 +64,9 @@ class Subprocess {
   struct SubprocessRecord {
     SubprocessRecord()
         : tag(0),
-          callback(NULL),
-          callback_data(NULL),
-          gioout(NULL),
+          callback(nullptr),
+          callback_data(nullptr),
+          gioout(nullptr),
           gioout_tag(0) {}
     uint32_t tag;
     ExecCallback callback;

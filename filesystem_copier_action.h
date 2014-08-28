@@ -100,7 +100,7 @@ class FilesystemCopierAction : public InstallPlanAction {
   // passed in InstallPlan.
   std::string copy_source_;
 
-  // If non-NULL, these are GUnixInputStream objects for the opened
+  // If non-null, these are GUnixInputStream objects for the opened
   // source/destination partitions.
   GInputStream* src_stream_;
   GOutputStream* dst_stream_;

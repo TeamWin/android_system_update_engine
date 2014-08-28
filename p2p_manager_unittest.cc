@@ -142,7 +142,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingFalse) {
 // Check that we keep the $N newest files with the .$EXT.p2p extension.
 TEST_F(P2PManagerTest, Housekeeping) {
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       NULL, "cros_au", 3));
+                                                       nullptr, "cros_au", 3));
   EXPECT_EQ(manager->CountSharedFiles(), 0);
 
   // Generate files with different timestamps matching our pattern and generate
@@ -242,9 +242,9 @@ static bool CheckP2PFile(const string& p2p_dir, const string& file_name,
       LOG(ERROR) << "Error getting xattr attribute";
       return false;
     }
-    char* endp = NULL;
+    char* endp = nullptr;
     long long int val = strtoll(ea_value, &endp, 0);  // NOLINT(runtime/int)
-    if (endp == NULL || *endp != '\0') {
+    if (endp == nullptr || *endp != '\0') {
       LOG(ERROR) << "Error parsing xattr '" << ea_value
                  << "' as an integer";
       return false;
@@ -297,7 +297,7 @@ TEST_F(P2PManagerTest, ShareFile) {
   }
 
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       NULL, "cros_au", 3));
+                                                       nullptr, "cros_au", 3));
   EXPECT_TRUE(manager->FileShare("foo", 10 * 1000 * 1000));
   EXPECT_EQ(manager->FileGetPath("foo"),
             test_conf_->GetP2PDir().Append("foo.cros_au.p2p.tmp"));
@@ -320,7 +320,7 @@ TEST_F(P2PManagerTest, MakeFileVisible) {
   }
 
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       NULL, "cros_au", 3));
+                                                       nullptr, "cros_au", 3));
   // First, check that it's not visible.
   manager->FileShare("foo", 10*1000*1000);
   EXPECT_EQ(manager->FileGetPath("foo"),
@@ -347,14 +347,14 @@ TEST_F(P2PManagerTest, ExistingFiles) {
   }
 
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       NULL, "cros_au", 3));
+                                                       nullptr, "cros_au", 3));
   bool visible;
 
   // Check that errors are returned if the file does not exist
   EXPECT_EQ(manager->FileGetPath("foo"), base::FilePath());
   EXPECT_EQ(manager->FileGetSize("foo"), -1);
   EXPECT_EQ(manager->FileGetExpectedSize("foo"), -1);
-  EXPECT_FALSE(manager->FileGetVisible("foo", NULL));
+  EXPECT_FALSE(manager->FileGetVisible("foo", nullptr));
   // ... then create the file ...
   EXPECT_TRUE(CreateP2PFile(test_conf_->GetP2PDir().value(),
                             "foo.cros_au.p2p", 42, 43));
@@ -370,7 +370,7 @@ TEST_F(P2PManagerTest, ExistingFiles) {
   EXPECT_EQ(manager->FileGetPath("bar"), base::FilePath());
   EXPECT_EQ(manager->FileGetSize("bar"), -1);
   EXPECT_EQ(manager->FileGetExpectedSize("bar"), -1);
-  EXPECT_FALSE(manager->FileGetVisible("bar", NULL));
+  EXPECT_FALSE(manager->FileGetVisible("bar", nullptr));
   // ... then create the file ...
   EXPECT_TRUE(CreateP2PFile(test_conf_->GetP2PDir().value(),
                             "bar.cros_au.p2p.tmp", 44, 45));
@@ -388,7 +388,7 @@ TEST_F(P2PManagerTest, ExistingFiles) {
 // behaviours of initctl(8) that we rely on.
 TEST_F(P2PManagerTest, StartP2P) {
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       NULL, "cros_au", 3));
+                                                       nullptr, "cros_au", 3));
 
   // Check that we can start the service
   test_conf_->SetInitctlStartCommandLine("true");
@@ -406,7 +406,7 @@ TEST_F(P2PManagerTest, StartP2P) {
 // Same comment as for StartP2P
 TEST_F(P2PManagerTest, StopP2P) {
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       NULL, "cros_au", 3));
+                                                       nullptr, "cros_au", 3));
 
   // Check that we can start the service
   test_conf_->SetInitctlStopCommandLine("true");
@@ -432,8 +432,8 @@ static void ExpectUrl(const string& expected_url,
 // can return. It's not pretty but it works.
 TEST_F(P2PManagerTest, LookupURL) {
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       NULL, "cros_au", 3));
-  GMainLoop *loop = g_main_loop_new(NULL, FALSE);
+                                                       nullptr, "cros_au", 3));
+  GMainLoop *loop = g_main_loop_new(nullptr, FALSE);
 
   // Emulate p2p-client returning valid URL with "fooX", 42 and "cros_au"
   // being propagated in the right places.

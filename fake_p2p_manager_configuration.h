@@ -98,7 +98,7 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
     if (!g_shell_parse_argv(command_line.c_str(),
                             &argc,
                             &argv,
-                            NULL)) {
+                            nullptr)) {
       LOG(ERROR) << "Error splitting '" << command_line << "'";
       return ret;
     }

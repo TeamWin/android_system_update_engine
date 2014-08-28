@@ -32,7 +32,7 @@ UpdateCheckScheduler::~UpdateCheckScheduler() {}
 
 void UpdateCheckScheduler::Run() {
   enabled_ = false;
-  update_attempter_->set_update_check_scheduler(NULL);
+  update_attempter_->set_update_check_scheduler(nullptr);
 
   if (!system_state_->hardware()->IsOfficialBuild()) {
     LOG(WARNING) << "Non-official build: periodic update checks disabled.";

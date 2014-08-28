@@ -323,8 +323,8 @@ class ScopedDirCloser {
     if (dir_ && *dir_) {
       int r = closedir(*dir_);
       TEST_AND_RETURN_ERRNO(r == 0);
-      *dir_ = NULL;
-      dir_ = NULL;
+      *dir_ = nullptr;
+      dir_ = nullptr;
     }
   }
  private:
@@ -354,7 +354,7 @@ bool RecursiveUnlinkDir(const std::string& path) {
     struct dirent *dir_entry_p;
     int err = 0;
     while ((err = readdir_r(dir, &dir_entry, &dir_entry_p)) == 0) {
-      if (dir_entry_p == NULL) {
+      if (dir_entry_p == nullptr) {
         // end of stream reached
         break;
       }
@@ -575,7 +575,7 @@ bool MakeTempDirectory(const std::string& base_dirname_template,
   buf[dirname_template.size()] = '\0';
 
   char* return_code = mkdtemp(&buf[0]);
-  TEST_AND_RETURN_FALSE_ERRNO(return_code != NULL);
+  TEST_AND_RETURN_FALSE_ERRNO(return_code != nullptr);
   *dirname = &buf[0];
   return true;
 }
@@ -595,7 +595,8 @@ bool StringHasPrefix(const std::string& str, const std::string& prefix) {
 bool MountFilesystem(const string& device,
                      const string& mountpoint,
                      unsigned long mountflags) {  // NOLINT(runtime/int)
-  int rc = mount(device.c_str(), mountpoint.c_str(), "ext3", mountflags, NULL);
+  int rc = mount(device.c_str(), mountpoint.c_str(), "ext3", mountflags,
+                 nullptr);
   if (rc < 0) {
     string msg = ErrnoNumberAsString(errno);
     LOG(ERROR) << "Unable to mount destination device: " << msg << ". "
@@ -792,14 +793,14 @@ gboolean TriggerCrashReporterUpload(void* unused) {
     abort();  // never returns
   }
   // We are the parent. Wait for child to terminate.
-  pid_t result = waitpid(pid, NULL, 0);
+  pid_t result = waitpid(pid, nullptr, 0);
   LOG_IF(ERROR, result < 0) << "waitpid() failed";
   return FALSE;  // Don't call this callback again
 }
 }  // namespace
 
 void ScheduleCrashReporterUpload() {
-  g_idle_add(&TriggerCrashReporterUpload, NULL);
+  g_idle_add(&TriggerCrashReporterUpload, nullptr);
 }
 
 bool SetCpuShares(CpuShares shares) {
@@ -1401,7 +1402,7 @@ gchar** StringVectorToGStrv(const vector<string> &vector) {
        i != vector.end(); ++i) {
     g_ptr_array_add(p, g_strdup(i->c_str()));
   }
-  g_ptr_array_add(p, NULL);
+  g_ptr_array_add(p, nullptr);
   return reinterpret_cast<gchar**>(g_ptr_array_free(p, FALSE));
 }
 
@@ -1477,7 +1478,7 @@ bool DecodeAndStoreBase64String(const std::string& base64_encoded,
   }
 
   FILE *file = base::CreateAndOpenTemporaryFile(out_path);
-  if (file == NULL) {
+  if (file == nullptr) {
     LOG(ERROR) << "Error creating temporary file.";
     return false;
   }

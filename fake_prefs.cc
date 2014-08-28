@@ -15,7 +15,7 @@ namespace {
 
 void CheckNotNull(const string& key, void* ptr) {
   EXPECT_NE(nullptr, ptr)
-      << "Called Get*() for key \"" << key << "\" with a NULL parameter.";
+      << "Called Get*() for key \"" << key << "\" with a null parameter.";
 }
 
 }  // namespace

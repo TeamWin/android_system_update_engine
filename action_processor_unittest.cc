@@ -105,7 +105,7 @@ TEST(ActionProcessorTest, DelegateTest) {
   action_processor.EnqueueAction(&action);
   action_processor.StartProcessing();
   action.CompleteAction();
-  action_processor.set_delegate(NULL);
+  action_processor.set_delegate(nullptr);
   EXPECT_TRUE(delegate.processing_done_called_);
   EXPECT_TRUE(delegate.action_completed_called_);
 }
@@ -119,11 +119,11 @@ TEST(ActionProcessorTest, StopProcessingTest) {
   action_processor.EnqueueAction(&action);
   action_processor.StartProcessing();
   action_processor.StopProcessing();
-  action_processor.set_delegate(NULL);
+  action_processor.set_delegate(nullptr);
   EXPECT_TRUE(delegate.processing_stopped_called_);
   EXPECT_FALSE(delegate.action_completed_called_);
   EXPECT_FALSE(action_processor.IsRunning());
-  EXPECT_EQ(NULL, action_processor.current_action());
+  EXPECT_EQ(nullptr, action_processor.current_action());
 }
 
 TEST(ActionProcessorTest, ChainActionsTest) {
@@ -138,7 +138,7 @@ TEST(ActionProcessorTest, ChainActionsTest) {
   EXPECT_EQ(&action2, action_processor.current_action());
   EXPECT_TRUE(action_processor.IsRunning());
   action2.CompleteAction();
-  EXPECT_EQ(NULL, action_processor.current_action());
+  EXPECT_EQ(nullptr, action_processor.current_action());
   EXPECT_FALSE(action_processor.IsRunning());
 }
 
@@ -150,9 +150,9 @@ TEST(ActionProcessorTest, DtorTest) {
     action_processor.EnqueueAction(&action2);
     action_processor.StartProcessing();
   }
-  EXPECT_EQ(NULL, action1.processor());
+  EXPECT_EQ(nullptr, action1.processor());
   EXPECT_FALSE(action1.IsRunning());
-  EXPECT_EQ(NULL, action2.processor());
+  EXPECT_EQ(nullptr, action2.processor());
   EXPECT_FALSE(action2.IsRunning());
 }
 
@@ -171,7 +171,7 @@ TEST(ActionProcessorTest, DefaultDelegateTest) {
   action_processor.StartProcessing();
   action_processor.StopProcessing();
 
-  action_processor.set_delegate(NULL);
+  action_processor.set_delegate(nullptr);
 }
 
 }  // namespace chromeos_update_engine

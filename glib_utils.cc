@@ -20,7 +20,7 @@ string GetAndFreeGError(GError** error) {
                          (*error)->code,
                          (*error)->message ? (*error)->message : "(unknown)");
   g_error_free(*error);
-  *error = NULL;
+  *error = nullptr;
   return message;
 }
 

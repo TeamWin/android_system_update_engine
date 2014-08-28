@@ -112,14 +112,14 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   //
   // Takes ownership of the passed in HttpFetcher. Useful for testing.
   //
-  // Takes ownership of the passed in OmahaEvent. If |event| is NULL,
+  // Takes ownership of the passed in OmahaEvent. If |event| is null,
   // this is an UpdateCheck request, otherwise it's an Event request.
   // Event requests always succeed.
   //
   // A good calling pattern is:
   // OmahaRequestAction(..., new OmahaEvent(...), new WhateverHttpFetcher);
   // or
-  // OmahaRequestAction(..., NULL, new WhateverHttpFetcher);
+  // OmahaRequestAction(..., nullptr, new WhateverHttpFetcher);
   OmahaRequestAction(SystemState* system_state,
                      OmahaEvent* event,
                      HttpFetcher* http_fetcher,
@@ -143,7 +143,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
 
   virtual void TransferComplete(HttpFetcher *fetcher, bool successful);
   // Returns true if this is an Event request, false if it's an UpdateCheck.
-  bool IsEvent() const { return event_.get() != NULL; }
+  bool IsEvent() const { return event_.get() != nullptr; }
 
  private:
   FRIEND_TEST(OmahaRequestActionTest, GetInstallDate);
@@ -264,7 +264,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // Contains state that is relevant in the processing of the Omaha request.
   OmahaRequestParams* params_;
 
-  // Pointer to the OmahaEvent info. This is an UpdateCheck request if NULL.
+  // Pointer to the OmahaEvent info. This is an UpdateCheck request if null.
   scoped_ptr<OmahaEvent> event_;
 
   // pointer to the HttpFetcher that does the http work

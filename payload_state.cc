@@ -39,7 +39,7 @@ static const int kMaxBackoffDays = 16;
 static const uint32_t kMaxBackoffFuzzMinutes = 12 * 60;
 
 PayloadState::PayloadState()
-    : prefs_(NULL),
+    : prefs_(nullptr),
       using_p2p_for_downloading_(false),
       payload_attempt_number_(0),
       full_payload_attempt_number_(0),

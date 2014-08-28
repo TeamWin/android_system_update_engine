@@ -20,7 +20,7 @@ namespace {
 // the corresponding GValue, if found.
 const char* GetStrProperty(GHashTable* hash_table, const char* key) {
   auto gval = reinterpret_cast<GValue*>(g_hash_table_lookup(hash_table, key));
-  return (gval ? g_value_get_string(gval) : NULL);
+  return (gval ? g_value_get_string(gval) : nullptr);
 }
 
 };  // namespace
@@ -65,7 +65,7 @@ ConnectionTethering RealShillProvider::ParseConnectionTethering(
 
 bool RealShillProvider::Init() {
   // Obtain a DBus connection.
-  GError* error = NULL;
+  GError* error = nullptr;
   connection_ = dbus_->BusGet(DBUS_BUS_SYSTEM, &error);
   if (!connection_) {
     LOG(ERROR) << "Failed to initialize DBus connection: "
@@ -82,12 +82,12 @@ bool RealShillProvider::Init() {
                           G_TYPE_STRING, G_TYPE_VALUE);
   dbus_->ProxyConnectSignal(manager_proxy_, shill::kMonitorPropertyChanged,
                             G_CALLBACK(HandlePropertyChangedStatic),
-                            this, NULL);
+                            this, nullptr);
 
   // Attempt to read initial connection status. Even if this fails because shill
   // is not responding (e.g. it is down) we'll be notified via "PropertyChanged"
   // signal as soon as it comes up, so this is not a critical step.
-  GHashTable* hash_table = NULL;
+  GHashTable* hash_table = nullptr;
   if (GetProperties(manager_proxy_, &hash_table)) {
     GValue* value = reinterpret_cast<GValue*>(
         g_hash_table_lookup(hash_table, shill::kDefaultServiceProperty));
@@ -106,7 +106,7 @@ DBusGProxy* RealShillProvider::GetProxy(const char* path,
 
 bool RealShillProvider::GetProperties(DBusGProxy* proxy,
                                       GHashTable** result_p) {
-  GError* error = NULL;
+  GError* error = nullptr;
   if (!dbus_->ProxyCall_0_1(proxy, shill::kGetPropertiesFunction, &error,
                             result_p)) {
     LOG(ERROR) << "Calling shill via DBus proxy failed: "
@@ -118,7 +118,7 @@ bool RealShillProvider::GetProperties(DBusGProxy* proxy,
 
 bool RealShillProvider::ProcessDefaultService(GValue* value) {
   // Decode the string from the boxed value.
-  const char* default_service_path_str = NULL;
+  const char* default_service_path_str = nullptr;
   if (!(value && (default_service_path_str = g_value_get_string(value))))
     return false;
 
@@ -136,7 +136,7 @@ bool RealShillProvider::ProcessDefaultService(GValue* value) {
   if (is_connected) {
     DBusGProxy* service_proxy = GetProxy(default_service_path_.c_str(),
                                          shill::kFlimflamServiceInterface);
-    GHashTable* hash_table = NULL;
+    GHashTable* hash_table = nullptr;
     if (GetProperties(service_proxy, &hash_table)) {
       // Get the connection type.
       const char* type_str = GetStrProperty(hash_table, shill::kTypeProperty);

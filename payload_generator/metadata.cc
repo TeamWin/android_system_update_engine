@@ -359,7 +359,7 @@ bool ReadInodeMetadata(Graph* graph,
     bool all_blocks = ((ino == EXT2_JOURNAL_INO) || is_old_dir || is_new_dir);
 
     vector<Extent> old_extents;
-    error = ext2fs_block_iterate2(fs_old, ino, 0, NULL,
+    error = ext2fs_block_iterate2(fs_old, ino, 0, nullptr,
                                   all_blocks ? ProcessInodeAllBlocks :
                                                ProcessInodeMetadataBlocks,
                                   &old_extents);
@@ -370,7 +370,7 @@ bool ReadInodeMetadata(Graph* graph,
     }
 
     vector<Extent> new_extents;
-    error = ext2fs_block_iterate2(fs_new, ino, 0, NULL,
+    error = ext2fs_block_iterate2(fs_new, ino, 0, nullptr,
                                   all_blocks ? ProcessInodeAllBlocks :
                                                ProcessInodeMetadataBlocks,
                                   &new_extents);

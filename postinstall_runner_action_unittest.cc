@@ -46,7 +46,7 @@ class PostinstallRunnerActionTest : public ::testing::Test {
 class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
  public:
   PostinstActionProcessorDelegate()
-      : loop_(NULL),
+      : loop_(nullptr),
         code_(ErrorCode::kError),
         code_set_(false) {}
   void ProcessingDone(const ActionProcessor* processor,
@@ -218,7 +218,7 @@ void PostinstallRunnerActionTest::DoTest(
     ASSERT_LT(rc, 0);
 
   if (do_losetup) {
-    loop_releaser.reset(NULL);
+    loop_releaser.reset(nullptr);
   }
 
   // Remove unique stateful directory.

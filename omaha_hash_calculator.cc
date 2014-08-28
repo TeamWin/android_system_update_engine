@@ -46,7 +46,7 @@ class ScopedBioHandle {
   void FreeCurrentBio() {
     if (bio_) {
       BIO_free_all(bio_);
-      bio_ = NULL;
+      bio_ = nullptr;
     }
   }
 
@@ -114,13 +114,13 @@ bool OmahaHashCalculator::Base64Encode(const void* data,
     if (success)
       success = (BIO_flush(b64) == 1);
 
-    BUF_MEM *bptr = NULL;
+    BUF_MEM *bptr = nullptr;
     BIO_get_mem_ptr(b64, &bptr);
     out->assign(bptr->data, bptr->length - 1);
   }
   if (b64) {
     BIO_free_all(b64);
-    b64 = NULL;
+    b64 = nullptr;
   }
   return success;
 }

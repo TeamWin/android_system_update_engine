@@ -52,12 +52,12 @@ TEST_F(FilesystemIteratorTest, RunAsRootSuccessTest) {
   // Create uniquely named main/sub images.
   string main_image;
   ASSERT_TRUE(utils::MakeTempFile("FilesystemIteratorTest.image1-XXXXXX",
-                                  &main_image, NULL));
+                                  &main_image, nullptr));
   ScopedPathUnlinker main_image_unlinker(main_image);
 
   string sub_image;
   ASSERT_TRUE(utils::MakeTempFile("FilesystemIteratorTest.image2-XXXXXX",
-                                  &sub_image, NULL));
+                                  &sub_image, nullptr));
   ScopedPathUnlinker sub_image_unlinker(sub_image);
 
   // Create uniquely named main/sub mount points.
@@ -70,7 +70,7 @@ TEST_F(FilesystemIteratorTest, RunAsRootSuccessTest) {
 
   vector<string> expected_paths_vector;
   CreateExtImageAtPath(main_image, &expected_paths_vector);
-  CreateExtImageAtPath(sub_image, NULL);
+  CreateExtImageAtPath(sub_image, nullptr);
   ASSERT_EQ(0, System(string("mount -o loop ") + main_image + " " +
                       main_image_mount_point));
   ASSERT_EQ(0, System(string("mount -o loop ") + sub_image + " " +

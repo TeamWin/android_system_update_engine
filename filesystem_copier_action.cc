@@ -43,8 +43,8 @@ FilesystemCopierAction::FilesystemCopierAction(
     bool verify_hash)
     : copying_kernel_install_path_(copying_kernel_install_path),
       verify_hash_(verify_hash),
-      src_stream_(NULL),
-      dst_stream_(NULL),
+      src_stream_(nullptr),
+      dst_stream_(nullptr),
       read_done_(false),
       failed_(false),
       cancelled_(false),
@@ -60,7 +60,7 @@ FilesystemCopierAction::FilesystemCopierAction(
   for (int i = 0; i < 2; ++i) {
     buffer_state_[i] = kBufferStateEmpty;
     buffer_valid_size_[i] = 0;
-    canceller_[i] = NULL;
+    canceller_[i] = nullptr;
   }
 }
 
@@ -154,19 +154,19 @@ void FilesystemCopierAction::TerminateProcessing() {
 }
 
 bool FilesystemCopierAction::IsCleanupPending() const {
-  return (src_stream_ != NULL);
+  return (src_stream_ != nullptr);
 }
 
 void FilesystemCopierAction::Cleanup(ErrorCode code) {
   for (int i = 0; i < 2; i++) {
     g_object_unref(canceller_[i]);
-    canceller_[i] = NULL;
+    canceller_[i] = nullptr;
   }
   g_object_unref(src_stream_);
-  src_stream_ = NULL;
+  src_stream_ = nullptr;
   if (dst_stream_) {
     g_object_unref(dst_stream_);
-    dst_stream_ = NULL;
+    dst_stream_ = nullptr;
   }
   if (cancelled_)
     return;
@@ -180,7 +180,7 @@ void FilesystemCopierAction::AsyncReadReadyCallback(GObject *source_object,
   int index = buffer_state_[0] == kBufferStateReading ? 0 : 1;
   CHECK(buffer_state_[index] == kBufferStateReading);
 
-  GError* error = NULL;
+  GError* error = nullptr;
   CHECK(canceller_[index]);
   cancelled_ = g_cancellable_is_cancelled(canceller_[index]) == TRUE;
 
@@ -227,7 +227,7 @@ void FilesystemCopierAction::AsyncWriteReadyCallback(GObject *source_object,
   CHECK(buffer_state_[index] == kBufferStateWriting);
   buffer_state_[index] = kBufferStateEmpty;
 
-  GError* error = NULL;
+  GError* error = nullptr;
   CHECK(canceller_[index]);
   cancelled_ = g_cancellable_is_cancelled(canceller_[index]) == TRUE;
 

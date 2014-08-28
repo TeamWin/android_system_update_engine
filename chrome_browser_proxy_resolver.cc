@@ -53,14 +53,14 @@ const int kTimeout = 5;  // seconds
 
 ChromeBrowserProxyResolver::ChromeBrowserProxyResolver(
     DBusWrapperInterface* dbus)
-    : dbus_(dbus), proxy_(NULL), timeout_(kTimeout) {}
+    : dbus_(dbus), proxy_(nullptr), timeout_(kTimeout) {}
 
 bool ChromeBrowserProxyResolver::Init() {
   if (proxy_)
     return true;  // Already initialized.
 
   // Set up signal handler. Code lifted from libcros.
-  GError* g_error = NULL;
+  GError* g_error = nullptr;
   DBusGConnection* bus = dbus_->BusGet(DBUS_BUS_SYSTEM, &g_error);
   TEST_AND_RETURN_FALSE(bus);
   DBusConnection* connection = dbus_->ConnectionGetConnection(bus);
@@ -75,7 +75,7 @@ bool ChromeBrowserProxyResolver::Init() {
       connection,
       &ChromeBrowserProxyResolver::StaticFilterMessage,
       this,
-      NULL));
+      nullptr));
 
   proxy_ = dbus_->ProxyNewForName(bus, kLibCrosServiceName, kLibCrosServicePath,
                                   kLibCrosServiceInterface);
@@ -92,7 +92,7 @@ bool ChromeBrowserProxyResolver::Init() {
 ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() {
   // Remove DBus connection filters and Kill proxy object.
   if (proxy_) {
-    GError* gerror = NULL;
+    GError* gerror = nullptr;
     DBusGConnection* gbus = dbus_->BusGet(DBUS_BUS_SYSTEM, &gerror);
     if (gbus) {
       DBusConnection* connection = dbus_->ConnectionGetConnection(gbus);
@@ -108,14 +108,14 @@ ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() {
   for (TimeoutsMap::iterator it = timers_.begin(), e = timers_.end(); it != e;
        ++it) {
     g_source_destroy(it->second);
-    it->second = NULL;
+    it->second = nullptr;
   }
 }
 
 bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
                                                   ProxiesResolvedFn callback,
                                                   void* data) {
-  GError* error = NULL;
+  GError* error = nullptr;
   guint timeout = timeout_;
   if (proxy_) {
     if (!dbus_->ProxyCall_3_0(proxy_,
@@ -146,7 +146,7 @@ bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
   GSource* timer = g_timeout_source_new_seconds(timeout);
   g_source_set_callback(
       timer, utils::GlibRunClosure, closure, utils::GlibDestroyClosure);
-  g_source_attach(timer, NULL);
+  g_source_attach(timer, nullptr);
   timers_.insert(make_pair(url, timer));
   return true;
 }
@@ -161,9 +161,9 @@ DBusHandlerResult ChromeBrowserProxyResolver::FilterMessage(
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
   }
   // Get args
-  char* source_url = NULL;
-  char* proxy_list = NULL;
-  char* error = NULL;
+  char* source_url = nullptr;
+  char* proxy_list = nullptr;
+  char* error = nullptr;
   DBusError arg_error;
   dbus_error_init(&arg_error);
   if (!dbus_->DBusMessageGetArgs_3(message, &arg_error,

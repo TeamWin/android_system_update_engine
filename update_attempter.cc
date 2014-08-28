@@ -188,7 +188,7 @@ bool UpdateAttempter::CheckAndReportDailyMetrics() {
 void UpdateAttempter::ReportOSAge() {
   struct stat sb;
 
-  if (system_state_ == NULL)
+  if (system_state_ == nullptr)
     return;
 
   if (stat("/etc/lsb-release", &sb) != 0) {
@@ -278,7 +278,7 @@ void UpdateAttempter::RefreshDevicePolicy() {
     policy_provider_.reset(new policy::PolicyProvider());
   policy_provider_->Reload();
 
-  const policy::DevicePolicy* device_policy = NULL;
+  const policy::DevicePolicy* device_policy = nullptr;
   if (policy_provider_->device_policy_is_loaded())
     device_policy = &policy_provider_->GetDevicePolicy();
 
@@ -302,7 +302,7 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
   // update_engine or p2p codebases so he can actually test his
   // code.).
 
-  if (system_state_ != NULL) {
+  if (system_state_ != nullptr) {
     if (!system_state_->p2p_manager()->IsP2PEnabled()) {
       LOG(INFO) << "p2p is not enabled - disallowing p2p for both"
                 << " downloading and sharing.";
@@ -587,7 +587,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   update_check_fetcher->set_check_certificate(CertificateChecker::kUpdate);
   shared_ptr<OmahaRequestAction> update_check_action(
       new OmahaRequestAction(system_state_,
-                             NULL,
+                             nullptr,
                              update_check_fetcher,  // passes ownership
                              false));
   shared_ptr<OmahaResponseHandlerAction> response_handler_action(
@@ -846,7 +846,7 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
 }
 
 bool UpdateAttempter::RequestPowerManagerReboot() {
-  GError* error = NULL;
+  GError* error = nullptr;
   DBusGConnection* bus = dbus_iface_->BusGet(DBUS_BUS_SYSTEM, &error);
   if (!bus) {
     LOG(ERROR) << "Failed to get system bus: "
@@ -884,7 +884,7 @@ bool UpdateAttempter::RebootDirectly() {
   command.push_back("now");
   LOG(INFO) << "Running \"" << JoinString(command, ' ') << "\"";
   int rc = 0;
-  Subprocess::SynchronousExec(command, &rc, NULL);
+  Subprocess::SynchronousExec(command, &rc, nullptr);
   return rc == 0;
 }
 
@@ -935,8 +935,8 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT);
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
-    // This pointer is NULL during rollback operations, and the stats
-    // don't make much sense then anway.
+    // This pointer is null during rollback operations, and the stats
+    // don't make much sense then anyway.
     if (response_handler_action_) {
       const InstallPlan& install_plan =
           response_handler_action_->install_plan();
@@ -977,7 +977,7 @@ void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
   download_progress_ = 0.0;
   SetStatusAndNotify(UPDATE_STATUS_IDLE);
   actions_.clear();
-  error_event_.reset(NULL);
+  error_event_.reset(nullptr);
 }
 
 // Called whenever an action has finished processing, either successfully
@@ -1039,7 +1039,7 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     // cases when the server and the client are unable to initiate the download.
     CHECK(action == response_handler_action_.get());
     const InstallPlan& plan = response_handler_action_->install_plan();
-    last_checked_time_ = time(NULL);
+    last_checked_time_ = time(nullptr);
     new_version_ = plan.version;
     new_payload_size_ = plan.payload_size;
     SetupDownload();
@@ -1276,7 +1276,7 @@ void UpdateAttempter::CreatePendingErrorEvent(AbstractAction* action,
 }
 
 bool UpdateAttempter::ScheduleErrorEventAction() {
-  if (error_event_.get() == NULL)
+  if (error_event_.get() == nullptr)
     return false;
 
   LOG(ERROR) << "Update failed.";
@@ -1320,15 +1320,15 @@ void UpdateAttempter::SetupCpuSharesManagement() {
   g_source_set_callback(manage_shares_source_,
                         StaticManageCpuSharesCallback,
                         this,
-                        NULL);
-  g_source_attach(manage_shares_source_, NULL);
+                        nullptr);
+  g_source_attach(manage_shares_source_, nullptr);
   SetCpuShares(utils::kCpuSharesLow);
 }
 
 void UpdateAttempter::CleanupCpuSharesManagement() {
   if (manage_shares_source_) {
     g_source_destroy(manage_shares_source_);
-    manage_shares_source_ = NULL;
+    manage_shares_source_ = nullptr;
   }
   SetCpuShares(utils::kCpuSharesNormal);
 }
@@ -1350,7 +1350,7 @@ void UpdateAttempter::ScheduleProcessingStart() {
 
 bool UpdateAttempter::ManageCpuSharesCallback() {
   SetCpuShares(utils::kCpuSharesNormal);
-  manage_shares_source_ = NULL;
+  manage_shares_source_ = nullptr;
   return false;  // Destroy the timeout source.
 }
 
@@ -1402,12 +1402,12 @@ void UpdateAttempter::PingOmaha() {
   if (!processor_->IsRunning()) {
     shared_ptr<OmahaRequestAction> ping_action(
         new OmahaRequestAction(system_state_,
-                               NULL,
+                               nullptr,
                                new LibcurlHttpFetcher(GetProxyResolver(),
                                                       system_state_),
                                true));
     actions_.push_back(shared_ptr<OmahaRequestAction>(ping_action));
-    processor_->set_delegate(NULL);
+    processor_->set_delegate(nullptr);
     processor_->EnqueueAction(ping_action.get());
     // Call StartProcessing() synchronously here to avoid any race conditions
     // caused by multiple outstanding ping Omaha requests.  If we call
@@ -1481,7 +1481,7 @@ bool UpdateAttempter::DecrementUpdateCheckCount() {
 void UpdateAttempter::UpdateEngineStarted() {
   // If we just booted into a new update, keep the previous OS version
   // in case we rebooted because of a crash of the old version, so we
-  // can do a proper crash report with correcy information.
+  // can do a proper crash report with correct information.
   // This must be done before calling
   // system_state_->payload_state()->UpdateEngineStarted() since it will
   // delete SystemUpdated marker file.
@@ -1498,7 +1498,7 @@ void UpdateAttempter::UpdateEngineStarted() {
 }
 
 bool UpdateAttempter::StartP2PAtStartup() {
-  if (system_state_ == NULL ||
+  if (system_state_ == nullptr ||
       !system_state_->p2p_manager()->IsP2PEnabled()) {
     LOG(INFO) << "Not starting p2p at startup since it's not enabled.";
     return false;
@@ -1514,7 +1514,7 @@ bool UpdateAttempter::StartP2PAtStartup() {
 }
 
 bool UpdateAttempter::StartP2PAndPerformHousekeeping() {
-  if (system_state_ == NULL)
+  if (system_state_ == nullptr)
     return false;
 
   if (!system_state_->p2p_manager()->IsP2PEnabled()) {

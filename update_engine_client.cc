@@ -71,13 +71,13 @@ namespace {
 
 bool GetProxy(DBusGProxy** out_proxy) {
   DBusGConnection* bus;
-  DBusGProxy* proxy = NULL;
-  GError* error = NULL;
+  DBusGProxy* proxy = nullptr;
+  GError* error = nullptr;
   const int kTries = 4;
   const int kRetrySeconds = 10;
 
   bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
-  if (bus == NULL) {
+  if (bus == nullptr) {
     LOG(ERROR) << "Failed to get bus: " << GetAndFreeGError(&error);
     exit(1);
   }
@@ -96,7 +96,7 @@ bool GetProxy(DBusGProxy** out_proxy) {
                             << kUpdateEngineServiceName << ": "
                             << GetAndFreeGError(&error);
   }
-  if (proxy == NULL) {
+  if (proxy == nullptr) {
     LOG(ERROR) << "Giving up -- unable to get dbus proxy for "
                << kUpdateEngineServiceName;
     exit(1);
@@ -122,7 +122,7 @@ static void StatusUpdateSignalHandler(DBusGProxy* proxy,
 
 bool ResetStatus() {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -131,18 +131,18 @@ bool ResetStatus() {
 }
 
 
-// If |op| is non-NULL, sets it to the current operation string or an
+// If |op| is non-null, sets it to the current operation string or an
 // empty string if unable to obtain the current status.
 bool GetStatus(string* op) {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
   gint64 last_checked_time = 0;
   gdouble progress = 0.0;
-  char* current_op = NULL;
-  char* new_version = NULL;
+  char* current_op = nullptr;
+  char* new_version = nullptr;
   gint64 new_size = 0;
 
   gboolean rc = update_engine_client_get_status(proxy,
@@ -194,19 +194,19 @@ void WatchForUpdates() {
                           G_TYPE_STRING,
                           G_TYPE_INT64,
                           G_TYPE_INVALID);
-  GMainLoop* loop = g_main_loop_new(NULL, TRUE);
+  GMainLoop* loop = g_main_loop_new(nullptr, TRUE);
   dbus_g_proxy_connect_signal(proxy,
                               kStatusUpdate,
                               G_CALLBACK(StatusUpdateSignalHandler),
-                              NULL,
-                              NULL);
+                              nullptr,
+                              nullptr);
   g_main_loop_run(loop);
   g_main_loop_unref(loop);
 }
 
 bool Rollback(bool rollback) {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -220,7 +220,7 @@ bool Rollback(bool rollback) {
 
 std::string GetRollbackPartition() {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -254,7 +254,7 @@ std::string GetKernelDevices() {
 
 bool CheckForUpdates(const string& app_version, const string& omaha_url) {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -273,7 +273,7 @@ bool CheckForUpdates(const string& app_version, const string& omaha_url) {
 
 bool RebootIfNeeded() {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -288,7 +288,7 @@ bool RebootIfNeeded() {
 
 void SetTargetChannel(const string& target_channel, bool allow_powerwash) {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -303,11 +303,11 @@ void SetTargetChannel(const string& target_channel, bool allow_powerwash) {
 
 string GetChannel(bool get_current_channel) {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
-  char* channel = NULL;
+  char* channel = nullptr;
   gboolean rc = update_engine_client_get_channel(proxy,
                                                  get_current_channel,
                                                  &channel,
@@ -321,7 +321,7 @@ string GetChannel(bool get_current_channel) {
 
 void SetUpdateOverCellularPermission(gboolean allowed) {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -335,7 +335,7 @@ void SetUpdateOverCellularPermission(gboolean allowed) {
 
 bool GetUpdateOverCellularPermission() {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -351,7 +351,7 @@ bool GetUpdateOverCellularPermission() {
 
 void SetP2PUpdatePermission(gboolean enabled) {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -365,7 +365,7 @@ void SetP2PUpdatePermission(gboolean enabled) {
 
 bool GetP2PUpdatePermission() {
   DBusGProxy* proxy;
-  GError* error = NULL;
+  GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
@@ -396,8 +396,8 @@ static gboolean CompleteUpdateSource(gpointer data) {
 // a signal watch, actively poll the daemon just in case it stops
 // sending notifications.
 void CompleteUpdate() {
-  GMainLoop* loop = g_main_loop_new(NULL, TRUE);
-  g_timeout_add_seconds(5, CompleteUpdateSource, NULL);
+  GMainLoop* loop = g_main_loop_new(nullptr, TRUE);
+  g_timeout_add_seconds(5, CompleteUpdateSource, nullptr);
   g_main_loop_run(loop);
   g_main_loop_unref(loop);
 }
@@ -663,7 +663,7 @@ int main(int argc, char** argv) {
 
   if (FLAGS_status) {
     LOG(INFO) << "Querying Update Engine status...";
-    if (!GetStatus(NULL)) {
+    if (!GetStatus(nullptr)) {
       LOG(ERROR) << "GetStatus failed.";
       return 1;
     }

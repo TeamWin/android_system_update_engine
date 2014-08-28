@@ -101,7 +101,7 @@ string GetAppBody(const OmahaEvent* event,
                   int ping_roll_call_days,
                   PrefsInterface* prefs) {
   string app_body;
-  if (event == NULL) {
+  if (event == nullptr) {
     app_body = GetPingXml(ping_active_days, ping_roll_call_days);
     if (!ping_only) {
       // not passing update_disabled to Omaha because we want to
@@ -428,7 +428,7 @@ void OmahaRequestAction::InitPingDays() {
 // static
 int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
   PrefsInterface* prefs = system_state->prefs();
-  if (prefs == NULL)
+  if (prefs == nullptr)
     return -1;
 
   // If we have the value stored on disk, just return it.
@@ -935,7 +935,7 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
   int64_t manifest_metadata_size = 0;
   int64_t next_data_offset = 0;
   int64_t next_data_length = 0;
-  if (system_state_ != NULL &&
+  if (system_state_ &&
       system_state_->prefs()->GetInt64(kPrefsManifestMetadataSize,
                                        &manifest_metadata_size) &&
       manifest_metadata_size != -1 &&
@@ -948,7 +948,7 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
   }
 
   string file_id = utils::CalculateP2PFileId(response.hash, response.size);
-  if (system_state_->p2p_manager() != NULL) {
+  if (system_state_->p2p_manager()) {
     LOG(INFO) << "Checking if payload is available via p2p, file_id="
               << file_id << " minimum_size=" << minimum_size;
     system_state_->p2p_manager()->LookupUrlForFile(
@@ -1190,7 +1190,7 @@ bool OmahaRequestAction::ParseInstallDate(OmahaParserData* parser_data,
 // static
 bool OmahaRequestAction::HasInstallDate(SystemState *system_state) {
   PrefsInterface* prefs = system_state->prefs();
-  if (prefs == NULL)
+  if (prefs == nullptr)
     return false;
 
   return prefs->Exists(kPrefsInstallDateDays);
@@ -1204,7 +1204,7 @@ bool OmahaRequestAction::PersistInstallDate(
   TEST_AND_RETURN_FALSE(install_date_days >= 0);
 
   PrefsInterface* prefs = system_state->prefs();
-  if (prefs == NULL)
+  if (prefs == nullptr)
     return false;
 
   if (!prefs->SetInt64(kPrefsInstallDateDays, install_date_days))

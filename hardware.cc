@@ -169,7 +169,7 @@ static string ReadValueFromCrosSystem(const string& key) {
 
   const char *rv = VbGetSystemPropertyString(key.c_str(), value_buffer,
                                              sizeof(value_buffer));
-  if (rv != NULL) {
+  if (rv != nullptr) {
     string return_value(value_buffer);
     base::TrimWhitespaceASCII(return_value, base::TRIM_ALL, &return_value);
     return return_value;

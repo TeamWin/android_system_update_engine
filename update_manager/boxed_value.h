@@ -43,7 +43,7 @@ class BoxedValue {
   // Creates an empty BoxedValue. Since the pointer can't be assigned from other
   // BoxedValues or pointers, this is only useful in places where a default
   // constructor is required, such as std::map::operator[].
-  BoxedValue() : value_(NULL), deleter_(NULL), printer_(NULL) {}
+  BoxedValue() : value_(nullptr), deleter_(nullptr), printer_(nullptr) {}
 
   // Creates a BoxedValue for the passed pointer |value|. The BoxedValue keeps
   // the ownership of this pointer and can't be released.
@@ -60,9 +60,9 @@ class BoxedValue {
   BoxedValue(BoxedValue&& other)  // NOLINT(build/c++11)
       : value_(other.value_), deleter_(other.deleter_),
         printer_(other.printer_) {
-    other.value_ = NULL;
-    other.deleter_ = NULL;
-    other.printer_ = NULL;
+    other.value_ = nullptr;
+    other.deleter_ = nullptr;
+    other.printer_ = nullptr;
   }
 
   // Deletes the |value| passed on construction using the delete for the passed

@@ -594,7 +594,7 @@ bool DeltaPerformer::PerformReplaceOperation(
 
   // Since bzip decompression is optional, we have a variable writer that will
   // point to one of the ExtentWriter objects above.
-  ExtentWriter* writer = NULL;
+  ExtentWriter* writer = nullptr;
   if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
     writer = &zero_pad_writer;
   } else if (operation.type() ==
@@ -744,7 +744,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
   string temp_filename;
   TEST_AND_RETURN_FALSE(utils::MakeTempFile("/tmp/au_patch.XXXXXX",
                                             &temp_filename,
-                                            NULL));
+                                            nullptr));
   ScopedPathUnlinker path_unlinker(temp_filename);
   {
     int fd = open(temp_filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -780,7 +780,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
       Subprocess::SynchronousExecFlags(cmd,
                                        G_SPAWN_LEAVE_DESCRIPTORS_OPEN,
                                        &return_code,
-                                       NULL));
+                                       nullptr));
   TEST_AND_RETURN_FALSE(return_code == 0);
 
   if (operation.dst_length() % block_size_) {

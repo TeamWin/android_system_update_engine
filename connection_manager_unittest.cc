@@ -28,9 +28,9 @@ namespace chromeos_update_engine {
 class ConnectionManagerTest : public ::testing::Test {
  public:
   ConnectionManagerTest()
-      : kMockFlimFlamManagerProxy_(NULL),
-        kMockFlimFlamServiceProxy_(NULL),
-        kServicePath_(NULL),
+      : kMockFlimFlamManagerProxy_(nullptr),
+        kMockFlimFlamServiceProxy_(nullptr),
+        kServicePath_(nullptr),
         cmut_(&fake_system_state_) {
     fake_system_state_.set_connection_manager(&cmut_);
   }
@@ -40,7 +40,7 @@ class ConnectionManagerTest : public ::testing::Test {
   void SetManagerReply(const char* reply_value, const GType& reply_type);
 
   // Sets the |service_type| Type and the |physical_technology|
-  // PhysicalTechnology properties in the mocked service. If a NULL
+  // PhysicalTechnology properties in the mocked service. If a null
   // |physical_technology| is passed, the property is not set (not present).
   void SetServiceReply(const char* service_type,
                        const char* physical_technology,
@@ -71,7 +71,7 @@ void ConnectionManagerTest::SetupMocks(const char* service_path) {
   kMockSystemBus_ = reinterpret_cast<DBusGConnection*>(number++);
   kMockFlimFlamManagerProxy_ = reinterpret_cast<DBusGProxy*>(number++);
   kMockFlimFlamServiceProxy_ = reinterpret_cast<DBusGProxy*>(number++);
-  ASSERT_NE(kMockSystemBus_, reinterpret_cast<DBusGConnection*>(NULL));
+  ASSERT_NE(kMockSystemBus_, static_cast<DBusGConnection*>(nullptr));
 
   kServicePath_ = service_path;
 
@@ -91,7 +91,7 @@ void ConnectionManagerTest::SetManagerReply(const char *reply_value,
   // of the GPtrArray automatically when the |array_as_value| GValue is unset.
   // The g_strdup() is not being leaked.
   GPtrArray* array = g_ptr_array_new();
-  ASSERT_TRUE(array != NULL);
+  ASSERT_NE(nullptr, array);
   g_ptr_array_add(array, g_strdup(reply_value));
 
   GValue* array_as_value = g_new0(GValue, 1);
@@ -140,14 +140,14 @@ void ConnectionManagerTest::SetServiceReply(const char* service_type,
                       const_cast<char*>("Type"),
                       service_type_value);
 
-  if (physical_technology != NULL) {
+  if (physical_technology) {
     GValue* physical_technology_value = GValueNewString(physical_technology);
     g_hash_table_insert(service_hash_table,
                         const_cast<char*>("PhysicalTechnology"),
                         physical_technology_value);
   }
 
-  if (service_tethering != NULL) {
+  if (service_tethering) {
     GValue* service_tethering_value = GValueNewString(service_tethering);
     g_hash_table_insert(service_hash_table,
                         const_cast<char*>("Tethering"),
@@ -195,7 +195,7 @@ void ConnectionManagerTest::TestWithServiceTethering(
 
   SetupMocks("/service/guest-network");
   SetManagerReply(kServicePath_, DBUS_TYPE_G_OBJECT_PATH_ARRAY);
-  SetServiceReply(shill::kTypeWifi, NULL, service_tethering);
+  SetServiceReply(shill::kTypeWifi, nullptr, service_tethering);
 
   NetworkConnectionType type;
   NetworkTethering tethering;
@@ -204,15 +204,15 @@ void ConnectionManagerTest::TestWithServiceTethering(
 }
 
 TEST_F(ConnectionManagerTest, SimpleTest) {
-  TestWithServiceType(shill::kTypeEthernet, NULL, kNetEthernet);
-  TestWithServiceType(shill::kTypeWifi, NULL, kNetWifi);
-  TestWithServiceType(shill::kTypeWimax, NULL, kNetWimax);
-  TestWithServiceType(shill::kTypeBluetooth, NULL, kNetBluetooth);
-  TestWithServiceType(shill::kTypeCellular, NULL, kNetCellular);
+  TestWithServiceType(shill::kTypeEthernet, nullptr, kNetEthernet);
+  TestWithServiceType(shill::kTypeWifi, nullptr, kNetWifi);
+  TestWithServiceType(shill::kTypeWimax, nullptr, kNetWimax);
+  TestWithServiceType(shill::kTypeBluetooth, nullptr, kNetBluetooth);
+  TestWithServiceType(shill::kTypeCellular, nullptr, kNetCellular);
 }
 
 TEST_F(ConnectionManagerTest, PhysicalTechnologyTest) {
-  TestWithServiceType(shill::kTypeVPN, NULL, kNetUnknown);
+  TestWithServiceType(shill::kTypeVPN, nullptr, kNetUnknown);
   TestWithServiceType(shill::kTypeVPN, shill::kTypeVPN, kNetUnknown);
   TestWithServiceType(shill::kTypeVPN, shill::kTypeWifi, kNetWifi);
   TestWithServiceType(shill::kTypeVPN, shill::kTypeWimax, kNetWimax);
@@ -230,7 +230,7 @@ TEST_F(ConnectionManagerTest, TetheringTest) {
 }
 
 TEST_F(ConnectionManagerTest, UnknownTest) {
-  TestWithServiceType("foo", NULL, kNetUnknown);
+  TestWithServiceType("foo", nullptr, kNetUnknown);
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverEthernetTest) {

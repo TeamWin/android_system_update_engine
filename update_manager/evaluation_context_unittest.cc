@@ -84,9 +84,9 @@ class UmEvaluationContextTest : public ::testing::Test {
     if (eval_ctx_) {
       base::WeakPtr<EvaluationContext> eval_ctx_weak_alias =
           eval_ctx_->weak_ptr_factory_.GetWeakPtr();
-      UMTEST_ASSERT_NOT_NULL(eval_ctx_weak_alias.get());
+      ASSERT_NE(nullptr, eval_ctx_weak_alias.get());
       eval_ctx_ = nullptr;
-      UMTEST_EXPECT_NULL(eval_ctx_weak_alias.get())
+      EXPECT_EQ(nullptr, eval_ctx_weak_alias.get())
           << "The evaluation context was not destroyed! This is likely a bug "
              "in how the test was written, look for leaking handles to the EC, "
              "possibly through closure objects.";
@@ -120,13 +120,12 @@ class UmEvaluationContextTest : public ::testing::Test {
 };
 
 TEST_F(UmEvaluationContextTest, GetValueFails) {
-  // FakeVariable is initialized as returning NULL.
-  UMTEST_EXPECT_NULL(eval_ctx_->GetValue(&fake_int_var_));
+  // FakeVariable is initialized as returning null.
+  EXPECT_EQ(nullptr, eval_ctx_->GetValue(&fake_int_var_));
 }
 
 TEST_F(UmEvaluationContextTest, GetValueFailsWithInvalidVar) {
-  UMTEST_EXPECT_NULL(eval_ctx_->GetValue(
-      reinterpret_cast<Variable<int>*>(NULL)));
+  EXPECT_EQ(nullptr, eval_ctx_->GetValue(static_cast<Variable<int>*>(nullptr)));
 }
 
 TEST_F(UmEvaluationContextTest, GetValueReturns) {
@@ -134,7 +133,7 @@ TEST_F(UmEvaluationContextTest, GetValueReturns) {
 
   fake_int_var_.reset(new int(42));
   p_fake_int = eval_ctx_->GetValue(&fake_int_var_);
-  UMTEST_ASSERT_NOT_NULL(p_fake_int);
+  ASSERT_NE(nullptr, p_fake_int);
   EXPECT_EQ(42, *p_fake_int);
 }
 
@@ -149,19 +148,19 @@ TEST_F(UmEvaluationContextTest, GetValueCached) {
   fake_int_var_.reset(new int(5));
 
   p_fake_int = eval_ctx_->GetValue(&fake_int_var_);
-  UMTEST_ASSERT_NOT_NULL(p_fake_int);
+  ASSERT_NE(nullptr, p_fake_int);
   EXPECT_EQ(42, *p_fake_int);
 }
 
 TEST_F(UmEvaluationContextTest, GetValueCachesNull) {
   const int* p_fake_int = eval_ctx_->GetValue(&fake_int_var_);
-  UMTEST_EXPECT_NULL(p_fake_int);
+  EXPECT_EQ(nullptr, p_fake_int);
 
   fake_int_var_.reset(new int(42));
   // A second attempt to read the variable should not work because this
-  // EvaluationContext already got a NULL value.
+  // EvaluationContext already got a null value.
   p_fake_int = eval_ctx_->GetValue(&fake_int_var_);
-  UMTEST_EXPECT_NULL(p_fake_int);
+  EXPECT_EQ(nullptr, p_fake_int);
 }
 
 TEST_F(UmEvaluationContextTest, GetValueMixedTypes) {
@@ -175,10 +174,10 @@ TEST_F(UmEvaluationContextTest, GetValueMixedTypes) {
   p_fake_int = eval_ctx_->GetValue(&fake_int_var_);
   p_fake_string = eval_ctx_->GetValue(&fake_poll_var_);
 
-  UMTEST_ASSERT_NOT_NULL(p_fake_int);
+  ASSERT_NE(nullptr, p_fake_int);
   EXPECT_EQ(42, *p_fake_int);
 
-  UMTEST_ASSERT_NOT_NULL(p_fake_string);
+  ASSERT_NE(nullptr, p_fake_string);
   EXPECT_EQ("Hello world!", *p_fake_string);
 }
 
@@ -328,7 +327,7 @@ TEST_F(UmEvaluationContextTest, DefaultTimeout) {
   // setup.
   EXPECT_CALL(mock_var_async_, GetValue(default_timeout_, _))
       .WillOnce(Return(nullptr));
-  UMTEST_EXPECT_NULL(eval_ctx_->GetValue(&mock_var_async_));
+  EXPECT_EQ(nullptr, eval_ctx_->GetValue(&mock_var_async_));
 }
 
 TEST_F(UmEvaluationContextTest, TimeoutUpdatesWithMonotonicTime) {
@@ -339,7 +338,7 @@ TEST_F(UmEvaluationContextTest, TimeoutUpdatesWithMonotonicTime) {
 
   EXPECT_CALL(mock_var_async_, GetValue(timeout, _))
       .WillOnce(Return(nullptr));
-  UMTEST_EXPECT_NULL(eval_ctx_->GetValue(&mock_var_async_));
+  EXPECT_EQ(nullptr, eval_ctx_->GetValue(&mock_var_async_));
 }
 
 TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimesWallclock) {

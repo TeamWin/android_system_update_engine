@@ -85,7 +85,7 @@ namespace {
 void SignSampleData(vector<char>* out_signature_blob) {
   string data_path;
   ASSERT_TRUE(
-      utils::MakeTempFile("data.XXXXXX", &data_path, NULL));
+      utils::MakeTempFile("data.XXXXXX", &data_path, nullptr));
   ScopedPathUnlinker data_path_unlinker(data_path);
   ASSERT_TRUE(utils::WriteFile(data_path.c_str(),
                                kDataToSign,

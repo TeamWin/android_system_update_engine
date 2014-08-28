@@ -77,8 +77,8 @@ class RealShillProvider : public ShillProvider {
 
   // The DBus interface (mockable), connection, and a shill manager proxy.
   DBusWrapperInterface* const dbus_;
-  DBusGConnection* connection_ = NULL;
-  DBusGProxy* manager_proxy_ = NULL;
+  DBusGConnection* connection_ = nullptr;
+  DBusGProxy* manager_proxy_ = nullptr;
 
   // A clock abstraction (mockable).
   ClockInterface* const clock_;

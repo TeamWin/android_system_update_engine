@@ -59,24 +59,24 @@ bool OmahaRequestParams::Init(const std::string& in_app_version,
   os_platform_ = OmahaRequestParams::kOsPlatform;
   os_version_ = OmahaRequestParams::kOsVersion;
   app_version_ = in_app_version.empty() ?
-      GetLsbValue("CHROMEOS_RELEASE_VERSION", "", NULL, stateful_override) :
+      GetLsbValue("CHROMEOS_RELEASE_VERSION", "", nullptr, stateful_override) :
       in_app_version;
   os_sp_ = app_version_ + "_" + GetMachineType();
   os_board_ = GetLsbValue("CHROMEOS_RELEASE_BOARD",
                           "",
-                          NULL,
+                          nullptr,
                           stateful_override);
   string release_app_id = GetLsbValue("CHROMEOS_RELEASE_APPID",
                                       OmahaRequestParams::kAppId,
-                                      NULL,
+                                      nullptr,
                                       stateful_override);
   board_app_id_ = GetLsbValue("CHROMEOS_BOARD_APPID",
                               release_app_id,
-                              NULL,
+                              nullptr,
                               stateful_override);
   canary_app_id_ = GetLsbValue("CHROMEOS_CANARY_APPID",
                                release_app_id,
-                               NULL,
+                               nullptr,
                                stateful_override);
   app_lang_ = "en-US";
   hwid_ = system_state_->hardware()->GetHardwareClass();
@@ -103,7 +103,7 @@ bool OmahaRequestParams::Init(const std::string& in_app_version,
   }
 
   if (in_update_url.empty())
-    update_url_ = GetLsbValue("CHROMEOS_AUSERVER", kProductionOmahaUrl, NULL,
+    update_url_ = GetLsbValue("CHROMEOS_AUSERVER", kProductionOmahaUrl, nullptr,
                               stateful_override);
   else
     update_url_ = in_update_url;
@@ -165,7 +165,7 @@ void OmahaRequestParams::SetCurrentChannelFromLsbValue() {
   string current_channel_new_value = GetLsbValue(
       kUpdateChannelKey,
       current_channel_,
-      NULL,  // No need to validate the read-only rootfs channel.
+      nullptr,  // No need to validate the read-only rootfs channel.
       false);  // stateful_override is false so we get the current channel.
 
   if (current_channel_ != current_channel_new_value) {
@@ -179,7 +179,7 @@ void OmahaRequestParams::SetIsPowerwashAllowedFromLsbValue() {
   string is_powerwash_allowed_str = GetLsbValue(
       kIsPowerwashAllowedKey,
       "false",
-      NULL,   // no need to validate
+      nullptr,  // no need to validate
       true);  // always get it from stateful, as that's the only place it'll be
   bool is_powerwash_allowed_new_value = (is_powerwash_allowed_str == "true");
   if (is_powerwash_allowed_ != is_powerwash_allowed_new_value) {

@@ -64,7 +64,7 @@ class UpdateAttempterTest : public ::testing::Test {
   UpdateAttempterTest()
       : attempter_(&fake_system_state_, &dbus_),
         mock_connection_manager(&fake_system_state_),
-        loop_(NULL) {
+        loop_(nullptr) {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
     fake_system_state_.set_update_attempter(&attempter_);
@@ -82,12 +82,12 @@ class UpdateAttempterTest : public ::testing::Test {
   virtual void SetUp() {
     CHECK(utils::MakeTempDirectory("UpdateAttempterTest-XXXXXX", &test_dir_));
 
-    EXPECT_EQ(NULL, attempter_.dbus_service_);
-    EXPECT_TRUE(attempter_.system_state_ != NULL);
-    EXPECT_EQ(NULL, attempter_.update_check_scheduler_);
+    EXPECT_EQ(nullptr, attempter_.dbus_service_);
+    EXPECT_NE(nullptr, attempter_.system_state_);
+    EXPECT_EQ(nullptr, attempter_.update_check_scheduler_);
     EXPECT_EQ(0, attempter_.http_response_code_);
     EXPECT_EQ(utils::kCpuSharesNormal, attempter_.shares_);
-    EXPECT_EQ(NULL, attempter_.manage_shares_source_);
+    EXPECT_EQ(nullptr, attempter_.manage_shares_source_);
     EXPECT_FALSE(attempter_.download_active_);
     EXPECT_EQ(UPDATE_STATUS_IDLE, attempter_.status_);
     EXPECT_EQ(0.0, attempter_.download_progress_);
@@ -170,14 +170,14 @@ class UpdateAttempterTest : public ::testing::Test {
 };
 
 TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
-  scoped_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, NULL));
+  scoped_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(503);  // Sets the HTTP response code.
-  DownloadAction action(prefs_, NULL, fetcher.release());
+  DownloadAction action(prefs_, nullptr, fetcher.release());
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
-  attempter_.ActionCompleted(NULL, &action, ErrorCode::kSuccess);
+  attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_EQ(503, attempter_.http_response_code());
   EXPECT_EQ(UPDATE_STATUS_FINALIZING, attempter_.status());
-  ASSERT_TRUE(attempter_.error_event_.get() == NULL);
+  ASSERT_EQ(nullptr, attempter_.error_event_.get());
 }
 
 TEST_F(UpdateAttempterTest, ActionCompletedErrorTest) {
@@ -186,14 +186,14 @@ TEST_F(UpdateAttempterTest, ActionCompletedErrorTest) {
   attempter_.status_ = UPDATE_STATUS_DOWNLOADING;
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
       .WillOnce(Return(false));
-  attempter_.ActionCompleted(NULL, &action, ErrorCode::kError);
-  ASSERT_TRUE(attempter_.error_event_.get() != NULL);
+  attempter_.ActionCompleted(nullptr, &action, ErrorCode::kError);
+  ASSERT_NE(nullptr, attempter_.error_event_.get());
 }
 
 TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
-  scoped_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, NULL));
+  scoped_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(500);  // Sets the HTTP response code.
-  OmahaRequestAction action(&fake_system_state_, NULL,
+  OmahaRequestAction action(&fake_system_state_, nullptr,
                             fetcher.release(), false);
   ObjectCollectorAction<OmahaResponse> collector_action;
   BondActions(&action, &collector_action);
@@ -203,18 +203,18 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   UpdateCheckScheduler scheduler(&attempter_, &fake_system_state_);
   attempter_.set_update_check_scheduler(&scheduler);
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
-  attempter_.ActionCompleted(NULL, &action, ErrorCode::kSuccess);
+  attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_EQ(500, attempter_.http_response_code());
   EXPECT_EQ(UPDATE_STATUS_IDLE, attempter_.status());
   EXPECT_EQ(234, scheduler.poll_interval());
-  ASSERT_TRUE(attempter_.error_event_.get() == NULL);
+  ASSERT_TRUE(attempter_.error_event_.get() == nullptr);
 }
 
 TEST_F(UpdateAttempterTest, RunAsRootConstructWithUpdatedMarkerTest) {
   string test_update_completed_marker;
   CHECK(utils::MakeTempFile(
           "update_attempter_unittest-update_completed_marker-XXXXXX",
-          &test_update_completed_marker, NULL));
+          &test_update_completed_marker, nullptr));
   ScopedPathUnlinker completed_marker_unlinker(test_update_completed_marker);
   const base::FilePath marker(test_update_completed_marker);
   EXPECT_EQ(0, base::WriteFile(marker, "", 0));
@@ -227,11 +227,11 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
   extern ErrorCode GetErrorCodeForAction(AbstractAction* action,
                                               ErrorCode code);
   EXPECT_EQ(ErrorCode::kSuccess,
-            GetErrorCodeForAction(NULL, ErrorCode::kSuccess));
+            GetErrorCodeForAction(nullptr, ErrorCode::kSuccess));
 
   FakeSystemState fake_system_state;
-  OmahaRequestAction omaha_request_action(&fake_system_state, NULL,
-                                          NULL, false);
+  OmahaRequestAction omaha_request_action(&fake_system_state, nullptr,
+                                          nullptr, false);
   EXPECT_EQ(ErrorCode::kOmahaRequestError,
             GetErrorCodeForAction(&omaha_request_action, ErrorCode::kError));
   OmahaResponseHandlerAction omaha_response_handler_action(&fake_system_state_);
@@ -465,7 +465,7 @@ void UpdateAttempterTest::UpdateTestVerify() {
             attempter_.actions_[1].get());
   DownloadAction* download_action =
       dynamic_cast<DownloadAction*>(attempter_.actions_[5].get());
-  ASSERT_TRUE(download_action != NULL);
+  ASSERT_NE(nullptr, download_action);
   EXPECT_EQ(&attempter_, download_action->delegate());
   EXPECT_EQ(UPDATE_STATUS_CHECKING_FOR_UPDATE, attempter_.status());
   g_main_loop_quit(loop_);
@@ -549,7 +549,7 @@ TEST_F(UpdateAttempterTest, UpdateTest) {
   g_idle_add(&StaticUpdateTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 TEST_F(UpdateAttempterTest, RollbackTest) {
@@ -557,7 +557,7 @@ TEST_F(UpdateAttempterTest, RollbackTest) {
   g_idle_add(&StaticRollbackTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 TEST_F(UpdateAttempterTest, InvalidSlotRollbackTest) {
@@ -565,7 +565,7 @@ TEST_F(UpdateAttempterTest, InvalidSlotRollbackTest) {
   g_idle_add(&StaticInvalidSlotRollbackTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 TEST_F(UpdateAttempterTest, EnterpriseRollbackTest) {
@@ -573,7 +573,7 @@ TEST_F(UpdateAttempterTest, EnterpriseRollbackTest) {
   g_idle_add(&StaticEnterpriseRollbackTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 void UpdateAttempterTest::PingOmahaTestStart() {
@@ -595,7 +595,7 @@ TEST_F(UpdateAttempterTest, PingOmahaTest) {
   g_idle_add(&StaticPingOmahaTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
   EXPECT_EQ(UPDATE_STATUS_UPDATED_NEED_REBOOT, attempter_.status());
   EXPECT_EQ(true, scheduler.scheduled_);
 }
@@ -604,7 +604,7 @@ TEST_F(UpdateAttempterTest, CreatePendingErrorEventTest) {
   ActionMock action;
   const ErrorCode kCode = ErrorCode::kDownloadTransferError;
   attempter_.CreatePendingErrorEvent(&action, kCode);
-  ASSERT_TRUE(attempter_.error_event_.get() != NULL);
+  ASSERT_NE(nullptr, attempter_.error_event_.get());
   EXPECT_EQ(OmahaEvent::kTypeUpdateComplete, attempter_.error_event_->type);
   EXPECT_EQ(OmahaEvent::kResultError, attempter_.error_event_->result);
   EXPECT_EQ(
@@ -621,7 +621,7 @@ TEST_F(UpdateAttempterTest, CreatePendingErrorEventResumedTest) {
   ActionMock action;
   const ErrorCode kCode = ErrorCode::kInstallDeviceOpenError;
   attempter_.CreatePendingErrorEvent(&action, kCode);
-  ASSERT_TRUE(attempter_.error_event_.get() != NULL);
+  ASSERT_NE(nullptr, attempter_.error_event_.get());
   EXPECT_EQ(OmahaEvent::kTypeUpdateComplete, attempter_.error_event_->type);
   EXPECT_EQ(OmahaEvent::kResultError, attempter_.error_event_->result);
   EXPECT_EQ(
@@ -637,7 +637,7 @@ TEST_F(UpdateAttempterTest, ReadChannelFromPolicy) {
   g_idle_add(&StaticReadChannelFromPolicyTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 void UpdateAttempterTest::ReadChannelFromPolicyTestStart() {
@@ -672,7 +672,7 @@ TEST_F(UpdateAttempterTest, ReadUpdateDisabledFromPolicy) {
   g_idle_add(&StaticReadUpdateDisabledFromPolicyTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 void UpdateAttempterTest::ReadUpdateDisabledFromPolicyTestStart() {
@@ -726,7 +726,7 @@ TEST_F(UpdateAttempterTest, P2PNotEnabled) {
   g_idle_add(&StaticP2PNotEnabled, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 gboolean UpdateAttempterTest::StaticP2PNotEnabled(gpointer data) {
   UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
@@ -751,7 +751,7 @@ TEST_F(UpdateAttempterTest, P2PEnabledStartingFails) {
   g_idle_add(&StaticP2PEnabledStartingFails, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 gboolean UpdateAttempterTest::StaticP2PEnabledStartingFails(
     gpointer data) {
@@ -779,7 +779,7 @@ TEST_F(UpdateAttempterTest, P2PEnabledHousekeepingFails) {
   g_idle_add(&StaticP2PEnabledHousekeepingFails, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 gboolean UpdateAttempterTest::StaticP2PEnabledHousekeepingFails(
     gpointer data) {
@@ -807,7 +807,7 @@ TEST_F(UpdateAttempterTest, P2PEnabled) {
   g_idle_add(&StaticP2PEnabled, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 gboolean UpdateAttempterTest::StaticP2PEnabled(gpointer data) {
   UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
@@ -834,7 +834,7 @@ TEST_F(UpdateAttempterTest, P2PEnabledInteractive) {
   g_idle_add(&StaticP2PEnabledInteractive, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 gboolean UpdateAttempterTest::StaticP2PEnabledInteractive(gpointer data) {
   UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
@@ -862,7 +862,7 @@ TEST_F(UpdateAttempterTest, ReadTargetVersionPrefixFromPolicy) {
   g_idle_add(&StaticReadTargetVersionPrefixFromPolicyTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 void UpdateAttempterTest::ReadTargetVersionPrefixFromPolicyTestStart() {
@@ -895,7 +895,7 @@ TEST_F(UpdateAttempterTest, ReadScatterFactorFromPolicy) {
   g_idle_add(&StaticReadScatterFactorFromPolicyTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 // Tests that the scatter_factor_in_seconds value is properly fetched
@@ -925,7 +925,7 @@ TEST_F(UpdateAttempterTest, DecrementUpdateCheckCountTest) {
   g_idle_add(&StaticDecrementUpdateCheckCountTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
@@ -988,7 +988,7 @@ TEST_F(UpdateAttempterTest, NoScatteringDoneDuringManualUpdateTestStart) {
   g_idle_add(&StaticNoScatteringDoneDuringManualUpdateTestStart, this);
   g_main_loop_run(loop_);
   g_main_loop_unref(loop_);
-  loop_ = NULL;
+  loop_ = nullptr;
 }
 
 void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {

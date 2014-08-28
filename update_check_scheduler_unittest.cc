@@ -53,7 +53,7 @@ class UpdateCheckSchedulerTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     test_ = this;
-    loop_ = NULL;
+    loop_ = nullptr;
     EXPECT_EQ(&attempter_, scheduler_.update_attempter_);
     EXPECT_FALSE(scheduler_.enabled_);
     EXPECT_FALSE(scheduler_.scheduled_);
@@ -65,8 +65,8 @@ class UpdateCheckSchedulerTest : public ::testing::Test {
   }
 
   virtual void TearDown() {
-    test_ = NULL;
-    loop_ = NULL;
+    test_ = nullptr;
+    loop_ = nullptr;
   }
 
   static gboolean SourceCallback(gpointer data) {
@@ -85,7 +85,7 @@ class UpdateCheckSchedulerTest : public ::testing::Test {
   static UpdateCheckSchedulerTest* test_;
 };
 
-UpdateCheckSchedulerTest* UpdateCheckSchedulerTest::test_ = NULL;
+UpdateCheckSchedulerTest* UpdateCheckSchedulerTest::test_ = nullptr;
 
 TEST_F(UpdateCheckSchedulerTest, CanScheduleTest) {
   EXPECT_FALSE(scheduler_.CanSchedule());
@@ -169,7 +169,7 @@ TEST_F(UpdateCheckSchedulerTest, RunBootDeviceRemovableTest) {
   fake_system_state_.fake_hardware()->SetIsBootDeviceRemovable(true);
   scheduler_.Run();
   EXPECT_FALSE(scheduler_.enabled_);
-  EXPECT_EQ(NULL, attempter_.update_check_scheduler());
+  EXPECT_EQ(nullptr, attempter_.update_check_scheduler());
 }
 
 TEST_F(UpdateCheckSchedulerTest, RunNonOfficialBuildTest) {
@@ -177,7 +177,7 @@ TEST_F(UpdateCheckSchedulerTest, RunNonOfficialBuildTest) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   scheduler_.Run();
   EXPECT_FALSE(scheduler_.enabled_);
-  EXPECT_EQ(NULL, attempter_.update_check_scheduler());
+  EXPECT_EQ(nullptr, attempter_.update_check_scheduler());
 }
 
 TEST_F(UpdateCheckSchedulerTest, RunTest) {
@@ -268,7 +268,7 @@ TEST_F(UpdateCheckSchedulerTest, SetUpdateStatusNonIdleTest) {
 
 TEST_F(UpdateCheckSchedulerTest, StaticCheckOOBECompleteTest) {
   scheduler_.scheduled_ = true;
-  EXPECT_TRUE(scheduler_.fake_system_state_ != NULL);
+  EXPECT_NE(nullptr, scheduler_.fake_system_state_);
   scheduler_.fake_system_state_->fake_hardware()->SetIsOOBEComplete(
       Time::UnixEpoch());
   EXPECT_CALL(attempter_, Update("", "", false, false))

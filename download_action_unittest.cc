@@ -48,7 +48,7 @@ class DownloadActionDelegateMock : public DownloadActionDelegate {
 class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   explicit DownloadActionTestProcessorDelegate(ErrorCode expected_code)
-      : loop_(NULL),
+      : loop_(nullptr),
         processing_done_called_(false),
         expected_code_(expected_code) {}
   virtual ~DownloadActionTestProcessorDelegate() {
@@ -156,9 +156,9 @@ void TestWithData(const vector<char>& data,
   PrefsMock prefs;
   MockHttpFetcher* http_fetcher = new MockHttpFetcher(&data[0],
                                                       data.size(),
-                                                      NULL);
+                                                      nullptr);
   // takes ownership of passed in HttpFetcher
-  DownloadAction download_action(&prefs, NULL, http_fetcher);
+  DownloadAction download_action(&prefs, nullptr, http_fetcher);
   download_action.SetTestFileWriter(&writer);
   BondActions(&feeder_action, &download_action);
   DownloadActionDelegateMock download_delegate;
@@ -269,10 +269,10 @@ void TestTerminateEarly(bool use_download_delegate) {
                              temp_file.GetPath(), "", "");
     feeder_action.set_obj(install_plan);
     PrefsMock prefs;
-    DownloadAction download_action(&prefs, NULL,
+    DownloadAction download_action(&prefs, nullptr,
                                    new MockHttpFetcher(&data[0],
                                                        data.size(),
-                                                       NULL));
+                                                       nullptr));
     download_action.SetTestFileWriter(&writer);
     DownloadActionDelegateMock download_delegate;
     if (use_download_delegate) {
@@ -380,8 +380,8 @@ TEST(DownloadActionTest, PassObjectOutTest) {
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   PrefsMock prefs;
-  DownloadAction download_action(&prefs, NULL,
-                                 new MockHttpFetcher("x", 1, NULL));
+  DownloadAction download_action(&prefs, nullptr,
+                                 new MockHttpFetcher("x", 1, nullptr));
   download_action.SetTestFileWriter(&writer);
 
   DownloadActionTestAction test_action;
@@ -415,8 +415,8 @@ TEST(DownloadActionTest, BadOutFileTest) {
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   PrefsMock prefs;
-  DownloadAction download_action(&prefs, NULL,
-                                 new MockHttpFetcher("x", 1, NULL));
+  DownloadAction download_action(&prefs, nullptr,
+                                 new MockHttpFetcher("x", 1, nullptr));
   download_action.SetTestFileWriter(&writer);
 
   BondActions(&feeder_action, &download_action);
@@ -440,7 +440,7 @@ gboolean StartProcessorInRunLoopForP2P(gpointer user_data) {
 class P2PDownloadActionTest : public testing::Test {
  protected:
   P2PDownloadActionTest()
-    : loop_(NULL),
+    : loop_(nullptr),
       start_at_offset_(0) {}
 
   virtual ~P2PDownloadActionTest() {}
@@ -452,7 +452,7 @@ class P2PDownloadActionTest : public testing::Test {
 
   // Derived from testing::Test.
   virtual void TearDown() {
-    if (loop_ != NULL)
+    if (loop_ != nullptr)
       g_main_loop_unref(loop_);
   }
 
@@ -467,7 +467,7 @@ class P2PDownloadActionTest : public testing::Test {
 
     // Setup p2p.
     FakeP2PManagerConfiguration *test_conf = new FakeP2PManagerConfiguration();
-    p2p_manager_.reset(P2PManager::Construct(test_conf, NULL, "cros_au", 3));
+    p2p_manager_.reset(P2PManager::Construct(test_conf, nullptr, "cros_au", 3));
     fake_system_state_.set_p2p_manager(p2p_manager_.get());
   }
 
@@ -495,7 +495,7 @@ class P2PDownloadActionTest : public testing::Test {
     PrefsMock prefs;
     http_fetcher_ = new MockHttpFetcher(data_.c_str(),
                                         data_.length(),
-                                        NULL);
+                                        nullptr);
     // Note that DownloadAction takes ownership of the passed in HttpFetcher.
     download_action_.reset(new DownloadAction(&prefs, &fake_system_state_,
                                               http_fetcher_));

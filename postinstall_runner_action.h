@@ -19,7 +19,7 @@ class PostinstallRunnerAction : public InstallPlanAction {
  public:
   PostinstallRunnerAction()
       : powerwash_marker_created_(false),
-        powerwash_marker_file_(NULL) {}
+        powerwash_marker_file_(nullptr) {}
 
   void PerformAction();
 
@@ -44,8 +44,8 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // False otherwise. Used for cleaning up if post-install fails.
   bool powerwash_marker_created_;
 
-  // Non-NULL value will cause post-install to override the default marker file
-  // name; used for testing.
+  // Non-null value will cause post-install to override the default marker
+  // file name; used for testing.
   const char* powerwash_marker_file_;
 
   // Special ctor + friend declaration for testing purposes.

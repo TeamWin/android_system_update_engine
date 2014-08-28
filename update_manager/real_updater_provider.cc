@@ -81,7 +81,7 @@ class LastCheckedTimeVariable : public UpdaterVariableBase<Time> {
   const Time* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     GetStatusHelper raw(system_state(), errmsg);
     if (!raw.is_success())
-      return NULL;
+      return nullptr;
 
     return new Time(Time::FromTimeT(raw.last_checked_time()));
   }
@@ -100,14 +100,14 @@ class ProgressVariable : public UpdaterVariableBase<double> {
   const double* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     GetStatusHelper raw(system_state(), errmsg);
     if (!raw.is_success())
-      return NULL;
+      return nullptr;
 
     if (raw.progress() < 0.0 || raw.progress() > 1.0) {
       if (errmsg) {
         *errmsg = StringPrintf("Invalid progress value received: %f",
                                raw.progress());
       }
-      return NULL;
+      return nullptr;
     }
 
     return new double(raw.progress());
@@ -154,7 +154,7 @@ const Stage* StageVariable::GetValue(TimeDelta /* timeout */,
                                      string* errmsg) {
   GetStatusHelper raw(system_state(), errmsg);
   if (!raw.is_success())
-    return NULL;
+    return nullptr;
 
   for (auto& key_val : curr_op_str_to_stage)
     if (raw.update_status() == key_val.str)
@@ -162,7 +162,7 @@ const Stage* StageVariable::GetValue(TimeDelta /* timeout */,
 
   if (errmsg)
     *errmsg = string("Unknown update status: ") + raw.update_status();
-  return NULL;
+  return nullptr;
 }
 
 // A variable reporting the version number that an update is updating to.
@@ -175,7 +175,7 @@ class NewVersionVariable : public UpdaterVariableBase<string> {
   const string* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     GetStatusHelper raw(system_state(), errmsg);
     if (!raw.is_success())
-      return NULL;
+      return nullptr;
 
     return new string(raw.new_version());
   }
@@ -193,12 +193,12 @@ class PayloadSizeVariable : public UpdaterVariableBase<int64_t> {
   const int64_t* GetValue(TimeDelta /* timeout */, string* errmsg) override {
     GetStatusHelper raw(system_state(), errmsg);
     if (!raw.is_success())
-      return NULL;
+      return nullptr;
 
     if (raw.payload_size() < 0) {
       if (errmsg)
         *errmsg = string("Invalid payload size: %" PRId64, raw.payload_size());
-      return NULL;
+      return nullptr;
     }
 
     return new int64_t(raw.payload_size());
@@ -226,7 +226,7 @@ class UpdateCompletedTimeVariable : public UpdaterVariableBase<Time> {
             &update_boottime)) {
       if (errmsg)
         *errmsg = "Update completed time could not be read";
-      return NULL;
+      return nullptr;
     }
 
     chromeos_update_engine::ClockInterface* clock = system_state()->clock();
@@ -234,7 +234,7 @@ class UpdateCompletedTimeVariable : public UpdaterVariableBase<Time> {
     if (curr_boottime < update_boottime) {
       if (errmsg)
         *errmsg = "Update completed time more recent than current time";
-      return NULL;
+      return nullptr;
     }
     TimeDelta duration_since_update = curr_boottime - update_boottime;
     return new Time(clock->GetWallclockTime() - duration_since_update);
@@ -256,7 +256,7 @@ class CurrChannelVariable : public UpdaterVariableBase<string> {
     if (channel.empty()) {
       if (errmsg)
         *errmsg = "No current channel";
-      return NULL;
+      return nullptr;
     }
     return new string(channel);
   }
@@ -277,7 +277,7 @@ class NewChannelVariable : public UpdaterVariableBase<string> {
     if (channel.empty()) {
       if (errmsg)
         *errmsg = "No new channel";
-      return NULL;
+      return nullptr;
     }
     return new string(channel);
   }
@@ -300,7 +300,7 @@ class BooleanPrefVariable : public UpdaterVariableBase<bool> {
     if (prefs && prefs->Exists(key_) && !prefs->GetBoolean(key_, &result)) {
       if (errmsg)
         *errmsg = string("Could not read boolean pref ") + key_;
-      return NULL;
+      return nullptr;
     }
     return new bool(result);
   }

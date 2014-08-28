@@ -35,7 +35,7 @@ class ChunkProcessor {
  public:
   // Read a chunk of |size| bytes from |fd| starting at offset |offset|.
   ChunkProcessor(int fd, off_t offset, size_t size)
-      : thread_(NULL),
+      : thread_(nullptr),
         fd_(fd),
         offset_(offset),
         buffer_in_(size) {}
@@ -74,8 +74,9 @@ class ChunkProcessor {
 bool ChunkProcessor::Start() {
   // g_thread_create is deprecated since glib 2.32. Use
   // g_thread_new instead.
-  thread_ = g_thread_try_new("chunk_proc", ReadAndCompressThread, this, NULL);
-  TEST_AND_RETURN_FALSE(thread_ != NULL);
+  thread_ = g_thread_try_new("chunk_proc", ReadAndCompressThread, this,
+                             nullptr);
+  TEST_AND_RETURN_FALSE(thread_ != nullptr);
   return true;
 }
 
@@ -84,14 +85,14 @@ bool ChunkProcessor::Wait() {
     return false;
   }
   gpointer result = g_thread_join(thread_);
-  thread_ = NULL;
+  thread_ = nullptr;
   TEST_AND_RETURN_FALSE(result == this);
   return true;
 }
 
 gpointer ChunkProcessor::ReadAndCompressThread(gpointer data) {
-  return
-      reinterpret_cast<ChunkProcessor*>(data)->ReadAndCompress() ? data : NULL;
+  return reinterpret_cast<ChunkProcessor*>(data)->ReadAndCompress() ?
+      data : nullptr;
 }
 
 bool ChunkProcessor::ReadAndCompress() {
@@ -161,7 +162,7 @@ bool FullUpdateGenerator::Run(
       threads.pop_front();
       TEST_AND_RETURN_FALSE(processor->Wait());
 
-      DeltaArchiveManifest_InstallOperation* op = NULL;
+      DeltaArchiveManifest_InstallOperation* op = nullptr;
       if (partition == 0) {
         graph->resize(graph->size() + 1);
         graph->back().file_name =

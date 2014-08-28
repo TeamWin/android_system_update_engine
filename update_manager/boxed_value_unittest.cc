@@ -89,8 +89,8 @@ TEST(UmBoxedValueTest, MixedMap) {
 
   auto it = m.find(42);
   ASSERT_NE(it, m.end());
-  UMTEST_EXPECT_NOT_NULL(it->second.value());
-  UMTEST_EXPECT_NULL(m[33].value());
+  EXPECT_NE(nullptr, it->second.value());
+  EXPECT_EQ(nullptr, m[33].value());
 }
 
 TEST(UmBoxedValueTest, StringToString) {

@@ -188,9 +188,9 @@ class Variable : public BaseVariable {
   // should delete it.
   //
   // In case of and error getting the current value or the |timeout| timeout is
-  // exceeded, a NULL value is returned and the |errmsg| is set.
+  // exceeded, a null value is returned and the |errmsg| is set.
   //
-  // The caller can pass a NULL value for |errmsg|, in which case the error
+  // The caller can pass a null value for |errmsg|, in which case the error
   // message won't be set.
   virtual const T* GetValue(base::TimeDelta timeout, std::string* errmsg) = 0;
 

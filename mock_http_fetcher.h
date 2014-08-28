@@ -36,7 +36,7 @@ class MockHttpFetcher : public HttpFetcher {
                   ProxyResolver* proxy_resolver)
       : HttpFetcher(proxy_resolver, &fake_system_state_),
         sent_size_(0),
-        timeout_source_(NULL),
+        timeout_source_(nullptr),
         timout_tag_(0),
         paused_(false),
         fail_transfer_(false),
@@ -120,7 +120,7 @@ class MockHttpFetcher : public HttpFetcher {
   // time out for 0s just to make sure that run loop services other clients.
   GSource* timeout_source_;
 
-  // ID of the timeout source, valid only if timeout_source_ != NULL
+  // ID of the timeout source, valid only if timeout_source_ != null
   guint timout_tag_;
 
   // True iff the fetcher is paused.

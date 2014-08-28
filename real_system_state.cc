@@ -41,7 +41,7 @@ bool RealSystemState::Initialize() {
     system_rebooted_ = true;
   }
 
-  p2p_manager_.reset(P2PManager::Construct(NULL, &prefs_, "cros_au",
+  p2p_manager_.reset(P2PManager::Construct(nullptr, &prefs_, "cros_au",
                                            kMaxP2PFilesToKeep));
 
   // Initialize the Update Manager using the default state factory.

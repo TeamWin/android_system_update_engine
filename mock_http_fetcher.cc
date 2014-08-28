@@ -31,7 +31,7 @@ void MockHttpFetcher::BeginTransfer(const std::string& url) {
 }
 
 // Returns false on one condition: If timeout_source_ was already set
-// and it needs to be deleted by the caller. If timeout_source_ is NULL
+// and it needs to be deleted by the caller. If timeout_source_ is null
 // when this function is called, this function will always return true.
 bool MockHttpFetcher::SendData(bool skip_delivery) {
   if (fail_transfer_) {
@@ -72,8 +72,8 @@ bool MockHttpFetcher::SendData(bool skip_delivery) {
     timeout_source_ = g_timeout_source_new(10);
     CHECK(timeout_source_);
     g_source_set_callback(timeout_source_, StaticTimeoutCallback, this,
-                          NULL);
-    timout_tag_ = g_source_attach(timeout_source_, NULL);
+                          nullptr);
+    timout_tag_ = g_source_attach(timeout_source_, nullptr);
   }
   return true;
 }
@@ -82,7 +82,7 @@ bool MockHttpFetcher::TimeoutCallback() {
   CHECK(!paused_);
   bool ret = SendData(false);
   if (false == ret) {
-    timeout_source_ = NULL;
+    timeout_source_ = nullptr;
   }
   return ret;
 }
@@ -96,7 +96,7 @@ void MockHttpFetcher::TerminateTransfer() {
   if (timeout_source_) {
     g_source_remove(timout_tag_);
     g_source_destroy(timeout_source_);
-    timeout_source_ = NULL;
+    timeout_source_ = nullptr;
   }
   delegate_->TransferTerminated(this);
 }
@@ -107,7 +107,7 @@ void MockHttpFetcher::Pause() {
   if (timeout_source_) {
     g_source_remove(timout_tag_);
     g_source_destroy(timeout_source_);
-    timeout_source_ = NULL;
+    timeout_source_ = nullptr;
   }
 }
 

@@ -128,12 +128,12 @@ bool PayloadSigner::SignHash(const vector<char>& hash,
   LOG(INFO) << "Signing hash with private key: " << private_key_path;
   string sig_path;
   TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile("signature.XXXXXX", &sig_path, NULL));
+      utils::MakeTempFile("signature.XXXXXX", &sig_path, nullptr));
   ScopedPathUnlinker sig_path_unlinker(sig_path);
 
   string hash_path;
   TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile("hash.XXXXXX", &hash_path, NULL));
+      utils::MakeTempFile("hash.XXXXXX", &hash_path, nullptr));
   ScopedPathUnlinker hash_path_unlinker(hash_path);
   // We expect unpadded SHA256 hash coming in
   TEST_AND_RETURN_FALSE(hash.size() == 32);
@@ -158,7 +158,8 @@ bool PayloadSigner::SignHash(const vector<char>& hash,
   cmd[0] = utils::GetPathOnBoard("openssl");
 
   int return_code = 0;
-  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &return_code, NULL));
+  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &return_code,
+                                                    nullptr));
   TEST_AND_RETURN_FALSE(return_code == 0);
 
   vector<char> signature;
@@ -193,7 +194,7 @@ bool PayloadSigner::SignatureBlobLength(const vector<string>& private_key_paths,
 
   string x_path;
   TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile("signed_data.XXXXXX", &x_path, NULL));
+      utils::MakeTempFile("signed_data.XXXXXX", &x_path, nullptr));
   ScopedPathUnlinker x_path_unlinker(x_path);
   TEST_AND_RETURN_FALSE(utils::WriteFile(x_path.c_str(), "x", 1));
 

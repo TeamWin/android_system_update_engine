@@ -25,7 +25,7 @@ class OmahaRequestParamsTest : public ::testing::Test {
 
  protected:
   // Return true iff the OmahaRequestParams::Init succeeded. If
-  // out is non-NULL, it's set w/ the generated data.
+  // out is non-null, it's set w/ the generated data.
   bool DoTest(OmahaRequestParams* out, const string& app_version,
               const string& omaha_url);
 

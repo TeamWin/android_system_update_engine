@@ -97,9 +97,9 @@ static void update_engine_service_class_init(UpdateEngineServiceClass* klass) {
       G_OBJECT_CLASS_TYPE(klass),
       G_SIGNAL_RUN_LAST,
       0,  // 0 == no class method associated
-      NULL,  // Accumulator
-      NULL,  // Accumulator data
-      NULL,  // Marshaller
+      nullptr,  // Accumulator
+      nullptr,  // Accumulator data
+      nullptr,  // Marshaller
       G_TYPE_NONE,  // Return type
       5,  // param count:
       G_TYPE_INT64,
@@ -117,7 +117,7 @@ static void update_engine_service_init(UpdateEngineService* object) {
 
 UpdateEngineService* update_engine_service_new(void) {
   return reinterpret_cast<UpdateEngineService*>(
-      g_object_new(UPDATE_ENGINE_TYPE_SERVICE, NULL));
+      g_object_new(UPDATE_ENGINE_TYPE_SERVICE, nullptr));
 }
 
 gboolean update_engine_service_attempt_update(UpdateEngineService* self,

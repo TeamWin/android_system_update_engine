@@ -135,7 +135,7 @@ class P2PManagerImpl : public P2PManager {
   // Utility function used by EnsureP2PRunning() and EnsureP2PNotRunning().
   bool EnsureP2P(bool should_be_running);
 
-  // The device policy being used or NULL if no policy is being used.
+  // The device policy being used or null if no policy is being used.
   const policy::DevicePolicy* device_policy_;
 
   // Configuration object.
@@ -170,11 +170,11 @@ P2PManagerImpl::P2PManagerImpl(Configuration *configuration,
                                PrefsInterface *prefs,
                                const string& file_extension,
                                const int num_files_to_keep)
-  : device_policy_(NULL),
+  : device_policy_(nullptr),
     prefs_(prefs),
     file_extension_(file_extension),
     num_files_to_keep_(num_files_to_keep) {
-  configuration_.reset(configuration != NULL ? configuration :
+  configuration_.reset(configuration != nullptr ? configuration :
                        new ConfigurationImpl());
 }
 
@@ -195,7 +195,7 @@ bool P2PManagerImpl::IsP2PEnabled() {
   //  crosh_flag == TRUE   &&  enterprise_policy == FALSE  -> use_p2p == TRUE
   //  crosh_flag == TRUE   &&  enterprise_policy == TRUE   -> use_p2p == TRUE
 
-  if (device_policy_ != NULL) {
+  if (device_policy_ != nullptr) {
     if (device_policy_->GetAuP2PEnabled(&p2p_enabled)) {
       if (p2p_enabled) {
         LOG(INFO) << "Enterprise Policy indicates that p2p is enabled.";
@@ -204,7 +204,7 @@ bool P2PManagerImpl::IsP2PEnabled() {
     }
   }
 
-  if (prefs_ != NULL &&
+  if (prefs_ != nullptr &&
       prefs_->Exists(kPrefsP2PEnabled) &&
       prefs_->GetBoolean(kPrefsP2PEnabled, &p2p_enabled) &&
       p2p_enabled) {
@@ -218,19 +218,19 @@ bool P2PManagerImpl::IsP2PEnabled() {
 }
 
 bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
-  gchar *standard_error = NULL;
-  GError *error = NULL;
+  gchar *standard_error = nullptr;
+  GError *error = nullptr;
   gint exit_status = 0;
 
   vector<string> args = configuration_->GetInitctlArgs(should_be_running);
   scoped_ptr<gchar*, GLibStrvFreeDeleter> argv(
       utils::StringVectorToGStrv(args));
-  if (!g_spawn_sync(NULL,  // working_directory
+  if (!g_spawn_sync(nullptr,  // working_directory
                     argv.get(),
-                    NULL,  // envp
+                    nullptr,  // envp
                     static_cast<GSpawnFlags>(G_SPAWN_SEARCH_PATH),
-                    NULL, NULL,      // child_setup, user_data
-                    NULL,            // standard_output
+                    nullptr, nullptr,  // child_setup, user_data
+                    nullptr,  // standard_output
                     &standard_error,
                     &exit_status,
                     &error)) {
@@ -307,16 +307,16 @@ FilePath P2PManagerImpl::GetPath(const string& file_id, Visibility visibility) {
 }
 
 bool P2PManagerImpl::PerformHousekeeping() {
-  GDir* dir = NULL;
-  GError* error = NULL;
-  const char* name = NULL;
+  GDir* dir = nullptr;
+  GError* error = nullptr;
+  const char* name = nullptr;
   vector<pair<FilePath, Time> > matches;
 
   // Go through all files in the p2p dir and pick the ones that match
   // and get their ctime.
   base::FilePath p2p_dir = configuration_->GetP2PDir();
   dir = g_dir_open(p2p_dir.value().c_str(), 0, &error);
-  if (dir == NULL) {
+  if (dir == nullptr) {
     LOG(ERROR) << "Error opening directory " << p2p_dir.value() << ": "
                << utils::GetAndFreeGError(&error);
     return false;
@@ -327,7 +327,7 @@ bool P2PManagerImpl::PerformHousekeeping() {
 
   string ext_visible = GetExt(kVisible);
   string ext_non_visible = GetExt(kNonVisible);
-  while ((name = g_dir_read_name(dir)) != NULL) {
+  while ((name = g_dir_read_name(dir)) != nullptr) {
     if (!(g_str_has_suffix(name, ext_visible.c_str()) ||
           g_str_has_suffix(name, ext_non_visible.c_str())))
       continue;
@@ -392,18 +392,18 @@ class LookupData {
     // the callback is always called from the GLib mainloop (this
     // guarantee is useful for testing).
 
-    GError *error = NULL;
-    if (!g_spawn_async_with_pipes(NULL,  // working_directory
+    GError *error = nullptr;
+    if (!g_spawn_async_with_pipes(nullptr,  // working_directory
                                   argv,
-                                  NULL,  // envp
+                                  nullptr,  // envp
                                   static_cast<GSpawnFlags>(G_SPAWN_SEARCH_PATH |
                                                      G_SPAWN_DO_NOT_REAP_CHILD),
-                                  NULL,  // child_setup
+                                  nullptr,  // child_setup
                                   this,
                                   &pid_,
-                                  NULL,  // standard_input
+                                  nullptr,  // standard_input
                                   &stdout_fd_,
-                                  NULL,  // standard_error
+                                  nullptr,  // standard_error
                                   &error)) {
       LOG(ERROR) << "Error spawning p2p-client: "
                  << utils::GetAndFreeGError(&error);
@@ -480,12 +480,12 @@ class LookupData {
                                       GIOCondition condition,
                                       gpointer user_data) {
     LookupData *lookup_data = reinterpret_cast<LookupData*>(user_data);
-    gchar* str = NULL;
-    GError* error = NULL;
+    gchar* str = nullptr;
+    GError* error = nullptr;
     GIOStatus status = g_io_channel_read_line(source,
                                               &str,
-                                              NULL,  // len
-                                              NULL,  // line_terminator
+                                              nullptr,  // len
+                                              nullptr,  // line_terminator
                                               &error);
     if (status != G_IO_STATUS_NORMAL) {
       // Ignore EOF since we usually get that before SIGCHLD and we
@@ -497,7 +497,7 @@ class LookupData {
         delete lookup_data;
       }
     } else {
-      if (str != NULL) {
+      if (str != nullptr) {
         lookup_data->stdout_ += str;
         g_free(str);
       }
@@ -660,7 +660,7 @@ bool P2PManagerImpl::FileGetVisible(const string& file_id,
     LOG(ERROR) << "No file for id " << file_id;
     return false;
   }
-  if (out_result != NULL)
+  if (out_result != nullptr)
     *out_result = path.MatchesExtension(kP2PExtension);
   return true;
 }
@@ -716,7 +716,7 @@ ssize_t P2PManagerImpl::FileGetExpectedSize(const string& file_id) {
     return -1;
   }
 
-  char* endp = NULL;
+  char* endp = nullptr;
   long long int val = strtoll(ea_value, &endp, 0);  // NOLINT(runtime/int)
   if (*endp != '\0') {
     LOG(ERROR) << "Error parsing the value '" << ea_value
@@ -730,13 +730,13 @@ ssize_t P2PManagerImpl::FileGetExpectedSize(const string& file_id) {
 
 int P2PManagerImpl::CountSharedFiles() {
   GDir* dir;
-  GError* error = NULL;
+  GError* error = nullptr;
   const char* name;
   int num_files = 0;
 
   base::FilePath p2p_dir = configuration_->GetP2PDir();
   dir = g_dir_open(p2p_dir.value().c_str(), 0, &error);
-  if (dir == NULL) {
+  if (dir == nullptr) {
     LOG(ERROR) << "Error opening directory " << p2p_dir.value() << ": "
                << utils::GetAndFreeGError(&error);
     return -1;
@@ -744,7 +744,7 @@ int P2PManagerImpl::CountSharedFiles() {
 
   string ext_visible = GetExt(kVisible);
   string ext_non_visible = GetExt(kNonVisible);
-  while ((name = g_dir_read_name(dir)) != NULL) {
+  while ((name = g_dir_read_name(dir)) != nullptr) {
     if (g_str_has_suffix(name, ext_visible.c_str()) ||
         g_str_has_suffix(name, ext_non_visible.c_str())) {
       num_files += 1;

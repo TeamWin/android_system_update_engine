@@ -26,7 +26,8 @@ class FakeVariable : public Variable<T> {
 
   // Sets the next value of this variable to the passed |p_value| pointer. Once
   // returned by GetValue(), the pointer is released and has to be set again.
-  // A value of NULL means that the GetValue() call will fail and return NULL.
+  // A value of null means that the GetValue() call will fail and return
+  // null.
   void reset(const T* p_value) {
     ptr_.reset(p_value);
   }
@@ -40,11 +41,11 @@ class FakeVariable : public Variable<T> {
   // Variable<T> overrides.
   // Returns the pointer set with reset(). The ownership of the object is passed
   // to the caller and the pointer is release from the FakeVariable. A second
-  // call to GetValue() without reset() will return NULL and set the error
+  // call to GetValue() without reset() will return null and set the error
   // message.
   virtual const T* GetValue(base::TimeDelta /* timeout */,
                             std::string* errmsg) {
-    if (ptr_ == NULL && errmsg != NULL)
+    if (ptr_ == nullptr && errmsg != nullptr)
       *errmsg = this->GetName() + " is an empty FakeVariable";
     // Passes the pointer ownership to the caller.
     return ptr_.release();

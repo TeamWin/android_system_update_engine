@@ -44,7 +44,7 @@ State* DefaultStateFactory(policy::PolicyProvider* policy_provider,
         time_provider->Init() &&
         updater_provider->Init())) {
     LOG(ERROR) << "Error initializing providers";
-    return NULL;
+    return nullptr;
   }
 
   return new RealState(config_provider.release(),

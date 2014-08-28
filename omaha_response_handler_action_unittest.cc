@@ -21,7 +21,7 @@ namespace chromeos_update_engine {
 class OmahaResponseHandlerActionTest : public ::testing::Test {
  public:
   // Return true iff the OmahaResponseHandlerAction succeeded.
-  // If out is non-NULL, it's set w/ the response from the action.
+  // If out is non-null, it's set w/ the response from the action.
   bool DoTestCommon(FakeSystemState* fake_system_state,
                     const OmahaResponse& in,
                     const string& boot_dev,
@@ -118,7 +118,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
   string test_deadline_file;
   CHECK(utils::MakeTempFile(
           "omaha_response_handler_action_unittest-XXXXXX",
-          &test_deadline_file, NULL));
+          &test_deadline_file, nullptr));
   ScopedPathUnlinker deadline_unlinker(test_deadline_file);
   {
     OmahaResponse in;

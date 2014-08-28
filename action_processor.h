@@ -43,12 +43,12 @@ class ActionProcessor {
   void StopProcessing();
 
   // Returns true iff an Action is currently processing.
-  bool IsRunning() const { return NULL != current_action_; }
+  bool IsRunning() const { return nullptr != current_action_; }
 
   // Adds another Action to the end of the queue.
   virtual void EnqueueAction(AbstractAction* action);
 
-  // Sets/gets the current delegate. Set to NULL to remove a delegate.
+  // Sets/gets the current delegate. Set to null to remove a delegate.
   ActionProcessorDelegate* delegate() const { return delegate_; }
   void set_delegate(ActionProcessorDelegate *delegate) {
     delegate_ = delegate;
@@ -70,7 +70,7 @@ class ActionProcessor {
   // A pointer to the currently processing Action, if any.
   AbstractAction* current_action_;
 
-  // A pointer to the delegate, or NULL if none.
+  // A pointer to the delegate, or null if none.
   ActionProcessorDelegate *delegate_;
   DISALLOW_COPY_AND_ASSIGN(ActionProcessor);
 };

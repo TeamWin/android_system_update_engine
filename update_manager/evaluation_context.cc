@@ -146,7 +146,7 @@ void EvaluationContext::ResetExpiration() {
 
 bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
   // Check that the method was not called more than once.
-  if (callback_.get() != nullptr) {
+  if (callback_.get()) {
     LOG(ERROR) << "RunOnValueChangeOrTimeout called more than once.";
     return false;
   }

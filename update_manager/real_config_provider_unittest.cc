@@ -51,7 +51,7 @@ class UmRealConfigProviderTest : public ::testing::Test {
 
 TEST_F(UmRealConfigProviderTest, InitTest) {
   EXPECT_TRUE(provider_->Init());
-  UMTEST_EXPECT_NOT_NULL(provider_->var_is_oobe_enabled());
+  EXPECT_NE(nullptr, provider_->var_is_oobe_enabled());
 }
 
 TEST_F(UmRealConfigProviderTest, NoFileFoundReturnsDefault) {
