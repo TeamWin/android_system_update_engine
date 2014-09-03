@@ -8,8 +8,8 @@
 #include <utility>
 #include <vector>
 
-#include <base/basictypes.h>
 #include <base/logging.h>
+#include <base/macros.h>
 
 #include "update_engine/payload_constants.h"
 

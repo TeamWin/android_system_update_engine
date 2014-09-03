@@ -8,8 +8,8 @@
 #include <map>
 #include <string>
 
-#include <base/basictypes.h>
 #include <base/files/file_path.h>
+#include <base/macros.h>
 
 namespace chromeos_update_engine {
 
@@ -24,6 +24,7 @@ class HwidOverride {
   static std::string Read(const base::FilePath& root);
 
   static const char kHwidOverrideKey[];
+
  private:
   DISALLOW_COPY_AND_ASSIGN(HwidOverride);
 };

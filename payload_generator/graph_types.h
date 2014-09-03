@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-#include <base/basictypes.h>
+#include <base/macros.h>
 
 #include "update_engine/update_metadata.pb.h"
 

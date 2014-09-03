@@ -10,8 +10,8 @@
 #include <memory>
 #include <string>
 
-#include <base/basictypes.h>
 #include <base/logging.h>
+#include <base/macros.h>
 
 #include "update_engine/action_pipe.h"
 #include "update_engine/action_processor.h"

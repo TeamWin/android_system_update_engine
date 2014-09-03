@@ -5,7 +5,7 @@
 #ifndef UPDATE_ENGINE_CONNECTION_MANAGER_H_
 #define UPDATE_ENGINE_CONNECTION_MANAGER_H_
 
-#include <base/basictypes.h>
+#include <base/macros.h>
 
 #include "update_engine/dbus_wrapper_interface.h"
 

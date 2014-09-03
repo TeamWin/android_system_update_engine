@@ -5,13 +5,14 @@
 #ifndef UPDATE_ENGINE_OMAHA_HASH_CALCULATOR_H_
 #define UPDATE_ENGINE_OMAHA_HASH_CALCULATOR_H_
 
-#include <string>
+#include <openssl/sha.h>
 #include <unistd.h>
+
+#include <string>
 #include <vector>
 
-#include <openssl/sha.h>
-#include <base/basictypes.h>
 #include <base/logging.h>
+#include <base/macros.h>
 
 // Omaha uses base64 encoded SHA-256 as the hash. This class provides a simple
 // wrapper around OpenSSL providing such a formatted hash of data passed in.

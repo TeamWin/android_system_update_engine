@@ -5,7 +5,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_PROVIDER_H_
 
-#include <base/basictypes.h>
+#include <base/macros.h>
 
 namespace chromeos_update_manager {
 

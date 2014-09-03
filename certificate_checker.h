@@ -5,12 +5,13 @@
 #ifndef UPDATE_ENGINE_CERTIFICATE_CHECKER_H_
 #define UPDATE_ENGINE_CERTIFICATE_CHECKER_H_
 
+#include <curl/curl.h>
+#include <openssl/ssl.h>
+
 #include <string>
 
-#include <base/basictypes.h>
-#include <curl/curl.h>
+#include <base/macros.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
-#include <openssl/ssl.h>
 
 #include "update_engine/system_state.h"
 

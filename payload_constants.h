@@ -5,7 +5,9 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_CONSTANTS_H_
 #define UPDATE_ENGINE_PAYLOAD_CONSTANTS_H_
 
-#include <base/basictypes.h>
+#include <stdint.h>
+
+#include <limits>
 
 namespace chromeos_update_engine {
 
@@ -14,8 +16,8 @@ extern const char kDeltaMagic[];
 
 // A block number denoting a hole on a sparse file. Used on Extents to refer to
 // section of blocks not present on disk on a sparse file.
-const uint64_t kSparseHole = kuint64max;
+const uint64_t kSparseHole = std::numeric_limits<uint64_t>::max();
 
-};  // namespace chromeos_update_engine
+}  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_PAYLOAD_CONSTANTS_H_

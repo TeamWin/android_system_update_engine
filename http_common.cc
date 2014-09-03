@@ -6,7 +6,7 @@
 
 #include "update_engine/http_common.h"
 
-#include "base/basictypes.h"
+#include <base/macros.h>
 
 namespace chromeos_update_engine {
 

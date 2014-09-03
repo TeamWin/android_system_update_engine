@@ -7,7 +7,8 @@
 
 #include <vector>
 
-#include "base/basictypes.h"
+#include <base/macros.h>
+
 #include "update_engine/file_writer.h"
 
 // MockFileWriter is an implementation of FileWriter. It will succeed

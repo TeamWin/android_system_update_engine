@@ -5,15 +5,15 @@
 #ifndef UPDATE_ENGINE_SUBPROCESS_H_
 #define UPDATE_ENGINE_SUBPROCESS_H_
 
+#include <glib.h>
+
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <glib.h>
-
-#include "base/basictypes.h"
-#include "base/logging.h"
+#include <base/logging.h>
+#include <base/macros.h>
 
 // The Subprocess class is a singleton. It's used to spawn off a subprocess
 // and get notified when the subprocess exits. The result of Exec() can

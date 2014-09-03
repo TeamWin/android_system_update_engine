@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include <base/basictypes.h>
+#include <base/macros.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/payload_constants.h"

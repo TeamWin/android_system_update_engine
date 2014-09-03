@@ -9,10 +9,11 @@
 #include <string>
 #include <vector>
 
-#include <base/basictypes.h>
+#include <glib.h>
+
 #include <base/callback.h>
 #include <base/logging.h>
-#include <glib.h>
+#include <base/macros.h>
 
 #include "update_engine/http_common.h"
 #include "update_engine/proxy_resolver.h"

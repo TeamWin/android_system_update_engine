@@ -8,7 +8,8 @@
 #include <string>
 #include <vector>
 
-#include <base/basictypes.h>
+#include <base/macros.h>
+
 #include "update_engine/update_metadata.pb.h"
 
 // This class encapsulates methods used for payload signature verification.

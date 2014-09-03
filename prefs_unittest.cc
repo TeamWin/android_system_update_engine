@@ -6,11 +6,12 @@
 
 #include <string>
 
-#include "base/basictypes.h"
-#include "base/file_util.h"
+#include <base/file_util.h>
+#include <base/macros.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
 #include "update_engine/prefs.h"
 
 using std::string;

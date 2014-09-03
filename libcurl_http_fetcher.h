@@ -9,10 +9,11 @@
 #include <string>
 #include <utility>
 
-#include <base/basictypes.h>
-#include <base/logging.h>
 #include <curl/curl.h>
 #include <glib.h>
+
+#include <base/logging.h>
+#include <base/macros.h>
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/hardware_interface.h"
