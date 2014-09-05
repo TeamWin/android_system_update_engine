@@ -240,7 +240,7 @@ deque<string> ChromeBrowserProxyResolver::ParseProxyString(
     }
 
     string scheme = string(token.begin(), space);
-    StringToLowerASCII(&scheme);
+    base::StringToLowerASCII(&scheme);
     // Chrome uses "socks" to mean socks4 and "proxy" to mean http.
     if (scheme == "socks")
       scheme += "4";
