@@ -8,7 +8,7 @@
 #include <string>
 
 #include <base/files/file_path.h>
-#include <base/file_util.h>
+#include <base/files/file_util.h>
 
 #include "update_engine/simple_key_value_store.h"
 

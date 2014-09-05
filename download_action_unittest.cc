@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <base/files/file_path.h>
-#include <base/file_util.h>
+#include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/action_pipe.h"

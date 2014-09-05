@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-#include <base/file_util.h>
+#include <base/files/file_util.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>

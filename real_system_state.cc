@@ -4,7 +4,7 @@
 
 #include "update_engine/real_system_state.h"
 
-#include <base/file_util.h>
+#include <base/files/file_util.h>
 #include <base/time/time.h>
 
 #include "update_engine/constants.h"

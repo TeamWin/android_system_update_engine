@@ -8,7 +8,7 @@
 #include <string>
 
 #include <gtest/gtest.h>
-#include <base/file_util.h>
+#include <base/files/file_util.h>
 #include <base/strings/string_util.h>
 
 #include "update_engine/test_utils.h"

@@ -5,7 +5,7 @@
 #include <glib.h>
 
 #include <base/files/file_path.h>
-#include "base/file_util.h"
+#include "base/files/file_util.h"
 #include <base/strings/stringprintf.h>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
