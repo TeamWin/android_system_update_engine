@@ -89,9 +89,17 @@ bool ReadFileChunk(const std::string& path, off_t offset, off_t size,
 bool ReadPipe(const std::string& cmd, std::vector<char>* out_p);
 bool ReadPipe(const std::string& cmd, std::string* out_p);
 
-// Returns the size of the file at path. If the file doesn't exist or some
-// error occurrs, -1 is returned.
+// Returns the size of the block device at path, or the file descriptor fd. If
+// an error occurs, -1 is returned.
+off_t BlockDevSize(const std::string& path);
+off_t BlockDevSize(int fd);
+
+// Returns the size of the file at path, or the file desciptor fd. If the file
+// is actually a block device, this function will automatically call
+// BlockDevSize. If the file doesn't exist or some error occurrs, -1 is
+// returned.
 off_t FileSize(const std::string& path);
+off_t FileSize(int fd);
 
 std::string ErrnoNumberAsString(int err);
 

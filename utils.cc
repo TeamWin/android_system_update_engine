@@ -282,13 +282,58 @@ bool ReadPipe(const string& cmd, string* out_p) {
   return ReadPipeAndAppend(cmd, out_p);
 }
 
-off_t FileSize(const string& path) {
+off_t BlockDevSize(int fd) {
+  uint64_t dev_size;
+  int rc = ioctl(fd, BLKGETSIZE64, &dev_size);
+  if (rc == -1) {
+    dev_size = -1;
+    PLOG(ERROR) << "Error running ioctl(BLKGETSIZE64) on " << fd;
+  }
+  return dev_size;
+}
+
+off_t BlockDevSize(const string& path) {
+  int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
+  if (fd == -1) {
+    PLOG(ERROR) << "Error opening " << path;
+    return fd;
+  }
+
+  off_t dev_size = BlockDevSize(fd);
+  if (dev_size == -1)
+    PLOG(ERROR) << "Error getting block device size on " << path;
+
+  close(fd);
+  return dev_size;
+}
+
+off_t FileSize(int fd) {
   struct stat stbuf;
-  int rc = stat(path.c_str(), &stbuf);
+  int rc = fstat(fd, &stbuf);
   CHECK_EQ(rc, 0);
-  if (rc < 0)
+  if (rc < 0) {
+    PLOG(ERROR) << "Error stat-ing " << fd;
     return rc;
-  return stbuf.st_size;
+  }
+  if (S_ISREG(stbuf.st_mode))
+    return stbuf.st_size;
+  if (S_ISBLK(stbuf.st_mode))
+    return BlockDevSize(fd);
+  LOG(ERROR) << "Couldn't determine the type of " << fd;
+  return -1;
+}
+
+off_t FileSize(const string& path) {
+  int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
+  if (fd == -1) {
+    PLOG(ERROR) << "Error opening " << path;
+    return fd;
+  }
+  off_t size = FileSize(fd);
+  if (size == -1)
+    PLOG(ERROR) << "Error getting file size of " << path;
+  close(fd);
+  return size;
 }
 
 void HexDumpArray(const unsigned char* const arr, const size_t length) {
