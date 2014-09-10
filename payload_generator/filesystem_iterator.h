@@ -47,6 +47,9 @@ class FilesystemIterator {
     return stbuf_;
   }
 
+  // Returns the size of the current file.
+  off_t GetFileSize() const;
+
   // Returns full path for current file.
   std::string GetFullPath() const;
 

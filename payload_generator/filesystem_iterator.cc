@@ -56,6 +56,11 @@ FilesystemIterator::~FilesystemIterator() {
   }
 }
 
+// Returns the size of the current file
+off_t FilesystemIterator::GetFileSize() const {
+  return utils::FileSize(GetFullPath());
+}
+
 // Returns full path for current file
 std::string FilesystemIterator::GetFullPath() const {
   return root_path_ + GetPartialPath();

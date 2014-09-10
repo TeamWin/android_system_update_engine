@@ -208,19 +208,19 @@ TEST_F(P2PManagerTest, Housekeeping) {
 static bool CheckP2PFile(const string& p2p_dir, const string& file_name,
                          ssize_t expected_size, ssize_t expected_size_xattr) {
   string path = p2p_dir + "/" + file_name;
-  struct stat statbuf;
   char ea_value[64] = { 0 };
   ssize_t ea_size;
 
-  if (stat(path.c_str(), &statbuf) != 0) {
+  off_t p2p_size = utils::FileSize(path);
+  if (p2p_size < 0) {
     LOG(ERROR) << "File " << path << " does not exist";
     return false;
   }
 
   if (expected_size != 0) {
-    if (statbuf.st_size != expected_size) {
+    if (p2p_size != expected_size) {
       LOG(ERROR) << "Expected size " << expected_size
-                 << " but size was " << statbuf.st_size;
+                 << " but size was " << p2p_size;
       return false;
     }
   }

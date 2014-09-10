@@ -117,15 +117,15 @@ void DownloadAction::WriteToP2PFile(const char *data,
   //  1. the p2p file didn't get properly synced to stable storage; or
   //  2. the file was deleted at bootup (it's in /var/cache after all); or
   //  3. other reasons
-  struct stat statbuf;
-  if (fstat(p2p_sharing_fd_, &statbuf) != 0) {
+  off_t p2p_size = utils::FileSize(p2p_sharing_fd_);
+  if (p2p_size < 0) {
     PLOG(ERROR) << "Error getting file status for p2p file";
     CloseP2PSharingFd(true);  // Delete p2p file.
     return;
   }
-  if (statbuf.st_size < file_offset) {
+  if (p2p_size < file_offset) {
     LOG(ERROR) << "Wanting to write to file offset " << file_offset
-               << " but existing p2p file is only " << statbuf.st_size
+               << " but existing p2p file is only " << p2p_size
                << " bytes.";
     CloseP2PSharingFd(true);  // Delete p2p file.
     return;

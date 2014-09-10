@@ -70,9 +70,7 @@ TEST_F(ExtentWriterTest, SimpleTest) {
   EXPECT_TRUE(direct_writer.Write(bytes.data(), bytes.size()));
   EXPECT_TRUE(direct_writer.End());
 
-  struct stat stbuf;
-  EXPECT_EQ(0, fstat(fd(), &stbuf));
-  EXPECT_EQ(kBlockSize + bytes.size(), stbuf.st_size);
+  EXPECT_EQ(kBlockSize + bytes.size(), utils::FileSize(fd()));
 
   vector<char> result_file;
   EXPECT_TRUE(utils::ReadFile(path(), &result_file));
@@ -139,9 +137,7 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
   }
   EXPECT_TRUE(direct_writer.End());
 
-  struct stat stbuf;
-  EXPECT_EQ(0, fstat(fd(), &stbuf));
-  EXPECT_EQ(data.size(), stbuf.st_size);
+  EXPECT_EQ(data.size(), utils::FileSize(fd()));
 
   vector<char> result_file;
   EXPECT_TRUE(utils::ReadFile(path(), &result_file));
@@ -190,9 +186,7 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
   ASSERT_TRUE(zero_pad_writer.Write(&data[0], bytes_to_write));
   EXPECT_TRUE(zero_pad_writer.End());
 
-  struct stat stbuf;
-  EXPECT_EQ(0, fstat(fd(), &stbuf));
-  EXPECT_EQ(data.size(), stbuf.st_size);
+  EXPECT_EQ(data.size(), utils::FileSize(fd()));
 
   vector<char> result_file;
   EXPECT_TRUE(utils::ReadFile(path(), &result_file));

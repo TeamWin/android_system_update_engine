@@ -693,13 +693,7 @@ ssize_t P2PManagerImpl::FileGetSize(const string& file_id) {
   if (path.empty())
     return -1;
 
-  struct stat statbuf;
-  if (stat(path.value().c_str(), &statbuf) != 0) {
-    PLOG(ERROR) << "Error getting file status for " << path.value();
-    return -1;
-  }
-
-  return statbuf.st_size;
+  return utils::FileSize(path.value());
 }
 
 ssize_t P2PManagerImpl::FileGetExpectedSize(const string& file_id) {

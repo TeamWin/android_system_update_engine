@@ -208,7 +208,7 @@ bool DeltaReadFiles(Graph* graph,
     if (utils::SetContainsKey(visited_inodes, fs_iter.GetStat().st_ino))
       continue;
     visited_inodes.insert(fs_iter.GetStat().st_ino);
-    off_t dst_size = fs_iter.GetStat().st_size;
+    off_t dst_size = fs_iter.GetFileSize();
     if (dst_size == 0)
       continue;
 
@@ -702,11 +702,11 @@ bool DeltaDiffGenerator::ReadFileToDiff(
   }
 
   // Do we have an original file to consider?
-  struct stat old_stbuf;
+  off_t old_size = 0;
   bool original = !old_filename.empty();
-  if (original && 0 != stat(old_filename.c_str(), &old_stbuf)) {
+  if (original && (old_size = utils::FileSize(old_filename)) < 0) {
     // If stat-ing the old file fails, it should be because it doesn't exist.
-    TEST_AND_RETURN_FALSE(errno == ENOTDIR || errno == ENOENT);
+    TEST_AND_RETURN_FALSE(!utils::FileExists(old_filename.c_str()));
     original = false;
   }
 
@@ -764,8 +764,7 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     } else {
       Extent* src_extent = operation.add_src_extents();
       src_extent->set_start_block(0);
-      src_extent->set_num_blocks(
-          (old_stbuf.st_size + kBlockSize - 1) / kBlockSize);
+      src_extent->set_num_blocks((old_size + kBlockSize - 1) / kBlockSize);
     }
     operation.set_src_length(old_data.size());
   }

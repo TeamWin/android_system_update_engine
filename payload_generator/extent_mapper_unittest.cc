@@ -54,9 +54,9 @@ TEST(ExtentMapperTest, RunAsRootSimpleTest) {
     }
   }
 
-  struct stat stbuf;
-  EXPECT_EQ(0, stat(kFilename.c_str(), &stbuf));
-  EXPECT_EQ(blocks.size(), (stbuf.st_size + block_size - 1)/block_size);
+  off_t file_size = utils::FileSize(kFilename);
+  EXPECT_GT(file_size, 0);
+  EXPECT_EQ(blocks.size(), (file_size + block_size - 1)/block_size);
 
   // Map a 2-block chunk at offset |block_size|.
   vector<Extent> chunk_extents;

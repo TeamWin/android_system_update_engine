@@ -49,13 +49,12 @@ bool ExtentsForFileChunkFibmap(const std::string& path,
   ScopedFdCloser fd_closer(&fd);
 
   // Get file size in blocks
-  rc = fstat(fd, &stbuf);
-  if (rc < 0) {
-    perror("fstat");
+  off_t file_size = utils::FileSize(fd);
+  if (file_size < 0) {
     return false;
   }
-  CHECK_LE(chunk_offset, stbuf.st_size);
-  off_t size = stbuf.st_size - chunk_offset;
+  CHECK_LE(chunk_offset, file_size);
+  off_t size = file_size - chunk_offset;
   if (chunk_size != -1) {
     size = std::min(size, chunk_size);
   }
