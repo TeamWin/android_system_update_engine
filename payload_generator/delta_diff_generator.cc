@@ -63,6 +63,13 @@ const uint64_t kFullUpdateChunkSize = 1024 * 1024;  // bytes
 const size_t kBlockSize = 4096;  // bytes
 const char kEmptyPath[] = "";
 
+// The maximum destination size allowed for bsdiff. In general, bsdiff should
+// work for arbitrary big files, but the payload generation and payload
+// application requires a significant amount of RAM. We put a hard-limit of
+// 200 MiB that should not affect any released board, but will limit the
+// Chrome binary in ASan builders.
+const off_t kMaxBsdiffDestinationSize = 200 * 1024 * 1024;  // bytes
+
 static const char* kInstallOperationTypes[] = {
   "REPLACE",
   "REPLACE_BZ",
@@ -131,6 +138,9 @@ bool DeltaReadFile(Graph* graph,
   //
   // TODO(dgarrett): chromium-os:15274 connect this test to the command line.
   bool bsdiff_allowed = true;
+
+  if (utils::FileSize(new_root + path) > kMaxBsdiffDestinationSize)
+    bsdiff_allowed = false;
 
   if (!bsdiff_allowed)
     LOG(INFO) << "bsdiff blacklisting: " << path;
