@@ -57,8 +57,7 @@ class ActionPipe {
   // when the last Action is destroyed.
   template<typename FromAction, typename ToAction>
   static void Bond(FromAction* from, ToAction* to) {
-    std::shared_ptr<ActionPipe<ObjectType> > pipe(
-        new ActionPipe<ObjectType>);
+    std::shared_ptr<ActionPipe<ObjectType>> pipe(new ActionPipe<ObjectType>);
     from->set_out_pipe(pipe);
 
     to->set_in_pipe(pipe);  // If you get an error on this line, then

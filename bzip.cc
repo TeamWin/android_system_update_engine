@@ -107,12 +107,12 @@ bool BzipString(const std::string& str,
 
 bool BzipCompressString(const std::string& str,
                         std::vector<char>* out) {
-  return BzipString<BzipData<BzipBuffToBuffCompress> >(str, out);
+  return BzipString<BzipData<BzipBuffToBuffCompress>>(str, out);
 }
 
 bool BzipDecompressString(const std::string& str,
                           std::vector<char>* out) {
-  return BzipString<BzipData<BzipBuffToBuffDecompress> >(str, out);
+  return BzipString<BzipData<BzipBuffToBuffDecompress>>(str, out);
 }
 
 }  // namespace chromeos_update_engine

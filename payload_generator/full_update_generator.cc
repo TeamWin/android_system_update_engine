@@ -142,7 +142,7 @@ bool FullUpdateGenerator::Run(
     int in_fd = open(path.c_str(), O_RDONLY, 0);
     TEST_AND_RETURN_FALSE(in_fd >= 0);
     ScopedFdCloser in_fd_closer(&in_fd);
-    deque<shared_ptr<ChunkProcessor> > threads;
+    deque<shared_ptr<ChunkProcessor>> threads;
     int last_progress_update = INT_MIN;
     off_t bytes_left = part_sizes[partition], counter = 0, offset = 0;
     while (bytes_left > 0 || !threads.empty()) {

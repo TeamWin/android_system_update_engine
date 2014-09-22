@@ -86,7 +86,7 @@ class PayloadSigner {
   // on success, false otherwise.
   static bool AddSignatureToPayload(
       const std::string& payload_path,
-      const std::vector<std::vector<char> >& signatures,
+      const std::vector<std::vector<char>>& signatures,
       const std::string& signed_payload_path,
       uint64_t* out_metadata_size);
 

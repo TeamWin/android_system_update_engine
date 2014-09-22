@@ -197,7 +197,7 @@ template<typename T>
 class ObjectFeederAction;
 
 template<typename T>
-class ActionTraits<ObjectFeederAction<T> > {
+class ActionTraits<ObjectFeederAction<T>> {
  public:
   typedef T OutputObjectType;
   typedef NoneType InputObjectType;
@@ -206,7 +206,7 @@ class ActionTraits<ObjectFeederAction<T> > {
 // This is a simple Action class for testing. It feeds an object into
 // another action.
 template<typename T>
-class ObjectFeederAction : public Action<ObjectFeederAction<T> > {
+class ObjectFeederAction : public Action<ObjectFeederAction<T>> {
  public:
   typedef NoneType InputObjectType;
   typedef T OutputObjectType;
@@ -231,7 +231,7 @@ template<typename T>
 class ObjectCollectorAction;
 
 template<typename T>
-class ActionTraits<ObjectCollectorAction<T> > {
+class ActionTraits<ObjectCollectorAction<T>> {
  public:
   typedef NoneType OutputObjectType;
   typedef T InputObjectType;
@@ -240,7 +240,7 @@ class ActionTraits<ObjectCollectorAction<T> > {
 // This is a simple Action class for testing. It receives an object from
 // another action.
 template<typename T>
-class ObjectCollectorAction : public Action<ObjectCollectorAction<T> > {
+class ObjectCollectorAction : public Action<ObjectCollectorAction<T>> {
  public:
   typedef T InputObjectType;
   typedef NoneType OutputObjectType;

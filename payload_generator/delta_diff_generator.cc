@@ -1194,7 +1194,7 @@ bool AssignBlockForAdjoiningCuts(
   // Find enough blocks
   ExtentRanges scratch_ranges;
   // Each block that's supplying temp blocks and the corresponding blocks:
-  typedef vector<pair<Vertex::Index, ExtentRanges> > SupplierVector;
+  typedef vector<pair<Vertex::Index, ExtentRanges>> SupplierVector;
   SupplierVector block_suppliers;
   uint64_t scratch_blocks_found = 0;
   for (vector<Vertex::Index>::size_type i = (*reverse_op_indexes)[old_dst] + 1,

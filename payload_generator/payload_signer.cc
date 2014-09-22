@@ -25,7 +25,7 @@ namespace {
 
 // Given raw |signatures|, packs them into a protobuf and serializes it into a
 // binary blob. Returns true on success, false otherwise.
-bool ConvertSignatureToProtobufBlob(const vector<vector<char> >& signatures,
+bool ConvertSignatureToProtobufBlob(const vector<vector<char>>& signatures,
                                     vector<char>* out_signature_blob) {
   // Pack it into a protobuf
   Signatures out_message;
@@ -36,7 +36,7 @@ bool ConvertSignatureToProtobufBlob(const vector<vector<char> >& signatures,
       << kSignatureMessageOriginalVersion << ", "
       << kSignatureMessageCurrentVersion << "] inclusive, but you only "
       << "provided " << signatures.size() << " signatures.";
-  for (vector<vector<char> >::const_iterator it = signatures.begin(),
+  for (vector<vector<char>>::const_iterator it = signatures.begin(),
            e = signatures.end(); it != e; ++it) {
     const vector<char>& signature = *it;
     Signatures_Signature* sig_message = out_message.add_signatures();
@@ -176,7 +176,7 @@ bool PayloadSigner::SignPayload(const string& unsigned_payload_path,
       unsigned_payload_path, -1, &hash_data) ==
                         utils::FileSize(unsigned_payload_path));
 
-  vector<vector<char> > signatures;
+  vector<vector<char>> signatures;
   for (vector<string>::const_iterator it = private_key_paths.begin(),
            e = private_key_paths.end(); it != e; ++it) {
     vector<char> signature;
@@ -215,7 +215,7 @@ bool PayloadSigner::PrepPayloadForHashing(
   // TODO(petkov): Reduce memory usage -- the payload is manipulated in memory.
 
   // Loads the payload and adds the signature op to it.
-  vector<vector<char> > signatures;
+  vector<vector<char>> signatures;
   for (vector<int>::const_iterator it = signature_sizes.begin(),
            e = signature_sizes.end(); it != e; ++it) {
     vector<char> signature(*it, 0);
@@ -276,7 +276,7 @@ bool PayloadSigner::HashMetadataForSigning(const string& payload_path,
 
 bool PayloadSigner::AddSignatureToPayload(
     const string& payload_path,
-    const vector<vector<char> >& signatures,
+    const vector<vector<char>>& signatures,
     const string& signed_payload_path,
     uint64_t *out_metadata_size) {
   // TODO(petkov): Reduce memory usage -- the payload is manipulated in memory.

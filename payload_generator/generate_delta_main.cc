@@ -215,7 +215,7 @@ void SignPayload() {
       << "Must pass --out_file to sign payload.";
   LOG_IF(FATAL, FLAGS_signature_file.empty())
       << "Must pass --signature_file to sign payload.";
-  vector<vector<char> > signatures;
+  vector<vector<char>> signatures;
   vector<string> signature_files;
   base::SplitString(FLAGS_signature_file, ':', &signature_files);
   for (vector<string>::iterator it = signature_files.begin(),

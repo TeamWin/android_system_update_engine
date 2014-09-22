@@ -50,8 +50,8 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
  private:
   FRIEND_TEST(ChromeBrowserProxyResolverTest, ParseTest);
   FRIEND_TEST(ChromeBrowserProxyResolverTest, SuccessTest);
-  typedef std::multimap<std::string, std::pair<ProxiesResolvedFn, void*> >
-    CallbacksMap;
+  typedef std::multimap<std::string, std::pair<ProxiesResolvedFn, void*>>
+      CallbacksMap;
   typedef std::multimap<std::string, GSource*> TimeoutsMap;
 
   // Handle a reply from Chrome:

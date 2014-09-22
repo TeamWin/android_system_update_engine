@@ -141,8 +141,7 @@ class Action : public AbstractAction {
       // this type is a fancy way of saying: a shared_ptr to an
       // ActionPipe<InputObjectType>.
       const std::shared_ptr<ActionPipe<
-          typename ActionTraits<SubClass>::InputObjectType> >&
-          in_pipe) {
+          typename ActionTraits<SubClass>::InputObjectType>>& in_pipe) {
     in_pipe_ = in_pipe;
   }
 
@@ -154,8 +153,7 @@ class Action : public AbstractAction {
       // this type is a fancy way of saying: a shared_ptr to an
       // ActionPipe<OutputObjectType>.
       const std::shared_ptr<ActionPipe<
-          typename ActionTraits<SubClass>::OutputObjectType> >&
-          out_pipe) {
+          typename ActionTraits<SubClass>::OutputObjectType>>& out_pipe) {
     out_pipe_ = out_pipe;
   }
 
@@ -196,11 +194,9 @@ class Action : public AbstractAction {
   // point to when the last such shared_ptr object dies. We consider the
   // Actions on either end of a pipe to "own" the pipe. When the last Action
   // of the two dies, the ActionPipe will die, too.
-  std::shared_ptr<
-      ActionPipe<typename ActionTraits<SubClass>::InputObjectType> >
+  std::shared_ptr<ActionPipe<typename ActionTraits<SubClass>::InputObjectType>>
       in_pipe_;
-  std::shared_ptr<
-      ActionPipe<typename ActionTraits<SubClass>::OutputObjectType> >
+  std::shared_ptr<ActionPipe<typename ActionTraits<SubClass>::OutputObjectType>>
       out_pipe_;
 };
 

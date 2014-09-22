@@ -924,7 +924,7 @@ class MultiHttpFetcherTestDelegate : public HttpFetcherDelegate {
 
 void MultiTest(HttpFetcher* fetcher_in,
                const string& url,
-               const vector<pair<off_t, off_t> >& ranges,
+               const vector<pair<off_t, off_t>>& ranges,
                const string& expected_prefix,
                off_t expected_size,
                HttpResponseCode expected_response_code) {
@@ -938,7 +938,7 @@ void MultiTest(HttpFetcher* fetcher_in,
         dynamic_cast<MultiRangeHttpFetcher*>(fetcher_in);
     ASSERT_TRUE(multi_fetcher);
     multi_fetcher->ClearRanges();
-    for (vector<pair<off_t, off_t> >::const_iterator it = ranges.begin(),
+    for (vector<pair<off_t, off_t>>::const_iterator it = ranges.begin(),
              e = ranges.end(); it != e; ++it) {
       std::string tmp_str = base::StringPrintf("%jd+", it->first);
       if (it->second > 0) {
@@ -974,7 +974,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherSimpleTest) {
   scoped_ptr<HttpServer> server(this->test_.CreateServer());
   ASSERT_TRUE(server->started_);
 
-  vector<pair<off_t, off_t> > ranges;
+  vector<pair<off_t, off_t>> ranges;
   ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(),
@@ -992,7 +992,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherLengthLimitTest) {
   scoped_ptr<HttpServer> server(this->test_.CreateServer());
   ASSERT_TRUE(server->started_);
 
-  vector<pair<off_t, off_t> > ranges;
+  vector<pair<off_t, off_t>> ranges;
   ranges.push_back(make_pair(0, 24));
   MultiTest(this->test_.NewLargeFetcher(),
             this->test_.BigUrl(server->GetPort()),
@@ -1009,7 +1009,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherMultiEndTest) {
   scoped_ptr<HttpServer> server(this->test_.CreateServer());
   ASSERT_TRUE(server->started_);
 
-  vector<pair<off_t, off_t> > ranges;
+  vector<pair<off_t, off_t>> ranges;
   ranges.push_back(make_pair(kBigLength - 2, 0));
   ranges.push_back(make_pair(kBigLength - 3, 0));
   MultiTest(this->test_.NewLargeFetcher(),
@@ -1027,7 +1027,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherInsufficientTest) {
   scoped_ptr<HttpServer> server(this->test_.CreateServer());
   ASSERT_TRUE(server->started_);
 
-  vector<pair<off_t, off_t> > ranges;
+  vector<pair<off_t, off_t>> ranges;
   ranges.push_back(make_pair(kBigLength - 2, 4));
   for (int i = 0; i < 2; ++i) {
     LOG(INFO) << "i = " << i;
@@ -1053,7 +1053,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetRecoverableTest) {
   scoped_ptr<HttpServer> server(this->test_.CreateServer());
   ASSERT_TRUE(server->started_);
 
-  vector<pair<off_t, off_t> > ranges;
+  vector<pair<off_t, off_t>> ranges;
   ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(3),
@@ -1075,7 +1075,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetUnrecoverableTest) {
   scoped_ptr<HttpServer> server(this->test_.CreateServer());
   ASSERT_TRUE(server->started_);
 
-  vector<pair<off_t, off_t> > ranges;
+  vector<pair<off_t, off_t>> ranges;
   ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(2),

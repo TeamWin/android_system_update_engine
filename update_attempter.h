@@ -392,7 +392,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // set back in the middle of an update.
   base::TimeTicks last_notify_time_;
 
-  std::vector<std::shared_ptr<AbstractAction> > actions_;
+  std::vector<std::shared_ptr<AbstractAction>> actions_;
   scoped_ptr<ActionProcessor> processor_;
 
   // External state of the system outside the update_engine process

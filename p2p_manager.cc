@@ -310,7 +310,7 @@ bool P2PManagerImpl::PerformHousekeeping() {
   GDir* dir = nullptr;
   GError* error = nullptr;
   const char* name = nullptr;
-  vector<pair<FilePath, Time> > matches;
+  vector<pair<FilePath, Time>> matches;
 
   // Go through all files in the p2p dir and pick the ones that match
   // and get their ctime.
@@ -348,7 +348,7 @@ bool P2PManagerImpl::PerformHousekeeping() {
   std::sort(matches.begin(), matches.end(), MatchCompareFunc);
 
   // Delete starting at element num_files_to_keep_.
-  vector<pair<FilePath, Time> >::const_iterator i;
+  vector<pair<FilePath, Time>>::const_iterator i;
   for (i = matches.begin() + num_files_to_keep_; i < matches.end(); ++i) {
     const base::FilePath& file = i->first;
     LOG(INFO) << "Deleting p2p file " << file.value();

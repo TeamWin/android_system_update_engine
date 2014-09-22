@@ -667,7 +667,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   actions_.push_back(shared_ptr<AbstractAction>(update_complete_action));
 
   // Enqueue the actions
-  for (vector<shared_ptr<AbstractAction> >::iterator it = actions_.begin();
+  for (vector<shared_ptr<AbstractAction>>::iterator it = actions_.begin();
        it != actions_.end(); ++it) {
     processor_->EnqueueAction(it->get());
   }
@@ -721,7 +721,7 @@ bool UpdateAttempter::Rollback(bool powerwash) {
   BuildPostInstallActions(install_plan_action.get());
 
   // Enqueue the actions
-  for (vector<shared_ptr<AbstractAction> >::iterator it = actions_.begin();
+  for (vector<shared_ptr<AbstractAction>>::iterator it = actions_.begin();
        it != actions_.end(); ++it) {
     processor_->EnqueueAction(it->get());
   }

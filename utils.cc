@@ -81,9 +81,9 @@ string ParseECVersion(string input_line) {
 
   // At this point we want to convert the format key=value pair from mosys to
   // a vector of key value pairs.
-  vector<pair<string, string> > kv_pairs;
+  vector<pair<string, string>> kv_pairs;
   if (base::SplitStringIntoKeyValuePairs(input_line, '=', ' ', &kv_pairs)) {
-    for (vector<pair<string, string> >::iterator it = kv_pairs.begin();
+    for (vector<pair<string, string>>::iterator it = kv_pairs.begin();
          it != kv_pairs.end(); ++it) {
       // Finally match against the fw_verion which may have quotes.
       if (it->first == "fw_version") {

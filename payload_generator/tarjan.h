@@ -32,7 +32,7 @@ class TarjanAlgorithm {
   Vertex::Index index_;
   Vertex::Index required_vertex_;
   std::vector<Vertex::Index> stack_;
-  std::vector<std::vector<Vertex::Index> > components_;
+  std::vector<std::vector<Vertex::Index>> components_;
 };
 
 }  // namespace chromeos_update_engine

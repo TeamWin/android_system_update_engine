@@ -146,7 +146,7 @@ static size_t GetSignatureSize(const string& private_key_path) {
 static bool InsertSignaturePlaceholder(int signature_size,
                                        const string& payload_path,
                                        uint64_t* out_metadata_size) {
-  vector<vector<char> > signatures;
+  vector<vector<char>> signatures;
   signatures.push_back(vector<char>(signature_size, 0));
 
   return PayloadSigner::AddSignatureToPayload(
@@ -170,7 +170,7 @@ static void SignGeneratedPayload(const string& payload_path,
                                       &signature));
   ASSERT_TRUE(PayloadSigner::AddSignatureToPayload(
       payload_path,
-      vector<vector<char> >(1, signature),
+      vector<vector<char>>(1, signature),
       payload_path,
       out_metadata_size));
   EXPECT_TRUE(PayloadVerifier::VerifySignedPayload(

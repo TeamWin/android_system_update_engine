@@ -249,7 +249,7 @@ bool Subprocess::SynchronousExec(const std::vector<std::string>& cmd,
 }
 
 bool Subprocess::SubprocessInFlight() {
-  for (std::map<int, shared_ptr<SubprocessRecord> >::iterator it =
+  for (std::map<int, shared_ptr<SubprocessRecord>>::iterator it =
            subprocess_records_.begin();
        it != subprocess_records_.end(); ++it) {
     if (it->second->callback)
