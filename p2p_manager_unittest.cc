@@ -139,6 +139,60 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingFalse) {
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
+// Check that IsP2PEnabled() returns TRUE if
+// - The crosh flag is not set.
+// - Enterprise Policy is not set.
+// - Device is Enterprise Enrolled.
+TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesDefaultToEnabled) {
+  string temp_dir;
+  Prefs prefs;
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
+
+  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+                                                       &prefs, "cros_au", 3));
+  scoped_ptr<policy::MockDevicePolicy> device_policy(
+      new policy::MockDevicePolicy());
+  // We return an empty owner as this is an enterprise.
+  EXPECT_CALL(*device_policy, GetOwner(testing::_)).WillRepeatedly(
+      DoAll(testing::SetArgumentPointee<0>(std::string("")),
+            testing::Return(true)));
+  manager->SetDevicePolicy(device_policy.get());
+  EXPECT_TRUE(manager->IsP2PEnabled());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
+// Check that IsP2PEnabled() returns FALSE if
+// - The crosh flag is not set.
+// - Enterprise Policy is set to FALSE.
+// - Device is Enterprise Enrolled.
+TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesOverrideDefault) {
+  string temp_dir;
+  Prefs prefs;
+  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
+                                       &temp_dir));
+  prefs.Init(base::FilePath(temp_dir));
+
+  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+                                                       &prefs, "cros_au", 3));
+  scoped_ptr<policy::MockDevicePolicy> device_policy(
+      new policy::MockDevicePolicy());
+  // We return an empty owner as this is an enterprise.
+  EXPECT_CALL(*device_policy, GetOwner(testing::_)).WillRepeatedly(
+      DoAll(testing::SetArgumentPointee<0>(std::string("")),
+            testing::Return(true)));
+  // Make Enterprise Policy indicate p2p is not enabled.
+  EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(
+      DoAll(testing::SetArgumentPointee<0>(false),
+            testing::Return(true)));
+  manager->SetDevicePolicy(device_policy.get());
+  EXPECT_FALSE(manager->IsP2PEnabled());
+
+  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+}
+
 // Check that we keep the $N newest files with the .$EXT.p2p extension.
 TEST_F(P2PManagerTest, Housekeeping) {
   scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,

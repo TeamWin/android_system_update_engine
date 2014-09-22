@@ -190,19 +190,14 @@ bool P2PManagerImpl::IsP2PEnabled() {
   // either the crosh flag OR by Enterprise Policy, e.g. the following
   // truth table:
   //
+  //  crosh_flag == FALSE  &&  enterprise_policy == unset  -> use_p2p == *
+  //  crosh_flag == TRUE   &&  enterprise_policy == unset  -> use_p2p == TRUE
   //  crosh_flag == FALSE  &&  enterprise_policy == FALSE  -> use_p2p == FALSE
   //  crosh_flag == FALSE  &&  enterprise_policy == TRUE   -> use_p2p == TRUE
   //  crosh_flag == TRUE   &&  enterprise_policy == FALSE  -> use_p2p == TRUE
   //  crosh_flag == TRUE   &&  enterprise_policy == TRUE   -> use_p2p == TRUE
-
-  if (device_policy_ != nullptr) {
-    if (device_policy_->GetAuP2PEnabled(&p2p_enabled)) {
-      if (p2p_enabled) {
-        LOG(INFO) << "Enterprise Policy indicates that p2p is enabled.";
-        return true;
-      }
-    }
-  }
+  //
+  // *: TRUE if Enterprise Enrolled, FALSE otherwise.
 
   if (prefs_ != nullptr &&
       prefs_->Exists(kPrefsP2PEnabled) &&
@@ -210,6 +205,23 @@ bool P2PManagerImpl::IsP2PEnabled() {
       p2p_enabled) {
     LOG(INFO) << "The crosh flag indicates that p2p is enabled.";
     return true;
+  }
+
+  if (device_policy_ != nullptr) {
+    if (device_policy_->GetAuP2PEnabled(&p2p_enabled)) {
+      if (p2p_enabled) {
+        LOG(INFO) << "Enterprise Policy indicates that p2p is enabled.";
+        return true;
+      }
+    } else {
+      // Enterprise-enrolled devices have an empty owner in their device policy.
+      string owner;
+      if (!device_policy_->GetOwner(&owner) || owner.empty()) {
+        LOG(INFO) << "No p2p_enabled setting in Enterprise Policy but device "
+                  << "is Enterprise Enrolled so allowing p2p.";
+        return true;
+      }
+    }
   }
 
   LOG(INFO) << "Neither Enterprise Policy nor crosh flag indicates that p2p "
