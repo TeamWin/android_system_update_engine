@@ -4,14 +4,15 @@
 
 #include "update_engine/update_manager/real_config_provider.h"
 
+#include <base/files/file_path.h>
 #include <base/logging.h>
+#include <chromeos/key_value_store.h>
 
 #include "update_engine/constants.h"
-#include "update_engine/simple_key_value_store.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/utils.h"
 
-using chromeos_update_engine::KeyValueStore;
+using chromeos::KeyValueStore;
 using std::string;
 
 namespace {
@@ -29,13 +30,14 @@ bool RealConfigProvider::Init() {
   KeyValueStore store;
 
   if (hardware_->IsNormalBootMode()) {
-    store.Load(root_prefix_ + kConfigFilePath);
+    store.Load(base::FilePath(root_prefix_ + kConfigFilePath));
   } else {
-    if (store.Load(root_prefix_ + chromeos_update_engine::kStatefulPartition +
-                   kConfigFilePath)) {
+    if (store.Load(base::FilePath(root_prefix_ +
+                                  chromeos_update_engine::kStatefulPartition +
+                                  kConfigFilePath))) {
       LOG(INFO) << "UpdateManager Config loaded from stateful partition.";
     } else {
-      store.Load(root_prefix_ + kConfigFilePath);
+      store.Load(base::FilePath(root_prefix_ + kConfigFilePath));
     }
   }
 

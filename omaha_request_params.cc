@@ -14,11 +14,11 @@
 
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
+#include <chromeos/key_value_store.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/hardware_interface.h"
-#include "update_engine/simple_key_value_store.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
@@ -133,15 +133,15 @@ bool OmahaRequestParams::SetTargetChannel(const std::string& new_target_channel,
             << ", existing target channel = " << target_channel_
             << ", download channel = " << download_channel_;
   TEST_AND_RETURN_FALSE(IsValidChannel(new_target_channel));
-  KeyValueStore lsb_release;
+  chromeos::KeyValueStore lsb_release;
   base::FilePath kFile(root_ + kStatefulPartition + "/etc/lsb-release");
 
-  lsb_release.Load(kFile.value());
+  lsb_release.Load(kFile);
   lsb_release.SetString(kUpdateChannelKey, new_target_channel);
   lsb_release.SetBoolean(kIsPowerwashAllowedKey, is_powerwash_allowed);
 
   TEST_AND_RETURN_FALSE(base::CreateDirectory(kFile.DirName()));
-  TEST_AND_RETURN_FALSE(lsb_release.Save(kFile.value()));
+  TEST_AND_RETURN_FALSE(lsb_release.Save(kFile));
   target_channel_ = new_target_channel;
   is_powerwash_allowed_ = is_powerwash_allowed;
   return true;
@@ -217,8 +217,8 @@ string OmahaRequestParams::GetLsbValue(const string& key,
        it != files.end(); ++it) {
     // TODO(adlr): make sure files checked are owned as root (and all their
     // parents are recursively, too).
-    KeyValueStore data;
-    if (!data.Load(root_ + *it))
+    chromeos::KeyValueStore data;
+    if (!data.Load(base::FilePath(root_ + *it)))
       continue;
 
     string value;
