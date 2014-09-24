@@ -27,9 +27,9 @@ class MockPolicy : public Policy {
   MOCK_CONST_METHOD5(UpdateCanStart,
                      EvalStatus(EvaluationContext*, State*, std::string*,
                                 UpdateDownloadParams*,
-                                const UpdateState&));
+                                UpdateState));
 
-  MOCK_CONST_METHOD4(UpdateCanStart,
+  MOCK_CONST_METHOD4(UpdateDownloadAllowed,
                      EvalStatus(EvaluationContext*, State*, std::string*,
                                 bool*));
 

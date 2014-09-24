@@ -52,7 +52,7 @@ class ChromeOSPolicy : public Policy {
       State* state,
       std::string* error,
       UpdateDownloadParams* result,
-      const UpdateState& update_state) const override;
+      UpdateState update_state) const override;
 
   EvalStatus UpdateDownloadAllowed(
       EvaluationContext* ec,

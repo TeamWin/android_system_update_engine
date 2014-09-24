@@ -46,7 +46,7 @@ EvalStatus DefaultPolicy::UpdateCanStart(
     State* state,
     std::string* error,
     UpdateDownloadParams* result,
-    const UpdateState& update_state) const {
+    const UpdateState update_state) const {
   result->update_can_start = true;
   result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
   result->download_url_idx = 0;

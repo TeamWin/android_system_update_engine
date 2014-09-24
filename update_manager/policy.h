@@ -219,7 +219,7 @@ class Policy {
       State* state,
       std::string* error,
       UpdateDownloadParams* result,
-      const UpdateState& update_state) const = 0;
+      UpdateState update_state) const = 0;
 
   // Checks whether downloading of an update is allowed; currently, this checks
   // whether the network connection type is suitable for updating over.  May

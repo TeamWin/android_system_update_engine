@@ -267,7 +267,7 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     State* state,
     string* error,
     UpdateDownloadParams* result,
-    const UpdateState& update_state) const {
+    const UpdateState update_state) const {
   // Set the default return values. Note that we set persisted values (backoff,
   // scattering) to the same values presented in the update state. The reason is
   // that preemptive returns, such as the case where an update check is due,

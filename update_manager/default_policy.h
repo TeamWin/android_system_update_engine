@@ -59,7 +59,7 @@ class DefaultPolicy : public Policy {
   EvalStatus UpdateCanStart(
       EvaluationContext* ec, State* state, std::string* error,
       UpdateDownloadParams* result,
-      const UpdateState& update_state) const override;
+      UpdateState update_state) const override;
 
   EvalStatus UpdateDownloadAllowed(
       EvaluationContext* ec, State* state, std::string* error,
