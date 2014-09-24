@@ -85,11 +85,10 @@ class ChromeOSPolicy : public Policy {
   // Default update check timeout interval/fuzz values used to compute the
   // NextUpdateCheckTime(), in seconds. Actual fuzz is within +/- half of the
   // indicated value.
-  static const int kTimeoutInitialInterval    =  7 * 60;
-  static const int kTimeoutPeriodicInterval   = 45 * 60;
-  static const int kTimeoutQuickInterval      =  1 * 60;
-  static const int kTimeoutMaxBackoffInterval =  4 * 60 * 60;
-  static const int kTimeoutRegularFuzz        = 10 * 60;
+  static const int kTimeoutInitialInterval;
+  static const int kTimeoutPeriodicInterval;
+  static const int kTimeoutMaxBackoffInterval;
+  static const int kTimeoutRegularFuzz;
 
   // A private policy implementation returning the wallclock timestamp when
   // the next update check should happen.

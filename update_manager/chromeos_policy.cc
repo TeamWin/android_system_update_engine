@@ -150,6 +150,11 @@ bool DownloadUrlIsUsable(const string& download_url, bool http_allowed) {
 
 namespace chromeos_update_manager {
 
+const int ChromeOSPolicy::kTimeoutInitialInterval =  7 * 60;
+const int ChromeOSPolicy::kTimeoutPeriodicInterval = 45 * 60;
+const int ChromeOSPolicy::kTimeoutMaxBackoffInterval = 4 * 60 * 60;
+const int ChromeOSPolicy::kTimeoutRegularFuzz = 10 * 60;
+
 EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
     EvaluationContext* ec, State* state, string* error,
     UpdateCheckParams* result) const {
