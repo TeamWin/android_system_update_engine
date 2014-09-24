@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <unistd.h>
+
 #include <string>
 #include <vector>
 
@@ -11,6 +13,7 @@
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <gflags/gflags.h>
 #include <glib.h>
 #include <metrics/metrics_library.h>
@@ -39,6 +42,10 @@ DEFINE_bool(foreground, false,
 using std::string;
 using std::vector;
 
+namespace {
+const int kDBusSystemMaxWaitSeconds = 2 * 60;
+}  // namespace
+
 namespace chromeos_update_engine {
 
 gboolean UpdateBootFlags(void* arg) {
@@ -58,7 +65,29 @@ gboolean UpdateEngineStarted(gpointer user_data) {
 
 namespace {
 
-void SetupDbusService(UpdateEngineService* service) {
+// Wait for DBus to be ready by attempting to get the system bus up to
+// |timeout| time. Returns whether it succeeded to get the bus.
+bool WaitForDBusSystem(base::TimeDelta timeout) {
+  GError *error = nullptr;
+  DBusGConnection *bus = nullptr;
+  Clock clock;
+  base::Time deadline = clock.GetMonotonicTime() + timeout;
+
+  while (clock.GetMonotonicTime() < deadline) {
+    bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
+    if (bus)
+      return true;
+    LOG(WARNING) << "Failed to get system bus, waiting: "
+                 << utils::GetAndFreeGError(&error);
+    // Wait 1 second.
+    sleep(1);
+  }
+  LOG(ERROR) << "Failed to get system bus after " << timeout.InSeconds()
+             << " seconds.";
+  return false;
+}
+
+void SetupDBusService(UpdateEngineService* service) {
   DBusGConnection *bus;
   DBusGProxy *proxy;
   GError *error = nullptr;
@@ -171,6 +200,11 @@ int main(int argc, char** argv) {
   // Create the single GMainLoop
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
 
+  // Wait up to 2 minutes for DBus to be ready.
+  LOG_IF(FATAL, !chromeos_update_engine::WaitForDBusSystem(
+      base::TimeDelta::FromSeconds(kDBusSystemMaxWaitSeconds)))
+      << "Failed to initialize DBus, aborting.";
+
   chromeos_update_engine::RealSystemState real_system_state;
   LOG_IF(ERROR, !real_system_state.Initialize())
       << "Failed to initialize system state.";
@@ -191,7 +225,7 @@ int main(int argc, char** argv) {
   UpdateEngineService* service = update_engine_service_new();
   service->system_state_ = &real_system_state;
   update_attempter->set_dbus_service(service);
-  chromeos_update_engine::SetupDbusService(service);
+  chromeos_update_engine::SetupDBusService(service);
 
   // Initiate update checks.
   update_attempter->ScheduleUpdates();
