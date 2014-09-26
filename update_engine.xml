@@ -6,25 +6,25 @@
 <node name="/org/chromium">
   <interface name="org.chromium.UpdateEngineInterface">
     <annotation name="org.freedesktop.DBus.GLib.CSymbol"
-                value="update_engine_service"/>
+                value="update_engine_service" />
     <annotation name="org.freedesktop.DBus.GLib.ClientCSymbol"
-                value="update_engine_client"/>
+                value="update_engine_client" />
     <method name="AttemptUpdate">
-      <arg type="s" name="app_version" />
-      <arg type="s" name="omaha_url" />
+      <arg type="s" name="app_version" direction="in" />
+      <arg type="s" name="omaha_url" direction="in" />
     </method>
     <!-- TODO(zeuthen,chromium:286399): Rename to AttemptUpdate and
          update Chrome and other users of the AttemptUpdate() method
          in lockstep.
     -->
     <method name="AttemptUpdateWithFlags">
-      <arg type="s" name="app_version" />
-      <arg type="s" name="omaha_url" />
+      <arg type="s" name="app_version" direction="in" />
+      <arg type="s" name="omaha_url" direction="in" />
       <!-- See AttemptUpdateFlags enum in dbus_constants.h. -->
-      <arg type="i" name="flags" />
+      <arg type="i" name="flags" direction="in" />
     </method>
     <method name="AttemptRollback">
-      <arg type="b" name="powerwash" />
+      <arg type="b" name="powerwash" direction="in" />
     </method>
     <method name="CanRollback">
       <arg type="b" name="can_rollback" direction="out" />
@@ -41,29 +41,29 @@
     <method name="RebootIfNeeded">
     </method>
     <method name="SetChannel">
-      <arg type="s" name="target_channel" />
-      <arg type="b" name="is_powerwash_allowed" />
+      <arg type="s" name="target_channel" direction="in" />
+      <arg type="b" name="is_powerwash_allowed" direction="in" />
     </method>
     <method name="GetChannel">
-      <arg type="b" name="get_current_channel" />
+      <arg type="b" name="get_current_channel" direction="in" />
       <arg type="s" name="channel" direction="out" />
     </method>
     <method name="SetP2PUpdatePermission">
       <annotation name="org.freedesktop.DBus.GLib.CSymbol"
-        value="update_engine_service_set_p2p_update_permission"/>
+        value="update_engine_service_set_p2p_update_permission" />
       <annotation name="org.freedesktop.DBus.GLib.ClientCSymbol"
-        value="update_engine_client_set_p2p_update_permission"/>
-      <arg type="b" name="enabled" />
+        value="update_engine_client_set_p2p_update_permission" />
+      <arg type="b" name="enabled" direction="in" />
     </method>
     <method name="GetP2PUpdatePermission">
       <annotation name="org.freedesktop.DBus.GLib.CSymbol"
-        value="update_engine_service_get_p2p_update_permission"/>
+        value="update_engine_service_get_p2p_update_permission" />
       <annotation name="org.freedesktop.DBus.GLib.ClientCSymbol"
-        value="update_engine_client_get_p2p_update_permission"/>
+        value="update_engine_client_get_p2p_update_permission" />
       <arg type="b" name="enabled" direction="out" />
     </method>
     <method name="SetUpdateOverCellularPermission">
-      <arg type="b" name="allowed" />
+      <arg type="b" name="allowed" direction="in" />
     </method>
     <method name="GetUpdateOverCellularPermission">
       <arg type="b" name="allowed" direction="out" />
