@@ -14,7 +14,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <gflags/gflags.h>
+#include <chromeos/flag_helper.h>
 #include <glib.h>
 #include <metrics/metrics_library.h>
 #include <sys/stat.h>
@@ -33,11 +33,6 @@ extern "C" {
 #include "update_engine/update_engine.dbusserver.h"
 }
 #include "update_engine/utils.h"
-
-DEFINE_bool(logtostderr, false,
-            "Write logs to stderr instead of to a file in log_dir.");
-DEFINE_bool(foreground, false,
-            "Don't daemon()ize; run in foreground.");
 
 using std::string;
 using std::vector;
@@ -156,13 +151,13 @@ string SetupLogFile(const string& kLogsRoot) {
   return kLogSymlink;
 }
 
-void SetupLogging() {
+void SetupLogging(bool log_to_std_err) {
   string log_file;
   logging::LoggingSettings log_settings;
   log_settings.lock_log = logging::DONT_LOCK_LOG_FILE;
   log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
 
-  if (FLAGS_logtostderr) {
+  if (log_to_std_err) {
     // Log to stderr initially.
     log_settings.log_file = nullptr;
     log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
@@ -179,14 +174,18 @@ void SetupLogging() {
 }  // namespace chromeos_update_engine
 
 int main(int argc, char** argv) {
+  DEFINE_bool(logtostderr, false,
+              "Write logs to stderr instead of to a file in log_dir.");
+  DEFINE_bool(foreground, false,
+              "Don't daemon()ize; run in foreground.");
+
   ::g_type_init();
   dbus_threads_init_default();
   base::AtExitManager exit_manager;  // Required for base/rand_util.h.
   chromeos_update_engine::Terminator::Init();
   chromeos_update_engine::Subprocess::Init();
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  CommandLine::Init(argc, argv);
-  chromeos_update_engine::SetupLogging();
+  chromeos::FlagHelper::Init(argc, argv, "Chromium OS Update Engine");
+  chromeos_update_engine::SetupLogging(FLAGS_logtostderr);
   if (!FLAGS_foreground)
     PLOG_IF(FATAL, daemon(0, 0) == 1) << "daemon() failed";
 
