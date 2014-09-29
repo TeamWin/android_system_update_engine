@@ -48,7 +48,8 @@ enum UpdateStatus {
   UPDATE_STATUS_FINALIZING,
   UPDATE_STATUS_UPDATED_NEED_REBOOT,
   UPDATE_STATUS_REPORTING_ERROR_EVENT,
-  UPDATE_STATUS_ATTEMPTING_ROLLBACK
+  UPDATE_STATUS_ATTEMPTING_ROLLBACK,
+  UPDATE_STATUS_DISABLED,
 };
 
 const char* UpdateStatusToString(UpdateStatus status);
@@ -386,6 +387,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Updates the time an update was last attempted to the current time.
   void UpdateLastCheckedTime();
+
+  // Returns whether an update is currently running or scheduled.
+  bool IsUpdateRunningOrScheduled();
 
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is

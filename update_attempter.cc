@@ -98,6 +98,8 @@ const char* UpdateStatusToString(UpdateStatus status) {
       return update_engine::kUpdateStatusReportingErrorEvent;
     case UPDATE_STATUS_ATTEMPTING_ROLLBACK:
       return update_engine::kUpdateStatusAttemptingRollback;
+    case UPDATE_STATUS_DISABLED:
+      return update_engine::kUpdateStatusDisabled;
     default:
       return "unknown status";
   }
@@ -158,6 +160,9 @@ void UpdateAttempter::Init() {
 }
 
 void UpdateAttempter::ScheduleUpdates() {
+  if (IsUpdateRunningOrScheduled())
+    return;
+
   chromeos_update_manager::UpdateManager* const update_manager =
       system_state_->update_manager();
   CHECK(update_manager);
@@ -808,8 +813,12 @@ void UpdateAttempter::CheckForUpdate(const string& app_version,
   LOG(INFO) << "Forced update check requested.";
   forced_app_version_ = app_version;
   forced_omaha_url_ = omaha_url;
-  if (forced_update_pending_callback_.get())
+  if (forced_update_pending_callback_.get()) {
+    // Make sure that a scheduling request is made prior to calling the forced
+    // update pending callback.
+    ScheduleUpdates();
     forced_update_pending_callback_->Run(true, interactive);
+  }
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
@@ -887,6 +896,13 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
   if (status == EvalStatus::kSucceeded) {
     if (!params.updates_enabled) {
       LOG(WARNING) << "Updates permanently disabled.";
+      // Signal disabled status, then switch right back to idle. This is
+      // necessary for ensuring that observers waiting for a signal change will
+      // actually notice one on subsequent calls. Note that we don't need to
+      // re-schedule a check in this case as updates are permanently disabled;
+      // further (forced) checks may still initiate a scheduling call.
+      SetStatusAndNotify(UPDATE_STATUS_DISABLED);
+      SetStatusAndNotify(UPDATE_STATUS_IDLE);
       return;
     }
 
@@ -916,9 +932,7 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
   // a bug that will most likely prevent further automatic update checks. It
   // seems better to crash in such cases and restart the update_engine daemon
   // into, hopefully, a known good state.
-  CHECK((this->status() != UPDATE_STATUS_IDLE &&
-         this->status() != UPDATE_STATUS_UPDATED_NEED_REBOOT) ||
-        waiting_for_scheduled_check_);
+  CHECK(IsUpdateRunningOrScheduled());
 }
 
 void UpdateAttempter::UpdateLastCheckedTime() {
@@ -939,6 +953,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
     // Inform scheduler of new status;
     SetStatusAndNotify(UPDATE_STATUS_IDLE);
+    ScheduleUpdates();
 
     if (!fake_update_success_) {
       return;
@@ -970,6 +985,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
 
     SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT);
+    ScheduleUpdates();
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
     // This pointer is null during rollback operations, and the stats
@@ -1006,6 +1022,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   }
   LOG(INFO) << "No update.";
   SetStatusAndNotify(UPDATE_STATUS_IDLE);
+  ScheduleUpdates();
 }
 
 void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
@@ -1013,6 +1030,7 @@ void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
   CleanupCpuSharesManagement();
   download_progress_ = 0.0;
   SetStatusAndNotify(UPDATE_STATUS_IDLE);
+  ScheduleUpdates();
   actions_.clear();
   error_event_.reset(nullptr);
 }
@@ -1255,11 +1273,6 @@ bool UpdateAttempter::ShouldCancel(ErrorCode* cancel_reason) {
 
 void UpdateAttempter::SetStatusAndNotify(UpdateStatus status) {
   status_ = status;
-  // If not updating, schedule subsequent update checks.
-  if (status_ == UPDATE_STATUS_IDLE ||
-      status_ == UPDATE_STATUS_UPDATED_NEED_REBOOT) {
-    ScheduleUpdates();
-  }
   BroadcastStatus();
 }
 
@@ -1465,6 +1478,7 @@ void UpdateAttempter::PingOmaha() {
 
   // Update the status which will schedule the next update check
   SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT);
+  ScheduleUpdates();
 }
 
 
@@ -1595,6 +1609,12 @@ bool UpdateAttempter::GetBootTimeAtUpdate(base::Time *out_boot_time) {
 
   *out_boot_time = Time::FromInternalValue(stored_value);
   return true;
+}
+
+bool UpdateAttempter::IsUpdateRunningOrScheduled() {
+  return ((status_ != UPDATE_STATUS_IDLE &&
+           status_ != UPDATE_STATUS_UPDATED_NEED_REBOOT) ||
+          waiting_for_scheduled_check_);
 }
 
 }  // namespace chromeos_update_engine
