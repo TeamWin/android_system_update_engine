@@ -104,11 +104,6 @@ string GetAppBody(const OmahaEvent* event,
   if (event == nullptr) {
     app_body = GetPingXml(ping_active_days, ping_roll_call_days);
     if (!ping_only) {
-      // not passing update_disabled to Omaha because we want to
-      // get the update and report with UpdateDeferred result so that
-      // borgmon charts show up updates that are deferred. This is also
-      // the expected behavior when we move to Omaha v3.0 protocol, so it'll
-      // be consistent.
       app_body += base::StringPrintf(
           "        <updatecheck targetversionprefix=\"%s\""
           "></updatecheck>\n",
@@ -1287,11 +1282,6 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
 
 bool OmahaRequestAction::ShouldIgnoreUpdate(
     const OmahaResponse& response) const {
-  if (params_->update_disabled()) {
-    LOG(INFO) << "Ignoring Omaha updates as updates are disabled by policy.";
-    return true;
-  }
-
   // Note: policy decision to not update to a version we rolled back from.
   string rollback_version =
       system_state_->payload_state()->GetRollbackVersion();

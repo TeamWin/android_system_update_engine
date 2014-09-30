@@ -39,7 +39,6 @@ class OmahaRequestParams {
         canary_app_id_(kAppId),
         delta_okay_(true),
         interactive_(false),
-        update_disabled_(false),
         wall_clock_based_wait_enabled_(false),
         update_check_count_wait_enabled_(false),
         min_update_checks_needed_(kDefaultMinUpdateChecks),
@@ -67,7 +66,6 @@ class OmahaRequestParams {
                      bool in_delta_okay,
                      bool in_interactive,
                      const std::string& in_update_url,
-                     bool in_update_disabled,
                      const std::string& in_target_version_prefix,
                      bool in_use_p2p_for_downloading,
                      bool in_use_p2p_for_sharing)
@@ -88,7 +86,6 @@ class OmahaRequestParams {
         delta_okay_(in_delta_okay),
         interactive_(in_interactive),
         update_url_(in_update_url),
-        update_disabled_(in_update_disabled),
         target_version_prefix_(in_target_version_prefix),
         wall_clock_based_wait_enabled_(false),
         update_check_count_wait_enabled_(false),
@@ -131,11 +128,6 @@ class OmahaRequestParams {
 
   inline void set_update_url(const std::string& url) { update_url_ = url; }
   inline std::string update_url() const { return update_url_; }
-
-  inline void set_update_disabled(bool disabled) {
-    update_disabled_ = disabled;
-  }
-  inline bool update_disabled() const { return update_disabled_; }
 
   inline void set_target_version_prefix(const std::string& prefix) {
     target_version_prefix_ = prefix;
@@ -355,9 +347,6 @@ class OmahaRequestParams {
 
   // The URL to send the Omaha request to.
   std::string update_url_;
-
-  // True if we've been told to block updates per enterprise policy.
-  bool update_disabled_;
 
   // Prefix of the target OS version that the enterprise wants this device
   // to be pinned to. It's empty otherwise.

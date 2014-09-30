@@ -409,9 +409,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     omaha_request_params_->UpdateDownloadChannel();
   }
 
-  LOG(INFO) << "update_disabled = "
-            << utils::ToString(omaha_request_params_->update_disabled())
-            << ", target_version_prefix = "
+  LOG(INFO) << "target_version_prefix = "
             << omaha_request_params_->target_version_prefix()
             << ", scatter_factor_in_seconds = "
             << utils::FormatSecs(scatter_factor_.InSeconds());

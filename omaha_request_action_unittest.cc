@@ -62,7 +62,6 @@ OmahaRequestParams kDefaultTestParams(
     false,   // delta okay
     false,   // interactive
     "http://url",
-    false,   // update_disabled
     "",      // target_version_prefix
     false,   // use_p2p_for_downloading
     false);  // use_p2p_for_sharing
@@ -417,37 +416,6 @@ TEST(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_EQ("20101020", response.deadline);
 }
 
-TEST(OmahaRequestActionTest, ValidUpdateBlockedByPolicyTest) {
-  OmahaResponse response;
-  OmahaRequestParams params = kDefaultTestParams;
-  params.set_update_disabled(true);
-  ASSERT_FALSE(
-      TestUpdateCheck(nullptr,  // prefs
-                      nullptr,  // payload_state
-                      nullptr,  // p2p_manager
-                      nullptr,  // connection_manager
-                      &params,
-                      GetUpdateResponse(OmahaRequestParams::kAppId,
-                                        "1.2.3.4",  // version
-                                        "http://more/info",
-                                        "true",  // prompt
-                                        "http://code/base/",  // dl url
-                                        "file.signed",  // file name
-                                        "HASH1234=",  // checksum
-                                        "false",  // needs admin
-                                        "123",  // size
-                                        ""),  // deadline
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaUpdateIgnoredPerPolicy,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kIgnored,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
-  EXPECT_FALSE(response.update_exists);
-}
-
 TEST(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   OmahaResponse response;
   // Set up a connection manager that doesn't allow a valid update over
@@ -518,28 +486,6 @@ TEST(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
                       ErrorCode::kOmahaUpdateIgnoredPerPolicy,
                       metrics::CheckResult::kUpdateAvailable,
                       metrics::CheckReaction::kIgnored,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
-  EXPECT_FALSE(response.update_exists);
-}
-
-TEST(OmahaRequestActionTest, NoUpdatesSentWhenBlockedByPolicyTest) {
-  OmahaResponse response;
-  OmahaRequestParams params = kDefaultTestParams;
-  params.set_update_disabled(true);
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // prefs
-                      nullptr,  // payload_state
-                      nullptr,  // p2p_manager
-                      nullptr,  // connection_manager
-                      &params,
-                      GetNoUpdateResponse(OmahaRequestParams::kAppId),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kNoUpdateAvailable,
-                      metrics::CheckReaction::kUnset,
                       metrics::DownloadErrorCode::kUnset,
                       &response,
                       nullptr));
@@ -1205,7 +1151,6 @@ TEST(OmahaRequestActionTest, XmlEncodeTest) {
                             false,   // delta okay
                             false,   // interactive
                             "http://url",
-                            false,   // update_disabled
                             "",      // target_version_prefix
                             false,   // use_p2p_for_downloading
                             false);  // use_p2p_for_sharing
@@ -1335,42 +1280,6 @@ TEST(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
 }
 
 
-TEST(OmahaRequestActionTest, FormatUpdateDisabledOutputTest) {
-  vector<char> post_data;
-  NiceMock<PrefsMock> prefs;
-  EXPECT_CALL(prefs, GetString(kPrefsPreviousVersion, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(string("")), Return(true)));
-  EXPECT_CALL(prefs, SetString(kPrefsPreviousVersion, _)).Times(1);
-  OmahaRequestParams params = kDefaultTestParams;
-  params.set_update_disabled(true);
-  ASSERT_FALSE(TestUpdateCheck(&prefs,
-                               nullptr,  // payload_state
-                               nullptr,  // p2p_manager
-                               nullptr,  // connection_manager
-                               &params,
-                               "invalid xml>",
-                               -1,
-                               false,  // ping_only
-                               ErrorCode::kOmahaRequestXMLParseError,
-                               metrics::CheckResult::kParsingError,
-                               metrics::CheckReaction::kUnset,
-                               metrics::DownloadErrorCode::kUnset,
-                               nullptr,  // response
-                               &post_data));
-  // convert post_data to string
-  string post_str(&post_data[0], post_data.size());
-  EXPECT_NE(post_str.find(
-      "        <ping active=\"1\" a=\"-1\" r=\"-1\"></ping>\n"
-      "        <updatecheck targetversionprefix=\"\"></updatecheck>\n"),
-      string::npos);
-  EXPECT_NE(post_str.find("hardware_class=\"OEM MODEL 09235 7471\""),
-            string::npos);
-  EXPECT_NE(post_str.find("fw_version=\"ChromeOSFirmware.1.0\""),
-            string::npos);
-  EXPECT_NE(post_str.find("ec_version=\"0X0A1\""),
-            string::npos);
-}
-
 TEST(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
   vector<char> post_data;
   TestEvent(kDefaultTestParams,
@@ -1455,7 +1364,6 @@ TEST(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                               delta_okay,
                               false,  // interactive
                               "http://url",
-                              false,  // update_disabled
                               "",     // target_version_prefix
                               false,  // use_p2p_for_downloading
                               false);  // use_p2p_for_sharing
@@ -1503,7 +1411,6 @@ TEST(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                               true,   // delta_okay
                               interactive,
                               "http://url",
-                              false,  // update_disabled
                               "",     // target_version_prefix
                               false,  // use_p2p_for_downloading
                               false);  // use_p2p_for_sharing
