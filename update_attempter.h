@@ -28,7 +28,6 @@
 #include "update_engine/update_manager/update_manager.h"
 
 class MetricsLibraryInterface;
-struct UpdateEngineService;
 
 namespace policy {
 class PolicyProvider;
@@ -36,6 +35,7 @@ class PolicyProvider;
 
 namespace chromeos_update_engine {
 
+class UpdateEngineAdaptor;
 class DBusWrapperInterface;
 
 enum UpdateStatus {
@@ -119,8 +119,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   int http_response_code() const { return http_response_code_; }
   void set_http_response_code(int code) { http_response_code_ = code; }
 
-  void set_dbus_service(struct UpdateEngineService* dbus_service) {
-    dbus_service_ = dbus_service;
+  void set_dbus_adaptor(UpdateEngineAdaptor* dbus_adaptor) {
+    dbus_adaptor_ = dbus_adaptor;
   }
 
   // This is the internal entry point for going through an
@@ -400,7 +400,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // If non-null, this UpdateAttempter will send status updates over this
   // dbus service.
-  UpdateEngineService* dbus_service_ = nullptr;
+  UpdateEngineAdaptor* dbus_adaptor_ = nullptr;
 
   // Pointer to the OmahaResponseHandlerAction in the actions_ vector.
   std::shared_ptr<OmahaResponseHandlerAction> response_handler_action_;

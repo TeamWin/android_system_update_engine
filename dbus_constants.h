@@ -13,6 +13,10 @@ static const char* const kUpdateEngineServicePath =
 static const char* const kUpdateEngineServiceInterface =
     "org.chromium.UpdateEngineInterface";
 
+// Generic UpdateEngine D-Bus error.
+static const char* const kUpdateEngineServiceErrorFailed =
+    "org.chromium.UpdateEngine.Error.Failed";
+
 // Flags used in the AttemptUpdateWithFlags() D-Bus method.
 typedef enum {
   kAttemptUpdateFlagNonInteractive = (1<<0)

@@ -116,7 +116,7 @@ class UpdateAttempterTest : public ::testing::Test {
   void SetUp() override {
     CHECK(utils::MakeTempDirectory("UpdateAttempterTest-XXXXXX", &test_dir_));
 
-    EXPECT_EQ(nullptr, attempter_.dbus_service_);
+    EXPECT_EQ(nullptr, attempter_.dbus_adaptor_);
     EXPECT_NE(nullptr, attempter_.system_state_);
     EXPECT_EQ(0, attempter_.http_response_code_);
     EXPECT_EQ(utils::kCpuSharesNormal, attempter_.shares_);

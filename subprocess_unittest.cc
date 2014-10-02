@@ -43,12 +43,14 @@ class SubprocessTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
-    subprocess_.Init();
+    async_signal_handler_.Init();
+    subprocess_.Init(&async_signal_handler_);
   }
 
   // TODO(deymo): Replace this with a FakeMessageLoop. Subprocess uses glib to
   // asynchronously spawn a process, so we need to run a GlibMessageLoop here.
   chromeos::GlibMessageLoop loop_;
+  chromeos::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
 };
 

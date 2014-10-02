@@ -80,14 +80,14 @@ bool LaunchProcess(const vector<string>& cmd,
 
 }  // namespace
 
-void Subprocess::Init() {
+void Subprocess::Init(
+      chromeos::AsynchronousSignalHandlerInterface* async_signal_handler) {
   if (subprocess_singleton_ == this)
     return;
   CHECK(subprocess_singleton_ == nullptr);
   subprocess_singleton_ = this;
 
-  async_signal_handler_.Init();
-  process_reaper_.Register(&async_signal_handler_);
+  process_reaper_.Register(async_signal_handler);
 }
 
 Subprocess::~Subprocess() {

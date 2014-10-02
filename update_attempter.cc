@@ -1243,12 +1243,10 @@ void UpdateAttempter::CompleteUpdateBootFlags(int return_code,
 }
 
 void UpdateAttempter::BroadcastStatus() {
-  if (!dbus_service_) {
+  if (!dbus_adaptor_)
     return;
-  }
   last_notify_time_ = TimeTicks::Now();
-  update_engine_service_emit_status_update(
-      dbus_service_,
+  dbus_adaptor_->SendStatusUpdateSignal(
       last_checked_time_,
       download_progress_,
       UpdateStatusToString(status_),

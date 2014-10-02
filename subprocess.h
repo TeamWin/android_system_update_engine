@@ -15,7 +15,7 @@
 #include <base/callback.h>
 #include <base/logging.h>
 #include <base/macros.h>
-#include <chromeos/asynchronous_signal_handler.h>
+#include <chromeos/asynchronous_signal_handler_interface.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/process.h>
 #include <chromeos/process_reaper.h>
@@ -49,7 +49,7 @@ class Subprocess {
   ~Subprocess();
 
   // Initialize and register the Subprocess singleton.
-  void Init();
+  void Init(chromeos::AsynchronousSignalHandlerInterface* async_signal_handler);
 
   // Launches a process in the background and calls the passed |callback| when
   // the process exits.
@@ -119,7 +119,6 @@ class Subprocess {
   std::map<pid_t, std::unique_ptr<SubprocessRecord>> subprocess_records_;
 
   // Used to watch for child processes.
-  chromeos::AsynchronousSignalHandler async_signal_handler_;
   chromeos::ProcessReaper process_reaper_;
 
   DISALLOW_COPY_AND_ASSIGN(Subprocess);

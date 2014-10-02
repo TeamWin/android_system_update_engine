@@ -37,7 +37,8 @@ class PostinstallRunnerActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
-    subprocess_.Init();
+    async_signal_handler_.Init();
+    subprocess_.Init(&async_signal_handler_);
   }
 
   // DoTest with various combinations of do_losetup, err_code and
@@ -48,6 +49,7 @@ class PostinstallRunnerActionTest : public ::testing::Test {
   static const char* kImageMountPointTemplate;
 
   chromeos::GlibMessageLoop loop_;
+  chromeos::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
 };
 

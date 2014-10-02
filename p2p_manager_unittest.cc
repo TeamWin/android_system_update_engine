@@ -18,6 +18,7 @@
 #include <base/callback.h>
 #include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/asynchronous_signal_handler.h>
 #include <chromeos/message_loops/glib_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
@@ -57,7 +58,8 @@ class P2PManagerTest : public testing::Test {
   // Derived from testing::Test.
   void SetUp() override {
     loop_.SetAsCurrent();
-    subprocess_.Init();
+    async_signal_handler_.Init();
+    subprocess_.Init(&async_signal_handler_);
     test_conf_ = new FakeP2PManagerConfiguration();
 
     // Allocate and install a mock policy implementation in the fake Update
@@ -76,6 +78,7 @@ class P2PManagerTest : public testing::Test {
   // interact with the p2p-client tool, so we need to run a GlibMessageLoop
   // here.
   chromeos::GlibMessageLoop loop_;
+  chromeos::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
 
   // The P2PManager::Configuration instance used for testing.

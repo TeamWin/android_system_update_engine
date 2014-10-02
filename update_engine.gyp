@@ -59,19 +59,17 @@
       ],
       'includes': ['../common-mk/protoc.gypi'],
     },
-    # D-Bus glib bindings.
+    # Chrome D-Bus bindings.
     {
-      'target_name': 'update_engine-dbus-server',
+      'target_name': 'update_engine-dbus-adaptor',
       'type': 'none',
       'variables': {
-        'dbus_glib_type': 'server',
-        'dbus_glib_out_dir': 'include/update_engine',
-        'dbus_glib_prefix': 'update_engine_service',
+        'dbus_adaptors_out_dir': 'include/update_engine/dbus_adaptor',
       },
       'sources': [
         'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
       ],
-      'includes': ['../common-mk/dbus_glib.gypi'],
+      'includes': ['../common-mk/generate-dbus-adaptors.gypi'],
     },
     # The main static_library with all the code.
     {
@@ -125,6 +123,7 @@
         'clock.cc',
         'connection_manager.cc',
         'constants.cc',
+        'daemon.cc',
         'dbus_service.cc',
         'delta_performer.cc',
         'download_action.cc',
@@ -191,7 +190,7 @@
       'type': 'executable',
       'dependencies': [
         'libupdate_engine',
-        'update_engine-dbus-server',
+        'update_engine-dbus-adaptor',
       ],
       'sources': [
         'main.cc',
@@ -369,6 +368,7 @@
             'certificate_checker_unittest.cc',
             'chrome_browser_proxy_resolver_unittest.cc',
             'connection_manager_unittest.cc',
+            'dbus_service_unittest.cc',
             'delta_performer_unittest.cc',
             'download_action_unittest.cc',
             'extent_writer_unittest.cc',
