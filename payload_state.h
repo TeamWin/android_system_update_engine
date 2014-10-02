@@ -350,9 +350,6 @@ class PayloadState : public PayloadStateInterface {
   // metric that is reported once the new update was applied.
   void ReportUpdatesAbandonedEventCountMetric();
 
-  // The global state of the system.
-  SystemState* system_state_;
-
   // Initializes |num_reboots_| from the persisted state.
   void LoadNumReboots();
 
@@ -388,6 +385,9 @@ class PayloadState : public PayloadStateInterface {
 
   // Sets the |kPrefsP2PFirstAttemptTimestamp| state variable to |time|.
   void SetP2PFirstAttemptTimestamp(const base::Time& time);
+
+  // The global state of the system.
+  SystemState* system_state_;
 
   // Interface object with which we read/write persisted state. This must
   // be set by calling the Initialize method before calling any other method.
