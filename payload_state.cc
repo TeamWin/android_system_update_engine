@@ -906,6 +906,7 @@ void PayloadState::ResetPersistedState() {
   ResetRollbackVersion();
   SetP2PNumAttempts(0);
   SetP2PFirstAttemptTimestamp(Time());  // Set to null time
+  SetScatteringWaitPeriod(base::TimeDelta());
 }
 
 void PayloadState::ResetRollbackVersion() {
@@ -1023,6 +1024,24 @@ void PayloadState::SetUrlIndex(uint32_t url_index) {
   // Also update the download source, which is purely dependent on the
   // current URL index alone.
   UpdateCurrentDownloadSource();
+}
+
+void PayloadState::LoadScatteringWaitPeriod() {
+  SetScatteringWaitPeriod(
+      TimeDelta::FromSeconds(GetPersistedValue(kPrefsWallClockWaitPeriod)));
+}
+
+void PayloadState::SetScatteringWaitPeriod(base::TimeDelta wait_period) {
+  CHECK(prefs_);
+  scattering_wait_period_ = wait_period;
+  LOG(INFO) << "Scattering Wait Period (seconds) = "
+            << scattering_wait_period_.InSeconds();
+  if (scattering_wait_period_.InSeconds() > 0) {
+    prefs_->SetInt64(kPrefsWallClockWaitPeriod,
+                     scattering_wait_period_.InSeconds());
+  } else {
+    prefs_->Delete(kPrefsWallClockWaitPeriod);
+  }
 }
 
 void PayloadState::LoadUrlSwitchCount() {

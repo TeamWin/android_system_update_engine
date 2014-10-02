@@ -113,6 +113,12 @@ class PayloadState : public PayloadStateInterface {
     return using_p2p_for_downloading_;
   }
 
+  base::TimeDelta GetScatteringWaitPeriod() override {
+    return scattering_wait_period_;
+  }
+
+  void SetScatteringWaitPeriod(base::TimeDelta wait_period) override;
+
  private:
   enum class AttemptType {
     kUpdate,
@@ -386,6 +392,9 @@ class PayloadState : public PayloadStateInterface {
   // Sets the |kPrefsP2PFirstAttemptTimestamp| state variable to |time|.
   void SetP2PFirstAttemptTimestamp(const base::Time& time);
 
+  // Loads the persisted scattering wallclock-based wait period.
+  void LoadScatteringWaitPeriod();
+
   // The global state of the system.
   SystemState* system_state_;
 
@@ -528,6 +537,9 @@ class PayloadState : public PayloadStateInterface {
 
   // Whether we're currently rolling back.
   AttemptType attempt_type_;
+
+  // The current scattering wallclock-based wait period.
+  base::TimeDelta scattering_wait_period_;
 
   DISALLOW_COPY_AND_ASSIGN(PayloadState);
 };

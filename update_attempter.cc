@@ -564,8 +564,8 @@ void UpdateAttempter::GenerateNewWaitingPeriod() {
   // fails, we'll still be able to scatter based on our in-memory value.
   // The persistence only helps in ensuring a good overall distribution
   // across multiple devices if they tend to reboot too often.
-  prefs_->SetInt64(kPrefsWallClockWaitPeriod,
-                   omaha_request_params_->waiting_period().InSeconds());
+  system_state_->payload_state()->SetScatteringWaitPeriod(
+      omaha_request_params_->waiting_period());
 }
 
 void UpdateAttempter::BuildPostInstallActions(
@@ -979,7 +979,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     // after reboot so that the same device is not favored or punished in any
     // way.
     prefs_->Delete(kPrefsUpdateCheckCount);
-    prefs_->Delete(kPrefsWallClockWaitPeriod);
+    system_state_->payload_state()->SetScatteringWaitPeriod(TimeDelta());
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
 
     SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT);

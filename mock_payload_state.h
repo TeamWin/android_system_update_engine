@@ -36,6 +36,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD0(P2PNewAttempt, void());
   MOCK_METHOD0(P2PAttemptAllowed, bool());
   MOCK_METHOD1(SetUsingP2PForDownloading, void(bool value));
+  MOCK_METHOD1(SetScatteringWaitPeriod, void(base::TimeDelta));
 
   // Getters.
   MOCK_METHOD0(GetResponseSignature, std::string());
@@ -55,6 +56,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD0(GetP2PNumAttempts, int());
   MOCK_METHOD0(GetP2PFirstAttemptTimestamp, base::Time());
   MOCK_METHOD0(GetUsingP2PForDownloading, bool());
+  MOCK_METHOD0(GetScatteringWaitPeriod, base::TimeDelta());
 };
 
 }  // namespace chromeos_update_engine

@@ -163,6 +163,12 @@ class PayloadStateInterface {
 
   // Gets the value previously set with SetUsingP2PForDownloading().
   virtual bool GetUsingP2PForDownloading() = 0;
+
+  // Returns the current (persisted) scattering wallclock-based wait period.
+  virtual base::TimeDelta GetScatteringWaitPeriod() = 0;
+
+  // Sets and persists the scattering wallclock-based wait period.
+  virtual void SetScatteringWaitPeriod(base::TimeDelta wait_period) = 0;
 };
 
 }  // namespace chromeos_update_engine
