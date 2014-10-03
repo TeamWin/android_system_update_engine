@@ -129,7 +129,7 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
   UpdateVariable(
       &var_allowed_connection_types_for_update_,
       &RealDevicePolicyProvider::ConvertAllowedConnectionTypesForUpdate);
-  UpdateVariable(&var_get_owner_, &DevicePolicy::GetOwner);
+  UpdateVariable(&var_owner_, &DevicePolicy::GetOwner);
   UpdateVariable(&var_http_downloads_enabled_,
                  &DevicePolicy::GetHttpDownloadsEnabled);
   UpdateVariable(&var_au_p2p_enabled_, &DevicePolicy::GetAuP2PEnabled);

@@ -47,8 +47,8 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_allowed_connection_types_for_update_;
   }
 
-  FakeVariable<std::string>* var_get_owner() override {
-    return &var_get_owner_;
+  FakeVariable<std::string>* var_owner() override {
+    return &var_owner_;
   }
 
   FakeVariable<bool>* var_http_downloads_enabled() override {
@@ -75,7 +75,7 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
   FakeVariable<std::set<ConnectionType>>
       var_allowed_connection_types_for_update_{
           "allowed_connection_types_for_update", kVariableModePoll};
-  FakeVariable<std::string> var_get_owner_{"get_owner", kVariableModePoll};
+  FakeVariable<std::string> var_owner_{"owner", kVariableModePoll};
   FakeVariable<bool> var_http_downloads_enabled_{
       "http_downloads_enabled", kVariableModePoll};
   FakeVariable<bool> var_au_p2p_enabled_{"au_p2p_enabled", kVariableModePoll};

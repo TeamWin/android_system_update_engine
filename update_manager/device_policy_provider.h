@@ -45,7 +45,7 @@ class DevicePolicyProvider : public Provider {
 
   // Variable stating the name of the device owner. For enterprise enrolled
   // devices, this will be an empty string.
-  virtual Variable<std::string>* var_get_owner() = 0;
+  virtual Variable<std::string>* var_owner() = 0;
 
   virtual Variable<bool>* var_http_downloads_enabled() = 0;
 

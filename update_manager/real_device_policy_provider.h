@@ -56,8 +56,8 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_allowed_connection_types_for_update_;
   }
 
-  Variable<std::string>* var_get_owner() override {
-    return &var_get_owner_;
+  Variable<std::string>* var_owner() override {
+    return &var_owner_;
   }
 
   Variable<bool>* var_http_downloads_enabled() override {
@@ -123,7 +123,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<std::set<ConnectionType>>
       var_allowed_connection_types_for_update_{
           "allowed_connection_types_for_update"};
-  AsyncCopyVariable<std::string> var_get_owner_{"get_owner"};
+  AsyncCopyVariable<std::string> var_owner_{"owner"};
   AsyncCopyVariable<bool> var_http_downloads_enabled_{"http_downloads_enabled"};
   AsyncCopyVariable<bool> var_au_p2p_enabled_{"au_p2p_enabled"};
 

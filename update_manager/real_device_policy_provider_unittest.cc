@@ -99,7 +99,7 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_scatter_factor());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_allowed_connection_types_for_update());
-  UmTestUtils::ExpectVariableNotSet(provider_->var_get_owner());
+  UmTestUtils::ExpectVariableNotSet(provider_->var_owner());
   UmTestUtils::ExpectVariableNotSet(provider_->var_http_downloads_enabled());
   UmTestUtils::ExpectVariableNotSet(provider_->var_au_p2p_enabled());
 }

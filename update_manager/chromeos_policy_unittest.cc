@@ -1193,6 +1193,36 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedNoUsableUrlsButP2PEnabled) {
   EXPECT_FALSE(result.do_increment_failures);
 }
 
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCanStartAllowedNoUsableUrlsButEnterpriseEnrolled) {
+  // The UpdateCanStart policy returns true; there's a single HTTP URL but its
+  // use is forbidden by policy, and P2P is unset on the policy, however the
+  // device is enterprise-enrolled so P2P is allowed. The result indicates that
+  // no URL can be used.
+  //
+  // Note: The number of failed attempts should not increase in this case (see
+  // above test).
+
+  SetUpdateCheckAllowed(false);
+
+  // Override specific device policy attributes.
+  fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(nullptr);
+  fake_state_.device_policy_provider()->var_owner()->reset(nullptr);
+  fake_state_.device_policy_provider()->var_http_downloads_enabled()->reset(
+      new bool(false));
+
+  // Check that the UpdateCanStart returns true.
+  UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
+  UpdateDownloadParams result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
+                     update_state);
+  EXPECT_TRUE(result.update_can_start);
+  EXPECT_TRUE(result.p2p_allowed);
+  EXPECT_GT(0, result.download_url_idx);
+  EXPECT_EQ(0, result.download_url_num_errors);
+  EXPECT_FALSE(result.do_increment_failures);
+}
+
 TEST_F(UmChromeOSPolicyTest, UpdateDownloadAllowedEthernetDefault) {
   // Ethernet is always allowed.
 

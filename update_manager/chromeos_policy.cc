@@ -360,13 +360,22 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
       }
     }
 
-    // Determine whether use of P2P is allowed by policy.
+    // Determine whether use of P2P is allowed by policy. Even if P2P is not
+    // explicitly allowed, we allow it if the device is enterprise enrolled
+    // (that is, missing or empty owner string).
     const bool* policy_au_p2p_enabled_p = ec->GetValue(
         dp_provider->var_au_p2p_enabled());
-    result->p2p_allowed = policy_au_p2p_enabled_p && *policy_au_p2p_enabled_p;
+    if (policy_au_p2p_enabled_p) {
+      result->p2p_allowed = *policy_au_p2p_enabled_p;
+    } else {
+      const string* policy_owner_p = ec->GetValue(dp_provider->var_owner());
+      if (!policy_owner_p || policy_owner_p->empty())
+        result->p2p_allowed = true;
+    }
   }
 
-  // Enable P2P, if so mandated by the updater configuration.
+  // Enable P2P, if so mandated by the updater configuration. This is additive
+  // to whether or not P2P is allowed per device policy (see above).
   if (!result->p2p_allowed) {
     const bool* updater_p2p_enabled_p = ec->GetValue(
         state->updater_provider()->var_p2p_enabled());
