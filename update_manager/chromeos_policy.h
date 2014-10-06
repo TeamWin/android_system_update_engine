@@ -85,6 +85,10 @@ class ChromeOSPolicy : public Policy {
   FRIEND_TEST(UmChromeOSPolicyTest, UpdateCanStartAllowedScatteringSatisfied);
   FRIEND_TEST(UmChromeOSPolicyTest,
               UpdateCanStartAllowedInteractivePreventsScattering);
+  FRIEND_TEST(UmChromeOSPolicyTest,
+              UpdateCanStartAllowedP2PBlockedDueToNumAttempts);
+  FRIEND_TEST(UmChromeOSPolicyTest,
+              UpdateCanStartAllowedP2PBlockedDueToAttemptsPeriod);
 
   // Auxiliary constant (zero by default).
   const base::TimeDelta kZeroInterval;
@@ -100,6 +104,11 @@ class ChromeOSPolicy : public Policy {
   // Maximum update attempt backoff interval and fuzz.
   static const int kAttemptBackoffMaxIntervalInDays;
   static const int kAttemptBackoffFuzzInHours;
+
+  // Maximum number of times we'll allow using P2P for the same update payload.
+  static const int kMaxP2PAttempts;
+  // Maximum period of time allowed for download a payload via P2P, in seconds.
+  static const int kMaxP2PAttemptsPeriodInSeconds;
 
   // A private policy implementation returning the wallclock timestamp when
   // the next update check should happen.

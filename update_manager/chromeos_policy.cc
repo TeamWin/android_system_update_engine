@@ -156,6 +156,8 @@ const int ChromeOSPolicy::kTimeoutMaxBackoffInterval = 4 * 60 * 60;
 const int ChromeOSPolicy::kTimeoutRegularFuzz = 10 * 60;
 const int ChromeOSPolicy::kAttemptBackoffMaxIntervalInDays = 16;
 const int ChromeOSPolicy::kAttemptBackoffFuzzInHours = 12;
+const int ChromeOSPolicy::kMaxP2PAttempts = 10;
+const int ChromeOSPolicy::kMaxP2PAttemptsPeriodInSeconds = 5 * 24 * 60 * 60;
 
 EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
     EvaluationContext* ec, State* state, string* error,
@@ -315,6 +317,22 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     return backoff_url_status;
   }
 
+  // Check whether P2P has reached its number of attempts and/or time limits. In
+  // which case, set a flag preventing us from enabling P2P later on.
+  bool is_p2p_blocked = false;
+  if (update_state.p2p_num_attempts >= kMaxP2PAttempts) {
+    is_p2p_blocked = true;
+    LOG(INFO) << "Blocking P2P as it's been attempted too many times.";
+  } else if (!update_state.p2p_first_attempted.is_null()) {
+    Time p2p_expiry = (
+        update_state.p2p_first_attempted +
+        TimeDelta::FromSeconds(kMaxP2PAttemptsPeriodInSeconds));
+    if (ec->IsWallclockTimeGreaterThan(p2p_expiry)) {
+      is_p2p_blocked = true;
+      LOG(INFO) << "Blocking P2P as its usage timespan exceeds the limit.";
+    }
+  }
+
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
 
   const bool* device_policy_is_loaded_p = ec->GetValue(
@@ -363,20 +381,22 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     // Determine whether use of P2P is allowed by policy. Even if P2P is not
     // explicitly allowed, we allow it if the device is enterprise enrolled
     // (that is, missing or empty owner string).
-    const bool* policy_au_p2p_enabled_p = ec->GetValue(
-        dp_provider->var_au_p2p_enabled());
-    if (policy_au_p2p_enabled_p) {
-      result->p2p_allowed = *policy_au_p2p_enabled_p;
-    } else {
-      const string* policy_owner_p = ec->GetValue(dp_provider->var_owner());
-      if (!policy_owner_p || policy_owner_p->empty())
-        result->p2p_allowed = true;
+    if (!is_p2p_blocked) {
+      const bool* policy_au_p2p_enabled_p = ec->GetValue(
+          dp_provider->var_au_p2p_enabled());
+      if (policy_au_p2p_enabled_p) {
+        result->p2p_allowed = *policy_au_p2p_enabled_p;
+      } else {
+        const string* policy_owner_p = ec->GetValue(dp_provider->var_owner());
+        if (!policy_owner_p || policy_owner_p->empty())
+          result->p2p_allowed = true;
+      }
     }
   }
 
   // Enable P2P, if so mandated by the updater configuration. This is additive
   // to whether or not P2P is allowed per device policy (see above).
-  if (!result->p2p_allowed) {
+  if (!(is_p2p_blocked || result->p2p_allowed)) {
     const bool* updater_p2p_enabled_p = ec->GetValue(
         state->updater_provider()->var_p2p_enabled());
     result->p2p_allowed = updater_p2p_enabled_p && *updater_p2p_enabled_p;

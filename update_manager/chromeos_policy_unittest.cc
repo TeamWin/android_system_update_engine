@@ -143,6 +143,9 @@ class UmChromeOSPolicyTest : public ::testing::Test {
     update_state.last_download_url_num_errors = 0;
     // There were no download errors.
     update_state.download_errors = vector<tuple<int, ErrorCode, Time>>();
+    // P2P was not attempted.
+    update_state.p2p_num_attempts = 0;
+    update_state.p2p_first_attempted = Time();
     // No active backoff period, backoff is not disabled by Omaha.
     update_state.backoff_expiry = Time();
     update_state.is_backoff_disabled = false;
@@ -973,6 +976,55 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithP2PFromUpdater) {
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
+}
+
+TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedP2PBlockedDueToNumAttempts) {
+  // The UpdateCanStart policy returns true; device policy permits HTTP but
+  // blocks P2P, because the max number of P2P downloads have been attempted.
+
+  SetUpdateCheckAllowed(false);
+
+  // Override specific device policy attributes.
+  fake_state_.device_policy_provider()->var_http_downloads_enabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(
+      new bool(true));
+
+  // Check that the UpdateCanStart returns true.
+  UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
+  update_state.p2p_num_attempts = ChromeOSPolicy::kMaxP2PAttempts;
+  UpdateDownloadParams result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
+                     update_state);
+  EXPECT_TRUE(result.update_can_start);
+  EXPECT_FALSE(result.p2p_allowed);
+}
+
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCanStartAllowedP2PBlockedDueToAttemptsPeriod) {
+  // The UpdateCanStart policy returns true; device policy permits HTTP but
+  // blocks P2P, because the max period for attempt to download via P2P has
+  // elapsed.
+
+  SetUpdateCheckAllowed(false);
+
+  // Override specific device policy attributes.
+  fake_state_.device_policy_provider()->var_http_downloads_enabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(
+      new bool(true));
+
+  // Check that the UpdateCanStart returns true.
+  UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
+  update_state.p2p_num_attempts = 1;
+  update_state.p2p_first_attempted =
+      fake_clock_.GetWallclockTime() -
+      TimeDelta::FromSeconds(ChromeOSPolicy::kMaxP2PAttemptsPeriodInSeconds + 1);
+  UpdateDownloadParams result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
+                     update_state);
+  EXPECT_TRUE(result.update_can_start);
+  EXPECT_FALSE(result.p2p_allowed);
 }
 
 TEST_F(UmChromeOSPolicyTest,

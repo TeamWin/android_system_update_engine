@@ -86,6 +86,10 @@ struct UpdateState {
   // timestamp when it occurred.
   std::vector<std::tuple<int, chromeos_update_engine::ErrorCode, base::Time>>
       download_errors;
+  // The number of P2P download attempts and wallclock-based time when P2P
+  // download was first attempted.
+  int p2p_num_attempts;
+  base::Time p2p_first_attempted;
 
   // Information pertaining to update backoff mechanism.
   //
