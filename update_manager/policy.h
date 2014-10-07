@@ -145,8 +145,9 @@ struct UpdateDownloadParams {
   // needs to be persisted and handed back to the policy on the next time it is
   // called.
   int download_url_num_errors;
-  // Whether P2P downloads are allowed.
-  bool p2p_allowed;
+  // Whether P2P download and sharing are allowed.
+  bool p2p_downloading_allowed;
+  bool p2p_sharing_allowed;
 
   // Other values that need to be persisted and handed to the policy as need on
   // the next call.

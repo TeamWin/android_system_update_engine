@@ -51,7 +51,8 @@ EvalStatus DefaultPolicy::UpdateCanStart(
   result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
   result->download_url_idx = 0;
   result->download_url_num_errors = 0;
-  result->p2p_allowed = false;
+  result->p2p_downloading_allowed = false;
+  result->p2p_sharing_allowed = false;
   result->do_increment_failures = false;
   result->backoff_expiry = base::Time();
   result->scatter_wait_period = base::TimeDelta();

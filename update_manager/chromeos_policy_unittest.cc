@@ -494,7 +494,8 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedNoDevicePolicy) {
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCanStart, &result, update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
+  EXPECT_FALSE(result.p2p_downloading_allowed);
+  EXPECT_FALSE(result.p2p_sharing_allowed);
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
@@ -512,7 +513,8 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedBlankPolicy) {
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCanStart, &result, update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
+  EXPECT_FALSE(result.p2p_downloading_allowed);
+  EXPECT_FALSE(result.p2p_sharing_allowed);
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
@@ -949,7 +951,8 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithAttributes) {
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_TRUE(result.p2p_allowed);
+  EXPECT_TRUE(result.p2p_downloading_allowed);
+  EXPECT_TRUE(result.p2p_sharing_allowed);
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
@@ -971,15 +974,18 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithP2PFromUpdater) {
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_TRUE(result.p2p_allowed);
+  EXPECT_TRUE(result.p2p_downloading_allowed);
+  EXPECT_TRUE(result.p2p_sharing_allowed);
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
 }
 
-TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedP2PBlockedDueToNumAttempts) {
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCanStartAllowedP2PDownloadBlockedDueToNumAttempts) {
   // The UpdateCanStart policy returns true; device policy permits HTTP but
-  // blocks P2P, because the max number of P2P downloads have been attempted.
+  // blocks P2P download, because the max number of P2P downloads have been
+  // attempted. P2P sharing is still permitted.
 
   SetUpdateCheckAllowed(false);
 
@@ -996,14 +1002,15 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedP2PBlockedDueToNumAttempts) {
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
+  EXPECT_FALSE(result.p2p_downloading_allowed);
+  EXPECT_TRUE(result.p2p_sharing_allowed);
 }
 
 TEST_F(UmChromeOSPolicyTest,
-       UpdateCanStartAllowedP2PBlockedDueToAttemptsPeriod) {
+       UpdateCanStartAllowedP2PDownloadBlockedDueToAttemptsPeriod) {
   // The UpdateCanStart policy returns true; device policy permits HTTP but
-  // blocks P2P, because the max period for attempt to download via P2P has
-  // elapsed.
+  // blocks P2P download, because the max period for attempt to download via P2P
+  // has elapsed. P2P sharing is still permitted.
 
   SetUpdateCheckAllowed(false);
 
@@ -1024,7 +1031,8 @@ TEST_F(UmChromeOSPolicyTest,
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
+  EXPECT_FALSE(result.p2p_downloading_allowed);
+  EXPECT_TRUE(result.p2p_sharing_allowed);
 }
 
 TEST_F(UmChromeOSPolicyTest,
@@ -1047,7 +1055,6 @@ TEST_F(UmChromeOSPolicyTest,
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
@@ -1072,7 +1079,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithHttpsUrl) {
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
   EXPECT_EQ(1, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
@@ -1102,7 +1108,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedMaxErrorsNotExceeded) {
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(5, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
@@ -1131,7 +1136,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithSecondUrlMaxExceeded) {
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
   EXPECT_EQ(1, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
@@ -1157,7 +1161,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithSecondUrlHardError) {
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
   EXPECT_EQ(1, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
@@ -1185,7 +1188,6 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedUrlWrapsAround) {
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_FALSE(result.p2p_allowed);
   EXPECT_EQ(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_TRUE(result.do_increment_failures);
@@ -1239,7 +1241,8 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedNoUsableUrlsButP2PEnabled) {
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_TRUE(result.p2p_allowed);
+  EXPECT_TRUE(result.p2p_downloading_allowed);
+  EXPECT_TRUE(result.p2p_sharing_allowed);
   EXPECT_GT(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);
@@ -1269,7 +1272,8 @@ TEST_F(UmChromeOSPolicyTest,
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);
   EXPECT_TRUE(result.update_can_start);
-  EXPECT_TRUE(result.p2p_allowed);
+  EXPECT_TRUE(result.p2p_downloading_allowed);
+  EXPECT_TRUE(result.p2p_sharing_allowed);
   EXPECT_GT(0, result.download_url_idx);
   EXPECT_EQ(0, result.download_url_num_errors);
   EXPECT_FALSE(result.do_increment_failures);

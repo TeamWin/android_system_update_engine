@@ -86,9 +86,9 @@ class ChromeOSPolicy : public Policy {
   FRIEND_TEST(UmChromeOSPolicyTest,
               UpdateCanStartAllowedInteractivePreventsScattering);
   FRIEND_TEST(UmChromeOSPolicyTest,
-              UpdateCanStartAllowedP2PBlockedDueToNumAttempts);
+              UpdateCanStartAllowedP2PDownloadBlockedDueToNumAttempts);
   FRIEND_TEST(UmChromeOSPolicyTest,
-              UpdateCanStartAllowedP2PBlockedDueToAttemptsPeriod);
+              UpdateCanStartAllowedP2PDownloadBlockedDueToAttemptsPeriod);
 
   // Auxiliary constant (zero by default).
   const base::TimeDelta kZeroInterval;

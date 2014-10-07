@@ -278,7 +278,8 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
   result->update_can_start = true;
   result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
   result->download_url_idx = -1;
-  result->p2p_allowed = false;
+  result->p2p_downloading_allowed = false;
+  result->p2p_sharing_allowed = false;
   result->do_increment_failures = false;
   result->backoff_expiry = update_state.backoff_expiry;
   result->scatter_wait_period = update_state.scatter_wait_period;
@@ -315,22 +316,6 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
       result->cannot_start_reason = UpdateCannotStartReason::kBackoff;
     }
     return backoff_url_status;
-  }
-
-  // Check whether P2P has reached its number of attempts and/or time limits. In
-  // which case, set a flag preventing us from enabling P2P later on.
-  bool is_p2p_blocked = false;
-  if (update_state.p2p_num_attempts >= kMaxP2PAttempts) {
-    is_p2p_blocked = true;
-    LOG(INFO) << "Blocking P2P as it's been attempted too many times.";
-  } else if (!update_state.p2p_first_attempted.is_null()) {
-    Time p2p_expiry = (
-        update_state.p2p_first_attempted +
-        TimeDelta::FromSeconds(kMaxP2PAttemptsPeriodInSeconds));
-    if (ec->IsWallclockTimeGreaterThan(p2p_expiry)) {
-      is_p2p_blocked = true;
-      LOG(INFO) << "Blocking P2P as its usage timespan exceeds the limit.";
-    }
   }
 
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
@@ -381,31 +366,47 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     // Determine whether use of P2P is allowed by policy. Even if P2P is not
     // explicitly allowed, we allow it if the device is enterprise enrolled
     // (that is, missing or empty owner string).
-    if (!is_p2p_blocked) {
-      const bool* policy_au_p2p_enabled_p = ec->GetValue(
-          dp_provider->var_au_p2p_enabled());
-      if (policy_au_p2p_enabled_p) {
-        result->p2p_allowed = *policy_au_p2p_enabled_p;
-      } else {
-        const string* policy_owner_p = ec->GetValue(dp_provider->var_owner());
-        if (!policy_owner_p || policy_owner_p->empty())
-          result->p2p_allowed = true;
-      }
+    const bool* policy_au_p2p_enabled_p = ec->GetValue(
+        dp_provider->var_au_p2p_enabled());
+    if (policy_au_p2p_enabled_p) {
+      result->p2p_sharing_allowed = *policy_au_p2p_enabled_p;
+    } else {
+      const string* policy_owner_p = ec->GetValue(dp_provider->var_owner());
+      if (!policy_owner_p || policy_owner_p->empty())
+        result->p2p_sharing_allowed = true;
     }
   }
 
   // Enable P2P, if so mandated by the updater configuration. This is additive
   // to whether or not P2P is allowed per device policy (see above).
-  if (!(is_p2p_blocked || result->p2p_allowed)) {
+  if (!result->p2p_sharing_allowed) {
     const bool* updater_p2p_enabled_p = ec->GetValue(
         state->updater_provider()->var_p2p_enabled());
-    result->p2p_allowed = updater_p2p_enabled_p && *updater_p2p_enabled_p;
+    result->p2p_sharing_allowed =
+        updater_p2p_enabled_p && *updater_p2p_enabled_p;
+  }
+
+  // Finally, download via P2P is enabled iff P2P is enabled (sharing allowed),
+  // an update is not interactive, and other limits haven't been reached.
+  if (result->p2p_sharing_allowed) {
+    if (update_state.is_interactive) {
+      LOG(INFO) << "Blocked P2P download because update is interactive.";
+    } else if (update_state.p2p_num_attempts >= kMaxP2PAttempts) {
+      LOG(INFO) << "Blocked P2P download as it was attempted too many times.";
+    } else if (!update_state.p2p_first_attempted.is_null() &&
+               ec->IsWallclockTimeGreaterThan(
+                   update_state.p2p_first_attempted +
+                   TimeDelta::FromSeconds(kMaxP2PAttemptsPeriodInSeconds))) {
+      LOG(INFO) << "Blocked P2P download as its usage timespan exceeds limit.";
+    } else {
+      result->p2p_downloading_allowed = true;
+    }
   }
 
   // Store the download URL and failure increment flag. Note that no URL will
   // only terminate evaluation if no other means of download (such as P2P) are
   // enabled.
-  if (result->download_url_idx < 0 && !result->p2p_allowed) {
+  if (result->download_url_idx < 0 && !result->p2p_downloading_allowed) {
     result->update_can_start = false;
     result->cannot_start_reason = UpdateCannotStartReason::kCannotDownload;
   }
