@@ -125,7 +125,6 @@
         },
         'libraries': [
           '-lbz2',
-          '-lgflags',
           '-lpolicy-<(libbase_ver)',
           '-lrootdev',
           '-lrt',
@@ -227,9 +226,6 @@
             '<@(exported_deps)',
           ],
         },
-        'libraries': [
-          '-lgflags',
-        ],
       },
       'sources': [
         'glib_utils.cc',

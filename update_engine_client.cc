@@ -6,9 +6,10 @@
 
 #include <base/logging.h>
 #include <chromeos/dbus/service_constants.h>
+#include <chromeos/flag_helper.h>
 #include <dbus/dbus.h>
-#include <gflags/gflags.h>
 #include <glib.h>
+#include <inttypes.h>
 
 #include "update_engine/dbus_constants.h"
 #include "update_engine/glib_utils.h"
@@ -24,48 +25,6 @@ using chromeos_update_engine::kUpdateEngineServiceName;
 using chromeos_update_engine::kUpdateEngineServicePath;
 using chromeos_update_engine::utils::GetAndFreeGError;
 using std::string;
-
-DEFINE_string(app_version, "", "Force the current app version.");
-DEFINE_string(channel, "",
-              "Set the target channel. The device will be powerwashed if the "
-              "target channel is more stable than the current channel unless "
-              "--nopowerwash is specified.");
-DEFINE_bool(check_for_update, false, "Initiate check for updates.");
-DEFINE_bool(follow, false, "Wait for any update operations to complete."
-            "Exit status is 0 if the update succeeded, and 1 otherwise.");
-DEFINE_bool(interactive, true, "Mark the update request as interactive.");
-DEFINE_string(omaha_url, "", "The URL of the Omaha update server.");
-DEFINE_string(p2p_update, "",
-              "Enables (\"yes\") or disables (\"no\") the peer-to-peer update "
-              "sharing.");
-DEFINE_bool(powerwash, true, "When performing rollback or channel change, "
-            "do a powerwash or allow it respectively.");
-DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
-DEFINE_bool(is_reboot_needed, false, "Exit status 0 if reboot is needed, "
-            "2 if reboot is not needed or 1 if an error occurred.");
-DEFINE_bool(block_until_reboot_is_needed, false, "Blocks until reboot is "
-            "needed. Returns non-zero exit status if an error occurred.");
-DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
-DEFINE_bool(rollback, false, "Perform a rollback to the previous partition.");
-DEFINE_bool(can_rollback, false, "Shows whether rollback partition "
-            "is available.");
-DEFINE_bool(show_channel, false, "Show the current and target channels.");
-DEFINE_bool(show_p2p_update, false,
-            "Show the current setting for peer-to-peer update sharing.");
-DEFINE_bool(show_update_over_cellular, false,
-            "Show the current setting for updates over cellular networks.");
-DEFINE_bool(status, false, "Print the status to stdout.");
-DEFINE_bool(update, false, "Forces an update and waits for it to complete. "
-            "Implies --follow.");
-DEFINE_string(update_over_cellular, "",
-              "Enables (\"yes\") or disables (\"no\") the updates over "
-              "cellular networks.");
-DEFINE_bool(watch_for_updates, false,
-            "Listen for status updates and print them to the screen.");
-DEFINE_bool(prev_version, false,
-            "Show the previous OS version used before the update reboot.");
-DEFINE_bool(show_kernels, false, "Show the list of kernel patritions and "
-            "whether each of them is bootable or not");
 
 namespace {
 
@@ -252,14 +211,16 @@ std::string GetKernelDevices() {
   return devices;
 }
 
-bool CheckForUpdates(const string& app_version, const string& omaha_url) {
+bool CheckForUpdates(const string& app_version,
+                     const string& omaha_url,
+                     bool interactive) {
   DBusGProxy* proxy;
   GError* error = nullptr;
 
   CHECK(GetProxy(&proxy));
 
   AttemptUpdateFlags flags = static_cast<AttemptUpdateFlags>(
-      FLAGS_interactive ? 0 : kAttemptUpdateFlagNonInteractive);
+      interactive ? 0 : kAttemptUpdateFlagNonInteractive);
   gboolean rc =
       update_engine_client_attempt_update_with_flags(proxy,
                                                      app_version.c_str(),
@@ -532,10 +493,52 @@ bool BlockUntilRebootIsNeeded() {
 }  // namespace
 
 int main(int argc, char** argv) {
+  DEFINE_string(app_version, "", "Force the current app version.");
+  DEFINE_string(channel, "",
+                "Set the target channel. The device will be powerwashed if the "
+                "target channel is more stable than the current channel unless "
+                "--nopowerwash is specified.");
+  DEFINE_bool(check_for_update, false, "Initiate check for updates.");
+  DEFINE_bool(follow, false, "Wait for any update operations to complete."
+              "Exit status is 0 if the update succeeded, and 1 otherwise.");
+  DEFINE_bool(interactive, true, "Mark the update request as interactive.");
+  DEFINE_string(omaha_url, "", "The URL of the Omaha update server.");
+  DEFINE_string(p2p_update, "",
+                "Enables (\"yes\") or disables (\"no\") the peer-to-peer update"
+                " sharing.");
+  DEFINE_bool(powerwash, true, "When performing rollback or channel change, "
+              "do a powerwash or allow it respectively.");
+  DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
+  DEFINE_bool(is_reboot_needed, false, "Exit status 0 if reboot is needed, "
+              "2 if reboot is not needed or 1 if an error occurred.");
+  DEFINE_bool(block_until_reboot_is_needed, false, "Blocks until reboot is "
+              "needed. Returns non-zero exit status if an error occurred.");
+  DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
+  DEFINE_bool(rollback, false, "Perform a rollback to the previous partition.");
+  DEFINE_bool(can_rollback, false, "Shows whether rollback partition "
+              "is available.");
+  DEFINE_bool(show_channel, false, "Show the current and target channels.");
+  DEFINE_bool(show_p2p_update, false,
+              "Show the current setting for peer-to-peer update sharing.");
+  DEFINE_bool(show_update_over_cellular, false,
+              "Show the current setting for updates over cellular networks.");
+  DEFINE_bool(status, false, "Print the status to stdout.");
+  DEFINE_bool(update, false, "Forces an update and waits for it to complete. "
+              "Implies --follow.");
+  DEFINE_string(update_over_cellular, "",
+                "Enables (\"yes\") or disables (\"no\") the updates over "
+                "cellular networks.");
+  DEFINE_bool(watch_for_updates, false,
+              "Listen for status updates and print them to the screen.");
+  DEFINE_bool(prev_version, false,
+              "Show the previous OS version used before the update reboot.");
+  DEFINE_bool(show_kernels, false, "Show the list of kernel patritions and "
+              "whether each of them is bootable or not");
+
   // Boilerplate init commands.
   g_type_init();
   dbus_threads_init_default();
-  google::ParseCommandLineFlags(&argc, &argv, true);
+  chromeos::FlagHelper::Init(argc, argv, "Chromium OS Update Engine Client");
 
   // Update the status if requested.
   if (FLAGS_reset_status) {
@@ -646,7 +649,7 @@ int main(int argc, char** argv) {
       LOG(INFO) << "Forcing an update by setting app_version to ForcedUpdate.";
     }
     LOG(INFO) << "Initiating update check and install.";
-    CHECK(CheckForUpdates(app_version, FLAGS_omaha_url))
+    CHECK(CheckForUpdates(app_version, FLAGS_omaha_url, FLAGS_interactive))
         << "Update check/initiate update failed.";
   }
 

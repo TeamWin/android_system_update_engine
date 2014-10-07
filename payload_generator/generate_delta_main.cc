@@ -12,11 +12,10 @@
 #include <string>
 #include <vector>
 
-#include <base/command_line.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
-#include <gflags/gflags.h>
+#include <chromeos/flag_helper.h>
 #include <glib.h>
 
 #include "update_engine/delta_performer.h"
@@ -28,79 +27,6 @@
 #include "update_engine/terminator.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
-
-DEFINE_string(old_dir, "",
-              "Directory where the old rootfs is loop mounted read-only");
-DEFINE_string(new_dir, "",
-              "Directory where the new rootfs is loop mounted read-only");
-DEFINE_string(old_image, "", "Path to the old rootfs");
-DEFINE_string(new_image, "", "Path to the new rootfs");
-DEFINE_string(old_kernel, "", "Path to the old kernel partition image");
-DEFINE_string(new_kernel, "", "Path to the new kernel partition image");
-DEFINE_string(in_file, "",
-              "Path to input delta payload file used to hash/sign payloads "
-              "and apply delta over old_image (for debugging)");
-DEFINE_string(out_file, "", "Path to output delta payload file");
-DEFINE_string(out_hash_file, "", "Path to output hash file");
-DEFINE_string(out_metadata_hash_file, "", "Path to output metadata hash file");
-DEFINE_string(private_key, "", "Path to private key in .pem format");
-DEFINE_string(public_key, "", "Path to public key in .pem format");
-DEFINE_int32(public_key_version,
-             chromeos_update_engine::kSignatureMessageCurrentVersion,
-             "Key-check version # of client");
-DEFINE_string(prefs_dir, "/tmp/update_engine_prefs",
-              "Preferences directory, used with apply_delta");
-DEFINE_string(signature_size, "",
-              "Raw signature size used for hash calculation. "
-              "You may pass in multiple sizes by colon separating them. E.g. "
-              "2048:2048:4096 will assume 3 signatures, the first two with "
-              "2048 size and the last 4096.");
-DEFINE_string(signature_file, "",
-              "Raw signature file to sign payload with. To pass multiple "
-              "signatures, use a single argument with a colon between paths, "
-              "e.g. /path/to/sig:/path/to/next:/path/to/last_sig . Each "
-              "signature will be assigned a client version, starting from "
-              "kSignatureOriginalVersion.");
-DEFINE_int32(chunk_size, -1, "Payload chunk size (-1 -- no limit/default)");
-DEFINE_int64(rootfs_partition_size,
-             chromeos_update_engine::kRootFSPartitionSize,
-             "RootFS partition size for the image once installed");
-
-DEFINE_string(old_channel, "",
-              "The channel for the old image. 'dev-channel', 'npo-channel', "
-              "etc. Ignored, except during delta generation.");
-DEFINE_string(old_board, "",
-              "The board for the old image. 'x86-mario', 'lumpy', "
-              "etc. Ignored, except during delta generation.");
-DEFINE_string(old_version, "",
-              "The build version of the old image. 1.2.3, etc.");
-DEFINE_string(old_key, "",
-              "The key used to sign the old image. 'premp', 'mp', 'mp-v3',"
-              " etc");
-DEFINE_string(old_build_channel, "",
-              "The channel for the build of the old image. 'dev-channel', "
-              "etc, but will never contain special channels such as "
-              "'npo-channel'. Ignored, except during delta generation.");
-DEFINE_string(old_build_version, "",
-              "The version of the build containing the old image.");
-
-DEFINE_string(new_channel, "",
-              "The channel for the new image. 'dev-channel', 'npo-channel', "
-              "etc. Ignored, except during delta generation.");
-DEFINE_string(new_board, "",
-              "The board for the new image. 'x86-mario', 'lumpy', "
-              "etc. Ignored, except during delta generation.");
-DEFINE_string(new_version, "",
-              "The build version of the new image. 1.2.3, etc.");
-DEFINE_string(new_key, "",
-              "The key used to sign the new image. 'premp', 'mp', 'mp-v3',"
-              " etc");
-DEFINE_string(new_build_channel, "",
-              "The channel for the build of the new image. 'dev-channel', "
-              "etc, but will never contain special channels such as "
-              "'npo-channel'. Ignored, except during delta generation.");
-DEFINE_string(new_build_version, "",
-              "The version of the build containing the new image.");
 
 // This file contains a simple program that takes an old path, a new path,
 // and an output file as arguments and the path to an output file and
@@ -169,15 +95,16 @@ bool ParseImageInfo(const string& channel,
 }
 
 void CalculatePayloadHashForSigning(const vector<int> &sizes,
-                                    const string& out_hash_file) {
+                                    const string& out_hash_file,
+                                    const string& in_file) {
   LOG(INFO) << "Calculating payload hash for signing.";
-  LOG_IF(FATAL, FLAGS_in_file.empty())
+  LOG_IF(FATAL, in_file.empty())
       << "Must pass --in_file to calculate hash for signing.";
   LOG_IF(FATAL, out_hash_file.empty())
       << "Must pass --out_hash_file to calculate hash for signing.";
 
   vector<char> hash;
-  bool result = PayloadSigner::HashPayloadForSigning(FLAGS_in_file, sizes,
+  bool result = PayloadSigner::HashPayloadForSigning(in_file, sizes,
                                                      &hash);
   CHECK(result);
 
@@ -188,15 +115,16 @@ void CalculatePayloadHashForSigning(const vector<int> &sizes,
 
 
 void CalculateMetadataHashForSigning(const vector<int> &sizes,
-                                     const string& out_metadata_hash_file) {
+                                     const string& out_metadata_hash_file,
+                                     const string& in_file) {
   LOG(INFO) << "Calculating metadata hash for signing.";
-  LOG_IF(FATAL, FLAGS_in_file.empty())
+  LOG_IF(FATAL, in_file.empty())
       << "Must pass --in_file to calculate metadata hash for signing.";
   LOG_IF(FATAL, out_metadata_hash_file.empty())
       << "Must pass --out_metadata_hash_file to calculate metadata hash.";
 
   vector<char> hash;
-  bool result = PayloadSigner::HashMetadataForSigning(FLAGS_in_file, sizes,
+  bool result = PayloadSigner::HashMetadataForSigning(in_file, sizes,
                                                       &hash);
   CHECK(result);
 
@@ -207,17 +135,19 @@ void CalculateMetadataHashForSigning(const vector<int> &sizes,
   LOG(INFO) << "Done calculating metadata hash for signing.";
 }
 
-void SignPayload() {
+void SignPayload(const string& in_file,
+                 const string& out_file,
+                 const string& signature_file) {
   LOG(INFO) << "Signing payload.";
-  LOG_IF(FATAL, FLAGS_in_file.empty())
+  LOG_IF(FATAL, in_file.empty())
       << "Must pass --in_file to sign payload.";
-  LOG_IF(FATAL, FLAGS_out_file.empty())
+  LOG_IF(FATAL, out_file.empty())
       << "Must pass --out_file to sign payload.";
-  LOG_IF(FATAL, FLAGS_signature_file.empty())
+  LOG_IF(FATAL, signature_file.empty())
       << "Must pass --signature_file to sign payload.";
   vector<vector<char>> signatures;
   vector<string> signature_files;
-  base::SplitString(FLAGS_signature_file, ':', &signature_files);
+  base::SplitString(signature_file, ':', &signature_files);
   for (vector<string>::iterator it = signature_files.begin(),
            e = signature_files.end(); it != e; ++it) {
     vector<char> signature;
@@ -226,49 +156,54 @@ void SignPayload() {
   }
   uint64_t final_metadata_size;
   CHECK(PayloadSigner::AddSignatureToPayload(
-      FLAGS_in_file, signatures, FLAGS_out_file, &final_metadata_size));
+      in_file, signatures, out_file, &final_metadata_size));
   LOG(INFO) << "Done signing payload. Final metadata size = "
             << final_metadata_size;
 }
 
-void VerifySignedPayload() {
+void VerifySignedPayload(const string& in_file,
+                         const string& public_key,
+                         int public_key_version) {
   LOG(INFO) << "Verifying signed payload.";
-  LOG_IF(FATAL, FLAGS_in_file.empty())
+  LOG_IF(FATAL, in_file.empty())
       << "Must pass --in_file to verify signed payload.";
-  LOG_IF(FATAL, FLAGS_public_key.empty())
+  LOG_IF(FATAL, public_key.empty())
       << "Must pass --public_key to verify signed payload.";
-  CHECK(PayloadVerifier::VerifySignedPayload(FLAGS_in_file, FLAGS_public_key,
-                                             FLAGS_public_key_version));
+  CHECK(PayloadVerifier::VerifySignedPayload(in_file, public_key,
+                                             public_key_version));
   LOG(INFO) << "Done verifying signed payload.";
 }
 
-void ApplyDelta() {
+void ApplyDelta(const string& in_file,
+                const string& old_kernel,
+                const string& old_image,
+                const string& prefs_dir) {
   LOG(INFO) << "Applying delta.";
-  LOG_IF(FATAL, FLAGS_old_image.empty())
+  LOG_IF(FATAL, old_image.empty())
       << "Must pass --old_image to apply delta.";
   Prefs prefs;
   InstallPlan install_plan;
-  LOG(INFO) << "Setting up preferences under: " << FLAGS_prefs_dir;
-  LOG_IF(ERROR, !prefs.Init(base::FilePath(FLAGS_prefs_dir)))
+  LOG(INFO) << "Setting up preferences under: " << prefs_dir;
+  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
       << "Failed to initialize preferences.";
   // Get original checksums
   LOG(INFO) << "Calculating original checksums";
   PartitionInfo kern_info, root_info;
   CHECK(DeltaDiffGenerator::InitializePartitionInfo(true,  // is_kernel
-                                                    FLAGS_old_kernel,
+                                                    old_kernel,
                                                     &kern_info));
   CHECK(DeltaDiffGenerator::InitializePartitionInfo(false,  // is_kernel
-                                                    FLAGS_old_image,
+                                                    old_image,
                                                     &root_info));
   install_plan.kernel_hash.assign(kern_info.hash().begin(),
                                   kern_info.hash().end());
   install_plan.rootfs_hash.assign(root_info.hash().begin(),
                                   root_info.hash().end());
   DeltaPerformer performer(&prefs, nullptr, &install_plan);
-  CHECK_EQ(performer.Open(FLAGS_old_image.c_str(), 0, 0), 0);
-  CHECK(performer.OpenKernel(FLAGS_old_kernel.c_str()));
+  CHECK_EQ(performer.Open(old_image.c_str(), 0, 0), 0);
+  CHECK(performer.OpenKernel(old_kernel.c_str()));
   vector<char> buf(1024 * 1024);
-  int fd = open(FLAGS_in_file.c_str(), O_RDONLY, 0);
+  int fd = open(in_file.c_str(), O_RDONLY, 0);
   CHECK_GE(fd, 0);
   ScopedFdCloser fd_closer(&fd);
   for (off_t offset = 0;; offset += buf.size()) {
@@ -284,13 +219,85 @@ void ApplyDelta() {
 }
 
 int Main(int argc, char** argv) {
-  google::SetUsageMessage(
+  DEFINE_string(old_dir, "",
+                "Directory where the old rootfs is loop mounted read-only");
+  DEFINE_string(new_dir, "",
+                "Directory where the new rootfs is loop mounted read-only");
+  DEFINE_string(old_image, "", "Path to the old rootfs");
+  DEFINE_string(new_image, "", "Path to the new rootfs");
+  DEFINE_string(old_kernel, "", "Path to the old kernel partition image");
+  DEFINE_string(new_kernel, "", "Path to the new kernel partition image");
+  DEFINE_string(in_file, "",
+                "Path to input delta payload file used to hash/sign payloads "
+                "and apply delta over old_image (for debugging)");
+  DEFINE_string(out_file, "", "Path to output delta payload file");
+  DEFINE_string(out_hash_file, "", "Path to output hash file");
+  DEFINE_string(out_metadata_hash_file, "",
+                "Path to output metadata hash file");
+  DEFINE_string(private_key, "", "Path to private key in .pem format");
+  DEFINE_string(public_key, "", "Path to public key in .pem format");
+  DEFINE_int32(public_key_version,
+               chromeos_update_engine::kSignatureMessageCurrentVersion,
+               "Key-check version # of client");
+  DEFINE_string(prefs_dir, "/tmp/update_engine_prefs",
+                "Preferences directory, used with apply_delta");
+  DEFINE_string(signature_size, "",
+                "Raw signature size used for hash calculation. "
+                "You may pass in multiple sizes by colon separating them. E.g. "
+                "2048:2048:4096 will assume 3 signatures, the first two with "
+                "2048 size and the last 4096.");
+  DEFINE_string(signature_file, "",
+                "Raw signature file to sign payload with. To pass multiple "
+                "signatures, use a single argument with a colon between paths, "
+                "e.g. /path/to/sig:/path/to/next:/path/to/last_sig . Each "
+                "signature will be assigned a client version, starting from "
+                "kSignatureOriginalVersion.");
+  DEFINE_int32(chunk_size, -1, "Payload chunk size (-1 -- no limit/default)");
+  DEFINE_int64(rootfs_partition_size,
+               chromeos_update_engine::kRootFSPartitionSize,
+               "RootFS partition size for the image once installed");
+
+  DEFINE_string(old_channel, "",
+                "The channel for the old image. 'dev-channel', 'npo-channel', "
+                "etc. Ignored, except during delta generation.");
+  DEFINE_string(old_board, "",
+                "The board for the old image. 'x86-mario', 'lumpy', "
+                "etc. Ignored, except during delta generation.");
+  DEFINE_string(old_version, "",
+                "The build version of the old image. 1.2.3, etc.");
+  DEFINE_string(old_key, "",
+                "The key used to sign the old image. 'premp', 'mp', 'mp-v3',"
+                " etc");
+  DEFINE_string(old_build_channel, "",
+                "The channel for the build of the old image. 'dev-channel', "
+                "etc, but will never contain special channels such as "
+                "'npo-channel'. Ignored, except during delta generation.");
+  DEFINE_string(old_build_version, "",
+                "The version of the build containing the old image.");
+
+  DEFINE_string(new_channel, "",
+                "The channel for the new image. 'dev-channel', 'npo-channel', "
+                "etc. Ignored, except during delta generation.");
+  DEFINE_string(new_board, "",
+                "The board for the new image. 'x86-mario', 'lumpy', "
+                "etc. Ignored, except during delta generation.");
+  DEFINE_string(new_version, "",
+                "The build version of the new image. 1.2.3, etc.");
+  DEFINE_string(new_key, "",
+                "The key used to sign the new image. 'premp', 'mp', 'mp-v3',"
+                " etc");
+  DEFINE_string(new_build_channel, "",
+                "The channel for the build of the new image. 'dev-channel', "
+                "etc, but will never contain special channels such as "
+                "'npo-channel'. Ignored, except during delta generation.");
+  DEFINE_string(new_build_version, "",
+                "The version of the build containing the new image.");
+
+  chromeos::FlagHelper::Init(argc, argv,
       "Generates a payload to provide to ChromeOS' update_engine.\n\n"
       "This tool can create full payloads and also delta payloads if the src\n"
       "image is provided. It also provides debugging options to apply, sign\n"
       "and verify payloads.");
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  CommandLine::Init(argc, argv);
   Terminator::Init();
   Subprocess::Init();
 
@@ -307,24 +314,28 @@ int Main(int argc, char** argv) {
 
   if (!FLAGS_out_hash_file.empty() || !FLAGS_out_metadata_hash_file.empty()) {
     if (!FLAGS_out_hash_file.empty()) {
-      CalculatePayloadHashForSigning(signature_sizes, FLAGS_out_hash_file);
+      CalculatePayloadHashForSigning(signature_sizes, FLAGS_out_hash_file,
+                                     FLAGS_in_file);
     }
     if (!FLAGS_out_metadata_hash_file.empty()) {
       CalculateMetadataHashForSigning(signature_sizes,
-                                      FLAGS_out_metadata_hash_file);
+                                      FLAGS_out_metadata_hash_file,
+                                      FLAGS_in_file);
     }
     return 0;
   }
   if (!FLAGS_signature_file.empty()) {
-    SignPayload();
+    SignPayload(FLAGS_in_file, FLAGS_out_file, FLAGS_signature_file);
     return 0;
   }
   if (!FLAGS_public_key.empty()) {
-    VerifySignedPayload();
+    VerifySignedPayload(FLAGS_in_file, FLAGS_public_key,
+                        FLAGS_public_key_version);
     return 0;
   }
   if (!FLAGS_in_file.empty()) {
-    ApplyDelta();
+    ApplyDelta(FLAGS_in_file, FLAGS_old_kernel, FLAGS_old_image,
+               FLAGS_prefs_dir);
     return 0;
   }
   CHECK(!FLAGS_new_image.empty());
