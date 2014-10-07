@@ -74,10 +74,13 @@ class PayloadStateInterface {
   virtual void ExpectRebootInNewVersion(
       const std::string& target_version_uid) = 0;
 
-  // Sets whether p2p is being used to download the update payload. This
-  // is used to keep track download sources being used and should be called
+  // Sets whether P2P is being used to download the update payload. This
+  // is used to keep track of download sources being used and should be called
   // before the transfer begins.
   virtual void SetUsingP2PForDownloading(bool value) = 0;
+
+  // Sets whether P2P is being used for sharing the update payloads.
+  virtual void SetUsingP2PForSharing(bool value) = 0;
 
   // Returns true if we should backoff the current download attempt.
   // False otherwise.
@@ -161,14 +164,20 @@ class PayloadStateInterface {
   // as when the first attempt was.
   virtual bool P2PAttemptAllowed() = 0;
 
-  // Gets the value previously set with SetUsingP2PForDownloading().
-  virtual bool GetUsingP2PForDownloading() = 0;
+  // Gets the values previously set with SetUsingP2PForDownloading() and
+  // SetUsingP2PForSharing().
+  virtual bool GetUsingP2PForDownloading() const = 0;
+  virtual bool GetUsingP2PForSharing() const = 0;
 
   // Returns the current (persisted) scattering wallclock-based wait period.
   virtual base::TimeDelta GetScatteringWaitPeriod() = 0;
 
   // Sets and persists the scattering wallclock-based wait period.
   virtual void SetScatteringWaitPeriod(base::TimeDelta wait_period) = 0;
+
+  // Sets/gets the P2P download URL, if one is to be used.
+  virtual void SetP2PUrl(const std::string& url) = 0;
+  virtual std::string GetP2PUrl() const = 0;
 };
 
 }  // namespace chromeos_update_engine

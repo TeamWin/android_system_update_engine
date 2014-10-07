@@ -695,12 +695,12 @@ TEST(PayloadStateTest, NoBackoffForP2PUpdates) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetFullPayloadAttemptNumber());
   // Set p2p url.
-  params.set_use_p2p_for_downloading(true);
-  params.set_p2p_url("http://mypeer:52909/path/to/file");
+  payload_state.SetUsingP2PForDownloading(true);
+  payload_state.SetP2PUrl("http://mypeer:52909/path/to/file");
   // Should not backoff for p2p updates.
   EXPECT_FALSE(payload_state.ShouldBackoffDownload());
 
-  params.set_p2p_url("");
+  payload_state.SetP2PUrl("");
   // No actual p2p update if no url is provided.
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 }

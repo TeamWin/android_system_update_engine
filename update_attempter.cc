@@ -352,8 +352,9 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
     }
   }
 
-  omaha_request_params_->set_use_p2p_for_downloading(use_p2p_for_downloading);
-  omaha_request_params_->set_use_p2p_for_sharing(use_p2p_for_sharing);
+  PayloadStateInterface* const payload_state = system_state_->payload_state();
+  payload_state->SetUsingP2PForDownloading(use_p2p_for_downloading);
+  payload_state->SetUsingP2PForSharing(use_p2p_for_sharing);
 }
 
 bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
@@ -363,6 +364,7 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             bool obey_proxies,
                                             bool interactive) {
   http_response_code_ = 0;
+  PayloadStateInterface* const payload_state = system_state_->payload_state();
 
   // Refresh the policy before computing all the update parameters.
   RefreshDevicePolicy();
@@ -374,15 +376,15 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   CalculateScatteringParams(interactive);
 
   CalculateP2PParams(interactive);
-  if (omaha_request_params_->use_p2p_for_downloading() ||
-      omaha_request_params_->use_p2p_for_sharing()) {
+  if (payload_state->GetUsingP2PForDownloading() ||
+      payload_state->GetUsingP2PForSharing()) {
     // OK, p2p is to be used - start it and perform housekeeping.
     if (!StartP2PAndPerformHousekeeping()) {
       // If this fails, disable p2p for this attempt
       LOG(INFO) << "Forcibly disabling use of p2p since starting p2p or "
                 << "performing housekeeping failed.";
-      omaha_request_params_->set_use_p2p_for_downloading(false);
-      omaha_request_params_->set_use_p2p_for_sharing(false);
+      payload_state->SetUsingP2PForDownloading(false);
+      payload_state->SetUsingP2PForSharing(false);
     }
   }
 
@@ -423,9 +425,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                omaha_request_params_->waiting_period().InSeconds());
 
   LOG(INFO) << "Use p2p For Downloading = "
-            << omaha_request_params_->use_p2p_for_downloading()
+            << payload_state->GetUsingP2PForDownloading()
             << ", Use p2p For Sharing = "
-            << omaha_request_params_->use_p2p_for_sharing();
+            << payload_state->GetUsingP2PForSharing();
 
   obeying_proxies_ = true;
   if (obey_proxies || proxy_manual_checks_ == 0) {

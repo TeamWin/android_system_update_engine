@@ -19,6 +19,7 @@
 #include "update_engine/fake_prefs.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_http_fetcher.h"
+#include "update_engine/mock_payload_state.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
@@ -37,6 +38,8 @@ using testing::Ge;
 using testing::Le;
 using testing::NiceMock;
 using testing::Return;
+using testing::ReturnPointee;
+using testing::SaveArg;
 using testing::SetArgumentPointee;
 using testing::_;
 
@@ -116,9 +119,7 @@ class OmahaRequestActionTest : public ::testing::Test {
       false,   // delta okay
       false,   // interactive
       "http://url",
-      "",      // target_version_prefix
-      false,   // use_p2p_for_downloading
-      false};  // use_p2p_for_sharing
+      ""};     // target_version_prefix
 
   FakePrefs fake_prefs_;
 };
@@ -1049,9 +1050,7 @@ TEST_F(OmahaRequestActionTest, XmlEncodeTest) {
                             false,   // delta okay
                             false,   // interactive
                             "http://url",
-                            "",      // target_version_prefix
-                            false,   // use_p2p_for_downloading
-                            false);  // use_p2p_for_sharing
+                            "");     // target_version_prefix
   OmahaResponse response;
   ASSERT_FALSE(
       TestUpdateCheck(&params,
@@ -1247,9 +1246,7 @@ TEST_F(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                               delta_okay,
                               false,  // interactive
                               "http://url",
-                              "",     // target_version_prefix
-                              false,  // use_p2p_for_downloading
-                              false);  // use_p2p_for_sharing
+                              "");    // target_version_prefix
     ASSERT_FALSE(TestUpdateCheck(&params,
                                  "invalid xml>",
                                  -1,
@@ -1290,9 +1287,7 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                               true,   // delta_okay
                               interactive,
                               "http://url",
-                              "",     // target_version_prefix
-                              false,  // use_p2p_for_downloading
-                              false);  // use_p2p_for_sharing
+                              "");    // target_version_prefix
     ASSERT_FALSE(TestUpdateCheck(&params,
                                  "invalid xml>",
                                  -1,
@@ -1924,13 +1919,25 @@ void OmahaRequestActionTest::P2PTest(
     const string& expected_p2p_url) {
   OmahaResponse response;
   OmahaRequestParams request_params = request_params_;
-  request_params.set_use_p2p_for_downloading(initial_allow_p2p_for_downloading);
-  request_params.set_use_p2p_for_sharing(initial_allow_p2p_for_sharing);
+  bool actual_allow_p2p_for_downloading = initial_allow_p2p_for_downloading;
+  bool actual_allow_p2p_for_sharing = initial_allow_p2p_for_sharing;
+  string actual_p2p_url;
 
   MockPayloadState mock_payload_state;
   fake_system_state_.set_payload_state(&mock_payload_state);
   EXPECT_CALL(mock_payload_state, P2PAttemptAllowed())
       .WillRepeatedly(Return(payload_state_allow_p2p_attempt));
+  EXPECT_CALL(mock_payload_state, GetUsingP2PForDownloading())
+      .WillRepeatedly(ReturnPointee(&actual_allow_p2p_for_downloading));
+  EXPECT_CALL(mock_payload_state, GetUsingP2PForSharing())
+      .WillRepeatedly(ReturnPointee(&actual_allow_p2p_for_sharing));
+  EXPECT_CALL(mock_payload_state, SetUsingP2PForDownloading(_))
+      .WillRepeatedly(SaveArg<0>(&actual_allow_p2p_for_downloading));
+  EXPECT_CALL(mock_payload_state, SetUsingP2PForSharing(_))
+      .WillRepeatedly(SaveArg<0>(&actual_allow_p2p_for_sharing));
+  EXPECT_CALL(mock_payload_state, SetP2PUrl(_))
+      .WillRepeatedly(SaveArg<0>(&actual_p2p_url));
+
   MockP2PManager mock_p2p_manager;
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetLookupUrlForFileResult(p2p_client_result_url);
@@ -1965,18 +1972,15 @@ void OmahaRequestActionTest::P2PTest(
                       nullptr));
   EXPECT_TRUE(response.update_exists);
 
-  EXPECT_EQ(response.disable_p2p_for_downloading,
-            omaha_disable_p2p_for_downloading);
-  EXPECT_EQ(response.disable_p2p_for_sharing,
-            omaha_disable_p2p_for_sharing);
+  EXPECT_EQ(omaha_disable_p2p_for_downloading,
+            response.disable_p2p_for_downloading);
+  EXPECT_EQ(omaha_disable_p2p_for_sharing,
+            response.disable_p2p_for_sharing);
 
-  EXPECT_EQ(request_params.use_p2p_for_downloading(),
-            expected_allow_p2p_for_downloading);
-
-  EXPECT_EQ(request_params.use_p2p_for_sharing(),
-            expected_allow_p2p_for_sharing);
-
-  EXPECT_EQ(request_params.p2p_url(), expected_p2p_url);
+  EXPECT_EQ(expected_allow_p2p_for_downloading,
+            actual_allow_p2p_for_downloading);
+  EXPECT_EQ(expected_allow_p2p_for_sharing, actual_allow_p2p_for_sharing);
+  EXPECT_EQ(expected_p2p_url, actual_p2p_url);
 }
 
 TEST_F(OmahaRequestActionTest, P2PWithPeer) {

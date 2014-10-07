@@ -35,6 +35,7 @@ using std::unique_ptr;
 using std::vector;
 using testing::AtLeast;
 using testing::InSequence;
+using testing::Return;
 using testing::_;
 
 class DownloadActionTest : public ::testing::Test { };
@@ -476,8 +477,9 @@ class P2PDownloadActionTest : public testing::Test {
   // |use_p2p_to_share| parameter is used to indicate whether the
   // payload should be shared via p2p.
   void StartDownload(bool use_p2p_to_share) {
-    fake_system_state_.request_params()->set_use_p2p_for_sharing(
-        use_p2p_to_share);
+    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+                GetUsingP2PForSharing())
+        .WillRepeatedly(Return(use_p2p_to_share));
 
     ScopedTempFile output_temp_file;
     TestDirectFileWriter writer;
@@ -562,9 +564,9 @@ TEST_F(P2PDownloadActionTest, IsWrittenTo) {
 
   // Check the p2p file and its content matches what was sent.
   string file_id = download_action_->p2p_file_id();
-  EXPECT_NE(file_id, "");
-  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), data_.length());
-  EXPECT_EQ(p2p_manager_->FileGetExpectedSize(file_id), data_.length());
+  EXPECT_NE("", file_id);
+  EXPECT_EQ(data_.length(), p2p_manager_->FileGetSize(file_id));
+  EXPECT_EQ(data_.length(), p2p_manager_->FileGetExpectedSize(file_id));
   string p2p_file_contents;
   EXPECT_TRUE(ReadFileToString(p2p_manager_->FileGetPath(file_id),
                                &p2p_file_contents));

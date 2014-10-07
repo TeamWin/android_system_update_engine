@@ -64,15 +64,17 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.download_url = current_url;
   install_plan_.version = response.version;
 
-  OmahaRequestParams* params = system_state_->request_params();
+  OmahaRequestParams* const params = system_state_->request_params();
+  PayloadStateInterface* const payload_state = system_state_->payload_state();
 
   // If we're using p2p to download and there is a local peer, use it.
-  if (params->use_p2p_for_downloading() && !params->p2p_url().empty()) {
+  if (payload_state->GetUsingP2PForDownloading() &&
+      !payload_state->GetP2PUrl().empty()) {
     LOG(INFO) << "Replacing URL " << install_plan_.download_url
-              << " with local URL " << params->p2p_url()
+              << " with local URL " << payload_state->GetP2PUrl()
               << " since p2p is enabled.";
-    install_plan_.download_url = params->p2p_url();
-    system_state_->payload_state()->SetUsingP2PForDownloading(true);
+    install_plan_.download_url = payload_state->GetP2PUrl();
+    payload_state->SetUsingP2PForDownloading(true);
   }
 
   // Fill up the other properties based on the response.
@@ -85,9 +87,9 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.is_resume =
       DeltaPerformer::CanResumeUpdate(system_state_->prefs(), response.hash);
   if (install_plan_.is_resume) {
-    system_state_->payload_state()->UpdateResumed();
+    payload_state->UpdateResumed();
   } else {
-    system_state_->payload_state()->UpdateRestarted();
+    payload_state->UpdateRestarted();
     LOG_IF(WARNING, !DeltaPerformer::ResetUpdateProgress(
         system_state_->prefs(), false))
         << "Unable to reset the update progress.";

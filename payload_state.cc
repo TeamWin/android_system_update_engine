@@ -41,12 +41,12 @@ static const uint32_t kMaxBackoffFuzzMinutes = 12 * 60;
 PayloadState::PayloadState()
     : prefs_(nullptr),
       using_p2p_for_downloading_(false),
+      p2p_num_attempts_(0),
       payload_attempt_number_(0),
       full_payload_attempt_number_(0),
       url_index_(0),
       url_failure_count_(0),
       url_switch_count_(0),
-      p2p_num_attempts_(0),
       attempt_num_bytes_downloaded_(0),
       attempt_connection_type_(metrics::ConnectionType::kUnknown),
       attempt_type_(AttemptType::kUpdate) {
@@ -357,8 +357,7 @@ bool PayloadState::ShouldBackoffDownload() {
                  "Can proceed with the download";
     return false;
   }
-  if (system_state_->request_params()->use_p2p_for_downloading() &&
-      !system_state_->request_params()->p2p_url().empty()) {
+  if (GetUsingP2PForDownloading() && !GetP2PUrl().empty()) {
     LOG(INFO) << "Payload backoff logic is disabled because download "
               << "will happen from local peer (via p2p).";
     return false;

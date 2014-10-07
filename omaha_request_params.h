@@ -45,9 +45,7 @@ class OmahaRequestParams {
         max_update_checks_allowed_(kDefaultMaxUpdateChecks),
         is_powerwash_allowed_(false),
         force_lock_down_(false),
-        forced_lock_down_(false),
-        use_p2p_for_downloading_(false),
-        use_p2p_for_sharing_(false) {
+        forced_lock_down_(false) {
     InitFromLsbValue();
   }
 
@@ -66,9 +64,7 @@ class OmahaRequestParams {
                      bool in_delta_okay,
                      bool in_interactive,
                      const std::string& in_update_url,
-                     const std::string& in_target_version_prefix,
-                     bool in_use_p2p_for_downloading,
-                     bool in_use_p2p_for_sharing)
+                     const std::string& in_target_version_prefix)
       : system_state_(system_state),
         os_platform_(in_os_platform),
         os_version_(in_os_version),
@@ -93,9 +89,7 @@ class OmahaRequestParams {
         max_update_checks_allowed_(kDefaultMaxUpdateChecks),
         is_powerwash_allowed_(false),
         force_lock_down_(false),
-        forced_lock_down_(false),
-        use_p2p_for_downloading_(in_use_p2p_for_downloading),
-        use_p2p_for_sharing_(in_use_p2p_for_sharing) {}
+        forced_lock_down_(false) {}
 
   // Setters and getters for the various properties.
   inline std::string os_platform() const { return os_platform_; }
@@ -169,27 +163,6 @@ class OmahaRequestParams {
   }
   inline int64_t max_update_checks_allowed() const {
     return max_update_checks_allowed_;
-  }
-
-  inline void set_use_p2p_for_downloading(bool value) {
-    use_p2p_for_downloading_ = value;
-  }
-  inline bool use_p2p_for_downloading() const {
-    return use_p2p_for_downloading_;
-  }
-
-  inline void set_use_p2p_for_sharing(bool value) {
-    use_p2p_for_sharing_ = value;
-  }
-  inline bool use_p2p_for_sharing() const {
-    return use_p2p_for_sharing_;
-  }
-
-  inline void set_p2p_url(const std::string& value) {
-    p2p_url_ = value;
-  }
-  inline std::string p2p_url() const {
-    return p2p_url_;
   }
 
   // True if we're trying to update to a more stable channel.
@@ -376,18 +349,6 @@ class OmahaRequestParams {
   // Force security lock down for testing purposes.
   bool force_lock_down_;
   bool forced_lock_down_;
-
-  // True if we may use p2p to download. This is based on owner
-  // preferences and policy.
-  bool use_p2p_for_downloading_;
-
-  // True if we may use p2p to share. This is based on owner
-  // preferences and policy.
-  bool use_p2p_for_sharing_;
-
-  // An URL to a local peer serving the requested payload or "" if no
-  // such peer is available.
-  std::string p2p_url_;
 
   // TODO(jaysri): Uncomment this after fixing unit tests, as part of
   // chromium-os:39752

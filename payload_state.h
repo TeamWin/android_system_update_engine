@@ -50,6 +50,10 @@ class PayloadState : public PayloadStateInterface {
   virtual void ExpectRebootInNewVersion(const std::string& target_version_uid);
   virtual void SetUsingP2PForDownloading(bool value);
 
+  void SetUsingP2PForSharing(bool value) override {
+    using_p2p_for_sharing_ = value;
+  }
+
   virtual inline std::string GetResponseSignature() {
     return response_signature_;
   }
@@ -109,8 +113,12 @@ class PayloadState : public PayloadStateInterface {
   virtual void P2PNewAttempt();
   virtual bool P2PAttemptAllowed();
 
-  virtual bool GetUsingP2PForDownloading() {
+  bool GetUsingP2PForDownloading() const override {
     return using_p2p_for_downloading_;
+  }
+
+  bool GetUsingP2PForSharing() const override {
+    return using_p2p_for_sharing_;
   }
 
   base::TimeDelta GetScatteringWaitPeriod() override {
@@ -118,6 +126,14 @@ class PayloadState : public PayloadStateInterface {
   }
 
   void SetScatteringWaitPeriod(base::TimeDelta wait_period) override;
+
+  void SetP2PUrl(const std::string& url) override {
+    p2p_url_ = url;
+  }
+
+  std::string GetP2PUrl() const override {
+    return p2p_url_;
+  }
 
  private:
   enum class AttemptType {
@@ -410,9 +426,18 @@ class PayloadState : public PayloadStateInterface {
   // This is the current response object from Omaha.
   OmahaResponse response_;
 
-  // Whether p2p is being used for downloading as set with the
-  // SetUsingP2PForDownloading() method.
+  // Whether P2P is being used for downloading and sharing.
   bool using_p2p_for_downloading_;
+  bool using_p2p_for_sharing_;
+
+  // Stores the P2P download URL, if one is used.
+  std::string p2p_url_;
+
+  // The cached value of |kPrefsP2PFirstAttemptTimestamp|.
+  base::Time p2p_first_attempt_timestamp_;
+
+  // The cached value of |kPrefsP2PNumAttempts|.
+  int p2p_num_attempts_;
 
   // This stores a "signature" of the current response. The signature here
   // refers to a subset of the current response from Omaha.  Each update to
@@ -516,12 +541,6 @@ class PayloadState : public PayloadStateInterface {
   // to guarantee that we do not re-update to it on the next au attempt after
   // reboot.
   std::string rollback_version_;
-
-  // The cached value of |kPrefsP2PFirstAttemptTimestamp|.
-  base::Time p2p_first_attempt_timestamp_;
-
-  // The cached value of |kPrefsP2PNumAttempts|.
-  int p2p_num_attempts_;
 
   // The number of bytes downloaded per attempt.
   int64_t attempt_num_bytes_downloaded_;

@@ -8,6 +8,7 @@
 
 #include "update_engine/constants.h"
 #include "update_engine/fake_system_state.h"
+#include "update_engine/mock_payload_state.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
@@ -349,8 +350,10 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
               SetUsingP2PForDownloading(true));
 
   string p2p_url = "http://9.8.7.6/p2p";
-  params.set_p2p_url(p2p_url);
-  params.set_use_p2p_for_downloading(true);
+  EXPECT_CALL(*fake_system_state.mock_payload_state(), GetP2PUrl())
+      .WillRepeatedly(Return(p2p_url));
+  EXPECT_CALL(*fake_system_state.mock_payload_state(),
+              GetUsingP2PForDownloading()).WillRepeatedly(Return(true));
 
   InstallPlan install_plan;
   EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",

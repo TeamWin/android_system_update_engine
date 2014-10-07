@@ -37,7 +37,9 @@ using testing::InSequence;
 using testing::Ne;
 using testing::NiceMock;
 using testing::Property;
+using testing::SaveArg;
 using testing::Return;
+using testing::ReturnPointee;
 using testing::SetArgumentPointee;
 using testing::_;
 
@@ -118,6 +120,22 @@ class UpdateAttempterTest : public ::testing::Test {
     processor_ = new NiceMock<ActionProcessorMock>();
     attempter_.processor_.reset(processor_);  // Transfers ownership.
     prefs_ = fake_system_state_.mock_prefs();
+
+    // Set up store/load semantics of P2P properties via the mock PayloadState.
+    actual_using_p2p_for_downloading_ = false;
+    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+                SetUsingP2PForDownloading(_))
+        .WillRepeatedly(SaveArg<0>(&actual_using_p2p_for_downloading_));
+    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+                GetUsingP2PForDownloading())
+        .WillRepeatedly(ReturnPointee(&actual_using_p2p_for_downloading_));
+    actual_using_p2p_for_sharing_ = false;
+    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+                SetUsingP2PForSharing(_))
+        .WillRepeatedly(SaveArg<0>(&actual_using_p2p_for_sharing_));
+    EXPECT_CALL(*fake_system_state_.mock_payload_state(),
+                GetUsingP2PForDownloading())
+        .WillRepeatedly(ReturnPointee(&actual_using_p2p_for_sharing_));
   }
 
   virtual void TearDown() {
@@ -169,6 +187,13 @@ class UpdateAttempterTest : public ::testing::Test {
   void P2PEnabledHousekeepingFailsStart();
   static gboolean StaticP2PEnabledHousekeepingFails(gpointer data);
 
+  bool actual_using_p2p_for_downloading() {
+    return actual_using_p2p_for_downloading_;
+  }
+  bool actual_using_p2p_for_sharing() {
+    return actual_using_p2p_for_sharing_;
+  }
+
   FakeSystemState fake_system_state_;
   NiceMock<MockDBusWrapper> dbus_;
   UpdateAttempterUnderTest attempter_;
@@ -178,6 +203,9 @@ class UpdateAttempterTest : public ::testing::Test {
   GMainLoop* loop_;
 
   string test_dir_;
+
+  bool actual_using_p2p_for_downloading_;
+  bool actual_using_p2p_for_sharing_;
 };
 
 TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
@@ -257,7 +285,7 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
             GetErrorCodeForAction(&postinstall_runner_action,
                                   ErrorCode::kError));
   ActionMock action_mock;
-  EXPECT_CALL(action_mock, Type()).Times(1).WillOnce(Return("ActionMock"));
+  EXPECT_CALL(action_mock, Type()).WillOnce(Return("ActionMock"));
   EXPECT_EQ(ErrorCode::kError,
             GetErrorCodeForAction(&action_mock, ErrorCode::kError));
 }
@@ -296,10 +324,9 @@ TEST_F(UpdateAttempterTest, MarkDeltaUpdateFailureTest) {
   EXPECT_CALL(*prefs_, SetInt64(Ne(kPrefsDeltaUpdateFailures), _))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(*prefs_, SetInt64(kPrefsDeltaUpdateFailures, 1)).Times(2);
-  EXPECT_CALL(*prefs_, SetInt64(kPrefsDeltaUpdateFailures, 2)).Times(1);
+  EXPECT_CALL(*prefs_, SetInt64(kPrefsDeltaUpdateFailures, 2));
   EXPECT_CALL(*prefs_, SetInt64(kPrefsDeltaUpdateFailures,
-                               UpdateAttempter::kMaxDeltaUpdateFailures + 1))
-      .Times(1);
+                               UpdateAttempter::kMaxDeltaUpdateFailures + 1));
   for (int i = 0; i < 4; i ++)
     attempter_.MarkDeltaUpdateFailure();
 }
@@ -323,9 +350,8 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest) {
 TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
   EXPECT_CALL(*processor_,
               EnqueueAction(Property(&AbstractAction::Type,
-                                     OmahaRequestAction::StaticType())))
-      .Times(1);
-  EXPECT_CALL(*processor_, StartProcessing()).Times(1);
+                                     OmahaRequestAction::StaticType())));
+  EXPECT_CALL(*processor_, StartProcessing());
   ErrorCode err = ErrorCode::kError;
   EXPECT_CALL(*fake_system_state_.mock_payload_state(), UpdateFailed(err));
   attempter_.error_event_.reset(new OmahaEvent(OmahaEvent::kTypeUpdateComplete,
@@ -443,9 +469,9 @@ void UpdateAttempterTest::UpdateTestStart() {
     for (size_t i = 0; i < arraysize(kUpdateActionTypes); ++i) {
       EXPECT_CALL(*processor_,
                   EnqueueAction(Property(&AbstractAction::Type,
-                                         kUpdateActionTypes[i]))).Times(1);
+                                         kUpdateActionTypes[i])));
     }
-    EXPECT_CALL(*processor_, StartProcessing()).Times(1);
+    EXPECT_CALL(*processor_, StartProcessing());
   }
 
   attempter_.Update("", "", "", "", false, false);
@@ -511,9 +537,9 @@ void UpdateAttempterTest::RollbackTestStart(
     for (size_t i = 0; i < arraysize(kRollbackActionTypes); ++i) {
       EXPECT_CALL(*processor_,
                   EnqueueAction(Property(&AbstractAction::Type,
-                                         kRollbackActionTypes[i]))).Times(1);
+                                         kRollbackActionTypes[i])));
     }
-    EXPECT_CALL(*processor_, StartProcessing()).Times(1);
+    EXPECT_CALL(*processor_, StartProcessing());
 
     EXPECT_TRUE(attempter_.Rollback(true));
     g_idle_add(&StaticRollbackTestVerify, this);
@@ -577,9 +603,8 @@ TEST_F(UpdateAttempterTest, EnterpriseRollbackTest) {
 void UpdateAttempterTest::PingOmahaTestStart() {
   EXPECT_CALL(*processor_,
               EnqueueAction(Property(&AbstractAction::Type,
-                                     OmahaRequestAction::StaticType())))
-      .Times(1);
-  EXPECT_CALL(*processor_, StartProcessing()).Times(1);
+                                     OmahaRequestAction::StaticType())));
+  EXPECT_CALL(*processor_, StartProcessing());
   attempter_.PingOmaha();
   g_idle_add(&StaticQuitMainLoop, this);
 }
@@ -652,7 +677,7 @@ TEST_F(UpdateAttempterTest, P2PStartedAtStartupWhenEnabledAndSharing) {
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetCountSharedFilesResult(1);
-  EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning()).Times(1);
+  EXPECT_CALL(mock_p2p_manager, EnsureP2PRunning());
   attempter_.UpdateEngineStarted();
 }
 
@@ -676,8 +701,8 @@ void UpdateAttempterTest::P2PNotEnabledStart() {
   mock_p2p_manager.fake().SetP2PEnabled(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
   attempter_.Update("", "", "", "", false, false);
-  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
-  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
+  EXPECT_FALSE(actual_using_p2p_for_downloading());
+  EXPECT_FALSE(actual_using_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
 }
 
@@ -704,8 +729,8 @@ void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
   attempter_.Update("", "", "", "", false, false);
-  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
-  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
+  EXPECT_FALSE(actual_using_p2p_for_downloading());
+  EXPECT_FALSE(actual_using_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
 }
 
@@ -730,10 +755,10 @@ void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(false);
-  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
+  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping());
   attempter_.Update("", "", "", "", false, false);
-  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
-  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_sharing());
+  EXPECT_FALSE(actual_using_p2p_for_downloading());
+  EXPECT_FALSE(actual_using_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
 }
 
@@ -757,10 +782,10 @@ void UpdateAttempterTest::P2PEnabledStart() {
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
-  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
+  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping());
   attempter_.Update("", "", "", "", false, false);
-  EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_downloading());
-  EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_sharing());
+  EXPECT_TRUE(actual_using_p2p_for_downloading());
+  EXPECT_TRUE(actual_using_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
 }
 
@@ -785,10 +810,10 @@ void UpdateAttempterTest::P2PEnabledInteractiveStart() {
   mock_p2p_manager.fake().SetP2PEnabled(true);
   mock_p2p_manager.fake().SetEnsureP2PRunningResult(true);
   mock_p2p_manager.fake().SetPerformHousekeepingResult(true);
-  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(1);
+  EXPECT_CALL(mock_p2p_manager, PerformHousekeeping());
   attempter_.Update("", "", "", "", false, true /* interactive */);
-  EXPECT_FALSE(attempter_.omaha_request_params_->use_p2p_for_downloading());
-  EXPECT_TRUE(attempter_.omaha_request_params_->use_p2p_for_sharing());
+  EXPECT_FALSE(actual_using_p2p_for_downloading());
+  EXPECT_TRUE(actual_using_p2p_for_sharing());
   g_idle_add(&StaticQuitMainLoop, this);
 }
 

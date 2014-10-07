@@ -15,6 +15,7 @@
 #include "update_engine/action_pipe.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
+#include "update_engine/payload_state_interface.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
 
@@ -187,9 +188,10 @@ void DownloadAction::PerformAction() {
   }
 
   if (system_state_ != nullptr) {
+    const PayloadStateInterface* payload_state = system_state_->payload_state();
     string file_id = utils::CalculateP2PFileId(install_plan_.payload_hash,
                                                install_plan_.payload_size);
-    if (system_state_->request_params()->use_p2p_for_sharing()) {
+    if (payload_state->GetUsingP2PForSharing()) {
       // If we're sharing the update, store the file_id to convey
       // that we should write to the file.
       p2p_file_id_ = file_id;
@@ -210,19 +212,17 @@ void DownloadAction::PerformAction() {
         }
       }
     }
-  }
 
-  // Tweak timeouts on the HTTP fetcher if we're downloading from a
-  // local peer.
-  if (system_state_ != nullptr &&
-      system_state_->request_params()->use_p2p_for_downloading() &&
-      system_state_->request_params()->p2p_url() ==
-      install_plan_.download_url) {
-    LOG(INFO) << "Tweaking HTTP fetcher since we're downloading via p2p";
-    http_fetcher_->set_low_speed_limit(kDownloadP2PLowSpeedLimitBps,
-                                       kDownloadP2PLowSpeedTimeSeconds);
-    http_fetcher_->set_max_retry_count(kDownloadP2PMaxRetryCount);
-    http_fetcher_->set_connect_timeout(kDownloadP2PConnectTimeoutSeconds);
+    // Tweak timeouts on the HTTP fetcher if we're downloading from a
+    // local peer.
+    if (payload_state->GetUsingP2PForDownloading() &&
+        payload_state->GetP2PUrl() == install_plan_.download_url) {
+      LOG(INFO) << "Tweaking HTTP fetcher since we're downloading via p2p";
+      http_fetcher_->set_low_speed_limit(kDownloadP2PLowSpeedLimitBps,
+                                         kDownloadP2PLowSpeedTimeSeconds);
+      http_fetcher_->set_max_retry_count(kDownloadP2PMaxRetryCount);
+      http_fetcher_->set_connect_timeout(kDownloadP2PConnectTimeoutSeconds);
+    }
   }
 
   http_fetcher_->BeginTransfer(install_plan_.download_url);

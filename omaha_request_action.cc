@@ -766,6 +766,8 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   string current_response(response_buffer_.begin(), response_buffer_.end());
   LOG(INFO) << "Omaha request response: " << current_response;
 
+  PayloadStateInterface* const payload_state = system_state_->payload_state();
+
   // Events are best effort transactions -- assume they always succeed.
   if (IsEvent()) {
     CHECK(!HasOutputPipe()) << "No output pipe allowed for event requests.";
@@ -840,12 +842,12 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   if (output_object.disable_p2p_for_downloading) {
     LOG(INFO) << "Forcibly disabling use of p2p for downloading as "
               << "requested by Omaha.";
-    params_->set_use_p2p_for_downloading(false);
+    payload_state->SetUsingP2PForDownloading(false);
   }
   if (output_object.disable_p2p_for_sharing) {
     LOG(INFO) << "Forcibly disabling use of p2p for sharing as "
               << "requested by Omaha.";
-    params_->set_use_p2p_for_sharing(false);
+    payload_state->SetUsingP2PForSharing(false);
   }
 
   // Update the payload state with the current response. The payload state
@@ -854,17 +856,16 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   // as possible in this method so that if a new release gets pushed and then
   // got pulled back due to some issues, we don't want to clear our internal
   // state unnecessarily.
-  PayloadStateInterface* payload_state = system_state_->payload_state();
   payload_state->SetResponse(output_object);
 
   // It could be we've already exceeded the deadline for when p2p is
   // allowed or that we've tried too many times with p2p. Check that.
-  if (params_->use_p2p_for_downloading()) {
+  if (payload_state->GetUsingP2PForDownloading()) {
     payload_state->P2PNewAttempt();
     if (!payload_state->P2PAttemptAllowed()) {
       LOG(INFO) << "Forcibly disabling use of p2p for downloading because "
                 << "of previous failures when using p2p.";
-      params_->set_use_p2p_for_downloading(false);
+      payload_state->SetUsingP2PForDownloading(false);
     }
   }
 
@@ -877,7 +878,7 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   // attention to wall-clock-based waiting if the URL is indeed
   // available via p2p. Therefore, check if the file is available via
   // p2p before deferring...
-  if (params_->use_p2p_for_downloading()) {
+  if (payload_state->GetUsingP2PForDownloading()) {
     LookupPayloadViaP2P(output_object);
   } else {
     CompleteProcessing();
@@ -909,11 +910,11 @@ void OmahaRequestAction::CompleteProcessing() {
 void OmahaRequestAction::OnLookupPayloadViaP2PCompleted(const string& url) {
   LOG(INFO) << "Lookup complete, p2p-client returned URL '" << url << "'";
   if (!url.empty()) {
-    params_->set_p2p_url(url);
+    system_state_->payload_state()->SetP2PUrl(url);
   } else {
     LOG(INFO) << "Forcibly disabling use of p2p for downloading "
               << "because no suitable peer could be found.";
-    params_->set_use_p2p_for_downloading(false);
+    system_state_->payload_state()->SetUsingP2PForDownloading(false);
   }
   CompleteProcessing();
 }
@@ -971,7 +972,9 @@ bool OmahaRequestAction::ShouldDeferDownload(OmahaResponse* output_object) {
   // defer the download. This is because the download will always
   // happen from a peer on the LAN and we've been waiting in line for
   // our turn.
-  if (params_->use_p2p_for_downloading() && !params_->p2p_url().empty()) {
+  const PayloadStateInterface* payload_state = system_state_->payload_state();
+  if (payload_state->GetUsingP2PForDownloading() &&
+      !payload_state->GetP2PUrl().empty()) {
     LOG(INFO) << "Download not deferred because download "
               << "will happen from a local peer (via p2p).";
     return false;
