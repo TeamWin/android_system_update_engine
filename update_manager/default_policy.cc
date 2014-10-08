@@ -50,6 +50,7 @@ EvalStatus DefaultPolicy::UpdateCanStart(
   result->update_can_start = true;
   result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
   result->download_url_idx = 0;
+  result->download_url_allowed = true;
   result->download_url_num_errors = 0;
   result->p2p_downloading_allowed = false;
   result->p2p_sharing_allowed = false;

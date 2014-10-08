@@ -275,9 +275,11 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
   // that preemptive returns, such as the case where an update check is due,
   // should not clear off the said values; rather, it is the deliberate
   // inference of new values that should cause them to be reset.
-  result->update_can_start = true;
+  result->update_can_start = false;
   result->cannot_start_reason = UpdateCannotStartReason::kUndefined;
   result->download_url_idx = -1;
+  result->download_url_allowed = true;
+  result->download_url_num_errors = 0;
   result->p2p_downloading_allowed = false;
   result->p2p_sharing_allowed = false;
   result->do_increment_failures = false;
@@ -290,12 +292,8 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
   EvalStatus check_status = UpdateCheckAllowed(ec, state, error, &check_result);
   if (check_status == EvalStatus::kFailed)
     return EvalStatus::kFailed;
-  if (check_status == EvalStatus::kSucceeded &&
-      check_result.updates_enabled == true) {
-    result->update_can_start = false;
-    result->cannot_start_reason = UpdateCannotStartReason::kCheckDue;
-    return EvalStatus::kSucceeded;
-  }
+  bool is_check_due = (check_status == EvalStatus::kSucceeded &&
+                       check_result.updates_enabled == true);
 
   // Check whether backoff applies, and if not then which URL can be used for
   // downloading. These require scanning the download error log, and so they are
@@ -303,22 +301,19 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
   UpdateBackoffAndDownloadUrlResult backoff_url_result;
   EvalStatus backoff_url_status = UpdateBackoffAndDownloadUrl(
       ec, state, error, &backoff_url_result, update_state);
-  if (backoff_url_status != EvalStatus::kFailed) {
-    result->download_url_idx = backoff_url_result.url_idx;
-    result->download_url_num_errors = backoff_url_result.url_num_errors;
-    result->do_increment_failures = backoff_url_result.do_increment_failures;
-    result->backoff_expiry = backoff_url_result.backoff_expiry;
-  }
-  if (backoff_url_status != EvalStatus::kSucceeded ||
-      !backoff_url_result.backoff_expiry.is_null()) {
-    if (backoff_url_status != EvalStatus::kFailed) {
-      result->update_can_start = false;
-      result->cannot_start_reason = UpdateCannotStartReason::kBackoff;
-    }
-    return backoff_url_status;
-  }
+  if (backoff_url_status == EvalStatus::kFailed)
+    return EvalStatus::kFailed;
+  result->download_url_idx = backoff_url_result.url_idx;
+  result->download_url_num_errors = backoff_url_result.url_num_errors;
+  result->do_increment_failures = backoff_url_result.do_increment_failures;
+  result->backoff_expiry = backoff_url_result.backoff_expiry;
+  bool is_backoff_active =
+      (backoff_url_status == EvalStatus::kAskMeAgainLater) ||
+      !backoff_url_result.backoff_expiry.is_null();
 
   DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+  bool is_scattering_active = false;
+  EvalStatus scattering_status = EvalStatus::kSucceeded;
 
   const bool* device_policy_is_loaded_p = ec->GetValue(
       dp_provider->var_device_policy_is_loaded());
@@ -331,35 +326,34 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
     // attribute is found in the Omaha response. However, it appears that the
     // presence of this attribute is merely indicative of an OOBE update, during
     // which we suppress scattering anyway.
-    bool scattering_applies = false;
+    bool is_scattering_applicable = false;
     result->scatter_wait_period = kZeroInterval;
     result->scatter_check_threshold = 0;
     if (!update_state.is_interactive) {
       const bool* is_oobe_enabled_p = ec->GetValue(
           state->config_provider()->var_is_oobe_enabled());
       if (is_oobe_enabled_p && !(*is_oobe_enabled_p)) {
-        scattering_applies = true;
+        is_scattering_applicable = true;
       } else {
         const bool* is_oobe_complete_p = ec->GetValue(
             state->system_provider()->var_is_oobe_complete());
-        scattering_applies = (is_oobe_complete_p && *is_oobe_complete_p);
+        is_scattering_applicable = (is_oobe_complete_p && *is_oobe_complete_p);
       }
     }
 
     // Compute scattering values.
-    if (scattering_applies) {
+    if (is_scattering_applicable) {
       UpdateScatteringResult scatter_result;
-      EvalStatus scattering_status = UpdateScattering(
-          ec, state, error, &scatter_result, update_state);
-      if (scattering_status != EvalStatus::kSucceeded ||
-          scatter_result.is_scattering) {
-        if (scattering_status != EvalStatus::kFailed) {
-          result->update_can_start = false;
-          result->cannot_start_reason = UpdateCannotStartReason::kScattering;
-          result->scatter_wait_period = scatter_result.wait_period;
-          result->scatter_check_threshold = scatter_result.check_threshold;
-        }
-        return scattering_status;
+      scattering_status = UpdateScattering(ec, state, error, &scatter_result,
+                                           update_state);
+      if (scattering_status == EvalStatus::kFailed) {
+        return EvalStatus::kFailed;
+      } else {
+        result->scatter_wait_period = scatter_result.wait_period;
+        result->scatter_check_threshold = scatter_result.check_threshold;
+        if (scattering_status == EvalStatus::kAskMeAgainLater ||
+            scatter_result.is_scattering)
+          is_scattering_active = true;
       }
     }
 
@@ -399,18 +393,36 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
                    TimeDelta::FromSeconds(kMaxP2PAttemptsPeriodInSeconds))) {
       LOG(INFO) << "Blocked P2P download as its usage timespan exceeds limit.";
     } else {
+      // P2P download is allowed; if backoff or scattering are active, be sure
+      // to suppress them, yet prevent any download URL from being used.
       result->p2p_downloading_allowed = true;
+      if (is_backoff_active || is_scattering_active) {
+        is_backoff_active = is_scattering_active = false;
+        result->download_url_allowed = false;
+      }
     }
   }
 
-  // Store the download URL and failure increment flag. Note that no URL will
-  // only terminate evaluation if no other means of download (such as P2P) are
-  // enabled.
+  // Check for various deterrents.
+  if (is_check_due) {
+    result->cannot_start_reason = UpdateCannotStartReason::kCheckDue;
+    return EvalStatus::kSucceeded;
+  }
+  if (is_backoff_active) {
+    result->cannot_start_reason = UpdateCannotStartReason::kBackoff;
+    return backoff_url_status;
+  }
+  if (is_scattering_active) {
+    result->cannot_start_reason = UpdateCannotStartReason::kScattering;
+    return scattering_status;
+  }
   if (result->download_url_idx < 0 && !result->p2p_downloading_allowed) {
-    result->update_can_start = false;
     result->cannot_start_reason = UpdateCannotStartReason::kCannotDownload;
+    return EvalStatus::kSucceeded;
   }
 
+  // Update is good to go.
+  result->update_can_start = true;
   return EvalStatus::kSucceeded;
 }
 

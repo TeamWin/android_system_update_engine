@@ -132,15 +132,16 @@ struct UpdateDownloadParams {
   // If update cannot proceed, a reason code for why it cannot do so.
   UpdateCannotStartReason cannot_start_reason;
 
-  // Attributes pertaining to the case where update is allowed. The update
-  // engine uses them to choose the means for downloading and applying an
-  // update.
+  // Download related attributes. The update engine uses them to choose the
+  // means for downloading and applying an update.
   //
-  // The index of the download URL to use, or -1 if no suitable URL was found;
-  // in the latter case, there may still be other means for download (like P2P).
-  // This value needs to be persisted and handed back to the policy on the next
-  // time it is called.
+  // The index of the download URL to use (-1 means no suitable URL was found)
+  // and whether it can be used. Even if there's no URL or its use is not
+  // allowed (backoff, scattering) there may still be other means for download
+  // (like P2P).  The URL index needs to be persisted and handed back to the
+  // policy on the next time it is called.
   int download_url_idx;
+  bool download_url_allowed;
   // The number of download errors associated with this download URL. This value
   // needs to be persisted and handed back to the policy on the next time it is
   // called.
