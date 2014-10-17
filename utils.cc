@@ -667,7 +667,7 @@ bool GetFilesystemSize(const std::string& device,
                        int* out_block_count,
                        int* out_block_size) {
   int fd = HANDLE_EINTR(open(device.c_str(), O_RDONLY));
-  TEST_AND_RETURN_FALSE(fd >= 0);
+  TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);
   ScopedFdCloser fd_closer(&fd);
   return GetFilesystemSizeFromFD(fd, out_block_count, out_block_size);
 }
