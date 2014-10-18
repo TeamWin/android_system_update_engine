@@ -5,6 +5,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_DEFAULT_POLICY_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_DEFAULT_POLICY_H_
 
+#include <memory>
 #include <string>
 
 #include <base/time/time.h>
@@ -74,7 +75,7 @@ class DefaultPolicy : public Policy {
   chromeos_update_engine::ClockInterface* clock_;
 
   // An auxiliary state object.
-  scoped_ptr<DefaultPolicyState> aux_state_;
+  std::unique_ptr<DefaultPolicyState> aux_state_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultPolicy);
 };

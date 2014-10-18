@@ -4,7 +4,8 @@
 
 #include "update_engine/update_manager/real_device_policy_provider.h"
 
-#include <base/memory/scoped_ptr.h>
+#include <memory>
+
 #include <gtest/gtest.h>
 #include <policy/mock_device_policy.h>
 #include <policy/mock_libpolicy.h>
@@ -16,6 +17,7 @@ using base::TimeDelta;
 using chromeos_update_engine::RunGMainLoopMaxIterations;
 using std::set;
 using std::string;
+using std::unique_ptr;
 using testing::AtLeast;
 using testing::DoAll;
 using testing::Mock;
@@ -60,7 +62,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
 
   testing::NiceMock<policy::MockDevicePolicy> mock_device_policy_;
   testing::NiceMock<policy::MockPolicyProvider> mock_policy_provider_;
-  scoped_ptr<RealDevicePolicyProvider> provider_;
+  unique_ptr<RealDevicePolicyProvider> provider_;
 };
 
 TEST_F(UmRealDevicePolicyProviderTest, RefreshScheduledTest) {

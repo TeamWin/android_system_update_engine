@@ -9,12 +9,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
 #include <base/callback.h>
-#include <base/memory/scoped_ptr.h>
 #include <glib-object.h>
 #include <gtest/gtest.h>
 
@@ -186,7 +186,7 @@ class ScopedTempFile {
   const std::string& GetPath() { return path_; }
  private:
   std::string path_;
-  scoped_ptr<ScopedPathUnlinker> unlinker_;
+  std::unique_ptr<ScopedPathUnlinker> unlinker_;
 };
 
 // Useful actions for test
@@ -270,9 +270,9 @@ class ScopedLoopMounter {
   //   ScopedFilesystemUnmounter (the file system must be unmounted first)
   //   ScopedLoopbackDeviceBinder (then the loop device can be deleted)
   //   ScopedDirRemover (then the mount point can be deleted)
-  scoped_ptr<ScopedDirRemover> dir_remover_;
-  scoped_ptr<ScopedLoopbackDeviceBinder> loop_binder_;
-  scoped_ptr<ScopedFilesystemUnmounter> unmounter_;
+  std::unique_ptr<ScopedDirRemover> dir_remover_;
+  std::unique_ptr<ScopedLoopbackDeviceBinder> loop_binder_;
+  std::unique_ptr<ScopedFilesystemUnmounter> unmounter_;
 };
 
 // Runs the default GLib main loop for at most |timeout_msec| or until the

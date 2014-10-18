@@ -10,7 +10,6 @@
 #include <vector>
 
 #include <base/files/file_util.h>
-#include <base/memory/scoped_ptr.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <google/protobuf/repeated_field.h>

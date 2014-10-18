@@ -5,9 +5,8 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_FAKE_VARIABLE_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_FAKE_VARIABLE_H_
 
+#include <memory>
 #include <string>
-
-#include <base/memory/scoped_ptr.h>
 
 #include "update_engine/update_manager/variable.h"
 
@@ -53,7 +52,7 @@ class FakeVariable : public Variable<T> {
 
  private:
   // The pointer returned by GetValue().
-  scoped_ptr<const T> ptr_;
+  std::unique_ptr<const T> ptr_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeVariable);
 };

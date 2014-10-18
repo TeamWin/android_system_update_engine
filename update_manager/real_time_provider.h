@@ -5,7 +5,8 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_REAL_TIME_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_REAL_TIME_PROVIDER_H_
 
-#include <base/memory/scoped_ptr.h>
+#include <memory>
+
 #include <base/time/time.h>
 
 #include "update_engine/clock_interface.h"
@@ -34,8 +35,8 @@ class RealTimeProvider : public TimeProvider {
   // A clock abstraction (fakeable).
   chromeos_update_engine::ClockInterface* const clock_;
 
-  scoped_ptr<Variable<base::Time>> var_curr_date_;
-  scoped_ptr<Variable<int>> var_curr_hour_;
+  std::unique_ptr<Variable<base::Time>> var_curr_date_;
+  std::unique_ptr<Variable<int>> var_curr_hour_;
 
   DISALLOW_COPY_AND_ASSIGN(RealTimeProvider);
 };

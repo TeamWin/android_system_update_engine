@@ -4,9 +4,9 @@
 
 #include "update_engine/update_manager/real_updater_provider.h"
 
+#include <memory>
 #include <string>
 
-#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 #include <chromeos/dbus/service_constants.h>
 #include <gtest/gtest.h>
@@ -26,6 +26,7 @@ using chromeos_update_engine::OmahaRequestParams;
 using chromeos_update_engine::PrefsMock;
 using chromeos_update_engine::UpdateAttempterMock;
 using std::string;
+using std::unique_ptr;
 using testing::Return;
 using testing::SetArgPointee;
 using testing::StrEq;
@@ -108,7 +109,7 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
 
   FakeSystemState fake_sys_state_;
   FakeClock* fake_clock_;  // Short for fake_sys_state_.fake_clock()
-  scoped_ptr<RealUpdaterProvider> provider_;
+  unique_ptr<RealUpdaterProvider> provider_;
 };
 
 TEST_F(UmRealUpdaterProviderTest, UpdaterStartedTimeIsWallclockTime) {

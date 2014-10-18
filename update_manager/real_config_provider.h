@@ -5,9 +5,8 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_REAL_CONFIG_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_REAL_CONFIG_PROVIDER_H_
 
+#include <memory>
 #include <string>
-
-#include <base/memory/scoped_ptr.h>
 
 #include "update_engine/hardware_interface.h"
 #include "update_engine/update_manager/config_provider.h"
@@ -39,7 +38,7 @@ class RealConfigProvider : public ConfigProvider {
     root_prefix_ = prefix;
   }
 
-  scoped_ptr<ConstCopyVariable<bool>> var_is_oobe_enabled_;
+  std::unique_ptr<ConstCopyVariable<bool>> var_is_oobe_enabled_;
 
   chromeos_update_engine::HardwareInterface* hardware_;
 

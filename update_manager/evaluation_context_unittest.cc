@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
 #include <string>
 
 #include <base/bind.h>
@@ -23,6 +24,7 @@ using chromeos_update_engine::FakeClock;
 using chromeos_update_engine::RunGMainLoopMaxIterations;
 using chromeos_update_engine::RunGMainLoopUntil;
 using std::string;
+using std::unique_ptr;
 using testing::Return;
 using testing::StrictMock;
 using testing::_;
@@ -75,7 +77,7 @@ class UmEvaluationContextTest : public ::testing::Test {
     fake_clock_.SetWallclockTime(Time::FromTimeT(1141262625));
     eval_ctx_ = new EvaluationContext(
         &fake_clock_, default_timeout_, default_timeout_,
-        scoped_ptr<base::Callback<void(EvaluationContext*)>>(nullptr));
+        unique_ptr<base::Callback<void(EvaluationContext*)>>(nullptr));
   }
 
   virtual void TearDown() {

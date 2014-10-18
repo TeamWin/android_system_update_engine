@@ -8,11 +8,11 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <base/logging.h>
-#include <base/memory/scoped_ptr.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
@@ -20,6 +20,7 @@
 
 using std::shared_ptr;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
@@ -127,7 +128,7 @@ uint32_t Subprocess::Exec(const vector<string>& cmd,
                           ExecCallback callback,
                           void* p) {
   GPid child_pid;
-  scoped_ptr<char*[]> argv(new char*[cmd.size() + 1]);
+  unique_ptr<char*[]> argv(new char*[cmd.size() + 1]);
   for (unsigned int i = 0; i < cmd.size(); i++) {
     argv[i] = strdup(cmd[i].c_str());
     if (!argv[i]) {
@@ -196,7 +197,7 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
     *stdout = "";
   }
   GError* err = nullptr;
-  scoped_ptr<char*[]> argv(new char*[cmd.size() + 1]);
+  unique_ptr<char*[]> argv(new char*[cmd.size() + 1]);
   for (unsigned int i = 0; i < cmd.size(); i++) {
     argv[i] = strdup(cmd[i].c_str());
     if (!argv[i]) {

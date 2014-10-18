@@ -5,8 +5,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_REAL_SYSTEM_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_REAL_SYSTEM_PROVIDER_H_
 
-#include <base/memory/scoped_ptr.h>
-
+#include <memory>
 #include <string>
 
 #include "update_engine/hardware_interface.h"
@@ -41,10 +40,10 @@ class RealSystemProvider : public SystemProvider {
   }
 
  private:
-  scoped_ptr<Variable<bool>> var_is_normal_boot_mode_;
-  scoped_ptr<Variable<bool>> var_is_official_build_;
-  scoped_ptr<Variable<bool>> var_is_oobe_complete_;
-  scoped_ptr<Variable<bool>> var_is_boot_device_removable_;
+  std::unique_ptr<Variable<bool>> var_is_normal_boot_mode_;
+  std::unique_ptr<Variable<bool>> var_is_official_build_;
+  std::unique_ptr<Variable<bool>> var_is_oobe_complete_;
+  std::unique_ptr<Variable<bool>> var_is_boot_device_removable_;
 
   chromeos_update_engine::HardwareInterface* hardware_;
 

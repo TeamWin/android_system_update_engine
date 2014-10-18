@@ -6,12 +6,12 @@
 #define UPDATE_ENGINE_UPDATE_MANAGER_EVALUATION_CONTEXT_H_
 
 #include <map>
+#include <memory>
 #include <string>
 
 #include <base/bind.h>
 #include <base/callback.h>
 #include <base/memory/ref_counted.h>
-#include <base/memory/scoped_ptr.h>
 #include <base/memory/weak_ptr.h>
 #include <base/time/time.h>
 
@@ -57,12 +57,12 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
       chromeos_update_engine::ClockInterface* clock,
       base::TimeDelta evaluation_timeout,
       base::TimeDelta expiration_timeout,
-      scoped_ptr<base::Callback<void(EvaluationContext*)>> unregister_cb);
+      std::unique_ptr<base::Callback<void(EvaluationContext*)>> unregister_cb);
   EvaluationContext(chromeos_update_engine::ClockInterface* clock,
                     base::TimeDelta evaluation_timeout)
       : EvaluationContext(
           clock, evaluation_timeout, base::TimeDelta::Max(),
-          scoped_ptr<base::Callback<void(EvaluationContext*)>>()) {}
+          std::unique_ptr<base::Callback<void(EvaluationContext*)>>()) {}
   ~EvaluationContext();
 
   // Returns a pointer to the value returned by the passed variable |var|. The
@@ -113,7 +113,7 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // Removes all the Observers callbacks and timeout events scheduled by
   // RunOnValueChangeOrTimeout(). Also releases and returns the closure
   // associated with these events. This method is idempotent.
-  scoped_ptr<base::Closure> RemoveObserversAndTimeout();
+  std::unique_ptr<base::Closure> RemoveObserversAndTimeout();
 
  private:
   friend class UmEvaluationContextTest;
@@ -147,7 +147,7 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // timeout, or notifying about the evaluation context expiration. It is up to
   // the caller to determine whether or not expiration occurred via
   // is_expired().
-  scoped_ptr<base::Closure> callback_;
+  std::unique_ptr<base::Closure> callback_;
 
   // The EventId returned by the event loop identifying the timeout callback.
   // Used for canceling the timeout callback.
@@ -193,7 +193,7 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   base::Time expiration_monotonic_deadline_;
 
   // A callback for unregistering the context upon destruction.
-  scoped_ptr<base::Callback<void(EvaluationContext*)>> unregister_cb_;
+  std::unique_ptr<base::Callback<void(EvaluationContext*)>> unregister_cb_;
 
   base::WeakPtrFactory<EvaluationContext> weak_ptr_factory_;
 

@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include <base/logging.h>
-#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 #include <gtest/gtest.h>
 
@@ -14,6 +15,7 @@
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
+using std::unique_ptr;
 
 namespace chromeos_update_manager {
 
@@ -41,7 +43,7 @@ class UmRealTimeProviderTest : public ::testing::Test {
   }
 
   FakeClock fake_clock_;
-  scoped_ptr<RealTimeProvider> provider_;
+  unique_ptr<RealTimeProvider> provider_;
 };
 
 TEST_F(UmRealTimeProviderTest, CurrDateValid) {

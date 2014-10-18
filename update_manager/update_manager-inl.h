@@ -5,6 +5,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_UPDATE_MANAGER_INL_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_UPDATE_MANAGER_INL_H_
 
+#include <memory>
 #include <string>
 
 #include <base/bind.h>
@@ -129,7 +130,7 @@ void UpdateManager::AsyncPolicyRequest(
   scoped_refptr<EvaluationContext> ec =
       new EvaluationContext(
           clock_, evaluation_timeout_, expiration_timeout_,
-          scoped_ptr<base::Callback<void(EvaluationContext*)>>(
+          std::unique_ptr<base::Callback<void(EvaluationContext*)>>(
               new base::Callback<void(EvaluationContext*)>(
                   base::Bind(&UpdateManager::UnregisterEvalContext,
                              weak_ptr_factory_.GetWeakPtr()))));

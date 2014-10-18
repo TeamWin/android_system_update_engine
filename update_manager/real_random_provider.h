@@ -5,7 +5,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_REAL_RANDOM_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_REAL_RANDOM_PROVIDER_H_
 
-#include <base/memory/scoped_ptr.h>
+#include <memory>
 
 #include "update_engine/update_manager/random_provider.h"
 
@@ -23,7 +23,7 @@ class RealRandomProvider : public RandomProvider {
 
  private:
   // The seed() scoped variable.
-  scoped_ptr<Variable<uint64_t>> var_seed_;
+  std::unique_ptr<Variable<uint64_t>> var_seed_;
 
   DISALLOW_COPY_AND_ASSIGN(RealRandomProvider);
 };

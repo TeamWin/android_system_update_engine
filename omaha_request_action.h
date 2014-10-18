@@ -9,10 +9,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include <base/memory/scoped_ptr.h>
 #include <curl/curl.h>
 
 #include "update_engine/action.h"
@@ -265,10 +265,10 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   OmahaRequestParams* params_;
 
   // Pointer to the OmahaEvent info. This is an UpdateCheck request if null.
-  scoped_ptr<OmahaEvent> event_;
+  std::unique_ptr<OmahaEvent> event_;
 
   // pointer to the HttpFetcher that does the http work
-  scoped_ptr<HttpFetcher> http_fetcher_;
+  std::unique_ptr<HttpFetcher> http_fetcher_;
 
   // If true, only include the <ping> element in the request.
   bool ping_only_;

@@ -5,13 +5,13 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include <base/bind.h>
-#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -33,6 +33,7 @@ using chromeos_update_engine::FakeClock;
 using std::pair;
 using std::string;
 using std::tuple;
+using std::unique_ptr;
 using std::vector;
 using testing::Return;
 using testing::StrictMock;
@@ -68,7 +69,7 @@ class UmUpdateManagerTest : public ::testing::Test {
 
   FakeState* fake_state_;  // Owned by the umut_.
   FakeClock fake_clock_;
-  scoped_ptr<UpdateManager> umut_;
+  unique_ptr<UpdateManager> umut_;
 };
 
 // The FailingPolicy implements a single method and make it always fail. This

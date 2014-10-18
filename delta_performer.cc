@@ -9,12 +9,12 @@
 
 #include <algorithm>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <base/files/file_util.h>
 #include <base/format_macros.h>
-#include <base/memory/scoped_ptr.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <google/protobuf/repeated_field.h>
@@ -35,6 +35,7 @@
 using google::protobuf::RepeatedPtrField;
 using std::min;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
@@ -590,7 +591,7 @@ bool DeltaPerformer::PerformReplaceOperation(
 
   DirectExtentWriter direct_writer;
   ZeroPadExtentWriter zero_pad_writer(&direct_writer);
-  scoped_ptr<BzipExtentWriter> bzip_writer;
+  unique_ptr<BzipExtentWriter> bzip_writer;
 
   // Since bzip decompression is optional, we have a variable writer that will
   // point to one of the ExtentWriter objects above.

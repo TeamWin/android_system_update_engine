@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -580,7 +581,7 @@ class ScopedActionCompleter {
 };
 
 // A base::FreeDeleter that frees memory using g_free(). Useful when
-// integrating with GLib since it can be used with scoped_ptr to
+// integrating with GLib since it can be used with std::unique_ptr to
 // automatically free memory when going out of scope.
 struct GLibFreeDeleter : public base::FreeDeleter {
   inline void operator()(void *ptr) const {
@@ -589,7 +590,7 @@ struct GLibFreeDeleter : public base::FreeDeleter {
 };
 
 // A base::FreeDeleter that frees memory using g_strfreev(). Useful
-// when integrating with GLib since it can be used with scoped_ptr to
+// when integrating with GLib since it can be used with std::unique_ptr to
 // automatically free memory when going out of scope.
 struct GLibStrvFreeDeleter : public base::FreeDeleter {
   inline void operator()(void *ptr) const {

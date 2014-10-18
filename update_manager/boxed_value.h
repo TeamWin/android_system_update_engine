@@ -5,6 +5,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_BOXED_VALUE_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_BOXED_VALUE_H_
 
+#include <memory>
 #include <string>
 
 #include <base/macros.h>
@@ -12,10 +13,10 @@
 namespace chromeos_update_manager {
 
 // BoxedValue is a class to hold pointers of a given type that deletes them when
-// the instance goes out of scope, as scoped_ptr<T> does. The main difference
-// with it is that the type T is not part of the class, i.e., this isn't a
-// parametric class. The class has a parametric constructor that accepts a
-// const T* which will define the type of the object passed on delete.
+// the instance goes out of scope, as std::unique_ptr<T> does. The main
+// difference with it is that the type T is not part of the class, i.e., this
+// isn't a parametric class. The class has a parametric constructor that accepts
+// a const T* which will define the type of the object passed on delete.
 //
 // It is safe to use this class in linked containers such as std::list and
 // std::map but the object can't be copied. This means that you need to

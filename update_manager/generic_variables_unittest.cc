@@ -4,8 +4,9 @@
 
 #include "update_engine/update_manager/generic_variables.h"
 
+#include <memory>
+
 #include <base/callback.h>
-#include <base/memory/scoped_ptr.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/test_utils.h"
@@ -13,6 +14,7 @@
 
 using base::TimeDelta;
 using chromeos_update_engine::RunGMainLoopMaxIterations;
+using std::unique_ptr;
 
 namespace chromeos_update_manager {
 
@@ -25,7 +27,7 @@ TEST_F(UmPollCopyVariableTest, SimpleTest) {
   PollCopyVariable<int> var("var", source);
 
   // Generate and validate a copy.
-  scoped_ptr<const int> copy_1(var.GetValue(
+  unique_ptr<const int> copy_1(var.GetValue(
           UmTestUtils::DefaultTimeout(), nullptr));
   ASSERT_NE(nullptr, copy_1.get());
   EXPECT_EQ(5, *copy_1);
@@ -75,7 +77,7 @@ TEST_F(UmPollCopyVariableTest, UseCopyConstructorTest) {
   ASSERT_FALSE(source.copied_);
 
   PollCopyVariable<CopyConstructorTestClass> var("var", source);
-  scoped_ptr<const CopyConstructorTestClass> copy(
+  unique_ptr<const CopyConstructorTestClass> copy(
       var.GetValue(UmTestUtils::DefaultTimeout(), nullptr));
   ASSERT_NE(nullptr, copy.get());
   EXPECT_TRUE(copy->copied_);
@@ -114,7 +116,7 @@ TEST_F(UmCallCopyVariableTest, SimpleTest) {
       test_func, &test_obj);
   CallCopyVariable<CopyConstructorTestClass> var("var", cb);
 
-  scoped_ptr<const CopyConstructorTestClass> copy(
+  unique_ptr<const CopyConstructorTestClass> copy(
       var.GetValue(UmTestUtils::DefaultTimeout(), nullptr));
   EXPECT_EQ(6, test_obj.val_);  // Check that the function was called.
   ASSERT_NE(nullptr, copy.get());

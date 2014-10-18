@@ -7,6 +7,8 @@
 
 #include "update_engine/system_state.h"
 
+#include <memory>
+
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 
@@ -117,9 +119,9 @@ class RealSystemState : public SystemState {
   // Common parameters for all Omaha requests.
   OmahaRequestParams request_params_;
 
-  scoped_ptr<P2PManager> p2p_manager_;
+  std::unique_ptr<P2PManager> p2p_manager_;
 
-  scoped_ptr<chromeos_update_manager::UpdateManager> update_manager_;
+  std::unique_ptr<chromeos_update_manager::UpdateManager> update_manager_;
 
   policy::PolicyProvider policy_provider_;
 

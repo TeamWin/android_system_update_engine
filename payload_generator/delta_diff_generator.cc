@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>
@@ -20,7 +21,6 @@
 #include <base/files/file_util.h>
 #include <base/files/file_path.h>
 #include <base/logging.h>
-#include <base/memory/scoped_ptr.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -53,6 +53,7 @@ using std::min;
 using std::pair;
 using std::set;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace {
@@ -1603,7 +1604,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 
   const string kTempFileTemplate("CrAU_temp_data.XXXXXX");
   string temp_file_path;
-  scoped_ptr<ScopedPathUnlinker> temp_file_unlinker;
+  unique_ptr<ScopedPathUnlinker> temp_file_unlinker;
   off_t data_file_size = 0;
 
   LOG(INFO) << "Reading files...";

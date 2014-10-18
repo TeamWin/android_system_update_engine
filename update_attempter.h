@@ -397,7 +397,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   base::TimeTicks last_notify_time_;
 
   std::vector<std::shared_ptr<AbstractAction>> actions_;
-  scoped_ptr<ActionProcessor> processor_;
+  std::unique_ptr<ActionProcessor> processor_;
 
   // External state of the system outside the update_engine process
   // carved out separately to mock out easily in unit tests.
@@ -422,7 +422,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   PrefsInterface* prefs_ = nullptr;
 
   // Pending error event, if any.
-  scoped_ptr<OmahaEvent> error_event_;
+  std::unique_ptr<OmahaEvent> error_event_;
 
   // If we should request a reboot even tho we failed the update
   bool fake_update_success_ = false;
@@ -480,7 +480,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   bool start_action_processor_ = false;
 
   // Used for fetching information about the device policy.
-  scoped_ptr<policy::PolicyProvider> policy_provider_;
+  std::unique_ptr<policy::PolicyProvider> policy_provider_;
 
   // The current scatter factor as found in the policy setting.
   base::TimeDelta scatter_factor_;
@@ -504,7 +504,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // cleared by an update attempt (false). The second argument indicates whether
   // this is an interactive update, and its value is significant iff the first
   // argument is true.
-  scoped_ptr<base::Callback<void(bool, bool)>>  // NOLINT(readability/function)
+  std::unique_ptr<base::Callback<void(bool, bool)>>
       forced_update_pending_callback_;
 
   // The |app_version| and |omaha_url| parameters received during the latest

@@ -6,8 +6,8 @@
 #define UPDATE_ENGINE_UPDATE_MANAGER_UMTEST_UTILS_H_
 
 #include <iostream>  // NOLINT(readability/streams)
+#include <memory>
 
-#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 #include <gtest/gtest.h>
 
@@ -28,7 +28,8 @@ class UmTestUtils {
   template<typename T>
   static void ExpectVariableHasValue(const T& expected, Variable<T>* variable) {
     ASSERT_NE(nullptr, variable);
-    scoped_ptr<const T> value(variable->GetValue(DefaultTimeout(), nullptr));
+    std::unique_ptr<const T> value(
+        variable->GetValue(DefaultTimeout(), nullptr));
     ASSERT_NE(nullptr, value.get()) << "Variable: " << variable->GetName();
     EXPECT_EQ(expected, *value) << "Variable: " << variable->GetName();
   }
@@ -37,7 +38,8 @@ class UmTestUtils {
   template<typename T>
   static void ExpectVariableNotSet(Variable<T>* variable) {
     ASSERT_NE(nullptr, variable);
-    scoped_ptr<const T> value(variable->GetValue(DefaultTimeout(), nullptr));
+    std::unique_ptr<const T> value(
+        variable->GetValue(DefaultTimeout(), nullptr));
     EXPECT_EQ(nullptr, value.get()) << "Variable: " << variable->GetName();
   }
 

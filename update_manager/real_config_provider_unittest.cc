@@ -4,9 +4,10 @@
 
 #include "update_engine/update_manager/real_config_provider.h"
 
+#include <memory>
+
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
-#include <base/memory/scoped_ptr.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
@@ -17,6 +18,7 @@
 using base::TimeDelta;
 using chromeos_update_engine::WriteFileString;
 using std::string;
+using std::unique_ptr;
 
 namespace chromeos_update_manager {
 
@@ -43,7 +45,7 @@ class UmRealConfigProviderTest : public ::testing::Test {
     ASSERT_TRUE(WriteFileString(kFile.value(), config));
   }
 
-  scoped_ptr<RealConfigProvider> provider_;
+  unique_ptr<RealConfigProvider> provider_;
   chromeos_update_engine::FakeHardware fake_hardware_;
   TimeDelta default_timeout_ = TimeDelta::FromSeconds(1);
   base::ScopedTempDir root_dir_;

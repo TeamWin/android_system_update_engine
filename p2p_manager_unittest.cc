@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <attr/xattr.h>  // NOLINT - requires typed defined in unistd.h
 
+#include <memory>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -26,6 +28,7 @@
 #include "update_engine/utils.h"
 
 using std::string;
+using std::unique_ptr;
 using std::vector;
 using base::TimeDelta;
 
@@ -59,7 +62,7 @@ TEST_F(P2PManagerTest, P2PEnabledNeitherCroshFlagNotEnterpriseSetting) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
   EXPECT_FALSE(manager->IsP2PEnabled());
 
@@ -75,7 +78,7 @@ TEST_F(P2PManagerTest, P2PEnabledCroshFlag) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
   EXPECT_FALSE(manager->IsP2PEnabled());
   prefs.SetBoolean(kPrefsP2PEnabled, true);
@@ -95,9 +98,9 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingTrue) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
-  scoped_ptr<policy::MockDevicePolicy> device_policy(
+  unique_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(
       DoAll(testing::SetArgumentPointee<0>(true),
@@ -121,9 +124,9 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingFalse) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
-  scoped_ptr<policy::MockDevicePolicy> device_policy(
+  unique_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(
       DoAll(testing::SetArgumentPointee<0>(false),
@@ -150,9 +153,9 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesDefaultToEnabled) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
-  scoped_ptr<policy::MockDevicePolicy> device_policy(
+  unique_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   // We return an empty owner as this is an enterprise.
   EXPECT_CALL(*device_policy, GetOwner(testing::_)).WillRepeatedly(
@@ -175,9 +178,9 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesOverrideDefault) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        &prefs, "cros_au", 3));
-  scoped_ptr<policy::MockDevicePolicy> device_policy(
+  unique_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   // We return an empty owner as this is an enterprise.
   EXPECT_CALL(*device_policy, GetOwner(testing::_)).WillRepeatedly(
@@ -195,7 +198,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesOverrideDefault) {
 
 // Check that we keep the $N newest files with the .$EXT.p2p extension.
 TEST_F(P2PManagerTest, Housekeeping) {
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        nullptr, "cros_au", 3));
   EXPECT_EQ(manager->CountSharedFiles(), 0);
 
@@ -350,7 +353,7 @@ TEST_F(P2PManagerTest, ShareFile) {
     return;
   }
 
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        nullptr, "cros_au", 3));
   EXPECT_TRUE(manager->FileShare("foo", 10 * 1000 * 1000));
   EXPECT_EQ(manager->FileGetPath("foo"),
@@ -373,7 +376,7 @@ TEST_F(P2PManagerTest, MakeFileVisible) {
     return;
   }
 
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        nullptr, "cros_au", 3));
   // First, check that it's not visible.
   manager->FileShare("foo", 10*1000*1000);
@@ -400,7 +403,7 @@ TEST_F(P2PManagerTest, ExistingFiles) {
     return;
   }
 
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        nullptr, "cros_au", 3));
   bool visible;
 
@@ -441,7 +444,7 @@ TEST_F(P2PManagerTest, ExistingFiles) {
 // will have to do. E.g. we essentially simulate the various
 // behaviours of initctl(8) that we rely on.
 TEST_F(P2PManagerTest, StartP2P) {
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        nullptr, "cros_au", 3));
 
   // Check that we can start the service
@@ -459,7 +462,7 @@ TEST_F(P2PManagerTest, StartP2P) {
 
 // Same comment as for StartP2P
 TEST_F(P2PManagerTest, StopP2P) {
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        nullptr, "cros_au", 3));
 
   // Check that we can start the service
@@ -485,7 +488,7 @@ static void ExpectUrl(const string& expected_url,
 // Like StartP2P, we're mocking the different results that p2p-client
 // can return. It's not pretty but it works.
 TEST_F(P2PManagerTest, LookupURL) {
-  scoped_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
+  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
                                                        nullptr, "cros_au", 3));
   GMainLoop *loop = g_main_loop_new(nullptr, FALSE);
 

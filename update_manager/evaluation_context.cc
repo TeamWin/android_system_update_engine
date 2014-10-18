@@ -5,6 +5,7 @@
 #include "update_engine/update_manager/evaluation_context.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include <base/bind.h>
@@ -20,6 +21,7 @@ using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::ClockInterface;
 using std::string;
+using std::unique_ptr;
 
 namespace {
 
@@ -52,11 +54,11 @@ EvaluationContext::EvaluationContext(
     ClockInterface* clock,
     TimeDelta evaluation_timeout,
     TimeDelta expiration_timeout,
-    scoped_ptr<Callback<void(EvaluationContext*)>> unregister_cb)
+    unique_ptr<Callback<void(EvaluationContext*)>> unregister_cb)
     : clock_(clock),
       evaluation_timeout_(evaluation_timeout),
       expiration_timeout_(expiration_timeout),
-      unregister_cb_(unregister_cb.Pass()),
+      unregister_cb_(std::move(unregister_cb)),
       weak_ptr_factory_(this) {
   ResetEvaluation();
   ResetExpiration();
@@ -68,7 +70,7 @@ EvaluationContext::~EvaluationContext() {
     unregister_cb_->Run(this);
 }
 
-scoped_ptr<Closure> EvaluationContext::RemoveObserversAndTimeout() {
+unique_ptr<Closure> EvaluationContext::RemoveObserversAndTimeout() {
   for (auto& it : value_cache_) {
     if (it.first->GetMode() == kVariableModeAsync)
       it.first->RemoveObserver(this);
@@ -76,7 +78,7 @@ scoped_ptr<Closure> EvaluationContext::RemoveObserversAndTimeout() {
   CancelMainLoopEvent(timeout_event_);
   timeout_event_ = kEventIdNull;
 
-  return scoped_ptr<Closure>(callback_.release());
+  return unique_ptr<Closure>(callback_.release());
 }
 
 TimeDelta EvaluationContext::RemainingTime(Time monotonic_deadline) const {
@@ -106,7 +108,7 @@ void EvaluationContext::OnTimeout() {
 
 void EvaluationContext::OnValueChangedOrTimeout() {
   // Copy the callback handle locally, allowing it to be reassigned.
-  scoped_ptr<Closure> callback = RemoveObserversAndTimeout();
+  unique_ptr<Closure> callback = RemoveObserversAndTimeout();
 
   if (callback.get())
     callback->Run();

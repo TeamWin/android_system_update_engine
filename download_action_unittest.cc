@@ -6,6 +6,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,6 +28,7 @@
 namespace chromeos_update_engine {
 
 using std::string;
+using std::unique_ptr;
 using std::vector;
 using testing::_;
 using testing::AtLeast;
@@ -515,13 +517,13 @@ class P2PDownloadActionTest : public testing::Test {
   }
 
   // The DownloadAction instance under test.
-  scoped_ptr<DownloadAction> download_action_;
+  unique_ptr<DownloadAction> download_action_;
 
   // The HttpFetcher used in the test.
   MockHttpFetcher* http_fetcher_;
 
   // The P2PManager used in the test.
-  scoped_ptr<P2PManager> p2p_manager_;
+  unique_ptr<P2PManager> p2p_manager_;
 
   // The ActionProcessor used for running the actions.
   ActionProcessor processor_;

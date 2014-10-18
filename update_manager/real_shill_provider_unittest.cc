@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
 #include <utility>
 
-#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 #include <chromeos/dbus/service_constants.h>
 #include <glib.h>
@@ -23,6 +23,7 @@ using chromeos_update_engine::GValueFree;
 using chromeos_update_engine::GValueNewString;
 using chromeos_update_engine::MockDBusWrapper;
 using std::pair;
+using std::unique_ptr;
 using testing::Eq;
 using testing::Mock;
 using testing::NiceMock;
@@ -294,7 +295,7 @@ class UmRealShillProviderTest : public ::testing::Test {
 
   StrictMock<MockDBusWrapper> mock_dbus_;
   FakeClock fake_clock_;
-  scoped_ptr<RealShillProvider> provider_;
+  unique_ptr<RealShillProvider> provider_;
   void (*signal_handler_)(DBusGProxy*, const char*, GValue*, void*);
   void* signal_data_;
 };

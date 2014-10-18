@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 
+#include <memory>
+
 #include <base/files/file_util.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
@@ -29,6 +31,7 @@
 using base::Time;
 using base::TimeDelta;
 using std::string;
+using std::unique_ptr;
 using testing::_;
 using testing::DoAll;
 using testing::InSequence;
@@ -178,7 +181,7 @@ class UpdateAttempterTest : public ::testing::Test {
 };
 
 TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
-  scoped_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
+  unique_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(503);  // Sets the HTTP response code.
   DownloadAction action(prefs_, nullptr, fetcher.release());
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
@@ -199,7 +202,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedErrorTest) {
 }
 
 TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
-  scoped_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
+  unique_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(500);  // Sets the HTTP response code.
   OmahaRequestAction action(&fake_system_state_, nullptr,
                             fetcher.release(), false);

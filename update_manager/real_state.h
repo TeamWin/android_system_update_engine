@@ -5,7 +5,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_REAL_STATE_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_REAL_STATE_H_
 
-#include <base/memory/scoped_ptr.h>
+#include <memory>
 
 #include "update_engine/update_manager/state.h"
 
@@ -56,13 +56,13 @@ class RealState : public State {
 
  private:
   // Instances of the providers.
-  scoped_ptr<ConfigProvider> config_provider_;
-  scoped_ptr<DevicePolicyProvider> device_policy_provider_;
-  scoped_ptr<RandomProvider> random_provider_;
-  scoped_ptr<ShillProvider> shill_provider_;
-  scoped_ptr<SystemProvider> system_provider_;
-  scoped_ptr<TimeProvider> time_provider_;
-  scoped_ptr<UpdaterProvider> updater_provider_;
+  std::unique_ptr<ConfigProvider> config_provider_;
+  std::unique_ptr<DevicePolicyProvider> device_policy_provider_;
+  std::unique_ptr<RandomProvider> random_provider_;
+  std::unique_ptr<ShillProvider> shill_provider_;
+  std::unique_ptr<SystemProvider> system_provider_;
+  std::unique_ptr<TimeProvider> time_provider_;
+  std::unique_ptr<UpdaterProvider> updater_provider_;
 };
 
 }  // namespace chromeos_update_manager

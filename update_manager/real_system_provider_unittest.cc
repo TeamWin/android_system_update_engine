@@ -4,12 +4,15 @@
 
 #include "update_engine/update_manager/real_system_provider.h"
 
-#include <base/memory/scoped_ptr.h>
+#include <memory>
+
 #include <base/time/time.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_hardware.h"
 #include "update_engine/update_manager/umtest_utils.h"
+
+using std::unique_ptr;
 
 namespace chromeos_update_manager {
 
@@ -21,7 +24,7 @@ class UmRealSystemProviderTest : public ::testing::Test {
   }
 
   chromeos_update_engine::FakeHardware fake_hardware_;
-  scoped_ptr<RealSystemProvider> provider_;
+  unique_ptr<RealSystemProvider> provider_;
 };
 
 TEST_F(UmRealSystemProviderTest, InitTest) {

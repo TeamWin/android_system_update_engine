@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <base/memory/scoped_ptr.h>
 #include <gtest/gtest.h>
+
+#include <memory>
 
 #include "update_engine/update_manager/real_random_provider.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::TimeDelta;
+using std::unique_ptr;
 
 namespace chromeos_update_manager {
 
@@ -23,7 +25,7 @@ class UmRealRandomProviderTest : public ::testing::Test {
     provider_->var_seed();
   }
 
-  scoped_ptr<RealRandomProvider> provider_;
+  unique_ptr<RealRandomProvider> provider_;
 };
 
 TEST_F(UmRealRandomProviderTest, InitFinalize) {
@@ -33,7 +35,7 @@ TEST_F(UmRealRandomProviderTest, InitFinalize) {
 
 TEST_F(UmRealRandomProviderTest, GetRandomValues) {
   // Should not return the same random seed repeatedly.
-  scoped_ptr<const uint64_t> value(
+  unique_ptr<const uint64_t> value(
       provider_->var_seed()->GetValue(UmTestUtils::DefaultTimeout(), nullptr));
   ASSERT_NE(nullptr, value.get());
 
@@ -41,7 +43,7 @@ TEST_F(UmRealRandomProviderTest, GetRandomValues) {
   // by design, once every 2^320 runs.
   bool is_same_value = true;
   for (int i = 0; i < 5; i++) {
-    scoped_ptr<const uint64_t> other_value(
+    unique_ptr<const uint64_t> other_value(
         provider_->var_seed()->GetValue(UmTestUtils::DefaultTimeout(),
                                         nullptr));
     ASSERT_NE(nullptr, other_value.get());

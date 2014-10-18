@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -42,6 +43,7 @@ using base::TimeDelta;
 using std::map;
 using std::pair;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
@@ -139,7 +141,7 @@ class P2PManagerImpl : public P2PManager {
   const policy::DevicePolicy* device_policy_;
 
   // Configuration object.
-  scoped_ptr<Configuration> configuration_;
+  unique_ptr<Configuration> configuration_;
 
   // Object for persisted state.
   PrefsInterface* prefs_;
@@ -235,7 +237,7 @@ bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
   gint exit_status = 0;
 
   vector<string> args = configuration_->GetInitctlArgs(should_be_running);
-  scoped_ptr<gchar*, GLibStrvFreeDeleter> argv(
+  unique_ptr<gchar*, GLibStrvFreeDeleter> argv(
       utils::StringVectorToGStrv(args));
   if (!g_spawn_sync(nullptr,  // working_directory
                     argv.get(),
@@ -250,7 +252,7 @@ bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
                << ": " << utils::GetAndFreeGError(&error);
     return false;
   }
-  scoped_ptr<gchar, GLibFreeDeleter> standard_error_deleter(standard_error);
+  unique_ptr<gchar, GLibFreeDeleter> standard_error_deleter(standard_error);
 
   if (!WIFEXITED(exit_status)) {
     LOG(ERROR) << "Error spawning '" << utils::StringVectorToString(args)

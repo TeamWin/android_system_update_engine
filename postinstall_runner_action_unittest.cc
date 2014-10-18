@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -21,6 +22,7 @@
 #include "update_engine/utils.h"
 
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
@@ -157,7 +159,7 @@ void PostinstallRunnerActionTest::DoTest(
   // get a loop device we can use for the install device
   string dev = "/dev/null";
 
-  scoped_ptr<ScopedLoopbackDeviceBinder> loop_releaser;
+  unique_ptr<ScopedLoopbackDeviceBinder> loop_releaser;
   if (do_losetup) {
     loop_releaser.reset(new ScopedLoopbackDeviceBinder(cwd + "/image.dat",
                                                        &dev));

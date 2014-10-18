@@ -4,8 +4,9 @@
 
 #include "update_engine/update_manager/state_factory.h"
 
+#include <memory>
+
 #include <base/logging.h>
-#include <base/memory/scoped_ptr.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/update_manager/real_config_provider.h"
@@ -17,23 +18,25 @@
 #include "update_engine/update_manager/real_time_provider.h"
 #include "update_engine/update_manager/real_updater_provider.h"
 
+using std::unique_ptr;
+
 namespace chromeos_update_manager {
 
 State* DefaultStateFactory(policy::PolicyProvider* policy_provider,
                            chromeos_update_engine::DBusWrapperInterface* dbus,
                            chromeos_update_engine::SystemState* system_state) {
   chromeos_update_engine::ClockInterface* const clock = system_state->clock();
-  scoped_ptr<RealConfigProvider> config_provider(
+  unique_ptr<RealConfigProvider> config_provider(
       new RealConfigProvider(system_state->hardware()));
-  scoped_ptr<RealDevicePolicyProvider> device_policy_provider(
+  unique_ptr<RealDevicePolicyProvider> device_policy_provider(
       new RealDevicePolicyProvider(policy_provider));
-  scoped_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
-  scoped_ptr<RealShillProvider> shill_provider(
+  unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
+  unique_ptr<RealShillProvider> shill_provider(
       new RealShillProvider(dbus, clock));
-  scoped_ptr<RealSystemProvider> system_provider(
+  unique_ptr<RealSystemProvider> system_provider(
       new RealSystemProvider(system_state->hardware()));
-  scoped_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
-  scoped_ptr<RealUpdaterProvider> updater_provider(
+  unique_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
+  unique_ptr<RealUpdaterProvider> updater_provider(
       new RealUpdaterProvider(system_state));
 
   if (!(config_provider->Init() &&

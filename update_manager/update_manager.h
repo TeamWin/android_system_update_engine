@@ -5,12 +5,12 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_UPDATE_MANAGER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_UPDATE_MANAGER_H_
 
+#include <memory>
 #include <set>
 #include <string>
 
 #include <base/callback.h>
 #include <base/memory/ref_counted.h>
-#include <base/memory/scoped_ptr.h>
 #include <base/time/time.h>
 
 #include "update_engine/clock_interface.h"
@@ -127,14 +127,14 @@ class UpdateManager {
 
   // The policy used by the UpdateManager. Note that since it is a const Policy,
   // policy implementations are not allowed to persist state on this class.
-  scoped_ptr<const Policy> policy_;
+  std::unique_ptr<const Policy> policy_;
 
   // A safe default value to the current policy. This policy is used whenever
   // a policy implementation fails with EvalStatus::kFailed.
   const DefaultPolicy default_policy_;
 
   // State Providers.
-  scoped_ptr<State> state_;
+  std::unique_ptr<State> state_;
 
   // Pointer to the mockable clock interface;
   chromeos_update_engine::ClockInterface* clock_;

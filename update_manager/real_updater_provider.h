@@ -5,9 +5,8 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_REAL_UPDATER_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_REAL_UPDATER_PROVIDER_H_
 
+#include <memory>
 #include <string>
-
-#include <base/memory/scoped_ptr.h>
 
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/generic_variables.h"
@@ -91,19 +90,19 @@ class RealUpdaterProvider : public UpdaterProvider {
 
   // Variable implementations.
   ConstCopyVariable<base::Time> var_updater_started_time_;
-  scoped_ptr<Variable<base::Time>> var_last_checked_time_;
-  scoped_ptr<Variable<base::Time>> var_update_completed_time_;
-  scoped_ptr<Variable<double>> var_progress_;
-  scoped_ptr<Variable<Stage>> var_stage_;
-  scoped_ptr<Variable<std::string>> var_new_version_;
-  scoped_ptr<Variable<int64_t>> var_payload_size_;
-  scoped_ptr<Variable<std::string>> var_curr_channel_;
-  scoped_ptr<Variable<std::string>> var_new_channel_;
-  scoped_ptr<Variable<bool>> var_p2p_enabled_;
-  scoped_ptr<Variable<bool>> var_cellular_enabled_;
-  scoped_ptr<Variable<unsigned int>> var_consecutive_failed_update_checks_;
-  scoped_ptr<Variable<unsigned int>> var_server_dictated_poll_interval_;
-  scoped_ptr<Variable<UpdateRequestStatus>> var_forced_update_requested_;
+  std::unique_ptr<Variable<base::Time>> var_last_checked_time_;
+  std::unique_ptr<Variable<base::Time>> var_update_completed_time_;
+  std::unique_ptr<Variable<double>> var_progress_;
+  std::unique_ptr<Variable<Stage>> var_stage_;
+  std::unique_ptr<Variable<std::string>> var_new_version_;
+  std::unique_ptr<Variable<int64_t>> var_payload_size_;
+  std::unique_ptr<Variable<std::string>> var_curr_channel_;
+  std::unique_ptr<Variable<std::string>> var_new_channel_;
+  std::unique_ptr<Variable<bool>> var_p2p_enabled_;
+  std::unique_ptr<Variable<bool>> var_cellular_enabled_;
+  std::unique_ptr<Variable<unsigned int>> var_consecutive_failed_update_checks_;
+  std::unique_ptr<Variable<unsigned int>> var_server_dictated_poll_interval_;
+  std::unique_ptr<Variable<UpdateRequestStatus>> var_forced_update_requested_;
 
   DISALLOW_COPY_AND_ASSIGN(RealUpdaterProvider);
 };
