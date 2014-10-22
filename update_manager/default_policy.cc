@@ -70,4 +70,26 @@ EvalStatus DefaultPolicy::UpdateDownloadAllowed(
   return EvalStatus::kSucceeded;
 }
 
+EvalStatus DefaultPolicy::P2PEnabled(
+    EvaluationContext* ec,
+    State* state,
+    std::string* error,
+    bool* result) const {
+  *result = false;
+  return EvalStatus::kSucceeded;
+}
+
+EvalStatus DefaultPolicy::P2PEnabledChanged(
+    EvaluationContext* ec,
+    State* state,
+    std::string* error,
+    bool* result,
+    bool prev_result) const {
+  // This policy will always prohibit P2P, so this is signaling to the caller
+  // that the decision is final (because the current value is the same as the
+  // previous one) and there's no need to issue another call.
+  *result = false;
+  return EvalStatus::kSucceeded;
+}
+
 }  // namespace chromeos_update_manager

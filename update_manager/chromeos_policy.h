@@ -60,6 +60,19 @@ class ChromeOSPolicy : public Policy {
       std::string* error,
       bool* result) const override;
 
+  EvalStatus P2PEnabled(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      bool* result) const override;
+
+  EvalStatus P2PEnabledChanged(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      bool* result,
+      bool prev_result) const override;
+
  protected:
   // Policy override.
   std::string PolicyName() const override { return "ChromeOSPolicy"; }
@@ -86,9 +99,9 @@ class ChromeOSPolicy : public Policy {
   FRIEND_TEST(UmChromeOSPolicyTest,
               UpdateCanStartAllowedInteractivePreventsScattering);
   FRIEND_TEST(UmChromeOSPolicyTest,
-              UpdateCanStartAllowedP2PDownloadBlockedDueToNumAttempts);
+              UpdateCanStartAllowedP2PDownloadingBlockedDueToNumAttempts);
   FRIEND_TEST(UmChromeOSPolicyTest,
-              UpdateCanStartAllowedP2PDownloadBlockedDueToAttemptsPeriod);
+              UpdateCanStartAllowedP2PDownloadingBlockedDueToAttemptsPeriod);
 
   // Auxiliary constant (zero by default).
   const base::TimeDelta kZeroInterval;

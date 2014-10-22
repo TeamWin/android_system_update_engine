@@ -170,6 +170,8 @@ TEST_F(UmUpdateManagerTest, PolicyRequestCallUpdateCanStart) {
   update_state.failures_last_updated = Time();
   update_state.download_urls = vector<string>{"http://fake/url/"};
   update_state.download_errors_max = 10;
+  update_state.p2p_downloading_disabled = false;
+  update_state.p2p_sharing_disabled = false;
   update_state.p2p_num_attempts = 0;
   update_state.p2p_first_attempted = Time();
   update_state.last_download_url_idx = -1;

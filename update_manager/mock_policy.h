@@ -26,12 +26,19 @@ class MockPolicy : public Policy {
 
   MOCK_CONST_METHOD5(UpdateCanStart,
                      EvalStatus(EvaluationContext*, State*, std::string*,
-                                UpdateDownloadParams*,
-                                UpdateState));
+                                UpdateDownloadParams*, UpdateState));
 
   MOCK_CONST_METHOD4(UpdateDownloadAllowed,
                      EvalStatus(EvaluationContext*, State*, std::string*,
                                 bool*));
+
+  MOCK_CONST_METHOD4(P2PEnabled,
+                     EvalStatus(EvaluationContext*, State*, std::string*,
+                                bool*));
+
+  MOCK_CONST_METHOD5(P2PEnabledChanged,
+                     EvalStatus(EvaluationContext*, State*, std::string*,
+                                bool*, bool));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockPolicy);

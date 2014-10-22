@@ -356,42 +356,38 @@ EvalStatus ChromeOSPolicy::UpdateCanStart(
           is_scattering_active = true;
       }
     }
+  }
 
-    // Determine whether use of P2P is allowed by policy. Even if P2P is not
-    // explicitly allowed, we allow it if the device is enterprise enrolled
-    // (that is, missing or empty owner string).
-    const bool* policy_au_p2p_enabled_p = ec->GetValue(
-        dp_provider->var_au_p2p_enabled());
-    if (policy_au_p2p_enabled_p) {
-      result->p2p_sharing_allowed = *policy_au_p2p_enabled_p;
+  // Find out whether P2P is globally enabled.
+  bool p2p_enabled;
+  EvalStatus p2p_enabled_status = P2PEnabled(ec, state, error, &p2p_enabled);
+  if (p2p_enabled_status != EvalStatus::kSucceeded)
+    return EvalStatus::kFailed;
+
+  // Is P2P is enabled, consider allowing it for downloading and/or sharing.
+  if (p2p_enabled) {
+    // Sharing via P2P is allowed if not disabled by Omaha.
+    if (update_state.p2p_sharing_disabled) {
+      LOG(INFO) << "Blocked P2P sharing because it is disabled by Omaha.";
     } else {
-      const string* policy_owner_p = ec->GetValue(dp_provider->var_owner());
-      if (!policy_owner_p || policy_owner_p->empty())
-        result->p2p_sharing_allowed = true;
+      result->p2p_sharing_allowed = true;
     }
-  }
 
-  // Enable P2P, if so mandated by the updater configuration. This is additive
-  // to whether or not P2P is allowed per device policy (see above).
-  if (!result->p2p_sharing_allowed) {
-    const bool* updater_p2p_enabled_p = ec->GetValue(
-        state->updater_provider()->var_p2p_enabled());
-    result->p2p_sharing_allowed =
-        updater_p2p_enabled_p && *updater_p2p_enabled_p;
-  }
-
-  // Finally, download via P2P is enabled iff P2P is enabled (sharing allowed),
-  // an update is not interactive, and other limits haven't been reached.
-  if (result->p2p_sharing_allowed) {
-    if (update_state.is_interactive) {
-      LOG(INFO) << "Blocked P2P download because update is interactive.";
+    // Downloading via P2P is allowed if not disabled by Omaha, an update is not
+    // interactive, and other limits haven't been reached.
+    if (update_state.p2p_downloading_disabled) {
+      LOG(INFO) << "Blocked P2P downloading because it is disabled by Omaha.";
+    } else if (update_state.is_interactive) {
+      LOG(INFO) << "Blocked P2P downloading because update is interactive.";
     } else if (update_state.p2p_num_attempts >= kMaxP2PAttempts) {
-      LOG(INFO) << "Blocked P2P download as it was attempted too many times.";
+      LOG(INFO) << "Blocked P2P downloading as it was attempted too many "
+                   "times.";
     } else if (!update_state.p2p_first_attempted.is_null() &&
                ec->IsWallclockTimeGreaterThan(
                    update_state.p2p_first_attempted +
                    TimeDelta::FromSeconds(kMaxP2PAttemptsPeriodInSeconds))) {
-      LOG(INFO) << "Blocked P2P download as its usage timespan exceeds limit.";
+      LOG(INFO) << "Blocked P2P downloading as its usage timespan exceeds "
+                   "limit.";
     } else {
       // P2P download is allowed; if backoff or scattering are active, be sure
       // to suppress them, yet prevent any download URL from being used.
@@ -511,6 +507,53 @@ EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(
   }
 
   return (*result ? EvalStatus::kSucceeded : EvalStatus::kAskMeAgainLater);
+}
+
+EvalStatus ChromeOSPolicy::P2PEnabled(EvaluationContext* ec,
+                                      State* state,
+                                      std::string* error,
+                                      bool* result) const {
+  bool enabled = false;
+
+  // Determine whether use of P2P is allowed by policy. Even if P2P is not
+  // explicitly allowed, we allow it if the device is enterprise enrolled (that
+  // is, missing or empty owner string).
+  DevicePolicyProvider* const dp_provider = state->device_policy_provider();
+  const bool* device_policy_is_loaded_p = ec->GetValue(
+      dp_provider->var_device_policy_is_loaded());
+  if (device_policy_is_loaded_p && *device_policy_is_loaded_p) {
+    const bool* policy_au_p2p_enabled_p = ec->GetValue(
+        dp_provider->var_au_p2p_enabled());
+    if (policy_au_p2p_enabled_p) {
+      enabled = *policy_au_p2p_enabled_p;
+    } else {
+      const string* policy_owner_p = ec->GetValue(dp_provider->var_owner());
+      if (!policy_owner_p || policy_owner_p->empty())
+        enabled = true;
+    }
+  }
+
+  // Enable P2P, if so mandated by the updater configuration. This is additive
+  // to whether or not P2P is enabled by device policy.
+  if (!enabled) {
+    const bool* updater_p2p_enabled_p = ec->GetValue(
+        state->updater_provider()->var_p2p_enabled());
+    enabled = updater_p2p_enabled_p && *updater_p2p_enabled_p;
+  }
+
+  *result = enabled;
+  return EvalStatus::kSucceeded;
+}
+
+EvalStatus ChromeOSPolicy::P2PEnabledChanged(EvaluationContext* ec,
+                                             State* state,
+                                             std::string* error,
+                                             bool* result,
+                                             bool prev_result) const {
+  EvalStatus status = P2PEnabled(ec, state, error, result);
+  if (status == EvalStatus::kSucceeded && *result == prev_result)
+    return EvalStatus::kAskMeAgainLater;
+  return status;
 }
 
 EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,

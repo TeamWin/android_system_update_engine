@@ -142,6 +142,9 @@ class UmChromeOSPolicyTest : public ::testing::Test {
     update_state.last_download_url_num_errors = 0;
     // There were no download errors.
     update_state.download_errors = vector<tuple<int, ErrorCode, Time>>();
+    // P2P is not disabled by Omaha.
+    update_state.p2p_downloading_disabled = false;
+    update_state.p2p_sharing_disabled = false;
     // P2P was not attempted.
     update_state.p2p_num_attempts = 0;
     update_state.p2p_first_attempted = Time();
@@ -996,7 +999,57 @@ TEST_F(UmChromeOSPolicyTest, UpdateCanStartAllowedWithP2PFromUpdater) {
 }
 
 TEST_F(UmChromeOSPolicyTest,
-       UpdateCanStartAllowedP2PDownloadBlockedDueToNumAttempts) {
+       UpdateCanStartAllowedP2PDownloadingBlockedDueToOmaha) {
+  // The UpdateCanStart policy returns true; device policy permits HTTP, but
+  // policy blocks P2P downloading because Omaha forbids it.  P2P sharing is
+  // still permitted.
+
+  SetUpdateCheckAllowed(false);
+
+  // Override specific device policy attributes.
+  fake_state_.device_policy_provider()->var_http_downloads_enabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(
+      new bool(true));
+
+  // Check that the UpdateCanStart returns true.
+  UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
+  update_state.p2p_downloading_disabled = true;
+  UpdateDownloadParams result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
+                     update_state);
+  EXPECT_TRUE(result.update_can_start);
+  EXPECT_FALSE(result.p2p_downloading_allowed);
+  EXPECT_TRUE(result.p2p_sharing_allowed);
+}
+
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCanStartAllowedP2PSharingBlockedDueToOmaha) {
+  // The UpdateCanStart policy returns true; device policy permits HTTP, but
+  // policy blocks P2P sharing because Omaha forbids it.  P2P downloading is
+  // still permitted.
+
+  SetUpdateCheckAllowed(false);
+
+  // Override specific device policy attributes.
+  fake_state_.device_policy_provider()->var_http_downloads_enabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(
+      new bool(true));
+
+  // Check that the UpdateCanStart returns true.
+  UpdateState update_state = GetDefaultUpdateState(TimeDelta::FromMinutes(10));
+  update_state.p2p_sharing_disabled = true;
+  UpdateDownloadParams result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
+                     update_state);
+  EXPECT_TRUE(result.update_can_start);
+  EXPECT_TRUE(result.p2p_downloading_allowed);
+  EXPECT_FALSE(result.p2p_sharing_allowed);
+}
+
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCanStartAllowedP2PDownloadingBlockedDueToNumAttempts) {
   // The UpdateCanStart policy returns true; device policy permits HTTP but
   // blocks P2P download, because the max number of P2P downloads have been
   // attempted. P2P sharing is still permitted.
@@ -1021,7 +1074,7 @@ TEST_F(UmChromeOSPolicyTest,
 }
 
 TEST_F(UmChromeOSPolicyTest,
-       UpdateCanStartAllowedP2PDownloadBlockedDueToAttemptsPeriod) {
+       UpdateCanStartAllowedP2PDownloadingBlockedDueToAttemptsPeriod) {
   // The UpdateCanStart policy returns true; device policy permits HTTP but
   // blocks P2P download, because the max period for attempt to download via P2P
   // has elapsed. P2P sharing is still permitted.
@@ -1505,6 +1558,44 @@ TEST_F(UmChromeOSPolicyTest,
   EXPECT_TRUE(result.p2p_sharing_allowed);
   EXPECT_TRUE(result.do_increment_failures);
   EXPECT_LT(curr_time, result.backoff_expiry);
+}
+
+TEST_F(UmChromeOSPolicyTest, P2PEnabledNotAllowed) {
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::P2PEnabled, &result);
+  EXPECT_FALSE(result);
+}
+
+TEST_F(UmChromeOSPolicyTest, P2PEnabledAllowedByDevicePolicy) {
+  fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(
+      new bool(true));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::P2PEnabled, &result);
+  EXPECT_TRUE(result);
+}
+
+TEST_F(UmChromeOSPolicyTest, P2PEnabledAllowedByUpdater) {
+  fake_state_.updater_provider()->var_p2p_enabled()->reset(new bool(true));
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::P2PEnabled, &result);
+  EXPECT_TRUE(result);
+}
+
+TEST_F(UmChromeOSPolicyTest, P2PEnabledAllowedDeviceEnterpriseEnrolled) {
+  fake_state_.device_policy_provider()->var_au_p2p_enabled()->reset(nullptr);
+  fake_state_.device_policy_provider()->var_owner()->reset(nullptr);
+
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::P2PEnabled, &result);
+  EXPECT_TRUE(result);
+}
+
+TEST_F(UmChromeOSPolicyTest, P2PEnabledChangedBlocks) {
+  bool result;
+  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater, &Policy::P2PEnabledChanged,
+                     &result, false);
 }
 
 }  // namespace chromeos_update_manager

@@ -66,6 +66,14 @@ class DefaultPolicy : public Policy {
       EvaluationContext* ec, State* state, std::string* error,
       bool* result) const override;
 
+  EvalStatus P2PEnabled(
+      EvaluationContext* ec, State* state, std::string* error,
+      bool* result) const override;
+
+  EvalStatus P2PEnabledChanged(
+      EvaluationContext* ec, State* state, std::string* error,
+      bool* result, bool prev_result) const override;
+
  protected:
   // Policy override.
   std::string PolicyName() const override { return "DefaultPolicy"; }

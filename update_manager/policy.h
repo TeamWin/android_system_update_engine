@@ -86,6 +86,9 @@ struct UpdateState {
   // timestamp when it occurred.
   std::vector<std::tuple<int, chromeos_update_engine::ErrorCode, base::Time>>
       download_errors;
+  // Whether Omaha forbids use of P2P for downloading and/or sharing.
+  bool p2p_downloading_disabled;
+  bool p2p_sharing_disabled;
   // The number of P2P download attempts and wallclock-based time when P2P
   // download was first attempted.
   int p2p_num_attempts;
@@ -195,6 +198,12 @@ class Policy {
     if (reinterpret_cast<typeof(&Policy::UpdateDownloadAllowed)>(
             policy_method) == &Policy::UpdateDownloadAllowed)
       return class_name + "UpdateDownloadAllowed";
+    if (reinterpret_cast<typeof(&Policy::P2PEnabled)>(
+            policy_method) == &Policy::P2PEnabled)
+      return class_name + "P2PEnabled";
+    if (reinterpret_cast<typeof(&Policy::P2PEnabledChanged)>(
+            policy_method) == &Policy::P2PEnabledChanged)
+      return class_name + "P2PEnabledChanged";
 
     NOTREACHED();
     return class_name + "(unknown)";
@@ -238,6 +247,21 @@ class Policy {
       State* state,
       std::string* error,
       bool* result) const = 0;
+
+  // Checks whether P2P is enabled. This may consult device policy and other
+  // global settings.
+  virtual EvalStatus P2PEnabled(
+      EvaluationContext* ec, State* state, std::string* error,
+      bool* result) const = 0;
+
+  // Checks whether P2P is enabled, but blocks (returns
+  // |EvalStatus::kAskMeAgainLater|) until it is different from |prev_result|.
+  // If the P2P enabled status is not expected to change, will return
+  // immediately with |EvalStatus::kSucceeded|. This internally uses the
+  // P2PEnabled() policy above.
+  virtual EvalStatus P2PEnabledChanged(
+      EvaluationContext* ec, State* state, std::string* error,
+      bool* result, bool prev_result) const = 0;
 
  protected:
   Policy() {}
