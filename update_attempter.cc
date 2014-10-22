@@ -366,6 +366,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                             bool interactive) {
   http_response_code_ = 0;
 
+  // Refresh the policy before computing all the update parameters.
+  RefreshDevicePolicy();
+
   // Set the target version prefix, if provided.
   if (!target_version_prefix.empty())
     omaha_request_params_->set_target_version_prefix(target_version_prefix);

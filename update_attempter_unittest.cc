@@ -430,13 +430,23 @@ const string kRollbackActionTypes[] = {  // NOLINT(runtime/string)
 
 void UpdateAttempterTest::UpdateTestStart() {
   attempter_.set_http_response_code(200);
-  InSequence s;
-  for (size_t i = 0; i < arraysize(kUpdateActionTypes); ++i) {
-    EXPECT_CALL(*processor_,
-                EnqueueAction(Property(&AbstractAction::Type,
-                                       kUpdateActionTypes[i]))).Times(1);
+
+  // Expect that the device policy is loaded by the UpdateAttempter at some
+  // point by calling RefreshDevicePolicy.
+  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
+  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
+  EXPECT_CALL(*device_policy, LoadPolicy())
+      .Times(testing::AtLeast(1)).WillRepeatedly(Return(true));
+
+  {
+    InSequence s;
+    for (size_t i = 0; i < arraysize(kUpdateActionTypes); ++i) {
+      EXPECT_CALL(*processor_,
+                  EnqueueAction(Property(&AbstractAction::Type,
+                                         kUpdateActionTypes[i]))).Times(1);
+    }
+    EXPECT_CALL(*processor_, StartProcessing()).Times(1);
   }
-  EXPECT_CALL(*processor_, StartProcessing()).Times(1);
 
   attempter_.Update("", "", "", "", false, false);
   g_idle_add(&StaticUpdateTestVerify, this);
