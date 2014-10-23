@@ -380,14 +380,9 @@ gboolean update_engine_service_get_p2p_update_permission(
     GError **error) {
   chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
 
-  // The default for not present setting is false.
-  if (!prefs->Exists(chromeos_update_engine::kPrefsP2PEnabled)) {
-    *enabled = false;
-    return TRUE;
-  }
-
-  bool p2p_pref = false;
-  if (!prefs->GetBoolean(chromeos_update_engine::kPrefsP2PEnabled, &p2p_pref)) {
+  bool p2p_pref = false;  // Default if no setting is present.
+  if (prefs->Exists(chromeos_update_engine::kPrefsP2PEnabled) &&
+      !prefs->GetBoolean(chromeos_update_engine::kPrefsP2PEnabled, &p2p_pref)) {
     log_and_set_response_error(error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
                                "Error getting the P2PEnabled setting.");
     return FALSE;
