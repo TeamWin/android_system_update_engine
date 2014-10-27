@@ -9,6 +9,7 @@
 
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/strings/string_utils.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/clock_interface.h"
@@ -21,6 +22,8 @@
 #include "update_engine/update_attempter.h"
 #include "update_engine/utils.h"
 
+using base::StringPrintf;
+using chromeos::string_utils::ToString;
 using std::set;
 using std::string;
 using chromeos_update_engine::AttemptUpdateFlags;
@@ -352,24 +355,17 @@ gboolean update_engine_service_set_p2p_update_permission(
     UpdateEngineService* self,
     gboolean enabled,
     GError **error) {
-  chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
   chromeos_update_engine::P2PManager* p2p_manager =
       self->system_state_->p2p_manager();
 
-  bool p2p_was_enabled = p2p_manager && p2p_manager->IsP2PEnabled();
-
-  if (!prefs->SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, enabled)) {
+  if (!(p2p_manager &&
+        p2p_manager->SetP2PEnabledPref(enabled))) {
     log_and_set_response_error(
         error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-        string("Error setting the update over cellular to ") +
-        (enabled ? "true." : "false."));
+        StringPrintf("Error setting the update via p2p permission to %s.",
+                     ToString(enabled).c_str()));
     return FALSE;
   }
-
-  // If P2P is being effectively disabled (IsP2PEnabled() reports the change)
-  // then we need to shutdown the service.
-  if (p2p_was_enabled && !p2p_manager->IsP2PEnabled())
-    p2p_manager->EnsureP2PNotRunning();
 
   return TRUE;
 }

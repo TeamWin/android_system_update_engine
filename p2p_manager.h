@@ -149,6 +149,12 @@ class P2PManager {
   // occurred.
   virtual int CountSharedFiles() = 0;
 
+  // Updates the preference setting for enabling P2P. If P2P is disabled as a
+  // result, attempts to ensure that the service is not running. Returns true if
+  // the setting was updated successfully (even through stopping the service may
+  // have failed).
+  virtual bool SetP2PEnabledPref(bool enabled) = 0;
+
   // Creates a suitable P2PManager instance and initializes the object
   // so it's ready for use. The |file_extension| parameter is used to
   // identify your application, use e.g. "cros_au".  If

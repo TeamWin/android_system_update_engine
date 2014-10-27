@@ -58,6 +58,9 @@ class MockP2PManager : public P2PManager {
     ON_CALL(*this, CountSharedFiles())
       .WillByDefault(testing::Invoke(&fake_,
             &FakeP2PManager::CountSharedFiles));
+    ON_CALL(*this, SetP2PEnabledPref(testing::_))
+      .WillByDefault(testing::Invoke(&fake_,
+            &FakeP2PManager::SetP2PEnabledPref));
   }
 
   virtual ~MockP2PManager() {}
@@ -79,6 +82,7 @@ class MockP2PManager : public P2PManager {
   MOCK_METHOD2(FileGetVisible, bool(const std::string&, bool*));
   MOCK_METHOD1(FileMakeVisible, bool(const std::string&));
   MOCK_METHOD0(CountSharedFiles, int());
+  MOCK_METHOD1(SetP2PEnabledPref, bool(bool));
 
   // Returns a reference to the underlying FakeP2PManager.
   FakeP2PManager& fake() {

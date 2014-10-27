@@ -118,6 +118,7 @@ class P2PManagerImpl : public P2PManager {
                               bool *out_result);
   virtual bool FileMakeVisible(const string& file_id);
   virtual int CountSharedFiles();
+  bool SetP2PEnabledPref(bool enabled) override;
 
  private:
   // Enumeration for specifying visibility.
@@ -160,6 +161,9 @@ class P2PManagerImpl : public P2PManager {
 
   // The string ".tmp".
   static const char kTmpExtension[];
+
+  // Whether P2P service may be running; initially, we assume it may be.
+  bool may_be_running_ = true;
 
   DISALLOW_COPY_AND_ASSIGN(P2PManagerImpl);
 };
@@ -236,6 +240,8 @@ bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
   GError *error = nullptr;
   gint exit_status = 0;
 
+  may_be_running_ = true;  // Unless successful, we must be conservative.
+
   vector<string> args = configuration_->GetInitctlArgs(should_be_running);
   unique_ptr<gchar*, GLibStrvFreeDeleter> argv(
       utils::StringVectorToGStrv(args));
@@ -260,29 +266,21 @@ bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
     return false;
   }
 
-  // If initctl(8) exits normally with exit status 0 ("success"), it
-  // meant that it did what we requested.
-  if (WEXITSTATUS(exit_status) == 0) {
-    return true;
-  }
-
-  // Otherwise, screenscape stderr from initctl(8). Ugh, yes, this is
-  // ugly but since the program lacks verbs/actions such as
-  //
-  //  ensure-started (or start-or-return-success-if-already-started)
-  //  ensure-stopped (or stop-or-return-success-if-not-running)
-  //
-  // this is what we have to do.
-  //
+  // If initctl(8) does not exit normally (exit status other than zero), ensure
+  // that the error message is not benign by scanning stderr; this is a
+  // necessity because initctl does not offer actions such as "start if not
+  // running" or "stop if running".
   // TODO(zeuthen,chromium:277051): Avoid doing this.
-  const gchar *expected_error_message = should_be_running ?
-    "initctl: Job is already running: p2p\n" :
-    "initctl: Unknown instance \n";
-  if (g_strcmp0(standard_error, expected_error_message) == 0) {
-    return true;
+  if (WEXITSTATUS(exit_status) != 0) {
+    const gchar *expected_error_message = should_be_running ?
+      "initctl: Job is already running: p2p\n" :
+      "initctl: Unknown instance \n";
+    if (g_strcmp0(standard_error, expected_error_message) != 0)
+      return false;
   }
 
-  return false;
+  may_be_running_ = should_be_running;  // Successful after all.
+  return true;
 }
 
 bool P2PManagerImpl::EnsureP2PRunning() {
@@ -761,6 +759,17 @@ int P2PManagerImpl::CountSharedFiles() {
   g_dir_close(dir);
 
   return num_files;
+}
+
+bool P2PManagerImpl::SetP2PEnabledPref(bool enabled) {
+  if (!prefs_->SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, enabled))
+    return false;
+
+  // If P2P should not be running, make sure it isn't.
+  if (may_be_running_ && !IsP2PEnabled())
+    EnsureP2PNotRunning();
+
+  return true;
 }
 
 P2PManager* P2PManager::Construct(Configuration *configuration,
