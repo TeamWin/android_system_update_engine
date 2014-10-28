@@ -194,11 +194,11 @@ class OmahaRequestParams {
 
   // True if we're trying to update to a more stable channel.
   // i.e. index(target_channel) > index(current_channel).
-  bool to_more_stable_channel() const;
+  virtual bool to_more_stable_channel() const;
 
   // Returns the app id corresponding to the current value of the
   // download channel.
-  std::string GetAppId() const;
+  virtual std::string GetAppId() const;
 
   // Suggested defaults
   static const char* const kAppId;
@@ -224,7 +224,8 @@ class OmahaRequestParams {
   // channel changes done by the user in order to avoid having to solve
   // numerous edge cases around ensuring the powerwash happens as intended in
   // all such cases.
-  bool SetTargetChannel(const std::string& channel, bool is_powerwash_allowed);
+  virtual bool SetTargetChannel(const std::string& channel,
+                                bool is_powerwash_allowed);
 
   // Updates the download channel for this particular attempt from the current
   // value of target channel.  This method takes a "snapshot" of the current
@@ -232,9 +233,9 @@ class OmahaRequestParams {
   // this attempt (i.e. initial request as well as download progress/error
   // event requests). The snapshot will be updated only when either this method
   // or Init is called again.
-  void UpdateDownloadChannel();
+  virtual void UpdateDownloadChannel();
 
-  bool is_powerwash_allowed() const { return is_powerwash_allowed_; }
+  virtual bool is_powerwash_allowed() const { return is_powerwash_allowed_; }
 
   // For unit-tests.
   void set_root(const std::string& root);

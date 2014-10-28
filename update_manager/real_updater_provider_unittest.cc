@@ -13,18 +13,18 @@
 
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_system_state.h"
+#include "update_engine/mock_update_attempter.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/prefs_mock.h"
-#include "update_engine/update_attempter_mock.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
 using chromeos_update_engine::FakeSystemState;
+using chromeos_update_engine::MockUpdateAttempter;
 using chromeos_update_engine::OmahaRequestParams;
 using chromeos_update_engine::PrefsMock;
-using chromeos_update_engine::UpdateAttempterMock;
 using std::string;
 using std::unique_ptr;
 using testing::Return;

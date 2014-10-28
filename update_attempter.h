@@ -102,7 +102,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // having to reboot once the previous update has reached
   // UPDATE_STATUS_UPDATED_NEED_REBOOT state. This is used only
   // for testing purposes.
-  bool ResetStatus();
+  virtual bool ResetStatus();
 
   // Returns the current status in the out params. Returns true on success.
   virtual bool GetStatus(int64_t* last_checked_time,
@@ -136,9 +136,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // This is the internal entry point for going through an
   // update. If the current status is idle invokes Update.
   // This is called by the DBus implementation.
-  void CheckForUpdate(const std::string& app_version,
-                      const std::string& omaha_url,
-                      bool is_interactive);
+  virtual void CheckForUpdate(const std::string& app_version,
+                              const std::string& omaha_url,
+                              bool is_interactive);
 
   // This is the internal entry point for going through a rollback. This will
   // attempt to run the postinstall on the non-active partition and set it as
@@ -186,7 +186,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // cause a real-time policy fetch from the policy server. It just reloads the
   // latest value that libchromeos has cached. libchromeos fetches the policies
   // from the server asynchronously at its own frequency.
-  void RefreshDevicePolicy();
+  virtual void RefreshDevicePolicy();
 
   // Returns the boottime (CLOCK_BOOTTIME) recorded at the last
   // successful update. Returns false if the device has not updated.

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UPDATE_ENGINE_UPDATE_ATTEMPTER_MOCK_H_
-#define UPDATE_ENGINE_UPDATE_ATTEMPTER_MOCK_H_
+#ifndef UPDATE_ENGINE_MOCK_UPDATE_ATTEMPTER_H_
+#define UPDATE_ENGINE_MOCK_UPDATE_ATTEMPTER_H_
 
 #include <string>
 
@@ -13,7 +13,7 @@
 
 namespace chromeos_update_engine {
 
-class UpdateAttempterMock : public UpdateAttempter {
+class MockUpdateAttempter : public UpdateAttempter {
  public:
   using UpdateAttempter::UpdateAttempter;
 
@@ -32,6 +32,14 @@ class UpdateAttempterMock : public UpdateAttempter {
 
   MOCK_METHOD1(GetBootTimeAtUpdate, bool(base::Time* out_boot_time));
 
+  MOCK_METHOD0(ResetStatus, bool(void));
+
+  MOCK_METHOD3(CheckForUpdate, void(const std::string& app_version,
+                                    const std::string& omaha_url,
+                                    bool is_interactive));
+
+  MOCK_METHOD0(RefreshDevicePolicy, void(void));
+
   MOCK_CONST_METHOD0(consecutive_failed_update_checks, unsigned int(void));
 
   MOCK_CONST_METHOD0(server_dictated_poll_interval, unsigned int(void));
@@ -39,4 +47,4 @@ class UpdateAttempterMock : public UpdateAttempter {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_UPDATE_ATTEMPTER_MOCK_H_
+#endif  // UPDATE_ENGINE_MOCK_UPDATE_ATTEMPTER_H_

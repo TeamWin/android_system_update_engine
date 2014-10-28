@@ -14,11 +14,12 @@
 #include "update_engine/fake_hardware.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_dbus_wrapper.h"
+#include "update_engine/mock_omaha_request_params.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
+#include "update_engine/mock_update_attempter.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/system_state.h"
-#include "update_engine/update_attempter_mock.h"
 #include "update_engine/update_manager/fake_update_manager.h"
 
 namespace chromeos_update_engine {
@@ -121,7 +122,7 @@ class FakeSystemState : public SystemState {
 
   inline void set_request_params(OmahaRequestParams* request_params) {
     request_params_ = (request_params ? request_params :
-                       &default_request_params_);
+                       &mock_request_params_);
   }
 
   inline void set_p2p_manager(P2PManager *p2p_manager) {
@@ -177,14 +178,14 @@ class FakeSystemState : public SystemState {
     return &mock_payload_state_;
   }
 
-  inline testing::NiceMock<UpdateAttempterMock>* mock_update_attempter() {
+  inline testing::NiceMock<MockUpdateAttempter>* mock_update_attempter() {
     CHECK(update_attempter_ == &mock_update_attempter_);
     return &mock_update_attempter_;
   }
 
-  inline OmahaRequestParams* default_request_params() {
-    CHECK(request_params_ == &default_request_params_);
-    return &default_request_params_;
+  inline testing::NiceMock<MockOmahaRequestParams>* mock_request_params() {
+    CHECK(request_params_ == &mock_request_params_);
+    return &mock_request_params_;
   }
 
   inline testing::NiceMock<MockP2PManager>* mock_p2p_manager() {
@@ -206,8 +207,8 @@ class FakeSystemState : public SystemState {
   testing::NiceMock<PrefsMock> mock_prefs_;
   testing::NiceMock<PrefsMock> mock_powerwash_safe_prefs_;
   testing::NiceMock<MockPayloadState> mock_payload_state_;
-  testing::NiceMock<UpdateAttempterMock> mock_update_attempter_;
-  OmahaRequestParams default_request_params_;
+  testing::NiceMock<MockUpdateAttempter> mock_update_attempter_;
+  testing::NiceMock<MockOmahaRequestParams> mock_request_params_;
   testing::NiceMock<MockP2PManager> mock_p2p_manager_;
   chromeos_update_manager::FakeUpdateManager fake_update_manager_;
 
