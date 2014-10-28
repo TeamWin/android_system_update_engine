@@ -24,6 +24,7 @@
 #include "update_engine/mock_prefs.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/test_utils.h"
+#include "update_engine/update_manager/fake_update_manager.h"
 #include "update_engine/utils.h"
 
 namespace chromeos_update_engine {
@@ -444,7 +445,8 @@ class P2PDownloadActionTest : public testing::Test {
  protected:
   P2PDownloadActionTest()
     : loop_(nullptr),
-      start_at_offset_(0) {}
+      start_at_offset_(0),
+      fake_um_(fake_system_state_.fake_clock()) {}
 
   virtual ~P2PDownloadActionTest() {}
 
@@ -471,7 +473,7 @@ class P2PDownloadActionTest : public testing::Test {
     // Setup p2p.
     FakeP2PManagerConfiguration *test_conf = new FakeP2PManagerConfiguration();
     p2p_manager_.reset(P2PManager::Construct(
-        test_conf, nullptr, nullptr, "cros_au", 3,
+        test_conf, nullptr, &fake_um_, "cros_au", 3,
         base::TimeDelta::FromDays(5)));
     fake_system_state_.set_p2p_manager(p2p_manager_.get());
   }
@@ -553,6 +555,8 @@ class P2PDownloadActionTest : public testing::Test {
 
   // The requested starting offset passed to SetupDownload().
   off_t start_at_offset_;
+
+  chromeos_update_manager::FakeUpdateManager fake_um_;
 };
 
 TEST_F(P2PDownloadActionTest, IsWrittenTo) {

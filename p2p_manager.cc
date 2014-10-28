@@ -29,17 +29,25 @@
 #include <utility>
 #include <vector>
 
+#include <base/bind.h>
 #include <base/files/file_path.h>
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/glib_utils.h"
+#include "update_engine/update_manager/policy.h"
+#include "update_engine/update_manager/update_manager.h"
 #include "update_engine/utils.h"
 
+using base::Bind;
+using base::Callback;
 using base::FilePath;
 using base::StringPrintf;
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_manager::EvalStatus;
+using chromeos_update_manager::Policy;
+using chromeos_update_manager::UpdateManager;
 using std::map;
 using std::pair;
 using std::string;
@@ -95,8 +103,8 @@ class ConfigurationImpl : public P2PManager::Configuration {
 class P2PManagerImpl : public P2PManager {
  public:
   P2PManagerImpl(Configuration *configuration,
-                 PrefsInterface *prefs,
                  ClockInterface *clock,
+                 UpdateManager* update_manager,
                  const string& file_extension,
                  const int num_files_to_keep,
                  const base::TimeDelta& max_file_age);
@@ -120,7 +128,6 @@ class P2PManagerImpl : public P2PManager {
                               bool *out_result);
   virtual bool FileMakeVisible(const string& file_id);
   virtual int CountSharedFiles();
-  bool SetP2PEnabledPref(bool enabled) override;
 
  private:
   // Enumeration for specifying visibility.
@@ -144,17 +151,23 @@ class P2PManagerImpl : public P2PManager {
   // path as well as |reason|. Returns false on failure.
   bool DeleteP2PFile(const FilePath& path, const std::string& reason);
 
+  // Schedules an async request for tracking changes in P2P enabled status.
+  void ScheduleEnabledStatusChange();
+
+  // An async callback used by the above.
+  void OnEnabledStatusChange(EvalStatus status, const bool& result);
+
   // The device policy being used or null if no policy is being used.
-  const policy::DevicePolicy* device_policy_;
+  const policy::DevicePolicy* device_policy_ = nullptr;
 
   // Configuration object.
   unique_ptr<Configuration> configuration_;
 
-  // Object for persisted state.
-  PrefsInterface* prefs_;
-
   // Object for telling the time.
   ClockInterface* clock_;
+
+  // A pointer to the global Update Manager.
+  UpdateManager* update_manager_;
 
   // A short string unique to the application (for example "cros_au")
   // used to mark a file as being owned by a particular application.
@@ -178,6 +191,11 @@ class P2PManagerImpl : public P2PManager {
   // Whether P2P service may be running; initially, we assume it may be.
   bool may_be_running_ = true;
 
+  // The current known enabled status of the P2P feature (initialized lazily),
+  // and whether an async status check has been scheduled.
+  bool is_enabled_;
+  bool waiting_for_enabled_status_change_ = false;
+
   DISALLOW_COPY_AND_ASSIGN(P2PManagerImpl);
 };
 
@@ -186,14 +204,13 @@ const char P2PManagerImpl::kP2PExtension[] = ".p2p";
 const char P2PManagerImpl::kTmpExtension[] = ".tmp";
 
 P2PManagerImpl::P2PManagerImpl(Configuration *configuration,
-                               PrefsInterface *prefs,
                                ClockInterface *clock,
+                               UpdateManager* update_manager,
                                const string& file_extension,
                                const int num_files_to_keep,
                                const base::TimeDelta& max_file_age)
-  : device_policy_(nullptr),
-    prefs_(prefs),
-    clock_(clock),
+  : clock_(clock),
+    update_manager_(update_manager),
     file_extension_(file_extension),
     num_files_to_keep_(num_files_to_keep),
     max_file_age_(max_file_age) {
@@ -207,49 +224,19 @@ void P2PManagerImpl::SetDevicePolicy(
 }
 
 bool P2PManagerImpl::IsP2PEnabled() {
-  bool p2p_enabled = false;
-
-  // The logic we want here is additive, e.g. p2p can be enabled by
-  // either the crosh flag OR by Enterprise Policy, e.g. the following
-  // truth table:
-  //
-  //  crosh_flag == FALSE  &&  enterprise_policy == unset  -> use_p2p == *
-  //  crosh_flag == TRUE   &&  enterprise_policy == unset  -> use_p2p == TRUE
-  //  crosh_flag == FALSE  &&  enterprise_policy == FALSE  -> use_p2p == FALSE
-  //  crosh_flag == FALSE  &&  enterprise_policy == TRUE   -> use_p2p == TRUE
-  //  crosh_flag == TRUE   &&  enterprise_policy == FALSE  -> use_p2p == TRUE
-  //  crosh_flag == TRUE   &&  enterprise_policy == TRUE   -> use_p2p == TRUE
-  //
-  // *: TRUE if Enterprise Enrolled, FALSE otherwise.
-
-  if (prefs_ != nullptr &&
-      prefs_->Exists(kPrefsP2PEnabled) &&
-      prefs_->GetBoolean(kPrefsP2PEnabled, &p2p_enabled) &&
-      p2p_enabled) {
-    LOG(INFO) << "The crosh flag indicates that p2p is enabled.";
-    return true;
-  }
-
-  if (device_policy_ != nullptr) {
-    if (device_policy_->GetAuP2PEnabled(&p2p_enabled)) {
-      if (p2p_enabled) {
-        LOG(INFO) << "Enterprise Policy indicates that p2p is enabled.";
-        return true;
-      }
-    } else {
-      // Enterprise-enrolled devices have an empty owner in their device policy.
-      string owner;
-      if (!device_policy_->GetOwner(&owner) || owner.empty()) {
-        LOG(INFO) << "No p2p_enabled setting in Enterprise Policy but device "
-                  << "is Enterprise Enrolled so allowing p2p.";
-        return true;
-      }
+  if (!waiting_for_enabled_status_change_) {
+    // Get and store an initial value.
+    if (update_manager_->PolicyRequest(&Policy::P2PEnabled, &is_enabled_) ==
+        EvalStatus::kFailed) {
+      is_enabled_ = false;
+      LOG(ERROR) << "Querying P2P enabled status failed, disabling.";
     }
+
+    // Track future changes (async).
+    ScheduleEnabledStatusChange();
   }
 
-  LOG(INFO) << "Neither Enterprise Policy nor crosh flag indicates that p2p "
-            << "is enabled.";
-  return false;
+  return is_enabled_;
 }
 
 bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
@@ -794,26 +781,53 @@ int P2PManagerImpl::CountSharedFiles() {
   return num_files;
 }
 
-bool P2PManagerImpl::SetP2PEnabledPref(bool enabled) {
-  if (!prefs_->SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, enabled))
-    return false;
+void P2PManagerImpl::ScheduleEnabledStatusChange() {
+  if (waiting_for_enabled_status_change_)
+    return;
 
-  // If P2P should not be running, make sure it isn't.
-  if (may_be_running_ && !IsP2PEnabled())
-    EnsureP2PNotRunning();
-
-  return true;
+  Callback<void(EvalStatus, const bool&)> callback = Bind(
+      &P2PManagerImpl::OnEnabledStatusChange, base::Unretained(this));
+  update_manager_->AsyncPolicyRequest(callback, &Policy::P2PEnabledChanged,
+                                      is_enabled_);
+  waiting_for_enabled_status_change_ = true;
 }
 
-P2PManager* P2PManager::Construct(Configuration *configuration,
-                                  PrefsInterface *prefs,
-                                  ClockInterface *clock,
-                                  const string& file_extension,
-                                  const int num_files_to_keep,
-                                  const base::TimeDelta& max_file_age) {
+void P2PManagerImpl::OnEnabledStatusChange(EvalStatus status,
+                                           const bool& result) {
+  waiting_for_enabled_status_change_ = false;
+
+  if (status == EvalStatus::kSucceeded) {
+    if (result == is_enabled_) {
+      LOG(WARNING) << "P2P enabled status did not change, which means that it "
+                      "is permanent; not scheduling further checks.";
+      waiting_for_enabled_status_change_ = true;
+      return;
+    }
+
+    is_enabled_ = result;
+
+    // If P2P is running but shouldn't be, make sure it isn't.
+    if (may_be_running_ && !is_enabled_ && !EnsureP2PNotRunning()) {
+      LOG(WARNING) << "Failed to stop P2P service.";
+    }
+  } else {
+    LOG(WARNING)
+        << "P2P enabled tracking failed (possibly timed out); retrying.";
+  }
+
+  ScheduleEnabledStatusChange();
+}
+
+P2PManager* P2PManager::Construct(
+    Configuration *configuration,
+    ClockInterface *clock,
+    UpdateManager* update_manager,
+    const string& file_extension,
+    const int num_files_to_keep,
+    const base::TimeDelta& max_file_age) {
   return new P2PManagerImpl(configuration,
-                            prefs,
                             clock,
+                            update_manager,
                             file_extension,
                             num_files_to_keep,
                             max_file_age);

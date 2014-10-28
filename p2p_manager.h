@@ -17,6 +17,7 @@
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/prefs_interface.h"
+#include "update_engine/update_manager/update_manager.h"
 
 namespace chromeos_update_engine {
 
@@ -53,9 +54,8 @@ class P2PManager {
   // null, then no device policy is used.
   virtual void SetDevicePolicy(const policy::DevicePolicy* device_policy) = 0;
 
-  // Returns true if - and only if - P2P should be used on this
-  // device. This value is derived from a variety of sources including
-  // enterprise policy.
+  // Returns true iff P2P is currently allowed for use on this device. This
+  // value is determined and maintained by the Update Manager.
   virtual bool IsP2PEnabled() = 0;
 
   // Ensures that the p2p subsystem is running (e.g. starts it if it's
@@ -150,12 +150,6 @@ class P2PManager {
   // occurred.
   virtual int CountSharedFiles() = 0;
 
-  // Updates the preference setting for enabling P2P. If P2P is disabled as a
-  // result, attempts to ensure that the service is not running. Returns true if
-  // the setting was updated successfully (even through stopping the service may
-  // have failed).
-  virtual bool SetP2PEnabledPref(bool enabled) = 0;
-
   // Creates a suitable P2PManager instance and initializes the object
   // so it's ready for use. The |file_extension| parameter is used to
   // identify your application, use e.g. "cros_au".  If
@@ -168,12 +162,13 @@ class P2PManager {
   // method) - pass zero to allow infinitely many files. The
   // |max_file_age| parameter specifies the maximum file age after
   // performing housekeeping (pass zero to allow files of any age).
-  static P2PManager* Construct(Configuration *configuration,
-                               PrefsInterface *prefs,
-                               ClockInterface *clock,
-                               const std::string& file_extension,
-                               const int num_files_to_keep,
-                               const base::TimeDelta& max_file_age);
+  static P2PManager* Construct(
+      Configuration *configuration,
+      ClockInterface *clock,
+      chromeos_update_manager::UpdateManager* update_manager,
+      const std::string& file_extension,
+      const int num_files_to_keep,
+      const base::TimeDelta& max_file_age);
 };
 
 }  // namespace chromeos_update_engine

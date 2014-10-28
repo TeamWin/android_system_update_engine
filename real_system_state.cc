@@ -41,10 +41,6 @@ bool RealSystemState::Initialize() {
     system_rebooted_ = true;
   }
 
-  p2p_manager_.reset(P2PManager::Construct(
-      nullptr, &prefs_, &clock_, "cros_au", kMaxP2PFilesToKeep,
-      base::TimeDelta::FromDays(kMaxP2PFileAgeDays)));
-
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(
@@ -57,6 +53,11 @@ bool RealSystemState::Initialize() {
       new chromeos_update_manager::UpdateManager(
           &clock_, base::TimeDelta::FromSeconds(5),
           base::TimeDelta::FromHours(12), um_state));
+
+  // The P2P Manager depends on the Update Manager for its initialization.
+  p2p_manager_.reset(P2PManager::Construct(
+          nullptr, &clock_, update_manager_.get(), "cros_au",
+          kMaxP2PFilesToKeep, base::TimeDelta::FromDays(kMaxP2PFileAgeDays)));
 
   if (!payload_state_.Initialize(this)) {
     LOG(ERROR) << "Failed to initialize the payload state object.";

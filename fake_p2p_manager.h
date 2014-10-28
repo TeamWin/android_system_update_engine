@@ -19,8 +19,7 @@ class FakeP2PManager : public P2PManager {
     ensure_p2p_running_result_(false),
     ensure_p2p_not_running_result_(false),
     perform_housekeeping_result_(false),
-    count_shared_files_result_(0),
-    set_p2p_enabled_pref_result_(true) {}
+    count_shared_files_result_(0) {}
 
   virtual ~FakeP2PManager() {}
 
@@ -80,10 +79,6 @@ class FakeP2PManager : public P2PManager {
     return count_shared_files_result_;
   }
 
-  bool SetP2PEnabledPref(bool /* enabled */) override {
-    return set_p2p_enabled_pref_result_;
-  }
-
   // Methods for controlling what the fake returns and how it acts.
   void SetP2PEnabled(bool is_p2p_enabled) {
     is_p2p_enabled_ = is_p2p_enabled;
@@ -105,10 +100,6 @@ class FakeP2PManager : public P2PManager {
     count_shared_files_result_ = count_shared_files_result;
   }
 
-  void SetSetP2PEnabledPrefResult(bool set_p2p_enabled_pref_result) {
-    set_p2p_enabled_pref_result_ = set_p2p_enabled_pref_result;
-  }
-
   void SetLookupUrlForFileResult(const std::string& url) {
     lookup_url_for_file_result_ = url;
   }
@@ -119,7 +110,6 @@ class FakeP2PManager : public P2PManager {
   bool ensure_p2p_not_running_result_;
   bool perform_housekeeping_result_;
   int count_shared_files_result_;
-  bool set_p2p_enabled_pref_result_;
   std::string lookup_url_for_file_result_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeP2PManager);

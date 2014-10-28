@@ -355,11 +355,9 @@ gboolean update_engine_service_set_p2p_update_permission(
     UpdateEngineService* self,
     gboolean enabled,
     GError **error) {
-  chromeos_update_engine::P2PManager* p2p_manager =
-      self->system_state_->p2p_manager();
+  chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
 
-  if (!(p2p_manager &&
-        p2p_manager->SetP2PEnabledPref(enabled))) {
+  if (!prefs->SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, enabled)) {
     log_and_set_response_error(
         error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
         StringPrintf("Error setting the update via p2p permission to %s.",
