@@ -9,6 +9,7 @@
 
 #include <gmock/gmock.h>
 
+#include "update_engine/update_manager/default_policy.h"
 #include "update_engine/update_manager/policy.h"
 
 namespace chromeos_update_manager {
@@ -16,7 +17,31 @@ namespace chromeos_update_manager {
 // A mocked implementation of Policy.
 class MockPolicy : public Policy {
  public:
-  MockPolicy() {}
+  explicit MockPolicy(chromeos_update_engine::ClockInterface* clock)
+      : default_policy_(clock) {
+    // We defer to the corresponding DefaultPolicy methods, by default.
+    ON_CALL(*this, UpdateCheckAllowed(testing::_, testing::_, testing::_,
+                                      testing::_))
+        .WillByDefault(testing::Invoke(
+                &default_policy_, &DefaultPolicy::UpdateCheckAllowed));
+    ON_CALL(*this, UpdateCanStart(testing::_, testing::_, testing::_,
+                                  testing::_, testing::_))
+        .WillByDefault(testing::Invoke(
+                &default_policy_, &DefaultPolicy::UpdateCanStart));
+    ON_CALL(*this, UpdateDownloadAllowed(testing::_, testing::_, testing::_,
+                                         testing::_))
+        .WillByDefault(testing::Invoke(
+                &default_policy_, &DefaultPolicy::UpdateDownloadAllowed));
+    ON_CALL(*this, P2PEnabled(testing::_, testing::_, testing::_, testing::_))
+        .WillByDefault(testing::Invoke(
+                &default_policy_, &DefaultPolicy::P2PEnabled));
+    ON_CALL(*this, P2PEnabledChanged(testing::_, testing::_, testing::_,
+                                     testing::_, testing::_))
+        .WillByDefault(testing::Invoke(
+                &default_policy_, &DefaultPolicy::P2PEnabledChanged));
+  }
+
+  MockPolicy() : MockPolicy(nullptr) {}
   virtual ~MockPolicy() {}
 
   // Policy overrides.
@@ -40,7 +65,13 @@ class MockPolicy : public Policy {
                      EvalStatus(EvaluationContext*, State*, std::string*,
                                 bool*, bool));
 
+ protected:
+  // Policy override.
+  std::string PolicyName() const override { return "MockPolicy"; }
+
  private:
+  DefaultPolicy default_policy_;
+
   DISALLOW_COPY_AND_ASSIGN(MockPolicy);
 };
 
