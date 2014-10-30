@@ -35,9 +35,6 @@ using std::string;
 using std::tuple;
 using std::unique_ptr;
 using std::vector;
-using testing::Return;
-using testing::StrictMock;
-using testing::_;
 
 namespace {
 
@@ -89,7 +86,7 @@ class FailingPolicy : public DefaultPolicy {
   }
 
  protected:
-  std::string PolicyName() const override { return "FailingPolicy"; }
+  string PolicyName() const override { return "FailingPolicy"; }
 
  private:
   int* num_called_p_;
@@ -104,7 +101,7 @@ class LazyPolicy : public DefaultPolicy {
   }
 
  protected:
-  std::string PolicyName() const override { return "LazyPolicy"; }
+  string PolicyName() const override { return "LazyPolicy"; }
 };
 
 // A policy that sleeps for a predetermined amount of time, then checks for a
@@ -137,7 +134,7 @@ class DelayPolicy : public DefaultPolicy {
   }
 
  protected:
-  std::string PolicyName() const override { return "DelayPolicy"; }
+  string PolicyName() const override { return "DelayPolicy"; }
 
  private:
   int sleep_secs_;

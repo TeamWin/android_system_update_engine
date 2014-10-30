@@ -17,11 +17,11 @@
 
 using std::set;
 using std::string;
-using testing::_;
 using testing::AnyNumber;
 using testing::Return;
 using testing::SetArgumentPointee;
 using testing::StrEq;
+using testing::_;
 
 namespace chromeos_update_engine {
 

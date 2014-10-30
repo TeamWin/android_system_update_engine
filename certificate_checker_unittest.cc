@@ -16,11 +16,11 @@
 #include "update_engine/fake_system_state.h"
 #include "update_engine/prefs_mock.h"
 
-using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgumentPointee;
 using ::testing::SetArrayArgument;
+using ::testing::_;
 using std::string;
 
 namespace chromeos_update_engine {

@@ -21,7 +21,6 @@ using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::FakeClock;
-using std::make_tuple;
 using std::set;
 using std::string;
 using std::tuple;
@@ -1019,7 +1018,8 @@ TEST_F(UmChromeOSPolicyTest,
   update_state.p2p_num_attempts = 1;
   update_state.p2p_first_attempted =
       fake_clock_.GetWallclockTime() -
-      TimeDelta::FromSeconds(ChromeOSPolicy::kMaxP2PAttemptsPeriodInSeconds + 1);
+      TimeDelta::FromSeconds(
+          ChromeOSPolicy::kMaxP2PAttemptsPeriodInSeconds + 1);
   UpdateDownloadParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded, &Policy::UpdateCanStart, &result,
                      update_state);

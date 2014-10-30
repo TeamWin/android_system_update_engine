@@ -24,10 +24,10 @@
 
 using base::StringPrintf;
 using chromeos::string_utils::ToString;
-using std::set;
-using std::string;
 using chromeos_update_engine::AttemptUpdateFlags;
 using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
+using std::set;
+using std::string;
 
 #define UPDATE_ENGINE_SERVICE_ERROR update_engine_service_error_quark ()
 #define UPDATE_ENGINE_SERVICE_TYPE_ERROR \
@@ -218,7 +218,7 @@ gboolean update_engine_service_get_kernel_devices(UpdateEngineService* self,
                                                   gchar** out_kernel_devices,
                                                   GError **error) {
   auto devices = self->system_state_->update_attempter()->GetKernelDevices();
-  std::string info;
+  string info;
   for (const auto& device : devices) {
     base::StringAppendF(&info, "%d:%s\n",
                         device.second ? 1 : 0, device.first.c_str());
@@ -501,7 +501,7 @@ gboolean update_engine_service_get_prev_version(
     UpdateEngineService* self,
     gchar** prev_version,
     GError **error) {
-  std::string ver = self->system_state_->update_attempter()->GetPrevVersion();
+  string ver = self->system_state_->update_attempter()->GetPrevVersion();
   *prev_version = g_strdup(ver.c_str());
   return TRUE;
 }

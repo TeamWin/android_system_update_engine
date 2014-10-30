@@ -26,7 +26,7 @@ class CurrDateVariable : public Variable<Time> {
       : Variable<Time>(name, TimeDelta::FromHours(1)), clock_(clock) {}
 
  protected:
-  virtual const Time* GetValue(base::TimeDelta /* timeout */,
+  virtual const Time* GetValue(TimeDelta /* timeout */,
                                string* /* errmsg */) {
     Time::Exploded now_exp;
     clock_->GetWallclockTime().LocalExplode(&now_exp);
@@ -49,7 +49,7 @@ class CurrHourVariable : public Variable<int> {
       : Variable<int>(name, TimeDelta::FromMinutes(5)), clock_(clock) {}
 
  protected:
-  virtual const int* GetValue(base::TimeDelta /* timeout */,
+  virtual const int* GetValue(TimeDelta /* timeout */,
                               string* /* errmsg */) {
     Time::Exploded exploded;
     clock_->GetWallclockTime().LocalExplode(&exploded);

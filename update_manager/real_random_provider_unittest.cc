@@ -9,7 +9,6 @@
 #include "update_engine/update_manager/real_random_provider.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
-using base::TimeDelta;
 using std::unique_ptr;
 
 namespace chromeos_update_manager {

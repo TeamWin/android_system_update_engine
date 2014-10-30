@@ -34,11 +34,6 @@ using std::string;
 using std::unique_ptr;
 using std::vector;
 
-using base::TimeDelta;
-using testing::DoAll;
-using testing::Return;
-using testing::SetArgumentPointee;
-using testing::_;
 
 namespace {
 
@@ -941,7 +936,7 @@ void MultiTest(HttpFetcher* fetcher_in,
     multi_fetcher->ClearRanges();
     for (vector<pair<off_t, off_t>>::const_iterator it = ranges.begin(),
              e = ranges.end(); it != e; ++it) {
-      std::string tmp_str = base::StringPrintf("%jd+", it->first);
+      string tmp_str = base::StringPrintf("%jd+", it->first);
       if (it->second > 0) {
         base::StringAppendF(&tmp_str, "%jd", it->second);
         multi_fetcher->AddRange(it->first, it->second);

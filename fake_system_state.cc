@@ -4,10 +4,6 @@
 
 #include "update_engine/fake_system_state.h"
 
-#include "update_engine/update_manager/fake_state.h"
-
-using chromeos_update_manager::FakeState;
-
 namespace chromeos_update_engine {
 
 // Mock the SystemStateInterface so that we could lie that

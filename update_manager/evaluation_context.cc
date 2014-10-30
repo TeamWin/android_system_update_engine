@@ -28,8 +28,8 @@ namespace {
 // Returns whether |curr_time| surpassed |ref_time|; if not, also checks whether
 // |ref_time| is sooner than the current value of |*reeval_time|, in which case
 // the latter is updated to the former.
-bool IsTimeGreaterThanHelper(base::Time ref_time, base::Time curr_time,
-                             base::Time* reeval_time) {
+bool IsTimeGreaterThanHelper(Time ref_time, Time curr_time,
+                             Time* reeval_time) {
   if (curr_time > ref_time)
     return true;
   // Remember the nearest reference we've checked against in this evaluation.
@@ -40,7 +40,7 @@ bool IsTimeGreaterThanHelper(base::Time ref_time, base::Time curr_time,
 
 // If |expires| never happens (maximal value), returns the maximal interval;
 // otherwise, returns the difference between |expires| and |curr|.
-TimeDelta GetTimeout(base::Time curr, base::Time expires) {
+TimeDelta GetTimeout(Time curr, Time expires) {
   if (expires.is_max())
     return TimeDelta::Max();
   return expires - curr;
@@ -114,12 +114,12 @@ void EvaluationContext::OnValueChangedOrTimeout() {
     callback->Run();
 }
 
-bool EvaluationContext::IsWallclockTimeGreaterThan(base::Time timestamp) {
+bool EvaluationContext::IsWallclockTimeGreaterThan(Time timestamp) {
   return IsTimeGreaterThanHelper(timestamp, evaluation_start_wallclock_,
                                  &reevaluation_time_wallclock_);
 }
 
-bool EvaluationContext::IsMonotonicTimeGreaterThan(base::Time timestamp) {
+bool EvaluationContext::IsMonotonicTimeGreaterThan(Time timestamp) {
   return IsTimeGreaterThanHelper(timestamp, evaluation_start_monotonic_,
                                  &reevaluation_time_monotonic_);
 }

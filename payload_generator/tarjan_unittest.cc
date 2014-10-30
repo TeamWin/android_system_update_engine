@@ -14,8 +14,6 @@
 #include "update_engine/utils.h"
 
 using std::make_pair;
-using std::pair;
-using std::set;
 using std::string;
 using std::vector;
 

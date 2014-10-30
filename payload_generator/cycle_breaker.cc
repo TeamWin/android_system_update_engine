@@ -94,7 +94,7 @@ static const size_t kMaxEdgesToConsider = 2;
 void CycleBreaker::HandleCircuit() {
   stack_.push_back(current_vertex_);
   CHECK_GE(stack_.size(),
-           static_cast<std::vector<Vertex::Index>::size_type>(2));
+           static_cast<vector<Vertex::Index>::size_type>(2));
   Edge min_edge = make_pair(stack_[0], stack_[1]);
   uint64_t min_edge_weight = kuint64max;
   size_t edges_considered = 0;
@@ -131,7 +131,7 @@ void CycleBreaker::Unblock(Vertex::Index u) {
 }
 
 bool CycleBreaker::StackContainsCutEdge() const {
-  for (std::vector<Vertex::Index>::const_iterator it = ++stack_.begin(),
+  for (vector<Vertex::Index>::const_iterator it = ++stack_.begin(),
            e = stack_.end(); it != e; ++it) {
     Edge edge = make_pair(*(it - 1), *it);
     if (utils::SetContainsKey(cut_edges_, edge)) {

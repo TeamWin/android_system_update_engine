@@ -22,7 +22,6 @@ using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
 using chromeos_update_engine::FakeSystemState;
-using chromeos_update_engine::MockUpdateAttempter;
 using chromeos_update_engine::OmahaRequestParams;
 using chromeos_update_engine::PrefsMock;
 using std::string;

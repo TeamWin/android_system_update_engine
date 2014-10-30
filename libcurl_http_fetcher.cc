@@ -36,7 +36,7 @@ LibcurlHttpFetcher::~LibcurlHttpFetcher() {
   CleanUp();
 }
 
-bool LibcurlHttpFetcher::GetProxyType(const std::string& proxy,
+bool LibcurlHttpFetcher::GetProxyType(const string& proxy,
                                       curl_proxytype* out_type) {
   if (utils::StringHasPrefix(proxy, "socks5://") ||
       utils::StringHasPrefix(proxy, "socks://")) {
@@ -60,7 +60,7 @@ bool LibcurlHttpFetcher::GetProxyType(const std::string& proxy,
   return false;
 }
 
-void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
+void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
   LOG(INFO) << "Starting/Resuming transfer";
   CHECK(!transfer_in_progress_);
   url_ = url;
@@ -131,10 +131,10 @@ void LibcurlHttpFetcher::ResumeTransfer(const std::string& url) {
     }
 
     // Create a string representation of the desired range.
-    std::string range_str = (end_offset ?
-                             base::StringPrintf("%jd-%zu", resume_offset_,
-                                                end_offset) :
-                             base::StringPrintf("%jd-", resume_offset_));
+    string range_str = (end_offset ?
+                        base::StringPrintf("%jd-%zu", resume_offset_,
+                                           end_offset) :
+                        base::StringPrintf("%jd-", resume_offset_));
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_RANGE, range_str.c_str()),
              CURLE_OK);
   }
@@ -219,7 +219,7 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttps() {
 
 
 // Begins the transfer, which must not have already been started.
-void LibcurlHttpFetcher::BeginTransfer(const std::string& url) {
+void LibcurlHttpFetcher::BeginTransfer(const string& url) {
   CHECK(!transfer_in_progress_);
   url_ = url;
   auto closure = base::Bind(&LibcurlHttpFetcher::ProxiesResolved,

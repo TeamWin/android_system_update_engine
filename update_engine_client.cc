@@ -177,7 +177,7 @@ bool Rollback(bool rollback) {
   return true;
 }
 
-std::string GetRollbackPartition() {
+string GetRollbackPartition() {
   DBusGProxy* proxy;
   GError* error = nullptr;
 
@@ -189,12 +189,12 @@ std::string GetRollbackPartition() {
                                                             &error);
   CHECK_EQ(rc, TRUE) << "Error while querying rollback partition availabilty: "
                      << GetAndFreeGError(&error);
-  std::string partition = rollback_partition;
+  string partition = rollback_partition;
   g_free(rollback_partition);
   return partition;
 }
 
-std::string GetKernelDevices() {
+string GetKernelDevices() {
   DBusGProxy* proxy;
   GError* error = nullptr;
 
@@ -206,7 +206,7 @@ std::string GetKernelDevices() {
                                                         &error);
   CHECK_EQ(rc, TRUE) << "Error while getting a list of kernel devices: "
     << GetAndFreeGError(&error);
-  std::string devices = kernel_devices;
+  string devices = kernel_devices;
   g_free(kernel_devices);
   return devices;
 }
@@ -588,7 +588,7 @@ int main(int argc, char** argv) {
 
   // Show the rollback availability.
   if (FLAGS_can_rollback) {
-    std::string rollback_partition = GetRollbackPartition();
+    string rollback_partition = GetRollbackPartition();
     bool can_rollback = true;
     if (rollback_partition.empty()) {
       rollback_partition = "UNAVAILABLE";

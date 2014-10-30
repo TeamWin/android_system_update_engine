@@ -10,12 +10,12 @@
 #include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/mock_dbus_wrapper.h"
 
-using std::deque;
-using std::string;
-using ::testing::_;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
+using ::testing::_;
+using std::deque;
+using std::string;
 
 namespace chromeos_update_engine {
 
@@ -77,14 +77,14 @@ TEST(ChromeBrowserProxyResolverTest, ParseTest) {
 }
 
 namespace {
-void DBusWrapperTestResolved(const std::deque<std::string>& proxies,
+void DBusWrapperTestResolved(const deque<string>& proxies,
                              void* data) {
   EXPECT_EQ(2, proxies.size());
   EXPECT_EQ("socks5://192.168.52.83:5555", proxies[0]);
   EXPECT_EQ(kNoProxy, proxies[1]);
   g_main_loop_quit(reinterpret_cast<GMainLoop*>(data));
 }
-void DBusWrapperTestResolvedNoReply(const std::deque<std::string>& proxies,
+void DBusWrapperTestResolvedNoReply(const deque<string>& proxies,
                                     void* data) {
   EXPECT_EQ(1, proxies.size());
   EXPECT_EQ(kNoProxy, proxies[0]);

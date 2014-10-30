@@ -65,12 +65,12 @@ bool Hardware::IsBootDeviceRemovable() const {
   return utils::IsRemovableDevice(utils::GetDiskName(BootDevice()));
 }
 
-bool Hardware::IsKernelBootable(const std::string& kernel_device,
+bool Hardware::IsKernelBootable(const string& kernel_device,
                                 bool* bootable) const {
   CgptAddParams params;
   memset(&params, '\0', sizeof(params));
 
-  std::string disk_name;
+  string disk_name;
   int partition_num = 0;
 
   if (!utils::SplitPartitionName(kernel_device, &disk_name, &partition_num))
@@ -87,18 +87,18 @@ bool Hardware::IsKernelBootable(const std::string& kernel_device,
   return true;
 }
 
-std::vector<std::string> Hardware::GetKernelDevices() const {
+vector<string> Hardware::GetKernelDevices() const {
   LOG(INFO) << "GetAllKernelDevices";
 
-  std::string disk_name = utils::GetDiskName(Hardware::BootKernelDevice());
+  string disk_name = utils::GetDiskName(Hardware::BootKernelDevice());
   if (disk_name.empty()) {
     LOG(ERROR) << "Failed to get the current kernel boot disk name";
-    return std::vector<std::string>();
+    return vector<string>();
   }
 
-  std::vector<std::string> devices;
+  vector<string> devices;
   for (int partition_num : {2, 4}) {  // for now, only #2, #4 for slot A & B
-    std::string device = utils::MakePartitionName(disk_name, partition_num);
+    string device = utils::MakePartitionName(disk_name, partition_num);
     if (!device.empty()) {
       devices.push_back(std::move(device));
     } else {
@@ -111,7 +111,7 @@ std::vector<std::string> Hardware::GetKernelDevices() const {
 }
 
 
-bool Hardware::MarkKernelUnbootable(const std::string& kernel_device) {
+bool Hardware::MarkKernelUnbootable(const string& kernel_device) {
   LOG(INFO) << "MarkPartitionUnbootable: " << kernel_device;
 
   if (kernel_device == BootKernelDevice()) {
@@ -119,7 +119,7 @@ bool Hardware::MarkKernelUnbootable(const std::string& kernel_device) {
     return false;
   }
 
-  std::string disk_name;
+  string disk_name;
   int partition_num = 0;
 
   if (!utils::SplitPartitionName(kernel_device, &disk_name, &partition_num))

@@ -30,7 +30,7 @@ bool Prefs::GetString(const string& key, string* value) {
   return true;
 }
 
-bool Prefs::SetString(const std::string& key, const std::string& value) {
+bool Prefs::SetString(const string& key, const string& value) {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
   TEST_AND_RETURN_FALSE(base::CreateDirectory(filename.DirName()));
@@ -52,7 +52,7 @@ bool Prefs::SetInt64(const string& key, const int64_t value) {
   return SetString(key, base::Int64ToString(value));
 }
 
-bool Prefs::GetBoolean(const std::string& key, bool* value) {
+bool Prefs::GetBoolean(const string& key, bool* value) {
   string str_value;
   if (!GetString(key, &str_value))
     return false;
@@ -68,7 +68,7 @@ bool Prefs::GetBoolean(const std::string& key, bool* value) {
   return false;
 }
 
-bool Prefs::SetBoolean(const std::string& key, const bool value) {
+bool Prefs::SetBoolean(const string& key, const bool value) {
   return SetString(key, value ? "true" : "false");
 }
 
@@ -84,7 +84,7 @@ bool Prefs::Delete(const string& key) {
   return base::DeleteFile(filename, false);
 }
 
-bool Prefs::GetFileNameForKey(const std::string& key,
+bool Prefs::GetFileNameForKey(const string& key,
                               base::FilePath* filename) {
   // Allows only non-empty keys containing [A-Za-z0-9_-].
   TEST_AND_RETURN_FALSE(!key.empty());

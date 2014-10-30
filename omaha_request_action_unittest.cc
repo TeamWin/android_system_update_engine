@@ -30,15 +30,15 @@ using base::Time;
 using base::TimeDelta;
 using std::string;
 using std::vector;
-using testing::_;
 using testing::AllOf;
+using testing::AnyNumber;
 using testing::DoAll;
 using testing::Ge;
 using testing::Le;
 using testing::NiceMock;
 using testing::Return;
 using testing::SetArgumentPointee;
-using testing::AnyNumber;
+using testing::_;
 
 namespace chromeos_update_engine {
 
@@ -80,7 +80,7 @@ class OmahaRequestActionTest : public ::testing::Test {
   void PingTest(bool ping_only);
 
   // InstallDate test helper function.
-  bool InstallDateParseHelper(const std::string &elapsed_days,
+  bool InstallDateParseHelper(const string &elapsed_days,
                               OmahaResponse *response);
 
   // P2P test helper function.
@@ -273,10 +273,10 @@ class OutputObjectCollectorAction : public Action<OutputObjectCollectorAction> {
     CHECK(false);
   }
   // Debugging/logging
-  static std::string StaticType() {
+  static string StaticType() {
     return "OutputObjectCollectorAction";
   }
-  std::string Type() const { return StaticType(); }
+  string Type() const { return StaticType(); }
   bool has_input_object_;
   OmahaResponse omaha_response_;
 };
@@ -2057,9 +2057,8 @@ TEST_F(OmahaRequestActionTest, P2PWithPeerBothDisabledByOmaha) {
           "");                    // expected_p2p_url
 }
 
-bool OmahaRequestActionTest::InstallDateParseHelper(
-    const std::string &elapsed_days,
-    OmahaResponse *response) {
+bool OmahaRequestActionTest::InstallDateParseHelper(const string &elapsed_days,
+                                                    OmahaResponse *response) {
   return
       TestUpdateCheck(nullptr,  // request_params
                       GetUpdateResponse2(OmahaRequestParams::kAppId,

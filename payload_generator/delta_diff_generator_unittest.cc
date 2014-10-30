@@ -32,7 +32,6 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
-using std::make_pair;
 using std::set;
 using std::string;
 using std::stringstream;
@@ -42,8 +41,8 @@ namespace chromeos_update_engine {
 
 typedef DeltaDiffGenerator::Block Block;
 
-typedef bool (*GetExtentsWithChunk)(const std::string&, off_t, off_t,
-                                    std::vector<Extent>*);
+typedef bool (*GetExtentsWithChunk)(const string&, off_t, off_t,
+                                    vector<Extent>*);
 extern GetExtentsWithChunk get_extents_with_chunk_func;
 
 namespace {
@@ -653,7 +652,7 @@ EdgeProperties EdgeWithWriteDep(const vector<Extent>& extents) {
 
 template<typename T>
 void DumpVect(const vector<T>& vect) {
-  std::stringstream ss(stringstream::out);
+  stringstream ss(stringstream::out);
   for (typename vector<T>::const_iterator it = vect.begin(), e = vect.end();
        it != e; ++it) {
     ss << *it << ", ";

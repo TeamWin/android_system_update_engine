@@ -26,7 +26,6 @@ using std::pair;
 using std::unique_ptr;
 using testing::Eq;
 using testing::Mock;
-using testing::NiceMock;
 using testing::Return;
 using testing::SaveArg;
 using testing::SetArgPointee;

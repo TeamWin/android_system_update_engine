@@ -51,7 +51,7 @@ void RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule() {
 template<typename T>
 void RealDevicePolicyProvider::UpdateVariable(
     AsyncCopyVariable<T>* var,
-    bool (policy::DevicePolicy::*getter_method)(T*) const) {
+    bool (DevicePolicy::*getter_method)(T*) const) {
   T new_value;
   if (policy_provider_->device_policy_is_loaded() &&
       (policy_provider_->GetDevicePolicy().*getter_method)(&new_value)) {
@@ -95,7 +95,7 @@ bool RealDevicePolicyProvider::ConvertAllowedConnectionTypesForUpdate(
 }
 
 bool RealDevicePolicyProvider::ConvertScatterFactor(
-    base::TimeDelta* scatter_factor) const {
+    TimeDelta* scatter_factor) const {
   int64_t scatter_factor_in_seconds;
   if (!policy_provider_->GetDevicePolicy().GetScatterFactorInSeconds(
       &scatter_factor_in_seconds)) {
@@ -106,7 +106,7 @@ bool RealDevicePolicyProvider::ConvertScatterFactor(
                  << scatter_factor_in_seconds;
     return false;
   }
-  *scatter_factor = base::TimeDelta::FromSeconds(scatter_factor_in_seconds);
+  *scatter_factor = TimeDelta::FromSeconds(scatter_factor_in_seconds);
   return true;
 }
 

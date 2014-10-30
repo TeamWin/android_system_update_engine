@@ -32,10 +32,10 @@ namespace {
 const int kBlockSize = 4096;
 }
 
-bool ExtentsForFileChunkFibmap(const std::string& path,
+bool ExtentsForFileChunkFibmap(const string& path,
                                off_t chunk_offset,
                                off_t chunk_size,
-                               std::vector<Extent>* out) {
+                               vector<Extent>* out) {
   CHECK(out);
   CHECK_EQ(0, chunk_offset % kBlockSize);
   CHECK(chunk_size == -1 || chunk_size >= 0);
@@ -76,11 +76,11 @@ bool ExtentsForFileChunkFibmap(const std::string& path,
   return true;
 }
 
-bool ExtentsForFileFibmap(const std::string& path, std::vector<Extent>* out) {
+bool ExtentsForFileFibmap(const string& path, vector<Extent>* out) {
   return ExtentsForFileChunkFibmap(path, 0, -1, out);
 }
 
-bool GetFilesystemBlockSize(const std::string& path, uint32_t* out_blocksize) {
+bool GetFilesystemBlockSize(const string& path, uint32_t* out_blocksize) {
   int fd = open(path.c_str(), O_RDONLY, 0);
   TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);
   ScopedFdCloser fd_closer(&fd);

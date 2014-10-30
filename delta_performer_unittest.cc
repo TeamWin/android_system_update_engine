@@ -31,7 +31,6 @@
 
 namespace chromeos_update_engine {
 
-using std::min;
 using std::string;
 using std::vector;
 using testing::Return;
@@ -695,7 +694,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   // Write at some number of bytes per operation. Arbitrarily chose 5.
   const size_t kBytesPerWrite = 5;
   for (size_t i = 0; i < state->delta.size(); i += kBytesPerWrite) {
-    size_t count = min(state->delta.size() - i, kBytesPerWrite);
+    size_t count = std::min(state->delta.size() - i, kBytesPerWrite);
     bool write_succeeded = ((*performer)->Write(&state->delta[i],
                                                 count,
                                                 &actual_error));

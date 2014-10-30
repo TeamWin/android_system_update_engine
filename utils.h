@@ -41,11 +41,11 @@ base::Time TimeFromStructTimespec(struct timespec *ts);
 // Converts a vector of strings to a NUL-terminated array of
 // strings. The resulting array should be freed with g_strfreev()
 // when are you done with it.
-gchar** StringVectorToGStrv(const std::vector<std::string> &vector);
+gchar** StringVectorToGStrv(const std::vector<std::string> &vec_str);
 
-// Formats |vector| as a string of the form ["<elem1>", "<elem2>"].
+// Formats |vec_str| as a string of the form ["<elem1>", "<elem2>"].
 // Does no escaping, only use this for presentation in error messages.
-std::string StringVectorToString(const std::vector<std::string> &vector);
+std::string StringVectorToString(const std::vector<std::string> &vec_str);
 
 // Calculates the p2p file id from payload hash and size
 std::string CalculateP2PFileId(const std::string& payload_hash,

@@ -8,7 +8,6 @@
 #include <bzlib.h>
 #include "update_engine/utils.h"
 
-using std::max;
 using std::string;
 using std::vector;
 
@@ -78,13 +77,13 @@ bool BzipData(const char* const in,
 
 }  // namespace
 
-bool BzipDecompress(const std::vector<char>& in, std::vector<char>* out) {
+bool BzipDecompress(const vector<char>& in, vector<char>* out) {
   return BzipData<BzipBuffToBuffDecompress>(&in[0],
                                             static_cast<int32_t>(in.size()),
                                             out);
 }
 
-bool BzipCompress(const std::vector<char>& in, std::vector<char>* out) {
+bool BzipCompress(const vector<char>& in, vector<char>* out) {
   return BzipData<BzipBuffToBuffCompress>(&in[0], in.size(), out);
 }
 
@@ -92,8 +91,8 @@ namespace {
 template<bool F(const char* const in,
                 const int32_t in_size,
                 vector<char>* const out)>
-bool BzipString(const std::string& str,
-                std::vector<char>* out) {
+bool BzipString(const string& str,
+                vector<char>* out) {
   TEST_AND_RETURN_FALSE(out);
   vector<char> temp;
   TEST_AND_RETURN_FALSE(F(str.data(),
@@ -105,13 +104,13 @@ bool BzipString(const std::string& str,
 }
 }  // namespace
 
-bool BzipCompressString(const std::string& str,
-                        std::vector<char>* out) {
+bool BzipCompressString(const string& str,
+                        vector<char>* out) {
   return BzipString<BzipData<BzipBuffToBuffCompress>>(str, out);
 }
 
-bool BzipDecompressString(const std::string& str,
-                          std::vector<char>* out) {
+bool BzipDecompressString(const string& str,
+                          vector<char>* out) {
   return BzipString<BzipData<BzipBuffToBuffDecompress>>(str, out);
 }
 

@@ -92,8 +92,8 @@ const size_t kRootFSPartitionSize = static_cast<size_t>(2) * 1024 * 1024 * 1024;
 // Needed for testing purposes, in case we can't use actual filesystem objects.
 // TODO(garnold) (chromium:331965) Replace this hack with a properly injected
 // parameter in form of a mockable abstract class.
-bool (*get_extents_with_chunk_func)(const std::string&, off_t, off_t,
-                                    std::vector<Extent>*) =
+bool (*get_extents_with_chunk_func)(const string&, off_t, off_t,
+                                    vector<Extent>*) =
     extent_mapper::ExtentsForFileChunkFibmap;
 
 namespace {
@@ -1379,8 +1379,8 @@ bool DeltaDiffGenerator::NoTempBlocksRemain(const Graph& graph) {
 
 bool DeltaDiffGenerator::ReorderDataBlobs(
     DeltaArchiveManifest* manifest,
-    const std::string& data_blobs_path,
-    const std::string& new_data_blobs_path) {
+    const string& data_blobs_path,
+    const string& new_data_blobs_path) {
   int in_fd = open(data_blobs_path.c_str(), O_RDONLY, 0);
   TEST_AND_RETURN_FALSE_ERRNO(in_fd >= 0);
   ScopedFdCloser in_fd_closer(&in_fd);

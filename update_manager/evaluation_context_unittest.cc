@@ -101,7 +101,7 @@ class UmEvaluationContextTest : public ::testing::Test {
     EXPECT_TRUE(fake_poll_var_.observer_list_.empty());
   }
 
-  base::TimeDelta default_timeout_ = base::TimeDelta::FromSeconds(5);
+  TimeDelta default_timeout_ = TimeDelta::FromSeconds(5);
 
   FakeClock fake_clock_;
   scoped_refptr<EvaluationContext> eval_ctx_;
@@ -344,7 +344,7 @@ TEST_F(UmEvaluationContextTest, TimeoutUpdatesWithMonotonicTime) {
 }
 
 TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimesWallclock) {
-  base::Time cur_time = fake_clock_.GetWallclockTime();
+  Time cur_time = fake_clock_.GetWallclockTime();
   // Advance the time on the clock but don't call ResetEvaluation yet.
   fake_clock_.SetWallclockTime(cur_time + TimeDelta::FromSeconds(4));
 
@@ -365,7 +365,7 @@ TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimesWallclock) {
 }
 
 TEST_F(UmEvaluationContextTest, ResetEvaluationResetsTimesMonotonic) {
-  base::Time cur_time = fake_clock_.GetMonotonicTime();
+  Time cur_time = fake_clock_.GetMonotonicTime();
   // Advance the time on the clock but don't call ResetEvaluation yet.
   fake_clock_.SetMonotonicTime(cur_time + TimeDelta::FromSeconds(4));
 

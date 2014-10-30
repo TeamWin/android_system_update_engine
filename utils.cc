@@ -183,13 +183,13 @@ bool PReadAll(int fd, void* buf, size_t count, off_t offset,
 // Append |nbytes| of content from |buf| to the vector pointed to by either
 // |vec_p| or |str_p|.
 static void AppendBytes(const char* buf, size_t nbytes,
-                        std::vector<char>* vec_p) {
+                        vector<char>* vec_p) {
   CHECK(buf);
   CHECK(vec_p);
   vec_p->insert(vec_p->end(), buf, buf + nbytes);
 }
 static void AppendBytes(const char* buf, size_t nbytes,
-                        std::string* str_p) {
+                        string* str_p) {
   CHECK(buf);
   CHECK(str_p);
   str_p->append(buf, nbytes);
@@ -229,7 +229,7 @@ static bool Read(FILE* fp, off_t size, T* out_p) {
 // |out_p|. Starts reading the file from |offset|. If |offset| is beyond the end
 // of the file, returns success. If |size| is not -1, reads up to |size| bytes.
 template <class T>
-static bool ReadFileChunkAndAppend(const std::string& path,
+static bool ReadFileChunkAndAppend(const string& path,
                                    off_t offset,
                                    off_t size,
                                    T* out_p) {
@@ -252,7 +252,7 @@ static bool ReadFileChunkAndAppend(const std::string& path,
 // Invokes a pipe |cmd|, then uses |append_func| to append its stdout to a
 // container |out_p|.
 template <class T>
-static bool ReadPipeAndAppend(const std::string& cmd, T* out_p) {
+static bool ReadPipeAndAppend(const string& cmd, T* out_p) {
   FILE* fp = popen(cmd.c_str(), "r");
   if (!fp)
     return false;
@@ -377,7 +377,7 @@ class ScopedDirCloser {
 };
 }  // namespace
 
-bool RecursiveUnlinkDir(const std::string& path) {
+bool RecursiveUnlinkDir(const string& path) {
   struct stat stbuf;
   int r = lstat(path.c_str(), &stbuf);
   TEST_AND_RETURN_FALSE_ERRNO((r == 0) || (errno == ENOENT));
@@ -417,20 +417,20 @@ bool RecursiveUnlinkDir(const std::string& path) {
   return true;
 }
 
-std::string GetDiskName(const string& partition_name) {
-  std::string disk_name;
+string GetDiskName(const string& partition_name) {
+  string disk_name;
   return SplitPartitionName(partition_name, &disk_name, nullptr) ?
-         disk_name : std::string();
+      disk_name : string();
 }
 
-int GetPartitionNumber(const std::string& partition_name) {
+int GetPartitionNumber(const string& partition_name) {
   int partition_num = 0;
   return SplitPartitionName(partition_name, nullptr, &partition_num) ?
       partition_num : 0;
 }
 
-bool SplitPartitionName(const std::string& partition_name,
-                        std::string* out_disk_name,
+bool SplitPartitionName(const string& partition_name,
+                        string* out_disk_name,
                         int* out_partition_num) {
   if (!StringHasPrefix(partition_name, "/dev/")) {
     LOG(ERROR) << "Invalid partition device name: " << partition_name;
@@ -444,7 +444,7 @@ bool SplitPartitionName(const std::string& partition_name,
     return false;
   }
 
-  size_t partition_name_len = std::string::npos;
+  size_t partition_name_len = string::npos;
   if (partition_name[last_nondigit_pos] == '_') {
     // NAND block devices have weird naming which could be something
     // like "/dev/ubiblock2_0". We discard "_0" in such a case.
@@ -473,26 +473,25 @@ bool SplitPartitionName(const std::string& partition_name,
   }
 
   if (out_partition_num) {
-    std::string partition_str = partition_name.substr(last_nondigit_pos + 1,
-                                                      partition_name_len);
+    string partition_str = partition_name.substr(last_nondigit_pos + 1,
+                                                 partition_name_len);
     *out_partition_num = atoi(partition_str.c_str());
   }
   return true;
 }
 
-std::string MakePartitionName(const std::string& disk_name,
-                              int partition_num) {
+string MakePartitionName(const string& disk_name, int partition_num) {
   if (!StringHasPrefix(disk_name, "/dev/")) {
     LOG(ERROR) << "Invalid disk name: " << disk_name;
-    return std::string();
+    return string();
   }
 
   if (partition_num < 1) {
     LOG(ERROR) << "Invalid partition number: " << partition_num;
-    return std::string();
+    return string();
   }
 
-  std::string partition_name = disk_name;
+  string partition_name = disk_name;
   if (isdigit(partition_name.back())) {
     // Special case for devices with names ending with a digit.
     // Add "p" to separate the disk name from partition number,
@@ -517,7 +516,7 @@ string SysfsBlockDevice(const string& device) {
   return base::FilePath("/sys/block").Append(device_path.BaseName()).value();
 }
 
-bool IsRemovableDevice(const std::string& device) {
+bool IsRemovableDevice(const string& device) {
   string sysfs_block = SysfsBlockDevice(device);
   string removable;
   if (sysfs_block.empty() ||
@@ -529,13 +528,13 @@ bool IsRemovableDevice(const std::string& device) {
   return removable == "1";
 }
 
-std::string ErrnoNumberAsString(int err) {
+string ErrnoNumberAsString(int err) {
   char buf[100];
   buf[0] = '\0';
   return strerror_r(err, buf, sizeof(buf));
 }
 
-std::string NormalizePath(const std::string& path, bool strip_trailing_slash) {
+string NormalizePath(const string& path, bool strip_trailing_slash) {
   string ret;
   bool last_insert_was_slash = false;
   for (string::const_iterator it = path.begin(); it != path.end(); ++it) {
@@ -589,8 +588,8 @@ static const string PrependTmpdir(const string& path) {
   return prefix + "/" + path;
 }
 
-bool MakeTempFile(const std::string& base_filename_template,
-                  std::string* filename,
+bool MakeTempFile(const string& base_filename_template,
+                  string* filename,
                   int* fd) {
   const string filename_template = PrependTmpdir(base_filename_template);
   DCHECK(filename || fd);
@@ -611,8 +610,8 @@ bool MakeTempFile(const std::string& base_filename_template,
   return true;
 }
 
-bool MakeTempDirectory(const std::string& base_dirname_template,
-                       std::string* dirname) {
+bool MakeTempDirectory(const string& base_dirname_template,
+                       string* dirname) {
   const string dirname_template = PrependTmpdir(base_dirname_template);
   DCHECK(dirname);
   vector<char> buf(dirname_template.size() + 1);
@@ -625,13 +624,13 @@ bool MakeTempDirectory(const std::string& base_dirname_template,
   return true;
 }
 
-bool StringHasSuffix(const std::string& str, const std::string& suffix) {
+bool StringHasSuffix(const string& str, const string& suffix) {
   if (suffix.size() > str.size())
     return false;
   return 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
 }
 
-bool StringHasPrefix(const std::string& str, const std::string& prefix) {
+bool StringHasPrefix(const string& str, const string& prefix) {
   if (prefix.size() > str.size())
     return false;
   return 0 == str.compare(0, prefix.size(), prefix);
@@ -663,7 +662,7 @@ bool UnmountFilesystem(const string& mountpoint) {
   return true;
 }
 
-bool GetFilesystemSize(const std::string& device,
+bool GetFilesystemSize(const string& device,
                        int* out_block_count,
                        int* out_block_size) {
   int fd = HANDLE_EINTR(open(device.c_str(), O_RDONLY));
@@ -1414,8 +1413,8 @@ bool DeletePowerwashMarkerFile(const char* file_path) {
   return result;
 }
 
-bool GetInstallDev(const std::string& boot_dev, std::string* install_dev) {
-  std::string disk_name;
+bool GetInstallDev(const string& boot_dev, string* install_dev) {
+  string disk_name;
   int partition_num;
   if (!SplitPartitionName(boot_dev, &disk_name, &partition_num))
     return false;
@@ -1441,21 +1440,21 @@ Time TimeFromStructTimespec(struct timespec *ts) {
   return Time::UnixEpoch() + TimeDelta::FromMicroseconds(us);
 }
 
-gchar** StringVectorToGStrv(const vector<string> &vector) {
+gchar** StringVectorToGStrv(const vector<string> &vec_str) {
   GPtrArray *p = g_ptr_array_new();
-  for (std::vector<string>::const_iterator i = vector.begin();
-       i != vector.end(); ++i) {
+  for (vector<string>::const_iterator i = vec_str.begin();
+       i != vec_str.end(); ++i) {
     g_ptr_array_add(p, g_strdup(i->c_str()));
   }
   g_ptr_array_add(p, nullptr);
   return reinterpret_cast<gchar**>(g_ptr_array_free(p, FALSE));
 }
 
-string StringVectorToString(const vector<string> &vector) {
+string StringVectorToString(const vector<string> &vec_str) {
   string str = "[";
-  for (std::vector<string>::const_iterator i = vector.begin();
-       i != vector.end(); ++i) {
-    if (i != vector.begin())
+  for (vector<string>::const_iterator i = vec_str.begin();
+       i != vec_str.end(); ++i) {
+    if (i != vec_str.begin())
       str += ", ";
     str += '"';
     str += *i;
@@ -1505,7 +1504,7 @@ bool IsXAttrSupported(const base::FilePath& dir_path) {
   return xattr_res == 0;
 }
 
-bool DecodeAndStoreBase64String(const std::string& base64_encoded,
+bool DecodeAndStoreBase64String(const string& base64_encoded,
                                 base::FilePath *out_path) {
   vector<char> contents;
 
@@ -1547,7 +1546,7 @@ bool DecodeAndStoreBase64String(const std::string& base64_encoded,
   return true;
 }
 
-bool ConvertToOmahaInstallDate(base::Time time, int *out_num_days) {
+bool ConvertToOmahaInstallDate(Time time, int *out_num_days) {
   time_t unix_time = time.ToTimeT();
   // Output of: date +"%s" --date="Jan 1, 2007 0:00 PST".
   const time_t kOmahaEpoch = 1167638400;
@@ -1569,14 +1568,14 @@ bool ConvertToOmahaInstallDate(base::Time time, int *out_num_days) {
 }
 
 bool WallclockDurationHelper(SystemState* system_state,
-                             const std::string& state_variable_key,
-                             base::TimeDelta* out_duration) {
+                             const string& state_variable_key,
+                             TimeDelta* out_duration) {
   bool ret = false;
 
-  base::Time now = system_state->clock()->GetWallclockTime();
+  Time now = system_state->clock()->GetWallclockTime();
   int64_t stored_value;
   if (system_state->prefs()->GetInt64(state_variable_key, &stored_value)) {
-    base::Time stored_time = base::Time::FromInternalValue(stored_value);
+    Time stored_time = Time::FromInternalValue(stored_value);
     if (stored_time > now) {
       LOG(ERROR) << "Stored time-stamp used for " << state_variable_key
                  << " is in the future.";
@@ -1596,12 +1595,12 @@ bool WallclockDurationHelper(SystemState* system_state,
 
 bool MonotonicDurationHelper(SystemState* system_state,
                              int64_t* storage,
-                             base::TimeDelta* out_duration) {
+                             TimeDelta* out_duration) {
   bool ret = false;
 
-  base::Time now = system_state->clock()->GetMonotonicTime();
+  Time now = system_state->clock()->GetMonotonicTime();
   if (*storage != 0) {
-    base::Time stored_time = base::Time::FromInternalValue(*storage);
+    Time stored_time = Time::FromInternalValue(*storage);
     *out_duration = now - stored_time;
     ret = true;
   }

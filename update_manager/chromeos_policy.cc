@@ -516,7 +516,7 @@ EvalStatus ChromeOSPolicy::NextUpdateCheckTime(EvaluationContext* ec,
       ec->GetValue(updater_provider->var_updater_started_time());
   POLICY_CHECK_VALUE_AND_FAIL(updater_started_time, error);
 
-  const base::Time* last_checked_time =
+  const Time* last_checked_time =
       ec->GetValue(updater_provider->var_last_checked_time());
 
   const uint64_t* seed = ec->GetValue(state->random_provider()->var_seed());
@@ -587,7 +587,7 @@ TimeDelta ChromeOSPolicy::FuzzedInterval(PRNG* prng, int interval, int fuzz) {
 }
 
 EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
-    EvaluationContext* ec, State* state, std::string* error,
+    EvaluationContext* ec, State* state, string* error,
     UpdateBackoffAndDownloadUrlResult* result,
     const UpdateState& update_state) const {
   // Sanity checks.
@@ -755,10 +755,10 @@ EvalStatus ChromeOSPolicy::UpdateBackoffAndDownloadUrl(
     const uint64_t* seed = ec->GetValue(state->random_provider()->var_seed());
     POLICY_CHECK_VALUE_AND_FAIL(seed, error);
     PRNG prng(*seed);
-    int exp = std::min(update_state.num_failures,
+    int exp = min(update_state.num_failures,
                        static_cast<int>(sizeof(int)) * 8 - 2);
     TimeDelta backoff_interval = TimeDelta::FromDays(
-        std::min(1 << exp, kAttemptBackoffMaxIntervalInDays));
+        min(1 << exp, kAttemptBackoffMaxIntervalInDays));
     TimeDelta backoff_fuzz = TimeDelta::FromHours(kAttemptBackoffFuzzInHours);
     TimeDelta wait_period = FuzzedInterval(&prng, backoff_interval.InSeconds(),
                                            backoff_fuzz.InSeconds());

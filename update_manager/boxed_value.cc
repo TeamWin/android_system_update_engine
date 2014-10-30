@@ -78,7 +78,7 @@ string BoxedValue::ValuePrinter<base::TimeDelta>(const void* value) {
   return chromeos_update_engine::utils::FormatTimeDelta(*val);
 }
 
-static std::string ConnectionTypeToString(ConnectionType type) {
+static string ConnectionTypeToString(ConnectionType type) {
   switch (type) {
     case ConnectionType::kEthernet:
       return "Ethernet";

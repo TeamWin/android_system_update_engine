@@ -13,8 +13,6 @@
 
 #include "update_engine/payload_constants.h"
 
-using std::max;
-using std::min;
 using std::set;
 using std::vector;
 
@@ -57,9 +55,9 @@ namespace {
 Extent UnionOverlappingExtents(const Extent& first, const Extent& second) {
   CHECK_NE(kSparseHole, first.start_block());
   CHECK_NE(kSparseHole, second.start_block());
-  uint64_t start = min(first.start_block(), second.start_block());
-  uint64_t end = max(first.start_block() + first.num_blocks(),
-                     second.start_block() + second.num_blocks());
+  uint64_t start = std::min(first.start_block(), second.start_block());
+  uint64_t end = std::max(first.start_block() + first.num_blocks(),
+                          second.start_block() + second.num_blocks());
   return ExtentForRange(start, end - start);
 }
 
@@ -198,7 +196,7 @@ Extent ExtentForRange(uint64_t start_block, uint64_t num_blocks) {
   return ret;
 }
 
-std::vector<Extent> ExtentRanges::GetExtentsForBlockCount(
+vector<Extent> ExtentRanges::GetExtentsForBlockCount(
     uint64_t count) const {
   vector<Extent> out;
   if (count == 0)

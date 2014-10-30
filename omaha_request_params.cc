@@ -50,8 +50,8 @@ const char* kChannelsByStability[] = {
     "stable-channel",
 };
 
-bool OmahaRequestParams::Init(const std::string& in_app_version,
-                              const std::string& in_update_url,
+bool OmahaRequestParams::Init(const string& in_app_version,
+                              const string& in_update_url,
                               bool in_interactive) {
   LOG(INFO) << "Initializing parameters for this update attempt";
   InitFromLsbValue();
@@ -124,7 +124,7 @@ bool OmahaRequestParams::CollectECFWVersions() const {
   };
 }
 
-bool OmahaRequestParams::SetTargetChannel(const std::string& new_target_channel,
+bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,
                                           bool is_powerwash_allowed) {
   LOG(INFO) << "SetTargetChannel called with " << new_target_channel
             << ", Is Powerwash Allowed = "
@@ -249,11 +249,11 @@ bool OmahaRequestParams::ShouldLockDown() const {
             system_state_->hardware()->IsNormalBootMode();
 }
 
-bool OmahaRequestParams::IsValidChannel(const std::string& channel) const {
+bool OmahaRequestParams::IsValidChannel(const string& channel) const {
   return GetChannelIndex(channel) >= 0;
 }
 
-void OmahaRequestParams::set_root(const std::string& root) {
+void OmahaRequestParams::set_root(const string& root) {
   root_ = root;
   InitFromLsbValue();
 }
@@ -263,7 +263,7 @@ void OmahaRequestParams::SetLockDown(bool lock) {
   forced_lock_down_ = lock;
 }
 
-int OmahaRequestParams::GetChannelIndex(const std::string& channel) const {
+int OmahaRequestParams::GetChannelIndex(const string& channel) const {
   for (size_t t = 0; t < arraysize(kChannelsByStability); ++t)
     if (channel == kChannelsByStability[t])
       return t;

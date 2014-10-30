@@ -13,7 +13,6 @@
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::Time;
-using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
 using std::unique_ptr;
 

@@ -18,8 +18,6 @@
 #include "update_engine/utils.h"
 
 using std::deque;
-using std::max;
-using std::min;
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -111,19 +109,19 @@ bool ChunkProcessor::ReadAndCompress() {
 
 bool FullUpdateGenerator::Run(
     Graph* graph,
-    const std::string& new_kernel_part,
-    const std::string& new_image,
+    const string& new_kernel_part,
+    const string& new_image,
     off_t image_size,
     int fd,
     off_t* data_file_size,
     off_t chunk_size,
     off_t block_size,
     vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
-    std::vector<Vertex::Index>* final_order) {
+    vector<Vertex::Index>* final_order) {
   TEST_AND_RETURN_FALSE(chunk_size > 0);
   TEST_AND_RETURN_FALSE((chunk_size % block_size) == 0);
 
-  size_t max_threads = max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
+  size_t max_threads = std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
   LOG(INFO) << "Max threads: " << max_threads;
 
   // Get the sizes early in the function, so we can fail fast if the user
@@ -149,7 +147,8 @@ bool FullUpdateGenerator::Run(
       // Check and start new chunk processors if possible.
       while (threads.size() < max_threads && bytes_left > 0) {
         shared_ptr<ChunkProcessor> processor(
-            new ChunkProcessor(in_fd, offset, min(bytes_left, chunk_size)));
+            new ChunkProcessor(in_fd, offset,
+                               std::min(bytes_left, chunk_size)));
         threads.push_back(processor);
         TEST_AND_RETURN_FALSE(processor->Start());
         bytes_left -= chunk_size;

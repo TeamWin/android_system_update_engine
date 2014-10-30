@@ -18,7 +18,6 @@ using chromeos_update_engine::RunGMainLoopMaxIterations;
 using std::set;
 using std::string;
 using std::unique_ptr;
-using testing::AtLeast;
 using testing::DoAll;
 using testing::Mock;
 using testing::Return;
@@ -138,7 +137,7 @@ TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {
       .WillOnce(DoAll(SetArgumentPointee<0>(1234), Return(true)));
   EXPECT_TRUE(provider_->Init());
 
-  UmTestUtils::ExpectVariableHasValue(base::TimeDelta::FromSeconds(1234),
+  UmTestUtils::ExpectVariableHasValue(TimeDelta::FromSeconds(1234),
                                       provider_->var_scatter_factor());
 }
 

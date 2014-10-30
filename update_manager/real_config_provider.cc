@@ -13,7 +13,6 @@
 #include "update_engine/utils.h"
 
 using chromeos::KeyValueStore;
-using std::string;
 
 namespace {
 

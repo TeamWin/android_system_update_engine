@@ -98,18 +98,18 @@ bool PayloadVerifier::LoadPayload(const string& payload_path,
   return true;
 }
 
-bool PayloadVerifier::VerifySignature(const std::vector<char>& signature_blob,
-                                      const std::string& public_key_path,
-                                      std::vector<char>* out_hash_data) {
+bool PayloadVerifier::VerifySignature(const vector<char>& signature_blob,
+                                      const string& public_key_path,
+                                      vector<char>* out_hash_data) {
   return VerifySignatureBlob(signature_blob, public_key_path,
                              kSignatureMessageCurrentVersion, out_hash_data);
 }
 
 bool PayloadVerifier::VerifySignatureBlob(
-    const std::vector<char>& signature_blob,
-    const std::string& public_key_path,
+    const vector<char>& signature_blob,
+    const string& public_key_path,
     uint32_t client_version,
-    std::vector<char>* out_hash_data) {
+    vector<char>* out_hash_data) {
   TEST_AND_RETURN_FALSE(!public_key_path.empty());
 
   Signatures signatures;
@@ -136,9 +136,9 @@ bool PayloadVerifier::VerifySignatureBlob(
 
 
 bool PayloadVerifier::GetRawHashFromSignature(
-    const std::vector<char>& sig_data,
-    const std::string& public_key_path,
-    std::vector<char>* out_hash_data) {
+    const vector<char>& sig_data,
+    const string& public_key_path,
+    vector<char>* out_hash_data) {
   TEST_AND_RETURN_FALSE(!public_key_path.empty());
 
   // The code below executes the equivalent of:
@@ -180,8 +180,8 @@ bool PayloadVerifier::GetRawHashFromSignature(
   return true;
 }
 
-bool PayloadVerifier::VerifySignedPayload(const std::string& payload_path,
-                                          const std::string& public_key_path,
+bool PayloadVerifier::VerifySignedPayload(const string& payload_path,
+                                          const string& public_key_path,
                                           uint32_t client_key_check_version) {
   vector<char> payload;
   DeltaArchiveManifest manifest;
@@ -208,7 +208,7 @@ bool PayloadVerifier::VerifySignedPayload(const std::string& payload_path,
   return true;
 }
 
-bool PayloadVerifier::PadRSA2048SHA256Hash(std::vector<char>* hash) {
+bool PayloadVerifier::PadRSA2048SHA256Hash(vector<char>* hash) {
   TEST_AND_RETURN_FALSE(hash->size() == 32);
   hash->insert(hash->begin(),
                reinterpret_cast<const char*>(kRSA2048SHA256Padding),

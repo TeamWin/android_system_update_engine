@@ -20,7 +20,7 @@ DirectProxyResolver::~DirectProxyResolver() {
   }
 }
 
-bool DirectProxyResolver::GetProxiesForUrl(const std::string& url,
+bool DirectProxyResolver::GetProxiesForUrl(const string& url,
                                            ProxiesResolvedFn callback,
                                            void* data) {
   base::Closure* closure = new base::Closure(base::Bind(
@@ -41,7 +41,7 @@ void DirectProxyResolver::ReturnCallback(ProxiesResolvedFn callback,
   idle_callback_id_ = 0;
 
   // Initialize proxy pool with as many proxies as indicated (all identical).
-  std::deque<std::string> proxies(num_proxies_, kNoProxy);
+  deque<string> proxies(num_proxies_, kNoProxy);
 
   (*callback)(proxies, data);
 }

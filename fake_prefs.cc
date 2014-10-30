@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-using std::map;
 using std::string;
 
 using chromeos_update_engine::FakePrefs;
@@ -49,7 +48,7 @@ bool FakePrefs::GetString(const string& key, string* value) {
   return GetValue(key, value);
 }
 
-bool FakePrefs::SetString(const std::string& key, const std::string& value) {
+bool FakePrefs::SetString(const string& key, const string& value) {
   SetValue(key, value);
   return true;
 }
@@ -63,7 +62,7 @@ bool FakePrefs::SetInt64(const string& key, const int64_t value) {
   return true;
 }
 
-bool FakePrefs::GetBoolean(const std::string& key, bool* value) {
+bool FakePrefs::GetBoolean(const string& key, bool* value) {
   return GetValue(key, value);
 }
 

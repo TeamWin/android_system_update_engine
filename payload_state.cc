@@ -577,8 +577,8 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
   int64_t payload_bytes_downloaded = attempt_num_bytes_downloaded_;
 
   ClockInterface *clock = system_state_->clock();
-  base::TimeDelta duration = clock->GetBootTime() - attempt_start_time_boot_;
-  base::TimeDelta duration_uptime = clock->GetMonotonicTime() -
+  TimeDelta duration = clock->GetBootTime() - attempt_start_time_boot_;
+  TimeDelta duration_uptime = clock->GetMonotonicTime() -
       attempt_start_time_monotonic_;
 
   int64_t payload_download_speed_bps = 0;
@@ -789,7 +789,7 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
   metric = "Installer.DownloadSourcesUsed";
   LOG(INFO) << "Uploading 0x" << std::hex << download_sources_used
             << " (bit flags) for metric " << metric;
-  int num_buckets = std::min(1 << kNumDownloadSources, kNumDefaultUmaBuckets);
+  int num_buckets = min(1 << kNumDownloadSources, kNumDefaultUmaBuckets);
   system_state_->metrics_lib()->SendToUMA(metric,
                                           download_sources_used,
                                           0,  // min
@@ -906,7 +906,7 @@ void PayloadState::ResetPersistedState() {
   ResetRollbackVersion();
   SetP2PNumAttempts(0);
   SetP2PFirstAttemptTimestamp(Time());  // Set to null time
-  SetScatteringWaitPeriod(base::TimeDelta());
+  SetScatteringWaitPeriod(TimeDelta());
 }
 
 void PayloadState::ResetRollbackVersion() {
@@ -1031,7 +1031,7 @@ void PayloadState::LoadScatteringWaitPeriod() {
       TimeDelta::FromSeconds(GetPersistedValue(kPrefsWallClockWaitPeriod)));
 }
 
-void PayloadState::SetScatteringWaitPeriod(base::TimeDelta wait_period) {
+void PayloadState::SetScatteringWaitPeriod(TimeDelta wait_period) {
   CHECK(prefs_);
   scattering_wait_period_ = wait_period;
   LOG(INFO) << "Scattering Wait Period (seconds) = "

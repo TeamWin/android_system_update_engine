@@ -32,7 +32,6 @@ using base::Time;
 using base::TimeDelta;
 using std::string;
 using std::unique_ptr;
-using testing::_;
 using testing::DoAll;
 using testing::InSequence;
 using testing::Ne;
@@ -40,6 +39,7 @@ using testing::NiceMock;
 using testing::Property;
 using testing::Return;
 using testing::SetArgumentPointee;
+using testing::_;
 
 namespace chromeos_update_engine {
 
@@ -57,7 +57,7 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 
   UpdateAttempterUnderTest(SystemState* system_state,
                            DBusWrapperInterface* dbus_iface,
-                           const std::string& update_completed_marker)
+                           const string& update_completed_marker)
       : UpdateAttempter(system_state, dbus_iface, update_completed_marker) {}
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
@@ -497,12 +497,12 @@ void UpdateAttempterTest::RollbackTestStart(
   if (enterprise_rollback) {
     // We return an empty owner as this is an enterprise.
     EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
-        DoAll(SetArgumentPointee<0>(std::string("")),
+        DoAll(SetArgumentPointee<0>(string("")),
         Return(true)));
   } else {
     // We return a fake owner as this is an owned consumer device.
     EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
-        DoAll(SetArgumentPointee<0>(std::string("fake.mail@fake.com")),
+        DoAll(SetArgumentPointee<0>(string("fake.mail@fake.com")),
         Return(true)));
   }
 

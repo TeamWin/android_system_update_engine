@@ -24,7 +24,6 @@ namespace chromeos_update_engine {
 using base::StringTokenizer;
 using std::deque;
 using std::make_pair;
-using std::multimap;
 using std::pair;
 using std::string;
 
@@ -232,7 +231,7 @@ deque<string> ChromeBrowserProxyResolver::ParseProxyString(
     base::TrimWhitespaceASCII(token, base::TRIM_ALL, &token);
 
     // Start by finding the first space (if any).
-    std::string::iterator space;
+    string::iterator space;
     for (space = token.begin(); space != token.end(); ++space) {
       if (IsAsciiWhitespace(*space)) {
         break;

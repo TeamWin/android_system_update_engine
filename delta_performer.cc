@@ -178,7 +178,7 @@ size_t DeltaPerformer::CopyDataToBuffer(const char** bytes_p, size_t* count_p,
   const size_t count = *count_p;
   if (!count)
     return 0;  // Special case shortcut.
-  size_t read_len = std::min(count, max - buffer_.size());
+  size_t read_len = min(count, max - buffer_.size());
   const char* bytes_start = *bytes_p;
   const char* bytes_end = bytes_start + read_len;
   buffer_.insert(buffer_.end(), bytes_start, bytes_end);
@@ -309,7 +309,7 @@ bool DeltaPerformer::GetManifest(DeltaArchiveManifest* out_manifest_p) const {
 
 
 DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
-    const std::vector<char>& payload,
+    const vector<char>& payload,
     ErrorCode* error) {
   *error = ErrorCode::kSuccess;
   const uint64_t manifest_offset = GetManifestOffset();
@@ -1043,7 +1043,7 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
   } while (0);
 
 ErrorCode DeltaPerformer::VerifyPayload(
-    const std::string& update_check_response_hash,
+    const string& update_check_response_hash,
     const uint64_t update_check_response_size) {
 
   // See if we should use the public RSA key in the Omaha response.

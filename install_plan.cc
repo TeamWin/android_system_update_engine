@@ -21,7 +21,7 @@ InstallPlan::InstallPlan(bool is_resume,
                          const string& metadata_signature,
                          const string& install_path,
                          const string& kernel_install_path,
-                         const std::string& public_key_rsa)
+                         const string& public_key_rsa)
     : is_resume(is_resume),
       is_full_update(is_full_update),
       download_url(url),

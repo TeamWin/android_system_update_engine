@@ -39,7 +39,6 @@
 // HTTP end-of-line delimiter; sorry, this needs to be a macro.
 #define EOL "\r\n"
 
-using std::min;
 using std::string;
 using std::vector;
 
@@ -86,12 +85,12 @@ bool ParseRequest(int fd, HttpRequest* request) {
             << "\n--8<------8<------8<------8<----";
 
   // Break header into lines.
-  std::vector<string> lines;
+  vector<string> lines;
   base::SplitStringUsingSubstr(
       headers.substr(0, headers.length() - strlen(EOL EOL)), EOL, &lines);
 
   // Decode URL line.
-  std::vector<string> terms;
+  vector<string> terms;
   base::SplitStringAlongWhitespace(lines[0], &terms);
   CHECK_EQ(terms.size(), static_cast<vector<string>::size_type>(3));
   CHECK_EQ(terms[0], "GET");
@@ -101,7 +100,7 @@ bool ParseRequest(int fd, HttpRequest* request) {
   // Decode remaining lines.
   size_t i;
   for (i = 1; i < lines.size(); i++) {
-    std::vector<string> terms;
+    vector<string> terms;
     base::SplitStringAlongWhitespace(lines[i], &terms);
 
     if (terms[0] == "Range:") {
@@ -115,7 +114,7 @@ bool ParseRequest(int fd, HttpRequest* request) {
       if (range.find('-') < range.length() - 1)
         request->end_offset = atoll(range.c_str() + range.find('-') + 1) + 1;
       request->return_code = kHttpResponsePartialContent;
-      std::string tmp_str = base::StringPrintf("decoded range offsets: "
+      string tmp_str = base::StringPrintf("decoded range offsets: "
                                                "start=%jd end=",
                                                (intmax_t)request->start_offset);
       if (request->end_offset > 0)
@@ -481,7 +480,7 @@ class UrlTerms {
   }
 
  private:
-  std::vector<string> terms;
+  vector<string> terms;
 };
 
 void HandleConnection(int fd) {

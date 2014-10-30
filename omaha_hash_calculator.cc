@@ -230,7 +230,7 @@ string OmahaHashCalculator::GetContext() const {
   return string(reinterpret_cast<const char*>(&ctx_), sizeof(ctx_));
 }
 
-bool OmahaHashCalculator::SetContext(const std::string& context) {
+bool OmahaHashCalculator::SetContext(const string& context) {
   TEST_AND_RETURN_FALSE(context.size() == sizeof(ctx_));
   memcpy(&ctx_, context.data(), sizeof(ctx_));
   return true;

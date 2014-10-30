@@ -240,9 +240,9 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
   return success;
 }
 
-bool Subprocess::SynchronousExec(const std::vector<std::string>& cmd,
+bool Subprocess::SynchronousExec(const vector<string>& cmd,
                                  int* return_code,
-                                 std::string* stdout) {
+                                 string* stdout) {
   return SynchronousExecFlags(cmd,
                               static_cast<GSpawnFlags>(0),
                               return_code,

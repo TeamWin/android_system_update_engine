@@ -40,8 +40,8 @@ namespace chromeos_update_engine {
   } while (0)
 
 FilesystemIterator::FilesystemIterator(
-    const std::string& path,
-    const std::set<std::string>& excl_prefixes)
+    const string& path,
+    const set<string>& excl_prefixes)
     : excl_prefixes_(excl_prefixes),
       is_end_(false),
       is_err_(false) {
@@ -62,12 +62,12 @@ off_t FilesystemIterator::GetFileSize() const {
 }
 
 // Returns full path for current file
-std::string FilesystemIterator::GetFullPath() const {
+string FilesystemIterator::GetFullPath() const {
   return root_path_ + GetPartialPath();
 }
 
-std::string FilesystemIterator::GetPartialPath() const {
-  std::string ret;
+string FilesystemIterator::GetPartialPath() const {
+  string ret;
   for (vector<string>::const_iterator it = names_.begin();
        it != names_.end(); ++it) {
     ret += "/";

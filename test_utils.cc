@@ -32,15 +32,15 @@ namespace chromeos_update_engine {
 
 const char* const kMountPathTemplate = "UpdateEngineTests_mnt-XXXXXX";
 
-bool WriteFileVector(const std::string& path, const std::vector<char>& data) {
+bool WriteFileVector(const string& path, const vector<char>& data) {
   return utils::WriteFile(path.c_str(), &data[0], data.size());
 }
 
-bool WriteFileString(const std::string& path, const std::string& data) {
+bool WriteFileString(const string& path, const string& data) {
   return utils::WriteFile(path.c_str(), data.data(), data.size());
 }
 
-std::string Readlink(const std::string& path) {
+string Readlink(const string& path) {
   vector<char> buf(PATH_MAX + 1);
   ssize_t r = readlink(path.c_str(), &buf[0], buf.size());
   if (r < 0)
@@ -52,7 +52,7 @@ std::string Readlink(const std::string& path) {
   return ret;
 }
 
-std::vector<char> GzipCompressData(const std::vector<char>& data) {
+vector<char> GzipCompressData(const vector<char>& data) {
   const char fname[] = "/tmp/GzipCompressDataTemp";
   if (!WriteFileVector(fname, data)) {
     EXPECT_EQ(0, system((string("rm ") + fname).c_str()));

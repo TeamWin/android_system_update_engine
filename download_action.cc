@@ -18,11 +18,9 @@
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
 
-using std::min;
+using base::FilePath;
 using std::string;
 using std::vector;
-using base::FilePath;
-using base::StringPrintf;
 
 namespace chromeos_update_engine {
 
@@ -50,7 +48,7 @@ void DownloadAction::CloseP2PSharingFd(bool delete_p2p_file) {
   }
 
   if (delete_p2p_file) {
-    base::FilePath path =
+    FilePath path =
       system_state_->p2p_manager()->FileGetPath(p2p_file_id_);
     if (unlink(path.value().c_str()) != 0) {
       PLOG(ERROR) << "Error deleting p2p file " << path.value();
@@ -74,7 +72,7 @@ bool DownloadAction::SetupP2PSharingFd() {
 
   // File has already been created (and allocated, xattrs been
   // populated etc.) by FileShare() so just open it for writing.
-  base::FilePath path = p2p_manager->FileGetPath(p2p_file_id_);
+  FilePath path = p2p_manager->FileGetPath(p2p_file_id_);
   p2p_sharing_fd_ = open(path.value().c_str(), O_WRONLY);
   if (p2p_sharing_fd_ == -1) {
     PLOG(ERROR) << "Error opening file " << path.value();
@@ -202,7 +200,7 @@ void DownloadAction::PerformAction() {
       // hash. If this is the case, we NEED to clean it up otherwise
       // we're essentially timing out other peers downloading from us
       // (since we're never going to complete the file).
-      base::FilePath path = system_state_->p2p_manager()->FileGetPath(file_id);
+      FilePath path = system_state_->p2p_manager()->FileGetPath(file_id);
       if (!path.empty()) {
         if (unlink(path.value().c_str()) != 0) {
           PLOG(ERROR) << "Error deleting p2p file " << path.value();

@@ -48,7 +48,7 @@ bool HttpFetcher::ResolveProxiesForUrl(const string& url, Closure* callback) {
                                            this);
 }
 
-void HttpFetcher::ProxiesResolved(const std::deque<std::string>& proxies) {
+void HttpFetcher::ProxiesResolved(const deque<string>& proxies) {
   no_resolver_idle_id_ = 0;
   if (!proxies.empty())
     SetProxies(proxies);

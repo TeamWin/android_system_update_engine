@@ -22,14 +22,14 @@ namespace chromeos_update_engine {
 template <typename T>
 class ZipTest : public ::testing::Test {
  public:
-  bool ZipDecompress(const std::vector<char>& in,
-                     std::vector<char>* out) const = 0;
-  bool ZipCompress(const std::vector<char>& in,
-                   std::vector<char>* out) const = 0;
-  bool ZipCompressString(const std::string& str,
-                         std::vector<char>* out) const = 0;
-  bool ZipDecompressString(const std::string& str,
-                           std::vector<char>* out) const = 0;
+  bool ZipDecompress(const vector<char>& in,
+                     vector<char>* out) const = 0;
+  bool ZipCompress(const vector<char>& in,
+                   vector<char>* out) const = 0;
+  bool ZipCompressString(const string& str,
+                         vector<char>* out) const = 0;
+  bool ZipDecompressString(const string& str,
+                           vector<char>* out) const = 0;
 };
 
 class BzipTest {};
@@ -37,20 +37,20 @@ class BzipTest {};
 template <>
 class ZipTest<BzipTest> : public ::testing::Test {
  public:
-  bool ZipDecompress(const std::vector<char>& in,
-                     std::vector<char>* out) const {
+  bool ZipDecompress(const vector<char>& in,
+                     vector<char>* out) const {
     return BzipDecompress(in, out);
   }
-  bool ZipCompress(const std::vector<char>& in,
-                   std::vector<char>* out) const {
+  bool ZipCompress(const vector<char>& in,
+                   vector<char>* out) const {
     return BzipCompress(in, out);
   }
-  bool ZipCompressString(const std::string& str,
-                         std::vector<char>* out) const {
+  bool ZipCompressString(const string& str,
+                         vector<char>* out) const {
     return BzipCompressString(str, out);
   }
-  bool ZipDecompressString(const std::string& str,
-                           std::vector<char>* out) const {
+  bool ZipDecompressString(const string& str,
+                           vector<char>* out) const {
     return BzipDecompressString(str, out);
   }
 };

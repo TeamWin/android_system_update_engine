@@ -20,11 +20,7 @@
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/utils.h"
 
-using base::StringPrintf;
-using base::Time;
-using base::TimeDelta;
 using std::string;
-using std::vector;
 
 namespace chromeos_update_manager {
 

@@ -13,7 +13,6 @@
 #include "update_engine/utils.h"
 
 using std::string;
-using testing::NiceMock;
 using testing::Return;
 
 namespace chromeos_update_engine {

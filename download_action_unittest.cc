@@ -27,16 +27,15 @@
 
 namespace chromeos_update_engine {
 
+using base::FilePath;
+using base::ReadFileToString;
+using base::WriteFile;
 using std::string;
 using std::unique_ptr;
 using std::vector;
-using testing::_;
 using testing::AtLeast;
 using testing::InSequence;
-using base::FilePath;
-using base::ReadFileToString;
-using base::StringPrintf;
-using base::WriteFile;
+using testing::_;
 
 class DownloadActionTest : public ::testing::Test { };
 

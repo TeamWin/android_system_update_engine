@@ -25,13 +25,13 @@
 using base::Time;
 using base::TimeDelta;
 using std::string;
-using testing::_;
 using testing::AnyNumber;
 using testing::AtLeast;
 using testing::Mock;
 using testing::NiceMock;
 using testing::Return;
 using testing::SetArgumentPointee;
+using testing::_;
 
 namespace chromeos_update_engine {
 

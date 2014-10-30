@@ -22,7 +22,7 @@ HwidOverride::HwidOverride() {}
 
 HwidOverride::~HwidOverride() {}
 
-std::string HwidOverride::Read(const base::FilePath& root) {
+string HwidOverride::Read(const base::FilePath& root) {
   chromeos::KeyValueStore lsb_release;
   lsb_release.Load(base::FilePath(root.value() + "/etc/lsb-release"));
   string result;

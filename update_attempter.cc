@@ -60,8 +60,6 @@ using base::TimeTicks;
 using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateCheckParams;
-using google::protobuf::NewPermanentCallback;
-using std::make_pair;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -133,7 +131,7 @@ UpdateAttempter::UpdateAttempter(SystemState* system_state,
 
 UpdateAttempter::UpdateAttempter(SystemState* system_state,
                                  DBusWrapperInterface* dbus_iface,
-                                 const std::string& update_completed_marker)
+                                 const string& update_completed_marker)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
       dbus_iface_(dbus_iface),
@@ -176,12 +174,12 @@ void UpdateAttempter::ScheduleUpdates() {
 
 bool UpdateAttempter::CheckAndReportDailyMetrics() {
   int64_t stored_value;
-  base::Time now = system_state_->clock()->GetWallclockTime();
+  Time now = system_state_->clock()->GetWallclockTime();
   if (system_state_->prefs()->Exists(kPrefsDailyMetricsLastReportedAt) &&
       system_state_->prefs()->GetInt64(kPrefsDailyMetricsLastReportedAt,
                                        &stored_value)) {
-    base::Time last_reported_at = base::Time::FromInternalValue(stored_value);
-    base::TimeDelta time_reported_since = now - last_reported_at;
+    Time last_reported_at = Time::FromInternalValue(stored_value);
+    TimeDelta time_reported_since = now - last_reported_at;
     if (time_reported_since.InSeconds() < 0) {
       LOG(WARNING) << "Last reported daily metrics "
                    << utils::FormatTimeDelta(time_reported_since) << " ago "
@@ -222,9 +220,9 @@ void UpdateAttempter::ReportOSAge() {
     return;
   }
 
-  base::Time lsb_release_timestamp = utils::TimeFromStructTimespec(&sb.st_ctim);
-  base::Time now = system_state_->clock()->GetWallclockTime();
-  base::TimeDelta age = now - lsb_release_timestamp;
+  Time lsb_release_timestamp = utils::TimeFromStructTimespec(&sb.st_ctim);
+  Time now = system_state_->clock()->GetWallclockTime();
+  TimeDelta age = now - lsb_release_timestamp;
   if (age.InSeconds() < 0) {
     LOG(ERROR) << "The OS age (" << utils::FormatTimeDelta(age)
                << ") is negative. Maybe the clock is wrong? "
@@ -232,7 +230,7 @@ void UpdateAttempter::ReportOSAge() {
     return;
   }
 
-  std::string metric = "Installer.OSAgeDays";
+  string metric = "Installer.OSAgeDays";
   LOG(INFO) << "Uploading " << utils::FormatTimeDelta(age)
             << " for metric " <<  metric;
   system_state_->metrics_lib()->SendToUMA(
@@ -751,11 +749,11 @@ bool UpdateAttempter::CanRollback() const {
   return (status_ == UPDATE_STATUS_IDLE && !GetRollbackPartition().empty());
 }
 
-std::string UpdateAttempter::GetRollbackPartition() const {
-  std::vector<std::string> kernel_devices =
+string UpdateAttempter::GetRollbackPartition() const {
+  vector<string> kernel_devices =
       system_state_->hardware()->GetKernelDevices();
 
-  std::string boot_kernel_device =
+  string boot_kernel_device =
       system_state_->hardware()->BootKernelDevice();
 
   LOG(INFO) << "UpdateAttempter::GetRollbackPartition";
@@ -769,10 +767,10 @@ std::string UpdateAttempter::GetRollbackPartition() const {
   if (current == kernel_devices.end()) {
     LOG(ERROR) << "Unable to find the boot kernel device in the list of "
                << "available devices";
-    return std::string();
+    return string();
   }
 
-  for (std::string const& device_name : kernel_devices) {
+  for (string const& device_name : kernel_devices) {
     if (device_name != *current) {
       bool bootable = false;
       if (system_state_->hardware()->IsKernelBootable(device_name, &bootable) &&
@@ -782,21 +780,21 @@ std::string UpdateAttempter::GetRollbackPartition() const {
     }
   }
 
-  return std::string();
+  return string();
 }
 
-std::vector<std::pair<std::string, bool>>
+vector<std::pair<string, bool>>
     UpdateAttempter::GetKernelDevices() const {
-  std::vector<std::string> kernel_devices =
+  vector<string> kernel_devices =
     system_state_->hardware()->GetKernelDevices();
 
-  std::string boot_kernel_device =
+  string boot_kernel_device =
     system_state_->hardware()->BootKernelDevice();
 
-  std::vector<std::pair<std::string, bool>> info_list;
+  vector<std::pair<string, bool>> info_list;
   info_list.reserve(kernel_devices.size());
 
-  for (std::string device_name : kernel_devices) {
+  for (string device_name : kernel_devices) {
     bool bootable = false;
     system_state_->hardware()->IsKernelBootable(device_name, &bootable);
     // Add '*' to the name of the partition we booted from.
@@ -840,7 +838,7 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
     return;
 
   int64_t value = system_state_->clock()->GetBootTime().ToInternalValue();
-  string contents = base::StringPrintf("%" PRIi64, value);
+  string contents = StringPrintf("%" PRIi64, value);
 
   utils::WriteFile(update_completed_marker_.c_str(),
                    contents.c_str(),
@@ -1592,7 +1590,7 @@ bool UpdateAttempter::StartP2PAndPerformHousekeeping() {
   return true;
 }
 
-bool UpdateAttempter::GetBootTimeAtUpdate(base::Time *out_boot_time) {
+bool UpdateAttempter::GetBootTimeAtUpdate(Time *out_boot_time) {
   if (update_completed_marker_.empty())
     return false;
 

@@ -66,8 +66,8 @@ class ConfigurationImpl : public P2PManager::Configuration {
 
   virtual ~ConfigurationImpl() {}
 
-  virtual base::FilePath GetP2PDir() {
-    return base::FilePath(kDefaultP2PDir);
+  virtual FilePath GetP2PDir() {
+    return FilePath(kDefaultP2PDir);
   }
 
   virtual vector<string> GetInitctlArgs(bool is_start) {
@@ -83,7 +83,7 @@ class ConfigurationImpl : public P2PManager::Configuration {
     vector<string> args;
     args.push_back("p2p-client");
     args.push_back(string("--get-url=") + file_id);
-    args.push_back(base::StringPrintf("--minimum-size=%zu", minimum_size));
+    args.push_back(StringPrintf("--minimum-size=%zu", minimum_size));
     return args;
   }
 
@@ -111,7 +111,7 @@ class P2PManagerImpl : public P2PManager {
                                 LookupCallback callback);
   virtual bool FileShare(const string& file_id,
                          size_t expected_size);
-  virtual base::FilePath FileGetPath(const string& file_id);
+  virtual FilePath FileGetPath(const string& file_id);
   virtual ssize_t FileGetSize(const string& file_id);
   virtual ssize_t FileGetExpectedSize(const string& file_id);
   virtual bool FileGetVisible(const string& file_id,
@@ -133,7 +133,7 @@ class P2PManagerImpl : public P2PManager {
 
   // Gets the on-disk path for |file_id| depending on if the file
   // is visible or not.
-  base::FilePath GetPath(const string& file_id, Visibility visibility);
+  FilePath GetPath(const string& file_id, Visibility visibility);
 
   // Utility function used by EnsureP2PRunning() and EnsureP2PNotRunning().
   bool EnsureP2P(bool should_be_running);
@@ -326,7 +326,7 @@ bool P2PManagerImpl::PerformHousekeeping() {
 
   // Go through all files in the p2p dir and pick the ones that match
   // and get their ctime.
-  base::FilePath p2p_dir = configuration_->GetP2PDir();
+  FilePath p2p_dir = configuration_->GetP2PDir();
   dir = g_dir_open(p2p_dir.value().c_str(), 0, &error);
   if (dir == nullptr) {
     LOG(ERROR) << "Error opening directory " << p2p_dir.value() << ": "
@@ -345,7 +345,7 @@ bool P2PManagerImpl::PerformHousekeeping() {
       continue;
 
     struct stat statbuf;
-    base::FilePath file = p2p_dir.Append(name);
+    FilePath file = p2p_dir.Append(name);
     if (stat(file.value().c_str(), &statbuf) != 0) {
       PLOG(ERROR) << "Error getting file status for " << file.value();
       continue;
@@ -362,7 +362,7 @@ bool P2PManagerImpl::PerformHousekeeping() {
   // Delete starting at element num_files_to_keep_.
   vector<pair<FilePath, Time>>::const_iterator i;
   for (i = matches.begin() + num_files_to_keep_; i < matches.end(); ++i) {
-    const base::FilePath& file = i->first;
+    const FilePath& file = i->first;
     LOG(INFO) << "Deleting p2p file " << file.value();
     if (unlink(file.value().c_str()) != 0) {
       PLOG(ERROR) << "Error deleting p2p file " << file.value();
@@ -568,7 +568,7 @@ void P2PManagerImpl::LookupUrlForFile(const string& file_id,
 bool P2PManagerImpl::FileShare(const string& file_id,
                                size_t expected_size) {
   // Check if file already exist.
-  base::FilePath path = FileGetPath(file_id);
+  FilePath path = FileGetPath(file_id);
   if (!path.empty()) {
     // File exists - double check its expected size though.
     ssize_t file_expected_size = FileGetExpectedSize(file_id);
@@ -586,7 +586,7 @@ bool P2PManagerImpl::FileShare(const string& file_id,
   // Before creating the file, bail if statvfs(3) indicates that at
   // least twice the size is not available in P2P_DIR.
   struct statvfs statvfsbuf;
-  base::FilePath p2p_dir = configuration_->GetP2PDir();
+  FilePath p2p_dir = configuration_->GetP2PDir();
   if (statvfs(p2p_dir.value().c_str(), &statvfsbuf) != 0) {
     PLOG(ERROR) << "Error calling statvfs() for dir " << p2p_dir.value();
     return false;
@@ -636,7 +636,7 @@ bool P2PManagerImpl::FileShare(const string& file_id,
       }
     }
 
-    string decimal_size = base::StringPrintf("%zu", expected_size);
+    string decimal_size = StringPrintf("%zu", expected_size);
     if (fsetxattr(fd, kCrosP2PFileSizeXAttrName,
                   decimal_size.c_str(), decimal_size.size(), 0) != 0) {
       PLOG(ERROR) << "Error setting xattr " << path.value();
@@ -649,7 +649,7 @@ bool P2PManagerImpl::FileShare(const string& file_id,
 
 FilePath P2PManagerImpl::FileGetPath(const string& file_id) {
   struct stat statbuf;
-  base::FilePath path;
+  FilePath path;
 
   path = GetPath(file_id, kVisible);
   if (stat(path.value().c_str(), &statbuf) == 0) {
@@ -667,7 +667,7 @@ FilePath P2PManagerImpl::FileGetPath(const string& file_id) {
 
 bool P2PManagerImpl::FileGetVisible(const string& file_id,
                                     bool *out_result) {
-  base::FilePath path = FileGetPath(file_id);
+  FilePath path = FileGetPath(file_id);
   if (path.empty()) {
     LOG(ERROR) << "No file for id " << file_id;
     return false;
@@ -678,7 +678,7 @@ bool P2PManagerImpl::FileGetVisible(const string& file_id,
 }
 
 bool P2PManagerImpl::FileMakeVisible(const string& file_id) {
-  base::FilePath path = FileGetPath(file_id);
+  FilePath path = FileGetPath(file_id);
   if (path.empty()) {
     LOG(ERROR) << "No file for id " << file_id;
     return false;
@@ -689,7 +689,7 @@ bool P2PManagerImpl::FileMakeVisible(const string& file_id) {
     return true;
 
   LOG_ASSERT(path.MatchesExtension(kTmpExtension));
-  base::FilePath new_path = path.RemoveExtension();
+  FilePath new_path = path.RemoveExtension();
   LOG_ASSERT(new_path.MatchesExtension(kP2PExtension));
   if (rename(path.value().c_str(), new_path.value().c_str()) != 0) {
     PLOG(ERROR) << "Error renaming " << path.value()
@@ -701,7 +701,7 @@ bool P2PManagerImpl::FileMakeVisible(const string& file_id) {
 }
 
 ssize_t P2PManagerImpl::FileGetSize(const string& file_id) {
-  base::FilePath path = FileGetPath(file_id);
+  FilePath path = FileGetPath(file_id);
   if (path.empty())
     return -1;
 
@@ -709,7 +709,7 @@ ssize_t P2PManagerImpl::FileGetSize(const string& file_id) {
 }
 
 ssize_t P2PManagerImpl::FileGetExpectedSize(const string& file_id) {
-  base::FilePath path = FileGetPath(file_id);
+  FilePath path = FileGetPath(file_id);
   if (path.empty())
     return -1;
 
@@ -740,7 +740,7 @@ int P2PManagerImpl::CountSharedFiles() {
   const char* name;
   int num_files = 0;
 
-  base::FilePath p2p_dir = configuration_->GetP2PDir();
+  FilePath p2p_dir = configuration_->GetP2PDir();
   dir = g_dir_open(p2p_dir.value().c_str(), 0, &error);
   if (dir == nullptr) {
     LOG(ERROR) << "Error opening directory " << p2p_dir.value() << ": "

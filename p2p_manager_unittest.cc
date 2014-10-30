@@ -27,10 +27,9 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using base::TimeDelta;
 using std::string;
 using std::unique_ptr;
-using std::vector;
-using base::TimeDelta;
 
 namespace chromeos_update_engine {
 
@@ -159,7 +158,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesDefaultToEnabled) {
       new policy::MockDevicePolicy());
   // We return an empty owner as this is an enterprise.
   EXPECT_CALL(*device_policy, GetOwner(testing::_)).WillRepeatedly(
-      DoAll(testing::SetArgumentPointee<0>(std::string("")),
+      DoAll(testing::SetArgumentPointee<0>(string("")),
             testing::Return(true)));
   manager->SetDevicePolicy(device_policy.get());
   EXPECT_TRUE(manager->IsP2PEnabled());
@@ -184,7 +183,7 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesOverrideDefault) {
       new policy::MockDevicePolicy());
   // We return an empty owner as this is an enterprise.
   EXPECT_CALL(*device_policy, GetOwner(testing::_)).WillRepeatedly(
-      DoAll(testing::SetArgumentPointee<0>(std::string("")),
+      DoAll(testing::SetArgumentPointee<0>(string("")),
             testing::Return(true)));
   // Make Enterprise Policy indicate p2p is not enabled.
   EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(

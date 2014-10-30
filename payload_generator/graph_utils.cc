@@ -105,7 +105,7 @@ void DropIncomingEdgesTo(Graph* graph, Vertex::Index index) {
   }
 }
 
-Extent GetElement(const std::vector<Extent>& collection, size_t index) {
+Extent GetElement(const vector<Extent>& collection, size_t index) {
   return collection[index];
 }
 Extent GetElement(
