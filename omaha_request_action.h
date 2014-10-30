@@ -146,7 +146,13 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   bool IsEvent() const { return event_.get() != nullptr; }
 
  private:
-  FRIEND_TEST(OmahaRequestActionTest, GetInstallDate);
+  FRIEND_TEST(OmahaRequestActionTest, GetInstallDateWhenNoPrefsNorOOBE);
+  FRIEND_TEST(OmahaRequestActionTest,
+              GetInstallDateWhenOOBECompletedWithInvalidDate);
+  FRIEND_TEST(OmahaRequestActionTest,
+              GetInstallDateWhenOOBECompletedWithValidDate);
+  FRIEND_TEST(OmahaRequestActionTest,
+              GetInstallDateWhenOOBECompletedDateChanges);
 
   // Enumeration used in PersistInstallDate().
   enum InstallDateProvisioningSource {
