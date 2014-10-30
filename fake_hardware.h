@@ -18,6 +18,11 @@ namespace chromeos_update_engine {
 // Implements a fake hardware interface used for testing.
 class FakeHardware : public HardwareInterface {
  public:
+  // Value used to signal that the powerwash_count file is not present. When
+  // this value is used in SetPowerwashCount(), GetPowerwashCount() will return
+  // false.
+  static const int kPowerwashCountNotSet = -1;
+
   FakeHardware()
     : kernel_device_("/dev/sdz4"),
       boot_device_("/dev/sdz5"),
@@ -28,7 +33,8 @@ class FakeHardware : public HardwareInterface {
       is_oobe_complete_(false),
       hardware_class_("Fake HWID BLAH-1234"),
       firmware_version_("Fake Firmware v1.0.1"),
-      ec_version_("Fake EC v1.0a") {}
+      ec_version_("Fake EC v1.0a"),
+      powerwash_count_(kPowerwashCountNotSet) {}
 
   // HardwareInterface methods.
   std::string BootKernelDevice() const override { return kernel_device_; }
@@ -71,6 +77,8 @@ class FakeHardware : public HardwareInterface {
 
   std::string GetECVersion() const override { return ec_version_; }
 
+  int GetPowerwashCount() const override { return powerwash_count_; }
+
   // Setters
   void SetBootDevice(const std::string& boot_device) {
     boot_device_ = boot_device;
@@ -111,6 +119,10 @@ class FakeHardware : public HardwareInterface {
     ec_version_ = ec_version;
   }
 
+  void SetPowerwashCount(int powerwash_count) {
+    powerwash_count_ = powerwash_count;
+  }
+
  private:
   std::string kernel_device_;
   std::string boot_device_;
@@ -124,6 +136,7 @@ class FakeHardware : public HardwareInterface {
   std::string hardware_class_;
   std::string firmware_version_;
   std::string ec_version_;
+  int powerwash_count_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeHardware);
 };

@@ -6,6 +6,7 @@
 
 #include <base/files/file_util.h>
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <rootdev/rootdev.h>
 #include <vboot/crossystem.h>
@@ -24,6 +25,12 @@ using std::vector;
 namespace {
 
 static const char kOOBECompletedMarker[] = "/home/chronos/.oobe_completed";
+
+// The powerwash_count marker file contains the number of times the device was
+// powerwashed. This value is incremented by the clobber-state script when
+// a powerwash is performed.
+static const char kPowerwashCountMarker[] =
+    "/mnt/stateful_partition/unencrypted/preserve/powerwash_count";
 
 }  // namespace
 
@@ -202,6 +209,17 @@ string Hardware::GetECVersion() const {
   }
 
   return utils::ParseECVersion(input_line);
+}
+
+int Hardware::GetPowerwashCount() const {
+  int powerwash_count;
+  string contents;
+  if (!utils::ReadFile(kPowerwashCountMarker, &contents))
+    return -1;
+  base::TrimWhitespaceASCII(contents, base::TRIM_TRAILING, &contents);
+  if (!base::StringToInt(contents, &powerwash_count))
+    return -1;
+  return powerwash_count;
 }
 
 }  // namespace chromeos_update_engine

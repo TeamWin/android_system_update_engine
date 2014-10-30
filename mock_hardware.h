@@ -55,6 +55,9 @@ class MockHardware : public HardwareInterface {
     ON_CALL(*this, GetECVersion())
       .WillByDefault(testing::Invoke(&fake_,
             &FakeHardware::GetECVersion));
+    ON_CALL(*this, GetPowerwashCount())
+      .WillByDefault(testing::Invoke(&fake_,
+            &FakeHardware::GetPowerwashCount));
   }
 
   virtual ~MockHardware() {}
@@ -74,6 +77,7 @@ class MockHardware : public HardwareInterface {
   MOCK_CONST_METHOD0(GetHardwareClass, std::string());
   MOCK_CONST_METHOD0(GetFirmwareVersion, std::string());
   MOCK_CONST_METHOD0(GetECVersion, std::string());
+  MOCK_CONST_METHOD0(GetPowerwashCount, int());
 
   // Returns a reference to the underlying FakeHardware.
   FakeHardware& fake() {

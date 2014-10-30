@@ -196,6 +196,10 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // number of days since the last ping sent for |key|.
   int CalculatePingDays(const std::string& key);
 
+  // Returns whether we have "active_days" or "roll_call_days" ping values to
+  // send to Omaha and thus we should include them in the response.
+  bool ShouldPing() const;
+
   // Returns true if the download of a new update should be deferred.
   // False if the update can be downloaded.
   bool ShouldDeferDownload(OmahaResponse* output_object);

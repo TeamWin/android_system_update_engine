@@ -34,6 +34,7 @@ class Hardware : public HardwareInterface {
   std::string GetHardwareClass() const override;
   std::string GetFirmwareVersion() const override;
   std::string GetECVersion() const override;
+  int GetPowerwashCount() const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Hardware);

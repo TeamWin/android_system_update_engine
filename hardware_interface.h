@@ -66,6 +66,11 @@ class HardwareInterface {
   // running a custom chrome os ec.
   virtual std::string GetECVersion() const = 0;
 
+  // Returns the powerwash_count from the stateful. If the file is not found
+  // or is invalid, returns -1. Brand new machines out of the factory or after
+  // recovery don't have this value set.
+  virtual int GetPowerwashCount() const = 0;
+
   virtual ~HardwareInterface() {}
 };
 

@@ -1458,8 +1458,12 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
       .WillOnce(DoAll(SetArgumentPointee<1>(one_hour_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(one_hour_ago), Return(true)));
-  EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
-  EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
+  // LastActivePingDay and PrefsLastRollCallPingDay are set even if we didn't
+  // send a ping.
+  EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _))
+      .WillOnce(Return(true));
+  EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _))
+      .WillOnce(Return(true));
   vector<char> post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
@@ -1880,6 +1884,31 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
       "version=\"5.6.7.8\" "
       "track=\"canary-channel\" from_track=\"stable-channel\""));
   EXPECT_EQ(string::npos, post_str.find("from_version"));
+}
+
+// Checks that the initial ping with a=-1 r=-1 is not send when the device
+// was powerwashed.
+TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
+  fake_prefs_.SetString(kPrefsPreviousVersion, "");
+
+  // Flag that the device was powerwashed in the past.
+  fake_system_state_.fake_hardware()->SetPowerwashCount(1);
+
+  vector<char> post_data;
+  ASSERT_TRUE(
+      TestUpdateCheck(nullptr,  // request_params
+                      GetNoUpdateResponse(OmahaRequestParams::kAppId),
+                      -1,
+                      false,  // ping_only
+                      ErrorCode::kSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
+                      nullptr,
+                      &post_data));
+  // We shouldn't send a ping in this case since powerwash > 0.
+  string post_str(&post_data[0], post_data.size());
+  EXPECT_EQ(string::npos, post_str.find("<ping"));
 }
 
 void OmahaRequestActionTest::P2PTest(

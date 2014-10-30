@@ -63,19 +63,12 @@ namespace {
 
 static const char* const kGupdateVersion = "ChromeOSUpdateEngine-0.1.0.0";
 
-// Returns true if |ping_days| has a value that needs to be sent,
-// false otherwise.
-bool ShouldPing(int ping_days) {
-  return ping_days > 0 || ping_days == OmahaRequestAction::kNeverPinged;
-}
-
 // Returns an XML ping element attribute assignment with attribute
 // |name| and value |ping_days| if |ping_days| has a value that needs
 // to be sent, or an empty string otherwise.
 string GetPingAttribute(const string& name, int ping_days) {
-  if (ShouldPing(ping_days)) {
+  if (ping_days > 0 || ping_days == OmahaRequestAction::kNeverPinged)
     return base::StringPrintf(" %s=\"%d\"", name.c_str(), ping_days);
-  }
   return "";
 }
 
@@ -86,8 +79,8 @@ string GetPingXml(int ping_active_days, int ping_roll_call_days) {
   string ping_roll_call = GetPingAttribute("r", ping_roll_call_days);
   if (!ping_active.empty() || !ping_roll_call.empty()) {
     return base::StringPrintf("        <ping active=\"1\"%s%s></ping>\n",
-                        ping_active.c_str(),
-                        ping_roll_call.c_str());
+                              ping_active.c_str(),
+                              ping_roll_call.c_str());
   }
   return "";
 }
@@ -97,12 +90,14 @@ string GetPingXml(int ping_active_days, int ping_roll_call_days) {
 string GetAppBody(const OmahaEvent* event,
                   OmahaRequestParams* params,
                   bool ping_only,
+                  bool include_ping,
                   int ping_active_days,
                   int ping_roll_call_days,
                   PrefsInterface* prefs) {
   string app_body;
   if (event == nullptr) {
-    app_body = GetPingXml(ping_active_days, ping_roll_call_days);
+    if (include_ping)
+        app_body = GetPingXml(ping_active_days, ping_roll_call_days);
     if (!ping_only) {
       app_body += base::StringPrintf(
           "        <updatecheck targetversionprefix=\"%s\""
@@ -151,12 +146,14 @@ string GetAppBody(const OmahaEvent* event,
 string GetAppXml(const OmahaEvent* event,
                  OmahaRequestParams* params,
                  bool ping_only,
+                 bool include_ping,
                  int ping_active_days,
                  int ping_roll_call_days,
                  int install_date_in_days,
                  SystemState* system_state) {
-  string app_body = GetAppBody(event, params, ping_only, ping_active_days,
-                               ping_roll_call_days, system_state->prefs());
+  string app_body = GetAppBody(event, params, ping_only, include_ping,
+                               ping_active_days, ping_roll_call_days,
+                               system_state->prefs());
   string app_versions;
 
   // If we are upgrading to a more stable channel and we are allowed to do
@@ -221,14 +218,15 @@ string GetOsXml(OmahaRequestParams* params) {
 string GetRequestXml(const OmahaEvent* event,
                      OmahaRequestParams* params,
                      bool ping_only,
+                     bool include_ping,
                      int ping_active_days,
                      int ping_roll_call_days,
                      int install_date_in_days,
                      SystemState* system_state) {
   string os_xml = GetOsXml(params);
-  string app_xml = GetAppXml(event, params, ping_only, ping_active_days,
-                             ping_roll_call_days, install_date_in_days,
-                             system_state);
+  string app_xml = GetAppXml(event, params, ping_only, include_ping,
+                             ping_active_days, ping_roll_call_days,
+                             install_date_in_days, system_state);
 
   string install_source = base::StringPrintf("installsource=\"%s\" ",
       (params->interactive() ? "ondemandupdate" : "scheduler"));
@@ -415,9 +413,23 @@ void OmahaRequestAction::InitPingDays() {
   }
   // TODO(petkov): Figure a way to distinguish active use pings
   // vs. roll call pings. Currently, the two pings are identical. A
-  // fix needs to change this code as well as UpdateLastPingDays.
+  // fix needs to change this code as well as UpdateLastPingDays and ShouldPing.
   ping_active_days_ = CalculatePingDays(kPrefsLastActivePingDay);
   ping_roll_call_days_ = CalculatePingDays(kPrefsLastRollCallPingDay);
+}
+
+bool OmahaRequestAction::ShouldPing() const {
+  if (ping_active_days_ == OmahaRequestAction::kNeverPinged &&
+      ping_roll_call_days_ == OmahaRequestAction::kNeverPinged) {
+    int powerwash_count = system_state_->hardware()->GetPowerwashCount();
+    if (powerwash_count > 0) {
+      LOG(INFO) << "Not sending ping with a=-1 r=-1 to omaha because "
+                << "powerwash_count is " << powerwash_count;
+      return false;
+    }
+    return true;
+  }
+  return ping_active_days_ > 0 || ping_roll_call_days_ > 0;
 }
 
 // static
@@ -487,9 +499,7 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
 void OmahaRequestAction::PerformAction() {
   http_fetcher_->set_delegate(this);
   InitPingDays();
-  if (ping_only_ &&
-      !ShouldPing(ping_active_days_) &&
-      !ShouldPing(ping_roll_call_days_)) {
+  if (ping_only_ && !ShouldPing()) {
     processor_->ActionComplete(this, ErrorCode::kSuccess);
     return;
   }
@@ -497,6 +507,7 @@ void OmahaRequestAction::PerformAction() {
   string request_post(GetRequestXml(event_.get(),
                                     params_,
                                     ping_only_,
+                                    ShouldPing(),  // include_ping
                                     ping_active_days_,
                                     ping_roll_call_days_,
                                     GetInstallDate(system_state_),
@@ -800,15 +811,11 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
     return;
   }
 
-  // If a ping was sent, update the last ping day preferences based on
-  // the server daystart response.
-  if (ShouldPing(ping_active_days_) ||
-      ShouldPing(ping_roll_call_days_) ||
-      ping_active_days_ == kPingTimeJump ||
-      ping_roll_call_days_ == kPingTimeJump) {
-    LOG_IF(ERROR, !UpdateLastPingDays(&parser_data, system_state_->prefs()))
-        << "Failed to update the last ping day preferences!";
-  }
+  // Update the last ping day preferences based on the server daystart response
+  // even if we didn't send a ping. Omaha always includes the daystart in the
+  // response, but log the error if it didn't.
+  LOG_IF(ERROR, !UpdateLastPingDays(&parser_data, system_state_->prefs()))
+      << "Failed to update the last ping day preferences!";
 
   if (!HasOutputPipe()) {
     // Just set success to whether or not the http transfer succeeded,
