@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_state.h"
+
 #include <glib.h>
 
 #include <base/files/file_path.h>
-#include "base/files/file_util.h"
+#include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/fake_clock.h"
@@ -16,7 +18,6 @@
 #include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/omaha_request_action.h"
-#include "update_engine/payload_state.h"
 #include "update_engine/prefs.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
@@ -1101,21 +1102,15 @@ TEST(PayloadStateTest, DurationsAreCorrect) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   FakeClock fake_clock;
-  Prefs prefs;
-  string temp_dir;
+  FakePrefs fake_prefs;
 
   // Set the clock to a well-known time - 1 second on the wall-clock
   // and 2 seconds on the monotonic clock
   fake_clock.SetWallclockTime(Time::FromInternalValue(1000000));
   fake_clock.SetMonotonicTime(Time::FromInternalValue(2000000));
 
-  // We need persistent preferences for this test
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateDurationTests.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
-
   fake_system_state.set_clock(&fake_clock);
-  fake_system_state.set_prefs(&prefs);
+  fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
   // Check that durations are correct for a successful update where
@@ -1159,8 +1154,6 @@ TEST(PayloadStateTest, DurationsAreCorrect) {
   EXPECT_EQ(payload_state2.GetUpdateDuration().InMicroseconds(), 17000000);
   EXPECT_EQ(payload_state2.GetUpdateDurationUptime().InMicroseconds(),
             16000000);
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
@@ -1168,20 +1161,14 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   FakeClock fake_clock;
-  Prefs prefs;
-  string temp_dir;
+  FakePrefs fake_prefs;
 
   // Set the clock to a well-known time (t = 30 seconds).
   fake_clock.SetWallclockTime(Time::FromInternalValue(
       30 * Time::kMicrosecondsPerSecond));
 
-  // We need persistent preferences for this test
-  EXPECT_TRUE(utils::MakeTempDirectory(
-      "RebootAfterSuccessfulUpdateTest.XXXXXX", &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
-
   fake_system_state.set_clock(&fake_clock);
-  fake_system_state.set_prefs(&prefs);
+  fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
   // Make the update succeed.
@@ -1189,7 +1176,7 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   payload_state.UpdateSucceeded();
 
   // Check that the marker was written.
-  EXPECT_TRUE(prefs.Exists(kPrefsSystemUpdatedMarker));
+  EXPECT_TRUE(fake_prefs.Exists(kPrefsSystemUpdatedMarker));
 
   // Now simulate a reboot and set the wallclock time to a later point
   // (t = 500 seconds). We do this by using a new PayloadState object
@@ -1212,9 +1199,7 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   payload_state2.UpdateEngineStarted();
 
   // Check that the marker was nuked.
-  EXPECT_FALSE(prefs.Exists(kPrefsSystemUpdatedMarker));
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+  EXPECT_FALSE(fake_prefs.Exists(kPrefsSystemUpdatedMarker));
 }
 
 TEST(PayloadStateTest, RestartAfterCrash) {
@@ -1261,12 +1246,12 @@ TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsNoReporting) {
 TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsReported) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
-  FakePrefs prefs;
+  FakePrefs fake_prefs;
 
   // If we have a marker at startup, ensure it's reported and the
   // marker is then cleared.
-  fake_system_state.set_prefs(&prefs);
-  prefs.SetBoolean(kPrefsAttemptInProgress, true);
+  fake_system_state.set_prefs(&fake_prefs);
+  fake_prefs.SetBoolean(kPrefsAttemptInProgress, true);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
@@ -1277,18 +1262,18 @@ TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsReported) {
           _)).Times(1);
   payload_state.UpdateEngineStarted();
 
-  EXPECT_FALSE(prefs.Exists(kPrefsAttemptInProgress));
+  EXPECT_FALSE(fake_prefs.Exists(kPrefsAttemptInProgress));
 }
 
 TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
-  FakePrefs prefs;
+  FakePrefs fake_prefs;
 
   // Make sure the marker is written and cleared during an attempt and
   // also that we DO NOT emit the metric (since the attempt didn't end
   // abnormally).
-  fake_system_state.set_prefs(&prefs);
+  fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(_, _, _, _, _))
@@ -1302,17 +1287,17 @@ TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
           _)).Times(0);
 
   // Attempt not in progress, should be clear.
-  EXPECT_FALSE(prefs.Exists(kPrefsAttemptInProgress));
+  EXPECT_FALSE(fake_prefs.Exists(kPrefsAttemptInProgress));
 
   payload_state.UpdateRestarted();
 
   // Attempt not in progress, should be set.
-  EXPECT_TRUE(prefs.Exists(kPrefsAttemptInProgress));
+  EXPECT_TRUE(fake_prefs.Exists(kPrefsAttemptInProgress));
 
   payload_state.UpdateSucceeded();
 
   // Attempt not in progress, should be clear.
-  EXPECT_FALSE(prefs.Exists(kPrefsAttemptInProgress));
+  EXPECT_FALSE(fake_prefs.Exists(kPrefsAttemptInProgress));
 }
 
 TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
@@ -1494,14 +1479,8 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   FakeSystemState fake_system_state;
   OmahaResponse response;
   PayloadState payload_state;
-  Prefs prefs;
-  string temp_dir;
-
-  // Setup an environment with persistent prefs across simulated reboots.
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
-  fake_system_state.set_prefs(&prefs);
+  FakePrefs fake_prefs;
+  fake_system_state.set_prefs(&fake_prefs);
 
   FakeHardware* fake_hardware = fake_system_state.fake_hardware();
   fake_hardware->SetBootDevice("/dev/sda3");
@@ -1542,22 +1521,14 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
       metrics::kMetricFailedUpdateCount, 1, _, _, _));
   payload_state.ReportFailedBootIfNeeded();
   Mock::VerifyAndClearExpectations(fake_system_state.mock_metrics_lib());
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   FakeSystemState fake_system_state;
   OmahaResponse response;
   PayloadState payload_state;
-  Prefs prefs;
-  string temp_dir;
-
-  // Setup an environment with persistent prefs across simulated reboots.
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
-  fake_system_state.set_prefs(&prefs);
+  FakePrefs fake_prefs;
+  fake_system_state.set_prefs(&fake_prefs);
 
   FakeHardware* fake_hardware = fake_system_state.fake_hardware();
   fake_hardware->SetBootDevice("/dev/sda3");
@@ -1585,23 +1556,15 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   payload_state.ReportFailedBootIfNeeded();
   fake_hardware->SetBootDevice("/dev/sda3");
   payload_state.ReportFailedBootIfNeeded();
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(PayloadStateTest, RebootAfterCanceledUpdate) {
   FakeSystemState fake_system_state;
   OmahaResponse response;
   PayloadState payload_state;
-  Prefs prefs;
-  string temp_dir;
+  FakePrefs fake_prefs;
 
-  // Setup an environment with persistent prefs across simulated reboots.
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
-  fake_system_state.set_prefs(&prefs);
-
+  fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   SetupPayloadStateWith2Urls("Hash3141", true, &payload_state, &response);
 
@@ -1622,22 +1585,14 @@ TEST(PayloadStateTest, RebootAfterCanceledUpdate) {
 
   // Simulate a reboot.
   payload_state.ReportFailedBootIfNeeded();
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
   FakeSystemState fake_system_state;
   PayloadState payload_state;
-  Prefs prefs;
-  string temp_dir;
+  FakePrefs fake_prefs;
 
-  // Setup an environment with persistent but initially empty prefs.
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateReboot.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
-  fake_system_state.set_prefs(&prefs);
-
+  fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
@@ -1649,23 +1604,15 @@ TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
 
   // Simulate a reboot in this environment.
   payload_state.ReportFailedBootIfNeeded();
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
-  Prefs prefs;
-  string temp_dir;
+  FakePrefs fake_prefs;
+  fake_system_state.set_prefs(&fake_prefs);
 
-  // We need persistent preferences for this test.
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
-
-  fake_system_state.set_prefs(&prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
 
@@ -1677,8 +1624,6 @@ TEST(PayloadStateTest, DisallowP2PAfterTooManyAttempts) {
   // ... but not more than that.
   payload_state.P2PNewAttempt();
   EXPECT_FALSE(payload_state.P2PAttemptAllowed());
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
@@ -1686,16 +1631,10 @@ TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   FakeClock fake_clock;
-  Prefs prefs;
-  string temp_dir;
-
-  // We need persistent preferences for this test.
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
+  FakePrefs fake_prefs;
 
   fake_system_state.set_clock(&fake_clock);
-  fake_system_state.set_prefs(&prefs);
+  fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
 
@@ -1730,29 +1669,21 @@ TEST(PayloadStateTest, DisallowP2PAfterDeadline) {
   fake_clock.SetWallclockTime(epoch +
       TimeDelta::FromSeconds(kMaxP2PAttemptTimeSeconds + 1));
   EXPECT_FALSE(payload_state.P2PAttemptAllowed());
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(PayloadStateTest, P2PStateVarsInitialValue) {
   OmahaResponse response;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
-  Prefs prefs;
-  string temp_dir;
+  FakePrefs fake_prefs;
 
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
-  fake_system_state.set_prefs(&prefs);
+  fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
 
   Time null_time = Time();
   EXPECT_EQ(null_time, payload_state.GetP2PFirstAttemptTimestamp());
   EXPECT_EQ(0, payload_state.GetP2PNumAttempts());
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(PayloadStateTest, P2PStateVarsArePersisted) {
@@ -1760,14 +1691,9 @@ TEST(PayloadStateTest, P2PStateVarsArePersisted) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   FakeClock fake_clock;
-  Prefs prefs;
-  string temp_dir;
-
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
+  FakePrefs fake_prefs;
   fake_system_state.set_clock(&fake_clock);
-  fake_system_state.set_prefs(&prefs);
+  fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
 
@@ -1786,8 +1712,6 @@ TEST(PayloadStateTest, P2PStateVarsArePersisted) {
   EXPECT_TRUE(payload_state2.Initialize(&fake_system_state));
   EXPECT_EQ(1, payload_state2.GetP2PNumAttempts());
   EXPECT_EQ(time, payload_state2.GetP2PFirstAttemptTimestamp());
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
@@ -1795,14 +1719,10 @@ TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   FakeClock fake_clock;
-  Prefs prefs;
-  string temp_dir;
-
-  EXPECT_TRUE(utils::MakeTempDirectory("PayloadStateP2PTests.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
+  FakePrefs fake_prefs;
   fake_system_state.set_clock(&fake_clock);
-  fake_system_state.set_prefs(&prefs);
+  fake_system_state.set_prefs(&fake_prefs);
+
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
 
@@ -1822,8 +1742,6 @@ TEST(PayloadStateTest, P2PStateVarsAreClearedOnNewResponse) {
   Time null_time = Time();
   EXPECT_EQ(0, payload_state.GetP2PNumAttempts());
   EXPECT_EQ(null_time, payload_state.GetP2PFirstAttemptTimestamp());
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 }  // namespace chromeos_update_engine

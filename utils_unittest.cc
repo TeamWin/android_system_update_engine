@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/utils.h"
+
 #include <errno.h>
 #include <stdint.h>
 #include <sys/stat.h>
@@ -11,17 +13,17 @@
 #include <string>
 #include <vector>
 
-#include <base/files/file_util.h>
 #include <base/files/file_path.h>
+#include <base/files/file_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
+#include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/prefs.h"
 #include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
 
 using std::map;
 using std::string;
@@ -571,11 +573,7 @@ TEST(UtilsTest, WallclockDurationHelper) {
   FakeClock fake_clock;
   base::TimeDelta duration;
   string state_variable_key = "test-prefs";
-  string temp_dir;
-  Prefs fake_prefs;
-
-  EXPECT_TRUE(utils::MakeTempDirectory("DurationPrefs.XXXXXX", &temp_dir));
-  fake_prefs.Init(base::FilePath(temp_dir));
+  FakePrefs fake_prefs;
 
   fake_system_state.set_clock(&fake_clock);
   fake_system_state.set_prefs(&fake_prefs);
@@ -640,8 +638,6 @@ TEST(UtilsTest, WallclockDurationHelper) {
                                              state_variable_key,
                                              &duration));
   EXPECT_EQ(duration.InSeconds(), 1);
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(UtilsTest, MonotonicDurationHelper) {

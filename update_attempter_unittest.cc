@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/update_attempter.h"
+
 #include <stdint.h>
 
 #include <memory>
@@ -14,6 +16,7 @@
 #include "update_engine/action_mock.h"
 #include "update_engine/action_processor_mock.h"
 #include "update_engine/fake_clock.h"
+#include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/filesystem_copier_action.h"
 #include "update_engine/install_plan.h"
@@ -25,7 +28,6 @@
 #include "update_engine/prefs.h"
 #include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
-#include "update_engine/update_attempter.h"
 #include "update_engine/utils.h"
 
 using base::Time;
@@ -37,9 +39,9 @@ using testing::InSequence;
 using testing::Ne;
 using testing::NiceMock;
 using testing::Property;
-using testing::SaveArg;
 using testing::Return;
 using testing::ReturnPointee;
+using testing::SaveArg;
 using testing::SetArgumentPointee;
 using testing::_;
 
@@ -198,7 +200,7 @@ class UpdateAttempterTest : public ::testing::Test {
   NiceMock<MockDBusWrapper> dbus_;
   UpdateAttempterUnderTest attempter_;
   NiceMock<ActionProcessorMock>* processor_;
-  NiceMock<PrefsMock>* prefs_;  // shortcut to fake_system_state_->mock_prefs()
+  NiceMock<PrefsMock>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
   NiceMock<MockConnectionManager> mock_connection_manager;
   GMainLoop* loop_;
 
@@ -859,19 +861,12 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   // Tests that the scatter_factor_in_seconds value is properly fetched
   // from the device policy and is decremented if value > 0.
   int64_t initial_value = 5;
-  Prefs prefs;
-  attempter_.prefs_ = &prefs;
+  FakePrefs fake_prefs;
+  attempter_.prefs_ = &fake_prefs;
 
   fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
 
-  string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
-                                       &prefs_dir));
-  ScopedDirRemover temp_dir_remover(prefs_dir);
-
-  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
-      << "Failed to initialize preferences.";
-  EXPECT_TRUE(prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
+  EXPECT_TRUE(fake_prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
 
   int64_t scatter_factor_in_seconds = 10;
 
@@ -890,10 +885,10 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
   // Make sure the file still exists.
-  EXPECT_TRUE(prefs.Exists(kPrefsUpdateCheckCount));
+  EXPECT_TRUE(fake_prefs.Exists(kPrefsUpdateCheckCount));
 
   int64_t new_value;
-  EXPECT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
+  EXPECT_TRUE(fake_prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
   EXPECT_EQ(initial_value - 1, new_value);
 
   EXPECT_TRUE(
@@ -901,10 +896,10 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
 
   // However, if the count is already 0, it's not decremented. Test that.
   initial_value = 0;
-  EXPECT_TRUE(prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
+  EXPECT_TRUE(fake_prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
   attempter_.Update("", "", "", "", false, false);
-  EXPECT_TRUE(prefs.Exists(kPrefsUpdateCheckCount));
-  EXPECT_TRUE(prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
+  EXPECT_TRUE(fake_prefs.Exists(kPrefsUpdateCheckCount));
+  EXPECT_TRUE(fake_prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
   EXPECT_EQ(initial_value, new_value);
 
   g_idle_add(&StaticQuitMainLoop, this);
@@ -922,20 +917,14 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   // Tests that no scattering logic is enabled if the update check
   // is manually done (as opposed to a scheduled update check)
   int64_t initial_value = 8;
-  Prefs prefs;
-  attempter_.prefs_ = &prefs;
+  FakePrefs fake_prefs;
+  attempter_.prefs_ = &fake_prefs;
 
   fake_system_state_.fake_hardware()->SetIsOOBEComplete(Time::UnixEpoch());
+  fake_system_state_.set_prefs(&fake_prefs);
 
-  string prefs_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("ue_ut_prefs.XXXXXX",
-                                       &prefs_dir));
-  ScopedDirRemover temp_dir_remover(prefs_dir);
-
-  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
-      << "Failed to initialize preferences.";
-  EXPECT_TRUE(prefs.SetInt64(kPrefsWallClockWaitPeriod, initial_value));
-  EXPECT_TRUE(prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
+  EXPECT_TRUE(fake_prefs.SetInt64(kPrefsWallClockWaitPeriod, initial_value));
+  EXPECT_TRUE(fake_prefs.SetInt64(kPrefsUpdateCheckCount, initial_value));
 
   // make sure scatter_factor is non-zero as scattering is disabled
   // otherwise.
@@ -960,11 +949,11 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   // checks and all artifacts are removed.
   EXPECT_FALSE(
       attempter_.omaha_request_params_->wall_clock_based_wait_enabled());
-  EXPECT_FALSE(prefs.Exists(kPrefsWallClockWaitPeriod));
+  EXPECT_FALSE(fake_prefs.Exists(kPrefsWallClockWaitPeriod));
   EXPECT_EQ(0, attempter_.omaha_request_params_->waiting_period().InSeconds());
   EXPECT_FALSE(
       attempter_.omaha_request_params_->update_check_count_wait_enabled());
-  EXPECT_FALSE(prefs.Exists(kPrefsUpdateCheckCount));
+  EXPECT_FALSE(fake_prefs.Exists(kPrefsUpdateCheckCount));
 
   g_idle_add(&StaticQuitMainLoop, this);
 }
@@ -972,15 +961,10 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
 // Checks that we only report daily metrics at most every 24 hours.
 TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
   FakeClock fake_clock;
-  Prefs prefs;
-  string temp_dir;
+  FakePrefs fake_prefs;
 
-  // We need persistent preferences for this test
-  EXPECT_TRUE(utils::MakeTempDirectory("UpdateAttempterTest.XXXXXX",
-                                       &temp_dir));
-  prefs.Init(base::FilePath(temp_dir));
   fake_system_state_.set_clock(&fake_clock);
-  fake_system_state_.set_prefs(&prefs);
+  fake_system_state_.set_prefs(&fake_prefs);
 
   Time epoch = Time::FromInternalValue(0);
   fake_clock.SetWallclockTime(epoch);
@@ -1036,8 +1020,6 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
   fake_clock.SetWallclockTime(epoch + TimeDelta::FromHours(95));
   EXPECT_TRUE(attempter_.CheckAndReportDailyMetrics());
   EXPECT_FALSE(attempter_.CheckAndReportDailyMetrics());
-
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
