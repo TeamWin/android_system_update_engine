@@ -17,9 +17,9 @@
 #include "update_engine/fake_hardware.h"
 #include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
+#include "update_engine/mock_prefs.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/prefs.h"
-#include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -105,7 +105,7 @@ TEST(PayloadStateTest, DidYouAddANewErrorCode) {
 TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   OmahaResponse response;
   FakeSystemState fake_system_state;
-  NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
+  NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
@@ -153,7 +153,7 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   response.metadata_size = 58123;
   response.metadata_signature = "msign";
   FakeSystemState fake_system_state;
-  NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
+  NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
@@ -206,7 +206,7 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   response.metadata_size = 558123;
   response.metadata_signature = "metasign";
   FakeSystemState fake_system_state;
-  NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
+  NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
     .Times(AtLeast(1));
@@ -251,7 +251,7 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
 TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   OmahaResponse response;
   FakeSystemState fake_system_state;
-  NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
+  NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   PayloadState payload_state;
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -366,7 +366,7 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   int progress_bytes = 100;
-  NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
+  NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
@@ -511,7 +511,7 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
   response.is_delta_payload = false;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
-  NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
+  NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
@@ -557,7 +557,7 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
   response.is_delta_payload = true;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
-  NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
+  NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
 
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(*prefs, SetInt64(kPrefsPayloadAttemptNumber, 0))
@@ -622,7 +622,7 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   // loaded when update_engine restarts. Using a different prefs object
   // so as to not bother accounting for the uninteresting calls above.
   FakeSystemState fake_system_state2;
-  NiceMock<PrefsMock>* prefs2 = fake_system_state2.mock_prefs();
+  NiceMock<MockPrefs>* prefs2 = fake_system_state2.mock_prefs();
   EXPECT_CALL(*prefs2, Exists(_)).WillRepeatedly(Return(true));
   EXPECT_CALL(*prefs2, GetInt64(_, _)).Times(AtLeast(1));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsPayloadAttemptNumber, _))
@@ -1025,7 +1025,7 @@ TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
   FakeSystemState fake_system_state;
   PayloadState payload_state;
 
-  NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
+  NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AtLeast(0));
   EXPECT_CALL(*prefs, SetInt64(kPrefsNumReboots, 1)).Times(AtLeast(1));
 
@@ -1053,7 +1053,7 @@ TEST(PayloadStateTest, RollbackVersion) {
   FakeSystemState fake_system_state;
   PayloadState payload_state;
 
-  NiceMock<PrefsMock>* mock_powerwash_safe_prefs =
+  NiceMock<MockPrefs>* mock_powerwash_safe_prefs =
       fake_system_state.mock_powerwash_safe_prefs();
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
@@ -1205,7 +1205,7 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
 TEST(PayloadStateTest, RestartAfterCrash) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
-  NiceMock<PrefsMock>* prefs = fake_system_state.mock_prefs();
+  NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 

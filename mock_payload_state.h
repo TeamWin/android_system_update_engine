@@ -7,7 +7,8 @@
 
 #include <string>
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/payload_state_interface.h"
 

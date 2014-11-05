@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/download_action.h"
+
 #include <glib.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -16,12 +18,11 @@
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/action_pipe.h"
-#include "update_engine/download_action.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_http_fetcher.h"
+#include "update_engine/mock_prefs.h"
 #include "update_engine/omaha_hash_calculator.h"
-#include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -155,7 +156,7 @@ void TestWithData(const vector<char>& data,
                            "");
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
-  PrefsMock prefs;
+  MockPrefs prefs;
   MockHttpFetcher* http_fetcher = new MockHttpFetcher(&data[0],
                                                       data.size(),
                                                       nullptr);
@@ -270,7 +271,7 @@ void TestTerminateEarly(bool use_download_delegate) {
     InstallPlan install_plan(false, false, "", 0, "", 0, "",
                              temp_file.GetPath(), "", "");
     feeder_action.set_obj(install_plan);
-    PrefsMock prefs;
+    MockPrefs prefs;
     DownloadAction download_action(&prefs, nullptr,
                                    new MockHttpFetcher(&data[0],
                                                        data.size(),
@@ -381,7 +382,7 @@ TEST(DownloadActionTest, PassObjectOutTest) {
                            "");
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
-  PrefsMock prefs;
+  MockPrefs prefs;
   DownloadAction download_action(&prefs, nullptr,
                                  new MockHttpFetcher("x", 1, nullptr));
   download_action.SetTestFileWriter(&writer);
@@ -416,7 +417,7 @@ TEST(DownloadActionTest, BadOutFileTest) {
   InstallPlan install_plan(false, false, "", 0, "", 0, "", path, "", "");
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
-  PrefsMock prefs;
+  MockPrefs prefs;
   DownloadAction download_action(&prefs, nullptr,
                                  new MockHttpFetcher("x", 1, nullptr));
   download_action.SetTestFileWriter(&writer);
@@ -495,7 +496,7 @@ class P2PDownloadActionTest : public testing::Test {
                              "");
     ObjectFeederAction<InstallPlan> feeder_action;
     feeder_action.set_obj(install_plan);
-    PrefsMock prefs;
+    MockPrefs prefs;
     http_fetcher_ = new MockHttpFetcher(data_.c_str(),
                                         data_.length(),
                                         nullptr);

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UPDATE_ENGINE_ACTION_MOCK_H_
-#define UPDATE_ENGINE_ACTION_MOCK_H_
+#ifndef UPDATE_ENGINE_MOCK_ACTION_H_
+#define UPDATE_ENGINE_MOCK_ACTION_H_
 
 #include <string>
 
@@ -13,16 +13,16 @@
 
 namespace chromeos_update_engine {
 
-class ActionMock;
+class MockAction;
 
 template<>
-class ActionTraits<ActionMock> {
+class ActionTraits<MockAction> {
  public:
   typedef NoneType OutputObjectType;
   typedef NoneType InputObjectType;
 };
 
-class ActionMock : public Action<ActionMock> {
+class MockAction : public Action<MockAction> {
  public:
   MOCK_METHOD0(PerformAction, void());
   MOCK_CONST_METHOD0(Type, std::string());
@@ -30,4 +30,4 @@ class ActionMock : public Action<ActionMock> {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_ACTION_MOCK_H_
+#endif  // UPDATE_ENGINE_MOCK_ACTION_H_

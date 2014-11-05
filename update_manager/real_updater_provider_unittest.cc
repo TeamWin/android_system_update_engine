@@ -13,17 +13,17 @@
 
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_system_state.h"
+#include "update_engine/mock_prefs.h"
 #include "update_engine/mock_update_attempter.h"
 #include "update_engine/omaha_request_params.h"
-#include "update_engine/prefs_mock.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
 using chromeos_update_engine::FakeSystemState;
+using chromeos_update_engine::MockPrefs;
 using chromeos_update_engine::OmahaRequestParams;
-using chromeos_update_engine::PrefsMock;
 using std::string;
 using std::unique_ptr;
 using testing::Return;
@@ -76,7 +76,7 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
   // so |output| is the value being read.
   void SetupReadBooleanPref(const char* key, bool key_exists,
                             bool get_boolean_success, bool output) {
-    PrefsMock* const mock_prefs = fake_sys_state_.mock_prefs();
+    MockPrefs* const mock_prefs = fake_sys_state_.mock_prefs();
     EXPECT_CALL(*mock_prefs, Exists(StrEq(key))).WillOnce(Return(key_exists));
     if (key_exists) {
       auto& get_boolean = EXPECT_CALL(

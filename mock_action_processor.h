@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UPDATE_ENGINE_ACTION_PROCESSOR_MOCK_H_
-#define UPDATE_ENGINE_ACTION_PROCESSOR_MOCK_H_
+#ifndef UPDATE_ENGINE_MOCK_ACTION_PROCESSOR_H_
+#define UPDATE_ENGINE_MOCK_ACTION_PROCESSOR_H_
 
 #include <gmock/gmock.h>
 
@@ -11,7 +11,7 @@
 
 namespace chromeos_update_engine {
 
-class ActionProcessorMock : public ActionProcessor {
+class MockActionProcessor : public ActionProcessor {
  public:
   MOCK_METHOD0(StartProcessing, void());
   MOCK_METHOD1(EnqueueAction, void(AbstractAction* action));
@@ -19,4 +19,4 @@ class ActionProcessorMock : public ActionProcessor {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_ACTION_PROCESSOR_MOCK_H_
+#endif  // UPDATE_ENGINE_MOCK_ACTION_PROCESSOR_H_

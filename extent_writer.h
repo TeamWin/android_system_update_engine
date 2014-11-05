@@ -6,7 +6,9 @@
 #define UPDATE_ENGINE_EXTENT_WRITER_H_
 
 #include <vector>
-#include "base/logging.h"
+
+#include <base/logging.h>
+
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
 

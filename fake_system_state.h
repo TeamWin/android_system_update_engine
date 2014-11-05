@@ -17,8 +17,8 @@
 #include "update_engine/mock_omaha_request_params.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
+#include "update_engine/mock_prefs.h"
 #include "update_engine/mock_update_attempter.h"
-#include "update_engine/prefs_mock.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/fake_update_manager.h"
 
@@ -163,12 +163,12 @@ class FakeSystemState : public SystemState {
     return &mock_metrics_lib_;
   }
 
-  inline testing::NiceMock<PrefsMock> *mock_prefs() {
+  inline testing::NiceMock<MockPrefs> *mock_prefs() {
     CHECK(prefs_ == &mock_prefs_);
     return &mock_prefs_;
   }
 
-  inline testing::NiceMock<PrefsMock> *mock_powerwash_safe_prefs() {
+  inline testing::NiceMock<MockPrefs> *mock_powerwash_safe_prefs() {
     CHECK(powerwash_safe_prefs_ == &mock_powerwash_safe_prefs_);
     return &mock_powerwash_safe_prefs_;
   }
@@ -204,8 +204,8 @@ class FakeSystemState : public SystemState {
   testing::NiceMock<MockConnectionManager> mock_connection_manager_;
   FakeHardware fake_hardware_;
   testing::NiceMock<MetricsLibraryMock> mock_metrics_lib_;
-  testing::NiceMock<PrefsMock> mock_prefs_;
-  testing::NiceMock<PrefsMock> mock_powerwash_safe_prefs_;
+  testing::NiceMock<MockPrefs> mock_prefs_;
+  testing::NiceMock<MockPrefs> mock_powerwash_safe_prefs_;
   testing::NiceMock<MockPayloadState> mock_payload_state_;
   testing::NiceMock<MockUpdateAttempter> mock_update_attempter_;
   testing::NiceMock<MockOmahaRequestParams> mock_request_params_;

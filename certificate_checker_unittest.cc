@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/certificate_checker.h"
+
 #include <string>
 
 #include <base/strings/string_util.h>
@@ -10,11 +12,10 @@
 #include <gtest/gtest.h>
 #include <metrics/metrics_library_mock.h>
 
-#include "update_engine/certificate_checker.h"
-#include "update_engine/certificate_checker_mock.h"
 #include "update_engine/constants.h"
 #include "update_engine/fake_system_state.h"
-#include "update_engine/prefs_mock.h"
+#include "update_engine/mock_certificate_checker.h"
+#include "update_engine/mock_prefs.h"
 
 using ::testing::DoAll;
 using ::testing::Return;
@@ -55,8 +56,8 @@ class CertificateCheckerTest : public testing::Test {
   virtual void TearDown() {}
 
   FakeSystemState fake_system_state_;
-  PrefsMock* prefs_;  // shortcut to fake_system_state_.mock_prefs()
-  OpenSSLWrapperMock openssl_wrapper_;
+  MockPrefs* prefs_;  // shortcut to fake_system_state_.mock_prefs()
+  MockOpenSSLWrapper openssl_wrapper_;
   // Parameters of our mock certificate digest.
   int depth_;
   unsigned int length_;

@@ -13,20 +13,20 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#include "update_engine/action_mock.h"
-#include "update_engine/action_processor_mock.h"
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/filesystem_copier_action.h"
 #include "update_engine/install_plan.h"
+#include "update_engine/mock_action.h"
+#include "update_engine/mock_action_processor.h"
 #include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_http_fetcher.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
+#include "update_engine/mock_prefs.h"
 #include "update_engine/postinstall_runner_action.h"
 #include "update_engine/prefs.h"
-#include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -119,7 +119,7 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_EQ(0, attempter_.last_checked_time_);
     EXPECT_EQ("0.0.0.0", attempter_.new_version_);
     EXPECT_EQ(0, attempter_.new_payload_size_);
-    processor_ = new NiceMock<ActionProcessorMock>();
+    processor_ = new NiceMock<MockActionProcessor>();
     attempter_.processor_.reset(processor_);  // Transfers ownership.
     prefs_ = fake_system_state_.mock_prefs();
 
@@ -199,8 +199,8 @@ class UpdateAttempterTest : public ::testing::Test {
   FakeSystemState fake_system_state_;
   NiceMock<MockDBusWrapper> dbus_;
   UpdateAttempterUnderTest attempter_;
-  NiceMock<ActionProcessorMock>* processor_;
-  NiceMock<PrefsMock>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
+  NiceMock<MockActionProcessor>* processor_;
+  NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
   NiceMock<MockConnectionManager> mock_connection_manager;
   GMainLoop* loop_;
 
@@ -222,8 +222,8 @@ TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
 }
 
 TEST_F(UpdateAttempterTest, ActionCompletedErrorTest) {
-  ActionMock action;
-  EXPECT_CALL(action, Type()).WillRepeatedly(Return("ActionMock"));
+  MockAction action;
+  EXPECT_CALL(action, Type()).WillRepeatedly(Return("MockAction"));
   attempter_.status_ = UPDATE_STATUS_DOWNLOADING;
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
       .WillOnce(Return(false));
@@ -286,8 +286,8 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
   EXPECT_EQ(ErrorCode::kPostinstallRunnerError,
             GetErrorCodeForAction(&postinstall_runner_action,
                                   ErrorCode::kError));
-  ActionMock action_mock;
-  EXPECT_CALL(action_mock, Type()).WillOnce(Return("ActionMock"));
+  MockAction action_mock;
+  EXPECT_CALL(action_mock, Type()).WillOnce(Return("MockAction"));
   EXPECT_EQ(ErrorCode::kError,
             GetErrorCodeForAction(&action_mock, ErrorCode::kError));
 }
@@ -627,7 +627,7 @@ TEST_F(UpdateAttempterTest, PingOmahaTest) {
 }
 
 TEST_F(UpdateAttempterTest, CreatePendingErrorEventTest) {
-  ActionMock action;
+  MockAction action;
   const ErrorCode kCode = ErrorCode::kDownloadTransferError;
   attempter_.CreatePendingErrorEvent(&action, kCode);
   ASSERT_NE(nullptr, attempter_.error_event_.get());
@@ -644,7 +644,7 @@ TEST_F(UpdateAttempterTest, CreatePendingErrorEventResumedTest) {
       new OmahaResponseHandlerAction(&fake_system_state_);
   response_action->install_plan_.is_resume = true;
   attempter_.response_handler_action_.reset(response_action);
-  ActionMock action;
+  MockAction action;
   const ErrorCode kCode = ErrorCode::kInstallDeviceOpenError;
   attempter_.CreatePendingErrorEvent(&action, kCode);
   ASSERT_NE(nullptr, attempter_.error_event_.get());

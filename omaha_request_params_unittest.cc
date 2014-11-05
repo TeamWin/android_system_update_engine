@@ -2,16 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/omaha_request_params.h"
+
 #include <stdio.h>
 
 #include <string>
 
-#include "base/files/file_util.h"
-#include "gtest/gtest.h"
+#include <base/files/file_util.h>
+#include <gtest/gtest.h>
+
 #include "update_engine/constants.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/install_plan.h"
-#include "update_engine/omaha_request_params.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 

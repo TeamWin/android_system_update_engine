@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/delta_performer.h"
+
 #include <inttypes.h>
 #include <sys/mount.h>
 
@@ -16,15 +18,14 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
-#include "update_engine/delta_performer.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/fake_hardware.h"
 #include "update_engine/fake_system_state.h"
+#include "update_engine/mock_prefs.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_verifier.h"
-#include "update_engine/prefs_mock.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
@@ -618,7 +619,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
     EXPECT_FALSE(manifest.new_rootfs_info().hash().empty());
   }
 
-  PrefsMock prefs;
+  MockPrefs prefs;
   EXPECT_CALL(prefs, SetInt64(kPrefsManifestMetadataSize,
                               state->metadata_size)).WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsUpdateStateNextOperation, _))
@@ -826,7 +827,7 @@ void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
 void DoMetadataSizeTest(uint64_t expected_metadata_size,
                         uint64_t actual_metadata_size,
                         bool hash_checks_mandatory) {
-  PrefsMock prefs;
+  MockPrefs prefs;
   InstallPlan install_plan;
   install_plan.hash_checks_mandatory = hash_checks_mandatory;
   FakeSystemState fake_system_state;
@@ -923,7 +924,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
   }
 
   // Create the delta performer object.
-  PrefsMock prefs;
+  MockPrefs prefs;
   DeltaPerformer delta_performer(&prefs,
                                  &state.fake_system_state,
                                  &install_plan);
@@ -968,7 +969,7 @@ class DeltaPerformerTest : public ::testing::Test {
   static void RunManifestValidation(const DeltaArchiveManifest& manifest,
                                     bool full_payload,
                                     ErrorCode expected) {
-    PrefsMock prefs;
+    MockPrefs prefs;
     InstallPlan install_plan;
     FakeSystemState fake_system_state;
     DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
@@ -1152,7 +1153,7 @@ TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellRotateCl2Test) {
 }
 
 TEST(DeltaPerformerTest, BadDeltaMagicTest) {
-  PrefsMock prefs;
+  MockPrefs prefs;
   InstallPlan install_plan;
   FakeSystemState fake_system_state;
   DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
@@ -1181,7 +1182,7 @@ TEST(DeltaPerformerTest, IsIdempotentOperationTest) {
 }
 
 TEST(DeltaPerformerTest, WriteUpdatesPayloadState) {
-  PrefsMock prefs;
+  MockPrefs prefs;
   InstallPlan install_plan;
   FakeSystemState fake_system_state;
   DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
@@ -1253,7 +1254,7 @@ TEST(DeltaPerformerTest, RunAsRootMandatoryOperationHashMismatchTest) {
 }
 
 TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
-  PrefsMock prefs;
+  MockPrefs prefs;
   FakeSystemState fake_system_state;
   InstallPlan install_plan;
   base::FilePath key_path;

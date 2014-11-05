@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UPDATE_ENGINE_PREFS_MOCK_H_
-#define UPDATE_ENGINE_PREFS_MOCK_H_
+#ifndef UPDATE_ENGINE_MOCK_PREFS_H_
+#define UPDATE_ENGINE_MOCK_PREFS_H_
 
 #include <string>
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
 #include "update_engine/constants.h"
 #include "update_engine/prefs_interface.h"
 
 namespace chromeos_update_engine {
 
-class PrefsMock : public PrefsInterface {
+class MockPrefs : public PrefsInterface {
  public:
   MOCK_METHOD2(GetString, bool(const std::string& key, std::string* value));
   MOCK_METHOD2(SetString, bool(const std::string& key,
@@ -30,4 +31,4 @@ class PrefsMock : public PrefsInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_PREFS_MOCK_H_
+#endif  // UPDATE_ENGINE_MOCK_PREFS_H_

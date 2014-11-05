@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/omaha_request_action.h"
+
 #include <glib.h>
 #include <stdint.h>
 
@@ -21,7 +23,6 @@
 #include "update_engine/mock_http_fetcher.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/omaha_hash_calculator.h"
-#include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/prefs.h"
 #include "update_engine/test_utils.h"
@@ -53,7 +54,7 @@ class OmahaRequestActionTest : public ::testing::Test {
   }
 
   // Returns true iff an output response was obtained from the
-  // OmahaRequestAction. |prefs| may be null, in which case a local PrefsMock
+  // OmahaRequestAction. |prefs| may be null, in which case a local MockPrefs
   // is used. |payload_state| may be null, in which case a local mock is used.
   // |p2p_manager| may be null, in which case a local mock is used.
   // |connection_manager| may be null, in which case a local mock is used.
@@ -1132,7 +1133,7 @@ TEST_F(OmahaRequestActionTest, ParseIntTest) {
 
 TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
   vector<char> post_data;
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
 
   EXPECT_CALL(prefs, GetString(kPrefsPreviousVersion, _))
@@ -1327,7 +1328,7 @@ TEST_F(OmahaRequestActionTest, OmahaEventTest) {
 }
 
 void OmahaRequestActionTest::PingTest(bool ping_only) {
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
     .Times(AnyNumber());
@@ -1376,7 +1377,7 @@ TEST_F(OmahaRequestActionTest, PingTestSendAlsoAnUpdateCheck) {
 }
 
 TEST_F(OmahaRequestActionTest, ActivePingTest) {
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
     .Times(AnyNumber());
@@ -1408,7 +1409,7 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
 }
 
 TEST_F(OmahaRequestActionTest, RollCallPingTest) {
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
     .Times(AnyNumber());
@@ -1440,7 +1441,7 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
 }
 
 TEST_F(OmahaRequestActionTest, NoPingTest) {
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
     .Times(AnyNumber());
@@ -1477,7 +1478,7 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
 
 TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
   // This test ensures that we ignore empty ping only requests.
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   int64_t now = Time::Now().ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
@@ -1502,7 +1503,7 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
 }
 
 TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(kPrefsMetricsCheckLastReportingTime, _))
     .Times(AnyNumber());
@@ -1547,7 +1548,7 @@ TEST_F(OmahaRequestActionTest, LastPingDayUpdateTest) {
       (Time::Now() - TimeDelta::FromSeconds(200)).ToInternalValue();
   int64_t midnight_slack =
       (Time::Now() - TimeDelta::FromSeconds(195)).ToInternalValue();
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -1574,7 +1575,7 @@ TEST_F(OmahaRequestActionTest, LastPingDayUpdateTest) {
 }
 
 TEST_F(OmahaRequestActionTest, NoElapsedSecondsTest) {
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -1597,7 +1598,7 @@ TEST_F(OmahaRequestActionTest, NoElapsedSecondsTest) {
 }
 
 TEST_F(OmahaRequestActionTest, BadElapsedSecondsTest) {
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   EXPECT_CALL(prefs, GetInt64(_, _)).Times(AnyNumber());
   EXPECT_CALL(prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -1795,7 +1796,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
   vector<char> post_data;
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   ASSERT_TRUE(WriteFileString(
       test_dir + "/etc/lsb-release",
@@ -1844,7 +1845,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
   vector<char> post_data;
-  NiceMock<PrefsMock> prefs;
+  NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   ASSERT_TRUE(WriteFileString(
       test_dir + "/etc/lsb-release",

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/connection_manager.h"
+
 #include <set>
 #include <string>
 
@@ -10,7 +12,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/connection_manager.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/test_utils.h"
@@ -360,7 +361,7 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
 
 TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
   policy::MockDevicePolicy no_policy;
-  testing::NiceMock<PrefsMock>* prefs = fake_system_state_.mock_prefs();
+  testing::NiceMock<MockPrefs>* prefs = fake_system_state_.mock_prefs();
 
   fake_system_state_.set_device_policy(&no_policy);
 

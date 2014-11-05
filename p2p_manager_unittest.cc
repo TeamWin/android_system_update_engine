@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/p2p_manager.h"
+
 #include <glib.h>
 
 #include <dirent.h>
@@ -12,17 +14,15 @@
 
 #include <memory>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
-#include "base/bind.h"
-#include "base/callback.h"
+#include <base/bind.h>
+#include <base/callback.h>
 #include <base/strings/stringprintf.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
 #include "update_engine/fake_p2p_manager_configuration.h"
-#include "update_engine/p2p_manager.h"
 #include "update_engine/prefs.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
