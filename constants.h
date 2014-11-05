@@ -113,6 +113,9 @@ const int kMaxP2PNetworkWaitTimeSeconds = 6 * 60 * 60;
 // The maximum number of payload files to keep in /var/cache/p2p.
 const int kMaxP2PFilesToKeep = 3;
 
+// The maximum number of days to keep a p2p file;
+const int kMaxP2PFileAgeDays = 5;
+
 // The default number of UMA buckets for metrics.
 const int kNumDefaultUmaBuckets = 50;
 

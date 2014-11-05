@@ -41,8 +41,9 @@ bool RealSystemState::Initialize() {
     system_rebooted_ = true;
   }
 
-  p2p_manager_.reset(P2PManager::Construct(nullptr, &prefs_, "cros_au",
-                                           kMaxP2PFilesToKeep));
+  p2p_manager_.reset(P2PManager::Construct(
+      nullptr, &prefs_, &clock_, "cros_au", kMaxP2PFilesToKeep,
+      base::TimeDelta::FromDays(kMaxP2PFileAgeDays)));
 
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =

@@ -22,6 +22,7 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
+#include "update_engine/fake_clock.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
 #include "update_engine/prefs.h"
 #include "update_engine/test_utils.h"
@@ -61,8 +62,9 @@ TEST_F(P2PManagerTest, P2PEnabledNeitherCroshFlagNotEnterpriseSetting) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       &prefs, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, &prefs, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   EXPECT_FALSE(manager->IsP2PEnabled());
 
   EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
@@ -77,8 +79,9 @@ TEST_F(P2PManagerTest, P2PEnabledCroshFlag) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       &prefs, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, &prefs, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   EXPECT_FALSE(manager->IsP2PEnabled());
   prefs.SetBoolean(kPrefsP2PEnabled, true);
   EXPECT_TRUE(manager->IsP2PEnabled());
@@ -97,8 +100,9 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingTrue) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       &prefs, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, &prefs, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   unique_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(
@@ -123,8 +127,9 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseSettingFalse) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       &prefs, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, &prefs, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   unique_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   EXPECT_CALL(*device_policy, GetAuP2PEnabled(testing::_)).WillRepeatedly(
@@ -152,8 +157,9 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesDefaultToEnabled) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       &prefs, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, &prefs, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   unique_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   // We return an empty owner as this is an enterprise.
@@ -177,8 +183,9 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesOverrideDefault) {
                                        &temp_dir));
   prefs.Init(base::FilePath(temp_dir));
 
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       &prefs, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, &prefs, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   unique_ptr<policy::MockDevicePolicy> device_policy(
       new policy::MockDevicePolicy());
   // We return an empty owner as this is an enterprise.
@@ -196,9 +203,11 @@ TEST_F(P2PManagerTest, P2PEnabledEnterpriseEnrolledDevicesOverrideDefault) {
 }
 
 // Check that we keep the $N newest files with the .$EXT.p2p extension.
-TEST_F(P2PManagerTest, Housekeeping) {
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       nullptr, "cros_au", 3));
+TEST_F(P2PManagerTest, HousekeepingCountLimit) {
+  // Specifically pass 0 for |max_file_age| to allow files of any age.
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, nullptr, nullptr, "cros_au", 3,
+      base::TimeDelta() /* max_file_age */));
   EXPECT_EQ(manager->CountSharedFiles(), 0);
 
   // Generate files with different timestamps matching our pattern and generate
@@ -234,6 +243,93 @@ TEST_F(P2PManagerTest, Housekeeping) {
     // A sleep of one micro-second is enough to have a different "Change" time
     // on the file on newer file systems.
     g_usleep(1);
+  }
+  // CountSharedFiles() only counts 'cros_au' files.
+  EXPECT_EQ(manager->CountSharedFiles(), 5);
+
+  EXPECT_TRUE(manager->PerformHousekeeping());
+
+  // At this point - after HouseKeeping - we should only have
+  // eight files left.
+  for (int n = 0; n < 5; n++) {
+    string file_name;
+    bool expect;
+
+    expect = (n >= 2);
+    file_name = base::StringPrintf(
+        "%s/file_%d.cros_au.p2p",
+         test_conf_->GetP2PDir().value().c_str(), n);
+    EXPECT_EQ(!!g_file_test(file_name.c_str(), G_FILE_TEST_EXISTS), expect);
+
+    file_name = base::StringPrintf(
+        "%s/file_%d.OTHER.p2p",
+        test_conf_->GetP2PDir().value().c_str(), n);
+    EXPECT_TRUE(g_file_test(file_name.c_str(), G_FILE_TEST_EXISTS));
+  }
+  // CountSharedFiles() only counts 'cros_au' files.
+  EXPECT_EQ(manager->CountSharedFiles(), 3);
+}
+
+// Check that we keep files with the .$EXT.p2p extension not older
+// than some specificed age (5 days, in this test).
+TEST_F(P2PManagerTest, HousekeepingAgeLimit) {
+  // We set the cutoff time to be 1 billion seconds (01:46:40 UTC on 9
+  // September 2001 - arbitrary number, but constant to avoid test
+  // flakiness) since the epoch and then we put two files before that
+  // date and three files after.
+  time_t cutoff_time = 1000000000;
+  base::TimeDelta age_limit = base::TimeDelta::FromDays(5);
+
+  // Set the clock just so files with a timestamp before |cutoff_time|
+  // will be deleted at housekeeping.
+  FakeClock fake_clock;
+  fake_clock.SetWallclockTime(base::Time::FromTimeT(cutoff_time) + age_limit);
+
+  // Specifically pass 0 for |num_files_to_keep| to allow files of any age.
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, nullptr, &fake_clock, "cros_au",
+      0 /* num_files_to_keep */, age_limit));
+  EXPECT_EQ(manager->CountSharedFiles(), 0);
+
+  // Generate files with different timestamps matching our pattern and generate
+  // other files not matching the pattern.
+  for (int n = 0; n < 5; n++) {
+    base::FilePath file = test_conf_->GetP2PDir().Append(base::StringPrintf(
+        "file_%d.cros_au.p2p", n));
+
+    // With five files and aiming for two of them to be before
+    // |cutoff_time|, we distribute it like this:
+    //
+    //  -------- 0 -------- 1 -------- 2 -------- 3 -------- 4 --------
+    //                            |
+    //                       cutoff_time
+    //
+    base::Time file_date = base::Time::FromTimeT(cutoff_time) +
+      (n - 2)*base::TimeDelta::FromDays(1) + base::TimeDelta::FromHours(12);
+
+    // The touch(1) command expects input like this
+    // --date="2004-02-27 14:19:13.489392193 +0530"
+    base::Time::Exploded exploded;
+    file_date.UTCExplode(&exploded);
+    string file_date_string = base::StringPrintf(
+        "%d-%02d-%02d %02d:%02d:%02d +0000",
+        exploded.year, exploded.month, exploded.day_of_month,
+        exploded.hour, exploded.minute, exploded.second);
+
+    // Sanity check that we generated the correct string.
+    base::Time parsed_time;
+    EXPECT_TRUE(base::Time::FromUTCString(file_date_string.c_str(),
+                                          &parsed_time));
+    EXPECT_EQ(parsed_time, file_date);
+
+    EXPECT_EQ(0, System(base::StringPrintf("touch --date=\"%s\" %s",
+                                           file_date_string.c_str(),
+                                           file.value().c_str())));
+
+    EXPECT_EQ(0, System(base::StringPrintf(
+        "touch --date=\"%s\" %s/file_%d.OTHER.p2p",
+        file_date_string.c_str(),
+        test_conf_->GetP2PDir().value().c_str(), n)));
   }
   // CountSharedFiles() only counts 'cros_au' files.
   EXPECT_EQ(manager->CountSharedFiles(), 5);
@@ -352,8 +448,9 @@ TEST_F(P2PManagerTest, ShareFile) {
     return;
   }
 
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       nullptr, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, nullptr, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   EXPECT_TRUE(manager->FileShare("foo", 10 * 1000 * 1000));
   EXPECT_EQ(manager->FileGetPath("foo"),
             test_conf_->GetP2PDir().Append("foo.cros_au.p2p.tmp"));
@@ -375,8 +472,9 @@ TEST_F(P2PManagerTest, MakeFileVisible) {
     return;
   }
 
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       nullptr, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, nullptr, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   // First, check that it's not visible.
   manager->FileShare("foo", 10*1000*1000);
   EXPECT_EQ(manager->FileGetPath("foo"),
@@ -402,8 +500,9 @@ TEST_F(P2PManagerTest, ExistingFiles) {
     return;
   }
 
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       nullptr, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, nullptr, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   bool visible;
 
   // Check that errors are returned if the file does not exist
@@ -443,8 +542,9 @@ TEST_F(P2PManagerTest, ExistingFiles) {
 // will have to do. E.g. we essentially simulate the various
 // behaviours of initctl(8) that we rely on.
 TEST_F(P2PManagerTest, StartP2P) {
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       nullptr, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, nullptr, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
 
   // Check that we can start the service
   test_conf_->SetInitctlStartCommandLine("true");
@@ -461,8 +561,9 @@ TEST_F(P2PManagerTest, StartP2P) {
 
 // Same comment as for StartP2P
 TEST_F(P2PManagerTest, StopP2P) {
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       nullptr, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, nullptr, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
 
   // Check that we can start the service
   test_conf_->SetInitctlStopCommandLine("true");
@@ -487,8 +588,9 @@ static void ExpectUrl(const string& expected_url,
 // Like StartP2P, we're mocking the different results that p2p-client
 // can return. It's not pretty but it works.
 TEST_F(P2PManagerTest, LookupURL) {
-  unique_ptr<P2PManager> manager(P2PManager::Construct(test_conf_,
-                                                       nullptr, "cros_au", 3));
+  unique_ptr<P2PManager> manager(P2PManager::Construct(
+      test_conf_, nullptr, nullptr, "cros_au", 3,
+      base::TimeDelta::FromDays(5)));
   GMainLoop *loop = g_main_loop_new(nullptr, FALSE);
 
   // Emulate p2p-client returning valid URL with "fooX", 42 and "cros_au"

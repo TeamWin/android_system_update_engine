@@ -15,6 +15,7 @@
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
 
+#include "update_engine/clock_interface.h"
 #include "update_engine/prefs_interface.h"
 
 namespace chromeos_update_engine {
@@ -164,11 +165,15 @@ class P2PManager {
   //
   // The |num_files_to_keep| parameter specifies how many files to
   // keep after performing housekeeping (cf. the PerformHousekeeping()
-  // method). If zero is passed, no files will be deleted.
+  // method) - pass zero to allow infinitely many files. The
+  // |max_file_age| parameter specifies the maximum file age after
+  // performing housekeeping (pass zero to allow files of any age).
   static P2PManager* Construct(Configuration *configuration,
                                PrefsInterface *prefs,
+                               ClockInterface *clock,
                                const std::string& file_extension,
-                               const int num_files_to_keep);
+                               const int num_files_to_keep,
+                               const base::TimeDelta& max_file_age);
 };
 
 }  // namespace chromeos_update_engine

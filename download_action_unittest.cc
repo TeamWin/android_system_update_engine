@@ -470,7 +470,9 @@ class P2PDownloadActionTest : public testing::Test {
 
     // Setup p2p.
     FakeP2PManagerConfiguration *test_conf = new FakeP2PManagerConfiguration();
-    p2p_manager_.reset(P2PManager::Construct(test_conf, nullptr, "cros_au", 3));
+    p2p_manager_.reset(P2PManager::Construct(
+        test_conf, nullptr, nullptr, "cros_au", 3,
+        base::TimeDelta::FromDays(5)));
     fake_system_state_.set_p2p_manager(p2p_manager_.get());
   }
 

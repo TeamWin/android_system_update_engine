@@ -96,8 +96,10 @@ class P2PManagerImpl : public P2PManager {
  public:
   P2PManagerImpl(Configuration *configuration,
                  PrefsInterface *prefs,
+                 ClockInterface *clock,
                  const string& file_extension,
-                 const int num_files_to_keep);
+                 const int num_files_to_keep,
+                 const base::TimeDelta& max_file_age);
 
   // P2PManager methods.
   virtual void SetDevicePolicy(const policy::DevicePolicy* device_policy);
@@ -138,6 +140,10 @@ class P2PManagerImpl : public P2PManager {
   // Utility function used by EnsureP2PRunning() and EnsureP2PNotRunning().
   bool EnsureP2P(bool should_be_running);
 
+  // Utility function to delete a file given by |path| and log the
+  // path as well as |reason|. Returns false on failure.
+  bool DeleteP2PFile(const FilePath& path, const std::string& reason);
+
   // The device policy being used or null if no policy is being used.
   const policy::DevicePolicy* device_policy_;
 
@@ -147,6 +153,9 @@ class P2PManagerImpl : public P2PManager {
   // Object for persisted state.
   PrefsInterface* prefs_;
 
+  // Object for telling the time.
+  ClockInterface* clock_;
+
   // A short string unique to the application (for example "cros_au")
   // used to mark a file as being owned by a particular application.
   const string file_extension_;
@@ -155,6 +164,10 @@ class P2PManagerImpl : public P2PManager {
   // owned by the application (cf. |file_extension_|) to keep after
   // performing housekeeping.
   const int num_files_to_keep_;
+
+  // If non-zero, files older than this will not be kept after
+  // performing housekeeping.
+  const base::TimeDelta max_file_age_;
 
   // The string ".p2p".
   static const char kP2PExtension[];
@@ -174,12 +187,16 @@ const char P2PManagerImpl::kTmpExtension[] = ".tmp";
 
 P2PManagerImpl::P2PManagerImpl(Configuration *configuration,
                                PrefsInterface *prefs,
+                               ClockInterface *clock,
                                const string& file_extension,
-                               const int num_files_to_keep)
+                               const int num_files_to_keep,
+                               const base::TimeDelta& max_file_age)
   : device_policy_(nullptr),
     prefs_(prefs),
+    clock_(clock),
     file_extension_(file_extension),
-    num_files_to_keep_(num_files_to_keep) {
+    num_files_to_keep_(num_files_to_keep),
+    max_file_age_(max_file_age) {
   configuration_.reset(configuration != nullptr ? configuration :
                        new ConfigurationImpl());
 }
@@ -318,27 +335,35 @@ FilePath P2PManagerImpl::GetPath(const string& file_id, Visibility visibility) {
   return configuration_->GetP2PDir().Append(file_id + GetExt(visibility));
 }
 
-bool P2PManagerImpl::PerformHousekeeping() {
-  GDir* dir = nullptr;
-  GError* error = nullptr;
-  const char* name = nullptr;
-  vector<pair<FilePath, Time>> matches;
+bool P2PManagerImpl::DeleteP2PFile(const FilePath& path,
+                                   const std::string& reason) {
+  LOG(INFO) << "Deleting p2p file " << path.value()
+            << " (reason: " << reason << ")";
+  if (unlink(path.value().c_str()) != 0) {
+    PLOG(ERROR) << "Error deleting p2p file " << path.value();
+    return false;
+  }
+  return true;
+}
 
-  // Go through all files in the p2p dir and pick the ones that match
-  // and get their ctime.
+
+bool P2PManagerImpl::PerformHousekeeping() {
+  // Open p2p dir.
   FilePath p2p_dir = configuration_->GetP2PDir();
-  dir = g_dir_open(p2p_dir.value().c_str(), 0, &error);
+  GError* error = nullptr;
+  GDir* dir = g_dir_open(p2p_dir.value().c_str(), 0, &error);
   if (dir == nullptr) {
     LOG(ERROR) << "Error opening directory " << p2p_dir.value() << ": "
                << utils::GetAndFreeGError(&error);
     return false;
   }
 
-  if (num_files_to_keep_ == 0)
-    return true;
-
+  // Go through all files and collect their mtime.
   string ext_visible = GetExt(kVisible);
   string ext_non_visible = GetExt(kNonVisible);
+  bool deletion_failed = false;
+  const char* name = nullptr;
+  vector<pair<FilePath, Time>> matches;
   while ((name = g_dir_read_name(dir)) != nullptr) {
     if (!(g_str_has_suffix(name, ext_visible.c_str()) ||
           g_str_has_suffix(name, ext_non_visible.c_str())))
@@ -351,26 +376,34 @@ bool P2PManagerImpl::PerformHousekeeping() {
       continue;
     }
 
-    Time time = utils::TimeFromStructTimespec(&statbuf.st_ctim);
-    matches.push_back(std::make_pair(file, time));
+    Time time = utils::TimeFromStructTimespec(&statbuf.st_mtim);
+
+    // If instructed to keep only files younger than a given age
+    // (|max_file_age_| != 0), delete files satisfying this criteria
+    // right now. Otherwise add it to a list we'll consider for later.
+    if (clock_ != nullptr && max_file_age_ != base::TimeDelta() &&
+        clock_->GetWallclockTime() - time > max_file_age_) {
+      if (!DeleteP2PFile(file, "file too old"))
+        deletion_failed = true;
+    } else {
+      matches.push_back(std::make_pair(file, time));
+    }
   }
   g_dir_close(dir);
 
-  // Sort list of matches, newest (biggest time) to oldest (lowest time).
-  std::sort(matches.begin(), matches.end(), MatchCompareFunc);
-
-  // Delete starting at element num_files_to_keep_.
-  vector<pair<FilePath, Time>>::const_iterator i;
-  for (i = matches.begin() + num_files_to_keep_; i < matches.end(); ++i) {
-    const FilePath& file = i->first;
-    LOG(INFO) << "Deleting p2p file " << file.value();
-    if (unlink(file.value().c_str()) != 0) {
-      PLOG(ERROR) << "Error deleting p2p file " << file.value();
-      return false;
+  // If instructed to only keep N files (|max_files_to_keep_ != 0),
+  // sort list of matches, newest (biggest time) to oldest (lowest
+  // time). Then delete starting at element |num_files_to_keep_|.
+  if (num_files_to_keep_ > 0) {
+    std::sort(matches.begin(), matches.end(), MatchCompareFunc);
+    vector<pair<FilePath, Time>>::const_iterator i;
+    for (i = matches.begin() + num_files_to_keep_; i < matches.end(); ++i) {
+      if (!DeleteP2PFile(i->first, "too many files"))
+        deletion_failed = true;
     }
   }
 
-  return true;
+  return !deletion_failed;
 }
 
 // Helper class for implementing LookupUrlForFile().
@@ -774,12 +807,16 @@ bool P2PManagerImpl::SetP2PEnabledPref(bool enabled) {
 
 P2PManager* P2PManager::Construct(Configuration *configuration,
                                   PrefsInterface *prefs,
+                                  ClockInterface *clock,
                                   const string& file_extension,
-                                  const int num_files_to_keep) {
+                                  const int num_files_to_keep,
+                                  const base::TimeDelta& max_file_age) {
   return new P2PManagerImpl(configuration,
                             prefs,
+                            clock,
                             file_extension,
-                            num_files_to_keep);
+                            num_files_to_keep,
+                            max_file_age);
 }
 
 }  // namespace chromeos_update_engine
