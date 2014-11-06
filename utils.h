@@ -223,14 +223,6 @@ std::string ToString(DownloadSource source);
 // Returns a string representation of the given enum.
 std::string ToString(PayloadType payload_type);
 
-enum BootLoader {
-  BootLoader_SYSLINUX = 0,
-  BootLoader_CHROME_FIRMWARE = 1
-};
-// Detects which bootloader this system uses and returns it via the out
-// param. Returns true on success.
-bool GetBootloader(BootLoader* out_bootloader);
-
 // Schedules a Main Loop callback to trigger the crash reporter to perform an
 // upload as if this process had crashed.
 void ScheduleCrashReporterUpload();

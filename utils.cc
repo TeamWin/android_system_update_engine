@@ -820,12 +820,6 @@ string GetFileFormat(const string& path) {
   return "data";
 }
 
-bool GetBootloader(BootLoader* out_bootloader) {
-  // For now, hardcode to syslinux.
-  *out_bootloader = BootLoader_SYSLINUX;
-  return true;
-}
-
 namespace {
 // Do the actual trigger. We do it as a main-loop callback to (try to) get a
 // consistent stack trace.

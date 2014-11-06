@@ -31,17 +31,6 @@ namespace chromeos_update_engine {
 bool WriteFileVector(const std::string& path, const std::vector<char>& data);
 bool WriteFileString(const std::string& path, const std::string& data);
 
-// Reads a symlink from disk. Returns empty string on failure.
-std::string Readlink(const std::string& path);
-
-// Gzip compresses the data passed using the gzip command line program.
-// Returns compressed data back.
-std::vector<char> GzipCompressData(const std::vector<char>& data);
-
-// Gives back a 512-bytes length array that contains an MBR with
-// the first partition is marked bootable.
-std::vector<char> GenerateSampleMbr();
-
 bool BindToUnusedLoopDevice(const std::string &filename,
                             std::string* lo_dev_name_ptr);
 
