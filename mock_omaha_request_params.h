@@ -43,6 +43,7 @@ class MockOmahaRequestParams : public OmahaRequestParams {
                                       bool is_powerwash_allowed));
   MOCK_METHOD0(UpdateDownloadChannel, void(void));
   MOCK_CONST_METHOD0(is_powerwash_allowed, bool(void));
+  MOCK_CONST_METHOD0(IsUpdateUrlOfficial, bool(void));
 
  private:
   // Wrappers to call the parent class and behave like the real object by

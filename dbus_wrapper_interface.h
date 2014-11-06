@@ -48,6 +48,11 @@ class DBusWrapperInterface {
                                  GError** error,
                                  GHashTable** out1) = 0;
 
+  virtual gboolean ProxyCall_0_1(DBusGProxy* proxy,
+                                 const char* method,
+                                 GError** error,
+                                 gint* out1) = 0;
+
   virtual gboolean ProxyCall_1_0(DBusGProxy* proxy,
                                  const char* method,
                                  GError** error,

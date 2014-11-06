@@ -72,8 +72,14 @@ const int UpdateAttempter::kMaxDeltaUpdateFailures = 3;
 namespace {
 const int kMaxConsecutiveObeyProxyRequests = 20;
 
-const char* kUpdateCompletedMarker =
+const char kUpdateCompletedMarker[] =
     "/var/run/update_engine_autoupdate_completed";
+
+// By default autest bypasses scattering. If we want to test scattering,
+// use kScheduledAUTestURLRequest. The URL used is same in both cases, but
+// different params are passed to CheckForUpdate().
+const char kAUTestURLRequest[] = "autest";
+const char kScheduledAUTestURLRequest[] = "autest-scheduled";
 }  // namespace
 
 const char* UpdateStatusToString(UpdateStatus status) {
@@ -810,8 +816,26 @@ void UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
                                      bool interactive) {
   LOG(INFO) << "Forced update check requested.";
-  forced_app_version_ = app_version;
-  forced_omaha_url_ = omaha_url;
+  forced_app_version_.clear();
+  forced_omaha_url_.clear();
+
+  // Certain conditions must be met to allow setting custom version and update
+  // server URLs. However, kScheduledAUTestURLRequest and kAUTestURLRequest are
+  // always allowed regardless of device state.
+  if (IsAnyUpdateSourceAllowed()) {
+    forced_app_version_ = app_version;
+    forced_omaha_url_ = omaha_url;
+  }
+  if (omaha_url == kScheduledAUTestURLRequest) {
+    forced_omaha_url_ = chromeos_update_engine::kAUTestOmahaUrl;
+    // Pretend that it's not user-initiated even though it is,
+    // so as to test scattering logic, etc. which get kicked off
+    // only in scheduled update checks.
+    interactive = false;
+  } else if (omaha_url == kAUTestURLRequest) {
+    forced_omaha_url_ = chromeos_update_engine::kAUTestOmahaUrl;
+  }
+
   if (forced_update_pending_callback_.get()) {
     // Make sure that a scheduling request is made prior to calling the forced
     // update pending callback.
@@ -1601,6 +1625,52 @@ bool UpdateAttempter::IsUpdateRunningOrScheduled() {
   return ((status_ != UPDATE_STATUS_IDLE &&
            status_ != UPDATE_STATUS_UPDATED_NEED_REBOOT) ||
           waiting_for_scheduled_check_);
+}
+
+bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
+  // Non-official (dev or test) builds can always use a custom update source.
+  if (!system_state_->hardware()->IsOfficialBuild()) {
+    LOG(INFO) << "Non-official build; allowing any update source.";
+    return true;
+  }
+
+  // Official images not in devmode are never allowed a custom update source.
+  if (system_state_->hardware()->IsNormalBootMode()) {
+    LOG(INFO) << "Not in devmode; disallowing custom update sources.";
+    return false;
+  }
+
+  // Official images in devmode are allowed a custom update source iff the
+  // debugd dev tools are enabled.
+  GError* error = nullptr;
+  DBusGConnection* bus = dbus_iface_->BusGet(DBUS_BUS_SYSTEM, &error);
+  if (!bus) {
+    LOG(ERROR) << "Failed to get system bus: "
+               << utils::GetAndFreeGError(&error);
+    return false;
+  }
+
+  gint dev_features = debugd::DEV_FEATURES_DISABLED;
+  DBusGProxy* proxy = dbus_iface_->ProxyNewForName(
+      bus,
+      debugd::kDebugdServiceName,
+      debugd::kDebugdServicePath,
+      debugd::kDebugdInterface);
+  const gboolean success = dbus_iface_->ProxyCall_0_1(
+      proxy,
+      debugd::kQueryDevFeatures,
+      &error,
+      &dev_features);
+  dbus_iface_->ProxyUnref(proxy);
+
+  // Some boards may not include debugd so it's expected that this may fail,
+  // in which case we default to disallowing custom update sources.
+  if (success && !(dev_features & debugd::DEV_FEATURES_DISABLED)) {
+    LOG(INFO) << "Debugd dev tools enabled; allowing any update source.";
+    return true;
+  }
+  LOG(INFO) << "Debugd dev tools disabled; disallowing custom update sources.";
+  return false;
 }
 
 }  // namespace chromeos_update_engine

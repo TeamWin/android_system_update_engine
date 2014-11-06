@@ -25,6 +25,7 @@ using chromeos_update_engine::test_utils::GValueFree;
 using chromeos_update_engine::test_utils::GValueNewString;
 using std::pair;
 using std::unique_ptr;
+using testing::A;
 using testing::Eq;
 using testing::Mock;
 using testing::Return;
@@ -186,7 +187,7 @@ class UmRealShillProviderTest : public ::testing::Test {
     // Set mock expectations.
     EXPECT_CALL(mock_dbus_,
                 ProxyCall_0_1(proxy, StrEq(shill::kGetPropertiesFunction),
-                              _, _))
+                              _, A<GHashTable**>()))
         .WillOnce(DoAll(SetArgPointee<3>(g_hash_table_ref(properties)),
                         Return(true)));
 
@@ -198,7 +199,7 @@ class UmRealShillProviderTest : public ::testing::Test {
   void SetupGetPropertiesFail(DBusGProxy* proxy) {
     EXPECT_CALL(mock_dbus_,
                 ProxyCall_0_1(proxy, StrEq(shill::kGetPropertiesFunction),
-                              _, _))
+                              _, A<GHashTable**>()))
       .WillOnce(Return(false));
   }
 

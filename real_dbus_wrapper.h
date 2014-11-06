@@ -45,6 +45,14 @@ class RealDBusWrapper : public DBusWrapperInterface {
                              out1, G_TYPE_INVALID);
   }
 
+  gboolean ProxyCall_0_1(DBusGProxy* proxy,
+                         const char* method,
+                         GError** error,
+                         gint* out1) override {
+    return dbus_g_proxy_call(proxy, method, error, G_TYPE_INVALID,
+                             G_TYPE_INT, out1, G_TYPE_INVALID);
+  }
+
   gboolean ProxyCall_1_0(DBusGProxy* proxy,
                          const char* method,
                          GError** error,

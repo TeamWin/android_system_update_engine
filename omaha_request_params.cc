@@ -30,17 +30,19 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-const char* const OmahaRequestParams::kAppId(
-    "{87efface-864d-49a5-9bb3-4b050a7c227a}");
-const char* const OmahaRequestParams::kOsPlatform("Chrome OS");
-const char* const OmahaRequestParams::kOsVersion("Indy");
-const char* const kProductionOmahaUrl(
-    "https://tools.google.com/service/update2");
+const char kProductionOmahaUrl[] =
+    "https://tools.google.com/service/update2";
+const char kAUTestOmahaUrl[] =
+    "https://omaha.sandbox.google.com/service/update2";
 
-const char* const OmahaRequestParams::kUpdateChannelKey(
-    "CHROMEOS_RELEASE_TRACK");
-const char* const OmahaRequestParams::kIsPowerwashAllowedKey(
-    "CHROMEOS_IS_POWERWASH_ALLOWED");
+const char OmahaRequestParams::kAppId[] =
+    "{87efface-864d-49a5-9bb3-4b050a7c227a}";
+const char OmahaRequestParams::kOsPlatform[] = "Chrome OS";
+const char OmahaRequestParams::kOsVersion[] = "Indy";
+const char OmahaRequestParams::kUpdateChannelKey[] = "CHROMEOS_RELEASE_TRACK";
+const char OmahaRequestParams::kIsPowerwashAllowedKey[] =
+    "CHROMEOS_IS_POWERWASH_ALLOWED";
+const char OmahaRequestParams::kAutoUpdateServerKey[] = "CHROMEOS_AUSERVER";
 
 const char* kChannelsByStability[] = {
     // This list has to be sorted from least stable to most stable channel.
@@ -103,14 +105,20 @@ bool OmahaRequestParams::Init(const string& in_app_version,
   }
 
   if (in_update_url.empty())
-    update_url_ = GetLsbValue("CHROMEOS_AUSERVER", kProductionOmahaUrl, nullptr,
-                              stateful_override);
+    update_url_ = GetLsbValue(kAutoUpdateServerKey, kProductionOmahaUrl,
+                              nullptr, stateful_override);
   else
     update_url_ = in_update_url;
 
   // Set the interactive flag accordingly.
   interactive_ = in_interactive;
   return true;
+}
+
+bool OmahaRequestParams::IsUpdateUrlOfficial() const {
+  return (update_url_ == kAUTestOmahaUrl ||
+          update_url_ == GetLsbValue(kAutoUpdateServerKey, kProductionOmahaUrl,
+                                     nullptr, !ShouldLockDown()));
 }
 
 bool OmahaRequestParams::CollectECFWVersions() const {

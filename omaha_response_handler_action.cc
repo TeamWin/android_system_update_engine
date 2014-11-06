@@ -134,18 +134,11 @@ void OmahaResponseHandlerAction::PerformAction() {
 bool OmahaResponseHandlerAction::AreHashChecksMandatory(
     const OmahaResponse& response) {
   // All our internal testing uses dev server which doesn't generate
-  // metadata signatures by default. So, in order not to break
-  // image_to_live or other AU tools, we should waive the hash checks
-  // for those cases, except if the response indicates that the
-  // payload is signed.
-  //
-  // Since all internal testing is done using a dev_image or
-  // test_image, we can use that as a criteria for waiving. This
-  // criteria reduces the attack surface as opposed to waiving the
-  // checks when we're in dev mode, because we do want to enforce the
-  // hash checks when our end customers run in dev mode if they are
-  // using an official build, so that they are protected more.
-  if (!system_state_->hardware()->IsOfficialBuild()) {
+  // metadata signatures by default, so we should waive hash checks for
+  // unofficial URLs. dbus_service.cc does the security enforcement by not
+  // allowing unofficial update URLs though except in specific cases.
+  if (!system_state_->request_params()->IsUpdateUrlOfficial()) {
+    // Still do a hash check if a public key is included.
     if (!response.public_key_rsa.empty()) {
       // The autoupdate_CatchBadSignatures test checks for this string
       // in log-files. Keep in sync.
@@ -153,7 +146,7 @@ bool OmahaResponseHandlerAction::AreHashChecksMandatory(
                 << "for unofficial build includes public RSA key.";
       return true;
     } else {
-      LOG(INFO) << "Waiving payload hash checks for unofficial builds";
+      LOG(INFO) << "Waiving payload hash checks for unofficial update URL.";
       return false;
     }
   }

@@ -207,11 +207,38 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
   in.size = 12;
+  FakeSystemState fake_system_state;
+  // Hash checks are always skipped for non-official update URLs.
+  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+              IsUpdateUrlOfficial())
+      .WillRepeatedly(Return(true));
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTest(in, "/dev/sda5", "", &install_plan));
+  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
+                           &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
+  EXPECT_EQ(in.version, install_plan.version);
+}
+
+TEST_F(OmahaResponseHandlerActionTest, HashChecksForUnofficialUpdateUrl) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "a.b.c.d";
+  in.payload_urls.push_back("http://url.normally/needs/hash.checks.signed");
+  in.more_info_url = "http://more/info";
+  in.hash = "HASHj+";
+  in.size = 12;
+  FakeSystemState fake_system_state;
+  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+              IsUpdateUrlOfficial())
+      .WillRepeatedly(Return(false));
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
+                           &install_plan));
+  EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
+  EXPECT_EQ(in.hash, install_plan.payload_hash);
+  EXPECT_FALSE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
 
@@ -223,8 +250,13 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
   in.size = 12;
+  FakeSystemState fake_system_state;
+  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+              IsUpdateUrlOfficial())
+      .WillRepeatedly(Return(true));
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTest(in, "/dev/sda5", "", &install_plan));
+  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
+                           &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
@@ -240,8 +272,13 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
   in.size = 12;
+  FakeSystemState fake_system_state;
+  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+              IsUpdateUrlOfficial())
+      .WillRepeatedly(Return(true));
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTest(in, "/dev/sda5", "", &install_plan));
+  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
+                           &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
@@ -347,6 +384,10 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
 
   FakeSystemState fake_system_state;
   OmahaRequestParams params(&fake_system_state);
+  // We're using a real OmahaRequestParams object here so we can't mock
+  // IsUpdateUrlOfficial(), but setting the update URL to the AutoUpdate test
+  // server will cause IsUpdateUrlOfficial() to return true.
+  params.set_update_url(kAUTestOmahaUrl);
   fake_system_state.set_request_params(&params);
 
   EXPECT_CALL(*fake_system_state.mock_payload_state(),

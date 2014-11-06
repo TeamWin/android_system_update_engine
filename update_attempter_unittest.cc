@@ -9,6 +9,7 @@
 #include <memory>
 
 #include <base/files/file_util.h>
+#include <chromeos/dbus/service_constants.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
@@ -34,6 +35,7 @@ using base::Time;
 using base::TimeDelta;
 using std::string;
 using std::unique_ptr;
+using testing::A;
 using testing::DoAll;
 using testing::InSequence;
 using testing::Ne;
@@ -43,6 +45,7 @@ using testing::Return;
 using testing::ReturnPointee;
 using testing::SaveArg;
 using testing::SetArgumentPointee;
+using testing::StrEq;
 using testing::_;
 
 namespace chromeos_update_engine {
@@ -80,6 +83,9 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
   // Indicates whether ScheduleUpdates() was called.
   bool schedule_updates_called() const { return schedule_updates_called_; }
 
+  // Need to expose forced_omaha_url_ so we can test it.
+  const std::string& forced_omaha_url() const { return forced_omaha_url_; }
+
  private:
   bool schedule_updates_called_ = false;
   bool do_schedule_updates_ = true;
@@ -90,7 +96,9 @@ class UpdateAttempterTest : public ::testing::Test {
   UpdateAttempterTest()
       : attempter_(&fake_system_state_, &dbus_),
         mock_connection_manager(&fake_system_state_),
-        loop_(nullptr) {
+        loop_(nullptr),
+        fake_dbus_system_bus_(reinterpret_cast<DBusGConnection*>(1)),
+        fake_dbus_debugd_proxy_(reinterpret_cast<DBusGProxy*>(2)) {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
     fake_system_state_.set_update_attempter(&attempter_);
@@ -138,6 +146,16 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_CALL(*fake_system_state_.mock_payload_state(),
                 GetUsingP2PForDownloading())
         .WillRepeatedly(ReturnPointee(&actual_using_p2p_for_sharing_));
+
+    // Set up mock debugd access over the system D-Bus. ProxyCall_0_1() also
+    // needs to be mocked in any test using debugd to provide the desired value.
+    ON_CALL(dbus_, BusGet(DBUS_BUS_SYSTEM, _))
+        .WillByDefault(Return(fake_dbus_system_bus_));
+    ON_CALL(dbus_, ProxyNewForName(fake_dbus_system_bus_,
+                                   StrEq(debugd::kDebugdServiceName),
+                                   StrEq(debugd::kDebugdServicePath),
+                                   StrEq(debugd::kDebugdInterface)))
+        .WillByDefault(Return(fake_dbus_debugd_proxy_));
   }
 
   void TearDown() override {
@@ -203,6 +221,10 @@ class UpdateAttempterTest : public ::testing::Test {
   NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
   NiceMock<MockConnectionManager> mock_connection_manager;
   GMainLoop* loop_;
+  // fake_dbus_xxx pointers will be non-null for comparison purposes, but won't
+  // be valid objects so don't try to use them.
+  DBusGConnection* fake_dbus_system_bus_;
+  DBusGProxy* fake_dbus_debugd_proxy_;
 
   string test_dir_;
 
@@ -1038,6 +1060,71 @@ TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
 
   EXPECT_TRUE(attempter.GetBootTimeAtUpdate(&boot_time));
   EXPECT_EQ(boot_time.ToTimeT(), 42);
+}
+
+TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedUnofficial) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+  EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
+}
+
+TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedOfficialDevmode) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
+  EXPECT_CALL(dbus_, ProxyCall_0_1(fake_dbus_debugd_proxy_,
+                                   StrEq(debugd::kQueryDevFeatures),
+                                   _, A<gint*>()))
+      .WillRepeatedly(DoAll(SetArgumentPointee<3>(0),
+                            Return(true)));
+  EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
+}
+
+TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
+  // debugd should not be queried in this case.
+  EXPECT_CALL(dbus_, ProxyCall_0_1(fake_dbus_debugd_proxy_,
+                                   StrEq(debugd::kQueryDevFeatures),
+                                   _, A<gint*>()))
+      .Times(0);
+  EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
+}
+
+TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdDisabled) {
+  using debugd::DEV_FEATURES_DISABLED;
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
+  EXPECT_CALL(dbus_, ProxyCall_0_1(fake_dbus_debugd_proxy_,
+                                   StrEq(debugd::kQueryDevFeatures),
+                                   _, A<gint*>()))
+      .WillRepeatedly(DoAll(SetArgumentPointee<3>(DEV_FEATURES_DISABLED),
+                            Return(true)));
+  EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
+}
+
+TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdFailure) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
+  EXPECT_CALL(dbus_, ProxyCall_0_1(fake_dbus_debugd_proxy_,
+                                   StrEq(debugd::kQueryDevFeatures),
+                                   _, A<gint*>()))
+      .WillRepeatedly(Return(false));
+  EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateAUTest) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
+  attempter_.CheckForUpdate("", "autest", true);
+  EXPECT_EQ(chromeos_update_engine::kAUTestOmahaUrl,
+            attempter_.forced_omaha_url());
+}
+
+TEST_F(UpdateAttempterTest, CheckForUpdateScheduledAUTest) {
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
+  fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
+  attempter_.CheckForUpdate("", "autest-scheduled", true);
+  EXPECT_EQ(chromeos_update_engine::kAUTestOmahaUrl,
+            attempter_.forced_omaha_url());
 }
 
 }  // namespace chromeos_update_engine

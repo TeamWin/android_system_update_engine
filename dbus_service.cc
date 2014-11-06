@@ -65,15 +65,6 @@ static GType update_engine_service_error_get_type(void) {
   return etype;
 }
 
-static const char kAUTestURLRequest[] = "autest";
-// By default autest bypasses scattering. If we want to test scattering,
-// we should use autest-scheduled. The Url used is same in both cases, but
-// different params are passed to CheckForUpdate method.
-static const char kScheduledAUTestURLRequest[] = "autest-scheduled";
-
-static const char kAUTestURL[] =
-    "https://omaha.sandbox.google.com/service/update2";
-
 G_DEFINE_TYPE(UpdateEngineService, update_engine_service, G_TYPE_OBJECT)
 
 static void update_engine_service_finalize(GObject* object) {
@@ -140,41 +131,21 @@ gboolean update_engine_service_attempt_update_with_flags(
     gchar* omaha_url,
     gint flags_as_int,
     GError **error) {
-  string update_app_version;
-  string update_omaha_url;
+  string app_version_string, omaha_url_string;
   AttemptUpdateFlags flags = static_cast<AttemptUpdateFlags>(flags_as_int);
-  bool interactive = true;
+  bool interactive = !(flags & kAttemptUpdateFlagNonInteractive);
 
-  // Only non-official (e.g., dev and test) builds can override the current
-  // version and update server URL over D-Bus. However, pointing to the
-  // hardcoded test update server URL is always allowed.
-  if (!self->system_state_->hardware()->IsOfficialBuild()) {
-    if (app_version) {
-      update_app_version = app_version;
-    }
-    if (omaha_url) {
-      update_omaha_url = omaha_url;
-    }
-  }
-  if (omaha_url) {
-    if (strcmp(omaha_url, kScheduledAUTestURLRequest) == 0) {
-      update_omaha_url = kAUTestURL;
-      // pretend that it's not user-initiated even though it is,
-      // so as to test scattering logic, etc. which get kicked off
-      // only in scheduled update checks.
-      interactive = false;
-    } else if (strcmp(omaha_url, kAUTestURLRequest) == 0) {
-      update_omaha_url = kAUTestURL;
-    }
-  }
-  if (flags & kAttemptUpdateFlagNonInteractive)
-    interactive = false;
-  LOG(INFO) << "Attempt update: app_version=\"" << update_app_version << "\" "
-            << "omaha_url=\"" << update_omaha_url << "\" "
+  if (app_version)
+    app_version_string = app_version;
+  if (omaha_url)
+    omaha_url_string = omaha_url;
+
+  LOG(INFO) << "Attempt update: app_version=\"" << app_version_string << "\" "
+            << "omaha_url=\"" << omaha_url_string << "\" "
             << "flags=0x" << std::hex << flags << " "
             << "interactive=" << (interactive? "yes" : "no");
-  self->system_state_->update_attempter()->CheckForUpdate(update_app_version,
-                                                          update_omaha_url,
+  self->system_state_->update_attempter()->CheckForUpdate(app_version_string,
+                                                          omaha_url_string,
                                                           interactive);
   return TRUE;
 }

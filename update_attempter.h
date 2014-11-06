@@ -214,6 +214,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
     forced_update_pending_callback_.reset(callback);
   }
 
+  // Returns true if we should allow updates from any source. In official builds
+  // we want to restrict updates to known safe sources, but under certain
+  // conditions it's useful to allow updating from anywhere (e.g. to allow
+  // 'cros flash' to function properly).
+  virtual bool IsAnyUpdateSourceAllowed();
+
  private:
   // Update server URL for automated lab test.
   static const char* const kTestUpdateUrl;

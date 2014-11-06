@@ -18,6 +18,7 @@
 
 using std::set;
 using std::string;
+using testing::A;
 using testing::AnyNumber;
 using testing::Return;
 using testing::SetArgumentPointee;
@@ -112,7 +113,7 @@ void ConnectionManagerTest::SetManagerReply(const char *reply_value,
   // Plumb return value into mock object.
   EXPECT_CALL(dbus_iface_, ProxyCall_0_1(kMockFlimFlamManagerProxy_,
                                          StrEq(kGetPropertiesMethod),
-                                         _, _))
+                                         _, A<GHashTable**>()))
       .WillOnce(DoAll(SetArgumentPointee<3>(manager_hash_table), Return(TRUE)));
 
   // Set other expectations.
@@ -160,7 +161,7 @@ void ConnectionManagerTest::SetServiceReply(const char* service_type,
   // Plumb return value into mock object.
   EXPECT_CALL(dbus_iface_, ProxyCall_0_1(kMockFlimFlamServiceProxy_,
                                          StrEq(kGetPropertiesMethod),
-                                         _, _))
+                                         _, A<GHashTable**>()))
       .WillOnce(DoAll(SetArgumentPointee<3>(service_hash_table), Return(TRUE)));
 
   // Set other expectations.

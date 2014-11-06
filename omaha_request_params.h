@@ -19,7 +19,10 @@
 namespace chromeos_update_engine {
 
 // The default "official" Omaha update URL.
-extern const char* const kProductionOmahaUrl;
+extern const char kProductionOmahaUrl[];
+
+// The autoupdate test Omaha update URL.
+extern const char kAUTestOmahaUrl[];
 
 class SystemState;
 
@@ -176,12 +179,13 @@ class OmahaRequestParams {
   virtual std::string GetAppId() const;
 
   // Suggested defaults
-  static const char* const kAppId;
-  static const char* const kOsPlatform;
-  static const char* const kOsVersion;
-  static const char* const kUpdateUrl;
-  static const char* const kUpdateChannelKey;
-  static const char* const kIsPowerwashAllowedKey;
+  static const char kAppId[];
+  static const char kOsPlatform[];
+  static const char kOsVersion[];
+  static const char kUpdateUrl[];
+  static const char kUpdateChannelKey[];
+  static const char kIsPowerwashAllowedKey[];
+  static const char kAutoUpdateServerKey[];
   static const int64_t kDefaultMinUpdateChecks = 0;
   static const int64_t kDefaultMaxUpdateChecks = 8;
 
@@ -211,6 +215,10 @@ class OmahaRequestParams {
   virtual void UpdateDownloadChannel();
 
   virtual bool is_powerwash_allowed() const { return is_powerwash_allowed_; }
+
+  // Check if the provided update URL is official, meaning either the default
+  // autoupdate server or the autoupdate autotest server.
+  virtual bool IsUpdateUrlOfficial() const;
 
   // For unit-tests.
   void set_root(const std::string& root);
