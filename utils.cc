@@ -83,13 +83,12 @@ string ParseECVersion(string input_line) {
   // a vector of key value pairs.
   vector<pair<string, string>> kv_pairs;
   if (base::SplitStringIntoKeyValuePairs(input_line, '=', ' ', &kv_pairs)) {
-    for (vector<pair<string, string>>::iterator it = kv_pairs.begin();
-         it != kv_pairs.end(); ++it) {
+    for (const pair<string, string>& kv_pair : kv_pairs) {
       // Finally match against the fw_verion which may have quotes.
-      if (it->first == "fw_version") {
+      if (kv_pair.first == "fw_version") {
         string output;
         // Trim any quotes.
-        base::TrimString(it->second, "\"", &output);
+        base::TrimString(kv_pair.second, "\"", &output);
         return output;
       }
     }
@@ -536,25 +535,12 @@ string ErrnoNumberAsString(int err) {
 
 string NormalizePath(const string& path, bool strip_trailing_slash) {
   string ret;
-  bool last_insert_was_slash = false;
-  for (string::const_iterator it = path.begin(); it != path.end(); ++it) {
-    if (*it == '/') {
-      if (last_insert_was_slash)
-        continue;
-      last_insert_was_slash = true;
-    } else {
-      last_insert_was_slash = false;
-    }
-    ret.push_back(*it);
-  }
-  if (strip_trailing_slash && last_insert_was_slash) {
-    string::size_type last_non_slash = ret.find_last_not_of('/');
-    if (last_non_slash != string::npos) {
-      ret.resize(last_non_slash + 1);
-    } else {
-      ret = "";
-    }
-  }
+  std::unique_copy(path.begin(), path.end(), std::back_inserter(ret),
+                   [](char c1, char c2) { return c1 == c2 && c1 == '/'; });
+  // The above code ensures no "//" is present in the string, so at most one
+  // '/' is present at the end of the line.
+  if (strip_trailing_slash && !ret.empty() && ret.back() == '/')
+    ret.pop_back();
   return ret;
 }
 
@@ -1436,9 +1422,8 @@ Time TimeFromStructTimespec(struct timespec *ts) {
 
 gchar** StringVectorToGStrv(const vector<string> &vec_str) {
   GPtrArray *p = g_ptr_array_new();
-  for (vector<string>::const_iterator i = vec_str.begin();
-       i != vec_str.end(); ++i) {
-    g_ptr_array_add(p, g_strdup(i->c_str()));
+  for (const string& str : vec_str) {
+    g_ptr_array_add(p, g_strdup(str.c_str()));
   }
   g_ptr_array_add(p, nullptr);
   return reinterpret_cast<gchar**>(g_ptr_array_free(p, FALSE));

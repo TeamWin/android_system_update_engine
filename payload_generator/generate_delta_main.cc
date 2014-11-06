@@ -46,13 +46,11 @@ void ParseSignatureSizes(const string& signature_sizes_flag,
   vector<string> split_strings;
 
   base::SplitString(signature_sizes_flag, ':', &split_strings);
-  for (vector<string>::iterator i = split_strings.begin();
-       i < split_strings.end();
-       i++) {
+  for (const string& str : split_strings) {
     int size = 0;
-    bool parsing_successful = base::StringToInt(*i, &size);
+    bool parsing_successful = base::StringToInt(str, &size);
     LOG_IF(FATAL, !parsing_successful)
-        << "Invalid signature size: " << *i;
+        << "Invalid signature size: " << str;
 
     LOG_IF(FATAL, size != (2048 / 8)) <<
         "Only signature sizes of 256 bytes are supported.";
@@ -148,10 +146,9 @@ void SignPayload(const string& in_file,
   vector<vector<char>> signatures;
   vector<string> signature_files;
   base::SplitString(signature_file, ':', &signature_files);
-  for (vector<string>::iterator it = signature_files.begin(),
-           e = signature_files.end(); it != e; ++it) {
+  for (const string& signature_file : signature_files) {
     vector<char> signature;
-    CHECK(utils::ReadFile(*it, &signature));
+    CHECK(utils::ReadFile(signature_file, &signature));
     signatures.push_back(signature);
   }
   uint64_t final_metadata_size;

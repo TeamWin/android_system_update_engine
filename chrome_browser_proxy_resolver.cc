@@ -104,10 +104,9 @@ ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() {
   }
 
   // Kill outstanding timers
-  for (TimeoutsMap::iterator it = timers_.begin(), e = timers_.end(); it != e;
-       ++it) {
-    g_source_destroy(it->second);
-    it->second = nullptr;
+  for (auto& timer : timers_) {
+    g_source_destroy(timer.second);
+    timer.second = nullptr;
   }
 }
 
