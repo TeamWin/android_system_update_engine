@@ -191,7 +191,7 @@ bool MountFilesystem(const std::string& device, const std::string& mountpoint,
                      unsigned long flags);  // NOLINT(runtime/int)
 bool UnmountFilesystem(const std::string& mountpoint);
 
-// Returns the block count and the block byte size of the ext3 file system on
+// Returns the block count and the block byte size of the file system on
 // |device| (which may be a real device or a path to a filesystem image) or on
 // an opened file descriptor |fd|. The actual file-system size is |block_count|
 // * |block_size| bytes. Returns true on success, false otherwise.
@@ -201,6 +201,23 @@ bool GetFilesystemSize(const std::string& device,
 bool GetFilesystemSizeFromFD(int fd,
                              int* out_block_count,
                              int* out_block_size);
+
+// Determines the block count and block size of the ext3 fs. At least 2048 bytes
+// are required to parse the first superblock. Returns whether the buffer
+// contains a valid ext3 filesystem and the values were parsed.
+bool GetExt3Size(const uint8_t* buffer, size_t buffer_size,
+                 int* out_block_count,
+                 int* out_block_size);
+
+// Determines the block count and block size of the squashfs v4 fs. At least 96
+// bytes are required to parse the header of the filesystem. Since squashfs
+// doesn't define a physical block size, a value of 4096 is used for the block
+// size, which is the default padding when creating the filesystem.
+// Returns whether the buffer contains a valid squashfs v4 header and the size
+// was parsed. Only little endian squashfs is supported.
+bool GetSquashfs4Size(const uint8_t* buffer, size_t buffer_size,
+                      int* out_block_count,
+                      int* out_block_size);
 
 // Returns the path of the passed |command| on the board. This uses the
 // environment variable SYSROOT to determine the path to the command on the
@@ -642,7 +659,5 @@ struct GLibStrvFreeDeleter : public base::FreeDeleter {
       return false;                                                            \
     }                                                                          \
   } while (0)
-
-
 
 #endif  // UPDATE_ENGINE_UTILS_H_
