@@ -185,7 +185,8 @@ std::string SysfsBlockDevice(const std::string& device);
 bool IsRemovableDevice(const std::string& device);
 
 // Synchronously mount or unmount a filesystem. Return true on success.
-// Mounts as ext3 with default options.
+// When mounting, it will attempt to mount the the device as "ext3", "ext2" and
+// "squashfs", with the passed |flags| options.
 bool MountFilesystem(const std::string& device, const std::string& mountpoint,
                      unsigned long flags);  // NOLINT(runtime/int)
 bool UnmountFilesystem(const std::string& mountpoint);

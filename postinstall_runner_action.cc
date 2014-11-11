@@ -38,27 +38,8 @@ void PostinstallRunnerAction::PerformAction() {
                                            &temp_rootfs_dir_));
   ScopedDirRemover temp_dir_remover(temp_rootfs_dir_);
 
-  unsigned long mountflags = MS_RDONLY;  // NOLINT(runtime/int)
-  int rc = mount(install_device.c_str(),
-                 temp_rootfs_dir_.c_str(),
-                 "ext2",
-                 mountflags,
-                 nullptr);
-  // TODO(sosa): Remove once crbug.com/208022 is resolved.
-  if (rc < 0) {
-    LOG(INFO) << "Failed to mount install part "
-              << install_device << " as ext2. Trying ext3.";
-    rc = mount(install_device.c_str(),
-               temp_rootfs_dir_.c_str(),
-               "ext3",
-               mountflags,
-               nullptr);
-  }
-  if (rc < 0) {
-    LOG(ERROR) << "Unable to mount destination device " << install_device
-               << " onto " << temp_rootfs_dir_;
+  if (!utils::MountFilesystem(install_device, temp_rootfs_dir_, MS_RDONLY))
     return;
-  }
 
   temp_dir_remover.set_should_remove(false);
   completer.set_should_complete(false);

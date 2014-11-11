@@ -625,15 +625,19 @@ bool StringHasPrefix(const string& str, const string& prefix) {
 bool MountFilesystem(const string& device,
                      const string& mountpoint,
                      unsigned long mountflags) {  // NOLINT(runtime/int)
-  int rc = mount(device.c_str(), mountpoint.c_str(), "ext3", mountflags,
-                 nullptr);
-  if (rc < 0) {
-    string msg = ErrnoNumberAsString(errno);
-    LOG(ERROR) << "Unable to mount destination device: " << msg << ". "
-               << device << " on " << mountpoint;
-    return false;
+  // TODO(sosa): Remove "ext3" once crbug.com/208022 is resolved.
+  const vector<const char*> fstypes{"ext2", "ext3", "squashfs"};
+  for (const char* fstype : fstypes) {
+    int rc = mount(device.c_str(), mountpoint.c_str(), fstype, mountflags,
+                   nullptr);
+    if (rc == 0)
+      return true;
+
+    PLOG(WARNING) << "Unable to mount destination device " << device
+                  << " on " << mountpoint << " as " << fstype;
   }
-  return true;
+  LOG(ERROR) << "Unable to mount " << device << " with any supported type";
+  return false;
 }
 
 bool UnmountFilesystem(const string& mountpoint) {
