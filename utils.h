@@ -87,7 +87,6 @@ bool ReadFileChunk(const std::string& path, off_t offset, off_t size,
 // Invokes |cmd| in a pipe and appends its stdout to the container pointed to by
 // |out_p|. Returns true upon successfully reading all of the output, false
 // otherwise, in which case the state of the output container is unknown.
-bool ReadPipe(const std::string& cmd, std::vector<char>* out_p);
 bool ReadPipe(const std::string& cmd, std::string* out_p);
 
 // Returns the size of the block device at path, or the file descriptor fd. If
@@ -138,11 +137,6 @@ bool MakeTempFile(const std::string& base_filename_template,
 // The template must end with "XXXXXX". Returns true on success.
 bool MakeTempDirectory(const std::string& base_dirname_template,
                        std::string* dirname);
-
-// Deletes a directory and all its contents synchronously. Returns true
-// on success. This may be called with a regular file--it will just unlink it.
-// This WILL cross filesystem boundaries.
-bool RecursiveUnlinkDir(const std::string& path);
 
 // Returns the disk device name for a partition. For example,
 // GetDiskName("/dev/sda3") returns "/dev/sda". Returns an empty string
@@ -258,9 +252,6 @@ inline void HexDumpVector(const std::vector<char>& vect) {
   HexDumpArray(reinterpret_cast<const unsigned char*>(&vect[0]), vect.size());
 }
 
-bool StringHasSuffix(const std::string& str, const std::string& suffix);
-bool StringHasPrefix(const std::string& str, const std::string& prefix);
-
 template<typename KeyType, typename ValueType>
 bool MapContainsKey(const std::map<KeyType, ValueType>& m, const KeyType& k) {
   return m.find(k) != m.end();
@@ -317,12 +308,6 @@ enum CpuShares {
   kCpuSharesNormal = 1024,
   kCpuSharesLow = 2,
 };
-
-// Compares cpu shares and returns an integer that is less
-// than, equal to or greater than 0 if |shares_lhs| is,
-// respectively, lower than, same as or higher than |shares_rhs|.
-int CompareCpuShares(CpuShares shares_lhs,
-                     CpuShares shares_rhs);
 
 // Sets the current process shares to |shares|. Returns true on
 // success, false otherwise.
@@ -398,11 +383,6 @@ bool DeletePowerwashMarkerFile(const char* file_path);
 // http://www.chromium.org/chromium-os/chromiumos-design-docs/disk-format
 bool GetInstallDev(const std::string& boot_dev, std::string* install_dev);
 
-// Checks if xattr is supported in the directory specified by
-// |dir_path| which must be writable. Returns true if the feature is
-// supported, false if not or if an error occured.
-bool IsXAttrSupported(const base::FilePath& dir_path);
-
 // Decodes the data in |base64_encoded| and stores it in a temporary
 // file. Returns false if the given data is empty, not well-formed
 // base64 or if an error occurred. If true is returned, the decoded
@@ -455,24 +435,6 @@ bool MonotonicDurationHelper(SystemState* system_state,
 
 }  // namespace utils
 
-
-// Class to unmount FS when object goes out of scope
-class ScopedFilesystemUnmounter {
- public:
-  explicit ScopedFilesystemUnmounter(const std::string& mountpoint)
-      : mountpoint_(mountpoint),
-        should_unmount_(true) {}
-  ~ScopedFilesystemUnmounter() {
-    if (should_unmount_) {
-      utils::UnmountFilesystem(mountpoint_);
-    }
-  }
-  void set_should_unmount(bool unmount) { should_unmount_ = unmount; }
- private:
-  const std::string mountpoint_;
-  bool should_unmount_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedFilesystemUnmounter);
-};
 
 // Utility class to close a file descriptor
 class ScopedFdCloser {

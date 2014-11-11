@@ -16,7 +16,7 @@
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::TimeDelta;
-using chromeos_update_engine::WriteFileString;
+using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
 using std::unique_ptr;
 

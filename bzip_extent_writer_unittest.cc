@@ -90,12 +90,13 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   extents.push_back(extent);
 
   vector<char> decompressed_data(kDecompressedLength);
-  FillWithData(&decompressed_data);
+  test_utils::FillWithData(&decompressed_data);
 
-  EXPECT_TRUE(WriteFileVector(decompressed_path, decompressed_data));
+  EXPECT_TRUE(test_utils::WriteFileVector(
+      decompressed_path, decompressed_data));
 
-  EXPECT_EQ(0, System(string("cat ") + decompressed_path + "|bzip2>" +
-                      compressed_path));
+  EXPECT_EQ(0, test_utils::System(
+      string("cat ") + decompressed_path + "|bzip2>" + compressed_path));
 
   vector<char> compressed_data;
   EXPECT_TRUE(utils::ReadFile(compressed_path, &compressed_data));
@@ -113,13 +114,13 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   EXPECT_TRUE(bzip_writer.End());
 
   // Check that the const input has not been clobbered.
-  ExpectVectorsEq(original_compressed_data, compressed_data);
+  test_utils::ExpectVectorsEq(original_compressed_data, compressed_data);
 
   vector<char> output(kDecompressedLength + 1);
   ssize_t bytes_read = pread(fd(), &output[0], output.size(), 0);
   EXPECT_EQ(kDecompressedLength, bytes_read);
   output.resize(kDecompressedLength);
-  ExpectVectorsEq(decompressed_data, output);
+  test_utils::ExpectVectorsEq(decompressed_data, output);
 
   unlink(decompressed_path.c_str());
   unlink(compressed_path.c_str());

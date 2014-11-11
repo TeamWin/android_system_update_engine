@@ -36,6 +36,9 @@ using std::string;
 using std::vector;
 using testing::Return;
 using testing::_;
+using test_utils::kRandomString;
+using test_utils::ScopedLoopMounter;
+using test_utils::System;
 
 extern const char* kUnittestPrivateKeyPath;
 extern const char* kUnittestPublicKeyPath;
@@ -223,7 +226,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   vector<char> hash;
   ASSERT_TRUE(utils::ReadFile(hash_file, &hash));
   ASSERT_TRUE(PayloadVerifier::PadRSA2048SHA256Hash(&hash));
-  ASSERT_TRUE(WriteFileVector(hash_file, hash));
+  ASSERT_TRUE(test_utils::WriteFileVector(hash_file, hash));
 
   string sig_file;
   ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file, nullptr));
@@ -280,7 +283,7 @@ static void GenerateDeltaFile(bool full_kernel,
                               DeltaState *state) {
   EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &state->a_img, nullptr));
   EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &state->b_img, nullptr));
-  CreateExtImageAtPath(state->a_img, nullptr);
+  test_utils::CreateExtImageAtPath(state->a_img, nullptr);
 
   state->image_size = static_cast<int>(utils::FileSize(state->a_img));
 
@@ -338,9 +341,9 @@ static void GenerateDeltaFile(bool full_kernel,
                                            a_mnt.c_str()), 16 * 1024));
 
     EXPECT_EQ(0,
-              system(base::StringPrintf("dd if=/dev/zero of=%s/move-semi-sparse"
-                                     " bs=1 seek=4096 count=1",
-                                     a_mnt.c_str()).c_str()));
+              System(base::StringPrintf("dd if=/dev/zero of=%s/move-semi-sparse"
+                                        " bs=1 seek=4096 count=1",
+                                        a_mnt.c_str()).c_str()));
 
     // Write 1 MiB of 0xff to try to catch the case where writing a bsdiff
     // patch fails to zero out the final block.
@@ -356,7 +359,7 @@ static void GenerateDeltaFile(bool full_kernel,
                                base::FilePath(state->b_img)));
     old_image_info = new_image_info;
   } else {
-    CreateExtImageAtPath(state->b_img, nullptr);
+    test_utils::CreateExtImageAtPath(state->b_img, nullptr);
     EXPECT_EQ(0, System(base::StringPrintf(
         "dd if=/dev/zero of=%s seek=%d bs=1 count=1",
         state->b_img.c_str(),
@@ -367,17 +370,17 @@ static void GenerateDeltaFile(bool full_kernel,
     string b_mnt;
     ScopedLoopMounter b_mounter(state->b_img, &b_mnt, 0);
 
-    EXPECT_EQ(0, system(base::StringPrintf("cp %s/hello %s/hello2",
+    EXPECT_EQ(0, System(base::StringPrintf("cp %s/hello %s/hello2",
                                            b_mnt.c_str(),
                                            b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(base::StringPrintf("rm %s/hello",
+    EXPECT_EQ(0, System(base::StringPrintf("rm %s/hello",
                                            b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(base::StringPrintf("mv %s/hello2 %s/hello",
+    EXPECT_EQ(0, System(base::StringPrintf("mv %s/hello2 %s/hello",
                                            b_mnt.c_str(),
                                            b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(base::StringPrintf("echo foo > %s/foo",
+    EXPECT_EQ(0, System(base::StringPrintf("echo foo > %s/foo",
                                            b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(base::StringPrintf("touch %s/emptyfile",
+    EXPECT_EQ(0, System(base::StringPrintf("touch %s/emptyfile",
                                            b_mnt.c_str()).c_str()));
     EXPECT_TRUE(WriteSparseFile(base::StringPrintf("%s/fullsparse",
                                                    b_mnt.c_str()),
@@ -393,24 +396,24 @@ static void GenerateDeltaFile(bool full_kernel,
                                   "%s/move-from-sparse", b_mnt.c_str())),
                               zeros.data(), zeros.size()));
 
-    EXPECT_EQ(0, system(base::StringPrintf("dd if=/dev/zero "
+    EXPECT_EQ(0, System(base::StringPrintf("dd if=/dev/zero "
                                            "of=%s/move-semi-sparse "
                                            "bs=1 seek=4096 count=1",
                                            b_mnt.c_str()).c_str()));
 
-    EXPECT_EQ(0, system(base::StringPrintf("dd if=/dev/zero "
+    EXPECT_EQ(0, System(base::StringPrintf("dd if=/dev/zero "
                                            "of=%s/partsparse bs=1 "
                                            "seek=4096 count=1",
                                            b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(base::StringPrintf("cp %s/srchardlink0 %s/tmp && "
+    EXPECT_EQ(0, System(base::StringPrintf("cp %s/srchardlink0 %s/tmp && "
                                            "mv %s/tmp %s/srchardlink1",
                                            b_mnt.c_str(),
                                            b_mnt.c_str(),
                                            b_mnt.c_str(),
                                            b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, system(base::StringPrintf("rm %s/boguslink && "
-                                     "echo foobar > %s/boguslink",
-                                     b_mnt.c_str(), b_mnt.c_str()).c_str()));
+    EXPECT_EQ(0, System(
+        base::StringPrintf("rm %s/boguslink && echo foobar > %s/boguslink",
+                           b_mnt.c_str(), b_mnt.c_str()).c_str()));
 
     vector<char> hardtocompress;
     while (hardtocompress.size() < 3 * kBlockSize) {
@@ -436,8 +439,8 @@ static void GenerateDeltaFile(bool full_kernel,
 
   state->old_kernel_data.resize(kDefaultKernelSize);
   state->new_kernel_data.resize(state->old_kernel_data.size());
-  FillWithData(&state->old_kernel_data);
-  FillWithData(&state->new_kernel_data);
+  test_utils::FillWithData(&state->old_kernel_data);
+  test_utils::FillWithData(&state->new_kernel_data);
 
   // change the new kernel data
   strcpy(&state->new_kernel_data[0], kNewDataString);  // NOLINT(runtime/printf)
@@ -1329,7 +1332,7 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
 
   delete performer;
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+  EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
 }
 
 }  // namespace chromeos_update_engine

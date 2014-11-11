@@ -17,6 +17,8 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos_update_engine::test_utils::System;
+using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
 
 namespace chromeos_update_engine {

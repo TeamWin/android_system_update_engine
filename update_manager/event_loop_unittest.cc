@@ -11,8 +11,8 @@
 
 using base::Bind;
 using base::TimeDelta;
-using chromeos_update_engine::RunGMainLoopMaxIterations;
-using chromeos_update_engine::RunGMainLoopUntil;
+using chromeos_update_engine::test_utils::RunGMainLoopMaxIterations;
+using chromeos_update_engine::test_utils::RunGMainLoopUntil;
 
 namespace {
 

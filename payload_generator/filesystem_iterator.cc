@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <base/logging.h>
+#include <base/strings/string_util.h>
 
 #include "update_engine/utils.h"
 
@@ -107,7 +108,7 @@ void FilesystemIterator::Increment() {
   IncrementInternal();
   for (set<string>::const_iterator it = excl_prefixes_.begin();
        it != excl_prefixes_.end(); ++it) {
-    if (utils::StringHasPrefix(GetPartialPath(), *it)) {
+    if (StartsWithASCII(GetPartialPath(), *it, true)) {
       Increment();
       break;
     }

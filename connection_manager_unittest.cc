@@ -104,7 +104,7 @@ void ConnectionManagerTest::SetManagerReply(const char *reply_value,
   GHashTable* manager_hash_table = g_hash_table_new_full(
       g_str_hash, g_str_equal,
       nullptr,  // no key_destroy_func because keys are static.
-      GValueFree);  // value_destroy_func
+      test_utils::GValueFree);  // value_destroy_func
   g_hash_table_insert(manager_hash_table,
                       const_cast<char*>("Services"),
                       array_as_value);
@@ -135,21 +135,23 @@ void ConnectionManagerTest::SetServiceReply(const char* service_type,
   GHashTable* service_hash_table = g_hash_table_new_full(
       g_str_hash, g_str_equal,
       nullptr,  // no key_destroy_func because keys are static.
-      GValueFree);  // value_destroy_func
-  GValue* service_type_value = GValueNewString(service_type);
+      test_utils::GValueFree);  // value_destroy_func
+  GValue* service_type_value = test_utils::GValueNewString(service_type);
   g_hash_table_insert(service_hash_table,
                       const_cast<char*>("Type"),
                       service_type_value);
 
   if (physical_technology) {
-    GValue* physical_technology_value = GValueNewString(physical_technology);
+    GValue* physical_technology_value =
+        test_utils::GValueNewString(physical_technology);
     g_hash_table_insert(service_hash_table,
                         const_cast<char*>("PhysicalTechnology"),
                         physical_technology_value);
   }
 
   if (service_tethering) {
-    GValue* service_tethering_value = GValueNewString(service_tethering);
+    GValue* service_tethering_value =
+        test_utils::GValueNewString(service_tethering);
     g_hash_table_insert(service_hash_table,
                         const_cast<char*>("Tethering"),
                         service_tethering_value);

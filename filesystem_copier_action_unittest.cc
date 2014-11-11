@@ -143,15 +143,15 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
   // Make random data for a, zero filled data for b.
   const size_t kLoopFileSize = 10 * 1024 * 1024 + 512;
   vector<char> a_loop_data(kLoopFileSize);
-  FillWithData(&a_loop_data);
+  test_utils::FillWithData(&a_loop_data);
   vector<char> b_loop_data(run_out_of_space ?
                            (kLoopFileSize - 1) :
                            kLoopFileSize,
                            '\0');  // Fill with 0s
 
   // Write data to disk
-  if (!(WriteFileVector(a_loop_file, a_loop_data) &&
-        WriteFileVector(b_loop_file, b_loop_data))) {
+  if (!(test_utils::WriteFileVector(a_loop_file, a_loop_data) &&
+        test_utils::WriteFileVector(b_loop_file, b_loop_data))) {
     ADD_FAILURE();
     return false;
   }
@@ -160,8 +160,8 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
   string a_dev;
   string b_dev;
 
-  ScopedLoopbackDeviceBinder a_dev_releaser(a_loop_file, &a_dev);
-  ScopedLoopbackDeviceBinder b_dev_releaser(b_loop_file, &b_dev);
+  test_utils::ScopedLoopbackDeviceBinder a_dev_releaser(a_loop_file, &a_dev);
+  test_utils::ScopedLoopbackDeviceBinder b_dev_releaser(b_loop_file, &b_dev);
   if (!(a_dev_releaser.is_bound() && b_dev_releaser.is_bound())) {
     ADD_FAILURE();
     return false;
@@ -262,7 +262,8 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
     ADD_FAILURE();
     return false;
   }
-  const bool is_a_file_reading_eq = ExpectVectorsEq(a_loop_data, a_out);
+  const bool is_a_file_reading_eq =
+      test_utils::ExpectVectorsEq(a_loop_data, a_out);
   EXPECT_TRUE(is_a_file_reading_eq);
   success = success && is_a_file_reading_eq;
   if (!verify_hash) {
@@ -271,7 +272,7 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
       ADD_FAILURE();
       return false;
     }
-    const bool is_b_file_reading_eq = ExpectVectorsEq(a_out, b_out);
+    const bool is_b_file_reading_eq = test_utils::ExpectVectorsEq(a_out, b_out);
     EXPECT_TRUE(is_b_file_reading_eq);
     success = success && is_b_file_reading_eq;
   }
@@ -408,9 +409,9 @@ TEST_F(FilesystemCopierActionTest, RunAsRootDetermineFilesystemSizeTest) {
   string img;
   EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, nullptr));
   ScopedPathUnlinker img_unlinker(img);
-  CreateExtImageAtPath(img, nullptr);
+  test_utils::CreateExtImageAtPath(img, nullptr);
   // Extend the "partition" holding the file system from 10MiB to 20MiB.
-  EXPECT_EQ(0, System(base::StringPrintf(
+  EXPECT_EQ(0, test_utils::System(base::StringPrintf(
       "dd if=/dev/zero of=%s seek=20971519 bs=1 count=1",
       img.c_str())));
   EXPECT_EQ(20 * 1024 * 1024, utils::FileSize(img));

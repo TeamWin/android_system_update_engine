@@ -19,9 +19,9 @@
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
-using chromeos_update_engine::GValueFree;
-using chromeos_update_engine::GValueNewString;
 using chromeos_update_engine::MockDBusWrapper;
+using chromeos_update_engine::test_utils::GValueFree;
+using chromeos_update_engine::test_utils::GValueNewString;
 using std::pair;
 using std::unique_ptr;
 using testing::Eq;

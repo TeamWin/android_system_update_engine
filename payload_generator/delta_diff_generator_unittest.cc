@@ -32,6 +32,9 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos_update_engine::test_utils::FillWithData;
+using chromeos_update_engine::test_utils::kRandomString;
+using chromeos_update_engine::test_utils::WriteFileVector;
 using std::set;
 using std::string;
 using std::stringstream;

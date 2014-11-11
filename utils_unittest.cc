@@ -139,56 +139,6 @@ TEST(UtilsTest, ErrnoNumberAsStringTest) {
   EXPECT_EQ("No such file or directory", utils::ErrnoNumberAsString(ENOENT));
 }
 
-TEST(UtilsTest, StringHasSuffixTest) {
-  EXPECT_TRUE(utils::StringHasSuffix("foo", "foo"));
-  EXPECT_TRUE(utils::StringHasSuffix("foo", "o"));
-  EXPECT_TRUE(utils::StringHasSuffix("", ""));
-  EXPECT_TRUE(utils::StringHasSuffix("abcabc", "abc"));
-  EXPECT_TRUE(utils::StringHasSuffix("adlrwashere", "ere"));
-  EXPECT_TRUE(utils::StringHasSuffix("abcdefgh", "gh"));
-  EXPECT_TRUE(utils::StringHasSuffix("abcdefgh", ""));
-  EXPECT_FALSE(utils::StringHasSuffix("foo", "afoo"));
-  EXPECT_FALSE(utils::StringHasSuffix("", "x"));
-  EXPECT_FALSE(utils::StringHasSuffix("abcdefgh", "fg"));
-  EXPECT_FALSE(utils::StringHasSuffix("abcdefgh", "ab"));
-}
-
-TEST(UtilsTest, StringHasPrefixTest) {
-  EXPECT_TRUE(utils::StringHasPrefix("foo", "foo"));
-  EXPECT_TRUE(utils::StringHasPrefix("foo", "f"));
-  EXPECT_TRUE(utils::StringHasPrefix("", ""));
-  EXPECT_TRUE(utils::StringHasPrefix("abcabc", "abc"));
-  EXPECT_TRUE(utils::StringHasPrefix("adlrwashere", "adl"));
-  EXPECT_TRUE(utils::StringHasPrefix("abcdefgh", "ab"));
-  EXPECT_TRUE(utils::StringHasPrefix("abcdefgh", ""));
-  EXPECT_FALSE(utils::StringHasPrefix("foo", "fooa"));
-  EXPECT_FALSE(utils::StringHasPrefix("", "x"));
-  EXPECT_FALSE(utils::StringHasPrefix("abcdefgh", "bc"));
-  EXPECT_FALSE(utils::StringHasPrefix("abcdefgh", "gh"));
-}
-
-TEST(UtilsTest, RecursiveUnlinkDirTest) {
-  string first_dir_name;
-  ASSERT_TRUE(utils::MakeTempDirectory("RecursiveUnlinkDirTest-a-XXXXXX",
-                                       &first_dir_name));
-  ASSERT_EQ(0, Chmod(first_dir_name, 0755));
-  string second_dir_name;
-  ASSERT_TRUE(utils::MakeTempDirectory("RecursiveUnlinkDirTest-b-XXXXXX",
-                                       &second_dir_name));
-  ASSERT_EQ(0, Chmod(second_dir_name, 0755));
-
-  EXPECT_EQ(0, Symlink(string("../") + first_dir_name,
-                       second_dir_name + "/link"));
-  EXPECT_EQ(0, System(string("echo hi > ") + second_dir_name + "/file"));
-  EXPECT_EQ(0, Mkdir(second_dir_name + "/dir", 0755));
-  EXPECT_EQ(0, System(string("echo ok > ") + second_dir_name + "/dir/subfile"));
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(second_dir_name));
-  EXPECT_TRUE(utils::FileExists(first_dir_name.c_str()));
-  EXPECT_EQ(0, System(string("rm -rf ") + first_dir_name));
-  EXPECT_FALSE(utils::FileExists(second_dir_name.c_str()));
-  EXPECT_TRUE(utils::RecursiveUnlinkDir("/something/that/doesnt/exist"));
-}
-
 TEST(UtilsTest, IsSymlinkTest) {
   string temp_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("symlink-test.XXXXXX", &temp_dir));
@@ -200,7 +150,7 @@ TEST(UtilsTest, IsSymlinkTest) {
   EXPECT_FALSE(utils::IsSymlink(temp_file.c_str()));
   EXPECT_TRUE(utils::IsSymlink(temp_symlink.c_str()));
   EXPECT_FALSE(utils::IsSymlink("/non/existent/path"));
-  EXPECT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+  EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(UtilsTest, IsDirTest) {
@@ -214,7 +164,7 @@ TEST(UtilsTest, IsDirTest) {
   EXPECT_FALSE(utils::IsDir(temp_file.c_str()));
   EXPECT_FALSE(utils::IsDir(temp_symlink.c_str()));
   EXPECT_FALSE(utils::IsDir("/non/existent/path"));
-  ASSERT_TRUE(utils::RecursiveUnlinkDir(temp_dir));
+  ASSERT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(UtilsTest, GetDiskNameTest) {
@@ -270,16 +220,26 @@ TEST(UtilsTest, MakePartitionNameTest) {
   EXPECT_EQ("/dev/ubiblock3_0", utils::MakePartitionName("/dev/ubiblock", 3));
 }
 
+namespace {
+// Compares cpu shares and returns an integer that is less
+// than, equal to or greater than 0 if |shares_lhs| is,
+// respectively, lower than, same as or higher than |shares_rhs|.
+int CompareCpuShares(utils::CpuShares shares_lhs,
+                     utils::CpuShares shares_rhs) {
+  return static_cast<int>(shares_lhs) - static_cast<int>(shares_rhs);
+}
+}  // namespace
 
+// Tests the CPU shares enum is in the order we expect it.
 TEST(UtilsTest, CompareCpuSharesTest) {
-  EXPECT_LT(utils::CompareCpuShares(utils::kCpuSharesLow,
-                                    utils::kCpuSharesNormal), 0);
-  EXPECT_GT(utils::CompareCpuShares(utils::kCpuSharesNormal,
-                                    utils::kCpuSharesLow), 0);
-  EXPECT_EQ(utils::CompareCpuShares(utils::kCpuSharesNormal,
-                                    utils::kCpuSharesNormal), 0);
-  EXPECT_GT(utils::CompareCpuShares(utils::kCpuSharesHigh,
-                                    utils::kCpuSharesNormal), 0);
+  EXPECT_LT(CompareCpuShares(utils::kCpuSharesLow,
+                             utils::kCpuSharesNormal), 0);
+  EXPECT_GT(CompareCpuShares(utils::kCpuSharesNormal,
+                             utils::kCpuSharesLow), 0);
+  EXPECT_EQ(CompareCpuShares(utils::kCpuSharesNormal,
+                             utils::kCpuSharesNormal), 0);
+  EXPECT_GT(CompareCpuShares(utils::kCpuSharesHigh,
+                             utils::kCpuSharesNormal), 0);
 }
 
 TEST(UtilsTest, FuzzIntTest) {
@@ -318,9 +278,9 @@ TEST(UtilsTest, RunAsRootGetFilesystemSizeTest) {
   string img;
   EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, nullptr));
   ScopedPathUnlinker img_unlinker(img);
-  CreateExtImageAtPath(img, nullptr);
+  test_utils::CreateExtImageAtPath(img, nullptr);
   // Extend the "partition" holding the file system from 10MiB to 20MiB.
-  EXPECT_EQ(0, System(base::StringPrintf(
+  EXPECT_EQ(0, test_utils::System(base::StringPrintf(
       "dd if=/dev/zero of=%s seek=20971519 bs=1 count=1",
       img.c_str())));
   EXPECT_EQ(20 * 1024 * 1024, utils::FileSize(img));
@@ -426,13 +386,13 @@ TEST(UtilsTest, GetInstallDevTest) {
 namespace {
 void GetFileFormatTester(const string& expected,
                          const vector<uint8_t>& contents) {
-  ScopedTempFile file;
+  test_utils::ScopedTempFile file;
   ASSERT_TRUE(utils::WriteFile(file.GetPath().c_str(),
                                reinterpret_cast<const char*>(contents.data()),
                                contents.size()));
   EXPECT_EQ(expected, utils::GetFileFormat(file.GetPath()));
 }
-}
+}  // namespace
 
 TEST(UtilsTest, GetFileFormatTest) {
   EXPECT_EQ("File not found.", utils::GetFileFormat("/path/to/nowhere"));

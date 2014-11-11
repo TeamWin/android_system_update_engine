@@ -30,6 +30,8 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::test_utils::System;
+using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
 using std::vector;
 using testing::AllOf;
@@ -1832,7 +1834,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
       "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
       "track=\"stable-channel\" from_track=\"canary-channel\" "));
 
-  ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
+  ASSERT_TRUE(test_utils::RecursiveUnlinkDir(test_dir));
 }
 
 TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {

@@ -14,7 +14,6 @@
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/hardware_interface.h"
-#include "update_engine/utils.h"
 
 using std::make_pair;
 using std::max;
@@ -38,21 +37,21 @@ LibcurlHttpFetcher::~LibcurlHttpFetcher() {
 
 bool LibcurlHttpFetcher::GetProxyType(const string& proxy,
                                       curl_proxytype* out_type) {
-  if (utils::StringHasPrefix(proxy, "socks5://") ||
-      utils::StringHasPrefix(proxy, "socks://")) {
+  if (StartsWithASCII(proxy, "socks5://", true) ||
+      StartsWithASCII(proxy, "socks://", true)) {
     *out_type = CURLPROXY_SOCKS5_HOSTNAME;
     return true;
   }
-  if (utils::StringHasPrefix(proxy, "socks4://")) {
+  if (StartsWithASCII(proxy, "socks4://", true)) {
     *out_type = CURLPROXY_SOCKS4A;
     return true;
   }
-  if (utils::StringHasPrefix(proxy, "http://") ||
-      utils::StringHasPrefix(proxy, "https://")) {
+  if (StartsWithASCII(proxy, "http://", true) ||
+      StartsWithASCII(proxy, "https://", true)) {
     *out_type = CURLPROXY_HTTP;
     return true;
   }
-  if (utils::StringHasPrefix(proxy, kNoProxy)) {
+  if (StartsWithASCII(proxy, kNoProxy, true)) {
     // known failure case. don't log.
     return false;
   }

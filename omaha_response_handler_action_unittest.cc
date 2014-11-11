@@ -13,6 +13,8 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos_update_engine::test_utils::System;
+using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
 using testing::Return;
 
@@ -286,7 +288,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
                            &install_plan));
   EXPECT_TRUE(install_plan.powerwash_required);
 
-  ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
+  ASSERT_TRUE(test_utils::RecursiveUnlinkDir(test_dir));
 }
 
 TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
@@ -330,7 +332,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
                            &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
 
-  ASSERT_TRUE(utils::RecursiveUnlinkDir(test_dir));
+  ASSERT_TRUE(test_utils::RecursiveUnlinkDir(test_dir));
 }
 
 TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {

@@ -19,6 +19,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos_update_engine::test_utils::System;
 using std::set;
 using std::string;
 using std::vector;
@@ -69,8 +70,8 @@ TEST_F(FilesystemIteratorTest, RunAsRootSuccessTest) {
   const string sub_image_mount_point = main_image_mount_point + "/some_dir/mnt";
 
   vector<string> expected_paths_vector;
-  CreateExtImageAtPath(main_image, &expected_paths_vector);
-  CreateExtImageAtPath(sub_image, nullptr);
+  test_utils::CreateExtImageAtPath(main_image, &expected_paths_vector);
+  test_utils::CreateExtImageAtPath(sub_image, nullptr);
   ASSERT_EQ(0, System(string("mount -o loop ") + main_image + " " +
                       main_image_mount_point));
   ASSERT_EQ(0, System(string("mount -o loop ") + sub_image + " " +
@@ -80,7 +81,7 @@ TEST_F(FilesystemIteratorTest, RunAsRootSuccessTest) {
     *it = main_image_mount_point + *it;
   set<string> expected_paths(expected_paths_vector.begin(),
                              expected_paths_vector.end());
-  VerifyAllPaths(main_image_mount_point, expected_paths);
+  test_utils::VerifyAllPaths(main_image_mount_point, expected_paths);
 
   EXPECT_TRUE(utils::UnmountFilesystem(sub_image_mount_point));
   EXPECT_TRUE(utils::UnmountFilesystem(main_image_mount_point));

@@ -25,6 +25,11 @@
 // These are some handy functions for unittests.
 
 namespace chromeos_update_engine {
+namespace test_utils {
+
+// 300 byte pseudo-random string. Not null terminated.
+// This does not gzip compress well.
+extern const unsigned char kRandomString[300];
 
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
@@ -57,53 +62,12 @@ inline int Chdir(const std::string& path) {
   return chdir(path.c_str());
 }
 
+// Checks if xattr is supported in the directory specified by
+// |dir_path| which must be writable. Returns true if the feature is
+// supported, false if not or if an error occured.
+bool IsXAttrSupported(const base::FilePath& dir_path);
+
 void FillWithData(std::vector<char>* buffer);
-
-namespace {  // NOLINT(build/namespaces) - anon. NS in header file.
-// 300 byte pseudo-random string. Not null terminated.
-// This does not gzip compress well.
-const unsigned char kRandomString[] = {
-  0xf2, 0xb7, 0x55, 0x92, 0xea, 0xa6, 0xc9, 0x57,
-  0xe0, 0xf8, 0xeb, 0x34, 0x93, 0xd9, 0xc4, 0x8f,
-  0xcb, 0x20, 0xfa, 0x37, 0x4b, 0x40, 0xcf, 0xdc,
-  0xa5, 0x08, 0x70, 0x89, 0x79, 0x35, 0xe2, 0x3d,
-  0x56, 0xa4, 0x75, 0x73, 0xa3, 0x6d, 0xd1, 0xd5,
-  0x26, 0xbb, 0x9c, 0x60, 0xbd, 0x2f, 0x5a, 0xfa,
-  0xb7, 0xd4, 0x3a, 0x50, 0xa7, 0x6b, 0x3e, 0xfd,
-  0x61, 0x2b, 0x3a, 0x31, 0x30, 0x13, 0x33, 0x53,
-  0xdb, 0xd0, 0x32, 0x71, 0x5c, 0x39, 0xed, 0xda,
-  0xb4, 0x84, 0xca, 0xbc, 0xbd, 0x78, 0x1c, 0x0c,
-  0xd8, 0x0b, 0x41, 0xe8, 0xe1, 0xe0, 0x41, 0xad,
-  0x03, 0x12, 0xd3, 0x3d, 0xb8, 0x75, 0x9b, 0xe6,
-  0xd9, 0x01, 0xd0, 0x87, 0xf4, 0x36, 0xfa, 0xa7,
-  0x0a, 0xfa, 0xc5, 0x87, 0x65, 0xab, 0x9a, 0x7b,
-  0xeb, 0x58, 0x23, 0xf0, 0xa8, 0x0a, 0xf2, 0x33,
-  0x3a, 0xe2, 0xe3, 0x35, 0x74, 0x95, 0xdd, 0x3c,
-  0x59, 0x5a, 0xd9, 0x52, 0x3a, 0x3c, 0xac, 0xe5,
-  0x15, 0x87, 0x6d, 0x82, 0xbc, 0xf8, 0x7d, 0xbe,
-  0xca, 0xd3, 0x2c, 0xd6, 0xec, 0x38, 0xeb, 0xe4,
-  0x53, 0xb0, 0x4c, 0x3f, 0x39, 0x29, 0xf7, 0xa4,
-  0x73, 0xa8, 0xcb, 0x32, 0x50, 0x05, 0x8c, 0x1c,
-  0x1c, 0xca, 0xc9, 0x76, 0x0b, 0x8f, 0x6b, 0x57,
-  0x1f, 0x24, 0x2b, 0xba, 0x82, 0xba, 0xed, 0x58,
-  0xd8, 0xbf, 0xec, 0x06, 0x64, 0x52, 0x6a, 0x3f,
-  0xe4, 0xad, 0xce, 0x84, 0xb4, 0x27, 0x55, 0x14,
-  0xe3, 0x75, 0x59, 0x73, 0x71, 0x51, 0xea, 0xe8,
-  0xcc, 0xda, 0x4f, 0x09, 0xaf, 0xa4, 0xbc, 0x0e,
-  0xa6, 0x1f, 0xe2, 0x3a, 0xf8, 0x96, 0x7d, 0x30,
-  0x23, 0xc5, 0x12, 0xb5, 0xd8, 0x73, 0x6b, 0x71,
-  0xab, 0xf1, 0xd7, 0x43, 0x58, 0xa7, 0xc9, 0xf0,
-  0xe4, 0x85, 0x1c, 0xd6, 0x92, 0x50, 0x2c, 0x98,
-  0x36, 0xfe, 0x87, 0xaf, 0x43, 0x8f, 0x8f, 0xf5,
-  0x88, 0x48, 0x18, 0x42, 0xcf, 0x42, 0xc1, 0xa8,
-  0xe8, 0x05, 0x08, 0xa1, 0x45, 0x70, 0x5b, 0x8c,
-  0x39, 0x28, 0xab, 0xe9, 0x6b, 0x51, 0xd2, 0xcb,
-  0x30, 0x04, 0xea, 0x7d, 0x2f, 0x6e, 0x6c, 0x3b,
-  0x5f, 0x82, 0xd9, 0x5b, 0x89, 0x37, 0x65, 0x65,
-  0xbe, 0x9f, 0xa3, 0x5d
-};
-
-}  // namespace
 
 // Creates an empty ext image.
 void CreateEmptyExtImageAtPath(const std::string& path,
@@ -121,6 +85,24 @@ void CreateExtImageAtPath(const std::string& path,
 // Intentionally copies expected_paths.
 void VerifyAllPaths(const std::string& parent,
                     std::set<std::string> expected_paths);
+
+// Class to unmount FS when object goes out of scope
+class ScopedFilesystemUnmounter {
+ public:
+  explicit ScopedFilesystemUnmounter(const std::string& mountpoint)
+      : mountpoint_(mountpoint),
+        should_unmount_(true) {}
+  ~ScopedFilesystemUnmounter() {
+    if (should_unmount_) {
+      utils::UnmountFilesystem(mountpoint_);
+    }
+  }
+  void set_should_unmount(bool unmount) { should_unmount_ = unmount; }
+ private:
+  const std::string mountpoint_;
+  bool should_unmount_;
+  DISALLOW_COPY_AND_ASSIGN(ScopedFilesystemUnmounter);
+};
 
 class ScopedLoopbackDeviceBinder {
  public:
@@ -178,7 +160,52 @@ class ScopedTempFile {
   std::unique_ptr<ScopedPathUnlinker> unlinker_;
 };
 
-// Useful actions for test
+class ScopedLoopMounter {
+ public:
+  explicit ScopedLoopMounter(const std::string& file_path,
+                             std::string* mnt_path,
+                             unsigned long flags);  // NOLINT(runtime/int)
+
+ private:
+  // These objects must be destructed in the following order:
+  //   ScopedFilesystemUnmounter (the file system must be unmounted first)
+  //   ScopedLoopbackDeviceBinder (then the loop device can be deleted)
+  //   ScopedDirRemover (then the mount point can be deleted)
+  std::unique_ptr<ScopedDirRemover> dir_remover_;
+  std::unique_ptr<ScopedLoopbackDeviceBinder> loop_binder_;
+  std::unique_ptr<ScopedFilesystemUnmounter> unmounter_;
+};
+
+// Deletes a directory and all its contents synchronously. Returns true
+// on success. This may be called with a regular file--it will just unlink it.
+// This WILL cross filesystem boundaries.
+bool RecursiveUnlinkDir(const std::string& path);
+
+// Runs the default GLib main loop for at most |timeout_msec| or until the
+// function |terminate| returns true, whichever happens first. The function
+// |terminate| is called before every GLib main loop iteration and its value is
+// checked.
+void RunGMainLoopUntil(int timeout_msec, base::Callback<bool()> terminate);
+
+// Runs the default GLib main loop at most |iterations| times. This
+// dispatches all the events that are already waiting in the main loop and
+// those that get scheduled as a result of these events being attended.
+// Returns the number of iterations the main loop was ran. If there are more
+// than |iterations| events to attend, then this function returns |iterations|
+// and the remaining events are not dispatched.
+int RunGMainLoopMaxIterations(int iterations);
+
+// Allocates, initializes and returns a string GValue object.
+GValue* GValueNewString(const char* str);
+
+// Frees a GValue object and its allocated resources.
+void GValueFree(gpointer arg);
+
+}  // namespace test_utils
+
+
+// Useful actions for test. These need to be defined in the
+// chromeos_update_engine namespace.
 
 class NoneType;
 
@@ -247,42 +274,6 @@ class ObjectCollectorAction : public Action<ObjectCollectorAction<T>> {
  private:
   T object_;
 };
-
-class ScopedLoopMounter {
- public:
-  explicit ScopedLoopMounter(const std::string& file_path,
-                             std::string* mnt_path,
-                             unsigned long flags);  // NOLINT(runtime/int)
-
- private:
-  // These objects must be destructed in the following order:
-  //   ScopedFilesystemUnmounter (the file system must be unmounted first)
-  //   ScopedLoopbackDeviceBinder (then the loop device can be deleted)
-  //   ScopedDirRemover (then the mount point can be deleted)
-  std::unique_ptr<ScopedDirRemover> dir_remover_;
-  std::unique_ptr<ScopedLoopbackDeviceBinder> loop_binder_;
-  std::unique_ptr<ScopedFilesystemUnmounter> unmounter_;
-};
-
-// Runs the default GLib main loop for at most |timeout_msec| or until the
-// function |terminate| returns true, whichever happens first. The function
-// |terminate| is called before every GLib main loop iteration and its value is
-// checked.
-void RunGMainLoopUntil(int timeout_msec, base::Callback<bool()> terminate);
-
-// Runs the default GLib main loop at most |iterations| times. This
-// dispatches all the events that are already waiting in the main loop and
-// those that get scheduled as a result of these events being attended.
-// Returns the number of iterations the main loop was ran. If there are more
-// than |iterations| events to attend, then this function returns |iterations|
-// and the remaining events are not dispatched.
-int RunGMainLoopMaxIterations(int iterations);
-
-// Allocates, initializes and returns a string GValue object.
-GValue* GValueNewString(const char* str);
-
-// Frees a GValue object and its allocated resources.
-void GValueFree(gpointer arg);
 
 }  // namespace chromeos_update_engine
 

@@ -39,6 +39,7 @@ using testing::AtLeast;
 using testing::InSequence;
 using testing::Return;
 using testing::_;
+using test_utils::ScopedTempFile;
 
 class DownloadActionTest : public ::testing::Test { };
 
@@ -560,7 +561,7 @@ class P2PDownloadActionTest : public testing::Test {
 };
 
 TEST_F(P2PDownloadActionTest, IsWrittenTo) {
-  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+  if (!test_utils::IsXAttrSupported(FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;
@@ -581,7 +582,7 @@ TEST_F(P2PDownloadActionTest, IsWrittenTo) {
 }
 
 TEST_F(P2PDownloadActionTest, DeleteIfHoleExists) {
-  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+  if (!test_utils::IsXAttrSupported(FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;
@@ -597,7 +598,7 @@ TEST_F(P2PDownloadActionTest, DeleteIfHoleExists) {
 }
 
 TEST_F(P2PDownloadActionTest, CanAppend) {
-  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+  if (!test_utils::IsXAttrSupported(FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;
@@ -632,7 +633,7 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
 }
 
 TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
-  if (!utils::IsXAttrSupported(FilePath("/tmp"))) {
+  if (!test_utils::IsXAttrSupported(FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;

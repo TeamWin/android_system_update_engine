@@ -182,7 +182,7 @@ gboolean ExitWhenDone(gpointer data) {
   if (cancel_test_data->spawned && !Subprocess::Get().SubprocessInFlight()) {
     // tear down the sub process
     printf("tear down time\n");
-    int status = System(
+    int status = test_utils::System(
         base::StringPrintf("wget -O /dev/null http://127.0.0.1:%d/quitquitquit",
                            local_server_port));
     EXPECT_NE(-1, status) << "system() failed";

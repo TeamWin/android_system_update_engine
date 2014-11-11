@@ -14,6 +14,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos_update_engine::test_utils::kRandomString;
 using std::string;
 using std::vector;
 

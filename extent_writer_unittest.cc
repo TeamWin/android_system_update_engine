@@ -18,6 +18,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos_update_engine::test_utils::ExpectVectorsEq;
 using std::min;
 using std::string;
 using std::vector;
@@ -121,7 +122,7 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
   extents.push_back(extent);
 
   vector<char> data(kBlockSize * 3);
-  FillWithData(&data);
+  test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
   EXPECT_TRUE(direct_writer.Init(fd(), extents, kBlockSize));
@@ -172,7 +173,7 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
   extents.push_back(extent);
 
   vector<char> data(kBlockSize * 2);
-  FillWithData(&data);
+  test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
   ZeroPadExtentWriter zero_pad_writer(&direct_writer);
@@ -220,7 +221,7 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   const int on_disk_count = 2;
 
   vector<char> data(17);
-  FillWithData(&data);
+  test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
   EXPECT_TRUE(direct_writer.Init(fd(), extents, kBlockSize));

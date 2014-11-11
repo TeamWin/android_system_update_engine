@@ -10,6 +10,7 @@
 #include "update_engine/payload_generator/full_update_generator.h"
 #include "update_engine/test_utils.h"
 
+using chromeos_update_engine::test_utils::FillWithData;
 using std::string;
 using std::vector;
 
@@ -37,14 +38,14 @@ TEST(FullUpdateGeneratorTest, RunTest) {
                                   &new_root_path,
                                   nullptr));
   ScopedPathUnlinker new_root_path_unlinker(new_root_path);
-  EXPECT_TRUE(WriteFileVector(new_root_path, new_root));
+  EXPECT_TRUE(test_utils::WriteFileVector(new_root_path, new_root));
 
   string new_kern_path;
   EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_K.XXXXXX",
                                   &new_kern_path,
                                   nullptr));
   ScopedPathUnlinker new_kern_path_unlinker(new_kern_path);
-  EXPECT_TRUE(WriteFileVector(new_kern_path, new_kern));
+  EXPECT_TRUE(test_utils::WriteFileVector(new_kern_path, new_kern));
 
   string out_blobs_path;
   int out_blobs_fd;

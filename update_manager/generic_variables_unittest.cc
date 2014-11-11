@@ -12,7 +12,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
-using chromeos_update_engine::RunGMainLoopMaxIterations;
+using chromeos_update_engine::test_utils::RunGMainLoopMaxIterations;
 using std::unique_ptr;
 
 namespace chromeos_update_manager {

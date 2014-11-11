@@ -20,6 +20,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos_update_engine::test_utils::CreateEmptyExtImageAtPath;
 using std::string;
 using std::vector;
 
@@ -80,13 +81,15 @@ TEST_F(MetadataTest, RunAsRootReadMetadata) {
   // Create a file large enough to create an indirect block
   {
     string a_img_mnt;
-    ScopedLoopMounter a_img_mount(a_img, &a_img_mnt, 0);
-    System(base::StringPrintf("dd if=/dev/zero of=%s/test_file bs=%d count=%d",
-                              a_img_mnt.c_str(), block_size,
-                              EXT2_NDIR_BLOCKS + 1));
+    test_utils::ScopedLoopMounter a_img_mount(a_img, &a_img_mnt, 0);
+    test_utils::System(
+        base::StringPrintf("dd if=/dev/zero of=%s/test_file bs=%d count=%d",
+                           a_img_mnt.c_str(), block_size,
+                           EXT2_NDIR_BLOCKS + 1));
   }
 
-  System(base::StringPrintf("cp %s %s", a_img.c_str(), b_img.c_str()));
+  test_utils::System(
+      base::StringPrintf("cp %s %s", a_img.c_str(), b_img.c_str()));
 
   int fd = open(data_file.c_str(), O_RDWR | O_CREAT, S_IRWXU);
   EXPECT_NE(fd, -1);

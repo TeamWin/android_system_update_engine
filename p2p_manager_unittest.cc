@@ -30,6 +30,7 @@
 #include "update_engine/utils.h"
 
 using base::TimeDelta;
+using chromeos_update_engine::test_utils::System;
 using std::string;
 using std::unique_ptr;
 using testing::DoAll;
@@ -82,7 +83,7 @@ TEST_F(P2PManagerTest, P2PEnabledInitAndNotChanged) {
   EXPECT_CALL(*mock_policy_, P2PEnabledChanged(_, _, _, _, false));
 
   EXPECT_FALSE(manager_->IsP2PEnabled());
-  RunGMainLoopMaxIterations(100);
+  test_utils::RunGMainLoopMaxIterations(100);
   EXPECT_FALSE(manager_->IsP2PEnabled());
 }
 
@@ -97,7 +98,7 @@ TEST_F(P2PManagerTest, P2PEnabledInitAndChanged) {
   EXPECT_CALL(*mock_policy_, P2PEnabledChanged(_, _, _, _, false));
 
   EXPECT_TRUE(manager_->IsP2PEnabled());
-  RunGMainLoopMaxIterations(100);
+  test_utils::RunGMainLoopMaxIterations(100);
   EXPECT_FALSE(manager_->IsP2PEnabled());
 }
 
@@ -180,7 +181,7 @@ TEST_F(P2PManagerTest, HousekeepingAgeLimit) {
   // flakiness) since the epoch and then we put two files before that
   // date and three files after.
   time_t cutoff_time = 1000000000;
-  base::TimeDelta age_limit = base::TimeDelta::FromDays(5);
+  TimeDelta age_limit = TimeDelta::FromDays(5);
 
   // Set the clock just so files with a timestamp before |cutoff_time|
   // will be deleted at housekeeping.
@@ -209,7 +210,7 @@ TEST_F(P2PManagerTest, HousekeepingAgeLimit) {
     //                       cutoff_time
     //
     base::Time file_date = base::Time::FromTimeT(cutoff_time) +
-      (n - 2)*base::TimeDelta::FromDays(1) + base::TimeDelta::FromHours(12);
+      (n - 2)*TimeDelta::FromDays(1) + TimeDelta::FromHours(12);
 
     // The touch(1) command expects input like this
     // --date="2004-02-27 14:19:13.489392193 +0530"
@@ -346,7 +347,7 @@ static bool CreateP2PFile(string p2p_dir, string file_name,
 
 // Check that sharing a *new* file works.
 TEST_F(P2PManagerTest, ShareFile) {
-  if (!utils::IsXAttrSupported(base::FilePath("/tmp"))) {
+  if (!test_utils::IsXAttrSupported(base::FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;
@@ -367,7 +368,7 @@ TEST_F(P2PManagerTest, ShareFile) {
 
 // Check that making a shared file visible, does what is expected.
 TEST_F(P2PManagerTest, MakeFileVisible) {
-  if (!utils::IsXAttrSupported(base::FilePath("/tmp"))) {
+  if (!test_utils::IsXAttrSupported(base::FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;
@@ -392,7 +393,7 @@ TEST_F(P2PManagerTest, MakeFileVisible) {
 
 // Check that we return the right values for existing files in P2P_DIR.
 TEST_F(P2PManagerTest, ExistingFiles) {
-  if (!utils::IsXAttrSupported(base::FilePath("/tmp"))) {
+  if (!test_utils::IsXAttrSupported(base::FilePath("/tmp"))) {
     LOG(WARNING) << "Skipping test because /tmp does not support xattr. "
                  << "Please update your system to support this feature.";
     return;

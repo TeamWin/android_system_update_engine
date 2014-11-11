@@ -21,6 +21,8 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos_update_engine::test_utils::System;
+using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -123,12 +125,12 @@ void PostinstallRunnerActionTest::DoTest(
   ASSERT_TRUE(utils::MakeTempDirectory(
           "postinstall_runner_action_unittest-XXXXXX",
           &cwd));
-  ASSERT_EQ(0, Chdir(cwd));
+  ASSERT_EQ(0, test_utils::Chdir(cwd));
 
   // Create a 10MiB sparse file to be used as image; format it as ext2.
-  ASSERT_EQ(0, system(
+  ASSERT_EQ(0, System(
           "dd if=/dev/zero of=image.dat seek=10485759 bs=1 count=1"));
-  ASSERT_EQ(0, system("mkfs.ext2 -F image.dat"));
+  ASSERT_EQ(0, System("mkfs.ext2 -F image.dat"));
 
   // Create a uniquely named image mount point, mount the image.
   ASSERT_EQ(0, System(string("mkdir -p ") + kStatefulPartition));
@@ -159,10 +161,10 @@ void PostinstallRunnerActionTest::DoTest(
   // get a loop device we can use for the install device
   string dev = "/dev/null";
 
-  unique_ptr<ScopedLoopbackDeviceBinder> loop_releaser;
+  unique_ptr<test_utils::ScopedLoopbackDeviceBinder> loop_releaser;
   if (do_losetup) {
-    loop_releaser.reset(new ScopedLoopbackDeviceBinder(cwd + "/image.dat",
-                                                       &dev));
+    loop_releaser.reset(new test_utils::ScopedLoopbackDeviceBinder(
+            cwd + "/image.dat", &dev));
   }
 
   // We use a test-specific powerwash marker file, to avoid race conditions.
@@ -227,7 +229,7 @@ void PostinstallRunnerActionTest::DoTest(
   ASSERT_EQ(0, System(string("rm -fr ") + mountpoint));
 
   // Remove the temporary work directory.
-  ASSERT_EQ(0, Chdir(orig_cwd));
+  ASSERT_EQ(0, test_utils::Chdir(orig_cwd));
   ASSERT_EQ(0, System(string("rm -fr ") + cwd));
 }
 

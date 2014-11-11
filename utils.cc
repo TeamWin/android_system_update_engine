@@ -6,7 +6,6 @@
 
 #include <stdint.h>
 
-#include <attr/xattr.h>
 #include <dirent.h>
 #include <elf.h>
 #include <errno.h>
@@ -249,17 +248,15 @@ static bool ReadFileChunkAndAppend(const string& path,
   return Read(fp.get(), size, out_p);
 }
 
-// Invokes a pipe |cmd|, then uses |append_func| to append its stdout to a
-// container |out_p|.
-template <class T>
-static bool ReadPipeAndAppend(const string& cmd, T* out_p) {
+// TODO(deymo): This is only used in unittest, but requires the private
+// Read<string>() defined here. Expose Read<string>() or move to base/ version.
+bool ReadPipe(const string& cmd, string* out_p) {
   FILE* fp = popen(cmd.c_str(), "r");
   if (!fp)
     return false;
   bool success = Read(fp, -1, out_p);
   return (success && pclose(fp) >= 0);
 }
-
 
 bool ReadFile(const string& path, vector<char>* out_p) {
   return ReadFileChunkAndAppend(path, 0, -1, out_p);
@@ -272,14 +269,6 @@ bool ReadFile(const string& path, string* out_p) {
 bool ReadFileChunk(const string& path, off_t offset, off_t size,
                    vector<char>* out_p) {
   return ReadFileChunkAndAppend(path, offset, size, out_p);
-}
-
-bool ReadPipe(const string& cmd, vector<char>* out_p) {
-  return ReadPipeAndAppend(cmd, out_p);
-}
-
-bool ReadPipe(const string& cmd, string* out_p) {
-  return ReadPipeAndAppend(cmd, out_p);
 }
 
 off_t BlockDevSize(int fd) {
@@ -360,63 +349,6 @@ void HexDumpArray(const unsigned char* const arr, const size_t length) {
   }
 }
 
-namespace {
-class ScopedDirCloser {
- public:
-  explicit ScopedDirCloser(DIR** dir) : dir_(dir) {}
-  ~ScopedDirCloser() {
-    if (dir_ && *dir_) {
-      int r = closedir(*dir_);
-      TEST_AND_RETURN_ERRNO(r == 0);
-      *dir_ = nullptr;
-      dir_ = nullptr;
-    }
-  }
- private:
-  DIR** dir_;
-};
-}  // namespace
-
-bool RecursiveUnlinkDir(const string& path) {
-  struct stat stbuf;
-  int r = lstat(path.c_str(), &stbuf);
-  TEST_AND_RETURN_FALSE_ERRNO((r == 0) || (errno == ENOENT));
-  if ((r < 0) && (errno == ENOENT))
-    // path request is missing. that's fine.
-    return true;
-  if (!S_ISDIR(stbuf.st_mode)) {
-    TEST_AND_RETURN_FALSE_ERRNO((unlink(path.c_str()) == 0) ||
-                                (errno == ENOENT));
-    // success or path disappeared before we could unlink.
-    return true;
-  }
-  {
-    // We have a dir, unlink all children, then delete dir
-    DIR *dir = opendir(path.c_str());
-    TEST_AND_RETURN_FALSE_ERRNO(dir);
-    ScopedDirCloser dir_closer(&dir);
-    struct dirent dir_entry;
-    struct dirent *dir_entry_p;
-    int err = 0;
-    while ((err = readdir_r(dir, &dir_entry, &dir_entry_p)) == 0) {
-      if (dir_entry_p == nullptr) {
-        // end of stream reached
-        break;
-      }
-      // Skip . and ..
-      if (!strcmp(dir_entry_p->d_name, ".") ||
-          !strcmp(dir_entry_p->d_name, ".."))
-        continue;
-      TEST_AND_RETURN_FALSE(RecursiveUnlinkDir(path + "/" +
-                                               dir_entry_p->d_name));
-    }
-    TEST_AND_RETURN_FALSE(err == 0);
-  }
-  // unlink dir
-  TEST_AND_RETURN_FALSE_ERRNO((rmdir(path.c_str()) == 0) || (errno == ENOENT));
-  return true;
-}
-
 string GetDiskName(const string& partition_name) {
   string disk_name;
   return SplitPartitionName(partition_name, &disk_name, nullptr) ?
@@ -432,7 +364,7 @@ int GetPartitionNumber(const string& partition_name) {
 bool SplitPartitionName(const string& partition_name,
                         string* out_disk_name,
                         int* out_partition_num) {
-  if (!StringHasPrefix(partition_name, "/dev/")) {
+  if (!StartsWithASCII(partition_name, "/dev/", true)) {
     LOG(ERROR) << "Invalid partition device name: " << partition_name;
     return false;
   }
@@ -481,7 +413,7 @@ bool SplitPartitionName(const string& partition_name,
 }
 
 string MakePartitionName(const string& disk_name, int partition_num) {
-  if (!StringHasPrefix(disk_name, "/dev/")) {
+  if (!StartsWithASCII(disk_name, "/dev/", true)) {
     LOG(ERROR) << "Invalid disk name: " << disk_name;
     return string();
   }
@@ -501,7 +433,7 @@ string MakePartitionName(const string& disk_name, int partition_num) {
 
   partition_name += std::to_string(partition_num);
 
-  if (StringHasPrefix(partition_name, "/dev/ubiblock")) {
+  if (StartsWithASCII(partition_name, "/dev/ubiblock", true)) {
     // Special case for UBI block devieces that have "_0" suffix.
     partition_name += "_0";
   }
@@ -609,18 +541,6 @@ bool MakeTempDirectory(const string& base_dirname_template,
   TEST_AND_RETURN_FALSE_ERRNO(return_code != nullptr);
   *dirname = &buf[0];
   return true;
-}
-
-bool StringHasSuffix(const string& str, const string& suffix) {
-  if (suffix.size() > str.size())
-    return false;
-  return 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
-}
-
-bool StringHasPrefix(const string& str, const string& prefix) {
-  if (prefix.size() > str.size())
-    return false;
-  return 0 == str.compare(0, prefix.size(), prefix);
 }
 
 bool MountFilesystem(const string& device,
@@ -906,11 +826,6 @@ bool SetCpuShares(CpuShares shares) {
                << " using " << cpu_shares_file;
     return false;
   }
-}
-
-int CompareCpuShares(CpuShares shares_lhs,
-                     CpuShares shares_rhs) {
-  return static_cast<int>(shares_lhs) - static_cast<int>(shares_rhs);
 }
 
 int FuzzInt(int value, unsigned int range) {
@@ -1518,36 +1433,6 @@ string CalculateP2PFileId(const string& payload_hash, size_t payload_size) {
   return base::StringPrintf("cros_update_size_%zu_hash_%s",
                       payload_size,
                       encoded_hash.c_str());
-}
-
-bool IsXAttrSupported(const base::FilePath& dir_path) {
-  char *path = strdup(dir_path.Append("xattr_test_XXXXXX").value().c_str());
-
-  int fd = mkstemp(path);
-  if (fd == -1) {
-    PLOG(ERROR) << "Error creating temporary file in " << dir_path.value();
-    free(path);
-    return false;
-  }
-
-  if (unlink(path) != 0) {
-    PLOG(ERROR) << "Error unlinking temporary file " << path;
-    close(fd);
-    free(path);
-    return false;
-  }
-
-  int xattr_res = fsetxattr(fd, "user.xattr-test", "value", strlen("value"), 0);
-  if (xattr_res != 0) {
-    if (errno == ENOTSUP) {
-      // Leave it to call-sites to warn about non-support.
-    } else {
-      PLOG(ERROR) << "Error setting xattr on " << path;
-    }
-  }
-  close(fd);
-  free(path);
-  return xattr_res == 0;
 }
 
 bool DecodeAndStoreBase64String(const string& base64_encoded,

@@ -6,6 +6,7 @@
 #define UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
 
 #include "update_engine/p2p_manager.h"
+#include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
 #include <string>
@@ -32,7 +33,7 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
   }
 
   ~FakeP2PManagerConfiguration() {
-    if (p2p_dir_.size() > 0 && !utils::RecursiveUnlinkDir(p2p_dir_)) {
+    if (p2p_dir_.size() > 0 && !test_utils::RecursiveUnlinkDir(p2p_dir_)) {
       PLOG(ERROR) << "Unable to unlink files and directory in " << p2p_dir_;
     }
   }

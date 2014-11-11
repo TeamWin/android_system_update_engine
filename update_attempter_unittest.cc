@@ -141,7 +141,7 @@ class UpdateAttempterTest : public ::testing::Test {
   }
 
   virtual void TearDown() {
-    utils::RecursiveUnlinkDir(test_dir_);
+    test_utils::RecursiveUnlinkDir(test_dir_);
   }
 
   void QuitMainLoop();

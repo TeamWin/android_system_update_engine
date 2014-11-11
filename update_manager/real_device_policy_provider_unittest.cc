@@ -14,7 +14,7 @@
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::TimeDelta;
-using chromeos_update_engine::RunGMainLoopMaxIterations;
+using chromeos_update_engine::test_utils::RunGMainLoopMaxIterations;
 using std::set;
 using std::string;
 using std::unique_ptr;

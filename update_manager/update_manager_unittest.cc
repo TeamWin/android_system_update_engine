@@ -30,6 +30,7 @@ using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::FakeClock;
+using chromeos_update_engine::test_utils::RunGMainLoopMaxIterations;
 using std::pair;
 using std::string;
 using std::tuple;
@@ -229,7 +230,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation) {
   umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // The callback should wait until we run the main loop for it to be executed.
   EXPECT_EQ(0, calls.size());
-  chromeos_update_engine::RunGMainLoopMaxIterations(100);
+  RunGMainLoopMaxIterations(100);
   EXPECT_EQ(1, calls.size());
 }
 
@@ -246,14 +247,14 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimeoutDoesNotFire) {
   umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // Run the main loop, ensure that policy was attempted once before deferring
   // to the default.
-  chromeos_update_engine::RunGMainLoopMaxIterations(100);
+  RunGMainLoopMaxIterations(100);
   EXPECT_EQ(1, num_called);
   ASSERT_EQ(1, calls.size());
   EXPECT_EQ(EvalStatus::kSucceeded, calls[0].first);
   // Wait for the timeout to expire, run the main loop again, ensure that
   // nothing happened.
   sleep(2);
-  chromeos_update_engine::RunGMainLoopMaxIterations(10);
+  RunGMainLoopMaxIterations(10);
   EXPECT_EQ(1, num_called);
   EXPECT_EQ(1, calls.size());
 }
@@ -274,7 +275,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
   umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // Run the main loop, ensure that policy was attempted once but the callback
   // was not invoked.
-  chromeos_update_engine::RunGMainLoopMaxIterations(100);
+  RunGMainLoopMaxIterations(100);
   EXPECT_EQ(1, num_called);
   EXPECT_EQ(0, calls.size());
   // Wait for the expiration timeout to expire, run the main loop again,
@@ -283,7 +284,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
   sleep(2);
   fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
                                TimeDelta::FromSeconds(2));
-  chromeos_update_engine::RunGMainLoopMaxIterations(10);
+  RunGMainLoopMaxIterations(10);
   EXPECT_EQ(2, num_called);
   EXPECT_EQ(0, calls.size());
   // Wait for reevaluation due to delay to happen, ensure that it occurs and
@@ -291,7 +292,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
   sleep(2);
   fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
                                TimeDelta::FromSeconds(2));
-  chromeos_update_engine::RunGMainLoopMaxIterations(10);
+  RunGMainLoopMaxIterations(10);
   EXPECT_EQ(3, num_called);
   ASSERT_EQ(1, calls.size());
   EXPECT_EQ(EvalStatus::kSucceeded, calls[0].first);
