@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/update_manager/real_time_provider.h"
+
 #include <memory>
 
 #include <base/logging.h>
@@ -9,7 +11,6 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
-#include "update_engine/update_manager/real_time_provider.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::Time;

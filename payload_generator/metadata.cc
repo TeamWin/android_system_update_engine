@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_generator/metadata.h"
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -17,7 +19,6 @@
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/ext2_utils.h"
 #include "update_engine/payload_generator/graph_utils.h"
-#include "update_engine/payload_generator/metadata.h"
 #include "update_engine/utils.h"
 
 using base::StringPrintf;

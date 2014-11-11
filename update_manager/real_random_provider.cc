@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/update_manager/real_random_provider.h"
+
 #include <stdio.h>
 #include <unistd.h>
 
@@ -11,7 +13,6 @@
 #include <base/files/scoped_file.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/update_manager/real_random_provider.h"
 #include "update_engine/update_manager/variable.h"
 
 using std::string;

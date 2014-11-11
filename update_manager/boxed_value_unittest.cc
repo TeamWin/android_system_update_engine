@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/update_manager/boxed_value.h"
+
 #include <gtest/gtest.h>
 #include <list>
 #include <map>
@@ -11,7 +13,6 @@
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 
-#include "update_engine/update_manager/boxed_value.h"
 #include "update_engine/update_manager/shill_provider.h"
 #include "update_engine/update_manager/umtest_utils.h"
 #include "update_engine/update_manager/updater_provider.h"

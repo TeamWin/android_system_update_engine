@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/prefs.h"
+
 #include <inttypes.h>
 
 #include <string>
@@ -11,8 +13,6 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
-
-#include "update_engine/prefs.h"
 
 using std::string;
 

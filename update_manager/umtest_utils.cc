@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <base/time/time.h>
-
 #include "update_engine/update_manager/umtest_utils.h"
+
+#include <base/time/time.h>
 
 namespace chromeos_update_manager {
 

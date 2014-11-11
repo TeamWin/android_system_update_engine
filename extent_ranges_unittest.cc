@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/extent_ranges.h"
+
 #include <vector>
 
 #include <gtest/gtest.h>
 
-#include "update_engine/extent_ranges.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/test_utils.h"
 

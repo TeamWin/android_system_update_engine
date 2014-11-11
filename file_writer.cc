@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "update_engine/file_writer.h"
+
 #include <errno.h>
 
 namespace chromeos_update_engine {

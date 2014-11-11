@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/chrome_browser_proxy_resolver.h"
+
 #include <deque>
 #include <string>
 
 #include <gtest/gtest.h>
 
-#include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/mock_dbus_wrapper.h"
 
 using ::testing::Return;

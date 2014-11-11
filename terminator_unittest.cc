@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/terminator.h"
+
 #include <gtest/gtest.h>
 #include <gtest/gtest-spi.h>
-
-#include "update_engine/terminator.h"
 
 using testing::ExitedWithCode;
 

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/multi_range_http_fetcher.h"
+
 #include <base/strings/stringprintf.h>
 
 #include <algorithm>
 #include <string>
 
-#include "update_engine/multi_range_http_fetcher.h"
 #include "update_engine/utils.h"
 
 namespace chromeos_update_engine {

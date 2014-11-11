@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/subprocess.h"
+
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -20,7 +22,6 @@
 #include <glib.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/subprocess.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 

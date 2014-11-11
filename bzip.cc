@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "update_engine/bzip.h"
+
 #include <stdlib.h>
 #include <algorithm>
 #include <bzlib.h>

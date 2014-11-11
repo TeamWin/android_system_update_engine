@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/omaha_hash_calculator.h"
+
 #include <math.h>
 #include <unistd.h>
 
@@ -12,7 +14,6 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/libcurl_http_fetcher.h"
-#include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/utils.h"
 
 using std::string;

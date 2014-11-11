@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_generator/metadata.h"
+
 #include <ext2fs/ext2fs.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -16,7 +18,6 @@
 
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/graph_types.h"
-#include "update_engine/payload_generator/metadata.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 

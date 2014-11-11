@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/update_manager/evaluation_context.h"
+
 #include <memory>
 #include <string>
 
@@ -10,7 +12,6 @@
 
 #include "update_engine/fake_clock.h"
 #include "update_engine/test_utils.h"
-#include "update_engine/update_manager/evaluation_context.h"
 #include "update_engine/update_manager/fake_variable.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/mock_variable.h"

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/omaha_response_handler_action.h"
+
 #include <string>
 
 #include <gtest/gtest.h>
@@ -9,7 +11,6 @@
 #include "update_engine/constants.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_payload_state.h"
-#include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 

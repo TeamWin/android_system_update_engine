@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/filesystem_copier_action.h"
+
 #include <fcntl.h>
 
 #include <set>
@@ -16,7 +18,6 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_system_state.h"
-#include "update_engine/filesystem_copier_action.h"
 #include "update_engine/mock_hardware.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/test_utils.h"

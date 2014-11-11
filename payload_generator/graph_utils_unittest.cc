@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "update_engine/payload_generator/graph_utils.h"
+
 #include <utility>
 #include <vector>
 
@@ -9,7 +11,6 @@
 
 #include "update_engine/extent_ranges.h"
 #include "update_engine/payload_constants.h"
-#include "update_engine/payload_generator/graph_utils.h"
 
 using std::make_pair;
 using std::vector;
