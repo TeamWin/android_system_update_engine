@@ -166,7 +166,7 @@ class BaseVariable {
 template<typename T>
 class Variable : public BaseVariable {
  public:
-  virtual ~Variable() {}
+  ~Variable() override {}
 
  protected:
   // Only allow to get values through the EvaluationContext class and not

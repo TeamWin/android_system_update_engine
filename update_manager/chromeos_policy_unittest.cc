@@ -30,7 +30,7 @@ namespace chromeos_update_manager {
 
 class UmChromeOSPolicyTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     SetUpDefaultClock();
     eval_ctx_ = new EvaluationContext(&fake_clock_, TimeDelta::FromSeconds(5));
     SetUpDefaultState();

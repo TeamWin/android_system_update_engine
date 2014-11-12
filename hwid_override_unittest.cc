@@ -16,9 +16,9 @@ namespace chromeos_update_engine {
 class HwidOverrideTest : public ::testing::Test {
  public:
   HwidOverrideTest() {}
-  virtual ~HwidOverrideTest() {}
+  ~HwidOverrideTest() override = default;
 
-  virtual void SetUp() {
+  void SetUp() override {
     ASSERT_TRUE(tempdir_.CreateUniqueTempDir());
     ASSERT_TRUE(base::CreateDirectory(tempdir_.path().Append("etc")));
   }

@@ -28,13 +28,13 @@ namespace chromeos_update_engine {
 
 class FilesystemIteratorTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     ASSERT_TRUE(utils::MakeTempDirectory("FilesystemIteratorTest-XXXXXX",
                                          &test_dir_));
     LOG(INFO) << "SetUp() mkdir " << test_dir_;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     LOG(INFO) << "TearDown() rmdir " << test_dir_;
     EXPECT_EQ(0, System(base::StringPrintf("rm -rf %s", TestDir())));
   }

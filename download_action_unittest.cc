@@ -56,7 +56,7 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
       : loop_(nullptr),
         processing_done_called_(false),
         expected_code_(expected_code) {}
-  virtual ~DownloadActionTestProcessorDelegate() {
+  ~DownloadActionTestProcessorDelegate() override {
     EXPECT_TRUE(processing_done_called_);
   }
   virtual void ProcessingDone(const ActionProcessor* processor,
@@ -449,15 +449,15 @@ class P2PDownloadActionTest : public testing::Test {
       start_at_offset_(0),
       fake_um_(fake_system_state_.fake_clock()) {}
 
-  virtual ~P2PDownloadActionTest() {}
+  ~P2PDownloadActionTest() override {}
 
   // Derived from testing::Test.
-  virtual void SetUp() {
+  void SetUp() override {
     loop_ = g_main_loop_new(g_main_context_default(), FALSE);
   }
 
   // Derived from testing::Test.
-  virtual void TearDown() {
+  void TearDown() override {
     if (loop_ != nullptr)
       g_main_loop_unref(loop_);
   }

@@ -64,14 +64,14 @@ class DeltaDiffGeneratorTest : public ::testing::Test {
   const string& old_path() { return old_path_; }
   const string& new_path() { return new_path_; }
 
-  virtual void SetUp() {
+  void SetUp() override {
     ASSERT_TRUE(utils::MakeTempFile("DeltaDiffGeneratorTest-old_path-XXXXXX",
                                     &old_path_, nullptr));
     ASSERT_TRUE(utils::MakeTempFile("DeltaDiffGeneratorTest-new_path-XXXXXX",
                                     &new_path_, nullptr));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     unlink(old_path().c_str());
     unlink(new_path().c_str());
   }

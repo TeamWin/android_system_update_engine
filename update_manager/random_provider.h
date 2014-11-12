@@ -13,7 +13,7 @@ namespace chromeos_update_manager {
 // Provider of random values.
 class RandomProvider : public Provider {
  public:
-  virtual ~RandomProvider() {}
+  ~RandomProvider() override {}
 
   // Return a random number every time it is requested. Note that values
   // returned by the variables are cached by the EvaluationContext, so the

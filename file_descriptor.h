@@ -82,19 +82,18 @@ class FileDescriptor {
 class EintrSafeFileDescriptor : public FileDescriptor {
  public:
   EintrSafeFileDescriptor() : fd_(-1) {}
-  virtual ~EintrSafeFileDescriptor() {}
 
   // Interface methods.
-  virtual bool Open(const char* path, int flags, mode_t mode);
-  virtual bool Open(const char* path, int flags);
-  virtual ssize_t Read(void* buf, size_t count);
-  virtual ssize_t Write(const void* buf, size_t count);
-  virtual bool Close();
-  virtual void Reset();
-  virtual bool IsSettingErrno() {
+  bool Open(const char* path, int flags, mode_t mode) override;
+  bool Open(const char* path, int flags) override;
+  ssize_t Read(void* buf, size_t count) override;
+  ssize_t Write(const void* buf, size_t count) override;
+  bool Close() override;
+  void Reset() override;
+  bool IsSettingErrno() override {
     return true;
   }
-  virtual bool IsOpen() {
+  bool IsOpen() override {
     return (fd_ >= 0);
   }
 

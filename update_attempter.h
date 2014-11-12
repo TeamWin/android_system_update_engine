@@ -61,7 +61,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   UpdateAttempter(SystemState* system_state,
                   DBusWrapperInterface* dbus_iface);
-  virtual ~UpdateAttempter();
+  ~UpdateAttempter() override;
 
   // Further initialization to be done post construction.
   void Init();
@@ -84,11 +84,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
                       bool interactive);
 
   // ActionProcessorDelegate methods:
-  void ProcessingDone(const ActionProcessor* processor, ErrorCode code);
-  void ProcessingStopped(const ActionProcessor* processor);
+  void ProcessingDone(const ActionProcessor* processor,
+                      ErrorCode code) override;
+  void ProcessingStopped(const ActionProcessor* processor) override;
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
-                       ErrorCode code);
+                       ErrorCode code) override;
 
   // Stop updating. An attempt will be made to record status to the disk
   // so that updates can be resumed later.
@@ -163,8 +164,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   bool RebootIfNeeded();
 
   // DownloadActionDelegate methods
-  void SetDownloadStatus(bool active);
-  void BytesReceived(uint64_t bytes_received, uint64_t total);
+  void SetDownloadStatus(bool active) override;
+  void BytesReceived(uint64_t bytes_received, uint64_t total) override;
 
   // Broadcasts the current status over D-Bus.
   void BroadcastStatus();

@@ -63,14 +63,14 @@ namespace chromeos_update_manager {
 
 class UmRealShillProviderTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // By default, initialize the provider so that it gets an initial connection
     // status from shill. This simulates the common case where shill is
     // available and responding during RealShillProvider initialization.
     Init(true);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     Shutdown();
   }
 

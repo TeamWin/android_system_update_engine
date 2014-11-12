@@ -24,7 +24,7 @@ namespace chromeos_update_manager {
 
 class UmRealConfigProviderTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     ASSERT_TRUE(root_dir_.CreateUniqueTempDir());
     provider_.reset(new RealConfigProvider(&fake_hardware_));
     provider_->SetRootPrefix(root_dir_.path().value());

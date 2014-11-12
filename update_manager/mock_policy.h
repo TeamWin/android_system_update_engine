@@ -42,7 +42,7 @@ class MockPolicy : public Policy {
   }
 
   MockPolicy() : MockPolicy(nullptr) {}
-  virtual ~MockPolicy() {}
+  ~MockPolicy() override {}
 
   // Policy overrides.
   MOCK_CONST_METHOD4(UpdateCheckAllowed,

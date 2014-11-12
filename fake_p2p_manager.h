@@ -21,61 +21,59 @@ class FakeP2PManager : public P2PManager {
     perform_housekeeping_result_(false),
     count_shared_files_result_(0) {}
 
-  virtual ~FakeP2PManager() {}
-
   // P2PManager overrides.
-  virtual void SetDevicePolicy(const policy::DevicePolicy* device_policy) {}
+  void SetDevicePolicy(const policy::DevicePolicy* device_policy) override {}
 
-  virtual bool IsP2PEnabled() {
+  bool IsP2PEnabled() override {
     return is_p2p_enabled_;
   }
 
-  virtual bool EnsureP2PRunning() {
+  bool EnsureP2PRunning() override {
     return ensure_p2p_running_result_;
   }
 
-  virtual bool EnsureP2PNotRunning() {
+  bool EnsureP2PNotRunning() override {
     return ensure_p2p_not_running_result_;
   }
 
-  virtual bool PerformHousekeeping() {
+  bool PerformHousekeeping() override {
     return perform_housekeeping_result_;
   }
 
-  virtual void LookupUrlForFile(const std::string& file_id,
-                                size_t minimum_size,
-                                base::TimeDelta max_time_to_wait,
-                                LookupCallback callback) {
+  void LookupUrlForFile(const std::string& file_id,
+                        size_t minimum_size,
+                        base::TimeDelta max_time_to_wait,
+                        LookupCallback callback) override {
     callback.Run(lookup_url_for_file_result_);
   }
 
-  virtual bool FileShare(const std::string& file_id,
-                         size_t expected_size) {
+  bool FileShare(const std::string& file_id,
+                 size_t expected_size) override {
     return false;
   }
 
-  virtual base::FilePath FileGetPath(const std::string& file_id) {
+  base::FilePath FileGetPath(const std::string& file_id) override {
     return base::FilePath();
   }
 
-  virtual ssize_t FileGetSize(const std::string& file_id) {
+  ssize_t FileGetSize(const std::string& file_id) override {
     return -1;
   }
 
-  virtual ssize_t FileGetExpectedSize(const std::string& file_id) {
+  ssize_t FileGetExpectedSize(const std::string& file_id) override {
     return -1;
   }
 
-  virtual bool FileGetVisible(const std::string& file_id,
-                              bool *out_result) {
+  bool FileGetVisible(const std::string& file_id,
+                      bool *out_result) override {
     return false;
   }
 
-  virtual bool FileMakeVisible(const std::string& file_id) {
+  bool FileMakeVisible(const std::string& file_id) override {
     return false;
   }
 
-  virtual int CountSharedFiles() {
+  int CountSharedFiles() override {
     return count_shared_files_result_;
   }
 

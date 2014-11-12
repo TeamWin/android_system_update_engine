@@ -58,11 +58,10 @@ class FileWriter {
 class DirectFileWriter : public FileWriter {
  public:
   DirectFileWriter() : fd_(-1) {}
-  virtual ~DirectFileWriter() {}
 
-  virtual int Open(const char* path, int flags, mode_t mode);
-  virtual bool Write(const void* bytes, size_t count);
-  virtual int Close();
+  int Open(const char* path, int flags, mode_t mode) override;
+  bool Write(const void* bytes, size_t count) override;
+  int Close() override;
 
   int fd() const { return fd_; }
 

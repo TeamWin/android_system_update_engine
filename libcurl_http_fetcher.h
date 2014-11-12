@@ -62,25 +62,25 @@ class LibcurlHttpFetcher : public HttpFetcher {
   }
 
   // Cleans up all internal state. Does not notify delegate
-  ~LibcurlHttpFetcher();
+  ~LibcurlHttpFetcher() override;
 
-  virtual void SetOffset(off_t offset) { bytes_downloaded_ = offset; }
+  void SetOffset(off_t offset) override { bytes_downloaded_ = offset; }
 
-  virtual void SetLength(size_t length) { download_length_ = length; }
-  virtual void UnsetLength() { SetLength(0); }
+  void SetLength(size_t length) override { download_length_ = length; }
+  void UnsetLength() override { SetLength(0); }
 
   // Begins the transfer if it hasn't already begun.
-  virtual void BeginTransfer(const std::string& url);
+  void BeginTransfer(const std::string& url) override;
 
   // If the transfer is in progress, aborts the transfer early. The transfer
   // cannot be resumed.
-  virtual void TerminateTransfer();
+  void TerminateTransfer() override;
 
   // Suspend the transfer by calling curl_easy_pause(CURLPAUSE_ALL).
-  virtual void Pause();
+  void Pause() override;
 
   // Resume the transfer by calling curl_easy_pause(CURLPAUSE_CONT).
-  virtual void Unpause();
+  void Unpause() override;
 
   // Libcurl sometimes asks to be called back after some time while
   // leaving that time unspecified. In that case, we pick a reasonable
@@ -91,10 +91,10 @@ class LibcurlHttpFetcher : public HttpFetcher {
   //     currently has no stored timeout value. You must not wait too long
   //     (more than a few seconds perhaps) before you call
   //     curl_multi_perform() again.
-  void set_idle_seconds(int seconds) { idle_seconds_ = seconds; }
+  void set_idle_seconds(int seconds) override { idle_seconds_ = seconds; }
 
   // Sets the retry timeout. Useful for testing.
-  void set_retry_seconds(int seconds) { retry_seconds_ = seconds; }
+  void set_retry_seconds(int seconds) override { retry_seconds_ = seconds; }
 
   void set_no_network_max_retries(int retries) {
     no_network_max_retries_ = retries;
@@ -105,20 +105,20 @@ class LibcurlHttpFetcher : public HttpFetcher {
     check_certificate_ = check_certificate;
   }
 
-  virtual size_t GetBytesDownloaded() {
+  size_t GetBytesDownloaded() override {
     return static_cast<size_t>(bytes_downloaded_);
   }
 
-  virtual void set_low_speed_limit(int low_speed_bps, int low_speed_sec) {
+  void set_low_speed_limit(int low_speed_bps, int low_speed_sec) override {
     low_speed_limit_bps_ = low_speed_bps;
     low_speed_time_seconds_ = low_speed_sec;
   }
 
-  virtual void set_connect_timeout(int connect_timeout_seconds) {
+  void set_connect_timeout(int connect_timeout_seconds) override {
     connect_timeout_seconds_ = connect_timeout_seconds;
   }
 
-  virtual void set_max_retry_count(int max_retry_count) {
+  void set_max_retry_count(int max_retry_count) override {
     max_retry_count_ = max_retry_count;
   }
 

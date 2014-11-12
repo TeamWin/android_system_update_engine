@@ -156,7 +156,7 @@ class PythonHttpServer : public HttpServer {
     Terminate(do_kill);
   }
 
-  virtual in_port_t GetPort() const {
+  in_port_t GetPort() const override {
     return port_;
   }
 
@@ -225,7 +225,7 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
  public:
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewLargeFetcher;
-  virtual HttpFetcher* NewLargeFetcher(size_t num_proxies) {
+  HttpFetcher* NewLargeFetcher(size_t num_proxies) override {
     vector<char> big_data(1000000);
     CHECK_GT(num_proxies, 0u);
     proxy_resolver_.set_num_proxies(num_proxies);
@@ -237,7 +237,7 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
 
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewSmallFetcher;
-  virtual HttpFetcher* NewSmallFetcher(size_t num_proxies) {
+  HttpFetcher* NewSmallFetcher(size_t num_proxies) override {
     CHECK_GT(num_proxies, 0u);
     proxy_resolver_.set_num_proxies(num_proxies);
     return new MockHttpFetcher(
@@ -246,10 +246,10 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
         reinterpret_cast<ProxyResolver*>(&proxy_resolver_));
   }
 
-  virtual bool IsMock() const { return true; }
-  virtual bool IsMulti() const { return false; }
+  bool IsMock() const override { return true; }
+  bool IsMulti() const override { return false; }
 
-  virtual HttpServer *CreateServer() {
+  HttpServer *CreateServer() override {
     return new NullHttpServer;
   }
 };
@@ -258,7 +258,7 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
  public:
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewLargeFetcher;
-  virtual HttpFetcher* NewLargeFetcher(size_t num_proxies) {
+  HttpFetcher* NewLargeFetcher(size_t num_proxies) override {
     CHECK_GT(num_proxies, 0u);
     proxy_resolver_.set_num_proxies(num_proxies);
     LibcurlHttpFetcher *ret = new
@@ -273,30 +273,30 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
 
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewSmallFetcher;
-  virtual HttpFetcher* NewSmallFetcher(size_t num_proxies) {
+  HttpFetcher* NewSmallFetcher(size_t num_proxies) override {
     return NewLargeFetcher(num_proxies);
   }
 
-  virtual string BigUrl(in_port_t port) const {
+  string BigUrl(in_port_t port) const override {
     return LocalServerUrlForPath(port,
                                  base::StringPrintf("/download/%d",
                                                     kBigLength));
   }
-  virtual string SmallUrl(in_port_t port) const {
+  string SmallUrl(in_port_t port) const override {
     return LocalServerUrlForPath(port, "/foo");
   }
-  virtual string ErrorUrl(in_port_t port) const {
+  string ErrorUrl(in_port_t port) const override {
     return LocalServerUrlForPath(port, "/error");
   }
 
-  virtual bool IsMock() const { return false; }
-  virtual bool IsMulti() const { return false; }
+  bool IsMock() const override { return false; }
+  bool IsMulti() const override { return false; }
 
-  virtual void IgnoreServerAborting(HttpServer* server) const {
+  void IgnoreServerAborting(HttpServer* server) const override {
     // Nothing to do.
   }
 
-  virtual HttpServer *CreateServer() {
+  HttpServer *CreateServer() override {
     return new PythonHttpServer;
   }
 };
@@ -305,7 +305,7 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
  public:
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewLargeFetcher;
-  virtual HttpFetcher* NewLargeFetcher(size_t num_proxies) {
+  HttpFetcher* NewLargeFetcher(size_t num_proxies) override {
     CHECK_GT(num_proxies, 0u);
     proxy_resolver_.set_num_proxies(num_proxies);
     ProxyResolver* resolver =
@@ -324,11 +324,11 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
 
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewSmallFetcher;
-  virtual HttpFetcher* NewSmallFetcher(size_t num_proxies) {
+  HttpFetcher* NewSmallFetcher(size_t num_proxies) override {
     return NewLargeFetcher(num_proxies);
   }
 
-  virtual bool IsMulti() const { return true; }
+  bool IsMulti() const override { return true; }
 };
 
 
@@ -367,13 +367,13 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
       is_expect_error_(false), times_transfer_complete_called_(0),
       times_transfer_terminated_called_(0), times_received_bytes_called_(0) {}
 
-  virtual void ReceivedBytes(HttpFetcher* /* fetcher */,
-                             const char* /* bytes */, int /* length */) {
+  void ReceivedBytes(HttpFetcher* /* fetcher */,
+                     const char* /* bytes */, int /* length */) override {
     // Update counters
     times_received_bytes_called_++;
   }
 
-  virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     if (is_expect_error_)
       EXPECT_EQ(kHttpResponseNotFound, fetcher->http_response_code());
     else
@@ -384,7 +384,7 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
     times_transfer_complete_called_++;
   }
 
-  virtual void TransferTerminated(HttpFetcher* fetcher) {
+  void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
     times_transfer_terminated_called_++;
   }
@@ -494,16 +494,16 @@ TYPED_TEST(HttpFetcherTest, ErrorTest) {
 namespace {
 class PausingHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* /* bytes */, int /* length */) {
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const char* /* bytes */, int /* length */) override {
     CHECK(!paused_);
     paused_ = true;
     fetcher->Pause();
   }
-  virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     g_main_loop_quit(loop_);
   }
-  virtual void TransferTerminated(HttpFetcher* fetcher) {
+  void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
   void Unpause() {
@@ -551,13 +551,13 @@ TYPED_TEST(HttpFetcherTest, PauseTest) {
 namespace {
 class AbortingHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes, int length) {}
-  virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const char* bytes, int length) override {}
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     ADD_FAILURE();  // We should never get here
     g_main_loop_quit(loop_);
   }
-  virtual void TransferTerminated(HttpFetcher* fetcher) {
+  void TransferTerminated(HttpFetcher* fetcher) override {
     EXPECT_EQ(fetcher, fetcher_.get());
     EXPECT_FALSE(once_);
     EXPECT_TRUE(callback_once_);
@@ -625,16 +625,16 @@ TYPED_TEST(HttpFetcherTest, AbortTest) {
 namespace {
 class FlakyHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes, int length) {
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const char* bytes, int length) override {
     data.append(bytes, length);
   }
-  virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_TRUE(successful);
     EXPECT_EQ(kHttpResponsePartialContent, fetcher->http_response_code());
     g_main_loop_quit(loop_);
   }
-  virtual void TransferTerminated(HttpFetcher* fetcher) {
+  void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
   string data;
@@ -687,7 +687,7 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
       : loop_(nullptr),
         server_(server) {}
 
-  virtual ~FailureHttpFetcherTestDelegate() {
+  ~FailureHttpFetcherTestDelegate() override {
     if (server_) {
       LOG(INFO) << "Stopping server in destructor";
       delete server_;
@@ -695,8 +695,8 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
     }
   }
 
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes, int length) {
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const char* bytes, int length) override {
     if (server_) {
       LOG(INFO) << "Stopping server in ReceivedBytes";
       delete server_;
@@ -704,12 +704,12 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
       server_ = nullptr;
     }
   }
-  virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_FALSE(successful);
     EXPECT_EQ(0, fetcher->http_response_code());
     g_main_loop_quit(loop_);
   }
-  virtual void TransferTerminated(HttpFetcher* fetcher) {
+  void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
   GMainLoop* loop_;
@@ -787,11 +787,11 @@ class RedirectHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
   explicit RedirectHttpFetcherTestDelegate(bool expected_successful)
       : expected_successful_(expected_successful) {}
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes, int length) {
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const char* bytes, int length) override {
     data.append(bytes, length);
   }
-  virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_EQ(expected_successful_, successful);
     if (expected_successful_) {
       EXPECT_EQ(kHttpResponseOk, fetcher->http_response_code());
@@ -801,7 +801,7 @@ class RedirectHttpFetcherTestDelegate : public HttpFetcherDelegate {
     }
     g_main_loop_quit(loop_);
   }
-  virtual void TransferTerminated(HttpFetcher* fetcher) {
+  void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
   bool expected_successful_;
@@ -892,13 +892,13 @@ class MultiHttpFetcherTestDelegate : public HttpFetcherDelegate {
   explicit MultiHttpFetcherTestDelegate(int expected_response_code)
       : expected_response_code_(expected_response_code) {}
 
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes, int length) {
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const char* bytes, int length) override {
     EXPECT_EQ(fetcher, fetcher_.get());
     data.append(bytes, length);
   }
 
-  virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_EQ(fetcher, fetcher_.get());
     EXPECT_EQ(expected_response_code_ != kHttpResponseUndefined, successful);
     if (expected_response_code_ != 0)
@@ -908,7 +908,7 @@ class MultiHttpFetcherTestDelegate : public HttpFetcherDelegate {
     g_main_loop_quit(loop_);
   }
 
-  virtual void TransferTerminated(HttpFetcher* fetcher) {
+  void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
 
@@ -1089,15 +1089,15 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetUnrecoverableTest) {
 namespace {
 class BlockedTransferTestDelegate : public HttpFetcherDelegate {
  public:
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes, int length) {
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const char* bytes, int length) override {
     ADD_FAILURE();
   }
-  virtual void TransferComplete(HttpFetcher* fetcher, bool successful) {
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_FALSE(successful);
     g_main_loop_quit(loop_);
   }
-  virtual void TransferTerminated(HttpFetcher* fetcher) {
+  void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
   GMainLoop* loop_;

@@ -133,7 +133,7 @@ TEST_F(UmCallCopyVariableTest, NullTest) {
 
 class UmAsyncCopyVariableTest : public ::testing::Test {
  public:
-  void TearDown() {
+  void TearDown() override {
     // No remaining event on the main loop.
     EXPECT_EQ(0, RunGMainLoopMaxIterations(1));
   }

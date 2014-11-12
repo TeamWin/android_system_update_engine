@@ -31,7 +31,7 @@ class CertificateCheckerTest : public testing::Test {
   CertificateCheckerTest() {}
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     depth_ = 0;
     length_ = 4;
     digest_[0] = 0x17;
@@ -53,7 +53,7 @@ class CertificateCheckerTest : public testing::Test {
     prefs_ = fake_system_state_.mock_prefs();
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
   FakeSystemState fake_system_state_;
   MockPrefs* prefs_;  // shortcut to fake_system_state_.mock_prefs()

@@ -34,12 +34,12 @@ const size_t kBlockSize = 4096;
 
 class ExtentWriterTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     memcpy(path_, kPathTemplate, sizeof(kPathTemplate));
     fd_ = mkstemp(path_);
     ASSERT_GE(fd_, 0);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     close(fd_);
     unlink(path_);
   }

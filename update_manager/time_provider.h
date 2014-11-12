@@ -15,7 +15,7 @@ namespace chromeos_update_manager {
 // Provider for time related information.
 class TimeProvider : public Provider {
  public:
-  virtual ~TimeProvider() {}
+  ~TimeProvider() override {}
 
   // Returns the current date. The time of day component will be zero.
   virtual Variable<base::Time>* var_curr_date() = 0;

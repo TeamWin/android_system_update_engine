@@ -29,14 +29,14 @@ namespace chromeos_update_manager {
 
 class UmRealDevicePolicyProviderTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     provider_.reset(new RealDevicePolicyProvider(&mock_policy_provider_));
     // By default, we have a device policy loaded. Tests can call
     // SetUpNonExistentDevicePolicy() to override this.
     SetUpExistentDevicePolicy();
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Check for leaked callbacks on the main loop.
     EXPECT_EQ(0, RunGMainLoopMaxIterations(100));
   }

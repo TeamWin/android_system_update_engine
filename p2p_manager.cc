@@ -72,13 +72,11 @@ class ConfigurationImpl : public P2PManager::Configuration {
  public:
   ConfigurationImpl() {}
 
-  virtual ~ConfigurationImpl() {}
-
-  virtual FilePath GetP2PDir() {
+  FilePath GetP2PDir() override {
     return FilePath(kDefaultP2PDir);
   }
 
-  virtual vector<string> GetInitctlArgs(bool is_start) {
+  vector<string> GetInitctlArgs(bool is_start) override {
     vector<string> args;
     args.push_back("initctl");
     args.push_back(is_start ? "start" : "stop");
@@ -86,8 +84,8 @@ class ConfigurationImpl : public P2PManager::Configuration {
     return args;
   }
 
-  virtual vector<string> GetP2PClientArgs(const string &file_id,
-                                          size_t minimum_size) {
+  vector<string> GetP2PClientArgs(const string &file_id,
+                                  size_t minimum_size) override {
     vector<string> args;
     args.push_back("p2p-client");
     args.push_back(string("--get-url=") + file_id);
@@ -110,24 +108,24 @@ class P2PManagerImpl : public P2PManager {
                  const base::TimeDelta& max_file_age);
 
   // P2PManager methods.
-  virtual void SetDevicePolicy(const policy::DevicePolicy* device_policy);
-  virtual bool IsP2PEnabled();
-  virtual bool EnsureP2PRunning();
-  virtual bool EnsureP2PNotRunning();
-  virtual bool PerformHousekeeping();
-  virtual void LookupUrlForFile(const string& file_id,
-                                size_t minimum_size,
-                                TimeDelta max_time_to_wait,
-                                LookupCallback callback);
-  virtual bool FileShare(const string& file_id,
-                         size_t expected_size);
-  virtual FilePath FileGetPath(const string& file_id);
-  virtual ssize_t FileGetSize(const string& file_id);
-  virtual ssize_t FileGetExpectedSize(const string& file_id);
-  virtual bool FileGetVisible(const string& file_id,
-                              bool *out_result);
-  virtual bool FileMakeVisible(const string& file_id);
-  virtual int CountSharedFiles();
+  void SetDevicePolicy(const policy::DevicePolicy* device_policy) override;
+  bool IsP2PEnabled() override;
+  bool EnsureP2PRunning() override;
+  bool EnsureP2PNotRunning() override;
+  bool PerformHousekeeping() override;
+  void LookupUrlForFile(const string& file_id,
+                        size_t minimum_size,
+                        TimeDelta max_time_to_wait,
+                        LookupCallback callback) override;
+  bool FileShare(const string& file_id,
+                 size_t expected_size) override;
+  FilePath FileGetPath(const string& file_id) override;
+  ssize_t FileGetSize(const string& file_id) override;
+  ssize_t FileGetExpectedSize(const string& file_id) override;
+  bool FileGetVisible(const string& file_id,
+                      bool *out_result) override;
+  bool FileMakeVisible(const string& file_id) override;
+  int CountSharedFiles() override;
 
  private:
   // Enumeration for specifying visibility.

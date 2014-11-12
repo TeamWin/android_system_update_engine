@@ -31,7 +31,7 @@ enum class ConnectionTethering {
 // Provider for networking related information.
 class ShillProvider : public Provider {
  public:
-  virtual ~ShillProvider() {}
+  ~ShillProvider() override {}
 
   // A variable returning whether we currently have network connectivity.
   virtual Variable<bool>* var_is_connected() = 0;

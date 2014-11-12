@@ -30,12 +30,12 @@ extern const char kLibCrosProxyResolveSignalFilter[];
 class ChromeBrowserProxyResolver : public ProxyResolver {
  public:
   explicit ChromeBrowserProxyResolver(DBusWrapperInterface* dbus);
-  virtual ~ChromeBrowserProxyResolver();
+  ~ChromeBrowserProxyResolver() override;
   bool Init();
 
-  virtual bool GetProxiesForUrl(const std::string& url,
-                                ProxiesResolvedFn callback,
-                                void* data);
+  bool GetProxiesForUrl(const std::string& url,
+                        ProxiesResolvedFn callback,
+                        void* data) override;
   void set_timeout(int seconds) { timeout_ = seconds; }
 
   // Public for test

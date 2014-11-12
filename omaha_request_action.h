@@ -124,24 +124,25 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
                      OmahaEvent* event,
                      HttpFetcher* http_fetcher,
                      bool ping_only);
-  virtual ~OmahaRequestAction();
+  ~OmahaRequestAction() override;
   typedef ActionTraits<OmahaRequestAction>::InputObjectType InputObjectType;
   typedef ActionTraits<OmahaRequestAction>::OutputObjectType OutputObjectType;
-  void PerformAction();
-  void TerminateProcessing();
-  void ActionCompleted(ErrorCode code);
+  void PerformAction() override;
+  void TerminateProcessing() override;
+  void ActionCompleted(ErrorCode code) override;
 
   int GetHTTPResponseCode() { return http_fetcher_->http_response_code(); }
 
   // Debugging/logging
   static std::string StaticType() { return "OmahaRequestAction"; }
-  std::string Type() const { return StaticType(); }
+  std::string Type() const override { return StaticType(); }
 
   // Delegate methods (see http_fetcher.h)
-  virtual void ReceivedBytes(HttpFetcher *fetcher,
-                             const char* bytes, int length);
+  void ReceivedBytes(HttpFetcher *fetcher,
+                     const char* bytes, int length) override;
 
-  virtual void TransferComplete(HttpFetcher *fetcher, bool successful);
+  void TransferComplete(HttpFetcher *fetcher, bool successful) override;
+
   // Returns true if this is an Event request, false if it's an UpdateCheck.
   bool IsEvent() const { return event_.get() != nullptr; }
 

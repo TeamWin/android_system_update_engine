@@ -38,11 +38,11 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
       InputObjectType;
   typedef ActionTraits<OmahaResponseHandlerAction>::OutputObjectType
       OutputObjectType;
-  void PerformAction();
+  void PerformAction() override;
 
   // This is a synchronous action, and thus TerminateProcessing() should
   // never be called
-  void TerminateProcessing() { CHECK(false); }
+  void TerminateProcessing() override { CHECK(false); }
 
   // For unit-testing
   void set_boot_device(const std::string& boot_device) {
@@ -54,7 +54,7 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
 
   // Debugging/logging
   static std::string StaticType() { return "OmahaResponseHandlerAction"; }
-  std::string Type() const { return StaticType(); }
+  std::string Type() const override { return StaticType(); }
   void set_key_path(const std::string& path) { key_path_ = path; }
 
  private:

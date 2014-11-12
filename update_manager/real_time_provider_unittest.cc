@@ -21,7 +21,7 @@ namespace chromeos_update_manager {
 
 class UmRealTimeProviderTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // The provider initializes correctly.
     provider_.reset(new RealTimeProvider(&fake_clock_));
     ASSERT_NE(nullptr, provider_.get());

@@ -46,10 +46,10 @@ class ProxyResolver {
 class DirectProxyResolver : public ProxyResolver {
  public:
   DirectProxyResolver() : idle_callback_id_(0), num_proxies_(1) {}
-  virtual ~DirectProxyResolver();
-  virtual bool GetProxiesForUrl(const std::string& url,
-                                ProxiesResolvedFn callback,
-                                void* data);
+  ~DirectProxyResolver() override;
+  bool GetProxiesForUrl(const std::string& url,
+                        ProxiesResolvedFn callback,
+                        void* data) override;
 
   // Set the number of direct (non-) proxies to be returned by resolver.
   // The default value is 1; higher numbers are currently used in testing.

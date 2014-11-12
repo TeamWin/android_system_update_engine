@@ -38,10 +38,6 @@ class FilesystemCopierActionTest : public ::testing::Test {
               bool terminate_early,
               bool use_kernel_partition,
               int verify_hash);
-  void SetUp() {
-  }
-  void TearDown() {
-  }
 
   FakeSystemState fake_system_state_;
 };

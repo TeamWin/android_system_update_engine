@@ -33,7 +33,7 @@ class OmahaRequestParamsTest : public ::testing::Test {
   bool DoTest(OmahaRequestParams* out, const string& app_version,
               const string& omaha_url);
 
-  virtual void SetUp() {
+  void SetUp() override {
     // Create a uniquely named test directory.
     ASSERT_TRUE(utils::MakeTempDirectory(kTestDirTemplate,
                                          &test_dir_));
@@ -49,7 +49,7 @@ class OmahaRequestParamsTest : public ::testing::Test {
     params_.SetLockDown(false);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     EXPECT_EQ(0, System(string("rm -rf ") + test_dir_));
   }
 

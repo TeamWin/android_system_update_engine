@@ -71,7 +71,7 @@ void EvaluateRepeatedly(Closure evaluation, scoped_refptr<EvaluationContext> ec,
 
 class UmEvaluationContextTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Apr 22, 2009 19:25:00 UTC (this is a random reference point).
     fake_clock_.SetMonotonicTime(Time::FromTimeT(1240428300));
     // Mar 2, 2006 1:23:45 UTC.
@@ -81,7 +81,7 @@ class UmEvaluationContextTest : public ::testing::Test {
         unique_ptr<base::Callback<void(EvaluationContext*)>>(nullptr));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Ensure that the evaluation context did not leak and is actually being
     // destroyed.
     if (eval_ctx_) {

@@ -20,6 +20,8 @@ namespace chromeos_update_engine {
 // unit testing.
 class HardwareInterface {
  public:
+  virtual ~HardwareInterface() {}
+
   // Returns the currently booted kernel partition. "/dev/sda2", for example.
   virtual std::string BootKernelDevice() const = 0;
 
@@ -70,8 +72,6 @@ class HardwareInterface {
   // or is invalid, returns -1. Brand new machines out of the factory or after
   // recovery don't have this value set.
   virtual int GetPowerwashCount() const = 0;
-
-  virtual ~HardwareInterface() {}
 };
 
 }  // namespace chromeos_update_engine

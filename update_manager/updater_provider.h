@@ -35,7 +35,7 @@ enum class UpdateRequestStatus {
 // Provider for Chrome OS update related information.
 class UpdaterProvider : public Provider {
  public:
-  virtual ~UpdaterProvider() {}
+  ~UpdaterProvider() override {}
 
   // A variable returning the timestamp when the update engine was started in
   // wallclock time.

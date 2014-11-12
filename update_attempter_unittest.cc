@@ -105,7 +105,7 @@ class UpdateAttempterTest : public ::testing::Test {
     attempter_.set_good_kernel_cmd_ = "/path/to/non-existent/command";
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     CHECK(utils::MakeTempDirectory("UpdateAttempterTest-XXXXXX", &test_dir_));
 
     EXPECT_EQ(nullptr, attempter_.dbus_service_);
@@ -140,7 +140,7 @@ class UpdateAttempterTest : public ::testing::Test {
         .WillRepeatedly(ReturnPointee(&actual_using_p2p_for_sharing_));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     test_utils::RecursiveUnlinkDir(test_dir_);
   }
 

@@ -98,7 +98,7 @@ class InstallPlanAction : public Action<InstallPlanAction> {
   explicit InstallPlanAction(const InstallPlan& install_plan):
     install_plan_(install_plan) {}
 
-  virtual void PerformAction() {
+  void PerformAction() override {
     if (HasOutputPipe()) {
       SetOutputObject(install_plan_);
     }
@@ -108,7 +108,7 @@ class InstallPlanAction : public Action<InstallPlanAction> {
   InstallPlan* install_plan() { return &install_plan_; }
 
   static std::string StaticType() { return "InstallPlanAction"; }
-  virtual std::string Type() const { return StaticType(); }
+  std::string Type() const override { return StaticType(); }
 
   typedef ActionTraits<InstallPlanAction>::InputObjectType InputObjectType;
   typedef ActionTraits<InstallPlanAction>::OutputObjectType OutputObjectType;

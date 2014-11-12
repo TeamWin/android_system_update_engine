@@ -132,7 +132,7 @@ class ActionTraits;
 template<typename SubClass>
 class Action : public AbstractAction {
  public:
-  virtual ~Action() {}
+  ~Action() override {}
 
   // Attaches an input pipe to this Action. This is optional; an Action
   // doesn't need to have an input pipe. The input pipe must be of the type

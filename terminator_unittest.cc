@@ -13,12 +13,12 @@ namespace chromeos_update_engine {
 
 class TerminatorTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     Terminator::Init();
     ASSERT_FALSE(Terminator::exit_blocked());
     ASSERT_FALSE(Terminator::exit_requested());
   }
-  virtual void TearDown() {
+  void TearDown() override {
     // Makes sure subsequent non-Terminator tests don't get accidentally
     // terminated.
     Terminator::Init();

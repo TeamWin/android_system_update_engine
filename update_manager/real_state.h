@@ -14,7 +14,7 @@ namespace chromeos_update_manager {
 // State concrete implementation.
 class RealState : public State {
  public:
-  virtual ~RealState() {}
+  ~RealState() override {}
 
   RealState(ConfigProvider* config_provider,
             DevicePolicyProvider* device_policy_provider,

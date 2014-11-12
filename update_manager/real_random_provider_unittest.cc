@@ -16,7 +16,7 @@ namespace chromeos_update_manager {
 
 class UmRealRandomProviderTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // The provider initializes correctly.
     provider_.reset(new RealRandomProvider());
     ASSERT_NE(nullptr, provider_.get());

@@ -42,7 +42,7 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
         terminating_(false),
         current_index_(0),
         bytes_received_this_range_(0) {}
-  ~MultiRangeHttpFetcher() {}
+  ~MultiRangeHttpFetcher() override {}
 
   void ClearRanges() { ranges_.clear(); }
 
@@ -55,47 +55,50 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
     ranges_.push_back(Range(offset));
   }
 
-  virtual void SetOffset(off_t offset) {}  // for now, doesn't support this
+  // HttpFetcher overrides.
+  void SetOffset(off_t offset) override {}  // for now, doesn't support this
 
-  virtual void SetLength(size_t length) {}  // unsupported
-  virtual void UnsetLength() {}
+  void SetLength(size_t length) override {}  // unsupported
+  void UnsetLength() override {}
 
   // Begins the transfer to the specified URL.
   // State change: Stopped -> Downloading
   // (corner case: Stopped -> Stopped for an empty request)
-  virtual void BeginTransfer(const std::string& url);
+  void BeginTransfer(const std::string& url) override;
 
   // State change: Downloading -> Pending transfer ended
-  virtual void TerminateTransfer();
+  void TerminateTransfer() override;
 
-  virtual void Pause() { base_fetcher_->Pause(); }
+  void Pause() override { base_fetcher_->Pause(); }
 
-  virtual void Unpause() { base_fetcher_->Unpause(); }
+  void Unpause() override { base_fetcher_->Unpause(); }
 
   // These functions are overloaded in LibcurlHttp fetcher for testing purposes.
-  virtual void set_idle_seconds(int seconds) {
+  void set_idle_seconds(int seconds) override {
     base_fetcher_->set_idle_seconds(seconds);
   }
-  virtual void set_retry_seconds(int seconds) {
+  void set_retry_seconds(int seconds) override {
     base_fetcher_->set_retry_seconds(seconds);
   }
+  // TODO(deymo): Determine if this method should be virtual in HttpFetcher so
+  // this call is sent to the base_fetcher_.
   virtual void SetProxies(const std::deque<std::string>& proxies) {
     base_fetcher_->SetProxies(proxies);
   }
 
-  inline virtual size_t GetBytesDownloaded() {
+  inline size_t GetBytesDownloaded() override {
     return base_fetcher_->GetBytesDownloaded();
   }
 
-  virtual void set_low_speed_limit(int low_speed_bps, int low_speed_sec) {
+  void set_low_speed_limit(int low_speed_bps, int low_speed_sec) override {
     base_fetcher_->set_low_speed_limit(low_speed_bps, low_speed_sec);
   }
 
-  virtual void set_connect_timeout(int connect_timeout_seconds) {
+  void set_connect_timeout(int connect_timeout_seconds) override {
     base_fetcher_->set_connect_timeout(connect_timeout_seconds);
   }
 
-  virtual void set_max_retry_count(int max_retry_count) {
+  void set_max_retry_count(int max_retry_count) override {
     base_fetcher_->set_max_retry_count(max_retry_count);
   }
 
@@ -125,16 +128,17 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
   // State change: Stopped or Downloading -> Downloading
   void StartTransfer();
 
+  // HttpFetcherDelegate overrides.
   // State change: Downloading -> Downloading or Pending transfer ended
-  virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes,
-                             int length);
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const char* bytes,
+                     int length) override;
 
   // State change: Pending transfer ended -> Stopped
   void TransferEnded(HttpFetcher* fetcher, bool successful);
   // These two call TransferEnded():
-  virtual void TransferComplete(HttpFetcher* fetcher, bool successful);
-  virtual void TransferTerminated(HttpFetcher* fetcher);
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override;
+  void TransferTerminated(HttpFetcher* fetcher) override;
 
   void Reset();
 

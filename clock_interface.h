@@ -17,6 +17,8 @@ namespace chromeos_update_engine {
 // is also unit testing.
 class ClockInterface {
  public:
+  virtual ~ClockInterface() = default;
+
   // Gets the current time e.g. similar to base::Time::Now().
   virtual base::Time GetWallclockTime() = 0;
 
@@ -33,8 +35,6 @@ class ClockInterface {
   //
   // (This is a simple wrapper around clock_gettime(2) / CLOCK_BOOTTIME.)
   virtual base::Time GetBootTime() = 0;
-
-  virtual ~ClockInterface() {}
 };
 
 }  // namespace chromeos_update_engine

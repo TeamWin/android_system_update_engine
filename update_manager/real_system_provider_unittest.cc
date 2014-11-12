@@ -18,7 +18,7 @@ namespace chromeos_update_manager {
 
 class UmRealSystemProviderTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     provider_.reset(new RealSystemProvider(&fake_hardware_));
     EXPECT_TRUE(provider_->Init());
   }

@@ -60,7 +60,7 @@ class MockP2PManager : public P2PManager {
             &FakeP2PManager::CountSharedFiles));
   }
 
-  virtual ~MockP2PManager() {}
+  ~MockP2PManager() override {}
 
   // P2PManager overrides.
   MOCK_METHOD1(SetDevicePolicy, void(const policy::DevicePolicy*));

@@ -40,7 +40,7 @@ struct UpdateScatteringResult {
 class ChromeOSPolicy : public Policy {
  public:
   ChromeOSPolicy() {}
-  virtual ~ChromeOSPolicy() {}
+  ~ChromeOSPolicy() override {}
 
   // Policy overrides.
   EvalStatus UpdateCheckAllowed(

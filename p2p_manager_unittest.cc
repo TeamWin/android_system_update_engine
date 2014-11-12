@@ -46,10 +46,10 @@ namespace chromeos_update_engine {
 class P2PManagerTest : public testing::Test {
  protected:
   P2PManagerTest() : fake_um_(&fake_clock_) {}
-  virtual ~P2PManagerTest() {}
+  ~P2PManagerTest() override {}
 
   // Derived from testing::Test.
-  virtual void SetUp() {
+  void SetUp() override {
     test_conf_ = new FakeP2PManagerConfiguration();
 
     // Allocate and install a mock policy implementation in the fake Update
@@ -63,7 +63,7 @@ class P2PManagerTest : public testing::Test {
                                          "cros_au", 3,
                                          base::TimeDelta::FromDays(5)));
   }
-  virtual void TearDown() {}
+  void TearDown() override {}
 
   // The P2PManager::Configuration instance used for testing.
   FakeP2PManagerConfiguration *test_conf_;

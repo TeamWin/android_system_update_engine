@@ -60,7 +60,7 @@ class MockHardware : public HardwareInterface {
             &FakeHardware::GetPowerwashCount));
   }
 
-  virtual ~MockHardware() {}
+  ~MockHardware() override {}
 
   // Hardware overrides.
   MOCK_CONST_METHOD0(BootKernelDevice, std::string());

@@ -28,7 +28,7 @@ class SystemState;
 class PayloadState : public PayloadStateInterface {
  public:
   PayloadState();
-  virtual ~PayloadState() {}
+  ~PayloadState() override {}
 
   // Initializes a payload state object using the given global system state.
   // It performs the initial loading of all persisted state into memory and
@@ -37,81 +37,81 @@ class PayloadState : public PayloadStateInterface {
   bool Initialize(SystemState* system_state);
 
   // Implementation of PayloadStateInterface methods.
-  virtual void SetResponse(const OmahaResponse& response);
-  virtual void DownloadComplete();
-  virtual void DownloadProgress(size_t count);
-  virtual void UpdateResumed();
-  virtual void UpdateRestarted();
-  virtual void UpdateSucceeded();
-  virtual void UpdateFailed(ErrorCode error);
-  virtual void ResetUpdateStatus();
-  virtual bool ShouldBackoffDownload();
-  virtual void Rollback();
-  virtual void ExpectRebootInNewVersion(const std::string& target_version_uid);
-  virtual void SetUsingP2PForDownloading(bool value);
+  void SetResponse(const OmahaResponse& response) override;
+  void DownloadComplete() override;
+  void DownloadProgress(size_t count) override;
+  void UpdateResumed() override;
+  void UpdateRestarted() override;
+  void UpdateSucceeded() override;
+  void UpdateFailed(ErrorCode error) override;
+  void ResetUpdateStatus() override;
+  bool ShouldBackoffDownload() override;
+  void Rollback() override;
+  void ExpectRebootInNewVersion(const std::string& target_version_uid) override;
+  void SetUsingP2PForDownloading(bool value) override;
 
   void SetUsingP2PForSharing(bool value) override {
     using_p2p_for_sharing_ = value;
   }
 
-  virtual inline std::string GetResponseSignature() {
+  inline std::string GetResponseSignature() override {
     return response_signature_;
   }
 
-  virtual inline int GetFullPayloadAttemptNumber() {
+  inline int GetFullPayloadAttemptNumber() override {
     return full_payload_attempt_number_;
   }
 
-  virtual inline int GetPayloadAttemptNumber() {
+  inline int GetPayloadAttemptNumber() override {
     return payload_attempt_number_;
   }
 
-  virtual inline std::string GetCurrentUrl() {
+  inline std::string GetCurrentUrl() override {
     return candidate_urls_.size() ? candidate_urls_[url_index_] : "";
   }
 
-  virtual inline uint32_t GetUrlFailureCount() {
+  inline uint32_t GetUrlFailureCount() override {
     return url_failure_count_;
   }
 
-  virtual inline uint32_t GetUrlSwitchCount() {
+  inline uint32_t GetUrlSwitchCount() override {
     return url_switch_count_;
   }
 
-  virtual inline int GetNumResponsesSeen() {
+  inline int GetNumResponsesSeen() override {
     return num_responses_seen_;
   }
 
-  virtual inline base::Time GetBackoffExpiryTime() {
+  inline base::Time GetBackoffExpiryTime() override {
     return backoff_expiry_time_;
   }
 
-  virtual base::TimeDelta GetUpdateDuration();
+  base::TimeDelta GetUpdateDuration() override;
 
-  virtual base::TimeDelta GetUpdateDurationUptime();
+  base::TimeDelta GetUpdateDurationUptime() override;
 
-  virtual inline uint64_t GetCurrentBytesDownloaded(DownloadSource source) {
+  inline uint64_t GetCurrentBytesDownloaded(DownloadSource source) override {
     return source < kNumDownloadSources ? current_bytes_downloaded_[source] : 0;
   }
 
-  virtual inline uint64_t GetTotalBytesDownloaded(DownloadSource source) {
+  inline uint64_t GetTotalBytesDownloaded(DownloadSource source) override {
     return source < kNumDownloadSources ? total_bytes_downloaded_[source] : 0;
   }
 
-  virtual inline uint32_t GetNumReboots() {
+  inline uint32_t GetNumReboots() override {
     return num_reboots_;
   }
 
-  virtual void UpdateEngineStarted();
+  void UpdateEngineStarted() override;
 
-  virtual inline std::string GetRollbackVersion() {
+  inline std::string GetRollbackVersion() override {
     return rollback_version_;
   }
 
-  virtual int GetP2PNumAttempts();
-  virtual base::Time GetP2PFirstAttemptTimestamp();
-  virtual void P2PNewAttempt();
-  virtual bool P2PAttemptAllowed();
+  int GetP2PNumAttempts() override;
+  base::Time GetP2PFirstAttemptTimestamp() override;
+  void P2PNewAttempt() override;
+  bool P2PAttemptAllowed() override;
 
   bool GetUsingP2PForDownloading() const override {
     return using_p2p_for_downloading_;

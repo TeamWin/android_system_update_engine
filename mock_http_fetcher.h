@@ -47,39 +47,39 @@ class MockHttpFetcher : public HttpFetcher {
   }
 
   // Cleans up all internal state. Does not notify delegate
-  ~MockHttpFetcher();
+  ~MockHttpFetcher() override;
 
   // Ignores this.
-  virtual void SetOffset(off_t offset) {
+  void SetOffset(off_t offset) override {
     sent_size_ = offset;
     if (delegate_)
       delegate_->SeekToOffset(offset);
   }
 
   // Do nothing.
-  virtual void SetLength(size_t length) {}
-  virtual void UnsetLength() {}
-  virtual void set_low_speed_limit(int low_speed_bps, int low_speed_sec) {}
-  virtual void set_connect_timeout(int connect_timeout_seconds) {}
-  virtual void set_max_retry_count(int max_retry_count) {}
+  void SetLength(size_t length) override {}
+  void UnsetLength() override {}
+  void set_low_speed_limit(int low_speed_bps, int low_speed_sec) override {}
+  void set_connect_timeout(int connect_timeout_seconds) override {}
+  void set_max_retry_count(int max_retry_count) override {}
 
   // Dummy: no bytes were downloaded.
-  virtual size_t GetBytesDownloaded() {
+  size_t GetBytesDownloaded() override {
     return sent_size_;
   }
 
   // Begins the transfer if it hasn't already begun.
-  virtual void BeginTransfer(const std::string& url);
+  void BeginTransfer(const std::string& url) override;
 
   // If the transfer is in progress, aborts the transfer early.
   // The transfer cannot be resumed.
-  virtual void TerminateTransfer();
+  void TerminateTransfer() override;
 
   // Suspend the mock transfer.
-  virtual void Pause();
+  void Pause() override;
 
   // Resume the mock transfer.
-  virtual void Unpause();
+  void Unpause() override;
 
   // Fail the transfer. This simulates a network failure.
   void FailTransfer(int http_response_code);

@@ -69,8 +69,8 @@ class PollCopyVariable : public Variable<T> {
   FRIEND_TEST(UmPollCopyVariableTest, UseCopyConstructorTest);
 
   // Variable override.
-  virtual inline const T* GetValue(base::TimeDelta /* timeout */,
-                                   std::string* errmsg) {
+  inline const T* GetValue(base::TimeDelta /* timeout */,
+                           std::string* errmsg) override {
     if (is_set_p_ && !(*is_set_p_)) {
       if (errmsg) {
         if (errmsg_.empty())
@@ -108,8 +108,8 @@ class ConstCopyVariable : public Variable<T> {
 
  protected:
   // Variable override.
-  virtual const T* GetValue(base::TimeDelta /* timeout */,
-                            std::string* /* errmsg */) {
+  const T* GetValue(base::TimeDelta /* timeout */,
+                    std::string* /* errmsg */) override {
     return new T(obj_);
   }
 
@@ -132,8 +132,8 @@ class CallCopyVariable : public Variable<T> {
 
  protected:
   // Variable override.
-  virtual const T* GetValue(base::TimeDelta /* timeout */,
-                            std::string* /* errmsg */) {
+  const T* GetValue(base::TimeDelta /* timeout */,
+                    std::string* /* errmsg */) override {
     if (func_.is_null())
       return nullptr;
     return new T(func_.Run());
@@ -183,8 +183,8 @@ class AsyncCopyVariable : public Variable<T> {
 
  protected:
   // Variable override.
-  virtual const T* GetValue(base::TimeDelta /* timeout */,
-                            std::string* errmsg) {
+  const T* GetValue(base::TimeDelta /* timeout */,
+                    std::string* errmsg) override {
     if (!has_value_) {
       if (errmsg)
         *errmsg = "No value set for " + this->GetName();

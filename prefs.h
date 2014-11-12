@@ -27,15 +27,15 @@ class Prefs : public PrefsInterface {
   bool Init(const base::FilePath& prefs_dir);
 
   // PrefsInterface methods.
-  bool GetString(const std::string& key, std::string* value);
-  bool SetString(const std::string& key, const std::string& value);
-  bool GetInt64(const std::string& key, int64_t* value);
-  bool SetInt64(const std::string& key, const int64_t value);
-  bool GetBoolean(const std::string& key, bool* value);
-  bool SetBoolean(const std::string& key, const bool value);
+  bool GetString(const std::string& key, std::string* value) override;
+  bool SetString(const std::string& key, const std::string& value) override;
+  bool GetInt64(const std::string& key, int64_t* value) override;
+  bool SetInt64(const std::string& key, const int64_t value) override;
+  bool GetBoolean(const std::string& key, bool* value) override;
+  bool SetBoolean(const std::string& key, const bool value) override;
 
-  bool Exists(const std::string& key);
-  bool Delete(const std::string& key);
+  bool Exists(const std::string& key) override;
+  bool Delete(const std::string& key) override;
 
  private:
   FRIEND_TEST(PrefsTest, GetFileNameForKey);

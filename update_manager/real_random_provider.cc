@@ -34,7 +34,7 @@ class RandomSeedVariable : public Variable<uint64_t> {
   // policy request.
   RandomSeedVariable(const string& name, FILE* fp)
       : Variable<uint64_t>(name, kVariableModeConst), fp_(fp) {}
-  virtual ~RandomSeedVariable() {}
+  ~RandomSeedVariable() override {}
 
  protected:
   virtual const uint64_t* GetValue(base::TimeDelta /* timeout */,

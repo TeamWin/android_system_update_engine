@@ -20,7 +20,7 @@ namespace chromeos_update_manager {
 // Provides access to the current DevicePolicy.
 class DevicePolicyProvider : public Provider {
  public:
-  virtual ~DevicePolicyProvider() {}
+  ~DevicePolicyProvider() override {}
 
   // Variable stating whether the DevicePolicy was loaded.
   virtual Variable<bool>* var_device_policy_is_loaded() = 0;

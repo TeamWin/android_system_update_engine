@@ -25,7 +25,7 @@ class DefaultVariable : public Variable<T> {
       : Variable<T>(name, mode) {}
   DefaultVariable(const string& name, const TimeDelta& poll_interval)
       : Variable<T>(name, poll_interval) {}
-  virtual ~DefaultVariable() {}
+  ~DefaultVariable() override {}
 
  protected:
   virtual const T* GetValue(TimeDelta /* timeout */,

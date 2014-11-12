@@ -14,7 +14,7 @@ namespace chromeos_update_manager {
 // reported by crossystem, the kernel boot command line and the partition table.
 class SystemProvider : public Provider {
  public:
-  virtual ~SystemProvider() {}
+  ~SystemProvider() override {}
 
   // Returns true if the boot mode is normal or if it's unable to
   // determine the boot mode. Returns false if the boot mode is

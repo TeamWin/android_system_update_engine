@@ -53,9 +53,9 @@ class DownloadAction : public InstallPlanAction,
   DownloadAction(PrefsInterface* prefs,
                  SystemState* system_state,
                  HttpFetcher* http_fetcher);
-  virtual ~DownloadAction();
-  void PerformAction();
-  void TerminateProcessing();
+  ~DownloadAction() override;
+  void PerformAction() override;
+  void TerminateProcessing() override;
 
   // Testing
   void SetTestFileWriter(FileWriter* writer) {
@@ -66,14 +66,14 @@ class DownloadAction : public InstallPlanAction,
 
   // Debugging/logging
   static std::string StaticType() { return "DownloadAction"; }
-  std::string Type() const { return StaticType(); }
+  std::string Type() const override { return StaticType(); }
 
   // HttpFetcherDelegate methods (see http_fetcher.h)
-  virtual void ReceivedBytes(HttpFetcher *fetcher,
-                             const char* bytes, int length);
-  virtual void SeekToOffset(off_t offset);
-  virtual void TransferComplete(HttpFetcher *fetcher, bool successful);
-  virtual void TransferTerminated(HttpFetcher *fetcher);
+  void ReceivedBytes(HttpFetcher *fetcher,
+                     const char* bytes, int length) override;
+  void SeekToOffset(off_t offset) override;
+  void TransferComplete(HttpFetcher *fetcher, bool successful) override;
+  void TransferTerminated(HttpFetcher *fetcher) override;
 
   DownloadActionDelegate* delegate() const { return delegate_; }
   void set_delegate(DownloadActionDelegate* delegate) {

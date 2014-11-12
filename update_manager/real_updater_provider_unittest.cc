@@ -62,7 +62,7 @@ namespace chromeos_update_manager {
 
 class UmRealUpdaterProviderTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     fake_clock_ = fake_sys_state_.fake_clock();
     provider_.reset(new RealUpdaterProvider(&fake_sys_state_));
     ASSERT_NE(nullptr, provider_.get());

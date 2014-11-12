@@ -14,15 +14,15 @@ class FakeClock : public ClockInterface {
  public:
   FakeClock() {}
 
-  virtual base::Time GetWallclockTime() {
+  base::Time GetWallclockTime() override {
     return wallclock_time_;
   }
 
-  virtual base::Time GetMonotonicTime() {
+  base::Time GetMonotonicTime() override {
     return monotonic_time_;
   }
 
-  virtual base::Time GetBootTime() {
+  base::Time GetBootTime() override {
     return boot_time_;
   }
 

@@ -21,7 +21,7 @@ class FakeVariable : public Variable<T> {
       : Variable<T>(name, mode) {}
   FakeVariable(const std::string& name, base::TimeDelta poll_interval)
       : Variable<T>(name, poll_interval) {}
-  virtual ~FakeVariable() {}
+  ~FakeVariable() override {}
 
   // Sets the next value of this variable to the passed |p_value| pointer. Once
   // returned by GetValue(), the pointer is released and has to be set again.

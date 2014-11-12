@@ -119,7 +119,7 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   friend class UmEvaluationContextTest;
 
   // BaseVariable::ObserverInterface override.
-  void ValueChanged(BaseVariable* var);
+  void ValueChanged(BaseVariable* var) override;
 
   // Called from the main loop when a scheduled timeout has passed.
   void OnTimeout();

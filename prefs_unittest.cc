@@ -20,12 +20,12 @@ namespace chromeos_update_engine {
 
 class PrefsTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     ASSERT_TRUE(base::CreateNewTempDirectory("auprefs", &prefs_dir_));
     ASSERT_TRUE(prefs_.Init(prefs_dir_));
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     base::DeleteFile(prefs_dir_, true);  // recursive
   }
 

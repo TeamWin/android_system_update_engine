@@ -50,7 +50,7 @@ class DefaultPolicy : public Policy {
  public:
   explicit DefaultPolicy(chromeos_update_engine::ClockInterface* clock);
   DefaultPolicy() : DefaultPolicy(nullptr) {}
-  virtual ~DefaultPolicy() {}
+  ~DefaultPolicy() override {}
 
   // Policy overrides.
   EvalStatus UpdateCheckAllowed(

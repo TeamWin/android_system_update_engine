@@ -32,8 +32,8 @@ class FilesystemCopierAction : public InstallPlanAction {
                          bool copying_kernel_install_path,
                          bool verify_hash);
 
-  void PerformAction();
-  void TerminateProcessing();
+  void PerformAction() override;
+  void TerminateProcessing() override;
 
   // Used for testing. Return true if Cleanup() has not yet been called due
   // to a callback upon the completion or cancellation of the copier action.
@@ -46,7 +46,7 @@ class FilesystemCopierAction : public InstallPlanAction {
 
   // Debugging/logging
   static std::string StaticType() { return "FilesystemCopierAction"; }
-  std::string Type() const { return StaticType(); }
+  std::string Type() const override { return StaticType(); }
 
  private:
   friend class FilesystemCopierActionTest;

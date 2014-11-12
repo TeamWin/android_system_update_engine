@@ -31,7 +31,7 @@ class FakeState : public State {
   // Creates and initializes the FakeState using fake providers.
   FakeState() {}
 
-  virtual ~FakeState() {}
+  ~FakeState() override {}
 
   // Downcasted getters to access the fake instances during testing.
   FakeConfigProvider* config_provider() override {

@@ -18,6 +18,8 @@ namespace chromeos_update_engine {
 
 class PrefsInterface {
  public:
+  virtual ~PrefsInterface() {}
+
   // Gets a string |value| associated with |key|. Returns true on
   // success, false on failure (including when the |key| is not
   // present in the store).
@@ -52,8 +54,6 @@ class PrefsInterface {
   // Returns true if successfully deleted the file corresponding to
   // this key. Calling with non-existent keys does nothing.
   virtual bool Delete(const std::string& key) = 0;
-
-  virtual ~PrefsInterface() {}
 };
 
 }  // namespace chromeos_update_engine

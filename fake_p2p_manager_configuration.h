@@ -39,18 +39,18 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
   }
 
   // P2PManager::Configuration override
-  virtual base::FilePath GetP2PDir() {
+  base::FilePath GetP2PDir() override {
     return base::FilePath(p2p_dir_);
   }
 
   // P2PManager::Configuration override
-  virtual std::vector<std::string> GetInitctlArgs(bool is_start) {
+  std::vector<std::string> GetInitctlArgs(bool is_start) override {
     return is_start ? initctl_start_args_ : initctl_stop_args_;
   }
 
   // P2PManager::Configuration override
-  virtual std::vector<std::string> GetP2PClientArgs(const std::string &file_id,
-                                                    size_t minimum_size) {
+  std::vector<std::string> GetP2PClientArgs(const std::string &file_id,
+                                            size_t minimum_size) override {
     std::string formatted_command_line = p2p_client_cmdline_format_;
     // Replace {variable} on the passed string.
     ReplaceSubstringsAfterOffset(

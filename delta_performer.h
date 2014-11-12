@@ -85,22 +85,22 @@ class DeltaPerformer : public FileWriter {
 
   // flags and mode ignored. Once Close()d, a DeltaPerformer can't be
   // Open()ed again.
-  int Open(const char* path, int flags, mode_t mode);
+  int Open(const char* path, int flags, mode_t mode) override;
 
   // FileWriter's Write implementation where caller doesn't care about
   // error codes.
-  bool Write(const void* bytes, size_t count) {
+  bool Write(const void* bytes, size_t count) override {
     ErrorCode error;
     return Write(bytes, count, &error);
   }
 
   // FileWriter's Write implementation that returns a more specific |error| code
   // in case of failures in Write operation.
-  bool Write(const void* bytes, size_t count, ErrorCode *error);
+  bool Write(const void* bytes, size_t count, ErrorCode *error) override;
 
   // Wrapper around close. Returns 0 on success or -errno on error.
   // Closes both 'path' given to Open() and the kernel path.
-  int Close();
+  int Close() override;
 
   // Returns |true| only if the manifest has been processed and it's valid.
   bool IsManifestValid();

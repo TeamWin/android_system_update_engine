@@ -14,11 +14,11 @@ class Clock : public ClockInterface {
  public:
   Clock() {}
 
-  virtual base::Time GetWallclockTime();
+  base::Time GetWallclockTime() override;
 
-  virtual base::Time GetMonotonicTime();
+  base::Time GetMonotonicTime() override;
 
-  virtual base::Time GetBootTime();
+  base::Time GetBootTime() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Clock);

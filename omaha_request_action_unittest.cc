@@ -50,7 +50,7 @@ namespace chromeos_update_engine {
 
 class OmahaRequestActionTest : public ::testing::Test {
  protected:
-  void SetUp() {
+  void SetUp() override {
     fake_system_state_.set_request_params(&request_params_);
     fake_system_state_.set_prefs(&fake_prefs_);
   }
@@ -223,7 +223,7 @@ class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
   OmahaRequestActionTestProcessorDelegate()
       : loop_(nullptr),
         expected_code_(ErrorCode::kSuccess) {}
-  virtual ~OmahaRequestActionTestProcessorDelegate() {
+  ~OmahaRequestActionTestProcessorDelegate() override {
   }
   virtual void ProcessingDone(const ActionProcessor* processor,
                               ErrorCode code) {

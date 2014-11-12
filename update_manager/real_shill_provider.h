@@ -29,7 +29,7 @@ class RealShillProvider : public ShillProvider {
   RealShillProvider(DBusWrapperInterface* dbus, ClockInterface* clock)
       : dbus_(dbus), clock_(clock) {}
 
-  virtual ~RealShillProvider();
+  ~RealShillProvider() override;
 
   // Initializes the provider and returns whether it succeeded.
   bool Init();
