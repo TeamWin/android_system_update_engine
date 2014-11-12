@@ -80,6 +80,8 @@ class ActionProcessor {
 // ActionProcessor to register itself.
 class ActionProcessorDelegate {
  public:
+  virtual ~ActionProcessorDelegate() = default;
+
   // Called when all processing in an ActionProcessor has completed. A pointer
   // to the ActionProcessor is passed. |code| is set to the exit code of the
   // last completed action.

@@ -37,6 +37,7 @@ class ConnectionManager {
   // Constructs a new ConnectionManager object initialized with the
   // given system state.
   explicit ConnectionManager(SystemState* system_state);
+  virtual ~ConnectionManager() = default;
 
   // Populates |out_type| with the type of the network connection
   // that we are currently connected and |out_tethering| with the estimate of

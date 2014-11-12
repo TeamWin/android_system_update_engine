@@ -28,6 +28,8 @@ namespace chromeos_update_engine {
 
 class DownloadActionDelegate {
  public:
+  virtual ~DownloadActionDelegate() = default;
+
   // Called right before starting the download with |active| set to
   // true. Called after completing the download with |active| set to
   // false.

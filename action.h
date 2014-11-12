@@ -71,6 +71,7 @@ namespace chromeos_update_engine {
 class AbstractAction {
  public:
   AbstractAction() : processor_(nullptr) {}
+  virtual ~AbstractAction() = default;
 
   // Begin performing the action. Since this code is asynchronous, when this
   // method returns, it means only that the action has started, not necessarily

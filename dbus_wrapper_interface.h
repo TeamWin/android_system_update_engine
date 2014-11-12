@@ -24,6 +24,8 @@ namespace chromeos_update_engine {
 
 class DBusWrapperInterface {
  public:
+  virtual ~DBusWrapperInterface() = default;
+
   // Wraps dbus_g_proxy_new_for_name().
   virtual DBusGProxy* ProxyNewForName(DBusGConnection* connection,
                                       const char* name,

@@ -18,6 +18,7 @@
       '-Werror',
       '-Wno-unused-parameter',
       '-Wno-deprecated-register',
+      '-Wnon-virtual-dtor',
     ],
     'cflags_cc': [
       '-fno-strict-aliasing',

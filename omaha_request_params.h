@@ -91,6 +91,8 @@ class OmahaRequestParams {
         force_lock_down_(false),
         forced_lock_down_(false) {}
 
+  virtual ~OmahaRequestParams() = default;
+
   // Setters and getters for the various properties.
   inline std::string os_platform() const { return os_platform_; }
   inline std::string os_version() const { return os_version_; }

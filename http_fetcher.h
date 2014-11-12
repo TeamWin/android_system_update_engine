@@ -169,6 +169,8 @@ class HttpFetcher {
 // Interface for delegates
 class HttpFetcherDelegate {
  public:
+  virtual ~HttpFetcherDelegate() = default;
+
   // Called every time bytes are received.
   virtual void ReceivedBytes(HttpFetcher* fetcher,
                              const char* bytes,

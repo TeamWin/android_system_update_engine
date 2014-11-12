@@ -18,6 +18,8 @@ namespace chromeos_update_engine {
 // object.
 class PayloadStateInterface {
  public:
+  virtual ~PayloadStateInterface() = default;
+
   // Sets the internal payload state based on the given Omaha response. This
   // response could be the same or different from the one for which we've stored
   // the internal state. If it's different, then this method resets all the
