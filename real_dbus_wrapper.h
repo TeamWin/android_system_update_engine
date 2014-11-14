@@ -70,6 +70,8 @@ class RealDBusWrapper : public DBusWrapperInterface {
                         const char* signal_name,
                         GType type1,
                         GType type2) override {
+    dbus_g_object_register_marshaller(
+        g_cclosure_marshal_generic, G_TYPE_NONE, type1, type2, G_TYPE_INVALID);
     dbus_g_proxy_add_signal(proxy, signal_name, type1, type2, G_TYPE_INVALID);
   }
 
