@@ -18,12 +18,12 @@
 #include <utility>
 #include <vector>
 
-#include <base/files/file_util.h>
 #include <base/files/file_path.h>
+#include <base/files/file_util.h>
 #include <base/logging.h>
+#include <base/strings/stringprintf.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
-#include <base/strings/stringprintf.h>
 #include <bzlib.h>
 
 #include "update_engine/bzip.h"
@@ -209,7 +209,7 @@ bool DeltaReadFiles(Graph* graph,
   set<ino_t> visited_inodes;
   set<ino_t> visited_src_inodes;
   for (FilesystemIterator fs_iter(new_root,
-                                  utils::SetWithValue<string>("/lost+found"));
+                                  set<string>{"/lost+found"});
        !fs_iter.IsEnd(); fs_iter.Increment()) {
     // We never diff symlinks (here, we check that dst file is not a symlink).
     if (!S_ISREG(fs_iter.GetStat().st_mode))
