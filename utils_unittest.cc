@@ -773,4 +773,52 @@ TEST(UtilsTest, GetConnectionType) {
                                      NetworkTethering::kUnknown));
 }
 
+static bool BoolMacroTestHelper() {
+  int i = 1;
+  unsigned int ui = 1;
+  bool b = 1;
+  std::unique_ptr<char> cptr(new char);
+
+  TEST_AND_RETURN_FALSE(i);
+  TEST_AND_RETURN_FALSE(ui);
+  TEST_AND_RETURN_FALSE(b);
+  TEST_AND_RETURN_FALSE(cptr);
+
+  TEST_AND_RETURN_FALSE_ERRNO(i);
+  TEST_AND_RETURN_FALSE_ERRNO(ui);
+  TEST_AND_RETURN_FALSE_ERRNO(b);
+  TEST_AND_RETURN_FALSE_ERRNO(cptr);
+
+  return true;
+}
+
+static void VoidMacroTestHelper(bool* ret) {
+  int i = 1;
+  unsigned int ui = 1;
+  bool b = 1;
+  std::unique_ptr<char> cptr(new char);
+
+  *ret = false;
+
+  TEST_AND_RETURN(i);
+  TEST_AND_RETURN(ui);
+  TEST_AND_RETURN(b);
+  TEST_AND_RETURN(cptr);
+
+  TEST_AND_RETURN_ERRNO(i);
+  TEST_AND_RETURN_ERRNO(ui);
+  TEST_AND_RETURN_ERRNO(b);
+  TEST_AND_RETURN_ERRNO(cptr);
+
+  *ret = true;
+}
+
+TEST(UtilsTest, TestMacros) {
+  bool void_test = false;
+  VoidMacroTestHelper(&void_test);
+  EXPECT_TRUE(void_test);
+
+  EXPECT_TRUE(BoolMacroTestHelper());
+}
+
 }  // namespace chromeos_update_engine

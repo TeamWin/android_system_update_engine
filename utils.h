@@ -567,7 +567,7 @@ struct GLibStrvFreeDeleter : public base::FreeDeleter {
 
 #define TEST_AND_RETURN_FALSE_ERRNO(_x)                                        \
   do {                                                                         \
-    bool _success = (_x);                                                      \
+    bool _success = static_cast<bool>(_x);                                     \
     if (!_success) {                                                           \
       std::string _msg =                                                       \
           chromeos_update_engine::utils::ErrnoNumberAsString(errno);           \
@@ -578,7 +578,7 @@ struct GLibStrvFreeDeleter : public base::FreeDeleter {
 
 #define TEST_AND_RETURN_FALSE(_x)                                              \
   do {                                                                         \
-    bool _success = (_x);                                                      \
+    bool _success = static_cast<bool>(_x);                                     \
     if (!_success) {                                                           \
       LOG(ERROR) << #_x " failed.";                                            \
       return false;                                                            \
@@ -587,7 +587,7 @@ struct GLibStrvFreeDeleter : public base::FreeDeleter {
 
 #define TEST_AND_RETURN_ERRNO(_x)                                              \
   do {                                                                         \
-    bool _success = (_x);                                                      \
+    bool _success = static_cast<bool>(_x);                                     \
     if (!_success) {                                                           \
       std::string _msg =                                                       \
           chromeos_update_engine::utils::ErrnoNumberAsString(errno);           \
@@ -598,7 +598,7 @@ struct GLibStrvFreeDeleter : public base::FreeDeleter {
 
 #define TEST_AND_RETURN(_x)                                                    \
   do {                                                                         \
-    bool _success = (_x);                                                      \
+    bool _success = static_cast<bool>(_x);                                     \
     if (!_success) {                                                           \
       LOG(ERROR) << #_x " failed.";                                            \
       return;                                                                  \
