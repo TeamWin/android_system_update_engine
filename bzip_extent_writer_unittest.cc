@@ -4,6 +4,7 @@
 
 #include "update_engine/bzip_extent_writer.h"
 
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -29,19 +30,19 @@ class BzipExtentWriterTest : public ::testing::Test {
  protected:
   void SetUp() override {
     memcpy(path_, kPathTemplate, sizeof(kPathTemplate));
-    fd_ = mkstemp(path_);
-    ASSERT_GE(fd_, 0);
+    fd_.reset(new EintrSafeFileDescriptor);
+    int fd = mkstemp(path_);
+    ASSERT_TRUE(fd_->Open(path_, O_RDWR, 0600));
+    close(fd);
   }
   void TearDown() override {
-    close(fd_);
+    fd_->Close();
     unlink(path_);
   }
-  int fd() { return fd_; }
-  const char* path() { return path_; }
   void WriteAlignedExtents(size_t chunk_size, size_t first_chunk_size);
   void TestZeroPad(bool aligned_size);
- private:
-  int fd_;
+
+  FileDescriptorPtr fd_;
   char path_[sizeof(kPathTemplate)];
 };
 
@@ -63,15 +64,14 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
 
   DirectExtentWriter direct_writer;
   BzipExtentWriter bzip_writer(&direct_writer);
-  EXPECT_TRUE(bzip_writer.Init(fd(), extents, kBlockSize));
+  EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
   EXPECT_TRUE(bzip_writer.Write(test, sizeof(test)));
   EXPECT_TRUE(bzip_writer.End());
 
-  char buf[sizeof(test_uncompressed) + 1];
-  memset(buf, 0, sizeof(buf));
-  ssize_t bytes_read = pread(fd(), buf, sizeof(buf) - 1, 0);
-  EXPECT_EQ(strlen(test_uncompressed), bytes_read);
-  EXPECT_EQ(string(buf), string(test_uncompressed));
+  vector<char> buf;
+  EXPECT_TRUE(utils::ReadFile(path_, &buf));
+  EXPECT_EQ(strlen(test_uncompressed), buf.size());
+  EXPECT_EQ(string(buf.data(), buf.size()), string(test_uncompressed));
 }
 
 TEST_F(BzipExtentWriterTest, ChunkedTest) {
@@ -104,7 +104,7 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
 
   DirectExtentWriter direct_writer;
   BzipExtentWriter bzip_writer(&direct_writer);
-  EXPECT_TRUE(bzip_writer.Init(fd(), extents, kBlockSize));
+  EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
 
   vector<char> original_compressed_data = compressed_data;
   for (vector<char>::size_type i = 0; i < compressed_data.size();
@@ -117,10 +117,9 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   // Check that the const input has not been clobbered.
   test_utils::ExpectVectorsEq(original_compressed_data, compressed_data);
 
-  vector<char> output(kDecompressedLength + 1);
-  ssize_t bytes_read = pread(fd(), &output[0], output.size(), 0);
-  EXPECT_EQ(kDecompressedLength, bytes_read);
-  output.resize(kDecompressedLength);
+  vector<char> output;
+  EXPECT_TRUE(utils::ReadFile(path_, &output));
+  EXPECT_EQ(kDecompressedLength, output.size());
   test_utils::ExpectVectorsEq(decompressed_data, output);
 
   unlink(decompressed_path.c_str());

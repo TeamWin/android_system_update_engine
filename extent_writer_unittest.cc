@@ -4,6 +4,7 @@
 
 #include "update_engine/extent_writer.h"
 
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -36,15 +37,15 @@ class ExtentWriterTest : public ::testing::Test {
  protected:
   void SetUp() override {
     memcpy(path_, kPathTemplate, sizeof(kPathTemplate));
-    fd_ = mkstemp(path_);
-    ASSERT_GE(fd_, 0);
+    fd_.reset(new EintrSafeFileDescriptor);
+    int fd = mkstemp(path_);
+    ASSERT_TRUE(fd_->Open(path_, O_RDWR, 0600));
+    close(fd);
   }
   void TearDown() override {
-    close(fd_);
+    fd_->Close();
     unlink(path_);
   }
-  int fd() { return fd_; }
-  const char* path() { return path_; }
 
   // Writes data to an extent writer in 'chunk_size' chunks with
   // the first chunk of size first_chunk_size. It calculates what the
@@ -52,8 +53,8 @@ class ExtentWriterTest : public ::testing::Test {
   // wrote the file correctly.
   void WriteAlignedExtents(size_t chunk_size, size_t first_chunk_size);
   void TestZeroPad(bool aligned_size);
- private:
-  int fd_;
+
+  FileDescriptorPtr fd_;
   char path_[sizeof(kPathTemplate)];
 };
 
@@ -67,14 +68,14 @@ TEST_F(ExtentWriterTest, SimpleTest) {
   const string bytes = "1234";
 
   DirectExtentWriter direct_writer;
-  EXPECT_TRUE(direct_writer.Init(fd(), extents, kBlockSize));
+  EXPECT_TRUE(direct_writer.Init(fd_, extents, kBlockSize));
   EXPECT_TRUE(direct_writer.Write(bytes.data(), bytes.size()));
   EXPECT_TRUE(direct_writer.End());
 
-  EXPECT_EQ(kBlockSize + bytes.size(), utils::FileSize(fd()));
+  EXPECT_EQ(kBlockSize + bytes.size(), utils::FileSize(path_));
 
   vector<char> result_file;
-  EXPECT_TRUE(utils::ReadFile(path(), &result_file));
+  EXPECT_TRUE(utils::ReadFile(path_, &result_file));
 
   vector<char> expected_file(kBlockSize);
   expected_file.insert(expected_file.end(),
@@ -90,7 +91,7 @@ TEST_F(ExtentWriterTest, ZeroLengthTest) {
   extents.push_back(extent);
 
   DirectExtentWriter direct_writer;
-  EXPECT_TRUE(direct_writer.Init(fd(), extents, kBlockSize));
+  EXPECT_TRUE(direct_writer.Init(fd_, extents, kBlockSize));
   EXPECT_TRUE(direct_writer.Write(nullptr, 0));
   EXPECT_TRUE(direct_writer.End());
 }
@@ -125,7 +126,7 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
   test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
-  EXPECT_TRUE(direct_writer.Init(fd(), extents, kBlockSize));
+  EXPECT_TRUE(direct_writer.Init(fd_, extents, kBlockSize));
 
   size_t bytes_written = 0;
   while (bytes_written < data.size()) {
@@ -138,10 +139,10 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
   }
   EXPECT_TRUE(direct_writer.End());
 
-  EXPECT_EQ(data.size(), utils::FileSize(fd()));
+  EXPECT_EQ(data.size(), utils::FileSize(path_));
 
   vector<char> result_file;
-  EXPECT_TRUE(utils::ReadFile(path(), &result_file));
+  EXPECT_TRUE(utils::ReadFile(path_, &result_file));
 
   vector<char> expected_file;
   expected_file.insert(expected_file.end(),
@@ -178,19 +179,19 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
   DirectExtentWriter direct_writer;
   ZeroPadExtentWriter zero_pad_writer(&direct_writer);
 
-  EXPECT_TRUE(zero_pad_writer.Init(fd(), extents, kBlockSize));
+  EXPECT_TRUE(zero_pad_writer.Init(fd_, extents, kBlockSize));
   size_t bytes_to_write = data.size();
   const size_t missing_bytes = (aligned_size ? 0 : 9);
   bytes_to_write -= missing_bytes;
-  lseek64(fd(), kBlockSize - missing_bytes, SEEK_SET);
-  EXPECT_EQ(3, write(fd(), "xxx", 3));
+  fd_->Seek(kBlockSize - missing_bytes, SEEK_SET);
+  EXPECT_EQ(3, fd_->Write("xxx", 3));
   ASSERT_TRUE(zero_pad_writer.Write(&data[0], bytes_to_write));
   EXPECT_TRUE(zero_pad_writer.End());
 
-  EXPECT_EQ(data.size(), utils::FileSize(fd()));
+  EXPECT_EQ(data.size(), utils::FileSize(path_));
 
   vector<char> result_file;
-  EXPECT_TRUE(utils::ReadFile(path(), &result_file));
+  EXPECT_TRUE(utils::ReadFile(path_, &result_file));
 
   vector<char> expected_file;
   expected_file.insert(expected_file.end(),
@@ -224,7 +225,7 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
-  EXPECT_TRUE(direct_writer.Init(fd(), extents, kBlockSize));
+  EXPECT_TRUE(direct_writer.Init(fd_, extents, kBlockSize));
 
   size_t bytes_written = 0;
   while (bytes_written < (block_count * kBlockSize)) {
@@ -236,10 +237,10 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   EXPECT_TRUE(direct_writer.End());
 
   // check file size, then data inside
-  ASSERT_EQ(2 * kBlockSize, utils::FileSize(path()));
+  ASSERT_EQ(2 * kBlockSize, utils::FileSize(path_));
 
   vector<char> resultant_data;
-  EXPECT_TRUE(utils::ReadFile(path(), &resultant_data));
+  EXPECT_TRUE(utils::ReadFile(path_, &resultant_data));
 
   // Create expected data
   vector<char> expected_data(on_disk_count * kBlockSize);

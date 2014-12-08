@@ -40,6 +40,7 @@
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"
+#include "update_engine/file_descriptor.h"
 #include "update_engine/file_writer.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/prefs_interface.h"
@@ -162,6 +163,25 @@ bool PWriteAll(int fd, const void* buf, size_t count, off_t offset) {
   return true;
 }
 
+bool WriteAll(FileDescriptorPtr fd, const void* buf, size_t count) {
+  const char* c_buf = static_cast<const char*>(buf);
+  ssize_t bytes_written = 0;
+  while (bytes_written < static_cast<ssize_t>(count)) {
+    ssize_t rc = fd->Write(c_buf + bytes_written, count - bytes_written);
+    TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
+    bytes_written += rc;
+  }
+  return true;
+}
+
+bool PWriteAll(FileDescriptorPtr fd,
+               const void* buf,
+               size_t count,
+               off_t offset) {
+  TEST_AND_RETURN_FALSE_ERRNO(fd->Seek(offset, SEEK_SET));
+  return WriteAll(fd, buf, count);
+}
+
 bool PReadAll(int fd, void* buf, size_t count, off_t offset,
               ssize_t* out_bytes_read) {
   char* c_buf = static_cast<char*>(buf);
@@ -169,6 +189,23 @@ bool PReadAll(int fd, void* buf, size_t count, off_t offset,
   while (bytes_read < static_cast<ssize_t>(count)) {
     ssize_t rc = pread(fd, c_buf + bytes_read, count - bytes_read,
                        offset + bytes_read);
+    TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
+    if (rc == 0) {
+      break;
+    }
+    bytes_read += rc;
+  }
+  *out_bytes_read = bytes_read;
+  return true;
+}
+
+bool PReadAll(FileDescriptorPtr fd, void* buf, size_t count, off_t offset,
+              ssize_t* out_bytes_read) {
+  TEST_AND_RETURN_FALSE_ERRNO(fd->Seek(offset, SEEK_SET));
+  char* c_buf = static_cast<char*>(buf);
+  ssize_t bytes_read = 0;
+  while (bytes_read < static_cast<ssize_t>(count)) {
+    ssize_t rc = fd->Read(c_buf + bytes_read, count - bytes_read);
     TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
     if (rc == 0) {
       break;

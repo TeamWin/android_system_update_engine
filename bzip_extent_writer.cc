@@ -12,7 +12,7 @@ namespace {
 const vector<char>::size_type kOutputBufferLength = 16 * 1024;
 }
 
-bool BzipExtentWriter::Init(int fd,
+bool BzipExtentWriter::Init(FileDescriptorPtr fd,
                             const vector<Extent>& extents,
                             uint32_t block_size) {
   // Init bzip2 stream

@@ -6,11 +6,10 @@
 #define UPDATE_ENGINE_FILE_DESCRIPTOR_H_
 
 #include <errno.h>
+#include <memory>
 #include <sys/types.h>
 
 #include <base/logging.h>
-
-#include "update_engine/utils.h"
 
 // Abstraction for managing opening, reading, writing and closing of file
 // descriptors. This includes an abstract class and one standard implementation
@@ -37,6 +36,9 @@
 
 namespace chromeos_update_engine {
 
+class FileDescriptor;
+using FileDescriptorPtr = std::shared_ptr<FileDescriptor>;
+
 // An abstract class defining the file descriptor API.
 class FileDescriptor {
  public:
@@ -58,6 +60,11 @@ class FileDescriptor {
   // call. Returns the number of bytes written, or -1 if an error occurred and
   // no bytes were written. Specific implementations may set errno accordingly.
   virtual ssize_t Write(const void* buf, size_t count) = 0;
+
+  // Seeks to an offset. Returns the resulting offset location as measured in
+  // bytes from the beginning. On error, return -1. Specific implementations
+  // may set errno accordingly.
+  virtual off64_t Seek(off64_t offset, int whence) = 0;
 
   // Closes a file descriptor. The descriptor must be open prior to this call.
   // Returns true on success, false otherwise. Specific implementations may set
@@ -88,6 +95,7 @@ class EintrSafeFileDescriptor : public FileDescriptor {
   bool Open(const char* path, int flags) override;
   ssize_t Read(void* buf, size_t count) override;
   ssize_t Write(const void* buf, size_t count) override;
+  off64_t Seek(off64_t offset, int whence) override;
   bool Close() override;
   void Reset() override;
   bool IsSettingErrno() override {
@@ -97,7 +105,7 @@ class EintrSafeFileDescriptor : public FileDescriptor {
     return (fd_ >= 0);
   }
 
- private:
+ protected:
   int fd_;
 };
 

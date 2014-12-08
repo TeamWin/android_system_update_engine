@@ -25,6 +25,7 @@
 #include "update_engine/action_processor.h"
 #include "update_engine/connection_manager.h"
 #include "update_engine/constants.h"
+#include "update_engine/file_descriptor.h"
 #include "update_engine/metrics.h"
 
 namespace chromeos_update_engine {
@@ -69,9 +70,18 @@ bool WriteFile(const char* path, const char* data, int data_len);
 bool WriteAll(int fd, const void* buf, size_t count);
 bool PWriteAll(int fd, const void* buf, size_t count, off_t offset);
 
+bool WriteAll(FileDescriptorPtr fd, const void* buf, size_t count);
+bool PWriteAll(FileDescriptorPtr fd,
+               const void* buf,
+               size_t count,
+               off_t offset);
+
 // Calls pread() repeatedly until count bytes are read, or EOF is reached.
 // Returns number of bytes read in *bytes_read. Returns true on success.
 bool PReadAll(int fd, void* buf, size_t count, off_t offset,
+              ssize_t* out_bytes_read);
+
+bool PReadAll(FileDescriptorPtr fd, void* buf, size_t count, off_t offset,
               ssize_t* out_bytes_read);
 
 // Opens |path| for reading and appends its entire content to the container

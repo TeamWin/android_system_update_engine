@@ -46,6 +46,11 @@ ssize_t EintrSafeFileDescriptor::Write(const void* buf, size_t count) {
   return written;
 }
 
+off64_t EintrSafeFileDescriptor::Seek(off64_t offset, int whence) {
+  CHECK_GE(fd_, 0);
+  return lseek64(fd_, offset, whence);
+}
+
 bool EintrSafeFileDescriptor::Close() {
   CHECK_GE(fd_, 0);
   if (IGNORE_EINTR(close(fd_)))

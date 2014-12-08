@@ -31,6 +31,7 @@
       '_FILE_OFFSET_BITS=64',
       '_POSIX_C_SOURCE=199309L',
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
+      'USE_MTD=<(USE_mtd)',
       'USE_POWER_MANAGEMENT=<(USE_power_management)',
     ],
   },
@@ -189,6 +190,18 @@
         'update_manager/state_factory.cc',
         'update_manager/update_manager.cc',
         'utils.cc',
+      ],
+      'conditions': [
+        ['USE_mtd == 1', {
+          'sources': [
+            'mtd_file_descriptor.cc',
+          ],
+          'link_settings': {
+            'libraries': [
+              '-lmtdutils',
+            ],
+          },
+        }],
       ],
     },
     # update_engine daemon.

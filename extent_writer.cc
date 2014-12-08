@@ -5,6 +5,7 @@
 #include "update_engine/extent_writer.h"
 
 #include <errno.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -36,7 +37,7 @@ bool DirectExtentWriter::Write(const void* bytes, size_t count) {
       const off64_t offset =
           extents_[next_extent_index_].start_block() * block_size_ +
           extent_bytes_written_;
-      TEST_AND_RETURN_FALSE_ERRNO(lseek64(fd_, offset, SEEK_SET) !=
+      TEST_AND_RETURN_FALSE_ERRNO(fd_->Seek(offset, SEEK_SET) !=
                                   static_cast<off64_t>(-1));
       TEST_AND_RETURN_FALSE(
           utils::WriteAll(fd_, c_bytes + bytes_written, bytes_to_write));

@@ -14,6 +14,7 @@
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/file_descriptor.h"
 #include "update_engine/file_writer.h"
 #include "update_engine/install_plan.h"
 #include "update_engine/omaha_hash_calculator.h"
@@ -61,8 +62,8 @@ class DeltaPerformer : public FileWriter {
       : prefs_(prefs),
         system_state_(system_state),
         install_plan_(install_plan),
-        fd_(-1),
-        kernel_fd_(-1),
+        fd_(nullptr),
+        kernel_fd_(nullptr),
         manifest_parsed_(false),
         manifest_valid_(false),
         metadata_size_(0),
@@ -296,10 +297,10 @@ class DeltaPerformer : public FileWriter {
   InstallPlan* install_plan_;
 
   // File descriptor of open device.
-  int fd_;
+  FileDescriptorPtr fd_;
 
   // File descriptor of the kernel device
-  int kernel_fd_;
+  FileDescriptorPtr kernel_fd_;
 
   std::string path_;  // Path that fd_ refers to.
   std::string kernel_path_;  // Path that kernel_fd_ refers to.

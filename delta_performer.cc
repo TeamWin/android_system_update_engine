@@ -24,6 +24,9 @@
 #include "update_engine/extent_ranges.h"
 #include "update_engine/extent_writer.h"
 #include "update_engine/hardware_interface.h"
+#if USE_MTD
+#include "update_engine/mtd_file_descriptor.h"
+#endif
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_state_interface.h"
 #include "update_engine/payload_verifier.h"
@@ -56,24 +59,35 @@ const unsigned DeltaPerformer::kProgressOperationsWeight = 50;
 namespace {
 const int kUpdateStateOperationInvalid = -1;
 const int kMaxResumedUpdateFailures = 10;
-// Opens path for read/write, put the fd into *fd. On success returns true
-// and sets *err to 0. On failure, returns false and sets *err to errno.
-bool OpenFile(const char* path, int* fd, int* err) {
-  if (*fd != -1) {
-    LOG(ERROR) << "Can't open(" << path << "), *fd != -1 (it's " << *fd << ")";
-    *err = EINVAL;
-    return false;
+
+FileDescriptorPtr CreateFileDescriptor(const char* path) {
+  FileDescriptorPtr ret;
+#if USE_MTD
+  if (UbiFileDescriptor::IsUbi(path)) {
+    ret.reset(new UbiFileDescriptor);
+  } else if (MtdFileDescriptor::IsMtd(path)) {
+    ret.reset(new MtdFileDescriptor);
+  } else
+#endif
+  {
+    ret.reset(new EintrSafeFileDescriptor);
   }
-  *fd = open(path, O_RDWR, 000);
-  if (*fd < 0) {
-    *err = errno;
-    PLOG(ERROR) << "Unable to open file " << path;
-    return false;
-  }
-  *err = 0;
-  return true;
+  return ret;
 }
 
+// Opens path for read/write. On success returns an open FileDescriptor
+// and sets *err to 0. On failure, sets *err to errno and returns nullptr.
+FileDescriptorPtr OpenFile(const char* path, int* err) {
+  FileDescriptorPtr fd = CreateFileDescriptor(path);
+  // TODO(namnguyen): If we're working with MTD or UBI, DO NOT use O_RDWR.
+  if (!fd->Open(path, O_RDWR, 000)) {
+    *err = errno;
+    PLOG(ERROR) << "Unable to open file " << path;
+    return nullptr;
+  }
+  *err = 0;
+  return fd;
+}
 }  // namespace
 
 
@@ -220,31 +234,32 @@ bool DeltaPerformer::IsIdempotentOperation(
 
 int DeltaPerformer::Open(const char* path, int flags, mode_t mode) {
   int err;
-  if (OpenFile(path, &fd_, &err))
+  fd_ = OpenFile(path, &err);
+  if (fd_)
     path_ = path;
   return -err;
 }
 
 bool DeltaPerformer::OpenKernel(const char* kernel_path) {
   int err;
-  bool success = OpenFile(kernel_path, &kernel_fd_, &err);
-  if (success)
+  kernel_fd_ = OpenFile(kernel_path, &err);
+  if (kernel_fd_)
     kernel_path_ = kernel_path;
-  return success;
+  return static_cast<bool>(kernel_fd_);
 }
 
 int DeltaPerformer::Close() {
   int err = 0;
-  if (close(kernel_fd_) == -1) {
+  if (!kernel_fd_->Close()) {
     err = errno;
     PLOG(ERROR) << "Unable to close kernel fd:";
   }
-  if (close(fd_) == -1) {
+  if (!fd_->Close()) {
     err = errno;
     PLOG(ERROR) << "Unable to close rootfs fd:";
   }
   LOG_IF(ERROR, !hash_calculator_.Finalize()) << "Unable to finalize the hash.";
-  fd_ = -2;  // Set to invalid so that calls to Open() will fail.
+  fd_.reset();  // Set to invalid so that calls to Open() will fail.
   path_ = "";
   if (!buffer_.empty()) {
     LOG(INFO) << "Discarding " << buffer_.size() << " unused downloaded bytes";
@@ -612,7 +627,7 @@ bool DeltaPerformer::PerformReplaceOperation(
     extents.push_back(operation.dst_extents(i));
   }
 
-  int fd = is_kernel_partition ? kernel_fd_ : fd_;
+  FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
 
   TEST_AND_RETURN_FALSE(writer->Init(fd, extents, block_size_));
   TEST_AND_RETURN_FALSE(writer->Write(&buffer_[0], operation.data_length()));
@@ -642,7 +657,7 @@ bool DeltaPerformer::PerformMoveOperation(
   DCHECK_EQ(blocks_to_write, blocks_to_read);
   vector<char> buf(blocks_to_write * block_size_);
 
-  int fd = is_kernel_partition ? kernel_fd_ : fd_;
+  FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
 
   // Read in bytes.
   ssize_t bytes_read = 0;
@@ -758,9 +773,6 @@ bool DeltaPerformer::PerformBsdiffOperation(
   // file is written out.
   DiscardBuffer(true);
 
-  int fd = is_kernel_partition ? kernel_fd_ : fd_;
-  const string path = base::StringPrintf("/proc/self/fd/%d", fd);
-
   // If this is a non-idempotent operation, request a delayed exit and clear the
   // update state in case the operation gets interrupted. Do this as late as
   // possible.
@@ -770,6 +782,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
   }
 
   vector<string> cmd;
+  const string& path = is_kernel_partition ? kernel_path_ : path_;
   cmd.push_back(kBspatchPath);
   cmd.push_back(path);
   cmd.push_back(path);
@@ -794,6 +807,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
     const uint64_t begin_byte =
         end_byte - (block_size_ - operation.dst_length() % block_size_);
     vector<char> zeros(end_byte - begin_byte);
+    FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
     TEST_AND_RETURN_FALSE(
         utils::PWriteAll(fd, &zeros[0], end_byte - begin_byte, begin_byte));
   }

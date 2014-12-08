@@ -9,6 +9,7 @@
 
 #include <base/logging.h>
 
+#include "update_engine/file_descriptor.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
 
@@ -25,7 +26,7 @@ class ExtentWriter {
   }
 
   // Returns true on success.
-  virtual bool Init(int fd,
+  virtual bool Init(FileDescriptorPtr fd,
                     const std::vector<Extent>& extents,
                     uint32_t block_size) = 0;
 
@@ -49,13 +50,15 @@ class ExtentWriter {
 class DirectExtentWriter : public ExtentWriter {
  public:
   DirectExtentWriter()
-      : fd_(-1),
+      : fd_(nullptr),
         block_size_(0),
         extent_bytes_written_(0),
         next_extent_index_(0) {}
   ~DirectExtentWriter() {}
 
-  bool Init(int fd, const std::vector<Extent>& extents, uint32_t block_size) {
+  bool Init(FileDescriptorPtr fd,
+            const std::vector<Extent>& extents,
+            uint32_t block_size) {
     fd_ = fd;
     block_size_ = block_size;
     extents_ = extents;
@@ -67,7 +70,7 @@ class DirectExtentWriter : public ExtentWriter {
   }
 
  private:
-  int fd_;
+  FileDescriptorPtr fd_;
 
   size_t block_size_;
   // Bytes written into next_extent_index_ thus far
@@ -90,7 +93,9 @@ class ZeroPadExtentWriter : public ExtentWriter {
         bytes_written_mod_block_size_(0) {}
   ~ZeroPadExtentWriter() {}
 
-  bool Init(int fd, const std::vector<Extent>& extents, uint32_t block_size) {
+  bool Init(FileDescriptorPtr fd,
+            const std::vector<Extent>& extents,
+            uint32_t block_size) {
     block_size_ = block_size;
     return underlying_extent_writer_->Init(fd, extents, block_size);
   }
