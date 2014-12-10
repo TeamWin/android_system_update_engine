@@ -172,8 +172,8 @@ class UmChromeOSPolicyTest : public ::testing::Test {
     string error = "<None>";
     eval_ctx_->ResetEvaluation();
     EXPECT_EQ(expected,
-              (policy_.*policy_method)(eval_ctx_, &fake_state_, &error, result,
-                                       args...))
+              (policy_.*policy_method)(eval_ctx_.get(), &fake_state_, &error,
+                                       result, args...))
         << "Returned error: " << error
         << "\nEvaluation context: " << eval_ctx_->DumpContext();
   }

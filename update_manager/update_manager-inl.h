@@ -73,7 +73,7 @@ void UpdateManager::OnPolicyReadyToEvaluate(
     Args... args) {
   // Evaluate the policy.
   R result;
-  EvalStatus status = EvaluatePolicy(ec, policy_method, &result, args...);
+  EvalStatus status = EvaluatePolicy(ec.get(), policy_method, &result, args...);
 
   if (status != EvalStatus::kAskMeAgainLater) {
     // AsyncPolicyRequest finished.
@@ -111,8 +111,8 @@ EvalStatus UpdateManager::PolicyRequest(
   // IMPORTANT: To ensure that ActualArgs can be converted to ExpectedArgs, we
   // explicitly instantiate EvaluatePolicy with the latter in lieu of the
   // former.
-  EvalStatus ret = EvaluatePolicy<R, ExpectedArgs...>(ec, policy_method, result,
-                                                      args...);
+  EvalStatus ret = EvaluatePolicy<R, ExpectedArgs...>(ec.get(), policy_method,
+                                                      result, args...);
   // Sync policy requests must not block, if they do then this is an error.
   DCHECK(EvalStatus::kAskMeAgainLater != ret);
   LOG_IF(WARNING, EvalStatus::kAskMeAgainLater == ret)
