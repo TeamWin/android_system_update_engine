@@ -74,6 +74,14 @@ class RealDBusWrapper : public DBusWrapperInterface {
         G_TYPE_INVALID, G_TYPE_INVALID);
   }
 
+  void ProxyAddSignal_1(DBusGProxy* proxy,
+                        const char* signal_name,
+                        GType type1) override {
+    dbus_g_object_register_marshaller(
+        g_cclosure_marshal_generic, G_TYPE_NONE, type1, G_TYPE_INVALID);
+    dbus_g_proxy_add_signal(proxy, signal_name, type1, G_TYPE_INVALID);
+  }
+
   void ProxyAddSignal_2(DBusGProxy* proxy,
                         const char* signal_name,
                         GType type1,

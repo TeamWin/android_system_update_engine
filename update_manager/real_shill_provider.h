@@ -67,7 +67,7 @@ class RealShillProvider : public ShillProvider {
   bool ProcessDefaultService(GValue* value);
 
   // A handler for manager PropertyChanged signal, and a static version.
-  void HandlePropertyChanged(DBusGProxy* proxy, const char *name,
+  void HandlePropertyChanged(DBusGProxy* proxy, const char* name,
                              GValue* value);
   static void HandlePropertyChangedStatic(DBusGProxy* proxy, const char* name,
                                           GValue* value, void* data);

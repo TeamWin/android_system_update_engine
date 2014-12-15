@@ -41,6 +41,10 @@ class MockDBusWrapper : public DBusWrapperInterface {
                                        const char* in2,
                                        const char* in3));
 
+  MOCK_METHOD3(ProxyAddSignal_1, void(DBusGProxy* proxy,
+                                      const char* signal_name,
+                                      GType type1));
+
   MOCK_METHOD4(ProxyAddSignal_2, void(DBusGProxy* proxy,
                                       const char* signal_name,
                                       GType type1,

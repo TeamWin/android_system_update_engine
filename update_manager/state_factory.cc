@@ -29,7 +29,7 @@ State* DefaultStateFactory(policy::PolicyProvider* policy_provider,
   unique_ptr<RealConfigProvider> config_provider(
       new RealConfigProvider(system_state->hardware()));
   unique_ptr<RealDevicePolicyProvider> device_policy_provider(
-      new RealDevicePolicyProvider(policy_provider));
+      new RealDevicePolicyProvider(dbus, policy_provider));
   unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   unique_ptr<RealShillProvider> shill_provider(
       new RealShillProvider(dbus, clock));

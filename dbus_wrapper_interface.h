@@ -66,6 +66,10 @@ class DBusWrapperInterface {
                                  const char* in3) = 0;
 
   // Wrappers for dbus_g_proxy_add_signal() (variadic).
+  virtual void ProxyAddSignal_1(DBusGProxy* proxy,
+                                const char* signal_name,
+                                GType type1) = 0;
+
   virtual void ProxyAddSignal_2(DBusGProxy* proxy,
                                 const char* signal_name,
                                 GType type1,
