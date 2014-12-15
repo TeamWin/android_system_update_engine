@@ -9,7 +9,7 @@ namespace chromeos_update_engine {
 const char kPowerwashMarkerFile[] =
     "/mnt/stateful_partition/factory_install_reset";
 
-const char kPowerwashCommand[] = "safe fast keepimg\n";
+const char kPowerwashCommand[] = "safe fast keepimg reason=update_engine\n";
 
 const char kPowerwashSafePrefsDir[] =
     "/mnt/stateful_partition/unencrypted/preserve/update_engine/prefs";
