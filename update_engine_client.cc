@@ -514,7 +514,9 @@ int main(int argc, char** argv) {
   DEFINE_bool(block_until_reboot_is_needed, false, "Blocks until reboot is "
               "needed. Returns non-zero exit status if an error occurred.");
   DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
-  DEFINE_bool(rollback, false, "Perform a rollback to the previous partition.");
+  DEFINE_bool(rollback, false,
+              "Perform a rollback to the previous partition. The device will "
+              "be powerwashed unless --nopowerwash is specified.");
   DEFINE_bool(can_rollback, false, "Shows whether rollback partition "
               "is available.");
   DEFINE_bool(show_channel, false, "Show the current and target channels.");
