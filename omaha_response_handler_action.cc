@@ -133,11 +133,21 @@ void OmahaResponseHandlerAction::PerformAction() {
 
 bool OmahaResponseHandlerAction::AreHashChecksMandatory(
     const OmahaResponse& response) {
-  // All our internal testing uses dev server which doesn't generate
-  // metadata signatures by default, so we should waive hash checks for
-  // unofficial URLs. dbus_service.cc does the security enforcement by not
-  // allowing unofficial update URLs though except in specific cases.
-  if (!system_state_->request_params()->IsUpdateUrlOfficial()) {
+  // We sometimes need to waive the hash checks in order to download from
+  // sources that don't provide hashes, such as dev server.
+  // At this point UpdateAttempter::IsAnyUpdateSourceAllowed() has already been
+  // checked, so an unofficial update URL won't get this far unless it's OK to
+  // use without a hash. Additionally, we want to always waive hash checks on
+  // unofficial builds (i.e. dev/test images).
+  // The end result is this:
+  //  * Base image:
+  //    - Official URLs require a hash.
+  //    - Unofficial URLs only get this far if the IsAnyUpdateSourceAllowed()
+  //      devmode/debugd checks pass, in which case the hash is waived.
+  //  * Dev/test image:
+  //    - Any URL is allowed through with no hash checking.
+  if (!system_state_->request_params()->IsUpdateUrlOfficial() ||
+      !system_state_->hardware()->IsOfficialBuild()) {
     // Still do a hash check if a public key is included.
     if (!response.public_key_rsa.empty()) {
       // The autoupdate_CatchBadSignatures test checks for this string

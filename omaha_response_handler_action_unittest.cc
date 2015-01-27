@@ -242,6 +242,30 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForUnofficialUpdateUrl) {
   EXPECT_EQ(in.version, install_plan.version);
 }
 
+TEST_F(OmahaResponseHandlerActionTest,
+       HashChecksForOfficialUrlUnofficialBuildTest) {
+  // Official URLs for unofficial builds (dev/test images) don't require hash.
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "a.b.c.d";
+  in.payload_urls.push_back("http://url.normally/needs/hash.checks.signed");
+  in.more_info_url = "http://more/info";
+  in.hash = "HASHj+";
+  in.size = 12;
+  FakeSystemState fake_system_state;
+  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+              IsUpdateUrlOfficial())
+      .WillRepeatedly(Return(true));
+  fake_system_state.fake_hardware()->SetIsOfficialBuild(false);
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
+                           &install_plan));
+  EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
+  EXPECT_EQ(in.hash, install_plan.payload_hash);
+  EXPECT_FALSE(install_plan.hash_checks_mandatory);
+  EXPECT_EQ(in.version, install_plan.version);
+}
+
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   OmahaResponse in;
   in.update_exists = true;

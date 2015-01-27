@@ -1628,13 +1628,18 @@ bool UpdateAttempter::IsUpdateRunningOrScheduled() {
 }
 
 bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
-  // Non-official (dev or test) builds can always use a custom update source.
+  // We allow updates from any source if either of these are true:
+  //  * The device is running an unofficial (dev/test) image.
+  //  * The debugd dev features are accessible (i.e. in devmode with no owner).
+  // This protects users running a base image, while still allowing a specific
+  // window (gated by the debug dev features) where `cros flash` is usable.
   if (!system_state_->hardware()->IsOfficialBuild()) {
     LOG(INFO) << "Non-official build; allowing any update source.";
     return true;
   }
 
-  // Official images not in devmode are never allowed a custom update source.
+  // Even though the debugd tools are also gated on devmode, checking here can
+  // save us a D-Bus call so it's worth doing explicitly.
   if (system_state_->hardware()->IsNormalBootMode()) {
     LOG(INFO) << "Not in devmode; disallowing custom update sources.";
     return false;
