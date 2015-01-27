@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include <base/command_line.h>
 #include <base/logging.h>
 #include <chromeos/dbus/service_constants.h>
 #include <chromeos/flag_helper.h>
@@ -541,6 +542,16 @@ int main(int argc, char** argv) {
   g_type_init();
   dbus_threads_init_default();
   chromeos::FlagHelper::Init(argc, argv, "Chromium OS Update Engine Client");
+
+  // Ensure there are no positional arguments.
+  const std::vector<string> positional_args =
+      base::CommandLine::ForCurrentProcess()->GetArgs();
+  if (!positional_args.empty()) {
+    LOG(ERROR) << "Found a positional argument '" << positional_args.front()
+               << "'. If you want to pass a value to a flag, pass it as "
+                  "--flag=value.";
+    return 1;
+  }
 
   // Update the status if requested.
   if (FLAGS_reset_status) {
