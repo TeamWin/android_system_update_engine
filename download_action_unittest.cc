@@ -59,8 +59,8 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
   ~DownloadActionTestProcessorDelegate() override {
     EXPECT_TRUE(processing_done_called_);
   }
-  virtual void ProcessingDone(const ActionProcessor* processor,
-                              ErrorCode code) {
+  void ProcessingDone(const ActionProcessor* processor,
+                      ErrorCode code) override {
     ASSERT_TRUE(loop_);
     g_main_loop_quit(loop_);
     vector<char> found_data;
@@ -74,9 +74,9 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
     processing_done_called_ = true;
   }
 
-  virtual void ActionCompleted(ActionProcessor* processor,
-                               AbstractAction* action,
-                               ErrorCode code) {
+  void ActionCompleted(ActionProcessor* processor,
+                       AbstractAction* action,
+                       ErrorCode code) override {
     const string type = action->Type();
     if (type == DownloadAction::StaticType()) {
       EXPECT_EQ(expected_code_, code);

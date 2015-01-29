@@ -225,15 +225,15 @@ class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
         expected_code_(ErrorCode::kSuccess) {}
   ~OmahaRequestActionTestProcessorDelegate() override {
   }
-  virtual void ProcessingDone(const ActionProcessor* processor,
-                              ErrorCode code) {
+  void ProcessingDone(const ActionProcessor* processor,
+                      ErrorCode code) override {
     ASSERT_TRUE(loop_);
     g_main_loop_quit(loop_);
   }
 
-  virtual void ActionCompleted(ActionProcessor* processor,
-                               AbstractAction* action,
-                               ErrorCode code) {
+  void ActionCompleted(ActionProcessor* processor,
+                       AbstractAction* action,
+                       ErrorCode code) override {
     // make sure actions always succeed
     if (action->Type() == OmahaRequestAction::StaticType())
       EXPECT_EQ(expected_code_, code);

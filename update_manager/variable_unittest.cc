@@ -28,8 +28,8 @@ class DefaultVariable : public Variable<T> {
   ~DefaultVariable() override {}
 
  protected:
-  virtual const T* GetValue(TimeDelta /* timeout */,
-                            string* /* errmsg */) {
+  const T* GetValue(TimeDelta /* timeout */,
+                    string* /* errmsg */) override {
     return new T();
   }
 

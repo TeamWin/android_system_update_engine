@@ -42,8 +42,8 @@ class FakeVariable : public Variable<T> {
   // to the caller and the pointer is release from the FakeVariable. A second
   // call to GetValue() without reset() will return null and set the error
   // message.
-  virtual const T* GetValue(base::TimeDelta /* timeout */,
-                            std::string* errmsg) {
+  const T* GetValue(base::TimeDelta /* timeout */,
+                    std::string* errmsg) override {
     if (ptr_ == nullptr && errmsg != nullptr)
       *errmsg = this->GetName() + " is an empty FakeVariable";
     // Passes the pointer ownership to the caller.

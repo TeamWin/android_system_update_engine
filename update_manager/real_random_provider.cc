@@ -37,8 +37,8 @@ class RandomSeedVariable : public Variable<uint64_t> {
   ~RandomSeedVariable() override {}
 
  protected:
-  virtual const uint64_t* GetValue(base::TimeDelta /* timeout */,
-                                   string* errmsg) {
+  const uint64_t* GetValue(base::TimeDelta /* timeout */,
+                           string* errmsg) override {
     uint64_t result;
     // Aliasing via char pointer abides by the C/C++ strict-aliasing rules.
     char* const buf = reinterpret_cast<char*>(&result);
