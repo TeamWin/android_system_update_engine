@@ -352,18 +352,19 @@ TEST_F(P2PManagerTest, ShareFile) {
                  << "Please update your system to support this feature.";
     return;
   }
+  const int kP2PTestFileSize = 1000 * 1000;  // 1 MB
 
-  EXPECT_TRUE(manager_->FileShare("foo", 10 * 1000 * 1000));
+  EXPECT_TRUE(manager_->FileShare("foo", kP2PTestFileSize));
   EXPECT_EQ(manager_->FileGetPath("foo"),
             test_conf_->GetP2PDir().Append("foo.cros_au.p2p.tmp"));
   EXPECT_TRUE(CheckP2PFile(test_conf_->GetP2PDir().value(),
-                           "foo.cros_au.p2p.tmp", 0, 10 * 1000 * 1000));
+                           "foo.cros_au.p2p.tmp", 0, kP2PTestFileSize));
 
   // Sharing it again - with the same expected size - should return true
-  EXPECT_TRUE(manager_->FileShare("foo", 10 * 1000 * 1000));
+  EXPECT_TRUE(manager_->FileShare("foo", kP2PTestFileSize));
 
   // ... but if we use the wrong size, it should fail
-  EXPECT_FALSE(manager_->FileShare("foo", 10 * 1000 * 1000 + 1));
+  EXPECT_FALSE(manager_->FileShare("foo", kP2PTestFileSize + 1));
 }
 
 // Check that making a shared file visible, does what is expected.
@@ -373,13 +374,14 @@ TEST_F(P2PManagerTest, MakeFileVisible) {
                  << "Please update your system to support this feature.";
     return;
   }
+  const int kP2PTestFileSize = 1000 * 1000;  // 1 MB
 
   // First, check that it's not visible.
-  manager_->FileShare("foo", 10*1000*1000);
+  manager_->FileShare("foo", kP2PTestFileSize);
   EXPECT_EQ(manager_->FileGetPath("foo"),
             test_conf_->GetP2PDir().Append("foo.cros_au.p2p.tmp"));
   EXPECT_TRUE(CheckP2PFile(test_conf_->GetP2PDir().value(),
-                           "foo.cros_au.p2p.tmp", 0, 10 * 1000 * 1000));
+                           "foo.cros_au.p2p.tmp", 0, kP2PTestFileSize));
   // Make the file visible and check that it changed its name. Do it
   // twice to check that FileMakeVisible() is idempotent.
   for (int n = 0; n < 2; n++) {
@@ -387,7 +389,7 @@ TEST_F(P2PManagerTest, MakeFileVisible) {
     EXPECT_EQ(manager_->FileGetPath("foo"),
               test_conf_->GetP2PDir().Append("foo.cros_au.p2p"));
     EXPECT_TRUE(CheckP2PFile(test_conf_->GetP2PDir().value(),
-                             "foo.cros_au.p2p", 0, 10 * 1000 * 1000));
+                             "foo.cros_au.p2p", 0, kP2PTestFileSize));
   }
 }
 
