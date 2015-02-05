@@ -564,7 +564,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
     }
 
     if (noop) {
-      EXPECT_EQ(1, manifest.install_operations_size());
+      EXPECT_EQ(0, manifest.install_operations_size());
       EXPECT_EQ(1, manifest.kernel_install_operations_size());
     }
 

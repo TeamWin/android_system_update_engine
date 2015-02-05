@@ -285,24 +285,27 @@ class DummyExtentAllocator {
   uint64_t next_block_;
 };
 
-// Reads blocks from image_path that are not yet marked as being written
-// in the blocks array. These blocks that remain are non-file-data blocks.
-// In the future we might consider intelligent diffing between this data
-// and data in the previous image, but for now we just bzip2 compress it
-// and include it in the update.
-// Creates a new node in the graph to write these blocks and writes the
-// appropriate blob to blobs_fd. Reads and updates blobs_length;
+// Reads blocks from image_path that are not yet marked as being written in the
+// blocks array. These blocks that remain are either unchanged files or
+// non-file-data blocks.  We compare each of them to the old image, and compress
+// the ones that changed into a single REPLACE_BZ operation. This updates a
+// newly created node in the graph to write these blocks and writes the
+// appropriate blob to blobs_fd. Reads and updates blobs_length.
 bool ReadUnwrittenBlocks(const vector<Block>& blocks,
                          int blobs_fd,
                          off_t* blobs_length,
-                         const string& image_path,
+                         const string& old_image_path,
+                         const string& new_image_path,
                          Vertex* vertex) {
   vertex->file_name = "<rootfs-non-file-data>";
 
   DeltaArchiveManifest_InstallOperation* out_op = &vertex->op;
-  int image_fd = open(image_path.c_str(), O_RDONLY, 000);
-  TEST_AND_RETURN_FALSE_ERRNO(image_fd >= 0);
-  ScopedFdCloser image_fd_closer(&image_fd);
+  int new_image_fd = open(new_image_path.c_str(), O_RDONLY, 000);
+  TEST_AND_RETURN_FALSE_ERRNO(new_image_fd >= 0);
+  ScopedFdCloser new_image_fd_closer(&new_image_fd);
+  int old_image_fd = open(old_image_path.c_str(), O_RDONLY, 000);
+  TEST_AND_RETURN_FALSE_ERRNO(old_image_fd >= 0);
+  ScopedFdCloser old_image_fd_closer(&old_image_fd);
 
   string temp_file_path;
   TEST_AND_RETURN_FALSE(utils::MakeTempFile("CrAU_temp_data.XXXXXX",
@@ -323,46 +326,68 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
   vector<Extent> extents;
   vector<Block>::size_type block_count = 0;
 
-  LOG(INFO) << "Appending left over blocks to extents";
+  LOG(INFO) << "Appending unwritten blocks to extents";
   for (vector<Block>::size_type i = 0; i < blocks.size(); i++) {
     if (blocks[i].writer != Vertex::kInvalidIndex)
       continue;
-    if (blocks[i].reader != Vertex::kInvalidIndex) {
-      graph_utils::AddReadBeforeDep(vertex, blocks[i].reader, i);
-    }
     graph_utils::AppendBlockToExtents(&extents, i);
     block_count++;
   }
 
-  // Code will handle 'buf' at any size that's a multiple of kBlockSize,
+  // Code will handle buffers of any size that's a multiple of kBlockSize,
   // so we arbitrarily set it to 1024 * kBlockSize.
-  vector<char> buf(1024 * kBlockSize);
+  vector<char> new_buf(1024 * kBlockSize);
+  vector<char> old_buf(1024 * kBlockSize);
 
-  LOG(INFO) << "Reading left over blocks";
+  LOG(INFO) << "Scanning " << block_count << " unwritten blocks";
+  vector<Extent> changed_extents;
+  vector<Block>::size_type changed_block_count = 0;
   vector<Block>::size_type blocks_copied_count = 0;
 
-  // For each extent in extents, write the data into BZ2_bzWrite which
-  // sends it to an output file.
-  // We use the temporary buffer 'buf' to hold the data, which may be
-  // smaller than the extent, so in that case we have to loop to get
-  // the extent's data (that's the inner while loop).
+  // For each extent in extents, write the unchanged blocks into BZ2_bzWrite,
+  // which sends it to an output file.  We use the temporary buffers to hold the
+  // old and new data, which may be smaller than the extent, so in that case we
+  // have to loop to get the extent's data (that's the inner while loop).
   for (const Extent& extent : extents) {
     vector<Block>::size_type blocks_read = 0;
     float printed_progress = -1;
     while (blocks_read < extent.num_blocks()) {
+      const uint64_t copy_first_block = extent.start_block() + blocks_read;
       const int copy_block_cnt =
-          min(buf.size() / kBlockSize,
+          min(new_buf.size() / kBlockSize,
               static_cast<vector<char>::size_type>(
                   extent.num_blocks() - blocks_read));
-      ssize_t rc = pread(image_fd,
-                         &buf[0],
-                         copy_block_cnt * kBlockSize,
-                         (extent.start_block() + blocks_read) * kBlockSize);
+      const size_t count = copy_block_cnt * kBlockSize;
+      const off_t offset = copy_first_block * kBlockSize;
+      ssize_t rc = pread(new_image_fd, &new_buf[0], count, offset);
       TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
-      TEST_AND_RETURN_FALSE(static_cast<size_t>(rc) ==
-                            copy_block_cnt * kBlockSize);
-      BZ2_bzWrite(&err, bz_file, &buf[0], copy_block_cnt * kBlockSize);
-      TEST_AND_RETURN_FALSE(err == BZ_OK);
+      TEST_AND_RETURN_FALSE(static_cast<size_t>(rc) == count);
+
+      rc = pread(old_image_fd, &old_buf[0], count, offset);
+      TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
+      TEST_AND_RETURN_FALSE(static_cast<size_t>(rc) == count);
+
+      // Compare each block in the buffer to its counterpart in the old image
+      // and only compress it if its content has changed.
+      int buf_offset = 0;
+      for (int i = 0; i < copy_block_cnt; ++i) {
+        int buf_end_offset = buf_offset + kBlockSize;
+        if (!std::equal(new_buf.begin() + buf_offset,
+                        new_buf.begin() + buf_end_offset,
+                        old_buf.begin() + buf_offset)) {
+          BZ2_bzWrite(&err, bz_file, &new_buf[buf_offset], kBlockSize);
+          TEST_AND_RETURN_FALSE(err == BZ_OK);
+          const uint64_t block_idx = copy_first_block + i;
+          if (blocks[block_idx].reader != Vertex::kInvalidIndex) {
+            graph_utils::AddReadBeforeDep(vertex, blocks[block_idx].reader,
+                                          block_idx);
+          }
+          graph_utils::AppendBlockToExtents(&changed_extents, block_idx);
+          changed_block_count++;
+        }
+        buf_offset = buf_end_offset;
+      }
+
       blocks_read += copy_block_cnt;
       blocks_copied_count += copy_block_cnt;
       float current_progress =
@@ -380,9 +405,13 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
   TEST_AND_RETURN_FALSE_ERRNO(0 == fclose(file));
   file = nullptr;
 
+  LOG(INFO) << "Compressed " << changed_block_count << " blocks ("
+            << block_count - changed_block_count << " blocks unchanged)";
   vector<char> compressed_data;
-  LOG(INFO) << "Reading compressed data off disk";
-  TEST_AND_RETURN_FALSE(utils::ReadFile(temp_file_path, &compressed_data));
+  if (changed_block_count > 0) {
+    LOG(INFO) << "Reading compressed data off disk";
+    TEST_AND_RETURN_FALSE(utils::ReadFile(temp_file_path, &compressed_data));
+  }
   TEST_AND_RETURN_FALSE(unlink(temp_file_path.c_str()) == 0);
 
   // Add node to graph to write these blocks
@@ -392,13 +421,14 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
   LOG(INFO) << "Rootfs non-data blocks compressed take up "
             << compressed_data.size();
   *blobs_length += compressed_data.size();
-  out_op->set_dst_length(kBlockSize * block_count);
-  DeltaDiffGenerator::StoreExtents(extents, out_op->mutable_dst_extents());
+  out_op->set_dst_length(kBlockSize * changed_block_count);
+  DeltaDiffGenerator::StoreExtents(changed_extents,
+                                   out_op->mutable_dst_extents());
 
   TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd,
                                         &compressed_data[0],
                                         compressed_data.size()));
-  LOG(INFO) << "done with extra blocks";
+  LOG(INFO) << "Done processing unwritten blocks";
   return true;
 }
 
@@ -1637,8 +1667,13 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
       TEST_AND_RETURN_FALSE(ReadUnwrittenBlocks(blocks,
                                                 fd,
                                                 &data_file_size,
+                                                old_image,
                                                 new_image,
                                                 &graph.back()));
+      if (graph.back().op.data_length() == 0) {
+        LOG(INFO) << "No unwritten blocks to write, omitting operation";
+        graph.pop_back();
+      }
 
       // Final scratch block (if there's space)
       if (blocks.size() < (rootfs_partition_size / kBlockSize)) {
