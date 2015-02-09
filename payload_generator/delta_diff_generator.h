@@ -67,6 +67,7 @@ class DeltaDiffGenerator {
   // If |chunk_size| is not -1, the delta payload is generated based on
   // |chunk_size| chunks rather than whole files.
   // This method computes scratch space based on |rootfs_partition_size|.
+  // |minor_version| indicates the payload minor version for a delta update.
   // Returns true on success. Also writes the size of the metadata into
   // |metadata_size|.
   static bool GenerateDeltaUpdateFile(const std::string& old_root,
@@ -79,6 +80,7 @@ class DeltaDiffGenerator {
                                       const std::string& private_key_path,
                                       off_t chunk_size,
                                       size_t rootfs_partition_size,
+                                      uint64_t minor_version,
                                       const ImageInfo* old_image_info,
                                       const ImageInfo* new_image_info,
                                       uint64_t* metadata_size);

@@ -1574,6 +1574,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     const string& private_key_path,
     off_t chunk_size,
     size_t rootfs_partition_size,
+    uint64_t minor_version,
     const ImageInfo* old_image_info,
     const ImageInfo* new_image_info,
     uint64_t* metadata_size) {
@@ -1643,6 +1644,10 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     if (!old_image.empty()) {
       // Delta update
 
+      // Set the minor version for this payload.
+      LOG(INFO) << "Adding Delta Minor Version.";
+      manifest.set_minor_version(minor_version);
+
       TEST_AND_RETURN_FALSE(DeltaReadFiles(&graph,
                                            &blocks,
                                            old_root,
@@ -1705,10 +1710,6 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
                                               &data_file_size,
                                               &final_order,
                                               scratch_vertex));
-
-      // Set the minor version for this payload.
-      LOG(INFO) << "Adding Delta Minor Version.";
-      manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
     } else {
       // Full update
       off_t new_image_size =

@@ -40,6 +40,8 @@ namespace chromeos_update_engine {
 
 namespace {
 
+const uint64_t kInPlaceMinorPayloadVersion = 1;
+
 void ParseSignatureSizes(const string& signature_sizes_flag,
                          vector<int>* signature_sizes) {
   signature_sizes->clear();
@@ -253,6 +255,8 @@ int Main(int argc, char** argv) {
   DEFINE_int64(rootfs_partition_size,
                chromeos_update_engine::kRootFSPartitionSize,
                "RootFS partition size for the image once installed");
+  DEFINE_int64(minor_version, 0,
+               "The minor version of the payload being generated");
 
   DEFINE_string(old_channel, "",
                 "The channel for the old image. 'dev-channel', 'npo-channel', "
@@ -374,23 +378,39 @@ int Main(int argc, char** argv) {
     LOG(INFO) << "Generating full update";
   }
 
-  uint64_t metadata_size;
-  if (!DeltaDiffGenerator::GenerateDeltaUpdateFile(
-      FLAGS_old_dir,
-      FLAGS_old_image,
-      FLAGS_new_dir,
-      FLAGS_new_image,
-      FLAGS_old_kernel,
-      FLAGS_new_kernel,
-      FLAGS_out_file,
-      FLAGS_private_key,
-      FLAGS_chunk_size,
-      FLAGS_rootfs_partition_size,
-      is_delta ? &old_image_info : nullptr,
-      &new_image_info,
-      &metadata_size)) {
-    return 1;
+  if (!CommandLine::ForCurrentProcess()->HasSwitch("minor_version")) {
+    if (is_delta) {
+      FLAGS_minor_version = DeltaPerformer::kSupportedMinorPayloadVersion;
+    } else {
+      FLAGS_minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+    }
   }
+
+  if (FLAGS_minor_version == kInPlaceMinorPayloadVersion ||
+      static_cast<uint64_t>(FLAGS_minor_version) ==
+          DeltaPerformer::kFullPayloadMinorVersion) {
+    uint64_t metadata_size;
+    if (!DeltaDiffGenerator::GenerateDeltaUpdateFile(
+        FLAGS_old_dir,
+        FLAGS_old_image,
+        FLAGS_new_dir,
+        FLAGS_new_image,
+        FLAGS_old_kernel,
+        FLAGS_new_kernel,
+        FLAGS_out_file,
+        FLAGS_private_key,
+        FLAGS_chunk_size,
+        FLAGS_rootfs_partition_size,
+        FLAGS_minor_version,
+        is_delta ? &old_image_info : nullptr,
+        &new_image_info,
+        &metadata_size)) {
+      return 1;
+    }
+  } else {
+    LOG(FATAL) << "Unsupported minor payload version: " << FLAGS_minor_version;
+  }
+
   return 0;
 }
 

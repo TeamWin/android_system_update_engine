@@ -479,6 +479,7 @@ static void GenerateDeltaFile(bool full_kernel,
             private_key,
             chunk_size,
             kRootFSPartitionSize,
+            DeltaPerformer::kSupportedMinorPayloadVersion,
             full_rootfs ? nullptr : &old_image_info,
             &new_image_info,
             &state->metadata_size));
