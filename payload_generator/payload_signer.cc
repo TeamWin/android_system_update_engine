@@ -7,6 +7,7 @@
 #include <base/logging.h>
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
+#include <chromeos/data_encoding.h>
 #include <openssl/pem.h>
 
 #include "update_engine/omaha_hash_calculator.h"
@@ -317,9 +318,8 @@ bool PayloadSigner::GetMetadataSignature(const char* const metadata,
                                  private_key_path,
                                  &signature));
 
-  TEST_AND_RETURN_FALSE(OmahaHashCalculator::Base64Encode(&signature[0],
-                                                          signature.size(),
-                                                          out_signature));
+  *out_signature = chromeos::data_encoding::Base64Encode(signature.data(),
+                                                         signature.size());
   return true;
 }
 

@@ -17,6 +17,7 @@
 #include <base/format_macros.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/data_encoding.h>
 #include <google/protobuf/repeated_field.h>
 
 #include "update_engine/bzip_extent_writer.h"
@@ -272,15 +273,10 @@ int DeltaPerformer::Close() {
 namespace {
 
 void LogPartitionInfoHash(const PartitionInfo& info, const string& tag) {
-  string sha256;
-  if (OmahaHashCalculator::Base64Encode(info.hash().data(),
-                                        info.hash().size(),
-                                        &sha256)) {
-    LOG(INFO) << "PartitionInfo " << tag << " sha256: " << sha256
-              << " size: " << info.size();
-  } else {
-    LOG(ERROR) << "Base64Encode failed for tag: " << tag;
-  }
+  string sha256 = chromeos::data_encoding::Base64Encode(info.hash().data(),
+                                                        info.hash().size());
+  LOG(INFO) << "PartitionInfo " << tag << " sha256: " << sha256
+            << " size: " << info.size();
 }
 
 void LogPartitionInfo(const DeltaArchiveManifest& manifest) {
@@ -884,13 +880,14 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   }
 
   // Convert base64-encoded signature to raw bytes.
-  vector<char> metadata_signature;
-  if (!OmahaHashCalculator::Base64Decode(install_plan_->metadata_signature,
-                                         &metadata_signature)) {
+  chromeos::Blob signature;
+  if (!chromeos::data_encoding::Base64Decode(install_plan_->metadata_signature,
+                                             &signature)) {
     LOG(ERROR) << "Unable to decode base64 metadata signature: "
                << install_plan_->metadata_signature;
     return ErrorCode::kDownloadMetadataSignatureError;
   }
+  vector<char> metadata_signature{signature.begin(), signature.end()};
 
   // See if we should use the public RSA key in the Omaha response.
   base::FilePath path_to_public_key(public_key_path_);
@@ -1180,11 +1177,7 @@ void LogVerifyError(bool is_kern,
 }
 
 string StringForHashBytes(const void* bytes, size_t size) {
-  string ret;
-  if (!OmahaHashCalculator::Base64Encode(bytes, size, &ret)) {
-    ret = "<unknown>";
-  }
-  return ret;
+  return chromeos::data_encoding::Base64Encode(bytes, size);
 }
 }  // namespace
 

@@ -8,9 +8,7 @@
 
 #include <base/logging.h>
 #include <base/posix/eintr_wrapper.h>
-#include <openssl/bio.h>
-#include <openssl/buffer.h>
-#include <openssl/evp.h>
+#include <chromeos/data_encoding.h>
 
 #include "update_engine/utils.h"
 
@@ -18,40 +16,6 @@ using std::string;
 using std::vector;
 
 namespace chromeos_update_engine {
-
-// Helper class to free a BIO structure when a method goes out of scope.
-class ScopedBioHandle {
- public:
-  explicit ScopedBioHandle(BIO* bio) : bio_(bio) {}
-  ~ScopedBioHandle() {
-    FreeCurrentBio();
-  }
-
-  void set_bio(BIO* bio) {
-    if (bio_ != bio) {
-      // Free the current bio, but only if the caller is not trying to set
-      // the same bio object again, so that the operation can be idempotent.
-      FreeCurrentBio();
-    }
-    bio_ = bio;
-  }
-
-  BIO* bio() {
-    return bio_;
-  }
-
- private:
-  BIO* bio_;
-
-  void FreeCurrentBio() {
-    if (bio_) {
-      BIO_free_all(bio_);
-      bio_ = nullptr;
-    }
-  }
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedBioHandle);
-};
 
 OmahaHashCalculator::OmahaHashCalculator() : valid_(false) {
   valid_ = (SHA256_Init(&ctx_) == 1);
@@ -97,76 +61,6 @@ off_t OmahaHashCalculator::UpdateFile(const string& name, off_t length) {
   return bytes_processed;
 }
 
-bool OmahaHashCalculator::Base64Encode(const void* data,
-                                       size_t size,
-                                       string* out) {
-  bool success = true;
-  BIO *b64 = BIO_new(BIO_f_base64());
-  if (!b64)
-    LOG(ERROR) << "BIO_new(BIO_f_base64()) failed";
-  BIO *bmem = BIO_new(BIO_s_mem());
-  if (!bmem)
-    LOG(ERROR) << "BIO_new(BIO_s_mem()) failed";
-  if (b64 && bmem) {
-    b64 = BIO_push(b64, bmem);
-    success =
-        (BIO_write(b64, data, size) == static_cast<int>(size));
-    if (success)
-      success = (BIO_flush(b64) == 1);
-
-    BUF_MEM *bptr = nullptr;
-    BIO_get_mem_ptr(b64, &bptr);
-    out->assign(bptr->data, bptr->length - 1);
-  }
-  if (b64) {
-    BIO_free_all(b64);
-    b64 = nullptr;
-  }
-  return success;
-}
-
-bool OmahaHashCalculator::Base64Decode(const string& raw_in,
-                                       vector<char>* out) {
-  out->clear();
-
-  ScopedBioHandle b64(BIO_new(BIO_f_base64()));
-  if (!b64.bio()) {
-    LOG(ERROR) << "Unable to create BIO object to decode base64 hash";
-    return false;
-  }
-
-  // Canonicalize the raw input to get rid of all newlines in the string
-  // and set the NO_NL flag so that BIO_read decodes properly. Otherwise
-  // BIO_read would just return 0 without decode anything.
-  string in;
-  for (size_t i = 0; i < raw_in.size(); i++)
-    if (raw_in[i] != '\n')
-      in.push_back(raw_in[i]);
-
-  BIO_set_flags(b64.bio(), BIO_FLAGS_BASE64_NO_NL);
-
-  BIO *bmem = BIO_new_mem_buf(const_cast<char*>(in.c_str()), in.size());
-  if (!bmem) {
-    LOG(ERROR) << "Unable to get BIO buffer to decode base64 hash";
-    return false;
-  }
-
-  b64.set_bio(BIO_push(b64.bio(), bmem));
-
-  const int kOutBufferSize = 1024;
-  char out_buffer[kOutBufferSize];
-  int num_bytes_read = 1;  // any non-zero value is fine to enter the loop.
-  while (num_bytes_read > 0) {
-    num_bytes_read = BIO_read(b64.bio(), &out_buffer, kOutBufferSize);
-    for (int i = 0; i < num_bytes_read; i++)
-      out->push_back(out_buffer[i]);
-  }
-
-  LOG(INFO) << "Decoded " << out->size()
-            << " bytes from " << in.size() << " base64-encoded bytes";
-  return true;
-}
-
 // Call Finalize() when all data has been passed in. This mostly just
 // calls OpenSSL's SHA256_Final() and then base64 encodes the hash.
 bool OmahaHashCalculator::Finalize() {
@@ -178,7 +72,9 @@ bool OmahaHashCalculator::Finalize() {
                    &ctx_) == 1);
 
   // Convert raw_hash_ to base64 encoding and store it in hash_.
-  return Base64Encode(&raw_hash_[0], raw_hash_.size(), &hash_);
+  hash_ = chromeos::data_encoding::Base64Encode(raw_hash_.data(),
+                                                raw_hash_.size());
+  return true;
 }
 
 bool OmahaHashCalculator::RawHashOfBytes(const char* data,

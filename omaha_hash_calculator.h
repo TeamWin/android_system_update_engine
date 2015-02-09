@@ -75,15 +75,6 @@ class OmahaHashCalculator {
   static std::string OmahaHashOfString(const std::string& str);
   static std::string OmahaHashOfData(const std::vector<char>& data);
 
-  // Encodes data of given size as a base64 out string
-  static bool Base64Encode(const void* data, size_t size, std::string* out);
-
-  // Decodes given base64-encoded in string into the out vector. Since the
-  // output can have null characters, we're returning a byte vector instead of
-  // a string. This method works fine even if |raw_in| has any newlines.
-  // Any existing contents of |out| will be erased.
-  static bool Base64Decode(const std::string& raw_in, std::vector<char>* out);
-
  private:
   // If non-empty, the final base64 encoded hash and the raw hash. Will only be
   // set to non-empty when Finalize is called.

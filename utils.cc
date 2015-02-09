@@ -36,6 +36,7 @@
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/data_encoding.h>
 #include <glib.h>
 
 #include "update_engine/clock_interface.h"
@@ -1463,18 +1464,15 @@ string StringVectorToString(const vector<string> &vec_str) {
 }
 
 string CalculateP2PFileId(const string& payload_hash, size_t payload_size) {
-  string encoded_hash;
-  OmahaHashCalculator::Base64Encode(payload_hash.c_str(),
-                                    payload_hash.size(),
-                                    &encoded_hash);
+  string encoded_hash = chromeos::data_encoding::Base64Encode(payload_hash);
   return base::StringPrintf("cros_update_size_%zu_hash_%s",
-                      payload_size,
-                      encoded_hash.c_str());
+                            payload_size,
+                            encoded_hash.c_str());
 }
 
 bool DecodeAndStoreBase64String(const string& base64_encoded,
                                 base::FilePath *out_path) {
-  vector<char> contents;
+  chromeos::Blob contents;
 
   out_path->clear();
 
@@ -1483,7 +1481,7 @@ bool DecodeAndStoreBase64String(const string& base64_encoded,
     return false;
   }
 
-  if (!OmahaHashCalculator::Base64Decode(base64_encoded, &contents) ||
+  if (!chromeos::data_encoding::Base64Decode(base64_encoded, &contents) ||
       contents.size() == 0) {
     LOG(ERROR) << "Error decoding base64.";
     return false;
@@ -1495,7 +1493,7 @@ bool DecodeAndStoreBase64String(const string& base64_encoded,
     return false;
   }
 
-  if (fwrite(&contents[0], 1, contents.size(), file) != contents.size()) {
+  if (fwrite(contents.data(), 1, contents.size(), file) != contents.size()) {
     PLOG(ERROR) << "Error writing to temporary file.";
     if (fclose(file) != 0)
       PLOG(ERROR) << "Error closing temporary file.";
