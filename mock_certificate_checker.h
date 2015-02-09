@@ -18,7 +18,7 @@ class MockOpenSSLWrapper : public OpenSSLWrapper {
                      bool(X509_STORE_CTX* x509_ctx,
                           int* out_depth,
                           unsigned int* out_digest_length,
-                          unsigned char* out_digest));
+                          uint8_t* out_digest));
 };
 
 }  // namespace chromeos_update_engine

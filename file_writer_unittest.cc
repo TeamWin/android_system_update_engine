@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+#include <chromeos/secure_blob.h>
 
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
@@ -34,10 +35,10 @@ TEST(FileWriterTest, SimpleTest) {
                                 O_CREAT | O_LARGEFILE | O_TRUNC | O_WRONLY,
                                 0644));
   EXPECT_TRUE(file_writer.Write("test", 4));
-  vector<char> actual_data;
+  chromeos::Blob actual_data;
   EXPECT_TRUE(utils::ReadFile(path, &actual_data));
 
-  EXPECT_FALSE(memcmp("test", &actual_data[0], actual_data.size()));
+  EXPECT_FALSE(memcmp("test", actual_data.data(), actual_data.size()));
   EXPECT_EQ(0, file_writer.Close());
 }
 

@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include <chromeos/secure_blob.h>
 #include <glib.h>
 #include <gtest/gtest.h>
 
@@ -25,7 +26,7 @@ namespace chromeos_update_engine {
 // $ echo -n hi | openssl dgst -sha256 -binary | openssl base64
 static const char kExpectedHash[] =
     "j0NDRmSPa5bfid2pAcUXaxCm2Dlh3TwayItZstwyeqQ=";
-static const unsigned char kRawExpectedRawHash[] = {
+static const uint8_t kExpectedRawHash[] = {
   0x8f, 0x43, 0x43, 0x46, 0x64, 0x8f, 0x6b, 0x96,
   0xdf, 0x89, 0xdd, 0xa9, 0x01, 0xc5, 0x17, 0x6b,
   0x10, 0xa6, 0xd8, 0x39, 0x61, 0xdd, 0x3c, 0x1a,
@@ -34,13 +35,7 @@ static const unsigned char kRawExpectedRawHash[] = {
 
 class OmahaHashCalculatorTest : public ::testing::Test {
  public:
-  const char *kExpectedRawHash;
-  const char *kExpectedRawHashEnd;
-
-  OmahaHashCalculatorTest() :
-    kExpectedRawHash(reinterpret_cast<const char*>(kRawExpectedRawHash)),
-    kExpectedRawHashEnd(kExpectedRawHash + arraysize(kRawExpectedRawHash))
-  {}
+  OmahaHashCalculatorTest() {}
 };
 
 TEST_F(OmahaHashCalculatorTest, SimpleTest) {
@@ -48,7 +43,8 @@ TEST_F(OmahaHashCalculatorTest, SimpleTest) {
   calc.Update("hi", 2);
   calc.Finalize();
   EXPECT_EQ(kExpectedHash, calc.hash());
-  vector<char> raw_hash(kExpectedRawHash, kExpectedRawHashEnd);
+  chromeos::Blob raw_hash(std::begin(kExpectedRawHash),
+                          std::end(kExpectedRawHash));
   EXPECT_TRUE(raw_hash == calc.raw_hash());
 }
 
@@ -58,7 +54,8 @@ TEST_F(OmahaHashCalculatorTest, MultiUpdateTest) {
   calc.Update("i", 1);
   calc.Finalize();
   EXPECT_EQ(kExpectedHash, calc.hash());
-  vector<char> raw_hash(kExpectedRawHash, kExpectedRawHashEnd);
+  chromeos::Blob raw_hash(std::begin(kExpectedRawHash),
+                          std::end(kExpectedRawHash));
   EXPECT_TRUE(raw_hash == calc.raw_hash());
 }
 
@@ -72,7 +69,8 @@ TEST_F(OmahaHashCalculatorTest, ContextTest) {
   calc_next.Update("i", 1);
   calc_next.Finalize();
   EXPECT_EQ(kExpectedHash, calc_next.hash());
-  vector<char> raw_hash(kExpectedRawHash, kExpectedRawHashEnd);
+  chromeos::Blob raw_hash(std::begin(kExpectedRawHash),
+                          std::end(kExpectedRawHash));
   EXPECT_TRUE(raw_hash == calc_next.raw_hash());
 }
 
@@ -114,7 +112,8 @@ TEST_F(OmahaHashCalculatorTest, UpdateFileSimpleTest) {
     EXPECT_EQ(2, calc.UpdateFile(data_path, kLengths[i]));
     EXPECT_TRUE(calc.Finalize());
     EXPECT_EQ(kExpectedHash, calc.hash());
-    vector<char> raw_hash(kExpectedRawHash, kExpectedRawHashEnd);
+    chromeos::Blob raw_hash(std::begin(kExpectedRawHash),
+                            std::end(kExpectedRawHash));
     EXPECT_TRUE(raw_hash == calc.raw_hash());
   }
 
@@ -135,8 +134,9 @@ TEST_F(OmahaHashCalculatorTest, RawHashOfFileSimpleTest) {
 
   static const int kLengths[] = { -1, 2, 10 };
   for (size_t i = 0; i < arraysize(kLengths); i++) {
-    vector<char> exp_raw_hash(kExpectedRawHash, kExpectedRawHashEnd);
-    vector<char> raw_hash;
+    chromeos::Blob exp_raw_hash(std::begin(kExpectedRawHash),
+                                std::end(kExpectedRawHash));
+    chromeos::Blob raw_hash;
     EXPECT_EQ(2, OmahaHashCalculator::RawHashOfFile(data_path,
                                                     kLengths[i],
                                                     &raw_hash));

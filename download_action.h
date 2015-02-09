@@ -70,7 +70,7 @@ class DownloadAction : public InstallPlanAction,
 
   // HttpFetcherDelegate methods (see http_fetcher.h)
   void ReceivedBytes(HttpFetcher *fetcher,
-                     const char* bytes, int length) override;
+                     const void* bytes, size_t length) override;
   void SeekToOffset(off_t offset) override;
   void TransferComplete(HttpFetcher *fetcher, bool successful) override;
   void TransferTerminated(HttpFetcher *fetcher) override;
@@ -103,7 +103,7 @@ class DownloadAction : public InstallPlanAction,
   //
   // This method does nothing if SetupP2PSharingFd() hasn't been
   // called or if CloseP2PSharingFd() has been called.
-  void WriteToP2PFile(const char *data, size_t length, off_t file_offset);
+  void WriteToP2PFile(const void *data, size_t length, off_t file_offset);
 
   // The InstallPlan passed in
   InstallPlan install_plan_;

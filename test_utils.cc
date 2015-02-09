@@ -35,7 +35,7 @@ namespace test_utils {
 
 const char* const kMountPathTemplate = "UpdateEngineTests_mnt-XXXXXX";
 
-const unsigned char kRandomString[] = {
+const uint8_t kRandomString[] = {
   0xf2, 0xb7, 0x55, 0x92, 0xea, 0xa6, 0xc9, 0x57,
   0xe0, 0xf8, 0xeb, 0x34, 0x93, 0xd9, 0xc4, 0x8f,
   0xcb, 0x20, 0xfa, 0x37, 0x4b, 0x40, 0xcf, 0xdc,
@@ -106,8 +106,8 @@ bool IsXAttrSupported(const base::FilePath& dir_path) {
   return xattr_res == 0;
 }
 
-bool WriteFileVector(const string& path, const vector<char>& data) {
-  return utils::WriteFile(path.c_str(), &data[0], data.size());
+bool WriteFileVector(const string& path, const chromeos::Blob& data) {
+  return utils::WriteFile(path.c_str(), data.data(), data.size());
 }
 
 bool WriteFileString(const string& path, const string& data) {
@@ -137,7 +137,8 @@ bool BindToUnusedLoopDevice(const string& filename, string* lo_dev_name_p) {
   return true;
 }
 
-bool ExpectVectorsEq(const vector<char>& expected, const vector<char>& actual) {
+bool ExpectVectorsEq(const chromeos::Blob& expected,
+                     const chromeos::Blob& actual) {
   EXPECT_EQ(expected.size(), actual.size());
   if (expected.size() != actual.size())
     return false;
@@ -149,10 +150,10 @@ bool ExpectVectorsEq(const vector<char>& expected, const vector<char>& actual) {
   return is_all_eq;
 }
 
-void FillWithData(vector<char>* buffer) {
+void FillWithData(chromeos::Blob* buffer) {
   size_t input_counter = 0;
-  for (vector<char>::iterator it = buffer->begin(); it != buffer->end(); ++it) {
-    *it = kRandomString[input_counter];
+  for (uint8_t& b : *buffer) {
+    b = kRandomString[input_counter];
     input_counter++;
     input_counter %= sizeof(kRandomString);
   }

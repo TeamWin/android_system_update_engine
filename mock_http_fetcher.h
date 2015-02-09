@@ -31,7 +31,7 @@ class MockHttpFetcher : public HttpFetcher {
  public:
   // The data passed in here is copied and then passed to the delegate after
   // the transfer begins.
-  MockHttpFetcher(const char* data,
+  MockHttpFetcher(const uint8_t* data,
                   size_t size,
                   ProxyResolver* proxy_resolver)
       : HttpFetcher(proxy_resolver, &fake_system_state_),
@@ -45,6 +45,11 @@ class MockHttpFetcher : public HttpFetcher {
     fake_system_state_.set_connection_manager(&mock_connection_manager_);
     data_.insert(data_.end(), data, data + size);
   }
+
+  // Constructor overload for string data.
+  MockHttpFetcher(const char* data, size_t size, ProxyResolver* proxy_resolver)
+      : MockHttpFetcher(reinterpret_cast<const uint8_t*>(data), size,
+                        proxy_resolver) {}
 
   // Cleans up all internal state. Does not notify delegate
   ~MockHttpFetcher() override;
@@ -87,7 +92,7 @@ class MockHttpFetcher : public HttpFetcher {
   // If set to true, this will EXPECT fail on BeginTransfer
   void set_never_use(bool never_use) { never_use_ = never_use; }
 
-  const std::vector<char>& post_data() const {
+  const chromeos::Blob& post_data() const {
     return post_data_;
   }
 
@@ -111,7 +116,7 @@ class MockHttpFetcher : public HttpFetcher {
   void SignalTransferComplete();
 
   // A full copy of the data we'll return to the delegate
-  std::vector<char> data_;
+  chromeos::Blob data_;
 
   // The number of bytes we've sent so far
   size_t sent_size_;

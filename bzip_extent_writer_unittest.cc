@@ -55,7 +55,7 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
 
   // 'echo test | bzip2 | hexdump' yields:
   static const char test_uncompressed[] = "test\n";
-  static const unsigned char test[] = {
+  static const uint8_t test[] = {
     0x42, 0x5a, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0xcc, 0xc3,
     0x71, 0xd4, 0x00, 0x00, 0x02, 0x41, 0x80, 0x00, 0x10, 0x02, 0x00, 0x0c,
     0x00, 0x20, 0x00, 0x21, 0x9a, 0x68, 0x33, 0x4d, 0x19, 0x97, 0x8b, 0xb9,
@@ -68,14 +68,14 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
   EXPECT_TRUE(bzip_writer.Write(test, sizeof(test)));
   EXPECT_TRUE(bzip_writer.End());
 
-  vector<char> buf;
+  chromeos::Blob buf;
   EXPECT_TRUE(utils::ReadFile(path_, &buf));
   EXPECT_EQ(strlen(test_uncompressed), buf.size());
-  EXPECT_EQ(string(buf.data(), buf.size()), string(test_uncompressed));
+  EXPECT_EQ(string(buf.begin(), buf.end()), string(test_uncompressed));
 }
 
 TEST_F(BzipExtentWriterTest, ChunkedTest) {
-  const vector<char>::size_type kDecompressedLength = 2048 * 1024;  // 2 MiB
+  const chromeos::Blob::size_type kDecompressedLength = 2048 * 1024;  // 2 MiB
   string decompressed_path;
   ASSERT_TRUE(utils::MakeTempFile("BzipExtentWriterTest-decompressed-XXXXXX",
                                   &decompressed_path, nullptr));
@@ -90,7 +90,7 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   extent.set_num_blocks(kDecompressedLength / kBlockSize + 1);
   extents.push_back(extent);
 
-  vector<char> decompressed_data(kDecompressedLength);
+  chromeos::Blob decompressed_data(kDecompressedLength);
   test_utils::FillWithData(&decompressed_data);
 
   EXPECT_TRUE(test_utils::WriteFileVector(
@@ -99,15 +99,15 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   EXPECT_EQ(0, test_utils::System(
       string("cat ") + decompressed_path + "|bzip2>" + compressed_path));
 
-  vector<char> compressed_data;
+  chromeos::Blob compressed_data;
   EXPECT_TRUE(utils::ReadFile(compressed_path, &compressed_data));
 
   DirectExtentWriter direct_writer;
   BzipExtentWriter bzip_writer(&direct_writer);
   EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
 
-  vector<char> original_compressed_data = compressed_data;
-  for (vector<char>::size_type i = 0; i < compressed_data.size();
+  chromeos::Blob original_compressed_data = compressed_data;
+  for (chromeos::Blob::size_type i = 0; i < compressed_data.size();
        i += kChunkSize) {
     size_t this_chunk_size = min(kChunkSize, compressed_data.size() - i);
     EXPECT_TRUE(bzip_writer.Write(&compressed_data[i], this_chunk_size));
@@ -117,7 +117,7 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   // Check that the const input has not been clobbered.
   test_utils::ExpectVectorsEq(original_compressed_data, compressed_data);
 
-  vector<char> output;
+  chromeos::Blob output;
   EXPECT_TRUE(utils::ReadFile(path_, &output));
   EXPECT_EQ(kDecompressedLength, output.size());
   test_utils::ExpectVectorsEq(decompressed_data, output);

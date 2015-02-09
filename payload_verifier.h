@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <base/macros.h>
+#include <chromeos/secure_blob.h>
 
 #include "update_engine/update_metadata.pb.h"
 
@@ -24,26 +25,26 @@ class PayloadVerifier {
  public:
   // Returns false if the payload signature can't be verified. Returns true
   // otherwise and sets |out_hash| to the signed payload hash.
-  static bool VerifySignature(const std::vector<char>& signature_blob,
+  static bool VerifySignature(const chromeos::Blob& signature_blob,
                               const std::string& public_key_path,
-                              std::vector<char>* out_hash_data);
+                              chromeos::Blob* out_hash_data);
 
   // Interprets signature_blob as a protocol buffer containing the Signatures
   // message and decrypts the signature data using the public_key_path and
   // stores the resultant raw hash data in out_hash_data. Returns true if
   // everything is successful. False otherwise. It also takes the client_version
   // and interprets the signature blob according to that version.
-  static bool VerifySignatureBlob(const std::vector<char>& signature_blob,
+  static bool VerifySignatureBlob(const chromeos::Blob& signature_blob,
                                   const std::string& public_key_path,
                                   uint32_t client_version,
-                                  std::vector<char>* out_hash_data);
+                                  chromeos::Blob* out_hash_data);
 
   // Decrypts sig_data with the given public_key_path and populates
   // out_hash_data with the decoded raw hash. Returns true if successful,
   // false otherwise.
-  static bool GetRawHashFromSignature(const std::vector<char>& sig_data,
+  static bool GetRawHashFromSignature(const chromeos::Blob& sig_data,
                                       const std::string& public_key_path,
-                                      std::vector<char>* out_hash_data);
+                                      chromeos::Blob* out_hash_data);
 
   // Returns true if the payload in |payload_path| is signed and its hash can be
   // verified using the public key in |public_key_path| with the signature
@@ -57,14 +58,14 @@ class PayloadVerifier {
   // hash should be a pointer to vector of exactly 256 bits. The vector
   // will be modified in place and will result in having a length of
   // 2048 bits. Returns true on success, false otherwise.
-  static bool PadRSA2048SHA256Hash(std::vector<char>* hash);
+  static bool PadRSA2048SHA256Hash(chromeos::Blob* hash);
 
   // Reads the payload from the given |payload_path| into the |out_payload|
   // vector. It also parses the manifest protobuf in the payload and returns it
   // in |out_manifest| along with the size of the entire metadata in
   // |out_metadata_size|.
   static bool LoadPayload(const std::string& payload_path,
-                          std::vector<char>* out_payload,
+                          chromeos::Blob* out_payload,
                           DeltaArchiveManifest* out_manifest,
                           uint64_t* out_metadata_size);
 

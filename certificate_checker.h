@@ -36,7 +36,7 @@ class OpenSSLWrapper {
   virtual bool GetCertificateDigest(X509_STORE_CTX* x509_ctx,
                                     int* out_depth,
                                     unsigned int* out_digest_length,
-                                    unsigned char* out_digest) const;
+                                    uint8_t* out_digest) const;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(OpenSSLWrapper);

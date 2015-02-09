@@ -40,8 +40,8 @@ class ChunkProcessor {
   ~ChunkProcessor() { Wait(); }
 
   off_t offset() const { return offset_; }
-  const vector<char>& buffer_in() const { return buffer_in_; }
-  const vector<char>& buffer_compressed() const { return buffer_compressed_; }
+  const chromeos::Blob& buffer_in() const { return buffer_in_; }
+  const chromeos::Blob& buffer_compressed() const { return buffer_compressed_; }
 
   // Starts the processor. Returns true on success, false on failure.
   bool Start();
@@ -63,8 +63,8 @@ class ChunkProcessor {
   GThread* thread_;
   int fd_;
   off_t offset_;
-  vector<char> buffer_in_;
-  vector<char> buffer_compressed_;
+  chromeos::Blob buffer_in_;
+  chromeos::Blob buffer_compressed_;
 
   DISALLOW_COPY_AND_ASSIGN(ChunkProcessor);
 };
@@ -174,13 +174,14 @@ bool FullUpdateGenerator::Run(
       }
 
       const bool compress = processor->ShouldCompress();
-      const vector<char>& use_buf =
+      const chromeos::Blob& use_buf =
           compress ? processor->buffer_compressed() : processor->buffer_in();
       op->set_type(compress ?
                    DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ :
                    DeltaArchiveManifest_InstallOperation_Type_REPLACE);
       op->set_data_offset(*data_file_size);
-      TEST_AND_RETURN_FALSE(utils::WriteAll(fd, &use_buf[0], use_buf.size()));
+      TEST_AND_RETURN_FALSE(utils::WriteAll(fd, use_buf.data(),
+                                            use_buf.size()));
       *data_file_size += use_buf.size();
       op->set_data_length(use_buf.size());
       Extent* dst_extent = op->add_dst_extents();

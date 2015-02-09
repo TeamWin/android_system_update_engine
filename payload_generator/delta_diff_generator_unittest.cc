@@ -88,7 +88,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveSmallTest) {
   EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
-  vector<char> data;
+  chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                  new_path(),
@@ -178,7 +178,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
   EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
                                random_data.c_str(), file_len));
 
-  vector<char> data;
+  chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                  new_path(),
@@ -242,7 +242,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffSmallTest) {
   EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
-  vector<char> data;
+  chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                  new_path(),
@@ -274,7 +274,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedTest) {
   EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
-  vector<char> data;
+  chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
 
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
@@ -300,7 +300,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedMoveTest) {
   EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
-  vector<char> data;
+  chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
 
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
@@ -320,15 +320,14 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedMoveTest) {
 }
 
 TEST_F(DeltaDiffGeneratorTest, RunAsRootReplaceSmallTest) {
-  vector<char> new_data;
+  chromeos::Blob new_data;
   for (int i = 0; i < 2; i++) {
     new_data.insert(new_data.end(),
-                    kRandomString,
-                    kRandomString + sizeof(kRandomString));
+                    std::begin(kRandomString), std::end(kRandomString));
     EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
-                                 &new_data[0],
+                                 new_data.data(),
                                  new_data.size()));
-    vector<char> data;
+    chromeos::Blob data;
     DeltaArchiveManifest_InstallOperation op;
     EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                    new_path(),
@@ -362,7 +361,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNoGatherExtentsSmallTest) {
   EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
-  vector<char> data;
+  chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
   EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
                                                  new_path(),
@@ -713,7 +712,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootAssignTempBlocksTest) {
   ScopedDirRemover temp_dir_remover(temp_dir);
 
   const size_t kBlockSize = 4096;
-  vector<char> temp_data(kBlockSize * 50);
+  chromeos::Blob temp_data(kBlockSize * 50);
   FillWithData(&temp_data);
   EXPECT_TRUE(WriteFileVector(temp_dir + kFilename, temp_data));
   ScopedPathUnlinker filename_unlinker(temp_dir + kFilename);
@@ -830,7 +829,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootNoSparseAsTempTest) {
   ScopedDirRemover temp_dir_remover(temp_dir);
 
   const size_t kBlockSize = 4096;
-  vector<char> temp_data(kBlockSize);
+  chromeos::Blob temp_data(kBlockSize);
   FillWithData(&temp_data);
   EXPECT_TRUE(WriteFileVector(temp_dir + kFilename, temp_data));
   ScopedPathUnlinker filename_unlinker(temp_dir + kFilename);
@@ -1091,7 +1090,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootAssignTempBlocksReuseTest) {
   ScopedDirRemover temp_dir_remover(temp_dir);
 
   const size_t kBlockSize = 4096;
-  vector<char> temp_data(kBlockSize * 3);
+  chromeos::Blob temp_data(kBlockSize * 3);
   FillWithData(&temp_data);
   EXPECT_TRUE(WriteFileVector(temp_dir + kFilename, temp_data));
   ScopedPathUnlinker filename_unlinker(temp_dir + kFilename);

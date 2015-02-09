@@ -13,6 +13,7 @@
 
 #include <base/logging.h>
 #include <base/macros.h>
+#include <chromeos/secure_blob.h>
 
 // Omaha uses base64 encoded SHA-256 as the hash. This class provides a simple
 // wrapper around OpenSSL providing such a formatted hash of data passed in.
@@ -29,7 +30,7 @@ class OmahaHashCalculator {
   // Update is called with all of the data that should be hashed in order.
   // Update will read |length| bytes of |data|.
   // Returns true on success.
-  bool Update(const char* data, size_t length);
+  bool Update(const void* data, size_t length);
 
   // Updates the hash with up to |length| bytes of data from |file|. If |length|
   // is negative, reads in and updates with the whole file. Returns the number
@@ -48,7 +49,7 @@ class OmahaHashCalculator {
     return hash_;
   }
 
-  const std::vector<char>& raw_hash() const {
+  const chromeos::Blob& raw_hash() const {
     DCHECK(!raw_hash_.empty()) << "Call Finalize() first";
     return raw_hash_;
   }
@@ -62,24 +63,24 @@ class OmahaHashCalculator {
   // success, and false otherwise.
   bool SetContext(const std::string& context);
 
-  static bool RawHashOfBytes(const char* data,
+  static bool RawHashOfBytes(const void* data,
                              size_t length,
-                             std::vector<char>* out_hash);
-  static bool RawHashOfData(const std::vector<char>& data,
-                            std::vector<char>* out_hash);
+                             chromeos::Blob* out_hash);
+  static bool RawHashOfData(const chromeos::Blob& data,
+                            chromeos::Blob* out_hash);
   static off_t RawHashOfFile(const std::string& name, off_t length,
-                             std::vector<char>* out_hash);
+                             chromeos::Blob* out_hash);
 
   // Used by tests
   static std::string OmahaHashOfBytes(const void* data, size_t length);
   static std::string OmahaHashOfString(const std::string& str);
-  static std::string OmahaHashOfData(const std::vector<char>& data);
+  static std::string OmahaHashOfData(const chromeos::Blob& data);
 
  private:
   // If non-empty, the final base64 encoded hash and the raw hash. Will only be
   // set to non-empty when Finalize is called.
   std::string hash_;
-  std::vector<char> raw_hash_;
+  chromeos::Blob raw_hash_;
 
   // Init success
   bool valid_;

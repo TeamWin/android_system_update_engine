@@ -36,7 +36,7 @@ typedef DeltaDiffGenerator::Block Block;
 // Read data from the specified extents.
 bool ReadExtentsData(const ext2_filsys fs,
                      const vector<Extent>& extents,
-                     vector<char>* data) {
+                     chromeos::Blob* data) {
   // Resize the data buffer to hold all data in the extents
   size_t num_data_blocks = 0;
   for (const Extent& extent : extents) {
@@ -69,9 +69,9 @@ bool ReadExtentsData(const ext2_filsys fs,
 }
 
 // Compute the bsdiff between two metadata blobs.
-bool ComputeMetadataBsdiff(const vector<char>& old_metadata,
-                           const vector<char>& new_metadata,
-                           vector<char>* bsdiff_delta) {
+bool ComputeMetadataBsdiff(const chromeos::Blob& old_metadata,
+                           const chromeos::Blob& new_metadata,
+                           chromeos::Blob* bsdiff_delta) {
   const string kTempFileTemplate("CrAU_temp_data.XXXXXX");
 
   // Write the metadata buffers to temporary files
@@ -83,7 +83,7 @@ bool ComputeMetadataBsdiff(const vector<char>& old_metadata,
   ScopedPathUnlinker temp_old_file_path_unlinker(temp_old_file_path);
   ScopedFdCloser old_fd_closer(&old_fd);
   TEST_AND_RETURN_FALSE(utils::WriteAll(old_fd,
-                                        &old_metadata[0],
+                                        old_metadata.data(),
                                         old_metadata.size()));
 
   int new_fd;
@@ -94,7 +94,7 @@ bool ComputeMetadataBsdiff(const vector<char>& old_metadata,
   ScopedPathUnlinker temp_new_file_path_unlinker(temp_new_file_path);
   ScopedFdCloser new_fd_closer(&new_fd);
   TEST_AND_RETURN_FALSE(utils::WriteAll(new_fd,
-                                        &new_metadata[0],
+                                        new_metadata.data(),
                                         new_metadata.size()));
 
   // Perform bsdiff on these files
@@ -115,19 +115,19 @@ bool AddMetadataExtents(Graph* graph,
                         const vector<Extent>& extents,
                         int data_fd,
                         off_t* data_file_size) {
-  vector<char> data;  // Data blob that will be written to delta file.
+  chromeos::Blob data;  // Data blob that will be written to delta file.
   DeltaArchiveManifest_InstallOperation op;
 
   {
     // Read in the metadata blocks from the old and new image.
-    vector<char> old_data;
+    chromeos::Blob old_data;
     TEST_AND_RETURN_FALSE(ReadExtentsData(fs_old, extents, &old_data));
 
-    vector<char> new_data;
+    chromeos::Blob new_data;
     TEST_AND_RETURN_FALSE(ReadExtentsData(fs_new, extents, &new_data));
 
     // Determine the best way to compress this.
-    vector<char> new_data_bz;
+    chromeos::Blob new_data_bz;
     TEST_AND_RETURN_FALSE(BzipCompress(new_data, &new_data_bz));
     CHECK(!new_data_bz.empty());
 
@@ -149,11 +149,11 @@ bool AddMetadataExtents(Graph* graph,
       data.clear();
     } else {
       // Try bsdiff of old to new data
-      vector<char> bsdiff_delta;
+      chromeos::Blob bsdiff_delta;
       TEST_AND_RETURN_FALSE(ComputeMetadataBsdiff(old_data,
                                                   new_data,
                                                   &bsdiff_delta));
-      CHECK_GT(bsdiff_delta.size(), static_cast<vector<char>::size_type>(0));
+      CHECK_GT(bsdiff_delta.size(), 0u);
 
       if (bsdiff_delta.size() < current_best_size) {
         op.set_type(DeltaArchiveManifest_InstallOperation_Type_BSDIFF);
@@ -182,7 +182,7 @@ bool AddMetadataExtents(Graph* graph,
     op.set_data_length(data.size());
   }
 
-  TEST_AND_RETURN_FALSE(utils::WriteAll(data_fd, &data[0], data.size()));
+  TEST_AND_RETURN_FALSE(utils::WriteAll(data_fd, data.data(), data.size()));
   *data_file_size += data.size();
 
   // Now, insert into graph and blocks vector

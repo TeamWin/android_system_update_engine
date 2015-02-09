@@ -92,7 +92,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
   if (post_data_set_) {
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_POST, 1), CURLE_OK);
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_POSTFIELDS,
-                              &post_data_[0]),
+                              post_data_.data()),
              CURLE_OK);
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_POSTFIELDSIZE,
                               post_data_.size()),
@@ -383,7 +383,7 @@ size_t LibcurlHttpFetcher::LibcurlWrite(void *ptr, size_t size, size_t nmemb) {
   bytes_downloaded_ += payload_size;
   in_write_callback_ = true;
   if (delegate_)
-    delegate_->ReceivedBytes(this, reinterpret_cast<char*>(ptr), payload_size);
+    delegate_->ReceivedBytes(this, ptr, payload_size);
   in_write_callback_ = false;
   return payload_size;
 }

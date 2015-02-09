@@ -68,11 +68,12 @@ FileDescriptorPtr CreateFileDescriptor(const char* path) {
     ret.reset(new UbiFileDescriptor);
   } else if (MtdFileDescriptor::IsMtd(path)) {
     ret.reset(new MtdFileDescriptor);
-  } else
+  } else {
 #endif
-  {
     ret.reset(new EintrSafeFileDescriptor);
+#if USE_MTD
   }
+#endif
   return ret;
 }
 
@@ -273,8 +274,7 @@ int DeltaPerformer::Close() {
 namespace {
 
 void LogPartitionInfoHash(const PartitionInfo& info, const string& tag) {
-  string sha256 = chromeos::data_encoding::Base64Encode(info.hash().data(),
-                                                        info.hash().size());
+  string sha256 = chromeos::data_encoding::Base64Encode(info.hash());
   LOG(INFO) << "PartitionInfo " << tag << " sha256: " << sha256
             << " size: " << info.size();
 }
@@ -320,8 +320,7 @@ bool DeltaPerformer::GetManifest(DeltaArchiveManifest* out_manifest_p) const {
 
 
 DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
-    const vector<char>& payload,
-    ErrorCode* error) {
+    const chromeos::Blob& payload, ErrorCode* error) {
   *error = ErrorCode::kSuccess;
   const uint64_t manifest_offset = GetManifestOffset();
   uint64_t manifest_size = (metadata_size_ ?
@@ -403,7 +402,7 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
 
   // We have the full metadata in |payload|. Verify its integrity
   // and authenticity based on the information we have in Omaha response.
-  *error = ValidateMetadataSignature(&payload[0], metadata_size_);
+  *error = ValidateMetadataSignature(payload.data(), metadata_size_);
   if (*error != ErrorCode::kSuccess) {
     if (install_plan_->hash_checks_mandatory) {
       // The autoupdate_CatchBadSignatures test checks for this string
@@ -433,8 +432,7 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
 // Wrapper around write. Returns true if all requested bytes
 // were written, or false on any error, regardless of progress
 // and stores an action exit code in |error|.
-bool DeltaPerformer::Write(const void* bytes, size_t count,
-                           ErrorCode *error) {
+bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
   *error = ErrorCode::kSuccess;
 
   const char* c_bytes = reinterpret_cast<const char*>(bytes);
@@ -626,7 +624,7 @@ bool DeltaPerformer::PerformReplaceOperation(
   FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
 
   TEST_AND_RETURN_FALSE(writer->Init(fd, extents, block_size_));
-  TEST_AND_RETURN_FALSE(writer->Write(&buffer_[0], operation.data_length()));
+  TEST_AND_RETURN_FALSE(writer->Write(buffer_.data(), operation.data_length()));
   TEST_AND_RETURN_FALSE(writer->End());
 
   // Update buffer
@@ -651,7 +649,7 @@ bool DeltaPerformer::PerformMoveOperation(
     blocks_to_write += operation.dst_extents(i).num_blocks();
 
   DCHECK_EQ(blocks_to_write, blocks_to_read);
-  vector<char> buf(blocks_to_write * block_size_);
+  chromeos::Blob buf(blocks_to_write * block_size_);
 
   FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
 
@@ -762,7 +760,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
     int fd = open(temp_filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     ScopedFdCloser fd_closer(&fd);
     TEST_AND_RETURN_FALSE(
-        utils::WriteAll(fd, &buffer_[0], operation.data_length()));
+        utils::WriteAll(fd, buffer_.data(), operation.data_length()));
   }
 
   // Update the buffer to release the patch data memory as soon as the patch
@@ -802,10 +800,10 @@ bool DeltaPerformer::PerformBsdiffOperation(
         (last_extent.start_block() + last_extent.num_blocks()) * block_size_;
     const uint64_t begin_byte =
         end_byte - (block_size_ - operation.dst_length() % block_size_);
-    vector<char> zeros(end_byte - begin_byte);
+    chromeos::Blob zeros(end_byte - begin_byte);
     FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
     TEST_AND_RETURN_FALSE(
-        utils::PWriteAll(fd, &zeros[0], end_byte - begin_byte, begin_byte));
+        utils::PWriteAll(fd, zeros.data(), end_byte - begin_byte, begin_byte));
   }
   return true;
 }
@@ -836,8 +834,8 @@ bool DeltaPerformer::ExtractSignatureMessage(
   // 2. Verify the signature as soon as it's received and don't checkpoint the
   // blob and the signed sha-256 context.
   LOG_IF(WARNING, !prefs_->SetString(kPrefsUpdateStateSignatureBlob,
-                                     string(&signatures_message_data_[0],
-                                            signatures_message_data_.size())))
+                                     string(signatures_message_data_.begin(),
+                                            signatures_message_data_.end())))
       << "Unable to store the signature blob.";
   // The hash of all data consumed so far should be verified against the signed
   // hash.
@@ -865,7 +863,7 @@ bool DeltaPerformer::GetPublicKeyFromResponse(base::FilePath *out_tmp_key) {
 }
 
 ErrorCode DeltaPerformer::ValidateMetadataSignature(
-    const char* metadata, uint64_t metadata_size) {
+    const void* metadata, uint64_t metadata_size) {
 
   if (install_plan_->metadata_signature.empty()) {
     if (install_plan_->hash_checks_mandatory) {
@@ -880,14 +878,13 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   }
 
   // Convert base64-encoded signature to raw bytes.
-  chromeos::Blob signature;
+  chromeos::Blob metadata_signature;
   if (!chromeos::data_encoding::Base64Decode(install_plan_->metadata_signature,
-                                             &signature)) {
+                                             &metadata_signature)) {
     LOG(ERROR) << "Unable to decode base64 metadata signature: "
                << install_plan_->metadata_signature;
     return ErrorCode::kDownloadMetadataSignatureError;
   }
-  vector<char> metadata_signature{signature.begin(), signature.end()};
 
   // See if we should use the public RSA key in the Omaha response.
   base::FilePath path_to_public_key(public_key_path_);
@@ -901,7 +898,7 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   LOG(INFO) << "Verifying metadata hash signature using public key: "
             << path_to_public_key.value();
 
-  vector<char> expected_metadata_hash;
+  chromeos::Blob expected_metadata_hash;
   if (!PayloadVerifier::GetRawHashFromSignature(metadata_signature,
                                                 path_to_public_key.value(),
                                                 &expected_metadata_hash)) {
@@ -916,7 +913,7 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
   }
 
-  vector<char> calculated_metadata_hash = metadata_hasher.raw_hash();
+  chromeos::Blob calculated_metadata_hash = metadata_hasher.raw_hash();
   PayloadVerifier::PadRSA2048SHA256Hash(&calculated_metadata_hash);
   if (calculated_metadata_hash.empty()) {
     LOG(ERROR) << "Computed actual hash of metadata is empty.";
@@ -1018,20 +1015,20 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
     return ErrorCode::kSuccess;
   }
 
-  vector<char> expected_op_hash;
+  chromeos::Blob expected_op_hash;
   expected_op_hash.assign(operation.data_sha256_hash().data(),
                           (operation.data_sha256_hash().data() +
                            operation.data_sha256_hash().size()));
 
   OmahaHashCalculator operation_hasher;
-  operation_hasher.Update(&buffer_[0], operation.data_length());
+  operation_hasher.Update(buffer_.data(), operation.data_length());
   if (!operation_hasher.Finalize()) {
     LOG(ERROR) << "Unable to compute actual hash of operation "
                << next_operation_num_;
     return ErrorCode::kDownloadOperationHashVerificationError;
   }
 
-  vector<char> calculated_op_hash = operation_hasher.raw_hash();
+  chromeos::Blob calculated_op_hash = operation_hasher.raw_hash();
   if (calculated_op_hash != expected_op_hash) {
     LOG(ERROR) << "Hash verification failed for operation "
                << next_operation_num_ << ". Expected hash = ";
@@ -1088,7 +1085,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
   }
   TEST_AND_RETURN_VAL(ErrorCode::kSignedDeltaPayloadExpectedError,
                       !signatures_message_data_.empty());
-  vector<char> signed_hash_data;
+  chromeos::Blob signed_hash_data;
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       PayloadVerifier::VerifySignature(
                           signatures_message_data_,
@@ -1099,7 +1096,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
                       signed_hasher.SetContext(signed_hash_context_));
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       signed_hasher.Finalize());
-  vector<char> hash_data = signed_hasher.raw_hash();
+  chromeos::Blob hash_data = signed_hasher.raw_hash();
   PayloadVerifier::PadRSA2048SHA256Hash(&hash_data);
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       !hash_data.empty());
@@ -1127,18 +1124,18 @@ ErrorCode DeltaPerformer::VerifyPayload(
 }
 
 bool DeltaPerformer::GetNewPartitionInfo(uint64_t* kernel_size,
-                                         vector<char>* kernel_hash,
+                                         chromeos::Blob* kernel_hash,
                                          uint64_t* rootfs_size,
-                                         vector<char>* rootfs_hash) {
+                                         chromeos::Blob* rootfs_hash) {
   TEST_AND_RETURN_FALSE(manifest_valid_ &&
                         manifest_.has_new_kernel_info() &&
                         manifest_.has_new_rootfs_info());
   *kernel_size = manifest_.new_kernel_info().size();
   *rootfs_size = manifest_.new_rootfs_info().size();
-  vector<char> new_kernel_hash(manifest_.new_kernel_info().hash().begin(),
-                               manifest_.new_kernel_info().hash().end());
-  vector<char> new_rootfs_hash(manifest_.new_rootfs_info().hash().begin(),
-                               manifest_.new_rootfs_info().hash().end());
+  chromeos::Blob new_kernel_hash(manifest_.new_kernel_info().hash().begin(),
+                                 manifest_.new_kernel_info().hash().end());
+  chromeos::Blob new_rootfs_hash(manifest_.new_rootfs_info().hash().begin(),
+                                 manifest_.new_rootfs_info().hash().end());
   kernel_hash->swap(new_kernel_hash);
   rootfs_hash->swap(new_rootfs_hash);
   return true;
@@ -1228,10 +1225,10 @@ void DeltaPerformer::DiscardBuffer(bool do_advance_offset) {
     buffer_offset_ += buffer_.size();
 
   // Hash the content.
-  hash_calculator_.Update(&buffer_[0], buffer_.size());
+  hash_calculator_.Update(buffer_.data(), buffer_.size());
 
   // Swap content with an empty vector to ensure that all memory is released.
-  vector<char>().swap(buffer_);
+  chromeos::Blob().swap(buffer_);
 }
 
 bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,

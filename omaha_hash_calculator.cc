@@ -24,7 +24,7 @@ OmahaHashCalculator::OmahaHashCalculator() : valid_(false) {
 
 // Update is called with all of the data that should be hashed in order.
 // Mostly just passes the data through to OpenSSL's SHA256_Update()
-bool OmahaHashCalculator::Update(const char* data, size_t length) {
+bool OmahaHashCalculator::Update(const void* data, size_t length) {
   TEST_AND_RETURN_FALSE(valid_);
   TEST_AND_RETURN_FALSE(hash_.empty());
   static_assert(sizeof(size_t) <= sizeof(unsigned long),  // NOLINT(runtime/int)
@@ -40,7 +40,7 @@ off_t OmahaHashCalculator::UpdateFile(const string& name, off_t length) {
   }
 
   const int kBufferSize = 128 * 1024;  // 128 KiB
-  vector<char> buffer(kBufferSize);
+  chromeos::Blob buffer(kBufferSize);
   off_t bytes_processed = 0;
   while (length < 0 || bytes_processed < length) {
     off_t bytes_to_read = buffer.size();
@@ -67,9 +67,7 @@ bool OmahaHashCalculator::Finalize() {
   TEST_AND_RETURN_FALSE(hash_.empty());
   TEST_AND_RETURN_FALSE(raw_hash_.empty());
   raw_hash_.resize(SHA256_DIGEST_LENGTH);
-  TEST_AND_RETURN_FALSE(
-      SHA256_Final(reinterpret_cast<unsigned char*>(&raw_hash_[0]),
-                   &ctx_) == 1);
+  TEST_AND_RETURN_FALSE(SHA256_Final(raw_hash_.data(), &ctx_) == 1);
 
   // Convert raw_hash_ to base64 encoding and store it in hash_.
   hash_ = chromeos::data_encoding::Base64Encode(raw_hash_.data(),
@@ -77,9 +75,9 @@ bool OmahaHashCalculator::Finalize() {
   return true;
 }
 
-bool OmahaHashCalculator::RawHashOfBytes(const char* data,
+bool OmahaHashCalculator::RawHashOfBytes(const void* data,
                                          size_t length,
-                                         vector<char>* out_hash) {
+                                         chromeos::Blob* out_hash) {
   OmahaHashCalculator calc;
   TEST_AND_RETURN_FALSE(calc.Update(data, length));
   TEST_AND_RETURN_FALSE(calc.Finalize());
@@ -87,13 +85,13 @@ bool OmahaHashCalculator::RawHashOfBytes(const char* data,
   return true;
 }
 
-bool OmahaHashCalculator::RawHashOfData(const vector<char>& data,
-                                        vector<char>* out_hash) {
+bool OmahaHashCalculator::RawHashOfData(const chromeos::Blob& data,
+                                        chromeos::Blob* out_hash) {
   return RawHashOfBytes(data.data(), data.size(), out_hash);
 }
 
 off_t OmahaHashCalculator::RawHashOfFile(const string& name, off_t length,
-                                         vector<char>* out_hash) {
+                                         chromeos::Blob* out_hash) {
   OmahaHashCalculator calc;
   off_t res = calc.UpdateFile(name, length);
   if (res < 0) {
@@ -106,10 +104,9 @@ off_t OmahaHashCalculator::RawHashOfFile(const string& name, off_t length,
   return res;
 }
 
-string OmahaHashCalculator::OmahaHashOfBytes(
-    const void* data, size_t length) {
+string OmahaHashCalculator::OmahaHashOfBytes(const void* data, size_t length) {
   OmahaHashCalculator calc;
-  calc.Update(reinterpret_cast<const char*>(data), length);
+  calc.Update(data, length);
   calc.Finalize();
   return calc.hash();
 }
@@ -118,8 +115,8 @@ string OmahaHashCalculator::OmahaHashOfString(const string& str) {
   return OmahaHashOfBytes(str.data(), str.size());
 }
 
-string OmahaHashCalculator::OmahaHashOfData(const vector<char>& data) {
-  return OmahaHashOfBytes(&data[0], data.size());
+string OmahaHashCalculator::OmahaHashOfData(const chromeos::Blob& data) {
+  return OmahaHashOfBytes(data.data(), data.size());
 }
 
 string OmahaHashCalculator::GetContext() const {

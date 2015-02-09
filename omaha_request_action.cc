@@ -527,10 +527,10 @@ void OmahaRequestAction::TerminateProcessing() {
 // We just store the response in the buffer. Once we've received all bytes,
 // we'll look in the buffer and decide what to do.
 void OmahaRequestAction::ReceivedBytes(HttpFetcher *fetcher,
-                                       const char* bytes,
-                                       int length) {
-  response_buffer_.reserve(response_buffer_.size() + length);
-  response_buffer_.insert(response_buffer_.end(), bytes, bytes + length);
+                                       const void* bytes,
+                                       size_t length) {
+  const uint8_t* byte_ptr = reinterpret_cast<const uint8_t*>(bytes);
+  response_buffer_.insert(response_buffer_.end(), byte_ptr, byte_ptr + length);
 }
 
 namespace {
@@ -797,8 +797,11 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   XML_SetUserData(parser, &parser_data);
   XML_SetElementHandler(parser, ParserHandlerStart, ParserHandlerEnd);
   XML_SetEntityDeclHandler(parser, ParserHandlerEntityDecl);
-  XML_Status res = XML_Parse(parser, &response_buffer_[0],
-                             response_buffer_.size(), XML_TRUE);
+  XML_Status res = XML_Parse(
+      parser,
+      reinterpret_cast<const char*>(response_buffer_.data()),
+      response_buffer_.size(),
+      XML_TRUE);
   XML_ParserFree(parser);
 
   if (res != XML_STATUS_OK || parser_data.failed) {

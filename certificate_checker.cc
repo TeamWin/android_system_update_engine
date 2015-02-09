@@ -34,7 +34,7 @@ static const char* kReportToSendKey[2] =
 bool OpenSSLWrapper::GetCertificateDigest(X509_STORE_CTX* x509_ctx,
                                           int* out_depth,
                                           unsigned int* out_digest_length,
-                                          unsigned char* out_digest) const {
+                                          uint8_t* out_digest) const {
   TEST_AND_RETURN_FALSE(out_digest);
   X509* certificate = X509_STORE_CTX_get_current_cert(x509_ctx);
   TEST_AND_RETURN_FALSE(certificate);
@@ -119,7 +119,7 @@ bool CertificateChecker::CheckCertificateChange(
 
   int depth;
   unsigned int digest_length;
-  unsigned char digest[EVP_MAX_MD_SIZE];
+  uint8_t digest[EVP_MAX_MD_SIZE];
 
   if (!openssl_wrapper_->GetCertificateDigest(x509_ctx,
                                               &depth,

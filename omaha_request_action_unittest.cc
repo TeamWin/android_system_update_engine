@@ -79,9 +79,9 @@ class OmahaRequestActionTest : public ::testing::Test {
                        metrics::CheckReaction expected_check_reaction,
                        metrics::DownloadErrorCode expected_download_error_code,
                        OmahaResponse* out_response,
-                       vector<char>* out_post_data);
+                       chromeos::Blob* out_post_data);
 
-  // Runs and checks a ping test. |ping_only| indicates wheter it should send
+  // Runs and checks a ping test. |ping_only| indicates whether it should send
   // only a ping or also an updatecheck.
   void PingTest(bool ping_only);
 
@@ -295,7 +295,7 @@ bool OmahaRequestActionTest::TestUpdateCheck(
     metrics::CheckReaction expected_check_reaction,
     metrics::DownloadErrorCode expected_download_error_code,
     OmahaResponse* out_response,
-    vector<char>* out_post_data) {
+    chromeos::Blob* out_post_data) {
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
                                                  http_response.size(),
@@ -355,7 +355,7 @@ bool OmahaRequestActionTest::TestUpdateCheck(
 void TestEvent(OmahaRequestParams params,
                OmahaEvent* event,
                const string& http_response,
-               vector<char>* out_post_data) {
+               chromeos::Blob* out_post_data) {
   GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
                                                  http_response.size(),
@@ -1035,7 +1035,7 @@ TEST_F(OmahaRequestActionTest, XmlEncodeTest) {
   EXPECT_EQ("&lt;&amp;&gt;", XmlEncode("<&>"));
   EXPECT_EQ("&amp;lt;&amp;amp;&amp;gt;", XmlEncode("&lt;&amp;&gt;"));
 
-  vector<char> post_data;
+  chromeos::Blob post_data;
 
   // Make sure XML Encode is being called on the params
   OmahaRequestParams params(&fake_system_state_,
@@ -1067,7 +1067,7 @@ TEST_F(OmahaRequestActionTest, XmlEncodeTest) {
                       &response,
                       &post_data));
   // convert post_data to string
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(post_str.find("testtheservice_pack&gt;"), string::npos);
   EXPECT_EQ(post_str.find("testtheservice_pack>"), string::npos);
   EXPECT_NE(post_str.find("x86 generic&lt;id"), string::npos);
@@ -1134,7 +1134,7 @@ TEST_F(OmahaRequestActionTest, ParseIntTest) {
 }
 
 TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
-  vector<char> post_data;
+  chromeos::Blob post_data;
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
 
@@ -1152,7 +1152,7 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
                                nullptr,  // response
                                &post_data));
   // convert post_data to string
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(post_str.find(
       "        <ping active=\"1\" a=\"-1\" r=\"-1\"></ping>\n"
       "        <updatecheck targetversionprefix=\"\"></updatecheck>\n"),
@@ -1167,13 +1167,13 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
 
 
 TEST_F(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
-  vector<char> post_data;
+  chromeos::Blob post_data;
   TestEvent(request_params_,
             new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
             "invalid xml>",
             &post_data);
   // convert post_data to string
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   string expected_event = base::StringPrintf(
       "        <event eventtype=\"%d\" eventresult=\"%d\"></event>\n",
       OmahaEvent::kTypeUpdateDownloadStarted,
@@ -1184,7 +1184,7 @@ TEST_F(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
 }
 
 TEST_F(OmahaRequestActionTest, FormatErrorEventOutputTest) {
-  vector<char> post_data;
+  chromeos::Blob post_data;
   TestEvent(request_params_,
             new OmahaEvent(OmahaEvent::kTypeDownloadComplete,
                            OmahaEvent::kResultError,
@@ -1192,7 +1192,7 @@ TEST_F(OmahaRequestActionTest, FormatErrorEventOutputTest) {
             "invalid xml>",
             &post_data);
   // convert post_data to string
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   string expected_event = base::StringPrintf(
       "        <event eventtype=\"%d\" eventresult=\"%d\" "
       "errorcode=\"%d\"></event>\n",
@@ -1233,7 +1233,7 @@ TEST_F(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
   for (int i = 0; i < 2; i++) {
     bool delta_okay = i == 1;
     const char* delta_okay_str = delta_okay ? "true" : "false";
-    vector<char> post_data;
+    chromeos::Blob post_data;
     OmahaRequestParams params(&fake_system_state_,
                               OmahaRequestParams::kOsPlatform,
                               OmahaRequestParams::kOsVersion,
@@ -1261,7 +1261,7 @@ TEST_F(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                                  nullptr,
                                  &post_data));
     // convert post_data to string
-    string post_str(post_data.data(), post_data.size());
+    string post_str(post_data.begin(), post_data.end());
     EXPECT_NE(post_str.find(base::StringPrintf(" delta_okay=\"%s\"",
                                                delta_okay_str)),
               string::npos)
@@ -1273,7 +1273,7 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
   for (int i = 0; i < 2; i++) {
     bool interactive = i == 1;
     const char* interactive_str = interactive ? "ondemandupdate" : "scheduler";
-    vector<char> post_data;
+    chromeos::Blob post_data;
     FakeSystemState fake_system_state;
     OmahaRequestParams params(&fake_system_state_,
                               OmahaRequestParams::kOsPlatform,
@@ -1302,7 +1302,7 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                                  nullptr,
                                  &post_data));
     // convert post_data to string
-    string post_str(&post_data[0], post_data.size());
+    string post_str(post_data.begin(), post_data.end());
     EXPECT_NE(post_str.find(base::StringPrintf("installsource=\"%s\"",
                                                interactive_str)),
               string::npos)
@@ -1346,7 +1346,7 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
       .WillOnce(DoAll(SetArgumentPointee<1>(six_days_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(five_days_ago), Return(true)));
-  vector<char> post_data;
+  chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
@@ -1358,7 +1358,7 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
                       metrics::DownloadErrorCode::kUnset,
                       nullptr,
                       &post_data));
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(post_str.find("<ping active=\"1\" a=\"6\" r=\"5\"></ping>"),
             string::npos);
   if (ping_only) {
@@ -1393,7 +1393,7 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
       .WillOnce(DoAll(SetArgumentPointee<1>(three_days_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
-  vector<char> post_data;
+  chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
@@ -1405,7 +1405,7 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
                       metrics::DownloadErrorCode::kUnset,
                       nullptr,
                       &post_data));
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(post_str.find("<ping active=\"1\" a=\"3\"></ping>"),
             string::npos);
 }
@@ -1425,7 +1425,7 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
       .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(four_days_ago), Return(true)));
-  vector<char> post_data;
+  chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
@@ -1437,7 +1437,7 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
                       metrics::DownloadErrorCode::kUnset,
                       nullptr,
                       &post_data));
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(post_str.find("<ping active=\"1\" r=\"4\"></ping>\n"),
             string::npos);
 }
@@ -1462,7 +1462,7 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
       .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(Return(true));
-  vector<char> post_data;
+  chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
@@ -1474,7 +1474,7 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
                       metrics::DownloadErrorCode::kUnset,
                       nullptr,
                       &post_data));
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_EQ(post_str.find("ping"), string::npos);
 }
 
@@ -1489,7 +1489,7 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
       .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
-  vector<char> post_data;
+  chromeos::Blob post_data;
   EXPECT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
@@ -1522,7 +1522,7 @@ TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
       .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(Return(true));
-  vector<char> post_data;
+  chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
@@ -1537,7 +1537,7 @@ TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
                       metrics::DownloadErrorCode::kUnset,
                       nullptr,
                       &post_data));
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_EQ(post_str.find("ping"), string::npos);
 }
 
@@ -1623,7 +1623,7 @@ TEST_F(OmahaRequestActionTest, BadElapsedSecondsTest) {
 }
 
 TEST_F(OmahaRequestActionTest, NoUniqueIDTest) {
-  vector<char> post_data;
+  chromeos::Blob post_data;
   ASSERT_FALSE(TestUpdateCheck(nullptr,  // request_params
                                "invalid xml>",
                                -1,
@@ -1635,7 +1635,7 @@ TEST_F(OmahaRequestActionTest, NoUniqueIDTest) {
                                nullptr,  // response
                                &post_data));
   // convert post_data to string
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_EQ(post_str.find("machineid="), string::npos);
   EXPECT_EQ(post_str.find("userid="), string::npos);
 }
@@ -1797,7 +1797,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
-  vector<char> post_data;
+  chromeos::Blob post_data;
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   ASSERT_TRUE(WriteFileString(
@@ -1828,7 +1828,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
                                nullptr,  // response
                                &post_data));
   // convert post_data to string
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(string::npos, post_str.find(
       "appid=\"{22222222-2222-2222-2222-222222222222}\" "
       "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
@@ -1846,7 +1846,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
-  vector<char> post_data;
+  chromeos::Blob post_data;
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   ASSERT_TRUE(WriteFileString(
@@ -1876,7 +1876,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
                                nullptr,  // response
                                &post_data));
   // convert post_data to string
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(string::npos, post_str.find(
       "appid=\"{11111111-1111-1111-1111-111111111111}\" "
       "version=\"5.6.7.8\" "
@@ -1892,7 +1892,7 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
   // Flag that the device was powerwashed in the past.
   fake_system_state_.fake_hardware()->SetPowerwashCount(1);
 
-  vector<char> post_data;
+  chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       GetNoUpdateResponse(OmahaRequestParams::kAppId),
@@ -1905,7 +1905,7 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
                       nullptr,
                       &post_data));
   // We shouldn't send a ping in this case since powerwash > 0.
-  string post_str(&post_data[0], post_data.size());
+  string post_str(post_data.begin(), post_data.end());
   EXPECT_EQ(string::npos, post_str.find("<ping"));
 }
 

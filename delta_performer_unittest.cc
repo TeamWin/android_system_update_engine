@@ -55,7 +55,8 @@ static const char* kBogusMetadataSignature1 =
     "pLRtClp97kN2+tXGNBQqkA==";
 
 static const int kDefaultKernelSize = 4096;  // Something small for a test
-static const char* kNewDataString = "This is new data.";
+static const uint8_t kNewData[] = {'T', 'h', 'i', 's', ' ', 'i', 's', ' ',
+                                   'n', 'e', 'w', ' ', 'd', 'a', 't', 'a', '.'};
 
 namespace {
 struct DeltaState {
@@ -67,13 +68,13 @@ struct DeltaState {
   uint64_t metadata_size;
 
   string old_kernel;
-  vector<char> old_kernel_data;
+  chromeos::Blob old_kernel_data;
 
   string new_kernel;
-  vector<char> new_kernel_data;
+  chromeos::Blob new_kernel_data;
 
   // The in-memory copy of delta file.
-  vector<char> delta;
+  chromeos::Blob delta;
 
   // The mock system state object with which we initialize the
   // delta performer.
@@ -109,7 +110,7 @@ enum OperationHashTest {
 }  // namespace
 
 static void CompareFilesByBlock(const string& a_file, const string& b_file) {
-  vector<char> a_data, b_data;
+  chromeos::Blob a_data, b_data;
   EXPECT_TRUE(utils::ReadFile(a_file, &a_data)) << "file failed: " << a_file;
   EXPECT_TRUE(utils::ReadFile(b_file, &b_data)) << "file failed: " << b_file;
 
@@ -117,8 +118,8 @@ static void CompareFilesByBlock(const string& a_file, const string& b_file) {
   EXPECT_EQ(0, a_data.size() % kBlockSize);
   for (size_t i = 0; i < a_data.size(); i += kBlockSize) {
     EXPECT_EQ(0, i % kBlockSize);
-    vector<char> a_sub(&a_data[i], &a_data[i + kBlockSize]);
-    vector<char> b_sub(&b_data[i], &b_data[i + kBlockSize]);
+    chromeos::Blob a_sub(&a_data[i], &a_data[i + kBlockSize]);
+    chromeos::Blob b_sub(&b_data[i], &b_data[i + kBlockSize]);
     EXPECT_TRUE(a_sub == b_sub) << "Block " << (i/kBlockSize) << " differs";
   }
 }
@@ -135,10 +136,10 @@ static bool WriteSparseFile(const string& path, off_t size) {
 }
 
 static size_t GetSignatureSize(const string& private_key_path) {
-  const vector<char> data(1, 'x');
-  vector<char> hash;
+  const chromeos::Blob data(1, 'x');
+  chromeos::Blob hash;
   EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(data, &hash));
-  vector<char> signature;
+  chromeos::Blob signature;
   EXPECT_TRUE(PayloadSigner::SignHash(hash,
                                       private_key_path,
                                       &signature));
@@ -148,8 +149,8 @@ static size_t GetSignatureSize(const string& private_key_path) {
 static bool InsertSignaturePlaceholder(int signature_size,
                                        const string& payload_path,
                                        uint64_t* out_metadata_size) {
-  vector<vector<char>> signatures;
-  signatures.push_back(vector<char>(signature_size, 0));
+  vector<chromeos::Blob> signatures;
+  signatures.push_back(chromeos::Blob(signature_size, 0));
 
   return PayloadSigner::AddSignatureToPayload(
       payload_path,
@@ -161,18 +162,18 @@ static bool InsertSignaturePlaceholder(int signature_size,
 static void SignGeneratedPayload(const string& payload_path,
                                  uint64_t* out_metadata_size) {
   int signature_size = GetSignatureSize(kUnittestPrivateKeyPath);
-  vector<char> hash;
+  chromeos::Blob hash;
   ASSERT_TRUE(PayloadSigner::HashPayloadForSigning(
       payload_path,
       vector<int>(1, signature_size),
       &hash));
-  vector<char> signature;
+  chromeos::Blob signature;
   ASSERT_TRUE(PayloadSigner::SignHash(hash,
                                       kUnittestPrivateKeyPath,
                                       &signature));
   ASSERT_TRUE(PayloadSigner::AddSignatureToPayload(
       payload_path,
-      vector<vector<char>>(1, signature),
+      vector<chromeos::Blob>(1, signature),
       payload_path,
       out_metadata_size));
   EXPECT_TRUE(PayloadVerifier::VerifySignedPayload(
@@ -223,7 +224,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
                 hash_file.c_str())));
 
   // Pad the hash
-  vector<char> hash;
+  chromeos::Blob hash;
   ASSERT_TRUE(utils::ReadFile(hash_file, &hash));
   ASSERT_TRUE(PayloadVerifier::PadRSA2048SHA256Hash(&hash));
   ASSERT_TRUE(test_utils::WriteFileVector(hash_file, hash));
@@ -319,22 +320,22 @@ static void GenerateDeltaFile(bool full_kernel,
     string a_mnt;
     ScopedLoopMounter b_mounter(state->a_img, &a_mnt, 0);
 
-    vector<char> hardtocompress;
+    chromeos::Blob hardtocompress;
     while (hardtocompress.size() < 3 * kBlockSize) {
       hardtocompress.insert(hardtocompress.end(),
-                            kRandomString,
-                            kRandomString + sizeof(kRandomString) - 1);
+                            std::begin(kRandomString), std::end(kRandomString));
     }
     EXPECT_TRUE(utils::WriteFile(base::StringPrintf("%s/hardtocompress",
-                                              a_mnt.c_str()).c_str(),
+                                                    a_mnt.c_str()).c_str(),
                                  hardtocompress.data(),
                                  hardtocompress.size()));
 
-    vector<char> zeros(16 * 1024, 0);
+    chromeos::Blob zeros(16 * 1024, 0);
     EXPECT_EQ(zeros.size(),
               base::WriteFile(base::FilePath(base::StringPrintf(
                                   "%s/move-to-sparse", a_mnt.c_str())),
-                              zeros.data(), zeros.size()));
+                              reinterpret_cast<const char*>(zeros.data()),
+                              zeros.size()));
 
     EXPECT_TRUE(
         WriteSparseFile(base::StringPrintf("%s/move-from-sparse",
@@ -347,9 +348,9 @@ static void GenerateDeltaFile(bool full_kernel,
 
     // Write 1 MiB of 0xff to try to catch the case where writing a bsdiff
     // patch fails to zero out the final block.
-    vector<char> ones(1024 * 1024, 0xff);
+    chromeos::Blob ones(1024 * 1024, 0xff);
     EXPECT_TRUE(utils::WriteFile(base::StringPrintf("%s/ones",
-                                              a_mnt.c_str()).c_str(),
+                                                    a_mnt.c_str()).c_str(),
                                  ones.data(),
                                  ones.size()));
   }
@@ -390,11 +391,12 @@ static void GenerateDeltaFile(bool full_kernel,
         WriteSparseFile(base::StringPrintf("%s/move-to-sparse", b_mnt.c_str()),
                         16 * 1024));
 
-    vector<char> zeros(16 * 1024, 0);
+    chromeos::Blob zeros(16 * 1024, 0);
     EXPECT_EQ(zeros.size(),
               base::WriteFile(base::FilePath(base::StringPrintf(
                                   "%s/move-from-sparse", b_mnt.c_str())),
-                              zeros.data(), zeros.size()));
+                              reinterpret_cast<const char*>(zeros.data()),
+                              zeros.size()));
 
     EXPECT_EQ(0, System(base::StringPrintf("dd if=/dev/zero "
                                            "of=%s/move-semi-sparse "
@@ -415,11 +417,10 @@ static void GenerateDeltaFile(bool full_kernel,
         base::StringPrintf("rm %s/boguslink && echo foobar > %s/boguslink",
                            b_mnt.c_str(), b_mnt.c_str()).c_str()));
 
-    vector<char> hardtocompress;
+    chromeos::Blob hardtocompress;
     while (hardtocompress.size() < 3 * kBlockSize) {
       hardtocompress.insert(hardtocompress.end(),
-                            kRandomString,
-                            kRandomString + sizeof(kRandomString));
+                            std::begin(kRandomString), std::end(kRandomString));
     }
     EXPECT_TRUE(utils::WriteFile(base::StringPrintf("%s/hardtocompress",
                                               b_mnt.c_str()).c_str(),
@@ -443,7 +444,8 @@ static void GenerateDeltaFile(bool full_kernel,
   test_utils::FillWithData(&state->new_kernel_data);
 
   // change the new kernel data
-  strcpy(&state->new_kernel_data[0], kNewDataString);  // NOLINT(runtime/printf)
+  std::copy(std::begin(kNewData), std::end(kNewData),
+            state->new_kernel_data.begin());
 
   if (noop) {
     state->old_kernel_data = state->new_kernel_data;
@@ -758,26 +760,27 @@ void VerifyPayloadResult(DeltaPerformer* performer,
   CompareFilesByBlock(state->old_kernel, state->new_kernel);
   CompareFilesByBlock(state->a_img, state->b_img);
 
-  vector<char> updated_kernel_partition;
+  chromeos::Blob updated_kernel_partition;
   EXPECT_TRUE(utils::ReadFile(state->old_kernel, &updated_kernel_partition));
-  EXPECT_EQ(0, strncmp(updated_kernel_partition.data(), kNewDataString,
-                       strlen(kNewDataString)));
+  ASSERT_GE(updated_kernel_partition.size(), arraysize(kNewData));
+  EXPECT_TRUE(std::equal(std::begin(kNewData), std::end(kNewData),
+                         updated_kernel_partition.begin()));
 
   uint64_t new_kernel_size;
-  vector<char> new_kernel_hash;
+  chromeos::Blob new_kernel_hash;
   uint64_t new_rootfs_size;
-  vector<char> new_rootfs_hash;
+  chromeos::Blob new_rootfs_hash;
   EXPECT_TRUE(performer->GetNewPartitionInfo(&new_kernel_size,
                                              &new_kernel_hash,
                                              &new_rootfs_size,
                                              &new_rootfs_hash));
   EXPECT_EQ(kDefaultKernelSize, new_kernel_size);
-  vector<char> expected_new_kernel_hash;
+  chromeos::Blob expected_new_kernel_hash;
   EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(state->new_kernel_data,
                                                  &expected_new_kernel_hash));
   EXPECT_TRUE(expected_new_kernel_hash == new_kernel_hash);
   EXPECT_EQ(state->image_size, new_rootfs_size);
-  vector<char> expected_new_rootfs_hash;
+  chromeos::Blob expected_new_rootfs_hash;
   EXPECT_EQ(state->image_size,
             OmahaHashCalculator::RawHashOfFile(state->b_img,
                                                state->image_size,
@@ -880,7 +883,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
   ScopedPathUnlinker new_kernel_unlinker(state.new_kernel);
 
   // Loads the payload and parses the manifest.
-  vector<char> payload;
+  chromeos::Blob payload;
   EXPECT_TRUE(utils::ReadFile(state.delta_path, &payload));
   LOG(INFO) << "Payload size: " << payload.size();
 

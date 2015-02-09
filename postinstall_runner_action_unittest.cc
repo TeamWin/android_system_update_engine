@@ -116,8 +116,8 @@ void PostinstallRunnerActionTest::DoTest(
   string orig_cwd;
   {
     vector<char> buf(1000);
-    ASSERT_EQ(&buf[0], getcwd(&buf[0], buf.size()));
-    orig_cwd = string(&buf[0], strlen(&buf[0]));
+    ASSERT_EQ(buf.data(), getcwd(buf.data(), buf.size()));
+    orig_cwd = string(buf.data(), strlen(buf.data()));
   }
 
   // Create a unique named working directory and chdir into it.

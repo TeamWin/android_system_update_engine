@@ -19,38 +19,40 @@ namespace {
 // BzipData compresses or decompresses the input to the output.
 // Returns true on success.
 // Use one of BzipBuffToBuff*ompress as the template parameter to BzipData().
-int BzipBuffToBuffDecompress(char* out,
+int BzipBuffToBuffDecompress(uint8_t* out,
                              uint32_t* out_length,
-                             const char* in,
+                             const void* in,
                              uint32_t in_length) {
-  return BZ2_bzBuffToBuffDecompress(out,
-                                    out_length,
-                                    const_cast<char*>(in),
-                                    in_length,
-                                    0,  // Silent verbosity
-                                    0);  // Normal algorithm
+  return BZ2_bzBuffToBuffDecompress(
+      reinterpret_cast<char*>(out),
+      out_length,
+      reinterpret_cast<char*>(const_cast<void*>(in)),
+      in_length,
+      0,  // Silent verbosity
+      0);  // Normal algorithm
 }
 
-int BzipBuffToBuffCompress(char* out,
+int BzipBuffToBuffCompress(uint8_t* out,
                            uint32_t* out_length,
-                           const char* in,
+                           const void* in,
                            uint32_t in_length) {
-  return BZ2_bzBuffToBuffCompress(out,
-                                  out_length,
-                                  const_cast<char*>(in),
-                                  in_length,
-                                  9,  // Best compression
-                                  0,  // Silent verbosity
-                                  0);  // Default work factor
+  return BZ2_bzBuffToBuffCompress(
+      reinterpret_cast<char*>(out),
+      out_length,
+      reinterpret_cast<char*>(const_cast<void*>(in)),
+      in_length,
+      9,  // Best compression
+      0,  // Silent verbosity
+      0);  // Default work factor
 }
 
-template<int F(char* out,
+template<int F(uint8_t* out,
                uint32_t* out_length,
-               const char* in,
+               const void* in,
                uint32_t in_length)>
-bool BzipData(const char* const in,
+bool BzipData(const void* const in,
               const int32_t in_size,
-              vector<char>* const out) {
+              chromeos::Blob* const out) {
   TEST_AND_RETURN_FALSE(out);
   out->clear();
   if (in_size == 0) {
@@ -62,7 +64,7 @@ bool BzipData(const char* const in,
 
   for (;;) {
     uint32_t data_size = buf_size;
-    int rc = F(&(*out)[0], &data_size, in, in_size);
+    int rc = F(out->data(), &data_size, in, in_size);
     TEST_AND_RETURN_FALSE(rc == BZ_OUTBUFF_FULL || rc == BZ_OK);
     if (rc == BZ_OK) {
       // we're done!
@@ -78,40 +80,36 @@ bool BzipData(const char* const in,
 
 }  // namespace
 
-bool BzipDecompress(const vector<char>& in, vector<char>* out) {
-  return BzipData<BzipBuffToBuffDecompress>(&in[0],
+bool BzipDecompress(const chromeos::Blob& in, chromeos::Blob* out) {
+  return BzipData<BzipBuffToBuffDecompress>(in.data(),
                                             static_cast<int32_t>(in.size()),
                                             out);
 }
 
-bool BzipCompress(const vector<char>& in, vector<char>* out) {
-  return BzipData<BzipBuffToBuffCompress>(&in[0], in.size(), out);
+bool BzipCompress(const chromeos::Blob& in, chromeos::Blob* out) {
+  return BzipData<BzipBuffToBuffCompress>(in.data(), in.size(), out);
 }
 
 namespace {
-template<bool F(const char* const in,
+template<bool F(const void* const in,
                 const int32_t in_size,
-                vector<char>* const out)>
+                chromeos::Blob* const out)>
 bool BzipString(const string& str,
-                vector<char>* out) {
+                chromeos::Blob* out) {
   TEST_AND_RETURN_FALSE(out);
-  vector<char> temp;
-  TEST_AND_RETURN_FALSE(F(str.data(),
-                          str.size(),
-                          &temp));
+  chromeos::Blob temp;
+  TEST_AND_RETURN_FALSE(F(str.data(), str.size(), &temp));
   out->clear();
   out->insert(out->end(), temp.begin(), temp.end());
   return true;
 }
 }  // namespace
 
-bool BzipCompressString(const string& str,
-                        vector<char>* out) {
+bool BzipCompressString(const string& str, chromeos::Blob* out) {
   return BzipString<BzipData<BzipBuffToBuffCompress>>(str, out);
 }
 
-bool BzipDecompressString(const string& str,
-                          vector<char>* out) {
+bool BzipDecompressString(const string& str, chromeos::Blob* out) {
   return BzipString<BzipData<BzipBuffToBuffDecompress>>(str, out);
 }
 

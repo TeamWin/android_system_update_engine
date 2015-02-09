@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <base/logging.h>
+#include <chromeos/secure_blob.h>
 
 #include "update_engine/file_descriptor.h"
 #include "update_engine/update_metadata.pb.h"
@@ -110,8 +111,8 @@ class ZeroPadExtentWriter : public ExtentWriter {
   bool EndImpl() {
     if (bytes_written_mod_block_size_) {
       const size_t write_size = block_size_ - bytes_written_mod_block_size_;
-      std::vector<char> zeros(write_size, 0);
-      TEST_AND_RETURN_FALSE(underlying_extent_writer_->Write(&zeros[0],
+      chromeos::Blob zeros(write_size, 0);
+      TEST_AND_RETURN_FALSE(underlying_extent_writer_->Write(zeros.data(),
                                                              write_size));
     }
     return underlying_extent_writer_->End();

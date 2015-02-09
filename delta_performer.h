@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <base/time/time.h>
+#include <chromeos/secure_blob.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
@@ -123,9 +124,9 @@ class DeltaPerformer : public FileWriter {
   // false on failure (e.g., when the values are not present in the update
   // manifest).
   bool GetNewPartitionInfo(uint64_t* kernel_size,
-                           std::vector<char>* kernel_hash,
+                           chromeos::Blob* kernel_hash,
                            uint64_t* rootfs_size,
-                           std::vector<char>* rootfs_hash);
+                           chromeos::Blob* rootfs_hash);
 
   // Converts an ordered collection of Extent objects which contain data of
   // length full_length to a comma-separated string. For each Extent, the
@@ -158,7 +159,7 @@ class DeltaPerformer : public FileWriter {
   // kMetadataParseInsufficientData if more data is needed to parse the complete
   // metadata. Returns kMetadataParseError if the metadata can't be parsed given
   // the payload.
-  MetadataParseResult ParsePayloadMetadata(const std::vector<char>& payload,
+  MetadataParseResult ParsePayloadMetadata(const chromeos::Blob& payload,
                                            ErrorCode* error);
 
   void set_public_key_path(const std::string& public_key_path) {
@@ -239,8 +240,8 @@ class DeltaPerformer : public FileWriter {
   // so that a man-in-the-middle attack on the SSL connection to the payload
   // server doesn't exploit any vulnerability in the code that parses the
   // protocol buffer.
-  ErrorCode ValidateMetadataSignature(const char* protobuf,
-                                           uint64_t protobuf_length);
+  ErrorCode ValidateMetadataSignature(const void* protobuf,
+                                      uint64_t protobuf_length);
 
   // Returns true on success.
   bool PerformInstallOperation(
@@ -316,7 +317,7 @@ class DeltaPerformer : public FileWriter {
   // A buffer used for accumulating downloaded data. Initially, it stores the
   // payload metadata; once that's downloaded and parsed, it stores data for the
   // next update operation.
-  std::vector<char> buffer_;
+  chromeos::Blob buffer_;
   // Offset of buffer_ in the binary blobs section of the update.
   uint64_t buffer_offset_;
 
@@ -333,7 +334,7 @@ class DeltaPerformer : public FileWriter {
   std::string signed_hash_context_;
 
   // Signatures message blob extracted directly from the payload.
-  std::vector<char> signatures_message_data_;
+  chromeos::Blob signatures_message_data_;
 
   // The public key to be used. Provided as a member so that tests can
   // override with test keys.

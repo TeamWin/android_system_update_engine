@@ -131,8 +131,8 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
   // HttpFetcherDelegate overrides.
   // State change: Downloading -> Downloading or Pending transfer ended
   void ReceivedBytes(HttpFetcher* fetcher,
-                     const char* bytes,
-                     int length) override;
+                     const void* bytes,
+                     size_t length) override;
 
   // State change: Pending transfer ended -> Stopped
   void TransferEnded(HttpFetcher* fetcher, bool successful);

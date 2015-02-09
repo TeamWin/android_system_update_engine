@@ -63,7 +63,7 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
                       ErrorCode code) override {
     ASSERT_TRUE(loop_);
     g_main_loop_quit(loop_);
-    vector<char> found_data;
+    chromeos::Blob found_data;
     ASSERT_TRUE(utils::ReadFile(path_, &found_data));
     if (expected_code_ != ErrorCode::kDownloadWriteError) {
       ASSERT_EQ(expected_data_.size(), found_data.size());
@@ -87,7 +87,7 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
 
   GMainLoop *loop_;
   string path_;
-  vector<char> expected_data_;
+  chromeos::Blob expected_data_;
   bool processing_done_called_;
   ErrorCode expected_code_;
 };
@@ -110,12 +110,6 @@ class TestDirectFileWriter : public DirectFileWriter {
   int current_write_;
 };
 
-struct EntryPointArgs {
-  const vector<char> *data;
-  GMainLoop *loop;
-  ActionProcessor *processor;
-};
-
 struct StartProcessorInRunLoopArgs {
   ActionProcessor* processor;
   MockHttpFetcher* http_fetcher;
@@ -131,7 +125,7 @@ gboolean StartProcessorInRunLoop(gpointer data) {
   return FALSE;
 }
 
-void TestWithData(const vector<char>& data,
+void TestWithData(const chromeos::Blob& data,
                   int fail_write,
                   bool use_download_delegate) {
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
@@ -159,7 +153,7 @@ void TestWithData(const vector<char>& data,
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
-  MockHttpFetcher* http_fetcher = new MockHttpFetcher(&data[0],
+  MockHttpFetcher* http_fetcher = new MockHttpFetcher(data.data(),
                                                       data.size(),
                                                       nullptr);
   // takes ownership of passed in HttpFetcher
@@ -182,7 +176,7 @@ void TestWithData(const vector<char>& data,
     expected_code = ErrorCode::kDownloadWriteError;
   DownloadActionTestProcessorDelegate delegate(expected_code);
   delegate.loop_ = loop;
-  delegate.expected_data_ = vector<char>(data.begin() + 1, data.end());
+  delegate.expected_data_ = chromeos::Blob(data.begin() + 1, data.end());
   delegate.path_ = output_temp_file.GetPath();
   ActionProcessor processor;
   processor.set_delegate(&delegate);
@@ -199,7 +193,7 @@ void TestWithData(const vector<char>& data,
 }  // namespace
 
 TEST(DownloadActionTest, SimpleTest) {
-  vector<char> small;
+  chromeos::Blob small;
   const char* foo = "foo";
   small.insert(small.end(), foo, foo + strlen(foo));
   TestWithData(small,
@@ -208,7 +202,7 @@ TEST(DownloadActionTest, SimpleTest) {
 }
 
 TEST(DownloadActionTest, LargeTest) {
-  vector<char> big(5 * kMockHttpFetcherChunkSize);
+  chromeos::Blob big(5 * kMockHttpFetcherChunkSize);
   char c = '0';
   for (unsigned int i = 0; i < big.size(); i++) {
     big[i] = c;
@@ -220,7 +214,7 @@ TEST(DownloadActionTest, LargeTest) {
 }
 
 TEST(DownloadActionTest, FailWriteTest) {
-  vector<char> big(5 * kMockHttpFetcherChunkSize);
+  chromeos::Blob big(5 * kMockHttpFetcherChunkSize);
   char c = '0';
   for (unsigned int i = 0; i < big.size(); i++) {
     big[i] = c;
@@ -232,7 +226,7 @@ TEST(DownloadActionTest, FailWriteTest) {
 }
 
 TEST(DownloadActionTest, NoDownloadDelegateTest) {
-  vector<char> small;
+  chromeos::Blob small;
   const char* foo = "foofoo";
   small.insert(small.end(), foo, foo + strlen(foo));
   TestWithData(small,
@@ -261,8 +255,9 @@ gboolean TerminateEarlyTestStarter(gpointer data) {
 void TestTerminateEarly(bool use_download_delegate) {
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
 
-  vector<char> data(kMockHttpFetcherChunkSize + kMockHttpFetcherChunkSize / 2);
-  memset(&data[0], 0, data.size());
+  chromeos::Blob data(kMockHttpFetcherChunkSize +
+                      kMockHttpFetcherChunkSize / 2);
+  memset(data.data(), 0, data.size());
 
   ScopedTempFile temp_file;
   {
@@ -275,7 +270,7 @@ void TestTerminateEarly(bool use_download_delegate) {
     feeder_action.set_obj(install_plan);
     MockPrefs prefs;
     DownloadAction download_action(&prefs, nullptr,
-                                   new MockHttpFetcher(&data[0],
+                                   new MockHttpFetcher(data.data(),
                                                        data.size(),
                                                        nullptr));
     download_action.SetTestFileWriter(&writer);
@@ -512,8 +507,8 @@ class P2PDownloadActionTest : public testing::Test {
     BondActions(&feeder_action, download_action_.get());
     DownloadActionTestProcessorDelegate delegate(ErrorCode::kSuccess);
     delegate.loop_ = loop_;
-    delegate.expected_data_ = vector<char>(data_.begin() + start_at_offset_,
-                                           data_.end());
+    delegate.expected_data_ = chromeos::Blob(data_.begin() + start_at_offset_,
+                                             data_.end());
     delegate.path_ = output_temp_file.GetPath();
     processor_.set_delegate(&delegate);
     processor_.EnqueueAction(&feeder_action);

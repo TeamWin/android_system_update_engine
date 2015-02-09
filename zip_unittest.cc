@@ -23,14 +23,14 @@ namespace chromeos_update_engine {
 template <typename T>
 class ZipTest : public ::testing::Test {
  public:
-  bool ZipDecompress(const vector<char>& in,
-                     vector<char>* out) const = 0;
-  bool ZipCompress(const vector<char>& in,
-                   vector<char>* out) const = 0;
+  bool ZipDecompress(const chromeos::Blob& in,
+                     chromeos::Blob* out) const = 0;
+  bool ZipCompress(const chromeos::Blob& in,
+                   chromeos::Blob* out) const = 0;
   bool ZipCompressString(const string& str,
-                         vector<char>* out) const = 0;
+                         chromeos::Blob* out) const = 0;
   bool ZipDecompressString(const string& str,
-                           vector<char>* out) const = 0;
+                           chromeos::Blob* out) const = 0;
 };
 
 class BzipTest {};
@@ -38,20 +38,20 @@ class BzipTest {};
 template <>
 class ZipTest<BzipTest> : public ::testing::Test {
  public:
-  bool ZipDecompress(const vector<char>& in,
-                     vector<char>* out) const {
+  bool ZipDecompress(const chromeos::Blob& in,
+                     chromeos::Blob* out) const {
     return BzipDecompress(in, out);
   }
-  bool ZipCompress(const vector<char>& in,
-                   vector<char>* out) const {
+  bool ZipCompress(const chromeos::Blob& in,
+                   chromeos::Blob* out) const {
     return BzipCompress(in, out);
   }
   bool ZipCompressString(const string& str,
-                         vector<char>* out) const {
+                         chromeos::Blob* out) const {
     return BzipCompressString(str, out);
   }
   bool ZipDecompressString(const string& str,
-                           vector<char>* out) const {
+                           chromeos::Blob* out) const {
     return BzipDecompressString(str, out);
   }
 };
@@ -68,39 +68,39 @@ TYPED_TEST(ZipTest, SimpleTest) {
             "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
             "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
             "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-  vector<char> out;
+  chromeos::Blob out;
   EXPECT_TRUE(this->ZipCompressString(in, &out));
   EXPECT_LT(out.size(), in.size());
   EXPECT_GT(out.size(), 0);
-  vector<char> decompressed;
+  chromeos::Blob decompressed;
   EXPECT_TRUE(this->ZipDecompress(out, &decompressed));
   EXPECT_EQ(in.size(), decompressed.size());
-  EXPECT_TRUE(!memcmp(in.data(), &decompressed[0], in.size()));
+  EXPECT_TRUE(!memcmp(in.data(), decompressed.data(), in.size()));
 }
 
 TYPED_TEST(ZipTest, PoorCompressionTest) {
   string in(reinterpret_cast<const char*>(kRandomString),
             sizeof(kRandomString));
-  vector<char> out;
+  chromeos::Blob out;
   EXPECT_TRUE(this->ZipCompressString(in, &out));
   EXPECT_GT(out.size(), in.size());
-  string out_string(&out[0], out.size());
-  vector<char> decompressed;
+  string out_string(out.begin(), out.end());
+  chromeos::Blob decompressed;
   EXPECT_TRUE(this->ZipDecompressString(out_string, &decompressed));
   EXPECT_EQ(in.size(), decompressed.size());
-  EXPECT_TRUE(!memcmp(in.data(), &decompressed[0], in.size()));
+  EXPECT_TRUE(!memcmp(in.data(), decompressed.data(), in.size()));
 }
 
 TYPED_TEST(ZipTest, MalformedZipTest) {
   string in(reinterpret_cast<const char*>(kRandomString),
             sizeof(kRandomString));
-  vector<char> out;
+  chromeos::Blob out;
   EXPECT_FALSE(this->ZipDecompressString(in, &out));
 }
 
 TYPED_TEST(ZipTest, EmptyInputsTest) {
   string in;
-  vector<char> out;
+  chromeos::Blob out;
   EXPECT_TRUE(this->ZipDecompressString(in, &out));
   EXPECT_EQ(0, out.size());
 

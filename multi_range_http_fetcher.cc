@@ -74,8 +74,8 @@ void MultiRangeHttpFetcher::StartTransfer() {
 
 // State change: Downloading -> Downloading or Pending transfer ended
 void MultiRangeHttpFetcher::ReceivedBytes(HttpFetcher* fetcher,
-                                          const char* bytes,
-                                          int length) {
+                                          const void* bytes,
+                                          size_t length) {
   CHECK_LT(current_index_, ranges_.size());
   CHECK_EQ(fetcher, base_fetcher_.get());
   CHECK(!pending_transfer_ended_);

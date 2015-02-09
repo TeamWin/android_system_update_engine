@@ -130,7 +130,7 @@ class HttpFetcher {
 
   // POST data for the transfer, and whether or not it was ever set
   bool post_data_set_;
-  std::vector<char> post_data_;
+  chromeos::Blob post_data_;
   HttpContentType post_content_type_;
 
   // The server's HTTP response code from the last transfer. This
@@ -173,8 +173,8 @@ class HttpFetcherDelegate {
 
   // Called every time bytes are received.
   virtual void ReceivedBytes(HttpFetcher* fetcher,
-                             const char* bytes,
-                             int length) = 0;
+                             const void* bytes,
+                             size_t length) = 0;
 
   // Called if the fetcher seeks to a particular offset.
   virtual void SeekToOffset(off_t offset) {}

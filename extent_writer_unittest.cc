@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include <chromeos/secure_blob.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/payload_constants.h"
@@ -74,10 +75,10 @@ TEST_F(ExtentWriterTest, SimpleTest) {
 
   EXPECT_EQ(kBlockSize + bytes.size(), utils::FileSize(path_));
 
-  vector<char> result_file;
+  chromeos::Blob result_file;
   EXPECT_TRUE(utils::ReadFile(path_, &result_file));
 
-  vector<char> expected_file(kBlockSize);
+  chromeos::Blob expected_file(kBlockSize);
   expected_file.insert(expected_file.end(),
                        bytes.data(), bytes.data() + bytes.size());
   ExpectVectorsEq(expected_file, result_file);
@@ -122,7 +123,7 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
   extent.set_num_blocks(1);
   extents.push_back(extent);
 
-  vector<char> data(kBlockSize * 3);
+  chromeos::Blob data(kBlockSize * 3);
   test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
@@ -141,10 +142,10 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
 
   EXPECT_EQ(data.size(), utils::FileSize(path_));
 
-  vector<char> result_file;
+  chromeos::Blob result_file;
   EXPECT_TRUE(utils::ReadFile(path_, &result_file));
 
-  vector<char> expected_file;
+  chromeos::Blob expected_file;
   expected_file.insert(expected_file.end(),
                        data.begin() + kBlockSize,
                        data.begin() + kBlockSize * 2);
@@ -173,7 +174,7 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
   extent.set_num_blocks(1);
   extents.push_back(extent);
 
-  vector<char> data(kBlockSize * 2);
+  chromeos::Blob data(kBlockSize * 2);
   test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
@@ -185,15 +186,15 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
   bytes_to_write -= missing_bytes;
   fd_->Seek(kBlockSize - missing_bytes, SEEK_SET);
   EXPECT_EQ(3, fd_->Write("xxx", 3));
-  ASSERT_TRUE(zero_pad_writer.Write(&data[0], bytes_to_write));
+  ASSERT_TRUE(zero_pad_writer.Write(data.data(), bytes_to_write));
   EXPECT_TRUE(zero_pad_writer.End());
 
   EXPECT_EQ(data.size(), utils::FileSize(path_));
 
-  vector<char> result_file;
+  chromeos::Blob result_file;
   EXPECT_TRUE(utils::ReadFile(path_, &result_file));
 
-  vector<char> expected_file;
+  chromeos::Blob expected_file;
   expected_file.insert(expected_file.end(),
                        data.begin() + kBlockSize,
                        data.begin() + kBlockSize * 2);
@@ -221,7 +222,7 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   const int block_count = 4;
   const int on_disk_count = 2;
 
-  vector<char> data(17);
+  chromeos::Blob data(17);
   test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
@@ -231,7 +232,7 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   while (bytes_written < (block_count * kBlockSize)) {
     size_t bytes_to_write = min(block_count * kBlockSize - bytes_written,
                                 data.size());
-    EXPECT_TRUE(direct_writer.Write(&data[0], bytes_to_write));
+    EXPECT_TRUE(direct_writer.Write(data.data(), bytes_to_write));
     bytes_written += bytes_to_write;
   }
   EXPECT_TRUE(direct_writer.End());
@@ -239,13 +240,13 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   // check file size, then data inside
   ASSERT_EQ(2 * kBlockSize, utils::FileSize(path_));
 
-  vector<char> resultant_data;
+  chromeos::Blob resultant_data;
   EXPECT_TRUE(utils::ReadFile(path_, &resultant_data));
 
   // Create expected data
-  vector<char> expected_data(on_disk_count * kBlockSize);
-  vector<char> big(block_count * kBlockSize);
-  for (vector<char>::size_type i = 0; i < big.size(); i++) {
+  chromeos::Blob expected_data(on_disk_count * kBlockSize);
+  chromeos::Blob big(block_count * kBlockSize);
+  for (chromeos::Blob::size_type i = 0; i < big.size(); i++) {
     big[i] = data[i % data.size()];
   }
   memcpy(&expected_data[kBlockSize], &big[0], kBlockSize);

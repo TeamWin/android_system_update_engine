@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <base/macros.h>
+#include <chromeos/secure_blob.h>
 
 #include "update_engine/file_writer.h"
 
@@ -43,13 +44,13 @@ class FakeFileWriter : public FileWriter {
     return 0;
   }
 
-  const std::vector<char>& bytes() {
+  const chromeos::Blob& bytes() {
     return bytes_;
   }
 
  private:
   // The internal store of all bytes that have been written
-  std::vector<char> bytes_;
+  chromeos::Blob bytes_;
 
   // These are just to ensure FileWriter methods are called properly.
   bool was_opened_;

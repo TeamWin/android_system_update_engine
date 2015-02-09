@@ -103,7 +103,7 @@ void CalculatePayloadHashForSigning(const vector<int> &sizes,
   LOG_IF(FATAL, out_hash_file.empty())
       << "Must pass --out_hash_file to calculate hash for signing.";
 
-  vector<char> hash;
+  chromeos::Blob hash;
   bool result = PayloadSigner::HashPayloadForSigning(in_file, sizes,
                                                      &hash);
   CHECK(result);
@@ -123,7 +123,7 @@ void CalculateMetadataHashForSigning(const vector<int> &sizes,
   LOG_IF(FATAL, out_metadata_hash_file.empty())
       << "Must pass --out_metadata_hash_file to calculate metadata hash.";
 
-  vector<char> hash;
+  chromeos::Blob hash;
   bool result = PayloadSigner::HashMetadataForSigning(in_file, sizes,
                                                       &hash);
   CHECK(result);
@@ -145,11 +145,11 @@ void SignPayload(const string& in_file,
       << "Must pass --out_file to sign payload.";
   LOG_IF(FATAL, signature_file.empty())
       << "Must pass --signature_file to sign payload.";
-  vector<vector<char>> signatures;
+  vector<chromeos::Blob> signatures;
   vector<string> signature_files;
   base::SplitString(signature_file, ':', &signature_files);
   for (const string& signature_file : signature_files) {
-    vector<char> signature;
+    chromeos::Blob signature;
     CHECK(utils::ReadFile(signature_file, &signature));
     signatures.push_back(signature);
   }
@@ -201,16 +201,16 @@ void ApplyDelta(const string& in_file,
   DeltaPerformer performer(&prefs, nullptr, &install_plan);
   CHECK_EQ(performer.Open(old_image.c_str(), 0, 0), 0);
   CHECK(performer.OpenKernel(old_kernel.c_str()));
-  vector<char> buf(1024 * 1024);
+  chromeos::Blob buf(1024 * 1024);
   int fd = open(in_file.c_str(), O_RDONLY, 0);
   CHECK_GE(fd, 0);
   ScopedFdCloser fd_closer(&fd);
   for (off_t offset = 0;; offset += buf.size()) {
     ssize_t bytes_read;
-    CHECK(utils::PReadAll(fd, &buf[0], buf.size(), offset, &bytes_read));
+    CHECK(utils::PReadAll(fd, buf.data(), buf.size(), offset, &bytes_read));
     if (bytes_read == 0)
       break;
-    CHECK_EQ(performer.Write(&buf[0], bytes_read), bytes_read);
+    CHECK_EQ(performer.Write(buf.data(), bytes_read), bytes_read);
   }
   CHECK_EQ(performer.Close(), 0);
   DeltaPerformer::ResetUpdateProgress(&prefs, false);

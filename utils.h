@@ -18,6 +18,7 @@
 #include <base/files/file_path.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/time/time.h>
+#include <chromeos/secure_blob.h>
 #include <glib.h>
 #include "metrics/metrics_library.h"
 
@@ -63,7 +64,7 @@ const std::string KernelDeviceOfBootDevice(const std::string& boot_device);
 
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
-bool WriteFile(const char* path, const char* data, int data_len);
+bool WriteFile(const char* path, const void* data, int data_len);
 
 // Calls write() or pwrite() repeatedly until all count bytes at buf are
 // written to fd or an error occurs. Returns true on success.
@@ -89,10 +90,10 @@ bool PReadAll(FileDescriptorPtr fd, void* buf, size_t count, off_t offset,
 // file's content, false otherwise, in which case the state of the output
 // container is unknown. ReadFileChunk starts reading the file from |offset|; if
 // |size| is not -1, only up to |size| bytes are read in.
-bool ReadFile(const std::string& path, std::vector<char>* out_p);
+bool ReadFile(const std::string& path, chromeos::Blob* out_p);
 bool ReadFile(const std::string& path, std::string* out_p);
 bool ReadFileChunk(const std::string& path, off_t offset, off_t size,
-                   std::vector<char>* out_p);
+                   chromeos::Blob* out_p);
 
 // Invokes |cmd| in a pipe and appends its stdout to the container pointed to by
 // |out_p|. Returns true upon successfully reading all of the output, false
@@ -254,12 +255,12 @@ void ScheduleCrashReporterUpload();
 int FuzzInt(int value, unsigned int range);
 
 // Log a string in hex to LOG(INFO). Useful for debugging.
-void HexDumpArray(const unsigned char* const arr, const size_t length);
+void HexDumpArray(const uint8_t* const arr, const size_t length);
 inline void HexDumpString(const std::string& str) {
-  HexDumpArray(reinterpret_cast<const unsigned char*>(str.data()), str.size());
+  HexDumpArray(reinterpret_cast<const uint8_t*>(str.data()), str.size());
 }
-inline void HexDumpVector(const std::vector<char>& vect) {
-  HexDumpArray(reinterpret_cast<const unsigned char*>(&vect[0]), vect.size());
+inline void HexDumpVector(const chromeos::Blob& vect) {
+  HexDumpArray(vect.data(), vect.size());
 }
 
 template<typename KeyType, typename ValueType>

@@ -5,8 +5,11 @@
 #ifndef UPDATE_ENGINE_BZIP_EXTENT_WRITER_H_
 #define UPDATE_ENGINE_BZIP_EXTENT_WRITER_H_
 
-#include <vector>
 #include <bzlib.h>
+#include <vector>
+
+#include <chromeos/secure_blob.h>
+
 #include "update_engine/extent_writer.h"
 #include "update_engine/utils.h"
 
@@ -32,7 +35,7 @@ class BzipExtentWriter : public ExtentWriter {
  private:
   ExtentWriter* const next_;  // The underlying ExtentWriter.
   bz_stream stream_;  // the libbz2 stream
-  std::vector<char> input_buffer_;
+  chromeos::Blob input_buffer_;
 };
 
 }  // namespace chromeos_update_engine

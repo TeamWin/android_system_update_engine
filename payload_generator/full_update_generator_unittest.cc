@@ -26,8 +26,8 @@ class FullUpdateGeneratorTest : public ::testing::Test { };
 
 
 TEST(FullUpdateGeneratorTest, RunTest) {
-  vector<char> new_root(20 * 1024 * 1024);
-  vector<char> new_kern(16 * 1024 * 1024);
+  chromeos::Blob new_root(20 * 1024 * 1024);
+  chromeos::Blob new_kern(16 * 1024 * 1024);
   const off_t kChunkSize = 128 * 1024;
   FillWithData(&new_root);
   FillWithData(&new_kern);

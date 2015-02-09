@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <base/macros.h>
+#include <chromeos/secure_blob.h>
 
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/update_metadata.pb.h"
@@ -118,7 +119,7 @@ class DeltaDiffGenerator {
                              off_t chunk_offset,
                              off_t chunk_size,
                              bool bsdiff_allowed,
-                             std::vector<char>* out_data,
+                             chromeos::Blob* out_data,
                              DeltaArchiveManifest_InstallOperation* out_op,
                              bool gather_extents);
 
@@ -196,7 +197,7 @@ class DeltaDiffGenerator {
   // blob will not be available at payload creation time. So, update_engine will
   // gracefully ignore the dummy signature operation.
   static bool AddOperationHash(DeltaArchiveManifest_InstallOperation* op,
-                               const std::vector<char>& buf);
+                               const chromeos::Blob& buf);
 
   // Handles allocation of temp blocks to a cut edge by converting the
   // dest node to a full op. This removes the need for temp blocks, but
@@ -246,7 +247,7 @@ class DeltaDiffGenerator {
   // |out|. Returns true on success.
   static bool BsdiffFiles(const std::string& old_file,
                           const std::string& new_file,
-                          std::vector<char>* out);
+                          chromeos::Blob* out);
 
   // The |blocks| vector contains a reader and writer for each block on the
   // filesystem that's being in-place updated. We populate the reader/writer

@@ -107,13 +107,13 @@ class FilesystemCopierAction : public InstallPlanAction {
 
   // Ping-pong buffers for storing data we read/write. Only one buffer is being
   // read at a time and only one buffer is being written at a time.
-  std::vector<char> buffer_[2];
+  chromeos::Blob buffer_[2];
 
   // The state of each buffer.
   BufferState buffer_state_[2];
 
   // Number of valid elements in |buffer_| if its state is kBufferStateFull.
-  std::vector<char>::size_type buffer_valid_size_[2];
+  chromeos::Blob::size_type buffer_valid_size_[2];
 
   // The cancellable objects for the in-flight async calls.
   GCancellable* canceller_[2];

@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include <chromeos/secure_blob.h>
 #include <curl/curl.h>
 
 #include "update_engine/action.h"
@@ -139,7 +140,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
 
   // Delegate methods (see http_fetcher.h)
   void ReceivedBytes(HttpFetcher *fetcher,
-                     const char* bytes, int length) override;
+                     const void* bytes, size_t length) override;
 
   void TransferComplete(HttpFetcher *fetcher, bool successful) override;
 
@@ -285,7 +286,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   bool ping_only_;
 
   // Stores the response from the omaha server
-  std::vector<char> response_buffer_;
+  chromeos::Blob response_buffer_;
 
   // Initialized by InitPingDays to values that may be sent to Omaha
   // as part of a ping message. Note that only positive values and -1

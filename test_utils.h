@@ -29,18 +29,18 @@ namespace test_utils {
 
 // 300 byte pseudo-random string. Not null terminated.
 // This does not gzip compress well.
-extern const unsigned char kRandomString[300];
+extern const uint8_t kRandomString[300];
 
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
-bool WriteFileVector(const std::string& path, const std::vector<char>& data);
+bool WriteFileVector(const std::string& path, const chromeos::Blob& data);
 bool WriteFileString(const std::string& path, const std::string& data);
 
 bool BindToUnusedLoopDevice(const std::string &filename,
                             std::string* lo_dev_name_ptr);
 
 // Returns true iff a == b
-bool ExpectVectorsEq(const std::vector<char>& a, const std::vector<char>& b);
+bool ExpectVectorsEq(const chromeos::Blob& a, const chromeos::Blob& b);
 
 inline int System(const std::string& cmd) {
   return system(cmd.c_str());
@@ -64,10 +64,10 @@ inline int Chdir(const std::string& path) {
 
 // Checks if xattr is supported in the directory specified by
 // |dir_path| which must be writable. Returns true if the feature is
-// supported, false if not or if an error occured.
+// supported, false if not or if an error occurred.
 bool IsXAttrSupported(const base::FilePath& dir_path);
 
-void FillWithData(std::vector<char>* buffer);
+void FillWithData(chromeos::Blob* buffer);
 
 // Creates an empty ext image.
 void CreateEmptyExtImageAtPath(const std::string& path,

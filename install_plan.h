@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <base/macros.h>
+#include <chromeos/secure_blob.h>
 
 #include "update_engine/action.h"
 
@@ -62,8 +63,8 @@ struct InstallPlan {
   // applied partition sizes and hashes against the expected values.
   uint64_t kernel_size;
   uint64_t rootfs_size;
-  std::vector<char> kernel_hash;
-  std::vector<char> rootfs_hash;
+  chromeos::Blob kernel_hash;
+  chromeos::Blob rootfs_hash;
 
   // True if payload hash checks are mandatory based on the system state and
   // the Omaha response.

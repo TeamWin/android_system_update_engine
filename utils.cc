@@ -123,7 +123,7 @@ const string KernelDeviceOfBootDevice(const string& boot_device) {
 }
 
 
-bool WriteFile(const char* path, const char* data, int data_len) {
+bool WriteFile(const char* path, const void* data, int data_len) {
   DirectFileWriter writer;
   TEST_AND_RETURN_FALSE_ERRNO(0 == writer.Open(path,
                                                O_WRONLY | O_CREAT | O_TRUNC,
@@ -219,17 +219,17 @@ bool PReadAll(FileDescriptorPtr fd, void* buf, size_t count, off_t offset,
 
 // Append |nbytes| of content from |buf| to the vector pointed to by either
 // |vec_p| or |str_p|.
-static void AppendBytes(const char* buf, size_t nbytes,
-                        vector<char>* vec_p) {
+static void AppendBytes(const uint8_t* buf, size_t nbytes,
+                        chromeos::Blob* vec_p) {
   CHECK(buf);
   CHECK(vec_p);
   vec_p->insert(vec_p->end(), buf, buf + nbytes);
 }
-static void AppendBytes(const char* buf, size_t nbytes,
+static void AppendBytes(const uint8_t* buf, size_t nbytes,
                         string* str_p) {
   CHECK(buf);
   CHECK(str_p);
-  str_p->append(buf, nbytes);
+  str_p->append(buf, buf + nbytes);
 }
 
 // Reads from an open file |fp|, appending the read content to the container
@@ -240,7 +240,7 @@ template <class T>
 static bool Read(FILE* fp, off_t size, T* out_p) {
   CHECK(fp);
   CHECK(size == -1 || size >= 0);
-  char buf[1024];
+  uint8_t buf[1024];
   while (size == -1 || size > 0) {
     off_t bytes_to_read = sizeof(buf);
     if (size > 0 && bytes_to_read > size) {
@@ -296,7 +296,7 @@ bool ReadPipe(const string& cmd, string* out_p) {
   return (success && pclose(fp) >= 0);
 }
 
-bool ReadFile(const string& path, vector<char>* out_p) {
+bool ReadFile(const string& path, chromeos::Blob* out_p) {
   return ReadFileChunkAndAppend(path, 0, -1, out_p);
 }
 
@@ -305,7 +305,7 @@ bool ReadFile(const string& path, string* out_p) {
 }
 
 bool ReadFileChunk(const string& path, off_t offset, off_t size,
-                   vector<char>* out_p) {
+                   chromeos::Blob* out_p) {
   return ReadFileChunkAndAppend(path, offset, size, out_p);
 }
 
@@ -363,9 +363,7 @@ off_t FileSize(const string& path) {
   return size;
 }
 
-void HexDumpArray(const unsigned char* const arr, const size_t length) {
-  const unsigned char* const char_arr =
-      reinterpret_cast<const unsigned char* const>(arr);
+void HexDumpArray(const uint8_t* const arr, const size_t length) {
   LOG(INFO) << "Logging array of length: " << length;
   const unsigned int bytes_per_line = 16;
   for (uint32_t i = 0; i < length; i += bytes_per_line) {
@@ -378,7 +376,7 @@ void HexDumpArray(const unsigned char* const arr, const size_t length) {
     string line = header;
     for (unsigned int j = 0; j < bytes_per_this_line; j++) {
       char buf[20];
-      unsigned char c = char_arr[i + j];
+      uint8_t c = arr[i + j];
       r = snprintf(buf, sizeof(buf), "%02x ", static_cast<unsigned int>(c));
       TEST_AND_RETURN(r == 3);
       line += buf;
@@ -551,13 +549,13 @@ bool MakeTempFile(const string& base_filename_template,
   const string filename_template = PrependTmpdir(base_filename_template);
   DCHECK(filename || fd);
   vector<char> buf(filename_template.size() + 1);
-  memcpy(&buf[0], filename_template.data(), filename_template.size());
+  memcpy(buf.data(), filename_template.data(), filename_template.size());
   buf[filename_template.size()] = '\0';
 
-  int mkstemp_fd = mkstemp(&buf[0]);
+  int mkstemp_fd = mkstemp(buf.data());
   TEST_AND_RETURN_FALSE_ERRNO(mkstemp_fd >= 0);
   if (filename) {
-    *filename = &buf[0];
+    *filename = buf.data();
   }
   if (fd) {
     *fd = mkstemp_fd;
@@ -572,12 +570,12 @@ bool MakeTempDirectory(const string& base_dirname_template,
   const string dirname_template = PrependTmpdir(base_dirname_template);
   DCHECK(dirname);
   vector<char> buf(dirname_template.size() + 1);
-  memcpy(&buf[0], dirname_template.data(), dirname_template.size());
+  memcpy(buf.data(), dirname_template.data(), dirname_template.size());
   buf[dirname_template.size()] = '\0';
 
-  char* return_code = mkdtemp(&buf[0]);
+  char* return_code = mkdtemp(buf.data());
   TEST_AND_RETURN_FALSE_ERRNO(return_code != nullptr);
-  *dirname = &buf[0];
+  *dirname = buf.data();
   return true;
 }
 
@@ -689,7 +687,7 @@ bool GetExt3Size(const uint8_t* buffer, size_t buffer_size,
   return true;
 }
 
-bool GetSquashfs4Size(const unsigned char* buffer, size_t buffer_size,
+bool GetSquashfs4Size(const uint8_t* buffer, size_t buffer_size,
                       int* out_block_count,
                       int* out_block_size) {
   // See fs/squashfs/squashfs_fs.h for format details. We only support
@@ -751,7 +749,8 @@ string GetPathOnBoard(const string& command) {
 
 // Tries to parse the header of an ELF file to obtain a human-readable
 // description of it on the |output| string.
-static bool GetFileFormatELF(const char* buffer, size_t size, string* output) {
+static bool GetFileFormatELF(const uint8_t* buffer, size_t size,
+                             string* output) {
   // 0x00: EI_MAG - ELF magic header, 4 bytes.
   if (size < SELFMAG || memcmp(buffer, ELFMAG, SELFMAG) != 0)
     return false;
@@ -774,7 +773,7 @@ static bool GetFileFormatELF(const char* buffer, size_t size, string* output) {
   // 0x05: EI_DATA, endianness, 1 byte.
   if (size < EI_DATA + 1)
     return true;
-  char ei_data = buffer[EI_DATA];
+  uint8_t ei_data = buffer[EI_DATA];
   switch (ei_data) {
     case ELFDATA2LSB:
       *output += " little-endian";
@@ -820,7 +819,7 @@ static bool GetFileFormatELF(const char* buffer, size_t size, string* output) {
 }
 
 string GetFileFormat(const string& path) {
-  vector<char> buffer;
+  chromeos::Blob buffer;
   if (!ReadFileChunkAndAppend(path, 0, kGetFileFormatMaxHeaderSize, &buffer))
     return "File not found.";
 

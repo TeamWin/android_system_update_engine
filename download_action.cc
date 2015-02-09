@@ -99,7 +99,7 @@ bool DownloadAction::SetupP2PSharingFd() {
   return true;
 }
 
-void DownloadAction::WriteToP2PFile(const char *data,
+void DownloadAction::WriteToP2PFile(const void *data,
                                     size_t length,
                                     off_t file_offset) {
   if (p2p_sharing_fd_ == -1) {
@@ -248,8 +248,8 @@ void DownloadAction::SeekToOffset(off_t offset) {
 }
 
 void DownloadAction::ReceivedBytes(HttpFetcher *fetcher,
-                                   const char* bytes,
-                                   int length) {
+                                   const void* bytes,
+                                   size_t length) {
   // Note that bytes_received_ is the current offset.
   if (!p2p_file_id_.empty()) {
     WriteToP2PFile(bytes, length, bytes_received_);

@@ -110,7 +110,7 @@ TEST(UtilsTest, NormalizePathTest) {
 }
 
 TEST(UtilsTest, ReadFileFailure) {
-  vector<char> empty;
+  chromeos::Blob empty;
   EXPECT_FALSE(utils::ReadFile("/this/doesn't/exist", &empty));
 }
 
@@ -118,20 +118,20 @@ TEST(UtilsTest, ReadFileChunk) {
   base::FilePath file;
   EXPECT_TRUE(base::CreateTemporaryFile(&file));
   ScopedPathUnlinker unlinker(file.value());
-  vector<char> data;
+  chromeos::Blob data;
   const size_t kSize = 1024 * 1024;
   for (size_t i = 0; i < kSize; i++) {
     data.push_back(i % 255);
   }
-  EXPECT_TRUE(utils::WriteFile(file.value().c_str(), &data[0], data.size()));
-  vector<char> in_data;
+  EXPECT_TRUE(utils::WriteFile(file.value().c_str(), data.data(), data.size()));
+  chromeos::Blob in_data;
   EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), kSize, 10, &in_data));
   EXPECT_TRUE(in_data.empty());
   EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), 0, -1, &in_data));
   EXPECT_TRUE(data == in_data);
   in_data.clear();
   EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), 10, 20, &in_data));
-  EXPECT_TRUE(vector<char>(data.begin() + 10, data.begin() + 10 + 20) ==
+  EXPECT_TRUE(chromeos::Blob(data.begin() + 10, data.begin() + 10 + 20) ==
               in_data);
 }
 
@@ -244,8 +244,7 @@ TEST(UtilsTest, CompareCpuSharesTest) {
 
 TEST(UtilsTest, FuzzIntTest) {
   static const unsigned int kRanges[] = { 0, 1, 2, 20 };
-  for (size_t r = 0; r < arraysize(kRanges); ++r) {
-    unsigned int range = kRanges[r];
+  for (unsigned int range : kRanges) {
     const int kValue = 50;
     for (int tries = 0; tries < 100; ++tries) {
       int value = utils::FuzzInt(kValue, range);
@@ -257,8 +256,7 @@ TEST(UtilsTest, FuzzIntTest) {
 
 TEST(UtilsTest, ApplyMapTest) {
   int initial_values[] = {1, 2, 3, 4, 6};
-  vector<int> collection(&initial_values[0],
-                         initial_values + arraysize(initial_values));
+  vector<int> collection(std::begin(initial_values), std::end(initial_values));
   EXPECT_EQ(arraysize(initial_values), collection.size());
   int expected_values[] = {1, 2, 5, 4, 8};
   map<int, int> value_map;
@@ -295,7 +293,7 @@ TEST(UtilsTest, RunAsRootGetFilesystemSizeTest) {
 //   echo hola>hola
 //   mksquashfs hola hola.sqfs -noappend -nopad
 //   hexdump hola.sqfs -e '16/1 "%02x, " "\n"'
-const unsigned char kSquashfsFile[] = {
+const uint8_t kSquashfsFile[] = {
   0x68, 0x73, 0x71, 0x73, 0x02, 0x00, 0x00, 0x00,  // magic, inodes
   0x3e, 0x49, 0x61, 0x54, 0x00, 0x00, 0x02, 0x00,
   0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x11, 0x00,
@@ -329,7 +327,7 @@ const unsigned char kSquashfsFile[] = {
 };
 
 TEST(UtilsTest, GetSquashfs4Size) {
-  unsigned char buffer[sizeof(kSquashfsFile)];
+  uint8_t buffer[sizeof(kSquashfsFile)];
   memcpy(buffer, kSquashfsFile, sizeof(kSquashfsFile));
 
   int block_count = -1;

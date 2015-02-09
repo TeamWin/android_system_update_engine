@@ -128,7 +128,7 @@ bool DeltaReadFile(Graph* graph,
                    off_t chunk_size,
                    int data_fd,
                    off_t* data_file_size) {
-  vector<char> data;
+  chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation operation;
 
   string old_path = (old_root == kEmptyPath) ? kEmptyPath :
@@ -172,7 +172,7 @@ bool DeltaReadFile(Graph* graph,
     operation.set_data_length(data.size());
   }
 
-  TEST_AND_RETURN_FALSE(utils::WriteAll(data_fd, &data[0], data.size()));
+  TEST_AND_RETURN_FALSE(utils::WriteAll(data_fd, data.data(), data.size()));
   *data_file_size += data.size();
 
   // Now, insert into graph and blocks vector
@@ -336,8 +336,8 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
 
   // Code will handle buffers of any size that's a multiple of kBlockSize,
   // so we arbitrarily set it to 1024 * kBlockSize.
-  vector<char> new_buf(1024 * kBlockSize);
-  vector<char> old_buf(1024 * kBlockSize);
+  chromeos::Blob new_buf(1024 * kBlockSize);
+  chromeos::Blob old_buf(1024 * kBlockSize);
 
   LOG(INFO) << "Scanning " << block_count << " unwritten blocks";
   vector<Extent> changed_extents;
@@ -355,15 +355,15 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
       const uint64_t copy_first_block = extent.start_block() + blocks_read;
       const int copy_block_cnt =
           min(new_buf.size() / kBlockSize,
-              static_cast<vector<char>::size_type>(
+              static_cast<chromeos::Blob::size_type>(
                   extent.num_blocks() - blocks_read));
       const size_t count = copy_block_cnt * kBlockSize;
       const off_t offset = copy_first_block * kBlockSize;
-      ssize_t rc = pread(new_image_fd, &new_buf[0], count, offset);
+      ssize_t rc = pread(new_image_fd, new_buf.data(), count, offset);
       TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
       TEST_AND_RETURN_FALSE(static_cast<size_t>(rc) == count);
 
-      rc = pread(old_image_fd, &old_buf[0], count, offset);
+      rc = pread(old_image_fd, old_buf.data(), count, offset);
       TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
       TEST_AND_RETURN_FALSE(static_cast<size_t>(rc) == count);
 
@@ -407,7 +407,7 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
 
   LOG(INFO) << "Compressed " << changed_block_count << " blocks ("
             << block_count - changed_block_count << " blocks unchanged)";
-  vector<char> compressed_data;
+  chromeos::Blob compressed_data;
   if (changed_block_count > 0) {
     LOG(INFO) << "Reading compressed data off disk";
     TEST_AND_RETURN_FALSE(utils::ReadFile(temp_file_path, &compressed_data));
@@ -426,7 +426,7 @@ bool ReadUnwrittenBlocks(const vector<Block>& blocks,
                                    out_op->mutable_dst_extents());
 
   TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd,
-                                        &compressed_data[0],
+                                        compressed_data.data(),
                                         compressed_data.size()));
   LOG(INFO) << "Done processing unwritten blocks";
   return true;
@@ -503,7 +503,7 @@ bool DeltaCompressKernelPartition(
   LOG_IF(INFO, old_kernel_part.empty()) << "Generating full kernel update...";
 
   DeltaArchiveManifest_InstallOperation op;
-  vector<char> data;
+  chromeos::Blob data;
   TEST_AND_RETURN_FALSE(
       DeltaDiffGenerator::ReadFileToDiff(old_kernel_part,
                                          new_kernel_part,
@@ -535,7 +535,7 @@ bool DeltaCompressKernelPartition(
   ops->clear();
   ops->push_back(op);
 
-  TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd, &data[0], data.size()));
+  TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd, data.data(), data.size()));
   *blobs_length += data.size();
 
   LOG(INFO) << "Done delta compressing kernel partition: "
@@ -708,11 +708,11 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     off_t chunk_offset,
     off_t chunk_size,
     bool bsdiff_allowed,
-    vector<char>* out_data,
+    chromeos::Blob* out_data,
     DeltaArchiveManifest_InstallOperation* out_op,
     bool gather_extents) {
   // Read new data in
-  vector<char> new_data;
+  chromeos::Blob new_data;
   TEST_AND_RETURN_FALSE(
       utils::ReadFileChunk(new_filename, chunk_offset, chunk_size, &new_data));
 
@@ -720,11 +720,11 @@ bool DeltaDiffGenerator::ReadFileToDiff(
   TEST_AND_RETURN_FALSE(chunk_size == -1 ||
                         static_cast<off_t>(new_data.size()) <= chunk_size);
 
-  vector<char> new_data_bz;
+  chromeos::Blob new_data_bz;
   TEST_AND_RETURN_FALSE(BzipCompress(new_data, &new_data_bz));
   CHECK(!new_data_bz.empty());
 
-  vector<char> data;  // Data blob that will be written to delta file.
+  chromeos::Blob data;  // Data blob that will be written to delta file.
 
   DeltaArchiveManifest_InstallOperation operation;
   size_t current_best_size = 0;
@@ -747,7 +747,7 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     original = false;
   }
 
-  vector<char> old_data;
+  chromeos::Blob old_data;
   if (original) {
     // Read old data
     TEST_AND_RETURN_FALSE(
@@ -766,18 +766,18 @@ bool DeltaDiffGenerator::ReadFileToDiff(
       ScopedPathUnlinker old_unlinker(old_chunk.value());
       TEST_AND_RETURN_FALSE(
           utils::WriteFile(old_chunk.value().c_str(),
-                           &old_data[0], old_data.size()));
+                           old_data.data(), old_data.size()));
       base::FilePath new_chunk;
       TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&new_chunk));
       ScopedPathUnlinker new_unlinker(new_chunk.value());
       TEST_AND_RETURN_FALSE(
           utils::WriteFile(new_chunk.value().c_str(),
-                           &new_data[0], new_data.size()));
+                           new_data.data(), new_data.size()));
 
-      vector<char> bsdiff_delta;
+      chromeos::Blob bsdiff_delta;
       TEST_AND_RETURN_FALSE(
           BsdiffFiles(old_chunk.value(), new_chunk.value(), &bsdiff_delta));
-      CHECK_GT(bsdiff_delta.size(), static_cast<vector<char>::size_type>(0));
+      CHECK_GT(bsdiff_delta.size(), static_cast<chromeos::Blob::size_type>(0));
       if (bsdiff_delta.size() < current_best_size) {
         operation.set_type(DeltaArchiveManifest_InstallOperation_Type_BSDIFF);
         current_best_size = bsdiff_delta.size();
@@ -863,7 +863,7 @@ bool DeltaDiffGenerator::InitializePartitionInfo(bool is_kernel,
   OmahaHashCalculator hasher;
   TEST_AND_RETURN_FALSE(hasher.UpdateFile(partition, size) == size);
   TEST_AND_RETURN_FALSE(hasher.Finalize());
-  const vector<char>& hash = hasher.raw_hash();
+  const chromeos::Blob& hash = hasher.raw_hash();
   info->set_hash(hash.data(), hash.size());
   LOG(INFO) << partition << ": size=" << size << " hash=" << hasher.hash();
   return true;
@@ -1422,15 +1422,15 @@ bool DeltaDiffGenerator::ReorderDataBlobs(
     if (!op->has_data_offset())
       continue;
     CHECK(op->has_data_length());
-    vector<char> buf(op->data_length());
-    ssize_t rc = pread(in_fd, &buf[0], buf.size(), op->data_offset());
+    chromeos::Blob buf(op->data_length());
+    ssize_t rc = pread(in_fd, buf.data(), buf.size(), op->data_offset());
     TEST_AND_RETURN_FALSE(rc == static_cast<ssize_t>(buf.size()));
 
     // Add the hash of the data blobs for this operation
     TEST_AND_RETURN_FALSE(AddOperationHash(op, buf));
 
     op->set_data_offset(out_file_size);
-    TEST_AND_RETURN_FALSE(writer.Write(&buf[0], buf.size()));
+    TEST_AND_RETURN_FALSE(writer.Write(buf.data(), buf.size()));
     out_file_size += buf.size();
   }
   return true;
@@ -1438,13 +1438,13 @@ bool DeltaDiffGenerator::ReorderDataBlobs(
 
 bool DeltaDiffGenerator::AddOperationHash(
     DeltaArchiveManifest_InstallOperation* op,
-    const vector<char>& buf) {
+    const chromeos::Blob& buf) {
   OmahaHashCalculator hasher;
 
-  TEST_AND_RETURN_FALSE(hasher.Update(&buf[0], buf.size()));
+  TEST_AND_RETURN_FALSE(hasher.Update(buf.data(), buf.size()));
   TEST_AND_RETURN_FALSE(hasher.Finalize());
 
-  const vector<char>& hash = hasher.raw_hash();
+  const chromeos::Blob& hash = hasher.raw_hash();
   op->set_data_sha256_hash(hash.data(), hash.size());
   return true;
 }
@@ -1844,12 +1844,12 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   // Write signature blob.
   if (!private_key_path.empty()) {
     LOG(INFO) << "Signing the update...";
-    vector<char> signature_blob;
+    chromeos::Blob signature_blob;
     TEST_AND_RETURN_FALSE(PayloadSigner::SignPayload(
         output_path,
         vector<string>(1, private_key_path),
         &signature_blob));
-    TEST_AND_RETURN_FALSE(writer.Write(&signature_blob[0],
+    TEST_AND_RETURN_FALSE(writer.Write(signature_blob.data(),
                                        signature_blob.size()));
   }
 
@@ -1866,7 +1866,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 // 'out'. Returns true on success.
 bool DeltaDiffGenerator::BsdiffFiles(const string& old_file,
                                      const string& new_file,
-                                     vector<char>* out) {
+                                     chromeos::Blob* out) {
   const string kPatchFile = "delta.patchXXXXXX";
   string patch_file_path;
 
@@ -1880,7 +1880,7 @@ bool DeltaDiffGenerator::BsdiffFiles(const string& old_file,
   cmd.push_back(patch_file_path);
 
   int rc = 1;
-  vector<char> patch_file;
+  chromeos::Blob patch_file;
   TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &rc, nullptr));
   TEST_AND_RETURN_FALSE(rc == 0);
   TEST_AND_RETURN_FALSE(utils::ReadFile(patch_file_path, out));

@@ -61,7 +61,7 @@ class CertificateCheckerTest : public testing::Test {
   // Parameters of our mock certificate digest.
   int depth_;
   unsigned int length_;
-  unsigned char digest_[4];
+  uint8_t digest_[4];
   string digest_hex_;
   string diff_digest_hex_;
   string cert_key_prefix_;

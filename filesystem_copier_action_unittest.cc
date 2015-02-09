@@ -139,12 +139,12 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
 
   // Make random data for a, zero filled data for b.
   const size_t kLoopFileSize = 10 * 1024 * 1024 + 512;
-  vector<char> a_loop_data(kLoopFileSize);
+  chromeos::Blob a_loop_data(kLoopFileSize);
   test_utils::FillWithData(&a_loop_data);
-  vector<char> b_loop_data(run_out_of_space ?
-                           (kLoopFileSize - 1) :
-                           kLoopFileSize,
-                           '\0');  // Fill with 0s
+  chromeos::Blob b_loop_data(run_out_of_space ?
+                             (kLoopFileSize - 1) :
+                             kLoopFileSize,
+                             0);  // Fill with 0s
 
   // Write data to disk
   if (!(test_utils::WriteFileVector(a_loop_file, a_loop_data) &&
@@ -254,7 +254,7 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
   EXPECT_EQ(ErrorCode::kSuccess, delegate.code());
 
   // Make sure everything in the out_image is there
-  vector<char> a_out;
+  chromeos::Blob a_out;
   if (!utils::ReadFile(a_dev, &a_out)) {
     ADD_FAILURE();
     return false;
@@ -264,7 +264,7 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
   EXPECT_TRUE(is_a_file_reading_eq);
   success = success && is_a_file_reading_eq;
   if (!verify_hash) {
-    vector<char> b_out;
+    chromeos::Blob b_out;
     if (!utils::ReadFile(b_dev, &b_out)) {
       ADD_FAILURE();
       return false;
