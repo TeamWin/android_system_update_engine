@@ -40,7 +40,8 @@ namespace chromeos_update_engine {
 
 namespace {
 
-const uint64_t kInPlaceMinorPayloadVersion = 1;
+// The minor version used by the in-place delta generator algorithm.
+const uint32_t kInPlaceMinorPayloadVersion = 1;
 
 void ParseSignatureSizes(const string& signature_sizes_flag,
                          vector<int>* signature_sizes) {
@@ -255,7 +256,7 @@ int Main(int argc, char** argv) {
   DEFINE_int64(rootfs_partition_size,
                chromeos_update_engine::kRootFSPartitionSize,
                "RootFS partition size for the image once installed");
-  DEFINE_int64(minor_version, 0,
+  DEFINE_int32(minor_version, 0,
                "The minor version of the payload being generated");
 
   DEFINE_string(old_channel, "",
@@ -378,17 +379,28 @@ int Main(int argc, char** argv) {
     LOG(INFO) << "Generating full update";
   }
 
+  // Look for the minor version in the old image if it was not given as an
+  // argument.
   if (!CommandLine::ForCurrentProcess()->HasSwitch("minor_version")) {
-    if (is_delta) {
-      FLAGS_minor_version = DeltaPerformer::kSupportedMinorPayloadVersion;
+    uint32_t minor_version;
+    base::FilePath image_path(FLAGS_old_dir);
+    base::FilePath conf_loc("etc/update_engine.conf");
+    base::FilePath conf_path = image_path.Append(conf_loc);
+    if (utils::GetMinorVersion(conf_path, &minor_version)) {
+      FLAGS_minor_version = minor_version;
     } else {
-      FLAGS_minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+      if (is_delta) {
+        FLAGS_minor_version = DeltaPerformer::kSupportedMinorPayloadVersion;
+      } else {
+        FLAGS_minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+      }
     }
   }
 
-  if (FLAGS_minor_version == kInPlaceMinorPayloadVersion ||
-      static_cast<uint64_t>(FLAGS_minor_version) ==
-          DeltaPerformer::kFullPayloadMinorVersion) {
+  if (static_cast<uint32_t>(FLAGS_minor_version) ==
+      kInPlaceMinorPayloadVersion ||
+      static_cast<uint32_t>(FLAGS_minor_version) ==
+      DeltaPerformer::kFullPayloadMinorVersion) {
     uint64_t metadata_size;
     if (!DeltaDiffGenerator::GenerateDeltaUpdateFile(
         FLAGS_old_dir,

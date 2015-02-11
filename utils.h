@@ -437,6 +437,14 @@ bool MonotonicDurationHelper(SystemState* system_state,
                              int64_t* storage,
                              base::TimeDelta* out_duration);
 
+// This function looks for a configuration file at |path|. If it finds that
+// file, it will try get the PAYLOAD_MINOR_VERSION value from it and set
+// |minor_version| to that value.
+//
+// The function will return |true| if it succeeds at finding the file and
+// value and setting it, and |false| otherwise.
+bool GetMinorVersion(base::FilePath path, uint32_t* minor_version);
+
 }  // namespace utils
 
 

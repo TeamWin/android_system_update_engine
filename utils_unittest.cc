@@ -15,6 +15,7 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
+#include <base/files/scoped_temp_dir.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
@@ -769,6 +770,23 @@ TEST(UtilsTest, GetConnectionType) {
   EXPECT_EQ(metrics::ConnectionType::kWifi,
             utils::GetConnectionType(kNetWifi,
                                      NetworkTethering::kUnknown));
+}
+
+TEST(UtilsTest, GetMinorVersion) {
+  // Test GetMinorVersion by verifying that it parses the conf file and returns
+  // the correct value.
+  string contents = "PAYLOAD_MINOR_VERSION=1\n";
+  uint32_t minor_version;
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath temp_file("update_engine.conf");
+  base::FilePath filepath = temp_dir.path().Append(temp_file);
+
+  ASSERT_TRUE(test_utils::WriteFileString(filepath.value(), contents.c_str()));
+  ASSERT_TRUE(utils::GetMinorVersion(filepath, &minor_version));
+  ASSERT_EQ(minor_version, 1);
 }
 
 static bool BoolMacroTestHelper() {

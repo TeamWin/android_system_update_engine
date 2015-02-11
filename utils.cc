@@ -37,6 +37,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <chromeos/data_encoding.h>
+#include <chromeos/key_value_store.h>
 #include <glib.h>
 
 #include "update_engine/clock_interface.h"
@@ -1572,6 +1573,17 @@ bool MonotonicDurationHelper(SystemState* system_state,
   *storage = now.ToInternalValue();
 
   return ret;
+}
+
+bool GetMinorVersion(base::FilePath path, uint32_t* minor_version) {
+  chromeos::KeyValueStore store;
+  std::string result;
+  if (base::PathExists(path) && store.Load(path) &&
+      store.GetString("PAYLOAD_MINOR_VERSION", &result)) {
+    *minor_version = atoi(result.c_str());
+    return true;
+  }
+  return false;
 }
 
 }  // namespace utils

@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -1337,6 +1338,15 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
 
   delete performer;
   EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(DeltaPerformerTest, MinorVersionsMatch) {
+  // Test that the minor version in update_engine.conf that is installed to
+  // the image matches the supported delta minor version in the update engine.
+  uint32_t minor_version;
+  base::FilePath conf_path("update_engine.conf");
+  EXPECT_TRUE(utils::GetMinorVersion(conf_path, &minor_version));
+  ASSERT_EQ(DeltaPerformer::kSupportedMinorPayloadVersion, minor_version);
 }
 
 }  // namespace chromeos_update_engine

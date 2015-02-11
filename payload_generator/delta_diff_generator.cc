@@ -1574,7 +1574,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     const string& private_key_path,
     off_t chunk_size,
     size_t rootfs_partition_size,
-    uint64_t minor_version,
+    uint32_t minor_version,
     const ImageInfo* old_image_info,
     const ImageInfo* new_image_info,
     uint64_t* metadata_size) {
