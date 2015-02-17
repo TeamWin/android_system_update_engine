@@ -390,7 +390,7 @@ int Main(int argc, char** argv) {
       FLAGS_minor_version = minor_version;
     } else {
       if (is_delta) {
-        FLAGS_minor_version = DeltaPerformer::kSupportedMinorPayloadVersion;
+        FLAGS_minor_version = kInPlaceMinorPayloadVersion;
       } else {
         FLAGS_minor_version = DeltaPerformer::kFullPayloadMinorVersion;
       }

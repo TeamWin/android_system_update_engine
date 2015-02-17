@@ -1580,7 +1580,10 @@ bool GetMinorVersion(base::FilePath path, uint32_t* minor_version) {
   std::string result;
   if (base::PathExists(path) && store.Load(path) &&
       store.GetString("PAYLOAD_MINOR_VERSION", &result)) {
-    *minor_version = atoi(result.c_str());
+    if (!base::StringToUint(result, minor_version)) {
+      LOG(ERROR) << "StringToUint failed when parsing delta minor version.";
+      return false;
+    }
     return true;
   }
   return false;
