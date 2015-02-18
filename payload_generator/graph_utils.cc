@@ -152,6 +152,12 @@ void DumpGraph(const Graph& graph) {
       case DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ:
         type_str = "REPLACE_BZ";
         break;
+      case DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY:
+        type_str = "SOURCE_COPY";
+        break;
+      case DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF:
+        type_str = "SOURCE_BSDIFF";
+        break;
     }
     LOG(INFO) << i
               << (graph[i].valid ? "" : "-INV")

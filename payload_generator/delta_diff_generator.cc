@@ -75,7 +75,9 @@ static const char* kInstallOperationTypes[] = {
   "REPLACE",
   "REPLACE_BZ",
   "MOVE",
-  "BSDIFF"
+  "BSDIFF",
+  "SOURCE_COPY",
+  "SOURCE_BSDIFF"
 };
 
 }  // namespace
