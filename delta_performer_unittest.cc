@@ -46,7 +46,6 @@ extern const char* kUnittestPublicKeyPath;
 extern const char* kUnittestPrivateKey2Path;
 extern const char* kUnittestPublicKey2Path;
 
-static const size_t kBlockSize = 4096;
 static const char* kBogusMetadataSignature1 =
     "awSFIUdUZz2VWFiR+ku0Pj00V7bPQPQFYQSXjEXr3vaw3TE4xHV5CraY3/YrZpBv"
     "J5z4dSBskoeuaO1TNC/S6E05t+yt36tE4Fh79tMnJ/z9fogBDXWgXLEUyG78IEQr"

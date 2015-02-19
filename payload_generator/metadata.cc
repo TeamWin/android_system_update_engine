@@ -19,6 +19,7 @@
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/ext2_utils.h"
 #include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/inplace_generator.h"
 #include "update_engine/utils.h"
 
 using base::StringPrintf;
@@ -192,7 +193,7 @@ bool AddMetadataExtents(Graph* graph,
   CHECK((*graph)[vertex].op.has_type());
   (*graph)[vertex].file_name = metadata_name;
 
-  TEST_AND_RETURN_FALSE(DeltaDiffGenerator::AddInstallOpToBlocksVector(
+  TEST_AND_RETURN_FALSE(InplaceGenerator::AddInstallOpToBlocksVector(
       (*graph)[vertex].op,
       *graph,
       vertex,
