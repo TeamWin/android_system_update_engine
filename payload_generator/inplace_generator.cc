@@ -534,7 +534,8 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
         (*graph)[cut.old_dst].chunk_offset,
         (*graph)[cut.old_dst].chunk_size,
         data_fd,
-        data_file_size));
+        data_file_size,
+        false));  // src_ops_allowed
 
     (*graph)[cut.old_dst].out_edges = out_edges;
 

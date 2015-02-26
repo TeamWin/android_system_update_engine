@@ -30,6 +30,12 @@ extern const char* const kEmptyPath;
 extern const size_t kBlockSize;
 extern const size_t kRootFSPartitionSize;
 
+// The minor version used by the in-place delta generator algorithm.
+extern const uint32_t kInPlaceMinorPayloadVersion;
+
+// The minor version used by the A to B delta generator algorithm.
+extern const uint32_t kSourceMinorPayloadVersion;
+
 // This struct stores all relevant info for an edge that is cut between
 // nodes old_src -> old_dst by creating new vertex new_vertex. The new
 // relationship is:
@@ -111,7 +117,8 @@ class DeltaDiffGenerator {
                             off_t chunk_offset,
                             off_t chunk_size,
                             int data_fd,
-                            off_t* data_file_size);
+                            off_t* data_file_size,
+                            bool src_ops_allowed);
 
   // Reads old_filename (if it exists) and a new_filename and determines
   // the smallest way to encode this file for the diff. It stores
@@ -122,6 +129,8 @@ class DeltaDiffGenerator {
   // new_filename must contain at least one byte.
   // |new_filename| is read starting at |chunk_offset|.
   // If |chunk_size| is not -1, only up to |chunk_size| bytes are diffed.
+  // If |src_ops_allowed| is true, it will emit SOURCE_COPY and SOURCE_BSDIFF
+  // operations instead of MOVE and BSDIFF, respectively.
   // Returns true on success.
   static bool ReadFileToDiff(const std::string& old_filename,
                              const std::string& new_filename,
@@ -130,7 +139,8 @@ class DeltaDiffGenerator {
                              bool bsdiff_allowed,
                              chromeos::Blob* out_data,
                              DeltaArchiveManifest_InstallOperation* out_op,
-                             bool gather_extents);
+                             bool gather_extents,
+                             bool src_ops_allowed);
 
   // Stores all Extents in 'extents' into 'out'.
   static void StoreExtents(const std::vector<Extent>& extents,
@@ -176,6 +186,10 @@ class DeltaDiffGenerator {
   static void AddSignatureOp(uint64_t signature_blob_offset,
                              uint64_t signature_blob_length,
                              DeltaArchiveManifest* manifest);
+
+  // Takes |graph| and returns a vertex order with the vertex indices of
+  // |graph|, in the order they appear. Returns |true| on success.
+  static std::vector<Vertex::Index> OrderIndices(const Graph& graph);
 
   // Takes a collection (vector or RepeatedPtrField) of Extent and
   // returns a vector of the blocks referenced, in order.

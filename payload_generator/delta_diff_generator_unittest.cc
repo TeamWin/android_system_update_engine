@@ -93,7 +93,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveSmallTest) {
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true));
+                                                 true,
+                                                 false));  // src_ops_allowed
   EXPECT_TRUE(data.empty());
 
   EXPECT_TRUE(op.has_type());
@@ -183,7 +184,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true));
+                                                 true,
+                                                 false));  // src_ops_allowed
 
   // Adjust the old/new extents to remove duplicates.
   old_extents[0].set_num_blocks(1);
@@ -247,7 +249,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffSmallTest) {
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true));
+                                                 true,
+                                                 false));  // src_ops_allowed
   EXPECT_FALSE(data.empty());
 
   EXPECT_TRUE(op.has_type());
@@ -280,7 +283,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedTest) {
                                                  false,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true));
+                                                 true,
+                                                 false));  // src_ops_allowed
   EXPECT_FALSE(data.empty());
 
   // The point of this test is that we don't use BSDIFF the way the above
@@ -306,7 +310,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedMoveTest) {
                                                  false,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true));
+                                                 true,
+                                                 false));  // src_ops_allowed
   EXPECT_TRUE(data.empty());
 
   // The point of this test is that we can still use a MOVE for a file
@@ -332,7 +337,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootReplaceSmallTest) {
                                                    true,  // bsdiff_allowed
                                                    &data,
                                                    &op,
-                                                   true));
+                                                   true,
+                                                   false));  // src_ops_allowed
     EXPECT_FALSE(data.empty());
 
     EXPECT_TRUE(op.has_type());
@@ -366,7 +372,8 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNoGatherExtentsSmallTest) {
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 false));
+                                                 false,
+                                                 false));  // src_ops_allowed
   EXPECT_FALSE(data.empty());
 
   EXPECT_TRUE(op.has_type());
@@ -381,6 +388,60 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNoGatherExtentsSmallTest) {
   EXPECT_EQ(0, op.dst_extents().Get(0).start_block());
   EXPECT_EQ(1, op.dst_extents().Get(0).num_blocks());
   EXPECT_EQ(sizeof(kRandomString), op.dst_length());
+}
+
+TEST_F(DeltaDiffGeneratorTest, RunAsRootSourceCopyTest) {
+  // Makes sure SOURCE_COPY operations are emitted whenever src_ops_allowed
+  // is true. It is the same setup as RunAsRootMoveSmallTest, which checks that
+  // the operation is well-formed.
+  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+                               reinterpret_cast<const char*>(kRandomString),
+                               sizeof(kRandomString)));
+  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+                               reinterpret_cast<const char*>(kRandomString),
+                               sizeof(kRandomString)));
+  chromeos::Blob data;
+  DeltaArchiveManifest_InstallOperation op;
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
+                                                 new_path(),
+                                                 0,  // chunk_offset
+                                                 -1,  // chunk_size
+                                                 true,  // bsdiff_allowed
+                                                 &data,
+                                                 &op,
+                                                 true,
+                                                 true));  // src_ops_allowed
+  EXPECT_TRUE(data.empty());
+
+  EXPECT_TRUE(op.has_type());
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY, op.type());
+}
+
+TEST_F(DeltaDiffGeneratorTest, RunAsRootSourceBsdiffTest) {
+  // Makes sure SOURCE_BSDIFF operations are emitted whenever src_ops_allowed
+  // is true. It is the same setup as RunAsRootBsdiffSmallTest, which checks
+  // that the operation is well-formed.
+  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+                               reinterpret_cast<const char*>(kRandomString),
+                               sizeof(kRandomString) - 1));
+  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+                               reinterpret_cast<const char*>(kRandomString),
+                               sizeof(kRandomString)));
+  chromeos::Blob data;
+  DeltaArchiveManifest_InstallOperation op;
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
+                                                 new_path(),
+                                                 0,  // chunk_offset
+                                                 -1,  // chunk_size
+                                                 true,  // bsdiff_allowed
+                                                 &data,
+                                                 &op,
+                                                 true,
+                                                 true));  // src_ops_allowed
+  EXPECT_FALSE(data.empty());
+  EXPECT_TRUE(op.has_type());
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF,
+            op.type());
 }
 
 TEST_F(DeltaDiffGeneratorTest, ReorderBlobsTest) {
@@ -422,7 +483,6 @@ TEST_F(DeltaDiffGeneratorTest, ReorderBlobsTest) {
   unlink(new_blobs.c_str());
 }
 
-
 TEST_F(DeltaDiffGeneratorTest, IsNoopOperationTest) {
   DeltaArchiveManifest_InstallOperation op;
   op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
@@ -446,6 +506,16 @@ TEST_F(DeltaDiffGeneratorTest, IsNoopOperationTest) {
   *(op.add_src_extents()) = ExtentForRange(24, 1);
   *(op.add_dst_extents()) = ExtentForRange(25, 1);
   EXPECT_FALSE(DeltaDiffGenerator::IsNoopOperation(op));
+}
+
+TEST_F(DeltaDiffGeneratorTest, OrderIndicesTest) {
+  Graph graph(3);
+  vector<Vertex::Index> order;
+  order = DeltaDiffGenerator::OrderIndices(graph);
+  EXPECT_EQ(order.size(), 3);
+  EXPECT_EQ(order[0], 0);
+  EXPECT_EQ(order[1], 1);
+  EXPECT_EQ(order[2], 2);
 }
 
 }  // namespace chromeos_update_engine

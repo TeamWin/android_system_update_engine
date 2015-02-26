@@ -40,9 +40,6 @@ namespace chromeos_update_engine {
 
 namespace {
 
-// The minor version used by the in-place delta generator algorithm.
-const uint32_t kInPlaceMinorPayloadVersion = 1;
-
 void ParseSignatureSizes(const string& signature_sizes_flag,
                          vector<int>* signature_sizes) {
   signature_sizes->clear();
@@ -398,6 +395,8 @@ int Main(int argc, char** argv) {
   }
 
   if (static_cast<uint32_t>(FLAGS_minor_version) ==
+      kSourceMinorPayloadVersion ||
+      static_cast<uint32_t>(FLAGS_minor_version) ==
       kInPlaceMinorPayloadVersion ||
       static_cast<uint32_t>(FLAGS_minor_version) ==
       DeltaPerformer::kFullPayloadMinorVersion) {
