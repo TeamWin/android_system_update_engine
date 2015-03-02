@@ -107,7 +107,36 @@ enum OperationHashTest {
   kValidOperationData,
 };
 
+// Chuck size used for full payloads during test.
+size_t kDefaultFullChunkSize = 1024 * 1024;
+
 }  // namespace
+
+class DeltaPerformerTest : public ::testing::Test {
+ public:
+  // Test helper placed where it can easily be friended from DeltaPerformer.
+  static void RunManifestValidation(const DeltaArchiveManifest& manifest,
+                                    bool full_payload,
+                                    ErrorCode expected) {
+    MockPrefs prefs;
+    InstallPlan install_plan;
+    FakeSystemState fake_system_state;
+    DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
+
+    // The install plan is for Full or Delta.
+    install_plan.is_full_update = full_payload;
+
+    // The Manifest we are validating.
+    performer.manifest_.CopyFrom(manifest);
+
+    EXPECT_EQ(expected, performer.ValidateManifest());
+  }
+
+  static void SetSupportedVersion(DeltaPerformer* performer,
+                                  uint64_t minor_version) {
+    performer->supported_minor_version_ = minor_version;
+  }
+};
 
 static void CompareFilesByBlock(const string& a_file, const string& b_file) {
   chromeos::Blob a_data, b_data;
@@ -281,7 +310,8 @@ static void GenerateDeltaFile(bool full_kernel,
                               bool noop,
                               off_t chunk_size,
                               SignatureTest signature_test,
-                              DeltaState *state) {
+                              DeltaState *state,
+                              uint32_t minor_version) {
   EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &state->a_img, nullptr));
   EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &state->b_img, nullptr));
   test_utils::CreateExtImageAtPath(state->a_img, nullptr);
@@ -474,6 +504,7 @@ static void GenerateDeltaFile(bool full_kernel,
     payload_config.is_delta = !full_rootfs;
     payload_config.chunk_size = chunk_size;
     payload_config.rootfs_partition_size = kRootFSPartitionSize;
+    payload_config.minor_version = minor_version;
     if (!full_rootfs) {
       payload_config.source.rootfs_part = state->a_img;
       payload_config.source.rootfs_mountpt = a_mnt;
@@ -482,10 +513,9 @@ static void GenerateDeltaFile(bool full_kernel,
       payload_config.source.image_info = old_image_info;
       EXPECT_TRUE(payload_config.source.LoadImageSize());
 
-      payload_config.minor_version =
-          DeltaPerformer::kSupportedMinorPayloadVersion;
     } else {
-      payload_config.minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+      if (payload_config.chunk_size == -1)
+        payload_config.chunk_size = kDefaultFullChunkSize;
     }
     payload_config.target.rootfs_part = state->b_img;
     payload_config.target.rootfs_mountpt = b_mnt;
@@ -538,7 +568,8 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                            SignatureTest signature_test, DeltaState* state,
                            bool hash_checks_mandatory,
                            OperationHashTest op_hash_test,
-                           DeltaPerformer** performer) {
+                           DeltaPerformer** performer,
+                           uint32_t minor_version) {
   // Check the metadata.
   {
     DeltaArchiveManifest manifest;
@@ -665,6 +696,8 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   install_plan.hash_checks_mandatory = hash_checks_mandatory;
   install_plan.metadata_size = state->metadata_size;
   install_plan.is_full_update = full_kernel && full_rootfs;
+  install_plan.source_path = state->a_img.c_str();
+  install_plan.kernel_source_path = state->old_kernel.c_str();
 
   LOG(INFO) << "Setting payload metadata size in Omaha  = "
             << state->metadata_size;
@@ -680,6 +713,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                                   &install_plan);
   EXPECT_TRUE(utils::FileExists(kUnittestPublicKeyPath));
   (*performer)->set_public_key_path(kUnittestPublicKeyPath);
+  DeltaPerformerTest::SetSupportedVersion(*performer, minor_version);
 
   EXPECT_EQ(state->image_size,
             OmahaHashCalculator::RawHashOfFile(state->a_img,
@@ -711,6 +745,12 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       expected_error = ErrorCode::kSuccess;
       continue_writing = true;
       break;
+  }
+
+  // For now, source operations are not implemented, so we expect an error.
+  if (minor_version == kSourceMinorPayloadVersion) {
+    expected_error = ErrorCode::kDownloadOperationExecutionError;
+    continue_writing = false;
   }
 
   // Write at some number of bytes per operation. Arbitrarily chose 5.
@@ -823,11 +863,11 @@ void VerifyPayload(DeltaPerformer* performer,
 void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
                       off_t chunk_size,
                       SignatureTest signature_test,
-                      bool hash_checks_mandatory) {
+                      bool hash_checks_mandatory, uint32_t minor_version) {
   DeltaState state;
   DeltaPerformer *performer = nullptr;
   GenerateDeltaFile(full_kernel, full_rootfs, noop, chunk_size,
-                    signature_test, &state);
+                    signature_test, &state, minor_version);
 
   ScopedPathUnlinker a_img_unlinker(state.a_img);
   ScopedPathUnlinker b_img_unlinker(state.b_img);
@@ -836,7 +876,7 @@ void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
   ScopedPathUnlinker new_kernel_unlinker(state.new_kernel);
   ApplyDeltaFile(full_kernel, full_rootfs, noop, signature_test,
                  &state, hash_checks_mandatory, kValidOperationData,
-                 &performer);
+                 &performer, minor_version);
   VerifyPayload(performer, &state, signature_test);
   delete performer;
 }
@@ -889,7 +929,8 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
   // Using kSignatureNone since it doesn't affect the results of our test.
   // If we've to use other signature options, then we'd have to get the
   // metadata size again after adding the signing operation to the manifest.
-  GenerateDeltaFile(true, true, false, -1, signature_test, &state);
+  GenerateDeltaFile(true, true, false, -1, signature_test, &state,
+                    DeltaPerformer::kFullPayloadMinorVersion);
 
   ScopedPathUnlinker a_img_unlinker(state.a_img);
   ScopedPathUnlinker b_img_unlinker(state.b_img);
@@ -972,39 +1013,20 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
 void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
                                  bool hash_checks_mandatory) {
   DeltaState state;
-  GenerateDeltaFile(true, true, false, -1, kSignatureGenerated, &state);
+  uint64_t minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+  GenerateDeltaFile(true, true, false, -1, kSignatureGenerated, &state,
+                    minor_version);
   ScopedPathUnlinker a_img_unlinker(state.a_img);
   ScopedPathUnlinker b_img_unlinker(state.b_img);
   ScopedPathUnlinker delta_unlinker(state.delta_path);
   ScopedPathUnlinker old_kernel_unlinker(state.old_kernel);
   ScopedPathUnlinker new_kernel_unlinker(state.new_kernel);
   DeltaPerformer *performer = nullptr;
-  ApplyDeltaFile(true, true, false, kSignatureGenerated,
-                 &state, hash_checks_mandatory, op_hash_test, &performer);
+  ApplyDeltaFile(true, true, false, kSignatureGenerated, &state,
+                 hash_checks_mandatory, op_hash_test, &performer,
+                 minor_version);
   delete performer;
 }
-
-
-class DeltaPerformerTest : public ::testing::Test {
- public:
-  // Test helper placed where it can easily be friended from DeltaPerformer.
-  static void RunManifestValidation(const DeltaArchiveManifest& manifest,
-                                    bool full_payload,
-                                    ErrorCode expected) {
-    MockPrefs prefs;
-    InstallPlan install_plan;
-    FakeSystemState fake_system_state;
-    DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
-
-    // The install plan is for Full or Delta.
-    install_plan.is_full_update = full_payload;
-
-    // The Manifest we are validating.
-    performer.manifest_.CopyFrom(manifest);
-
-    EXPECT_EQ(expected, performer.ValidateManifest());
-  }
-};
 
 TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
   uint64_t test[] = {1, 1, 4, 2, kSparseHole, 1, 0, 1};
@@ -1110,68 +1132,69 @@ TEST(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageTest) {
   DoSmallImageTest(false, false, false, -1, kSignatureGenerator,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignaturePlaceholderTest) {
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedPlaceholder,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignaturePlaceholderMismatchTest) {
   DeltaState state;
   GenerateDeltaFile(false, false, false, -1,
-                    kSignatureGeneratedPlaceholderMismatch, &state);
+                    kSignatureGeneratedPlaceholderMismatch, &state,
+                    kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageChunksTest) {
   DoSmallImageTest(false, false, false, kBlockSize, kSignatureGenerator,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootFullKernelSmallImageTest) {
   DoSmallImageTest(true, false, false, -1, kSignatureGenerator,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootFullSmallImageTest) {
   DoSmallImageTest(true, true, false, -1, kSignatureGenerator,
-                   true);
+                   true, DeltaPerformer::kFullPayloadMinorVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootNoopSmallImageTest) {
   DoSmallImageTest(false, false, true, -1, kSignatureGenerator,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignNoneTest) {
   DoSmallImageTest(false, false, false, -1, kSignatureNone,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedTest) {
   DoSmallImageTest(false, false, false, -1, kSignatureGenerated,
-                   true);
+                   true, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellTest) {
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShell,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellBadKeyTest) {
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellBadKey,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellRotateCl1Test) {
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellRotateCl1,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellRotateCl2Test) {
   DoSmallImageTest(false, false, false, -1, kSignatureGeneratedShellRotateCl2,
-                   false);
+                   false, kInPlaceMinorPayloadVersion);
 }
 
 TEST(DeltaPerformerTest, BadDeltaMagicTest) {
@@ -1352,6 +1375,24 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
 
   delete performer;
   EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
+}
+
+TEST(DeltaPerformerTest, RunAsRootSourceOperationsTest) {
+  // Make sure we can generate a payload with the new source ops and minor
+  // version 2. For now, we expect ApplyDeltaFile to fail because the ops are
+  // not yet implemented, but eventually we can verify the resulting payload.
+  DeltaState state;
+  DeltaPerformer* performer = nullptr;
+  GenerateDeltaFile(false, false, false, -1, kSignatureNone, &state,
+                    kSourceMinorPayloadVersion);
+  ScopedPathUnlinker a_img_unlinker(state.a_img);
+  ScopedPathUnlinker b_img_unlinker(state.b_img);
+  ScopedPathUnlinker delta_unlinker(state.delta_path);
+  ScopedPathUnlinker old_kernel_unlinker(state.old_kernel);
+  ScopedPathUnlinker new_kernel_unlinker(state.new_kernel);
+  ApplyDeltaFile(false, false, false, kSignatureNone, &state, false,
+                 kValidOperationData, &performer, kSourceMinorPayloadVersion);
+  delete performer;
 }
 
 TEST(DeltaPerformerTest, MinorVersionsMatch) {

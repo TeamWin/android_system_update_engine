@@ -21,6 +21,8 @@ InstallPlan::InstallPlan(bool is_resume,
                          const string& metadata_signature,
                          const string& install_path,
                          const string& kernel_install_path,
+                         const string& source_path,
+                         const string& kernel_source_path,
                          const string& public_key_rsa)
     : is_resume(is_resume),
       is_full_update(is_full_update),
@@ -31,6 +33,8 @@ InstallPlan::InstallPlan(bool is_resume,
       metadata_signature(metadata_signature),
       install_path(install_path),
       kernel_install_path(kernel_install_path),
+      source_path(source_path),
+      kernel_source_path(kernel_source_path),
       kernel_size(0),
       rootfs_size(0),
       hash_checks_mandatory(false),
@@ -56,7 +60,9 @@ bool InstallPlan::operator==(const InstallPlan& that) const {
           (metadata_size == that.metadata_size) &&
           (metadata_signature == that.metadata_signature) &&
           (install_path == that.install_path) &&
-          (kernel_install_path == that.kernel_install_path));
+          (kernel_install_path == that.kernel_install_path) &&
+          (source_path == that.source_path) &&
+          (kernel_source_path == that.kernel_source_path));
 }
 
 bool InstallPlan::operator!=(const InstallPlan& that) const {
@@ -74,6 +80,8 @@ void InstallPlan::Dump() const {
             << ", metadata signature: " << metadata_signature
             << ", install_path: " << install_path
             << ", kernel_install_path: " << kernel_install_path
+            << ", source_path: " << source_path
+            << ", kernel_source_path: " << kernel_source_path
             << ", hash_checks_mandatory: " << utils::ToString(
                 hash_checks_mandatory)
             << ", powerwash_required: " << utils::ToString(

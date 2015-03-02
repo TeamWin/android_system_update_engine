@@ -27,6 +27,8 @@ struct InstallPlan {
               const std::string& metadata_signature,
               const std::string& install_path,
               const std::string& kernel_install_path,
+              const std::string& source_path,
+              const std::string& kernel_source_path,
               const std::string& public_key_rsa);
 
   // Default constructor: Initialize all members which don't have a class
@@ -49,6 +51,8 @@ struct InstallPlan {
   std::string metadata_signature;        // signature of the  metadata
   std::string install_path;              // path to install device
   std::string kernel_install_path;       // path to kernel install device
+  std::string source_path;               // path to source device
+  std::string kernel_source_path;        // path to source kernel device
 
   // The fields below are used for kernel and rootfs verification. The flow is:
   //

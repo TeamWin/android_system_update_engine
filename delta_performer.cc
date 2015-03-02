@@ -57,6 +57,9 @@ const unsigned DeltaPerformer::kProgressLogTimeoutSeconds = 30;
 const unsigned DeltaPerformer::kProgressDownloadWeight = 50;
 const unsigned DeltaPerformer::kProgressOperationsWeight = 50;
 
+const uint32_t kInPlaceMinorPayloadVersion = 1;
+const uint32_t kSourceMinorPayloadVersion = 2;
+
 namespace {
 const int kUpdateStateOperationInvalid = -1;
 const int kMaxResumedUpdateFailures = 10;
@@ -272,6 +275,18 @@ bool DeltaPerformer::OpenKernel(const char* kernel_path) {
   return static_cast<bool>(kernel_fd_);
 }
 
+bool DeltaPerformer::OpenSourceRootfs(const std::string& source_path) {
+  int err;
+  source_fd_ = OpenFile(source_path.c_str(), &err);
+  return static_cast<bool>(source_fd_);
+}
+
+bool DeltaPerformer::OpenSourceKernel(const std::string& source_kernel_path) {
+  int err;
+  source_kernel_fd_ = OpenFile(source_kernel_path.c_str(), &err);
+  return static_cast<bool>(source_kernel_fd_);
+}
+
 int DeltaPerformer::Close() {
   int err = 0;
   if (!kernel_fd_->Close()) {
@@ -282,8 +297,19 @@ int DeltaPerformer::Close() {
     err = errno;
     PLOG(ERROR) << "Unable to close rootfs fd:";
   }
+  if (source_fd_ && !source_fd_->Close()) {
+    err = errno;
+    PLOG(ERROR) << "Unable to close source rootfs fd:";
+  }
+  if (source_kernel_fd_ && !source_kernel_fd_->Close()) {
+    err = errno;
+    PLOG(ERROR) << "Unable to close source kernel fd:";
+  }
   LOG_IF(ERROR, !hash_calculator_.Finalize()) << "Unable to finalize the hash.";
   fd_.reset();  // Set to invalid so that calls to Open() will fail.
+  kernel_fd_.reset();
+  source_fd_.reset();
+  source_kernel_fd_.reset();
   path_ = "";
   if (!buffer_.empty()) {
     LOG(INFO) << "Discarding " << buffer_.size() << " unused downloaded bytes";
@@ -331,6 +357,16 @@ uint64_t DeltaPerformer::GetManifestOffset() {
 
 uint64_t DeltaPerformer::GetMetadataSize() const {
   return metadata_size_;
+}
+
+uint32_t DeltaPerformer::GetMinorVersion() const {
+  if (manifest_.has_minor_version()) {
+    return manifest_.minor_version();
+  } else {
+    return (install_plan_->is_full_update ?
+            kFullPayloadMinorVersion :
+            kSupportedMinorPayloadVersion);
+  }
 }
 
 bool DeltaPerformer::GetManifest(DeltaArchiveManifest* out_manifest_p) const {
@@ -501,6 +537,23 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
       return false;
     }
 
+    // Open source fds if we have a delta payload with minor version 2.
+    if (!install_plan_->is_full_update &&
+        GetMinorVersion() == kSourceMinorPayloadVersion) {
+      if (!OpenSourceRootfs(install_plan_->source_path)) {
+        LOG(ERROR) << "Unable to open source rootfs partition file "
+                   << install_plan_->source_path;
+        Close();
+        return false;
+      }
+      if (!OpenSourceKernel(install_plan_->kernel_source_path)) {
+        LOG(ERROR) << "Unable to open source kernel partition file "
+                   << install_plan_->kernel_source_path;
+        Close();
+        return false;
+      }
+    }
+
     num_rootfs_operations_ = manifest_.install_operations_size();
     num_total_operations_ =
         num_rootfs_operations_ + manifest_.kernel_install_operations_size();
@@ -590,7 +643,7 @@ bool DeltaPerformer::CanPerformInstallOperation(
     const chromeos_update_engine::DeltaArchiveManifest_InstallOperation&
     operation) {
   // Move operations don't require any data blob, so they can always
-  // be performed
+  // be performed.
   if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE)
     return true;
 
@@ -982,11 +1035,11 @@ ErrorCode DeltaPerformer::ValidateManifest() {
       return ErrorCode::kUnsupportedMinorPayloadVersion;
     }
   } else {
-    if (manifest_.minor_version() != kSupportedMinorPayloadVersion) {
+    if (manifest_.minor_version() != supported_minor_version_) {
       LOG(ERROR) << "Manifest contains minor version "
                  << manifest_.minor_version()
                  << " not the supported "
-                 << kSupportedMinorPayloadVersion;
+                 << supported_minor_version_;
       return ErrorCode::kUnsupportedMinorPayloadVersion;
     }
   }

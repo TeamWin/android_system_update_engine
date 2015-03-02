@@ -720,6 +720,9 @@ bool UpdateAttempter::Rollback(bool powerwash) {
 
   install_plan.kernel_install_path =
       utils::KernelDeviceOfBootDevice(install_plan.install_path);
+  install_plan.source_path = system_state_->hardware()->BootDevice();
+  install_plan.kernel_source_path =
+      utils::KernelDeviceOfBootDevice(install_plan.source_path);
   install_plan.powerwash_required = powerwash;
 
   LOG(INFO) << "Using this install plan:";

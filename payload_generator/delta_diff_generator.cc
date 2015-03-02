@@ -85,9 +85,6 @@ const size_t kBlockSize = 4096;  // bytes
 const char* const kEmptyPath = "";
 const char* const kBsdiffPath = "bsdiff";
 
-const uint32_t kInPlaceMinorPayloadVersion = 1;
-const uint32_t kSourceMinorPayloadVersion = 2;
-
 // Needed for testing purposes, in case we can't use actual filesystem objects.
 // TODO(garnold) (chromium:331965) Replace this hack with a properly injected
 // parameter in form of a mockable abstract class.

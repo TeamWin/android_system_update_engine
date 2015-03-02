@@ -149,6 +149,8 @@ void TestWithData(const chromeos::Blob& data,
                            "",
                            output_temp_file.GetPath(),
                            "",
+                           "",
+                           "",
                            "");
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
@@ -266,7 +268,7 @@ void TestTerminateEarly(bool use_download_delegate) {
     // takes ownership of passed in HttpFetcher
     ObjectFeederAction<InstallPlan> feeder_action;
     InstallPlan install_plan(false, false, "", 0, "", 0, "",
-                             temp_file.GetPath(), "", "");
+                             temp_file.GetPath(), "", "", "", "");
     feeder_action.set_obj(install_plan);
     MockPrefs prefs;
     DownloadAction download_action(&prefs, nullptr,
@@ -376,6 +378,8 @@ TEST(DownloadActionTest, PassObjectOutTest) {
                            "",
                            "/dev/null",
                            "/dev/null",
+                           "/dev/null",
+                           "/dev/null",
                            "");
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
@@ -411,7 +415,8 @@ TEST(DownloadActionTest, BadOutFileTest) {
   DirectFileWriter writer;
 
   // takes ownership of passed in HttpFetcher
-  InstallPlan install_plan(false, false, "", 0, "", 0, "", path, "", "");
+  InstallPlan install_plan(
+      false, false, "", 0, "", 0, "", path, "", "", "", "");
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
@@ -492,6 +497,8 @@ class P2PDownloadActionTest : public testing::Test {
                              0,
                              "",
                              output_temp_file.GetPath(),
+                             "",
+                             "",
                              "",
                              "");
     ObjectFeederAction<InstallPlan> feeder_action;

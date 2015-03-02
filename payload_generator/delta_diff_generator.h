@@ -31,12 +31,6 @@ extern const char* const kEmptyPath;
 extern const size_t kBlockSize;
 extern const size_t kRootFSPartitionSize;
 
-// The minor version used by the in-place delta generator algorithm.
-extern const uint32_t kInPlaceMinorPayloadVersion;
-
-// The minor version used by the A to B delta generator algorithm.
-extern const uint32_t kSourceMinorPayloadVersion;
-
 // The payload generation strategy prototype. This is the function that does
 // all the work to generate the operations for the rootfs and the kernel.
 // Given the |config|, generates the payload by populating the |graph| with

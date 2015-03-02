@@ -24,6 +24,12 @@
 
 namespace chromeos_update_engine {
 
+// The minor version used by the in-place delta generator algorithm.
+extern const uint32_t kInPlaceMinorPayloadVersion;
+
+// The minor version used by the A to B delta generator algorithm.
+extern const uint32_t kSourceMinorPayloadVersion;
+
 class PrefsInterface;
 
 // This class performs the actions in a delta update synchronously. The delta
@@ -65,6 +71,8 @@ class DeltaPerformer : public FileWriter {
         install_plan_(install_plan),
         fd_(nullptr),
         kernel_fd_(nullptr),
+        source_fd_(nullptr),
+        source_kernel_fd_(nullptr),
         manifest_parsed_(false),
         manifest_valid_(false),
         metadata_size_(0),
@@ -79,11 +87,18 @@ class DeltaPerformer : public FileWriter {
         overall_progress_(0),
         last_progress_chunk_(0),
         forced_progress_log_wait_(
-            base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)) {}
+            base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)),
+        supported_minor_version_(kSupportedMinorPayloadVersion) {}
 
   // Opens the kernel. Should be called before or after Open(), but before
   // Write(). The kernel file will be close()d when Close() is called.
   bool OpenKernel(const char* kernel_path);
+
+  // Opens the source partition. The file will be closed when Close() is called.
+  bool OpenSourceRootfs(const std::string& kernel_path);
+
+  // Opens the source kernel. The file will be closed when Close() is called.
+  bool OpenSourceKernel(const std::string& source_kernel_path);
 
   // flags and mode ignored. Once Close()d, a DeltaPerformer can't be
   // Open()ed again.
@@ -185,6 +200,10 @@ class DeltaPerformer : public FileWriter {
   // If the manifest was successfully parsed, copies it to |*out_manifest_p|.
   // Returns true on success.
   bool GetManifest(DeltaArchiveManifest* out_manifest_p) const;
+
+  // Returns the delta minor version. If this value is defined in the manifest,
+  // it returns that value, otherwise it returns the default value.
+  uint32_t GetMinorVersion() const;
 
  private:
   friend class DeltaPerformerTest;
@@ -300,8 +319,14 @@ class DeltaPerformer : public FileWriter {
   // File descriptor of open device.
   FileDescriptorPtr fd_;
 
-  // File descriptor of the kernel device
+  // File descriptor of the kernel device.
   FileDescriptorPtr kernel_fd_;
+
+  // File descriptor of the source device.
+  FileDescriptorPtr source_fd_;
+
+  // File descriptor of the source kernel device.
+  FileDescriptorPtr source_kernel_fd_;
 
   std::string path_;  // Path that fd_ refers to.
   std::string kernel_path_;  // Path that kernel_fd_ refers to.
@@ -358,6 +383,9 @@ class DeltaPerformer : public FileWriter {
   // and the actual point in time for the next forced log to be emitted.
   const base::TimeDelta forced_progress_log_wait_;
   base::Time forced_progress_log_time_;
+
+  // The delta minor payload version supported by DeltaPerformer.
+  uint32_t supported_minor_version_;
 
   DISALLOW_COPY_AND_ASSIGN(DeltaPerformer);
 };
