@@ -30,7 +30,7 @@
 #include "update_engine/terminator.h"
 #include "update_engine/update_attempter.h"
 extern "C" {
-#include "update_engine/update_engine.dbusserver.h"
+#include "update_engine/org.chromium.UpdateEngineInterface.dbusserver.h"
 }
 #include "update_engine/utils.h"
 

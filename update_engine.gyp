@@ -70,7 +70,7 @@
         'dbus_glib_prefix': 'update_engine_service',
       },
       'sources': [
-        'update_engine.xml',
+        'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
       ],
       'includes': ['../common-mk/dbus_glib.gypi'],
     },
@@ -83,7 +83,7 @@
         'dbus_glib_prefix': 'update_engine_service',
       },
       'sources': [
-        'update_engine.xml',
+        'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
       ],
       'includes': ['../common-mk/dbus_glib.gypi'],
     },

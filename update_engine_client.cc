@@ -16,7 +16,7 @@
 #include "update_engine/glib_utils.h"
 
 extern "C" {
-#include "update_engine/update_engine.dbusclient.h"
+#include "update_engine/org.chromium.UpdateEngineInterface.dbusclient.h"
 }
 
 using chromeos_update_engine::AttemptUpdateFlags;
