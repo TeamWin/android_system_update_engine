@@ -15,6 +15,7 @@
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/update_metadata.pb.h"
 
 // There is one function in DeltaDiffGenerator of importance to users
@@ -36,22 +37,6 @@ extern const uint32_t kInPlaceMinorPayloadVersion;
 // The minor version used by the A to B delta generator algorithm.
 extern const uint32_t kSourceMinorPayloadVersion;
 
-// This struct stores all relevant info for an edge that is cut between
-// nodes old_src -> old_dst by creating new vertex new_vertex. The new
-// relationship is:
-// old_src -(read before)-> new_vertex <-(write before)- old_dst
-// new_vertex is a MOVE operation that moves some existing blocks into
-// temp space. The temp extents are, by necessity, stored in new_vertex
-// (as dst extents) and old_dst (as src extents), but they are also broken
-// out into tmp_extents, as the nodes themselves may contain many more
-// extents.
-struct CutEdgeVertexes {
-  Vertex::Index new_vertex;
-  Vertex::Index old_src;
-  Vertex::Index old_dst;
-  std::vector<Extent> tmp_extents;
-};
-
 class DeltaDiffGenerator {
  public:
   // Represents a disk block on the install partition.
@@ -70,32 +55,21 @@ class DeltaDiffGenerator {
   };
 
   // This is the only function that external users of the class should call.
-  // old_image and new_image are paths to two image files. They should be
-  // mounted read-only at paths old_root and new_root respectively.
-  // {old,new}_kernel_part are paths to the old and new kernel partition
-  // images, respectively.
-  // private_key_path points to a private key used to sign the update.
+  // The |config| describes the payload generation request, describing both
+  // old and new images for delta payloads and only the new image for full
+  // payloads.
+  // For delta payloads, the images should be already mounted read-only at
+  // the respective rootfs_mountpt.
+  // |private_key_path| points to a private key used to sign the update.
   // Pass empty string to not sign the update.
-  // output_path is the filename where the delta update should be written.
-  // If |chunk_size| is not -1, the delta payload is generated based on
-  // |chunk_size| chunks rather than whole files.
+  // |output_path| is the filename where the delta update should be written.
   // This method computes scratch space based on |rootfs_partition_size|.
-  // |minor_version| indicates the payload minor version for a delta update.
   // Returns true on success. Also writes the size of the metadata into
   // |metadata_size|.
-  static bool GenerateDeltaUpdateFile(const std::string& old_root,
-                                      const std::string& old_image,
-                                      const std::string& new_root,
-                                      const std::string& new_image,
-                                      const std::string& old_kernel_part,
-                                      const std::string& new_kernel_part,
+  static bool GenerateDeltaUpdateFile(const PayloadGenerationConfig& config,
                                       const std::string& output_path,
                                       const std::string& private_key_path,
-                                      off_t chunk_size,
                                       size_t rootfs_partition_size,
-                                      uint32_t minor_version,
-                                      const ImageInfo* old_image_info,
-                                      const ImageInfo* new_image_info,
                                       uint64_t* metadata_size);
 
   // These functions are public so that the unit tests can access them:

@@ -53,8 +53,7 @@ using std::vector;
 
 namespace {
 
-const uint64_t kVersionNumber = 1;
-const uint64_t kFullUpdateChunkSize = 1024 * 1024;  // bytes
+const uint64_t kMajorVersionNumber = 1;
 
 // The maximum destination size allowed for bsdiff. In general, bsdiff should
 // work for arbitrary big files, but the payload generation and payload
@@ -868,30 +867,27 @@ bool DeltaDiffGenerator::InitializePartitionInfo(bool is_kernel,
   return true;
 }
 
-bool InitializePartitionInfos(const string& old_kernel,
-                              const string& new_kernel,
-                              const string& old_rootfs,
-                              const string& new_rootfs,
+bool InitializePartitionInfos(const PayloadGenerationConfig& config,
                               DeltaArchiveManifest* manifest) {
-  if (!old_kernel.empty()) {
+  if (!config.source.kernel_part.empty()) {
     TEST_AND_RETURN_FALSE(DeltaDiffGenerator::InitializePartitionInfo(
         true,
-        old_kernel,
+        config.source.kernel_part,
         manifest->mutable_old_kernel_info()));
   }
   TEST_AND_RETURN_FALSE(DeltaDiffGenerator::InitializePartitionInfo(
       true,
-      new_kernel,
+      config.target.kernel_part,
       manifest->mutable_new_kernel_info()));
-  if (!old_rootfs.empty()) {
+  if (!config.source.rootfs_part.empty()) {
     TEST_AND_RETURN_FALSE(DeltaDiffGenerator::InitializePartitionInfo(
         false,
-        old_rootfs,
+        config.source.rootfs_part,
         manifest->mutable_old_rootfs_info()));
   }
   TEST_AND_RETURN_FALSE(DeltaDiffGenerator::InitializePartitionInfo(
       false,
-      new_rootfs,
+      config.target.rootfs_part,
       manifest->mutable_new_rootfs_info()));
   return true;
 }
@@ -976,58 +972,35 @@ vector<Vertex::Index> DeltaDiffGenerator::OrderIndices(const Graph& graph) {
 }
 
 bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
-    const string& old_root,
-    const string& old_image,
-    const string& new_root,
-    const string& new_image,
-    const string& old_kernel_part,
-    const string& new_kernel_part,
+    const PayloadGenerationConfig& config,
     const string& output_path,
     const string& private_key_path,
-    off_t chunk_size,
     size_t rootfs_partition_size,
-    uint32_t minor_version,
-    const ImageInfo* old_image_info,
-    const ImageInfo* new_image_info,
     uint64_t* metadata_size) {
-  TEST_AND_RETURN_FALSE(chunk_size == -1 || chunk_size % kBlockSize == 0);
-  int old_image_block_count = 0, old_image_block_size = 0;
-  int new_image_block_count = 0, new_image_block_size = 0;
-  TEST_AND_RETURN_FALSE(utils::GetFilesystemSize(new_image,
-                                                 &new_image_block_count,
-                                                 &new_image_block_size));
-  if (!old_image.empty()) {
-    TEST_AND_RETURN_FALSE(utils::GetFilesystemSize(old_image,
-                                                   &old_image_block_count,
-                                                   &old_image_block_size));
-    TEST_AND_RETURN_FALSE(old_image_block_size == new_image_block_size);
+  int old_image_block_count = config.source.rootfs_size / config.block_size;
+  int new_image_block_count = config.target.rootfs_size / config.block_size;
+
+  if (config.is_delta) {
     LOG_IF(WARNING, old_image_block_count != new_image_block_count)
         << "Old and new images have different block counts.";
-
-    // If new_image_info is present, old_image_info must be present.
-    TEST_AND_RETURN_FALSE(!old_image_info == !new_image_info);
-  } else {
-    // old_image_info must not be present for a full update.
-    TEST_AND_RETURN_FALSE(!old_image_info);
+    // TODO(deymo): Our tools only support growing the filesystem size during
+    // an update. Remove this check when that's fixed. crbug.com/192136
+    LOG_IF(FATAL, old_image_block_count > new_image_block_count)
+        << "Shirking the rootfs size is not supported at the moment.";
   }
 
   // Sanity checks for the partition size.
-  TEST_AND_RETURN_FALSE(rootfs_partition_size % kBlockSize == 0);
-  size_t fs_size = static_cast<size_t>(new_image_block_size) *
-                   new_image_block_count;
+  TEST_AND_RETURN_FALSE(rootfs_partition_size % config.block_size == 0);
   LOG(INFO) << "Rootfs partition size: " << rootfs_partition_size;
-  LOG(INFO) << "Actual filesystem size: " << fs_size;
-  TEST_AND_RETURN_FALSE(rootfs_partition_size >= fs_size);
-
-  // Sanity check kernel partition arg
-  TEST_AND_RETURN_FALSE(utils::FileSize(new_kernel_part) >= 0);
+  LOG(INFO) << "Actual filesystem size: " << config.target.rootfs_size;
+  TEST_AND_RETURN_FALSE(rootfs_partition_size >= config.target.rootfs_size);
 
   vector<Block> blocks(max(old_image_block_count, new_image_block_count));
   LOG(INFO) << "Invalid block index: " << Vertex::kInvalidIndex;
   LOG(INFO) << "Block count: " << blocks.size();
-  for (vector<Block>::size_type i = 0; i < blocks.size(); i++) {
-    CHECK(blocks[i].reader == Vertex::kInvalidIndex);
-    CHECK(blocks[i].writer == Vertex::kInvalidIndex);
+  for (const Block& block : blocks) {
+    CHECK(block.reader == Vertex::kInvalidIndex);
+    CHECK(block.writer == Vertex::kInvalidIndex);
   }
   Graph graph;
   CheckGraph(graph);
@@ -1047,46 +1020,47 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   vector<Vertex::Index> final_order;
   Vertex::Index scratch_vertex = Vertex::kInvalidIndex;
   {
-    int fd;
+    int data_file_fd;
     TEST_AND_RETURN_FALSE(
-        utils::MakeTempFile(kTempFileTemplate, &temp_file_path, &fd));
+        utils::MakeTempFile(kTempFileTemplate, &temp_file_path, &data_file_fd));
     temp_file_unlinker.reset(new ScopedPathUnlinker(temp_file_path));
-    TEST_AND_RETURN_FALSE(fd >= 0);
-    ScopedFdCloser fd_closer(&fd);
-    if (!old_image.empty()) {
+    TEST_AND_RETURN_FALSE(data_file_fd >= 0);
+    ScopedFdCloser data_file_fd_closer(&data_file_fd);
+    if (config.is_delta) {
       // Delta update
 
       // Set the minor version for this payload.
       LOG(INFO) << "Adding Delta Minor Version.";
-      manifest.set_minor_version(minor_version);
-      if (minor_version == kInPlaceMinorPayloadVersion) {
+      manifest.set_minor_version(config.minor_version);
+      if (config.minor_version == kInPlaceMinorPayloadVersion) {
         TEST_AND_RETURN_FALSE(DeltaReadFiles(&graph,
                                              &blocks,
-                                             old_root,
-                                             new_root,
-                                             chunk_size,
-                                             fd,
+                                             config.source.rootfs_mountpt,
+                                             config.target.rootfs_mountpt,
+                                             config.chunk_size,
+                                             data_file_fd,
                                              &data_file_size,
                                              false));  // src_ops_allowed
         LOG(INFO) << "done reading normal files";
         CheckGraph(graph);
 
         LOG(INFO) << "Starting metadata processing";
-        TEST_AND_RETURN_FALSE(Metadata::DeltaReadMetadata(&graph,
-                                                          &blocks,
-                                                          old_image,
-                                                          new_image,
-                                                          fd,
-                                                          &data_file_size));
+        TEST_AND_RETURN_FALSE(Metadata::DeltaReadMetadata(
+            &graph,
+            &blocks,
+            config.source.rootfs_part,
+            config.target.rootfs_part,
+            data_file_fd,
+            &data_file_size));
         LOG(INFO) << "Done metadata processing";
         CheckGraph(graph);
 
         graph.resize(graph.size() + 1);
         TEST_AND_RETURN_FALSE(ReadUnwrittenBlocks(blocks,
-                                                  fd,
+                                                  data_file_fd,
                                                   &data_file_size,
-                                                  old_image,
-                                                  new_image,
+                                                  config.source.rootfs_part,
+                                                  config.target.rootfs_part,
                                                   &graph.back()));
         if (graph.back().op.data_length() == 0) {
           LOG(INFO) << "No unwritten blocks to write, omitting operation";
@@ -1105,10 +1079,10 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 
         // Read kernel partition
         TEST_AND_RETURN_FALSE(
-            DeltaCompressKernelPartition(old_kernel_part,
-                                         new_kernel_part,
+            DeltaCompressKernelPartition(config.source.kernel_part,
+                                         config.target.kernel_part,
                                          &kernel_ops,
-                                         fd,
+                                         data_file_fd,
                                          &data_file_size,
                                          false));  // src_ops_allowed
 
@@ -1122,18 +1096,18 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 
         TEST_AND_RETURN_FALSE(InplaceGenerator::ConvertGraphToDag(
             &graph,
-            new_root,
-            fd,
+            config.target.rootfs_mountpt,
+            data_file_fd,
             &data_file_size,
             &final_order,
             scratch_vertex));
-      } else if (minor_version == kSourceMinorPayloadVersion) {
+      } else if (config.minor_version == kSourceMinorPayloadVersion) {
         TEST_AND_RETURN_FALSE(DeltaReadFiles(&graph,
                                              &blocks,
-                                             old_root,
-                                             new_root,
-                                             chunk_size,
-                                             fd,
+                                             config.source.rootfs_mountpt,
+                                             config.target.rootfs_mountpt,
+                                             config.chunk_size,
+                                             data_file_fd,
                                              &data_file_size,
                                              true));  // src_ops_allowed
 
@@ -1142,10 +1116,10 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 
         // Read kernel partition
         TEST_AND_RETURN_FALSE(
-            DeltaCompressKernelPartition(old_kernel_part,
-                                         new_kernel_part,
+            DeltaCompressKernelPartition(config.source.kernel_part,
+                                         config.target.kernel_part,
                                          &kernel_ops,
-                                         fd,
+                                         data_file_fd,
                                          &data_file_size,
                                          true));  // src_ops_allowed
         LOG(INFO) << "done reading kernel";
@@ -1153,10 +1127,10 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 
         graph.resize(graph.size() + 1);
         TEST_AND_RETURN_FALSE(ReadUnwrittenBlocks(blocks,
-                                                  fd,
+                                                  data_file_fd,
                                                   &data_file_size,
-                                                  old_image,
-                                                  new_image,
+                                                  config.source.rootfs_part,
+                                                  config.target.rootfs_part,
                                                   &graph.back()));
         if (graph.back().op.data_length() == 0) {
           LOG(INFO) << "No unwritten blocks to write, omitting operation";
@@ -1166,21 +1140,14 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
         final_order = OrderIndices(graph);
       } else {
         LOG(ERROR) << "Unsupported minor version given for delta payload: "
-                   << minor_version;
+                   << config.minor_version;
         return false;
       }
     } else {
-      // Full update
-      off_t new_image_size =
-          static_cast<off_t>(new_image_block_count) * new_image_block_size;
-      TEST_AND_RETURN_FALSE(FullUpdateGenerator::Run(&graph,
-                                                     new_kernel_part,
-                                                     new_image,
-                                                     new_image_size,
-                                                     fd,
+      TEST_AND_RETURN_FALSE(FullUpdateGenerator::Run(config,
+                                                     data_file_fd,
                                                      &data_file_size,
-                                                     kFullUpdateChunkSize,
-                                                     kBlockSize,
+                                                     &graph,
                                                      &kernel_ops,
                                                      &final_order));
 
@@ -1190,11 +1157,11 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     }
   }
 
-  if (old_image_info)
-    *(manifest.mutable_old_image_info()) = *old_image_info;
+  if (!config.source.ImageInfoIsEmpty())
+    *(manifest.mutable_old_image_info()) = config.source.image_info;
 
-  if (new_image_info)
-    *(manifest.mutable_new_image_info()) = *new_image_info;
+  if (!config.target.ImageInfoIsEmpty())
+    *(manifest.mutable_new_image_info()) = config.target.image_info;
 
   OperationNameMap op_name_map;
   CheckGraph(graph);
@@ -1248,11 +1215,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     AddSignatureOp(next_blob_offset, signature_blob_length, &manifest);
   }
 
-  TEST_AND_RETURN_FALSE(InitializePartitionInfos(old_kernel_part,
-                                                 new_kernel_part,
-                                                 old_image,
-                                                 new_image,
-                                                 &manifest));
+  TEST_AND_RETURN_FALSE(InitializePartitionInfos(config, &manifest));
 
   // Serialize protobuf
   string serialized_manifest;
@@ -1271,8 +1234,8 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   // Write header
   TEST_AND_RETURN_FALSE(writer.Write(kDeltaMagic, strlen(kDeltaMagic)));
 
-  // Write version number
-  TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer, kVersionNumber));
+  // Write major version number
+  TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer, kMajorVersionNumber));
 
   // Write protobuf length
   TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer,

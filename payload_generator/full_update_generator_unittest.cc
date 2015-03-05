@@ -9,6 +9,7 @@
 
 #include <gtest/gtest.h>
 
+#include "update_engine/delta_performer.h"
 #include "update_engine/test_utils.h"
 
 using chromeos_update_engine::test_utils::FillWithData;
@@ -17,36 +18,42 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-namespace {
-  const size_t kBlockSize = 4096;
-}  // namespace
+class FullUpdateGeneratorTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    config_.is_delta = false;
+    config_.minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+    config_.chunk_size = 128 * 1024;
+    config_.block_size = 4096;
+  }
+
+  PayloadGenerationConfig config_;
+};
 
 
-class FullUpdateGeneratorTest : public ::testing::Test { };
-
-
-TEST(FullUpdateGeneratorTest, RunTest) {
+TEST_F(FullUpdateGeneratorTest, RunTest) {
   chromeos::Blob new_root(20 * 1024 * 1024);
   chromeos::Blob new_kern(16 * 1024 * 1024);
-  const off_t kChunkSize = 128 * 1024;
   FillWithData(&new_root);
   FillWithData(&new_kern);
+
   // Assume hashes take 2 MiB beyond the rootfs.
-  off_t new_rootfs_size = new_root.size() - 2 * 1024 * 1024;
+  config_.target.rootfs_size = new_root.size() - 2 * 1024 * 1024;
+  config_.target.kernel_size = new_kern.size();
 
-  string new_root_path;
   EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_R.XXXXXX",
-                                  &new_root_path,
+                                  &config_.target.rootfs_part,
                                   nullptr));
-  ScopedPathUnlinker new_root_path_unlinker(new_root_path);
-  EXPECT_TRUE(test_utils::WriteFileVector(new_root_path, new_root));
+  ScopedPathUnlinker rootfs_part_unlinker(config_.target.rootfs_part);
+  EXPECT_TRUE(test_utils::WriteFileVector(config_.target.rootfs_part,
+                                          new_root));
 
-  string new_kern_path;
   EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_K.XXXXXX",
-                                  &new_kern_path,
+                                  &config_.target.kernel_part,
                                   nullptr));
-  ScopedPathUnlinker new_kern_path_unlinker(new_kern_path);
-  EXPECT_TRUE(test_utils::WriteFileVector(new_kern_path, new_kern));
+  ScopedPathUnlinker kernel_path_unlinker(config_.target.kernel_part);
+  EXPECT_TRUE(test_utils::WriteFileVector(config_.target.kernel_part,
+                                          new_kern));
 
   string out_blobs_path;
   int out_blobs_fd;
@@ -57,30 +64,27 @@ TEST(FullUpdateGeneratorTest, RunTest) {
   ScopedFdCloser out_blobs_fd_closer(&out_blobs_fd);
 
   off_t out_blobs_length = 0;
-
   Graph graph;
   vector<DeltaArchiveManifest_InstallOperation> kernel_ops;
   vector<Vertex::Index> final_order;
 
-  EXPECT_TRUE(FullUpdateGenerator::Run(&graph,
-                                       new_kern_path,
-                                       new_root_path,
-                                       new_rootfs_size,
+  EXPECT_TRUE(FullUpdateGenerator::Run(config_,
                                        out_blobs_fd,
                                        &out_blobs_length,
-                                       kChunkSize,
-                                       kBlockSize,
+                                       &graph,
                                        &kernel_ops,
                                        &final_order));
-  EXPECT_EQ(new_rootfs_size / kChunkSize, graph.size());
-  EXPECT_EQ(new_rootfs_size / kChunkSize, final_order.size());
-  EXPECT_EQ(new_kern.size() / kChunkSize, kernel_ops.size());
-  for (off_t i = 0; i < (new_rootfs_size / kChunkSize); ++i) {
+  int64_t target_rootfs_chucks =
+      config_.target.rootfs_size / config_.chunk_size;
+  EXPECT_EQ(target_rootfs_chucks, graph.size());
+  EXPECT_EQ(target_rootfs_chucks, final_order.size());
+  EXPECT_EQ(new_kern.size() / config_.chunk_size, kernel_ops.size());
+  for (off_t i = 0; i < target_rootfs_chucks; ++i) {
     EXPECT_EQ(i, final_order[i]);
     EXPECT_EQ(1, graph[i].op.dst_extents_size());
-    EXPECT_EQ(i * kChunkSize / kBlockSize,
+    EXPECT_EQ(i * config_.chunk_size / config_.block_size,
               graph[i].op.dst_extents(0).start_block()) << "i = " << i;
-    EXPECT_EQ(kChunkSize / kBlockSize,
+    EXPECT_EQ(config_.chunk_size / config_.block_size,
               graph[i].op.dst_extents(0).num_blocks());
     if (graph[i].op.type() !=
         DeltaArchiveManifest_InstallOperation_Type_REPLACE) {

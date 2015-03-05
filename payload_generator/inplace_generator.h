@@ -18,6 +18,22 @@
 
 namespace chromeos_update_engine {
 
+// This struct stores all relevant info for an edge that is cut between
+// nodes old_src -> old_dst by creating new vertex new_vertex. The new
+// relationship is:
+// old_src -(read before)-> new_vertex <-(write before)- old_dst
+// new_vertex is a MOVE operation that moves some existing blocks into
+// temp space. The temp extents are, by necessity, stored in new_vertex
+// (as dst extents) and old_dst (as src extents), but they are also broken
+// out into tmp_extents, as the nodes themselves may contain many more
+// extents.
+struct CutEdgeVertexes {
+  Vertex::Index new_vertex;
+  Vertex::Index old_src;
+  Vertex::Index old_dst;
+  std::vector<Extent> tmp_extents;
+};
+
 class InplaceGenerator {
  public:
   // Modifies blocks read by 'op' so that any blocks referred to by

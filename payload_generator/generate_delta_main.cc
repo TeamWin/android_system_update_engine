@@ -20,6 +20,7 @@
 
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_verifier.h"
 #include "update_engine/prefs.h"
@@ -253,7 +254,7 @@ int Main(int argc, char** argv) {
   DEFINE_int64(rootfs_partition_size,
                chromeos_update_engine::kRootFSPartitionSize,
                "RootFS partition size for the image once installed");
-  DEFINE_int32(minor_version, 0,
+  DEFINE_int32(minor_version, DeltaPerformer::kFullPayloadMinorVersion,
                "The minor version of the payload being generated");
 
   DEFINE_string(old_channel, "",
@@ -337,14 +338,33 @@ int Main(int argc, char** argv) {
                FLAGS_prefs_dir);
     return 0;
   }
-  CHECK(!FLAGS_new_image.empty());
+
+  // A payload generation was requested. Convert the flags to a
+  // PayloadGenerationConfig.
+  PayloadGenerationConfig payload_config;
+  payload_config.source.rootfs_part = FLAGS_old_image;
+  payload_config.source.rootfs_mountpt = FLAGS_old_dir;
+  payload_config.source.kernel_part = FLAGS_old_kernel;
+
+  payload_config.target.rootfs_part = FLAGS_new_image;
+  payload_config.target.rootfs_mountpt = FLAGS_new_dir;
+  payload_config.target.kernel_part = FLAGS_new_kernel;
+
+  payload_config.chunk_size = FLAGS_chunk_size;
+  payload_config.block_size = kBlockSize;
+
+  // The kernel and rootfs size is never passed to the delta_generator, so we
+  // need to detect those from the provided files.
+  if (!FLAGS_old_image.empty()) {
+    CHECK(payload_config.source.LoadImageSize());
+  }
+  if (!FLAGS_new_image.empty()) {
+    CHECK(payload_config.target.LoadImageSize());
+  }
+
+  payload_config.is_delta = !FLAGS_old_image.empty();
+
   CHECK(!FLAGS_out_file.empty());
-  CHECK(!FLAGS_new_kernel.empty());
-
-  bool is_delta = !FLAGS_old_image.empty();
-
-  ImageInfo old_image_info;
-  ImageInfo new_image_info;
 
   // Ignore failures. These are optional arguments.
   ParseImageInfo(FLAGS_new_channel,
@@ -353,7 +373,7 @@ int Main(int argc, char** argv) {
                  FLAGS_new_key,
                  FLAGS_new_build_channel,
                  FLAGS_new_build_version,
-                 &new_image_info);
+                 &payload_config.target.image_info);
 
   // Ignore failures. These are optional arguments.
   ParseImageInfo(FLAGS_old_channel,
@@ -362,64 +382,48 @@ int Main(int argc, char** argv) {
                  FLAGS_old_key,
                  FLAGS_old_build_channel,
                  FLAGS_old_build_version,
-                 &old_image_info);
+                 &payload_config.source.image_info);
 
-  if (is_delta) {
-    LOG(INFO) << "Generating delta update";
-    CHECK(!FLAGS_old_dir.empty());
-    CHECK(!FLAGS_new_dir.empty());
-    if (!utils::IsDir(FLAGS_old_dir.c_str()) ||
-        !utils::IsDir(FLAGS_new_dir.c_str())) {
-      LOG(FATAL) << "old_dir or new_dir not directory";
-    }
-  } else {
-    LOG(INFO) << "Generating full update";
-  }
-
+  payload_config.minor_version = FLAGS_minor_version;
   // Look for the minor version in the old image if it was not given as an
   // argument.
-  if (!CommandLine::ForCurrentProcess()->HasSwitch("minor_version")) {
+  if (payload_config.is_delta &&
+      !CommandLine::ForCurrentProcess()->HasSwitch("minor_version")) {
     uint32_t minor_version;
     base::FilePath image_path(FLAGS_old_dir);
     base::FilePath conf_loc("etc/update_engine.conf");
     base::FilePath conf_path = image_path.Append(conf_loc);
     if (utils::GetMinorVersion(conf_path, &minor_version)) {
-      FLAGS_minor_version = minor_version;
+      payload_config.minor_version = minor_version;
     } else {
-      if (is_delta) {
-        FLAGS_minor_version = kInPlaceMinorPayloadVersion;
-      } else {
-        FLAGS_minor_version = DeltaPerformer::kFullPayloadMinorVersion;
-      }
+      payload_config.minor_version = kInPlaceMinorPayloadVersion;
     }
   }
 
-  if (static_cast<uint32_t>(FLAGS_minor_version) ==
-      kSourceMinorPayloadVersion ||
-      static_cast<uint32_t>(FLAGS_minor_version) ==
-      kInPlaceMinorPayloadVersion ||
-      static_cast<uint32_t>(FLAGS_minor_version) ==
-      DeltaPerformer::kFullPayloadMinorVersion) {
-    uint64_t metadata_size;
-    if (!DeltaDiffGenerator::GenerateDeltaUpdateFile(
-        FLAGS_old_dir,
-        FLAGS_old_image,
-        FLAGS_new_dir,
-        FLAGS_new_image,
-        FLAGS_old_kernel,
-        FLAGS_new_kernel,
-        FLAGS_out_file,
-        FLAGS_private_key,
-        FLAGS_chunk_size,
-        FLAGS_rootfs_partition_size,
-        FLAGS_minor_version,
-        is_delta ? &old_image_info : nullptr,
-        &new_image_info,
-        &metadata_size)) {
-      return 1;
-    }
+  // Full payloads use a hard-coded chunk_size of 1 MiB.
+  if (!payload_config.is_delta) {
+    payload_config.chunk_size = 1024 * 1024;
+  }
+
+  if (payload_config.is_delta) {
+    LOG(INFO) << "Generating delta update";
   } else {
-    LOG(FATAL) << "Unsupported minor payload version: " << FLAGS_minor_version;
+    LOG(INFO) << "Generating full update";
+  }
+
+  // From this point, all the options have been parsed.
+  if (!payload_config.Validate()) {
+    LOG(FATAL) << "Invalid options passed. See errors above.";
+  }
+
+  uint64_t metadata_size;
+  if (!DeltaDiffGenerator::GenerateDeltaUpdateFile(
+      payload_config,
+      FLAGS_out_file,
+      FLAGS_private_key,
+      FLAGS_rootfs_partition_size,
+      &metadata_size)) {
+    return 1;
   }
 
   return 0;

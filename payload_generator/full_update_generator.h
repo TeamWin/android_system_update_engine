@@ -5,32 +5,26 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_FULL_UPDATE_GENERATOR_H_
 #define UPDATE_ENGINE_PAYLOAD_GENERATOR_FULL_UPDATE_GENERATOR_H_
 
-#include <glib.h>
-
 #include <string>
 #include <vector>
 
 #include "update_engine/payload_generator/graph_types.h"
+#include "update_engine/payload_generator/payload_generation_config.h"
 
 namespace chromeos_update_engine {
 
 class FullUpdateGenerator {
  public:
-  // Given a new rootfs and kernel (|new_image|, |new_kernel_part|), reads them
-  // sequentially, creating a full update of chunk_size chunks. Populates
-  // |graph|, |kernel_ops|, and |final_order|, with data about the update
-  // operations, and writes relevant data to |fd|, updating |data_file_size| as
-  // it does. Only the first |image_size| bytes are read from |new_image|
-  // assuming that this is the actual file system.
+  // Creates a full update for the target image defined in |config|. |config|
+  // must be a valid payload generation configuration for a full payload.
+  // Populates |graph|, |kernel_ops|, and |final_order|, with data about the
+  // update operations, and writes relevant data to |data_file_fd|, updating
+  // |data_file_size| as it does.
   static bool Run(
-      Graph* graph,
-      const std::string& new_kernel_part,
-      const std::string& new_image,
-      off_t image_size,
-      int fd,
+      const PayloadGenerationConfig& config,
+      int data_file_fd,
       off_t* data_file_size,
-      off_t chunk_size,
-      off_t block_size,
+      Graph* graph,
       std::vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
       std::vector<Vertex::Index>* final_order);
 

@@ -13,8 +13,8 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
-#include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/strings/string_util.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
 
@@ -106,6 +106,9 @@ enum OperationHashTest {
   kInvalidOperationData,
   kValidOperationData,
 };
+
+// Chuck size used for full payloads during test.
+size_t kDefaultFullChunkSize = 1024 * 1024;
 
 }  // namespace
 
@@ -469,21 +472,38 @@ static void GenerateDeltaFile(bool full_kernel,
     ScopedLoopMounter b_mounter(state->b_img, &b_mnt, MS_RDONLY);
     const string private_key =
         signature_test == kSignatureGenerator ? kUnittestPrivateKeyPath : "";
+
+    PayloadGenerationConfig payload_config;
+    payload_config.is_delta = !full_rootfs;
+    payload_config.chunk_size = chunk_size;
+    if (!full_rootfs) {
+      payload_config.source.rootfs_part = state->a_img;
+      payload_config.source.rootfs_mountpt = a_mnt;
+      if (!full_kernel)
+        payload_config.source.kernel_part = state->old_kernel;
+      payload_config.source.image_info = old_image_info;
+      EXPECT_TRUE(payload_config.source.LoadImageSize());
+
+      payload_config.minor_version =
+          DeltaPerformer::kSupportedMinorPayloadVersion;
+    } else {
+      payload_config.minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+      if (payload_config.chunk_size == -1)
+        payload_config.chunk_size = kDefaultFullChunkSize;
+    }
+    payload_config.target.rootfs_part = state->b_img;
+    payload_config.target.rootfs_mountpt = b_mnt;
+    payload_config.target.kernel_part = state->new_kernel;
+    payload_config.target.image_info = new_image_info;
+    EXPECT_TRUE(payload_config.target.LoadImageSize());
+
+    EXPECT_TRUE(payload_config.Validate());
     EXPECT_TRUE(
         DeltaDiffGenerator::GenerateDeltaUpdateFile(
-            full_rootfs ? "" : a_mnt,
-            full_rootfs ? "" : state->a_img,
-            b_mnt,
-            state->b_img,
-            full_kernel ? "" : state->old_kernel,
-            state->new_kernel,
+            payload_config,
             state->delta_path,
             private_key,
-            chunk_size,
             kRootFSPartitionSize,
-            DeltaPerformer::kSupportedMinorPayloadVersion,
-            full_rootfs ? nullptr : &old_image_info,
-            &new_image_info,
             &state->metadata_size));
   }
 

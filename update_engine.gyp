@@ -283,6 +283,7 @@
         'payload_generator/graph_utils.cc',
         'payload_generator/inplace_generator.cc',
         'payload_generator/metadata.cc',
+        'payload_generator/payload_generation_config.cc',
         'payload_generator/payload_signer.cc',
         'payload_generator/tarjan.cc',
         'payload_generator/topological_sort.cc',

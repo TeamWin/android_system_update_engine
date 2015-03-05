@@ -11,8 +11,8 @@
 #include <deque>
 #include <memory>
 
-#include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/strings/string_util.h>
 
 #include "update_engine/bzip.h"
 #include "update_engine/utils.h"
@@ -108,31 +108,23 @@ bool ChunkProcessor::ReadAndCompress() {
 }  // namespace
 
 bool FullUpdateGenerator::Run(
-    Graph* graph,
-    const string& new_kernel_part,
-    const string& new_image,
-    off_t image_size,
+    const PayloadGenerationConfig& config,
     int fd,
     off_t* data_file_size,
-    off_t chunk_size,
-    off_t block_size,
+    Graph* graph,
     vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
     vector<Vertex::Index>* final_order) {
-  TEST_AND_RETURN_FALSE(chunk_size > 0);
-  TEST_AND_RETURN_FALSE((chunk_size % block_size) == 0);
+  TEST_AND_RETURN_FALSE(config.Validate());
+  // FullUpdateGenerator requires a positive chuck_size, otherwise there will
+  // be only one operation with the whole partition which should not be allowed.
+  TEST_AND_RETURN_FALSE(config.chunk_size > 0);
 
+  const ImageConfig& target = config.target;  // Shortcut.
   size_t max_threads = std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
   LOG(INFO) << "Max threads: " << max_threads;
 
-  // Get the sizes early in the function, so we can fail fast if the user
-  // passed us bad paths.
-  TEST_AND_RETURN_FALSE(image_size >= 0 &&
-                        image_size <= utils::FileSize(new_image));
-  const off_t kernel_size = utils::FileSize(new_kernel_part);
-  TEST_AND_RETURN_FALSE(kernel_size >= 0);
-
-  off_t part_sizes[] = { image_size, kernel_size };
-  string paths[] = { new_image, new_kernel_part };
+  uint64_t part_sizes[] = { target.rootfs_size, target.kernel_size };
+  string paths[] = { target.rootfs_part, target.kernel_part };
 
   for (int partition = 0; partition < 2; ++partition) {
     const string& path = paths[partition];
@@ -148,11 +140,11 @@ bool FullUpdateGenerator::Run(
       while (threads.size() < max_threads && bytes_left > 0) {
         shared_ptr<ChunkProcessor> processor(
             new ChunkProcessor(in_fd, offset,
-                               std::min(bytes_left, chunk_size)));
+                               std::min(bytes_left, config.chunk_size)));
         threads.push_back(processor);
         TEST_AND_RETURN_FALSE(processor->Start());
-        bytes_left -= chunk_size;
-        offset += chunk_size;
+        bytes_left -= config.chunk_size;
+        offset += config.chunk_size;
       }
 
       // Need to wait for a chunk processor to complete and process its output
@@ -185,8 +177,8 @@ bool FullUpdateGenerator::Run(
       *data_file_size += use_buf.size();
       op->set_data_length(use_buf.size());
       Extent* dst_extent = op->add_dst_extents();
-      dst_extent->set_start_block(processor->offset() / block_size);
-      dst_extent->set_num_blocks(chunk_size / block_size);
+      dst_extent->set_start_block(processor->offset() / config.block_size);
+      dst_extent->set_num_blocks(config.chunk_size / config.block_size);
 
       int progress = static_cast<int>(
           (processor->offset() + processor->buffer_in().size()) * 100.0 /
