@@ -71,6 +71,48 @@ const int kUnmountRetryIntervalInMicroseconds = 200 * 1000;  // 200 ms
 // in GetFileFormat.
 const int kGetFileFormatMaxHeaderSize = 32;
 
+// Return true if |disk_name| is an MTD or a UBI device. Note that this test is
+// simply based on the name of the device.
+bool IsMtdDeviceName(const string& disk_name) {
+  return StartsWithASCII(disk_name, "/dev/ubi", true) ||
+         StartsWithASCII(disk_name, "/dev/mtd", true);
+}
+
+// Return the device name for the corresponding partition on a NAND device.
+// WARNING: This function returns device names that are not mountable.
+string MakeNandPartitionName(int partition_num) {
+  switch (partition_num) {
+    case 2:
+    case 4:
+    case 6: {
+      return base::StringPrintf("/dev/mtd%d", partition_num);
+    }
+    default: {
+      return base::StringPrintf("/dev/ubi%d_0", partition_num);
+    }
+  }
+}
+
+// Return the device name for the corresponding partition on a NAND device that
+// may be mountable (but may not be writable).
+string MakeNandPartitionNameForMount(int partition_num) {
+  switch (partition_num) {
+    case 2:
+    case 4:
+    case 6: {
+      return base::StringPrintf("/dev/mtd%d", partition_num);
+    }
+    case 3:
+    case 5:
+    case 7: {
+      return base::StringPrintf("/dev/ubiblock%d_0", partition_num);
+    }
+    default: {
+      return base::StringPrintf("/dev/ubi%d_0", partition_num);
+    }
+  }
+}
+
 }  // namespace
 
 namespace utils {
@@ -107,11 +149,6 @@ const string KernelDeviceOfBootDevice(const string& boot_device) {
   string disk_name;
   int partition_num;
   if (SplitPartitionName(boot_device, &disk_name, &partition_num)) {
-    if (disk_name == "/dev/ubiblock") {
-      // Special case for NAND devices.
-      // eg: /dev/ubiblock3_0 becomes /dev/mtdblock2
-      disk_name = "/dev/mtdblock";
-    }
     // Currently this assumes the partition number of the boot device is
     // 3, 5, or 7, and changes it to 2, 4, or 6, respectively, to
     // get the kernel device.
@@ -450,14 +487,21 @@ bool SplitPartitionName(const string& partition_name,
 }
 
 string MakePartitionName(const string& disk_name, int partition_num) {
+  if (partition_num < 1) {
+    LOG(ERROR) << "Invalid partition number: " << partition_num;
+    return string();
+  }
+
   if (!StartsWithASCII(disk_name, "/dev/", true)) {
     LOG(ERROR) << "Invalid disk name: " << disk_name;
     return string();
   }
 
-  if (partition_num < 1) {
-    LOG(ERROR) << "Invalid partition number: " << partition_num;
-    return string();
+  if (IsMtdDeviceName(disk_name)) {
+    // Special case for UBI block devices.
+    //   1. ubiblock is not writable, we need to use plain "ubi".
+    //   2. There is a "_0" suffix.
+    return MakeNandPartitionName(partition_num);
   }
 
   string partition_name = disk_name;
@@ -470,11 +514,18 @@ string MakePartitionName(const string& disk_name, int partition_num) {
 
   partition_name += std::to_string(partition_num);
 
-  if (StartsWithASCII(partition_name, "/dev/ubiblock", true)) {
-    // Special case for UBI block devieces that have "_0" suffix.
-    partition_name += "_0";
-  }
   return partition_name;
+}
+
+string MakePartitionNameForMount(const string& part_name) {
+  if (IsMtdDeviceName(part_name)) {
+    int partition_num;
+    if (!SplitPartitionName(part_name, nullptr, &partition_num)) {
+      return "";
+    }
+    return MakeNandPartitionNameForMount(partition_num);
+  }
+  return part_name;
 }
 
 string SysfsBlockDevice(const string& device) {
@@ -528,6 +579,39 @@ bool IsDir(const char* path) {
   struct stat stbuf;
   TEST_AND_RETURN_FALSE_ERRNO(lstat(path, &stbuf) == 0);
   return S_ISDIR(stbuf.st_mode);
+}
+
+bool TryAttachingUbiVolume(int volume_num, int timeout) {
+  const string volume_path = base::StringPrintf("/dev/ubi%d_0", volume_num);
+  if (FileExists(volume_path.c_str())) {
+    return true;
+  }
+
+  int exit_code;
+  vector<string> cmd = {
+      "ubiattach",
+      "-m",
+      base::StringPrintf("%d", volume_num),
+      "-d",
+      base::StringPrintf("%d", volume_num)
+  };
+  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &exit_code, nullptr));
+  TEST_AND_RETURN_FALSE(exit_code == 0);
+
+  cmd = {
+      "ubiblock",
+      "--create",
+      volume_path
+  };
+  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &exit_code, nullptr));
+  TEST_AND_RETURN_FALSE(exit_code == 0);
+
+  while (timeout > 0 && !FileExists(volume_path.c_str())) {
+    sleep(1);
+    timeout--;
+  }
+
+  return FileExists(volume_path.c_str());
 }
 
 // If |path| is absolute, or explicit relative to the current working directory,

@@ -66,14 +66,14 @@ TEST(UtilsTest, KernelDeviceOfBootDevice) {
             utils::KernelDeviceOfBootDevice("/dev/mmcblk0p3"));
   EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/mmcblk0p4"));
 
-  EXPECT_EQ("/dev/ubi2", utils::KernelDeviceOfBootDevice("/dev/ubi3"));
+  EXPECT_EQ("/dev/mtd2", utils::KernelDeviceOfBootDevice("/dev/ubi3"));
   EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/ubi4"));
 
-  EXPECT_EQ("/dev/mtdblock2",
+  EXPECT_EQ("/dev/mtd2",
             utils::KernelDeviceOfBootDevice("/dev/ubiblock3_0"));
-  EXPECT_EQ("/dev/mtdblock4",
+  EXPECT_EQ("/dev/mtd4",
             utils::KernelDeviceOfBootDevice("/dev/ubiblock5_0"));
-  EXPECT_EQ("/dev/mtdblock6",
+  EXPECT_EQ("/dev/mtd6",
             utils::KernelDeviceOfBootDevice("/dev/ubiblock7_0"));
   EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/ubiblock4_0"));
 }
@@ -218,7 +218,32 @@ TEST(UtilsTest, MakePartitionNameTest) {
   EXPECT_EQ("/dev/mmcblk0p2", utils::MakePartitionName("/dev/mmcblk0", 2));
   EXPECT_EQ("/dev/loop8", utils::MakePartitionName("/dev/loop", 8));
   EXPECT_EQ("/dev/loop12p2", utils::MakePartitionName("/dev/loop12", 2));
-  EXPECT_EQ("/dev/ubiblock3_0", utils::MakePartitionName("/dev/ubiblock", 3));
+  EXPECT_EQ("/dev/ubi5_0", utils::MakePartitionName("/dev/ubiblock", 5));
+  EXPECT_EQ("/dev/mtd4", utils::MakePartitionName("/dev/ubiblock", 4));
+  EXPECT_EQ("/dev/ubi3_0", utils::MakePartitionName("/dev/ubiblock", 3));
+  EXPECT_EQ("/dev/mtd2", utils::MakePartitionName("/dev/ubiblock", 2));
+  EXPECT_EQ("/dev/ubi1_0", utils::MakePartitionName("/dev/ubiblock", 1));
+}
+
+TEST(UtilsTest, MakePartitionNameForMountTest) {
+  EXPECT_EQ("/dev/sda4", utils::MakePartitionNameForMount("/dev/sda4"));
+  EXPECT_EQ("/dev/sda123", utils::MakePartitionNameForMount("/dev/sda123"));
+  EXPECT_EQ("/dev/mmcblk2", utils::MakePartitionNameForMount("/dev/mmcblk2"));
+  EXPECT_EQ("/dev/mmcblk0p2",
+            utils::MakePartitionNameForMount("/dev/mmcblk0p2"));
+  EXPECT_EQ("/dev/loop0", utils::MakePartitionNameForMount("/dev/loop0"));
+  EXPECT_EQ("/dev/loop8", utils::MakePartitionNameForMount("/dev/loop8"));
+  EXPECT_EQ("/dev/loop12p2",
+            utils::MakePartitionNameForMount("/dev/loop12p2"));
+  EXPECT_EQ("/dev/ubiblock5_0",
+            utils::MakePartitionNameForMount("/dev/ubiblock5_0"));
+  EXPECT_EQ("/dev/mtd4",
+            utils::MakePartitionNameForMount("/dev/ubi4_0"));
+  EXPECT_EQ("/dev/ubiblock3_0",
+            utils::MakePartitionNameForMount("/dev/ubiblock3"));
+  EXPECT_EQ("/dev/mtd2", utils::MakePartitionNameForMount("/dev/ubi2"));
+  EXPECT_EQ("/dev/ubi1_0",
+            utils::MakePartitionNameForMount("/dev/ubiblock1"));
 }
 
 namespace {
@@ -372,11 +397,11 @@ TEST(UtilsTest, GetInstallDevTest) {
 
   boot_dev = "/dev/ubiblock3_0";
   EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
-  EXPECT_EQ(install_dev, "/dev/ubiblock5_0");
+  EXPECT_EQ(install_dev, "/dev/ubi5_0");
 
   boot_dev = "/dev/ubiblock5_0";
   EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
-  EXPECT_EQ(install_dev, "/dev/ubiblock3_0");
+  EXPECT_EQ(install_dev, "/dev/ubi3_0");
 
   boot_dev = "/dev/ubiblock12_0";
   EXPECT_FALSE(utils::GetInstallDev(boot_dev, &install_dev));

@@ -60,15 +60,30 @@ const unsigned DeltaPerformer::kProgressOperationsWeight = 50;
 namespace {
 const int kUpdateStateOperationInvalid = -1;
 const int kMaxResumedUpdateFailures = 10;
+#if USE_MTD
+const int kUbiVolumeAttachTimeout = 5 * 60;
+#endif
 
 FileDescriptorPtr CreateFileDescriptor(const char* path) {
   FileDescriptorPtr ret;
 #if USE_MTD
-  if (UbiFileDescriptor::IsUbi(path)) {
-    ret.reset(new UbiFileDescriptor);
+  if (strstr(path, "/dev/ubi") == path) {
+    if (!UbiFileDescriptor::IsUbi(path)) {
+      // The volume might not have been attached at boot time.
+      int volume_no;
+      if (utils::SplitPartitionName(path, nullptr, &volume_no)) {
+        utils::TryAttachingUbiVolume(volume_no, kUbiVolumeAttachTimeout);
+      }
+    }
+    if (UbiFileDescriptor::IsUbi(path)) {
+      LOG(INFO) << path << " is a UBI device.";
+      ret.reset(new UbiFileDescriptor);
+    }
   } else if (MtdFileDescriptor::IsMtd(path)) {
+    LOG(INFO) << path << " is an MTD device.";
     ret.reset(new MtdFileDescriptor);
   } else {
+    LOG(INFO) << path << " is not an MTD nor a UBI device.";
 #endif
     ret.reset(new EintrSafeFileDescriptor);
 #if USE_MTD
@@ -81,8 +96,15 @@ FileDescriptorPtr CreateFileDescriptor(const char* path) {
 // and sets *err to 0. On failure, sets *err to errno and returns nullptr.
 FileDescriptorPtr OpenFile(const char* path, int* err) {
   FileDescriptorPtr fd = CreateFileDescriptor(path);
-  // TODO(namnguyen): If we're working with MTD or UBI, DO NOT use O_RDWR.
-  if (!fd->Open(path, O_RDWR, 000)) {
+  int mode = O_RDWR;
+#if USE_MTD
+  // On NAND devices, we can either read, or write, but not both. So here we
+  // use O_WRONLY.
+  if (UbiFileDescriptor::IsUbi(path) || MtdFileDescriptor::IsMtd(path)) {
+    mode = O_WRONLY;
+  }
+#endif
+  if (!fd->Open(path, mode, 000)) {
     *err = errno;
     PLOG(ERROR) << "Unable to open file " << path;
     return nullptr;

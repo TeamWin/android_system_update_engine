@@ -128,6 +128,11 @@ bool IsSymlink(const char* path);
 // Returns true if |path| exists and is a directory.
 bool IsDir(const char* path);
 
+// Try attaching UBI |volume_num|. If there is any error executing required
+// commands to attach the volume, this function returns false. This function
+// only returns true if "/dev/ubi%d_0" becomes available in |timeout| seconds.
+bool TryAttachingUbiVolume(int volume_num, int timeout);
+
 // If |base_filename_template| is neither absolute (starts with "/") nor
 // explicitly relative to the current working directory (starts with "./" or
 // "../"), then it is prepended the value of TMPDIR, which defaults to /tmp if
@@ -178,6 +183,14 @@ bool SplitPartitionName(const std::string& partition_name,
 // Returns empty string when invalid parameters are passed in
 std::string MakePartitionName(const std::string& disk_name,
                               int partition_num);
+
+// Similar to "MakePartitionName" but returns a name that is suitable for
+// mounting. On NAND system we can write to "/dev/ubiX_0", which is what
+// MakePartitionName returns, but we cannot mount that device. To mount, we
+// have to use "/dev/ubiblockX_0" for rootfs. Stateful and OEM partitions are
+// mountable with "/dev/ubiX_0". The input is a partition device such as
+// /dev/sda3. Return empty string on error.
+std::string MakePartitionNameForMount(const std::string& part_name);
 
 // Returns the sysfs block device for a root block device. For
 // example, SysfsBlockDevice("/dev/sda") returns

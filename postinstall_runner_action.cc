@@ -38,8 +38,18 @@ void PostinstallRunnerAction::PerformAction() {
                                            &temp_rootfs_dir_));
   ScopedDirRemover temp_dir_remover(temp_rootfs_dir_);
 
-  if (!utils::MountFilesystem(install_device, temp_rootfs_dir_, MS_RDONLY))
+  const string mountable_device =
+      utils::MakePartitionNameForMount(install_device);
+  if (mountable_device.empty()) {
+    LOG(ERROR) << "Cannot make mountable device from " << install_device;
     return;
+  }
+
+  if (!utils::MountFilesystem(mountable_device, temp_rootfs_dir_, MS_RDONLY))
+    return;
+
+  LOG(INFO) << "Performing postinst with install device " << install_device
+            << " and mountable device " << mountable_device;
 
   temp_dir_remover.set_should_remove(false);
   completer.set_should_complete(false);
