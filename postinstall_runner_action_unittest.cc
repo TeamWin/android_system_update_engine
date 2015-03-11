@@ -129,7 +129,8 @@ void PostinstallRunnerActionTest::DoTest(
 
   // Create a 10MiB sparse file to be used as image; format it as ext2.
   ASSERT_EQ(0, System(
-          "dd if=/dev/zero of=image.dat seek=10485759 bs=1 count=1"));
+          "dd if=/dev/zero of=image.dat seek=10485759 bs=1 count=1 "
+          "status=none"));
   ASSERT_EQ(0, System("mkfs.ext2 -F image.dat"));
 
   // Create a uniquely named image mount point, mount the image.

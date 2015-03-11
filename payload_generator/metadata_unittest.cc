@@ -84,9 +84,9 @@ TEST_F(MetadataTest, RunAsRootReadMetadata) {
     string a_img_mnt;
     test_utils::ScopedLoopMounter a_img_mount(a_img, &a_img_mnt, 0);
     test_utils::System(
-        base::StringPrintf("dd if=/dev/zero of=%s/test_file bs=%d count=%d",
-                           a_img_mnt.c_str(), block_size,
-                           EXT2_NDIR_BLOCKS + 1));
+        base::StringPrintf(
+            "dd if=/dev/zero of=%s/test_file bs=%d count=%d status=none",
+            a_img_mnt.c_str(), block_size, EXT2_NDIR_BLOCKS + 1));
   }
 
   test_utils::System(

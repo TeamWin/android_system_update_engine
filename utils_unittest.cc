@@ -280,7 +280,7 @@ TEST(UtilsTest, RunAsRootGetFilesystemSizeTest) {
   test_utils::CreateExtImageAtPath(img, nullptr);
   // Extend the "partition" holding the file system from 10MiB to 20MiB.
   EXPECT_EQ(0, test_utils::System(base::StringPrintf(
-      "dd if=/dev/zero of=%s seek=20971519 bs=1 count=1",
+      "dd if=/dev/zero of=%s seek=20971519 bs=1 count=1 status=none",
       img.c_str())));
   EXPECT_EQ(20 * 1024 * 1024, utils::FileSize(img));
   int block_count = 0;

@@ -290,7 +290,7 @@ static void GenerateDeltaFile(bool full_kernel,
 
   // Extend the "partitions" holding the file system a bit.
   EXPECT_EQ(0, System(base::StringPrintf(
-      "dd if=/dev/zero of=%s seek=%d bs=1 count=1",
+      "dd if=/dev/zero of=%s seek=%d bs=1 count=1 status=none",
       state->a_img.c_str(),
       state->image_size + 1024 * 1024 - 1)));
   EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->a_img));
@@ -343,7 +343,7 @@ static void GenerateDeltaFile(bool full_kernel,
 
     EXPECT_EQ(0,
               System(base::StringPrintf("dd if=/dev/zero of=%s/move-semi-sparse"
-                                        " bs=1 seek=4096 count=1",
+                                        " bs=1 seek=4096 count=1 status=none",
                                         a_mnt.c_str()).c_str()));
 
     // Write 1 MiB of 0xff to try to catch the case where writing a bsdiff
@@ -362,7 +362,7 @@ static void GenerateDeltaFile(bool full_kernel,
   } else {
     test_utils::CreateExtImageAtPath(state->b_img, nullptr);
     EXPECT_EQ(0, System(base::StringPrintf(
-        "dd if=/dev/zero of=%s seek=%d bs=1 count=1",
+        "dd if=/dev/zero of=%s seek=%d bs=1 count=1 status=none",
         state->b_img.c_str(),
         state->image_size + 1024 * 1024 - 1)));
     EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->b_img));
@@ -400,12 +400,12 @@ static void GenerateDeltaFile(bool full_kernel,
 
     EXPECT_EQ(0, System(base::StringPrintf("dd if=/dev/zero "
                                            "of=%s/move-semi-sparse "
-                                           "bs=1 seek=4096 count=1",
+                                           "bs=1 seek=4096 count=1 status=none",
                                            b_mnt.c_str()).c_str()));
 
     EXPECT_EQ(0, System(base::StringPrintf("dd if=/dev/zero "
                                            "of=%s/partsparse bs=1 "
-                                           "seek=4096 count=1",
+                                           "seek=4096 count=1 status=none",
                                            b_mnt.c_str()).c_str()));
     EXPECT_EQ(0, System(base::StringPrintf("cp %s/srchardlink0 %s/tmp && "
                                            "mv %s/tmp %s/srchardlink1",

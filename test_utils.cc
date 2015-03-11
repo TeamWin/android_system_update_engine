@@ -163,7 +163,7 @@ void CreateEmptyExtImageAtPath(const string& path,
                                size_t size,
                                int block_size) {
   EXPECT_EQ(0, System(StringPrintf("dd if=/dev/zero of=%s"
-                                   " seek=%zu bs=1 count=1",
+                                   " seek=%zu bs=1 count=1 status=none",
                                    path.c_str(), size)));
   EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -b %d -F %s",
                                    block_size, path.c_str())));
@@ -176,7 +176,7 @@ void CreateExtImageAtPath(const string& path, vector<string>* out_paths) {
   ScopedDirRemover mount_path_unlinker(mount_path);
 
   EXPECT_EQ(0, System(StringPrintf("dd if=/dev/zero of=%s"
-                                   " seek=10485759 bs=1 count=1",
+                                   " seek=10485759 bs=1 count=1 status=none",
                                    path.c_str())));
   EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -b 4096 -F %s", path.c_str())));
   EXPECT_EQ(0, System(StringPrintf("mount -o loop %s %s", path.c_str(),
