@@ -85,6 +85,11 @@ struct PayloadGenerationConfig {
   // The minor_version of the requested payload.
   uint32_t minor_version;
 
+  // The size of the rootfs partition, that not necessarily is the same as the
+  // filesystem in either source or target version, since there is some space
+  // after the partition used to store the verity hashes and or the bootcache.
+  uint64_t rootfs_partition_size = 0;
+
   // The chunk size is the maximum size that a single operation should write in
   // the destination. Operations bigger than chunk_size should be split. A value
   // of -1 means no chunk_size limit.

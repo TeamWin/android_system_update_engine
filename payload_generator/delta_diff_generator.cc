@@ -109,225 +109,6 @@ bool GatherExtents(const string& path,
   return true;
 }
 
-// For each regular file within new_root, creates a node in the graph,
-// determines the best way to compress it (REPLACE, REPLACE_BZ, COPY, BSDIFF),
-// and writes any necessary data to the end of data_fd.
-bool DeltaReadFiles(Graph* graph,
-                    vector<Block>* blocks,
-                    const string& old_root,
-                    const string& new_root,
-                    off_t chunk_size,
-                    int data_fd,
-                    off_t* data_file_size,
-                    bool src_ops_allowed) {
-  set<ino_t> visited_inodes;
-  set<ino_t> visited_src_inodes;
-  for (FilesystemIterator fs_iter(new_root,
-                                  set<string>{"/lost+found"});
-       !fs_iter.IsEnd(); fs_iter.Increment()) {
-    // We never diff symlinks (here, we check that dst file is not a symlink).
-    if (!S_ISREG(fs_iter.GetStat().st_mode))
-      continue;
-
-    // Make sure we visit each inode only once.
-    if (utils::SetContainsKey(visited_inodes, fs_iter.GetStat().st_ino))
-      continue;
-    visited_inodes.insert(fs_iter.GetStat().st_ino);
-    off_t dst_size = fs_iter.GetFileSize();
-    if (dst_size == 0)
-      continue;
-
-    LOG(INFO) << "Encoding file " << fs_iter.GetPartialPath();
-
-    // We can't visit each dst image inode more than once, as that would
-    // duplicate work. Here, we avoid visiting each source image inode
-    // more than once. Technically, we could have multiple operations
-    // that read the same blocks from the source image for diffing, but
-    // we choose not to avoid complexity. Eventually we will move away
-    // from using a graph/cycle detection/etc to generate diffs, and at that
-    // time, it will be easy (non-complex) to have many operations read
-    // from the same source blocks. At that time, this code can die. -adlr
-    bool should_diff_from_source = false;
-    string src_path = old_root + fs_iter.GetPartialPath();
-    struct stat src_stbuf;
-    // We never diff symlinks (here, we check that src file is not a symlink).
-    if (0 == lstat(src_path.c_str(), &src_stbuf) &&
-        S_ISREG(src_stbuf.st_mode)) {
-      should_diff_from_source = !utils::SetContainsKey(visited_src_inodes,
-                                                       src_stbuf.st_ino);
-      visited_src_inodes.insert(src_stbuf.st_ino);
-    }
-
-    off_t size = chunk_size == -1 ? dst_size : chunk_size;
-    off_t step = size;
-    for (off_t offset = 0; offset < dst_size; offset += step) {
-      if (offset + size >= dst_size) {
-        size = -1;  // Read through the end of the file.
-      }
-      TEST_AND_RETURN_FALSE(DeltaDiffGenerator::DeltaReadFile(
-          graph,
-          Vertex::kInvalidIndex,
-          blocks,
-          (should_diff_from_source ? old_root : kEmptyPath),
-          new_root,
-          fs_iter.GetPartialPath(),
-          offset,
-          size,
-          data_fd,
-          data_file_size,
-          src_ops_allowed));
-    }
-  }
-  return true;
-}
-
-// Reads blocks from image_path that are not yet marked as being written in the
-// blocks array. These blocks that remain are either unchanged files or
-// non-file-data blocks.  We compare each of them to the old image, and compress
-// the ones that changed into a single REPLACE_BZ operation. This updates a
-// newly created node in the graph to write these blocks and writes the
-// appropriate blob to blobs_fd. Reads and updates blobs_length.
-bool ReadUnwrittenBlocks(const vector<Block>& blocks,
-                         int blobs_fd,
-                         off_t* blobs_length,
-                         const string& old_image_path,
-                         const string& new_image_path,
-                         Vertex* vertex) {
-  vertex->file_name = "<rootfs-non-file-data>";
-
-  DeltaArchiveManifest_InstallOperation* out_op = &vertex->op;
-  int new_image_fd = open(new_image_path.c_str(), O_RDONLY, 000);
-  TEST_AND_RETURN_FALSE_ERRNO(new_image_fd >= 0);
-  ScopedFdCloser new_image_fd_closer(&new_image_fd);
-  int old_image_fd = open(old_image_path.c_str(), O_RDONLY, 000);
-  TEST_AND_RETURN_FALSE_ERRNO(old_image_fd >= 0);
-  ScopedFdCloser old_image_fd_closer(&old_image_fd);
-
-  string temp_file_path;
-  TEST_AND_RETURN_FALSE(utils::MakeTempFile("CrAU_temp_data.XXXXXX",
-                                            &temp_file_path,
-                                            nullptr));
-
-  FILE* file = fopen(temp_file_path.c_str(), "w");
-  TEST_AND_RETURN_FALSE(file);
-  int err = BZ_OK;
-
-  BZFILE* bz_file = BZ2_bzWriteOpen(&err,
-                                    file,
-                                    9,  // max compression
-                                    0,  // verbosity
-                                    0);  // default work factor
-  TEST_AND_RETURN_FALSE(err == BZ_OK);
-
-  vector<Extent> extents;
-  vector<Block>::size_type block_count = 0;
-
-  LOG(INFO) << "Appending unwritten blocks to extents";
-  for (vector<Block>::size_type i = 0; i < blocks.size(); i++) {
-    if (blocks[i].writer != Vertex::kInvalidIndex)
-      continue;
-    graph_utils::AppendBlockToExtents(&extents, i);
-    block_count++;
-  }
-
-  // Code will handle buffers of any size that's a multiple of kBlockSize,
-  // so we arbitrarily set it to 1024 * kBlockSize.
-  chromeos::Blob new_buf(1024 * kBlockSize);
-  chromeos::Blob old_buf(1024 * kBlockSize);
-
-  LOG(INFO) << "Scanning " << block_count << " unwritten blocks";
-  vector<Extent> changed_extents;
-  vector<Block>::size_type changed_block_count = 0;
-  vector<Block>::size_type blocks_copied_count = 0;
-
-  // For each extent in extents, write the unchanged blocks into BZ2_bzWrite,
-  // which sends it to an output file.  We use the temporary buffers to hold the
-  // old and new data, which may be smaller than the extent, so in that case we
-  // have to loop to get the extent's data (that's the inner while loop).
-  for (const Extent& extent : extents) {
-    vector<Block>::size_type blocks_read = 0;
-    float printed_progress = -1;
-    while (blocks_read < extent.num_blocks()) {
-      const uint64_t copy_first_block = extent.start_block() + blocks_read;
-      const int copy_block_cnt =
-          min(new_buf.size() / kBlockSize,
-              static_cast<chromeos::Blob::size_type>(
-                  extent.num_blocks() - blocks_read));
-      const size_t count = copy_block_cnt * kBlockSize;
-      const off_t offset = copy_first_block * kBlockSize;
-      ssize_t rc = pread(new_image_fd, new_buf.data(), count, offset);
-      TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
-      TEST_AND_RETURN_FALSE(static_cast<size_t>(rc) == count);
-
-      rc = pread(old_image_fd, old_buf.data(), count, offset);
-      TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
-      TEST_AND_RETURN_FALSE(static_cast<size_t>(rc) == count);
-
-      // Compare each block in the buffer to its counterpart in the old image
-      // and only compress it if its content has changed.
-      int buf_offset = 0;
-      for (int i = 0; i < copy_block_cnt; ++i) {
-        int buf_end_offset = buf_offset + kBlockSize;
-        if (!std::equal(new_buf.begin() + buf_offset,
-                        new_buf.begin() + buf_end_offset,
-                        old_buf.begin() + buf_offset)) {
-          BZ2_bzWrite(&err, bz_file, &new_buf[buf_offset], kBlockSize);
-          TEST_AND_RETURN_FALSE(err == BZ_OK);
-          const uint64_t block_idx = copy_first_block + i;
-          if (blocks[block_idx].reader != Vertex::kInvalidIndex) {
-            graph_utils::AddReadBeforeDep(vertex, blocks[block_idx].reader,
-                                          block_idx);
-          }
-          graph_utils::AppendBlockToExtents(&changed_extents, block_idx);
-          changed_block_count++;
-        }
-        buf_offset = buf_end_offset;
-      }
-
-      blocks_read += copy_block_cnt;
-      blocks_copied_count += copy_block_cnt;
-      float current_progress =
-          static_cast<float>(blocks_copied_count) / block_count;
-      if (printed_progress + 0.1 < current_progress ||
-          blocks_copied_count == block_count) {
-        LOG(INFO) << "progress: " << current_progress;
-        printed_progress = current_progress;
-      }
-    }
-  }
-  BZ2_bzWriteClose(&err, bz_file, 0, nullptr, nullptr);
-  TEST_AND_RETURN_FALSE(err == BZ_OK);
-  bz_file = nullptr;
-  TEST_AND_RETURN_FALSE_ERRNO(0 == fclose(file));
-  file = nullptr;
-
-  LOG(INFO) << "Compressed " << changed_block_count << " blocks ("
-            << block_count - changed_block_count << " blocks unchanged)";
-  chromeos::Blob compressed_data;
-  if (changed_block_count > 0) {
-    LOG(INFO) << "Reading compressed data off disk";
-    TEST_AND_RETURN_FALSE(utils::ReadFile(temp_file_path, &compressed_data));
-  }
-  TEST_AND_RETURN_FALSE(unlink(temp_file_path.c_str()) == 0);
-
-  // Add node to graph to write these blocks
-  out_op->set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-  out_op->set_data_offset(*blobs_length);
-  out_op->set_data_length(compressed_data.size());
-  LOG(INFO) << "Rootfs non-data blocks compressed take up "
-            << compressed_data.size();
-  *blobs_length += compressed_data.size();
-  out_op->set_dst_length(kBlockSize * changed_block_count);
-  DeltaDiffGenerator::StoreExtents(changed_extents,
-                                   out_op->mutable_dst_extents());
-
-  TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd,
-                                        compressed_data.data(),
-                                        compressed_data.size()));
-  LOG(INFO) << "Done processing unwritten blocks";
-  return true;
-}
-
 // Writes the uint64_t passed in in host-endian to the file as big-endian.
 // Returns true on success.
 bool WriteUint64AsBigEndian(FileWriter* writer, const uint64_t value) {
@@ -378,62 +159,6 @@ void InstallOperationsToManifest(
         out_manifest->add_kernel_install_operations();
     *op = add_op;
   }
-}
-
-// Delta compresses a kernel partition |new_kernel_part| with knowledge of the
-// old kernel partition |old_kernel_part|. If |old_kernel_part| is an empty
-// string, generates a full update of the partition.
-bool DeltaCompressKernelPartition(
-    const string& old_kernel_part,
-    const string& new_kernel_part,
-    vector<DeltaArchiveManifest_InstallOperation>* ops,
-    int blobs_fd,
-    off_t* blobs_length,
-    bool src_ops_allowed) {
-  LOG(INFO) << "Delta compressing kernel partition...";
-  LOG_IF(INFO, old_kernel_part.empty()) << "Generating full kernel update...";
-
-  DeltaArchiveManifest_InstallOperation op;
-  chromeos::Blob data;
-  TEST_AND_RETURN_FALSE(
-      DeltaDiffGenerator::ReadFileToDiff(old_kernel_part,
-                                         new_kernel_part,
-                                         0,  // chunk_offset
-                                         -1,  // chunk_size
-                                         true,  // bsdiff_allowed
-                                         &data,
-                                         &op,
-                                         false,
-                                         src_ops_allowed));
-
-  // Check if the operation writes nothing.
-  if (op.dst_extents_size() == 0) {
-    if (op.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
-      LOG(INFO) << "Empty MOVE operation, nothing to do.";
-      return true;
-    } else {
-      LOG(ERROR) << "Empty non-MOVE operation";
-      return false;
-    }
-  }
-
-  // Write the data.
-  if (op.type() != DeltaArchiveManifest_InstallOperation_Type_MOVE &&
-      op.type() != DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
-    op.set_data_offset(*blobs_length);
-    op.set_data_length(data.size());
-  }
-
-  // Add the new install operation.
-  ops->clear();
-  ops->push_back(op);
-
-  TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd, data.data(), data.size()));
-  *blobs_length += data.size();
-
-  LOG(INFO) << "Done delta compressing kernel partition: "
-            << kInstallOperationTypes[op.type()];
-  return true;
 }
 
 struct DeltaObject {
@@ -601,6 +326,75 @@ void DeltaDiffGenerator::CheckGraph(const Graph& graph) {
   }
 }
 
+bool DeltaDiffGenerator::DeltaReadFiles(Graph* graph,
+                                        vector<Block>* blocks,
+                                        const string& old_root,
+                                        const string& new_root,
+                                        off_t chunk_size,
+                                        int data_fd,
+                                        off_t* data_file_size,
+                                        bool src_ops_allowed) {
+  set<ino_t> visited_inodes;
+  set<ino_t> visited_src_inodes;
+  for (FilesystemIterator fs_iter(new_root,
+                                  set<string>{"/lost+found"});
+       !fs_iter.IsEnd(); fs_iter.Increment()) {
+    // We never diff symlinks (here, we check that dst file is not a symlink).
+    if (!S_ISREG(fs_iter.GetStat().st_mode))
+      continue;
+
+    // Make sure we visit each inode only once.
+    if (utils::SetContainsKey(visited_inodes, fs_iter.GetStat().st_ino))
+      continue;
+    visited_inodes.insert(fs_iter.GetStat().st_ino);
+    off_t dst_size = fs_iter.GetFileSize();
+    if (dst_size == 0)
+      continue;
+
+    LOG(INFO) << "Encoding file " << fs_iter.GetPartialPath();
+
+    // We can't visit each dst image inode more than once, as that would
+    // duplicate work. Here, we avoid visiting each source image inode
+    // more than once. Technically, we could have multiple operations
+    // that read the same blocks from the source image for diffing, but
+    // we choose not to avoid complexity. Eventually we will move away
+    // from using a graph/cycle detection/etc to generate diffs, and at that
+    // time, it will be easy (non-complex) to have many operations read
+    // from the same source blocks. At that time, this code can die. -adlr
+    bool should_diff_from_source = false;
+    string src_path = old_root + fs_iter.GetPartialPath();
+    struct stat src_stbuf;
+    // We never diff symlinks (here, we check that src file is not a symlink).
+    if (0 == lstat(src_path.c_str(), &src_stbuf) &&
+        S_ISREG(src_stbuf.st_mode)) {
+      should_diff_from_source = !utils::SetContainsKey(visited_src_inodes,
+                                                       src_stbuf.st_ino);
+      visited_src_inodes.insert(src_stbuf.st_ino);
+    }
+
+    off_t size = chunk_size == -1 ? dst_size : chunk_size;
+    off_t step = size;
+    for (off_t offset = 0; offset < dst_size; offset += step) {
+      if (offset + size >= dst_size) {
+        size = -1;  // Read through the end of the file.
+      }
+      TEST_AND_RETURN_FALSE(DeltaDiffGenerator::DeltaReadFile(
+          graph,
+          Vertex::kInvalidIndex,
+          blocks,
+          (should_diff_from_source ? old_root : kEmptyPath),
+          new_root,
+          fs_iter.GetPartialPath(),
+          offset,
+          size,
+          data_fd,
+          data_file_size,
+          src_ops_allowed));
+    }
+  }
+  return true;
+}
+
 bool DeltaDiffGenerator::DeltaReadFile(Graph* graph,
                                        Vertex::Index existing_vertex,
                                        vector<Block>* blocks,
@@ -666,7 +460,7 @@ bool DeltaDiffGenerator::DeltaReadFile(Graph* graph,
   // Now, insert into graph and blocks vector
   Vertex::Index vertex = existing_vertex;
   if (vertex == Vertex::kInvalidIndex) {
-    graph->resize(graph->size() + 1);
+    graph->emplace_back();
     vertex = graph->size() - 1;
   }
   (*graph)[vertex].op = operation;
@@ -683,7 +477,6 @@ bool DeltaDiffGenerator::DeltaReadFile(Graph* graph,
         blocks));
   return true;
 }
-
 
 bool DeltaDiffGenerator::ReadFileToDiff(
     const string& old_filename,
@@ -831,15 +624,208 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     }
 
     // Embed extents in the operation.
-    DeltaDiffGenerator::StoreExtents(src_extents,
-                                     operation.mutable_src_extents());
-    DeltaDiffGenerator::StoreExtents(dst_extents,
-                                     operation.mutable_dst_extents());
+    StoreExtents(src_extents, operation.mutable_src_extents());
+    StoreExtents(dst_extents, operation.mutable_dst_extents());
   }
 
   out_data->swap(data);
   *out_op = operation;
 
+  return true;
+}
+
+bool DeltaDiffGenerator::DeltaCompressKernelPartition(
+    const string& old_kernel_part,
+    const string& new_kernel_part,
+    vector<DeltaArchiveManifest_InstallOperation>* ops,
+    int blobs_fd,
+    off_t* blobs_length,
+    bool src_ops_allowed) {
+  LOG(INFO) << "Delta compressing kernel partition...";
+  LOG_IF(INFO, old_kernel_part.empty()) << "Generating full kernel update...";
+
+  DeltaArchiveManifest_InstallOperation op;
+  chromeos::Blob data;
+  TEST_AND_RETURN_FALSE(
+      ReadFileToDiff(old_kernel_part,
+                     new_kernel_part,
+                     0,  // chunk_offset
+                     -1,  // chunk_size
+                     true,  // bsdiff_allowed
+                     &data,
+                     &op,
+                     false,
+                     src_ops_allowed));
+
+  // Check if the operation writes nothing.
+  if (op.dst_extents_size() == 0) {
+    if (op.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
+      LOG(INFO) << "Empty MOVE operation, nothing to do.";
+      return true;
+    } else {
+      LOG(ERROR) << "Empty non-MOVE operation";
+      return false;
+    }
+  }
+
+  // Write the data.
+  if (op.type() != DeltaArchiveManifest_InstallOperation_Type_MOVE &&
+      op.type() != DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
+    op.set_data_offset(*blobs_length);
+    op.set_data_length(data.size());
+  }
+
+  // Add the new install operation.
+  ops->clear();
+  ops->push_back(op);
+
+  TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd, data.data(), data.size()));
+  *blobs_length += data.size();
+
+  LOG(INFO) << "Done delta compressing kernel partition: "
+            << kInstallOperationTypes[op.type()];
+  return true;
+}
+
+bool DeltaDiffGenerator::ReadUnwrittenBlocks(
+    const vector<Block>& blocks,
+    int blobs_fd,
+    off_t* blobs_length,
+    const string& old_image_path,
+    const string& new_image_path,
+    Vertex* vertex) {
+  vertex->file_name = "<rootfs-non-file-data>";
+
+  DeltaArchiveManifest_InstallOperation* out_op = &vertex->op;
+  int new_image_fd = open(new_image_path.c_str(), O_RDONLY, 000);
+  TEST_AND_RETURN_FALSE_ERRNO(new_image_fd >= 0);
+  ScopedFdCloser new_image_fd_closer(&new_image_fd);
+  int old_image_fd = open(old_image_path.c_str(), O_RDONLY, 000);
+  TEST_AND_RETURN_FALSE_ERRNO(old_image_fd >= 0);
+  ScopedFdCloser old_image_fd_closer(&old_image_fd);
+
+  string temp_file_path;
+  TEST_AND_RETURN_FALSE(utils::MakeTempFile("CrAU_temp_data.XXXXXX",
+                                            &temp_file_path,
+                                            nullptr));
+
+  FILE* file = fopen(temp_file_path.c_str(), "w");
+  TEST_AND_RETURN_FALSE(file);
+  int err = BZ_OK;
+
+  BZFILE* bz_file = BZ2_bzWriteOpen(&err,
+                                    file,
+                                    9,  // max compression
+                                    0,  // verbosity
+                                    0);  // default work factor
+  TEST_AND_RETURN_FALSE(err == BZ_OK);
+
+  vector<Extent> extents;
+  vector<Block>::size_type block_count = 0;
+
+  LOG(INFO) << "Appending unwritten blocks to extents";
+  for (vector<Block>::size_type i = 0; i < blocks.size(); i++) {
+    if (blocks[i].writer != Vertex::kInvalidIndex)
+      continue;
+    graph_utils::AppendBlockToExtents(&extents, i);
+    block_count++;
+  }
+
+  // Code will handle buffers of any size that's a multiple of kBlockSize,
+  // so we arbitrarily set it to 1024 * kBlockSize.
+  chromeos::Blob new_buf(1024 * kBlockSize);
+  chromeos::Blob old_buf(1024 * kBlockSize);
+
+  LOG(INFO) << "Scanning " << block_count << " unwritten blocks";
+  vector<Extent> changed_extents;
+  vector<Block>::size_type changed_block_count = 0;
+  vector<Block>::size_type blocks_copied_count = 0;
+
+  // For each extent in extents, write the unchanged blocks into BZ2_bzWrite,
+  // which sends it to an output file.  We use the temporary buffers to hold the
+  // old and new data, which may be smaller than the extent, so in that case we
+  // have to loop to get the extent's data (that's the inner while loop).
+  for (const Extent& extent : extents) {
+    vector<Block>::size_type blocks_read = 0;
+    float printed_progress = -1;
+    while (blocks_read < extent.num_blocks()) {
+      const uint64_t copy_first_block = extent.start_block() + blocks_read;
+      const int copy_block_cnt =
+          min(new_buf.size() / kBlockSize,
+              static_cast<chromeos::Blob::size_type>(
+                  extent.num_blocks() - blocks_read));
+      const size_t count = copy_block_cnt * kBlockSize;
+      const off_t offset = copy_first_block * kBlockSize;
+      ssize_t rc = pread(new_image_fd, new_buf.data(), count, offset);
+      TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
+      TEST_AND_RETURN_FALSE(static_cast<size_t>(rc) == count);
+
+      rc = pread(old_image_fd, old_buf.data(), count, offset);
+      TEST_AND_RETURN_FALSE_ERRNO(rc >= 0);
+      TEST_AND_RETURN_FALSE(static_cast<size_t>(rc) == count);
+
+      // Compare each block in the buffer to its counterpart in the old image
+      // and only compress it if its content has changed.
+      int buf_offset = 0;
+      for (int i = 0; i < copy_block_cnt; ++i) {
+        int buf_end_offset = buf_offset + kBlockSize;
+        if (!std::equal(new_buf.begin() + buf_offset,
+                        new_buf.begin() + buf_end_offset,
+                        old_buf.begin() + buf_offset)) {
+          BZ2_bzWrite(&err, bz_file, &new_buf[buf_offset], kBlockSize);
+          TEST_AND_RETURN_FALSE(err == BZ_OK);
+          const uint64_t block_idx = copy_first_block + i;
+          if (blocks[block_idx].reader != Vertex::kInvalidIndex) {
+            graph_utils::AddReadBeforeDep(vertex, blocks[block_idx].reader,
+                                          block_idx);
+          }
+          graph_utils::AppendBlockToExtents(&changed_extents, block_idx);
+          changed_block_count++;
+        }
+        buf_offset = buf_end_offset;
+      }
+
+      blocks_read += copy_block_cnt;
+      blocks_copied_count += copy_block_cnt;
+      float current_progress =
+          static_cast<float>(blocks_copied_count) / block_count;
+      if (printed_progress + 0.1 < current_progress ||
+          blocks_copied_count == block_count) {
+        LOG(INFO) << "progress: " << current_progress;
+        printed_progress = current_progress;
+      }
+    }
+  }
+  BZ2_bzWriteClose(&err, bz_file, 0, nullptr, nullptr);
+  TEST_AND_RETURN_FALSE(err == BZ_OK);
+  bz_file = nullptr;
+  TEST_AND_RETURN_FALSE_ERRNO(0 == fclose(file));
+  file = nullptr;
+
+  LOG(INFO) << "Compressed " << changed_block_count << " blocks ("
+            << block_count - changed_block_count << " blocks unchanged)";
+  chromeos::Blob compressed_data;
+  if (changed_block_count > 0) {
+    LOG(INFO) << "Reading compressed data off disk";
+    TEST_AND_RETURN_FALSE(utils::ReadFile(temp_file_path, &compressed_data));
+  }
+  TEST_AND_RETURN_FALSE(unlink(temp_file_path.c_str()) == 0);
+
+  // Add node to graph to write these blocks
+  out_op->set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  out_op->set_data_offset(*blobs_length);
+  out_op->set_data_length(compressed_data.size());
+  LOG(INFO) << "Rootfs non-data blocks compressed take up "
+            << compressed_data.size();
+  *blobs_length += compressed_data.size();
+  out_op->set_dst_length(kBlockSize * changed_block_count);
+  DeltaDiffGenerator::StoreExtents(changed_extents,
+                                   out_op->mutable_dst_extents());
+
+  TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd,
+                                        compressed_data.data(),
+                                        compressed_data.size()));
+  LOG(INFO) << "Done processing unwritten blocks";
   return true;
 }
 
@@ -971,39 +957,78 @@ vector<Vertex::Index> DeltaDiffGenerator::OrderIndices(const Graph& graph) {
   return order;
 }
 
+bool DeltaDiffGenerator::GenerateDeltaWithSourceOperations(
+    const PayloadGenerationConfig& config,
+    int data_file_fd,
+    off_t* data_file_size,
+    Graph* graph,
+    vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
+    vector<Vertex::Index>* final_order) {
+  // List of blocks in the target partition, with the operation that needs to
+  // write it and the operation that needs to read it. This is used here to
+  // keep track of the blocks that no operation is writting it.
+  vector<Block> blocks(config.target.rootfs_size / config.block_size);
+
+  TEST_AND_RETURN_FALSE(DeltaReadFiles(graph,
+                                       &blocks,
+                                       config.source.rootfs_mountpt,
+                                       config.target.rootfs_mountpt,
+                                       config.chunk_size,
+                                       data_file_fd,
+                                       data_file_size,
+                                       true));  // src_ops_allowed
+
+  LOG(INFO) << "done reading normal files";
+  CheckGraph(*graph);
+
+  // Read kernel partition
+  TEST_AND_RETURN_FALSE(
+      DeltaCompressKernelPartition(config.source.kernel_part,
+                                   config.target.kernel_part,
+                                   kernel_ops,
+                                   data_file_fd,
+                                   data_file_size,
+                                   true));  // src_ops_allowed
+  LOG(INFO) << "done reading kernel";
+  CheckGraph(*graph);
+
+  graph->emplace_back();
+  TEST_AND_RETURN_FALSE(ReadUnwrittenBlocks(blocks,
+                                            data_file_fd,
+                                            data_file_size,
+                                            config.source.rootfs_part,
+                                            config.target.rootfs_part,
+                                            &graph->back()));
+  if (graph->back().op.data_length() == 0) {
+    LOG(INFO) << "No unwritten blocks to write, omitting operation";
+    graph->pop_back();
+  }
+
+  *final_order = OrderIndices(*graph);
+  return true;
+}
+
 bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     const PayloadGenerationConfig& config,
     const string& output_path,
     const string& private_key_path,
-    size_t rootfs_partition_size,
     uint64_t* metadata_size) {
-  int old_image_block_count = config.source.rootfs_size / config.block_size;
-  int new_image_block_count = config.target.rootfs_size / config.block_size;
-
   if (config.is_delta) {
-    LOG_IF(WARNING, old_image_block_count != new_image_block_count)
+    LOG_IF(WARNING, config.source.rootfs_size != config.target.rootfs_size)
         << "Old and new images have different block counts.";
     // TODO(deymo): Our tools only support growing the filesystem size during
     // an update. Remove this check when that's fixed. crbug.com/192136
-    LOG_IF(FATAL, old_image_block_count > new_image_block_count)
+    LOG_IF(FATAL, config.source.rootfs_size > config.target.rootfs_size)
         << "Shirking the rootfs size is not supported at the moment.";
   }
 
   // Sanity checks for the partition size.
-  TEST_AND_RETURN_FALSE(rootfs_partition_size % config.block_size == 0);
-  LOG(INFO) << "Rootfs partition size: " << rootfs_partition_size;
+  LOG(INFO) << "Rootfs partition size: " << config.rootfs_partition_size;
   LOG(INFO) << "Actual filesystem size: " << config.target.rootfs_size;
-  TEST_AND_RETURN_FALSE(rootfs_partition_size >= config.target.rootfs_size);
 
-  vector<Block> blocks(max(old_image_block_count, new_image_block_count));
   LOG(INFO) << "Invalid block index: " << Vertex::kInvalidIndex;
-  LOG(INFO) << "Block count: " << blocks.size();
-  for (const Block& block : blocks) {
-    CHECK(block.reader == Vertex::kInvalidIndex);
-    CHECK(block.writer == Vertex::kInvalidIndex);
-  }
-  Graph graph;
-  CheckGraph(graph);
+  LOG(INFO) << "Block count: "
+            << config.target.rootfs_size / config.block_size;
 
   const string kTempFileTemplate("CrAU_temp_data.XXXXXX");
   string temp_file_path;
@@ -1014,11 +1039,35 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
 
   // Create empty protobuf Manifest object
   DeltaArchiveManifest manifest;
+  manifest.set_minor_version(config.minor_version);
 
   vector<DeltaArchiveManifest_InstallOperation> kernel_ops;
 
+  Graph graph;
+  CheckGraph(graph);
   vector<Vertex::Index> final_order;
-  Vertex::Index scratch_vertex = Vertex::kInvalidIndex;
+
+  // Select payload generation strategy based on the config.
+  OperationsGenerator* strategy = nullptr;
+  if (config.is_delta) {
+    // Delta update (with possibly a full kernel update).
+    if (config.minor_version == kInPlaceMinorPayloadVersion) {
+      LOG(INFO) << "Using generator InplaceGenerator::GenerateInplaceDelta";
+      strategy = &InplaceGenerator::GenerateInplaceDelta;
+    } else if (config.minor_version == kSourceMinorPayloadVersion) {
+      LOG(INFO) << "Using generator DeltaDiffGenerator::GenerateSourceDelta";
+      strategy = &DeltaDiffGenerator::GenerateDeltaWithSourceOperations;
+    } else {
+      LOG(ERROR) << "Unsupported minor version given for delta payload: "
+                 << config.minor_version;
+      return false;
+    }
+  } else {
+    // Full update.
+    LOG(INFO) << "Using generator FullUpdateGenerator::Run";
+    strategy = &FullUpdateGenerator::Run;
+  }
+
   {
     int data_file_fd;
     TEST_AND_RETURN_FALSE(
@@ -1026,135 +1075,14 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     temp_file_unlinker.reset(new ScopedPathUnlinker(temp_file_path));
     TEST_AND_RETURN_FALSE(data_file_fd >= 0);
     ScopedFdCloser data_file_fd_closer(&data_file_fd);
-    if (config.is_delta) {
-      // Delta update
 
-      // Set the minor version for this payload.
-      LOG(INFO) << "Adding Delta Minor Version.";
-      manifest.set_minor_version(config.minor_version);
-      if (config.minor_version == kInPlaceMinorPayloadVersion) {
-        TEST_AND_RETURN_FALSE(DeltaReadFiles(&graph,
-                                             &blocks,
-                                             config.source.rootfs_mountpt,
-                                             config.target.rootfs_mountpt,
-                                             config.chunk_size,
-                                             data_file_fd,
-                                             &data_file_size,
-                                             false));  // src_ops_allowed
-        LOG(INFO) << "done reading normal files";
-        CheckGraph(graph);
-
-        LOG(INFO) << "Starting metadata processing";
-        TEST_AND_RETURN_FALSE(Metadata::DeltaReadMetadata(
-            &graph,
-            &blocks,
-            config.source.rootfs_part,
-            config.target.rootfs_part,
-            data_file_fd,
-            &data_file_size));
-        LOG(INFO) << "Done metadata processing";
-        CheckGraph(graph);
-
-        graph.resize(graph.size() + 1);
-        TEST_AND_RETURN_FALSE(ReadUnwrittenBlocks(blocks,
-                                                  data_file_fd,
-                                                  &data_file_size,
-                                                  config.source.rootfs_part,
-                                                  config.target.rootfs_part,
-                                                  &graph.back()));
-        if (graph.back().op.data_length() == 0) {
-          LOG(INFO) << "No unwritten blocks to write, omitting operation";
-          graph.pop_back();
-        }
-
-        // Final scratch block (if there's space)
-        if (blocks.size() < (rootfs_partition_size / kBlockSize)) {
-          scratch_vertex = graph.size();
-          graph.resize(graph.size() + 1);
-          InplaceGenerator::CreateScratchNode(
-              blocks.size(),
-              (rootfs_partition_size / kBlockSize) - blocks.size(),
-              &graph.back());
-        }
-
-        // Read kernel partition
-        TEST_AND_RETURN_FALSE(
-            DeltaCompressKernelPartition(config.source.kernel_part,
-                                         config.target.kernel_part,
-                                         &kernel_ops,
-                                         data_file_fd,
-                                         &data_file_size,
-                                         false));  // src_ops_allowed
-
-        LOG(INFO) << "done reading kernel";
-        CheckGraph(graph);
-
-        LOG(INFO) << "Creating edges...";
-        InplaceGenerator::CreateEdges(&graph, blocks);
-        LOG(INFO) << "Done creating edges";
-        CheckGraph(graph);
-
-        TEST_AND_RETURN_FALSE(InplaceGenerator::ConvertGraphToDag(
-            &graph,
-            config.target.rootfs_mountpt,
-            data_file_fd,
-            &data_file_size,
-            &final_order,
-            scratch_vertex));
-      } else if (config.minor_version == kSourceMinorPayloadVersion) {
-        TEST_AND_RETURN_FALSE(DeltaReadFiles(&graph,
-                                             &blocks,
-                                             config.source.rootfs_mountpt,
-                                             config.target.rootfs_mountpt,
-                                             config.chunk_size,
-                                             data_file_fd,
-                                             &data_file_size,
-                                             true));  // src_ops_allowed
-
-        LOG(INFO) << "done reading normal files";
-        CheckGraph(graph);
-
-        // Read kernel partition
-        TEST_AND_RETURN_FALSE(
-            DeltaCompressKernelPartition(config.source.kernel_part,
-                                         config.target.kernel_part,
-                                         &kernel_ops,
-                                         data_file_fd,
-                                         &data_file_size,
-                                         true));  // src_ops_allowed
-        LOG(INFO) << "done reading kernel";
-        CheckGraph(graph);
-
-        graph.resize(graph.size() + 1);
-        TEST_AND_RETURN_FALSE(ReadUnwrittenBlocks(blocks,
-                                                  data_file_fd,
-                                                  &data_file_size,
-                                                  config.source.rootfs_part,
-                                                  config.target.rootfs_part,
-                                                  &graph.back()));
-        if (graph.back().op.data_length() == 0) {
-          LOG(INFO) << "No unwritten blocks to write, omitting operation";
-          graph.pop_back();
-        }
-
-        final_order = OrderIndices(graph);
-      } else {
-        LOG(ERROR) << "Unsupported minor version given for delta payload: "
-                   << config.minor_version;
-        return false;
-      }
-    } else {
-      TEST_AND_RETURN_FALSE(FullUpdateGenerator::Run(config,
-                                                     data_file_fd,
-                                                     &data_file_size,
-                                                     &graph,
-                                                     &kernel_ops,
-                                                     &final_order));
-
-      // Set the minor version for this payload.
-      LOG(INFO) << "Adding Full Minor Version.";
-      manifest.set_minor_version(DeltaPerformer::kFullPayloadMinorVersion);
-    }
+    // Generate the operations using the strategy we selected above.
+    TEST_AND_RETURN_FALSE((*strategy)(config,
+                                      data_file_fd,
+                                      &data_file_size,
+                                      &graph,
+                                      &kernel_ops,
+                                      &final_order));
   }
 
   if (!config.source.ImageInfoIsEmpty())
@@ -1171,7 +1099,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
                               &manifest,
                               &op_name_map);
   CheckGraph(graph);
-  manifest.set_block_size(kBlockSize);
+  manifest.set_block_size(config.block_size);
 
   // Reorder the data blobs with the newly ordered manifest
   string ordered_blobs_path;
@@ -1253,14 +1181,14 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   ScopedFdCloser blobs_fd_closer(&blobs_fd);
   TEST_AND_RETURN_FALSE(blobs_fd >= 0);
   for (;;) {
-    char buf[kBlockSize];
-    ssize_t rc = read(blobs_fd, buf, sizeof(buf));
+    vector<char> buf(config.block_size);
+    ssize_t rc = read(blobs_fd, buf.data(), buf.size());
     if (0 == rc) {
       // EOF
       break;
     }
     TEST_AND_RETURN_FALSE_ERRNO(rc > 0);
-    TEST_AND_RETURN_FALSE(writer.Write(buf, rc));
+    TEST_AND_RETURN_FALSE(writer.Write(buf.data(), rc));
   }
 
   // Write signature blob.

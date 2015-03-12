@@ -154,6 +154,25 @@ class InplaceGenerator {
       Vertex::Index vertex,
       std::vector<DeltaDiffGenerator::Block>* blocks);
 
+  // Generate the update payload operations for the kernel and rootfs using
+  // only operations that read from the target and/or write to the target,
+  // hence, applying the payload "in-place" in the target partition. This method
+  // assumes that the contents of the source image are pre-copied to the target
+  // partition, up to the size of the source image. Use this method to generate
+  // a delta update with the minor version kInPlaceMinorPayloadVersion.
+  // The rootfs operations are stored in |graph| and should be executed in the
+  // |final_order| order. The kernel operations are stored in |kernel_ops|. All
+  // the offsets in the operations reference the data written to |data_file_fd|.
+  // The total amount of data written to that file is stored in
+  // |data_file_size|.
+  static bool GenerateInplaceDelta(
+      const PayloadGenerationConfig& config,
+      int data_file_fd,
+      off_t* data_file_size,
+      Graph* graph,
+      std::vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
+      std::vector<Vertex::Index>* final_order);
+
  private:
   // This should never be constructed.
   DISALLOW_IMPLICIT_CONSTRUCTORS(InplaceGenerator);

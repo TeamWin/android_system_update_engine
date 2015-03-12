@@ -280,6 +280,7 @@
         'payload_generator/extent_mapper.cc',
         'payload_generator/filesystem_iterator.cc',
         'payload_generator/full_update_generator.cc',
+        'payload_generator/graph_types.cc',
         'payload_generator/graph_utils.cc',
         'payload_generator/inplace_generator.cc',
         'payload_generator/metadata.cc',

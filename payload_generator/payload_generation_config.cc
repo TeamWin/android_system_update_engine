@@ -109,6 +109,10 @@ bool PayloadGenerationConfig::Validate() const {
   TEST_AND_RETURN_FALSE(target.kernel_size % block_size == 0);
 
   TEST_AND_RETURN_FALSE(chunk_size == -1 || chunk_size % block_size == 0);
+
+  TEST_AND_RETURN_FALSE(rootfs_partition_size % block_size == 0);
+  TEST_AND_RETURN_FALSE(rootfs_partition_size >= target.rootfs_size);
+
   return true;
 }
 

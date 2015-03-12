@@ -187,7 +187,7 @@ bool AddMetadataExtents(Graph* graph,
   *data_file_size += data.size();
 
   // Now, insert into graph and blocks vector
-  graph->resize(graph->size() + 1);
+  graph->emplace_back();
   Vertex::Index vertex = graph->size() - 1;
   (*graph)[vertex].op = op;
   CHECK((*graph)[vertex].op.has_type());

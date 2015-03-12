@@ -37,6 +37,32 @@ extern const uint32_t kInPlaceMinorPayloadVersion;
 // The minor version used by the A to B delta generator algorithm.
 extern const uint32_t kSourceMinorPayloadVersion;
 
+// The payload generation strategy prototype. This is the function that does
+// all the work to generate the operations for the rootfs and the kernel.
+// Given the |config|, generates the payload by populating the |graph| with
+// the operations required to update the rootfs when applied in the order
+// specified by |final_order|, and populating |kernel_ops| with the list of
+// kernel operations required to update the kernel.
+// The operations returned will refer to offsets in the file |data_file_fd|,
+// where this function stores the output, but not necessarily in the same
+// order as they appear in the |final_order| and |kernel_ops|.
+// This function stores the amount of data written to |data_file_fd| in
+// |data_file_size|.
+// TODO(deymo): Replace |graph|, |kernel_ops| and |final_order| by two vectors
+// of annotated InstallOperation (InstallOperation plus a name for logging
+// purposes). At this level, there's no need to have a graph.
+// TODO(deymo): Convert this type alias into a base class, so other parameter
+// can be passed to the particular generators while keeping the same interface
+// for operation generation.
+using OperationsGenerator = bool(
+      const PayloadGenerationConfig& /* config */,
+      int /* data_file_fd */,
+      off_t* /* data_file_size */,
+      Graph* /* graph */,
+      std::vector<DeltaArchiveManifest_InstallOperation>* /* kernel_ops */,
+      std::vector<Vertex::Index>* /* final_order */);
+
+
 class DeltaDiffGenerator {
  public:
   // Represents a disk block on the install partition.
@@ -63,16 +89,44 @@ class DeltaDiffGenerator {
   // |private_key_path| points to a private key used to sign the update.
   // Pass empty string to not sign the update.
   // |output_path| is the filename where the delta update should be written.
-  // This method computes scratch space based on |rootfs_partition_size|.
   // Returns true on success. Also writes the size of the metadata into
   // |metadata_size|.
   static bool GenerateDeltaUpdateFile(const PayloadGenerationConfig& config,
                                       const std::string& output_path,
                                       const std::string& private_key_path,
-                                      size_t rootfs_partition_size,
                                       uint64_t* metadata_size);
 
   // These functions are public so that the unit tests can access them:
+
+  // Generate the update payload operations for the kernel and rootfs using
+  // SOURCE_* operations, used to generate deltas for the minor version
+  // kSourceMinorPayloadVersion. This function will generate operations in the
+  // rootfs that will read blocks from the source partition in random order and
+  // write the new image on the target partition, also possibly in random order.
+  // The rootfs operations are stored in |graph| and should be executed in the
+  // |final_order| order. The kernel operations are stored in |kernel_ops|. All
+  // the offsets in the operations reference the data written to |data_file_fd|.
+  // The total amount of data written to that file is stored in
+  // |data_file_size|.
+  static bool GenerateDeltaWithSourceOperations(
+      const PayloadGenerationConfig& config,
+      int data_file_fd,
+      off_t* data_file_size,
+      Graph* graph,
+      std::vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
+      std::vector<Vertex::Index>* final_order);
+
+  // For each regular file within new_root, creates a node in the graph,
+  // determines the best way to compress it (REPLACE, REPLACE_BZ, COPY, BSDIFF),
+  // and writes any necessary data to the end of data_fd.
+  static bool DeltaReadFiles(Graph* graph,
+                             std::vector<Block>* blocks,
+                             const std::string& old_root,
+                             const std::string& new_root,
+                             off_t chunk_size,
+                             int data_fd,
+                             off_t* data_file_size,
+                             bool src_ops_allowed);
 
   // For a given regular file which must exist at new_root + path, and
   // may exist at old_root + path, creates a new InstallOperation and
@@ -115,6 +169,31 @@ class DeltaDiffGenerator {
                              DeltaArchiveManifest_InstallOperation* out_op,
                              bool gather_extents,
                              bool src_ops_allowed);
+
+  // Delta compresses a kernel partition |new_kernel_part| with knowledge of the
+  // old kernel partition |old_kernel_part|. If |old_kernel_part| is an empty
+  // string, generates a full update of the partition.
+  static bool DeltaCompressKernelPartition(
+      const std::string& old_kernel_part,
+      const std::string& new_kernel_part,
+      std::vector<DeltaArchiveManifest_InstallOperation>* ops,
+      int blobs_fd,
+      off_t* blobs_length,
+      bool src_ops_allowed);
+
+  // Reads blocks from image_path that are not yet marked as being written in
+  // the blocks array. These blocks that remain are either unchanged files or
+  // non-file-data blocks.  We compare each of them to the old image, and
+  // compress the ones that changed into a single REPLACE_BZ operation. This
+  // updates a newly created node in the graph to write these blocks and writes
+  // the appropriate blob to blobs_fd. Reads and updates blobs_length.
+  static bool ReadUnwrittenBlocks(
+      const std::vector<Block>& blocks,
+      int blobs_fd,
+      off_t* blobs_length,
+      const std::string& old_image_path,
+      const std::string& new_image_path,
+      Vertex* vertex);
 
   // Stores all Extents in 'extents' into 'out'.
   static void StoreExtents(const std::vector<Extent>& extents,

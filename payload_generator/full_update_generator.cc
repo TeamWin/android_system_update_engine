@@ -155,7 +155,7 @@ bool FullUpdateGenerator::Run(
 
       DeltaArchiveManifest_InstallOperation* op = nullptr;
       if (partition == 0) {
-        graph->resize(graph->size() + 1);
+        graph->emplace_back();
         graph->back().file_name =
             base::StringPrintf("<rootfs-operation-%" PRIi64 ">", counter++);
         op = &graph->back().op;

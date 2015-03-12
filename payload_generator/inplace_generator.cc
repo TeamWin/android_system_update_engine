@@ -17,6 +17,7 @@
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/metadata.h"
 #include "update_engine/payload_generator/topological_sort.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
@@ -114,7 +115,7 @@ bool InplaceGenerator::CutEdges(Graph* graph,
         scratch_allocator.Allocate(graph_utils::EdgeWeight(*graph, edge));
     // create vertex to copy original->scratch
     cuts.back().new_vertex = graph->size();
-    graph->resize(graph->size() + 1);
+    graph->emplace_back();
     cuts.back().old_src = edge.first;
     cuts.back().old_dst = edge.second;
 
@@ -672,6 +673,89 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
       }
     }
   }
+  return true;
+}
+
+bool InplaceGenerator::GenerateInplaceDelta(
+    const PayloadGenerationConfig& config,
+    int data_file_fd,
+    off_t* data_file_size,
+    Graph* graph,
+    vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
+    vector<Vertex::Index>* final_order) {
+  vector<Block> blocks(config.target.rootfs_size / config.block_size);
+  TEST_AND_RETURN_FALSE(
+      DeltaDiffGenerator::DeltaReadFiles(graph,
+                                         &blocks,
+                                         config.source.rootfs_mountpt,
+                                         config.target.rootfs_mountpt,
+                                         config.chunk_size,
+                                         data_file_fd,
+                                         data_file_size,
+                                         false));  // src_ops_allowed
+  LOG(INFO) << "done reading normal files";
+  DeltaDiffGenerator::CheckGraph(*graph);
+
+  LOG(INFO) << "Starting metadata processing";
+  TEST_AND_RETURN_FALSE(Metadata::DeltaReadMetadata(
+      graph,
+      &blocks,
+      config.source.rootfs_part,
+      config.target.rootfs_part,
+      data_file_fd,
+      data_file_size));
+  LOG(INFO) << "Done metadata processing";
+  DeltaDiffGenerator::CheckGraph(*graph);
+
+  graph->emplace_back();
+  TEST_AND_RETURN_FALSE(
+      DeltaDiffGenerator::ReadUnwrittenBlocks(blocks,
+                                              data_file_fd,
+                                              data_file_size,
+                                              config.source.rootfs_part,
+                                              config.target.rootfs_part,
+                                              &graph->back()));
+  if (graph->back().op.data_length() == 0) {
+    LOG(INFO) << "No unwritten blocks to write, omitting operation";
+    graph->pop_back();
+  }
+
+  // Final scratch block (if there's space)
+  Vertex::Index scratch_vertex = Vertex::kInvalidIndex;
+  if (blocks.size() < (config.rootfs_partition_size / kBlockSize)) {
+    scratch_vertex = graph->size();
+    graph->emplace_back();
+    CreateScratchNode(
+        blocks.size(),
+        (config.rootfs_partition_size / kBlockSize) - blocks.size(),
+        &graph->back());
+  }
+
+  // Read kernel partition
+  TEST_AND_RETURN_FALSE(
+      DeltaDiffGenerator::DeltaCompressKernelPartition(
+          config.source.kernel_part,
+          config.target.kernel_part,
+          kernel_ops,
+          data_file_fd,
+          data_file_size,
+          false));  // src_ops_allowed
+
+  LOG(INFO) << "done reading kernel";
+  DeltaDiffGenerator::CheckGraph(*graph);
+
+  LOG(INFO) << "Creating edges...";
+  CreateEdges(graph, blocks);
+  LOG(INFO) << "Done creating edges";
+  DeltaDiffGenerator::CheckGraph(*graph);
+
+  TEST_AND_RETURN_FALSE(ConvertGraphToDag(
+      graph,
+      config.target.rootfs_mountpt,
+      data_file_fd,
+      data_file_size,
+      final_order,
+      scratch_vertex));
   return true;
 }
 

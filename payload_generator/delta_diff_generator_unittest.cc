@@ -77,6 +77,14 @@ class DeltaDiffGeneratorTest : public ::testing::Test {
   string new_path_;
 };
 
+TEST_F(DeltaDiffGeneratorTest, BlockDefaultValues) {
+  // Tests that a Block is initialized with the default values as a
+  // Vertex::kInvalidIndex. This is required by the delta generators.
+  DeltaDiffGenerator::Block block;
+  EXPECT_EQ(Vertex::kInvalidIndex, block.reader);
+  EXPECT_EQ(Vertex::kInvalidIndex, block.writer);
+}
+
 TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveSmallTest) {
   EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
                                reinterpret_cast<const char*>(kRandomString),

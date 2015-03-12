@@ -68,7 +68,7 @@ struct Vertex {
   off_t chunk_size;
 
   typedef std::vector<Vertex>::size_type Index;
-  static const Vertex::Index kInvalidIndex = -1;
+  static const Vertex::Index kInvalidIndex;
 };
 
 typedef std::vector<Vertex> Graph;

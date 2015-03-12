@@ -38,6 +38,7 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
   FillWithData(&new_kern);
 
   // Assume hashes take 2 MiB beyond the rootfs.
+  config_.rootfs_partition_size = new_root.size();
   config_.target.rootfs_size = new_root.size() - 2 * 1024 * 1024;
   config_.target.kernel_size = new_kern.size();
 

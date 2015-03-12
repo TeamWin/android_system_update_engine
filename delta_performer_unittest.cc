@@ -476,6 +476,7 @@ static void GenerateDeltaFile(bool full_kernel,
     PayloadGenerationConfig payload_config;
     payload_config.is_delta = !full_rootfs;
     payload_config.chunk_size = chunk_size;
+    payload_config.rootfs_partition_size = kRootFSPartitionSize;
     if (!full_rootfs) {
       payload_config.source.rootfs_part = state->a_img;
       payload_config.source.rootfs_mountpt = a_mnt;
@@ -503,7 +504,6 @@ static void GenerateDeltaFile(bool full_kernel,
             payload_config,
             state->delta_path,
             private_key,
-            kRootFSPartitionSize,
             &state->metadata_size));
   }
 
