@@ -4,8 +4,11 @@
 
 #include "update_engine/payload_generator/payload_generation_config.h"
 
+#include <base/logging.h>
+
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/verity_utils.h"
 #include "update_engine/utils.h"
 
 namespace chromeos_update_engine {
@@ -46,7 +49,7 @@ bool ImageConfig::LoadImageSize() {
   TEST_AND_RETURN_FALSE(utils::GetFilesystemSize(rootfs_part,
                                                  &rootfs_block_count,
                                                  &rootfs_block_size));
-  rootfs_size = static_cast<size_t>(rootfs_block_count) * rootfs_block_size;
+  rootfs_size = static_cast<uint64_t>(rootfs_block_count) * rootfs_block_size;
   if (!kernel_part.empty())
     kernel_size = utils::FileSize(kernel_part);
 
@@ -57,6 +60,24 @@ bool ImageConfig::LoadImageSize() {
                << " has a block size of " << rootfs_block_size
                << " but delta_generator only supports 4096.";
     return false;
+  }
+  return true;
+}
+
+bool ImageConfig::LoadVerityRootfsSize() {
+  if (kernel_part.empty())
+    return false;
+  uint64_t verity_rootfs_size = 0;
+  if (!GetVerityRootfsSize(kernel_part, &verity_rootfs_size)) {
+    LOG(INFO) << "Couldn't find verity options in source kernel config, will "
+              << "use the rootfs filesystem size instead: " << rootfs_size;
+    return false;
+  }
+  if (rootfs_size != verity_rootfs_size) {
+    LOG(WARNING) << "Using the rootfs size found in the kernel config ("
+                 << verity_rootfs_size << ") instead of the rootfs filesystem "
+                 << " size (" << rootfs_size << ").";
+    rootfs_size = verity_rootfs_size;
   }
   return true;
 }

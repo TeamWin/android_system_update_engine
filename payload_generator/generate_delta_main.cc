@@ -60,7 +60,6 @@ void ParseSignatureSizes(const string& signature_sizes_flag,
   }
 }
 
-
 bool ParseImageInfo(const string& channel,
                     const string& board,
                     const string& version,
@@ -406,6 +405,11 @@ int Main(int argc, char** argv) {
     payload_config.chunk_size = 1024 * 1024;
   }
 
+  // Load the rootfs size from verity's kernel command line if rootfs
+  // verification is enabled.
+  payload_config.source.LoadVerityRootfsSize();
+  payload_config.target.LoadVerityRootfsSize();
+
   if (payload_config.is_delta) {
     LOG(INFO) << "Generating delta update";
   } else {
@@ -414,7 +418,8 @@ int Main(int argc, char** argv) {
 
   // From this point, all the options have been parsed.
   if (!payload_config.Validate()) {
-    LOG(FATAL) << "Invalid options passed. See errors above.";
+    LOG(ERROR) << "Invalid options passed. See errors above.";
+    return 1;
   }
 
   uint64_t metadata_size;

@@ -33,6 +33,13 @@ struct ImageConfig {
   // Returns whether the image size was properly detected.
   bool LoadImageSize();
 
+  // Load the |rootfs_size| stored in the kernel command line in the
+  // |kernel_part| when the kernel is using rootfs verification (dm-verity).
+  // Returns whether it loaded the size from the kernel command line. For
+  // example, it would return false if no |kernel_part| was provided or the
+  // kernel doesn't have verity enabled.
+  bool LoadVerityRootfsSize();
+
   // Returns whether the |image_info| field is empty.
   bool ImageInfoIsEmpty() const;
 
