@@ -165,7 +165,7 @@ void CreateEmptyExtImageAtPath(const string& path,
   EXPECT_EQ(0, System(StringPrintf("dd if=/dev/zero of=%s"
                                    " seek=%zu bs=1 count=1 status=none",
                                    path.c_str(), size)));
-  EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -b %d -F %s",
+  EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -q -b %d -F %s",
                                    block_size, path.c_str())));
 }
 
@@ -178,7 +178,8 @@ void CreateExtImageAtPath(const string& path, vector<string>* out_paths) {
   EXPECT_EQ(0, System(StringPrintf("dd if=/dev/zero of=%s"
                                    " seek=10485759 bs=1 count=1 status=none",
                                    path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -b 4096 -F %s", path.c_str())));
+  EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -q -b 4096 -F %s",
+                                   path.c_str())));
   EXPECT_EQ(0, System(StringPrintf("mount -o loop %s %s", path.c_str(),
                                    mount_path.c_str())));
   EXPECT_EQ(0, System(StringPrintf("echo hi > %s/hi", mount_path.c_str())));
