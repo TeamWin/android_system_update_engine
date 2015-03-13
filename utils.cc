@@ -811,6 +811,24 @@ bool GetSquashfs4Size(const uint8_t* buffer, size_t buffer_size,
   return true;
 }
 
+bool IsExtFilesystem(const std::string& device) {
+  chromeos::Blob header;
+  // The first 2 KiB is enough to read the ext2 superblock (located at offset
+  // 1024).
+  if (!ReadFileChunk(device, 0, 2048, &header))
+    return false;
+  return GetExt3Size(header.data(), header.size(), nullptr, nullptr);
+}
+
+bool IsSquashfsFilesystem(const std::string& device) {
+  chromeos::Blob header;
+  // The first 96 is enough to read the squashfs superblock.
+  const ssize_t kSquashfsSuperBlockSize = 96;
+  if (!ReadFileChunk(device, 0, kSquashfsSuperBlockSize, &header))
+    return false;
+  return GetSquashfs4Size(header.data(), header.size(), nullptr, nullptr);
+}
+
 string GetPathOnBoard(const string& command) {
   int return_code = 0;
   string command_path;

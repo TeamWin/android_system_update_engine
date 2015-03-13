@@ -107,9 +107,6 @@ enum OperationHashTest {
   kValidOperationData,
 };
 
-// Chuck size used for full payloads during test.
-size_t kDefaultFullChunkSize = 1024 * 1024;
-
 }  // namespace
 
 static void CompareFilesByBlock(const string& a_file, const string& b_file) {
@@ -489,8 +486,6 @@ static void GenerateDeltaFile(bool full_kernel,
           DeltaPerformer::kSupportedMinorPayloadVersion;
     } else {
       payload_config.minor_version = DeltaPerformer::kFullPayloadMinorVersion;
-      if (payload_config.chunk_size == -1)
-        payload_config.chunk_size = kDefaultFullChunkSize;
     }
     payload_config.target.rootfs_part = state->b_img;
     payload_config.target.rootfs_mountpt = b_mnt;

@@ -400,11 +400,6 @@ int Main(int argc, char** argv) {
     }
   }
 
-  // Full payloads use a hard-coded chunk_size of 1 MiB.
-  if (!payload_config.is_delta) {
-    payload_config.chunk_size = 1024 * 1024;
-  }
-
   // Load the rootfs size from verity's kernel command line if rootfs
   // verification is enabled.
   payload_config.source.LoadVerityRootfsSize();

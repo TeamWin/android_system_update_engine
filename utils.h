@@ -237,6 +237,16 @@ bool GetSquashfs4Size(const uint8_t* buffer, size_t buffer_size,
                       int* out_block_count,
                       int* out_block_size);
 
+// Returns whether the filesystem is an ext[234] filesystem. In case of failure,
+// such as if the file |device| doesn't exists or can't be read, it returns
+// false.
+bool IsExtFilesystem(const std::string& device);
+
+// Returns whether the filesystem is a squashfs filesystem. In case of failure,
+// such as if the file |device| doesn't exists or can't be read, it returns
+// false.
+bool IsSquashfsFilesystem(const std::string& device);
+
 // Returns the path of the passed |command| on the board. This uses the
 // environment variable SYSROOT to determine the path to the command on the
 // board instead of the path on the running environment.

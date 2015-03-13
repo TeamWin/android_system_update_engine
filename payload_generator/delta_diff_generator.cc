@@ -1050,16 +1050,28 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   // Select payload generation strategy based on the config.
   OperationsGenerator* strategy = nullptr;
   if (config.is_delta) {
-    // Delta update (with possibly a full kernel update).
-    if (config.minor_version == kInPlaceMinorPayloadVersion) {
-      LOG(INFO) << "Using generator InplaceGenerator::GenerateInplaceDelta";
-      strategy = &InplaceGenerator::GenerateInplaceDelta;
-    } else if (config.minor_version == kSourceMinorPayloadVersion) {
-      LOG(INFO) << "Using generator DeltaDiffGenerator::GenerateSourceDelta";
-      strategy = &DeltaDiffGenerator::GenerateDeltaWithSourceOperations;
+    // We don't efficiently support deltas on squashfs. For now, we will
+    // produce full operations in that case.
+    if (utils::IsSquashfsFilesystem(config.target.rootfs_part)) {
+      LOG(INFO) << "Using generator FullUpdateGenerator::Run for squashfs "
+                   "deltas";
+      strategy = &FullUpdateGenerator::Run;
+    } else if (utils::IsExtFilesystem(config.target.rootfs_part)) {
+      // Delta update (with possibly a full kernel update).
+      if (config.minor_version == kInPlaceMinorPayloadVersion) {
+        LOG(INFO) << "Using generator InplaceGenerator::GenerateInplaceDelta";
+        strategy = &InplaceGenerator::GenerateInplaceDelta;
+      } else if (config.minor_version == kSourceMinorPayloadVersion) {
+        LOG(INFO) << "Using generator DeltaDiffGenerator::GenerateSourceDelta";
+        strategy = &DeltaDiffGenerator::GenerateDeltaWithSourceOperations;
+      } else {
+        LOG(ERROR) << "Unsupported minor version given for delta payload: "
+                   << config.minor_version;
+        return false;
+      }
     } else {
-      LOG(ERROR) << "Unsupported minor version given for delta payload: "
-                 << config.minor_version;
+      LOG(ERROR) << "Unsupported filesystem for delta payload in "
+                 << config.target.rootfs_part;
       return false;
     }
   } else {

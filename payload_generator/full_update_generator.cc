@@ -11,6 +11,7 @@
 #include <deque>
 #include <memory>
 
+#include <base/format_macros.h>
 #include <base/strings/stringprintf.h>
 #include <base/strings/string_util.h>
 
@@ -25,6 +26,8 @@ using std::vector;
 namespace chromeos_update_engine {
 
 namespace {
+
+const size_t kDefaultFullChunkSize = 1024 * 1024;  // 1 MiB
 
 // This class encapsulates a full update chunk processing thread. The processor
 // reads a chunk of data from the input file descriptor and compresses it. The
@@ -115,9 +118,18 @@ bool FullUpdateGenerator::Run(
     vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
     vector<Vertex::Index>* final_order) {
   TEST_AND_RETURN_FALSE(config.Validate());
+
   // FullUpdateGenerator requires a positive chuck_size, otherwise there will
   // be only one operation with the whole partition which should not be allowed.
-  TEST_AND_RETURN_FALSE(config.chunk_size > 0);
+  size_t full_chunk_size = kDefaultFullChunkSize;
+  if (config.chunk_size >= 0) {
+    full_chunk_size = config.chunk_size;
+  } else {
+    LOG(INFO) << "No chunk_size provided, using the default chunk_size for the "
+              << "full operations: " << full_chunk_size << " bytes.";
+  }
+  TEST_AND_RETURN_FALSE(full_chunk_size > 0);
+  TEST_AND_RETURN_FALSE(full_chunk_size % config.block_size == 0);
 
   const ImageConfig& target = config.target;  // Shortcut.
   size_t max_threads = std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
@@ -134,17 +146,17 @@ bool FullUpdateGenerator::Run(
     ScopedFdCloser in_fd_closer(&in_fd);
     deque<shared_ptr<ChunkProcessor>> threads;
     int last_progress_update = INT_MIN;
-    off_t bytes_left = part_sizes[partition], counter = 0, offset = 0;
+    size_t bytes_left = part_sizes[partition], counter = 0, offset = 0;
     while (bytes_left > 0 || !threads.empty()) {
       // Check and start new chunk processors if possible.
       while (threads.size() < max_threads && bytes_left > 0) {
+        size_t this_chunk_bytes = std::min(bytes_left, full_chunk_size);
         shared_ptr<ChunkProcessor> processor(
-            new ChunkProcessor(in_fd, offset,
-                               std::min(bytes_left, config.chunk_size)));
+            new ChunkProcessor(in_fd, offset, this_chunk_bytes));
         threads.push_back(processor);
         TEST_AND_RETURN_FALSE(processor->Start());
-        bytes_left -= config.chunk_size;
-        offset += config.chunk_size;
+        bytes_left -= this_chunk_bytes;
+        offset += this_chunk_bytes;
       }
 
       // Need to wait for a chunk processor to complete and process its output
@@ -157,7 +169,7 @@ bool FullUpdateGenerator::Run(
       if (partition == 0) {
         graph->emplace_back();
         graph->back().file_name =
-            base::StringPrintf("<rootfs-operation-%" PRIi64 ">", counter++);
+            base::StringPrintf("<rootfs-operation-%" PRIuS ">", counter++);
         op = &graph->back().op;
         final_order->push_back(graph->size() - 1);
       } else {
@@ -178,7 +190,7 @@ bool FullUpdateGenerator::Run(
       op->set_data_length(use_buf.size());
       Extent* dst_extent = op->add_dst_extents();
       dst_extent->set_start_block(processor->offset() / config.block_size);
-      dst_extent->set_num_blocks(config.chunk_size / config.block_size);
+      dst_extent->set_num_blocks(full_chunk_size / config.block_size);
 
       int progress = static_cast<int>(
           (processor->offset() + processor->buffer_in().size()) * 100.0 /
