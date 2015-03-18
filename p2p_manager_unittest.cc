@@ -312,7 +312,7 @@ static bool CreateP2PFile(string p2p_dir, string file_name,
   }
 
   if (size_xattr != 0) {
-    string decimal_size = base::StringPrintf("%zu", size_xattr);
+    string decimal_size = std::to_string(size_xattr);
     if (fsetxattr(fd, "user.cros-p2p-filesize",
                   decimal_size.c_str(), decimal_size.size(), 0) != 0) {
       PLOG(ERROR) << "Error setting xattr on " << path;

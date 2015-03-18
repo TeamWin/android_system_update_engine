@@ -29,6 +29,7 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/files/scoped_file.h>
+#include <base/format_macros.h>
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/posix/eintr_wrapper.h>
@@ -1518,7 +1519,7 @@ string StringVectorToString(const vector<string> &vec_str) {
 
 string CalculateP2PFileId(const string& payload_hash, size_t payload_size) {
   string encoded_hash = chromeos::data_encoding::Base64Encode(payload_hash);
-  return base::StringPrintf("cros_update_size_%zu_hash_%s",
+  return base::StringPrintf("cros_update_size_%" PRIuS "_hash_%s",
                             payload_size,
                             encoded_hash.c_str());
 }

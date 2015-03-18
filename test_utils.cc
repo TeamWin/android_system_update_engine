@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <base/files/file_util.h>
+#include <base/format_macros.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -168,7 +169,7 @@ void CreateEmptyExtImageAtPath(const string& path,
                                size_t size,
                                int block_size) {
   EXPECT_EQ(0, System(StringPrintf("dd if=/dev/zero of=%s"
-                                   " seek=%zu bs=1 count=1 status=none",
+                                   " seek=%" PRIuS " bs=1 count=1 status=none",
                                    path.c_str(), size)));
   EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -q -b %d -F %s",
                                    block_size, path.c_str())));

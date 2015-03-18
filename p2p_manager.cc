@@ -30,6 +30,7 @@
 #include <base/bind.h>
 #include <base/files/file_enumerator.h>
 #include <base/files/file_path.h>
+#include <base/format_macros.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -90,7 +91,7 @@ class ConfigurationImpl : public P2PManager::Configuration {
     vector<string> args;
     args.push_back("p2p-client");
     args.push_back(string("--get-url=") + file_id);
-    args.push_back(StringPrintf("--minimum-size=%zu", minimum_size));
+    args.push_back(StringPrintf("--minimum-size=%" PRIuS, minimum_size));
     return args;
   }
 
@@ -553,7 +554,7 @@ bool P2PManagerImpl::FileShare(const string& file_id,
       }
     }
 
-    string decimal_size = StringPrintf("%zu", expected_size);
+    string decimal_size = std::to_string(expected_size);
     if (fsetxattr(fd, kCrosP2PFileSizeXAttrName,
                   decimal_size.c_str(), decimal_size.size(), 0) != 0) {
       PLOG(ERROR) << "Error setting xattr " << path.value();

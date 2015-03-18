@@ -169,9 +169,9 @@ void MultiRangeHttpFetcher::Reset() {
 std::string MultiRangeHttpFetcher::Range::ToString() const {
   std::string range_str = base::StringPrintf("%jd+", offset());
   if (HasLength())
-    base::StringAppendF(&range_str, "%zu", length());
+    range_str += std::to_string(length());
   else
-    base::StringAppendF(&range_str, "?");
+    range_str += "?";
   return range_str;
 }
 

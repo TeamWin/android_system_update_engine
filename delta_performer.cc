@@ -128,12 +128,12 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   string total_operations_str("?");
   string completed_percentage_str("");
   if (num_total_operations_) {
-    total_operations_str = base::StringPrintf("%zu", num_total_operations_);
+    total_operations_str = std::to_string(num_total_operations_);
     // Upcasting to 64-bit to avoid overflow, back to size_t for formatting.
     completed_percentage_str =
         base::StringPrintf(" (%" PRIu64 "%%)",
-                     IntRatio(next_operation_num_, num_total_operations_,
-                              100));
+                           IntRatio(next_operation_num_, num_total_operations_,
+                                    100));
   }
 
   // Format download total count and percentage.
@@ -141,11 +141,11 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   string payload_size_str("?");
   string downloaded_percentage_str("");
   if (payload_size) {
-    payload_size_str = base::StringPrintf("%zu", payload_size);
+    payload_size_str = std::to_string(payload_size);
     // Upcasting to 64-bit to avoid overflow, back to size_t for formatting.
     downloaded_percentage_str =
         base::StringPrintf(" (%" PRIu64 "%%)",
-                     IntRatio(total_bytes_received_, payload_size, 100));
+                           IntRatio(total_bytes_received_, payload_size, 100));
   }
 
   LOG(INFO) << (message_prefix ? message_prefix : "") << next_operation_num_
