@@ -15,6 +15,7 @@
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/operations_generator.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -31,34 +32,10 @@ extern const char* const kEmptyPath;
 extern const size_t kBlockSize;
 extern const size_t kRootFSPartitionSize;
 
-// The payload generation strategy prototype. This is the function that does
-// all the work to generate the operations for the rootfs and the kernel.
-// Given the |config|, generates the payload by populating the |graph| with
-// the operations required to update the rootfs when applied in the order
-// specified by |final_order|, and populating |kernel_ops| with the list of
-// kernel operations required to update the kernel.
-// The operations returned will refer to offsets in the file |data_file_fd|,
-// where this function stores the output, but not necessarily in the same
-// order as they appear in the |final_order| and |kernel_ops|.
-// This function stores the amount of data written to |data_file_fd| in
-// |data_file_size|.
-// TODO(deymo): Replace |graph|, |kernel_ops| and |final_order| by two vectors
-// of annotated InstallOperation (InstallOperation plus a name for logging
-// purposes). At this level, there's no need to have a graph.
-// TODO(deymo): Convert this type alias into a base class, so other parameter
-// can be passed to the particular generators while keeping the same interface
-// for operation generation.
-using OperationsGenerator = bool(
-      const PayloadGenerationConfig& /* config */,
-      int /* data_file_fd */,
-      off_t* /* data_file_size */,
-      Graph* /* graph */,
-      std::vector<DeltaArchiveManifest_InstallOperation>* /* kernel_ops */,
-      std::vector<Vertex::Index>* /* final_order */);
-
-
-class DeltaDiffGenerator {
+class DeltaDiffGenerator : public OperationsGenerator {
  public:
+  DeltaDiffGenerator() = default;
+
   // Represents a disk block on the install partition.
   struct Block {
     // During install, each block on the install partition will be written
@@ -74,22 +51,6 @@ class DeltaDiffGenerator {
     Vertex::Index writer;
   };
 
-  // This is the only function that external users of the class should call.
-  // The |config| describes the payload generation request, describing both
-  // old and new images for delta payloads and only the new image for full
-  // payloads.
-  // For delta payloads, the images should be already mounted read-only at
-  // the respective rootfs_mountpt.
-  // |private_key_path| points to a private key used to sign the update.
-  // Pass empty string to not sign the update.
-  // |output_path| is the filename where the delta update should be written.
-  // Returns true on success. Also writes the size of the metadata into
-  // |metadata_size|.
-  static bool GenerateDeltaUpdateFile(const PayloadGenerationConfig& config,
-                                      const std::string& output_path,
-                                      const std::string& private_key_path,
-                                      uint64_t* metadata_size);
-
   // These functions are public so that the unit tests can access them:
 
   // Generate the update payload operations for the kernel and rootfs using
@@ -97,18 +58,17 @@ class DeltaDiffGenerator {
   // kSourceMinorPayloadVersion. This function will generate operations in the
   // rootfs that will read blocks from the source partition in random order and
   // write the new image on the target partition, also possibly in random order.
-  // The rootfs operations are stored in |graph| and should be executed in the
-  // |final_order| order. The kernel operations are stored in |kernel_ops|. All
+  // The rootfs operations are stored in |rootfs_ops| and should be executed in
+  // that order. The kernel operations are stored in |kernel_ops|. All
   // the offsets in the operations reference the data written to |data_file_fd|.
   // The total amount of data written to that file is stored in
   // |data_file_size|.
-  static bool GenerateDeltaWithSourceOperations(
+  bool GenerateOperations(
       const PayloadGenerationConfig& config,
       int data_file_fd,
       off_t* data_file_size,
-      Graph* graph,
-      std::vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
-      std::vector<Vertex::Index>* final_order);
+      std::vector<AnnotatedOperation>* rootfs_ops,
+      std::vector<AnnotatedOperation>* kernel_ops) override;
 
   // For each regular file within new_root, creates a node in the graph,
   // determines the best way to compress it (REPLACE, REPLACE_BZ, COPY, BSDIFF),
@@ -170,7 +130,7 @@ class DeltaDiffGenerator {
   static bool DeltaCompressKernelPartition(
       const std::string& old_kernel_part,
       const std::string& new_kernel_part,
-      std::vector<DeltaArchiveManifest_InstallOperation>* ops,
+      std::vector<AnnotatedOperation>* ops,
       int blobs_fd,
       off_t* blobs_length,
       bool src_ops_allowed);
@@ -218,6 +178,10 @@ class DeltaDiffGenerator {
   // (e.g., a move operation that copies blocks onto themselves).
   static bool IsNoopOperation(const DeltaArchiveManifest_InstallOperation& op);
 
+  // Filters all the operations that are no-op, maintaining the relative order
+  // of the rest of the operations.
+  static void FilterNoopOperations(std::vector<AnnotatedOperation>* ops);
+
   static bool InitializePartitionInfo(bool is_kernel,
                                       const std::string& partition,
                                       PartitionInfo* info);
@@ -233,10 +197,6 @@ class DeltaDiffGenerator {
   static void AddSignatureOp(uint64_t signature_blob_offset,
                              uint64_t signature_blob_length,
                              DeltaArchiveManifest* manifest);
-
-  // Takes |graph| and returns a vertex order with the vertex indices of
-  // |graph|, in the order they appear. Returns |true| on success.
-  static std::vector<Vertex::Index> OrderIndices(const Graph& graph);
 
   // Takes a collection (vector or RepeatedPtrField) of Extent and
   // returns a vector of the blocks referenced, in order.
@@ -257,12 +217,26 @@ class DeltaDiffGenerator {
     return ret;
   }
 
-  static void CheckGraph(const Graph& graph);
-
  private:
-  // This should never be constructed.
-  DISALLOW_IMPLICIT_CONSTRUCTORS(DeltaDiffGenerator);
+  DISALLOW_COPY_AND_ASSIGN(DeltaDiffGenerator);
 };
+
+// This is the only function that external users of this module should call.
+// The |config| describes the payload generation request, describing both
+// old and new images for delta payloads and only the new image for full
+// payloads.
+// For delta payloads, the images should be already mounted read-only at
+// the respective rootfs_mountpt.
+// |private_key_path| points to a private key used to sign the update.
+// Pass empty string to not sign the update.
+// |output_path| is the filename where the delta update should be written.
+// Returns true on success. Also writes the size of the metadata into
+// |metadata_size|.
+bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
+                               const std::string& output_path,
+                               const std::string& private_key_path,
+                               uint64_t* metadata_size);
+
 
 };  // namespace chromeos_update_engine
 

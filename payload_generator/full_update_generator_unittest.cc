@@ -65,32 +65,30 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
   ScopedFdCloser out_blobs_fd_closer(&out_blobs_fd);
 
   off_t out_blobs_length = 0;
-  Graph graph;
-  vector<DeltaArchiveManifest_InstallOperation> kernel_ops;
-  vector<Vertex::Index> final_order;
+  vector<AnnotatedOperation> rootfs_ops;
+  vector<AnnotatedOperation> kernel_ops;
 
-  EXPECT_TRUE(FullUpdateGenerator::Run(config_,
-                                       out_blobs_fd,
-                                       &out_blobs_length,
-                                       &graph,
-                                       &kernel_ops,
-                                       &final_order));
-  int64_t target_rootfs_chucks =
+  FullUpdateGenerator generator;
+
+  EXPECT_TRUE(generator.GenerateOperations(config_,
+                                           out_blobs_fd,
+                                           &out_blobs_length,
+                                           &rootfs_ops,
+                                           &kernel_ops));
+  int64_t target_rootfs_chunks =
       config_.target.rootfs_size / config_.chunk_size;
-  EXPECT_EQ(target_rootfs_chucks, graph.size());
-  EXPECT_EQ(target_rootfs_chucks, final_order.size());
+  EXPECT_EQ(target_rootfs_chunks, rootfs_ops.size());
   EXPECT_EQ(new_kern.size() / config_.chunk_size, kernel_ops.size());
-  for (off_t i = 0; i < target_rootfs_chucks; ++i) {
-    EXPECT_EQ(i, final_order[i]);
-    EXPECT_EQ(1, graph[i].op.dst_extents_size());
+  for (off_t i = 0; i < target_rootfs_chunks; ++i) {
+    EXPECT_EQ(1, rootfs_ops[i].op.dst_extents_size());
     EXPECT_EQ(i * config_.chunk_size / config_.block_size,
-              graph[i].op.dst_extents(0).start_block()) << "i = " << i;
+              rootfs_ops[i].op.dst_extents(0).start_block()) << "i = " << i;
     EXPECT_EQ(config_.chunk_size / config_.block_size,
-              graph[i].op.dst_extents(0).num_blocks());
-    if (graph[i].op.type() !=
+              rootfs_ops[i].op.dst_extents(0).num_blocks());
+    if (rootfs_ops[i].op.type() !=
         DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
       EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ,
-                graph[i].op.type());
+                rootfs_ops[i].op.type());
     }
   }
 }

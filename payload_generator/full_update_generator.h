@@ -8,29 +8,31 @@
 #include <string>
 #include <vector>
 
-#include "update_engine/payload_generator/graph_types.h"
+#include <base/macros.h>
+
+#include "update_engine/payload_generator/operations_generator.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 
 namespace chromeos_update_engine {
 
-class FullUpdateGenerator {
+class FullUpdateGenerator : public OperationsGenerator {
  public:
+  FullUpdateGenerator() = default;
+
   // Creates a full update for the target image defined in |config|. |config|
   // must be a valid payload generation configuration for a full payload.
-  // Populates |graph|, |kernel_ops|, and |final_order|, with data about the
-  // update operations, and writes relevant data to |data_file_fd|, updating
+  // Populates |rootfs_ops| and |kernel_ops|, with data about the update
+  // operations, and writes relevant data to |data_file_fd|, updating
   // |data_file_size| as it does.
-  static bool Run(
+  bool GenerateOperations(
       const PayloadGenerationConfig& config,
       int data_file_fd,
       off_t* data_file_size,
-      Graph* graph,
-      std::vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
-      std::vector<Vertex::Index>* final_order);
+      std::vector<AnnotatedOperation>* rootfs_ops,
+      std::vector<AnnotatedOperation>* kernel_ops) override;
 
  private:
-  // This should never be constructed.
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FullUpdateGenerator);
+  DISALLOW_COPY_AND_ASSIGN(FullUpdateGenerator);
 };
 
 }  // namespace chromeos_update_engine

@@ -278,6 +278,7 @@
         ],
       },
       'sources': [
+        'payload_generator/annotated_operation.cc',
         'payload_generator/cycle_breaker.cc',
         'payload_generator/delta_diff_generator.cc',
         'payload_generator/extent_mapper.cc',

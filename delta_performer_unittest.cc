@@ -525,7 +525,7 @@ static void GenerateDeltaFile(bool full_kernel,
 
     EXPECT_TRUE(payload_config.Validate());
     EXPECT_TRUE(
-        DeltaDiffGenerator::GenerateDeltaUpdateFile(
+        GenerateUpdatePayloadFile(
             payload_config,
             state->delta_path,
             private_key,

@@ -12,6 +12,7 @@
 #include <base/macros.h>
 
 #include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/annotated_operation.h"
 
 using std::make_pair;
 using std::pair;
@@ -138,32 +139,11 @@ void DumpOutEdges(const Vertex::EdgeMap& out_edges) {
 void DumpGraph(const Graph& graph) {
   LOG(INFO) << "Graph length: " << graph.size();
   for (Graph::size_type i = 0, e = graph.size(); i != e; ++i) {
-    string type_str = "UNK";
-    switch (graph[i].op.type()) {
-      case DeltaArchiveManifest_InstallOperation_Type_BSDIFF:
-        type_str = "BSDIFF";
-        break;
-      case DeltaArchiveManifest_InstallOperation_Type_MOVE:
-        type_str = "MOVE";
-        break;
-      case DeltaArchiveManifest_InstallOperation_Type_REPLACE:
-        type_str = "REPLACE";
-        break;
-      case DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ:
-        type_str = "REPLACE_BZ";
-        break;
-      case DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY:
-        type_str = "SOURCE_COPY";
-        break;
-      case DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF:
-        type_str = "SOURCE_BSDIFF";
-        break;
-    }
     LOG(INFO) << i
               << (graph[i].valid ? "" : "-INV")
               << ": " << graph[i].file_name
               << " " << graph[i].chunk_size << "@" << graph[i].chunk_offset
-              << ": " << type_str;
+              << ": " << InstallOperationTypeName(graph[i].op.type());
     LOG(INFO) << "  src_extents:";
     DumpExtents(graph[i].op.src_extents(), 4);
     LOG(INFO) << "  dst_extents:";

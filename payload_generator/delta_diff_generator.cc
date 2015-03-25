@@ -21,7 +21,6 @@
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
-#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <bzlib.h>
 
@@ -114,47 +113,28 @@ bool WriteUint64AsBigEndian(FileWriter* writer, const uint64_t value) {
   return true;
 }
 
-// Adds each operation from |graph| to |out_manifest| in the order specified by
-// |order| while building |out_op_name_map| with operation to name
-// mappings. Adds all |kernel_ops| to |out_manifest|. Filters out no-op
-// operations.
+// Adds each operation from |rootfs_ops| and |kernel_ops| to |out_manifest| in
+// the order they come in those vectors. reports the operations names
 void InstallOperationsToManifest(
-    const Graph& graph,
-    const vector<Vertex::Index>& order,
-    const vector<DeltaArchiveManifest_InstallOperation>& kernel_ops,
+    const vector<AnnotatedOperation>& rootfs_ops,
+    const vector<AnnotatedOperation>& kernel_ops,
     DeltaArchiveManifest* out_manifest,
     OperationNameMap* out_op_name_map) {
-  for (Vertex::Index vertex_index : order) {
-    const Vertex& vertex = graph[vertex_index];
-    const DeltaArchiveManifest_InstallOperation& add_op = vertex.op;
-    if (DeltaDiffGenerator::IsNoopOperation(add_op)) {
+  for (const AnnotatedOperation& aop : rootfs_ops) {
+    if (DeltaDiffGenerator::IsNoopOperation(aop.op))
       continue;
-    }
-    DeltaArchiveManifest_InstallOperation* op =
+    DeltaArchiveManifest_InstallOperation* new_op =
         out_manifest->add_install_operations();
-    *op = add_op;
-    string name = vertex.file_name;
-    if (vertex.chunk_offset || vertex.chunk_size != -1) {
-      string offset = base::Int64ToString(vertex.chunk_offset);
-      if (vertex.chunk_size != -1) {
-        name += " [" + offset + ", " +
-            base::Int64ToString(vertex.chunk_offset + vertex.chunk_size - 1) +
-            "]";
-      } else {
-        name += " [" + offset + ", end]";
-      }
-    }
-    (*out_op_name_map)[op] = name;
+    (*out_op_name_map)[new_op] = aop.name;
+    *new_op = aop.op;
   }
-  for (vector<DeltaArchiveManifest_InstallOperation>::const_iterator it =
-           kernel_ops.begin(); it != kernel_ops.end(); ++it) {
-    const DeltaArchiveManifest_InstallOperation& add_op = *it;
-    if (DeltaDiffGenerator::IsNoopOperation(add_op)) {
+  for (const AnnotatedOperation& aop : kernel_ops) {
+    if (DeltaDiffGenerator::IsNoopOperation(aop.op))
       continue;
-    }
-    DeltaArchiveManifest_InstallOperation* op =
+    DeltaArchiveManifest_InstallOperation* new_op =
         out_manifest->add_kernel_install_operations();
-    *op = add_op;
+    (*out_op_name_map)[new_op] = aop.name;
+    *new_op = aop.op;
   }
 }
 
@@ -316,12 +296,6 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
 }
 
 }  // namespace
-
-void DeltaDiffGenerator::CheckGraph(const Graph& graph) {
-  for (const Vertex& v : graph) {
-    CHECK(v.op.has_type());
-  }
-}
 
 bool DeltaDiffGenerator::DeltaReadFiles(Graph* graph,
                                         vector<Block>* blocks,
@@ -634,7 +608,7 @@ bool DeltaDiffGenerator::ReadFileToDiff(
 bool DeltaDiffGenerator::DeltaCompressKernelPartition(
     const string& old_kernel_part,
     const string& new_kernel_part,
-    vector<DeltaArchiveManifest_InstallOperation>* ops,
+    vector<AnnotatedOperation>* kernel_ops,
     int blobs_fd,
     off_t* blobs_length,
     bool src_ops_allowed) {
@@ -673,8 +647,10 @@ bool DeltaDiffGenerator::DeltaCompressKernelPartition(
   }
 
   // Add the new install operation.
-  ops->clear();
-  ops->push_back(op);
+  kernel_ops->clear();
+  kernel_ops->emplace_back();
+  kernel_ops->back().op = op;
+  kernel_ops->back().name = "<kernel-delta-operation>";
 
   TEST_AND_RETURN_FALSE(utils::WriteAll(blobs_fd, data.data(), data.size()));
   *blobs_length += data.size();
@@ -684,6 +660,8 @@ bool DeltaDiffGenerator::DeltaCompressKernelPartition(
   return true;
 }
 
+// TODO(deymo): Replace Vertex with AnnotatedOperation. This requires to move
+// out the code that adds the reader dependencies on the new vertex.
 bool DeltaDiffGenerator::ReadUnwrittenBlocks(
     const vector<Block>& blocks,
     int blobs_fd,
@@ -893,6 +871,14 @@ bool DeltaDiffGenerator::IsNoopOperation(
           ExpandExtents(op.src_extents()) == ExpandExtents(op.dst_extents()));
 }
 
+void DeltaDiffGenerator::FilterNoopOperations(vector<AnnotatedOperation>* ops) {
+  ops->erase(
+      std::remove_if(
+          ops->begin(), ops->end(),
+          [](const AnnotatedOperation& aop){return IsNoopOperation(aop.op);}),
+      ops->end());
+}
+
 bool DeltaDiffGenerator::ReorderDataBlobs(
     DeltaArchiveManifest* manifest,
     const string& data_blobs_path,
@@ -948,25 +934,22 @@ bool DeltaDiffGenerator::AddOperationHash(
   return true;
 }
 
-vector<Vertex::Index> DeltaDiffGenerator::OrderIndices(const Graph& graph) {
-  vector<Vertex::Index> order(graph.size());
-  std::iota(order.begin(), order.end(), 0);
-  return order;
-}
-
-bool DeltaDiffGenerator::GenerateDeltaWithSourceOperations(
+bool DeltaDiffGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
     int data_file_fd,
     off_t* data_file_size,
-    Graph* graph,
-    vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
-    vector<Vertex::Index>* final_order) {
+    vector<AnnotatedOperation>* rootfs_ops,
+    vector<AnnotatedOperation>* kernel_ops) {
   // List of blocks in the target partition, with the operation that needs to
   // write it and the operation that needs to read it. This is used here to
   // keep track of the blocks that no operation is writting it.
   vector<Block> blocks(config.target.rootfs_size / config.block_size);
 
-  TEST_AND_RETURN_FALSE(DeltaReadFiles(graph,
+  // TODO(deymo): DeltaReadFiles() should not use a graph to generate the
+  // operations, either in the in-place or source uprate. Split out the
+  // graph dependency generation.
+  Graph graph;
+  TEST_AND_RETURN_FALSE(DeltaReadFiles(&graph,
                                        &blocks,
                                        config.source.rootfs_mountpt,
                                        config.target.rootfs_mountpt,
@@ -974,9 +957,15 @@ bool DeltaDiffGenerator::GenerateDeltaWithSourceOperations(
                                        data_file_fd,
                                        data_file_size,
                                        true));  // src_ops_allowed
+  rootfs_ops->clear();
+  for (const Vertex& v : graph) {
+    rootfs_ops->emplace_back();
+    AnnotatedOperation& aop = rootfs_ops->back();
+    aop.op = v.op;
+    aop.SetNameFromFileAndChunk(v.file_name, v.chunk_offset, v.chunk_size);
+  }
 
   LOG(INFO) << "done reading normal files";
-  CheckGraph(*graph);
 
   // Read kernel partition
   TEST_AND_RETURN_FALSE(
@@ -987,25 +976,25 @@ bool DeltaDiffGenerator::GenerateDeltaWithSourceOperations(
                                    data_file_size,
                                    true));  // src_ops_allowed
   LOG(INFO) << "done reading kernel";
-  CheckGraph(*graph);
 
-  graph->emplace_back();
+  Vertex unwritten_vertex;
   TEST_AND_RETURN_FALSE(ReadUnwrittenBlocks(blocks,
                                             data_file_fd,
                                             data_file_size,
                                             config.source.rootfs_part,
                                             config.target.rootfs_part,
-                                            &graph->back()));
-  if (graph->back().op.data_length() == 0) {
+                                            &unwritten_vertex));
+  if (unwritten_vertex.op.data_length() == 0) {
     LOG(INFO) << "No unwritten blocks to write, omitting operation";
-    graph->pop_back();
+  } else {
+    rootfs_ops->emplace_back();
+    rootfs_ops->back().op = unwritten_vertex.op;
+    rootfs_ops->back().name = unwritten_vertex.file_name;
   }
-
-  *final_order = OrderIndices(*graph);
   return true;
 }
 
-bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
+bool GenerateUpdatePayloadFile(
     const PayloadGenerationConfig& config,
     const string& output_path,
     const string& private_key_path,
@@ -1038,29 +1027,26 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   DeltaArchiveManifest manifest;
   manifest.set_minor_version(config.minor_version);
 
-  vector<DeltaArchiveManifest_InstallOperation> kernel_ops;
-
-  Graph graph;
-  CheckGraph(graph);
-  vector<Vertex::Index> final_order;
+  vector<AnnotatedOperation> rootfs_ops;
+  vector<AnnotatedOperation> kernel_ops;
 
   // Select payload generation strategy based on the config.
-  OperationsGenerator* strategy = nullptr;
+  unique_ptr<OperationsGenerator> strategy;
   if (config.is_delta) {
     // We don't efficiently support deltas on squashfs. For now, we will
     // produce full operations in that case.
     if (utils::IsSquashfsFilesystem(config.target.rootfs_part)) {
       LOG(INFO) << "Using generator FullUpdateGenerator::Run for squashfs "
                    "deltas";
-      strategy = &FullUpdateGenerator::Run;
+      strategy.reset(new FullUpdateGenerator());
     } else if (utils::IsExtFilesystem(config.target.rootfs_part)) {
       // Delta update (with possibly a full kernel update).
       if (config.minor_version == kInPlaceMinorPayloadVersion) {
         LOG(INFO) << "Using generator InplaceGenerator::GenerateInplaceDelta";
-        strategy = &InplaceGenerator::GenerateInplaceDelta;
+        strategy.reset(new InplaceGenerator());
       } else if (config.minor_version == kSourceMinorPayloadVersion) {
         LOG(INFO) << "Using generator DeltaDiffGenerator::GenerateSourceDelta";
-        strategy = &DeltaDiffGenerator::GenerateDeltaWithSourceOperations;
+        strategy.reset(new DeltaDiffGenerator());
       } else {
         LOG(ERROR) << "Unsupported minor version given for delta payload: "
                    << config.minor_version;
@@ -1074,7 +1060,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   } else {
     // Full update.
     LOG(INFO) << "Using generator FullUpdateGenerator::Run";
-    strategy = &FullUpdateGenerator::Run;
+    strategy.reset(new FullUpdateGenerator());
   }
 
   {
@@ -1086,12 +1072,11 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     ScopedFdCloser data_file_fd_closer(&data_file_fd);
 
     // Generate the operations using the strategy we selected above.
-    TEST_AND_RETURN_FALSE((*strategy)(config,
-                                      data_file_fd,
-                                      &data_file_size,
-                                      &graph,
-                                      &kernel_ops,
-                                      &final_order));
+    TEST_AND_RETURN_FALSE(strategy->GenerateOperations(config,
+                                                       data_file_fd,
+                                                       &data_file_size,
+                                                       &rootfs_ops,
+                                                       &kernel_ops));
   }
 
   if (!config.source.ImageInfoIsEmpty())
@@ -1100,26 +1085,27 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   if (!config.target.ImageInfoIsEmpty())
     *(manifest.mutable_new_image_info()) = config.target.image_info;
 
+  // Filter the no-operations. OperationsGenerators should not output this kind
+  // of operations normally, but this is an extra step to fix that if
+  // happened.
+  DeltaDiffGenerator::FilterNoopOperations(&rootfs_ops);
+  DeltaDiffGenerator::FilterNoopOperations(&kernel_ops);
+
   OperationNameMap op_name_map;
-  CheckGraph(graph);
-  InstallOperationsToManifest(graph,
-                              final_order,
-                              kernel_ops,
-                              &manifest,
-                              &op_name_map);
-  CheckGraph(graph);
+  InstallOperationsToManifest(rootfs_ops, kernel_ops, &manifest, &op_name_map);
   manifest.set_block_size(config.block_size);
 
-  // Reorder the data blobs with the newly ordered manifest
+  // Reorder the data blobs with the newly ordered manifest.
   string ordered_blobs_path;
   TEST_AND_RETURN_FALSE(utils::MakeTempFile(
       "CrAU_temp_data.ordered.XXXXXX",
       &ordered_blobs_path,
       nullptr));
   ScopedPathUnlinker ordered_blobs_unlinker(ordered_blobs_path);
-  TEST_AND_RETURN_FALSE(ReorderDataBlobs(&manifest,
-                                         temp_file_path,
-                                         ordered_blobs_path));
+  TEST_AND_RETURN_FALSE(
+      DeltaDiffGenerator::ReorderDataBlobs(&manifest,
+                                           temp_file_path,
+                                           ordered_blobs_path));
   temp_file_unlinker.reset();
 
   // Check that install op blobs are in order.
@@ -1149,7 +1135,8 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
     TEST_AND_RETURN_FALSE(
         PayloadSigner::SignatureBlobLength(vector<string>(1, private_key_path),
                                            &signature_blob_length));
-    AddSignatureOp(next_blob_offset, signature_blob_length, &manifest);
+    DeltaDiffGenerator::AddSignatureOp(
+        next_blob_offset, signature_blob_length, &manifest);
   }
 
   TEST_AND_RETURN_FALSE(InitializePartitionInfos(config, &manifest));
@@ -1157,9 +1144,7 @@ bool DeltaDiffGenerator::GenerateDeltaUpdateFile(
   // Serialize protobuf
   string serialized_manifest;
 
-  CheckGraph(graph);
   TEST_AND_RETURN_FALSE(manifest.AppendToString(&serialized_manifest));
-  CheckGraph(graph);
 
   LOG(INFO) << "Writing final delta file header...";
   DirectFileWriter writer;

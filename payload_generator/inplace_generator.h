@@ -11,6 +11,7 @@
 
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/graph_types.h"
+#include "update_engine/payload_generator/operations_generator.h"
 
 // InplaceGenerator contains all functionality related to the inplace algorithm
 // for generating update payloads. These are the functions used when delta minor
@@ -34,8 +35,13 @@ struct CutEdgeVertexes {
   std::vector<Extent> tmp_extents;
 };
 
-class InplaceGenerator {
+class InplaceGenerator : public OperationsGenerator {
  public:
+  InplaceGenerator() = default;
+
+  // Checks all the operations in the graph have a type assigned.
+  static void CheckGraph(const Graph& graph);
+
   // Modifies blocks read by 'op' so that any blocks referred to by
   // 'remove_extents' are replaced with blocks from 'replace_extents'.
   // 'remove_extents' and 'replace_extents' must be the same number of blocks.
@@ -165,17 +171,15 @@ class InplaceGenerator {
   // the offsets in the operations reference the data written to |data_file_fd|.
   // The total amount of data written to that file is stored in
   // |data_file_size|.
-  static bool GenerateInplaceDelta(
+  bool GenerateOperations(
       const PayloadGenerationConfig& config,
       int data_file_fd,
       off_t* data_file_size,
-      Graph* graph,
-      std::vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
-      std::vector<Vertex::Index>* final_order);
+      std::vector<AnnotatedOperation>* rootfs_ops,
+      std::vector<AnnotatedOperation>* kernel_ops) override;
 
  private:
-  // This should never be constructed.
-  DISALLOW_IMPLICIT_CONSTRUCTORS(InplaceGenerator);
+  DISALLOW_COPY_AND_ASSIGN(InplaceGenerator);
 };
 
 };  // namespace chromeos_update_engine

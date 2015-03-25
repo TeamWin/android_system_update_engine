@@ -61,6 +61,12 @@ vector<Extent> CompressExtents(const vector<uint64_t>& blocks) {
   return new_extents;
 }
 
+void InplaceGenerator::CheckGraph(const Graph& graph) {
+  for (const Vertex& v : graph) {
+    CHECK(v.op.has_type());
+  }
+}
+
 void InplaceGenerator::SubstituteBlocks(
     Vertex* vertex,
     const vector<Extent>& remove_extents,
@@ -565,7 +571,7 @@ bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
   set<Edge> cut_edges;
   cycle_breaker.BreakCycles(*graph, &cut_edges);
   LOG(INFO) << "done finding cycles";
-  DeltaDiffGenerator::CheckGraph(*graph);
+  CheckGraph(*graph);
 
   // Calculate number of scratch blocks needed
 
@@ -574,12 +580,12 @@ bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
   TEST_AND_RETURN_FALSE(CutEdges(graph, cut_edges, &cuts));
   LOG(INFO) << "done cutting cycles";
   LOG(INFO) << "There are " << cuts.size() << " cuts.";
-  DeltaDiffGenerator::CheckGraph(*graph);
+  CheckGraph(*graph);
 
   LOG(INFO) << "Creating initial topological order...";
   TopologicalSort(*graph, final_order);
   LOG(INFO) << "done with initial topo order";
-  DeltaDiffGenerator::CheckGraph(*graph);
+  CheckGraph(*graph);
 
   LOG(INFO) << "Moving full ops to the back";
   MoveFullOpsToBack(graph, final_order);
@@ -626,13 +632,6 @@ void InplaceGenerator::CreateScratchNode(uint64_t start_block,
   extent->set_num_blocks(num_blocks);
 }
 
-// The |blocks| vector contains a reader and writer for each block on the
-// filesystem that's being in-place updated. We populate the reader/writer
-// fields of |blocks| by calling this function.
-// For each block in |operation| that is read or written, find that block
-// in |blocks| and set the reader/writer field to the vertex passed.
-// |graph| is not strictly necessary, but useful for printing out
-// error messages.
 bool InplaceGenerator::AddInstallOpToBlocksVector(
     const DeltaArchiveManifest_InstallOperation& operation,
     const Graph& graph,
@@ -676,16 +675,18 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
   return true;
 }
 
-bool InplaceGenerator::GenerateInplaceDelta(
+bool InplaceGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
     int data_file_fd,
     off_t* data_file_size,
-    Graph* graph,
-    vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
-    vector<Vertex::Index>* final_order) {
+    vector<AnnotatedOperation>* rootfs_ops,
+    vector<AnnotatedOperation>* kernel_ops) {
+  Graph graph;
+  CheckGraph(graph);
   vector<Block> blocks(config.target.rootfs_size / config.block_size);
+
   TEST_AND_RETURN_FALSE(
-      DeltaDiffGenerator::DeltaReadFiles(graph,
+      DeltaDiffGenerator::DeltaReadFiles(&graph,
                                          &blocks,
                                          config.source.rootfs_mountpt,
                                          config.target.rootfs_mountpt,
@@ -694,41 +695,41 @@ bool InplaceGenerator::GenerateInplaceDelta(
                                          data_file_size,
                                          false));  // src_ops_allowed
   LOG(INFO) << "done reading normal files";
-  DeltaDiffGenerator::CheckGraph(*graph);
+  CheckGraph(graph);
 
   LOG(INFO) << "Starting metadata processing";
   TEST_AND_RETURN_FALSE(Metadata::DeltaReadMetadata(
-      graph,
+      &graph,
       &blocks,
       config.source.rootfs_part,
       config.target.rootfs_part,
       data_file_fd,
       data_file_size));
   LOG(INFO) << "Done metadata processing";
-  DeltaDiffGenerator::CheckGraph(*graph);
+  CheckGraph(graph);
 
-  graph->emplace_back();
+  graph.emplace_back();
   TEST_AND_RETURN_FALSE(
       DeltaDiffGenerator::ReadUnwrittenBlocks(blocks,
                                               data_file_fd,
                                               data_file_size,
                                               config.source.rootfs_part,
                                               config.target.rootfs_part,
-                                              &graph->back()));
-  if (graph->back().op.data_length() == 0) {
+                                              &graph.back()));
+  if (graph.back().op.data_length() == 0) {
     LOG(INFO) << "No unwritten blocks to write, omitting operation";
-    graph->pop_back();
+    graph.pop_back();
   }
 
   // Final scratch block (if there's space)
   Vertex::Index scratch_vertex = Vertex::kInvalidIndex;
   if (blocks.size() < (config.rootfs_partition_size / kBlockSize)) {
-    scratch_vertex = graph->size();
-    graph->emplace_back();
+    scratch_vertex = graph.size();
+    graph.emplace_back();
     CreateScratchNode(
         blocks.size(),
         (config.rootfs_partition_size / kBlockSize) - blocks.size(),
-        &graph->back());
+        &graph.back());
   }
 
   // Read kernel partition
@@ -742,20 +743,33 @@ bool InplaceGenerator::GenerateInplaceDelta(
           false));  // src_ops_allowed
 
   LOG(INFO) << "done reading kernel";
-  DeltaDiffGenerator::CheckGraph(*graph);
+  CheckGraph(graph);
 
   LOG(INFO) << "Creating edges...";
-  CreateEdges(graph, blocks);
+  CreateEdges(&graph, blocks);
   LOG(INFO) << "Done creating edges";
-  DeltaDiffGenerator::CheckGraph(*graph);
+  CheckGraph(graph);
 
+  vector<Vertex::Index> final_order;
   TEST_AND_RETURN_FALSE(ConvertGraphToDag(
-      graph,
+      &graph,
       config.target.rootfs_mountpt,
       data_file_fd,
       data_file_size,
-      final_order,
+      &final_order,
       scratch_vertex));
+
+  // Copy operations over to the rootfs_ops in the final_order generated by the
+  // topological sort.
+  rootfs_ops->clear();
+  for (const Vertex::Index vertex_index : final_order) {
+    const Vertex& vertex = graph[vertex_index];
+    rootfs_ops->emplace_back();
+    rootfs_ops->back().op = vertex.op;
+    rootfs_ops->back().SetNameFromFileAndChunk(
+        vertex.file_name, vertex.chunk_offset, vertex.chunk_size);
+  }
+
   return true;
 }
 

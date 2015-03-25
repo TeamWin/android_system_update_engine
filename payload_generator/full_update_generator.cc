@@ -110,16 +110,17 @@ bool ChunkProcessor::ReadAndCompress() {
 
 }  // namespace
 
-bool FullUpdateGenerator::Run(
+bool FullUpdateGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
     int fd,
     off_t* data_file_size,
-    Graph* graph,
-    vector<DeltaArchiveManifest_InstallOperation>* kernel_ops,
-    vector<Vertex::Index>* final_order) {
+    vector<AnnotatedOperation>* rootfs_ops,
+    vector<AnnotatedOperation>* kernel_ops) {
   TEST_AND_RETURN_FALSE(config.Validate());
+  rootfs_ops->clear();
+  kernel_ops->clear();
 
-  // FullUpdateGenerator requires a positive chuck_size, otherwise there will
+  // FullUpdateGenerator requires a positive chunk_size, otherwise there will
   // be only one operation with the whole partition which should not be allowed.
   size_t full_chunk_size = kDefaultFullChunkSize;
   if (config.chunk_size >= 0) {
@@ -167,14 +168,15 @@ bool FullUpdateGenerator::Run(
 
       DeltaArchiveManifest_InstallOperation* op = nullptr;
       if (partition == 0) {
-        graph->emplace_back();
-        graph->back().file_name =
+        rootfs_ops->emplace_back();
+        rootfs_ops->back().name =
             base::StringPrintf("<rootfs-operation-%" PRIuS ">", counter++);
-        op = &graph->back().op;
-        final_order->push_back(graph->size() - 1);
+        op = &rootfs_ops->back().op;
       } else {
-        kernel_ops->resize(kernel_ops->size() + 1);
-        op = &kernel_ops->back();
+        kernel_ops->emplace_back();
+        kernel_ops->back().name =
+            base::StringPrintf("<kernel-operation-%" PRIuS ">", counter++);
+        op = &kernel_ops->back().op;
       }
 
       const bool compress = processor->ShouldCompress();

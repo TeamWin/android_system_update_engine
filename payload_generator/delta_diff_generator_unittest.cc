@@ -26,7 +26,6 @@
 #include "update_engine/payload_generator/extent_mapper.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
-#include "update_engine/payload_generator/topological_sort.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
@@ -556,14 +555,26 @@ TEST_F(DeltaDiffGeneratorTest, IsNoopOperationTest) {
   EXPECT_FALSE(DeltaDiffGenerator::IsNoopOperation(op));
 }
 
-TEST_F(DeltaDiffGeneratorTest, OrderIndicesTest) {
-  Graph graph(3);
-  vector<Vertex::Index> order;
-  order = DeltaDiffGenerator::OrderIndices(graph);
-  EXPECT_EQ(order.size(), 3);
-  EXPECT_EQ(order[0], 0);
-  EXPECT_EQ(order[1], 1);
-  EXPECT_EQ(order[2], 2);
+TEST_F(DeltaDiffGeneratorTest, FilterNoopOperations) {
+  AnnotatedOperation aop1;
+  aop1.op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  *(aop1.op.add_dst_extents()) = ExtentForRange(3, 2);
+  aop1.name = "aop1";
+
+  AnnotatedOperation aop2 = aop1;
+  aop2.name = "aop2";
+
+  AnnotatedOperation noop;
+  noop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+  *(noop.op.add_src_extents()) = ExtentForRange(3, 2);
+  *(noop.op.add_dst_extents()) = ExtentForRange(3, 2);
+  noop.name = "noop";
+
+  vector<AnnotatedOperation> ops = {noop, aop1, noop, noop, aop2, noop};
+  DeltaDiffGenerator::FilterNoopOperations(&ops);
+  EXPECT_EQ(2u, ops.size());
+  EXPECT_EQ("aop1", ops[0].name);
+  EXPECT_EQ("aop2", ops[1].name);
 }
 
 }  // namespace chromeos_update_engine

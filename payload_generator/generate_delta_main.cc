@@ -418,11 +418,10 @@ int Main(int argc, char** argv) {
   }
 
   uint64_t metadata_size;
-  if (!DeltaDiffGenerator::GenerateDeltaUpdateFile(
-      payload_config,
-      FLAGS_out_file,
-      FLAGS_private_key,
-      &metadata_size)) {
+  if (!GenerateUpdatePayloadFile(payload_config,
+                                 FLAGS_out_file,
+                                 FLAGS_private_key,
+                                 &metadata_size)) {
     return 1;
   }
 
