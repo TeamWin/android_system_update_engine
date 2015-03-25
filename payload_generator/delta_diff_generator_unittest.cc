@@ -45,6 +45,7 @@ typedef bool (*GetExtentsWithChunk)(const string&, off_t, off_t,
 extern GetExtentsWithChunk get_extents_with_chunk_func;
 
 namespace {
+
 int64_t BlocksInExtents(
     const google::protobuf::RepeatedPtrField<Extent>& extents) {
   int64_t ret = 0;
@@ -53,28 +54,81 @@ int64_t BlocksInExtents(
   }
   return ret;
 }
+
+uint64_t AddExtent(uint64_t start_block, uint64_t num_blocks,
+                   vector<Extent>* extents) {
+  extents->push_back(ExtentForRange(start_block, num_blocks));
+  return num_blocks;
+}
+
+// Used to provide a fake list of extents for a given path.
+std::map<string, vector<Extent>> fake_file_extents;
+
+// Fake function for GatherExtents in delta_diff_generator. This function
+// returns whatever is specified in the global fake_file_extents variable.
+bool FakeGetExtents(const string& path, off_t chunk_offset, off_t chunk_size,
+                    vector<Extent>* out) {
+  if (fake_file_extents.find(path) != fake_file_extents.end()) {
+    *out = fake_file_extents[path];
+    return true;
+  } else {
+    return false;
+  }
+}
+
 }  // namespace
 
 class DeltaDiffGeneratorTest : public ::testing::Test {
  protected:
-  const string& old_path() { return old_path_; }
-  const string& new_path() { return new_path_; }
-
   void SetUp() override {
     ASSERT_TRUE(utils::MakeTempFile("DeltaDiffGeneratorTest-old_path-XXXXXX",
                                     &old_path_, nullptr));
     ASSERT_TRUE(utils::MakeTempFile("DeltaDiffGeneratorTest-new_path-XXXXXX",
                                     &new_path_, nullptr));
+    // Mock out the extent gathering function.
+    orig_get_extents_with_chunk_func_ = get_extents_with_chunk_func;
+    get_extents_with_chunk_func = FakeGetExtents;
+    // Ensure we start with a clean list of fake extents.
+    fake_file_extents.clear();
   }
 
   void TearDown() override {
-    unlink(old_path().c_str());
-    unlink(new_path().c_str());
+    unlink(old_path_.c_str());
+    unlink(new_path_.c_str());
+    get_extents_with_chunk_func = orig_get_extents_with_chunk_func_;
   }
 
- private:
+  // Updates the FakeGetExtents for old_path_ and new_path_ to match the current
+  // file size.
+  void UpdateFakeExtents() {
+    UpdateFakeFileExtents(old_path_, kBlockSize);
+    UpdateFakeFileExtents(new_path_, kBlockSize);
+  }
+
+  // Update the fake_file_extents for |path| using the file size of that file,
+  // assuming a block size of |block_size| and an optional |start_block|.
+  // The faked extent list will have only one extent with the list of all the
+  // contiguous blocks.
+  void UpdateFakeFileExtents(const string& path, size_t block_size,
+                             size_t start_block) {
+    size_t num_blocks = (utils::FileSize(path) + block_size - 1) / block_size;
+    if (num_blocks == 0) {
+      fake_file_extents[path] = vector<Extent>{};
+    } else {
+      fake_file_extents[path] =
+          vector<Extent>{1, ExtentForRange(start_block, num_blocks)};
+    }
+  }
+
+  void UpdateFakeFileExtents(const string& path, size_t block_size) {
+    UpdateFakeFileExtents(path, block_size, 0);
+  }
+
+  // Paths to old and new temporary files used in all the tests.
   string old_path_;
   string new_path_;
+
+  GetExtentsWithChunk orig_get_extents_with_chunk_func_;
 };
 
 TEST_F(DeltaDiffGeneratorTest, BlockDefaultValues) {
@@ -85,23 +139,27 @@ TEST_F(DeltaDiffGeneratorTest, BlockDefaultValues) {
   EXPECT_EQ(Vertex::kInvalidIndex, block.writer);
 }
 
-TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveSmallTest) {
-  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+TEST_F(DeltaDiffGeneratorTest, MoveSmallTest) {
+  EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
-  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
+  // Force the old file to be on a different block.
+  UpdateFakeFileExtents(old_path_, kBlockSize, 10);
+  UpdateFakeFileExtents(new_path_, kBlockSize);
+
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
-                                                 new_path(),
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
+                                                 new_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true,
+                                                 true,  // gather_extents
                                                  false));  // src_ops_allowed
   EXPECT_TRUE(data.empty());
 
@@ -118,33 +176,7 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveSmallTest) {
   EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
 }
 
-std::map<string, vector<Extent>*> fake_file_extents;
-
-bool FakeGetExtents(const string& path, off_t chunk_offset, off_t chunk_size,
-                    vector<Extent>* out) {
-  if (fake_file_extents.count(path) == 1) {
-    *out = *fake_file_extents[path];
-    return true;
-  } else {
-    return false;
-  }
-}
-
-uint64_t AddExtent(uint64_t start_block, uint64_t num_blocks,
-                   vector<Extent>* extents) {
-  Extent e;
-  e.set_start_block(start_block);
-  e.set_num_blocks(num_blocks);
-  extents->push_back(e);
-  return num_blocks;
-}
-
-TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
-  // Mock out the extent gathering function.
-  GetExtentsWithChunk orig_get_extents_with_chunk_func =
-      get_extents_with_chunk_func;
-  get_extents_with_chunk_func = FakeGetExtents;
-
+TEST_F(DeltaDiffGeneratorTest, MoveWithSameBlock) {
   // Setup the old/new files so that it has immobile chunks; we make sure to
   // utilize all sub-cases of such chunks: blocks 21--22 induce a split (src)
   // and complete removal (dst), whereas blocks 24--25 induce trimming of the
@@ -159,14 +191,14 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
   uint64_t num_extents = 0;
   num_extents += AddExtent(20, 6, &old_extents);
   num_extents += AddExtent(28, 2, &old_extents);
-  fake_file_extents[old_path()] = &old_extents;
+  fake_file_extents[old_path_] = old_extents;
   vector<Extent> new_extents;
   AddExtent(18, 1, &new_extents);
   AddExtent(21, 2, &new_extents);
   AddExtent(20, 1, &new_extents);
   AddExtent(24, 3, &new_extents);
   AddExtent(29, 1, &new_extents);
-  fake_file_extents[new_path()] = &new_extents;
+  fake_file_extents[new_path_] = new_extents;
 
   // The size of the data should match the total number of blocks; the last
   // block is only partly filled.
@@ -178,21 +210,21 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
     random_data += random_string;
   if (random_data.size() > file_len)
     random_data.erase(file_len);
-  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
                                random_data.c_str(), file_len));
-  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                random_data.c_str(), file_len));
 
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
-                                                 new_path(),
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
+                                                 new_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true,
+                                                 true,  // gather_extents
                                                  false));  // src_ops_allowed
 
   // Adjust the old/new extents to remove duplicates.
@@ -235,29 +267,27 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootMoveWithSameBlock) {
     EXPECT_EQ(new_extents[i].num_blocks(), op.dst_extents(i).num_blocks())
         << "i == " << i;
   }
-
-  // Clean up fake extents and restore the module's extent gathering logic.
-  fake_file_extents.clear();
-  get_extents_with_chunk_func = orig_get_extents_with_chunk_func;
 }
 
-TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffSmallTest) {
-  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+TEST_F(DeltaDiffGeneratorTest, BsdiffSmallTest) {
+  EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString) - 1));
-  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
+  UpdateFakeExtents();
+
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
-                                                 new_path(),
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
+                                                 new_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true,
+                                                 true,  // gather_extents
                                                  false));  // src_ops_allowed
   EXPECT_FALSE(data.empty());
 
@@ -274,24 +304,26 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffSmallTest) {
   EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
 }
 
-TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedTest) {
-  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+TEST_F(DeltaDiffGeneratorTest, BsdiffNotAllowedTest) {
+  EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString) - 1));
-  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
+  UpdateFakeExtents();
+
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
 
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
-                                                 new_path(),
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
+                                                 new_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  false,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true,
+                                                 true,  // gather_extents
                                                  false));  // src_ops_allowed
   EXPECT_FALSE(data.empty());
 
@@ -301,24 +333,26 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedTest) {
   EXPECT_NE(DeltaArchiveManifest_InstallOperation_Type_BSDIFF, op.type());
 }
 
-TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedMoveTest) {
-  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+TEST_F(DeltaDiffGeneratorTest, BsdiffNotAllowedMoveTest) {
+  EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
-  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
+  UpdateFakeExtents();
+
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
 
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
-                                                 new_path(),
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
+                                                 new_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  false,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true,
+                                                 true,  // gather_extents
                                                  false));  // src_ops_allowed
   EXPECT_TRUE(data.empty());
 
@@ -328,24 +362,26 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNotAllowedMoveTest) {
   EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE, op.type());
 }
 
-TEST_F(DeltaDiffGeneratorTest, RunAsRootReplaceSmallTest) {
+TEST_F(DeltaDiffGeneratorTest, ReplaceSmallTest) {
   chromeos::Blob new_data;
   for (int i = 0; i < 2; i++) {
     new_data.insert(new_data.end(),
                     std::begin(kRandomString), std::end(kRandomString));
-    EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+    EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                  new_data.data(),
                                  new_data.size()));
+    UpdateFakeExtents();
+
     chromeos::Blob data;
     DeltaArchiveManifest_InstallOperation op;
-    EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
-                                                   new_path(),
+    EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
+                                                   new_path_,
                                                    0,  // chunk_offset
                                                    -1,  // chunk_size
                                                    true,  // bsdiff_allowed
                                                    &data,
                                                    &op,
-                                                   true,
+                                                   true,  // gather_extents
                                                    false));  // src_ops_allowed
     EXPECT_FALSE(data.empty());
 
@@ -364,23 +400,23 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootReplaceSmallTest) {
   }
 }
 
-TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNoGatherExtentsSmallTest) {
-  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+TEST_F(DeltaDiffGeneratorTest, BsdiffNoGatherExtentsSmallTest) {
+  EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString) - 1));
-  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
-                                                 new_path(),
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
+                                                 new_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 false,
+                                                 false,  // gather_extents
                                                  false));  // src_ops_allowed
   EXPECT_FALSE(data.empty());
 
@@ -398,26 +434,28 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootBsdiffNoGatherExtentsSmallTest) {
   EXPECT_EQ(sizeof(kRandomString), op.dst_length());
 }
 
-TEST_F(DeltaDiffGeneratorTest, RunAsRootSourceCopyTest) {
+TEST_F(DeltaDiffGeneratorTest, SourceCopyTest) {
   // Makes sure SOURCE_COPY operations are emitted whenever src_ops_allowed
-  // is true. It is the same setup as RunAsRootMoveSmallTest, which checks that
+  // is true. It is the same setup as MoveSmallTest, which checks that
   // the operation is well-formed.
-  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
-  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
+  UpdateFakeExtents();
+
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
-                                                 new_path(),
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
+                                                 new_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true,
+                                                 true,  // gather_extents
                                                  true));  // src_ops_allowed
   EXPECT_TRUE(data.empty());
 
@@ -425,26 +463,28 @@ TEST_F(DeltaDiffGeneratorTest, RunAsRootSourceCopyTest) {
   EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY, op.type());
 }
 
-TEST_F(DeltaDiffGeneratorTest, RunAsRootSourceBsdiffTest) {
+TEST_F(DeltaDiffGeneratorTest, SourceBsdiffTest) {
   // Makes sure SOURCE_BSDIFF operations are emitted whenever src_ops_allowed
-  // is true. It is the same setup as RunAsRootBsdiffSmallTest, which checks
+  // is true. It is the same setup as BsdiffSmallTest, which checks
   // that the operation is well-formed.
-  EXPECT_TRUE(utils::WriteFile(old_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString) - 1));
-  EXPECT_TRUE(utils::WriteFile(new_path().c_str(),
+  EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                reinterpret_cast<const char*>(kRandomString),
                                sizeof(kRandomString)));
+  UpdateFakeExtents();
+
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path(),
-                                                 new_path(),
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
+                                                 new_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
-                                                 true,
+                                                 true,  // gather_extents
                                                  true));  // src_ops_allowed
   EXPECT_FALSE(data.empty());
   EXPECT_TRUE(op.has_type());
