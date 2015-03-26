@@ -279,6 +279,7 @@
         'payload_generator/annotated_operation.cc',
         'payload_generator/cycle_breaker.cc',
         'payload_generator/delta_diff_generator.cc',
+        'payload_generator/ext2_filesystem.cc',
         'payload_generator/extent_mapper.cc',
         'payload_generator/extent_utils.cc',
         'payload_generator/filesystem_iterator.cc',
@@ -289,6 +290,7 @@
         'payload_generator/metadata.cc',
         'payload_generator/payload_generation_config.cc',
         'payload_generator/payload_signer.cc',
+        'payload_generator/raw_filesystem.cc',
         'payload_generator/tarjan.cc',
         'payload_generator/topological_sort.cc',
         'payload_generator/verity_utils.cc',
@@ -328,6 +330,19 @@
             'unittest_key2.pem',
           ],
           'includes': ['../common-mk/openssl_pem.gypi'],
+        },
+        # Sample images used for testing.
+        {
+          'target_name': 'update_engine-test_images',
+          'type': 'none',
+          'variables': {
+            'image_out_dir': '.',
+          },
+          'sources': [
+            'sample_images/disk_ext2_1k.txt',
+            'sample_images/disk_ext2_4k.txt',
+          ],
+          'includes': ['generate_image.gypi'],
         },
         # Test HTTP Server.
         {
@@ -373,8 +388,10 @@
             'p2p_manager_unittest.cc',
             'payload_generator/cycle_breaker_unittest.cc',
             'payload_generator/delta_diff_generator_unittest.cc',
+            'payload_generator/ext2_filesystem_unittest.cc',
             'payload_generator/extent_mapper_unittest.cc',
             'payload_generator/extent_utils_unittest.cc',
+            'payload_generator/fake_filesystem.cc',
             'payload_generator/filesystem_iterator_unittest.cc',
             'payload_generator/full_update_generator_unittest.cc',
             'payload_generator/graph_utils_unittest.cc',

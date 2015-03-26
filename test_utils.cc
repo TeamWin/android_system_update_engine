@@ -16,9 +16,10 @@
 #include <string>
 #include <vector>
 
+#include <base/files/file_util.h>
 #include <base/logging.h>
-#include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/strings/string_util.h>
 
 #include "update_engine/file_writer.h"
 #include "update_engine/payload_generator/filesystem_iterator.h"
@@ -387,6 +388,12 @@ void GValueFree(gpointer arg) {
   auto gval = reinterpret_cast<GValue*>(arg);
   g_value_unset(gval);
   g_free(gval);
+}
+
+base::FilePath GetBuildArtifactsPath() {
+  base::FilePath exe_path;
+  base::ReadSymbolicLink(base::FilePath("/proc/self/exe"), &exe_path);
+  return exe_path.DirName();
 }
 
 }  // namespace test_utils

@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <base/callback.h>
+#include <base/files/file_path.h>
 #include <glib-object.h>
 #include <gtest/gtest.h>
 
@@ -209,8 +210,11 @@ GValue* GValueNewString(const char* str);
 // Frees a GValue object and its allocated resources.
 void GValueFree(gpointer arg);
 
-}  // namespace test_utils
+// Returns the path where the build artifacts are stored. This is the directory
+// where the unittest executable is being run from.
+base::FilePath GetBuildArtifactsPath();
 
+}  // namespace test_utils
 
 // Useful actions for test. These need to be defined in the
 // chromeos_update_engine namespace.
