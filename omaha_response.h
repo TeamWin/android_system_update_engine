@@ -17,25 +17,11 @@ namespace chromeos_update_engine {
 // This struct encapsulates the data Omaha's response for the request.
 // The strings in this struct are not XML escaped.
 struct OmahaResponse {
-  OmahaResponse()
-      : update_exists(false),
-        poll_interval(0),
-        size(0),
-        metadata_size(0),
-        max_days_to_scatter(0),
-        max_failure_count_per_url(0),
-        prompt(false),
-        is_delta_payload(false),
-        disable_payload_backoff(false),
-        disable_p2p_for_downloading(false),
-        disable_p2p_for_sharing(false),
-        install_date_days(-1) {}
-
   // True iff there is an update to be downloaded.
-  bool update_exists;
+  bool update_exists = false;
 
   // If non-zero, server-dictated poll interval in seconds.
-  int poll_interval;
+  int poll_interval = 0;
 
   // These are only valid if update_exists is true:
   std::string version;
@@ -48,28 +34,28 @@ struct OmahaResponse {
   std::string hash;
   std::string metadata_signature;
   std::string deadline;
-  off_t size;
-  off_t metadata_size;
-  int max_days_to_scatter;
+  off_t size = 0;
+  off_t metadata_size = 0;
+  int max_days_to_scatter = 0;
   // The number of URL-related failures to tolerate before moving on to the
   // next URL in the current pass. This is a configurable value from the
   // Omaha Response attribute, if ever we need to fine tune the behavior.
-  uint32_t max_failure_count_per_url;
-  bool prompt;
+  uint32_t max_failure_count_per_url = 0;
+  bool prompt = false;
 
   // True if the payload described in this response is a delta payload.
   // False if it's a full payload.
-  bool is_delta_payload;
+  bool is_delta_payload = false;
 
   // True if the Omaha rule instructs us to disable the back-off logic
   // on the client altogether. False otherwise.
-  bool disable_payload_backoff;
+  bool disable_payload_backoff = false;
 
   // True if the Omaha rule instructs us to disable p2p for downloading.
-  bool disable_p2p_for_downloading;
+  bool disable_p2p_for_downloading = false;
 
   // True if the Omaha rule instructs us to disable p2p for sharing.
-  bool disable_p2p_for_sharing;
+  bool disable_p2p_for_sharing = false;
 
   // If not blank, a base-64 encoded representation of the PEM-encoded
   // public key in the response.
@@ -78,7 +64,7 @@ struct OmahaResponse {
   // If not -1, the number of days since the epoch Jan 1, 2007 0:00
   // PST, according to the Omaha Server's clock and timezone (PST8PDT,
   // aka "Pacific Time".)
-  int install_date_days;
+  int install_date_days = -1;
 };
 COMPILE_ASSERT(sizeof(off_t) == 8, off_t_not_64bit);
 

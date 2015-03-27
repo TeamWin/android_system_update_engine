@@ -141,6 +141,33 @@ string GetAppBody(const OmahaEvent* event,
   return app_body;
 }
 
+// Returns the cohort* argument to include in the <app> tag for the passed
+// |arg_name| and |prefs_key|, if any. The return value is suitable to
+// concatenate to the list of arguments and includes a space at the end.
+string GetCohortArgXml(PrefsInterface* prefs,
+                       const std::string arg_name,
+                       const std::string prefs_key) {
+  // There's nothing wrong with not having a given cohort setting, so we check
+  // existance first to avoid the warning log message.
+  if (!prefs->Exists(prefs_key))
+    return "";
+  string cohort_value;
+  if (!prefs->GetString(prefs_key, &cohort_value) || cohort_value.empty())
+    return "";
+  // This is a sanity check to avoid sending a huge XML file back to Ohama due
+  // to a compromised stateful partition making the update check fail in low
+  // network environments envent after a reboot.
+  if (cohort_value.size() > 1024) {
+    LOG(WARNING) << "The omaha cohort setting " << arg_name
+                 << " has a too big value, which must be an error or an "
+                    "attacker trying to inhibit updates.";
+    return "";
+  }
+
+  return base::StringPrintf("%s=\"%s\" ",
+                            arg_name.c_str(), XmlEncode(cohort_value).c_str());
+}
+
 // Returns an XML that corresponds to the entire <app> node of the Omaha
 // request based on the given parameters.
 string GetAppXml(const OmahaEvent* event,
@@ -184,8 +211,17 @@ string GetAppXml(const OmahaEvent* event,
                                                   install_date_in_days);
   }
 
+  string app_cohort_args;
+  app_cohort_args += GetCohortArgXml(system_state->prefs(),
+                                     "cohort", kPrefsOmahaCohort);
+  app_cohort_args += GetCohortArgXml(system_state->prefs(),
+                                     "cohorthint", kPrefsOmahaCohortHint);
+  app_cohort_args += GetCohortArgXml(system_state->prefs(),
+                                     "cohortname", kPrefsOmahaCohortName);
+
   string app_xml =
       "    <app appid=\"" + XmlEncode(params->GetAppId()) + "\" " +
+                app_cohort_args +
                 app_versions +
                 app_channels +
                 "lang=\"" + XmlEncode(params->app_lang()) + "\" " +
@@ -260,6 +296,12 @@ struct OmahaParserData {
   string current_path;
 
   // These are the values extracted from the XML.
+  string app_cohort;
+  string app_cohorthint;
+  string app_cohortname;
+  bool app_cohort_set = false;
+  bool app_cohorthint_set = false;
+  bool app_cohortname_set = false;
   string updatecheck_status;
   string updatecheck_poll_interval;
   string daystart_elapsed_days;
@@ -292,7 +334,20 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
     }
   }
 
-  if (data->current_path == "/response/app/updatecheck") {
+  if (data->current_path == "/response/app") {
+    if (attrs.find("cohort") != attrs.end()) {
+      data->app_cohort_set = true;
+      data->app_cohort = attrs["cohort"];
+    }
+    if (attrs.find("cohorthint") != attrs.end()) {
+      data->app_cohorthint_set = true;
+      data->app_cohorthint = attrs["cohorthint"];
+    }
+    if (attrs.find("cohortname") != attrs.end()) {
+      data->app_cohortname_set = true;
+      data->app_cohortname = attrs["cohortname"];
+    }
+  } else if (data->current_path == "/response/app/updatecheck") {
     // There is only supposed to be a single <updatecheck> element.
     data->updatecheck_status = attrs["status"];
     data->updatecheck_poll_interval = attrs["PollInterval"];
@@ -628,6 +683,13 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 
   if (!ParseParams(parser_data, output_object, completer))
     return false;
+
+  if (parser_data->app_cohort_set)
+    PersistCohortData(kPrefsOmahaCohort, parser_data->app_cohort);
+  if (parser_data->app_cohorthint_set)
+    PersistCohortData(kPrefsOmahaCohortHint, parser_data->app_cohorthint);
+  if (parser_data->app_cohortname_set)
+    PersistCohortData(kPrefsOmahaCohortName, parser_data->app_cohortname);
 
   return true;
 }
@@ -1229,6 +1291,19 @@ bool OmahaRequestAction::PersistInstallDate(
       static_cast<int>(source),  // Sample.
       kProvisionedMax);          // Maximum.
 
+  return true;
+}
+
+bool OmahaRequestAction::PersistCohortData(
+    const string& prefs_key,
+    const string& new_value) {
+  if (new_value.empty() && system_state_->prefs()->Exists(prefs_key)) {
+    LOG(INFO) << "Removing stored " << prefs_key << " value.";
+    return system_state_->prefs()->Delete(prefs_key);
+  } else if (!new_value.empty()) {
+    LOG(INFO) << "Storing new setting " << prefs_key << " as " << new_value;
+    return system_state_->prefs()->SetString(prefs_key, new_value);
+  }
   return true;
 }
 

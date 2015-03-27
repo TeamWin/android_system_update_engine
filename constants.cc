@@ -45,6 +45,9 @@ const char kPrefsMetricsCheckLastReportingTime[] =
     "metrics-check-last-reporting-time";
 const char kPrefsNumReboots[] = "num-reboots";
 const char kPrefsNumResponsesSeen[] = "num-responses-seen";
+const char kPrefsOmahaCohort[] = "omaha-cohort";
+const char kPrefsOmahaCohortHint[] = "omaha-cohort-hint";
+const char kPrefsOmahaCohortName[] = "omaha-cohort-name";
 const char kPrefsP2PEnabled[] = "p2p-enabled";
 const char kPrefsP2PFirstAttemptTimestamp[] = "p2p-first-attempt-timestamp";
 const char kPrefsP2PNumAttempts[] = "p2p-num-attempts";

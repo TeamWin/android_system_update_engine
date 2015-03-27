@@ -189,6 +189,13 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
                                  int install_date_days,
                                  InstallDateProvisioningSource source);
 
+  // Persist the new cohort* value received in the XML file in the |prefs_key|
+  // preference file. If the |new_value| is empty, the currently stored value
+  // will be deleted. Don't call this function with an empty |new_value| if the
+  // value was not set in the XML, since that would delete the stored value.
+  bool PersistCohortData(const std::string& prefs_key,
+                         const std::string& new_value);
+
   // If this is an update check request, initializes
   // |ping_active_days_| and |ping_roll_call_days_| to values that may
   // be sent as pings to Omaha.

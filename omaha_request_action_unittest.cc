@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
@@ -45,6 +46,89 @@ using testing::ReturnPointee;
 using testing::SaveArg;
 using testing::SetArgumentPointee;
 using testing::_;
+
+namespace {
+
+// This is a helper struct to allow unit tests build an update response with the
+// values they care about.
+struct FakeUpdateResponse {
+  string GetNoUpdateResponse() const {
+    string entity_str;
+    if (include_entity)
+      entity_str = "<!DOCTYPE response [<!ENTITY CrOS \"ChromeOS\">]>";
+    return base::StringPrintf(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        "%s<response protocol=\"3.0\">"
+        "<daystart elapsed_seconds=\"100\"/>"
+        "<app appid=\"%s\" status=\"ok\"><ping status=\"ok\"/>"
+        "<updatecheck status=\"noupdate\"/></app></response>",
+        entity_str.c_str(), app_id.c_str());
+  }
+
+  string GetUpdateResponse() const {
+    return
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+        "protocol=\"3.0\">"
+        "<daystart elapsed_seconds=\"100\"" +
+        (elapsed_days.empty() ? "" : (" elapsed_days=\"" + elapsed_days + "\""))
+        + "/>"
+        "<app appid=\"" + app_id + "\" " +
+        (include_cohorts ? "cohort=\"" + cohort + "\" cohorthint=\"" +
+         cohorthint + "\" cohortname=\"" + cohortname + "\" " : "") +
+        " status=\"ok\">"
+        "<ping status=\"ok\"/><updatecheck status=\"ok\">"
+        "<urls><url codebase=\"" + codebase + "\"/></urls>"
+        "<manifest version=\"" + version + "\">"
+        "<packages><package hash=\"not-used\" name=\"" + filename +  "\" "
+        "size=\"" + base::Int64ToString(size) + "\"/></packages>"
+        "<actions><action event=\"postinstall\" "
+        "ChromeOSVersion=\"" + version + "\" "
+        "MoreInfo=\"" + more_info_url + "\" Prompt=\"" + prompt + "\" "
+        "IsDelta=\"true\" "
+        "IsDeltaPayload=\"true\" "
+        "MaxDaysToScatter=\"" + max_days_to_scatter + "\" "
+        "sha256=\"" + hash + "\" "
+        "needsadmin=\"" + needsadmin + "\" " +
+        (deadline.empty() ? "" : ("deadline=\"" + deadline + "\" ")) +
+        (disable_p2p_for_downloading ?
+            "DisableP2PForDownloading=\"true\" " : "") +
+        (disable_p2p_for_sharing ? "DisableP2PForSharing=\"true\" " : "") +
+        "/></actions></manifest></updatecheck></app></response>";
+  }
+
+  // Return the payload URL, which is split in two fields in the XML response.
+  string GetPayloadUrl() {
+    return codebase + filename;
+  }
+
+  string app_id = chromeos_update_engine::OmahaRequestParams::kAppId;
+  string version = "1.2.3.4";
+  string more_info_url = "http://more/info";
+  string prompt = "true";
+  string codebase = "http://code/base/";
+  string filename = "file.signed";
+  string hash = "HASH1234=";
+  string needsadmin = "false";
+  int64_t size = 123;
+  string deadline = "";
+  string max_days_to_scatter = "7";
+  string elapsed_days = "42";
+
+  // P2P setting defaults to allowed.
+  bool disable_p2p_for_downloading = false;
+  bool disable_p2p_for_sharing = false;
+
+  // Omaha cohorts settings.
+  bool include_cohorts = false;
+  string cohort = "";
+  string cohorthint = "";
+  string cohortname = "";
+
+  // Whether to include the CrOS <!ENTITY> in the XML response.
+  bool include_entity = false;
+};
+
+}  // namespace
 
 namespace chromeos_update_engine {
 
@@ -103,6 +187,7 @@ class OmahaRequestActionTest : public ::testing::Test {
       const string& expected_p2p_url);
 
   FakeSystemState fake_system_state_;
+  FakeUpdateResponse fake_update_response_;
 
   // By default, all tests use these objects unless they replace them in the
   // fake_system_state_.
@@ -128,96 +213,6 @@ class OmahaRequestActionTest : public ::testing::Test {
 };
 
 namespace {
-
-string GetNoUpdateResponse(const string& app_id) {
-  return string(
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
-      "<daystart elapsed_seconds=\"100\"/>"
-      "<app appid=\"") + app_id + "\" status=\"ok\"><ping "
-      "status=\"ok\"/><updatecheck status=\"noupdate\"/></app></response>";
-}
-
-string GetNoUpdateResponseWithEntity(const string& app_id) {
-  return string(
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-      "<!DOCTYPE response ["
-      "<!ENTITY CrOS \"ChromeOS\">"
-      "]>"
-      "<response protocol=\"3.0\">"
-      "<daystart elapsed_seconds=\"100\"/>"
-      "<app appid=\"") + app_id + "\" status=\"ok\"><ping "
-      "status=\"ok\"/><updatecheck status=\"noupdate\"/></app></response>";
-}
-
-string GetUpdateResponse2(const string& app_id,
-                          const string& version,
-                          const string& more_info_url,
-                          const string& prompt,
-                          const string& codebase,
-                          const string& filename,
-                          const string& hash,
-                          const string& needsadmin,
-                          const string& size,
-                          const string& deadline,
-                          const string& max_days_to_scatter,
-                          const string& elapsed_days,
-                          bool disable_p2p_for_downloading,
-                          bool disable_p2p_for_sharing) {
-  string response =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-      "protocol=\"3.0\">"
-      "<daystart elapsed_seconds=\"100\"" +
-      (elapsed_days.empty() ? "" : (" elapsed_days=\"" + elapsed_days + "\"")) +
-      "/>"
-      "<app appid=\"" + app_id + "\" status=\"ok\">"
-      "<ping status=\"ok\"/><updatecheck status=\"ok\">"
-      "<urls><url codebase=\"" + codebase + "\"/></urls>"
-      "<manifest version=\"" + version + "\">"
-      "<packages><package hash=\"not-used\" name=\"" + filename +  "\" "
-      "size=\"" + size + "\"/></packages>"
-      "<actions><action event=\"postinstall\" "
-      "ChromeOSVersion=\"" + version + "\" "
-      "MoreInfo=\"" + more_info_url + "\" Prompt=\"" + prompt + "\" "
-      "IsDelta=\"true\" "
-      "IsDeltaPayload=\"true\" "
-      "MaxDaysToScatter=\"" + max_days_to_scatter + "\" "
-      "sha256=\"" + hash + "\" "
-      "needsadmin=\"" + needsadmin + "\" " +
-      (deadline.empty() ? "" : ("deadline=\"" + deadline + "\" ")) +
-      (disable_p2p_for_downloading ?
-          "DisableP2PForDownloading=\"true\" " : "") +
-      (disable_p2p_for_sharing ? "DisableP2PForSharing=\"true\" " : "") +
-      "/></actions></manifest></updatecheck></app></response>";
-  LOG(INFO) << "Response = " << response;
-  return response;
-}
-
-string GetUpdateResponse(const string& app_id,
-                         const string& version,
-                         const string& more_info_url,
-                         const string& prompt,
-                         const string& codebase,
-                         const string& filename,
-                         const string& hash,
-                         const string& needsadmin,
-                         const string& size,
-                         const string& deadline) {
-  return GetUpdateResponse2(app_id,
-                            version,
-                            more_info_url,
-                            prompt,
-                            codebase,
-                            filename,
-                            hash,
-                            needsadmin,
-                            size,
-                            deadline,
-                            "7",
-                            "42",    // elapsed_days
-                            false,   // disable_p2p_for_downloading
-                            false);  // disable_p2p_for sharing
-}
-
 class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   OmahaRequestActionTestProcessorDelegate()
@@ -378,9 +373,10 @@ void TestEvent(OmahaRequestParams params,
 
 TEST_F(OmahaRequestActionTest, RejectEntities) {
   OmahaResponse response;
+  fake_update_response_.include_entity = true;
   ASSERT_FALSE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetNoUpdateResponseWithEntity(OmahaRequestParams::kAppId),
+                      fake_update_response_.GetNoUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaRequestXMLHasEntityDecl,
@@ -396,7 +392,7 @@ TEST_F(OmahaRequestActionTest, NoUpdateTest) {
   OmahaResponse response;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetNoUpdateResponse(OmahaRequestParams::kAppId),
+                      fake_update_response_.GetNoUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -408,20 +404,14 @@ TEST_F(OmahaRequestActionTest, NoUpdateTest) {
   EXPECT_FALSE(response.update_exists);
 }
 
+// Test that all the values in the response are parsed in a normal update
+// response.
 TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   OmahaResponse response;
+  fake_update_response_.deadline = "20101020";
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetUpdateResponse(OmahaRequestParams::kAppId,
-                                        "1.2.3.4",  // version
-                                        "http://more/info",
-                                        "true",  // prompt
-                                        "http://code/base/",  // dl url
-                                        "file.signed",  // file name
-                                        "HASH1234=",  // checksum
-                                        "false",  // needs admin
-                                        "123",  // size
-                                        "20101020"),  // deadline
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -432,13 +422,18 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
                       nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_TRUE(response.update_exists);
-  EXPECT_EQ("1.2.3.4", response.version);
-  EXPECT_EQ("http://code/base/file.signed", response.payload_urls[0]);
-  EXPECT_EQ("http://more/info", response.more_info_url);
-  EXPECT_EQ("HASH1234=", response.hash);
-  EXPECT_EQ(123, response.size);
-  EXPECT_TRUE(response.prompt);
-  EXPECT_EQ("20101020", response.deadline);
+  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ(fake_update_response_.GetPayloadUrl(), response.payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.more_info_url, response.more_info_url);
+  EXPECT_EQ(fake_update_response_.hash, response.hash);
+  EXPECT_EQ(fake_update_response_.size, response.size);
+  EXPECT_EQ(fake_update_response_.prompt == "true", response.prompt);
+  EXPECT_EQ(fake_update_response_.deadline, response.deadline);
+  // Omaha cohort attribets are not set in the response, so they should not be
+  // persisted.
+  EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohort));
+  EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortHint));
+  EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortName));
 }
 
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
@@ -459,16 +454,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
 
   ASSERT_FALSE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetUpdateResponse(OmahaRequestParams::kAppId,
-                                        "1.2.3.4",  // version
-                                        "http://more/info",
-                                        "true",  // prompt
-                                        "http://code/base/",  // dl url
-                                        "file.signed",  // file name
-                                        "HASH1234=",  // checksum
-                                        "false",  // needs admin
-                                        "123",  // size
-                                        ""),  // deadline
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateIgnoredPerPolicy,
@@ -490,18 +476,10 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
   EXPECT_CALL(mock_payload_state, GetRollbackVersion())
     .WillRepeatedly(Return(rollback_version));
 
+  fake_update_response_.version = rollback_version;
   ASSERT_FALSE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetUpdateResponse(OmahaRequestParams::kAppId,
-                                        rollback_version,  // version
-                                        "http://more/info",
-                                        "true",  // prompt
-                                        "http://code/base/",  // dl url
-                                        "file.signed",  // file name
-                                        "HASH1234=",  // checksum
-                                        "false",  // needs admin
-                                        "123",  // size
-                                        ""),  // deadline
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateIgnoredPerPolicy,
@@ -522,20 +500,7 @@ TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
 
   ASSERT_FALSE(
       TestUpdateCheck(&params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateDeferredPerPolicy,
@@ -550,20 +515,7 @@ TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -587,20 +539,7 @@ TEST_F(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
 
   ASSERT_TRUE(
       TestUpdateCheck(&params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -622,22 +561,10 @@ TEST_F(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
   params.set_min_update_checks_needed(1);
   params.set_max_update_checks_allowed(8);
 
+  fake_update_response_.max_days_to_scatter = "0";
   ASSERT_TRUE(
       TestUpdateCheck(&params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "0",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -662,20 +589,7 @@ TEST_F(OmahaRequestActionTest, ZeroUpdateCheckCountCausesNoScattering) {
 
   ASSERT_TRUE(TestUpdateCheck(
                       &params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -703,20 +617,7 @@ TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
 
   ASSERT_FALSE(TestUpdateCheck(
                       &params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateDeferredPerPolicy,
@@ -735,20 +636,7 @@ TEST_F(OmahaRequestActionTest, NonZeroUpdateCheckCountCausesScattering) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -774,20 +662,7 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
 
   ASSERT_FALSE(TestUpdateCheck(
                       &params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateDeferredPerPolicy,
@@ -808,20 +683,7 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -833,8 +695,94 @@ TEST_F(OmahaRequestActionTest, ExistingUpdateCheckCountCausesScattering) {
   EXPECT_TRUE(response.update_exists);
 }
 
+TEST_F(OmahaRequestActionTest, CohortsArePersisted) {
+  OmahaResponse response;
+  OmahaRequestParams params = request_params_;
+  fake_update_response_.include_cohorts = true;
+  fake_update_response_.cohort = "s/154454/8479665";
+  fake_update_response_.cohorthint = "please-put-me-on-beta";
+  fake_update_response_.cohortname = "stable";
+
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+
+  string value;
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_EQ(fake_update_response_.cohort, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_EQ(fake_update_response_.cohorthint, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+  EXPECT_EQ(fake_update_response_.cohortname, value);
+}
+
+TEST_F(OmahaRequestActionTest, CohortsAreUpdated) {
+  OmahaResponse response;
+  OmahaRequestParams params = request_params_;
+  EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohort, "old_value"));
+  EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohortHint, "old_hint"));
+  EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohortName, "old_name"));
+  fake_update_response_.include_cohorts = true;
+  fake_update_response_.cohort = "s/154454/8479665";
+  fake_update_response_.cohorthint = "please-put-me-on-beta";
+  fake_update_response_.cohortname = "";
+
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+
+  string value;
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_EQ(fake_update_response_.cohort, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_EQ(fake_update_response_.cohorthint, value);
+
+  EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+}
+
+TEST_F(OmahaRequestActionTest, CohortsAreNotModifiedWhenMissing) {
+  OmahaResponse response;
+  OmahaRequestParams params = request_params_;
+  EXPECT_TRUE(fake_prefs_.SetString(kPrefsOmahaCohort, "old_value"));
+
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+
+  string value;
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_EQ("old_value", value);
+
+  EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+}
+
 TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
-  const string http_response(GetNoUpdateResponse(OmahaRequestParams::kAppId));
+  const string http_response(fake_update_response_.GetNoUpdateResponse());
 
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
 
@@ -1054,6 +1002,11 @@ TEST_F(OmahaRequestActionTest, XmlEncodeTest) {
                             false,   // interactive
                             "http://url",
                             "");     // target_version_prefix
+  fake_prefs_.SetString(kPrefsOmahaCohort, "evil\nstring");
+  fake_prefs_.SetString(kPrefsOmahaCohortHint, "evil&string\\");
+  fake_prefs_.SetString(kPrefsOmahaCohortName,
+                        JoinString(vector<string>(100, "My spoon is too big."),
+                                   ' '));
   OmahaResponse response;
   ASSERT_FALSE(
       TestUpdateCheck(&params,
@@ -1068,30 +1021,30 @@ TEST_F(OmahaRequestActionTest, XmlEncodeTest) {
                       &post_data));
   // convert post_data to string
   string post_str(post_data.begin(), post_data.end());
-  EXPECT_NE(post_str.find("testtheservice_pack&gt;"), string::npos);
-  EXPECT_EQ(post_str.find("testtheservice_pack>"), string::npos);
-  EXPECT_NE(post_str.find("x86 generic&lt;id"), string::npos);
-  EXPECT_EQ(post_str.find("x86 generic<id"), string::npos);
-  EXPECT_NE(post_str.find("unittest_track&amp;lt;"), string::npos);
-  EXPECT_EQ(post_str.find("unittest_track&lt;"), string::npos);
-  EXPECT_NE(post_str.find("&lt;OEM MODEL&gt;"), string::npos);
-  EXPECT_EQ(post_str.find("<OEM MODEL>"), string::npos);
+  EXPECT_NE(string::npos, post_str.find("testtheservice_pack&gt;"));
+  EXPECT_EQ(string::npos, post_str.find("testtheservice_pack>"));
+  EXPECT_NE(string::npos, post_str.find("x86 generic&lt;id"));
+  EXPECT_EQ(string::npos, post_str.find("x86 generic<id"));
+  EXPECT_NE(string::npos, post_str.find("unittest_track&amp;lt;"));
+  EXPECT_EQ(string::npos, post_str.find("unittest_track&lt;"));
+  EXPECT_NE(string::npos, post_str.find("&lt;OEM MODEL&gt;"));
+  EXPECT_EQ(string::npos, post_str.find("<OEM MODEL>"));
+  EXPECT_NE(string::npos, post_str.find("cohort=\"evil\nstring\""));
+  EXPECT_EQ(string::npos, post_str.find("cohorthint=\"evil&string\\\""));
+  EXPECT_NE(string::npos, post_str.find("cohorthint=\"evil&amp;string\\\""));
+  // Values from Prefs that are too big are removed from the XML instead of
+  // encoded.
+  EXPECT_EQ(string::npos, post_str.find("cohortname="));
 }
 
 TEST_F(OmahaRequestActionTest, XmlDecodeTest) {
   OmahaResponse response;
+  fake_update_response_.deadline = "&lt;20110101";
+  fake_update_response_.more_info_url = "testthe&lt;url";
+  fake_update_response_.codebase = "testthe&amp;codebase/";
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetUpdateResponse(OmahaRequestParams::kAppId,
-                                        "1.2.3.4",  // version
-                                        "testthe&lt;url",  // more info
-                                        "true",  // prompt
-                                        "testthe&amp;codebase/",  // dl url
-                                        "file.signed",  // file name
-                                        "HASH1234=",  // checksum
-                                        "false",  // needs admin
-                                        "123",  // size
-                                        "&lt;20110101"),  // deadline
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -1108,19 +1061,11 @@ TEST_F(OmahaRequestActionTest, XmlDecodeTest) {
 
 TEST_F(OmahaRequestActionTest, ParseIntTest) {
   OmahaResponse response;
+  // overflows int32_t:
+  fake_update_response_.size = 123123123123123ll;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetUpdateResponse(OmahaRequestParams::kAppId,
-                                        "1.2.3.4",  // version
-                                        "theurl",  // more info
-                                        "true",  // prompt
-                                        "thecodebase/",  // dl url
-                                        "file.signed",  // file name
-                                        "HASH1234=",  // checksum
-                                        "false",  // needs admin
-                                        // overflows int32_t:
-                                        "123123123123123",  // size
-                                        "deadline"),
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -1349,7 +1294,7 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
   chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetNoUpdateResponse(OmahaRequestParams::kAppId),
+                      fake_update_response_.GetNoUpdateResponse(),
                       -1,
                       ping_only,
                       ErrorCode::kSuccess,
@@ -1396,7 +1341,7 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
   chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetNoUpdateResponse(OmahaRequestParams::kAppId),
+                      fake_update_response_.GetNoUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -1428,7 +1373,7 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
   chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetNoUpdateResponse(OmahaRequestParams::kAppId),
+                      fake_update_response_.GetNoUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -1465,7 +1410,7 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
   chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetNoUpdateResponse(OmahaRequestParams::kAppId),
+                      fake_update_response_.GetNoUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -1492,7 +1437,7 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
   chromeos::Blob post_data;
   EXPECT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetNoUpdateResponse(OmahaRequestParams::kAppId),
+                      fake_update_response_.GetNoUpdateResponse(),
                       -1,
                       true,  // ping_only
                       ErrorCode::kSuccess,
@@ -1685,20 +1630,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
 
   ASSERT_FALSE(TestUpdateCheck(
                       &params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kOmahaUpdateDeferredPerPolicy,
@@ -1717,20 +1649,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   params.set_interactive(true);
   ASSERT_TRUE(
       TestUpdateCheck(&params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -1757,20 +1676,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
       kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
   ASSERT_TRUE(TestUpdateCheck(
                       &params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -1895,7 +1801,7 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
   chromeos::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
-                      GetNoUpdateResponse(OmahaRequestParams::kAppId),
+                      fake_update_response_.GetNoUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -1949,22 +1855,12 @@ void OmahaRequestActionTest::P2PTest(
   EXPECT_CALL(mock_p2p_manager, LookupUrlForFile(_, _, timeout, _))
       .Times(expect_p2p_client_lookup ? 1 : 0);
 
+  fake_update_response_.disable_p2p_for_downloading =
+      omaha_disable_p2p_for_downloading;
+  fake_update_response_.disable_p2p_for_sharing = omaha_disable_p2p_for_sharing;
   ASSERT_TRUE(
       TestUpdateCheck(&request_params,
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         "42",  // elapsed_days
-                                         omaha_disable_p2p_for_downloading,
-                                         omaha_disable_p2p_for_sharing),
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
@@ -2066,22 +1962,10 @@ TEST_F(OmahaRequestActionTest, P2PWithPeerBothDisabledByOmaha) {
 
 bool OmahaRequestActionTest::InstallDateParseHelper(const string &elapsed_days,
                                                     OmahaResponse *response) {
+  fake_update_response_.elapsed_days = elapsed_days;
   return
       TestUpdateCheck(nullptr,  // request_params
-                      GetUpdateResponse2(OmahaRequestParams::kAppId,
-                                         "1.2.3.4",  // version
-                                         "http://more/info",
-                                         "true",  // prompt
-                                         "http://code/base/",  // dl url
-                                         "file.signed",  // file name
-                                         "HASH1234=",  // checksum
-                                         "false",  // needs admin
-                                         "123",  // size
-                                         "",  // deadline
-                                         "7",  // max days to scatter
-                                         elapsed_days,
-                                         false,  // disable_p2p_for_downloading
-                                         false),  // disable_p2p_for sharing
+                      fake_update_response_.GetUpdateResponse(),
                       -1,
                       false,  // ping_only
                       ErrorCode::kSuccess,
