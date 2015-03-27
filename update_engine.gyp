@@ -28,7 +28,6 @@
     ],
     'defines': [
       '__STDC_FORMAT_MACROS=1',
-      '_FILE_OFFSET_BITS=64',
       '_POSIX_C_SOURCE=199309L',
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
       'USE_MTD=<(USE_mtd)',
