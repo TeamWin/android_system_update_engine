@@ -486,7 +486,6 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   return kMetadataParseSuccess;
 }
 
-
 // Wrapper around write. Returns true if all requested bytes
 // were written, or false on any error, regardless of progress
 // and stores an action exit code in |error|.
@@ -734,16 +733,12 @@ bool DeltaPerformer::PerformMoveOperation(
     ssize_t bytes_read_this_iteration = 0;
     const Extent& extent = operation.src_extents(i);
     const size_t bytes = extent.num_blocks() * block_size_;
-    if (extent.start_block() == kSparseHole) {
-      bytes_read_this_iteration = bytes;
-      memset(&buf[bytes_read], 0, bytes);
-    } else {
-      TEST_AND_RETURN_FALSE(utils::PReadAll(fd,
-                                            &buf[bytes_read],
-                                            bytes,
-                                            extent.start_block() * block_size_,
-                                            &bytes_read_this_iteration));
-    }
+    TEST_AND_RETURN_FALSE(extent.start_block() != kSparseHole);
+    TEST_AND_RETURN_FALSE(utils::PReadAll(fd,
+                                          &buf[bytes_read],
+                                          bytes,
+                                          extent.start_block() * block_size_,
+                                          &bytes_read_this_iteration));
     TEST_AND_RETURN_FALSE(
         bytes_read_this_iteration == static_cast<ssize_t>(bytes));
     bytes_read += bytes_read_this_iteration;
@@ -762,18 +757,11 @@ bool DeltaPerformer::PerformMoveOperation(
   for (int i = 0; i < operation.dst_extents_size(); i++) {
     const Extent& extent = operation.dst_extents(i);
     const size_t bytes = extent.num_blocks() * block_size_;
-    if (extent.start_block() == kSparseHole) {
-      DCHECK(buf.begin() + bytes_written ==
-             std::search_n(buf.begin() + bytes_written,
-                           buf.begin() + bytes_written + bytes,
-                           bytes, 0));
-    } else {
-      TEST_AND_RETURN_FALSE(
-          utils::PWriteAll(fd,
-                           &buf[bytes_written],
-                           bytes,
-                           extent.start_block() * block_size_));
-    }
+    TEST_AND_RETURN_FALSE(extent.start_block() != kSparseHole);
+    TEST_AND_RETURN_FALSE(utils::PWriteAll(fd,
+                                           &buf[bytes_written],
+                                           bytes,
+                                           extent.start_block() * block_size_));
     bytes_written += bytes;
   }
   DCHECK_EQ(bytes_written, bytes_read);
@@ -790,13 +778,9 @@ bool DeltaPerformer::ExtentsToBsdiffPositionsString(
   uint64_t length = 0;
   for (int i = 0; i < extents.size(); i++) {
     Extent extent = extents.Get(i);
-    int64_t start = extent.start_block();
+    int64_t start = extent.start_block() * block_size;
     uint64_t this_length = min(full_length - length,
                                extent.num_blocks() * block_size);
-    if (start == static_cast<int64_t>(kSparseHole))
-      start = -1;
-    else
-      start *= block_size;
     ret += base::StringPrintf("%" PRIi64 ":%" PRIu64 ",", start, this_length);
     length += this_length;
   }
