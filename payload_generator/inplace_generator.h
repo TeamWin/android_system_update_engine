@@ -103,6 +103,7 @@ class InplaceGenerator : public OperationsGenerator {
   // success.
   static bool AssignTempBlocks(
       Graph* graph,
+      const std::string& new_part,
       const std::string& new_root,
       int data_fd,
       off_t* data_file_size,
@@ -119,6 +120,7 @@ class InplaceGenerator : public OperationsGenerator {
   // A->B. Now, A is a full operation.
   static bool ConvertCutToFullOp(Graph* graph,
                                  const CutEdgeVertexes& cut,
+                                 const std::string& new_part,
                                  const std::string& new_root,
                                  int data_fd,
                                  off_t* data_file_size);
@@ -133,6 +135,7 @@ class InplaceGenerator : public OperationsGenerator {
   // |final_order| before returning.
   // Returns true on success.
   static bool ConvertGraphToDag(Graph* graph,
+                                const std::string& new_part,
                                 const std::string& new_root,
                                 int fd,
                                 off_t* data_file_size,

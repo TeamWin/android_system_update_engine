@@ -1691,6 +1691,32 @@ bool GetMinorVersion(base::FilePath path, uint32_t* minor_version) {
   return false;
 }
 
+bool ReadExtents(const std::string& path, vector<Extent>* extents,
+                 chromeos::Blob* out_data, ssize_t out_data_size,
+                 size_t block_size) {
+  chromeos::Blob data(out_data_size);
+  ssize_t bytes_read = 0;
+  int fd = open(path.c_str(), O_RDONLY);
+  TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);
+  ScopedFdCloser fd_closer(&fd);
+
+  for (const Extent& extent : *extents) {
+    ssize_t bytes_read_this_iteration = 0;
+    ssize_t bytes = extent.num_blocks() * block_size;
+    TEST_AND_RETURN_FALSE(bytes_read + bytes <= out_data_size);
+    TEST_AND_RETURN_FALSE(utils::PReadAll(fd,
+                                          &data[bytes_read],
+                                          bytes,
+                                          extent.start_block() * block_size,
+                                          &bytes_read_this_iteration));
+    TEST_AND_RETURN_FALSE(bytes_read_this_iteration == bytes);
+    bytes_read += bytes_read_this_iteration;
+  }
+  TEST_AND_RETURN_FALSE(out_data_size == bytes_read);
+  *out_data = data;
+  return true;
+}
+
 }  // namespace utils
 
 }  // namespace chromeos_update_engine

@@ -269,8 +269,6 @@ bool TempBlocksExistInExtents(const T& extents) {
     Extent extent = graph_utils::GetElement(extents, i);
     uint64_t start = extent.start_block();
     uint64_t num = extent.num_blocks();
-    if (start == kSparseHole)
-      continue;
     if (start >= kTempBlockStart || (start + num) >= kTempBlockStart) {
       LOG(ERROR) << "temp block!";
       LOG(ERROR) << "start: " << start << ", num: " << num;
@@ -291,6 +289,7 @@ bool TempBlocksExistInExtents(const T& extents) {
 bool ConvertCutsToFull(
     Graph* graph,
     const string& new_root,
+    const string& new_part,
     int data_fd,
     off_t* data_file_size,
     vector<Vertex::Index>* op_indexes,
@@ -302,6 +301,7 @@ bool ConvertCutsToFull(
     TEST_AND_RETURN_FALSE(InplaceGenerator::ConvertCutToFullOp(
         graph,
         cut,
+        new_part,
         new_root,
         data_fd,
         data_file_size));
@@ -331,6 +331,7 @@ bool ConvertCutsToFull(
 bool AssignBlockForAdjoiningCuts(
     Graph* graph,
     const string& new_root,
+    const string& new_part,
     int data_fd,
     off_t* data_file_size,
     vector<Vertex::Index>* op_indexes,
@@ -395,6 +396,7 @@ bool AssignBlockForAdjoiningCuts(
     LOG(INFO) << "Unable to find sufficient scratch";
     TEST_AND_RETURN_FALSE(ConvertCutsToFull(graph,
                                             new_root,
+                                            new_part,
                                             data_fd,
                                             data_file_size,
                                             op_indexes,
@@ -441,6 +443,7 @@ bool AssignBlockForAdjoiningCuts(
 bool InplaceGenerator::AssignTempBlocks(
     Graph* graph,
     const string& new_root,
+    const string& new_part,
     int data_fd,
     off_t* data_file_size,
     vector<Vertex::Index>* op_indexes,
@@ -464,6 +467,7 @@ bool InplaceGenerator::AssignTempBlocks(
       CHECK(!cuts_group.empty());
       TEST_AND_RETURN_FALSE(AssignBlockForAdjoiningCuts(graph,
                                                         new_root,
+                                                        new_part,
                                                         data_fd,
                                                         data_file_size,
                                                         op_indexes,
@@ -481,6 +485,7 @@ bool InplaceGenerator::AssignTempBlocks(
   CHECK(!cuts_group.empty());
   TEST_AND_RETURN_FALSE(AssignBlockForAdjoiningCuts(graph,
                                                     new_root,
+                                                    new_part,
                                                     data_fd,
                                                     data_file_size,
                                                     op_indexes,
@@ -518,6 +523,7 @@ bool InplaceGenerator::NoTempBlocksRemain(const Graph& graph) {
 
 bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
                                           const CutEdgeVertexes& cut,
+                                          const string& new_part,
                                           const string& new_root,
                                           int data_fd,
                                           off_t* data_file_size) {
@@ -535,6 +541,8 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
         graph,
         cut.old_dst,
         nullptr,
+        kEmptyPath,  // old_part
+        new_part,
         kEmptyPath,
         new_root,
         (*graph)[cut.old_dst].file_name,
@@ -561,6 +569,7 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
 }
 
 bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
+                                        const string& new_part,
                                         const string& new_root,
                                         int fd,
                                         off_t* data_file_size,
@@ -598,6 +607,7 @@ bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
 
   if (!cuts.empty())
     TEST_AND_RETURN_FALSE(AssignTempBlocks(graph,
+                                           new_part,
                                            new_root,
                                            fd,
                                            data_file_size,
@@ -654,10 +664,6 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
 
     for (int i = 0; i < extents_size; i++) {
       const Extent& extent = extents.Get(i);
-      if (extent.start_block() == kSparseHole) {
-        // Hole in sparse file. skip
-        continue;
-      }
       for (uint64_t block = extent.start_block();
            block < (extent.start_block() + extent.num_blocks()); block++) {
         if ((*blocks)[block].*access_type != Vertex::kInvalidIndex) {
@@ -688,6 +694,8 @@ bool InplaceGenerator::GenerateOperations(
   TEST_AND_RETURN_FALSE(
       DeltaDiffGenerator::DeltaReadFiles(&graph,
                                          &blocks,
+                                         config.source.rootfs_part,
+                                         config.target.rootfs_part,
                                          config.source.rootfs_mountpt,
                                          config.target.rootfs_mountpt,
                                          config.chunk_size,
@@ -753,6 +761,7 @@ bool InplaceGenerator::GenerateOperations(
   vector<Vertex::Index> final_order;
   TEST_AND_RETURN_FALSE(ConvertGraphToDag(
       &graph,
+      config.target.rootfs_part,
       config.target.rootfs_mountpt,
       data_file_fd,
       data_file_size,

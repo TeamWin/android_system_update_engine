@@ -130,15 +130,14 @@ message DeltaArchiveManifest {
 
     // Ordered list of extents that are read from (if any) and written to.
     repeated Extent src_extents = 4;
-    // Byte length of src, not necessarily block aligned. It's only used for
-    // BSDIFF, because we need to pass that external program the number
-    // of bytes to read from the blocks we pass it.
+    // Byte length of src, equal to the number of blocks in src_extents *
+    // block_size. It is used for BSDIFF, because we need to pass that
+    // external program the number of bytes to read from the blocks we pass it.
     optional uint64 src_length = 5;
 
     repeated Extent dst_extents = 6;
-    // byte length of dst, not necessarily block aligned. It's only used for
-    // BSDIFF, because we need to fill in the rest of the last block
-    // that bsdiff writes with '\0' bytes.
+    // Byte length of dst, equal to the number of blocks in dst_extents *
+    // block_size. Used for BSDIFF.
     optional uint64 dst_length = 7;
 
     // Optional SHA 256 hash of the blob associated with this operation.

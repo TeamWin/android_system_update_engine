@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <sstream>
@@ -75,6 +76,39 @@ bool FakeGetExtents(const string& path, off_t chunk_offset, off_t chunk_size,
   }
 }
 
+// Inserts |data| at block |offset| in |result|. Fills in the remaining blocks
+// so that there are |num_blocks| blocks in |result|.
+bool MakePartition(uint64_t num_blocks, const string& data, off_t offset,
+                   chromeos::Blob* result) {
+  TEST_AND_RETURN_FALSE(
+      static_cast<uint64_t>((kBlockSize * offset) + data.size()) <=
+                            kBlockSize * num_blocks);
+  chromeos::Blob out(kBlockSize * num_blocks, 0);
+  chromeos::Blob::iterator start = out.begin() + (kBlockSize * offset);
+  copy(data.begin(), data.end(), start);
+  *result = out;
+  return true;
+}
+
+// Copies from |target| to |result|. Gets the substring of |target| starting
+// at block |start_block| of length |num_blocks| blocks and inserts it at block
+// |block_offset| in |result|.
+void UpdatePartition(const string& target, uint64_t start_block,
+                     uint64_t num_blocks, off_t block_offset,
+                     chromeos::Blob* result) {
+  uint64_t num_insert = num_blocks * kBlockSize;
+  off_t target_offset = block_offset * kBlockSize;
+
+  const string target_substr = target.substr(kBlockSize * start_block,
+                                             num_insert);
+  ASSERT_EQ(target_substr.size(), num_insert);
+
+  for (uint64_t i = 0; i < num_insert; i++) {
+    result->at(target_offset + i) =
+        static_cast<unsigned char>(target_substr[i]);
+  }
+}
+
 }  // namespace
 
 class DeltaDiffGeneratorTest : public ::testing::Test {
@@ -84,6 +118,13 @@ class DeltaDiffGeneratorTest : public ::testing::Test {
                                     &old_path_, nullptr));
     ASSERT_TRUE(utils::MakeTempFile("DeltaDiffGeneratorTest-new_path-XXXXXX",
                                     &new_path_, nullptr));
+    ASSERT_TRUE(utils::MakeTempFile(
+        "DeltaDiffGeneratorTest-old_part_path-XXXXXX",
+        &old_part_path_, nullptr));
+    ASSERT_TRUE(utils::MakeTempFile(
+        "DeltaDiffGeneratorTest-new_part_path-XXXXXX",
+        &new_part_path_, nullptr));
+
     // Mock out the extent gathering function.
     orig_get_extents_with_chunk_func_ = get_extents_with_chunk_func;
     get_extents_with_chunk_func = FakeGetExtents;
@@ -94,6 +135,8 @@ class DeltaDiffGeneratorTest : public ::testing::Test {
   void TearDown() override {
     unlink(old_path_.c_str());
     unlink(new_path_.c_str());
+    unlink(old_part_path_.c_str());
+    unlink(new_part_path_.c_str());
     get_extents_with_chunk_func = orig_get_extents_with_chunk_func_;
   }
 
@@ -127,6 +170,10 @@ class DeltaDiffGeneratorTest : public ::testing::Test {
   string old_path_;
   string new_path_;
 
+  // Paths to old and new temporary filesystems used in the tests.
+  string old_part_path_;
+  string new_part_path_;
+
   GetExtentsWithChunk orig_get_extents_with_chunk_func_;
 };
 
@@ -139,27 +186,43 @@ TEST_F(DeltaDiffGeneratorTest, BlockDefaultValues) {
 }
 
 TEST_F(DeltaDiffGeneratorTest, MoveSmallTest) {
+  const string random_string(reinterpret_cast<const char*>(kRandomString),
+                             sizeof(kRandomString));
   EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.c_str(),
+                               random_string.size()));
   EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.c_str(),
+                               random_string.size()));
+
+  chromeos::Blob old_part;
+  chromeos::Blob new_part;
+  EXPECT_TRUE(MakePartition(11, random_string, 10, &old_part));
+  EXPECT_TRUE(MakePartition(1, random_string, 0, &new_part));
+
+  EXPECT_TRUE(utils::WriteFile(old_part_path_.c_str(),
+                               old_part.data(), old_part.size()));
+  EXPECT_TRUE(utils::WriteFile(new_part_path_.c_str(),
+                               new_part.data(), new_part.size()));
+
   // Force the old file to be on a different block.
   UpdateFakeFileExtents(old_path_, kBlockSize, 10);
   UpdateFakeFileExtents(new_path_, kBlockSize);
 
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
-                                                 new_path_,
+
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_part_path_,
+                                                 new_part_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true,  // gather_extents
-                                                 false));  // src_ops_allowed
+                                                 false,  // src_ops_allowed
+                                                 old_path_,
+                                                 new_path_));
   EXPECT_TRUE(data.empty());
 
   EXPECT_TRUE(op.has_type());
@@ -167,9 +230,9 @@ TEST_F(DeltaDiffGeneratorTest, MoveSmallTest) {
   EXPECT_FALSE(op.has_data_offset());
   EXPECT_FALSE(op.has_data_length());
   EXPECT_EQ(1, op.src_extents_size());
-  EXPECT_EQ(sizeof(kRandomString), op.src_length());
+  EXPECT_EQ(kBlockSize, op.src_length());
   EXPECT_EQ(1, op.dst_extents_size());
-  EXPECT_EQ(sizeof(kRandomString), op.dst_length());
+  EXPECT_EQ(kBlockSize, op.dst_length());
   EXPECT_EQ(BlocksInExtents(op.src_extents()),
             BlocksInExtents(op.dst_extents()));
   EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
@@ -207,24 +270,49 @@ TEST_F(DeltaDiffGeneratorTest, MoveWithSameBlock) {
   string random_data;
   while (random_data.size() < file_len)
     random_data += random_string;
-  if (random_data.size() > file_len)
+  if (random_data.size() > file_len) {
     random_data.erase(file_len);
+    random_data.insert(random_data.end(), (4096 - 3333), 0);
+  }
+
   EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
                                random_data.c_str(), file_len));
   EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
                                random_data.c_str(), file_len));
 
+  // Make partitions that match the extents and random_data.
+  chromeos::Blob old_part;
+  chromeos::Blob new_part;
+  EXPECT_TRUE(MakePartition(30, "", 0, &old_part));
+  EXPECT_TRUE(MakePartition(30, "", 0, &new_part));
+
+  UpdatePartition(random_data, 0, 6, 20, &old_part);
+  UpdatePartition(random_data, 6, 2, 28, &old_part);
+
+  UpdatePartition(random_data, 0, 1, 18, &new_part);
+  UpdatePartition(random_data, 1, 2, 21, &new_part);
+  UpdatePartition(random_data, 3, 1, 20, &new_part);
+  UpdatePartition(random_data, 4, 3, 24, &new_part);
+  UpdatePartition(random_data, 7, 1, 29, &new_part);
+
+  EXPECT_TRUE(utils::WriteFile(old_part_path_.c_str(),
+                               old_part.data(), old_part.size()));
+  EXPECT_TRUE(utils::WriteFile(new_part_path_.c_str(),
+                               new_part.data(), new_part.size()));
+
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
-                                                 new_path_,
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_part_path_,
+                                                 new_part_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true,  // gather_extents
-                                                 false));  // src_ops_allowed
+                                                 false,  // src_ops_allowed
+                                                 old_path_,
+                                                 new_path_));
 
   // Adjust the old/new extents to remove duplicates.
   old_extents[0].set_num_blocks(1);
@@ -269,25 +357,41 @@ TEST_F(DeltaDiffGeneratorTest, MoveWithSameBlock) {
 }
 
 TEST_F(DeltaDiffGeneratorTest, BsdiffSmallTest) {
+  const string random_string(reinterpret_cast<const char*>(kRandomString),
+                             sizeof(kRandomString));
   EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString) - 1));
+                               random_string.c_str(),
+                               random_string.size() - 1));
   EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.c_str(),
+                               random_string.size()));
   UpdateFakeExtents();
+
+  chromeos::Blob old_part;
+  chromeos::Blob new_part;
+  EXPECT_TRUE(MakePartition(
+      1, random_string.substr(0, random_string.size() - 1),  0, &old_part));
+  EXPECT_TRUE(MakePartition(1, random_string, 0, &new_part));
+
+  EXPECT_TRUE(utils::WriteFile(old_part_path_.c_str(),
+                               old_part.data(), old_part.size()));
+  EXPECT_TRUE(utils::WriteFile(new_part_path_.c_str(),
+                               new_part.data(), new_part.size()));
 
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
-                                                 new_path_,
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_part_path_,
+                                                 new_part_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true,  // gather_extents
-                                                 false));  // src_ops_allowed
+                                                 false,  // src_ops_allowed
+                                                 old_path_,
+                                                 new_path_));
+
   EXPECT_FALSE(data.empty());
 
   EXPECT_TRUE(op.has_type());
@@ -295,35 +399,51 @@ TEST_F(DeltaDiffGeneratorTest, BsdiffSmallTest) {
   EXPECT_FALSE(op.has_data_offset());
   EXPECT_FALSE(op.has_data_length());
   EXPECT_EQ(1, op.src_extents_size());
-  EXPECT_EQ(sizeof(kRandomString) - 1, op.src_length());
+  EXPECT_EQ(kBlockSize, op.src_length());
   EXPECT_EQ(1, op.dst_extents_size());
-  EXPECT_EQ(sizeof(kRandomString), op.dst_length());
+  EXPECT_EQ(kBlockSize, op.dst_length());
   EXPECT_EQ(BlocksInExtents(op.src_extents()),
             BlocksInExtents(op.dst_extents()));
   EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
 }
 
 TEST_F(DeltaDiffGeneratorTest, BsdiffNotAllowedTest) {
+  const string random_string(reinterpret_cast<const char*>(kRandomString),
+                             sizeof(kRandomString));
   EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString) - 1));
+                               random_string.c_str(),
+                               random_string.size() - 1));
   EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.c_str(),
+                               random_string.size()));
   UpdateFakeExtents();
+
+  chromeos::Blob old_part;
+  chromeos::Blob new_part;
+  EXPECT_TRUE(MakePartition(
+      1, random_string.substr(0, random_string.size() - 1),  0, &old_part));
+  EXPECT_TRUE(MakePartition(1, random_string, 0, &new_part));
+
+  EXPECT_TRUE(utils::WriteFile(old_part_path_.c_str(),
+                               old_part.data(), old_part.size()));
+  EXPECT_TRUE(utils::WriteFile(new_part_path_.c_str(),
+                               new_part.data(), new_part.size()));
 
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
 
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
-                                                 new_path_,
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_part_path_,
+                                                 new_part_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  false,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true,  // gather_extents
-                                                 false));  // src_ops_allowed
+                                                 false,  // src_ops_allowed
+                                                 old_path_,
+                                                 new_path_));
+
   EXPECT_FALSE(data.empty());
 
   // The point of this test is that we don't use BSDIFF the way the above
@@ -333,26 +453,41 @@ TEST_F(DeltaDiffGeneratorTest, BsdiffNotAllowedTest) {
 }
 
 TEST_F(DeltaDiffGeneratorTest, BsdiffNotAllowedMoveTest) {
+  const string random_string(reinterpret_cast<const char*>(kRandomString),
+                             sizeof(kRandomString));
   EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.c_str(),
+                               random_string.size()));
   EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.c_str(),
+                               random_string.size()));
   UpdateFakeExtents();
+
+  chromeos::Blob old_part;
+  chromeos::Blob new_part;
+  EXPECT_TRUE(MakePartition(1, random_string,  0, &old_part));
+  EXPECT_TRUE(MakePartition(1, random_string, 0, &new_part));
+
+  EXPECT_TRUE(utils::WriteFile(old_part_path_.c_str(),
+                               old_part.data(), old_part.size()));
+  EXPECT_TRUE(utils::WriteFile(new_part_path_.c_str(),
+                               new_part.data(), new_part.size()));
 
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
 
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
-                                                 new_path_,
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_part_path_,
+                                                 new_part_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  false,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true,  // gather_extents
-                                                 false));  // src_ops_allowed
+                                                 false,  // src_ops_allowed
+                                                 old_path_,
+                                                 new_path_));
+
   EXPECT_TRUE(data.empty());
 
   // The point of this test is that we can still use a MOVE for a file
@@ -362,26 +497,54 @@ TEST_F(DeltaDiffGeneratorTest, BsdiffNotAllowedMoveTest) {
 }
 
 TEST_F(DeltaDiffGeneratorTest, ReplaceSmallTest) {
-  chromeos::Blob new_data;
+  chromeos::Blob new_part;
+
+  chromeos::Blob old_part(kBlockSize, 0);
+  EXPECT_TRUE(utils::WriteFile(old_part_path_.c_str(),
+                               old_part.data(), old_part.size()));
+
+  // Fill old_path with zeroes.
+  chromeos::Blob old_data(kBlockSize, 0);
+  EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
+                               old_data.data(),
+                               old_data.size()));
+
+  chromeos::Blob random_data;
+  // Make a blob with random data that won't compress well.
+  std::mt19937 gen(12345);
+  std::uniform_int_distribution<uint8_t> dis(0, 255);
+  for (uint32_t i = 0; i < kBlockSize; i++) {
+    random_data.push_back(dis(gen));
+  }
+
+  // Make a blob that's just 1's that will compress well.
+  chromeos::Blob ones(kBlockSize, 1);
+
   for (int i = 0; i < 2; i++) {
-    new_data.insert(new_data.end(),
-                    std::begin(kRandomString), std::end(kRandomString));
+    chromeos::Blob data_to_test = i == 0 ? random_data : ones;
     EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
-                                 new_data.data(),
-                                 new_data.size()));
+                                 data_to_test.data(),
+                                 data_to_test.size()));
     UpdateFakeExtents();
+
+    string data_str(data_to_test.begin(), data_to_test.end());
+    EXPECT_TRUE(MakePartition(1, data_str, 0, &new_part));
+    EXPECT_TRUE(utils::WriteFile(new_part_path_.c_str(),
+                                 new_part.data(), new_part.size()));
 
     chromeos::Blob data;
     DeltaArchiveManifest_InstallOperation op;
-    EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
-                                                   new_path_,
+    EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_part_path_,
+                                                   new_part_path_,
                                                    0,  // chunk_offset
                                                    -1,  // chunk_size
                                                    true,  // bsdiff_allowed
                                                    &data,
                                                    &op,
                                                    true,  // gather_extents
-                                                   false));  // src_ops_allowed
+                                                   false,  // src_ops_allowed
+                                                   old_path_,
+                                                   new_path_));
     EXPECT_FALSE(data.empty());
 
     EXPECT_TRUE(op.has_type());
@@ -394,29 +557,45 @@ TEST_F(DeltaDiffGeneratorTest, ReplaceSmallTest) {
     EXPECT_EQ(0, op.src_extents_size());
     EXPECT_FALSE(op.has_src_length());
     EXPECT_EQ(1, op.dst_extents_size());
-    EXPECT_EQ(new_data.size(), op.dst_length());
+    EXPECT_EQ(data_to_test.size(), op.dst_length());
     EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
   }
 }
 
 TEST_F(DeltaDiffGeneratorTest, BsdiffNoGatherExtentsSmallTest) {
+  const string random_string(reinterpret_cast<const char*>(kRandomString),
+                             sizeof(kRandomString));
   EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString) - 1));
+                               random_string.data(),
+                               random_string.size() - 1));
   EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.c_str(),
+                               random_string.size()));
+
+  chromeos::Blob old_part;
+  chromeos::Blob new_part;
+  EXPECT_TRUE(MakePartition(
+      1, random_string.substr(0, random_string.size() - 1),  0, &old_part));
+  EXPECT_TRUE(MakePartition(1, random_string, 0, &new_part));
+
+  EXPECT_TRUE(utils::WriteFile(old_part_path_.c_str(),
+                               old_part.data(), old_part.size()));
+  EXPECT_TRUE(utils::WriteFile(new_part_path_.c_str(),
+                               new_part.data(), new_part.size()));
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
-                                                 new_path_,
+
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_part_path_,
+                                                 new_part_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  false,  // gather_extents
-                                                 false));  // src_ops_allowed
+                                                 false,  // src_ops_allowed
+                                                 old_path_,
+                                                 new_path_));
   EXPECT_FALSE(data.empty());
 
   EXPECT_TRUE(op.has_type());
@@ -426,36 +605,51 @@ TEST_F(DeltaDiffGeneratorTest, BsdiffNoGatherExtentsSmallTest) {
   EXPECT_EQ(1, op.src_extents_size());
   EXPECT_EQ(0, op.src_extents().Get(0).start_block());
   EXPECT_EQ(1, op.src_extents().Get(0).num_blocks());
-  EXPECT_EQ(sizeof(kRandomString) - 1, op.src_length());
+  EXPECT_EQ(kBlockSize, op.src_length());
   EXPECT_EQ(1, op.dst_extents_size());
   EXPECT_EQ(0, op.dst_extents().Get(0).start_block());
   EXPECT_EQ(1, op.dst_extents().Get(0).num_blocks());
-  EXPECT_EQ(sizeof(kRandomString), op.dst_length());
+  EXPECT_EQ(kBlockSize, op.dst_length());
 }
 
 TEST_F(DeltaDiffGeneratorTest, SourceCopyTest) {
   // Makes sure SOURCE_COPY operations are emitted whenever src_ops_allowed
   // is true. It is the same setup as MoveSmallTest, which checks that
   // the operation is well-formed.
+  const string random_string(reinterpret_cast<const char*>(kRandomString),
+                             sizeof(kRandomString));
   EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.data(),
+                               random_string.size()));
   EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.c_str(),
+                               random_string.size()));
   UpdateFakeExtents();
 
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
-                                                 new_path_,
+
+  chromeos::Blob old_part;
+  chromeos::Blob new_part;
+  EXPECT_TRUE(MakePartition(1, random_string,  0, &old_part));
+  EXPECT_TRUE(MakePartition(1, random_string, 0, &new_part));
+
+  EXPECT_TRUE(utils::WriteFile(old_part_path_.c_str(),
+                               old_part.data(), old_part.size()));
+  EXPECT_TRUE(utils::WriteFile(new_part_path_.c_str(),
+                               new_part.data(), new_part.size()));
+
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_part_path_,
+                                                 new_part_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true,  // gather_extents
-                                                 true));  // src_ops_allowed
+                                                 true,  // src_ops_allowed
+                                                 old_path_,
+                                                 new_path_));
   EXPECT_TRUE(data.empty());
 
   EXPECT_TRUE(op.has_type());
@@ -466,25 +660,42 @@ TEST_F(DeltaDiffGeneratorTest, SourceBsdiffTest) {
   // Makes sure SOURCE_BSDIFF operations are emitted whenever src_ops_allowed
   // is true. It is the same setup as BsdiffSmallTest, which checks
   // that the operation is well-formed.
+  const string random_string(reinterpret_cast<const char*>(kRandomString),
+                             sizeof(kRandomString));
   EXPECT_TRUE(utils::WriteFile(old_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString) - 1));
+                               random_string.data(),
+                               random_string.size() - 1));
   EXPECT_TRUE(utils::WriteFile(new_path_.c_str(),
-                               reinterpret_cast<const char*>(kRandomString),
-                               sizeof(kRandomString)));
+                               random_string.c_str(),
+                               random_string.size()));
   UpdateFakeExtents();
+
+  chromeos::Blob old_part;
+  chromeos::Blob new_part;
+  EXPECT_TRUE(MakePartition(
+      1, random_string.substr(0, random_string.size() - 1),  0, &old_part));
+  EXPECT_TRUE(MakePartition(1, random_string, 0, &new_part));
+
+  EXPECT_TRUE(utils::WriteFile(old_part_path_.c_str(),
+                               old_part.data(), old_part.size()));
+  EXPECT_TRUE(utils::WriteFile(new_part_path_.c_str(),
+                               new_part.data(), new_part.size()));
 
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_path_,
-                                                 new_path_,
+
+  EXPECT_TRUE(DeltaDiffGenerator::ReadFileToDiff(old_part_path_,
+                                                 new_part_path_,
                                                  0,  // chunk_offset
                                                  -1,  // chunk_size
                                                  true,  // bsdiff_allowed
                                                  &data,
                                                  &op,
                                                  true,  // gather_extents
-                                                 true));  // src_ops_allowed
+                                                 true,  // src_ops_allowed
+                                                 old_path_,
+                                                 new_path_));
+
   EXPECT_FALSE(data.empty());
   EXPECT_TRUE(op.has_type());
   EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF,
@@ -546,10 +757,6 @@ TEST_F(DeltaDiffGeneratorTest, IsNoopOperationTest) {
   *(op.add_dst_extents()) = ExtentForRange(20, 1);
   *(op.add_dst_extents()) = ExtentForRange(21, 1);
   EXPECT_TRUE(DeltaDiffGenerator::IsNoopOperation(op));
-  *(op.add_src_extents()) = ExtentForRange(kSparseHole, 2);
-  *(op.add_src_extents()) = ExtentForRange(kSparseHole, 1);
-  *(op.add_dst_extents()) = ExtentForRange(kSparseHole, 3);
-  EXPECT_TRUE(DeltaDiffGenerator::IsNoopOperation(op));
   *(op.add_src_extents()) = ExtentForRange(24, 1);
   *(op.add_dst_extents()) = ExtentForRange(25, 1);
   EXPECT_FALSE(DeltaDiffGenerator::IsNoopOperation(op));
@@ -575,6 +782,20 @@ TEST_F(DeltaDiffGeneratorTest, FilterNoopOperations) {
   EXPECT_EQ(2u, ops.size());
   EXPECT_EQ("aop1", ops[0].name);
   EXPECT_EQ("aop2", ops[1].name);
+}
+
+TEST_F(DeltaDiffGeneratorTest, SparseHolesFilteredTest) {
+  // Test to see that extents starting with a sparse hole are filtered out by
+  // ClearSparseHoles.
+  vector<Extent> extents;
+  AddExtent(kSparseHole, 1, &extents);
+  AddExtent(21, 2, &extents);
+  AddExtent(kSparseHole, 3, &extents);
+  AddExtent(29, 1, &extents);
+  DeltaDiffGenerator::ClearSparseHoles(&extents);
+  EXPECT_EQ(extents.size(), 2);
+  EXPECT_EQ(extents[0], ExtentForRange(21, 2));
+  EXPECT_EQ(extents[1], ExtentForRange(29, 1));
 }
 
 }  // namespace chromeos_update_engine
