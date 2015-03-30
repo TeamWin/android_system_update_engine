@@ -1309,37 +1309,37 @@ void DeltaPerformer::DiscardBuffer(bool do_advance_offset) {
 bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
                                      string update_check_response_hash) {
   int64_t next_operation = kUpdateStateOperationInvalid;
-  TEST_AND_RETURN_FALSE(prefs->GetInt64(kPrefsUpdateStateNextOperation,
-                                        &next_operation) &&
-                        next_operation != kUpdateStateOperationInvalid &&
-                        next_operation > 0);
+  if (!(prefs->GetInt64(kPrefsUpdateStateNextOperation, &next_operation) &&
+        next_operation != kUpdateStateOperationInvalid &&
+        next_operation > 0))
+    return false;
 
   string interrupted_hash;
-  TEST_AND_RETURN_FALSE(prefs->GetString(kPrefsUpdateCheckResponseHash,
-                                         &interrupted_hash) &&
-                        !interrupted_hash.empty() &&
-                        interrupted_hash == update_check_response_hash);
+  if (!(prefs->GetString(kPrefsUpdateCheckResponseHash, &interrupted_hash) &&
+        !interrupted_hash.empty() &&
+        interrupted_hash == update_check_response_hash))
+    return false;
 
   int64_t resumed_update_failures;
-  TEST_AND_RETURN_FALSE(!prefs->GetInt64(kPrefsResumedUpdateFailures,
-                                         &resumed_update_failures) ||
-                        resumed_update_failures <= kMaxResumedUpdateFailures);
+  if (!(prefs->GetInt64(kPrefsResumedUpdateFailures, &resumed_update_failures)
+        && resumed_update_failures > kMaxResumedUpdateFailures))
+    return false;
 
   // Sanity check the rest.
   int64_t next_data_offset = -1;
-  TEST_AND_RETURN_FALSE(prefs->GetInt64(kPrefsUpdateStateNextDataOffset,
-                                        &next_data_offset) &&
-                        next_data_offset >= 0);
+  if (!(prefs->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset) &&
+        next_data_offset >= 0))
+    return false;
 
   string sha256_context;
-  TEST_AND_RETURN_FALSE(
-      prefs->GetString(kPrefsUpdateStateSHA256Context, &sha256_context) &&
-      !sha256_context.empty());
+  if (!(prefs->GetString(kPrefsUpdateStateSHA256Context, &sha256_context) &&
+        !sha256_context.empty()))
+    return false;
 
   int64_t manifest_metadata_size = 0;
-  TEST_AND_RETURN_FALSE(prefs->GetInt64(kPrefsManifestMetadataSize,
-                                        &manifest_metadata_size) &&
-                        manifest_metadata_size > 0);
+  if (!(prefs->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size) &&
+        manifest_metadata_size > 0))
+    return false;
 
   return true;
 }
