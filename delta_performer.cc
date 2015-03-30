@@ -621,6 +621,16 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     else if (op.type() == DeltaArchiveManifest_InstallOperation_Type_BSDIFF)
       op_result = HandleOpResult(
           PerformBsdiffOperation(op, is_kernel_partition), "bsdiff", error);
+    else if (op.type() ==
+             DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY)
+      op_result =
+          HandleOpResult(PerformSourceCopyOperation(op, is_kernel_partition),
+                         "source_copy", error);
+    else if (op.type() ==
+             DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF)
+      op_result =
+          HandleOpResult(PerformSourceBsdiffOperation(op, is_kernel_partition),
+                         "source_bsdiff", error);
     else
       op_result = HandleOpResult(false, "unknown", error);
 
@@ -641,9 +651,11 @@ bool DeltaPerformer::IsManifestValid() {
 bool DeltaPerformer::CanPerformInstallOperation(
     const chromeos_update_engine::DeltaArchiveManifest_InstallOperation&
     operation) {
-  // Move operations don't require any data blob, so they can always
-  // be performed.
-  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE)
+  // Move and source_copy operations don't require any data blob, so they can
+  // always be performed.
+  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE ||
+      operation.type() ==
+          DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY)
     return true;
 
   // See if we have the entire data blob in the buffer
@@ -769,6 +781,84 @@ bool DeltaPerformer::PerformMoveOperation(
   return true;
 }
 
+namespace {
+
+// Takes |extents| and fills an empty vector |blocks| with a block index for
+// each block in |extents|. For example, [(3, 2), (8, 1)] would give [3, 4, 8].
+void ExtentsToBlocks(const RepeatedPtrField<Extent>& extents,
+                     vector<uint64_t>* blocks) {
+  for (Extent ext : extents) {
+    for (uint64_t j = 0; j < ext.num_blocks(); j++)
+      blocks->push_back(ext.start_block() + j);
+  }
+}
+
+// Takes |extents| and returns the number of blocks in those extents.
+uint64_t GetBlockCount(const RepeatedPtrField<Extent>& extents) {
+  uint64_t sum = 0;
+  for (Extent ext : extents) {
+    sum += ext.num_blocks();
+  }
+  return sum;
+}
+
+}  // namespace
+
+bool DeltaPerformer::PerformSourceCopyOperation(
+    const DeltaArchiveManifest_InstallOperation& operation,
+    bool is_kernel_partition) {
+  if (operation.has_src_length())
+    TEST_AND_RETURN_FALSE(operation.src_length() % block_size_ == 0);
+  if (operation.has_dst_length())
+    TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
+
+  uint64_t blocks_to_read = GetBlockCount(operation.src_extents());
+  uint64_t blocks_to_write = GetBlockCount(operation.dst_extents());
+  TEST_AND_RETURN_FALSE(blocks_to_write ==  blocks_to_read);
+
+  // Create vectors of all the individual src/dst blocks.
+  vector<uint64_t> src_blocks;
+  vector<uint64_t> dst_blocks;
+  ExtentsToBlocks(operation.src_extents(), &src_blocks);
+  ExtentsToBlocks(operation.dst_extents(), &dst_blocks);
+  DCHECK_EQ(src_blocks.size(), blocks_to_read);
+  DCHECK_EQ(src_blocks.size(), dst_blocks.size());
+
+  FileDescriptorPtr src_fd =
+      is_kernel_partition ? source_kernel_fd_ : source_fd_;
+  FileDescriptorPtr dst_fd = is_kernel_partition? kernel_fd_ : fd_;
+
+  chromeos::Blob buf(block_size_);
+  ssize_t bytes_read = 0;
+  // Read/write one block at a time.
+  for (uint64_t i = 0; i < blocks_to_read; i++) {
+    ssize_t bytes_read_this_iteration = 0;
+    uint64_t src_block = src_blocks[i];
+    uint64_t dst_block = dst_blocks[i];
+
+    // Read in bytes.
+    TEST_AND_RETURN_FALSE(
+        utils::PReadAll(src_fd,
+                        buf.data(),
+                        block_size_,
+                        src_block * block_size_,
+                        &bytes_read_this_iteration));
+
+    // Write bytes out.
+    TEST_AND_RETURN_FALSE(
+        utils::PWriteAll(dst_fd,
+                         buf.data(),
+                         block_size_,
+                         dst_block * block_size_));
+
+    bytes_read += bytes_read_this_iteration;
+    TEST_AND_RETURN_FALSE(bytes_read_this_iteration ==
+                          static_cast<ssize_t>(block_size_));
+  }
+  DCHECK_EQ(bytes_read, static_cast<ssize_t>(blocks_to_read * block_size_));
+  return true;
+}
+
 bool DeltaPerformer::ExtentsToBsdiffPositionsString(
     const RepeatedPtrField<Extent>& extents,
     uint64_t block_size,
@@ -834,14 +924,10 @@ bool DeltaPerformer::PerformBsdiffOperation(
     ResetUpdateProgress(prefs_, true);
   }
 
-  vector<string> cmd;
   const string& path = is_kernel_partition ? kernel_path_ : path_;
-  cmd.push_back(kBspatchPath);
-  cmd.push_back(path);
-  cmd.push_back(path);
-  cmd.push_back(temp_filename);
-  cmd.push_back(input_positions);
-  cmd.push_back(output_positions);
+  vector<string> cmd{kBspatchPath, path, path, temp_filename,
+                     input_positions, output_positions};
+
   int return_code = 0;
   TEST_AND_RETURN_FALSE(
       Subprocess::SynchronousExecFlags(cmd,
@@ -864,6 +950,62 @@ bool DeltaPerformer::PerformBsdiffOperation(
     TEST_AND_RETURN_FALSE(
         utils::PWriteAll(fd, zeros.data(), end_byte - begin_byte, begin_byte));
   }
+  return true;
+}
+
+bool DeltaPerformer::PerformSourceBsdiffOperation(
+    const DeltaArchiveManifest_InstallOperation& operation,
+    bool is_kernel_partition) {
+  // Since we delete data off the beginning of the buffer as we use it,
+  // the data we need should be exactly at the beginning of the buffer.
+  TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
+  TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
+  if (operation.has_src_length())
+    TEST_AND_RETURN_FALSE(operation.src_length() % block_size_ == 0);
+  if (operation.has_dst_length())
+    TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
+
+  string input_positions;
+  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(operation.src_extents(),
+                                                       block_size_,
+                                                       operation.src_length(),
+                                                       &input_positions));
+  string output_positions;
+  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(operation.dst_extents(),
+                                                       block_size_,
+                                                       operation.dst_length(),
+                                                       &output_positions));
+
+  string temp_filename;
+  TEST_AND_RETURN_FALSE(utils::MakeTempFile("/tmp/au_patch.XXXXXX",
+                                            &temp_filename,
+                                            nullptr));
+  ScopedPathUnlinker path_unlinker(temp_filename);
+  {
+    int fd = open(temp_filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    ScopedFdCloser fd_closer(&fd);
+    TEST_AND_RETURN_FALSE(
+        utils::WriteAll(fd, buffer_.data(), operation.data_length()));
+  }
+
+  // Update the buffer to release the patch data memory as soon as the patch
+  // file is written out.
+  DiscardBuffer(true);
+
+  const string& src_path = is_kernel_partition ?
+                           install_plan_->kernel_source_path :
+                           install_plan_->source_path;
+  const string& dst_path = is_kernel_partition ? kernel_path_ : path_;
+  vector<string> cmd{kBspatchPath, src_path, dst_path, temp_filename,
+                     input_positions, output_positions};
+
+  int return_code = 0;
+  TEST_AND_RETURN_FALSE(
+      Subprocess::SynchronousExecFlags(cmd,
+                                       G_SPAWN_LEAVE_DESCRIPTORS_OPEN,
+                                       &return_code,
+                                       nullptr));
+  TEST_AND_RETURN_FALSE(return_code == 0);
   return true;
 }
 

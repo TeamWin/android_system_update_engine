@@ -153,7 +153,8 @@ class DeltaDiffGenerator : public OperationsGenerator {
       off_t* blobs_length,
       const std::string& old_image_path,
       const std::string& new_image_path,
-      Vertex* vertex);
+      Vertex* vertex,
+      uint32_t minor_version);
 
   // Stores all Extents in 'extents' into 'out'.
   static void StoreExtents(const std::vector<Extent>& extents,

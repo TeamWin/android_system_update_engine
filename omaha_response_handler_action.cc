@@ -105,6 +105,9 @@ void OmahaResponseHandlerAction::PerformAction() {
       &install_plan_.install_path));
   install_plan_.kernel_install_path =
       utils::KernelDeviceOfBootDevice(install_plan_.install_path);
+  install_plan_.source_path = system_state_->hardware()->BootDevice();
+  install_plan_.kernel_source_path =
+      utils::KernelDeviceOfBootDevice(install_plan_.source_path);
 
   if (params->to_more_stable_channel() && params->is_powerwash_allowed())
     install_plan_.powerwash_required = true;

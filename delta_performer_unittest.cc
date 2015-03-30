@@ -62,6 +62,7 @@ namespace {
 struct DeltaState {
   string a_img;
   string b_img;
+  string result_img;
   int image_size;
 
   string delta_path;
@@ -72,6 +73,9 @@ struct DeltaState {
 
   string new_kernel;
   chromeos::Blob new_kernel_data;
+
+  string result_kernel;
+  chromeos::Blob result_kernel_data;
 
   // The in-memory copy of delta file.
   chromeos::Blob delta;
@@ -314,6 +318,11 @@ static void GenerateDeltaFile(bool full_kernel,
                               uint32_t minor_version) {
   EXPECT_TRUE(utils::MakeTempFile("a_img.XXXXXX", &state->a_img, nullptr));
   EXPECT_TRUE(utils::MakeTempFile("b_img.XXXXXX", &state->b_img, nullptr));
+
+  // result_img is used in minor version 2. Instead of applying the update
+  // in-place on A, we apply it to a new image, result_img.
+  EXPECT_TRUE(
+      utils::MakeTempFile("result_img.XXXXXX", &state->result_img, nullptr));
   test_utils::CreateExtImageAtPath(state->a_img, nullptr);
 
   state->image_size = static_cast<int>(utils::FileSize(state->a_img));
@@ -390,6 +399,18 @@ static void GenerateDeltaFile(bool full_kernel,
                                base::FilePath(state->b_img)));
     old_image_info = new_image_info;
   } else {
+    if (minor_version == kSourceMinorPayloadVersion) {
+      // Create a result image with image_size bytes of garbage, followed by
+      // zeroes after the rootfs, like image A and B have.
+      chromeos::Blob ones(state->image_size, 0xff);
+      ones.insert(ones.end(), 1024 * 1024, 0);
+      EXPECT_TRUE(utils::WriteFile(state->result_img.c_str(),
+                                   ones.data(),
+                                   ones.size()));
+      EXPECT_EQ(utils::FileSize(state->a_img),
+                utils::FileSize(state->result_img));
+    }
+
     test_utils::CreateExtImageAtPath(state->b_img, nullptr);
     EXPECT_EQ(0, System(base::StringPrintf(
         "dd if=/dev/zero of=%s seek=%d bs=1 count=1 status=none",
@@ -468,10 +489,17 @@ static void GenerateDeltaFile(bool full_kernel,
                                   &state->new_kernel,
                                   nullptr));
 
+  string result_kernel;
+  EXPECT_TRUE(utils::MakeTempFile("result_kernel.XXXXXX",
+                                  &state->result_kernel,
+                                  nullptr));
+
   state->old_kernel_data.resize(kDefaultKernelSize);
   state->new_kernel_data.resize(state->old_kernel_data.size());
+  state->result_kernel_data.resize(state->old_kernel_data.size());
   test_utils::FillWithData(&state->old_kernel_data);
   test_utils::FillWithData(&state->new_kernel_data);
+  test_utils::FillWithData(&state->result_kernel_data);
 
   // change the new kernel data
   std::copy(std::begin(kNewData), std::end(kNewData),
@@ -488,6 +516,9 @@ static void GenerateDeltaFile(bool full_kernel,
   EXPECT_TRUE(utils::WriteFile(state->new_kernel.c_str(),
                                state->new_kernel_data.data(),
                                state->new_kernel_data.size()));
+  EXPECT_TRUE(utils::WriteFile(state->result_kernel.c_str(),
+                               state->result_kernel_data.data(),
+                               state->result_kernel_data.size()));
 
   EXPECT_TRUE(utils::MakeTempFile("delta.XXXXXX",
                                   &state->delta_path,
@@ -722,8 +753,16 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(state->old_kernel_data,
                                                  &install_plan.kernel_hash));
 
-  EXPECT_EQ(0, (*performer)->Open(state->a_img.c_str(), 0, 0));
-  EXPECT_TRUE((*performer)->OpenKernel(state->old_kernel.c_str()));
+  // With minor version 2, we want the target to be the new image, result_img,
+  // but with version 1, we want to update A in place.
+  if (minor_version == kSourceMinorPayloadVersion) {
+    EXPECT_EQ(0, (*performer)->Open(state->result_img.c_str(), 0, 0));
+    EXPECT_TRUE((*performer)->OpenKernel(state->result_kernel.c_str()));
+  } else {
+    EXPECT_EQ(0, (*performer)->Open(state->a_img.c_str(), 0, 0));
+    EXPECT_TRUE((*performer)->OpenKernel(state->old_kernel.c_str()));
+  }
+
 
   ErrorCode expected_error, actual_error;
   bool continue_writing;
@@ -745,12 +784,6 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       expected_error = ErrorCode::kSuccess;
       continue_writing = true;
       break;
-  }
-
-  // For now, source operations are not implemented, so we expect an error.
-  if (minor_version == kSourceMinorPayloadVersion) {
-    expected_error = ErrorCode::kDownloadOperationExecutionError;
-    continue_writing = false;
   }
 
   // Write at some number of bytes per operation. Arbitrarily chose 5.
@@ -790,7 +823,8 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
 
 void VerifyPayloadResult(DeltaPerformer* performer,
                          DeltaState* state,
-                         ErrorCode expected_result) {
+                         ErrorCode expected_result,
+                         uint32_t minor_version) {
   if (!performer) {
     EXPECT_TRUE(!"Skipping payload verification since performer is null.");
     return;
@@ -812,11 +846,18 @@ void VerifyPayloadResult(DeltaPerformer* performer,
     return;
   }
 
-  CompareFilesByBlock(state->old_kernel, state->new_kernel);
-  CompareFilesByBlock(state->a_img, state->b_img);
-
   chromeos::Blob updated_kernel_partition;
-  EXPECT_TRUE(utils::ReadFile(state->old_kernel, &updated_kernel_partition));
+  if (minor_version == kSourceMinorPayloadVersion) {
+    CompareFilesByBlock(state->result_kernel, state->new_kernel);
+    CompareFilesByBlock(state->result_img, state->b_img);
+    EXPECT_TRUE(utils::ReadFile(state->result_kernel,
+                                &updated_kernel_partition));
+  } else {
+    CompareFilesByBlock(state->old_kernel, state->new_kernel);
+    CompareFilesByBlock(state->a_img, state->b_img);
+    EXPECT_TRUE(utils::ReadFile(state->old_kernel, &updated_kernel_partition));
+  }
+
   ASSERT_GE(updated_kernel_partition.size(), arraysize(kNewData));
   EXPECT_TRUE(std::equal(std::begin(kNewData), std::end(kNewData),
                          updated_kernel_partition.begin()));
@@ -845,7 +886,8 @@ void VerifyPayloadResult(DeltaPerformer* performer,
 
 void VerifyPayload(DeltaPerformer* performer,
                    DeltaState* state,
-                   SignatureTest signature_test) {
+                   SignatureTest signature_test,
+                   uint32_t minor_version) {
   ErrorCode expected_result = ErrorCode::kSuccess;
   switch (signature_test) {
     case kSignatureNone:
@@ -857,7 +899,7 @@ void VerifyPayload(DeltaPerformer* performer,
     default: break;  // appease gcc
   }
 
-  VerifyPayloadResult(performer, state, expected_result);
+  VerifyPayloadResult(performer, state, expected_result, minor_version);
 }
 
 void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
@@ -871,13 +913,15 @@ void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
 
   ScopedPathUnlinker a_img_unlinker(state.a_img);
   ScopedPathUnlinker b_img_unlinker(state.b_img);
+  ScopedPathUnlinker new_img_unlinker(state.result_img);
   ScopedPathUnlinker delta_unlinker(state.delta_path);
   ScopedPathUnlinker old_kernel_unlinker(state.old_kernel);
   ScopedPathUnlinker new_kernel_unlinker(state.new_kernel);
+  ScopedPathUnlinker result_kernel_unlinker(state.result_kernel);
   ApplyDeltaFile(full_kernel, full_rootfs, noop, signature_test,
                  &state, hash_checks_mandatory, kValidOperationData,
                  &performer, minor_version);
-  VerifyPayload(performer, &state, signature_test);
+  VerifyPayload(performer, &state, signature_test, minor_version);
   delete performer;
 }
 
@@ -1197,6 +1241,11 @@ TEST(DeltaPerformerTest, RunAsRootSmallImageSignGeneratedShellRotateCl2Test) {
                    false, kInPlaceMinorPayloadVersion);
 }
 
+TEST(DeltaPerformerTest, RunAsRootSmallImageSourceOpsTest) {
+  DoSmallImageTest(false, false, false, -1, kSignatureGenerator,
+                   false, kSourceMinorPayloadVersion);
+}
+
 TEST(DeltaPerformerTest, BadDeltaMagicTest) {
   MockPrefs prefs;
   InstallPlan install_plan;
@@ -1375,24 +1424,6 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
 
   delete performer;
   EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
-}
-
-TEST(DeltaPerformerTest, RunAsRootSourceOperationsTest) {
-  // Make sure we can generate a payload with the new source ops and minor
-  // version 2. For now, we expect ApplyDeltaFile to fail because the ops are
-  // not yet implemented, but eventually we can verify the resulting payload.
-  DeltaState state;
-  DeltaPerformer* performer = nullptr;
-  GenerateDeltaFile(false, false, false, -1, kSignatureNone, &state,
-                    kSourceMinorPayloadVersion);
-  ScopedPathUnlinker a_img_unlinker(state.a_img);
-  ScopedPathUnlinker b_img_unlinker(state.b_img);
-  ScopedPathUnlinker delta_unlinker(state.delta_path);
-  ScopedPathUnlinker old_kernel_unlinker(state.old_kernel);
-  ScopedPathUnlinker new_kernel_unlinker(state.new_kernel);
-  ApplyDeltaFile(false, false, false, kSignatureNone, &state, false,
-                 kValidOperationData, &performer, kSourceMinorPayloadVersion);
-  delete performer;
 }
 
 TEST(DeltaPerformerTest, MinorVersionsMatch) {

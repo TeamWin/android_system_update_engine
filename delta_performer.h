@@ -130,7 +130,7 @@ class DeltaPerformer : public FileWriter {
   // unavailable; it returns ErrorCode::kSignedDeltaPayloadExpectedError if the
   // public key is available but the delta payload doesn't include a signature.
   ErrorCode VerifyPayload(const std::string& update_check_response_hash,
-                               const uint64_t update_check_response_size);
+                          const uint64_t update_check_response_size);
 
   // Reads from the update manifest the expected sizes and hashes of the target
   // kernel and rootfs partitions. These values can be used for applied update
@@ -274,6 +274,12 @@ class DeltaPerformer : public FileWriter {
       const DeltaArchiveManifest_InstallOperation& operation,
       bool is_kernel_partition);
   bool PerformBsdiffOperation(
+      const DeltaArchiveManifest_InstallOperation& operation,
+      bool is_kernel_partition);
+  bool PerformSourceCopyOperation(
+      const DeltaArchiveManifest_InstallOperation& operation,
+      bool is_kernel_partition);
+  bool PerformSourceBsdiffOperation(
       const DeltaArchiveManifest_InstallOperation& operation,
       bool is_kernel_partition);
 

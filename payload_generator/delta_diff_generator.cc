@@ -713,7 +713,8 @@ bool DeltaDiffGenerator::ReadUnwrittenBlocks(
     off_t* blobs_length,
     const string& old_image_path,
     const string& new_image_path,
-    Vertex* vertex) {
+    Vertex* vertex,
+    uint32_t minor_version) {
   vertex->file_name = "<rootfs-non-file-data>";
 
   DeltaArchiveManifest_InstallOperation* out_op = &vertex->op;
@@ -789,7 +790,8 @@ bool DeltaDiffGenerator::ReadUnwrittenBlocks(
       int buf_offset = 0;
       for (int i = 0; i < copy_block_cnt; ++i) {
         int buf_end_offset = buf_offset + kBlockSize;
-        if (!std::equal(new_buf.begin() + buf_offset,
+        if (minor_version == kSourceMinorPayloadVersion ||
+            !std::equal(new_buf.begin() + buf_offset,
                         new_buf.begin() + buf_end_offset,
                         old_buf.begin() + buf_offset)) {
           BZ2_bzWrite(&err, bz_file, &new_buf[buf_offset], kBlockSize);
@@ -987,7 +989,7 @@ bool DeltaDiffGenerator::GenerateOperations(
     vector<AnnotatedOperation>* kernel_ops) {
   // List of blocks in the target partition, with the operation that needs to
   // write it and the operation that needs to read it. This is used here to
-  // keep track of the blocks that no operation is writting it.
+  // keep track of the blocks that no operation is writing it.
   vector<Block> blocks(config.target.rootfs_size / config.block_size);
 
   // TODO(deymo): DeltaReadFiles() should not use a graph to generate the
@@ -1030,7 +1032,8 @@ bool DeltaDiffGenerator::GenerateOperations(
                                             data_file_size,
                                             config.source.rootfs_part,
                                             config.target.rootfs_part,
-                                            &unwritten_vertex));
+                                            &unwritten_vertex,
+                                            config.minor_version));
   if (unwritten_vertex.op.data_length() == 0) {
     LOG(INFO) << "No unwritten blocks to write, omitting operation";
   } else {

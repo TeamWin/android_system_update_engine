@@ -723,7 +723,8 @@ bool InplaceGenerator::GenerateOperations(
                                               data_file_size,
                                               config.source.rootfs_part,
                                               config.target.rootfs_part,
-                                              &graph.back()));
+                                              &graph.back(),
+                                              config.minor_version));
   if (graph.back().op.data_length() == 0) {
     LOG(INFO) << "No unwritten blocks to write, omitting operation";
     graph.pop_back();
