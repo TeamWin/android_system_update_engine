@@ -25,9 +25,15 @@
 
 namespace chromeos_update_engine {
 
-// Encodes XML entities in a given string with libxml2. input must be
-// UTF-8 formatted. Output will be UTF-8 formatted.
-std::string XmlEncode(const std::string& input);
+// Encodes XML entities in a given string. Input must be ASCII-7 valid. If
+// the input is invalid, the default value is used instead.
+std::string XmlEncodeWithDefault(const std::string& input,
+                                 const std::string& default_value);
+
+// Escapes text so it can be included as character data and attribute
+// values. The |input| string must be valid ASCII-7, no UTF-8 supported.
+// Returns whether the |input| was valid and escaped properly in |output|.
+bool XmlEncode(const std::string& input, std::string* output);
 
 // This struct encapsulates the Omaha event information. For a
 // complete list of defined event types and results, see

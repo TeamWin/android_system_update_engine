@@ -102,7 +102,7 @@ string GetAppBody(const OmahaEvent* event,
       app_body += base::StringPrintf(
           "        <updatecheck targetversionprefix=\"%s\""
           "></updatecheck>\n",
-          XmlEncode(params->target_version_prefix()).c_str());
+          XmlEncodeWithDefault(params->target_version_prefix(), "").c_str());
 
       // If this is the first update check after a reboot following a previous
       // update, generate an event containing the previous version number. If
@@ -121,7 +121,7 @@ string GetAppBody(const OmahaEvent* event,
           "previousversion=\"%s\"></event>\n",
           OmahaEvent::kTypeUpdateComplete,
           OmahaEvent::kResultSuccessReboot,
-          XmlEncode(prev_version).c_str());
+          XmlEncodeWithDefault(prev_version, "0.0.0.0").c_str());
       LOG_IF(WARNING, !prefs->SetString(kPrefsPreviousVersion, ""))
           << "Unable to reset the previous version.";
     }
@@ -145,8 +145,8 @@ string GetAppBody(const OmahaEvent* event,
 // |arg_name| and |prefs_key|, if any. The return value is suitable to
 // concatenate to the list of arguments and includes a space at the end.
 string GetCohortArgXml(PrefsInterface* prefs,
-                       const std::string arg_name,
-                       const std::string prefs_key) {
+                       const string arg_name,
+                       const string prefs_key) {
   // There's nothing wrong with not having a given cohort setting, so we check
   // existance first to avoid the warning log message.
   if (!prefs->Exists(prefs_key))
@@ -164,8 +164,15 @@ string GetCohortArgXml(PrefsInterface* prefs,
     return "";
   }
 
+  string escaped_xml_value;
+  if (!XmlEncode(cohort_value, &escaped_xml_value)) {
+    LOG(WARNING) << "The omaha cohort setting " << arg_name
+                 << " is ASCII-7 invalid, ignoring it.";
+    return "";
+  }
+
   return base::StringPrintf("%s=\"%s\" ",
-                            arg_name.c_str(), XmlEncode(cohort_value).c_str());
+                            arg_name.c_str(), escaped_xml_value.c_str());
 }
 
 // Returns an XML that corresponds to the entire <app> node of the Omaha
@@ -190,16 +197,19 @@ string GetAppXml(const OmahaEvent* event,
     LOG(INFO) << "Passing OS version as 0.0.0.0 as we are set to powerwash "
               << "on downgrading to the version in the more stable channel";
     app_versions = "version=\"0.0.0.0\" from_version=\"" +
-      XmlEncode(params->app_version()) + "\" ";
+        XmlEncodeWithDefault(params->app_version(), "0.0.0.0") + "\" ";
   } else {
-    app_versions = "version=\"" + XmlEncode(params->app_version()) + "\" ";
+    app_versions = "version=\"" +
+        XmlEncodeWithDefault(params->app_version(), "0.0.0.0") + "\" ";
   }
 
   string download_channel = params->download_channel();
-  string app_channels = "track=\"" + XmlEncode(download_channel) + "\" ";
-  if (params->current_channel() != download_channel)
-     app_channels +=
-       "from_track=\"" + XmlEncode(params->current_channel()) + "\" ";
+  string app_channels =
+      "track=\"" + XmlEncodeWithDefault(download_channel, "") + "\" ";
+  if (params->current_channel() != download_channel) {
+    app_channels += "from_track=\"" + XmlEncodeWithDefault(
+        params->current_channel(), "") + "\" ";
+  }
 
   string delta_okay_str = params->delta_okay() ? "true" : "false";
 
@@ -219,20 +229,20 @@ string GetAppXml(const OmahaEvent* event,
   app_cohort_args += GetCohortArgXml(system_state->prefs(),
                                      "cohortname", kPrefsOmahaCohortName);
 
-  string app_xml =
-      "    <app appid=\"" + XmlEncode(params->GetAppId()) + "\" " +
-                app_cohort_args +
-                app_versions +
-                app_channels +
-                "lang=\"" + XmlEncode(params->app_lang()) + "\" " +
-                "board=\"" + XmlEncode(params->os_board()) + "\" " +
-                "hardware_class=\"" + XmlEncode(params->hwid()) + "\" " +
-                "delta_okay=\"" + delta_okay_str + "\" "
-                "fw_version=\"" + XmlEncode(params->fw_version()) + "\" " +
-                "ec_version=\"" + XmlEncode(params->ec_version()) + "\" " +
-                install_date_in_days_str +
-                ">\n" +
-                   app_body +
+  string app_xml = "    <app "
+      "appid=\"" + XmlEncodeWithDefault(params->GetAppId(), "") + "\" " +
+      app_cohort_args +
+      app_versions +
+      app_channels +
+      "lang=\"" + XmlEncodeWithDefault(params->app_lang(), "en-US") + "\" " +
+      "board=\"" + XmlEncodeWithDefault(params->os_board(), "") + "\" " +
+      "hardware_class=\"" + XmlEncodeWithDefault(params->hwid(), "") + "\" " +
+      "delta_okay=\"" + delta_okay_str + "\" "
+      "fw_version=\"" + XmlEncodeWithDefault(params->fw_version(), "") + "\" " +
+      "ec_version=\"" + XmlEncodeWithDefault(params->ec_version(), "") + "\" " +
+      install_date_in_days_str +
+      ">\n" +
+         app_body +
       "    </app>\n";
 
   return app_xml;
@@ -241,11 +251,11 @@ string GetAppXml(const OmahaEvent* event,
 // Returns an XML that corresponds to the entire <os> node of the Omaha
 // request based on the given parameters.
 string GetOsXml(OmahaRequestParams* params) {
-  string os_xml =
-      "    <os version=\"" + XmlEncode(params->os_version()) + "\" " +
-               "platform=\"" + XmlEncode(params->os_platform()) + "\" " +
-               "sp=\"" + XmlEncode(params->os_sp()) + "\">"
-          "</os>\n";
+  string os_xml ="    <os "
+      "version=\"" + XmlEncodeWithDefault(params->os_version(), "") + "\" " +
+      "platform=\"" + XmlEncodeWithDefault(params->os_platform(), "") + "\" " +
+      "sp=\"" + XmlEncodeWithDefault(params->os_sp(), "") + "\">"
+      "</os>\n";
   return os_xml;
 }
 
@@ -269,13 +279,14 @@ string GetRequestXml(const OmahaEvent* event,
 
   string request_xml =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<request protocol=\"3.0\" "
-                "version=\"" + XmlEncode(kGupdateVersion) + "\" "
-                "updaterversion=\"" + XmlEncode(kGupdateVersion) + "\" " +
-                install_source +
-                "ismachine=\"1\">\n" +
-                  os_xml +
-                  app_xml +
+      "<request protocol=\"3.0\" " + (
+          "version=\"" + XmlEncodeWithDefault(kGupdateVersion, "") + "\" "
+          "updaterversion=\"" + XmlEncodeWithDefault(kGupdateVersion,
+                                                     "") + "\" " +
+          install_source +
+          "ismachine=\"1\">\n") +
+      os_xml +
+      app_xml +
       "</request>\n";
 
   return request_xml;
@@ -417,13 +428,26 @@ void ParserHandlerEntityDecl(void *user_data,
 
 }  // namespace
 
-// Escapes text so it can be included as character data and attribute
-// values. The |input| string must be valid UTF-8.
-string XmlEncode(const string& input) {
+bool XmlEncode(const string& input, string* output) {
+  if (std::find_if(input.begin(), input.end(),
+                   [](const char c){return c & 0x80;}) != input.end()) {
+    LOG(WARNING) << "Invalid ASCII-7 string passed to the XML encoder:";
+    utils::HexDumpString(input);
+    return false;
+  }
   gchar* escaped = g_markup_escape_text(input.c_str(), input.size());
-  string ret = string(escaped);
+  if (escaped == nullptr)
+    return false;
+  *output = string(escaped);
   g_free(escaped);
-  return ret;
+  return true;
+}
+
+string XmlEncodeWithDefault(const string& input, const string& default_value) {
+  string output;
+  if (XmlEncode(input, &output))
+    return output;
+  return default_value;
 }
 
 OmahaRequestAction::OmahaRequestAction(SystemState* system_state,

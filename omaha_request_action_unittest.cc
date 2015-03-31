@@ -978,11 +978,27 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
 }
 
 TEST_F(OmahaRequestActionTest, XmlEncodeTest) {
-  EXPECT_EQ("ab", XmlEncode("ab"));
-  EXPECT_EQ("a&lt;b", XmlEncode("a<b"));
-  EXPECT_EQ("&lt;&amp;&gt;", XmlEncode("<&>"));
-  EXPECT_EQ("&amp;lt;&amp;amp;&amp;gt;", XmlEncode("&lt;&amp;&gt;"));
+  string output;
+  EXPECT_TRUE(XmlEncode("ab", &output));
+  EXPECT_EQ("ab", output);
+  EXPECT_TRUE(XmlEncode("a<b", &output));
+  EXPECT_EQ("a&lt;b", output);
+  EXPECT_TRUE(XmlEncode("<&>", &output));
+  EXPECT_EQ("&lt;&amp;&gt;", output);
+  EXPECT_TRUE(XmlEncode("&lt;&amp;&gt;", &output));
+  EXPECT_EQ("&amp;lt;&amp;amp;&amp;gt;", output);
+  // g_markup_escape_text() would crash with unterminated UTF-8 strings.
+  EXPECT_FALSE(XmlEncode("\xc2", &output));
+  // Fail with invalid ASCII-7 chars.
+  EXPECT_FALSE(XmlEncode("This is an 'n' with a tilde: \xc3\xb1", &output));
+}
 
+TEST_F(OmahaRequestActionTest, XmlEncodeWithDefaultTest) {
+  EXPECT_EQ("&lt;&amp;&gt;", XmlEncodeWithDefault("<&>", "something else"));
+  EXPECT_EQ("<not escaped>", XmlEncodeWithDefault("\xc2", "<not escaped>"));
+}
+
+TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   chromeos::Blob post_data;
 
   // Make sure XML Encode is being called on the params
