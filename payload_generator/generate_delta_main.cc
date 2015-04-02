@@ -388,7 +388,7 @@ int Main(int argc, char** argv) {
   // Look for the minor version in the old image if it was not given as an
   // argument.
   if (payload_config.is_delta &&
-      !CommandLine::ForCurrentProcess()->HasSwitch("minor_version")) {
+      !base::CommandLine::ForCurrentProcess()->HasSwitch("minor_version")) {
     uint32_t minor_version;
     base::FilePath image_path(FLAGS_old_dir);
     base::FilePath conf_loc("etc/update_engine.conf");
