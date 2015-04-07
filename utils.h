@@ -28,7 +28,6 @@
 #include "update_engine/constants.h"
 #include "update_engine/file_descriptor.h"
 #include "update_engine/metrics.h"
-#include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
 
@@ -468,14 +467,6 @@ bool MonotonicDurationHelper(SystemState* system_state,
 // The function will return |true| if it succeeds at finding the file and
 // value and setting it, and |false| otherwise.
 bool GetMinorVersion(base::FilePath path, uint32_t* minor_version);
-
-// This function reads the specified data in |extents| into |out_data|. The
-// extents are read from the file at |path|. |out_data_size| is the size of
-// |out_data|. Returns false if the number of bytes to read given in
-// |extents| does not equal |out_data_size|.
-bool ReadExtents(const std::string& path, std::vector<Extent>* extents,
-                 chromeos::Blob* out_data, ssize_t out_data_size,
-                 size_t block_size);
 
 }  // namespace utils
 

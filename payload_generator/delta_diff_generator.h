@@ -75,8 +75,6 @@ class DeltaDiffGenerator : public OperationsGenerator {
   // and writes any necessary data to the end of data_fd.
   static bool DeltaReadFiles(Graph* graph,
                              std::vector<Block>* blocks,
-                             const std::string& old_part,
-                             const std::string& new_part,
                              const std::string& old_root,
                              const std::string& new_root,
                              off_t chunk_size,
@@ -95,8 +93,6 @@ class DeltaDiffGenerator : public OperationsGenerator {
   static bool DeltaReadFile(Graph* graph,
                             Vertex::Index existing_vertex,
                             std::vector<Block>* blocks,
-                            const std::string& old_part,
-                            const std::string& new_part,
                             const std::string& old_root,
                             const std::string& new_root,
                             const std::string& path,
@@ -107,9 +103,9 @@ class DeltaDiffGenerator : public OperationsGenerator {
                             bool src_ops_allowed);
 
   // Reads old_filename (if it exists) and a new_filename and determines
-  // the smallest way to encode this file for the diff. It reads extents from
-  // |old_part| and |new_part|. It stores necessary data in out_data and fills
-  // in out_op. If there's no change in old and new files, it creates a MOVE
+  // the smallest way to encode this file for the diff. It stores
+  // necessary data in out_data and fills in out_op.
+  // If there's no change in old and new files, it creates a MOVE
   // operation. If there is a change, or the old file doesn't exist,
   // the smallest of REPLACE, REPLACE_BZ, or BSDIFF wins.
   // new_filename must contain at least one byte.
@@ -118,17 +114,15 @@ class DeltaDiffGenerator : public OperationsGenerator {
   // If |src_ops_allowed| is true, it will emit SOURCE_COPY and SOURCE_BSDIFF
   // operations instead of MOVE and BSDIFF, respectively.
   // Returns true on success.
-  static bool ReadFileToDiff(const std::string& old_part,
-                             const std::string& new_part,
+  static bool ReadFileToDiff(const std::string& old_filename,
+                             const std::string& new_filename,
                              off_t chunk_offset,
                              off_t chunk_size,
                              bool bsdiff_allowed,
                              chromeos::Blob* out_data,
                              DeltaArchiveManifest_InstallOperation* out_op,
                              bool gather_extents,
-                             bool src_ops_allowed,
-                             const std::string& old_filename,
-                             const std::string& new_filename);
+                             bool src_ops_allowed);
 
   // Delta compresses a kernel partition |new_kernel_part| with knowledge of the
   // old kernel partition |old_kernel_part|. If |old_kernel_part| is an empty
@@ -222,9 +216,6 @@ class DeltaDiffGenerator : public OperationsGenerator {
     }
     return ret;
   }
-
-  // Takes a vector of extents and removes extents that begin in a sparse hole.
-  static void ClearSparseHoles(std::vector<Extent>* extents);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DeltaDiffGenerator);

@@ -93,10 +93,6 @@ bool (*get_extents_with_chunk_func)(const string&, off_t, off_t,
 
 namespace {
 
-bool IsSparseHole(const Extent &extent) {
-  return (extent.start_block() == kSparseHole);
-}
-
 // Stores all the extents of |path| into |extents|. Returns true on success.
 bool GatherExtents(const string& path,
                    off_t chunk_offset,
@@ -104,7 +100,8 @@ bool GatherExtents(const string& path,
                    vector<Extent>* extents) {
   extents->clear();
   TEST_AND_RETURN_FALSE(
-      get_extents_with_chunk_func(path, chunk_offset, chunk_size, extents));
+      get_extents_with_chunk_func(
+          path, chunk_offset, chunk_size, extents));
   return true;
 }
 
@@ -302,8 +299,6 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
 
 bool DeltaDiffGenerator::DeltaReadFiles(Graph* graph,
                                         vector<Block>* blocks,
-                                        const string& old_part,
-                                        const string& new_part,
                                         const string& old_root,
                                         const string& new_root,
                                         off_t chunk_size,
@@ -358,8 +353,6 @@ bool DeltaDiffGenerator::DeltaReadFiles(Graph* graph,
           graph,
           Vertex::kInvalidIndex,
           blocks,
-          old_part,
-          new_part,
           (should_diff_from_source ? old_root : kEmptyPath),
           new_root,
           fs_iter.GetPartialPath(),
@@ -376,8 +369,6 @@ bool DeltaDiffGenerator::DeltaReadFiles(Graph* graph,
 bool DeltaDiffGenerator::DeltaReadFile(Graph* graph,
                                        Vertex::Index existing_vertex,
                                        vector<Block>* blocks,
-                                       const string& old_part,
-                                       const string& new_part,
                                        const string& old_root,
                                        const string& new_root,
                                        const string& path,  // within new_root
@@ -388,6 +379,9 @@ bool DeltaDiffGenerator::DeltaReadFile(Graph* graph,
                                        bool src_ops_allowed) {
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation operation;
+
+  string old_path = (old_root == kEmptyPath) ? kEmptyPath :
+      old_root + path;
 
   // If bsdiff breaks again, blacklist the problem file by using:
   //   bsdiff_allowed = (path != "/foo/bar")
@@ -401,19 +395,15 @@ bool DeltaDiffGenerator::DeltaReadFile(Graph* graph,
   if (!bsdiff_allowed)
     LOG(INFO) << "bsdiff blacklisting: " << path;
 
-  string old_filename = (old_root == kEmptyPath) ? kEmptyPath : old_root + path;
-
-  TEST_AND_RETURN_FALSE(DeltaDiffGenerator::ReadFileToDiff(old_part,
-                                                           new_part,
+  TEST_AND_RETURN_FALSE(DeltaDiffGenerator::ReadFileToDiff(old_path,
+                                                           new_root + path,
                                                            chunk_offset,
                                                            chunk_size,
                                                            bsdiff_allowed,
                                                            &data,
                                                            &operation,
                                                            true,
-                                                           src_ops_allowed,
-                                                           old_filename,
-                                                           new_root + path));
+                                                           src_ops_allowed));
 
   // Check if the operation writes nothing.
   if (operation.dst_extents_size() == 0) {
@@ -460,87 +450,19 @@ bool DeltaDiffGenerator::DeltaReadFile(Graph* graph,
 }
 
 bool DeltaDiffGenerator::ReadFileToDiff(
-    const string& old_part,
-    const string& new_part,
+    const string& old_filename,
+    const string& new_filename,
     off_t chunk_offset,
     off_t chunk_size,
     bool bsdiff_allowed,
     chromeos::Blob* out_data,
     DeltaArchiveManifest_InstallOperation* out_op,
     bool gather_extents,
-    bool src_ops_allowed,
-    const string& old_filename,
-    const string& new_filename) {
-
-  // Do we have an original file to consider?
-  off_t old_size = 0;
-  bool original = !old_filename.empty();
-  if (original && (old_size = utils::FileSize(old_filename)) < 0) {
-    // If stat-ing the old file fails, it should be because it doesn't exist.
-    TEST_AND_RETURN_FALSE(!utils::FileExists(old_filename.c_str()));
-    original = false;
-  }
-
-  DeltaArchiveManifest_InstallOperation operation;
-  vector<Extent> src_extents, dst_extents;
-  // Gather source extents if we have an original file.
-  if (original) {
-    if (gather_extents) {
-      TEST_AND_RETURN_FALSE(
-          GatherExtents(old_filename, chunk_offset, chunk_size, &src_extents));
-      ClearSparseHoles(&src_extents);
-      if (src_extents.size() == 0) {
-        // Reading from sparse hole, do nothing.
-        operation.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
-        *out_op = operation;
-        return true;
-      }
-    } else {
-      // We have a kernel, so make one extent to cover it all.
-      Extent* src_extent = operation.add_src_extents();
-      src_extent->set_start_block(0);
-      src_extent->set_num_blocks(
-          (utils::FileSize(old_filename) + (kBlockSize - 1)) / kBlockSize);
-      src_extents.push_back(*src_extent);
-    }
-  }
-
-  // Gather destination extents.
-  if (gather_extents) {
-    TEST_AND_RETURN_FALSE(
-        GatherExtents(new_filename, chunk_offset, chunk_size, &dst_extents));
-    ClearSparseHoles(&dst_extents);
-    if (dst_extents.size() == 0) {
-      // Make an empty move operation.
-      operation.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
-      *out_op = operation;
-      return true;
-    }
-  } else {
-    Extent* dst_extent = operation.add_dst_extents();
-    dst_extent->set_start_block(0);
-    dst_extent->set_num_blocks(
-        (utils::FileSize(new_filename) + (kBlockSize - 1)) / kBlockSize);
-    dst_extents.push_back(*dst_extent);
-  }
-
-  // Figure out how many blocks we need to write to dst_extents.
-  uint64_t blocks_to_write = 0;
-  for (uint32_t i = 0; i < dst_extents.size(); i++)
-    blocks_to_write += dst_extents[i].num_blocks();
-
-  // Figure out how many blocks we need to read to src_extents.
-  uint64_t blocks_to_read = 0;
-  for (uint32_t i = 0; i < src_extents.size(); i++)
-    blocks_to_read += src_extents[i].num_blocks();
-
-  // Read in bytes from new data.
+    bool src_ops_allowed) {
+  // Read new data in
   chromeos::Blob new_data;
-  TEST_AND_RETURN_FALSE(utils::ReadExtents(new_part,
-                                           &dst_extents,
-                                           &new_data,
-                                           kBlockSize * blocks_to_write,
-                                           kBlockSize));
+  TEST_AND_RETURN_FALSE(
+      utils::ReadFileChunk(new_filename, chunk_offset, chunk_size, &new_data));
 
   TEST_AND_RETURN_FALSE(!new_data.empty());
   TEST_AND_RETURN_FALSE(chunk_size == -1 ||
@@ -549,8 +471,10 @@ bool DeltaDiffGenerator::ReadFileToDiff(
   chromeos::Blob new_data_bz;
   TEST_AND_RETURN_FALSE(BzipCompress(new_data, &new_data_bz));
   CHECK(!new_data_bz.empty());
+
   chromeos::Blob data;  // Data blob that will be written to delta file.
 
+  DeltaArchiveManifest_InstallOperation operation;
   size_t current_best_size = 0;
   if (new_data.size() <= new_data_bz.size()) {
     operation.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
@@ -561,12 +485,22 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     current_best_size = new_data_bz.size();
     data = new_data_bz;
   }
+
+  // Do we have an original file to consider?
+  off_t old_size = 0;
+  bool original = !old_filename.empty();
+  if (original && (old_size = utils::FileSize(old_filename)) < 0) {
+    // If stat-ing the old file fails, it should be because it doesn't exist.
+    TEST_AND_RETURN_FALSE(!utils::FileExists(old_filename.c_str()));
+    original = false;
+  }
+
   chromeos::Blob old_data;
   if (original) {
-    // Read old data.
+    // Read old data
     TEST_AND_RETURN_FALSE(
-        utils::ReadExtents(old_part, &src_extents, &old_data,
-                           kBlockSize * blocks_to_read, kBlockSize));
+        utils::ReadFileChunk(
+            old_filename, chunk_offset, chunk_size, &old_data));
     if (old_data == new_data) {
       // No change in data.
       if (src_ops_allowed) {
@@ -610,11 +544,42 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     }
   }
 
-  operation.set_src_length(utils::FileSize(old_filename));
-  operation.set_dst_length(utils::FileSize(new_filename));
-
   // Set parameters of the operations
   CHECK_EQ(data.size(), current_best_size);
+
+  vector<Extent> src_extents, dst_extents;
+  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE ||
+      operation.type() == DeltaArchiveManifest_InstallOperation_Type_BSDIFF ||
+      operation.type() ==
+          DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY ||
+      operation.type() ==
+          DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF) {
+    if (gather_extents) {
+      TEST_AND_RETURN_FALSE(
+          GatherExtents(old_filename,
+                        chunk_offset,
+                        chunk_size,
+                        &src_extents));
+    } else {
+      Extent* src_extent = operation.add_src_extents();
+      src_extent->set_start_block(0);
+      src_extent->set_num_blocks((old_size + kBlockSize - 1) / kBlockSize);
+    }
+    operation.set_src_length(old_data.size());
+  }
+
+  if (gather_extents) {
+    TEST_AND_RETURN_FALSE(
+        GatherExtents(new_filename,
+                      chunk_offset,
+                      chunk_size,
+                      &dst_extents));
+  } else {
+    Extent* dst_extent = operation.add_dst_extents();
+    dst_extent->set_start_block(0);
+    dst_extent->set_num_blocks((new_data.size() + kBlockSize - 1) / kBlockSize);
+  }
+  operation.set_dst_length(new_data.size());
 
   if (gather_extents) {
     // Remove identical src/dst block ranges in MOVE operations.
@@ -632,14 +597,6 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     // Embed extents in the operation.
     StoreExtents(src_extents, operation.mutable_src_extents());
     StoreExtents(dst_extents, operation.mutable_dst_extents());
-  }
-
-  // Replace operations should not have source extents.
-  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-      operation.type() ==
-          DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
-    operation.clear_src_extents();
-    operation.clear_src_length();
   }
 
   out_data->swap(data);
@@ -668,10 +625,8 @@ bool DeltaDiffGenerator::DeltaCompressKernelPartition(
                      true,  // bsdiff_allowed
                      &data,
                      &op,
-                     false,  // gather_extents
-                     src_ops_allowed,
-                     old_kernel_part,  // Doesn't matter, kernel has no files.
-                     new_kernel_part));
+                     false,
+                     src_ops_allowed));
 
   // Check if the operation writes nothing.
   if (op.dst_extents_size() == 0) {
@@ -996,8 +951,6 @@ bool DeltaDiffGenerator::GenerateOperations(
   Graph graph;
   TEST_AND_RETURN_FALSE(DeltaReadFiles(&graph,
                                        &blocks,
-                                       config.source.rootfs_part,
-                                       config.target.rootfs_part,
                                        config.source.rootfs_mountpt,
                                        config.target.rootfs_mountpt,
                                        config.chunk_size,
@@ -1298,11 +1251,6 @@ void DeltaDiffGenerator::AddSignatureOp(uint64_t signature_blob_offset,
   dummy_extent->set_start_block(kSparseHole);
   dummy_extent->set_num_blocks((signature_blob_length + kBlockSize - 1) /
                                kBlockSize);
-}
-
-void DeltaDiffGenerator::ClearSparseHoles(vector<Extent>* extents) {
-  extents->erase(std::remove_if(extents->begin(), extents->end(), IsSparseHole),
-                 extents->end());
 }
 
 };  // namespace chromeos_update_engine

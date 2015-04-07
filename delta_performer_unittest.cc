@@ -1029,10 +1029,10 @@ void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
 }
 
 TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
-  uint64_t test[] = {1, 1, 4, 2, 0, 1};
+  uint64_t test[] = {1, 1, 4, 2, kSparseHole, 1, 0, 1};
   COMPILE_ASSERT(arraysize(test) % 2 == 0, array_size_uneven);
   const uint64_t block_size = 4096;
-  const uint64_t file_length = 4 * block_size - 13;
+  const uint64_t file_length = 5 * block_size - 13;
 
   google::protobuf::RepeatedPtrField<Extent> extents;
   for (size_t i = 0; i < arraysize(test); i += 2) {
@@ -1041,7 +1041,7 @@ TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
     extent->set_num_blocks(test[i + 1]);
   }
 
-  string expected_output = "4096:4096,16384:8192,0:4083";
+  string expected_output = "4096:4096,16384:8192,-1:4096,0:4083";
   string actual_output;
   EXPECT_TRUE(DeltaPerformer::ExtentsToBsdiffPositionsString(extents,
                                                              block_size,
