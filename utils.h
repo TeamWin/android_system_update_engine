@@ -522,8 +522,7 @@ class ScopedPathUnlinker {
         should_remove_(true) {}
   ~ScopedPathUnlinker() {
     if (should_remove_ && unlink(path_.c_str()) < 0) {
-      std::string err_message = strerror(errno);
-      LOG(ERROR) << "Unable to unlink path " << path_ << ": " << err_message;
+      PLOG(ERROR) << "Unable to unlink path " << path_;
     }
   }
   void set_should_remove(bool should_remove) { should_remove_ = should_remove; }

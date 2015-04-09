@@ -113,8 +113,7 @@ class PythonHttpServer : public HttpServer {
     int line_len = read(server_stdout, line, sizeof(line) - 1);
     if (line_len <= static_cast<int>(listening_msg_prefix_len)) {
       if (line_len < 0) {
-        LOG(ERROR) << "error reading http server stdout: "
-                   << strerror(errno);
+        PLOG(ERROR) << "error reading http server stdout";
       } else {
         LOG(ERROR) << "server output too short";
       }
