@@ -524,6 +524,9 @@ bool DeltaDiffGenerator::ReadFileToDiff(
     dst_extents.push_back(*dst_extent);
   }
 
+  NormalizeExtents(&src_extents);
+  NormalizeExtents(&dst_extents);
+
   // Figure out how many blocks we need to write to dst_extents.
   uint64_t blocks_to_write = 0;
   for (uint32_t i = 0; i < dst_extents.size(); i++)
@@ -1041,6 +1044,11 @@ bool DeltaDiffGenerator::GenerateOperations(
     rootfs_ops->back().op = unwritten_vertex.op;
     rootfs_ops->back().name = unwritten_vertex.file_name;
   }
+
+  // Fragment operations so we can sort them later.
+  FragmentOperations(rootfs_ops);
+  FragmentOperations(kernel_ops);
+
   return true;
 }
 
@@ -1306,6 +1314,88 @@ void DeltaDiffGenerator::AddSignatureOp(uint64_t signature_blob_offset,
 void DeltaDiffGenerator::ClearSparseHoles(vector<Extent>* extents) {
   extents->erase(std::remove_if(extents->begin(), extents->end(), IsSparseHole),
                  extents->end());
+}
+
+void DeltaDiffGenerator::NormalizeExtents(vector<Extent>* extents) {
+  vector<Extent> new_extents;
+  for (const Extent& curr_ext : *extents) {
+    if (new_extents.empty()) {
+      new_extents.push_back(curr_ext);
+      continue;
+    }
+    Extent& last_ext = new_extents.back();
+    if (last_ext.start_block() + last_ext.num_blocks() ==
+        curr_ext.start_block()) {
+      // If the extents are touching, we want to combine them.
+      last_ext.set_num_blocks(last_ext.num_blocks() + curr_ext.num_blocks());
+    } else {
+      // Otherwise just include the extent as is.
+      new_extents.push_back(curr_ext);
+    }
+  }
+  *extents = new_extents;
+}
+
+void DeltaDiffGenerator::FragmentOperations(vector<AnnotatedOperation>* aops) {
+  vector<AnnotatedOperation> fragmented_aops;
+  for (const AnnotatedOperation& aop : *aops) {
+    if (aop.op.type() ==
+            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
+      SplitSourceCopy(aop.op, &fragmented_aops);
+    } else {
+      fragmented_aops.push_back(aop);
+    }
+  }
+  *aops = fragmented_aops;
+}
+
+void DeltaDiffGenerator::SplitSourceCopy(
+    const DeltaArchiveManifest_InstallOperation& original_op,
+    vector<AnnotatedOperation>* result_aops) {
+  // Keeps track of the index of curr_src_ext.
+  int curr_src_ext_index = 0;
+  Extent curr_src_ext = original_op.src_extents(curr_src_ext_index);
+  for (int i = 0; i < original_op.dst_extents_size(); i++) {
+    Extent dst_ext = original_op.dst_extents(i);
+    // The new operation which will have only one dst extent.
+    DeltaArchiveManifest_InstallOperation new_op;
+    uint64_t blocks_left = dst_ext.num_blocks();
+    while (blocks_left > 0) {
+      if (curr_src_ext.num_blocks() <= blocks_left) {
+        // If the curr_src_ext is smaller than dst_ext, add it.
+        blocks_left -= curr_src_ext.num_blocks();
+        *(new_op.add_src_extents()) = curr_src_ext;
+        if (curr_src_ext_index + 1 < original_op.src_extents().size()) {
+          curr_src_ext = original_op.src_extents(++curr_src_ext_index);
+        } else {
+          break;
+        }
+      } else {
+        // Split src_exts that are bigger than the dst_ext we're dealing with.
+        Extent first_ext;
+        first_ext.set_num_blocks(blocks_left);
+        first_ext.set_start_block(curr_src_ext.start_block());
+        *(new_op.add_src_extents()) = first_ext;
+        // Keep the second half of the split op.
+        curr_src_ext.set_num_blocks(curr_src_ext.num_blocks() - blocks_left);
+        curr_src_ext.set_start_block(curr_src_ext.start_block() + blocks_left);
+        blocks_left -= first_ext.num_blocks();
+      }
+    }
+    // Fix up our new operation and add it to the results.
+    new_op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+    *(new_op.add_dst_extents()) = dst_ext;
+    new_op.set_src_length(dst_ext.num_blocks() * kBlockSize);
+    new_op.set_dst_length(dst_ext.num_blocks() * kBlockSize);
+
+    AnnotatedOperation new_aop;
+    new_aop.op = new_op;
+    result_aops->push_back(new_aop);
+  }
+  if (curr_src_ext_index != original_op.src_extents().size() - 1) {
+    LOG(FATAL) << "Incorrectly split SOURCE_COPY operation. Did not use all "
+               << "source extents.";
+  }
 }
 
 };  // namespace chromeos_update_engine

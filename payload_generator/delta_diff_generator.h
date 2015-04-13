@@ -227,6 +227,32 @@ class DeltaDiffGenerator : public OperationsGenerator {
   // Takes a vector of extents and removes extents that begin in a sparse hole.
   static void ClearSparseHoles(std::vector<Extent>* extents);
 
+  // Takes a vector of extents and normalizes those extents. Expects the extents
+  // to be sorted by start block. E.g. if |extents| is [(1, 2), (3, 5), (10, 2)]
+  // then |extents| will be changed to [(1, 7), (10, 2)].
+  static void NormalizeExtents(std::vector<Extent>* extents);
+
+  // Takes a vector of AnnotatedOperations |aops| and fragments those operations
+  // such that there is only one dst extent per operation. Sets |aops| to a
+  // vector of the new fragmented operations. This is only called when delta
+  // minor version is 2.
+  // Currently, this only modifies SOURCE_COPY operations, but it will
+  // eventually fragment all operations.
+  static void FragmentOperations(std::vector<AnnotatedOperation>* aops);
+
+  // Takes an SOURCE_COPY install operation, |original_op|, and adds one
+  // operation for each dst extent in |original_op| to |ops|. The new
+  // operations added to |ops| will have only one dst extent. The src extents
+  // are split so the number of blocks in the src and dst extents are equal.
+  // E.g. we have a SOURCE_COPY operation:
+  //   src extents: [(1, 3), (5, 1), (7, 1)], dst extents: [(2, 2), (6, 3)]
+  // Then we will get 2 new operations:
+  //   1. src extents: [(1, 2)], dst extents: [(2, 2)]
+  //   2. src extents: [(3, 1),(5, 1),(7, 1)], dst extents: [(6, 3)]
+  static void SplitSourceCopy(
+    const DeltaArchiveManifest_InstallOperation& original_op,
+    std::vector<AnnotatedOperation>* ops);
+
  private:
   DISALLOW_COPY_AND_ASSIGN(DeltaDiffGenerator);
 };

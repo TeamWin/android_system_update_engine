@@ -798,4 +798,78 @@ TEST_F(DeltaDiffGeneratorTest, SparseHolesFilteredTest) {
   EXPECT_EQ(extents[1], ExtentForRange(29, 1));
 }
 
+TEST_F(DeltaDiffGeneratorTest, NormalizeExtentsTest) {
+  vector<Extent> extents;
+  AddExtent(0, 3, &extents);
+  // Make sure it works when there's just one extent.
+  DeltaDiffGenerator::NormalizeExtents(&extents);
+  EXPECT_EQ(extents.size(), 1);
+  EXPECT_EQ(extents[0], ExtentForRange(0, 3));
+  AddExtent(3, 2, &extents);
+  AddExtent(5, 1, &extents);
+  AddExtent(8, 4, &extents);
+  AddExtent(13, 1, &extents);
+  AddExtent(14, 2, &extents);
+  DeltaDiffGenerator::NormalizeExtents(&extents);
+  EXPECT_EQ(extents.size(), 3);
+  EXPECT_EQ(extents[0], ExtentForRange(0, 6));
+  EXPECT_EQ(extents[1], ExtentForRange(8, 4));
+  EXPECT_EQ(extents[2], ExtentForRange(13, 3));
+}
+
+TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
+  DeltaArchiveManifest_InstallOperation op;
+  op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+  *(op.add_src_extents()) = ExtentForRange(2, 3);
+  *(op.add_src_extents()) = ExtentForRange(6, 1);
+  *(op.add_src_extents()) = ExtentForRange(8, 4);
+  *(op.add_dst_extents()) = ExtentForRange(10, 2);
+  *(op.add_dst_extents()) = ExtentForRange(14, 3);
+  *(op.add_dst_extents()) = ExtentForRange(18, 3);
+
+  vector<AnnotatedOperation> result_ops;
+  DeltaDiffGenerator::SplitSourceCopy(op, &result_ops);
+  EXPECT_EQ(result_ops.size(), 3);
+
+  DeltaArchiveManifest_InstallOperation first_op = result_ops[0].op;
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
+            first_op.type());
+  EXPECT_EQ(kBlockSize * 2, first_op.src_length());
+  EXPECT_EQ(1, first_op.src_extents().size());
+  EXPECT_EQ(2, first_op.src_extents().Get(0).start_block());
+  EXPECT_EQ(2, first_op.src_extents().Get(0).num_blocks());
+  EXPECT_EQ(kBlockSize * 2, first_op.dst_length());
+  EXPECT_EQ(1, first_op.dst_extents().size());
+  EXPECT_EQ(10, first_op.dst_extents().Get(0).start_block());
+  EXPECT_EQ(2, first_op.dst_extents().Get(0).num_blocks());
+
+  DeltaArchiveManifest_InstallOperation second_op = result_ops[1].op;
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
+            second_op.type());
+  EXPECT_EQ(kBlockSize * 3, second_op.src_length());
+  EXPECT_EQ(3, second_op.src_extents().size());
+  EXPECT_EQ(4, second_op.src_extents().Get(0).start_block());
+  EXPECT_EQ(1, second_op.src_extents().Get(0).num_blocks());
+  EXPECT_EQ(6, second_op.src_extents().Get(1).start_block());
+  EXPECT_EQ(1, second_op.src_extents().Get(1).num_blocks());
+  EXPECT_EQ(8, second_op.src_extents().Get(2).start_block());
+  EXPECT_EQ(1, second_op.src_extents().Get(2).num_blocks());
+  EXPECT_EQ(kBlockSize * 3, second_op.dst_length());
+  EXPECT_EQ(1, second_op.dst_extents().size());
+  EXPECT_EQ(14, second_op.dst_extents().Get(0).start_block());
+  EXPECT_EQ(3, second_op.dst_extents().Get(0).num_blocks());
+
+  DeltaArchiveManifest_InstallOperation third_op = result_ops[2].op;
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
+            third_op.type());
+  EXPECT_EQ(kBlockSize * 3, third_op.src_length());
+  EXPECT_EQ(1, third_op.src_extents().size());
+  EXPECT_EQ(9, third_op.src_extents().Get(0).start_block());
+  EXPECT_EQ(3, third_op.src_extents().Get(0).num_blocks());
+  EXPECT_EQ(kBlockSize * 3, third_op.dst_length());
+  EXPECT_EQ(1, third_op.dst_extents().size());
+  EXPECT_EQ(18, third_op.dst_extents().Get(0).start_block());
+  EXPECT_EQ(3, third_op.dst_extents().Get(0).num_blocks());
+}
+
 }  // namespace chromeos_update_engine
