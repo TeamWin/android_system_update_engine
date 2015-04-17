@@ -747,11 +747,13 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   DeltaPerformerTest::SetSupportedVersion(*performer, minor_version);
 
   EXPECT_EQ(state->image_size,
-            OmahaHashCalculator::RawHashOfFile(state->a_img,
-                                               state->image_size,
-                                               &install_plan.rootfs_hash));
-  EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(state->old_kernel_data,
-                                                 &install_plan.kernel_hash));
+            OmahaHashCalculator::RawHashOfFile(
+                state->a_img,
+                state->image_size,
+                &install_plan.source_rootfs_hash));
+  EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(
+                  state->old_kernel_data,
+                  &install_plan.source_kernel_hash));
 
   // With minor version 2, we want the target to be the new image, result_img,
   // but with version 1, we want to update A in place.

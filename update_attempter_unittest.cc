@@ -17,7 +17,7 @@
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
-#include "update_engine/filesystem_copier_action.h"
+#include "update_engine/filesystem_verifier_action.h"
 #include "update_engine/install_plan.h"
 #include "update_engine/mock_action.h"
 #include "update_engine/mock_action_processor.h"
@@ -299,10 +299,10 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
   EXPECT_EQ(ErrorCode::kOmahaResponseHandlerError,
             GetErrorCodeForAction(&omaha_response_handler_action,
                                   ErrorCode::kError));
-  FilesystemCopierAction filesystem_copier_action(
-      &fake_system_state_, false, false);
-  EXPECT_EQ(ErrorCode::kFilesystemCopierError,
-            GetErrorCodeForAction(&filesystem_copier_action,
+  FilesystemVerifierAction filesystem_verifier_action(
+      &fake_system_state_, PartitionType::kRootfs);
+  EXPECT_EQ(ErrorCode::kFilesystemVerifierError,
+            GetErrorCodeForAction(&filesystem_verifier_action,
                                   ErrorCode::kError));
   PostinstallRunnerAction postinstall_runner_action;
   EXPECT_EQ(ErrorCode::kPostinstallRunnerError,
@@ -459,13 +459,13 @@ namespace {
 const string kUpdateActionTypes[] = {  // NOLINT(runtime/string)
   OmahaRequestAction::StaticType(),
   OmahaResponseHandlerAction::StaticType(),
-  FilesystemCopierAction::StaticType(),
-  FilesystemCopierAction::StaticType(),
+  FilesystemVerifierAction::StaticType(),
+  FilesystemVerifierAction::StaticType(),
   OmahaRequestAction::StaticType(),
   DownloadAction::StaticType(),
   OmahaRequestAction::StaticType(),
-  FilesystemCopierAction::StaticType(),
-  FilesystemCopierAction::StaticType(),
+  FilesystemVerifierAction::StaticType(),
+  FilesystemVerifierAction::StaticType(),
   PostinstallRunnerAction::StaticType(),
   OmahaRequestAction::StaticType()
 };

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "update_engine/filesystem_copier_action.h"
+#include "update_engine/filesystem_verifier_action.h"
 
 #include <fcntl.h>
 
@@ -29,29 +29,26 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-class FilesystemCopierActionTest : public ::testing::Test {
+class FilesystemVerifierActionTest : public ::testing::Test {
  protected:
-  // |verify_hash|: 0 - no hash verification, 1 -- successful hash verification,
-  // 2 -- hash verification failure.
   // Returns true iff test has completed successfully.
-  bool DoTest(bool run_out_of_space,
-              bool terminate_early,
-              bool use_kernel_partition,
-              int verify_hash);
+  bool DoTest(bool terminate_early,
+              bool hash_fail,
+              PartitionType partition_type);
 
   FakeSystemState fake_system_state_;
 };
 
-class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
+class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
  public:
-  FilesystemCopierActionTestDelegate(GMainLoop* loop,
-                                     FilesystemCopierAction* action)
+  FilesystemVerifierActionTestDelegate(GMainLoop* loop,
+                                       FilesystemVerifierAction* action)
       : loop_(loop), action_(action), ran_(false), code_(ErrorCode::kError) {}
   void ExitMainLoop() {
     GMainContext* context = g_main_loop_get_context(loop_);
     // We cannot use g_main_context_pending() alone to determine if it is safe
     // to quit the main loop here because g_main_context_pending() may return
-    // FALSE when g_input_stream_read_async() in FilesystemCopierAction has
+    // FALSE when g_input_stream_read_async() in FilesystemVerifierAction has
     // been cancelled but the callback has not yet been invoked.
     while (g_main_context_pending(context) || action_->IsCleanupPending()) {
       g_main_context_iteration(context, false);
@@ -68,7 +65,7 @@ class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
                        ErrorCode code) {
-    if (action->Type() == FilesystemCopierAction::StaticType()) {
+    if (action->Type() == FilesystemVerifierAction::StaticType()) {
       ran_ = true;
       code_ = code;
     }
@@ -78,14 +75,14 @@ class FilesystemCopierActionTestDelegate : public ActionProcessorDelegate {
 
  private:
   GMainLoop* loop_;
-  FilesystemCopierAction* action_;
+  FilesystemVerifierAction* action_;
   bool ran_;
   ErrorCode code_;
 };
 
 struct StartProcessorCallbackArgs {
   ActionProcessor* processor;
-  FilesystemCopierAction* filesystem_copier_action;
+  FilesystemVerifierAction* filesystem_copier_action;
   bool terminate_early;
 };
 
@@ -105,20 +102,19 @@ gboolean StartProcessorInRunLoop(gpointer data) {
 // details; still trying to track down the root cause for these rare write
 // failures and whether or not they are due to the test setup or an inherent
 // issue with the chroot environment, library versions we use, etc.
-TEST_F(FilesystemCopierActionTest, DISABLED_RunAsRootSimpleTest) {
+TEST_F(FilesystemVerifierActionTest, DISABLED_RunAsRootSimpleTest) {
   ASSERT_EQ(0, getuid());
-  bool test = DoTest(false, false, true, 0);
+  bool test = DoTest(false, false, PartitionType::kKernel);
   EXPECT_TRUE(test);
   if (!test)
     return;
-  test = DoTest(false, false, false, 0);
+  test = DoTest(false, false, PartitionType::kRootfs);
   EXPECT_TRUE(test);
 }
 
-bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
-                                        bool terminate_early,
-                                        bool use_kernel_partition,
-                                        int verify_hash) {
+bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
+                                          bool hash_fail,
+                                          PartitionType partition_type) {
   // We need MockHardware to verify MarkUnbootable calls, but don't want
   // warnings about other usages.
   testing::NiceMock<MockHardware> mock_hardware;
@@ -127,102 +123,95 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
   GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
 
   string a_loop_file;
-  string b_loop_file;
 
-  if (!(utils::MakeTempFile("a_loop_file.XXXXXX", &a_loop_file, nullptr) &&
-        utils::MakeTempFile("b_loop_file.XXXXXX", &b_loop_file, nullptr))) {
+  if (!(utils::MakeTempFile("a_loop_file.XXXXXX", &a_loop_file, nullptr))) {
     ADD_FAILURE();
     return false;
   }
   ScopedPathUnlinker a_loop_file_unlinker(a_loop_file);
-  ScopedPathUnlinker b_loop_file_unlinker(b_loop_file);
 
   // Make random data for a, zero filled data for b.
   const size_t kLoopFileSize = 10 * 1024 * 1024 + 512;
   chromeos::Blob a_loop_data(kLoopFileSize);
   test_utils::FillWithData(&a_loop_data);
-  chromeos::Blob b_loop_data(run_out_of_space ?
-                             (kLoopFileSize - 1) :
-                             kLoopFileSize,
-                             0);  // Fill with 0s
+
 
   // Write data to disk
-  if (!(test_utils::WriteFileVector(a_loop_file, a_loop_data) &&
-        test_utils::WriteFileVector(b_loop_file, b_loop_data))) {
+  if (!(test_utils::WriteFileVector(a_loop_file, a_loop_data))) {
     ADD_FAILURE();
     return false;
   }
 
   // Attach loop devices to the files
   string a_dev;
-  string b_dev;
-
   test_utils::ScopedLoopbackDeviceBinder a_dev_releaser(a_loop_file, &a_dev);
-  test_utils::ScopedLoopbackDeviceBinder b_dev_releaser(b_loop_file, &b_dev);
-  if (!(a_dev_releaser.is_bound() && b_dev_releaser.is_bound())) {
+  if (!(a_dev_releaser.is_bound())) {
     ADD_FAILURE();
     return false;
   }
 
-  LOG(INFO) << "copying: "
-            << a_loop_file << " (" << a_dev << ") -> "
-            << b_loop_file << " (" << b_dev << ", "
-            << kLoopFileSize << " bytes";
+  LOG(INFO) << "verifying: "  << a_loop_file << " (" << a_dev << ")";
+
   bool success = true;
 
   // Set up the action objects
   InstallPlan install_plan;
-  if (verify_hash) {
-    if (use_kernel_partition) {
-      install_plan.kernel_install_path = a_dev;
-      install_plan.kernel_size =
-          kLoopFileSize - ((verify_hash == 2) ? 1 : 0);
-      if (!OmahaHashCalculator::RawHashOfData(a_loop_data,
-                                              &install_plan.kernel_hash)) {
-        ADD_FAILURE();
-        success = false;
-      }
-    } else {
+  switch (partition_type) {
+    case PartitionType::kRootfs:
+      install_plan.rootfs_size = kLoopFileSize - (hash_fail ? 1 : 0);
       install_plan.install_path = a_dev;
-      install_plan.rootfs_size =
-          kLoopFileSize - ((verify_hash == 2) ? 1 : 0);
-      if (!OmahaHashCalculator::RawHashOfData(a_loop_data,
-                                              &install_plan.rootfs_hash)) {
+      if (!OmahaHashCalculator::RawHashOfData(
+          a_loop_data, &install_plan.rootfs_hash)) {
         ADD_FAILURE();
         success = false;
       }
-    }
-  } else {
-    if (use_kernel_partition) {
-      install_plan.kernel_install_path = b_dev;
-    } else {
-      install_plan.install_path = b_dev;
-    }
+      break;
+    case PartitionType::kKernel:
+      install_plan.kernel_size = kLoopFileSize - (hash_fail ? 1 : 0);
+      install_plan.kernel_install_path = a_dev;
+      if (!OmahaHashCalculator::RawHashOfData(
+          a_loop_data, &install_plan.kernel_hash)) {
+        ADD_FAILURE();
+        success = false;
+      }
+      break;
+    case PartitionType::kSourceRootfs:
+      install_plan.source_path = a_dev;
+      if (!OmahaHashCalculator::RawHashOfData(
+          a_loop_data, &install_plan.source_rootfs_hash)) {
+        ADD_FAILURE();
+        success = false;
+      }
+      break;
+    case PartitionType::kSourceKernel:
+      install_plan.kernel_source_path = a_dev;
+      if (!OmahaHashCalculator::RawHashOfData(
+          a_loop_data, &install_plan.source_kernel_hash)) {
+        ADD_FAILURE();
+        success = false;
+      }
+      break;
   }
 
   EXPECT_CALL(mock_hardware,
-              MarkKernelUnbootable(a_dev)).Times(use_kernel_partition ? 1 : 0);
+              MarkKernelUnbootable(a_dev)).Times(
+                  partition_type == PartitionType::kKernel ? 1 : 0);
 
   ActionProcessor processor;
 
   ObjectFeederAction<InstallPlan> feeder_action;
-  FilesystemCopierAction copier_action(&fake_system_state_,
-                                       use_kernel_partition,
-                                       verify_hash != 0);
+  FilesystemVerifierAction copier_action(&fake_system_state_, partition_type);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&feeder_action, &copier_action);
   BondActions(&copier_action, &collector_action);
 
-  FilesystemCopierActionTestDelegate delegate(loop, &copier_action);
+  FilesystemVerifierActionTestDelegate delegate(loop, &copier_action);
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&feeder_action);
   processor.EnqueueAction(&copier_action);
   processor.EnqueueAction(&collector_action);
 
-  if (!verify_hash) {
-    copier_action.set_copy_source(a_dev);
-  }
   feeder_action.set_obj(install_plan);
 
   StartProcessorCallbackArgs start_callback_args;
@@ -238,14 +227,14 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
     bool is_delegate_ran = delegate.ran();
     EXPECT_TRUE(is_delegate_ran);
     success = success && is_delegate_ran;
-  }
-  if (run_out_of_space || terminate_early) {
+  } else {
     EXPECT_EQ(ErrorCode::kError, delegate.code());
     return (ErrorCode::kError == delegate.code());
   }
-  if (verify_hash == 2) {
+  if (hash_fail) {
     ErrorCode expected_exit_code =
-        (use_kernel_partition ?
+        ((partition_type == PartitionType::kKernel ||
+          partition_type == PartitionType::kSourceKernel) ?
          ErrorCode::kNewKernelVerificationError :
          ErrorCode::kNewRootfsVerificationError);
     EXPECT_EQ(expected_exit_code, delegate.code());
@@ -263,16 +252,6 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
       test_utils::ExpectVectorsEq(a_loop_data, a_out);
   EXPECT_TRUE(is_a_file_reading_eq);
   success = success && is_a_file_reading_eq;
-  if (!verify_hash) {
-    chromeos::Blob b_out;
-    if (!utils::ReadFile(b_dev, &b_out)) {
-      ADD_FAILURE();
-      return false;
-    }
-    const bool is_b_file_reading_eq = test_utils::ExpectVectorsEq(a_out, b_out);
-    EXPECT_TRUE(is_b_file_reading_eq);
-    success = success && is_b_file_reading_eq;
-  }
 
   bool is_install_plan_eq = (collector_action.object() == install_plan);
   EXPECT_TRUE(is_install_plan_eq);
@@ -283,17 +262,17 @@ bool FilesystemCopierActionTest::DoTest(bool run_out_of_space,
   EXPECT_TRUE(mock_hardware.fake().IsKernelBootable(a_dev, &bootable));
   // We should always mark a partition as unbootable if it's a kernel
   // partition, but never if it's anything else.
-  EXPECT_EQ(bootable, !use_kernel_partition);
+  EXPECT_EQ(bootable, (partition_type != PartitionType::kKernel));
 
   return success;
 }
 
-class FilesystemCopierActionTest2Delegate : public ActionProcessorDelegate {
+class FilesystemVerifierActionTest2Delegate : public ActionProcessorDelegate {
  public:
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
                        ErrorCode code) {
-    if (action->Type() == FilesystemCopierAction::StaticType()) {
+    if (action->Type() == FilesystemVerifierAction::StaticType()) {
       ran_ = true;
       code_ = code;
     }
@@ -303,13 +282,14 @@ class FilesystemCopierActionTest2Delegate : public ActionProcessorDelegate {
   ErrorCode code_;
 };
 
-TEST_F(FilesystemCopierActionTest, MissingInputObjectTest) {
+TEST_F(FilesystemVerifierActionTest, MissingInputObjectTest) {
   ActionProcessor processor;
-  FilesystemCopierActionTest2Delegate delegate;
+  FilesystemVerifierActionTest2Delegate delegate;
 
   processor.set_delegate(&delegate);
 
-  FilesystemCopierAction copier_action(&fake_system_state_, false, false);
+  FilesystemVerifierAction copier_action(&fake_system_state_,
+                                         PartitionType::kRootfs);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&copier_action, &collector_action);
@@ -322,35 +302,9 @@ TEST_F(FilesystemCopierActionTest, MissingInputObjectTest) {
   EXPECT_EQ(ErrorCode::kError, delegate.code_);
 }
 
-TEST_F(FilesystemCopierActionTest, ResumeTest) {
+TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
   ActionProcessor processor;
-  FilesystemCopierActionTest2Delegate delegate;
-
-  processor.set_delegate(&delegate);
-
-  ObjectFeederAction<InstallPlan> feeder_action;
-  const char* kUrl = "http://some/url";
-  InstallPlan install_plan(false, true, kUrl, 0, "", 0, "", "", "", "", "", "");
-  feeder_action.set_obj(install_plan);
-  FilesystemCopierAction copier_action(&fake_system_state_, false, false);
-  ObjectCollectorAction<InstallPlan> collector_action;
-
-  BondActions(&feeder_action, &copier_action);
-  BondActions(&copier_action, &collector_action);
-
-  processor.EnqueueAction(&feeder_action);
-  processor.EnqueueAction(&copier_action);
-  processor.EnqueueAction(&collector_action);
-  processor.StartProcessing();
-  EXPECT_FALSE(processor.IsRunning());
-  EXPECT_TRUE(delegate.ran_);
-  EXPECT_EQ(ErrorCode::kSuccess, delegate.code_);
-  EXPECT_EQ(kUrl, collector_action.object().download_url);
-}
-
-TEST_F(FilesystemCopierActionTest, NonExistentDriveTest) {
-  ActionProcessor processor;
-  FilesystemCopierActionTest2Delegate delegate;
+  FilesystemVerifierActionTest2Delegate delegate;
 
   processor.set_delegate(&delegate);
 
@@ -368,13 +322,14 @@ TEST_F(FilesystemCopierActionTest, NonExistentDriveTest) {
                            "/no/such/file",
                            "");
   feeder_action.set_obj(install_plan);
-  FilesystemCopierAction copier_action(&fake_system_state_, false, false);
+  FilesystemVerifierAction verifier_action(&fake_system_state_,
+                                           PartitionType::kRootfs);
   ObjectCollectorAction<InstallPlan> collector_action;
 
-  BondActions(&copier_action, &collector_action);
+  BondActions(&verifier_action, &collector_action);
 
   processor.EnqueueAction(&feeder_action);
-  processor.EnqueueAction(&copier_action);
+  processor.EnqueueAction(&verifier_action);
   processor.EnqueueAction(&collector_action);
   processor.StartProcessing();
   EXPECT_FALSE(processor.IsRunning());
@@ -382,29 +337,26 @@ TEST_F(FilesystemCopierActionTest, NonExistentDriveTest) {
   EXPECT_EQ(ErrorCode::kError, delegate.code_);
 }
 
-TEST_F(FilesystemCopierActionTest, RunAsRootVerifyHashTest) {
+TEST_F(FilesystemVerifierActionTest, RunAsRootVerifyHashTest) {
   ASSERT_EQ(0, getuid());
-  EXPECT_TRUE(DoTest(false, false, false, 1));
-  EXPECT_TRUE(DoTest(false, false, true, 1));
+  EXPECT_TRUE(DoTest(false, false, PartitionType::kRootfs));
+  EXPECT_TRUE(DoTest(false, false, PartitionType::kKernel));
+  EXPECT_TRUE(DoTest(false, false, PartitionType::kSourceRootfs));
+  EXPECT_TRUE(DoTest(false, false, PartitionType::kSourceKernel));
 }
 
-TEST_F(FilesystemCopierActionTest, RunAsRootVerifyHashFailTest) {
+TEST_F(FilesystemVerifierActionTest, RunAsRootVerifyHashFailTest) {
   ASSERT_EQ(0, getuid());
-  EXPECT_TRUE(DoTest(false, false, false, 2));
-  EXPECT_TRUE(DoTest(false, false, true, 2));
+  EXPECT_TRUE(DoTest(false, true, PartitionType::kRootfs));
+  EXPECT_TRUE(DoTest(false, true, PartitionType::kKernel));
 }
 
-TEST_F(FilesystemCopierActionTest, RunAsRootNoSpaceTest) {
+TEST_F(FilesystemVerifierActionTest, RunAsRootTerminateEarlyTest) {
   ASSERT_EQ(0, getuid());
-  EXPECT_TRUE(DoTest(true, false, false, 0));
+  EXPECT_TRUE(DoTest(true, false, PartitionType::kKernel));
 }
 
-TEST_F(FilesystemCopierActionTest, RunAsRootTerminateEarlyTest) {
-  ASSERT_EQ(0, getuid());
-  EXPECT_TRUE(DoTest(false, true, false, 0));
-}
-
-TEST_F(FilesystemCopierActionTest, RunAsRootDetermineFilesystemSizeTest) {
+TEST_F(FilesystemVerifierActionTest, RunAsRootDetermineFilesystemSizeTest) {
   string img;
   EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, nullptr));
   ScopedPathUnlinker img_unlinker(img);
@@ -416,19 +368,19 @@ TEST_F(FilesystemCopierActionTest, RunAsRootDetermineFilesystemSizeTest) {
   EXPECT_EQ(20 * 1024 * 1024, utils::FileSize(img));
 
   for (int i = 0; i < 2; ++i) {
-    bool is_kernel = i == 1;
-    FilesystemCopierAction action(&fake_system_state_, is_kernel, false);
-    EXPECT_EQ(kint64max, action.filesystem_size_);
+    PartitionType fs_type =
+        i ? PartitionType::kSourceKernel : PartitionType::kSourceRootfs;
+    FilesystemVerifierAction action(&fake_system_state_, fs_type);
+    EXPECT_EQ(kint64max, action.remaining_size_);
     {
       int fd = HANDLE_EINTR(open(img.c_str(), O_RDONLY));
       EXPECT_GT(fd, 0);
       ScopedFdCloser fd_closer(&fd);
       action.DetermineFilesystemSize(fd);
     }
-    EXPECT_EQ(is_kernel ? kint64max : 10 * 1024 * 1024,
-              action.filesystem_size_);
+    EXPECT_EQ(i ? kint64max : 10 * 1024 * 1024,
+              action.remaining_size_);
   }
 }
-
 
 }  // namespace chromeos_update_engine

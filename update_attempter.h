@@ -20,7 +20,6 @@
 #include "update_engine/action_processor.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/download_action.h"
-#include "update_engine/filesystem_copier_action.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/proxy_resolver.h"

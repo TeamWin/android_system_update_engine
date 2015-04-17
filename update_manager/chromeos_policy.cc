@@ -116,6 +116,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kPostinstallPowerwashError:
     case ErrorCode::kUpdateCanceledByChannelChange:
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
+    case ErrorCode::kFilesystemVerifierError:
       LOG(INFO) << "Not changing URL index or failure count due to error "
                 << chromeos_update_engine::utils::CodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";

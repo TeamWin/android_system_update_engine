@@ -32,7 +32,7 @@
 #include "update_engine/dbus_service.h"
 #include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/download_action.h"
-#include "update_engine/filesystem_copier_action.h"
+#include "update_engine/filesystem_verifier_action.h"
 #include "update_engine/glib_utils.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/libcurl_http_fetcher.h"
@@ -110,7 +110,7 @@ const char* UpdateStatusToString(UpdateStatus status) {
 }
 
 // Turns a generic ErrorCode::kError to a generic error code specific
-// to |action| (e.g., ErrorCode::kFilesystemCopierError). If |code| is
+// to |action| (e.g., ErrorCode::kFilesystemVerifierError). If |code| is
 // not ErrorCode::kError, or the action is not matched, returns |code|
 // unchanged.
 ErrorCode GetErrorCodeForAction(AbstractAction* action,
@@ -123,8 +123,8 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
     return ErrorCode::kOmahaRequestError;
   if (type == OmahaResponseHandlerAction::StaticType())
     return ErrorCode::kOmahaResponseHandlerError;
-  if (type == FilesystemCopierAction::StaticType())
-    return ErrorCode::kFilesystemCopierError;
+  if (type == FilesystemVerifierAction::StaticType())
+    return ErrorCode::kFilesystemVerifierError;
   if (type == PostinstallRunnerAction::StaticType())
     return ErrorCode::kPostinstallRunnerError;
 
@@ -604,11 +604,12 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                              false));
   shared_ptr<OmahaResponseHandlerAction> response_handler_action(
       new OmahaResponseHandlerAction(system_state_));
-  // We start with the kernel so it's marked as invalid more quickly.
-  shared_ptr<FilesystemCopierAction> kernel_filesystem_copier_action(
-      new FilesystemCopierAction(system_state_, true, false));
-  shared_ptr<FilesystemCopierAction> filesystem_copier_action(
-      new FilesystemCopierAction(system_state_, false, false));
+  shared_ptr<FilesystemVerifierAction> src_filesystem_verifier_action(
+      new FilesystemVerifierAction(system_state_,
+                                   PartitionType::kSourceRootfs));
+  shared_ptr<FilesystemVerifierAction> src_kernel_filesystem_verifier_action(
+      new FilesystemVerifierAction(system_state_,
+                                   PartitionType::kSourceKernel));
 
   shared_ptr<OmahaRequestAction> download_started_action(
       new OmahaRequestAction(system_state_,
@@ -632,10 +633,10 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                              new LibcurlHttpFetcher(GetProxyResolver(),
                                                     system_state_),
                              false));
-  shared_ptr<FilesystemCopierAction> filesystem_verifier_action(
-      new FilesystemCopierAction(system_state_, false, true));
-  shared_ptr<FilesystemCopierAction> kernel_filesystem_verifier_action(
-      new FilesystemCopierAction(system_state_, true, true));
+  shared_ptr<FilesystemVerifierAction> dst_filesystem_verifier_action(
+      new FilesystemVerifierAction(system_state_, PartitionType::kRootfs));
+  shared_ptr<FilesystemVerifierAction> dst_kernel_filesystem_verifier_action(
+      new FilesystemVerifierAction(system_state_, PartitionType::kKernel));
   shared_ptr<OmahaRequestAction> update_complete_action(
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
@@ -649,32 +650,34 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
 
   actions_.push_back(shared_ptr<AbstractAction>(update_check_action));
   actions_.push_back(shared_ptr<AbstractAction>(response_handler_action));
-  actions_.push_back(shared_ptr<AbstractAction>(filesystem_copier_action));
   actions_.push_back(shared_ptr<AbstractAction>(
-      kernel_filesystem_copier_action));
+      src_filesystem_verifier_action));
+  actions_.push_back(shared_ptr<AbstractAction>(
+      src_kernel_filesystem_verifier_action));
   actions_.push_back(shared_ptr<AbstractAction>(download_started_action));
   actions_.push_back(shared_ptr<AbstractAction>(download_action));
   actions_.push_back(shared_ptr<AbstractAction>(download_finished_action));
-  actions_.push_back(shared_ptr<AbstractAction>(filesystem_verifier_action));
-    actions_.push_back(shared_ptr<AbstractAction>(
-        kernel_filesystem_verifier_action));
+  actions_.push_back(shared_ptr<AbstractAction>(
+      dst_filesystem_verifier_action));
+  actions_.push_back(shared_ptr<AbstractAction>(
+      dst_kernel_filesystem_verifier_action));
 
   // Bond them together. We have to use the leaf-types when calling
   // BondActions().
   BondActions(update_check_action.get(),
               response_handler_action.get());
   BondActions(response_handler_action.get(),
-              filesystem_copier_action.get());
-  BondActions(filesystem_copier_action.get(),
-              kernel_filesystem_copier_action.get());
-  BondActions(kernel_filesystem_copier_action.get(),
+              src_filesystem_verifier_action.get());
+  BondActions(src_filesystem_verifier_action.get(),
+              src_kernel_filesystem_verifier_action.get());
+  BondActions(src_kernel_filesystem_verifier_action.get(),
               download_action.get());
   BondActions(download_action.get(),
-              filesystem_verifier_action.get());
-  BondActions(filesystem_verifier_action.get(),
-              kernel_filesystem_verifier_action.get());
+              dst_filesystem_verifier_action.get());
+  BondActions(dst_filesystem_verifier_action.get(),
+              dst_kernel_filesystem_verifier_action.get());
 
-  BuildPostInstallActions(kernel_filesystem_verifier_action.get());
+  BuildPostInstallActions(dst_kernel_filesystem_verifier_action.get());
 
   actions_.push_back(shared_ptr<AbstractAction>(update_complete_action));
 

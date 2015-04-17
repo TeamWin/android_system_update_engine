@@ -1386,15 +1386,16 @@ bool DeltaPerformer::VerifySourcePartitions() {
   if (manifest_.has_old_kernel_info()) {
     const PartitionInfo& info = manifest_.old_kernel_info();
     bool valid =
-        !install_plan_->kernel_hash.empty() &&
-        install_plan_->kernel_hash.size() == info.hash().size() &&
-        memcmp(install_plan_->kernel_hash.data(),
+        !install_plan_->source_kernel_hash.empty() &&
+        install_plan_->source_kernel_hash.size() == info.hash().size() &&
+        memcmp(install_plan_->source_kernel_hash.data(),
                info.hash().data(),
-               install_plan_->kernel_hash.size()) == 0;
+               install_plan_->source_kernel_hash.size()) == 0;
     if (!valid) {
       LogVerifyError(true,
-                     StringForHashBytes(install_plan_->kernel_hash.data(),
-                                        install_plan_->kernel_hash.size()),
+                     StringForHashBytes(
+                         install_plan_->source_kernel_hash.data(),
+                         install_plan_->source_kernel_hash.size()),
                      StringForHashBytes(info.hash().data(),
                                         info.hash().size()));
     }
@@ -1403,15 +1404,16 @@ bool DeltaPerformer::VerifySourcePartitions() {
   if (manifest_.has_old_rootfs_info()) {
     const PartitionInfo& info = manifest_.old_rootfs_info();
     bool valid =
-        !install_plan_->rootfs_hash.empty() &&
-        install_plan_->rootfs_hash.size() == info.hash().size() &&
-        memcmp(install_plan_->rootfs_hash.data(),
+        !install_plan_->source_rootfs_hash.empty() &&
+        install_plan_->source_rootfs_hash.size() == info.hash().size() &&
+        memcmp(install_plan_->source_rootfs_hash.data(),
                info.hash().data(),
-               install_plan_->rootfs_hash.size()) == 0;
+               install_plan_->source_rootfs_hash.size()) == 0;
     if (!valid) {
       LogVerifyError(false,
-                     StringForHashBytes(install_plan_->rootfs_hash.data(),
-                                        install_plan_->rootfs_hash.size()),
+                     StringForHashBytes(
+                         install_plan_->source_rootfs_hash.data(),
+                         install_plan_->source_rootfs_hash.size()),
                      StringForHashBytes(info.hash().data(),
                                         info.hash().size()));
     }

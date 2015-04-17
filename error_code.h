@@ -58,6 +58,7 @@ enum class ErrorCode : int {
   kUnsupportedMajorPayloadVersion = 44,
   kUnsupportedMinorPayloadVersion = 45,
   kOmahaRequestXMLHasEntityDecl = 46,
+  kFilesystemVerifierError = 47,
 
   // VERY IMPORTANT! When adding new error codes:
   //

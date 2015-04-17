@@ -1125,6 +1125,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kKernelDeviceOpenError:
     case ErrorCode::kDownloadWriteError:
     case ErrorCode::kFilesystemCopierError:
+    case ErrorCode::kFilesystemVerifierError:
       return metrics::AttemptResult::kOperationExecutionError;
 
     case ErrorCode::kDownloadMetadataSignatureMismatch:
@@ -1262,6 +1263,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kUnsupportedMajorPayloadVersion:
     case ErrorCode::kUnsupportedMinorPayloadVersion:
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
+    case ErrorCode::kFilesystemVerifierError:
       break;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -1481,6 +1483,8 @@ string CodeToString(ErrorCode code) {
       return "ErrorCode::kUnsupportedMinorPayloadVersion";
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
       return "ErrorCode::kOmahaRequestXMLHasEntityDecl";
+    case ErrorCode::kFilesystemVerifierError:
+      return "ErrorCode::kFilesystemVerifierError";
     // Don't add a default case to let the compiler warn about newly added
     // error codes which should be added here.
   }

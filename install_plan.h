@@ -56,19 +56,21 @@ struct InstallPlan {
 
   // The fields below are used for kernel and rootfs verification. The flow is:
   //
-  // 1. FilesystemCopierAction(verify_hash=false) computes and fills in the
-  // source partition sizes and hashes.
+  // 1. FilesystemVerifierAction computes and fills in the source partition
+  // sizes and hashes.
   //
   // 2. DownloadAction verifies the source partition sizes and hashes against
   // the expected values transmitted in the update manifest. It fills in the
   // expected applied partition sizes and hashes based on the manifest.
   //
-  // 4. FilesystemCopierAction(verify_hashes=true) computes and verifies the
-  // applied partition sizes and hashes against the expected values.
+  // 3. FilesystemVerifierAction computes and verifies the applied and source
+  // partition sizes and hashes against the expected values.
   uint64_t kernel_size;
   uint64_t rootfs_size;
   chromeos::Blob kernel_hash;
   chromeos::Blob rootfs_hash;
+  chromeos::Blob source_kernel_hash;
+  chromeos::Blob source_rootfs_hash;
 
   // True if payload hash checks are mandatory based on the system state and
   // the Omaha response.
