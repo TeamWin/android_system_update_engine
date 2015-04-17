@@ -218,10 +218,21 @@ bool ReadFilesystemMetadata(Graph* graph,
     struct ext2_group_desc* group_desc = ext2fs_group_desc(fs_old,
                                                            fs_old->group_desc,
                                                            bg);
+    __u32 bg_start_block = bg * fs_old->super->s_blocks_per_group;
+
+    if (group_desc->bg_inode_table < bg_start_block ||
+        (group_desc->bg_inode_table + fs_old->inode_blocks_per_group >
+         bg_start_block + fs_old->super->s_blocks_per_group)) {
+      LOG(WARNING) << "The inode table for this block group is outside the "
+                   << "block group. Skipping.";
+      continue;
+    }
+    // We consider metadata all the blocks from the beginning of the block group
+    // up to and including the inode table. This includes also the inode and
+    // block bitmaps stored before it.
     __u32 num_metadata_blocks = (group_desc->bg_inode_table +
                                  fs_old->inode_blocks_per_group) -
-                                 (bg * fs_old->super->s_blocks_per_group);
-    __u32 bg_start_block = bg * fs_old->super->s_blocks_per_group;
+                                 bg_start_block;
 
     // Due to bsdiff slowness, we're going to break each block group down
     // into metadata chunks and feed them to bsdiff.
