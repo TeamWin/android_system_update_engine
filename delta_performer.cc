@@ -47,7 +47,7 @@ namespace chromeos_update_engine {
 const uint64_t DeltaPerformer::kDeltaVersionSize = 8;
 const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 1;
-const uint64_t DeltaPerformer::kSupportedMinorPayloadVersion = 2;
+const uint64_t DeltaPerformer::kSupportedMinorPayloadVersion = 1;
 const uint64_t DeltaPerformer::kFullPayloadMinorVersion = 0;
 
 const char DeltaPerformer::kUpdatePayloadPublicKeyPath[] =
