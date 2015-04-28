@@ -827,10 +827,14 @@ TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
   *(op.add_dst_extents()) = ExtentForRange(14, 3);
   *(op.add_dst_extents()) = ExtentForRange(18, 3);
 
+  AnnotatedOperation aop;
+  aop.op = op;
+  aop.name = "SplitSourceCopyTestOp";
   vector<AnnotatedOperation> result_ops;
-  DeltaDiffGenerator::SplitSourceCopy(op, &result_ops);
+  EXPECT_TRUE(DeltaDiffGenerator::SplitSourceCopy(aop, &result_ops));
   EXPECT_EQ(result_ops.size(), 3);
 
+  EXPECT_EQ("SplitSourceCopyTestOp:0", result_ops[0].name);
   DeltaArchiveManifest_InstallOperation first_op = result_ops[0].op;
   EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
             first_op.type());
@@ -843,6 +847,7 @@ TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ(10, first_op.dst_extents().Get(0).start_block());
   EXPECT_EQ(2, first_op.dst_extents().Get(0).num_blocks());
 
+  EXPECT_EQ("SplitSourceCopyTestOp:1", result_ops[1].name);
   DeltaArchiveManifest_InstallOperation second_op = result_ops[1].op;
   EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
             second_op.type());
@@ -859,6 +864,7 @@ TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ(14, second_op.dst_extents().Get(0).start_block());
   EXPECT_EQ(3, second_op.dst_extents().Get(0).num_blocks());
 
+  EXPECT_EQ("SplitSourceCopyTestOp:2", result_ops[2].name);
   DeltaArchiveManifest_InstallOperation third_op = result_ops[2].op;
   EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
             third_op.type());
@@ -870,6 +876,46 @@ TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ(1, third_op.dst_extents().size());
   EXPECT_EQ(18, third_op.dst_extents().Get(0).start_block());
   EXPECT_EQ(3, third_op.dst_extents().Get(0).num_blocks());
+}
+
+TEST_F(DeltaDiffGeneratorTest, SplitReplaceTest) {
+  uint32_t data_offset = 5555;
+
+  DeltaArchiveManifest_InstallOperation op;
+  op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  *(op.add_dst_extents()) = ExtentForRange(2, 2);
+  *(op.add_dst_extents()) = ExtentForRange(6, 1);
+  op.set_data_length(3 * kBlockSize);
+  op.set_data_offset(data_offset);
+
+  AnnotatedOperation aop;
+  aop.op = op;
+  aop.name = "SplitReplaceTestOp";
+  vector<AnnotatedOperation> result_ops;
+  EXPECT_TRUE(DeltaDiffGenerator::SplitReplace(aop, &result_ops));
+  EXPECT_EQ(result_ops.size(), 2);
+
+  EXPECT_EQ("SplitReplaceTestOp:0", result_ops[0].name);
+  DeltaArchiveManifest_InstallOperation first_op = result_ops[0].op;
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE,
+            first_op.type());
+  EXPECT_EQ(2 * kBlockSize, first_op.dst_length());
+  EXPECT_EQ(2 * kBlockSize, first_op.data_length());
+  EXPECT_EQ(data_offset, first_op.data_offset());
+  EXPECT_EQ(1, first_op.dst_extents().size());
+  EXPECT_EQ(2, first_op.dst_extents().Get(0).start_block());
+  EXPECT_EQ(2, first_op.dst_extents().Get(0).num_blocks());
+
+  EXPECT_EQ("SplitReplaceTestOp:1", result_ops[1].name);
+  DeltaArchiveManifest_InstallOperation second_op = result_ops[1].op;
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE,
+            second_op.type());
+  EXPECT_EQ(kBlockSize, second_op.dst_length());
+  EXPECT_EQ(kBlockSize, second_op.data_length());
+  EXPECT_EQ(data_offset + (2 * kBlockSize), second_op.data_offset());
+  EXPECT_EQ(1, second_op.dst_extents().size());
+  EXPECT_EQ(6, second_op.dst_extents().Get(0).start_block());
+  EXPECT_EQ(1, second_op.dst_extents().Get(0).num_blocks());
 }
 
 }  // namespace chromeos_update_engine

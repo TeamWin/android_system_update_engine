@@ -238,20 +238,25 @@ class DeltaDiffGenerator : public OperationsGenerator {
   // minor version is 2.
   // Currently, this only modifies SOURCE_COPY operations, but it will
   // eventually fragment all operations.
-  static void FragmentOperations(std::vector<AnnotatedOperation>* aops);
+  static bool FragmentOperations(std::vector<AnnotatedOperation>* aops);
 
-  // Takes an SOURCE_COPY install operation, |original_op|, and adds one
-  // operation for each dst extent in |original_op| to |ops|. The new
-  // operations added to |ops| will have only one dst extent. The src extents
-  // are split so the number of blocks in the src and dst extents are equal.
+  // Takes an SOURCE_COPY install operation, |aop|, and adds one operation for
+  // each dst extent in |aop| to |ops|. The new operations added to |ops| will
+  // have only one dst extent. The src extents are split so the number of blocks
+  // in the src and dst extents are equal.
   // E.g. we have a SOURCE_COPY operation:
   //   src extents: [(1, 3), (5, 1), (7, 1)], dst extents: [(2, 2), (6, 3)]
   // Then we will get 2 new operations:
   //   1. src extents: [(1, 2)], dst extents: [(2, 2)]
   //   2. src extents: [(3, 1),(5, 1),(7, 1)], dst extents: [(6, 3)]
-  static void SplitSourceCopy(
-    const DeltaArchiveManifest_InstallOperation& original_op,
-    std::vector<AnnotatedOperation>* ops);
+  static bool SplitSourceCopy(const AnnotatedOperation& original_aop,
+                              std::vector<AnnotatedOperation>* result_aops);
+
+  // Takes a REPLACE operation, |aop|, and adds one operation for each dst
+  // extent in |aop| to |ops|. The new operations added to |ops| will have only
+  // one dst extent each.
+  static bool SplitReplace(const AnnotatedOperation& original_aop,
+                           std::vector<AnnotatedOperation>* result_aops);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DeltaDiffGenerator);

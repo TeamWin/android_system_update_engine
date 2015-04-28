@@ -975,10 +975,8 @@ bool DeltaDiffGenerator::AddOperationHash(
     DeltaArchiveManifest_InstallOperation* op,
     const chromeos::Blob& buf) {
   OmahaHashCalculator hasher;
-
   TEST_AND_RETURN_FALSE(hasher.Update(buf.data(), buf.size()));
   TEST_AND_RETURN_FALSE(hasher.Finalize());
-
   const chromeos::Blob& hash = hasher.raw_hash();
   op->set_data_sha256_hash(hash.data(), hash.size());
   return true;
@@ -1046,8 +1044,8 @@ bool DeltaDiffGenerator::GenerateOperations(
   }
 
   // Fragment operations so we can sort them later.
-  FragmentOperations(rootfs_ops);
-  FragmentOperations(kernel_ops);
+  TEST_AND_RETURN_FALSE(FragmentOperations(rootfs_ops));
+  TEST_AND_RETURN_FALSE(FragmentOperations(kernel_ops));
 
   return true;
 }
@@ -1336,22 +1334,29 @@ void DeltaDiffGenerator::NormalizeExtents(vector<Extent>* extents) {
   *extents = new_extents;
 }
 
-void DeltaDiffGenerator::FragmentOperations(vector<AnnotatedOperation>* aops) {
+bool DeltaDiffGenerator::FragmentOperations(vector<AnnotatedOperation>* aops) {
   vector<AnnotatedOperation> fragmented_aops;
   for (const AnnotatedOperation& aop : *aops) {
     if (aop.op.type() ==
-            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
-      SplitSourceCopy(aop.op, &fragmented_aops);
+        DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
+      TEST_AND_RETURN_FALSE(SplitSourceCopy(aop, &fragmented_aops));
+    } else if (aop.op.type() ==
+               DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
+      TEST_AND_RETURN_FALSE(SplitReplace(aop, &fragmented_aops));
     } else {
       fragmented_aops.push_back(aop);
     }
   }
   *aops = fragmented_aops;
+  return true;
 }
 
-void DeltaDiffGenerator::SplitSourceCopy(
-    const DeltaArchiveManifest_InstallOperation& original_op,
+bool DeltaDiffGenerator::SplitSourceCopy(
+    const AnnotatedOperation& original_aop,
     vector<AnnotatedOperation>* result_aops) {
+  DeltaArchiveManifest_InstallOperation original_op = original_aop.op;
+  TEST_AND_RETURN_FALSE(original_op.type() ==
+                        DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
   // Keeps track of the index of curr_src_ext.
   int curr_src_ext_index = 0;
   Extent curr_src_ext = original_op.src_extents(curr_src_ext_index);
@@ -1390,12 +1395,45 @@ void DeltaDiffGenerator::SplitSourceCopy(
 
     AnnotatedOperation new_aop;
     new_aop.op = new_op;
+    new_aop.name = base::StringPrintf("%s:%d", original_aop.name.c_str(), i);
     result_aops->push_back(new_aop);
   }
   if (curr_src_ext_index != original_op.src_extents().size() - 1) {
     LOG(FATAL) << "Incorrectly split SOURCE_COPY operation. Did not use all "
                << "source extents.";
   }
+  return true;
+}
+
+bool DeltaDiffGenerator::SplitReplace(const AnnotatedOperation& original_aop,
+                                      vector<AnnotatedOperation>* result_aops) {
+  DeltaArchiveManifest_InstallOperation original_op = original_aop.op;
+  DeltaArchiveManifest_InstallOperation_Type op_type = original_op.type();
+  TEST_AND_RETURN_FALSE(op_type ==
+                        DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  uint32_t data_offset = original_op.data_offset();
+  for (int i = 0; i < original_op.dst_extents_size(); i++) {
+    Extent dst_ext = original_op.dst_extents(i);
+    // Make a new operation with only one dst extent.
+    DeltaArchiveManifest_InstallOperation new_op;
+    *(new_op.add_dst_extents()) = dst_ext;
+    new_op.set_type(op_type);
+    uint32_t data_size = dst_ext.num_blocks() * kBlockSize;
+    new_op.set_dst_length(data_size);
+    new_op.set_data_length(data_size);
+    new_op.set_data_offset(data_offset);
+    data_offset += data_size;
+
+    AnnotatedOperation new_aop;
+    new_aop.op = new_op;
+    new_aop.name = base::StringPrintf("%s:%d", original_aop.name.c_str(), i);
+    result_aops->push_back(new_aop);
+  }
+  if (data_offset != original_op.data_offset() + original_op.data_length()) {
+    LOG(FATAL) << "Incorrectly split REPLACE/REPLACE_BZ operation. New data "
+               << "lengths do not sum to original data length.";
+  }
+  return true;
 }
 
 };  // namespace chromeos_update_engine
