@@ -236,9 +236,10 @@ class DeltaDiffGenerator : public OperationsGenerator {
   // such that there is only one dst extent per operation. Sets |aops| to a
   // vector of the new fragmented operations. This is only called when delta
   // minor version is 2.
-  // Currently, this only modifies SOURCE_COPY operations, but it will
-  // eventually fragment all operations.
-  static bool FragmentOperations(std::vector<AnnotatedOperation>* aops);
+  static bool FragmentOperations(std::vector<AnnotatedOperation>* aops,
+                                 const std::string& target_rootfs_part,
+                                 int data_fd,
+                                 off_t* data_file_size);
 
   // Takes an SOURCE_COPY install operation, |aop|, and adds one operation for
   // each dst extent in |aop| to |ops|. The new operations added to |ops| will
@@ -257,6 +258,15 @@ class DeltaDiffGenerator : public OperationsGenerator {
   // one dst extent each.
   static bool SplitReplace(const AnnotatedOperation& original_aop,
                            std::vector<AnnotatedOperation>* result_aops);
+
+  // Takes a REPLACE_BZ operation, |aop|, and adds one operation for each dst
+  // extent in |aop| to |ops|. The new operations added to |ops| will have only
+  // one dst extent each.
+  static bool SplitReplaceBz(const AnnotatedOperation& original_aop,
+                             std::vector<AnnotatedOperation>* result_aops,
+                             const std::string& target_rootfs_part,
+                             int data_fd,
+                             off_t* data_file_size);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DeltaDiffGenerator);

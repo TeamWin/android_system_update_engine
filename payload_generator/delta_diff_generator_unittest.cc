@@ -21,6 +21,7 @@
 #include <base/strings/string_util.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/bzip.h"
 #include "update_engine/delta_performer.h"
 #include "update_engine/extent_ranges.h"
 #include "update_engine/payload_constants.h"
@@ -840,12 +841,12 @@ TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
             first_op.type());
   EXPECT_EQ(kBlockSize * 2, first_op.src_length());
   EXPECT_EQ(1, first_op.src_extents().size());
-  EXPECT_EQ(2, first_op.src_extents().Get(0).start_block());
-  EXPECT_EQ(2, first_op.src_extents().Get(0).num_blocks());
+  EXPECT_EQ(2, first_op.src_extents(0).start_block());
+  EXPECT_EQ(2, first_op.src_extents(0).num_blocks());
   EXPECT_EQ(kBlockSize * 2, first_op.dst_length());
   EXPECT_EQ(1, first_op.dst_extents().size());
-  EXPECT_EQ(10, first_op.dst_extents().Get(0).start_block());
-  EXPECT_EQ(2, first_op.dst_extents().Get(0).num_blocks());
+  EXPECT_EQ(10, first_op.dst_extents(0).start_block());
+  EXPECT_EQ(2, first_op.dst_extents(0).num_blocks());
 
   EXPECT_EQ("SplitSourceCopyTestOp:1", result_ops[1].name);
   DeltaArchiveManifest_InstallOperation second_op = result_ops[1].op;
@@ -853,16 +854,16 @@ TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
             second_op.type());
   EXPECT_EQ(kBlockSize * 3, second_op.src_length());
   EXPECT_EQ(3, second_op.src_extents().size());
-  EXPECT_EQ(4, second_op.src_extents().Get(0).start_block());
-  EXPECT_EQ(1, second_op.src_extents().Get(0).num_blocks());
-  EXPECT_EQ(6, second_op.src_extents().Get(1).start_block());
-  EXPECT_EQ(1, second_op.src_extents().Get(1).num_blocks());
-  EXPECT_EQ(8, second_op.src_extents().Get(2).start_block());
-  EXPECT_EQ(1, second_op.src_extents().Get(2).num_blocks());
+  EXPECT_EQ(4, second_op.src_extents(0).start_block());
+  EXPECT_EQ(1, second_op.src_extents(0).num_blocks());
+  EXPECT_EQ(6, second_op.src_extents(1).start_block());
+  EXPECT_EQ(1, second_op.src_extents(1).num_blocks());
+  EXPECT_EQ(8, second_op.src_extents(2).start_block());
+  EXPECT_EQ(1, second_op.src_extents(2).num_blocks());
   EXPECT_EQ(kBlockSize * 3, second_op.dst_length());
   EXPECT_EQ(1, second_op.dst_extents().size());
-  EXPECT_EQ(14, second_op.dst_extents().Get(0).start_block());
-  EXPECT_EQ(3, second_op.dst_extents().Get(0).num_blocks());
+  EXPECT_EQ(14, second_op.dst_extents(0).start_block());
+  EXPECT_EQ(3, second_op.dst_extents(0).num_blocks());
 
   EXPECT_EQ("SplitSourceCopyTestOp:2", result_ops[2].name);
   DeltaArchiveManifest_InstallOperation third_op = result_ops[2].op;
@@ -870,12 +871,12 @@ TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
             third_op.type());
   EXPECT_EQ(kBlockSize * 3, third_op.src_length());
   EXPECT_EQ(1, third_op.src_extents().size());
-  EXPECT_EQ(9, third_op.src_extents().Get(0).start_block());
-  EXPECT_EQ(3, third_op.src_extents().Get(0).num_blocks());
+  EXPECT_EQ(9, third_op.src_extents(0).start_block());
+  EXPECT_EQ(3, third_op.src_extents(0).num_blocks());
   EXPECT_EQ(kBlockSize * 3, third_op.dst_length());
   EXPECT_EQ(1, third_op.dst_extents().size());
-  EXPECT_EQ(18, third_op.dst_extents().Get(0).start_block());
-  EXPECT_EQ(3, third_op.dst_extents().Get(0).num_blocks());
+  EXPECT_EQ(18, third_op.dst_extents(0).start_block());
+  EXPECT_EQ(3, third_op.dst_extents(0).num_blocks());
 }
 
 TEST_F(DeltaDiffGeneratorTest, SplitReplaceTest) {
@@ -903,8 +904,8 @@ TEST_F(DeltaDiffGeneratorTest, SplitReplaceTest) {
   EXPECT_EQ(2 * kBlockSize, first_op.data_length());
   EXPECT_EQ(data_offset, first_op.data_offset());
   EXPECT_EQ(1, first_op.dst_extents().size());
-  EXPECT_EQ(2, first_op.dst_extents().Get(0).start_block());
-  EXPECT_EQ(2, first_op.dst_extents().Get(0).num_blocks());
+  EXPECT_EQ(2, first_op.dst_extents(0).start_block());
+  EXPECT_EQ(2, first_op.dst_extents(0).num_blocks());
 
   EXPECT_EQ("SplitReplaceTestOp:1", result_ops[1].name);
   DeltaArchiveManifest_InstallOperation second_op = result_ops[1].op;
@@ -914,8 +915,91 @@ TEST_F(DeltaDiffGeneratorTest, SplitReplaceTest) {
   EXPECT_EQ(kBlockSize, second_op.data_length());
   EXPECT_EQ(data_offset + (2 * kBlockSize), second_op.data_offset());
   EXPECT_EQ(1, second_op.dst_extents().size());
-  EXPECT_EQ(6, second_op.dst_extents().Get(0).start_block());
-  EXPECT_EQ(1, second_op.dst_extents().Get(0).num_blocks());
+  EXPECT_EQ(6, second_op.dst_extents(0).start_block());
+  EXPECT_EQ(1, second_op.dst_extents(0).num_blocks());
 }
+
+TEST_F(DeltaDiffGeneratorTest, SplitReplaceBzTest) {
+  string data_path;
+  EXPECT_TRUE(utils::MakeTempFile(
+      "ReplaceBzTest_data.XXXXXX", &data_path, nullptr));
+  int data_fd = open(data_path.c_str(), O_RDWR, 000);
+  EXPECT_GE(data_fd, 0);
+  ScopedFdCloser data_fd_closer(&data_fd);
+  off_t data_file_size = 0;
+
+  string rootfs_path;
+  EXPECT_TRUE(utils::MakeTempFile(
+      "ReplaceBzTest_rootfs.XXXXXX", &rootfs_path, nullptr));
+  chromeos::Blob data(7 * kBlockSize);
+  test_utils::FillWithData(&data);
+  EXPECT_TRUE(utils::WriteFile(rootfs_path.c_str(), data.data(), data.size()));
+
+
+  DeltaArchiveManifest_InstallOperation op;
+  op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  *(op.add_dst_extents()) = ExtentForRange(2, 2);
+  *(op.add_dst_extents()) = ExtentForRange(6, 1);
+
+  AnnotatedOperation aop;
+  aop.op = op;
+  aop.name = "SplitReplaceBzTestOp";
+  vector<AnnotatedOperation> result_ops;
+  EXPECT_TRUE(DeltaDiffGenerator::SplitReplaceBz(aop, &result_ops, rootfs_path,
+                                                 data_fd, &data_file_size));
+  EXPECT_EQ(result_ops.size(), 2);
+
+  EXPECT_EQ("SplitReplaceBzTestOp:0", result_ops[0].name);
+  DeltaArchiveManifest_InstallOperation first_op = result_ops[0].op;
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ,
+            first_op.type());
+  EXPECT_EQ(2 * kBlockSize, first_op.dst_length());
+  EXPECT_EQ(1, first_op.dst_extents().size());
+  EXPECT_EQ(2, first_op.dst_extents(0).start_block());
+  EXPECT_EQ(2, first_op.dst_extents(0).num_blocks());
+  // Get the blob corresponding to this extent and compress it.
+  chromeos::Blob first_blob(data.begin() + (kBlockSize * 2),
+                            data.begin() + (kBlockSize * 4));
+  chromeos::Blob first_blob_bz;
+  EXPECT_TRUE(BzipCompress(first_blob, &first_blob_bz));
+  EXPECT_EQ(first_blob_bz.size(), first_op.data_length());
+  EXPECT_EQ(0, first_op.data_offset());
+  // Check that the compressed blob matches what's in data_fd.
+  chromeos::Blob first_data_blob(first_op.data_length());
+  ssize_t bytes_read;
+  EXPECT_TRUE(utils::PReadAll(data_fd,
+                              first_data_blob.data(),
+                              first_op.data_length(),
+                              first_op.data_offset(),
+                              &bytes_read));
+  EXPECT_EQ(bytes_read, first_op.data_length());
+  EXPECT_EQ(first_data_blob, first_blob_bz);
+
+  EXPECT_EQ("SplitReplaceBzTestOp:1", result_ops[1].name);
+  DeltaArchiveManifest_InstallOperation second_op = result_ops[1].op;
+  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ,
+            second_op.type());
+  EXPECT_EQ(kBlockSize, second_op.dst_length());
+  EXPECT_EQ(1, second_op.dst_extents().size());
+  EXPECT_EQ(6, second_op.dst_extents(0).start_block());
+  EXPECT_EQ(1, second_op.dst_extents(0).num_blocks());
+  chromeos::Blob second_blob(data.begin() + (kBlockSize * 6),
+                             data.begin() + (kBlockSize * 7));
+  chromeos::Blob second_blob_bz;
+  EXPECT_TRUE(BzipCompress(second_blob, &second_blob_bz));
+  EXPECT_EQ(second_blob_bz.size(), second_op.data_length());
+  EXPECT_EQ(first_op.data_length(), second_op.data_offset());
+  chromeos::Blob second_data_blob(second_op.data_length());
+  EXPECT_TRUE(utils::PReadAll(data_fd,
+                              second_data_blob.data(),
+                              second_op.data_length(),
+                              second_op.data_offset(),
+                              &bytes_read));
+  EXPECT_EQ(bytes_read, second_op.data_length());
+  EXPECT_EQ(second_data_blob, second_blob_bz);
+
+  EXPECT_EQ(data_file_size, second_op.data_offset() + second_op.data_length());
+}
+
 
 }  // namespace chromeos_update_engine
