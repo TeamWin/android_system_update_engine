@@ -1697,7 +1697,7 @@ bool GetMinorVersion(base::FilePath path, uint32_t* minor_version) {
   return false;
 }
 
-bool ReadExtents(const std::string& path, vector<Extent>* extents,
+bool ReadExtents(const std::string& path, const vector<Extent>& extents,
                  chromeos::Blob* out_data, ssize_t out_data_size,
                  size_t block_size) {
   chromeos::Blob data(out_data_size);
@@ -1706,7 +1706,7 @@ bool ReadExtents(const std::string& path, vector<Extent>* extents,
   TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);
   ScopedFdCloser fd_closer(&fd);
 
-  for (const Extent& extent : *extents) {
+  for (const Extent& extent : extents) {
     ssize_t bytes_read_this_iteration = 0;
     ssize_t bytes = extent.num_blocks() * block_size;
     TEST_AND_RETURN_FALSE(bytes_read + bytes <= out_data_size);

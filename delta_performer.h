@@ -30,6 +30,9 @@ extern const uint32_t kInPlaceMinorPayloadVersion;
 // The minor version used by the A to B delta generator algorithm.
 extern const uint32_t kSourceMinorPayloadVersion;
 
+// Chunk size used for payloads during test.
+extern const size_t kDefaultChunkSize;
+
 class PrefsInterface;
 
 // This class performs the actions in a delta update synchronously. The delta
