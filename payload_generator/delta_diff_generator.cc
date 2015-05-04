@@ -46,6 +46,7 @@ using std::map;
 using std::max;
 using std::min;
 using std::set;
+using std::sort;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -296,6 +297,19 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
     removed_bytes -= kBlockSize - nonfull_block_bytes;
 
   return removed_bytes;
+}
+
+// Compare two AnnotatedOperations by the start block of the first Extent in
+// their destination extents.
+bool CompareAopsByDestination(AnnotatedOperation first_aop,
+                              AnnotatedOperation second_aop) {
+  // We want empty operations to be at the end of the payload.
+  if (!first_aop.op.dst_extents().size() || !second_aop.op.dst_extents().size())
+    return ((!first_aop.op.dst_extents().size()) <
+            (!second_aop.op.dst_extents().size()));
+  uint32_t first_dst_start = first_aop.op.dst_extents(0).start_block();
+  uint32_t second_dst_start = second_aop.op.dst_extents(0).start_block();
+  return first_dst_start < second_dst_start;
 }
 
 }  // namespace
@@ -1043,7 +1057,6 @@ bool DeltaDiffGenerator::GenerateOperations(
     rootfs_ops->back().name = unwritten_vertex.file_name;
   }
 
-  // Fragment operations so we can sort them later.
   TEST_AND_RETURN_FALSE(FragmentOperations(rootfs_ops,
                                            config.target.rootfs_part,
                                            data_file_fd,
@@ -1052,6 +1065,8 @@ bool DeltaDiffGenerator::GenerateOperations(
                                            config.target.rootfs_part,
                                            data_file_fd,
                                            data_file_size));
+  SortOperationsByDestination(rootfs_ops);
+  SortOperationsByDestination(kernel_ops);
 
   return true;
 }
@@ -1340,10 +1355,11 @@ void DeltaDiffGenerator::NormalizeExtents(vector<Extent>* extents) {
   *extents = new_extents;
 }
 
-bool DeltaDiffGenerator::FragmentOperations(vector<AnnotatedOperation>* aops,
-                                            const string& target_rootfs_part,
-                                            int data_fd,
-                                            off_t* data_file_size) {
+bool DeltaDiffGenerator::FragmentOperations(
+    vector<AnnotatedOperation>* aops,
+    const string& target_rootfs_part,
+    int data_fd,
+    off_t* data_file_size) {
   vector<AnnotatedOperation> fragmented_aops;
   for (const AnnotatedOperation& aop : *aops) {
     if (aop.op.type() ==
@@ -1365,6 +1381,11 @@ bool DeltaDiffGenerator::FragmentOperations(vector<AnnotatedOperation>* aops,
   }
   *aops = fragmented_aops;
   return true;
+}
+
+void DeltaDiffGenerator::SortOperationsByDestination(
+    vector<AnnotatedOperation>* aops) {
+  sort(aops->begin(), aops->end(), CompareAopsByDestination);
 }
 
 bool DeltaDiffGenerator::SplitSourceCopy(

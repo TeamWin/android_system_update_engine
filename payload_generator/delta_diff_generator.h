@@ -234,12 +234,17 @@ class DeltaDiffGenerator : public OperationsGenerator {
 
   // Takes a vector of AnnotatedOperations |aops| and fragments those operations
   // such that there is only one dst extent per operation. Sets |aops| to a
-  // vector of the new fragmented operations. This is only called when delta
-  // minor version is 2.
+  // vector of the new fragmented operations.
   static bool FragmentOperations(std::vector<AnnotatedOperation>* aops,
                                  const std::string& target_rootfs_part,
                                  int data_fd,
                                  off_t* data_file_size);
+
+  // Takes a vector of AnnotatedOperations |aops| and sorts them by the first
+  // start block in their destination extents. Sets |aops| to a vector of the
+  // sorted operations.
+  static void SortOperationsByDestination(
+      std::vector<AnnotatedOperation>* aops);
 
   // Takes an SOURCE_COPY install operation, |aop|, and adds one operation for
   // each dst extent in |aop| to |ops|. The new operations added to |ops| will

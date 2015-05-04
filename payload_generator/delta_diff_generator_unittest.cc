@@ -1001,5 +1001,38 @@ TEST_F(DeltaDiffGeneratorTest, SplitReplaceBzTest) {
   EXPECT_EQ(data_file_size, second_op.data_offset() + second_op.data_length());
 }
 
+TEST_F(DeltaDiffGeneratorTest, SortOperationsByDestinationTest) {
+  vector<AnnotatedOperation> aops;
+  // One operation with multiple destination extents.
+  DeltaArchiveManifest_InstallOperation first_op;
+  *(first_op.add_dst_extents()) = ExtentForRange(6, 1);
+  *(first_op.add_dst_extents()) = ExtentForRange(10, 2);
+  AnnotatedOperation first_aop;
+  first_aop.op = first_op;
+  first_aop.name = "first";
+  aops.push_back(first_aop);
+
+  // One with no destination extent. Should end up at the end of the vector.
+  DeltaArchiveManifest_InstallOperation second_op;
+  AnnotatedOperation second_aop;
+  second_aop.op = second_op;
+  second_aop.name = "second";
+  aops.push_back(second_aop);
+
+  // One with one destination extent.
+  DeltaArchiveManifest_InstallOperation third_op;
+  *(third_op.add_dst_extents()) = ExtentForRange(3, 2);
+  AnnotatedOperation third_aop;
+  third_aop.op = third_op;
+  third_aop.name = "third";
+  aops.push_back(third_aop);
+
+  DeltaDiffGenerator::SortOperationsByDestination(&aops);
+  EXPECT_EQ(aops.size(), 3);
+  EXPECT_EQ(third_aop.name, aops[0].name);
+  EXPECT_EQ(first_aop.name, aops[1].name);
+  EXPECT_EQ(second_aop.name, aops[2].name);
+}
+
 
 }  // namespace chromeos_update_engine
