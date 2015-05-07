@@ -346,9 +346,6 @@
             'libpayload_generator',
           ],
           'includes': ['../common-mk/common_test.gypi'],
-          'defines': [
-            'SYSROOT="<(sysroot)"',
-          ],
           'sources': [
             'action_pipe_unittest.cc',
             'action_processor_unittest.cc',

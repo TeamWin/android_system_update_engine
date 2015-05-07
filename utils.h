@@ -248,11 +248,6 @@ bool IsExtFilesystem(const std::string& device);
 // false.
 bool IsSquashfsFilesystem(const std::string& device);
 
-// Returns the path of the passed |command| on the board. This uses the
-// environment variable SYSROOT to determine the path to the command on the
-// board instead of the path on the running environment.
-std::string GetPathOnBoard(const std::string& command);
-
 // Returns a human-readable string with the file format based on magic constants
 // on the header of the file.
 std::string GetFileFormat(const std::string& path);
