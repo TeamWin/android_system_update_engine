@@ -152,6 +152,7 @@ class DeltaDiffGenerator : public OperationsGenerator {
       int blobs_fd,
       off_t* blobs_length,
       const std::string& old_image_path,
+      const uint64_t old_image_size,
       const std::string& new_image_path,
       Vertex* vertex,
       uint32_t minor_version);
