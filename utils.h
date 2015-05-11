@@ -468,7 +468,7 @@ bool GetMinorVersion(base::FilePath path, uint32_t* minor_version);
 // extents are read from the file at |path|. |out_data_size| is the size of
 // |out_data|. Returns false if the number of bytes to read given in
 // |extents| does not equal |out_data_size|.
-bool ReadExtents(const std::string& path, std::vector<Extent>* extents,
+bool ReadExtents(const std::string& path, const std::vector<Extent>& extents,
                  chromeos::Blob* out_data, ssize_t out_data_size,
                  size_t block_size);
 

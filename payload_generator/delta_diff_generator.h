@@ -161,6 +161,11 @@ class DeltaDiffGenerator : public OperationsGenerator {
   static void StoreExtents(const std::vector<Extent>& extents,
                            google::protobuf::RepeatedPtrField<Extent>* out);
 
+  // Stores all extents in |extents| into |out_vector|.
+  static void ExtentsToVector(
+    const google::protobuf::RepeatedPtrField<Extent>& extents,
+    std::vector<Extent>* out_vector);
+
   // Install operations in the manifest may reference data blobs, which
   // are in data_blobs_path. This function creates a new data blobs file
   // with the data blobs in the same order as the referencing install
@@ -270,9 +275,27 @@ class DeltaDiffGenerator : public OperationsGenerator {
   // one dst extent each.
   static bool SplitReplaceBz(const AnnotatedOperation& original_aop,
                              std::vector<AnnotatedOperation>* result_aops,
-                             const std::string& target_rootfs_part,
+                             const std::string& target_part,
                              int data_fd,
                              off_t* data_file_size);
+
+  // Takes a sorted (by first destination extent) vector of operations |aops|
+  // and merges SOURCE_COPY, REPLACE, and REPLACE_BZ operations in that vector.
+  // It will merge two operations if:
+  //   - They are of the same type.
+  //   - They are contiguous.
+  //   - Their combined blocks do not exceed |chunk_size|.
+  static bool MergeOperations(std::vector<AnnotatedOperation>* aops,
+                              off_t chunk_size,
+                              const std::string& target_part,
+                              int data_fd,
+                              off_t* data_file_size);
+
+  // Takes a pointer to extents |extents| and extents |extents_to_add|, and
+  // merges them by adding |extents_to_add| to |extents| and normalizing.
+  static void ExtendExtents(
+    google::protobuf::RepeatedPtrField<Extent>* extents,
+    const google::protobuf::RepeatedPtrField<Extent>& extents_to_add);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DeltaDiffGenerator);

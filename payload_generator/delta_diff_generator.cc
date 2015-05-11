@@ -554,7 +554,7 @@ bool DeltaDiffGenerator::ReadFileToDiff(
   // Read in bytes from new data.
   chromeos::Blob new_data;
   TEST_AND_RETURN_FALSE(utils::ReadExtents(new_part,
-                                           &dst_extents,
+                                           dst_extents,
                                            &new_data,
                                            kBlockSize * blocks_to_write,
                                            kBlockSize));
@@ -582,7 +582,7 @@ bool DeltaDiffGenerator::ReadFileToDiff(
   if (original) {
     // Read old data.
     TEST_AND_RETURN_FALSE(
-        utils::ReadExtents(old_part, &src_extents, &old_data,
+        utils::ReadExtents(old_part, src_extents, &old_data,
                            kBlockSize * blocks_to_read, kBlockSize));
     if (old_data == new_data) {
       // No change in data.
@@ -933,6 +933,16 @@ void DeltaDiffGenerator::StoreExtents(
   }
 }
 
+// Stores all extents in |extents| into |out_vector|.
+void DeltaDiffGenerator::ExtentsToVector(
+    const google::protobuf::RepeatedPtrField<Extent>& extents,
+    vector<Extent>* out_vector) {
+  out_vector->clear();
+  for (int i = 0; i < extents.size(); i++) {
+    out_vector->push_back(extents.Get(i));
+  }
+}
+
 // Returns true if |op| is a no-op operation that doesn't do any useful work
 // (e.g., a move operation that copies blocks onto themselves).
 bool DeltaDiffGenerator::IsNoopOperation(
@@ -1069,12 +1079,23 @@ bool DeltaDiffGenerator::GenerateOperations(
                                            data_file_fd,
                                            data_file_size));
   TEST_AND_RETURN_FALSE(FragmentOperations(kernel_ops,
-                                           config.target.rootfs_part,
+                                           config.target.kernel_part,
                                            data_file_fd,
                                            data_file_size));
   SortOperationsByDestination(rootfs_ops);
   SortOperationsByDestination(kernel_ops);
-
+  // TODO(alliewood): Change merge operations to use config.chunk_size once
+  // specifying chunk_size on the command line works. crbug/485397.
+  TEST_AND_RETURN_FALSE(MergeOperations(rootfs_ops,
+                                        kDefaultChunkSize,
+                                        config.target.rootfs_part,
+                                        data_file_fd,
+                                        data_file_size));
+  TEST_AND_RETURN_FALSE(MergeOperations(kernel_ops,
+                                        kDefaultChunkSize,
+                                        config.target.kernel_part,
+                                        data_file_fd,
+                                        data_file_size));
   return true;
 }
 
@@ -1364,7 +1385,7 @@ void DeltaDiffGenerator::NormalizeExtents(vector<Extent>* extents) {
 
 bool DeltaDiffGenerator::FragmentOperations(
     vector<AnnotatedOperation>* aops,
-    const string& target_rootfs_part,
+    const string& target_part_path,
     int data_fd,
     off_t* data_file_size) {
   vector<AnnotatedOperation> fragmented_aops;
@@ -1379,7 +1400,7 @@ bool DeltaDiffGenerator::FragmentOperations(
                DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
       TEST_AND_RETURN_FALSE(SplitReplaceBz(aop,
                                            &fragmented_aops,
-                                           target_rootfs_part,
+                                           target_part_path,
                                            data_fd,
                                            data_file_size));
     } else {
@@ -1483,16 +1504,16 @@ bool DeltaDiffGenerator::SplitReplace(const AnnotatedOperation& original_aop,
 bool DeltaDiffGenerator::SplitReplaceBz(
     const AnnotatedOperation& original_aop,
     vector<AnnotatedOperation>* result_aops,
-    const string& target_rootfs_part,
+    const string& target_part_path,
     int data_fd,
     off_t* data_file_size) {
   DeltaArchiveManifest_InstallOperation original_op = original_aop.op;
   TEST_AND_RETURN_FALSE(original_op.type() ==
                         DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
 
-  int target_rootfs_fd = open(target_rootfs_part.c_str(), O_RDONLY, 000);
-  TEST_AND_RETURN_FALSE_ERRNO(target_rootfs_fd >= 0);
-  ScopedFdCloser target_rootfs_fd_closer(&target_rootfs_fd);
+  int target_part_fd = open(target_part_path.c_str(), O_RDONLY, 000);
+  TEST_AND_RETURN_FALSE_ERRNO(target_part_fd >= 0);
+  ScopedFdCloser target_part_fd_closer(&target_part_fd);
 
   for (int i = 0; i < original_op.dst_extents_size(); i++) {
     Extent dst_ext = original_op.dst_extents(i);
@@ -1506,7 +1527,7 @@ bool DeltaDiffGenerator::SplitReplaceBz(
     // Get the original uncompressed data for this extent.
     ssize_t bytes_read;
     chromeos::Blob uncompressed_data(uncompressed_data_size);
-    TEST_AND_RETURN_FALSE(utils::PReadAll(target_rootfs_fd,
+    TEST_AND_RETURN_FALSE(utils::PReadAll(target_part_fd,
                                           uncompressed_data.data(),
                                           uncompressed_data_size,
                                           kBlockSize * dst_ext.start_block(),
@@ -1517,20 +1538,128 @@ bool DeltaDiffGenerator::SplitReplaceBz(
     chromeos::Blob new_data_bz;
     TEST_AND_RETURN_FALSE(BzipCompress(uncompressed_data, &new_data_bz));
     CHECK(!new_data_bz.empty());
-    new_op.set_data_length(new_data_bz.size());
-    new_op.set_data_offset(*data_file_size);
-    TEST_AND_RETURN_FALSE(utils::PWriteAll(data_fd,
-                                           new_data_bz.data(),
-                                           new_data_bz.size(),
-                                           *data_file_size));
-    *data_file_size += new_data_bz.size();
 
     AnnotatedOperation new_aop;
     new_aop.op = new_op;
+    new_aop.SetOperationBlob(&new_data_bz, data_fd, data_file_size);
     new_aop.name = base::StringPrintf("%s:%d", original_aop.name.c_str(), i);
     result_aops->push_back(new_aop);
   }
   return true;
+}
+
+bool DeltaDiffGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
+                                         off_t chunk_size,
+                                         const string& target_part_path,
+                                         int data_fd,
+                                         off_t* data_file_size) {
+  vector<AnnotatedOperation> new_aops;
+  for (const AnnotatedOperation& curr_aop : *aops) {
+    if (new_aops.empty()) {
+      new_aops.push_back(curr_aop);
+      continue;
+    }
+    AnnotatedOperation& last_aop = new_aops.back();
+
+    if (last_aop.op.dst_extents_size() <= 0 ||
+        curr_aop.op.dst_extents_size() <= 0) {
+      new_aops.push_back(curr_aop);
+      continue;
+    }
+    uint32_t last_dst_idx = last_aop.op.dst_extents_size() - 1;
+    uint32_t last_end_block =
+        last_aop.op.dst_extents(last_dst_idx).start_block() +
+        last_aop.op.dst_extents(last_dst_idx).num_blocks();
+    uint32_t curr_start_block = curr_aop.op.dst_extents(0).start_block();
+    uint32_t combined_block_count =
+        last_aop.op.dst_extents(last_dst_idx).num_blocks() +
+        curr_aop.op.dst_extents(0).num_blocks();
+    bool good_op_type =
+        curr_aop.op.type() ==
+            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY ||
+        curr_aop.op.type() ==
+            DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
+        curr_aop.op.type() ==
+            DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ;
+    if (good_op_type &&
+        last_aop.op.type() == curr_aop.op.type() &&
+        last_end_block == curr_start_block &&
+        static_cast<off_t>(combined_block_count * kBlockSize) <= chunk_size) {
+      // If the operations have the same type (which is a type that we can
+      // merge), are contiguous, are fragmented to have one destination extent,
+      // and their combined block count would be less than chunk size, merge
+      // them.
+      last_aop.name = base::StringPrintf("%s,%s",
+                                         last_aop.name.c_str(),
+                                         curr_aop.name.c_str());
+
+      ExtendExtents(last_aop.op.mutable_src_extents(),
+                    curr_aop.op.src_extents());
+      if (curr_aop.op.src_length() > 0)
+        last_aop.op.set_src_length(last_aop.op.src_length() +
+                                   curr_aop.op.src_length());
+      ExtendExtents(last_aop.op.mutable_dst_extents(),
+                    curr_aop.op.dst_extents());
+      if (curr_aop.op.dst_length() > 0)
+        last_aop.op.set_dst_length(last_aop.op.dst_length() +
+                                   curr_aop.op.dst_length());
+      // Set the data length to zero so we know to add the blob later.
+      if (curr_aop.op.type() ==
+          DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
+          curr_aop.op.type() ==
+          DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
+        last_aop.op.set_data_length(0);
+      }
+    } else {
+      // Otherwise just include the extent as is.
+      new_aops.push_back(curr_aop);
+    }
+  }
+
+  // Set the blobs for REPLACE/REPLACE_BZ operations that have been merged.
+  for (AnnotatedOperation& curr_aop : new_aops) {
+    if (curr_aop.op.data_length() == 0 &&
+        (curr_aop.op.type() ==
+            DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
+         curr_aop.op.type() ==
+            DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ)) {
+      chromeos::Blob data(curr_aop.op.dst_length());
+      vector<Extent> dst_extents;
+      ExtentsToVector(curr_aop.op.dst_extents(), &dst_extents);
+      TEST_AND_RETURN_FALSE(utils::ReadExtents(target_part_path,
+                                               dst_extents,
+                                               &data,
+                                               data.size(),
+                                               kBlockSize));
+      if (curr_aop.op.type() ==
+          DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
+        curr_aop.SetOperationBlob(&data, data_fd, data_file_size);
+      } else if (curr_aop.op.type() ==
+          DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
+        chromeos::Blob data_bz;
+        TEST_AND_RETURN_FALSE(BzipCompress(data, &data_bz));
+        curr_aop.SetOperationBlob(&data_bz, data_fd, data_file_size);
+      }
+    }
+  }
+
+  *aops = new_aops;
+  return true;
+}
+
+void DeltaDiffGenerator::ExtendExtents(
+    google::protobuf::RepeatedPtrField<Extent>* extents,
+    const google::protobuf::RepeatedPtrField<Extent>& extents_to_add) {
+  vector<Extent> extents_vector;
+  vector<Extent> extents_to_add_vector;
+  ExtentsToVector(*extents, &extents_vector);
+  ExtentsToVector(extents_to_add, &extents_to_add_vector);
+  extents_vector.insert(extents_vector.end(),
+                        extents_to_add_vector.begin(),
+                        extents_to_add_vector.end());
+  NormalizeExtents(&extents_vector);
+  extents->Clear();
+  StoreExtents(extents_vector, extents);
 }
 
 };  // namespace chromeos_update_engine

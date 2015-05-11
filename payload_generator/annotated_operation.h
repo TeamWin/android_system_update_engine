@@ -8,6 +8,7 @@
 #include <ostream>  // NOLINT(readability/streams)
 #include <string>
 
+#include <chromeos/secure_blob.h>
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -23,6 +24,12 @@ struct AnnotatedOperation {
   // Sets |name| to a human readable representation of a chunk in a file.
   void SetNameFromFileAndChunk(const std::string& filename,
                                off_t chunk_offset, off_t chunk_size);
+
+  // Writes |blob| to the end of |data_fd|, and updates |data_file_size| to
+  // match the new size of |data_fd|. It sets the data_offset and data_length
+  // in AnnotatedOperation to match the offset and size of |blob| in |data_fd|.
+  bool SetOperationBlob(chromeos::Blob* blob, int data_fd,
+                        off_t* data_file_size);
 };
 
 // For logging purposes.
