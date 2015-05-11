@@ -110,10 +110,6 @@ void UpdatePartition(const string& target, uint64_t start_block,
   }
 }
 
-bool ExtentEquals(Extent ext, uint64_t start_block, uint64_t num_blocks) {
-  return ext.start_block() == start_block && ext.num_blocks() == num_blocks;
-}
-
 }  // namespace
 
 class DeltaDiffGeneratorTest : public ::testing::Test {
@@ -959,7 +955,8 @@ TEST_F(DeltaDiffGeneratorTest, SplitReplaceBzTest) {
             first_op.type());
   EXPECT_EQ(2 * kBlockSize, first_op.dst_length());
   EXPECT_EQ(1, first_op.dst_extents().size());
-  EXPECT_TRUE(ExtentEquals(first_op.dst_extents(0), 2, 2));
+  EXPECT_EQ(2, first_op.dst_extents(0).start_block());
+  EXPECT_EQ(2, first_op.dst_extents(0).num_blocks());
   // Get the blob corresponding to this extent and compress it.
   chromeos::Blob first_blob(data.begin() + (kBlockSize * 2),
                             data.begin() + (kBlockSize * 4));
@@ -984,7 +981,8 @@ TEST_F(DeltaDiffGeneratorTest, SplitReplaceBzTest) {
             second_op.type());
   EXPECT_EQ(kBlockSize, second_op.dst_length());
   EXPECT_EQ(1, second_op.dst_extents().size());
-  EXPECT_TRUE(ExtentEquals(second_op.dst_extents(0), 6, 1));
+  EXPECT_EQ(6, second_op.dst_extents(0).start_block());
+  EXPECT_EQ(1, second_op.dst_extents(0).num_blocks());
   chromeos::Blob second_blob(data.begin() + (kBlockSize * 6),
                              data.begin() + (kBlockSize * 7));
   chromeos::Blob second_blob_bz;
@@ -1036,276 +1034,5 @@ TEST_F(DeltaDiffGeneratorTest, SortOperationsByDestinationTest) {
   EXPECT_EQ(second_aop.name, aops[2].name);
 }
 
-TEST_F(DeltaDiffGeneratorTest, MergeSourceCopyOperationsTest) {
-  vector<AnnotatedOperation> aops;
-  DeltaArchiveManifest_InstallOperation first_op;
-  first_op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
-  first_op.set_src_length(kBlockSize);
-  first_op.set_dst_length(kBlockSize);
-  *(first_op.add_src_extents()) = ExtentForRange(1, 1);
-  *(first_op.add_dst_extents()) = ExtentForRange(6, 1);
-  AnnotatedOperation first_aop;
-  first_aop.op = first_op;
-  first_aop.name = "1";
-  aops.push_back(first_aop);
-
-  DeltaArchiveManifest_InstallOperation second_op;
-  second_op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
-  second_op.set_src_length(3 * kBlockSize);
-  second_op.set_dst_length(3 * kBlockSize);
-  *(second_op.add_src_extents()) = ExtentForRange(2, 2);
-  *(second_op.add_src_extents()) = ExtentForRange(8, 2);
-  *(second_op.add_dst_extents()) = ExtentForRange(7, 3);
-  *(second_op.add_dst_extents()) = ExtentForRange(11, 1);
-  AnnotatedOperation second_aop;
-  second_aop.op = second_op;
-  second_aop.name = "2";
-  aops.push_back(second_aop);
-
-  DeltaArchiveManifest_InstallOperation third_op;
-  third_op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
-  third_op.set_src_length(kBlockSize);
-  third_op.set_dst_length(kBlockSize);
-  *(third_op.add_src_extents()) = ExtentForRange(11, 1);
-  *(third_op.add_dst_extents()) = ExtentForRange(12, 1);
-  AnnotatedOperation third_aop;
-  third_aop.op = third_op;
-  third_aop.name = "3";
-  aops.push_back(third_aop);
-
-  EXPECT_TRUE(DeltaDiffGenerator::MergeOperations(
-      &aops, 5 * kBlockSize, "", 0, nullptr));
-
-  EXPECT_EQ(aops.size(), 1);
-  DeltaArchiveManifest_InstallOperation first_result_op = aops[0].op;
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
-            first_result_op.type());
-  EXPECT_EQ(kBlockSize * 5, first_result_op.src_length());
-  EXPECT_EQ(3, first_result_op.src_extents().size());
-  EXPECT_TRUE(ExtentEquals(first_result_op.src_extents(0), 1, 3));
-  EXPECT_TRUE(ExtentEquals(first_result_op.src_extents(1), 8, 2));
-  EXPECT_TRUE(ExtentEquals(first_result_op.src_extents(2), 11, 1));
-  EXPECT_EQ(kBlockSize * 5, first_result_op.dst_length());
-  EXPECT_EQ(2, first_result_op.dst_extents().size());
-  EXPECT_TRUE(ExtentEquals(first_result_op.dst_extents(0), 6, 4));
-  EXPECT_TRUE(ExtentEquals(first_result_op.dst_extents(1), 11, 2));
-  EXPECT_EQ(aops[0].name, "1,2,3");
-}
-
-TEST_F(DeltaDiffGeneratorTest, MergeReplaceOperationsTest) {
-  string data_path;
-  EXPECT_TRUE(utils::MakeTempFile(
-      "MergeReplaceTest_data.XXXXXX", &data_path, nullptr));
-  int data_fd = open(data_path.c_str(), O_RDWR, 000);
-  EXPECT_GE(data_fd, 0);
-  ScopedFdCloser data_fd_closer(&data_fd);
-  chromeos::Blob original_data(4 * kBlockSize);
-  test_utils::FillWithData(&original_data);
-  EXPECT_TRUE(utils::WriteFile(
-      data_path.c_str(), original_data.data(), original_data.size()));
-  off_t data_file_size = 4 * kBlockSize;
-
-  string part_path;
-  EXPECT_TRUE(utils::MakeTempFile(
-      "MergeReplaceBzTest_part.XXXXXX", &part_path, nullptr));
-  chromeos::Blob part_data(4 * kBlockSize);
-  test_utils::FillWithData(&part_data);
-  EXPECT_TRUE(utils::WriteFile(
-      part_path.c_str(), part_data.data(), part_data.size()));
-
-  vector<AnnotatedOperation> aops;
-  DeltaArchiveManifest_InstallOperation first_op;
-  first_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
-  first_op.set_dst_length(kBlockSize);
-  first_op.set_data_length(kBlockSize);
-  first_op.set_data_offset(0);
-  *(first_op.add_dst_extents()) = ExtentForRange(0, 1);
-  AnnotatedOperation first_aop;
-  first_aop.op = first_op;
-  first_aop.name = "first";
-  aops.push_back(first_aop);
-
-  DeltaArchiveManifest_InstallOperation second_op;
-  second_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
-  second_op.set_dst_length(3 * kBlockSize);
-  second_op.set_data_length(3 * kBlockSize);
-  second_op.set_data_offset(1 * kBlockSize);
-  *(second_op.add_dst_extents()) = ExtentForRange(1, 3);
-  AnnotatedOperation second_aop;
-  second_aop.op = second_op;
-  second_aop.name = "second";
-  aops.push_back(second_aop);
-
-  EXPECT_TRUE(DeltaDiffGenerator::MergeOperations(
-      &aops, 5 * kBlockSize, part_path, data_fd, &data_file_size));
-
-  EXPECT_EQ(aops.size(), 1);
-  DeltaArchiveManifest_InstallOperation first_result_op = aops[0].op;
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE,
-            first_result_op.type());
-  EXPECT_EQ(kBlockSize * 4, first_result_op.dst_length());
-  EXPECT_EQ(1, first_result_op.dst_extents().size());
-  EXPECT_TRUE(ExtentEquals(first_result_op.dst_extents(0), 0, 4));
-  EXPECT_EQ(4 * kBlockSize, first_result_op.data_length());
-  EXPECT_EQ(4 * kBlockSize, first_result_op.data_offset());
-  EXPECT_EQ(aops[0].name, "first,second");
-
-  // Check to see if the blob in the new extent has what we expect.
-  chromeos::Blob target_data(first_result_op.data_length());
-  ssize_t bytes_read;
-  EXPECT_TRUE(utils::PReadAll(data_fd,
-                              target_data.data(),
-                              first_result_op.data_length(),
-                              first_result_op.data_offset(),
-                              &bytes_read));
-  chromeos::Blob first_original_blob(part_data.begin(),
-                                     part_data.begin() + kBlockSize);
-  chromeos::Blob first_new_blob(target_data.begin(),
-                                target_data.begin() + kBlockSize);
-  EXPECT_EQ(first_original_blob, first_new_blob);
-
-  chromeos::Blob second_original_blob(part_data.begin() + kBlockSize,
-                                      part_data.begin() + (4 * kBlockSize));
-  chromeos::Blob second_new_blob(target_data.begin() + kBlockSize,
-                                 target_data.end());
-  EXPECT_EQ(second_original_blob, second_new_blob);
-  EXPECT_EQ(data_file_size, 8 * kBlockSize);
-}
-
-TEST_F(DeltaDiffGeneratorTest, MergeReplaceBzOperationsTest) {
-  string data_path;
-  EXPECT_TRUE(utils::MakeTempFile(
-      "MergeReplaceBzTest_data.XXXXXX", &data_path, nullptr));
-  int data_fd = open(data_path.c_str(), O_RDWR, 000);
-  EXPECT_GE(data_fd, 0);
-  ScopedFdCloser data_fd_closer(&data_fd);
-  off_t data_file_size = 0;
-
-  string part_path;
-  EXPECT_TRUE(utils::MakeTempFile(
-      "MergeReplaceBzTest_part.XXXXXX", &part_path, nullptr));
-  chromeos::Blob part_data(3 * kBlockSize);
-  test_utils::FillWithData(&part_data);
-  EXPECT_TRUE(utils::WriteFile(
-      part_path.c_str(), part_data.data(), part_data.size()));
-
-  vector<AnnotatedOperation> aops;
-  DeltaArchiveManifest_InstallOperation first_op;
-  first_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-  first_op.set_dst_length(kBlockSize);
-  *(first_op.add_dst_extents()) = ExtentForRange(0, 1);
-  chromeos::Blob first_op_blob(part_data.begin(),
-                               part_data.begin() + kBlockSize);
-  chromeos::Blob first_op_bz;
-  EXPECT_TRUE(BzipCompress(first_op_blob, &first_op_bz));
-  first_op.set_data_length(first_op_bz.size());
-  AnnotatedOperation first_aop;
-  first_aop.op = first_op;
-  first_aop.name = "first";
-  aops.push_back(first_aop);
-
-  DeltaArchiveManifest_InstallOperation second_op;
-  second_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-  second_op.set_dst_length(2 * kBlockSize);
-  *(second_op.add_dst_extents()) = ExtentForRange(1, 2);
-  chromeos::Blob second_op_blob(part_data.begin() + kBlockSize,
-                                part_data.end());
-  chromeos::Blob second_op_bz;
-  EXPECT_TRUE(BzipCompress(second_op_blob, &second_op_bz));
-  second_op.set_data_length(second_op_bz.size());
-  AnnotatedOperation second_aop;
-  second_aop.op = second_op;
-  second_aop.name = "second";
-  aops.push_back(second_aop);
-
-  EXPECT_TRUE(DeltaDiffGenerator::MergeOperations(
-      &aops, 5 * kBlockSize, part_path, data_fd, &data_file_size));
-
-  EXPECT_EQ(aops.size(), 1);
-  DeltaArchiveManifest_InstallOperation result_op = aops[0].op;
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ,
-            result_op.type());
-  EXPECT_EQ(kBlockSize * 3, result_op.dst_length());
-  EXPECT_EQ(1, result_op.dst_extents().size());
-  EXPECT_TRUE(ExtentEquals(result_op.dst_extents(0), 0, 3));
-  EXPECT_EQ(aops[0].name, "first,second");
-
-  // Check to see if the blob pointed to in the new extent has what we expect.
-  chromeos::Blob part_data_bz;
-  EXPECT_TRUE(BzipCompress(part_data, &part_data_bz));
-  chromeos::Blob result_data_bz(part_data_bz.size());
-  ssize_t bytes_read;
-  EXPECT_TRUE(utils::PReadAll(data_fd,
-                              result_data_bz.data(),
-                              result_op.data_length(),
-                              result_op.data_offset(),
-                              &bytes_read));
-  EXPECT_EQ(part_data_bz, result_data_bz);
-  EXPECT_EQ(result_data_bz.size(), result_op.data_length());
-  EXPECT_EQ(0, result_op.data_offset());
-  EXPECT_EQ(data_file_size, part_data_bz.size());
-}
-
-TEST_F(DeltaDiffGeneratorTest, NoMergeOperationsTest) {
-  // Test to make sure we don't merge operations that shouldn't be merged.
-  vector<AnnotatedOperation> aops;
-  DeltaArchiveManifest_InstallOperation first_op;
-  first_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-  *(first_op.add_dst_extents()) = ExtentForRange(0, 1);
-  first_op.set_data_length(kBlockSize);
-  AnnotatedOperation first_aop;
-  first_aop.op = first_op;
-  aops.push_back(first_aop);
-
-  // Should merge with first, except op types don't match...
-  DeltaArchiveManifest_InstallOperation second_op;
-  second_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
-  *(second_op.add_dst_extents()) = ExtentForRange(1, 2);
-  second_op.set_data_length(2 * kBlockSize);
-  AnnotatedOperation second_aop;
-  second_aop.op = second_op;
-  aops.push_back(second_aop);
-
-  // Should merge with second, except it would exceed chunk size...
-  DeltaArchiveManifest_InstallOperation third_op;
-  third_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
-  *(third_op.add_dst_extents()) = ExtentForRange(3, 3);
-  third_op.set_data_length(3 * kBlockSize);
-  AnnotatedOperation third_aop;
-  third_aop.op = third_op;
-  aops.push_back(third_aop);
-
-  // Should merge with third, except they aren't contiguous...
-  DeltaArchiveManifest_InstallOperation fourth_op;
-  fourth_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
-  *(fourth_op.add_dst_extents()) = ExtentForRange(7, 2);
-  fourth_op.set_data_length(2 * kBlockSize);
-  AnnotatedOperation fourth_aop;
-  fourth_aop.op = fourth_op;
-  aops.push_back(fourth_aop);
-
-  EXPECT_TRUE(DeltaDiffGenerator::MergeOperations(&aops, 4 * kBlockSize,
-                                                  "", 0, nullptr));
-
-  // No operations were merged, the number of ops is the same.
-  EXPECT_EQ(aops.size(), 4);
-}
-
-TEST_F(DeltaDiffGeneratorTest, ExtendExtentsTest) {
-  DeltaArchiveManifest_InstallOperation first_op;
-  *(first_op.add_src_extents()) = ExtentForRange(1, 1);
-  *(first_op.add_src_extents()) = ExtentForRange(3, 1);
-
-  DeltaArchiveManifest_InstallOperation second_op;
-  *(second_op.add_src_extents()) = ExtentForRange(4, 2);
-  *(second_op.add_src_extents()) = ExtentForRange(8, 2);
-
-  DeltaDiffGenerator::ExtendExtents(first_op.mutable_src_extents(),
-                                    second_op.src_extents());
-  EXPECT_EQ(first_op.src_extents_size(), 3);
-  EXPECT_TRUE(ExtentEquals(first_op.src_extents(0), 1, 1));
-  EXPECT_TRUE(ExtentEquals(first_op.src_extents(1), 3, 3));
-  EXPECT_TRUE(ExtentEquals(first_op.src_extents(2), 8, 2));
-}
 
 }  // namespace chromeos_update_engine

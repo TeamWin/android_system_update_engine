@@ -8,8 +8,6 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/utils.h"
-
 using std::string;
 
 namespace chromeos_update_engine {
@@ -36,18 +34,6 @@ void AnnotatedOperation::SetNameFromFileAndChunk(
       base::StringAppendF(&name, " [%" PRId64 ", end)", chunk_offset);
     }
   }
-}
-
-bool AnnotatedOperation::SetOperationBlob(chromeos::Blob* blob, int data_fd,
-                                          off_t* data_file_size) {
-  TEST_AND_RETURN_FALSE(utils::PWriteAll(data_fd,
-                                         blob->data(),
-                                         blob->size(),
-                                         *data_file_size));
-  op.set_data_length(blob->size());
-  op.set_data_offset(*data_file_size);
-  *data_file_size += blob->size();
-  return true;
 }
 
 string InstallOperationTypeName(
