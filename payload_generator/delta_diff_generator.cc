@@ -1396,13 +1396,6 @@ bool DeltaDiffGenerator::FragmentOperations(
     } else if (aop.op.type() ==
                DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
       TEST_AND_RETURN_FALSE(SplitReplace(aop, &fragmented_aops));
-    } else if (aop.op.type() ==
-               DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
-      TEST_AND_RETURN_FALSE(SplitReplaceBz(aop,
-                                           &fragmented_aops,
-                                           target_part_path,
-                                           data_fd,
-                                           data_file_size));
     } else {
       fragmented_aops.push_back(aop);
     }
