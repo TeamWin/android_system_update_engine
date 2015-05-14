@@ -264,20 +264,16 @@ class DeltaDiffGenerator : public OperationsGenerator {
   static bool SplitSourceCopy(const AnnotatedOperation& original_aop,
                               std::vector<AnnotatedOperation>* result_aops);
 
-  // Takes a REPLACE operation, |aop|, and adds one operation for each dst
-  // extent in |aop| to |ops|. The new operations added to |ops| will have only
-  // one dst extent each.
-  static bool SplitReplace(const AnnotatedOperation& original_aop,
-                           std::vector<AnnotatedOperation>* result_aops);
-
-  // Takes a REPLACE_BZ operation, |aop|, and adds one operation for each dst
-  // extent in |aop| to |ops|. The new operations added to |ops| will have only
-  // one dst extent each.
-  static bool SplitReplaceBz(const AnnotatedOperation& original_aop,
-                             std::vector<AnnotatedOperation>* result_aops,
-                             const std::string& target_part,
-                             int data_fd,
-                             off_t* data_file_size);
+  // Takes a REPLACE/REPLACE_BZ operation |aop|, and adds one operation for each
+  // dst extent in |aop| to |ops|. The new operations added to |ops| will have
+  // only one dst extent each, and may be either a REPLACE or REPLACE_BZ
+  // depending on whether compression is advantageous.
+  static bool SplitReplaceOrReplaceBz(
+      const AnnotatedOperation& original_aop,
+      std::vector<AnnotatedOperation>* result_aops,
+      const std::string& target_part,
+      int data_fd,
+      off_t* data_file_size);
 
   // Takes a sorted (by first destination extent) vector of operations |aops|
   // and merges SOURCE_COPY, REPLACE, and REPLACE_BZ operations in that vector.
@@ -298,6 +294,18 @@ class DeltaDiffGenerator : public OperationsGenerator {
     const google::protobuf::RepeatedPtrField<Extent>& extents_to_add);
 
  private:
+  // Adds the data payload for a REPLACE/REPLACE_BZ operation |aop| by reading
+  // its output extents from |target_part_path| and appending a corresponding
+  // data blob to |data_fd|. The blob will be compressed if this is smaller than
+  // the uncompressed form, and the operation type will be set accordingly.
+  // |*data_file_size| will be updated as well. If the operation happens to have
+  // the right type and already points to a data blob, we check whether its
+  // content is identical to the new one, in which case nothing is written.
+  static bool AddDataAndSetType(AnnotatedOperation* aop,
+                                const std::string& target_part_path,
+                                int data_fd,
+                                off_t* data_file_size);
+
   DISALLOW_COPY_AND_ASSIGN(DeltaDiffGenerator);
 };
 
