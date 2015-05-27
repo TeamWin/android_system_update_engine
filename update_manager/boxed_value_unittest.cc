@@ -86,7 +86,7 @@ TEST(UmBoxedValueTest, MixedList) {
 
 TEST(UmBoxedValueTest, MixedMap) {
   map<int, BoxedValue> m;
-  m.emplace(42, std::move(BoxedValue(new const string("Hola mundo!"))));
+  m.emplace(42, BoxedValue(new const string("Hola mundo!")));
 
   auto it = m.find(42);
   ASSERT_NE(it, m.end());

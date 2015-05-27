@@ -34,8 +34,7 @@ const T* EvaluationContext::GetValue(Variable<T>* var) {
   // Cache the value for the next time. The map of CachedValues keeps the
   // ownership of the pointer until the map is destroyed.
   value_cache_.emplace(
-    static_cast<BaseVariable*>(var),
-    std::move(BoxedValue(result)));
+    static_cast<BaseVariable*>(var), BoxedValue(result));
   return result;
 }
 
