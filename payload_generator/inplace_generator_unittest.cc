@@ -18,6 +18,7 @@
 #include "update_engine/payload_generator/cycle_breaker.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/graph_types.h"
+#include "update_engine/payload_generator/graph_utils.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -136,9 +137,9 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
     graph.back().op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
     // Reads from blocks 3, 5, 7
     vector<Extent> extents;
-    graph_utils::AppendBlockToExtents(&extents, 3);
-    graph_utils::AppendBlockToExtents(&extents, 5);
-    graph_utils::AppendBlockToExtents(&extents, 7);
+    AppendBlockToExtents(&extents, 3);
+    AppendBlockToExtents(&extents, 5);
+    AppendBlockToExtents(&extents, 7);
     DeltaDiffGenerator::StoreExtents(extents,
                                      graph.back().op.mutable_src_extents());
     blocks[3].reader = graph.size() - 1;
@@ -147,9 +148,9 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
 
     // Writes to blocks 1, 2, 4
     extents.clear();
-    graph_utils::AppendBlockToExtents(&extents, 1);
-    graph_utils::AppendBlockToExtents(&extents, 2);
-    graph_utils::AppendBlockToExtents(&extents, 4);
+    AppendBlockToExtents(&extents, 1);
+    AppendBlockToExtents(&extents, 2);
+    AppendBlockToExtents(&extents, 4);
     DeltaDiffGenerator::StoreExtents(extents,
                                      graph.back().op.mutable_dst_extents());
     blocks[1].writer = graph.size() - 1;
@@ -161,9 +162,9 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
     graph.back().op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
     // Reads from blocks 1, 2, 4
     vector<Extent> extents;
-    graph_utils::AppendBlockToExtents(&extents, 1);
-    graph_utils::AppendBlockToExtents(&extents, 2);
-    graph_utils::AppendBlockToExtents(&extents, 4);
+    AppendBlockToExtents(&extents, 1);
+    AppendBlockToExtents(&extents, 2);
+    AppendBlockToExtents(&extents, 4);
     DeltaDiffGenerator::StoreExtents(extents,
                                      graph.back().op.mutable_src_extents());
     blocks[1].reader = graph.size() - 1;
@@ -172,9 +173,9 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
 
     // Writes to blocks 3, 5, 6
     extents.clear();
-    graph_utils::AppendBlockToExtents(&extents, 3);
-    graph_utils::AppendBlockToExtents(&extents, 5);
-    graph_utils::AppendBlockToExtents(&extents, 6);
+    AppendBlockToExtents(&extents, 3);
+    AppendBlockToExtents(&extents, 5);
+    AppendBlockToExtents(&extents, 6);
     DeltaDiffGenerator::StoreExtents(extents,
                                      graph.back().op.mutable_dst_extents());
     blocks[3].writer = graph.size() - 1;

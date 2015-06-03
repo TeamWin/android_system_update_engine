@@ -11,6 +11,7 @@
 
 #include "update_engine/extent_ranges.h"
 #include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/extent_utils.h"
 
 using std::make_pair;
 using std::vector;
@@ -27,12 +28,12 @@ TEST(GraphUtilsTest, SimpleTest) {
   vector<Extent>& extents = graph[0].out_edges[1].extents;
 
   EXPECT_EQ(0, extents.size());
-  graph_utils::AppendBlockToExtents(&extents, 0);
+  AppendBlockToExtents(&extents, 0);
   EXPECT_EQ(1, extents.size());
-  graph_utils::AppendBlockToExtents(&extents, 1);
-  graph_utils::AppendBlockToExtents(&extents, 2);
+  AppendBlockToExtents(&extents, 1);
+  AppendBlockToExtents(&extents, 2);
   EXPECT_EQ(1, extents.size());
-  graph_utils::AppendBlockToExtents(&extents, 4);
+  AppendBlockToExtents(&extents, 4);
 
   EXPECT_EQ(2, extents.size());
   EXPECT_EQ(0, extents[0].start_block());
@@ -43,48 +44,6 @@ TEST(GraphUtilsTest, SimpleTest) {
   EXPECT_EQ(4, graph_utils::EdgeWeight(graph, make_pair(0, 1)));
 }
 
-TEST(GraphUtilsTest, AppendSparseToExtentsTest) {
-  vector<Extent> extents;
-
-  EXPECT_EQ(0, extents.size());
-  graph_utils::AppendBlockToExtents(&extents, kSparseHole);
-  EXPECT_EQ(1, extents.size());
-  graph_utils::AppendBlockToExtents(&extents, 0);
-  EXPECT_EQ(2, extents.size());
-  graph_utils::AppendBlockToExtents(&extents, kSparseHole);
-  graph_utils::AppendBlockToExtents(&extents, kSparseHole);
-
-  ASSERT_EQ(3, extents.size());
-  EXPECT_EQ(kSparseHole, extents[0].start_block());
-  EXPECT_EQ(1, extents[0].num_blocks());
-  EXPECT_EQ(0, extents[1].start_block());
-  EXPECT_EQ(1, extents[1].num_blocks());
-  EXPECT_EQ(kSparseHole, extents[2].start_block());
-  EXPECT_EQ(2, extents[2].num_blocks());
-}
-
-TEST(GraphUtilsTest, BlocksInExtentsTest) {
-  {
-    vector<Extent> extents;
-    EXPECT_EQ(0, graph_utils::BlocksInExtents(extents));
-    extents.push_back(ExtentForRange(0, 1));
-    EXPECT_EQ(1, graph_utils::BlocksInExtents(extents));
-    extents.push_back(ExtentForRange(23, 55));
-    EXPECT_EQ(56, graph_utils::BlocksInExtents(extents));
-    extents.push_back(ExtentForRange(1, 2));
-    EXPECT_EQ(58, graph_utils::BlocksInExtents(extents));
-  }
-  {
-    google::protobuf::RepeatedPtrField<Extent> extents;
-    EXPECT_EQ(0, graph_utils::BlocksInExtents(extents));
-    *extents.Add() = ExtentForRange(0, 1);
-    EXPECT_EQ(1, graph_utils::BlocksInExtents(extents));
-    *extents.Add() = ExtentForRange(23, 55);
-    EXPECT_EQ(56, graph_utils::BlocksInExtents(extents));
-    *extents.Add() = ExtentForRange(1, 2);
-    EXPECT_EQ(58, graph_utils::BlocksInExtents(extents));
-  }
-}
 
 TEST(GraphUtilsTest, DepsTest) {
   Graph graph(3);

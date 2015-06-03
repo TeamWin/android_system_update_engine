@@ -18,7 +18,7 @@
 #include "update_engine/extent_ranges.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/ext2_utils.h"
-#include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/payload_generator/inplace_generator.h"
 #include "update_engine/utils.h"
 
@@ -281,7 +281,7 @@ int ProcessInodeAllBlocks(ext2_filsys fs,
                           int ref_offset,
                           void* priv) {
   vector<Extent>* extents = static_cast<vector<Extent>*>(priv);
-  graph_utils::AppendBlockToExtents(extents, *blocknr);
+  AppendBlockToExtents(extents, *blocknr);
   return 0;
 }
 
@@ -295,7 +295,7 @@ int ProcessInodeMetadataBlocks(ext2_filsys fs,
                                void* priv) {
   vector<Extent>* extents = static_cast<vector<Extent>*>(priv);
   if (blockcnt < 0) {
-    graph_utils::AppendBlockToExtents(extents, *blocknr);
+    AppendBlockToExtents(extents, *blocknr);
   }
   return 0;
 }

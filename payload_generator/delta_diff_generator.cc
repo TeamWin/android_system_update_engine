@@ -767,7 +767,7 @@ bool DeltaDiffGenerator::ReadUnwrittenBlocks(
   for (vector<Block>::size_type i = 0; i < blocks.size(); i++) {
     if (blocks[i].writer != Vertex::kInvalidIndex)
       continue;
-    graph_utils::AppendBlockToExtents(&extents, i);
+    AppendBlockToExtents(&extents, i);
     block_count++;
   }
 
@@ -825,7 +825,7 @@ bool DeltaDiffGenerator::ReadUnwrittenBlocks(
             graph_utils::AddReadBeforeDep(vertex, blocks[block_idx].reader,
                                           block_idx);
           }
-          graph_utils::AppendBlockToExtents(&changed_extents, block_idx);
+          AppendBlockToExtents(&changed_extents, block_idx);
           changed_block_count++;
         }
         buf_offset = buf_end_offset;

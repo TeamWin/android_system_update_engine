@@ -29,7 +29,6 @@
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/extent_mapper.h"
 #include "update_engine/payload_generator/graph_types.h"
-#include "update_engine/payload_generator/graph_utils.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"

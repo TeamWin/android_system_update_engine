@@ -17,8 +17,7 @@
 #include <algorithm>
 
 #include "update_engine/payload_constants.h"
-#include "update_engine/payload_generator/graph_types.h"
-#include "update_engine/payload_generator/graph_utils.h"
+#include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/utils.h"
 
 using std::string;
@@ -71,7 +70,7 @@ bool ExtentsForFileChunkFibmap(const string& path,
 
     const uint64_t block = (block32 == 0 ? kSparseHole : block32);
 
-    graph_utils::AppendBlockToExtents(out, block);
+    AppendBlockToExtents(out, block);
   }
   return true;
 }

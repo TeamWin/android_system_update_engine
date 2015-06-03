@@ -56,7 +56,7 @@ class DummyExtentAllocator {
 vector<Extent> CompressExtents(const vector<uint64_t>& blocks) {
   vector<Extent> new_extents;
   for (uint64_t block : blocks) {
-    graph_utils::AppendBlockToExtents(&new_extents, block);
+    AppendBlockToExtents(&new_extents, block);
   }
   return new_extents;
 }
@@ -194,7 +194,7 @@ void InplaceGenerator::CreateEdges(
       edge_it = (*graph)[blocks[i].writer].out_edges.find(blocks[i].reader);
       CHECK(edge_it != (*graph)[blocks[i].writer].out_edges.end());
     }
-    graph_utils::AppendBlockToExtents(&edge_it->second.extents, i);
+    AppendBlockToExtents(&edge_it->second.extents, i);
   }
 }
 
@@ -266,7 +266,7 @@ namespace {
 template<typename T>
 bool TempBlocksExistInExtents(const T& extents) {
   for (int i = 0, e = extents.size(); i < e; ++i) {
-    Extent extent = graph_utils::GetElement(extents, i);
+    Extent extent = GetElement(extents, i);
     uint64_t start = extent.start_block();
     uint64_t num = extent.num_blocks();
     if (start >= kTempBlockStart || (start + num) >= kTempBlockStart) {

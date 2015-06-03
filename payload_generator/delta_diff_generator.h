@@ -13,8 +13,8 @@
 #include <chromeos/secure_blob.h>
 
 #include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/payload_generator/graph_types.h"
-#include "update_engine/payload_generator/graph_utils.h"
 #include "update_engine/payload_generator/operations_generator.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/update_metadata.pb.h"
@@ -217,7 +217,7 @@ class DeltaDiffGenerator : public OperationsGenerator {
   static std::vector<uint64_t> ExpandExtents(const T& extents) {
     std::vector<uint64_t> ret;
     for (size_t i = 0, e = static_cast<size_t>(extents.size()); i != e; ++i) {
-      const Extent extent = graph_utils::GetElement(extents, i);
+      const Extent extent = GetElement(extents, i);
       if (extent.start_block() == kSparseHole) {
         ret.resize(ret.size() + extent.num_blocks(), kSparseHole);
       } else {
