@@ -28,6 +28,7 @@
 #include "update_engine/extent_ranges.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/extent_mapper.h"
+#include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/test_utils.h"
@@ -47,15 +48,6 @@ typedef bool (*GetExtentsWithChunk)(const string&, off_t, off_t,
 extern GetExtentsWithChunk get_extents_with_chunk_func;
 
 namespace {
-
-int64_t BlocksInExtents(
-    const google::protobuf::RepeatedPtrField<Extent>& extents) {
-  int64_t ret = 0;
-  for (int i = 0; i < extents.size(); i++) {
-    ret += extents.Get(i).num_blocks();
-  }
-  return ret;
-}
 
 uint64_t AddExtent(uint64_t start_block, uint64_t num_blocks,
                    vector<Extent>* extents) {
