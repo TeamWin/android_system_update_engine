@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/test_utils.h"
 
 using std::vector;
@@ -253,6 +254,61 @@ TEST(ExtentRangesTest, GetExtentsForBlockCountTest) {
           << "j = " << j;
     }
   }
+}
+
+TEST(ExtentRangesTest, FilterExtentRangesEmptyRanges) {
+  ExtentRanges ranges;
+  EXPECT_EQ(vector<Extent>(),
+            FilterExtentRanges(vector<Extent>(), ranges));
+  EXPECT_EQ(
+      vector<Extent>{ ExtentForRange(50, 10) },
+      FilterExtentRanges(vector<Extent>{ ExtentForRange(50, 10) }, ranges));
+  // Check that the empty Extents are ignored.
+  EXPECT_EQ(
+      (vector<Extent>{ ExtentForRange(10, 10), ExtentForRange(20, 10) }),
+      FilterExtentRanges(vector<Extent>{
+           ExtentForRange(10, 10),
+           ExtentForRange(3, 0),
+           ExtentForRange(20, 10) }, ranges));
+}
+
+TEST(ExtentRangesTest, FilterExtentRangesMultipleRanges) {
+  // Two overlaping extents, with three ranges to remove.
+  vector<Extent> extents {
+      ExtentForRange(10, 100),
+      ExtentForRange(30, 100) };
+  ExtentRanges ranges;
+  // This overlaps the beginning of the second extent.
+  ranges.AddExtent(ExtentForRange(28, 3));
+  ranges.AddExtent(ExtentForRange(50, 10));
+  ranges.AddExtent(ExtentForRange(70, 10));
+  // This overlaps the end of the second extent.
+  ranges.AddExtent(ExtentForRange(108, 6));
+  EXPECT_EQ(
+      (vector<Extent>{
+           // For the first extent:
+           ExtentForRange(10, 18),
+           ExtentForRange(31, 19),
+           ExtentForRange(60, 10),
+           ExtentForRange(80, 28),
+           // For the second extent:
+           ExtentForRange(31, 19),
+           ExtentForRange(60, 10),
+           ExtentForRange(80, 28),
+           ExtentForRange(114, 16)}),
+      FilterExtentRanges(extents, ranges));
+}
+
+TEST(ExtentRangesTest, FilterExtentRangesOvelapping) {
+  ExtentRanges ranges;
+  ranges.AddExtent(ExtentForRange(10, 3));
+  ranges.AddExtent(ExtentForRange(20, 5));
+  // Requested extent overlaps with one of the ranges.
+  EXPECT_EQ(vector<Extent>(),
+            FilterExtentRanges(vector<Extent>{
+                                   ExtentForRange(10, 1),
+                                   ExtentForRange(22, 1) },
+                               ranges));
 }
 
 }  // namespace chromeos_update_engine

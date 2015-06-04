@@ -223,4 +223,55 @@ vector<Extent> ExtentRanges::GetExtentsForBlockCount(
   return out;
 }
 
+vector<Extent> FilterExtentRanges(const std::vector<Extent>& extents,
+                                  const ExtentRanges& ranges) {
+  vector<Extent> result;
+  const ExtentRanges::ExtentSet& extent_set = ranges.extent_set();
+  for (Extent extent : extents) {
+    // The extents are sorted by the start_block. We want to iterate all the
+    // Extents in the ExtentSet possibly overlapping the current |extent|. This
+    // is achieved by looking from the extent whose start_block is *lower* than
+    // the extent.start_block() up to the greatest extent whose start_block is
+    // lower than extent.start_block() + extent.num_blocks().
+    auto lower = extent_set.lower_bound(extent);
+    // We need to decrement the lower_bound to look at the extent that could
+    // overlap the beginning of the current |extent|.
+    if (lower != extent_set.begin())
+      lower--;
+    auto upper = extent_set.lower_bound(
+        ExtentForRange(extent.start_block() + extent.num_blocks(), 0));
+    for (auto iter = lower; iter != upper; ++iter) {
+      if (!ExtentRanges::ExtentsOverlap(extent, *iter))
+        continue;
+      if (iter->start_block() <= extent.start_block()) {
+        // We need to cut blocks from the beginning of the |extent|.
+        uint64_t cut_blocks = iter->start_block() + iter->num_blocks() -
+            extent.start_block();
+        if (cut_blocks >= extent.num_blocks()) {
+          extent.set_num_blocks(0);
+          break;
+        }
+        extent = ExtentForRange(extent.start_block() + cut_blocks,
+                                extent.num_blocks() - cut_blocks);
+      } else {
+        // We need to cut blocks on the middle of the extent, possible up to the
+        // end of it.
+        result.push_back(
+            ExtentForRange(extent.start_block(),
+                           iter->start_block() - extent.start_block()));
+        uint64_t new_start = iter->start_block() + iter->num_blocks();
+        uint64_t old_end = extent.start_block() + extent.num_blocks();
+        if (new_start >= old_end) {
+          extent.set_num_blocks(0);
+          break;
+        }
+        extent = ExtentForRange(new_start, old_end - new_start);
+      }
+    }
+    if (extent.num_blocks() > 0)
+      result.push_back(extent);
+  }
+  return result;
+}
+
 }  // namespace chromeos_update_engine

@@ -68,6 +68,12 @@ class ExtentRanges {
   uint64_t blocks_;
 };
 
+// Filters out from the passed list of extents |extents| all the blocks in the
+// ExtentRanges set. Note that the order of the blocks in |extents| is preserved
+// omitting blocks present in the ExtentRanges |ranges|.
+std::vector<Extent> FilterExtentRanges(const std::vector<Extent>& extents,
+                                       const ExtentRanges& ranges);
+
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_EXTENT_RANGES_H_
