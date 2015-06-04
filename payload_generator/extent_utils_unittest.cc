@@ -11,6 +11,7 @@
 
 #include "update_engine/extent_ranges.h"
 #include "update_engine/payload_constants.h"
+#include "update_engine/test_utils.h"
 
 using std::vector;
 
@@ -59,6 +60,75 @@ TEST(ExtentUtilsTest, BlocksInExtentsTest) {
     *extents.Add() = ExtentForRange(1, 2);
     EXPECT_EQ(58, BlocksInExtents(extents));
   }
+}
+
+TEST(ExtentUtilsTest, NormalizeExtentsSimpleList) {
+  // Make sure it works when there's just one extent.
+  vector<Extent> extents;
+  NormalizeExtents(&extents);
+  EXPECT_EQ(0, extents.size());
+
+  extents = { ExtentForRange(0, 3) };
+  NormalizeExtents(&extents);
+  EXPECT_EQ(1, extents.size());
+  EXPECT_EQ(ExtentForRange(0, 3), extents[0]);
+}
+
+TEST(ExtentUtilsTest, NormalizeExtentsTest) {
+  vector<Extent> extents = {
+      ExtentForRange(0, 3),
+      ExtentForRange(3, 2),
+      ExtentForRange(5, 1),
+      ExtentForRange(8, 4),
+      ExtentForRange(13, 1),
+      ExtentForRange(14, 2)
+  };
+  NormalizeExtents(&extents);
+  EXPECT_EQ(3, extents.size());
+  EXPECT_EQ(ExtentForRange(0, 6), extents[0]);
+  EXPECT_EQ(ExtentForRange(8, 4), extents[1]);
+  EXPECT_EQ(ExtentForRange(13, 3), extents[2]);
+}
+
+TEST(ExtentUtilsTest, ExtentsSublistTest) {
+  vector<Extent> extents = {
+      ExtentForRange(10, 10),
+      ExtentForRange(30, 10),
+      ExtentForRange(50, 10)
+  };
+
+  // Simple empty result cases.
+  EXPECT_EQ(vector<Extent>(),
+            ExtentsSublist(extents, 1000, 20));
+  EXPECT_EQ(vector<Extent>(),
+            ExtentsSublist(extents, 5, 0));
+  EXPECT_EQ(vector<Extent>(),
+            ExtentsSublist(extents, 30, 1));
+
+  // Normal test cases.
+  EXPECT_EQ(vector<Extent>{ ExtentForRange(13, 2) },
+            ExtentsSublist(extents, 3, 2));
+  EXPECT_EQ(vector<Extent>{ ExtentForRange(15, 5) },
+            ExtentsSublist(extents, 5, 5));
+  EXPECT_EQ((vector<Extent>{ ExtentForRange(15, 5), ExtentForRange(30, 5) }),
+            ExtentsSublist(extents, 5, 10));
+  EXPECT_EQ((vector<Extent>{
+                 ExtentForRange(13, 7),
+                 ExtentForRange(30, 10),
+                 ExtentForRange(50, 3), }),
+            ExtentsSublist(extents, 3, 20));
+
+  // Extact match case.
+  EXPECT_EQ(vector<Extent>{ ExtentForRange(30, 10) },
+            ExtentsSublist(extents, 10, 10));
+  EXPECT_EQ(vector<Extent>{ ExtentForRange(50, 10) },
+            ExtentsSublist(extents, 20, 10));
+
+  // Cases where the requested num_blocks is too big.
+  EXPECT_EQ(vector<Extent>{ ExtentForRange(53, 7) },
+            ExtentsSublist(extents, 23, 100));
+  EXPECT_EQ((vector<Extent>{ ExtentForRange(34, 6), ExtentForRange(50, 10) }),
+            ExtentsSublist(extents, 14, 100));
 }
 
 }  // namespace chromeos_update_engine

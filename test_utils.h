@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+// Streams used for gtest's PrintTo() functions.
+#include <iostream>  // NOLINT(readability/streams)
 #include <memory>
 #include <set>
 #include <string>
@@ -20,11 +22,17 @@
 
 #include "update_engine/action.h"
 #include "update_engine/subprocess.h"
+#include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
 
 // These are some handy functions for unittests.
 
 namespace chromeos_update_engine {
+
+// PrintTo() functions are used by gtest to log these objects. These PrintTo()
+// functions must be defined in the same namespace as the first argument.
+void PrintTo(const Extent& extent, ::std::ostream* os);
+
 namespace test_utils {
 
 // 300 byte pseudo-random string. Not null terminated.

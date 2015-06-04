@@ -34,6 +34,18 @@ uint64_t BlocksInExtents(const T& collection) {
   return ret;
 }
 
+// Takes a vector of extents and normalizes those extents. Expects the extents
+// to be sorted by start block. E.g. if |extents| is [(1, 2), (3, 5), (10, 2)]
+// then |extents| will be changed to [(1, 7), (10, 2)].
+void NormalizeExtents(std::vector<Extent>* extents);
+
+// Return a subsequence of the list of blocks passed. Both the passed list of
+// blocks |extents| and the return value are expressed as a list of Extent, not
+// blocks. The returned list skips the first |block_offset| blocks from the
+// |extents| and cotains |block_count| blocks (or less if |extents| is shorter).
+std::vector<Extent> ExtentsSublist(const std::vector<Extent>& extents,
+                                   uint64_t block_offset, uint64_t block_count);
+
 bool operator==(const Extent& a, const Extent& b);
 
 }  // namespace chromeos_update_engine

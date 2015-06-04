@@ -31,6 +31,10 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
+void PrintTo(const Extent& extent, ::std::ostream* os) {
+  *os << "(" << extent.start_block() << ", " << extent.num_blocks() << ")";
+}
+
 namespace test_utils {
 
 const char* const kMountPathTemplate = "UpdateEngineTests_mnt-XXXXXX";

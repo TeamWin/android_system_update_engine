@@ -1364,26 +1364,6 @@ void DeltaDiffGenerator::ClearSparseHoles(vector<Extent>* extents) {
                  extents->end());
 }
 
-void DeltaDiffGenerator::NormalizeExtents(vector<Extent>* extents) {
-  vector<Extent> new_extents;
-  for (const Extent& curr_ext : *extents) {
-    if (new_extents.empty()) {
-      new_extents.push_back(curr_ext);
-      continue;
-    }
-    Extent& last_ext = new_extents.back();
-    if (last_ext.start_block() + last_ext.num_blocks() ==
-        curr_ext.start_block()) {
-      // If the extents are touching, we want to combine them.
-      last_ext.set_num_blocks(last_ext.num_blocks() + curr_ext.num_blocks());
-    } else {
-      // Otherwise just include the extent as is.
-      new_extents.push_back(curr_ext);
-    }
-  }
-  *extents = new_extents;
-}
-
 bool DeltaDiffGenerator::FragmentOperations(
     vector<AnnotatedOperation>* aops,
     const string& target_part_path,

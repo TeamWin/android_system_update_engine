@@ -1076,25 +1076,6 @@ TEST_F(DeltaDiffGeneratorTest, SparseHolesFilteredTest) {
   EXPECT_EQ(extents[1], ExtentForRange(29, 1));
 }
 
-TEST_F(DeltaDiffGeneratorTest, NormalizeExtentsTest) {
-  vector<Extent> extents;
-  AddExtent(0, 3, &extents);
-  // Make sure it works when there's just one extent.
-  DeltaDiffGenerator::NormalizeExtents(&extents);
-  EXPECT_EQ(extents.size(), 1);
-  EXPECT_EQ(extents[0], ExtentForRange(0, 3));
-  AddExtent(3, 2, &extents);
-  AddExtent(5, 1, &extents);
-  AddExtent(8, 4, &extents);
-  AddExtent(13, 1, &extents);
-  AddExtent(14, 2, &extents);
-  DeltaDiffGenerator::NormalizeExtents(&extents);
-  EXPECT_EQ(extents.size(), 3);
-  EXPECT_EQ(extents[0], ExtentForRange(0, 6));
-  EXPECT_EQ(extents[1], ExtentForRange(8, 4));
-  EXPECT_EQ(extents[2], ExtentForRange(13, 3));
-}
-
 TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
   DeltaArchiveManifest_InstallOperation op;
   op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);

@@ -233,11 +233,6 @@ class DeltaDiffGenerator : public OperationsGenerator {
   // Takes a vector of extents and removes extents that begin in a sparse hole.
   static void ClearSparseHoles(std::vector<Extent>* extents);
 
-  // Takes a vector of extents and normalizes those extents. Expects the extents
-  // to be sorted by start block. E.g. if |extents| is [(1, 2), (3, 5), (10, 2)]
-  // then |extents| will be changed to [(1, 7), (10, 2)].
-  static void NormalizeExtents(std::vector<Extent>* extents);
-
   // Takes a vector of AnnotatedOperations |aops| and fragments those operations
   // such that there is only one dst extent per operation. Sets |aops| to a
   // vector of the new fragmented operations.
