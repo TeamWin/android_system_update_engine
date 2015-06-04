@@ -25,19 +25,6 @@ void OutputExtents(std::ostream* os,
 }
 }  // namespace
 
-void AnnotatedOperation::SetNameFromFileAndChunk(
-    const string& filename, off_t chunk_offset, off_t chunk_size) {
-  name = filename;
-  if (chunk_offset != 0 || chunk_size != -1) {
-    if (chunk_size != -1) {
-      base::StringAppendF(&name, " [%" PRId64 ", %" PRId64 ")",
-                          chunk_offset, chunk_offset + chunk_size);
-    } else {
-      base::StringAppendF(&name, " [%" PRId64 ", end)", chunk_offset);
-    }
-  }
-}
-
 bool AnnotatedOperation::SetOperationBlob(chromeos::Blob* blob, int data_fd,
                                           off_t* data_file_size) {
   TEST_AND_RETURN_FALSE(utils::PWriteAll(data_fd,

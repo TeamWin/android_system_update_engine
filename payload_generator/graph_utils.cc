@@ -115,7 +115,6 @@ void DumpGraph(const Graph& graph) {
     LOG(INFO) << i
               << (graph[i].valid ? "" : "-INV")
               << ": " << graph[i].file_name
-              << " " << graph[i].chunk_size << "@" << graph[i].chunk_offset
               << ": " << InstallOperationTypeName(graph[i].op.type());
     LOG(INFO) << "  src_extents:";
     DumpExtents(graph[i].op.src_extents(), 4);

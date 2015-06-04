@@ -37,6 +37,21 @@ struct CutEdgeVertexes {
 
 class InplaceGenerator : public OperationsGenerator {
  public:
+  // Represents a disk block on the install partition.
+  struct Block {
+    // During install, each block on the install partition will be written
+    // and some may be read (in all likelihood, many will be read).
+    // The reading and writing will be performed by InstallOperations,
+    // each of which has a corresponding vertex in a graph.
+    // A Block object tells which vertex will read or write this block
+    // at install time.
+    // Generally, there will be a vector of Block objects whose length
+    // is the number of blocks on the install partition.
+    Block() : reader(Vertex::kInvalidIndex), writer(Vertex::kInvalidIndex) {}
+    Vertex::Index reader;
+    Vertex::Index writer;
+  };
+
   InplaceGenerator() = default;
 
   // Checks all the operations in the graph have a type assigned.
@@ -69,7 +84,7 @@ class InplaceGenerator : public OperationsGenerator {
   // readers of the same block. This is because for an edge A->B, B
   // must complete before A executes.
   static void CreateEdges(Graph* graph,
-                          const std::vector<DeltaDiffGenerator::Block>& blocks);
+                          const std::vector<Block>& blocks);
 
   // Takes |op_indexes|, which is effectively a mapping from order in
   // which the op is performed -> graph vertex index, and produces the
@@ -104,7 +119,6 @@ class InplaceGenerator : public OperationsGenerator {
   static bool AssignTempBlocks(
       Graph* graph,
       const std::string& new_part,
-      const std::string& new_root,
       int data_fd,
       off_t* data_file_size,
       std::vector<Vertex::Index>* op_indexes,
@@ -121,7 +135,6 @@ class InplaceGenerator : public OperationsGenerator {
   static bool ConvertCutToFullOp(Graph* graph,
                                  const CutEdgeVertexes& cut,
                                  const std::string& new_part,
-                                 const std::string& new_root,
                                  int data_fd,
                                  off_t* data_file_size);
 
@@ -136,7 +149,6 @@ class InplaceGenerator : public OperationsGenerator {
   // Returns true on success.
   static bool ConvertGraphToDag(Graph* graph,
                                 const std::string& new_part,
-                                const std::string& new_root,
                                 int fd,
                                 off_t* data_file_size,
                                 std::vector<Vertex::Index>* final_order,
@@ -161,7 +173,19 @@ class InplaceGenerator : public OperationsGenerator {
       const DeltaArchiveManifest_InstallOperation& operation,
       const Graph& graph,
       Vertex::Index vertex,
-      std::vector<DeltaDiffGenerator::Block>* blocks);
+      std::vector<Block>* blocks);
+
+  // Add a vertex (if |existing_vertex| is kInvalidVertex) or update an
+  // |existing_vertex| with the passed |operation|.
+  // This method will also register the vertex as the reader or writer of the
+  // blocks involved in the operation updating the |blocks| vector. The
+  // |op_name| associated with the Vertex is used for logging purposes.
+  static bool AddInstallOpToGraph(
+      Graph* graph,
+      Vertex::Index existing_vertex,
+      std::vector<Block>* blocks,
+      const DeltaArchiveManifest_InstallOperation operation,
+      const std::string& op_name);
 
   // Generate the update payload operations for the kernel and rootfs using
   // only operations that read from the target and/or write to the target,

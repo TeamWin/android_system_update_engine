@@ -13,14 +13,13 @@
 
 #include <base/macros.h>
 
+#include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/update_metadata.pb.h"
 
 // A few classes that help in generating delta images use these types
 // for the graph work.
 
 namespace chromeos_update_engine {
-
-bool operator==(const Extent& a, const Extent& b);
 
 struct EdgeProperties {
   // Read-before extents. I.e., blocks in |extents| must be read by the
@@ -42,9 +41,7 @@ struct Vertex {
   Vertex() :
       valid(true),
       index(-1),
-      lowlink(-1),
-      chunk_offset(0),
-      chunk_size(-1) {}
+      lowlink(-1) {}
   bool valid;
 
   typedef std::map<std::vector<Vertex>::size_type, EdgeProperties> EdgeMap;
@@ -64,8 +61,6 @@ struct Vertex {
   // Other Vertex properties:
   DeltaArchiveManifest_InstallOperation op;
   std::string file_name;
-  off_t chunk_offset;
-  off_t chunk_size;
 
   typedef std::vector<Vertex>::size_type Index;
   static const Vertex::Index kInvalidIndex;

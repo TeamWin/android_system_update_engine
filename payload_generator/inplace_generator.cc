@@ -15,9 +15,9 @@
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/cycle_breaker.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/ext2_filesystem.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
-#include "update_engine/payload_generator/metadata.h"
 #include "update_engine/payload_generator/topological_sort.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
@@ -27,11 +27,12 @@ using std::map;
 using std::pair;
 using std::set;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
 
-using Block = DeltaDiffGenerator::Block;
+using Block = InplaceGenerator::Block;
 
 // This class allocates non-existent temp blocks, starting from
 // kTempBlockStart. Other code is responsible for converting these
@@ -174,8 +175,8 @@ bool InplaceGenerator::CutEdges(Graph* graph,
 // must complete before A executes.
 void InplaceGenerator::CreateEdges(
     Graph* graph,
-    const vector<DeltaDiffGenerator::Block>& blocks) {
-  for (vector<DeltaDiffGenerator::Block>::size_type i = 0;
+    const vector<Block>& blocks) {
+  for (vector<Block>::size_type i = 0;
        i < blocks.size(); i++) {
     // Blocks with both a reader and writer get an edge
     if (blocks[i].reader == Vertex::kInvalidIndex ||
@@ -288,7 +289,6 @@ bool TempBlocksExistInExtents(const T& extents) {
 // all temp nodes invalid.
 bool ConvertCutsToFull(
     Graph* graph,
-    const string& new_root,
     const string& new_part,
     int data_fd,
     off_t* data_file_size,
@@ -302,7 +302,6 @@ bool ConvertCutsToFull(
         graph,
         cut,
         new_part,
-        new_root,
         data_fd,
         data_file_size));
     deleted_nodes.insert(cut.new_vertex);
@@ -330,7 +329,6 @@ bool ConvertCutsToFull(
 // on exceptional error cases.
 bool AssignBlockForAdjoiningCuts(
     Graph* graph,
-    const string& new_root,
     const string& new_part,
     int data_fd,
     off_t* data_file_size,
@@ -395,7 +393,6 @@ bool AssignBlockForAdjoiningCuts(
   if (scratch_ranges.blocks() < blocks_needed) {
     LOG(INFO) << "Unable to find sufficient scratch";
     TEST_AND_RETURN_FALSE(ConvertCutsToFull(graph,
-                                            new_root,
                                             new_part,
                                             data_fd,
                                             data_file_size,
@@ -442,7 +439,6 @@ bool AssignBlockForAdjoiningCuts(
 
 bool InplaceGenerator::AssignTempBlocks(
     Graph* graph,
-    const string& new_root,
     const string& new_part,
     int data_fd,
     off_t* data_file_size,
@@ -466,7 +462,6 @@ bool InplaceGenerator::AssignTempBlocks(
     } else {
       CHECK(!cuts_group.empty());
       TEST_AND_RETURN_FALSE(AssignBlockForAdjoiningCuts(graph,
-                                                        new_root,
                                                         new_part,
                                                         data_fd,
                                                         data_file_size,
@@ -484,7 +479,6 @@ bool InplaceGenerator::AssignTempBlocks(
   }
   CHECK(!cuts_group.empty());
   TEST_AND_RETURN_FALSE(AssignBlockForAdjoiningCuts(graph,
-                                                    new_root,
                                                     new_part,
                                                     data_fd,
                                                     data_file_size,
@@ -524,7 +518,6 @@ bool InplaceGenerator::NoTempBlocksRemain(const Graph& graph) {
 bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
                                           const CutEdgeVertexes& cut,
                                           const string& new_part,
-                                          const string& new_root,
                                           int data_fd,
                                           off_t* data_file_size) {
   // Drop all incoming edges, keep all outgoing edges
@@ -537,20 +530,26 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
     Vertex::EdgeMap out_edges = (*graph)[cut.old_dst].out_edges;
     graph_utils::DropWriteBeforeDeps(&out_edges);
 
+    // Replace the operation with a REPLACE or REPLACE_BZ to generate the same
+    // |new_extents| list of blocks and update the graph.
+    vector<AnnotatedOperation> new_aop;
+    vector<Extent> new_extents;
+    DeltaDiffGenerator::ExtentsToVector((*graph)[cut.old_dst].op.dst_extents(),
+                                        &new_extents);
     TEST_AND_RETURN_FALSE(DeltaDiffGenerator::DeltaReadFile(
-        graph,
-        cut.old_dst,
-        nullptr,
+        &new_aop,
         kEmptyPath,  // old_part
         new_part,
-        kEmptyPath,
-        new_root,
+        vector<Extent>(),  // old_extents
+        new_extents,
         (*graph)[cut.old_dst].file_name,
-        (*graph)[cut.old_dst].chunk_offset,
-        (*graph)[cut.old_dst].chunk_size,
+        -1,  // chunk_blocks, forces to have a single operation.
         data_fd,
         data_file_size,
         false));  // src_ops_allowed
+    TEST_AND_RETURN_FALSE(new_aop.size() == 1);
+    TEST_AND_RETURN_FALSE(AddInstallOpToGraph(
+      graph, cut.old_dst, nullptr, new_aop.front().op, new_aop.front().name));
 
     (*graph)[cut.old_dst].out_edges = out_edges;
 
@@ -569,12 +568,11 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
 }
 
 bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
-                                        const string& new_part,
-                                        const string& new_root,
-                                        int fd,
-                                        off_t* data_file_size,
-                                        vector<Vertex::Index>* final_order,
-                                        Vertex::Index scratch_vertex) {
+                                         const string& new_part,
+                                         int fd,
+                                         off_t* data_file_size,
+                                         vector<Vertex::Index>* final_order,
+                                         Vertex::Index scratch_vertex) {
   CycleBreaker cycle_breaker;
   LOG(INFO) << "Finding cycles...";
   set<Edge> cut_edges;
@@ -608,7 +606,6 @@ bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
   if (!cuts.empty())
     TEST_AND_RETURN_FALSE(AssignTempBlocks(graph,
                                            new_part,
-                                           new_root,
                                            fd,
                                            data_file_size,
                                            final_order,
@@ -646,7 +643,7 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
     const DeltaArchiveManifest_InstallOperation& operation,
     const Graph& graph,
     Vertex::Index vertex,
-    vector<DeltaDiffGenerator::Block>* blocks) {
+    vector<Block>* blocks) {
   // See if this is already present.
   TEST_AND_RETURN_FALSE(operation.dst_extents_size() > 0);
 
@@ -658,9 +655,8 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
     const char* past_participle = (field == READER) ? "read" : "written";
     const google::protobuf::RepeatedPtrField<Extent>& extents =
         (field == READER) ? operation.src_extents() : operation.dst_extents();
-    Vertex::Index DeltaDiffGenerator::Block::*access_type =
-        (field == READER) ? &DeltaDiffGenerator::Block::reader
-            : &DeltaDiffGenerator::Block::writer;
+    Vertex::Index Block::*access_type = (field == READER) ?
+        &Block::reader : &Block::writer;
 
     for (int i = 0; i < extents_size; i++) {
       const Extent& extent = extents.Get(i);
@@ -681,55 +677,66 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
   return true;
 }
 
+bool InplaceGenerator::AddInstallOpToGraph(
+    Graph* graph,
+    Vertex::Index existing_vertex,
+    vector<Block>* blocks,
+    const DeltaArchiveManifest_InstallOperation operation,
+    const string& op_name) {
+  Vertex::Index vertex = existing_vertex;
+  if (vertex == Vertex::kInvalidIndex) {
+    graph->emplace_back();
+    vertex = graph->size() - 1;
+  }
+  (*graph)[vertex].op = operation;
+  CHECK((*graph)[vertex].op.has_type());
+  (*graph)[vertex].file_name = op_name;
+
+  if (blocks)
+    TEST_AND_RETURN_FALSE(InplaceGenerator::AddInstallOpToBlocksVector(
+        (*graph)[vertex].op,
+        *graph,
+        vertex,
+        blocks));
+  return true;
+}
+
 bool InplaceGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
     int data_file_fd,
     off_t* data_file_size,
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
+  unique_ptr<Ext2Filesystem> old_fs = Ext2Filesystem::CreateFromFile(
+      config.source.rootfs_part);
+  unique_ptr<Ext2Filesystem> new_fs = Ext2Filesystem::CreateFromFile(
+      config.target.rootfs_part);
+
+  off_t chunk_blocks = (config.chunk_size == -1 ? -1 :
+                        config.chunk_size / config.block_size);
+
+  // Temporary list of operations used to construct the dependency graph.
+  vector<AnnotatedOperation> aops;
+  TEST_AND_RETURN_FALSE(
+      DeltaDiffGenerator::DeltaReadFilesystem(&aops,
+                                              config.source.rootfs_part,
+                                              config.target.rootfs_part,
+                                              old_fs.get(),
+                                              new_fs.get(),
+                                              chunk_blocks,
+                                              data_file_fd,
+                                              data_file_size,
+                                              false));  // src_ops_allowed
+  // Convert the rootfs operations to the graph.
   Graph graph;
   CheckGraph(graph);
   vector<Block> blocks(config.target.rootfs_size / config.block_size);
-
-  TEST_AND_RETURN_FALSE(
-      DeltaDiffGenerator::DeltaReadFiles(&graph,
-                                         &blocks,
-                                         config.source.rootfs_part,
-                                         config.target.rootfs_part,
-                                         config.source.rootfs_mountpt,
-                                         config.target.rootfs_mountpt,
-                                         config.chunk_size,
-                                         data_file_fd,
-                                         data_file_size,
-                                         false));  // src_ops_allowed
+  for (const auto& aop : aops) {
+    AddInstallOpToGraph(
+        &graph, Vertex::kInvalidIndex, &blocks, aop.op, aop.name);
+  }
   LOG(INFO) << "done reading normal files";
   CheckGraph(graph);
-
-  LOG(INFO) << "Starting metadata processing";
-  TEST_AND_RETURN_FALSE(Metadata::DeltaReadMetadata(
-      &graph,
-      &blocks,
-      config.source.rootfs_part,
-      config.target.rootfs_part,
-      data_file_fd,
-      data_file_size));
-  LOG(INFO) << "Done metadata processing";
-  CheckGraph(graph);
-
-  graph.emplace_back();
-  TEST_AND_RETURN_FALSE(
-      DeltaDiffGenerator::ReadUnwrittenBlocks(blocks,
-                                              data_file_fd,
-                                              data_file_size,
-                                              config.source.rootfs_part,
-                                              config.source.rootfs_size,
-                                              config.target.rootfs_part,
-                                              &graph.back(),
-                                              config.minor_version));
-  if (graph.back().op.data_length() == 0) {
-    LOG(INFO) << "No unwritten blocks to write, omitting operation";
-    graph.pop_back();
-  }
 
   // Final scratch block (if there's space)
   Vertex::Index scratch_vertex = Vertex::kInvalidIndex;
@@ -747,11 +754,13 @@ bool InplaceGenerator::GenerateOperations(
       DeltaDiffGenerator::DeltaCompressKernelPartition(
           config.source.kernel_part,
           config.target.kernel_part,
+          config.source.kernel_size,
+          config.target.kernel_size,
+          config.block_size,
           kernel_ops,
           data_file_fd,
           data_file_size,
           false));  // src_ops_allowed
-
   LOG(INFO) << "done reading kernel";
   CheckGraph(graph);
 
@@ -764,7 +773,6 @@ bool InplaceGenerator::GenerateOperations(
   TEST_AND_RETURN_FALSE(ConvertGraphToDag(
       &graph,
       config.target.rootfs_part,
-      config.target.rootfs_mountpt,
       data_file_fd,
       data_file_size,
       &final_order,
@@ -777,8 +785,7 @@ bool InplaceGenerator::GenerateOperations(
     const Vertex& vertex = graph[vertex_index];
     rootfs_ops->emplace_back();
     rootfs_ops->back().op = vertex.op;
-    rootfs_ops->back().SetNameFromFileAndChunk(
-        vertex.file_name, vertex.chunk_offset, vertex.chunk_size);
+    rootfs_ops->back().name = vertex.file_name;
   }
 
   return true;

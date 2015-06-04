@@ -29,7 +29,7 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-typedef DeltaDiffGenerator::Block Block;
+using Block = InplaceGenerator::Block;
 
 namespace {
 
@@ -93,6 +93,14 @@ void OpAppendExtent(DeltaArchiveManifest_InstallOperation* op,
 
 class InplaceGeneratorTest : public ::testing::Test {
 };
+
+TEST_F(InplaceGeneratorTest, BlockDefaultValues) {
+  // Tests that a Block is initialized with the default values as a
+  // Vertex::kInvalidIndex. This is required by the delta generators.
+  Block block;
+  EXPECT_EQ(Vertex::kInvalidIndex, block.reader);
+  EXPECT_EQ(Vertex::kInvalidIndex, block.writer);
+}
 
 TEST_F(InplaceGeneratorTest, SubstituteBlocksTest) {
   vector<Extent> remove_blocks;
@@ -247,14 +255,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   EXPECT_TRUE(graph[1].out_edges.end() != graph[1].out_edges.find(2));
 }
 
-TEST_F(InplaceGeneratorTest, RunAsRootAssignTempBlocksReuseTest) {
-  // AssignTempBlocks(Graph* graph,
-  // const string& new_root,
-  // int data_fd,
-  // off_t* data_file_size,
-  // vector<Vertex::Index>* op_indexes,
-  // vector<vector<Vertex::Index>::size_type>* reverse_op_indexes,
-  // const vector<CutEdgeVertexes>& cuts
+TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
   Graph graph(9);
 
   const vector<Extent> empt;
@@ -321,17 +322,6 @@ TEST_F(InplaceGeneratorTest, RunAsRootAssignTempBlocksReuseTest) {
   InplaceGenerator::GenerateReverseTopoOrderMap(op_indexes,
                                                 &reverse_op_indexes);
 
-  // Prepare the filesystem with the minimum required for this to work
-  string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("AssignTempBlocksReuseTest.XXXXXX",
-                                       &temp_dir));
-  ScopedDirRemover temp_dir_remover(temp_dir);
-
-  chromeos::Blob temp_data(kBlockSize * 3);
-  test_utils::FillWithData(&temp_data);
-  EXPECT_TRUE(test_utils::WriteFileVector(temp_dir + kFilename, temp_data));
-  ScopedPathUnlinker filename_unlinker(temp_dir + kFilename);
-
   int fd;
   EXPECT_TRUE(utils::MakeTempFile("AssignTempBlocksReuseTest.XXXXXX",
                                   nullptr,
@@ -340,7 +330,6 @@ TEST_F(InplaceGeneratorTest, RunAsRootAssignTempBlocksReuseTest) {
   off_t data_file_size = 0;
 
   EXPECT_TRUE(InplaceGenerator::AssignTempBlocks(&graph,
-                                                 temp_dir,
                                                  "/dev/zero",
                                                  fd,
                                                  &data_file_size,
@@ -379,7 +368,7 @@ TEST_F(InplaceGeneratorTest, MoveFullOpsToBackTest) {
   EXPECT_EQ(graph[vect[3]].file_name, "C");
 }
 
-TEST_F(InplaceGeneratorTest, RunAsRootAssignTempBlocksTest) {
+TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
   Graph graph(9);
   const vector<Extent> empt;  // empty
   const string kFilename = "/foo";
@@ -419,18 +408,6 @@ TEST_F(InplaceGeneratorTest, RunAsRootAssignTempBlocksTest) {
 
   vector<Vertex::Index> final_order;
 
-
-  // Prepare the filesystem with the minimum required for this to work
-  string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("AssignTempBlocksTest.XXXXXX",
-                                       &temp_dir));
-  ScopedDirRemover temp_dir_remover(temp_dir);
-
-  chromeos::Blob temp_data(kBlockSize * 50);
-  test_utils::FillWithData(&temp_data);
-  EXPECT_TRUE(test_utils::WriteFileVector(temp_dir + kFilename, temp_data));
-  ScopedPathUnlinker filename_unlinker(temp_dir + kFilename);
-
   int fd;
   EXPECT_TRUE(utils::MakeTempFile("AssignTempBlocksTestData.XXXXXX",
                                   nullptr,
@@ -439,13 +416,11 @@ TEST_F(InplaceGeneratorTest, RunAsRootAssignTempBlocksTest) {
   off_t data_file_size = 0;
 
   EXPECT_TRUE(InplaceGenerator::ConvertGraphToDag(&graph,
-                                                  temp_dir,
                                                   "/dev/zero",
                                                   fd,
                                                   &data_file_size,
                                                   &final_order,
                                                   Vertex::kInvalidIndex));
-
 
   Graph expected_graph(12);
   GenVertex(&expected_graph[0], empt, VectOfExt(200, 1), "", OP_REPLACE);

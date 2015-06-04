@@ -5,6 +5,7 @@
 #include "update_engine/test_utils.h"
 
 #include <attr/xattr.h>
+#include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +23,6 @@
 #include <base/strings/string_util.h>
 
 #include "update_engine/file_writer.h"
-#include "update_engine/payload_generator/filesystem_iterator.h"
 #include "update_engine/utils.h"
 
 using base::StringPrintf;
@@ -229,51 +229,6 @@ void CreateExtImageAtPath(const string& path, vector<string>* out_paths) {
     out_paths->push_back("/srchardlink0");
     out_paths->push_back("/srchardlink1");
     out_paths->push_back("/lost+found");
-  }
-}
-
-void VerifyAllPaths(const string& parent, set<string> expected_paths) {
-  FilesystemIterator iter(parent, set<string>());
-  ino_t test_ino = 0;
-  ino_t testlink_ino = 0;
-  while (!iter.IsEnd()) {
-    string path = iter.GetFullPath();
-    EXPECT_TRUE(expected_paths.find(path) != expected_paths.end()) << path;
-    EXPECT_EQ(1, expected_paths.erase(path));
-    if (EndsWith(path, "/hi", true) ||
-        EndsWith(path, "/hello", true) ||
-        EndsWith(path, "/test", true) ||
-        EndsWith(path, "/testlink", true)) {
-      EXPECT_TRUE(S_ISREG(iter.GetStat().st_mode));
-      if (EndsWith(path, "/test", true))
-        test_ino = iter.GetStat().st_ino;
-      else if (EndsWith(path, "/testlink", true))
-        testlink_ino = iter.GetStat().st_ino;
-    } else if (EndsWith(path, "/some_dir", true) ||
-               EndsWith(path, "/empty_dir", true) ||
-               EndsWith(path, "/mnt", true) ||
-               EndsWith(path, "/lost+found", true) ||
-               parent == path) {
-      EXPECT_TRUE(S_ISDIR(iter.GetStat().st_mode));
-    } else if (EndsWith(path, "/fifo", true)) {
-      EXPECT_TRUE(S_ISFIFO(iter.GetStat().st_mode));
-    } else if (EndsWith(path, "/cdev", true)) {
-      EXPECT_TRUE(S_ISCHR(iter.GetStat().st_mode));
-    } else if (EndsWith(path, "/sym", true)) {
-      EXPECT_TRUE(S_ISLNK(iter.GetStat().st_mode));
-    } else {
-      LOG(INFO) << "got non hardcoded path: " << path;
-    }
-    iter.Increment();
-  }
-  EXPECT_EQ(testlink_ino, test_ino);
-  EXPECT_NE(0, test_ino);
-  EXPECT_FALSE(iter.IsErr());
-  EXPECT_TRUE(expected_paths.empty());
-  if (!expected_paths.empty()) {
-    for (const string& path : expected_paths) {
-      LOG(INFO) << "extra path: " << path;
-    }
   }
 }
 

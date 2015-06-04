@@ -88,13 +88,6 @@ void CreateEmptyExtImageAtPath(const std::string& path,
 void CreateExtImageAtPath(const std::string& path,
                           std::vector<std::string>* out_paths);
 
-// Verifies that for each path in paths, it exists in the filesystem under
-// parent. Also, verifies that no additional paths are present under parent.
-// Also tests properties of various files created by CreateExtImageAtPath().
-// Intentionally copies expected_paths.
-void VerifyAllPaths(const std::string& parent,
-                    std::set<std::string> expected_paths);
-
 // Class to unmount FS when object goes out of scope
 class ScopedFilesystemUnmounter {
  public:

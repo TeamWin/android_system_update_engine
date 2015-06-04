@@ -21,10 +21,6 @@ struct AnnotatedOperation {
   // The InstallOperation, as defined by the protobuf.
   DeltaArchiveManifest_InstallOperation op;
 
-  // Sets |name| to a human readable representation of a chunk in a file.
-  void SetNameFromFileAndChunk(const std::string& filename,
-                               off_t chunk_offset, off_t chunk_size);
-
   // Writes |blob| to the end of |data_fd|, and updates |data_file_size| to
   // match the new size of |data_fd|. It sets the data_offset and data_length
   // in AnnotatedOperation to match the offset and size of |blob| in |data_fd|.

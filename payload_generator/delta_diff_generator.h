@@ -14,7 +14,7 @@
 
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/extent_utils.h"
-#include "update_engine/payload_generator/graph_types.h"
+#include "update_engine/payload_generator/filesystem_interface.h"
 #include "update_engine/payload_generator/operations_generator.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/update_metadata.pb.h"
@@ -36,21 +36,6 @@ class DeltaDiffGenerator : public OperationsGenerator {
  public:
   DeltaDiffGenerator() = default;
 
-  // Represents a disk block on the install partition.
-  struct Block {
-    // During install, each block on the install partition will be written
-    // and some may be read (in all likelihood, many will be read).
-    // The reading and writing will be performed by InstallOperations,
-    // each of which has a corresponding vertex in a graph.
-    // A Block object tells which vertex will read or write this block
-    // at install time.
-    // Generally, there will be a vector of Block objects whose length
-    // is the number of blocks on the install partition.
-    Block() : reader(Vertex::kInvalidIndex), writer(Vertex::kInvalidIndex) {}
-    Vertex::Index reader;
-    Vertex::Index writer;
-  };
-
   // These functions are public so that the unit tests can access them:
 
   // Generate the update payload operations for the kernel and rootfs using
@@ -70,92 +55,77 @@ class DeltaDiffGenerator : public OperationsGenerator {
       std::vector<AnnotatedOperation>* rootfs_ops,
       std::vector<AnnotatedOperation>* kernel_ops) override;
 
-  // For each regular file within new_root, creates a node in the graph,
-  // determines the best way to compress it (REPLACE, REPLACE_BZ, COPY, BSDIFF),
-  // and writes any necessary data to the end of data_fd.
-  static bool DeltaReadFiles(Graph* graph,
-                             std::vector<Block>* blocks,
-                             const std::string& old_part,
-                             const std::string& new_part,
-                             const std::string& old_root,
-                             const std::string& new_root,
-                             off_t chunk_size,
-                             int data_fd,
-                             off_t* data_file_size,
-                             bool src_ops_allowed);
+  // Create operations in |aops| to produce all the files reported by |new_fs|,
+  // including all the blocks not reported by any file.
+  // It uses the files reported by |old_fs| and the data in |old_part| to
+  // determine the best way to compress the new files (REPLACE, REPLACE_BZ,
+  // COPY, BSDIFF) and writes any necessary data to the end of data_fd updating
+  // data_file_size accordingly.
+  static bool DeltaReadFilesystem(std::vector<AnnotatedOperation>* aops,
+                                  const std::string& old_part,
+                                  const std::string& new_part,
+                                  FilesystemInterface* old_fs,
+                                  FilesystemInterface* new_fs,
+                                  off_t chunk_blocks,
+                                  int data_fd,
+                                  off_t* data_file_size,
+                                  bool src_ops_allowed);
 
-  // For a given regular file which must exist at new_root + path, and
-  // may exist at old_root + path, creates a new InstallOperation and
-  // adds it to the graph. Also, populates the |blocks| array as
-  // necessary, if |blocks| is non-null.  Also, writes the data
-  // necessary to send the file down to the client into data_fd, which
-  // has length *data_file_size. *data_file_size is updated
-  // appropriately. If |existing_vertex| is no kInvalidIndex, use that
-  // rather than allocating a new vertex. Returns true on success.
-  static bool DeltaReadFile(Graph* graph,
-                            Vertex::Index existing_vertex,
-                            std::vector<Block>* blocks,
+  // For a given file |name| append operations to |aops| to produce it in the
+  // |new_part|. The file will be split in chunks of |chunk_blocks| blocks each
+  // or treated as a single chunk if |chunk_blocks| is -1. The file data is
+  // stored in |new_part| in the blocks described by |new_extents| and, if it
+  // exists, the old version exists in |old_part| in the blocks described by
+  // |old_extents|. The operations added to |aops| reference the data blob
+  // in the file |data_fd|, which has length *data_file_size. *data_file_size is
+  // updated appropriately. Returns true on success.
+  static bool DeltaReadFile(std::vector<AnnotatedOperation>* aops,
                             const std::string& old_part,
                             const std::string& new_part,
-                            const std::string& old_root,
-                            const std::string& new_root,
-                            const std::string& path,
-                            off_t chunk_offset,
-                            off_t chunk_size,
+                            const std::vector<Extent>& old_extents,
+                            const std::vector<Extent>& new_extents,
+                            const std::string& name,
+                            off_t chunk_blocks,
                             int data_fd,
                             off_t* data_file_size,
                             bool src_ops_allowed);
 
-  // Reads old_filename (if it exists) and a new_filename and determines
-  // the smallest way to encode this file for the diff. It reads extents from
-  // |old_part| and |new_part|. It stores necessary data in out_data and fills
-  // in out_op. If there's no change in old and new files, it creates a MOVE
-  // operation. If there is a change, or the old file doesn't exist,
-  // the smallest of REPLACE, REPLACE_BZ, or BSDIFF wins.
-  // new_filename must contain at least one byte.
-  // |new_filename| is read starting at |chunk_offset|.
-  // If |chunk_size| is not -1, only up to |chunk_size| bytes are diffed.
+  // Reads the blocks |old_extents| from |old_part| (if it exists) and the
+  // |new_extents| from |new_part| and determines the smallest way to encode
+  // this |new_extents| for the diff. It stores necessary data in |out_data| and
+  // fills in |out_op|. If there's no change in old and new files, it creates a
+  // MOVE operation. If there is a change, the smallest of REPLACE, REPLACE_BZ,
+  // or BSDIFF wins. |new_extents| must not be empty.
   // If |src_ops_allowed| is true, it will emit SOURCE_COPY and SOURCE_BSDIFF
   // operations instead of MOVE and BSDIFF, respectively.
   // Returns true on success.
-  static bool ReadFileToDiff(const std::string& old_part,
-                             const std::string& new_part,
-                             off_t chunk_offset,
-                             off_t chunk_size,
-                             bool bsdiff_allowed,
-                             chromeos::Blob* out_data,
-                             DeltaArchiveManifest_InstallOperation* out_op,
-                             bool gather_extents,
-                             bool src_ops_allowed,
-                             const std::string& old_filename,
-                             const std::string& new_filename);
+  static bool ReadExtentsToDiff(const std::string& old_part,
+                                const std::string& new_part,
+                                const std::vector<Extent>& old_extents,
+                                const std::vector<Extent>& new_extents,
+                                bool bsdiff_allowed,
+                                chromeos::Blob* out_data,
+                                DeltaArchiveManifest_InstallOperation* out_op,
+                                bool src_ops_allowed);
 
   // Delta compresses a kernel partition |new_kernel_part| with knowledge of the
   // old kernel partition |old_kernel_part|. If |old_kernel_part| is an empty
-  // string, generates a full update of the partition.
+  // string, generates a full update of the partition. The size of the old and
+  // new kernel is passed in |old_kernel_size| and |new_kernel_size|. The
+  // operations used to generate the new kernel are stored in the |aops|
+  // vector, and the blob associated to those operations is written at the end
+  // of the |blobs_fd| file, adding to the value pointed by |blobs_length| the
+  // bytes written to |blobs_fd|.
   static bool DeltaCompressKernelPartition(
       const std::string& old_kernel_part,
       const std::string& new_kernel_part,
-      std::vector<AnnotatedOperation>* ops,
+      uint64_t old_kernel_size,
+      uint64_t new_kernel_size,
+      uint64_t block_size,
+      std::vector<AnnotatedOperation>* aops,
       int blobs_fd,
       off_t* blobs_length,
       bool src_ops_allowed);
-
-  // Reads blocks from image_path that are not yet marked as being written in
-  // the blocks array. These blocks that remain are either unchanged files or
-  // non-file-data blocks.  We compare each of them to the old image, and
-  // compress the ones that changed into a single REPLACE_BZ operation. This
-  // updates a newly created node in the graph to write these blocks and writes
-  // the appropriate blob to blobs_fd. Reads and updates blobs_length.
-  static bool ReadUnwrittenBlocks(
-      const std::vector<Block>& blocks,
-      int blobs_fd,
-      off_t* blobs_length,
-      const std::string& old_image_path,
-      const uint64_t old_image_size,
-      const std::string& new_image_path,
-      Vertex* vertex,
-      uint32_t minor_version);
 
   // Stores all Extents in 'extents' into 'out'.
   static void StoreExtents(const std::vector<Extent>& extents,
@@ -229,9 +199,6 @@ class DeltaDiffGenerator : public OperationsGenerator {
     }
     return ret;
   }
-
-  // Takes a vector of extents and removes extents that begin in a sparse hole.
-  static void ClearSparseHoles(std::vector<Extent>* extents);
 
   // Takes a vector of AnnotatedOperations |aops| and fragments those operations
   // such that there is only one dst extent per operation. Sets |aops| to a
