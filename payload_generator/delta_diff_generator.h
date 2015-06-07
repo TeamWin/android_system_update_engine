@@ -165,8 +165,7 @@ class DeltaDiffGenerator : public OperationsGenerator {
   // of the rest of the operations.
   static void FilterNoopOperations(std::vector<AnnotatedOperation>* ops);
 
-  static bool InitializePartitionInfo(bool is_kernel,
-                                      const std::string& partition,
+  static bool InitializePartitionInfo(const PartitionConfig& partition,
                                       PartitionInfo* info);
 
   // Runs the bsdiff tool on two files and returns the resulting delta in

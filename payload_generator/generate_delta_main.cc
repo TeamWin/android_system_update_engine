@@ -173,10 +173,10 @@ void VerifySignedPayload(const string& in_file,
 
 void ApplyDelta(const string& in_file,
                 const string& old_kernel,
-                const string& old_image,
+                const string& old_rootfs,
                 const string& prefs_dir) {
   LOG(INFO) << "Applying delta.";
-  LOG_IF(FATAL, old_image.empty())
+  LOG_IF(FATAL, old_rootfs.empty())
       << "Must pass --old_image to apply delta.";
   Prefs prefs;
   InstallPlan install_plan;
@@ -186,18 +186,20 @@ void ApplyDelta(const string& in_file,
   // Get original checksums
   LOG(INFO) << "Calculating original checksums";
   PartitionInfo kern_info, root_info;
-  CHECK(DeltaDiffGenerator::InitializePartitionInfo(true,  // is_kernel
-                                                    old_kernel,
+  ImageConfig old_image;
+  old_image.kernel.path = old_kernel;
+  old_image.rootfs.path = old_rootfs;
+  CHECK(old_image.LoadImageSize());
+  CHECK(DeltaDiffGenerator::InitializePartitionInfo(old_image.kernel,
                                                     &kern_info));
-  CHECK(DeltaDiffGenerator::InitializePartitionInfo(false,  // is_kernel
-                                                    old_image,
+  CHECK(DeltaDiffGenerator::InitializePartitionInfo(old_image.rootfs,
                                                     &root_info));
   install_plan.kernel_hash.assign(kern_info.hash().begin(),
                                   kern_info.hash().end());
   install_plan.rootfs_hash.assign(root_info.hash().begin(),
                                   root_info.hash().end());
   DeltaPerformer performer(&prefs, nullptr, &install_plan);
-  CHECK_EQ(performer.Open(old_image.c_str(), 0, 0), 0);
+  CHECK_EQ(performer.Open(old_rootfs.c_str(), 0, 0), 0);
   CHECK(performer.OpenKernel(old_kernel.c_str()));
   chromeos::Blob buf(1024 * 1024);
   int fd = open(in_file.c_str(), O_RDONLY, 0);
@@ -219,7 +221,8 @@ int Main(int argc, char** argv) {
   DEFINE_string(old_dir, "",
                 "Directory where the old rootfs is loop mounted read-only");
   DEFINE_string(new_dir, "",
-                "Directory where the new rootfs is loop mounted read-only");
+                "[DEPRECATED] Directory where the new rootfs is loop mounted "
+                "read-only. Not required anymore.");
   DEFINE_string(old_image, "", "Path to the old rootfs");
   DEFINE_string(new_image, "", "Path to the new rootfs");
   DEFINE_string(old_kernel, "", "Path to the old kernel partition image");
@@ -308,6 +311,11 @@ int Main(int argc, char** argv) {
 
   logging::InitLogging(log_settings);
 
+  // Check flags.
+  if (!FLAGS_new_dir.empty()) {
+    LOG(INFO) << "--new_dir flag is deprecated and ignored.";
+  }
+
   vector<int> signature_sizes;
   ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
 
@@ -341,13 +349,11 @@ int Main(int argc, char** argv) {
   // A payload generation was requested. Convert the flags to a
   // PayloadGenerationConfig.
   PayloadGenerationConfig payload_config;
-  payload_config.source.rootfs_part = FLAGS_old_image;
-  payload_config.source.rootfs_mountpt = FLAGS_old_dir;
-  payload_config.source.kernel_part = FLAGS_old_kernel;
+  payload_config.source.rootfs.path = FLAGS_old_image;
+  payload_config.source.kernel.path = FLAGS_old_kernel;
 
-  payload_config.target.rootfs_part = FLAGS_new_image;
-  payload_config.target.rootfs_mountpt = FLAGS_new_dir;
-  payload_config.target.kernel_part = FLAGS_new_kernel;
+  payload_config.target.rootfs.path = FLAGS_new_image;
+  payload_config.target.kernel.path = FLAGS_new_kernel;
 
   payload_config.chunk_size = FLAGS_chunk_size;
   payload_config.block_size = kBlockSize;

@@ -132,22 +132,20 @@ bool FullUpdateGenerator::GenerateOperations(
   TEST_AND_RETURN_FALSE(full_chunk_size > 0);
   TEST_AND_RETURN_FALSE(full_chunk_size % config.block_size == 0);
 
-  const ImageConfig& target = config.target;  // Shortcut.
   size_t max_threads = std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
   LOG(INFO) << "Max threads: " << max_threads;
 
-  uint64_t part_sizes[] = { target.rootfs_size, target.kernel_size };
-  string paths[] = { target.rootfs_part, target.kernel_part };
+  PartitionConfig partitions[] = { config.target.rootfs, config.target.kernel };
 
-  for (int partition = 0; partition < 2; ++partition) {
-    const string& path = paths[partition];
-    LOG(INFO) << "compressing " << path;
-    int in_fd = open(path.c_str(), O_RDONLY, 0);
+  for (int part_id = 0; part_id < 2; ++part_id) {
+    const PartitionConfig& partition = partitions[part_id];
+    LOG(INFO) << "compressing " << partition.path;
+    int in_fd = open(partition.path.c_str(), O_RDONLY, 0);
     TEST_AND_RETURN_FALSE(in_fd >= 0);
     ScopedFdCloser in_fd_closer(&in_fd);
     deque<shared_ptr<ChunkProcessor>> threads;
     int last_progress_update = INT_MIN;
-    size_t bytes_left = part_sizes[partition], counter = 0, offset = 0;
+    size_t bytes_left = partition.size, counter = 0, offset = 0;
     while (bytes_left > 0 || !threads.empty()) {
       // Check and start new chunk processors if possible.
       while (threads.size() < max_threads && bytes_left > 0) {
@@ -167,7 +165,7 @@ bool FullUpdateGenerator::GenerateOperations(
       TEST_AND_RETURN_FALSE(processor->Wait());
 
       DeltaArchiveManifest_InstallOperation* op = nullptr;
-      if (partition == 0) {
+      if (part_id == 0) {
         rootfs_ops->emplace_back();
         rootfs_ops->back().name =
             base::StringPrintf("<rootfs-operation-%" PRIuS ">", counter++);
@@ -196,7 +194,7 @@ bool FullUpdateGenerator::GenerateOperations(
 
       int progress = static_cast<int>(
           (processor->offset() + processor->buffer_in().size()) * 100.0 /
-          part_sizes[partition]);
+          partition.size);
       if (last_progress_update < progress &&
           (last_progress_update + 10 <= progress || progress == 100)) {
         LOG(INFO) << progress << "% complete (output size: "

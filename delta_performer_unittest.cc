@@ -519,9 +519,6 @@ static void GenerateDeltaFile(bool full_kernel,
                                   nullptr));
   LOG(INFO) << "delta path: " << state->delta_path;
   {
-    string a_mnt, b_mnt;
-    ScopedLoopMounter a_mounter(state->a_img, &a_mnt, MS_RDONLY);
-    ScopedLoopMounter b_mounter(state->b_img, &b_mnt, MS_RDONLY);
     const string private_key =
         signature_test == kSignatureGenerator ? kUnittestPrivateKeyPath : "";
 
@@ -531,10 +528,9 @@ static void GenerateDeltaFile(bool full_kernel,
     payload_config.rootfs_partition_size = kRootFSPartitionSize;
     payload_config.minor_version = minor_version;
     if (!full_rootfs) {
-      payload_config.source.rootfs_part = state->a_img;
-      payload_config.source.rootfs_mountpt = a_mnt;
+      payload_config.source.rootfs.path = state->a_img;
       if (!full_kernel)
-        payload_config.source.kernel_part = state->old_kernel;
+        payload_config.source.kernel.path = state->old_kernel;
       payload_config.source.image_info = old_image_info;
       EXPECT_TRUE(payload_config.source.LoadImageSize());
 
@@ -542,9 +538,8 @@ static void GenerateDeltaFile(bool full_kernel,
       if (payload_config.chunk_size == -1)
         payload_config.chunk_size = kDefaultChunkSize;
     }
-    payload_config.target.rootfs_part = state->b_img;
-    payload_config.target.rootfs_mountpt = b_mnt;
-    payload_config.target.kernel_part = state->new_kernel;
+    payload_config.target.rootfs.path = state->b_img;
+    payload_config.target.kernel.path = state->new_kernel;
     payload_config.target.image_info = new_image_info;
     EXPECT_TRUE(payload_config.target.LoadImageSize());
 

@@ -636,51 +636,36 @@ bool DeltaDiffGenerator::DeltaCompressKernelPartition(
   return true;
 }
 
-bool DeltaDiffGenerator::InitializePartitionInfo(bool is_kernel,
-                                                 const string& partition,
+bool DeltaDiffGenerator::InitializePartitionInfo(const PartitionConfig& part,
                                                  PartitionInfo* info) {
-  int64_t size = 0;
-  if (is_kernel) {
-    size = utils::FileSize(partition);
-  } else {
-    int block_count = 0, block_size = 0;
-    TEST_AND_RETURN_FALSE(utils::GetFilesystemSize(partition,
-                                                   &block_count,
-                                                   &block_size));
-    size = static_cast<int64_t>(block_count) * block_size;
-  }
-  TEST_AND_RETURN_FALSE(size > 0);
-  info->set_size(size);
+  info->set_size(part.size);
   OmahaHashCalculator hasher;
-  TEST_AND_RETURN_FALSE(hasher.UpdateFile(partition, size) == size);
+  TEST_AND_RETURN_FALSE(hasher.UpdateFile(part.path, part.size) ==
+                        static_cast<off_t>(part.size));
   TEST_AND_RETURN_FALSE(hasher.Finalize());
   const chromeos::Blob& hash = hasher.raw_hash();
   info->set_hash(hash.data(), hash.size());
-  LOG(INFO) << partition << ": size=" << size << " hash=" << hasher.hash();
+  LOG(INFO) << part.path << ": size=" << part.size << " hash=" << hasher.hash();
   return true;
 }
 
 bool InitializePartitionInfos(const PayloadGenerationConfig& config,
                               DeltaArchiveManifest* manifest) {
-  if (!config.source.kernel_part.empty()) {
+  if (!config.source.kernel.path.empty()) {
     TEST_AND_RETURN_FALSE(DeltaDiffGenerator::InitializePartitionInfo(
-        true,
-        config.source.kernel_part,
+        config.source.kernel,
         manifest->mutable_old_kernel_info()));
   }
   TEST_AND_RETURN_FALSE(DeltaDiffGenerator::InitializePartitionInfo(
-      true,
-      config.target.kernel_part,
+      config.target.kernel,
       manifest->mutable_new_kernel_info()));
-  if (!config.source.rootfs_part.empty()) {
+  if (!config.source.rootfs.path.empty()) {
     TEST_AND_RETURN_FALSE(DeltaDiffGenerator::InitializePartitionInfo(
-        false,
-        config.source.rootfs_part,
+        config.source.rootfs,
         manifest->mutable_old_rootfs_info()));
   }
   TEST_AND_RETURN_FALSE(DeltaDiffGenerator::InitializePartitionInfo(
-      false,
-      config.target.rootfs_part,
+      config.target.rootfs,
       manifest->mutable_new_rootfs_info()));
   return true;
 }
@@ -781,17 +766,17 @@ bool DeltaDiffGenerator::GenerateOperations(
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
   unique_ptr<Ext2Filesystem> old_fs = Ext2Filesystem::CreateFromFile(
-      config.source.rootfs_part);
+      config.source.rootfs.path);
   unique_ptr<Ext2Filesystem> new_fs = Ext2Filesystem::CreateFromFile(
-      config.target.rootfs_part);
+      config.target.rootfs.path);
 
   off_t chunk_blocks = config.chunk_size == -1 ? -1 : (
       config.chunk_size / config.block_size);
 
   rootfs_ops->clear();
   TEST_AND_RETURN_FALSE(DeltaReadFilesystem(rootfs_ops,
-                                            config.source.rootfs_part,
-                                            config.target.rootfs_part,
+                                            config.source.rootfs.path,
+                                            config.target.rootfs.path,
                                             old_fs.get(),
                                             new_fs.get(),
                                             chunk_blocks,
@@ -802,10 +787,10 @@ bool DeltaDiffGenerator::GenerateOperations(
 
   // Read kernel partition
   TEST_AND_RETURN_FALSE(
-      DeltaCompressKernelPartition(config.source.kernel_part,
-                                   config.target.kernel_part,
-                                   config.source.kernel_size,
-                                   config.target.kernel_size,
+      DeltaCompressKernelPartition(config.source.kernel.path,
+                                   config.target.kernel.path,
+                                   config.source.kernel.size,
+                                   config.target.kernel.size,
                                    config.block_size,
                                    kernel_ops,
                                    data_file_fd,
@@ -814,11 +799,11 @@ bool DeltaDiffGenerator::GenerateOperations(
   LOG(INFO) << "done reading kernel";
 
   TEST_AND_RETURN_FALSE(FragmentOperations(rootfs_ops,
-                                           config.target.rootfs_part,
+                                           config.target.rootfs.path,
                                            data_file_fd,
                                            data_file_size));
   TEST_AND_RETURN_FALSE(FragmentOperations(kernel_ops,
-                                           config.target.kernel_part,
+                                           config.target.kernel.path,
                                            data_file_fd,
                                            data_file_size));
   SortOperationsByDestination(rootfs_ops);
@@ -827,12 +812,12 @@ bool DeltaDiffGenerator::GenerateOperations(
   // specifying chunk_size on the command line works. crbug/485397.
   TEST_AND_RETURN_FALSE(MergeOperations(rootfs_ops,
                                         kDefaultChunkSize,
-                                        config.target.rootfs_part,
+                                        config.target.rootfs.path,
                                         data_file_fd,
                                         data_file_size));
   TEST_AND_RETURN_FALSE(MergeOperations(kernel_ops,
                                         kDefaultChunkSize,
-                                        config.target.kernel_part,
+                                        config.target.kernel.path,
                                         data_file_fd,
                                         data_file_size));
   return true;
@@ -844,20 +829,20 @@ bool GenerateUpdatePayloadFile(
     const string& private_key_path,
     uint64_t* metadata_size) {
   if (config.is_delta) {
-    LOG_IF(WARNING, config.source.rootfs_size != config.target.rootfs_size)
+    LOG_IF(WARNING, config.source.rootfs.size != config.target.rootfs.size)
         << "Old and new images have different block counts.";
     // TODO(deymo): Our tools only support growing the filesystem size during
     // an update. Remove this check when that's fixed. crbug.com/192136
-    LOG_IF(FATAL, config.source.rootfs_size > config.target.rootfs_size)
+    LOG_IF(FATAL, config.source.rootfs.size > config.target.rootfs.size)
         << "Shirking the rootfs size is not supported at the moment.";
   }
 
   // Sanity checks for the partition size.
   LOG(INFO) << "Rootfs partition size: " << config.rootfs_partition_size;
-  LOG(INFO) << "Actual filesystem size: " << config.target.rootfs_size;
+  LOG(INFO) << "Actual filesystem size: " << config.target.rootfs.size;
 
   LOG(INFO) << "Block count: "
-            << config.target.rootfs_size / config.block_size;
+            << config.target.rootfs.size / config.block_size;
 
   const string kTempFileTemplate("CrAU_temp_data.XXXXXX");
   string temp_file_path;
@@ -878,11 +863,11 @@ bool GenerateUpdatePayloadFile(
   if (config.is_delta) {
     // We don't efficiently support deltas on squashfs. For now, we will
     // produce full operations in that case.
-    if (utils::IsSquashfsFilesystem(config.target.rootfs_part)) {
+    if (utils::IsSquashfsFilesystem(config.target.rootfs.path)) {
       LOG(INFO) << "Using generator FullUpdateGenerator::Run for squashfs "
                    "deltas";
       strategy.reset(new FullUpdateGenerator());
-    } else if (utils::IsExtFilesystem(config.target.rootfs_part)) {
+    } else if (utils::IsExtFilesystem(config.target.rootfs.path)) {
       // Delta update (with possibly a full kernel update).
       if (config.minor_version == kInPlaceMinorPayloadVersion) {
         LOG(INFO) << "Using generator InplaceGenerator::GenerateInplaceDelta";
@@ -897,7 +882,7 @@ bool GenerateUpdatePayloadFile(
       }
     } else {
       LOG(ERROR) << "Unsupported filesystem for delta payload in "
-                 << config.target.rootfs_part;
+                 << config.target.rootfs.path;
       return false;
     }
   } else {

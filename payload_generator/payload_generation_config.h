@@ -14,6 +14,24 @@
 
 namespace chromeos_update_engine {
 
+struct PartitionConfig {
+  // Returns whether the PartitionConfig is not an empty image and all the
+  // fields are set correctly to a valid image file.
+  bool ValidateExists() const;
+
+  // The path to the partition file. This can be a regular file or a block
+  // device such as a loop device.
+  std::string path;
+
+  // The size of the data in |path|. If rootfs verification is used (verity)
+  // this value should match the size of the verity device for the rootfs, and
+  // the size of the whole kernel. This value could be smaller than the
+  // partition and is the size of the data update_engine assumes verified for
+  // the source image, and the size of that data it should generate for the
+  // target image.
+  uint64_t size = 0;
+};
+
 // The ImageConfig struct describes a pair of binaries kernel and rootfs and the
 // metadata associated with the image they are part of, like build number, size,
 // etc.
@@ -21,22 +39,16 @@ struct ImageConfig {
   // Returns whether the ImageConfig is an empty image.
   bool ValidateIsEmpty() const;
 
-  // Returns whether the ImageConfig is not an empty image and all the rootfs
-  // or kernel fields are set correctly. Source images are allowed to have an
-  // empty kernel_part meaning that the delta update ships a full kernel.
-  bool ValidateRootfsExists() const;
-  bool ValidateKernelExists() const;
-
-  // Load |rootfs_size| and |kernel_size| from the respective image files. For
-  // the kernel, the whole |kernel_part| file is assumed. For the rootfs, the
+  // Load |rootfs_size| and |kernel.size| from the respective image files. For
+  // the kernel, the whole |kernel.path| file is assumed. For the rootfs, the
   // size is detected from the filesystem.
   // Returns whether the image size was properly detected.
   bool LoadImageSize();
 
   // Load the |rootfs_size| stored in the kernel command line in the
-  // |kernel_part| when the kernel is using rootfs verification (dm-verity).
+  // |kernel.path| when the kernel is using rootfs verification (dm-verity).
   // Returns whether it loaded the size from the kernel command line. For
-  // example, it would return false if no |kernel_part| was provided or the
+  // example, it would return false if no |kernel.path| was provided or the
   // kernel doesn't have verity enabled.
   bool LoadVerityRootfsSize();
 
@@ -47,28 +59,9 @@ struct ImageConfig {
   // the metadata of the image.
   ImageInfo image_info;
 
-  // The path to the rootfs partition. This can be a regular file or a block
-  // device such as a loop device.
-  std::string rootfs_part;
-
-  // The size of the filesystem in rootfs_part. If rootfs verification is used
-  // (verity) this value should match the size of the verity device. This can be
-  // smaller than the partition and is the size of the data update_engine
-  // assumes verified for the source image, and the size of that data it
-  // should generate for the target image.
-  uint64_t rootfs_size = 0;
-
-  // The mount point where the rootfs_part is mounted. This is required for
-  // delta payloads that iterate the filesystem using the kernel API.
-  std::string rootfs_mountpt;
-
-  // The path to the kernel partition. This can be a regular file or a block
-  // device such as a loop device.
-  std::string kernel_part;
-
-  // The size of the verified part of the kernel partition. This is normally the
-  // whole partition.
-  uint64_t kernel_size = 0;
+  // The updated partitions.
+  PartitionConfig rootfs;
+  PartitionConfig kernel;
 };
 
 // The PayloadGenerationConfig struct encapsulates all the configuration to
@@ -103,7 +96,7 @@ struct PayloadGenerationConfig {
   off_t chunk_size = -1;
 
   // TODO(deymo): Remove the block_size member and maybe replace it with a
-  // minimum alignment size for blocks (if needed). Algorithms shold be able to
+  // minimum alignment size for blocks (if needed). Algorithms should be able to
   // pick the block_size they want, but for now only 4 KiB is supported.
 
   // The block size used for all the operations in the manifest.

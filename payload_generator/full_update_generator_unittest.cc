@@ -39,21 +39,21 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
 
   // Assume hashes take 2 MiB beyond the rootfs.
   config_.rootfs_partition_size = new_root.size();
-  config_.target.rootfs_size = new_root.size() - 2 * 1024 * 1024;
-  config_.target.kernel_size = new_kern.size();
+  config_.target.rootfs.size = new_root.size() - 2 * 1024 * 1024;
+  config_.target.kernel.size = new_kern.size();
 
   EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_R.XXXXXX",
-                                  &config_.target.rootfs_part,
+                                  &config_.target.rootfs.path,
                                   nullptr));
-  ScopedPathUnlinker rootfs_part_unlinker(config_.target.rootfs_part);
-  EXPECT_TRUE(test_utils::WriteFileVector(config_.target.rootfs_part,
+  ScopedPathUnlinker rootfs_part_unlinker(config_.target.rootfs.path);
+  EXPECT_TRUE(test_utils::WriteFileVector(config_.target.rootfs.path,
                                           new_root));
 
   EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_K.XXXXXX",
-                                  &config_.target.kernel_part,
+                                  &config_.target.kernel.path,
                                   nullptr));
-  ScopedPathUnlinker kernel_path_unlinker(config_.target.kernel_part);
-  EXPECT_TRUE(test_utils::WriteFileVector(config_.target.kernel_part,
+  ScopedPathUnlinker kernel_path_unlinker(config_.target.kernel.path);
+  EXPECT_TRUE(test_utils::WriteFileVector(config_.target.kernel.path,
                                           new_kern));
 
   string out_blobs_path;
@@ -76,7 +76,7 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
                                            &rootfs_ops,
                                            &kernel_ops));
   int64_t target_rootfs_chunks =
-      config_.target.rootfs_size / config_.chunk_size;
+      config_.target.rootfs.size / config_.chunk_size;
   EXPECT_EQ(target_rootfs_chunks, rootfs_ops.size());
   EXPECT_EQ(new_kern.size() / config_.chunk_size, kernel_ops.size());
   for (off_t i = 0; i < target_rootfs_chunks; ++i) {

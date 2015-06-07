@@ -13,50 +13,40 @@
 
 namespace chromeos_update_engine {
 
-bool ImageConfig::ValidateRootfsExists() const {
-  TEST_AND_RETURN_FALSE(!rootfs_part.empty());
-  TEST_AND_RETURN_FALSE(utils::FileExists(rootfs_part.c_str()));
-  TEST_AND_RETURN_FALSE(rootfs_size > 0);
+bool PartitionConfig::ValidateExists() const {
+  TEST_AND_RETURN_FALSE(!path.empty());
+  TEST_AND_RETURN_FALSE(utils::FileExists(path.c_str()));
+  TEST_AND_RETURN_FALSE(size > 0);
   // The requested size is within the limits of the file.
-  TEST_AND_RETURN_FALSE(static_cast<off_t>(rootfs_size) <=
-                        utils::FileSize(rootfs_part.c_str()));
-  return true;
-}
-
-bool ImageConfig::ValidateKernelExists() const {
-  TEST_AND_RETURN_FALSE(!kernel_part.empty());
-  TEST_AND_RETURN_FALSE(utils::FileExists(kernel_part.c_str()));
-  TEST_AND_RETURN_FALSE(kernel_size > 0);
-  TEST_AND_RETURN_FALSE(static_cast<off_t>(kernel_size) <=
-                        utils::FileSize(kernel_part.c_str()));
+  TEST_AND_RETURN_FALSE(static_cast<off_t>(size) <=
+                        utils::FileSize(path.c_str()));
   return true;
 }
 
 bool ImageConfig::ValidateIsEmpty() const {
   TEST_AND_RETURN_FALSE(ImageInfoIsEmpty());
 
-  TEST_AND_RETURN_FALSE(rootfs_part.empty());
-  TEST_AND_RETURN_FALSE(rootfs_size == 0);
-  TEST_AND_RETURN_FALSE(rootfs_mountpt.empty());
-  TEST_AND_RETURN_FALSE(kernel_part.empty());
-  TEST_AND_RETURN_FALSE(kernel_size == 0);
+  TEST_AND_RETURN_FALSE(rootfs.path.empty());
+  TEST_AND_RETURN_FALSE(rootfs.size == 0);
+  TEST_AND_RETURN_FALSE(kernel.path.empty());
+  TEST_AND_RETURN_FALSE(kernel.size == 0);
   return true;
 }
 
 bool ImageConfig::LoadImageSize() {
-  TEST_AND_RETURN_FALSE(!rootfs_part.empty());
+  TEST_AND_RETURN_FALSE(!rootfs.path.empty());
   int rootfs_block_count, rootfs_block_size;
-  TEST_AND_RETURN_FALSE(utils::GetFilesystemSize(rootfs_part,
+  TEST_AND_RETURN_FALSE(utils::GetFilesystemSize(rootfs.path,
                                                  &rootfs_block_count,
                                                  &rootfs_block_size));
-  rootfs_size = static_cast<uint64_t>(rootfs_block_count) * rootfs_block_size;
-  if (!kernel_part.empty())
-    kernel_size = utils::FileSize(kernel_part);
+  rootfs.size = static_cast<uint64_t>(rootfs_block_count) * rootfs_block_size;
+  if (!kernel.path.empty())
+    kernel.size = utils::FileSize(kernel.path);
 
   // TODO(deymo): The delta generator algorithm doesn't support a block size
   // different than 4 KiB. Remove this check once that's fixed. crbug.com/455045
   if (rootfs_block_size != 4096) {
-    LOG(ERROR) << "The filesystem provided in " << rootfs_part
+    LOG(ERROR) << "The filesystem provided in " << rootfs.path
                << " has a block size of " << rootfs_block_size
                << " but delta_generator only supports 4096.";
     return false;
@@ -65,19 +55,19 @@ bool ImageConfig::LoadImageSize() {
 }
 
 bool ImageConfig::LoadVerityRootfsSize() {
-  if (kernel_part.empty())
+  if (kernel.path.empty())
     return false;
   uint64_t verity_rootfs_size = 0;
-  if (!GetVerityRootfsSize(kernel_part, &verity_rootfs_size)) {
+  if (!GetVerityRootfsSize(kernel.path, &verity_rootfs_size)) {
     LOG(INFO) << "Couldn't find verity options in source kernel config, will "
-              << "use the rootfs filesystem size instead: " << rootfs_size;
+              << "use the rootfs filesystem size instead: " << rootfs.size;
     return false;
   }
-  if (rootfs_size != verity_rootfs_size) {
+  if (rootfs.size != verity_rootfs_size) {
     LOG(WARNING) << "Using the rootfs size found in the kernel config ("
                  << verity_rootfs_size << ") instead of the rootfs filesystem "
-                 << " size (" << rootfs_size << ").";
-    rootfs_size = verity_rootfs_size;
+                 << " size (" << rootfs.size << ").";
+    rootfs.size = verity_rootfs_size;
   }
   return true;
 }
@@ -93,21 +83,13 @@ bool ImageConfig::ImageInfoIsEmpty() const {
 
 bool PayloadGenerationConfig::Validate() const {
   if (is_delta) {
-    TEST_AND_RETURN_FALSE(source.ValidateRootfsExists());
-    TEST_AND_RETURN_FALSE(source.rootfs_size % block_size == 0);
+    TEST_AND_RETURN_FALSE(source.rootfs.ValidateExists());
+    TEST_AND_RETURN_FALSE(source.rootfs.size % block_size == 0);
 
-    if (!source.kernel_part.empty()) {
-      TEST_AND_RETURN_FALSE(source.ValidateKernelExists());
-      TEST_AND_RETURN_FALSE(source.kernel_size % block_size == 0);
+    if (!source.kernel.path.empty()) {
+      TEST_AND_RETURN_FALSE(source.kernel.ValidateExists());
+      TEST_AND_RETURN_FALSE(source.kernel.size % block_size == 0);
     }
-
-    // For deltas, we also need to check that the image is mounted in order to
-    // inspect the contents.
-    TEST_AND_RETURN_FALSE(!source.rootfs_mountpt.empty());
-    TEST_AND_RETURN_FALSE(utils::IsDir(source.rootfs_mountpt.c_str()));
-
-    TEST_AND_RETURN_FALSE(!target.rootfs_mountpt.empty());
-    TEST_AND_RETURN_FALSE(utils::IsDir(target.rootfs_mountpt.c_str()));
 
     // Check for the supported minor_version values.
     TEST_AND_RETURN_FALSE(minor_version == kInPlaceMinorPayloadVersion ||
@@ -124,15 +106,15 @@ bool PayloadGenerationConfig::Validate() const {
   }
 
   // In all cases, the target image must exists.
-  TEST_AND_RETURN_FALSE(target.ValidateRootfsExists());
-  TEST_AND_RETURN_FALSE(target.ValidateKernelExists());
-  TEST_AND_RETURN_FALSE(target.rootfs_size % block_size == 0);
-  TEST_AND_RETURN_FALSE(target.kernel_size % block_size == 0);
+  TEST_AND_RETURN_FALSE(target.rootfs.ValidateExists());
+  TEST_AND_RETURN_FALSE(target.kernel.ValidateExists());
+  TEST_AND_RETURN_FALSE(target.rootfs.size % block_size == 0);
+  TEST_AND_RETURN_FALSE(target.kernel.size % block_size == 0);
 
   TEST_AND_RETURN_FALSE(chunk_size == -1 || chunk_size % block_size == 0);
 
   TEST_AND_RETURN_FALSE(rootfs_partition_size % block_size == 0);
-  TEST_AND_RETURN_FALSE(rootfs_partition_size >= target.rootfs_size);
+  TEST_AND_RETURN_FALSE(rootfs_partition_size >= target.rootfs.size);
 
   return true;
 }

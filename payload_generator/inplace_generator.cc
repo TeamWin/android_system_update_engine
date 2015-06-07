@@ -708,9 +708,9 @@ bool InplaceGenerator::GenerateOperations(
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
   unique_ptr<Ext2Filesystem> old_fs = Ext2Filesystem::CreateFromFile(
-      config.source.rootfs_part);
+      config.source.rootfs.path);
   unique_ptr<Ext2Filesystem> new_fs = Ext2Filesystem::CreateFromFile(
-      config.target.rootfs_part);
+      config.target.rootfs.path);
 
   off_t chunk_blocks = (config.chunk_size == -1 ? -1 :
                         config.chunk_size / config.block_size);
@@ -719,8 +719,8 @@ bool InplaceGenerator::GenerateOperations(
   vector<AnnotatedOperation> aops;
   TEST_AND_RETURN_FALSE(
       DeltaDiffGenerator::DeltaReadFilesystem(&aops,
-                                              config.source.rootfs_part,
-                                              config.target.rootfs_part,
+                                              config.source.rootfs.path,
+                                              config.target.rootfs.path,
                                               old_fs.get(),
                                               new_fs.get(),
                                               chunk_blocks,
@@ -730,7 +730,7 @@ bool InplaceGenerator::GenerateOperations(
   // Convert the rootfs operations to the graph.
   Graph graph;
   CheckGraph(graph);
-  vector<Block> blocks(config.target.rootfs_size / config.block_size);
+  vector<Block> blocks(config.target.rootfs.size / config.block_size);
   for (const auto& aop : aops) {
     AddInstallOpToGraph(
         &graph, Vertex::kInvalidIndex, &blocks, aop.op, aop.name);
@@ -752,10 +752,10 @@ bool InplaceGenerator::GenerateOperations(
   // Read kernel partition
   TEST_AND_RETURN_FALSE(
       DeltaDiffGenerator::DeltaCompressKernelPartition(
-          config.source.kernel_part,
-          config.target.kernel_part,
-          config.source.kernel_size,
-          config.target.kernel_size,
+          config.source.kernel.path,
+          config.target.kernel.path,
+          config.source.kernel.size,
+          config.target.kernel.size,
           config.block_size,
           kernel_ops,
           data_file_fd,
@@ -772,7 +772,7 @@ bool InplaceGenerator::GenerateOperations(
   vector<Vertex::Index> final_order;
   TEST_AND_RETURN_FALSE(ConvertGraphToDag(
       &graph,
-      config.target.rootfs_part,
+      config.target.rootfs.path,
       data_file_fd,
       data_file_size,
       &final_order,
