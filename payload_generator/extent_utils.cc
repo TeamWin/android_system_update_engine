@@ -11,9 +11,9 @@
 #include <base/logging.h>
 #include <base/macros.h>
 
-#include "update_engine/extent_ranges.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/annotated_operation.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 
 using std::string;
 using std::vector;

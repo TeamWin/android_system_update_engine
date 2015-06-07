@@ -230,9 +230,6 @@ class DeltaPerformer : public FileWriter {
   // Update overall progress metrics, log as necessary.
   void UpdateOverallProgress(bool force_log, const char* message_prefix);
 
-  static bool IsIdempotentOperation(
-      const DeltaArchiveManifest_InstallOperation& op);
-
   // Verifies that the expected source partition hashes (if present) match the
   // hashes for the current partitions. Returns true if there are no expected
   // hashes in the payload (e.g., if it's a new-style full update) or if the

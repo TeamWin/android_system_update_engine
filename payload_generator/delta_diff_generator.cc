@@ -27,11 +27,11 @@
 
 #include "update_engine/bzip.h"
 #include "update_engine/delta_performer.h"
-#include "update_engine/extent_ranges.h"
 #include "update_engine/file_writer.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/ext2_filesystem.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/full_update_generator.h"
 #include "update_engine/payload_generator/inplace_generator.h"
 #include "update_engine/payload_generator/payload_signer.h"
@@ -161,7 +161,7 @@ void ReportPayloadUsage(const DeltaArchiveManifest& manifest,
                                 manifest_metadata_size));
   total_size += manifest_metadata_size;
 
-  std::sort(objects.begin(), objects.end());
+  sort(objects.begin(), objects.end());
 
   static const char kFormatString[] = "%6.2f%% %10jd %-10s %s\n";
   for (const DeltaObject& object : objects) {

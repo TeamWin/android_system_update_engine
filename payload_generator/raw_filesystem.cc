@@ -4,7 +4,7 @@
 
 #include "update_engine/payload_generator/raw_filesystem.h"
 
-#include "update_engine/extent_ranges.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
 

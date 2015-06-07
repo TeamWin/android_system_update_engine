@@ -27,8 +27,8 @@
 
 #include "update_engine/bzip.h"
 #include "update_engine/delta_performer.h"
-#include "update_engine/extent_ranges.h"
 #include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/payload_generator/fake_filesystem.h"
 #include "update_engine/payload_generator/graph_types.h"
@@ -36,7 +36,6 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
-using chromeos_update_engine::test_utils::kRandomString;
 using std::set;
 using std::string;
 using std::unique_ptr;

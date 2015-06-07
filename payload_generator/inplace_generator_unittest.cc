@@ -14,9 +14,9 @@
 #include <base/strings/string_util.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/extent_ranges.h"
 #include "update_engine/payload_generator/cycle_breaker.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
 #include "update_engine/test_utils.h"

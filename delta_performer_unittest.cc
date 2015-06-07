@@ -19,7 +19,6 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
-#include "update_engine/extent_ranges.h"
 #include "update_engine/fake_hardware.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_prefs.h"
@@ -1248,22 +1247,6 @@ TEST(DeltaPerformerTest, BadDeltaMagicTest) {
   EXPECT_TRUE(performer.Write("morejunk", 8));
   EXPECT_FALSE(performer.Write("morejunk", 8));
   EXPECT_LT(performer.Close(), 0);
-}
-
-TEST(DeltaPerformerTest, IsIdempotentOperationTest) {
-  DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaPerformer::IsIdempotentOperation(op));
-  *(op.add_dst_extents()) = ExtentForRange(0, 5);
-  EXPECT_TRUE(DeltaPerformer::IsIdempotentOperation(op));
-  *(op.add_src_extents()) = ExtentForRange(4, 1);
-  EXPECT_FALSE(DeltaPerformer::IsIdempotentOperation(op));
-  op.clear_src_extents();
-  *(op.add_src_extents()) = ExtentForRange(5, 3);
-  EXPECT_TRUE(DeltaPerformer::IsIdempotentOperation(op));
-  *(op.add_dst_extents()) = ExtentForRange(20, 6);
-  EXPECT_TRUE(DeltaPerformer::IsIdempotentOperation(op));
-  *(op.add_src_extents()) = ExtentForRange(19, 2);
-  EXPECT_FALSE(DeltaPerformer::IsIdempotentOperation(op));
 }
 
 TEST(DeltaPerformerTest, WriteUpdatesPayloadState) {

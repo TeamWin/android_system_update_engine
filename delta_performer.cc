@@ -22,7 +22,6 @@
 
 #include "update_engine/bzip_extent_writer.h"
 #include "update_engine/constants.h"
-#include "update_engine/extent_ranges.h"
 #include "update_engine/extent_writer.h"
 #include "update_engine/hardware_interface.h"
 #if USE_MTD
@@ -241,25 +240,6 @@ bool DeltaPerformer::HandleOpResult(bool op_result, const char* op_type_name,
   return false;
 }
 
-
-// Returns true if |op| is idempotent -- i.e., if we can interrupt it and repeat
-// it safely. Returns false otherwise.
-bool DeltaPerformer::IsIdempotentOperation(
-    const DeltaArchiveManifest_InstallOperation& op) {
-  if (op.src_extents_size() == 0) {
-    return true;
-  }
-  // When in doubt, it's safe to declare an op non-idempotent. Note that we
-  // could detect other types of idempotent operations here such as a MOVE that
-  // moves blocks onto themselves. However, we rely on the server to not send
-  // such operations at all.
-  ExtentRanges src_ranges;
-  src_ranges.AddRepeatedExtents(op.src_extents());
-  const uint64_t block_count = src_ranges.blocks();
-  src_ranges.SubtractRepeatedExtents(op.dst_extents());
-  return block_count == src_ranges.blocks();
-}
-
 int DeltaPerformer::Open(const char* path, int flags, mode_t mode) {
   int err;
   fd_ = OpenFile(path, &err);
@@ -276,13 +256,13 @@ bool DeltaPerformer::OpenKernel(const char* kernel_path) {
   return static_cast<bool>(kernel_fd_);
 }
 
-bool DeltaPerformer::OpenSourceRootfs(const std::string& source_path) {
+bool DeltaPerformer::OpenSourceRootfs(const string& source_path) {
   int err;
   source_fd_ = OpenFile(source_path.c_str(), &err);
   return static_cast<bool>(source_fd_);
 }
 
-bool DeltaPerformer::OpenSourceKernel(const std::string& source_kernel_path) {
+bool DeltaPerformer::OpenSourceKernel(const string& source_kernel_path) {
   int err;
   source_kernel_fd_ = OpenFile(source_kernel_path.c_str(), &err);
   return static_cast<bool>(source_kernel_fd_);
@@ -757,14 +737,6 @@ bool DeltaPerformer::PerformMoveOperation(
     bytes_read += bytes_read_this_iteration;
   }
 
-  // If this is a non-idempotent operation, request a delayed exit and clear the
-  // update state in case the operation gets interrupted. Do this as late as
-  // possible.
-  if (!IsIdempotentOperation(operation)) {
-    Terminator::set_exit_blocked(true);
-    ResetUpdateProgress(prefs_, true);
-  }
-
   // Write bytes out.
   ssize_t bytes_written = 0;
   for (int i = 0; i < operation.dst_extents_size(); i++) {
@@ -916,14 +888,6 @@ bool DeltaPerformer::PerformBsdiffOperation(
   // Update the buffer to release the patch data memory as soon as the patch
   // file is written out.
   DiscardBuffer(true);
-
-  // If this is a non-idempotent operation, request a delayed exit and clear the
-  // update state in case the operation gets interrupted. Do this as late as
-  // possible.
-  if (!IsIdempotentOperation(operation)) {
-    Terminator::set_exit_blocked(true);
-    ResetUpdateProgress(prefs_, true);
-  }
 
   const string& path = is_kernel_partition ? kernel_path_ : path_;
   vector<string> cmd{kBspatchPath, path, path, temp_filename,
