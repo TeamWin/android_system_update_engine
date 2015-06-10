@@ -7,6 +7,9 @@
 #include <memory>
 
 #include <chromeos/dbus/service_constants.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 #include <policy/mock_device_policy.h>
 #include <policy/mock_libpolicy.h>
@@ -16,7 +19,8 @@
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::TimeDelta;
-using chromeos_update_engine::test_utils::RunGMainLoopMaxIterations;
+using chromeos::MessageLoop;
+using chromeos::MessageLoopRunMaxIterations;
 using std::set;
 using std::string;
 using std::unique_ptr;
@@ -43,6 +47,7 @@ namespace chromeos_update_manager {
 class UmRealDevicePolicyProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    loop_.SetAsCurrent();
     provider_.reset(new RealDevicePolicyProvider(&mock_dbus_,
                                                  &mock_policy_provider_));
     // By default, we have a device policy loaded. Tests can call
@@ -54,7 +59,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
 
   void TearDown() override {
     // Check for leaked callbacks on the main loop.
-    EXPECT_EQ(0, RunGMainLoopMaxIterations(100));
+    EXPECT_EQ(0, MessageLoopRunMaxIterations(MessageLoop::current(), 100));
 
     // We need to set these expectation before the object is destroyed but
     // after it finished running the test so the values of signal_callback_ and
@@ -67,6 +72,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
     EXPECT_CALL(mock_dbus_, ProxyUnref(kFakeManagerProxy));
 
     provider_.reset();
+    EXPECT_FALSE(loop_.PendingTasks());
   }
 
   void SetUpNonExistentDevicePolicy() {
@@ -111,6 +117,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
                         SaveArg<3>(&signal_callback_data_)));
   }
 
+  chromeos::FakeMessageLoop loop_{nullptr};
   chromeos_update_engine::MockDBusWrapper mock_dbus_;
   testing::NiceMock<policy::MockDevicePolicy> mock_device_policy_;
   testing::NiceMock<policy::MockPolicyProvider> mock_policy_provider_;
@@ -124,7 +131,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
 TEST_F(UmRealDevicePolicyProviderTest, RefreshScheduledTest) {
   // Check that the RefreshPolicy gets scheduled by checking the EventId.
   EXPECT_TRUE(provider_->Init());
-  EXPECT_NE(kEventIdNull, provider_->scheduled_refresh_);
+  EXPECT_NE(MessageLoop::kTaskIdNull, provider_->scheduled_refresh_);
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, FirstReload) {

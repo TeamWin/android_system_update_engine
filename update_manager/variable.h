@@ -12,9 +12,8 @@
 #include <base/bind.h>
 #include <base/logging.h>
 #include <base/time/time.h>
+#include <chromeos/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
-
-#include "update_engine/update_manager/event_loop.h"
 
 namespace chromeos_update_manager {
 
@@ -108,8 +107,9 @@ class BaseVariable {
     // to avoid scheduling these callbacks when it is not needed, we check
     // first the list of observers.
     if (!observer_list_.empty()) {
-        RunFromMainLoop(base::Bind(&BaseVariable::OnValueChangedNotification,
-                                  base::Unretained(this)));
+      chromeos::MessageLoop::current()->PostTask(
+          base::Bind(&BaseVariable::OnValueChangedNotification,
+                     base::Unretained(this)));
     }
   }
 

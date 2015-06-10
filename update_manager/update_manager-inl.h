@@ -9,9 +9,9 @@
 #include <string>
 
 #include <base/bind.h>
+#include <chromeos/message_loops/message_loop.h>
 
 #include "update_engine/update_manager/evaluation_context.h"
-#include "update_engine/update_manager/event_loop.h"
 
 namespace chromeos_update_manager {
 
@@ -144,7 +144,7 @@ void UpdateManager::AsyncPolicyRequest(
   base::Closure eval_callback = base::Bind(
       &UpdateManager::OnPolicyReadyToEvaluate<R, ExpectedArgs...>,
       base::Unretained(this), ec, callback, policy_method, args...);
-  RunFromMainLoop(eval_callback);
+  chromeos::MessageLoop::current()->PostTask(eval_callback);
 }
 
 }  // namespace chromeos_update_manager

@@ -16,6 +16,9 @@
 #include <base/bind.h>
 #include <base/callback.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
@@ -30,6 +33,7 @@
 #include "update_engine/utils.h"
 
 using base::TimeDelta;
+using chromeos::MessageLoop;
 using chromeos_update_engine::test_utils::System;
 using std::string;
 using std::unique_ptr;
@@ -50,6 +54,7 @@ class P2PManagerTest : public testing::Test {
 
   // Derived from testing::Test.
   void SetUp() override {
+    loop_.SetAsCurrent();
     test_conf_ = new FakeP2PManagerConfiguration();
 
     // Allocate and install a mock policy implementation in the fake Update
@@ -61,13 +66,17 @@ class P2PManagerTest : public testing::Test {
     // Construct the P2P manager under test.
     manager_.reset(P2PManager::Construct(test_conf_, &fake_clock_, &fake_um_,
                                          "cros_au", 3,
-                                         base::TimeDelta::FromDays(5)));
+                                         TimeDelta::FromDays(5)));
   }
-  void TearDown() override {}
+
+  void TearDown() override {
+    EXPECT_FALSE(loop_.PendingTasks());
+  }
 
   // The P2PManager::Configuration instance used for testing.
   FakeP2PManagerConfiguration *test_conf_;
 
+  chromeos::FakeMessageLoop loop_{nullptr};
   FakeClock fake_clock_;
   chromeos_update_manager::MockPolicy *mock_policy_ = nullptr;
   chromeos_update_manager::FakeUpdateManager fake_um_;
@@ -83,7 +92,7 @@ TEST_F(P2PManagerTest, P2PEnabledInitAndNotChanged) {
   EXPECT_CALL(*mock_policy_, P2PEnabledChanged(_, _, _, _, false));
 
   EXPECT_FALSE(manager_->IsP2PEnabled());
-  test_utils::RunGMainLoopMaxIterations(100);
+  chromeos::MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_FALSE(manager_->IsP2PEnabled());
 }
 
@@ -98,7 +107,7 @@ TEST_F(P2PManagerTest, P2PEnabledInitAndChanged) {
   EXPECT_CALL(*mock_policy_, P2PEnabledChanged(_, _, _, _, false));
 
   EXPECT_TRUE(manager_->IsP2PEnabled());
-  test_utils::RunGMainLoopMaxIterations(100);
+  chromeos::MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_FALSE(manager_->IsP2PEnabled());
 }
 
@@ -110,7 +119,7 @@ TEST_F(P2PManagerTest, HousekeepingCountLimit) {
   test_conf_ = new FakeP2PManagerConfiguration();
   manager_.reset(P2PManager::Construct(
       test_conf_, &fake_clock_, &fake_um_, "cros_au", 3,
-      base::TimeDelta() /* max_file_age */));
+      TimeDelta() /* max_file_age */));
   EXPECT_EQ(manager_->CountSharedFiles(), 0);
 
   // Generate files with different timestamps matching our pattern and generate

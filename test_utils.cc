@@ -302,36 +302,6 @@ bool RecursiveUnlinkDir(const string& path) {
   return true;
 }
 
-static gboolean RunGMainLoopOnTimeout(gpointer user_data) {
-  bool* timeout = static_cast<bool*>(user_data);
-  *timeout = true;
-  return FALSE;  // Remove timeout source
-}
-
-void RunGMainLoopUntil(int timeout_msec, base::Callback<bool()> terminate) {
-  GMainLoop* loop = g_main_loop_new(nullptr, FALSE);
-  GMainContext* context = g_main_context_default();
-
-  bool timeout = false;
-  guint source_id = g_timeout_add(
-      timeout_msec, RunGMainLoopOnTimeout, &timeout);
-
-  while (!timeout && (terminate.is_null() || !terminate.Run()))
-    g_main_context_iteration(context, TRUE);
-
-  g_source_remove(source_id);
-  g_main_loop_unref(loop);
-}
-
-int RunGMainLoopMaxIterations(int iterations) {
-  int result;
-  GMainContext* context = g_main_context_default();
-  for (result = 0;
-       result < iterations && g_main_context_iteration(context, FALSE);
-       result++) {}
-  return result;
-}
-
 GValue* GValueNewString(const char* str) {
   GValue* gval = g_new0(GValue, 1);
   g_value_init(gval, G_TYPE_STRING);

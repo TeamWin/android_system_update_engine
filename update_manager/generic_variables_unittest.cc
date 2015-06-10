@@ -7,12 +7,15 @@
 #include <memory>
 
 #include <base/callback.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/test_utils.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
-using chromeos_update_engine::test_utils::RunGMainLoopMaxIterations;
+using chromeos::MessageLoop;
+using chromeos::MessageLoopRunMaxIterations;
 using std::unique_ptr;
 
 namespace chromeos_update_manager {
@@ -132,11 +135,18 @@ TEST_F(UmCallCopyVariableTest, NullTest) {
 }
 
 class UmAsyncCopyVariableTest : public ::testing::Test {
- public:
+ protected:
+  void SetUp() override {
+    loop_.SetAsCurrent();
+  }
+
   void TearDown() override {
     // No remaining event on the main loop.
-    EXPECT_EQ(0, RunGMainLoopMaxIterations(1));
+    EXPECT_FALSE(loop_.PendingTasks());
   }
+
+
+  chromeos::FakeMessageLoop loop_{nullptr};
 };
 
 TEST_F(UmAsyncCopyVariableTest, ConstructorTest) {
@@ -150,7 +160,7 @@ TEST_F(UmAsyncCopyVariableTest, SetValueTest) {
   var.SetValue(5);
   UmTestUtils::ExpectVariableHasValue(5, &var);
   // Execute all the pending observers.
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
 }
 
 TEST_F(UmAsyncCopyVariableTest, UnsetValueTest) {
@@ -158,7 +168,7 @@ TEST_F(UmAsyncCopyVariableTest, UnsetValueTest) {
   var.UnsetValue();
   UmTestUtils::ExpectVariableNotSet(&var);
   // Execute all the pending observers.
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
 }
 
 class CallCounterObserver : public BaseVariable::ObserverInterface {
@@ -178,22 +188,22 @@ TEST_F(UmAsyncCopyVariableTest, ObserverCalledTest) {
 
   // Check that a different value fires the notification.
   var.SetValue(5);
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_EQ(1, observer.calls_count_);
 
   // Check the same value doesn't.
   var.SetValue(5);
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_EQ(1, observer.calls_count_);
 
   // Check that unsetting a previously set value fires the notification.
   var.UnsetValue();
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_EQ(2, observer.calls_count_);
 
   // Check that unsetting again doesn't.
   var.UnsetValue();
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_EQ(2, observer.calls_count_);
 
   var.RemoveObserver(&observer);

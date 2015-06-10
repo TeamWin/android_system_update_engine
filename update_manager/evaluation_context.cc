@@ -19,6 +19,7 @@ using base::Callback;
 using base::Closure;
 using base::Time;
 using base::TimeDelta;
+using chromeos::MessageLoop;
 using chromeos_update_engine::ClockInterface;
 using std::string;
 using std::unique_ptr;
@@ -75,8 +76,8 @@ unique_ptr<Closure> EvaluationContext::RemoveObserversAndTimeout() {
     if (it.first->GetMode() == kVariableModeAsync)
       it.first->RemoveObserver(this);
   }
-  CancelMainLoopEvent(timeout_event_);
-  timeout_event_ = kEventIdNull;
+  MessageLoop::current()->CancelTask(timeout_event_);
+  timeout_event_ = MessageLoop::kTaskIdNull;
 
   return unique_ptr<Closure>(callback_.release());
 }
@@ -101,7 +102,7 @@ void EvaluationContext::ValueChanged(BaseVariable* var) {
 void EvaluationContext::OnTimeout() {
   DLOG(INFO) << "OnTimeout() called due to "
              << (timeout_marks_expiration_ ? "expiration" : "poll interval");
-  timeout_event_ = kEventIdNull;
+  timeout_event_ = MessageLoop::kTaskIdNull;
   is_expired_ = timeout_marks_expiration_;
   OnValueChangedOrTimeout();
 }
@@ -202,7 +203,7 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
   if (!timeout.is_max()) {
     DLOG(INFO) << "Waiting for timeout in "
                << chromeos_update_engine::utils::FormatTimeDelta(timeout);
-    timeout_event_ = RunFromMainLoopAfterTimeout(
+    timeout_event_ = MessageLoop::current()->PostDelayedTask(
         base::Bind(&EvaluationContext::OnTimeout,
                    weak_ptr_factory_.GetWeakPtr()),
         timeout);

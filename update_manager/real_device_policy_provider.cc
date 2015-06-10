@@ -17,6 +17,7 @@
 #include "update_engine/utils.h"
 
 using base::TimeDelta;
+using chromeos::MessageLoop;
 using policy::DevicePolicy;
 using std::set;
 using std::string;
@@ -30,7 +31,7 @@ const int kDevicePolicyRefreshRateInMinutes = 60;
 namespace chromeos_update_manager {
 
 RealDevicePolicyProvider::~RealDevicePolicyProvider() {
-  CancelMainLoopEvent(scheduled_refresh_);
+  MessageLoop::current()->CancelTask(scheduled_refresh_);
   // Detach signal handler, free manager proxy.
   dbus_->ProxyDisconnectSignal(manager_proxy_,
                                login_manager::kPropertyChangeCompleteSignal,
@@ -83,7 +84,7 @@ void RealDevicePolicyProvider::HandlePropertyChangedCompletedStatic(
 
 void RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule() {
   RefreshDevicePolicy();
-  scheduled_refresh_ = RunFromMainLoopAfterTimeout(
+  scheduled_refresh_ = MessageLoop::current()->PostDelayedTask(
       base::Bind(&RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule,
                  base::Unretained(this)),
       TimeDelta::FromMinutes(kDevicePolicyRefreshRateInMinutes));

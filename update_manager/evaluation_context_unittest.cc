@@ -8,10 +8,11 @@
 #include <string>
 
 #include <base/bind.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
-#include "update_engine/test_utils.h"
 #include "update_engine/update_manager/fake_variable.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/mock_variable.h"
@@ -21,9 +22,10 @@ using base::Bind;
 using base::Closure;
 using base::Time;
 using base::TimeDelta;
+using chromeos::MessageLoop;
+using chromeos::MessageLoopRunMaxIterations;
+using chromeos::MessageLoopRunUntil;
 using chromeos_update_engine::FakeClock;
-using chromeos_update_engine::test_utils::RunGMainLoopMaxIterations;
-using chromeos_update_engine::test_utils::RunGMainLoopUntil;
 using std::string;
 using std::unique_ptr;
 using testing::Return;
@@ -72,6 +74,7 @@ void EvaluateRepeatedly(Closure evaluation, scoped_refptr<EvaluationContext> ec,
 class UmEvaluationContextTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    loop_.SetAsCurrent();
     // Apr 22, 2009 19:25:00 UTC (this is a random reference point).
     fake_clock_.SetMonotonicTime(Time::FromTimeT(1240428300));
     // Mar 2, 2006 1:23:45 UTC.
@@ -100,10 +103,13 @@ class UmEvaluationContextTest : public ::testing::Test {
     EXPECT_TRUE(fake_async_var_.observer_list_.empty());
     EXPECT_TRUE(fake_const_var_.observer_list_.empty());
     EXPECT_TRUE(fake_poll_var_.observer_list_.empty());
+
+    EXPECT_FALSE(loop_.PendingTasks());
   }
 
   TimeDelta default_timeout_ = TimeDelta::FromSeconds(5);
 
+  chromeos::FakeMessageLoop loop_{nullptr};
   FakeClock fake_clock_;
   scoped_refptr<EvaluationContext> eval_ctx_;
 
@@ -200,14 +206,14 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithVariables) {
   bool value = false;
   EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
   // Check that the scheduled callback isn't run until we signal a ValueChaged.
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_FALSE(value);
 
   fake_async_var_.NotifyValueChanged();
   EXPECT_FALSE(value);
   // Ensure that the scheduled callback isn't run until we are back on the main
   // loop.
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_TRUE(value);
 }
 
@@ -222,7 +228,7 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutCalledTwice) {
 
   // The scheduled event should still work.
   fake_async_var_.NotifyValueChanged();
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_TRUE(value);
 }
 
@@ -234,9 +240,11 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutRunsFromTimeout) {
   bool value = false;
   EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
   // Check that the scheduled callback isn't run until the timeout occurs.
-  RunGMainLoopMaxIterations(10);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_FALSE(value);
-  RunGMainLoopUntil(10000, Bind(&GetBoolean, &value));
+  MessageLoopRunUntil(MessageLoop::current(),
+                      TimeDelta::FromSeconds(10),
+                      Bind(&GetBoolean, &value));
   EXPECT_TRUE(value);
 }
 
@@ -249,9 +257,11 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutExpires) {
   bool value = false;
   EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
   // Check that the scheduled callback isn't run until the timeout occurs.
-  RunGMainLoopMaxIterations(10);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_FALSE(value);
-  RunGMainLoopUntil(10000, Bind(&GetBoolean, &value));
+  MessageLoopRunUntil(MessageLoop::current(),
+                      TimeDelta::FromSeconds(10),
+                      Bind(&GetBoolean, &value));
   EXPECT_TRUE(value);
 
   // Ensure that we cannot reschedule an evaluation.
@@ -274,7 +284,7 @@ TEST_F(UmEvaluationContextTest, RemoveObserversAndTimeoutTest) {
   // This should not trigger the callback since the EvaluationContext waiting
   // for it is gone, and it should have remove all its observers.
   fake_async_var_.NotifyValueChanged();
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_FALSE(value);
 }
 
@@ -293,7 +303,9 @@ TEST_F(UmEvaluationContextTest,
   Closure closure = Bind(EvaluateRepeatedly, evaluation, eval_ctx_,
                          &num_reevaluations, &done);
   ASSERT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(closure));
-  RunGMainLoopUntil(10000, Bind(&GetBoolean, &done));
+  MessageLoopRunUntil(MessageLoop::current(),
+                      TimeDelta::FromSeconds(10),
+                      Bind(&GetBoolean, &done));
   EXPECT_EQ(0, num_reevaluations);
 }
 
@@ -321,7 +333,9 @@ TEST_F(UmEvaluationContextTest, TimeoutEventAfterDeleteTest) {
   // seconds). Our callback should not be called because the EvaluationContext
   // was removed before the timeout event is attended.
   eval_ctx_ = nullptr;
-  RunGMainLoopUntil(1000, Bind(&GetBoolean, &value));
+  MessageLoopRunUntil(MessageLoop::current(),
+                      TimeDelta::FromSeconds(10),
+                      Bind(&GetBoolean, &value));
   EXPECT_FALSE(value);
 }
 

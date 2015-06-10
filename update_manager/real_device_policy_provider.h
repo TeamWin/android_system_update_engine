@@ -8,12 +8,12 @@
 #include <set>
 #include <string>
 
+#include <chromeos/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 #include <policy/libpolicy.h>
 
 #include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/update_manager/device_policy_provider.h"
-#include "update_engine/update_manager/event_loop.h"
 #include "update_engine/update_manager/generic_variables.h"
 
 namespace chromeos_update_manager {
@@ -116,7 +116,8 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   policy::PolicyProvider* policy_provider_;
 
   // Used to schedule refreshes of the device policy.
-  EventId scheduled_refresh_ = kEventIdNull;
+  chromeos::MessageLoop::TaskId scheduled_refresh_ =
+      chromeos::MessageLoop::kTaskIdNull;
 
   // The DBus interface (mockable) and a session manager proxy.
   chromeos_update_engine::DBusWrapperInterface* const dbus_;

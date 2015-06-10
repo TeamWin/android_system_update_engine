@@ -175,7 +175,6 @@
         'update_manager/chromeos_policy.cc',
         'update_manager/default_policy.cc',
         'update_manager/evaluation_context.cc',
-        'update_manager/event_loop.cc',
         'update_manager/policy.cc',
         'update_manager/real_config_provider.cc',
         'update_manager/real_device_policy_provider.cc',
@@ -354,6 +353,13 @@
         {
           'target_name': 'update_engine_unittests',
           'type': 'executable',
+          'includes': ['../common-mk/common_test.gypi'],
+          'variables': {
+            'deps': [
+              'libchromeos-test-<(libbase_ver)',
+              'libchrome-test-<(libbase_ver)',
+            ],
+          },
           'dependencies': [
             'libupdate_engine',
             'libpayload_generator',
@@ -406,7 +412,6 @@
             'update_manager/boxed_value_unittest.cc',
             'update_manager/chromeos_policy_unittest.cc',
             'update_manager/evaluation_context_unittest.cc',
-            'update_manager/event_loop_unittest.cc',
             'update_manager/generic_variables_unittest.cc',
             'update_manager/prng_unittest.cc',
             'update_manager/real_config_provider_unittest.cc',

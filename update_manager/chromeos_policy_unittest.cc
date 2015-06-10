@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <base/time/time.h>
+#include <chromeos/message_loops/fake_message_loop.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
@@ -31,10 +32,15 @@ namespace chromeos_update_manager {
 class UmChromeOSPolicyTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    loop_.SetAsCurrent();
     SetUpDefaultClock();
     eval_ctx_ = new EvaluationContext(&fake_clock_, TimeDelta::FromSeconds(5));
     SetUpDefaultState();
     SetUpDefaultDevicePolicy();
+  }
+
+  void TearDown() override {
+    EXPECT_FALSE(loop_.PendingTasks());
   }
 
   // Sets the clock to fixed values.
@@ -178,6 +184,7 @@ class UmChromeOSPolicyTest : public ::testing::Test {
         << "\nEvaluation context: " << eval_ctx_->DumpContext();
   }
 
+  chromeos::FakeMessageLoop loop_{nullptr};
   FakeClock fake_clock_;
   FakeState fake_state_;
   scoped_refptr<EvaluationContext> eval_ctx_;

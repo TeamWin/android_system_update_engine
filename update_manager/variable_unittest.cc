@@ -6,12 +6,14 @@
 
 #include <vector>
 
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/test_utils.h"
-
 using base::TimeDelta;
-using chromeos_update_engine::test_utils::RunGMainLoopMaxIterations;
+using chromeos::MessageLoop;
+using chromeos::MessageLoopRunMaxIterations;
 using std::string;
 using std::vector;
 
@@ -37,26 +39,35 @@ class DefaultVariable : public Variable<T> {
   DISALLOW_COPY_AND_ASSIGN(DefaultVariable);
 };
 
-TEST(UmBaseVariableTest, GetNameTest) {
+class UmBaseVariableTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    loop_.SetAsCurrent();
+  }
+
+  chromeos::FakeMessageLoop loop_{nullptr};
+};
+
+TEST_F(UmBaseVariableTest, GetNameTest) {
   DefaultVariable<int> var("var", kVariableModeConst);
   EXPECT_EQ(var.GetName(), string("var"));
 }
 
-TEST(UmBaseVariableTest, GetModeTest) {
+TEST_F(UmBaseVariableTest, GetModeTest) {
   DefaultVariable<int> var("var", kVariableModeConst);
   EXPECT_EQ(var.GetMode(), kVariableModeConst);
   DefaultVariable<int> other_var("other_var", kVariableModePoll);
   EXPECT_EQ(other_var.GetMode(), kVariableModePoll);
 }
 
-TEST(UmBaseVariableTest, DefaultPollIntervalTest) {
+TEST_F(UmBaseVariableTest, DefaultPollIntervalTest) {
   DefaultVariable<int> const_var("const_var", kVariableModeConst);
   EXPECT_EQ(const_var.GetPollInterval(), TimeDelta());
   DefaultVariable<int> poll_var("poll_var", kVariableModePoll);
   EXPECT_EQ(poll_var.GetPollInterval(), TimeDelta::FromMinutes(5));
 }
 
-TEST(UmBaseVariableTest, GetPollIntervalTest) {
+TEST_F(UmBaseVariableTest, GetPollIntervalTest) {
   DefaultVariable<int> var("var", TimeDelta::FromMinutes(3));
   EXPECT_EQ(var.GetMode(), kVariableModePoll);
   EXPECT_EQ(var.GetPollInterval(), TimeDelta::FromMinutes(3));
@@ -72,7 +83,7 @@ class BaseVariableObserver : public BaseVariable::ObserverInterface {
   vector<BaseVariable*> calls_;
 };
 
-TEST(UmBaseVariableTest, RepeatedObserverTest) {
+TEST_F(UmBaseVariableTest, RepeatedObserverTest) {
   DefaultVariable<int> var("var", kVariableModeAsync);
   BaseVariableObserver observer;
   var.AddObserver(&observer);
@@ -85,14 +96,14 @@ TEST(UmBaseVariableTest, RepeatedObserverTest) {
   EXPECT_EQ(var.observer_list_.size(), 0);
 }
 
-TEST(UmBaseVariableTest, NotifyValueChangedTest) {
+TEST_F(UmBaseVariableTest, NotifyValueChangedTest) {
   DefaultVariable<int> var("var", kVariableModeAsync);
   BaseVariableObserver observer1;
   var.AddObserver(&observer1);
   // Simulate a value change on the variable's implementation.
   var.NotifyValueChanged();
   ASSERT_EQ(0, observer1.calls_.size());
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
 
   ASSERT_EQ(1, observer1.calls_.size());
   // Check that the observer is called with the right argument.
@@ -101,7 +112,7 @@ TEST(UmBaseVariableTest, NotifyValueChangedTest) {
   BaseVariableObserver observer2;
   var.AddObserver(&observer2);
   var.NotifyValueChanged();
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
 
   // Check that all the observers are called.
   EXPECT_EQ(2, observer1.calls_.size());
@@ -135,7 +146,7 @@ class BaseVariableObserverRemover : public BaseVariable::ObserverInterface {
 
 // Tests that we can remove an observer from a Variable on the ValueChanged()
 // call to that observer.
-TEST(UmBaseVariableTest, NotifyValueRemovesObserversTest) {
+TEST_F(UmBaseVariableTest, NotifyValueRemovesObserversTest) {
   DefaultVariable<int> var("var", kVariableModeAsync);
   BaseVariableObserverRemover observer1;
   BaseVariableObserverRemover observer2;
@@ -150,7 +161,7 @@ TEST(UmBaseVariableTest, NotifyValueRemovesObserversTest) {
   observer2.OnCallRemoveObserver(&observer2);
 
   var.NotifyValueChanged();
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
 
   EXPECT_EQ(1, observer1.get_calls() + observer2.get_calls());
 }

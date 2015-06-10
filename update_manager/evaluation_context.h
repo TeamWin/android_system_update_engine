@@ -14,10 +14,10 @@
 #include <base/memory/ref_counted.h>
 #include <base/memory/weak_ptr.h>
 #include <base/time/time.h>
+#include <chromeos/message_loops/message_loop.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/update_manager/boxed_value.h"
-#include "update_engine/update_manager/event_loop.h"
 #include "update_engine/update_manager/variable.h"
 
 namespace chromeos_update_manager {
@@ -149,9 +149,10 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
   // is_expired().
   std::unique_ptr<base::Closure> callback_;
 
-  // The EventId returned by the event loop identifying the timeout callback.
+  // The TaskId returned by the message loop identifying the timeout callback.
   // Used for canceling the timeout callback.
-  EventId timeout_event_ = kEventIdNull;
+  chromeos::MessageLoop::TaskId timeout_event_ =
+      chromeos::MessageLoop::kTaskIdNull;
 
   // Whether a timeout event firing marks the expiration of the evaluation
   // context.

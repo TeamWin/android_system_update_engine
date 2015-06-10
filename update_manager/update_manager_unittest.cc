@@ -14,12 +14,15 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/test/simple_test_clock.h>
 #include <base/time/time.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
-#include "update_engine/test_utils.h"
 #include "update_engine/update_manager/default_policy.h"
 #include "update_engine/update_manager/fake_state.h"
 #include "update_engine/update_manager/mock_policy.h"
@@ -29,9 +32,10 @@ using base::Bind;
 using base::Callback;
 using base::Time;
 using base::TimeDelta;
+using chromeos::MessageLoop;
+using chromeos::MessageLoopRunMaxIterations;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::FakeClock;
-using chromeos_update_engine::test_utils::RunGMainLoopMaxIterations;
 using std::pair;
 using std::string;
 using std::tuple;
@@ -61,11 +65,18 @@ namespace chromeos_update_manager {
 class UmUpdateManagerTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    loop_.SetAsCurrent();
     fake_state_ = new FakeState();
     umut_.reset(new UpdateManager(&fake_clock_, TimeDelta::FromSeconds(5),
                                   TimeDelta::FromSeconds(1), fake_state_));
   }
 
+  void TearDown() override {
+    EXPECT_FALSE(loop_.PendingTasks());
+  }
+
+  base::SimpleTestClock test_clock_;
+  chromeos::FakeMessageLoop loop_{&test_clock_};
   FakeState* fake_state_;  // Owned by the umut_.
   FakeClock fake_clock_;
   unique_ptr<UpdateManager> umut_;
@@ -231,7 +242,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation) {
   umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // The callback should wait until we run the main loop for it to be executed.
   EXPECT_EQ(0, calls.size());
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_EQ(1, calls.size());
 }
 
@@ -248,14 +259,14 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimeoutDoesNotFire) {
   umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // Run the main loop, ensure that policy was attempted once before deferring
   // to the default.
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_EQ(1, num_called);
   ASSERT_EQ(1, calls.size());
   EXPECT_EQ(EvalStatus::kSucceeded, calls[0].first);
   // Wait for the timeout to expire, run the main loop again, ensure that
   // nothing happened.
-  sleep(2);
-  RunGMainLoopMaxIterations(10);
+  test_clock_.Advance(TimeDelta::FromSeconds(2));
+  MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_EQ(1, num_called);
   EXPECT_EQ(1, calls.size());
 }
@@ -276,24 +287,24 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
   umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // Run the main loop, ensure that policy was attempted once but the callback
   // was not invoked.
-  RunGMainLoopMaxIterations(100);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_EQ(1, num_called);
   EXPECT_EQ(0, calls.size());
   // Wait for the expiration timeout to expire, run the main loop again,
   // ensure that reevaluation occurred but callback was not invoked (i.e.
   // default policy was not consulted).
-  sleep(2);
+  test_clock_.Advance(TimeDelta::FromSeconds(2));
   fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
                                TimeDelta::FromSeconds(2));
-  RunGMainLoopMaxIterations(10);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_EQ(2, num_called);
   EXPECT_EQ(0, calls.size());
   // Wait for reevaluation due to delay to happen, ensure that it occurs and
   // that the callback is invoked.
-  sleep(2);
+  test_clock_.Advance(TimeDelta::FromSeconds(2));
   fake_clock_.SetWallclockTime(fake_clock_.GetWallclockTime() +
                                TimeDelta::FromSeconds(2));
-  RunGMainLoopMaxIterations(10);
+  MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_EQ(3, num_called);
   ASSERT_EQ(1, calls.size());
   EXPECT_EQ(EvalStatus::kSucceeded, calls[0].first);

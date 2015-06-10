@@ -183,20 +183,6 @@ class ScopedLoopMounter {
 // This WILL cross filesystem boundaries.
 bool RecursiveUnlinkDir(const std::string& path);
 
-// Runs the default GLib main loop for at most |timeout_msec| or until the
-// function |terminate| returns true, whichever happens first. The function
-// |terminate| is called before every GLib main loop iteration and its value is
-// checked.
-void RunGMainLoopUntil(int timeout_msec, base::Callback<bool()> terminate);
-
-// Runs the default GLib main loop at most |iterations| times. This
-// dispatches all the events that are already waiting in the main loop and
-// those that get scheduled as a result of these events being attended.
-// Returns the number of iterations the main loop was ran. If there are more
-// than |iterations| events to attend, then this function returns |iterations|
-// and the remaining events are not dispatched.
-int RunGMainLoopMaxIterations(int iterations);
-
 // Allocates, initializes and returns a string GValue object.
 GValue* GValueNewString(const char* str);
 
