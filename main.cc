@@ -15,6 +15,7 @@
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 #include <chromeos/flag_helper.h>
+#include <chromeos/message_loops/glib_message_loop.h>
 #include <glib.h>
 #include <metrics/metrics_library.h>
 #include <sys/stat.h>
@@ -42,21 +43,6 @@ const int kDBusSystemMaxWaitSeconds = 2 * 60;
 }  // namespace
 
 namespace chromeos_update_engine {
-
-gboolean UpdateBootFlags(void* arg) {
-  reinterpret_cast<UpdateAttempter*>(arg)->UpdateBootFlags();
-  return FALSE;  // Don't call this callback again
-}
-
-gboolean BroadcastStatus(void* arg) {
-  reinterpret_cast<UpdateAttempter*>(arg)->BroadcastStatus();
-  return FALSE;  // Don't call this callback again
-}
-
-gboolean UpdateEngineStarted(gpointer user_data) {
-  reinterpret_cast<UpdateAttempter*>(user_data)->UpdateEngineStarted();
-  return FALSE;  // Remove idle source (e.g. don't do the callback again)
-}
 
 namespace {
 
@@ -197,8 +183,13 @@ int main(int argc, char** argv) {
   // Done _after_ log file creation.
   umask(S_IXUSR | S_IRWXG | S_IRWXO);
 
-  // Create the single GMainLoop
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
+  // Create the single Glib main loop. Code accessing directly the glib main
+  // loop (such as calling g_timeout_add() or similar functions) will still work
+  // since the backend for the message loop is still the Glib main loop.
+  // TODO(deymo): Replace this |loop| with one based on libevent once no other
+  // code here uses glib directly.
+  chromeos::GlibMessageLoop loop;
+  loop.SetAsCurrent();
 
   // Wait up to 2 minutes for DBus to be ready.
   LOG_IF(FATAL, !chromeos_update_engine::WaitForDBusSystem(
@@ -231,25 +222,30 @@ int main(int argc, char** argv) {
   update_attempter->ScheduleUpdates();
 
   // Update boot flags after 45 seconds.
-  g_timeout_add_seconds(45,
-                        &chromeos_update_engine::UpdateBootFlags,
-                        update_attempter);
+  loop.PostDelayedTask(
+      base::Bind(&chromeos_update_engine::UpdateAttempter::UpdateBootFlags,
+                 base::Unretained(update_attempter)),
+      base::TimeDelta::FromSeconds(45));
 
   // Broadcast the update engine status on startup to ensure consistent system
   // state on crashes.
-  g_idle_add(&chromeos_update_engine::BroadcastStatus, update_attempter);
+  loop.PostTask(base::Bind(
+      &chromeos_update_engine::UpdateAttempter::BroadcastStatus,
+      base::Unretained(update_attempter)));
 
   // Run the UpdateEngineStarted() method on |update_attempter|.
-  g_idle_add(&chromeos_update_engine::UpdateEngineStarted, update_attempter);
+  loop.PostTask(base::Bind(
+      &chromeos_update_engine::UpdateAttempter::UpdateEngineStarted,
+      base::Unretained(update_attempter)));
 
   // Run the main loop until exit time:
-  g_main_loop_run(loop);
+  loop.Run();
 
   // Cleanup:
-  g_main_loop_unref(loop);
   update_attempter->set_dbus_service(nullptr);
   g_object_unref(G_OBJECT(service));
 
+  loop.ReleaseFromCurrent();
   LOG(INFO) << "Chrome OS Update Engine terminating";
   return 0;
 }
