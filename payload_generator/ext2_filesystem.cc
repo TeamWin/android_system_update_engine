@@ -250,6 +250,7 @@ bool Ext2Filesystem::GetFiles(vector<File>* files) const {
       files->push_back(inodes[dir_ino]);
       used_inodes.insert(dir_ino);
     }
+    ext2fs_free_mem(&dir_name);
 
     error = ext2fs_dir_iterate2(
         filsys_, dir_ino, 0, nullptr /* block_buf */,
