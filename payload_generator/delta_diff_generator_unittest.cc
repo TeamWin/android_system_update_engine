@@ -88,6 +88,7 @@ void TestSplitReplaceOrReplaceBzOperation(
   string part_path;
   EXPECT_TRUE(utils::MakeTempFile(
       "SplitReplaceOrReplaceBzTest_part.XXXXXX", &part_path, nullptr));
+  ScopedPathUnlinker part_path_unlinker(part_path);
   const size_t part_size = part_num_blocks * kBlockSize;
   chromeos::Blob part_data;
   if (compressible) {
@@ -139,6 +140,7 @@ void TestSplitReplaceOrReplaceBzOperation(
   string data_path;
   EXPECT_TRUE(utils::MakeTempFile(
       "SplitReplaceOrReplaceBzTest_data.XXXXXX", &data_path, nullptr));
+  ScopedPathUnlinker data_path_unlinker(data_path);
   int data_fd = open(data_path.c_str(), O_RDWR, 000);
   EXPECT_GE(data_fd, 0);
   ScopedFdCloser data_fd_closer(&data_fd);
@@ -240,6 +242,7 @@ void TestMergeReplaceOrReplaceBzOperations(
   string part_path;
   EXPECT_TRUE(utils::MakeTempFile(
       "MergeReplaceOrReplaceBzTest_part.XXXXXX", &part_path, nullptr));
+  ScopedPathUnlinker part_path_unlinker(part_path);
   const size_t part_size = part_num_blocks * kBlockSize;
   chromeos::Blob part_data;
   if (compressible) {
@@ -307,6 +310,7 @@ void TestMergeReplaceOrReplaceBzOperations(
   string data_path;
   EXPECT_TRUE(utils::MakeTempFile(
       "MergeReplaceOrReplaceBzTest_data.XXXXXX", &data_path, nullptr));
+  ScopedPathUnlinker data_path_unlinker(data_path);
   int data_fd = open(data_path.c_str(), O_RDWR, 000);
   EXPECT_GE(data_fd, 0);
   ScopedFdCloser data_fd_closer(&data_fd);
@@ -740,6 +744,7 @@ TEST_F(DeltaDiffGeneratorTest, ReorderBlobsTest) {
   string orig_blobs;
   EXPECT_TRUE(utils::MakeTempFile("ReorderBlobsTest.orig.XXXXXX", &orig_blobs,
                                   nullptr));
+  ScopedPathUnlinker orig_blobs_unlinker(orig_blobs);
 
   string orig_data = "abcd";
   EXPECT_TRUE(
@@ -748,6 +753,7 @@ TEST_F(DeltaDiffGeneratorTest, ReorderBlobsTest) {
   string new_blobs;
   EXPECT_TRUE(
       utils::MakeTempFile("ReorderBlobsTest.new.XXXXXX", &new_blobs, nullptr));
+  ScopedPathUnlinker new_blobs_unlinker(new_blobs);
 
   DeltaArchiveManifest manifest;
   DeltaArchiveManifest_InstallOperation* op =
@@ -770,9 +776,6 @@ TEST_F(DeltaDiffGeneratorTest, ReorderBlobsTest) {
   EXPECT_EQ(3, manifest.install_operations(0).data_length());
   EXPECT_EQ(3, manifest.install_operations(1).data_offset());
   EXPECT_EQ(1, manifest.install_operations(1).data_length());
-
-  unlink(orig_blobs.c_str());
-  unlink(new_blobs.c_str());
 }
 
 TEST_F(DeltaDiffGeneratorTest, IsNoopOperationTest) {
