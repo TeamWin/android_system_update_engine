@@ -109,21 +109,6 @@ class EintrSafeFileDescriptor : public FileDescriptor {
   int fd_;
 };
 
-// A scoped closer for a FileDescriptor object. The destructor of this class
-// invokes the Close() method of the given file descriptor, if it's not in the
-// closed state already. Note, however, that if Close() fails, this class will
-// force a Reset() invocation, which will abandon the current file descriptor.
-class ScopedFileDescriptorCloser {
- public:
-  explicit ScopedFileDescriptorCloser(FileDescriptor* descriptor)
-      : descriptor_(descriptor) {}
-  ~ScopedFileDescriptorCloser();
- private:
-  FileDescriptor* descriptor_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedFileDescriptorCloser);
-};
-
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_FILE_DESCRIPTOR_H_

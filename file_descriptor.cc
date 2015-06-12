@@ -63,18 +63,4 @@ void EintrSafeFileDescriptor::Reset() {
   fd_ = -1;
 }
 
-
-ScopedFileDescriptorCloser::~ScopedFileDescriptorCloser() {
-  if (descriptor_ && descriptor_->IsOpen() && !descriptor_->Close()) {
-    const char* err_str = "file closing failed";
-    if (descriptor_->IsSettingErrno()) {
-      PLOG(ERROR) << err_str;
-    } else {
-      LOG(ERROR) << err_str;
-    }
-    // Abandon the current descriptor, forcing it back to a closed state.
-    descriptor_->Reset();
-  }
-}
-
 }  // namespace chromeos_update_engine
