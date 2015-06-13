@@ -20,6 +20,7 @@
 
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_verifier.h"
@@ -190,10 +191,8 @@ void ApplyDelta(const string& in_file,
   old_image.kernel.path = old_kernel;
   old_image.rootfs.path = old_rootfs;
   CHECK(old_image.LoadImageSize());
-  CHECK(DeltaDiffGenerator::InitializePartitionInfo(old_image.kernel,
-                                                    &kern_info));
-  CHECK(DeltaDiffGenerator::InitializePartitionInfo(old_image.rootfs,
-                                                    &root_info));
+  CHECK(diff_utils::InitializePartitionInfo(old_image.kernel, &kern_info));
+  CHECK(diff_utils::InitializePartitionInfo(old_image.rootfs, &root_info));
   install_plan.kernel_hash.assign(kern_info.hash().begin(),
                                   kern_info.hash().end());
   install_plan.rootfs_hash.assign(root_info.hash().begin(),

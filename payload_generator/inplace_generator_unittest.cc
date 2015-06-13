@@ -4,6 +4,7 @@
 
 #include "update_engine/payload_generator/inplace_generator.h"
 
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -22,6 +23,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using std::map;
 using std::set;
 using std::string;
 using std::stringstream;
@@ -45,8 +47,8 @@ void GenVertex(Vertex* out,
                DeltaArchiveManifest_InstallOperation_Type type) {
   out->op.set_type(type);
   out->file_name = path;
-  DeltaDiffGenerator::StoreExtents(src_extents, out->op.mutable_src_extents());
-  DeltaDiffGenerator::StoreExtents(dst_extents, out->op.mutable_dst_extents());
+  StoreExtents(src_extents, out->op.mutable_src_extents());
+  StoreExtents(dst_extents, out->op.mutable_dst_extents());
 }
 
 vector<Extent> VectOfExt(uint64_t start_block, uint64_t num_blocks) {
@@ -148,7 +150,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
     AppendBlockToExtents(&extents, 3);
     AppendBlockToExtents(&extents, 5);
     AppendBlockToExtents(&extents, 7);
-    DeltaDiffGenerator::StoreExtents(extents,
+    StoreExtents(extents,
                                      graph.back().op.mutable_src_extents());
     blocks[3].reader = graph.size() - 1;
     blocks[5].reader = graph.size() - 1;
@@ -159,7 +161,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
     AppendBlockToExtents(&extents, 1);
     AppendBlockToExtents(&extents, 2);
     AppendBlockToExtents(&extents, 4);
-    DeltaDiffGenerator::StoreExtents(extents,
+    StoreExtents(extents,
                                      graph.back().op.mutable_dst_extents());
     blocks[1].writer = graph.size() - 1;
     blocks[2].writer = graph.size() - 1;
@@ -173,7 +175,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
     AppendBlockToExtents(&extents, 1);
     AppendBlockToExtents(&extents, 2);
     AppendBlockToExtents(&extents, 4);
-    DeltaDiffGenerator::StoreExtents(extents,
+    StoreExtents(extents,
                                      graph.back().op.mutable_src_extents());
     blocks[1].reader = graph.size() - 1;
     blocks[2].reader = graph.size() - 1;
@@ -184,7 +186,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
     AppendBlockToExtents(&extents, 3);
     AppendBlockToExtents(&extents, 5);
     AppendBlockToExtents(&extents, 6);
-    DeltaDiffGenerator::StoreExtents(extents,
+    StoreExtents(extents,
                                      graph.back().op.mutable_dst_extents());
     blocks[3].writer = graph.size() - 1;
     blocks[5].writer = graph.size() - 1;
@@ -499,6 +501,18 @@ TEST_F(InplaceGeneratorTest, CreateScratchNodeTest) {
   EXPECT_EQ(1, vertex.op.dst_extents_size());
   EXPECT_EQ(12, vertex.op.dst_extents(0).start_block());
   EXPECT_EQ(34, vertex.op.dst_extents(0).num_blocks());
+}
+
+TEST_F(InplaceGeneratorTest, ApplyMapTest) {
+  vector<uint64_t> collection = {1, 2, 3, 4, 6};
+  vector<uint64_t> expected_values = {1, 2, 5, 4, 8};
+  map<uint64_t, uint64_t> value_map;
+  value_map[3] = 5;
+  value_map[6] = 8;
+  value_map[5] = 10;
+
+  InplaceGenerator::ApplyMap(&collection, value_map);
+  EXPECT_EQ(expected_values, collection);
 }
 
 }  // namespace chromeos_update_engine

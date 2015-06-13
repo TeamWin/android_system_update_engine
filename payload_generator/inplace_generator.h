@@ -5,6 +5,7 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_INPLACE_GENERATOR_H_
 #define UPDATE_ENGINE_PAYLOAD_GENERATOR_INPLACE_GENERATOR_H_
 
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -186,6 +187,12 @@ class InplaceGenerator : public OperationsGenerator {
       std::vector<Block>* blocks,
       const DeltaArchiveManifest_InstallOperation operation,
       const std::string& op_name);
+
+  // Apply the transformation stored in |the_map| to the |collection| vector
+  // replacing the map keys found in |collection| with its associated value in
+  // |the_map|.
+  static void ApplyMap(std::vector<uint64_t>* collection,
+                       const std::map<uint64_t, uint64_t>& the_map);
 
   // Generate the update payload operations for the kernel and rootfs using
   // only operations that read from the target and/or write to the target,

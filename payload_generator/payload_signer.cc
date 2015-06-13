@@ -11,7 +11,7 @@
 #include <openssl/pem.h>
 
 #include "update_engine/omaha_hash_calculator.h"
-#include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_verifier.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/update_metadata.pb.h"
@@ -90,9 +90,9 @@ bool AddSignatureOpToPayload(const string& payload_path,
     LOG(INFO) << "Matching signature sizes already present.";
   } else {
     // Updates the manifest to include the signature operation.
-    DeltaDiffGenerator::AddSignatureOp(payload.size() - metadata_size,
-                                       signature_blob_size,
-                                       &manifest);
+    AddSignatureOp(payload.size() - metadata_size,
+                   signature_blob_size,
+                   &manifest);
 
     // Updates the payload to include the new manifest.
     string serialized_manifest;

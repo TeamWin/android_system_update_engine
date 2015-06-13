@@ -1,74 +1,32 @@
-// Copyright (c) 2012 The Chromium OS Authors. All rights reserved.
+// Copyright 2015 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/ab_generator.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
-#include <algorithm>
-#include <cstdio>
-#include <map>
-#include <set>
-#include <sstream>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include <base/files/scoped_file.h>
-#include <base/logging.h>
-#include <base/strings/string_util.h>
-#include <bzlib.h>
-#include <chromeos/secure_blob.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/bzip.h"
-#include "update_engine/delta_performer.h"
-#include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/annotated_operation.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
-#include "update_engine/payload_generator/fake_filesystem.h"
-#include "update_engine/payload_generator/graph_types.h"
-#include "update_engine/subprocess.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
-using std::set;
 using std::string;
-using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
 
 namespace {
-
-// Writes the |data| in the blocks specified by |extents| on the partition
-// |part_path|. The |data| size could be smaller than the size of the blocks
-// passed.
-bool WriteExtents(const string& part_path,
-                  const vector<Extent>& extents,
-                  off_t block_size,
-                  const chromeos::Blob& data) {
-  uint64_t offset = 0;
-  base::ScopedFILE fp(fopen(part_path.c_str(), "r+"));
-  TEST_AND_RETURN_FALSE(fp.get());
-
-  for (const Extent& extent : extents) {
-    if (offset >= data.size())
-      break;
-    TEST_AND_RETURN_FALSE(
-        fseek(fp.get(), extent.start_block() * block_size, SEEK_SET) == 0);
-    uint64_t to_write = std::min(extent.num_blocks() * block_size,
-                                 data.size() - offset);
-    TEST_AND_RETURN_FALSE(
-        fwrite(data.data() + offset, 1, to_write, fp.get()) == to_write);
-    offset += extent.num_blocks() * block_size;
-  }
-  return true;
-}
 
 bool ExtentEquals(Extent ext, uint64_t start_block, uint64_t num_blocks) {
   return ext.start_block() == start_block && ext.num_blocks() == num_blocks;
@@ -150,7 +108,7 @@ void TestSplitReplaceOrReplaceBzOperation(
 
   // Split the operation.
   vector<AnnotatedOperation> result_ops;
-  ASSERT_TRUE(DeltaDiffGenerator::SplitReplaceOrReplaceBz(
+  ASSERT_TRUE(ABGenerator::SplitReplaceOrReplaceBz(
           aop, &result_ops, part_path, data_fd, &data_file_size));
 
   // Check the result.
@@ -319,7 +277,7 @@ void TestMergeReplaceOrReplaceBzOperations(
   off_t data_file_size = blob_data.size();
 
   // Merge the operations.
-  EXPECT_TRUE(DeltaDiffGenerator::MergeOperations(
+  EXPECT_TRUE(ABGenerator::MergeOperations(
       &aops, 5 * kBlockSize, part_path, data_fd, &data_file_size));
 
   // Check the result.
@@ -360,468 +318,9 @@ void TestMergeReplaceOrReplaceBzOperations(
 
 }  // namespace
 
-class DeltaDiffGeneratorTest : public ::testing::Test {
- protected:
-  const uint64_t kFilesystemSize = kBlockSize * 1024;
+class ABGeneratorTest : public ::testing::Test {};
 
-  void SetUp() override {
-    old_part_path_ = "DeltaDiffGeneratorTest-old_part_path-XXXXXX";
-    CreateFilesystem(&old_fs_, &old_part_path_, kFilesystemSize);
-
-    new_part_path_ = "DeltaDiffGeneratorTest-new_part_path-XXXXXX";
-    CreateFilesystem(&old_fs_, &new_part_path_, kFilesystemSize);
-  }
-
-  void TearDown() override {
-    unlink(old_part_path_.c_str());
-    unlink(new_part_path_.c_str());
-  }
-
-  // Create a fake filesystem of the given size and initialize the partition
-  // holding it.
-  void CreateFilesystem(unique_ptr<FakeFilesystem>* fs, string* filename,
-                        uint64_t size) {
-    string pattern = *filename;
-    ASSERT_TRUE(utils::MakeTempFile(pattern.c_str(), filename, nullptr));
-    ASSERT_EQ(0, truncate(filename->c_str(), size));
-    fs->reset(new FakeFilesystem(kBlockSize, size / kBlockSize));
-  }
-
-  // Paths to old and new temporary filesystems used in the tests.
-  string old_part_path_;
-  string new_part_path_;
-
-  // FilesystemInterface fake implementations used to mock out the file/block
-  // distribution.
-  unique_ptr<FakeFilesystem> old_fs_;
-  unique_ptr<FakeFilesystem> new_fs_;
-};
-
-TEST_F(DeltaDiffGeneratorTest, MoveSmallTest) {
-  chromeos::Blob data_blob(kBlockSize);
-  test_utils::FillWithData(&data_blob);
-
-  // The old file is on a different block than the new one.
-  vector<Extent> old_extents = { ExtentForRange(11, 1) };
-  vector<Extent> new_extents = { ExtentForRange(1, 1) };
-
-  EXPECT_TRUE(WriteExtents(old_part_path_, old_extents, kBlockSize, data_blob));
-  EXPECT_TRUE(WriteExtents(new_part_path_, new_extents, kBlockSize, data_blob));
-
-  chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadExtentsToDiff(
-      old_part_path_,
-      new_part_path_,
-      old_extents,
-      new_extents,
-      true,  // bsdiff_allowed
-      &data,
-      &op,
-      false));  // src_ops_allowed
-  EXPECT_TRUE(data.empty());
-
-  EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE, op.type());
-  EXPECT_FALSE(op.has_data_offset());
-  EXPECT_FALSE(op.has_data_length());
-  EXPECT_EQ(1, op.src_extents_size());
-  EXPECT_EQ(kBlockSize, op.src_length());
-  EXPECT_EQ(1, op.dst_extents_size());
-  EXPECT_EQ(kBlockSize, op.dst_length());
-  EXPECT_EQ(BlocksInExtents(op.src_extents()),
-            BlocksInExtents(op.dst_extents()));
-  EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
-}
-
-TEST_F(DeltaDiffGeneratorTest, MoveWithSameBlock) {
-  // Setup the old/new files so that it has immobile chunks; we make sure to
-  // utilize all sub-cases of such chunks: blocks 21--22 induce a split (src)
-  // and complete removal (dst), whereas blocks 24--25 induce trimming of the
-  // tail (src) and head (dst) of extents. The final block (29) is used for
-  // ensuring we properly account for the number of bytes removed in cases where
-  // the last block is partly filled. The detailed configuration:
-  //
-  // Old:  [ 20     21 22     23     24 25 ] [ 28     29 ]
-  // New:  [ 18 ] [ 21 22 ] [ 20 ] [ 24 25     26 ] [ 29 ]
-  // Same:          ^^ ^^            ^^ ^^            ^^
-  vector<Extent> old_extents = {
-      ExtentForRange(20, 6),
-      ExtentForRange(28, 2) };
-  vector<Extent> new_extents = {
-      ExtentForRange(18, 1),
-      ExtentForRange(21, 2),
-      ExtentForRange(20, 1),
-      ExtentForRange(24, 3),
-      ExtentForRange(29, 1) };
-
-  uint64_t num_blocks = BlocksInExtents(old_extents);
-  EXPECT_EQ(num_blocks, BlocksInExtents(new_extents));
-
-  // The size of the data should match the total number of blocks. Each block
-  // has a different content.
-  chromeos::Blob file_data;
-  for (uint64_t i = 0; i < num_blocks; ++i) {
-    file_data.resize(file_data.size() + kBlockSize, 'a' + i);
-  }
-
-  EXPECT_TRUE(WriteExtents(old_part_path_, old_extents, kBlockSize, file_data));
-  EXPECT_TRUE(WriteExtents(new_part_path_, new_extents, kBlockSize, file_data));
-
-  chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadExtentsToDiff(
-      old_part_path_,
-      new_part_path_,
-      old_extents,
-      new_extents,
-      true,  // bsdiff_allowed
-      &data,
-      &op,
-      false));  // src_ops_allowed
-
-  EXPECT_TRUE(data.empty());
-
-  EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE, op.type());
-  EXPECT_FALSE(op.has_data_offset());
-  EXPECT_FALSE(op.has_data_length());
-
-  // The expected old and new extents that actually moved. See comment above.
-  old_extents = {
-      ExtentForRange(20, 1),
-      ExtentForRange(23, 1),
-      ExtentForRange(28, 1) };
-  new_extents = {
-      ExtentForRange(18, 1),
-      ExtentForRange(20, 1),
-      ExtentForRange(26, 1) };
-  num_blocks = BlocksInExtents(old_extents);
-
-  EXPECT_EQ(num_blocks * kBlockSize, op.src_length());
-  EXPECT_EQ(num_blocks * kBlockSize, op.dst_length());
-
-  EXPECT_EQ(old_extents.size(), op.src_extents_size());
-  for (int i = 0; i < op.src_extents_size(); i++) {
-    EXPECT_EQ(old_extents[i].start_block(), op.src_extents(i).start_block())
-        << "i == " << i;
-    EXPECT_EQ(old_extents[i].num_blocks(), op.src_extents(i).num_blocks())
-        << "i == " << i;
-  }
-
-  EXPECT_EQ(new_extents.size(), op.dst_extents_size());
-  for (int i = 0; i < op.dst_extents_size(); i++) {
-    EXPECT_EQ(new_extents[i].start_block(), op.dst_extents(i).start_block())
-        << "i == " << i;
-    EXPECT_EQ(new_extents[i].num_blocks(), op.dst_extents(i).num_blocks())
-        << "i == " << i;
-  }
-}
-
-TEST_F(DeltaDiffGeneratorTest, BsdiffSmallTest) {
-  // Test a BSDIFF operation from block 1 to block 2.
-  chromeos::Blob data_blob(kBlockSize);
-  test_utils::FillWithData(&data_blob);
-
-  // The old file is on a different block than the new one.
-  vector<Extent> old_extents = { ExtentForRange(1, 1) };
-  vector<Extent> new_extents = { ExtentForRange(2, 1) };
-
-  EXPECT_TRUE(WriteExtents(old_part_path_, old_extents, kBlockSize, data_blob));
-  // Modify one byte in the new file.
-  data_blob[0]++;
-  EXPECT_TRUE(WriteExtents(new_part_path_, new_extents, kBlockSize, data_blob));
-
-  chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadExtentsToDiff(
-      old_part_path_,
-      new_part_path_,
-      old_extents,
-      new_extents,
-      true,  // bsdiff_allowed
-      &data,
-      &op,
-      false));  // src_ops_allowed
-
-  EXPECT_FALSE(data.empty());
-
-  EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_BSDIFF, op.type());
-  EXPECT_FALSE(op.has_data_offset());
-  EXPECT_FALSE(op.has_data_length());
-  EXPECT_EQ(1, op.src_extents_size());
-  EXPECT_EQ(kBlockSize, op.src_length());
-  EXPECT_EQ(1, op.dst_extents_size());
-  EXPECT_EQ(kBlockSize, op.dst_length());
-  EXPECT_EQ(BlocksInExtents(op.src_extents()),
-            BlocksInExtents(op.dst_extents()));
-  EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
-}
-
-TEST_F(DeltaDiffGeneratorTest, BsdiffNotAllowedTest) {
-  // Same setup as the previous test, but this time BSDIFF operations are not
-  // allowed.
-  chromeos::Blob data_blob(kBlockSize);
-  test_utils::FillWithData(&data_blob);
-
-  // The old file is on a different block than the new one.
-  vector<Extent> old_extents = { ExtentForRange(1, 1) };
-  vector<Extent> new_extents = { ExtentForRange(2, 1) };
-
-  EXPECT_TRUE(WriteExtents(old_part_path_, old_extents, kBlockSize, data_blob));
-  // Modify one byte in the new file.
-  data_blob[0]++;
-  EXPECT_TRUE(WriteExtents(new_part_path_, new_extents, kBlockSize, data_blob));
-
-  chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadExtentsToDiff(
-      old_part_path_,
-      new_part_path_,
-      old_extents,
-      new_extents,
-      false,  // bsdiff_allowed
-      &data,
-      &op,
-      false));  // src_ops_allowed
-
-  EXPECT_FALSE(data.empty());
-
-  // The point of this test is that we don't use BSDIFF the way the above
-  // did. The rest of the details are to be caught in other tests.
-  EXPECT_TRUE(op.has_type());
-  EXPECT_NE(DeltaArchiveManifest_InstallOperation_Type_BSDIFF, op.type());
-}
-
-TEST_F(DeltaDiffGeneratorTest, BsdiffNotAllowedMoveTest) {
-  chromeos::Blob data_blob(kBlockSize);
-  test_utils::FillWithData(&data_blob);
-
-  // The old file is on a different block than the new one.
-  vector<Extent> old_extents = { ExtentForRange(1, 1) };
-  vector<Extent> new_extents = { ExtentForRange(2, 1) };
-
-  EXPECT_TRUE(WriteExtents(old_part_path_, old_extents, kBlockSize, data_blob));
-  EXPECT_TRUE(WriteExtents(new_part_path_, new_extents, kBlockSize, data_blob));
-
-  chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadExtentsToDiff(
-      old_part_path_,
-      new_part_path_,
-      old_extents,
-      new_extents,
-      false,  // bsdiff_allowed
-      &data,
-      &op,
-      false));  // src_ops_allowed
-
-  EXPECT_TRUE(data.empty());
-
-  // The point of this test is that we can still use a MOVE for a file
-  // that is blacklisted.
-  EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE, op.type());
-}
-
-TEST_F(DeltaDiffGeneratorTest, ReplaceSmallTest) {
-  // The old file is on a different block than the new one.
-  vector<Extent> old_extents = { ExtentForRange(1, 1) };
-  vector<Extent> new_extents = { ExtentForRange(2, 1) };
-
-  // Make a blob that's just 1's that will compress well.
-  chromeos::Blob ones(kBlockSize, 1);
-
-  // Make a blob with random data that won't compress well.
-  chromeos::Blob random_data;
-  std::mt19937 gen(12345);
-  std::uniform_int_distribution<uint8_t> dis(0, 255);
-  for (uint32_t i = 0; i < kBlockSize; i++) {
-    random_data.push_back(dis(gen));
-  }
-
-  for (int i = 0; i < 2; i++) {
-    chromeos::Blob data_to_test = i == 0 ? random_data : ones;
-    // The old_extents will be initialized with 0.
-    EXPECT_TRUE(WriteExtents(new_part_path_, new_extents, kBlockSize,
-                             data_to_test));
-
-    chromeos::Blob data;
-    DeltaArchiveManifest_InstallOperation op;
-    EXPECT_TRUE(DeltaDiffGenerator::ReadExtentsToDiff(
-        old_part_path_,
-        new_part_path_,
-        old_extents,
-        new_extents,
-        true,  // bsdiff_allowed
-        &data,
-        &op,
-        false));  // src_ops_allowed
-    EXPECT_FALSE(data.empty());
-
-    EXPECT_TRUE(op.has_type());
-    const DeltaArchiveManifest_InstallOperation_Type expected_type =
-        (i == 0 ? DeltaArchiveManifest_InstallOperation_Type_REPLACE :
-         DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-    EXPECT_EQ(expected_type, op.type());
-    EXPECT_FALSE(op.has_data_offset());
-    EXPECT_FALSE(op.has_data_length());
-    EXPECT_EQ(0, op.src_extents_size());
-    EXPECT_FALSE(op.has_src_length());
-    EXPECT_EQ(1, op.dst_extents_size());
-    EXPECT_EQ(data_to_test.size(), op.dst_length());
-    EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
-  }
-}
-
-TEST_F(DeltaDiffGeneratorTest, SourceCopyTest) {
-  // Makes sure SOURCE_COPY operations are emitted whenever src_ops_allowed
-  // is true. It is the same setup as MoveSmallTest, which checks that
-  // the operation is well-formed.
-  chromeos::Blob data_blob(kBlockSize);
-  test_utils::FillWithData(&data_blob);
-
-  // The old file is on a different block than the new one.
-  vector<Extent> old_extents = { ExtentForRange(11, 1) };
-  vector<Extent> new_extents = { ExtentForRange(1, 1) };
-
-  EXPECT_TRUE(WriteExtents(old_part_path_, old_extents, kBlockSize, data_blob));
-  EXPECT_TRUE(WriteExtents(new_part_path_, new_extents, kBlockSize, data_blob));
-
-  chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadExtentsToDiff(
-      old_part_path_,
-      new_part_path_,
-      old_extents,
-      new_extents,
-      true,  // bsdiff_allowed
-      &data,
-      &op,
-      true));  // src_ops_allowed
-  EXPECT_TRUE(data.empty());
-
-  EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY, op.type());
-}
-
-TEST_F(DeltaDiffGeneratorTest, SourceBsdiffTest) {
-  // Makes sure SOURCE_BSDIFF operations are emitted whenever src_ops_allowed
-  // is true. It is the same setup as BsdiffSmallTest, which checks
-  // that the operation is well-formed.
-  chromeos::Blob data_blob(kBlockSize);
-  test_utils::FillWithData(&data_blob);
-
-  // The old file is on a different block than the new one.
-  vector<Extent> old_extents = { ExtentForRange(1, 1) };
-  vector<Extent> new_extents = { ExtentForRange(2, 1) };
-
-  EXPECT_TRUE(WriteExtents(old_part_path_, old_extents, kBlockSize, data_blob));
-  // Modify one byte in the new file.
-  data_blob[0]++;
-  EXPECT_TRUE(WriteExtents(new_part_path_, new_extents, kBlockSize, data_blob));
-
-  chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
-  EXPECT_TRUE(DeltaDiffGenerator::ReadExtentsToDiff(
-      old_part_path_,
-      new_part_path_,
-      old_extents,
-      new_extents,
-      true,  // bsdiff_allowed
-      &data,
-      &op,
-      true));  // src_ops_allowed
-
-  EXPECT_FALSE(data.empty());
-  EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF,
-            op.type());
-}
-
-TEST_F(DeltaDiffGeneratorTest, ReorderBlobsTest) {
-  string orig_blobs;
-  EXPECT_TRUE(utils::MakeTempFile("ReorderBlobsTest.orig.XXXXXX", &orig_blobs,
-                                  nullptr));
-  ScopedPathUnlinker orig_blobs_unlinker(orig_blobs);
-
-  string orig_data = "abcd";
-  EXPECT_TRUE(
-      utils::WriteFile(orig_blobs.c_str(), orig_data.data(), orig_data.size()));
-
-  string new_blobs;
-  EXPECT_TRUE(
-      utils::MakeTempFile("ReorderBlobsTest.new.XXXXXX", &new_blobs, nullptr));
-  ScopedPathUnlinker new_blobs_unlinker(new_blobs);
-
-  DeltaArchiveManifest manifest;
-  DeltaArchiveManifest_InstallOperation* op =
-      manifest.add_install_operations();
-  op->set_data_offset(1);
-  op->set_data_length(3);
-  op = manifest.add_install_operations();
-  op->set_data_offset(0);
-  op->set_data_length(1);
-
-  EXPECT_TRUE(DeltaDiffGenerator::ReorderDataBlobs(&manifest,
-                                                   orig_blobs,
-                                                   new_blobs));
-
-  string new_data;
-  EXPECT_TRUE(utils::ReadFile(new_blobs, &new_data));
-  EXPECT_EQ("bcda", new_data);
-  EXPECT_EQ(2, manifest.install_operations_size());
-  EXPECT_EQ(0, manifest.install_operations(0).data_offset());
-  EXPECT_EQ(3, manifest.install_operations(0).data_length());
-  EXPECT_EQ(3, manifest.install_operations(1).data_offset());
-  EXPECT_EQ(1, manifest.install_operations(1).data_length());
-}
-
-TEST_F(DeltaDiffGeneratorTest, IsNoopOperationTest) {
-  DeltaArchiveManifest_InstallOperation op;
-  op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-  EXPECT_FALSE(DeltaDiffGenerator::IsNoopOperation(op));
-  op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
-  EXPECT_TRUE(DeltaDiffGenerator::IsNoopOperation(op));
-  *(op.add_src_extents()) = ExtentForRange(3, 2);
-  *(op.add_dst_extents()) = ExtentForRange(3, 2);
-  EXPECT_TRUE(DeltaDiffGenerator::IsNoopOperation(op));
-  *(op.add_src_extents()) = ExtentForRange(7, 5);
-  *(op.add_dst_extents()) = ExtentForRange(7, 5);
-  EXPECT_TRUE(DeltaDiffGenerator::IsNoopOperation(op));
-  *(op.add_src_extents()) = ExtentForRange(20, 2);
-  *(op.add_dst_extents()) = ExtentForRange(20, 1);
-  *(op.add_dst_extents()) = ExtentForRange(21, 1);
-  EXPECT_TRUE(DeltaDiffGenerator::IsNoopOperation(op));
-  *(op.add_src_extents()) = ExtentForRange(24, 1);
-  *(op.add_dst_extents()) = ExtentForRange(25, 1);
-  EXPECT_FALSE(DeltaDiffGenerator::IsNoopOperation(op));
-}
-
-TEST_F(DeltaDiffGeneratorTest, FilterNoopOperations) {
-  AnnotatedOperation aop1;
-  aop1.op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-  *(aop1.op.add_dst_extents()) = ExtentForRange(3, 2);
-  aop1.name = "aop1";
-
-  AnnotatedOperation aop2 = aop1;
-  aop2.name = "aop2";
-
-  AnnotatedOperation noop;
-  noop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
-  *(noop.op.add_src_extents()) = ExtentForRange(3, 2);
-  *(noop.op.add_dst_extents()) = ExtentForRange(3, 2);
-  noop.name = "noop";
-
-  vector<AnnotatedOperation> ops = {noop, aop1, noop, noop, aop2, noop};
-  DeltaDiffGenerator::FilterNoopOperations(&ops);
-  EXPECT_EQ(2u, ops.size());
-  EXPECT_EQ("aop1", ops[0].name);
-  EXPECT_EQ("aop2", ops[1].name);
-}
-
-TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
+TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
   DeltaArchiveManifest_InstallOperation op;
   op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
   *(op.add_src_extents()) = ExtentForRange(2, 3);
@@ -835,7 +334,7 @@ TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
   aop.op = op;
   aop.name = "SplitSourceCopyTestOp";
   vector<AnnotatedOperation> result_ops;
-  EXPECT_TRUE(DeltaDiffGenerator::SplitSourceCopy(aop, &result_ops));
+  EXPECT_TRUE(ABGenerator::SplitSourceCopy(aop, &result_ops));
   EXPECT_EQ(result_ops.size(), 3);
 
   EXPECT_EQ("SplitSourceCopyTestOp:0", result_ops[0].name);
@@ -882,27 +381,27 @@ TEST_F(DeltaDiffGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ(3, third_op.dst_extents(0).num_blocks());
 }
 
-TEST_F(DeltaDiffGeneratorTest, SplitReplaceTest) {
+TEST_F(ABGeneratorTest, SplitReplaceTest) {
   TestSplitReplaceOrReplaceBzOperation(
       DeltaArchiveManifest_InstallOperation_Type_REPLACE, false);
 }
 
-TEST_F(DeltaDiffGeneratorTest, SplitReplaceIntoReplaceBzTest) {
+TEST_F(ABGeneratorTest, SplitReplaceIntoReplaceBzTest) {
   TestSplitReplaceOrReplaceBzOperation(
       DeltaArchiveManifest_InstallOperation_Type_REPLACE, true);
 }
 
-TEST_F(DeltaDiffGeneratorTest, SplitReplaceBzTest) {
+TEST_F(ABGeneratorTest, SplitReplaceBzTest) {
   TestSplitReplaceOrReplaceBzOperation(
       DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ, true);
 }
 
-TEST_F(DeltaDiffGeneratorTest, SplitReplaceBzIntoReplaceTest) {
+TEST_F(ABGeneratorTest, SplitReplaceBzIntoReplaceTest) {
   TestSplitReplaceOrReplaceBzOperation(
       DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ, false);
 }
 
-TEST_F(DeltaDiffGeneratorTest, SortOperationsByDestinationTest) {
+TEST_F(ABGeneratorTest, SortOperationsByDestinationTest) {
   vector<AnnotatedOperation> aops;
   // One operation with multiple destination extents.
   DeltaArchiveManifest_InstallOperation first_op;
@@ -928,14 +427,14 @@ TEST_F(DeltaDiffGeneratorTest, SortOperationsByDestinationTest) {
   third_aop.name = "third";
   aops.push_back(third_aop);
 
-  DeltaDiffGenerator::SortOperationsByDestination(&aops);
+  ABGenerator::SortOperationsByDestination(&aops);
   EXPECT_EQ(aops.size(), 3);
   EXPECT_EQ(third_aop.name, aops[0].name);
   EXPECT_EQ(first_aop.name, aops[1].name);
   EXPECT_EQ(second_aop.name, aops[2].name);
 }
 
-TEST_F(DeltaDiffGeneratorTest, MergeSourceCopyOperationsTest) {
+TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   vector<AnnotatedOperation> aops;
   DeltaArchiveManifest_InstallOperation first_op;
   first_op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
@@ -972,8 +471,8 @@ TEST_F(DeltaDiffGeneratorTest, MergeSourceCopyOperationsTest) {
   third_aop.name = "3";
   aops.push_back(third_aop);
 
-  EXPECT_TRUE(DeltaDiffGenerator::MergeOperations(
-      &aops, 5 * kBlockSize, "", 0, nullptr));
+  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 5 * kBlockSize,
+                                           "", 0, nullptr));
 
   EXPECT_EQ(aops.size(), 1);
   DeltaArchiveManifest_InstallOperation first_result_op = aops[0].op;
@@ -991,27 +490,27 @@ TEST_F(DeltaDiffGeneratorTest, MergeSourceCopyOperationsTest) {
   EXPECT_EQ(aops[0].name, "1,2,3");
 }
 
-TEST_F(DeltaDiffGeneratorTest, MergeReplaceOperationsTest) {
+TEST_F(ABGeneratorTest, MergeReplaceOperationsTest) {
   TestMergeReplaceOrReplaceBzOperations(
       DeltaArchiveManifest_InstallOperation_Type_REPLACE, false);
 }
 
-TEST_F(DeltaDiffGeneratorTest, MergeReplaceOperationsToReplaceBzTest) {
+TEST_F(ABGeneratorTest, MergeReplaceOperationsToReplaceBzTest) {
   TestMergeReplaceOrReplaceBzOperations(
       DeltaArchiveManifest_InstallOperation_Type_REPLACE, true);
 }
 
-TEST_F(DeltaDiffGeneratorTest, MergeReplaceBzOperationsTest) {
+TEST_F(ABGeneratorTest, MergeReplaceBzOperationsTest) {
   TestMergeReplaceOrReplaceBzOperations(
       DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ, true);
 }
 
-TEST_F(DeltaDiffGeneratorTest, MergeReplaceBzOperationsToReplaceTest) {
+TEST_F(ABGeneratorTest, MergeReplaceBzOperationsToReplaceTest) {
   TestMergeReplaceOrReplaceBzOperations(
       DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ, false);
 }
 
-TEST_F(DeltaDiffGeneratorTest, NoMergeOperationsTest) {
+TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   // Test to make sure we don't merge operations that shouldn't be merged.
   vector<AnnotatedOperation> aops;
   DeltaArchiveManifest_InstallOperation first_op;
@@ -1049,28 +548,11 @@ TEST_F(DeltaDiffGeneratorTest, NoMergeOperationsTest) {
   fourth_aop.op = fourth_op;
   aops.push_back(fourth_aop);
 
-  EXPECT_TRUE(DeltaDiffGenerator::MergeOperations(&aops, 4 * kBlockSize,
-                                                  "", 0, nullptr));
+  EXPECT_TRUE(ABGenerator::MergeOperations(
+      &aops, 4 * kBlockSize, "", 0, nullptr));
 
   // No operations were merged, the number of ops is the same.
   EXPECT_EQ(aops.size(), 4);
-}
-
-TEST_F(DeltaDiffGeneratorTest, ExtendExtentsTest) {
-  DeltaArchiveManifest_InstallOperation first_op;
-  *(first_op.add_src_extents()) = ExtentForRange(1, 1);
-  *(first_op.add_src_extents()) = ExtentForRange(3, 1);
-
-  DeltaArchiveManifest_InstallOperation second_op;
-  *(second_op.add_src_extents()) = ExtentForRange(4, 2);
-  *(second_op.add_src_extents()) = ExtentForRange(8, 2);
-
-  DeltaDiffGenerator::ExtendExtents(first_op.mutable_src_extents(),
-                                    second_op.src_extents());
-  EXPECT_EQ(first_op.src_extents_size(), 3);
-  EXPECT_TRUE(ExtentEquals(first_op.src_extents(0), 1, 1));
-  EXPECT_TRUE(ExtentEquals(first_op.src_extents(1), 3, 3));
-  EXPECT_TRUE(ExtentEquals(first_op.src_extents(2), 8, 2));
 }
 
 }  // namespace chromeos_update_engine

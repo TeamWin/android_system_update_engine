@@ -237,24 +237,6 @@ TEST(UtilsTest, FuzzIntTest) {
   }
 }
 
-TEST(UtilsTest, ApplyMapTest) {
-  int initial_values[] = {1, 2, 3, 4, 6};
-  vector<int> collection(std::begin(initial_values), std::end(initial_values));
-  EXPECT_EQ(arraysize(initial_values), collection.size());
-  int expected_values[] = {1, 2, 5, 4, 8};
-  map<int, int> value_map;
-  value_map[3] = 5;
-  value_map[6] = 8;
-  value_map[5] = 10;
-
-  utils::ApplyMap(&collection, value_map);
-
-  size_t index = 0;
-  for (const int value : collection) {
-    EXPECT_EQ(expected_values[index++], value);
-  }
-}
-
 TEST(UtilsTest, RunAsRootGetFilesystemSizeTest) {
   string img;
   EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, nullptr));

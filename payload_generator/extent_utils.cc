@@ -41,10 +41,44 @@ void AppendBlockToExtents(vector<Extent>* extents, uint64_t block) {
 Extent GetElement(const vector<Extent>& collection, size_t index) {
   return collection[index];
 }
+
 Extent GetElement(
     const google::protobuf::RepeatedPtrField<Extent>& collection,
     size_t index) {
   return collection.Get(index);
+}
+
+void ExtendExtents(
+    google::protobuf::RepeatedPtrField<Extent>* extents,
+    const google::protobuf::RepeatedPtrField<Extent>& extents_to_add) {
+  vector<Extent> extents_vector;
+  vector<Extent> extents_to_add_vector;
+  ExtentsToVector(*extents, &extents_vector);
+  ExtentsToVector(extents_to_add, &extents_to_add_vector);
+  extents_vector.insert(extents_vector.end(),
+                        extents_to_add_vector.begin(),
+                        extents_to_add_vector.end());
+  NormalizeExtents(&extents_vector);
+  extents->Clear();
+  StoreExtents(extents_vector, extents);
+}
+
+// Stores all Extents in 'extents' into 'out'.
+void StoreExtents(const vector<Extent>& extents,
+                  google::protobuf::RepeatedPtrField<Extent>* out) {
+  for (const Extent& extent : extents) {
+    Extent* new_extent = out->Add();
+    *new_extent = extent;
+  }
+}
+
+// Stores all extents in |extents| into |out_vector|.
+void ExtentsToVector(const google::protobuf::RepeatedPtrField<Extent>& extents,
+                     vector<Extent>* out_vector) {
+  out_vector->clear();
+  for (int i = 0; i < extents.size(); i++) {
+    out_vector->push_back(extents.Get(i));
+  }
 }
 
 void NormalizeExtents(vector<Extent>* extents) {

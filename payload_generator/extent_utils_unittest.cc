@@ -62,6 +62,24 @@ TEST(ExtentUtilsTest, BlocksInExtentsTest) {
   }
 }
 
+TEST(ExtentUtilsTest, ExtendExtentsTest) {
+  DeltaArchiveManifest_InstallOperation first_op;
+  *(first_op.add_src_extents()) = ExtentForRange(1, 1);
+  *(first_op.add_src_extents()) = ExtentForRange(3, 1);
+
+  DeltaArchiveManifest_InstallOperation second_op;
+  *(second_op.add_src_extents()) = ExtentForRange(4, 2);
+  *(second_op.add_src_extents()) = ExtentForRange(8, 2);
+
+  ExtendExtents(first_op.mutable_src_extents(), second_op.src_extents());
+  vector<Extent> first_op_vec;
+  ExtentsToVector(first_op.src_extents(), &first_op_vec);
+  EXPECT_EQ((vector<Extent>{
+      ExtentForRange(1, 1),
+      ExtentForRange(3, 3),
+      ExtentForRange(8, 2)}), first_op_vec);
+}
+
 TEST(ExtentUtilsTest, NormalizeExtentsSimpleList) {
   // Make sure it works when there's just one extent.
   vector<Extent> extents;

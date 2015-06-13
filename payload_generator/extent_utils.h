@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "update_engine/payload_constants.h"
 #include "update_engine/update_metadata.pb.h"
 
 // Utility functions for manipulating Extents and lists of blocks.
@@ -25,6 +26,8 @@ Extent GetElement(
     const google::protobuf::RepeatedPtrField<Extent>& collection,
     size_t index);
 
+// Return the total number of blocks in a collection (vector or
+// RepeatedPtrField) of Extents.
 template<typename T>
 uint64_t BlocksInExtents(const T& collection) {
   uint64_t ret = 0;
@@ -33,6 +36,39 @@ uint64_t BlocksInExtents(const T& collection) {
   }
   return ret;
 }
+
+// Takes a collection (vector or RepeatedPtrField) of Extent and
+// returns a vector of the blocks referenced, in order.
+template<typename T>
+std::vector<uint64_t> ExpandExtents(const T& extents) {
+  std::vector<uint64_t> ret;
+  for (size_t i = 0, e = static_cast<size_t>(extents.size()); i != e; ++i) {
+    const Extent extent = GetElement(extents, i);
+    if (extent.start_block() == kSparseHole) {
+      ret.resize(ret.size() + extent.num_blocks(), kSparseHole);
+    } else {
+      for (uint64_t block = extent.start_block();
+           block < (extent.start_block() + extent.num_blocks()); block++) {
+        ret.push_back(block);
+      }
+    }
+  }
+  return ret;
+}
+
+// Stores all Extents in 'extents' into 'out'.
+void StoreExtents(const std::vector<Extent>& extents,
+                  google::protobuf::RepeatedPtrField<Extent>* out);
+
+// Stores all extents in |extents| into |out_vector|.
+void ExtentsToVector(const google::protobuf::RepeatedPtrField<Extent>& extents,
+                     std::vector<Extent>* out_vector);
+
+// Takes a pointer to extents |extents| and extents |extents_to_add|, and
+// merges them by adding |extents_to_add| to |extents| and normalizing.
+void ExtendExtents(
+  google::protobuf::RepeatedPtrField<Extent>* extents,
+  const google::protobuf::RepeatedPtrField<Extent>& extents_to_add);
 
 // Takes a vector of extents and normalizes those extents. Expects the extents
 // to be sorted by start block. E.g. if |extents| is [(1, 2), (3, 5), (10, 2)]

@@ -14,7 +14,15 @@
 
 namespace chromeos_update_engine {
 
+// The list different kind of partitions supported by the updater.
+enum class PartitionName {
+  kKernel,
+  kRootfs,
+};
+
 struct PartitionConfig {
+  explicit PartitionConfig(PartitionName name) : name(name) {}
+
   // Returns whether the PartitionConfig is not an empty image and all the
   // fields are set correctly to a valid image file.
   bool ValidateExists() const;
@@ -30,6 +38,8 @@ struct PartitionConfig {
   // the source image, and the size of that data it should generate for the
   // target image.
   uint64_t size = 0;
+
+  PartitionName name;
 };
 
 // The ImageConfig struct describes a pair of binaries kernel and rootfs and the
@@ -60,8 +70,8 @@ struct ImageConfig {
   ImageInfo image_info;
 
   // The updated partitions.
-  PartitionConfig rootfs;
-  PartitionConfig kernel;
+  PartitionConfig rootfs = PartitionConfig{PartitionName::kRootfs};
+  PartitionConfig kernel = PartitionConfig{PartitionName::kKernel};
 };
 
 // The PayloadGenerationConfig struct encapsulates all the configuration to

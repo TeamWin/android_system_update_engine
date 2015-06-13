@@ -14,6 +14,7 @@
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/cycle_breaker.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/ext2_filesystem.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/graph_types.h"
@@ -74,25 +75,22 @@ void InplaceGenerator::SubstituteBlocks(
     const vector<Extent>& replace_extents) {
   // First, expand out the blocks that op reads from
   vector<uint64_t> read_blocks =
-      DeltaDiffGenerator::ExpandExtents(vertex->op.src_extents());
+      ExpandExtents(vertex->op.src_extents());
   {
     // Expand remove_extents and replace_extents
-    vector<uint64_t> remove_extents_expanded =
-        DeltaDiffGenerator::ExpandExtents(remove_extents);
-    vector<uint64_t> replace_extents_expanded =
-        DeltaDiffGenerator::ExpandExtents(replace_extents);
+    vector<uint64_t> remove_extents_expanded = ExpandExtents(remove_extents);
+    vector<uint64_t> replace_extents_expanded = ExpandExtents(replace_extents);
     CHECK_EQ(remove_extents_expanded.size(), replace_extents_expanded.size());
     map<uint64_t, uint64_t> conversion;
     for (vector<uint64_t>::size_type i = 0;
          i < replace_extents_expanded.size(); i++) {
       conversion[remove_extents_expanded[i]] = replace_extents_expanded[i];
     }
-    utils::ApplyMap(&read_blocks, conversion);
+    ApplyMap(&read_blocks, conversion);
     for (auto& edge_prop_pair : vertex->out_edges) {
-      vector<uint64_t> write_before_deps_expanded =
-          DeltaDiffGenerator::ExpandExtents(
-              edge_prop_pair.second.write_extents);
-      utils::ApplyMap(&write_before_deps_expanded, conversion);
+      vector<uint64_t> write_before_deps_expanded = ExpandExtents(
+          edge_prop_pair.second.write_extents);
+      ApplyMap(&write_before_deps_expanded, conversion);
       edge_prop_pair.second.write_extents =
           CompressExtents(write_before_deps_expanded);
     }
@@ -100,8 +98,7 @@ void InplaceGenerator::SubstituteBlocks(
   // Convert read_blocks back to extents
   vertex->op.clear_src_extents();
   vector<Extent> new_extents = CompressExtents(read_blocks);
-  DeltaDiffGenerator::StoreExtents(new_extents,
-                                   vertex->op.mutable_src_extents());
+  StoreExtents(new_extents, vertex->op.mutable_src_extents());
 }
 
 bool InplaceGenerator::CutEdges(Graph* graph,
@@ -141,11 +138,10 @@ bool InplaceGenerator::CutEdges(Graph* graph,
 
     // Set src/dst extents and other proto variables for copy operation
     graph->back().op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
-    DeltaDiffGenerator::StoreExtents(
-        cut_edge_properties.extents,
-        graph->back().op.mutable_src_extents());
-    DeltaDiffGenerator::StoreExtents(cuts.back().tmp_extents,
-                                     graph->back().op.mutable_dst_extents());
+    StoreExtents(cut_edge_properties.extents,
+                 graph->back().op.mutable_src_extents());
+    StoreExtents(cuts.back().tmp_extents,
+                 graph->back().op.mutable_dst_extents());
     graph->back().op.set_src_length(
         graph_utils::EdgeWeight(*graph, edge) * kBlockSize);
     graph->back().op.set_dst_length(graph->back().op.src_length());
@@ -430,7 +426,7 @@ bool AssignBlockForAdjoiningCuts(
     // blocks.
     DeltaArchiveManifest_InstallOperation *op = &(*graph)[cut.new_vertex].op;
     op->clear_dst_extents();
-    DeltaDiffGenerator::StoreExtents(real_extents, op->mutable_dst_extents());
+    StoreExtents(real_extents, op->mutable_dst_extents());
   }
   return true;
 }
@@ -534,11 +530,11 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
     // |new_extents| list of blocks and update the graph.
     vector<AnnotatedOperation> new_aop;
     vector<Extent> new_extents;
-    DeltaDiffGenerator::ExtentsToVector((*graph)[cut.old_dst].op.dst_extents(),
-                                        &new_extents);
-    TEST_AND_RETURN_FALSE(DeltaDiffGenerator::DeltaReadFile(
+    ExtentsToVector((*graph)[cut.old_dst].op.dst_extents(),
+                    &new_extents);
+    TEST_AND_RETURN_FALSE(diff_utils::DeltaReadFile(
         &new_aop,
-        kEmptyPath,  // old_part
+        "",  // old_part
         new_part,
         vector<Extent>(),  // old_extents
         new_extents,
@@ -701,6 +697,15 @@ bool InplaceGenerator::AddInstallOpToGraph(
   return true;
 }
 
+void InplaceGenerator::ApplyMap(vector<uint64_t>* collection,
+                                const map<uint64_t, uint64_t>& the_map) {
+  for (uint64_t& elem : *collection) {
+    const auto& map_it = the_map.find(elem);
+    if (map_it != the_map.end())
+      elem = map_it->second;
+  }
+}
+
 bool InplaceGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
     int data_file_fd,
@@ -718,16 +723,16 @@ bool InplaceGenerator::GenerateOperations(
   // Temporary list of operations used to construct the dependency graph.
   vector<AnnotatedOperation> aops;
   TEST_AND_RETURN_FALSE(
-      DeltaDiffGenerator::DeltaReadFilesystem(&aops,
-                                              config.source.rootfs.path,
-                                              config.target.rootfs.path,
-                                              old_fs.get(),
-                                              new_fs.get(),
-                                              chunk_blocks,
-                                              data_file_fd,
-                                              data_file_size,
-                                              true,  // skip_block_0
-                                              false));  // src_ops_allowed
+      diff_utils::DeltaReadFilesystem(&aops,
+                                      config.source.rootfs.path,
+                                      config.target.rootfs.path,
+                                      old_fs.get(),
+                                      new_fs.get(),
+                                      chunk_blocks,
+                                      data_file_fd,
+                                      data_file_size,
+                                      true,  // skip_block_0
+                                      false));  // src_ops_allowed
   // Convert the rootfs operations to the graph.
   Graph graph;
   CheckGraph(graph);
@@ -751,17 +756,16 @@ bool InplaceGenerator::GenerateOperations(
   }
 
   // Read kernel partition
-  TEST_AND_RETURN_FALSE(
-      DeltaDiffGenerator::DeltaCompressKernelPartition(
-          config.source.kernel.path,
-          config.target.kernel.path,
-          config.source.kernel.size,
-          config.target.kernel.size,
-          config.block_size,
-          kernel_ops,
-          data_file_fd,
-          data_file_size,
-          false));  // src_ops_allowed
+  TEST_AND_RETURN_FALSE(diff_utils::DeltaCompressKernelPartition(
+      config.source.kernel.path,
+      config.target.kernel.path,
+      config.source.kernel.size,
+      config.target.kernel.size,
+      config.block_size,
+      kernel_ops,
+      data_file_fd,
+      data_file_size,
+      false));  // src_ops_allowed
   LOG(INFO) << "done reading kernel";
   CheckGraph(graph);
 
@@ -790,7 +794,7 @@ bool InplaceGenerator::GenerateOperations(
   }
 
   // Re-add the operation for the block 0.
-  TEST_AND_RETURN_FALSE(DeltaDiffGenerator::DeltaReadFile(
+  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadFile(
       rootfs_ops,
       config.source.rootfs.path,
       config.target.rootfs.path,
