@@ -394,7 +394,7 @@ void ParserHandlerEnd(void* user_data, const XML_Char* element) {
 
   const string path_suffix = string("/") + element;
 
-  if (!EndsWith(data->current_path, path_suffix, true)) {
+  if (!base::EndsWith(data->current_path, path_suffix, true)) {
     LOG(ERROR) << "Unexpected end element '" << element
                << "' with current_path='" << data->current_path << "'";
     data->failed = true;

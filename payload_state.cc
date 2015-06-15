@@ -527,9 +527,9 @@ void PayloadState::UpdateCurrentDownloadSource() {
     current_download_source_ = kDownloadSourceHttpPeer;
   } else if (GetUrlIndex() < candidate_urls_.size())  {
     string current_url = candidate_urls_[GetUrlIndex()];
-    if (StartsWithASCII(current_url, "https://", false))
+    if (base::StartsWithASCII(current_url, "https://", false))
       current_download_source_ = kDownloadSourceHttpsServer;
-    else if (StartsWithASCII(current_url, "http://", false))
+    else if (base::StartsWithASCII(current_url, "http://", false))
       current_download_source_ = kDownloadSourceHttpServer;
   }
 
@@ -1333,8 +1333,8 @@ void PayloadState::ComputeCandidateUrls() {
   candidate_urls_.clear();
   for (size_t i = 0; i < response_.payload_urls.size(); i++) {
     string candidate_url = response_.payload_urls[i];
-    if (StartsWithASCII(candidate_url, "http://", false) && !http_url_ok)
-        continue;
+    if (base::StartsWithASCII(candidate_url, "http://", false) && !http_url_ok)
+      continue;
     candidate_urls_.push_back(candidate_url);
     LOG(INFO) << "Candidate Url" << (candidate_urls_.size() - 1)
               << ": " << candidate_url;

@@ -166,7 +166,7 @@ bool OmahaResponseHandlerAction::AreHashChecksMandatory(
 
   // If we're using p2p, |install_plan_.download_url| may contain a
   // HTTP URL even if |response.payload_urls| contain only HTTPS URLs.
-  if (!StartsWithASCII(install_plan_.download_url, "https://", false)) {
+  if (!base::StartsWithASCII(install_plan_.download_url, "https://", false)) {
     LOG(INFO) << "Mandating hash checks since download_url is not HTTPS.";
     return true;
   }
@@ -181,7 +181,7 @@ bool OmahaResponseHandlerAction::AreHashChecksMandatory(
   // on. It's really hard to do book-keeping based on each byte being
   // downloaded to see whether we only used HTTPS throughout.
   for (size_t i = 0; i < response.payload_urls.size(); i++) {
-    if (!StartsWithASCII(response.payload_urls[i], "https://", false)) {
+    if (!base::StartsWithASCII(response.payload_urls[i], "https://", false)) {
       LOG(INFO) << "Mandating payload hash checks since Omaha response "
                 << "contains non-HTTPS URL(s)";
       return true;

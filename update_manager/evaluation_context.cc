@@ -228,9 +228,8 @@ string EvaluationContext::DumpContext() const {
       chromeos_update_engine::utils::ToString(evaluation_start_monotonic_));
 
   string json_str;
-  base::JSONWriter::WriteWithOptions(&value,
-                                     base::JSONWriter::OPTIONS_PRETTY_PRINT,
-                                     &json_str);
+  base::JSONWriter::WriteWithOptions(
+      value, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json_str);
   base::TrimWhitespaceASCII(json_str, base::TRIM_TRAILING, &json_str);
 
   return json_str;

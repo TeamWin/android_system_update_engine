@@ -78,7 +78,7 @@ bool ParseRequest(int fd, HttpRequest* request) {
       exit(RC_ERR_READ);
     }
     headers.append(buf, r);
-  } while (!EndsWith(headers, EOL EOL, true));
+  } while (!base::EndsWith(headers, EOL EOL, true));
 
   LOG(INFO) << "got headers:\n--8<------8<------8<------8<----\n"
             << headers
@@ -107,7 +107,7 @@ bool ParseRequest(int fd, HttpRequest* request) {
       CHECK_EQ(terms.size(), static_cast<vector<string>::size_type>(2));
       string &range = terms[1];
       LOG(INFO) << "range attribute: " << range;
-      CHECK(StartsWithASCII(range, "bytes=", true) &&
+      CHECK(base::StartsWithASCII(range, "bytes=", true) &&
             range.find('-') != string::npos);
       request->start_offset = atoll(range.c_str() + strlen("bytes="));
       // Decode end offset and increment it by one (so it is non-inclusive).
@@ -491,10 +491,10 @@ void HandleConnection(int fd) {
   LOG(INFO) << "pid(" << getpid() <<  "): handling url " << url;
   if (url == "/quitquitquit") {
     HandleQuit(fd);
-  } else if (StartsWithASCII(url, "/download/", true)) {
+  } else if (base::StartsWithASCII(url, "/download/", true)) {
     const UrlTerms terms(url, 2);
     HandleGet(fd, request, terms.GetSizeT(1));
-  } else if (StartsWithASCII(url, "/flaky/", true)) {
+  } else if (base::StartsWithASCII(url, "/flaky/", true)) {
     const UrlTerms terms(url, 5);
     HandleGet(fd, request, terms.GetSizeT(1), terms.GetSizeT(2),
               terms.GetInt(3), terms.GetInt(4));
@@ -502,7 +502,7 @@ void HandleConnection(int fd) {
     HandleRedirect(fd, request);
   } else if (url == "/error") {
     HandleError(fd, request);
-  } else if (StartsWithASCII(url, "/error-if-offset/", true)) {
+  } else if (base::StartsWithASCII(url, "/error-if-offset/", true)) {
     const UrlTerms terms(url, 3);
     HandleErrorIfOffset(fd, request, terms.GetSizeT(1), terms.GetInt(2));
   } else {

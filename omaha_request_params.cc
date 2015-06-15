@@ -122,13 +122,12 @@ bool OmahaRequestParams::IsUpdateUrlOfficial() const {
 }
 
 bool OmahaRequestParams::CollectECFWVersions() const {
-  return
-      StartsWithASCII(hwid_, string("SAMS ALEX"), true) ||
-      StartsWithASCII(hwid_, string("BUTTERFLY"), true) ||
-      StartsWithASCII(hwid_, string("LUMPY"), true) ||
-      StartsWithASCII(hwid_, string("PARROT"), true) ||
-      StartsWithASCII(hwid_, string("SPRING"), true) ||
-      StartsWithASCII(hwid_, string("SNOW"), true);
+  return base::StartsWithASCII(hwid_, string("SAMS ALEX"), true) ||
+         base::StartsWithASCII(hwid_, string("BUTTERFLY"), true) ||
+         base::StartsWithASCII(hwid_, string("LUMPY"), true) ||
+         base::StartsWithASCII(hwid_, string("PARROT"), true) ||
+         base::StartsWithASCII(hwid_, string("SPRING"), true) ||
+         base::StartsWithASCII(hwid_, string("SNOW"), true);
 }
 
 bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,

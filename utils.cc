@@ -74,8 +74,8 @@ const int kGetFileFormatMaxHeaderSize = 32;
 // Return true if |disk_name| is an MTD or a UBI device. Note that this test is
 // simply based on the name of the device.
 bool IsMtdDeviceName(const string& disk_name) {
-  return StartsWithASCII(disk_name, "/dev/ubi", true) ||
-         StartsWithASCII(disk_name, "/dev/mtd", true);
+  return base::StartsWithASCII(disk_name, "/dev/ubi", true) ||
+         base::StartsWithASCII(disk_name, "/dev/mtd", true);
 }
 
 // Return the device name for the corresponding partition on a NAND device.
@@ -440,7 +440,7 @@ int GetPartitionNumber(const string& partition_name) {
 bool SplitPartitionName(const string& partition_name,
                         string* out_disk_name,
                         int* out_partition_num) {
-  if (!StartsWithASCII(partition_name, "/dev/", true)) {
+  if (!base::StartsWithASCII(partition_name, "/dev/", true)) {
     LOG(ERROR) << "Invalid partition device name: " << partition_name;
     return false;
   }
@@ -494,7 +494,7 @@ string MakePartitionName(const string& disk_name, int partition_num) {
     return string();
   }
 
-  if (!StartsWithASCII(disk_name, "/dev/", true)) {
+  if (!base::StartsWithASCII(disk_name, "/dev/", true)) {
     LOG(ERROR) << "Invalid disk name: " << disk_name;
     return string();
   }
@@ -621,8 +621,8 @@ bool TryAttachingUbiVolume(int volume_num, int timeout) {
 // non-empty, prepends it to |path|. Otherwise, prepends /tmp.  Returns the
 // resulting path.
 static const string PrependTmpdir(const string& path) {
-  if (path[0] == '/' || StartsWithASCII(path, "./", true) ||
-      StartsWithASCII(path, "../", true))
+  if (path[0] == '/' || base::StartsWithASCII(path, "./", true) ||
+      base::StartsWithASCII(path, "../", true))
     return path;
 
   const char *tmpdir = getenv("TMPDIR");

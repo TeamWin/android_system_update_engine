@@ -144,7 +144,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
 
 // Checks whether |url| can be used under given download restrictions.
 bool IsUrlUsable(const string& url, bool http_allowed) {
-  return http_allowed || !StartsWithASCII(url, "http://", false);
+  return http_allowed || !base::StartsWithASCII(url, "http://", false);
 }
 
 }  // namespace
