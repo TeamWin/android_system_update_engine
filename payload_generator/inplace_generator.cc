@@ -726,6 +726,7 @@ bool InplaceGenerator::GenerateOperations(
                                               chunk_blocks,
                                               data_file_fd,
                                               data_file_size,
+                                              true,  // skip_block_0
                                               false));  // src_ops_allowed
   // Convert the rootfs operations to the graph.
   Graph graph;
@@ -787,6 +788,19 @@ bool InplaceGenerator::GenerateOperations(
     rootfs_ops->back().op = vertex.op;
     rootfs_ops->back().name = vertex.file_name;
   }
+
+  // Re-add the operation for the block 0.
+  TEST_AND_RETURN_FALSE(DeltaDiffGenerator::DeltaReadFile(
+      rootfs_ops,
+      config.source.rootfs.path,
+      config.target.rootfs.path,
+      vector<Extent>{ExtentForRange(0, 1)},
+      vector<Extent>{ExtentForRange(0, 1)},
+      "<block-0>",  // operation name
+      -1,  // chunk_blocks
+      data_file_fd,
+      data_file_size,
+      false));  // src_ops_allowed
 
   return true;
 }

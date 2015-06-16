@@ -297,9 +297,20 @@ bool DeltaDiffGenerator::DeltaReadFilesystem(
     off_t chunk_blocks,
     int data_fd,
     off_t* data_file_size,
+    bool skip_block_0,
     bool src_ops_allowed) {
   ExtentRanges old_visited_blocks;
   ExtentRanges new_visited_blocks;
+
+  // We can't produce a MOVE operation with a 0 block as neither source nor
+  // destination, so we avoid generating an operation for the block 0 here, and
+  // we will add an operation for it in the InplaceGenerator. Excluding both
+  // old and new blocks ensures that identical images would still produce empty
+  // deltas.
+  if (skip_block_0) {
+    old_visited_blocks.AddBlock(0);
+    new_visited_blocks.AddBlock(0);
+  }
 
   map<string, vector<Extent>> old_files_map;
   if (old_fs) {
@@ -622,15 +633,16 @@ bool DeltaDiffGenerator::DeltaCompressKernelPartition(
       block_size,
       new_kernel_size / block_size);
 
-  DeltaReadFilesystem(aops,
-                      old_kernel_part,
-                      new_kernel_part,
-                      old_kernel_fs.get(),
-                      new_kernel_fs.get(),
-                      -1,  // chunk_blocks
-                      blobs_fd,
-                      blobs_length,
-                      src_ops_allowed);
+  TEST_AND_RETURN_FALSE(DeltaReadFilesystem(aops,
+                                            old_kernel_part,
+                                            new_kernel_part,
+                                            old_kernel_fs.get(),
+                                            new_kernel_fs.get(),
+                                            -1,  // chunk_blocks
+                                            blobs_fd,
+                                            blobs_length,
+                                            false,  // skip_block_0
+                                            src_ops_allowed));
 
   LOG(INFO) << "Done delta compressing kernel partition.";
   return true;
@@ -782,6 +794,7 @@ bool DeltaDiffGenerator::GenerateOperations(
                                             chunk_blocks,
                                             data_file_fd,
                                             data_file_size,
+                                            false,  // skip_block_0
                                             true));  // src_ops_allowed
   LOG(INFO) << "done reading normal files";
 

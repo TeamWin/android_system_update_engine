@@ -69,6 +69,7 @@ class DeltaDiffGenerator : public OperationsGenerator {
                                   off_t chunk_blocks,
                                   int data_fd,
                                   off_t* data_file_size,
+                                  bool skip_block_0,
                                   bool src_ops_allowed);
 
   // For a given file |name| append operations to |aops| to produce it in the
