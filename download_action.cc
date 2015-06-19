@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include <glib.h>
 
 #include <base/files/file_path.h>
 #include <base/strings/stringprintf.h>
@@ -17,7 +16,6 @@
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
-#include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
 
 using base::FilePath;
@@ -99,7 +97,7 @@ bool DownloadAction::SetupP2PSharingFd() {
   return true;
 }
 
-void DownloadAction::WriteToP2PFile(const void *data,
+void DownloadAction::WriteToP2PFile(const void* data,
                                     size_t length,
                                     off_t file_offset) {
   if (p2p_sharing_fd_ == -1) {
@@ -247,7 +245,7 @@ void DownloadAction::SeekToOffset(off_t offset) {
   bytes_received_ = offset;
 }
 
-void DownloadAction::ReceivedBytes(HttpFetcher *fetcher,
+void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
                                    const void* bytes,
                                    size_t length) {
   // Note that bytes_received_ is the current offset.
@@ -281,7 +279,7 @@ void DownloadAction::ReceivedBytes(HttpFetcher *fetcher,
   }
 }
 
-void DownloadAction::TransferComplete(HttpFetcher *fetcher, bool successful) {
+void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
   if (writer_) {
     LOG_IF(WARNING, writer_->Close() != 0) << "Error closing the writer.";
     writer_ = nullptr;

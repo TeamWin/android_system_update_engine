@@ -14,6 +14,8 @@
 #include <dbus/dbus-glib-lowlevel.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include <chromeos/message_loops/message_loop.h>
+
 #include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/proxy_resolver.h"
 
@@ -52,7 +54,7 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
   FRIEND_TEST(ChromeBrowserProxyResolverTest, SuccessTest);
   typedef std::multimap<std::string, std::pair<ProxiesResolvedFn, void*>>
       CallbacksMap;
-  typedef std::multimap<std::string, GSource*> TimeoutsMap;
+  typedef std::multimap<std::string, chromeos::MessageLoop::TaskId> TimeoutsMap;
 
   // Handle a reply from Chrome:
   void HandleReply(const std::string& source_url,
@@ -68,7 +70,7 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
   static std::deque<std::string> ParseProxyString(const std::string& input);
 
   // Deletes internal state for the first instance of url in the state.
-  // If delete_timer is set, calls g_source_destroy on the timer source.
+  // If delete_timer is set, calls CancelTask on the timer id.
   // Returns the callback in an out parameter. Returns true on success.
   bool DeleteUrlState(const std::string& url,
                       bool delete_timer,
@@ -78,8 +80,8 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
   void Shutdown();
 
   DBusWrapperInterface* dbus_;
-  DBusGProxy* proxy_;
-  DBusGProxy* peer_proxy_;
+  DBusGProxy* proxy_{nullptr};
+  DBusGProxy* peer_proxy_{nullptr};
   int timeout_;
   TimeoutsMap timers_;
   CallbacksMap callbacks_;

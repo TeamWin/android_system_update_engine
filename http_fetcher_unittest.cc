@@ -12,11 +12,14 @@
 #include <utility>
 #include <vector>
 
+#include <base/location.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <chromeos/dbus/service_constants.h>
+#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <glib.h>
 #include <gtest/gtest.h>
 
@@ -28,12 +31,12 @@
 #include "update_engine/proxy_resolver.h"
 #include "update_engine/utils.h"
 
+using chromeos::MessageLoop;
 using std::make_pair;
 using std::pair;
 using std::string;
 using std::unique_ptr;
 using std::vector;
-
 
 namespace {
 
@@ -213,7 +216,7 @@ class AnyHttpFetcherTest {
 
   virtual void IgnoreServerAborting(HttpServer* server) const {}
 
-  virtual HttpServer *CreateServer() = 0;
+  virtual HttpServer* CreateServer() = 0;
 
  protected:
   DirectProxyResolver proxy_resolver_;
@@ -248,7 +251,7 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
   bool IsMock() const override { return true; }
   bool IsMulti() const override { return false; }
 
-  HttpServer *CreateServer() override {
+  HttpServer* CreateServer() override {
     return new NullHttpServer;
   }
 };
@@ -295,7 +298,7 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
     // Nothing to do.
   }
 
-  HttpServer *CreateServer() override {
+  HttpServer* CreateServer() override {
     return new PythonHttpServer;
   }
 };
@@ -342,10 +345,24 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
 template <typename T>
 class HttpFetcherTest : public ::testing::Test {
  public:
+  // TODO(deymo): Replace this with a FakeMessageLoop. We can't do that yet
+  // because these tests use g_spawn_async_with_pipes() to launch the
+  // http_test_server.
+  chromeos::GlibMessageLoop loop_;
+
   T test_;
 
+ protected:
+  HttpFetcherTest() {
+    loop_.SetAsCurrent();
+  }
+
+  void TearDown() override {
+    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
+  }
+
  private:
-  static void TypeConstraint(T *a) {
+  static void TypeConstraint(T* a) {
     AnyHttpFetcherTest *b = a;
     if (b == 0)  // Silence compiler warning of unused variable.
       *b = a;
@@ -377,7 +394,7 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
       EXPECT_EQ(kHttpResponseNotFound, fetcher->http_response_code());
     else
       EXPECT_EQ(kHttpResponseOk, fetcher->http_response_code());
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
 
     // Update counter
     times_transfer_complete_called_++;
@@ -388,8 +405,6 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
     times_transfer_terminated_called_++;
   }
 
-  GMainLoop* loop_;
-
   // Are we expecting an error response? (default: no)
   bool is_expect_error_;
 
@@ -399,56 +414,40 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
   int times_received_bytes_called_;
 };
 
-struct StartTransferArgs {
-  HttpFetcher *http_fetcher;
-  string url;
-};
 
-gboolean StartTransfer(gpointer data) {
-  StartTransferArgs *args = reinterpret_cast<StartTransferArgs*>(data);
-  args->http_fetcher->BeginTransfer(args->url);
-  return FALSE;
+void StartTransfer(HttpFetcher* http_fetcher, const string& url) {
+  http_fetcher->BeginTransfer(url);
 }
 }  // namespace
 
 TYPED_TEST(HttpFetcherTest, SimpleTest) {
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
-  {
-    HttpFetcherTestDelegate delegate;
-    delegate.loop_ = loop;
-    unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
-    fetcher->set_delegate(&delegate);
+  HttpFetcherTestDelegate delegate;
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
 
-    unique_ptr<HttpServer> server(this->test_.CreateServer());
-    ASSERT_TRUE(server->started_);
+  unique_ptr<HttpServer> server(this->test_.CreateServer());
+  ASSERT_TRUE(server->started_);
 
-    StartTransferArgs start_xfer_args = {
-      fetcher.get(), this->test_.SmallUrl(server->GetPort())};
-
-    g_timeout_add(0, StartTransfer, &start_xfer_args);
-    g_main_loop_run(loop);
-  }
-  g_main_loop_unref(loop);
+  this->loop_.PostTask(FROM_HERE, base::Bind(
+      StartTransfer,
+      fetcher.get(),
+      this->test_.SmallUrl(server->GetPort())));
+  this->loop_.Run();
 }
 
 TYPED_TEST(HttpFetcherTest, SimpleBigTest) {
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
-  {
-    HttpFetcherTestDelegate delegate;
-    delegate.loop_ = loop;
-    unique_ptr<HttpFetcher> fetcher(this->test_.NewLargeFetcher());
-    fetcher->set_delegate(&delegate);
+  HttpFetcherTestDelegate delegate;
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewLargeFetcher());
+  fetcher->set_delegate(&delegate);
 
-    unique_ptr<HttpServer> server(this->test_.CreateServer());
-    ASSERT_TRUE(server->started_);
+  unique_ptr<HttpServer> server(this->test_.CreateServer());
+  ASSERT_TRUE(server->started_);
 
-    StartTransferArgs start_xfer_args = {
-      fetcher.get(), this->test_.BigUrl(server->GetPort())};
-
-    g_timeout_add(0, StartTransfer, &start_xfer_args);
-    g_main_loop_run(loop);
-  }
-  g_main_loop_unref(loop);
+  this->loop_.PostTask(FROM_HERE, base::Bind(
+      StartTransfer,
+      fetcher.get(),
+      this->test_.BigUrl(server->GetPort())));
+  this->loop_.Run();
 }
 
 // Issue #9648: when server returns an error HTTP response, the fetcher needs to
@@ -456,38 +455,31 @@ TYPED_TEST(HttpFetcherTest, SimpleBigTest) {
 TYPED_TEST(HttpFetcherTest, ErrorTest) {
   if (this->test_.IsMock() || this->test_.IsMulti())
     return;
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
-  {
-    HttpFetcherTestDelegate delegate;
-    delegate.loop_ = loop;
+  HttpFetcherTestDelegate delegate;
 
-    // Delegate should expect an error response.
-    delegate.is_expect_error_ = true;
+  // Delegate should expect an error response.
+  delegate.is_expect_error_ = true;
 
-    unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
-    fetcher->set_delegate(&delegate);
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
 
-    unique_ptr<HttpServer> server(this->test_.CreateServer());
-    ASSERT_TRUE(server->started_);
+  unique_ptr<HttpServer> server(this->test_.CreateServer());
+  ASSERT_TRUE(server->started_);
 
-    StartTransferArgs start_xfer_args = {
+  this->loop_.PostTask(FROM_HERE, base::Bind(
+      StartTransfer,
       fetcher.get(),
-      this->test_.ErrorUrl(server->GetPort())
-    };
+      this->test_.ErrorUrl(server->GetPort())));
+  this->loop_.Run();
 
-    g_timeout_add(0, StartTransfer, &start_xfer_args);
-    g_main_loop_run(loop);
+  // Make sure that no bytes were received.
+  CHECK_EQ(delegate.times_received_bytes_called_, 0);
+  CHECK_EQ(fetcher->GetBytesDownloaded(), static_cast<size_t>(0));
 
-    // Make sure that no bytes were received.
-    CHECK_EQ(delegate.times_received_bytes_called_, 0);
-    CHECK_EQ(fetcher->GetBytesDownloaded(), static_cast<size_t>(0));
-
-    // Make sure that transfer completion was signaled once, and no termination
-    // was signaled.
-    CHECK_EQ(delegate.times_transfer_complete_called_, 1);
-    CHECK_EQ(delegate.times_transfer_terminated_called_, 0);
-  }
-  g_main_loop_unref(loop);
+  // Make sure that transfer completion was signaled once, and no termination
+  // was signaled.
+  CHECK_EQ(delegate.times_transfer_complete_called_, 1);
+  CHECK_EQ(delegate.times_transfer_terminated_called_, 0);
 }
 
 namespace {
@@ -500,7 +492,7 @@ class PausingHttpFetcherTestDelegate : public HttpFetcherDelegate {
     fetcher->Pause();
   }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
   }
   void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
@@ -512,39 +504,41 @@ class PausingHttpFetcherTestDelegate : public HttpFetcherDelegate {
   }
   bool paused_;
   HttpFetcher* fetcher_;
-  GMainLoop* loop_;
 };
 
-gboolean UnpausingTimeoutCallback(gpointer data) {
-  PausingHttpFetcherTestDelegate *delegate =
-      reinterpret_cast<PausingHttpFetcherTestDelegate*>(data);
+void UnpausingTimeoutCallback(PausingHttpFetcherTestDelegate* delegate,
+                              MessageLoop::TaskId* my_id) {
   if (delegate->paused_)
     delegate->Unpause();
-  return TRUE;
+  // Update the task id with the new scheduled callback.
+  *my_id = MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&UnpausingTimeoutCallback, delegate, my_id),
+      base::TimeDelta::FromMilliseconds(200));
 }
 }  // namespace
 
 TYPED_TEST(HttpFetcherTest, PauseTest) {
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   {
     PausingHttpFetcherTestDelegate delegate;
     unique_ptr<HttpFetcher> fetcher(this->test_.NewLargeFetcher());
     delegate.paused_ = false;
-    delegate.loop_ = loop;
     delegate.fetcher_ = fetcher.get();
     fetcher->set_delegate(&delegate);
 
     unique_ptr<HttpServer> server(this->test_.CreateServer());
     ASSERT_TRUE(server->started_);
 
-    guint callback_id = g_timeout_add(kHttpResponseInternalServerError,
-                                      UnpausingTimeoutCallback, &delegate);
+    MessageLoop::TaskId callback_id;
+    callback_id = this->loop_.PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&UnpausingTimeoutCallback, &delegate, &callback_id),
+        base::TimeDelta::FromMilliseconds(200));
     fetcher->BeginTransfer(this->test_.BigUrl(server->GetPort()));
 
-    g_main_loop_run(loop);
-    g_source_remove(callback_id);
+    this->loop_.Run();
+    EXPECT_TRUE(this->loop_.CancelTask(callback_id));
   }
-  g_main_loop_unref(loop);
 }
 
 namespace {
@@ -554,7 +548,7 @@ class AbortingHttpFetcherTestDelegate : public HttpFetcherDelegate {
                      const void* bytes, size_t length) override {}
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     ADD_FAILURE();  // We should never get here
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
   }
   void TransferTerminated(HttpFetcher* fetcher) override {
     EXPECT_EQ(fetcher, fetcher_.get());
@@ -571,54 +565,49 @@ class AbortingHttpFetcherTestDelegate : public HttpFetcherDelegate {
     fetcher_->TerminateTransfer();
   }
   void EndLoop() {
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
   }
   bool once_;
   bool callback_once_;
   unique_ptr<HttpFetcher> fetcher_;
-  GMainLoop* loop_;
 };
 
-gboolean AbortingTimeoutCallback(gpointer data) {
-  AbortingHttpFetcherTestDelegate *delegate =
-      reinterpret_cast<AbortingHttpFetcherTestDelegate*>(data);
+void AbortingTimeoutCallback(AbortingHttpFetcherTestDelegate* delegate,
+                             MessageLoop::TaskId* my_id) {
   if (delegate->once_) {
     delegate->TerminateTransfer();
-    return TRUE;
+    *my_id = MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(AbortingTimeoutCallback, delegate, my_id));
   } else {
     delegate->EndLoop();
-    return FALSE;
+    *my_id = MessageLoop::kTaskIdNull;
   }
 }
 }  // namespace
 
 TYPED_TEST(HttpFetcherTest, AbortTest) {
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
-  {
-    AbortingHttpFetcherTestDelegate delegate;
-    delegate.fetcher_.reset(this->test_.NewLargeFetcher());
-    delegate.once_ = true;
-    delegate.callback_once_ = true;
-    delegate.loop_ = loop;
-    delegate.fetcher_->set_delegate(&delegate);
+  AbortingHttpFetcherTestDelegate delegate;
+  delegate.fetcher_.reset(this->test_.NewLargeFetcher());
+  delegate.once_ = true;
+  delegate.callback_once_ = true;
+  delegate.fetcher_->set_delegate(&delegate);
 
-    unique_ptr<HttpServer> server(this->test_.CreateServer());
-    this->test_.IgnoreServerAborting(server.get());
-    ASSERT_TRUE(server->started_);
+  unique_ptr<HttpServer> server(this->test_.CreateServer());
+  this->test_.IgnoreServerAborting(server.get());
+  ASSERT_TRUE(server->started_);
 
-    GSource* timeout_source_;
-    timeout_source_ = g_timeout_source_new(0);  // ms
-    g_source_set_callback(timeout_source_, AbortingTimeoutCallback, &delegate,
-                          nullptr);
-    g_source_attach(timeout_source_, nullptr);
-    delegate.fetcher_->BeginTransfer(this->test_.BigUrl(server->GetPort()));
+  MessageLoop::TaskId task_id = MessageLoop::kTaskIdNull;
 
-    g_main_loop_run(loop);
-    CHECK(!delegate.once_);
-    CHECK(!delegate.callback_once_);
-    g_source_destroy(timeout_source_);
-  }
-  g_main_loop_unref(loop);
+  task_id = this->loop_.PostTask(
+      FROM_HERE,
+      base::Bind(AbortingTimeoutCallback, &delegate, &task_id));
+  delegate.fetcher_->BeginTransfer(this->test_.BigUrl(server->GetPort()));
+
+  this->loop_.Run();
+  CHECK(!delegate.once_);
+  CHECK(!delegate.callback_once_);
+  this->loop_.CancelTask(task_id);
 }
 
 namespace {
@@ -631,40 +620,36 @@ class FlakyHttpFetcherTestDelegate : public HttpFetcherDelegate {
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_TRUE(successful);
     EXPECT_EQ(kHttpResponsePartialContent, fetcher->http_response_code());
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
   }
   void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
   string data;
-  GMainLoop* loop_;
 };
 }  // namespace
 
 TYPED_TEST(HttpFetcherTest, FlakyTest) {
   if (this->test_.IsMock())
     return;
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   {
     FlakyHttpFetcherTestDelegate delegate;
-    delegate.loop_ = loop;
     unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
     fetcher->set_delegate(&delegate);
 
     unique_ptr<HttpServer> server(this->test_.CreateServer());
     ASSERT_TRUE(server->started_);
 
-    StartTransferArgs start_xfer_args = {
-      fetcher.get(),
-      LocalServerUrlForPath(server->GetPort(),
-                            base::StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
-                                               kFlakyTruncateLength,
-                                               kFlakySleepEvery,
-                                               kFlakySleepSecs))
-    };
-
-    g_timeout_add(0, StartTransfer, &start_xfer_args);
-    g_main_loop_run(loop);
+    this->loop_.PostTask(FROM_HERE, base::Bind(
+        &StartTransfer,
+        fetcher.get(),
+        LocalServerUrlForPath(server->GetPort(),
+                              base::StringPrintf("/flaky/%d/%d/%d/%d",
+                                                 kBigLength,
+                                                 kFlakyTruncateLength,
+                                                 kFlakySleepEvery,
+                                                 kFlakySleepSecs))));
+    this->loop_.Run();
 
     // verify the data we get back
     ASSERT_EQ(kBigLength, delegate.data.size());
@@ -673,7 +658,6 @@ TYPED_TEST(HttpFetcherTest, FlakyTest) {
       ASSERT_EQ(delegate.data.substr(i, 10), "abcdefghij");
     }
   }
-  g_main_loop_unref(loop);
 }
 
 namespace {
@@ -683,8 +667,7 @@ namespace {
 class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
   explicit FailureHttpFetcherTestDelegate(PythonHttpServer* server)
-      : loop_(nullptr),
-        server_(server) {}
+      : server_(server) {}
 
   ~FailureHttpFetcherTestDelegate() override {
     if (server_) {
@@ -706,12 +689,11 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_FALSE(successful);
     EXPECT_EQ(0, fetcher->http_response_code());
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
   }
   void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
-  GMainLoop* loop_;
   PythonHttpServer* server_;
 };
 }  // namespace
@@ -722,24 +704,19 @@ TYPED_TEST(HttpFetcherTest, FailureTest) {
   // available at all.
   if (this->test_.IsMock())
     return;
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   {
     FailureHttpFetcherTestDelegate delegate(nullptr);
-    delegate.loop_ = loop;
     unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
     fetcher->set_delegate(&delegate);
 
-    StartTransferArgs start_xfer_args = {
-      fetcher.get(),
-      "http://host_doesnt_exist99999999",
-    };
-
-    g_timeout_add(0, StartTransfer, &start_xfer_args);
-    g_main_loop_run(loop);
+    this->loop_.PostTask(FROM_HERE,
+                         base::Bind(StartTransfer,
+                                    fetcher.get(),
+                                    "http://host_doesnt_exist99999999"));
+    this->loop_.Run();
 
     // Exiting and testing happens in the delegate
   }
-  g_main_loop_unref(loop);
 }
 
 TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
@@ -748,7 +725,6 @@ TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
   // retries and aborts correctly.
   if (this->test_.IsMock())
     return;
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
   {
     PythonHttpServer* server = new PythonHttpServer();
     int port = server->GetPort();
@@ -756,24 +732,22 @@ TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
 
     // Handles destruction and claims ownership.
     FailureHttpFetcherTestDelegate delegate(server);
-    delegate.loop_ = loop;
     unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
     fetcher->set_delegate(&delegate);
 
-    StartTransferArgs start_xfer_args = {
-      fetcher.get(),
-      LocalServerUrlForPath(port,
-                            base::StringPrintf("/flaky/%d/%d/%d/%d", kBigLength,
-                                               kFlakyTruncateLength,
-                                               kFlakySleepEvery,
-                                               kFlakySleepSecs))
-    };
-    g_timeout_add(0, StartTransfer, &start_xfer_args);
-    g_main_loop_run(loop);
+    this->loop_.PostTask(FROM_HERE, base::Bind(
+        StartTransfer,
+        fetcher.get(),
+        LocalServerUrlForPath(port,
+                              base::StringPrintf("/flaky/%d/%d/%d/%d",
+                                                 kBigLength,
+                                                 kFlakyTruncateLength,
+                                                 kFlakySleepEvery,
+                                                 kFlakySleepSecs))));
+    this->loop_.Run();
 
     // Exiting and testing happens in the delegate
   }
-  g_main_loop_unref(loop);
 }
 
 namespace {
@@ -798,14 +772,13 @@ class RedirectHttpFetcherTestDelegate : public HttpFetcherDelegate {
       EXPECT_GE(fetcher->http_response_code(), kHttpResponseMovedPermanently);
       EXPECT_LE(fetcher->http_response_code(), kHttpResponseTempRedirect);
     }
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
   }
   void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
   bool expected_successful_;
   string data;
-  GMainLoop* loop_;
 };
 
 // RedirectTest takes ownership of |http_fetcher|.
@@ -813,28 +786,23 @@ void RedirectTest(const HttpServer* server,
                   bool expected_successful,
                   const string& url,
                   HttpFetcher* http_fetcher) {
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
-  {
-    RedirectHttpFetcherTestDelegate delegate(expected_successful);
-    delegate.loop_ = loop;
-    unique_ptr<HttpFetcher> fetcher(http_fetcher);
-    fetcher->set_delegate(&delegate);
+  RedirectHttpFetcherTestDelegate delegate(expected_successful);
+  unique_ptr<HttpFetcher> fetcher(http_fetcher);
+  fetcher->set_delegate(&delegate);
 
-    StartTransferArgs start_xfer_args =
-        { fetcher.get(), LocalServerUrlForPath(server->GetPort(), url) };
-
-    g_timeout_add(0, StartTransfer, &start_xfer_args);
-    g_main_loop_run(loop);
-    if (expected_successful) {
-      // verify the data we get back
-      ASSERT_EQ(kMediumLength, delegate.data.size());
-      for (int i = 0; i < kMediumLength; i += 10) {
-        // Assert so that we don't flood the screen w/ EXPECT errors on failure.
-        ASSERT_EQ(delegate.data.substr(i, 10), "abcdefghij");
-      }
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+      StartTransfer,
+      fetcher.get(),
+      LocalServerUrlForPath(server->GetPort(), url)));
+  MessageLoop::current()->Run();
+  if (expected_successful) {
+    // verify the data we get back
+    ASSERT_EQ(kMediumLength, delegate.data.size());
+    for (int i = 0; i < kMediumLength; i += 10) {
+      // Assert so that we don't flood the screen w/ EXPECT errors on failure.
+      ASSERT_EQ(delegate.data.substr(i, 10), "abcdefghij");
     }
   }
-  g_main_loop_unref(loop);
 }
 }  // namespace
 
@@ -904,7 +872,7 @@ class MultiHttpFetcherTestDelegate : public HttpFetcherDelegate {
       EXPECT_EQ(expected_response_code_, fetcher->http_response_code());
     // Destroy the fetcher (because we're allowed to).
     fetcher_.reset(nullptr);
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
   }
 
   void TransferTerminated(HttpFetcher* fetcher) override {
@@ -914,7 +882,6 @@ class MultiHttpFetcherTestDelegate : public HttpFetcherDelegate {
   unique_ptr<HttpFetcher> fetcher_;
   int expected_response_code_;
   string data;
-  GMainLoop* loop_;
 };
 
 void MultiTest(HttpFetcher* fetcher_in,
@@ -923,42 +890,37 @@ void MultiTest(HttpFetcher* fetcher_in,
                const string& expected_prefix,
                off_t expected_size,
                HttpResponseCode expected_response_code) {
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
-  {
-    MultiHttpFetcherTestDelegate delegate(expected_response_code);
-    delegate.loop_ = loop;
-    delegate.fetcher_.reset(fetcher_in);
+  MultiHttpFetcherTestDelegate delegate(expected_response_code);
+  delegate.fetcher_.reset(fetcher_in);
 
-    MultiRangeHttpFetcher* multi_fetcher =
-        dynamic_cast<MultiRangeHttpFetcher*>(fetcher_in);
-    ASSERT_TRUE(multi_fetcher);
-    multi_fetcher->ClearRanges();
-    for (vector<pair<off_t, off_t>>::const_iterator it = ranges.begin(),
-             e = ranges.end(); it != e; ++it) {
-      string tmp_str = base::StringPrintf("%jd+", it->first);
-      if (it->second > 0) {
-        base::StringAppendF(&tmp_str, "%jd", it->second);
-        multi_fetcher->AddRange(it->first, it->second);
-      } else {
-        base::StringAppendF(&tmp_str, "?");
-        multi_fetcher->AddRange(it->first);
-      }
-      LOG(INFO) << "added range: " << tmp_str;
+  MultiRangeHttpFetcher* multi_fetcher =
+      dynamic_cast<MultiRangeHttpFetcher*>(fetcher_in);
+  ASSERT_TRUE(multi_fetcher);
+  multi_fetcher->ClearRanges();
+  for (vector<pair<off_t, off_t>>::const_iterator it = ranges.begin(),
+           e = ranges.end(); it != e; ++it) {
+    string tmp_str = base::StringPrintf("%jd+", it->first);
+    if (it->second > 0) {
+      base::StringAppendF(&tmp_str, "%jd", it->second);
+      multi_fetcher->AddRange(it->first, it->second);
+    } else {
+      base::StringAppendF(&tmp_str, "?");
+      multi_fetcher->AddRange(it->first);
     }
-    dynamic_cast<FakeSystemState*>(fetcher_in->GetSystemState())
-        ->fake_hardware()->SetIsOfficialBuild(false);
-    multi_fetcher->set_delegate(&delegate);
-
-    StartTransferArgs start_xfer_args = {multi_fetcher, url};
-
-    g_timeout_add(0, StartTransfer, &start_xfer_args);
-    g_main_loop_run(loop);
-
-    EXPECT_EQ(expected_size, delegate.data.size());
-    EXPECT_EQ(expected_prefix,
-              string(delegate.data.data(), expected_prefix.size()));
+    LOG(INFO) << "added range: " << tmp_str;
   }
-  g_main_loop_unref(loop);
+  dynamic_cast<FakeSystemState*>(fetcher_in->GetSystemState())
+      ->fake_hardware()->SetIsOfficialBuild(false);
+  multi_fetcher->set_delegate(&delegate);
+
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(StartTransfer, multi_fetcher, url));
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(expected_size, delegate.data.size());
+  EXPECT_EQ(expected_prefix,
+            string(delegate.data.data(), expected_prefix.size()));
 }
 }  // namespace
 
@@ -1094,50 +1056,44 @@ class BlockedTransferTestDelegate : public HttpFetcherDelegate {
   }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_FALSE(successful);
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
   }
   void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
   }
-  GMainLoop* loop_;
 };
 
+void BlockedTransferTestHelper(AnyHttpFetcherTest* fetcher_test,
+                               bool is_official_build) {
+  if (fetcher_test->IsMock() || fetcher_test->IsMulti())
+    return;
+
+  unique_ptr<HttpServer> server(fetcher_test->CreateServer());
+  ASSERT_TRUE(server->started_);
+
+  BlockedTransferTestDelegate delegate;
+  unique_ptr<HttpFetcher> fetcher(fetcher_test->NewLargeFetcher());
+  LOG(INFO) << "is_official_build: " << is_official_build;
+  // NewLargeFetcher creates the HttpFetcher* with a FakeSystemState.
+  dynamic_cast<FakeSystemState*>(fetcher->GetSystemState())
+      ->fake_hardware()->SetIsOfficialBuild(is_official_build);
+  fetcher->set_delegate(&delegate);
+
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+      StartTransfer,
+      fetcher.get(),
+      LocalServerUrlForPath(server->GetPort(),
+                            fetcher_test->SmallUrl(server->GetPort()))));
+  MessageLoop::current()->Run();
+}
 }  // namespace
 
 TYPED_TEST(HttpFetcherTest, BlockedTransferTest) {
-  if (this->test_.IsMock() || this->test_.IsMulti())
-    return;
+  BlockedTransferTestHelper(&this->test_, false);
+}
 
-  for (int i = 0; i < 2; i++) {
-    unique_ptr<HttpServer> server(this->test_.CreateServer());
-    ASSERT_TRUE(server->started_);
-
-    GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
-    {
-      BlockedTransferTestDelegate delegate;
-      delegate.loop_ = loop;
-
-      bool is_allowed = (i != 0);
-      unique_ptr<HttpFetcher> fetcher(this->test_.NewLargeFetcher());
-
-      bool is_official_build = (i == 1);
-      LOG(INFO) << "is_update_allowed_over_connection: " << is_allowed;
-      LOG(INFO) << "is_official_build: " << is_official_build;
-      // NewLargeFetcher creates the HttpFetcher* with a FakeSystemState.
-      dynamic_cast<FakeSystemState*>(fetcher->GetSystemState())
-          ->fake_hardware()->SetIsOfficialBuild(is_official_build);
-      fetcher->set_delegate(&delegate);
-
-      StartTransferArgs start_xfer_args =
-          {fetcher.get(),
-           LocalServerUrlForPath(server->GetPort(),
-                                 this->test_.SmallUrl(server->GetPort()))};
-
-      g_timeout_add(0, StartTransfer, &start_xfer_args);
-      g_main_loop_run(loop);
-    }
-    g_main_loop_unref(loop);
-  }
+TYPED_TEST(HttpFetcherTest, BlockedTransferOfficialBuildTest) {
+  BlockedTransferTestHelper(&this->test_, true);
 }
 
 }  // namespace chromeos_update_engine

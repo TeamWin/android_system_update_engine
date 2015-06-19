@@ -29,6 +29,7 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/files/scoped_file.h>
+#include <base/location.h>
 #include <base/logging.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/rand_util.h>
@@ -38,6 +39,7 @@
 #include <base/strings/stringprintf.h>
 #include <chromeos/data_encoding.h>
 #include <chromeos/key_value_store.h>
+#include <chromeos/message_loops/message_loop.h>
 #include <glib.h>
 
 #include "update_engine/clock_interface.h"
@@ -796,7 +798,7 @@ bool GetSquashfs4Size(const uint8_t* buffer, size_t buffer_size,
   return true;
 }
 
-bool IsExtFilesystem(const std::string& device) {
+bool IsExtFilesystem(const string& device) {
   chromeos::Blob header;
   // The first 2 KiB is enough to read the ext2 superblock (located at offset
   // 1024).
@@ -805,7 +807,7 @@ bool IsExtFilesystem(const std::string& device) {
   return GetExt3Size(header.data(), header.size(), nullptr, nullptr);
 }
 
-bool IsSquashfsFilesystem(const std::string& device) {
+bool IsSquashfsFilesystem(const string& device) {
   chromeos::Blob header;
   // The first 96 is enough to read the squashfs superblock.
   const ssize_t kSquashfsSuperBlockSize = 96;
@@ -900,7 +902,7 @@ string GetFileFormat(const string& path) {
 namespace {
 // Do the actual trigger. We do it as a main-loop callback to (try to) get a
 // consistent stack trace.
-gboolean TriggerCrashReporterUpload(void* unused) {
+void TriggerCrashReporterUpload() {
   pid_t pid = fork();
   CHECK_GE(pid, 0) << "fork failed";  // fork() failed. Something is very wrong.
   if (pid == 0) {
@@ -910,12 +912,13 @@ gboolean TriggerCrashReporterUpload(void* unused) {
   // We are the parent. Wait for child to terminate.
   pid_t result = waitpid(pid, nullptr, 0);
   LOG_IF(ERROR, result < 0) << "waitpid() failed";
-  return FALSE;  // Don't call this callback again
 }
 }  // namespace
 
 void ScheduleCrashReporterUpload() {
-  g_idle_add(&TriggerCrashReporterUpload, nullptr);
+  chromeos::MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&TriggerCrashReporterUpload));
 }
 
 bool SetCpuShares(CpuShares shares) {
@@ -936,16 +939,6 @@ int FuzzInt(int value, unsigned int range) {
   int min = value - range / 2;
   int max = value + range - range / 2;
   return base::RandInt(min, max);
-}
-
-gboolean GlibRunClosure(gpointer data) {
-  base::Closure* callback = reinterpret_cast<base::Closure*>(data);
-  callback->Run();
-  return FALSE;
-}
-
-void GlibDestroyClosure(gpointer data) {
-  delete reinterpret_cast<base::Closure*>(data);
 }
 
 string FormatSecs(unsigned secs) {
@@ -1647,7 +1640,7 @@ bool MonotonicDurationHelper(SystemState* system_state,
 
 bool GetMinorVersion(base::FilePath path, uint32_t* minor_version) {
   chromeos::KeyValueStore store;
-  std::string result;
+  string result;
   if (base::PathExists(path) && store.Load(path) &&
       store.GetString("PAYLOAD_MINOR_VERSION", &result)) {
     if (!base::StringToUint(result, minor_version)) {
@@ -1659,7 +1652,7 @@ bool GetMinorVersion(base::FilePath path, uint32_t* minor_version) {
   return false;
 }
 
-bool ReadExtents(const std::string& path, const vector<Extent>& extents,
+bool ReadExtents(const string& path, const vector<Extent>& extents,
                  chromeos::Blob* out_data, ssize_t out_data_size,
                  size_t block_size) {
   chromeos::Blob data(out_data_size);

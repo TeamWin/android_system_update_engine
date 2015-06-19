@@ -16,7 +16,7 @@
 #include <base/bind.h>
 #include <base/callback.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/glib_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
@@ -70,13 +70,17 @@ class P2PManagerTest : public testing::Test {
   }
 
   void TearDown() override {
-    EXPECT_FALSE(loop_.PendingTasks());
+    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
   }
+
+  // TODO(deymo): Replace this with a FakeMessageLoop. P2PManager uses glib to
+  // interact with the p2p-client tool, so we need to run a GlibMessageLoop
+  // here.
+  chromeos::GlibMessageLoop loop_;
 
   // The P2PManager::Configuration instance used for testing.
   FakeP2PManagerConfiguration *test_conf_;
 
-  chromeos::FakeMessageLoop loop_{nullptr};
   FakeClock fake_clock_;
   chromeos_update_manager::MockPolicy *mock_policy_ = nullptr;
   chromeos_update_manager::FakeUpdateManager fake_um_;
@@ -478,59 +482,53 @@ TEST_F(P2PManagerTest, StopP2P) {
 }
 
 static void ExpectUrl(const string& expected_url,
-                      GMainLoop* loop,
                       const string& url) {
   EXPECT_EQ(url, expected_url);
-  g_main_loop_quit(loop);
+  MessageLoop::current()->BreakLoop();
 }
 
 // Like StartP2P, we're mocking the different results that p2p-client
 // can return. It's not pretty but it works.
 TEST_F(P2PManagerTest, LookupURL) {
-  GMainLoop *loop = g_main_loop_new(nullptr, FALSE);
-
   // Emulate p2p-client returning valid URL with "fooX", 42 and "cros_au"
   // being propagated in the right places.
   test_conf_->SetP2PClientCommandLine(
       "echo 'http://1.2.3.4/{file_id}_{minsize}'");
   manager_->LookupUrlForFile("fooX", 42, TimeDelta(),
                              base::Bind(ExpectUrl,
-                                        "http://1.2.3.4/fooX.cros_au_42",
-                                        loop));
-  g_main_loop_run(loop);
+                                        "http://1.2.3.4/fooX.cros_au_42"));
+  loop_.Run();
 
   // Emulate p2p-client returning invalid URL.
   test_conf_->SetP2PClientCommandLine("echo 'not_a_valid_url'");
   manager_->LookupUrlForFile("foobar", 42, TimeDelta(),
-                             base::Bind(ExpectUrl, "", loop));
-  g_main_loop_run(loop);
+                             base::Bind(ExpectUrl, ""));
+  loop_.Run();
 
   // Emulate p2p-client conveying failure.
   test_conf_->SetP2PClientCommandLine("false");
   manager_->LookupUrlForFile("foobar", 42, TimeDelta(),
-                             base::Bind(ExpectUrl, "", loop));
-  g_main_loop_run(loop);
+                             base::Bind(ExpectUrl, ""));
+  loop_.Run();
 
   // Emulate p2p-client not existing.
   test_conf_->SetP2PClientCommandLine("/path/to/non/existent/helper/program");
   manager_->LookupUrlForFile("foobar", 42,
                              TimeDelta(),
-                             base::Bind(ExpectUrl, "", loop));
-  g_main_loop_run(loop);
+                             base::Bind(ExpectUrl, ""));
+  loop_.Run();
 
   // Emulate p2p-client crashing.
   test_conf_->SetP2PClientCommandLine("sh -c 'kill -SEGV $$'");
   manager_->LookupUrlForFile("foobar", 42, TimeDelta(),
-                             base::Bind(ExpectUrl, "", loop));
-  g_main_loop_run(loop);
+                             base::Bind(ExpectUrl, ""));
+  loop_.Run();
 
   // Emulate p2p-client exceeding its timeout.
   test_conf_->SetP2PClientCommandLine("sh -c 'echo http://1.2.3.4/; sleep 2'");
   manager_->LookupUrlForFile("foobar", 42, TimeDelta::FromMilliseconds(500),
-                             base::Bind(ExpectUrl, "", loop));
-  g_main_loop_run(loop);
-
-  g_main_loop_unref(loop);
+                             base::Bind(ExpectUrl, ""));
+  loop_.Run();
 }
 
 }  // namespace chromeos_update_engine

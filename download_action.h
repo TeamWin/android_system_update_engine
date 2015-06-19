@@ -69,11 +69,11 @@ class DownloadAction : public InstallPlanAction,
   std::string Type() const override { return StaticType(); }
 
   // HttpFetcherDelegate methods (see http_fetcher.h)
-  void ReceivedBytes(HttpFetcher *fetcher,
+  void ReceivedBytes(HttpFetcher* fetcher,
                      const void* bytes, size_t length) override;
   void SeekToOffset(off_t offset) override;
-  void TransferComplete(HttpFetcher *fetcher, bool successful) override;
-  void TransferTerminated(HttpFetcher *fetcher) override;
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override;
+  void TransferTerminated(HttpFetcher* fetcher) override;
 
   DownloadActionDelegate* delegate() const { return delegate_; }
   void set_delegate(DownloadActionDelegate* delegate) {
@@ -103,7 +103,7 @@ class DownloadAction : public InstallPlanAction,
   //
   // This method does nothing if SetupP2PSharingFd() hasn't been
   // called or if CloseP2PSharingFd() has been called.
-  void WriteToP2PFile(const void *data, size_t length, off_t file_offset);
+  void WriteToP2PFile(const void* data, size_t length, off_t file_offset);
 
   // The InstallPlan passed in
   InstallPlan install_plan_;

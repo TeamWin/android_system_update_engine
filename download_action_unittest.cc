@@ -13,9 +13,14 @@
 #include <utility>
 #include <vector>
 
+#include <base/bind.h>
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
+#include <base/location.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/bind_lambda.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
 
 #include "update_engine/action_pipe.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
@@ -53,16 +58,14 @@ class DownloadActionDelegateMock : public DownloadActionDelegate {
 class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   explicit DownloadActionTestProcessorDelegate(ErrorCode expected_code)
-      : loop_(nullptr),
-        processing_done_called_(false),
+      : processing_done_called_(false),
         expected_code_(expected_code) {}
   ~DownloadActionTestProcessorDelegate() override {
     EXPECT_TRUE(processing_done_called_);
   }
   void ProcessingDone(const ActionProcessor* processor,
                       ErrorCode code) override {
-    ASSERT_TRUE(loop_);
-    g_main_loop_quit(loop_);
+    chromeos::MessageLoop::current()->BreakLoop();
     chromeos::Blob found_data;
     ASSERT_TRUE(utils::ReadFile(path_, &found_data));
     if (expected_code_ != ErrorCode::kDownloadWriteError) {
@@ -85,7 +88,6 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
     }
   }
 
-  GMainLoop *loop_;
   string path_;
   chromeos::Blob expected_data_;
   bool processing_done_called_;
@@ -110,25 +112,17 @@ class TestDirectFileWriter : public DirectFileWriter {
   int current_write_;
 };
 
-struct StartProcessorInRunLoopArgs {
-  ActionProcessor* processor;
-  MockHttpFetcher* http_fetcher;
-};
-
-gboolean StartProcessorInRunLoop(gpointer data) {
-  ActionProcessor* processor =
-      reinterpret_cast<StartProcessorInRunLoopArgs*>(data)->processor;
+void StartProcessorInRunLoop(ActionProcessor* processor,
+                             MockHttpFetcher* http_fetcher) {
   processor->StartProcessing();
-  MockHttpFetcher* http_fetcher =
-      reinterpret_cast<StartProcessorInRunLoopArgs*>(data)->http_fetcher;
   http_fetcher->SetOffset(1);
-  return FALSE;
 }
 
 void TestWithData(const chromeos::Blob& data,
                   int fail_write,
                   bool use_download_delegate) {
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
+  chromeos::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
 
   // TODO(adlr): see if we need a different file for build bots
   ScopedTempFile output_temp_file;
@@ -177,7 +171,6 @@ void TestWithData(const chromeos::Blob& data,
   if (fail_write > 0)
     expected_code = ErrorCode::kDownloadWriteError;
   DownloadActionTestProcessorDelegate delegate(expected_code);
-  delegate.loop_ = loop;
   delegate.expected_data_ = chromeos::Blob(data.begin() + 1, data.end());
   delegate.path_ = output_temp_file.GetPath();
   ActionProcessor processor;
@@ -185,12 +178,10 @@ void TestWithData(const chromeos::Blob& data,
   processor.EnqueueAction(&feeder_action);
   processor.EnqueueAction(&download_action);
 
-  StartProcessorInRunLoopArgs args;
-  args.processor = &processor;
-  args.http_fetcher = http_fetcher;
-  g_timeout_add(0, &StartProcessorInRunLoop, &args);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  loop.PostTask(FROM_HERE,
+                base::Bind(&StartProcessorInRunLoop, &processor, http_fetcher));
+  loop.Run();
+  EXPECT_FALSE(loop.PendingTasks());
 }
 }  // namespace
 
@@ -240,22 +231,19 @@ namespace {
 class TerminateEarlyTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   void ProcessingStopped(const ActionProcessor* processor) {
-    ASSERT_TRUE(loop_);
-    g_main_loop_quit(loop_);
+    chromeos::MessageLoop::current()->BreakLoop();
   }
-  GMainLoop *loop_;
 };
 
-gboolean TerminateEarlyTestStarter(gpointer data) {
-  ActionProcessor *processor = reinterpret_cast<ActionProcessor*>(data);
+void TerminateEarlyTestStarter(ActionProcessor* processor) {
   processor->StartProcessing();
   CHECK(processor->IsRunning());
   processor->StopProcessing();
-  return FALSE;
 }
 
 void TestTerminateEarly(bool use_download_delegate) {
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
+  chromeos::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
 
   chromeos::Blob data(kMockHttpFetcherChunkSize +
                       kMockHttpFetcherChunkSize / 2);
@@ -284,16 +272,16 @@ void TestTerminateEarly(bool use_download_delegate) {
       EXPECT_CALL(download_delegate, SetDownloadStatus(false)).Times(1);
     }
     TerminateEarlyTestProcessorDelegate delegate;
-    delegate.loop_ = loop;
     ActionProcessor processor;
     processor.set_delegate(&delegate);
     processor.EnqueueAction(&feeder_action);
     processor.EnqueueAction(&download_action);
     BondActions(&feeder_action, &download_action);
 
-    g_timeout_add(0, &TerminateEarlyTestStarter, &processor);
-    g_main_loop_run(loop);
-    g_main_loop_unref(loop);
+    loop.PostTask(FROM_HERE,
+                  base::Bind(&TerminateEarlyTestStarter, &processor));
+    loop.Run();
+    EXPECT_FALSE(loop.PendingTasks());
   }
 
   // 1 or 0 chunks should have come through
@@ -350,21 +338,15 @@ namespace {
 class PassObjectOutTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   void ProcessingDone(const ActionProcessor* processor, ErrorCode code) {
-    ASSERT_TRUE(loop_);
-    g_main_loop_quit(loop_);
+    chromeos::MessageLoop::current()->BreakLoop();
   }
-  GMainLoop *loop_;
 };
 
-gboolean PassObjectOutTestStarter(gpointer data) {
-  ActionProcessor *processor = reinterpret_cast<ActionProcessor*>(data);
-  processor->StartProcessing();
-  return FALSE;
-}
 }  // namespace
 
 TEST(DownloadActionTest, PassObjectOutTest) {
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
+  chromeos::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
 
   DirectFileWriter writer;
 
@@ -395,21 +377,22 @@ TEST(DownloadActionTest, PassObjectOutTest) {
 
   ActionProcessor processor;
   PassObjectOutTestProcessorDelegate delegate;
-  delegate.loop_ = loop;
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&feeder_action);
   processor.EnqueueAction(&download_action);
   processor.EnqueueAction(&test_action);
 
-  g_timeout_add(0, &PassObjectOutTestStarter, &processor);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  loop.PostTask(FROM_HERE,
+                base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.Run();
+  EXPECT_FALSE(loop.PendingTasks());
 
   EXPECT_EQ(true, test_action.did_run_);
 }
 
 TEST(DownloadActionTest, BadOutFileTest) {
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
+  chromeos::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
 
   const string path("/fake/path/that/cant/be/created/because/of/missing/dirs");
   DirectFileWriter writer;
@@ -432,34 +415,27 @@ TEST(DownloadActionTest, BadOutFileTest) {
   processor.StartProcessing();
   ASSERT_FALSE(processor.IsRunning());
 
-  g_main_loop_unref(loop);
-}
-
-gboolean StartProcessorInRunLoopForP2P(gpointer user_data) {
-  ActionProcessor* processor = reinterpret_cast<ActionProcessor*>(user_data);
-  processor->StartProcessing();
-  return FALSE;
+  loop.Run();
+  EXPECT_FALSE(loop.PendingTasks());
 }
 
 // Test fixture for P2P tests.
 class P2PDownloadActionTest : public testing::Test {
  protected:
   P2PDownloadActionTest()
-    : loop_(nullptr),
-      start_at_offset_(0),
+    : start_at_offset_(0),
       fake_um_(fake_system_state_.fake_clock()) {}
 
   ~P2PDownloadActionTest() override {}
 
   // Derived from testing::Test.
   void SetUp() override {
-    loop_ = g_main_loop_new(g_main_context_default(), FALSE);
+    loop_.SetAsCurrent();
   }
 
   // Derived from testing::Test.
   void TearDown() override {
-    if (loop_ != nullptr)
-      g_main_loop_unref(loop_);
+    EXPECT_FALSE(loop_.PendingTasks());
   }
 
   // To be called by tests to setup the download. The
@@ -513,7 +489,6 @@ class P2PDownloadActionTest : public testing::Test {
     download_action_->SetTestFileWriter(&writer);
     BondActions(&feeder_action, download_action_.get());
     DownloadActionTestProcessorDelegate delegate(ErrorCode::kSuccess);
-    delegate.loop_ = loop_;
     delegate.expected_data_ = chromeos::Blob(data_.begin() + start_at_offset_,
                                              data_.end());
     delegate.path_ = output_temp_file.GetPath();
@@ -521,9 +496,14 @@ class P2PDownloadActionTest : public testing::Test {
     processor_.EnqueueAction(&feeder_action);
     processor_.EnqueueAction(download_action_.get());
 
-    g_timeout_add(0, &StartProcessorInRunLoopForP2P, this);
-    g_main_loop_run(loop_);
+    loop_.PostTask(FROM_HERE, base::Bind(
+        &P2PDownloadActionTest::StartProcessorInRunLoopForP2P,
+        base::Unretained(this)));
+    loop_.Run();
   }
+
+  // Mainloop used to make StartDownload() synchronous.
+  chromeos::FakeMessageLoop loop_{nullptr};
 
   // The DownloadAction instance under test.
   unique_ptr<DownloadAction> download_action_;
@@ -545,16 +525,10 @@ class P2PDownloadActionTest : public testing::Test {
 
  private:
   // Callback used in StartDownload() method.
-  static gboolean StartProcessorInRunLoopForP2P(gpointer user_data) {
-    class P2PDownloadActionTest *test =
-        reinterpret_cast<P2PDownloadActionTest*>(user_data);
-    test->processor_.StartProcessing();
-    test->http_fetcher_->SetOffset(test->start_at_offset_);
-    return FALSE;
+  void StartProcessorInRunLoopForP2P() {
+    processor_.StartProcessing();
+    http_fetcher_->SetOffset(start_at_offset_);
   }
-
-  // Mainloop used to make StartDownload() synchronous.
-  GMainLoop *loop_;
 
   // The requested starting offset passed to SetupDownload().
   off_t start_at_offset_;

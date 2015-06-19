@@ -11,12 +11,14 @@
 
 // This is a mock implementation of HttpFetcher which is useful for testing.
 
+using chromeos::MessageLoop;
 using std::min;
 
 namespace chromeos_update_engine {
 
 MockHttpFetcher::~MockHttpFetcher() {
-  CHECK(!timeout_source_) << "Call TerminateTransfer() before dtor.";
+  CHECK(timeout_id_ == MessageLoop::kTaskIdNull) <<
+      "Call TerminateTransfer() before dtor.";
 }
 
 void MockHttpFetcher::BeginTransfer(const std::string& url) {
@@ -30,13 +32,13 @@ void MockHttpFetcher::BeginTransfer(const std::string& url) {
     SendData(true);
 }
 
-// Returns false on one condition: If timeout_source_ was already set
-// and it needs to be deleted by the caller. If timeout_source_ is null
+// Returns false on one condition: If timeout_id_ was already set
+// and it needs to be deleted by the caller. If timeout_id_ is null
 // when this function is called, this function will always return true.
 bool MockHttpFetcher::SendData(bool skip_delivery) {
   if (fail_transfer_) {
     SignalTransferComplete();
-    return timeout_source_;
+    return timeout_id_ != MessageLoop::kTaskIdNull;
   }
 
   CHECK_LT(sent_size_, data_.size());
@@ -48,7 +50,7 @@ bool MockHttpFetcher::SendData(bool skip_delivery) {
     // We may get terminated in the callback.
     if (sent_size_ == data_.size()) {
       LOG(INFO) << "Terminated in the ReceivedBytes callback.";
-      return timeout_source_;
+      return timeout_id_ != MessageLoop::kTaskIdNull;
     }
     sent_size_ += chunk_size;
     CHECK_LE(sent_size_, data_.size());
@@ -59,32 +61,35 @@ bool MockHttpFetcher::SendData(bool skip_delivery) {
   }
 
   if (paused_) {
-    // If we're paused, we should return true if timeout_source_ is set,
+    // If we're paused, we should return true if timeout_id_ is set,
     // since we need the caller to delete it.
-    return timeout_source_;
+    return timeout_id_ != MessageLoop::kTaskIdNull;
   }
 
-  if (timeout_source_) {
+  if (timeout_id_ != MessageLoop::kTaskIdNull) {
     // we still need a timeout if there's more data to send
     return sent_size_ < data_.size();
   } else if (sent_size_ < data_.size()) {
     // we don't have a timeout source and we need one
-    timeout_source_ = g_timeout_source_new(10);
-    CHECK(timeout_source_);
-    g_source_set_callback(timeout_source_, StaticTimeoutCallback, this,
-                          nullptr);
-    timout_tag_ = g_source_attach(timeout_source_, nullptr);
+    timeout_id_ = MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&MockHttpFetcher::TimeoutCallback, base::Unretained(this)),
+        base::TimeDelta::FromMilliseconds(10));
   }
   return true;
 }
 
-bool MockHttpFetcher::TimeoutCallback() {
+void MockHttpFetcher::TimeoutCallback() {
   CHECK(!paused_);
-  bool ret = SendData(false);
-  if (false == ret) {
-    timeout_source_ = nullptr;
+  if (SendData(false)) {
+    // We need to re-schedule the timeout.
+    timeout_id_ = MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&MockHttpFetcher::TimeoutCallback, base::Unretained(this)),
+        base::TimeDelta::FromMilliseconds(10));
+  } else {
+    timeout_id_ = MessageLoop::kTaskIdNull;
   }
-  return ret;
 }
 
 // If the transfer is in progress, aborts the transfer early.
@@ -92,23 +97,17 @@ bool MockHttpFetcher::TimeoutCallback() {
 void MockHttpFetcher::TerminateTransfer() {
   LOG(INFO) << "Terminating transfer.";
   sent_size_ = data_.size();
-  // kill any timeout
-  if (timeout_source_) {
-    g_source_remove(timout_tag_);
-    g_source_destroy(timeout_source_);
-    timeout_source_ = nullptr;
-  }
+  // Kill any timeout, it is ok to call with kTaskIdNull.
+  MessageLoop::current()->CancelTask(timeout_id_);
+  timeout_id_ = MessageLoop::kTaskIdNull;
   delegate_->TransferTerminated(this);
 }
 
 void MockHttpFetcher::Pause() {
   CHECK(!paused_);
   paused_ = true;
-  if (timeout_source_) {
-    g_source_remove(timout_tag_);
-    g_source_destroy(timeout_source_);
-    timeout_source_ = nullptr;
-  }
+  MessageLoop::current()->CancelTask(timeout_id_);
+  timeout_id_ = MessageLoop::kTaskIdNull;
 }
 
 void MockHttpFetcher::Unpause() {

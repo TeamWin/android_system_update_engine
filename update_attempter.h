@@ -283,12 +283,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void CleanupCpuSharesManagement();
 
   // The cpu shares timeout source callback sets the current cpu shares to
-  // normal. Returns false so that GLib destroys the timeout source.
-  static gboolean StaticManageCpuSharesCallback(gpointer data);
-  bool ManageCpuSharesCallback();
-
-  // Callback to start the action processor.
-  static gboolean StaticStartProcessing(gpointer data);
+  // normal.
+  void ManageCpuSharesCallback();
 
   // Schedules an event loop callback to start the action processor. This is
   // scheduled asynchronously to unblock the event loop.
@@ -432,8 +428,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Current cpu shares.
   utils::CpuShares shares_ = utils::kCpuSharesNormal;
 
-  // The cpu shares management timeout source.
-  GSource* manage_shares_source_ = nullptr;
+  // The cpu shares management timeout task id.
+  chromeos::MessageLoop::TaskId manage_shares_id_{
+      chromeos::MessageLoop::kTaskIdNull};
 
   // Set to true if an update download is active (and BytesReceived
   // will be called), set to false otherwise.

@@ -18,6 +18,8 @@
 #include <base/files/scoped_temp_dir.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
@@ -26,6 +28,7 @@
 #include "update_engine/prefs.h"
 #include "update_engine/test_utils.h"
 
+using chromeos::FakeMessageLoop;
 using std::map;
 using std::string;
 using std::vector;
@@ -411,22 +414,15 @@ TEST(UtilsTest, GetFileFormatTest) {
                       0xb0, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00});
 }
 
-namespace {
-gboolean  TerminateScheduleCrashReporterUploadTest(void* arg) {
-  GMainLoop* loop = reinterpret_cast<GMainLoop*>(arg);
-  g_main_loop_quit(loop);
-  return FALSE;  // Don't call this callback again
-}
-}  // namespace
-
 TEST(UtilsTest, ScheduleCrashReporterUploadTest) {
   // Not much to test. At least this tests for memory leaks, crashes,
   // log errors.
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
+  FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
   utils::ScheduleCrashReporterUpload();
-  g_timeout_add_seconds(1, &TerminateScheduleCrashReporterUploadTest, loop);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  // Test that we scheduled one callback from the crash reporter.
+  EXPECT_EQ(1, chromeos::MessageLoopRunMaxIterations(&loop, 100));
+  EXPECT_FALSE(loop.PendingTasks());
 }
 
 TEST(UtilsTest, FormatTimeDeltaTest) {

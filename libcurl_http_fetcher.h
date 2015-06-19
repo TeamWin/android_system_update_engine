@@ -14,6 +14,7 @@
 
 #include <base/logging.h>
 #include <base/macros.h>
+#include <chromeos/message_loops/message_loop.h>
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/hardware_interface.h"
@@ -30,29 +31,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
  public:
   LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
                      SystemState* system_state)
-      : HttpFetcher(proxy_resolver, system_state),
-        curl_multi_handle_(nullptr),
-        curl_handle_(nullptr),
-        curl_http_headers_(nullptr),
-        timeout_source_(nullptr),
-        transfer_in_progress_(false),
-        transfer_size_(0),
-        bytes_downloaded_(0),
-        download_length_(0),
-        resume_offset_(0),
-        retry_count_(0),
-        max_retry_count_(kDownloadMaxRetryCount),
-        retry_seconds_(20),
-        no_network_retry_count_(0),
-        no_network_max_retries_(0),
-        idle_seconds_(1),
-        in_write_callback_(false),
-        sent_byte_(false),
-        terminate_requested_(false),
-        check_certificate_(CertificateChecker::kNone),
-        low_speed_limit_bps_(kDownloadLowSpeedLimitBps),
-        low_speed_time_seconds_(kDownloadLowSpeedTimeSeconds),
-        connect_timeout_seconds_(kDownloadConnectTimeoutSeconds) {
+      : HttpFetcher(proxy_resolver, system_state) {
     // Dev users want a longer timeout (180 seconds) because they may
     // be waiting on the dev server to build an image.
     if (!system_state->hardware()->IsOfficialBuild())
@@ -156,15 +135,8 @@ class LibcurlHttpFetcher : public HttpFetcher {
     return reinterpret_cast<LibcurlHttpFetcher*>(data)->FDCallback(source,
                                                                    condition);
   }
-  gboolean TimeoutCallback();
-  static gboolean StaticTimeoutCallback(gpointer data) {
-    return reinterpret_cast<LibcurlHttpFetcher*>(data)->TimeoutCallback();
-  }
-
-  gboolean RetryTimeoutCallback();
-  static gboolean StaticRetryTimeoutCallback(void* arg) {
-    return static_cast<LibcurlHttpFetcher*>(arg)->RetryTimeoutCallback();
-  }
+  void TimeoutCallback();
+  void RetryTimeoutCallback();
 
   // Calls into curl_multi_perform to let libcurl do its work. Returns after
   // curl_multi_perform is finished, which may actually be after more than
@@ -208,9 +180,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   bool GetProxyType(const std::string& proxy, curl_proxytype* out_type);
 
   // Handles for the libcurl library
-  CURLM *curl_multi_handle_;
-  CURL *curl_handle_;
-  struct curl_slist *curl_http_headers_;
+  CURLM* curl_multi_handle_{nullptr};
+  CURL* curl_handle_{nullptr};
+  struct curl_slist* curl_http_headers_{nullptr};
 
   // Lists of all read(0)/write(1) file descriptors that we're waiting on from
   // the glib main loop. libcurl may open/close descriptors and switch their
@@ -219,61 +191,62 @@ class LibcurlHttpFetcher : public HttpFetcher {
   typedef std::map<int, std::pair<GIOChannel*, guint>> IOChannels;
   IOChannels io_channels_[2];
 
-  // if non-null, a timer we're waiting on. glib main loop will call us back
-  // when it fires.
-  GSource* timeout_source_;
+  // The TaskId of the timer we're waiting on. kTaskIdNull if we are not waiting
+  // on it.
+  chromeos::MessageLoop::TaskId timeout_id_{chromeos::MessageLoop::kTaskIdNull};
 
-  bool transfer_in_progress_;
+  bool transfer_in_progress_ = false;
 
   // The transfer size. -1 if not known.
-  off_t transfer_size_;
+  off_t transfer_size_{0};
 
   // How many bytes have been downloaded and sent to the delegate.
-  off_t bytes_downloaded_;
+  off_t bytes_downloaded_{0};
 
   // The remaining maximum number of bytes to download. Zero represents an
   // unspecified length.
-  size_t download_length_;
+  size_t download_length_{0};
 
   // If we resumed an earlier transfer, data offset that we used for the
   // new connection.  0 otherwise.
   // In this class, resume refers to resuming a dropped HTTP connection,
   // not to resuming an interrupted download.
-  off_t resume_offset_;
+  off_t resume_offset_{0};
 
   // Number of resumes performed so far and the max allowed.
-  int retry_count_;
-  int max_retry_count_;
+  int retry_count_{0};
+  int max_retry_count_{kDownloadMaxRetryCount};
 
   // Seconds to wait before retrying a resume.
-  int retry_seconds_;
+  int retry_seconds_{20};
 
   // Number of resumes due to no network (e.g., HTTP response code 0).
-  int no_network_retry_count_;
-  int no_network_max_retries_;
+  int no_network_retry_count_{0};
+  int no_network_max_retries_{0};
 
   // Seconds to wait before asking libcurl to "perform".
-  int idle_seconds_;
+  int idle_seconds_{1};
 
   // If true, we are currently performing a write callback on the delegate.
-  bool in_write_callback_;
+  bool in_write_callback_{false};
 
   // If true, we have returned at least one byte in the write callback
   // to the delegate.
-  bool sent_byte_;
+  bool sent_byte_{false};
 
   // We can't clean everything up while we're in a write callback, so
   // if we get a terminate request, queue it until we can handle it.
-  bool terminate_requested_;
+  bool terminate_requested_{false};
 
   // Represents which server certificate to be checked against this
   // connection's certificate. If no certificate check needs to be performed,
   // this should be kNone.
-  CertificateChecker::ServerToCheck check_certificate_;
+  CertificateChecker::ServerToCheck check_certificate_{
+      CertificateChecker::kNone};
 
-  int low_speed_limit_bps_;
-  int low_speed_time_seconds_;
-  int connect_timeout_seconds_;
+  int low_speed_limit_bps_{kDownloadLowSpeedLimitBps};
+  int low_speed_time_seconds_{kDownloadLowSpeedTimeSeconds};
+  int connect_timeout_seconds_{kDownloadConnectTimeoutSeconds};
   int num_max_retries_;
 
   DISALLOW_COPY_AND_ASSIGN(LibcurlHttpFetcher);

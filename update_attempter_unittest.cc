@@ -9,7 +9,11 @@
 #include <memory>
 
 #include <base/files/file_util.h>
+#include <chromeos/bind_lambda.h>
 #include <chromeos/dbus/service_constants.h>
+#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
@@ -33,6 +37,7 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos::MessageLoop;
 using std::string;
 using std::unique_ptr;
 using testing::A;
@@ -84,7 +89,7 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
   bool schedule_updates_called() const { return schedule_updates_called_; }
 
   // Need to expose forced_omaha_url_ so we can test it.
-  const std::string& forced_omaha_url() const { return forced_omaha_url_; }
+  const string& forced_omaha_url() const { return forced_omaha_url_; }
 
  private:
   bool schedule_updates_called_ = false;
@@ -96,12 +101,12 @@ class UpdateAttempterTest : public ::testing::Test {
   UpdateAttempterTest()
       : attempter_(&fake_system_state_, &dbus_),
         mock_connection_manager(&fake_system_state_),
-        loop_(nullptr),
         fake_dbus_system_bus_(reinterpret_cast<DBusGConnection*>(1)),
         fake_dbus_debugd_proxy_(reinterpret_cast<DBusGProxy*>(2)) {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
     fake_system_state_.set_update_attempter(&attempter_);
+    loop_.SetAsCurrent();
 
     // Finish initializing the attempter.
     attempter_.Init();
@@ -120,7 +125,7 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_NE(nullptr, attempter_.system_state_);
     EXPECT_EQ(0, attempter_.http_response_code_);
     EXPECT_EQ(utils::kCpuSharesNormal, attempter_.shares_);
-    EXPECT_EQ(nullptr, attempter_.manage_shares_source_);
+    EXPECT_EQ(MessageLoop::kTaskIdNull, attempter_.manage_shares_id_);
     EXPECT_FALSE(attempter_.download_active_);
     EXPECT_EQ(UPDATE_STATUS_IDLE, attempter_.status_);
     EXPECT_EQ(0.0, attempter_.download_progress_);
@@ -160,52 +165,26 @@ class UpdateAttempterTest : public ::testing::Test {
 
   void TearDown() override {
     test_utils::RecursiveUnlinkDir(test_dir_);
+    EXPECT_EQ(0, MessageLoopRunMaxIterations(&loop_, 1));
   }
 
-  void QuitMainLoop();
-  static gboolean StaticQuitMainLoop(gpointer data);
+ public:
+  void ScheduleQuitMainLoop();
 
+  // Callbacks to run the different tests from the main loop.
   void UpdateTestStart();
   void UpdateTestVerify();
-  void RollbackTestStart(bool enterprise_rollback,
-                         bool valid_slot);
+  void RollbackTestStart(bool enterprise_rollback, bool valid_slot);
   void RollbackTestVerify();
-  static gboolean StaticUpdateTestStart(gpointer data);
-  static gboolean StaticUpdateTestVerify(gpointer data);
-  static gboolean StaticRollbackTestStart(gpointer data);
-  static gboolean StaticInvalidSlotRollbackTestStart(gpointer data);
-  static gboolean StaticEnterpriseRollbackTestStart(gpointer data);
-  static gboolean StaticRollbackTestVerify(gpointer data);
-
   void PingOmahaTestStart();
-  static gboolean StaticPingOmahaTestStart(gpointer data);
-
   void ReadScatterFactorFromPolicyTestStart();
-  static gboolean StaticReadScatterFactorFromPolicyTestStart(
-      gpointer data);
-
   void DecrementUpdateCheckCountTestStart();
-  static gboolean StaticDecrementUpdateCheckCountTestStart(
-      gpointer data);
-
   void NoScatteringDoneDuringManualUpdateTestStart();
-  static gboolean StaticNoScatteringDoneDuringManualUpdateTestStart(
-      gpointer data);
-
   void P2PNotEnabledStart();
-  static gboolean StaticP2PNotEnabled(gpointer data);
-
   void P2PEnabledStart();
-  static gboolean StaticP2PEnabled(gpointer data);
-
   void P2PEnabledInteractiveStart();
-  static gboolean StaticP2PEnabledInteractive(gpointer data);
-
   void P2PEnabledStartingFailsStart();
-  static gboolean StaticP2PEnabledStartingFails(gpointer data);
-
   void P2PEnabledHousekeepingFailsStart();
-  static gboolean StaticP2PEnabledHousekeepingFails(gpointer data);
 
   bool actual_using_p2p_for_downloading() {
     return actual_using_p2p_for_downloading_;
@@ -214,13 +193,16 @@ class UpdateAttempterTest : public ::testing::Test {
     return actual_using_p2p_for_sharing_;
   }
 
+  // TODO(deymo): Replace this with a FakeMessageLoop. Some of these tests use a
+  // real LibcurlHttpFetcher, which still requires a GlibMessageLoop.
+  chromeos::GlibMessageLoop loop_;
+
   FakeSystemState fake_system_state_;
   NiceMock<MockDBusWrapper> dbus_;
   UpdateAttempterUnderTest attempter_;
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
   NiceMock<MockConnectionManager> mock_connection_manager;
-  GMainLoop* loop_;
   // fake_dbus_xxx pointers will be non-null for comparison purposes, but won't
   // be valid objects so don't try to use them.
   DBusGConnection* fake_dbus_system_bus_;
@@ -231,6 +213,10 @@ class UpdateAttempterTest : public ::testing::Test {
   bool actual_using_p2p_for_downloading_;
   bool actual_using_p2p_for_sharing_;
 };
+
+void UpdateAttempterTest::ScheduleQuitMainLoop() {
+  loop_.PostTask(FROM_HERE, base::Bind([this] { this->loop_.BreakLoop(); }));
+}
 
 TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
   unique_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
@@ -385,75 +371,6 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
   EXPECT_EQ(UPDATE_STATUS_REPORTING_ERROR_EVENT, attempter_.status());
 }
 
-void UpdateAttempterTest::QuitMainLoop() {
-  g_main_loop_quit(loop_);
-}
-
-gboolean UpdateAttempterTest::StaticQuitMainLoop(gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->QuitMainLoop();
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticUpdateTestStart(gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->UpdateTestStart();
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticUpdateTestVerify(gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->UpdateTestVerify();
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticRollbackTestStart(gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
-      false, true);
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticInvalidSlotRollbackTestStart(
-    gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
-      false, false);
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticEnterpriseRollbackTestStart(gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestStart(
-      true, true);
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticRollbackTestVerify(gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->RollbackTestVerify();
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticPingOmahaTestStart(gpointer data) {
-  reinterpret_cast<UpdateAttempterTest*>(data)->PingOmahaTestStart();
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticReadScatterFactorFromPolicyTestStart(
-    gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->ReadScatterFactorFromPolicyTestStart();
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticDecrementUpdateCheckCountTestStart(
-    gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->DecrementUpdateCheckCountTestStart();
-  return FALSE;
-}
-
-gboolean UpdateAttempterTest::StaticNoScatteringDoneDuringManualUpdateTestStart(
-    gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->NoScatteringDoneDuringManualUpdateTestStart();
-  return FALSE;
-}
-
 namespace {
 // Actions that will be built as part of an update check.
 const string kUpdateActionTypes[] = {  // NOLINT(runtime/string)
@@ -499,7 +416,9 @@ void UpdateAttempterTest::UpdateTestStart() {
   }
 
   attempter_.Update("", "", "", "", false, false);
-  g_idle_add(&StaticUpdateTestVerify, this);
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::UpdateTestVerify,
+                            base::Unretained(this)));
 }
 
 void UpdateAttempterTest::UpdateTestVerify() {
@@ -516,7 +435,7 @@ void UpdateAttempterTest::UpdateTestVerify() {
   ASSERT_NE(nullptr, download_action);
   EXPECT_EQ(&attempter_, download_action->delegate());
   EXPECT_EQ(UPDATE_STATUS_CHECKING_FOR_UPDATE, attempter_.status());
-  g_main_loop_quit(loop_);
+  loop_.BreakLoop();
 }
 
 void UpdateAttempterTest::RollbackTestStart(
@@ -566,10 +485,12 @@ void UpdateAttempterTest::RollbackTestStart(
     EXPECT_CALL(*processor_, StartProcessing());
 
     EXPECT_TRUE(attempter_.Rollback(true));
-    g_idle_add(&StaticRollbackTestVerify, this);
+    loop_.PostTask(FROM_HERE,
+                   base::Bind(&UpdateAttempterTest::RollbackTestVerify,
+                              base::Unretained(this)));
   } else {
     EXPECT_FALSE(attempter_.Rollback(true));
-    g_main_loop_quit(loop_);
+    loop_.BreakLoop();
   }
 }
 
@@ -589,39 +510,38 @@ void UpdateAttempterTest::RollbackTestVerify() {
   EXPECT_EQ(install_plan->install_path, string("/dev/sdz3"));
   EXPECT_EQ(install_plan->kernel_install_path, string("/dev/sdz2"));
   EXPECT_EQ(install_plan->powerwash_required, true);
-  g_main_loop_quit(loop_);
+  loop_.BreakLoop();
 }
 
 TEST_F(UpdateAttempterTest, UpdateTest) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticUpdateTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::UpdateTestStart,
+                            base::Unretained(this)));
+  loop_.Run();
 }
 
 TEST_F(UpdateAttempterTest, RollbackTest) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticRollbackTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::RollbackTestStart,
+                            base::Unretained(this),
+                            false, true));
+  loop_.Run();
 }
 
 TEST_F(UpdateAttempterTest, InvalidSlotRollbackTest) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticInvalidSlotRollbackTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::RollbackTestStart,
+                            base::Unretained(this),
+                            false, false));
+  loop_.Run();
 }
 
 TEST_F(UpdateAttempterTest, EnterpriseRollbackTest) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticEnterpriseRollbackTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::RollbackTestStart,
+                            base::Unretained(this),
+                            true, true));
+  loop_.Run();
 }
 
 void UpdateAttempterTest::PingOmahaTestStart() {
@@ -630,7 +550,7 @@ void UpdateAttempterTest::PingOmahaTestStart() {
                                      OmahaRequestAction::StaticType())));
   EXPECT_CALL(*processor_, StartProcessing());
   attempter_.PingOmaha();
-  g_idle_add(&StaticQuitMainLoop, this);
+  ScheduleQuitMainLoop();
 }
 
 TEST_F(UpdateAttempterTest, PingOmahaTest) {
@@ -639,11 +559,10 @@ TEST_F(UpdateAttempterTest, PingOmahaTest) {
   // Disable scheduling of subsequnet checks; we're using the DefaultPolicy in
   // testing, which is more permissive than we want to handle here.
   attempter_.DisableScheduleUpdates();
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticPingOmahaTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::PingOmahaTestStart,
+                            base::Unretained(this)));
+  chromeos::MessageLoopRunMaxIterations(&loop_, 100);
   EXPECT_EQ(UPDATE_STATUS_UPDATED_NEED_REBOOT, attempter_.status());
   EXPECT_TRUE(attempter_.schedule_updates_called());
 }
@@ -706,17 +625,12 @@ TEST_F(UpdateAttempterTest, P2PStartedAtStartupWhenEnabledAndSharing) {
 }
 
 TEST_F(UpdateAttempterTest, P2PNotEnabled) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticP2PNotEnabled, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::P2PNotEnabledStart,
+                            base::Unretained(this)));
+  loop_.Run();
 }
-gboolean UpdateAttempterTest::StaticP2PNotEnabled(gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->P2PNotEnabledStart();
-  return FALSE;
-}
+
 void UpdateAttempterTest::P2PNotEnabledStart() {
   // If P2P is not enabled, check that we do not attempt housekeeping
   // and do not convey that p2p is to be used.
@@ -725,24 +639,18 @@ void UpdateAttempterTest::P2PNotEnabledStart() {
   mock_p2p_manager.fake().SetP2PEnabled(false);
   EXPECT_CALL(mock_p2p_manager, PerformHousekeeping()).Times(0);
   attempter_.Update("", "", "", "", false, false);
-  EXPECT_FALSE(actual_using_p2p_for_downloading());
+  EXPECT_FALSE(actual_using_p2p_for_downloading_);
   EXPECT_FALSE(actual_using_p2p_for_sharing());
-  g_idle_add(&StaticQuitMainLoop, this);
+  ScheduleQuitMainLoop();
 }
 
 TEST_F(UpdateAttempterTest, P2PEnabledStartingFails) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticP2PEnabledStartingFails, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::P2PEnabledStartingFailsStart,
+                            base::Unretained(this)));
+  loop_.Run();
 }
-gboolean UpdateAttempterTest::StaticP2PEnabledStartingFails(
-    gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->P2PEnabledStartingFailsStart();
-  return FALSE;
-}
+
 void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
   // If p2p is enabled, but starting it fails ensure we don't do
   // any housekeeping and do not convey that p2p should be used.
@@ -755,22 +663,17 @@ void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
   attempter_.Update("", "", "", "", false, false);
   EXPECT_FALSE(actual_using_p2p_for_downloading());
   EXPECT_FALSE(actual_using_p2p_for_sharing());
-  g_idle_add(&StaticQuitMainLoop, this);
+  ScheduleQuitMainLoop();
 }
 
 TEST_F(UpdateAttempterTest, P2PEnabledHousekeepingFails) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticP2PEnabledHousekeepingFails, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind(&UpdateAttempterTest::P2PEnabledHousekeepingFailsStart,
+                 base::Unretained(this)));
+  loop_.Run();
 }
-gboolean UpdateAttempterTest::StaticP2PEnabledHousekeepingFails(
-    gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->P2PEnabledHousekeepingFailsStart();
-  return FALSE;
-}
+
 void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
   // If p2p is enabled, starting it works but housekeeping fails, ensure
   // we do not convey p2p is to be used.
@@ -783,21 +686,16 @@ void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
   attempter_.Update("", "", "", "", false, false);
   EXPECT_FALSE(actual_using_p2p_for_downloading());
   EXPECT_FALSE(actual_using_p2p_for_sharing());
-  g_idle_add(&StaticQuitMainLoop, this);
+  ScheduleQuitMainLoop();
 }
 
 TEST_F(UpdateAttempterTest, P2PEnabled) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticP2PEnabled, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::P2PEnabledStart,
+                            base::Unretained(this)));
+  loop_.Run();
 }
-gboolean UpdateAttempterTest::StaticP2PEnabled(gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->P2PEnabledStart();
-  return FALSE;
-}
+
 void UpdateAttempterTest::P2PEnabledStart() {
   MockP2PManager mock_p2p_manager;
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
@@ -810,21 +708,16 @@ void UpdateAttempterTest::P2PEnabledStart() {
   attempter_.Update("", "", "", "", false, false);
   EXPECT_TRUE(actual_using_p2p_for_downloading());
   EXPECT_TRUE(actual_using_p2p_for_sharing());
-  g_idle_add(&StaticQuitMainLoop, this);
+  ScheduleQuitMainLoop();
 }
 
 TEST_F(UpdateAttempterTest, P2PEnabledInteractive) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticP2PEnabledInteractive, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE,
+                 base::Bind(&UpdateAttempterTest::P2PEnabledInteractiveStart,
+                            base::Unretained(this)));
+  loop_.Run();
 }
-gboolean UpdateAttempterTest::StaticP2PEnabledInteractive(gpointer data) {
-  UpdateAttempterTest* ua_test = reinterpret_cast<UpdateAttempterTest*>(data);
-  ua_test->P2PEnabledInteractiveStart();
-  return FALSE;
-}
+
 void UpdateAttempterTest::P2PEnabledInteractiveStart() {
   MockP2PManager mock_p2p_manager;
   fake_system_state_.set_p2p_manager(&mock_p2p_manager);
@@ -838,15 +731,15 @@ void UpdateAttempterTest::P2PEnabledInteractiveStart() {
   attempter_.Update("", "", "", "", false, true /* interactive */);
   EXPECT_FALSE(actual_using_p2p_for_downloading());
   EXPECT_TRUE(actual_using_p2p_for_sharing());
-  g_idle_add(&StaticQuitMainLoop, this);
+  ScheduleQuitMainLoop();
 }
 
 TEST_F(UpdateAttempterTest, ReadScatterFactorFromPolicy) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticReadScatterFactorFromPolicyTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind(&UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart,
+                 base::Unretained(this)));
+  loop_.Run();
 }
 
 // Tests that the scatter_factor_in_seconds value is properly fetched
@@ -868,15 +761,15 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
   attempter_.Update("", "", "", "", false, false);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
 
-  g_idle_add(&StaticQuitMainLoop, this);
+  ScheduleQuitMainLoop();
 }
 
 TEST_F(UpdateAttempterTest, DecrementUpdateCheckCountTest) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticDecrementUpdateCheckCountTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind(&UpdateAttempterTest::DecrementUpdateCheckCountTestStart,
+                 base::Unretained(this)));
+  loop_.Run();
 }
 
 void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
@@ -924,15 +817,14 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
   EXPECT_TRUE(fake_prefs.GetInt64(kPrefsUpdateCheckCount, &new_value));
   EXPECT_EQ(initial_value, new_value);
 
-  g_idle_add(&StaticQuitMainLoop, this);
+  ScheduleQuitMainLoop();
 }
 
 TEST_F(UpdateAttempterTest, NoScatteringDoneDuringManualUpdateTestStart) {
-  loop_ = g_main_loop_new(g_main_context_default(), FALSE);
-  g_idle_add(&StaticNoScatteringDoneDuringManualUpdateTestStart, this);
-  g_main_loop_run(loop_);
-  g_main_loop_unref(loop_);
-  loop_ = nullptr;
+  loop_.PostTask(FROM_HERE, base::Bind(
+      &UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart,
+      base::Unretained(this)));
+  loop_.Run();
 }
 
 void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
@@ -977,7 +869,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
       attempter_.omaha_request_params_->update_check_count_wait_enabled());
   EXPECT_FALSE(fake_prefs.Exists(kPrefsUpdateCheckCount));
 
-  g_idle_add(&StaticQuitMainLoop, this);
+  ScheduleQuitMainLoop();
 }
 
 // Checks that we only report daily metrics at most every 24 hours.

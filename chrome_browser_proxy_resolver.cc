@@ -22,6 +22,8 @@
 namespace chromeos_update_engine {
 
 using base::StringTokenizer;
+using base::TimeDelta;
+using chromeos::MessageLoop;
 using std::deque;
 using std::make_pair;
 using std::pair;
@@ -52,7 +54,7 @@ const int kTimeout = 5;  // seconds
 
 ChromeBrowserProxyResolver::ChromeBrowserProxyResolver(
     DBusWrapperInterface* dbus)
-    : dbus_(dbus), proxy_(nullptr), timeout_(kTimeout) {}
+    : dbus_(dbus), timeout_(kTimeout) {}
 
 bool ChromeBrowserProxyResolver::Init() {
   if (proxy_)
@@ -105,8 +107,8 @@ ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() {
 
   // Kill outstanding timers
   for (auto& timer : timers_) {
-    g_source_destroy(timer.second);
-    timer.second = nullptr;
+    MessageLoop::current()->CancelTask(timer.second);
+    timer.second = MessageLoop::kTaskIdNull;
   }
 }
 
@@ -137,14 +139,12 @@ bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
   }
 
   callbacks_.insert(make_pair(url, make_pair(callback, data)));
-  base::Closure* closure = new base::Closure(base::Bind(
-      &ChromeBrowserProxyResolver::HandleTimeout,
-      base::Unretained(this),
-      url));
-  GSource* timer = g_timeout_source_new_seconds(timeout);
-  g_source_set_callback(
-      timer, utils::GlibRunClosure, closure, utils::GlibDestroyClosure);
-  g_source_attach(timer, nullptr);
+  MessageLoop::TaskId timer = MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&ChromeBrowserProxyResolver::HandleTimeout,
+                 base::Unretained(this),
+                 url),
+      TimeDelta::FromSeconds(timeout));
   timers_.insert(make_pair(url, timer));
   return true;
 }
@@ -196,7 +196,7 @@ bool ChromeBrowserProxyResolver::DeleteUrlState(
     TEST_AND_RETURN_FALSE(it != timers_.end());
     TEST_AND_RETURN_FALSE(it->first == source_url);
     if (delete_timer)
-      g_source_destroy(it->second);
+      MessageLoop::current()->CancelTask(it->second);
     timers_.erase(it);
   }
   return true;

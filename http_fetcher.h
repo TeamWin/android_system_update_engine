@@ -9,11 +9,10 @@
 #include <string>
 #include <vector>
 
-#include <glib.h>
-
 #include <base/callback.h>
 #include <base/logging.h>
 #include <base/macros.h>
+#include <chromeos/message_loops/message_loop.h>
 
 #include "update_engine/http_common.h"
 #include "update_engine/proxy_resolver.h"
@@ -23,8 +22,7 @@
 // easily mock out this interface for testing.
 
 // Implementations of this class should use asynchronous i/o. They can access
-// the glib main loop to request callbacks when timers or file descriptors
-// change.
+// the MessageLoop to request callbacks when timers or file descriptors change.
 
 namespace chromeos_update_engine {
 
@@ -41,7 +39,6 @@ class HttpFetcher {
         delegate_(nullptr),
         proxies_(1, kNoProxy),
         proxy_resolver_(proxy_resolver),
-        no_resolver_idle_id_(0),
         callback_(nullptr),
         system_state_(system_state) {}
   virtual ~HttpFetcher();
@@ -60,7 +57,8 @@ class HttpFetcher {
 
   // Proxy methods to set the proxies, then to pop them off.
   // Returns true on success.
-  bool ResolveProxiesForUrl(const std::string& url, base::Closure* callback);
+  bool ResolveProxiesForUrl(const std::string& url,
+                            const base::Closure& callback);
 
   void SetProxies(const std::deque<std::string>& proxies) {
     proxies_ = proxies;
@@ -147,10 +145,11 @@ class HttpFetcher {
   ProxyResolver* const proxy_resolver_;
 
   // The ID of the idle callback, used when we have no proxy resolver.
-  guint no_resolver_idle_id_;
+  chromeos::MessageLoop::TaskId no_resolver_idle_id_{
+      chromeos::MessageLoop::kTaskIdNull};
 
   // Callback for when we are resolving proxies
-  base::Closure* callback_;
+  std::unique_ptr<base::Closure> callback_;
 
   // Global system context.
   SystemState* system_state_;
@@ -162,6 +161,10 @@ class HttpFetcher {
                                     void* data) {
     reinterpret_cast<HttpFetcher*>(data)->ProxiesResolved(proxies);
   }
+
+  // Callback used to run the proxy resolver callback when there is no
+  // |proxy_resolver_|.
+  void NoProxyResolverCallback();
 
   DISALLOW_COPY_AND_ASSIGN(HttpFetcher);
 };

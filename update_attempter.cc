@@ -19,7 +19,9 @@
 #include <base/rand_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/bind_lambda.h>
 #include <chromeos/dbus/service_constants.h>
+#include <chromeos/message_loops/message_loop.h>
 
 #include <glib.h>
 #include <metrics/metrics_library.h>
@@ -57,6 +59,7 @@ using base::StringPrintf;
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
+using chromeos::MessageLoop;
 using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateCheckParams;
@@ -1374,47 +1377,41 @@ void UpdateAttempter::SetCpuShares(utils::CpuShares shares) {
 }
 
 void UpdateAttempter::SetupCpuSharesManagement() {
-  if (manage_shares_source_) {
+  if (manage_shares_id_ != MessageLoop::kTaskIdNull) {
     LOG(ERROR) << "Cpu shares timeout source hasn't been destroyed.";
     CleanupCpuSharesManagement();
   }
   const int kCpuSharesTimeout = 2 * 60 * 60;  // 2 hours
-  manage_shares_source_ = g_timeout_source_new_seconds(kCpuSharesTimeout);
-  g_source_set_callback(manage_shares_source_,
-                        StaticManageCpuSharesCallback,
-                        this,
-                        nullptr);
-  g_source_attach(manage_shares_source_, nullptr);
+  manage_shares_id_ = MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      Bind(&UpdateAttempter::ManageCpuSharesCallback, base::Unretained(this)),
+      TimeDelta::FromSeconds(kCpuSharesTimeout));
   SetCpuShares(utils::kCpuSharesLow);
 }
 
 void UpdateAttempter::CleanupCpuSharesManagement() {
-  if (manage_shares_source_) {
-    g_source_destroy(manage_shares_source_);
-    manage_shares_source_ = nullptr;
+  if (manage_shares_id_ != MessageLoop::kTaskIdNull) {
+    // The UpdateAttempter is instantiated by default by the FakeSystemState,
+    // even when it is not used. We check the manage_shares_id_ before calling
+    // the MessageLoop::current() since the unit test using a FakeSystemState
+    // may have not define a MessageLoop for the current thread.
+    MessageLoop::current()->CancelTask(manage_shares_id_);
+    manage_shares_id_ = MessageLoop::kTaskIdNull;
   }
   SetCpuShares(utils::kCpuSharesNormal);
-}
-
-gboolean UpdateAttempter::StaticManageCpuSharesCallback(gpointer data) {
-  return reinterpret_cast<UpdateAttempter*>(data)->ManageCpuSharesCallback();
-}
-
-gboolean UpdateAttempter::StaticStartProcessing(gpointer data) {
-  reinterpret_cast<UpdateAttempter*>(data)->processor_->StartProcessing();
-  return FALSE;  // Don't call this callback again.
 }
 
 void UpdateAttempter::ScheduleProcessingStart() {
   LOG(INFO) << "Scheduling an action processor start.";
   start_action_processor_ = false;
-  g_idle_add(&StaticStartProcessing, this);
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      Bind([this] { this->processor_->StartProcessing(); }));
 }
 
-bool UpdateAttempter::ManageCpuSharesCallback() {
+void UpdateAttempter::ManageCpuSharesCallback() {
   SetCpuShares(utils::kCpuSharesNormal);
-  manage_shares_source_ = nullptr;
-  return false;  // Destroy the timeout source.
+  manage_shares_id_ = MessageLoop::kTaskIdNull;
 }
 
 void UpdateAttempter::DisableDeltaUpdateIfNeeded() {

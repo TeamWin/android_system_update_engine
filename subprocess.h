@@ -14,6 +14,7 @@
 
 #include <base/logging.h>
 #include <base/macros.h>
+#include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 // The Subprocess class is a singleton. It's used to spawn off a subprocess
 // and get notified when the subprocess exits. The result of Exec() can
@@ -61,6 +62,8 @@ class Subprocess {
   bool SubprocessInFlight();
 
  private:
+  FRIEND_TEST(SubprocessTest, CancelTest);
+
   struct SubprocessRecord {
     SubprocessRecord()
         : tag(0),

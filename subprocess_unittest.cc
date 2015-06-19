@@ -16,9 +16,15 @@
 #include <string>
 #include <vector>
 
+#include <base/bind.h>
+#include <base/location.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
+#include <chromeos/bind_lambda.h>
+#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <glib.h>
 #include <gtest/gtest.h>
 
@@ -26,6 +32,7 @@
 #include "update_engine/utils.h"
 
 using base::TimeDelta;
+using chromeos::MessageLoop;
 using std::string;
 using std::vector;
 
@@ -33,62 +40,65 @@ namespace chromeos_update_engine {
 
 class SubprocessTest : public ::testing::Test {
  protected:
-  bool callback_done;
+  void SetUp() override {
+    loop_.SetAsCurrent();
+  }
+
+  void TearDown() override {
+    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
+  }
+
+  // TODO(deymo): Replace this with a FakeMessageLoop. Subprocess uses glib to
+  // asynchronously spawn a process, so we need to run a GlibMessageLoop here.
+  chromeos::GlibMessageLoop loop_;
 };
 
 namespace {
 int local_server_port = 0;
 
-void Callback(int return_code, const string& output, void *p) {
+void Callback(int return_code, const string& output, void* /* unused */) {
   EXPECT_EQ(1, return_code);
-  GMainLoop* loop = reinterpret_cast<GMainLoop*>(p);
-  g_main_loop_quit(loop);
+  MessageLoop::current()->BreakLoop();
 }
 
-void CallbackEcho(int return_code, const string& output, void *p) {
+void CallbackEcho(int return_code, const string& output, void* /* unused */) {
   EXPECT_EQ(0, return_code);
   EXPECT_NE(string::npos, output.find("this is stdout"));
   EXPECT_NE(string::npos, output.find("this is stderr"));
-  GMainLoop* loop = reinterpret_cast<GMainLoop*>(p);
-  g_main_loop_quit(loop);
+  MessageLoop::current()->BreakLoop();
 }
 
-gboolean LaunchFalseInMainLoop(gpointer data) {
-  vector<string> cmd;
-  cmd.push_back("/bin/false");
-  Subprocess::Get().Exec(cmd, Callback, data);
-  return FALSE;
-}
-
-gboolean LaunchEchoInMainLoop(gpointer data) {
-  vector<string> cmd;
-  cmd.push_back("/bin/sh");
-  cmd.push_back("-c");
-  cmd.push_back("echo this is stdout; echo this is stderr > /dev/stderr");
-  Subprocess::Get().Exec(cmd, CallbackEcho, data);
-  return FALSE;
-}
 }  // namespace
 
-TEST(SubprocessTest, SimpleTest) {
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
-  g_timeout_add(0, &LaunchFalseInMainLoop, loop);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+TEST_F(SubprocessTest, SimpleTest) {
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind([] {
+        Subprocess::Get().Exec(vector<string>{"/bin/false"}, Callback, nullptr);
+      }));
+  loop_.Run();
 }
 
-TEST(SubprocessTest, EchoTest) {
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
-  g_timeout_add(0, &LaunchEchoInMainLoop, loop);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+TEST_F(SubprocessTest, EchoTest) {
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind([] {
+        Subprocess::Get().Exec(
+            vector<string>{
+                "/bin/sh",
+                "-c",
+                "echo this is stdout; echo this is stderr > /dev/stderr"},
+            CallbackEcho,
+            nullptr);
+      }));
+  loop_.Run();
 }
 
-TEST(SubprocessTest, SynchronousEchoTest) {
-  vector<string> cmd;
-  cmd.push_back("/bin/sh");
-  cmd.push_back("-c");
-  cmd.push_back("echo -n stdout-here; echo -n stderr-there > /dev/stderr");
+TEST_F(SubprocessTest, SynchronousEchoTest) {
+  vector<string> cmd = {
+    "/bin/sh",
+    "-c",
+    "echo -n stdout-here; echo -n stderr-there > /dev/stderr"};
   int rc = -1;
   string stdout;
   ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, &stdout));
@@ -96,25 +106,20 @@ TEST(SubprocessTest, SynchronousEchoTest) {
   EXPECT_EQ("stdout-herestderr-there", stdout);
 }
 
-TEST(SubprocessTest, SynchronousEchoNoOutputTest) {
-  vector<string> cmd;
-  cmd.push_back("/bin/sh");
-  cmd.push_back("-c");
-  cmd.push_back("echo test");
+TEST_F(SubprocessTest, SynchronousEchoNoOutputTest) {
+  vector<string> cmd = {
+      "/bin/sh",
+      "-c",
+      "echo test"};
   int rc = -1;
   ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, nullptr));
   EXPECT_EQ(0, rc);
 }
 
 namespace {
-void CallbackBad(int return_code, const string& output, void *p) {
+void CallbackBad(int return_code, const string& output, void* p) {
   CHECK(false) << "should never be called.";
 }
-
-struct CancelTestData {
-  bool spawned;
-  GMainLoop *loop;
-};
 
 // TODO(garnold) this test method uses test_http_server as a representative for
 // interactive processes that can be spawned/terminated at will. This causes us
@@ -124,9 +129,7 @@ struct CancelTestData {
 // (doesn't have to be able to communicate through a temp file) and the test
 // code below; for example, it sounds like a brain dead sleep loop with proper
 // signal handlers could be used instead.
-gboolean StartAndCancelInRunLoop(gpointer data) {
-  CancelTestData* cancel_test_data = reinterpret_cast<CancelTestData*>(data);
-
+void StartAndCancelInRunLoop(bool* spawned) {
   // Create a temp file for test_http_server to communicate its port number.
   char temp_file_name[] = "/tmp/subprocess_unittest-test_http_server-XXXXXX";
   int temp_fd = mkstemp(temp_file_name);
@@ -139,7 +142,7 @@ gboolean StartAndCancelInRunLoop(gpointer data) {
   cmd.push_back(temp_file_name);
   uint32_t tag = Subprocess::Get().Exec(cmd, CallbackBad, nullptr);
   EXPECT_NE(0, tag);
-  cancel_test_data->spawned = true;
+  *spawned = true;
   printf("test http server spawned\n");
   // Wait for server to be up and running
   TimeDelta total_wait_time;
@@ -174,13 +177,10 @@ gboolean StartAndCancelInRunLoop(gpointer data) {
   CHECK_GT(local_server_port, 0);
   LOG(INFO) << "server listening on port " << local_server_port;
   Subprocess::Get().CancelExec(tag);
-  return FALSE;
 }
-}  // namespace
 
-gboolean ExitWhenDone(gpointer data) {
-  CancelTestData* cancel_test_data = reinterpret_cast<CancelTestData*>(data);
-  if (cancel_test_data->spawned && !Subprocess::Get().SubprocessInFlight()) {
+void ExitWhenDone(bool* spawned) {
+  if (*spawned && !Subprocess::Get().SubprocessInFlight()) {
     // tear down the sub process
     printf("tear down time\n");
     int status = test_utils::System(
@@ -189,21 +189,37 @@ gboolean ExitWhenDone(gpointer data) {
     EXPECT_NE(-1, status) << "system() failed";
     EXPECT_TRUE(WIFEXITED(status))
         << "command failed to run or died abnormally";
-    g_main_loop_quit(cancel_test_data->loop);
-    return FALSE;
+    MessageLoop::current()->BreakLoop();
+  } else {
+    // Re-run this callback again in 10 ms.
+    MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&ExitWhenDone, spawned),
+        TimeDelta::FromMilliseconds(10));
   }
-  return TRUE;
 }
 
-TEST(SubprocessTest, CancelTest) {
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
-  CancelTestData cancel_test_data;
-  cancel_test_data.spawned = false;
-  cancel_test_data.loop = loop;
-  g_timeout_add(100, &StartAndCancelInRunLoop, &cancel_test_data);
-  g_timeout_add(10, &ExitWhenDone, &cancel_test_data);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+}  // namespace
+
+TEST_F(SubprocessTest, CancelTest) {
+  bool spawned = false;
+  loop_.PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&StartAndCancelInRunLoop, &spawned),
+      TimeDelta::FromMilliseconds(100));
+  loop_.PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&ExitWhenDone, &spawned),
+      TimeDelta::FromMilliseconds(10));
+  loop_.Run();
+  // This test would leak a callback that runs when the child process exits
+  // unless we wait for it to run.
+  chromeos::MessageLoopRunUntil(
+      &loop_,
+      TimeDelta::FromSeconds(10),
+      base::Bind([] {
+        return Subprocess::Get().subprocess_records_.empty();
+      }));
 }
 
 }  // namespace chromeos_update_engine

@@ -9,20 +9,36 @@
 
 #include <gtest/gtest.h>
 
+#include <base/bind.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+
 #include "update_engine/mock_dbus_wrapper.h"
 
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
 using ::testing::_;
+using chromeos::MessageLoop;
 using std::deque;
 using std::string;
 
 namespace chromeos_update_engine {
 
-class ChromeBrowserProxyResolverTest : public ::testing::Test { };
+class ChromeBrowserProxyResolverTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    loop_.SetAsCurrent();
+  }
 
-TEST(ChromeBrowserProxyResolverTest, ParseTest) {
+  void TearDown() override {
+    EXPECT_FALSE(loop_.PendingTasks());
+  }
+
+ private:
+  chromeos::FakeMessageLoop loop_{nullptr};
+};
+
+TEST_F(ChromeBrowserProxyResolverTest, ParseTest) {
   // Test ideas from
   // http://src.chromium.org/svn/trunk/src/net/proxy/proxy_list_unittest.cc
   const char* inputs[] = {
@@ -79,31 +95,26 @@ TEST(ChromeBrowserProxyResolverTest, ParseTest) {
 
 namespace {
 void DBusWrapperTestResolved(const deque<string>& proxies,
-                             void* data) {
+                             void* /* pirv_data */) {
   EXPECT_EQ(2, proxies.size());
   EXPECT_EQ("socks5://192.168.52.83:5555", proxies[0]);
   EXPECT_EQ(kNoProxy, proxies[1]);
-  g_main_loop_quit(reinterpret_cast<GMainLoop*>(data));
+  MessageLoop::current()->BreakLoop();
 }
 void DBusWrapperTestResolvedNoReply(const deque<string>& proxies,
-                                    void* data) {
+                                    void* /* pirv_data */) {
   EXPECT_EQ(1, proxies.size());
   EXPECT_EQ(kNoProxy, proxies[0]);
-  g_main_loop_quit(reinterpret_cast<GMainLoop*>(data));
+  MessageLoop::current()->BreakLoop();
 }
-struct SendReplyArgs {
-  DBusConnection* connection;
-  DBusMessage* message;
-  ChromeBrowserProxyResolver* resolver;
-};
-gboolean SendReply(gpointer data) {
+
+void SendReply(DBusConnection* connection,
+               DBusMessage* message,
+               ChromeBrowserProxyResolver* resolver) {
   LOG(INFO) << "Calling SendReply";
-  SendReplyArgs* args = reinterpret_cast<SendReplyArgs*>(data);
-  ChromeBrowserProxyResolver::StaticFilterMessage(
-      args->connection,
-      args->message,
-      args->resolver);
-  return FALSE;  // Don't keep calling this function
+  ChromeBrowserProxyResolver::StaticFilterMessage(connection,
+                                                  message,
+                                                  resolver);
 }
 
 // chrome_replies should be set to whether or not we fake a reply from
@@ -169,37 +180,32 @@ void RunTest(bool chrome_replies, bool chrome_alive) {
                         Return(TRUE)));
   }
 
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
-
   ChromeBrowserProxyResolver resolver(&dbus_iface);
   EXPECT_EQ(true, resolver.Init());
   resolver.set_timeout(1);
-  SendReplyArgs args = {
-    kMockSystemBus,
-    kMockDbusMessage,
-    &resolver
-  };
-  if (chrome_replies)
-    g_idle_add(SendReply, &args);
-  EXPECT_TRUE(resolver.GetProxiesForUrl(kUrl,
-                                        chrome_replies ?
-                                        &DBusWrapperTestResolved :
-                                        &DBusWrapperTestResolvedNoReply,
-                                        loop));
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  ProxiesResolvedFn get_proxies_response = &DBusWrapperTestResolvedNoReply;
+
+  if (chrome_replies) {
+    get_proxies_response = &DBusWrapperTestResolved;
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(&SendReply, kMockSystemBus, kMockDbusMessage, &resolver));
+  }
+
+  EXPECT_TRUE(resolver.GetProxiesForUrl(kUrl, get_proxies_response, nullptr));
+  MessageLoop::current()->Run();
 }
 }  // namespace
 
-TEST(ChromeBrowserProxyResolverTest, SuccessTest) {
+TEST_F(ChromeBrowserProxyResolverTest, SuccessTest) {
   RunTest(true, true);
 }
 
-TEST(ChromeBrowserProxyResolverTest, NoReplyTest) {
+TEST_F(ChromeBrowserProxyResolverTest, NoReplyTest) {
   RunTest(false, true);
 }
 
-TEST(ChromeBrowserProxyResolverTest, NoChromeTest) {
+TEST_F(ChromeBrowserProxyResolverTest, NoChromeTest) {
   RunTest(false, false);
 }
 

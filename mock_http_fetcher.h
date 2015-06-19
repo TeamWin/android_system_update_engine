@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <base/logging.h>
+#include <chromeos/message_loops/message_loop.h>
 #include <glib.h>
 
 #include "update_engine/fake_system_state.h"
@@ -36,8 +37,7 @@ class MockHttpFetcher : public HttpFetcher {
                   ProxyResolver* proxy_resolver)
       : HttpFetcher(proxy_resolver, &fake_system_state_),
         sent_size_(0),
-        timeout_source_(nullptr),
-        timout_tag_(0),
+        timeout_id_(chromeos::MessageLoop::kTaskIdNull),
         paused_(false),
         fail_transfer_(false),
         never_use_(false),
@@ -97,7 +97,7 @@ class MockHttpFetcher : public HttpFetcher {
   }
 
  private:
-  // Sends data to the delegate and sets up a glib timeout callback if needed.
+  // Sends data to the delegate and sets up a timeout callback if needed.
   // There must be a delegate and there must be data to send. If there is
   // already a timeout callback, and it should be deleted by the caller,
   // this will return false; otherwise true is returned.
@@ -105,11 +105,8 @@ class MockHttpFetcher : public HttpFetcher {
   // still be set if needed.
   bool SendData(bool skip_delivery);
 
-  // Callback for when our glib main loop callback is called
-  bool TimeoutCallback();
-  static gboolean StaticTimeoutCallback(gpointer data) {
-    return reinterpret_cast<MockHttpFetcher*>(data)->TimeoutCallback();
-  }
+  // Callback for when our message loop timeout expires.
+  void TimeoutCallback();
 
   // Sets the HTTP response code and signals to the delegate that the transfer
   // is complete.
@@ -121,12 +118,9 @@ class MockHttpFetcher : public HttpFetcher {
   // The number of bytes we've sent so far
   size_t sent_size_;
 
-  // The glib main loop timeout source. After each chunk of data sent, we
+  // The TaskId of the timeout callback. After each chunk of data sent, we
   // time out for 0s just to make sure that run loop services other clients.
-  GSource* timeout_source_;
-
-  // ID of the timeout source, valid only if timeout_source_ != null
-  guint timout_tag_;
+  chromeos::MessageLoop::TaskId timeout_id_;
 
   // True iff the fetcher is paused.
   bool paused_;

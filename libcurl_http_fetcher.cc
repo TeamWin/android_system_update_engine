@@ -8,6 +8,7 @@
 #include <string>
 
 #include <base/bind.h>
+#include <base/location.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -15,6 +16,8 @@
 #include "update_engine/certificate_checker.h"
 #include "update_engine/hardware_interface.h"
 
+using base::TimeDelta;
+using chromeos::MessageLoop;
 using std::make_pair;
 using std::max;
 using std::string;
@@ -223,7 +226,7 @@ void LibcurlHttpFetcher::BeginTransfer(const string& url) {
   url_ = url;
   auto closure = base::Bind(&LibcurlHttpFetcher::ProxiesResolved,
                             base::Unretained(this));
-  if (!ResolveProxiesForUrl(url_, new base::Closure(closure))) {
+  if (!ResolveProxiesForUrl(url_, closure)) {
     LOG(ERROR) << "Couldn't resolve proxies";
     if (delegate_)
       delegate_->TransferComplete(this, false);
@@ -292,9 +295,11 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
         http_response_code_ == 0 &&
         no_network_retry_count_ < no_network_max_retries_) {
       no_network_retry_count_++;
-      g_timeout_add_seconds(kNoNetworkRetrySeconds,
-                            &LibcurlHttpFetcher::StaticRetryTimeoutCallback,
-                            this);
+      MessageLoop::current()->PostDelayedTask(
+          FROM_HERE,
+          base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
+                     base::Unretained(this)),
+          TimeDelta::FromSeconds(kNoNetworkRetrySeconds));
       LOG(INFO) << "No HTTP response, retry " << no_network_retry_count_;
       return;
     }
@@ -318,7 +323,10 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
       if (HasProxy()) {
         // We have another proxy. Retry immediately.
         LOG(INFO) << "Retrying with next proxy setting";
-        g_idle_add(&LibcurlHttpFetcher::StaticRetryTimeoutCallback, this);
+        MessageLoop::current()->PostTask(
+            FROM_HERE,
+            base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
+                       base::Unretained(this)));
       } else {
         // Out of proxies. Give up.
         LOG(INFO) << "No further proxies, indicating transfer complete";
@@ -339,9 +347,11 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
       } else {
         // Need to restart transfer
         LOG(INFO) << "Restarting transfer to download the remaining bytes";
-        g_timeout_add_seconds(retry_seconds_,
-                              &LibcurlHttpFetcher::StaticRetryTimeoutCallback,
-                              this);
+        MessageLoop::current()->PostDelayedTask(
+            FROM_HERE,
+            base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
+                       base::Unretained(this)),
+            TimeDelta::FromSeconds(retry_seconds_));
       }
     } else {
       LOG(INFO) << "Transfer completed (" << http_response_code_
@@ -473,12 +483,13 @@ void LibcurlHttpFetcher::SetupMainloopSources() {
   }
 
   // Set up a timeout callback for libcurl.
-  if (!timeout_source_) {
+  if (timeout_id_ == MessageLoop::kTaskIdNull) {
     LOG(INFO) << "Setting up timeout source: " << idle_seconds_ << " seconds.";
-    timeout_source_ = g_timeout_source_new_seconds(idle_seconds_);
-    g_source_set_callback(timeout_source_, StaticTimeoutCallback, this,
-                          nullptr);
-    g_source_attach(timeout_source_, nullptr);
+    timeout_id_ = MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&LibcurlHttpFetcher::TimeoutCallback,
+                   base::Unretained(this)),
+        TimeDelta::FromSeconds(idle_seconds_));
   }
 }
 
@@ -492,27 +503,27 @@ bool LibcurlHttpFetcher::FDCallback(GIOChannel *source,
   return true;
 }
 
-gboolean LibcurlHttpFetcher::RetryTimeoutCallback() {
+void LibcurlHttpFetcher::RetryTimeoutCallback() {
   ResumeTransfer(url_);
   CurlPerformOnce();
-  return FALSE;  // Don't have glib auto call this callback again
 }
 
-gboolean LibcurlHttpFetcher::TimeoutCallback() {
-  // We always return true, even if we don't want glib to call us back.
-  // We will remove the event source separately if we don't want to
+void LibcurlHttpFetcher::TimeoutCallback() {
+  if (transfer_in_progress_)
+    CurlPerformOnce();
+
+  // We always re-schedule the callback, even if we don't want to be called
+  // anymore. We will remove the event source separately if we don't want to
   // be called back.
-  if (!transfer_in_progress_)
-    return TRUE;
-  CurlPerformOnce();
-  return TRUE;
+  timeout_id_ = MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&LibcurlHttpFetcher::TimeoutCallback, base::Unretained(this)),
+      TimeDelta::FromSeconds(idle_seconds_));
 }
 
 void LibcurlHttpFetcher::CleanUp() {
-  if (timeout_source_) {
-    g_source_destroy(timeout_source_);
-    timeout_source_ = nullptr;
-  }
+  MessageLoop::current()->CancelTask(timeout_id_);
+  timeout_id_ = MessageLoop::kTaskIdNull;
 
   for (size_t t = 0; t < arraysize(io_channels_); ++t) {
     for (IOChannels::iterator it = io_channels_[t].begin();

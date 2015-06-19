@@ -5,11 +5,11 @@
 #ifndef UPDATE_ENGINE_PROXY_RESOLVER_H_
 #define UPDATE_ENGINE_PROXY_RESOLVER_H_
 
-
 #include <deque>
 #include <string>
 
 #include <base/logging.h>
+#include <chromeos/message_loops/message_loop.h>
 
 #include "update_engine/utils.h"
 
@@ -45,7 +45,7 @@ class ProxyResolver {
 // Always says to not use a proxy
 class DirectProxyResolver : public ProxyResolver {
  public:
-  DirectProxyResolver() : idle_callback_id_(0), num_proxies_(1) {}
+  DirectProxyResolver() = default;
   ~DirectProxyResolver() override;
   bool GetProxiesForUrl(const std::string& url,
                         ProxiesResolvedFn callback,
@@ -58,12 +58,13 @@ class DirectProxyResolver : public ProxyResolver {
   }
 
  private:
-  // The ID of the idle main loop callback
-  guint idle_callback_id_;
+  // The ID of the main loop callback.
+  chromeos::MessageLoop::TaskId idle_callback_id_{
+      chromeos::MessageLoop::kTaskIdNull};
 
   // Number of direct proxies to return on resolved list; currently used for
   // testing.
-  size_t num_proxies_;
+  size_t num_proxies_{1};
 
   // The MainLoop callback, from here we return to the client.
   void ReturnCallback(ProxiesResolvedFn callback, void* data);

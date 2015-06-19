@@ -10,11 +10,16 @@
 #include <string>
 #include <vector>
 
+#include <base/bind.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
+#include <chromeos/bind_lambda.h>
 #include <chromeos/dbus/service_constants.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/action_pipe.h"
@@ -216,14 +221,12 @@ namespace {
 class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   OmahaRequestActionTestProcessorDelegate()
-      : loop_(nullptr),
-        expected_code_(ErrorCode::kSuccess) {}
+      : expected_code_(ErrorCode::kSuccess) {}
   ~OmahaRequestActionTestProcessorDelegate() override {
   }
   void ProcessingDone(const ActionProcessor* processor,
                       ErrorCode code) override {
-    ASSERT_TRUE(loop_);
-    g_main_loop_quit(loop_);
+    chromeos::MessageLoop::current()->BreakLoop();
   }
 
   void ActionCompleted(ActionProcessor* processor,
@@ -235,15 +238,8 @@ class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
     else
       EXPECT_EQ(ErrorCode::kSuccess, code);
   }
-  GMainLoop *loop_;
   ErrorCode expected_code_;
 };
-
-gboolean StartProcessorInRunLoop(gpointer data) {
-  ActionProcessor *processor = reinterpret_cast<ActionProcessor*>(data);
-  processor->StartProcessing();
-  return FALSE;
-}
 }  // namespace
 
 class OutputObjectCollectorAction;
@@ -291,7 +287,8 @@ bool OmahaRequestActionTest::TestUpdateCheck(
     metrics::DownloadErrorCode expected_download_error_code,
     OmahaResponse* out_response,
     chromeos::Blob* out_post_data) {
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
+  chromeos::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
   MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
                                                  http_response.size(),
                                                  nullptr);
@@ -305,7 +302,6 @@ bool OmahaRequestActionTest::TestUpdateCheck(
                             fetcher,
                             ping_only);
   OmahaRequestActionTestProcessorDelegate delegate;
-  delegate.loop_ = loop;
   delegate.expected_code_ = expected_code;
 
   ActionProcessor processor;
@@ -334,9 +330,11 @@ bool OmahaRequestActionTest::TestUpdateCheck(
       .Times(expected_download_error_code == metrics::DownloadErrorCode::kUnset
              ? 0 : 1);
 
-  g_timeout_add(0, &StartProcessorInRunLoop, &processor);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  LOG(INFO) << "loop.PendingTasks() = " << loop.PendingTasks();
+  loop.Run();
+  LOG(INFO) << "loop.PendingTasks() = " << loop.PendingTasks();
+  EXPECT_FALSE(loop.PendingTasks());
   if (collector_action.has_input_object_ && out_response)
     *out_response = collector_action.omaha_response_;
   if (out_post_data)
@@ -351,7 +349,8 @@ void TestEvent(OmahaRequestParams params,
                OmahaEvent* event,
                const string& http_response,
                chromeos::Blob* out_post_data) {
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
+  chromeos::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
   MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
                                                  http_response.size(),
                                                  nullptr);
@@ -359,14 +358,17 @@ void TestEvent(OmahaRequestParams params,
   fake_system_state.set_request_params(&params);
   OmahaRequestAction action(&fake_system_state, event, fetcher, false);
   OmahaRequestActionTestProcessorDelegate delegate;
-  delegate.loop_ = loop;
   ActionProcessor processor;
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&action);
 
-  g_timeout_add(0, &StartProcessorInRunLoop, &processor);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.Run();
+
+  // This test should schedule a callback to notify the crash reporter if
+  // the passed event is an error.
+  EXPECT_EQ(event->result == OmahaEvent::kResultError, loop.PendingTasks());
+
   if (out_post_data)
     *out_post_data = fetcher->post_data();
 }
@@ -784,7 +786,8 @@ TEST_F(OmahaRequestActionTest, CohortsAreNotModifiedWhenMissing) {
 TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   const string http_response(fake_update_response_.GetNoUpdateResponse());
 
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
+  chromeos::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
 
   OmahaRequestParams params = request_params_;
   fake_system_state_.set_request_params(&params);
@@ -794,14 +797,13 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
                                                 nullptr),
                             false);
   OmahaRequestActionTestProcessorDelegate delegate;
-  delegate.loop_ = loop;
   ActionProcessor processor;
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&action);
 
-  g_timeout_add(0, &StartProcessorInRunLoop, &processor);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.Run();
+  EXPECT_FALSE(loop.PendingTasks());
   EXPECT_FALSE(processor.IsRunning());
 }
 
@@ -942,39 +944,35 @@ namespace {
 class TerminateEarlyTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   void ProcessingStopped(const ActionProcessor* processor) {
-    ASSERT_TRUE(loop_);
-    g_main_loop_quit(loop_);
+    chromeos::MessageLoop::current()->BreakLoop();
   }
-  GMainLoop *loop_;
 };
 
-gboolean TerminateTransferTestStarter(gpointer data) {
-  ActionProcessor *processor = reinterpret_cast<ActionProcessor*>(data);
+void TerminateTransferTestStarter(ActionProcessor* processor) {
   processor->StartProcessing();
   CHECK(processor->IsRunning());
   processor->StopProcessing();
-  return FALSE;
 }
 }  // namespace
 
 TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
-  string http_response("doesn't matter");
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
+  chromeos::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
 
+  string http_response("doesn't matter");
   OmahaRequestAction action(&fake_system_state_, nullptr,
                             new MockHttpFetcher(http_response.data(),
                                                 http_response.size(),
                                                 nullptr),
                             false);
   TerminateEarlyTestProcessorDelegate delegate;
-  delegate.loop_ = loop;
   ActionProcessor processor;
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&action);
 
-  g_timeout_add(0, &TerminateTransferTestStarter, &processor);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  loop.PostTask(base::Bind(&TerminateTransferTestStarter, &processor));
+  loop.Run();
+  EXPECT_FALSE(loop.PendingTasks());
 }
 
 TEST_F(OmahaRequestActionTest, XmlEncodeTest) {
