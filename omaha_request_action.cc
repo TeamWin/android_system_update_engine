@@ -435,11 +435,31 @@ bool XmlEncode(const string& input, string* output) {
     utils::HexDumpString(input);
     return false;
   }
-  gchar* escaped = g_markup_escape_text(input.c_str(), input.size());
-  if (escaped == nullptr)
-    return false;
-  *output = string(escaped);
-  g_free(escaped);
+  output->clear();
+  // We need at least input.size() space in the output, but the code below will
+  // handle it if we need more.
+  output->reserve(input.size());
+  for (char c : input) {
+    switch (c) {
+      case '\"':
+        output->append("&quot;");
+        break;
+      case '\'':
+        output->append("&apos;");
+        break;
+      case '&':
+        output->append("&amp;");
+        break;
+      case '<':
+        output->append("&lt;");
+        break;
+      case '>':
+        output->append("&gt;");
+        break;
+      default:
+        output->push_back(c);
+    }
+  }
   return true;
 }
 

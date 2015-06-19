@@ -983,11 +983,11 @@ TEST_F(OmahaRequestActionTest, XmlEncodeTest) {
   EXPECT_EQ("ab", output);
   EXPECT_TRUE(XmlEncode("a<b", &output));
   EXPECT_EQ("a&lt;b", output);
-  EXPECT_TRUE(XmlEncode("<&>", &output));
-  EXPECT_EQ("&lt;&amp;&gt;", output);
+  EXPECT_TRUE(XmlEncode("<&>\"\'\\", &output));
+  EXPECT_EQ("&lt;&amp;&gt;&quot;&apos;\\", output);
   EXPECT_TRUE(XmlEncode("&lt;&amp;&gt;", &output));
   EXPECT_EQ("&amp;lt;&amp;amp;&amp;gt;", output);
-  // g_markup_escape_text() would crash with unterminated UTF-8 strings.
+  // Check that unterminated UTF-8 strings are handled properly.
   EXPECT_FALSE(XmlEncode("\xc2", &output));
   // Fail with invalid ASCII-7 chars.
   EXPECT_FALSE(XmlEncode("This is an 'n' with a tilde: \xc3\xb1", &output));
