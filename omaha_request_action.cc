@@ -911,7 +911,10 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   XML_ParserFree(parser);
 
   if (res != XML_STATUS_OK || parser_data.failed) {
-    LOG(ERROR) << "Omaha response not valid XML";
+    LOG(ERROR) << "Omaha response not valid XML: "
+               << XML_ErrorString(XML_GetErrorCode(parser))
+               << " at line " << XML_GetCurrentLineNumber(parser)
+               << " col " << XML_GetCurrentColumnNumber(parser);
     ErrorCode error_code = ErrorCode::kOmahaRequestXMLParseError;
     if (response_buffer_.empty()) {
       error_code = ErrorCode::kOmahaRequestEmptyResponseError;
