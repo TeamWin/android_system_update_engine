@@ -10,6 +10,7 @@
 
 #include <base/bind.h>
 #include <base/json/json_writer.h>
+#include <base/location.h>
 #include <base/strings/string_util.h>
 #include <base/values.h>
 
@@ -204,6 +205,7 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
     DLOG(INFO) << "Waiting for timeout in "
                << chromeos_update_engine::utils::FormatTimeDelta(timeout);
     timeout_event_ = MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
         base::Bind(&EvaluationContext::OnTimeout,
                    weak_ptr_factory_.GetWeakPtr()),
         timeout);

@@ -10,6 +10,7 @@
 #include <base/at_exit.h>
 #include <base/command_line.h>
 #include <base/files/file_util.h>
+#include <base/location.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -223,18 +224,19 @@ int main(int argc, char** argv) {
 
   // Update boot flags after 45 seconds.
   loop.PostDelayedTask(
+      FROM_HERE,
       base::Bind(&chromeos_update_engine::UpdateAttempter::UpdateBootFlags,
                  base::Unretained(update_attempter)),
       base::TimeDelta::FromSeconds(45));
 
   // Broadcast the update engine status on startup to ensure consistent system
   // state on crashes.
-  loop.PostTask(base::Bind(
+  loop.PostTask(FROM_HERE, base::Bind(
       &chromeos_update_engine::UpdateAttempter::BroadcastStatus,
       base::Unretained(update_attempter)));
 
   // Run the UpdateEngineStarted() method on |update_attempter|.
-  loop.PostTask(base::Bind(
+  loop.PostTask(FROM_HERE, base::Bind(
       &chromeos_update_engine::UpdateAttempter::UpdateEngineStarted,
       base::Unretained(update_attempter)));
 

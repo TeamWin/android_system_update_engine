@@ -10,6 +10,7 @@
 #include <string>
 
 #include <base/bind.h>
+#include <base/location.h>
 #include <base/logging.h>
 #include <base/time/time.h>
 #include <chromeos/message_loops/message_loop.h>
@@ -108,6 +109,7 @@ class BaseVariable {
     // first the list of observers.
     if (!observer_list_.empty()) {
       chromeos::MessageLoop::current()->PostTask(
+          FROM_HERE,
           base::Bind(&BaseVariable::OnValueChangedNotification,
                      base::Unretained(this)));
     }

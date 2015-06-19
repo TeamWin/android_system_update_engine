@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include <base/location.h>
 #include <base/logging.h>
 #include <base/time/time.h>
 #include <chromeos/dbus/service_constants.h>
@@ -85,6 +86,7 @@ void RealDevicePolicyProvider::HandlePropertyChangedCompletedStatic(
 void RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule() {
   RefreshDevicePolicy();
   scheduled_refresh_ = MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
       base::Bind(&RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule,
                  base::Unretained(this)),
       TimeDelta::FromMinutes(kDevicePolicyRefreshRateInMinutes));

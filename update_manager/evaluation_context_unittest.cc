@@ -323,14 +323,15 @@ TEST_F(UmEvaluationContextTest, ObjectDeletedWithPendingEventsTest) {
 // Test that timed events fired after removal of the EvaluationContext don't
 // crash.
 TEST_F(UmEvaluationContextTest, TimeoutEventAfterDeleteTest) {
-  FakeVariable<string> fake_short_poll_var = {"fake_short_poll", TimeDelta()};
+  FakeVariable<string> fake_short_poll_var = {"fake_short_poll",
+                                              TimeDelta::FromSeconds(1)};
   fake_short_poll_var.reset(new string("Polled value"));
   eval_ctx_->GetValue(&fake_short_poll_var);
   bool value = false;
   EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
   // Remove the last reference to the EvaluationContext and run the loop for
-  // 1 second to give time to the main loop to trigger the timeout Event (of 0
-  // seconds). Our callback should not be called because the EvaluationContext
+  // 10 seconds to give time to the main loop to trigger the timeout Event (of 1
+  // second). Our callback should not be called because the EvaluationContext
   // was removed before the timeout event is attended.
   eval_ctx_ = nullptr;
   MessageLoopRunUntil(MessageLoop::current(),

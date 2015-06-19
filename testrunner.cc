@@ -6,6 +6,7 @@
 
 #include <base/at_exit.h>
 #include <base/command_line.h>
+#include <chromeos/test_helpers.h>
 #include <dbus/dbus-glib.h>
 #include <dbus/dbus-glib-bindings.h>
 #include <dbus/dbus-glib-lowlevel.h>
@@ -31,7 +32,7 @@ int main(int argc, char **argv) {
   LOG(INFO) << "parsing command line arguments";
   base::CommandLine::Init(argc, argv);
   LOG(INFO) << "initializing gtest";
-  ::testing::InitGoogleTest(&argc, argv);
+  SetUpTests(&argc, argv, true);
   LOG(INFO) << "running unit tests";
   int test_result = RUN_ALL_TESTS();
   LOG(INFO) << "unittest return value: " << test_result;
