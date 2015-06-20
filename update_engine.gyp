@@ -60,19 +60,6 @@
     },
     # D-Bus glib bindings.
     {
-      'target_name': 'update_engine-dbus-client',
-      'type': 'none',
-      'variables': {
-        'dbus_glib_type': 'client',
-        'dbus_glib_out_dir': 'include/update_engine',
-        'dbus_glib_prefix': 'update_engine_service',
-      },
-      'sources': [
-        'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
-      ],
-      'includes': ['../common-mk/dbus_glib.gypi'],
-    },
-    {
       'target_name': 'update_engine-dbus-server',
       'type': 'none',
       'variables': {
@@ -216,15 +203,8 @@
     {
       'target_name': 'update_engine_client',
       'type': 'executable',
-      'dependencies': [
-        'update_engine-dbus-client',
-      ],
       'variables': {
         'exported_deps': [
-          'dbus-1',
-          'dbus-glib-1',
-          'glib-2.0',
-          'gthread-2.0',
           'libchrome-<(libbase_ver)',
           'libchromeos-<(libbase_ver)',
         ],
@@ -238,8 +218,20 @@
         },
       },
       'sources': [
-        'glib_utils.cc',
         'update_engine_client.cc',
+      ],
+      'actions': [
+        {
+          'action_name': 'update_engine-dbus-proxies',
+          'variables': {
+            'dbus_service_config': 'dbus_bindings/dbus-service-config.json',
+            'proxy_output_file': 'include/update_engine/dbus_proxies.h'
+          },
+          'sources': [
+            'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
+          ],
+          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+        },
       ]
     },
     # server-side code. This is used for delta_generator and unittests but not

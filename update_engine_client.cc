@@ -2,76 +2,176 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <inttypes.h>
+#include <sysexits.h>
+#include <unistd.h>
+
 #include <string>
 
+#include <base/bind.h>
 #include <base/command_line.h>
 #include <base/logging.h>
+#include <base/macros.h>
+#include <chromeos/daemons/dbus_daemon.h>
 #include <chromeos/dbus/service_constants.h>
 #include <chromeos/flag_helper.h>
-#include <dbus/dbus.h>
-#include <glib.h>
-#include <inttypes.h>
+#include <dbus/bus.h>
 
 #include "update_engine/dbus_constants.h"
-#include "update_engine/glib_utils.h"
+#include "update_engine/dbus_proxies.h"
 
-extern "C" {
-#include "update_engine/org.chromium.UpdateEngineInterface.dbusclient.h"
-}
-
-using chromeos_update_engine::AttemptUpdateFlags;
 using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
-using chromeos_update_engine::kUpdateEngineServiceInterface;
 using chromeos_update_engine::kUpdateEngineServiceName;
-using chromeos_update_engine::kUpdateEngineServicePath;
-using chromeos_update_engine::utils::GetAndFreeGError;
 using std::string;
 
 namespace {
 
-bool GetProxy(DBusGProxy** out_proxy) {
-  DBusGConnection* bus;
-  DBusGProxy* proxy = nullptr;
-  GError* error = nullptr;
-  const int kTries = 4;
-  const int kRetrySeconds = 10;
+// Constant to signal that we need to continue running the daemon after
+// initialization.
+const int kContinueRunning = -1;
 
-  bus = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
-  if (bus == nullptr) {
-    LOG(ERROR) << "Failed to get bus: " << GetAndFreeGError(&error);
-    exit(1);
-  }
-  for (int i = 0; !proxy && i < kTries; ++i) {
-    if (i > 0) {
-      LOG(INFO) << "Retrying to get dbus proxy. Try "
-                << (i + 1) << "/" << kTries;
-      g_usleep(kRetrySeconds * G_USEC_PER_SEC);
+class UpdateEngineClient : public chromeos::DBusDaemon {
+ public:
+  UpdateEngineClient(int argc, char** argv) : argc_(argc), argv_(argv) {}
+  ~UpdateEngineClient() override = default;
+
+ protected:
+  int OnInit() override {
+    int ret = DBusDaemon::OnInit();
+    if (ret != EX_OK)
+      return ret;
+    if (!InitProxy())
+      return 1;
+    ret = ProcessFlags();
+    if (ret != kContinueRunning) {
+      base::MessageLoop::current()->PostTask(
+          FROM_HERE,
+          base::Bind(&UpdateEngineClient::QuitWithExitCode,
+                     base::Unretained(this), ret));
     }
-    proxy = dbus_g_proxy_new_for_name_owner(bus,
-                                            kUpdateEngineServiceName,
-                                            kUpdateEngineServicePath,
-                                            kUpdateEngineServiceInterface,
-                                            &error);
-    LOG_IF(WARNING, !proxy) << "Error getting dbus proxy for "
-                            << kUpdateEngineServiceName << ": "
-                            << GetAndFreeGError(&error);
+    return EX_OK;
   }
-  if (proxy == nullptr) {
-    LOG(ERROR) << "Giving up -- unable to get dbus proxy for "
-               << kUpdateEngineServiceName;
-    exit(1);
+
+ private:
+  bool InitProxy();
+
+  // Callback called when a StatusUpdate signal is received.
+  void OnStatusUpdateSignal(int64_t last_checked_time,
+                            double progress,
+                            const string& current_operation,
+                            const string& new_version,
+                            int64_t new_size);
+  // Callback called when the OnStatusUpdateSignal() handler is registered.
+  void OnStatusUpdateSignalRegistration(const string& interface,
+                                        const string& signal_name,
+                                        bool success);
+
+  // Registers a callback that prints on stderr the received StatusUpdate
+  // signals.
+  // The daemon should continue running for this to work.
+  void WatchForUpdates();
+
+  void ResetStatus();
+
+  // Show the status of the update engine in stdout.
+  // Blocking call. Exits the program with error 1 in case of an error.
+  void ShowStatus();
+
+  // Return the current operation status, such as UPDATE_STATUS_IDLE.
+  // Blocking call. Exits the program with error 1 in case of an error.
+  string GetCurrentOperation();
+
+  void Rollback(bool rollback);
+  string GetRollbackPartition();
+  string GetKernelDevices();
+  void CheckForUpdates(const string& app_version,
+                       const string& omaha_url,
+                       bool interactive);
+
+  // Reboot the device if a reboot is needed.
+  // Blocking call. Ignores failures.
+  void RebootIfNeeded();
+
+  // Getter and setter for the target channel. If |get_current_channel| is true,
+  // the current channel instead of the target channel will be returned.
+  // Blocking call. Exits the program with error 1 in case of an error.
+  void SetTargetChannel(const string& target_channel, bool allow_powerwash);
+  string GetChannel(bool get_current_channel);
+
+  // Getter and setter for the updates over cellular connections.
+  // Blocking call. Exits the program with error 1 in case of an error.
+  void SetUpdateOverCellularPermission(bool allowed);
+  bool GetUpdateOverCellularPermission();
+
+  // Getter and setter for the updates from P2P permission.
+  // Blocking call. Exits the program with error 1 in case of an error.
+  void SetP2PUpdatePermission(bool enabled);
+  bool GetP2PUpdatePermission();
+
+  // This is similar to watching for updates but rather than registering
+  // a signal watch, actively poll the daemon just in case it stops
+  // sending notifications.
+  void WaitForUpdateComplete();
+  void OnUpdateCompleteCheck(int64_t last_checked_time,
+                             double progress,
+                             const string& current_operation,
+                             const string& new_version,
+                             int64_t new_size);
+
+  // Blocking call. Exits the program with error 1 in case of an error.
+  void ShowPrevVersion();
+
+  // Returns whether the current status is such that a reboot is needed.
+  // Blocking call. Exits the program with error 1 in case of an error.
+  bool GetIsRebootNeeded();
+
+  // Blocks until a reboot is needed. If the reboot is needed, exits the program
+  // with 0. Otherwise it exits the program with 1 if an error occurs before
+  // the reboot is needed.
+  void WaitForRebootNeeded();
+  void OnRebootNeededCheck(int64_t last_checked_time,
+                           double progress,
+                           const string& current_operation,
+                           const string& new_version,
+                           int64_t new_size);
+  // Callback called when the OnRebootNeededCheck() handler is registered. This
+  // is useful to check at this point if the reboot is needed, without loosing
+  // any StatusUpdate signals and avoiding the race condition.
+  void OnRebootNeededCheckRegistration(const string& interface,
+                                       const string& signal_name,
+                                       bool success);
+
+  // Main method that parses and triggers all the actions based on the passed
+  // flags.
+  int ProcessFlags();
+
+  // DBus Proxy to the update_engine daemon object used for all the calls.
+  std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;
+
+  // Copy of argc and argv passed to main().
+  int argc_;
+  char** argv_;
+
+  DISALLOW_COPY_AND_ASSIGN(UpdateEngineClient);
+};
+
+
+bool UpdateEngineClient::InitProxy() {
+  proxy_.reset(new org::chromium::UpdateEngineInterfaceProxy(bus_));
+
+  if (!proxy_->GetObjectProxy()) {
+    LOG(ERROR) << "Error getting dbus proxy for " << kUpdateEngineServiceName;
+    return false;
   }
-  *out_proxy = proxy;
   return true;
 }
 
-static void StatusUpdateSignalHandler(DBusGProxy* proxy,
-                                      int64_t last_checked_time,
-                                      double progress,
-                                      gchar* current_operation,
-                                      gchar* new_version,
-                                      int64_t new_size,
-                                      void* user_data) {
+void UpdateEngineClient::OnStatusUpdateSignal(
+    int64_t last_checked_time,
+    double progress,
+    const string& current_operation,
+    const string& new_version,
+    int64_t new_size) {
   LOG(INFO) << "Got status update:";
   LOG(INFO) << "  last_checked_time: " << last_checked_time;
   LOG(INFO) << "  progress: " << progress;
@@ -80,420 +180,217 @@ static void StatusUpdateSignalHandler(DBusGProxy* proxy,
   LOG(INFO) << "  new_size: " << new_size;
 }
 
-bool ResetStatus() {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  gboolean rc = update_engine_client_reset_status(proxy, &error);
-  return rc;
+void UpdateEngineClient::OnStatusUpdateSignalRegistration(
+    const string& interface,
+    const string& signal_name,
+    bool success) {
+  VLOG(1) << "OnStatusUpdateSignalRegistration(" << interface << ", "
+          << signal_name << ", " << success << ");";
+  if (!success) {
+    LOG(ERROR) << "Couldn't connect to the " << signal_name << " signal.";
+    exit(1);
+  }
 }
 
+void UpdateEngineClient::WatchForUpdates() {
+  proxy_->RegisterStatusUpdateSignalHandler(
+      base::Bind(&UpdateEngineClient::OnStatusUpdateSignal,
+                 base::Unretained(this)),
+      base::Bind(&UpdateEngineClient::OnStatusUpdateSignalRegistration,
+                 base::Unretained(this)));
+}
 
-// If |op| is non-null, sets it to the current operation string or an
-// empty string if unable to obtain the current status.
-bool GetStatus(string* op) {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
+void UpdateEngineClient::ResetStatus() {
+  bool ret = proxy_->ResetStatus(nullptr);
+  CHECK(ret) << "ResetStatus() failed.";
+}
 
-  CHECK(GetProxy(&proxy));
+void UpdateEngineClient::ShowStatus() {
+  int64_t last_checked_time = 0;
+  double progress = 0.0;
+  string current_op;
+  string new_version;
+  int64_t new_size = 0;
 
-  gint64 last_checked_time = 0;
-  gdouble progress = 0.0;
-  char* current_op = nullptr;
-  char* new_version = nullptr;
-  gint64 new_size = 0;
-
-  gboolean rc = update_engine_client_get_status(proxy,
-                                                &last_checked_time,
-                                                &progress,
-                                                &current_op,
-                                                &new_version,
-                                                &new_size,
-                                                &error);
-  if (rc == FALSE) {
-    LOG(INFO) << "Error getting status: " << GetAndFreeGError(&error);
-  }
+  bool ret = proxy_->GetStatus(
+      &last_checked_time, &progress, &current_op, &new_version, &new_size,
+      nullptr);
+  CHECK(ret) << "GetStatus() failed";
   printf("LAST_CHECKED_TIME=%" PRIi64 "\nPROGRESS=%f\nCURRENT_OP=%s\n"
          "NEW_VERSION=%s\nNEW_SIZE=%" PRIi64 "\n",
          last_checked_time,
          progress,
-         current_op,
-         new_version,
+         current_op.c_str(),
+         new_version.c_str(),
          new_size);
-  if (op) {
-    *op = current_op ? current_op : "";
+}
+
+string UpdateEngineClient::GetCurrentOperation() {
+  int64_t last_checked_time = 0;
+  double progress = 0.0;
+  string current_op;
+  string new_version;
+  int64_t new_size = 0;
+
+  bool ret = proxy_->GetStatus(
+      &last_checked_time, &progress, &current_op, &new_version, &new_size,
+      nullptr);
+  CHECK(ret) << "GetStatus() failed";
+  return current_op;
+}
+
+void UpdateEngineClient::Rollback(bool rollback) {
+  bool ret = proxy_->AttemptRollback(rollback, nullptr);
+  CHECK(ret) << "Rollback request failed.";
+}
+
+string UpdateEngineClient::GetRollbackPartition() {
+  string rollback_partition;
+  bool ret = proxy_->GetRollbackPartition(&rollback_partition, nullptr);
+  CHECK(ret) << "Error while querying rollback partition availabilty.";
+  return rollback_partition;
+}
+
+string UpdateEngineClient::GetKernelDevices() {
+  string kernel_devices;
+  bool ret = proxy_->GetKernelDevices(&kernel_devices, nullptr);
+  CHECK(ret) << "Error while getting a list of kernel devices";
+  return kernel_devices;
+}
+
+void UpdateEngineClient::CheckForUpdates(const string& app_version,
+                                         const string& omaha_url,
+                                         bool interactive) {
+  int32_t flags = interactive ? 0 : kAttemptUpdateFlagNonInteractive;
+  bool ret = proxy_->AttemptUpdateWithFlags(app_version, omaha_url, flags,
+                                            nullptr);
+  CHECK(ret) << "Error checking for update.";
+}
+
+void UpdateEngineClient::RebootIfNeeded() {
+  bool ret = proxy_->RebootIfNeeded(nullptr);
+  if (!ret) {
+    // Reboot error code doesn't necessarily mean that a reboot
+    // failed. For example, D-Bus may be shutdown before we receive the
+    // result.
+    LOG(INFO) << "RebootIfNeeded() failure ignored.";
   }
-  return true;
 }
 
-// Should never return.
-void WatchForUpdates() {
-  DBusGProxy* proxy;
-
-  CHECK(GetProxy(&proxy));
-
-  // Register marshaller
-  dbus_g_object_register_marshaller(
-      g_cclosure_marshal_generic,
-      G_TYPE_NONE,
-      G_TYPE_INT64,
-      G_TYPE_DOUBLE,
-      G_TYPE_STRING,
-      G_TYPE_STRING,
-      G_TYPE_INT64,
-      G_TYPE_INVALID);
-
-  static const char kStatusUpdate[] = "StatusUpdate";
-  dbus_g_proxy_add_signal(proxy,
-                          kStatusUpdate,
-                          G_TYPE_INT64,
-                          G_TYPE_DOUBLE,
-                          G_TYPE_STRING,
-                          G_TYPE_STRING,
-                          G_TYPE_INT64,
-                          G_TYPE_INVALID);
-  GMainLoop* loop = g_main_loop_new(nullptr, TRUE);
-  dbus_g_proxy_connect_signal(proxy,
-                              kStatusUpdate,
-                              G_CALLBACK(StatusUpdateSignalHandler),
-                              nullptr,
-                              nullptr);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
-}
-
-bool Rollback(bool rollback) {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  gboolean rc = update_engine_client_attempt_rollback(proxy,
-                                                      rollback,
-                                                      &error);
-  CHECK_EQ(rc, TRUE) << "Error with rollback request: "
-                     << GetAndFreeGError(&error);
-  return true;
-}
-
-string GetRollbackPartition() {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  char* rollback_partition = nullptr;
-  gboolean rc = update_engine_client_get_rollback_partition(proxy,
-                                                            &rollback_partition,
-                                                            &error);
-  CHECK_EQ(rc, TRUE) << "Error while querying rollback partition availabilty: "
-                     << GetAndFreeGError(&error);
-  string partition = rollback_partition;
-  g_free(rollback_partition);
-  return partition;
-}
-
-string GetKernelDevices() {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  char* kernel_devices = nullptr;
-  gboolean rc = update_engine_client_get_kernel_devices(proxy,
-                                                        &kernel_devices,
-                                                        &error);
-  CHECK_EQ(rc, TRUE) << "Error while getting a list of kernel devices: "
-    << GetAndFreeGError(&error);
-  string devices = kernel_devices;
-  g_free(kernel_devices);
-  return devices;
-}
-
-bool CheckForUpdates(const string& app_version,
-                     const string& omaha_url,
-                     bool interactive) {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  AttemptUpdateFlags flags = static_cast<AttemptUpdateFlags>(
-      interactive ? 0 : kAttemptUpdateFlagNonInteractive);
-  gboolean rc =
-      update_engine_client_attempt_update_with_flags(proxy,
-                                                     app_version.c_str(),
-                                                     omaha_url.c_str(),
-                                                     static_cast<gint>(flags),
-                                                     &error);
-  CHECK_EQ(rc, TRUE) << "Error checking for update: "
-                     << GetAndFreeGError(&error);
-  return true;
-}
-
-bool RebootIfNeeded() {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  gboolean rc =
-      update_engine_client_reboot_if_needed(proxy, &error);
-  // Reboot error code doesn't necessarily mean that a reboot
-  // failed. For example, D-Bus may be shutdown before we receive the
-  // result.
-  LOG_IF(INFO, !rc) << "Reboot error message: " << GetAndFreeGError(&error);
-  return true;
-}
-
-void SetTargetChannel(const string& target_channel, bool allow_powerwash) {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  gboolean rc = update_engine_client_set_channel(proxy,
-                                                 target_channel.c_str(),
-                                                 allow_powerwash,
-                                                 &error);
-  CHECK_EQ(rc, true) << "Error setting the channel: "
-                     << GetAndFreeGError(&error);
+void UpdateEngineClient::SetTargetChannel(const string& target_channel,
+                                          bool allow_powerwash) {
+  bool ret = proxy_->SetChannel(target_channel, allow_powerwash, nullptr);
+  CHECK(ret) << "Error setting the channel.";
   LOG(INFO) << "Channel permanently set to: " << target_channel;
 }
 
-string GetChannel(bool get_current_channel) {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  char* channel = nullptr;
-  gboolean rc = update_engine_client_get_channel(proxy,
-                                                 get_current_channel,
-                                                 &channel,
-                                                 &error);
-  CHECK_EQ(rc, true) << "Error getting the channel: "
-                     << GetAndFreeGError(&error);
-  string output = channel;
-  g_free(channel);
-  return output;
+string UpdateEngineClient::GetChannel(bool get_current_channel) {
+  string channel;
+  bool ret = proxy_->GetChannel(get_current_channel, &channel, nullptr);
+  CHECK(ret) << "Error getting the channel.";
+  return channel;
 }
 
-void SetUpdateOverCellularPermission(gboolean allowed) {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  gboolean rc = update_engine_client_set_update_over_cellular_permission(
-      proxy,
-      allowed,
-      &error);
-  CHECK_EQ(rc, true) << "Error setting the update over cellular setting: "
-                     << GetAndFreeGError(&error);
+void UpdateEngineClient::SetUpdateOverCellularPermission(bool allowed) {
+  bool ret = proxy_->SetUpdateOverCellularPermission(allowed, nullptr);
+  CHECK(ret) << "Error setting the update over cellular setting.";
 }
 
-bool GetUpdateOverCellularPermission() {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  gboolean allowed;
-  gboolean rc = update_engine_client_get_update_over_cellular_permission(
-      proxy,
-      &allowed,
-      &error);
-  CHECK_EQ(rc, true) << "Error getting the update over cellular setting: "
-                     << GetAndFreeGError(&error);
+bool UpdateEngineClient::GetUpdateOverCellularPermission() {
+  bool allowed;
+  bool ret = proxy_->GetUpdateOverCellularPermission(&allowed, nullptr);
+  CHECK(ret) << "Error getting the update over cellular setting.";
   return allowed;
 }
 
-void SetP2PUpdatePermission(gboolean enabled) {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  gboolean rc = update_engine_client_set_p2p_update_permission(
-      proxy,
-      enabled,
-      &error);
-  CHECK_EQ(rc, true) << "Error setting the peer-to-peer update setting: "
-                     << GetAndFreeGError(&error);
+void UpdateEngineClient::SetP2PUpdatePermission(bool enabled) {
+  bool ret = proxy_->SetP2PUpdatePermission(enabled, nullptr);
+  CHECK(ret) << "Error setting the peer-to-peer update setting.";
 }
 
-bool GetP2PUpdatePermission() {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
-
-  CHECK(GetProxy(&proxy));
-
-  gboolean enabled;
-  gboolean rc = update_engine_client_get_p2p_update_permission(
-      proxy,
-      &enabled,
-      &error);
-  CHECK_EQ(rc, true) << "Error getting the peer-to-peer update setting: "
-                     << GetAndFreeGError(&error);
+bool UpdateEngineClient::GetP2PUpdatePermission() {
+  bool enabled;
+  bool ret = proxy_->GetP2PUpdatePermission(&enabled, nullptr);
+  CHECK(ret) << "Error getting the peer-to-peer update setting.";
   return enabled;
 }
 
-static gboolean CompleteUpdateSource(gpointer data) {
-  string current_op;
-  if (!GetStatus(&current_op) || current_op == "UPDATE_STATUS_IDLE") {
-    LOG(ERROR) << "Update failed.";
+void UpdateEngineClient::OnUpdateCompleteCheck(
+    int64_t /* last_checked_time */,
+    double /* progress */,
+    const string& current_operation,
+    const string& /* new_version */,
+    int64_t /* new_size */) {
+  if (current_operation == update_engine::kUpdateStatusIdle) {
+    LOG(ERROR) << "Update failed, current operations is " << current_operation;
     exit(1);
   }
-  if (current_op == "UPDATE_STATUS_UPDATED_NEED_REBOOT") {
+  if (current_operation == update_engine::kUpdateStatusUpdatedNeedReboot) {
     LOG(INFO) << "Update succeeded -- reboot needed.";
     exit(0);
   }
-  return TRUE;
 }
 
-// This is similar to watching for updates but rather than registering
-// a signal watch, actively poll the daemon just in case it stops
-// sending notifications.
-void CompleteUpdate() {
-  GMainLoop* loop = g_main_loop_new(nullptr, TRUE);
-  g_timeout_add_seconds(5, CompleteUpdateSource, nullptr);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+void UpdateEngineClient::WaitForUpdateComplete() {
+  proxy_->RegisterStatusUpdateSignalHandler(
+      base::Bind(&UpdateEngineClient::OnUpdateCompleteCheck,
+                 base::Unretained(this)),
+      base::Bind(&UpdateEngineClient::OnStatusUpdateSignalRegistration,
+                 base::Unretained(this)));
 }
 
-void ShowPrevVersion() {
-  DBusGProxy* proxy;
-  GError* error = nullptr;
+void UpdateEngineClient::ShowPrevVersion() {
+  string prev_version = nullptr;
 
-  CHECK(GetProxy(&proxy));
-
-  char* prev_version = nullptr;
-
-  gboolean rc = update_engine_client_get_prev_version(proxy,
-                                                      &prev_version,
-                                                      &error);
-  if (!rc) {
-    LOG(ERROR) << "Error getting previous version: "
-               << GetAndFreeGError(&error);
+  bool ret = proxy_->GetPrevVersion(&prev_version, nullptr);;
+  if (!ret) {
+    LOG(ERROR) << "Error getting previous version.";
   } else {
     LOG(INFO) << "Previous version = " << prev_version;
-    g_free(prev_version);
   }
 }
 
-bool CheckIfRebootIsNeeded(DBusGProxy *proxy, bool *out_reboot_needed) {
-  gint64 last_checked_time = 0;
-  gdouble progress = 0.0;
-  char* current_op = nullptr;
-  char* new_version = nullptr;
-  gint64 new_size = 0;
-  GError* error = nullptr;
-
-  if (!update_engine_client_get_status(proxy,
-                                       &last_checked_time,
-                                       &progress,
-                                       &current_op,
-                                       &new_version,
-                                       &new_size,
-                                       &error)) {
-    LOG(INFO) << "Error getting status: " << GetAndFreeGError(&error);
-    return false;
-  }
-  *out_reboot_needed =
-      (g_strcmp0(current_op,
-                 update_engine::kUpdateStatusUpdatedNeedReboot) == 0);
-  g_free(current_op);
-  g_free(new_version);
-  return true;
+bool UpdateEngineClient::GetIsRebootNeeded() {
+  return GetCurrentOperation() == update_engine::kUpdateStatusUpdatedNeedReboot;
 }
 
-// Determines if reboot is needed. The result is returned in
-// |out_reboot_needed|. Returns true if the check succeeded, false
-// otherwise.
-bool IsRebootNeeded(bool *out_reboot_needed) {
-  DBusGProxy* proxy = nullptr;
-  CHECK(GetProxy(&proxy));
-  bool ret = CheckIfRebootIsNeeded(proxy, out_reboot_needed);
-  g_object_unref(proxy);
-  return ret;
-}
-
-static void OnBlockUntilRebootStatusCallback(
-    DBusGProxy* proxy,
-    int64_t last_checked_time,
-    double progress,
-    const gchar* current_operation,
-    const gchar* new_version,
-    int64_t new_size,
-    void* user_data) {
-  GMainLoop *loop = reinterpret_cast<GMainLoop*>(user_data);
-  if (g_strcmp0(current_operation,
-                update_engine::kUpdateStatusUpdatedNeedReboot) == 0) {
-    g_main_loop_quit(loop);
+void UpdateEngineClient::OnRebootNeededCheck(
+    int64_t /* last_checked_time */,
+    double /* progress */,
+    const string& current_operation,
+    const string& /* new_version */,
+    int64_t /* new_size */) {
+  if (current_operation == update_engine::kUpdateStatusUpdatedNeedReboot) {
+    LOG(INFO) << "Reboot needed.";
+    exit(0);
   }
 }
 
-bool CheckRebootNeeded(DBusGProxy *proxy, GMainLoop *loop) {
-  bool reboot_needed;
-  if (!CheckIfRebootIsNeeded(proxy, &reboot_needed))
-    return false;
-  if (reboot_needed)
-    return true;
-  // This will block until OnBlockUntilRebootStatusCallback() calls
-  // g_main_loop_quit().
-  g_main_loop_run(loop);
-  return true;
+void UpdateEngineClient::OnRebootNeededCheckRegistration(
+    const string& interface,
+    const string& signal_name,
+    bool success) {
+  if (GetIsRebootNeeded())
+    exit(0);
+  if (!success) {
+    LOG(ERROR) << "Couldn't connect to the " << signal_name << " signal.";
+    exit(1);
+  }
 }
 
 // Blocks until a reboot is needed. Returns true if waiting succeeded,
 // false if an error occurred.
-bool BlockUntilRebootIsNeeded() {
-  // The basic idea is to get a proxy, listen to signals and only then
-  // check the status. If no reboot is needed, just sit and wait for
-  // the StatusUpdate signal to convey that a reboot is pending.
-  DBusGProxy* proxy = nullptr;
-  CHECK(GetProxy(&proxy));
-  dbus_g_object_register_marshaller(
-      g_cclosure_marshal_generic,
-      G_TYPE_NONE,
-      G_TYPE_INT64,
-      G_TYPE_DOUBLE,
-      G_TYPE_STRING,
-      G_TYPE_STRING,
-      G_TYPE_INT64,
-      G_TYPE_INVALID);
-  dbus_g_proxy_add_signal(proxy,
-                          update_engine::kStatusUpdate,  // Signal name.
-                          G_TYPE_INT64,
-                          G_TYPE_DOUBLE,
-                          G_TYPE_STRING,
-                          G_TYPE_STRING,
-                          G_TYPE_INT64,
-                          G_TYPE_INVALID);
-  GMainLoop* loop = g_main_loop_new(nullptr, TRUE);
-  dbus_g_proxy_connect_signal(proxy,
-                              update_engine::kStatusUpdate,
-                              G_CALLBACK(OnBlockUntilRebootStatusCallback),
-                              loop,
-                              nullptr);  // free_data_func.
-
-  bool ret = CheckRebootNeeded(proxy, loop);
-
-  dbus_g_proxy_disconnect_signal(proxy,
-                                 update_engine::kStatusUpdate,
-                                 G_CALLBACK(OnBlockUntilRebootStatusCallback),
-                                 loop);
-  g_main_loop_unref(loop);
-  g_object_unref(proxy);
-  return ret;
+void UpdateEngineClient::WaitForRebootNeeded() {
+  proxy_->RegisterStatusUpdateSignalHandler(
+      base::Bind(&UpdateEngineClient::OnUpdateCompleteCheck,
+                 base::Unretained(this)),
+      base::Bind(&UpdateEngineClient::OnStatusUpdateSignalRegistration,
+                 base::Unretained(this)));
+  if (GetIsRebootNeeded())
+    exit(0);
 }
 
-}  // namespace
-
-int main(int argc, char** argv) {
+int UpdateEngineClient::ProcessFlags() {
   DEFINE_string(app_version, "", "Force the current app version.");
   DEFINE_string(channel, "",
                 "Set the target channel. The device will be powerwashed if the "
@@ -539,9 +436,8 @@ int main(int argc, char** argv) {
               "whether each of them is bootable or not");
 
   // Boilerplate init commands.
-  g_type_init();
-  dbus_threads_init_default();
-  chromeos::FlagHelper::Init(argc, argv, "Chromium OS Update Engine Client");
+  base::CommandLine::Init(argc_, argv_);
+  chromeos::FlagHelper::Init(argc_, argv_, "Chromium OS Update Engine Client");
 
   // Ensure there are no positional arguments.
   const std::vector<string> positional_args =
@@ -556,10 +452,7 @@ int main(int argc, char** argv) {
   // Update the status if requested.
   if (FLAGS_reset_status) {
     LOG(INFO) << "Setting Update Engine status to idle ...";
-    if (!ResetStatus()) {
-      LOG(ERROR) << "ResetStatus failed.";
-      return 1;
-    }
+    ResetStatus();
     LOG(INFO) << "ResetStatus succeeded; to undo partition table changes run:\n"
                  "(D=$(rootdev -d) P=$(rootdev -s); cgpt p -i$(($(echo ${P#$D} "
                  "| sed 's/^[^0-9]*//')-1)) $D;)";
@@ -567,7 +460,7 @@ int main(int argc, char** argv) {
 
   // Changes the current update over cellular network setting.
   if (!FLAGS_update_over_cellular.empty()) {
-    gboolean allowed = FLAGS_update_over_cellular == "yes";
+    bool allowed = FLAGS_update_over_cellular == "yes";
     if (!allowed && FLAGS_update_over_cellular != "no") {
       LOG(ERROR) << "Unknown option: \"" << FLAGS_update_over_cellular
                  << "\". Please specify \"yes\" or \"no\".";
@@ -590,7 +483,7 @@ int main(int argc, char** argv) {
 
   // Change the P2P enabled setting.
   if (!FLAGS_p2p_update.empty()) {
-    gboolean enabled = FLAGS_p2p_update == "yes";
+    bool enabled = FLAGS_p2p_update == "yes";
     if (!enabled && FLAGS_p2p_update != "no") {
       LOG(ERROR) << "Unknown option: \"" << FLAGS_p2p_update
                  << "\". Please specify \"yes\" or \"no\".";
@@ -650,7 +543,7 @@ int main(int argc, char** argv) {
 
   if (FLAGS_rollback) {
     LOG(INFO) << "Requesting rollback.";
-    CHECK(Rollback(FLAGS_powerwash)) << "Request for rollback failed.";
+    Rollback(FLAGS_powerwash);
   }
 
   // Initiate an update check, if necessary.
@@ -662,8 +555,7 @@ int main(int argc, char** argv) {
       LOG(INFO) << "Forcing an update by setting app_version to ForcedUpdate.";
     }
     LOG(INFO) << "Initiating update check and install.";
-    CHECK(CheckForUpdates(app_version, FLAGS_omaha_url, FLAGS_interactive))
-        << "Update check/initiate update failed.";
+    CheckForUpdates(app_version, FLAGS_omaha_url, FLAGS_interactive);
   }
 
   // These final options are all mutually exclusive with one another.
@@ -679,28 +571,25 @@ int main(int argc, char** argv) {
 
   if (FLAGS_status) {
     LOG(INFO) << "Querying Update Engine status...";
-    if (!GetStatus(nullptr)) {
-      LOG(ERROR) << "GetStatus failed.";
-      return 1;
-    }
+    ShowStatus();
     return 0;
   }
 
   if (FLAGS_follow) {
     LOG(INFO) << "Waiting for update to complete.";
-    CompleteUpdate();  // Should never return.
-    return 1;
+    WaitForUpdateComplete();
+    return kContinueRunning;
   }
 
   if (FLAGS_watch_for_updates) {
     LOG(INFO) << "Watching for status updates.";
-    WatchForUpdates();  // Should never return.
-    return 1;
+    WatchForUpdates();
+    return kContinueRunning;
   }
 
   if (FLAGS_reboot) {
     LOG(INFO) << "Requesting a reboot...";
-    CHECK(RebootIfNeeded());
+    RebootIfNeeded();
     return 0;
   }
 
@@ -714,18 +603,25 @@ int main(int argc, char** argv) {
   }
 
   if (FLAGS_is_reboot_needed) {
-    bool reboot_needed = false;
-    if (!IsRebootNeeded(&reboot_needed))
-      return 1;
-    else if (!reboot_needed)
+    // In case of error GetIsRebootNeeded() will exit with 1.
+    if (GetIsRebootNeeded()) {
+      return 0;
+    } else {
       return 2;
+    }
   }
 
   if (FLAGS_block_until_reboot_is_needed) {
-    if (!BlockUntilRebootIsNeeded())
-      return 1;
+    WaitForRebootNeeded();
+    return kContinueRunning;
   }
 
-  LOG(INFO) << "Done.";
   return 0;
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  UpdateEngineClient client(argc, argv);
+  return client.Run();
 }
