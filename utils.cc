@@ -40,7 +40,6 @@
 #include <chromeos/data_encoding.h>
 #include <chromeos/key_value_store.h>
 #include <chromeos/message_loops/message_loop.h>
-#include <glib.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"
@@ -676,7 +675,7 @@ bool UnmountFilesystem(const string& mountpoint) {
 
     TEST_AND_RETURN_FALSE_ERRNO(errno == EBUSY &&
                                 num_retries < kUnmountMaxNumOfRetries);
-    g_usleep(kUnmountRetryIntervalInMicroseconds);
+    usleep(kUnmountRetryIntervalInMicroseconds);
   }
   return true;
 }
@@ -1501,15 +1500,6 @@ Time TimeFromStructTimespec(struct timespec *ts) {
   int64_t us = static_cast<int64_t>(ts->tv_sec) * Time::kMicrosecondsPerSecond +
       static_cast<int64_t>(ts->tv_nsec) / Time::kNanosecondsPerMicrosecond;
   return Time::UnixEpoch() + TimeDelta::FromMicroseconds(us);
-}
-
-gchar** StringVectorToGStrv(const vector<string> &vec_str) {
-  GPtrArray *p = g_ptr_array_new();
-  for (const string& str : vec_str) {
-    g_ptr_array_add(p, g_strdup(str.c_str()));
-  }
-  g_ptr_array_add(p, nullptr);
-  return reinterpret_cast<gchar**>(g_ptr_array_free(p, FALSE));
 }
 
 string StringVectorToString(const vector<string> &vec_str) {

@@ -24,5 +24,14 @@ string GetAndFreeGError(GError** error) {
   return message;
 }
 
+gchar** StringVectorToGStrv(const std::vector<string> &vec_str) {
+  GPtrArray *p = g_ptr_array_new();
+  for (const string& str : vec_str) {
+    g_ptr_array_add(p, g_strdup(str.c_str()));
+  }
+  g_ptr_array_add(p, nullptr);
+  return reinterpret_cast<gchar**>(g_ptr_array_free(p, FALSE));
+}
+
 }  // namespace utils
 }  // namespace chromeos_update_engine

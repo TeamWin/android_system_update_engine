@@ -245,7 +245,7 @@ bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
   may_be_running_ = true;  // Unless successful, we must be conservative.
 
   vector<string> args = configuration_->GetInitctlArgs(should_be_running);
-  unique_ptr<gchar*, GLibStrvFreeDeleter> argv(
+  unique_ptr<gchar*, utils::GLibStrvFreeDeleter> argv(
       utils::StringVectorToGStrv(args));
   if (!g_spawn_sync(nullptr,  // working_directory
                     argv.get(),
@@ -260,7 +260,8 @@ bool P2PManagerImpl::EnsureP2P(bool should_be_running) {
                << ": " << utils::GetAndFreeGError(&error);
     return false;
   }
-  unique_ptr<gchar, GLibFreeDeleter> standard_error_deleter(standard_error);
+  unique_ptr<gchar, utils::GLibFreeDeleter> standard_error_deleter(
+      standard_error);
 
   if (!WIFEXITED(exit_status)) {
     LOG(ERROR) << "Error spawning '" << utils::StringVectorToString(args)

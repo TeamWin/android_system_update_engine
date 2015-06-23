@@ -19,7 +19,6 @@
 #include <base/posix/eintr_wrapper.h>
 #include <base/time/time.h>
 #include <chromeos/secure_blob.h>
-#include <glib.h>
 #include "metrics/metrics_library.h"
 
 #include "update_engine/action.h"
@@ -40,11 +39,6 @@ namespace utils {
 // the Unix epoch to a base::Time. Sub-microsecond time is rounded
 // down.
 base::Time TimeFromStructTimespec(struct timespec *ts);
-
-// Converts a vector of strings to a NUL-terminated array of
-// strings. The resulting array should be freed with g_strfreev()
-// when are you done with it.
-gchar** StringVectorToGStrv(const std::vector<std::string> &vec_str);
 
 // Formats |vec_str| as a string of the form ["<elem1>", "<elem2>"].
 // Does no escaping, only use this for presentation in error messages.
@@ -575,24 +569,6 @@ class ScopedActionCompleter {
   ErrorCode code_;
   bool should_complete_;
   DISALLOW_COPY_AND_ASSIGN(ScopedActionCompleter);
-};
-
-// A base::FreeDeleter that frees memory using g_free(). Useful when
-// integrating with GLib since it can be used with std::unique_ptr to
-// automatically free memory when going out of scope.
-struct GLibFreeDeleter : public base::FreeDeleter {
-  inline void operator()(void *ptr) const {
-    g_free(reinterpret_cast<gpointer>(ptr));
-  }
-};
-
-// A base::FreeDeleter that frees memory using g_strfreev(). Useful
-// when integrating with GLib since it can be used with std::unique_ptr to
-// automatically free memory when going out of scope.
-struct GLibStrvFreeDeleter : public base::FreeDeleter {
-  inline void operator()(void *ptr) const {
-    g_strfreev(reinterpret_cast<gchar**>(ptr));
-  }
 };
 
 }  // namespace chromeos_update_engine
