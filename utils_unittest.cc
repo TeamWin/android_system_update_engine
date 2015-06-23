@@ -78,38 +78,6 @@ TEST(UtilsTest, KernelDeviceOfBootDevice) {
   EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/ubiblock4_0"));
 }
 
-
-TEST(UtilsTest, NormalizePathTest) {
-  EXPECT_EQ("", utils::NormalizePath("", false));
-  EXPECT_EQ("", utils::NormalizePath("", true));
-  EXPECT_EQ("/", utils::NormalizePath("/", false));
-  EXPECT_EQ("", utils::NormalizePath("/", true));
-  EXPECT_EQ("/", utils::NormalizePath("//", false));
-  EXPECT_EQ("", utils::NormalizePath("//", true));
-  EXPECT_EQ("foo", utils::NormalizePath("foo", false));
-  EXPECT_EQ("foo", utils::NormalizePath("foo", true));
-  EXPECT_EQ("/foo/", utils::NormalizePath("/foo//", false));
-  EXPECT_EQ("/foo", utils::NormalizePath("/foo//", true));
-  EXPECT_EQ("bar/baz/foo/adlr", utils::NormalizePath("bar/baz//foo/adlr",
-                                                     false));
-  EXPECT_EQ("bar/baz/foo/adlr", utils::NormalizePath("bar/baz//foo/adlr",
-                                                     true));
-  EXPECT_EQ("/bar/baz/foo/adlr/", utils::NormalizePath("/bar/baz//foo/adlr/",
-                                                       false));
-  EXPECT_EQ("/bar/baz/foo/adlr", utils::NormalizePath("/bar/baz//foo/adlr/",
-                                                      true));
-  EXPECT_EQ("\\\\", utils::NormalizePath("\\\\", false));
-  EXPECT_EQ("\\\\", utils::NormalizePath("\\\\", true));
-  EXPECT_EQ("\\:/;$PATH\n\\",
-            utils::NormalizePath("\\://;$PATH\n\\", false));
-  EXPECT_EQ("\\:/;$PATH\n\\",
-            utils::NormalizePath("\\://;$PATH\n\\", true));
-  EXPECT_EQ("/spaces s/ ok/s / / /",
-            utils::NormalizePath("/spaces s/ ok/s / / /", false));
-  EXPECT_EQ("/spaces s/ ok/s / / ",
-            utils::NormalizePath("/spaces s/ ok/s / / /", true));
-}
-
 TEST(UtilsTest, ReadFileFailure) {
   chromeos::Blob empty;
   EXPECT_FALSE(utils::ReadFile("/this/doesn't/exist", &empty));
@@ -152,20 +120,6 @@ TEST(UtilsTest, IsSymlinkTest) {
   EXPECT_TRUE(utils::IsSymlink(temp_symlink.c_str()));
   EXPECT_FALSE(utils::IsSymlink("/non/existent/path"));
   EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
-}
-
-TEST(UtilsTest, IsDirTest) {
-  string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("isdir-test.XXXXXX", &temp_dir));
-  string temp_file = temp_dir + "/temp-file";
-  EXPECT_TRUE(utils::WriteFile(temp_file.c_str(), "", 0));
-  string temp_symlink = temp_dir + "/temp-symlink";
-  EXPECT_EQ(0, symlink(temp_dir.c_str(), temp_symlink.c_str()));
-  EXPECT_TRUE(utils::IsDir(temp_dir.c_str()));
-  EXPECT_FALSE(utils::IsDir(temp_file.c_str()));
-  EXPECT_FALSE(utils::IsDir(temp_symlink.c_str()));
-  EXPECT_FALSE(utils::IsDir("/non/existent/path"));
-  ASSERT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
 }
 
 TEST(UtilsTest, GetDiskNameTest) {

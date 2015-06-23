@@ -556,17 +556,6 @@ string ErrnoNumberAsString(int err) {
   return strerror_r(err, buf, sizeof(buf));
 }
 
-string NormalizePath(const string& path, bool strip_trailing_slash) {
-  string ret;
-  std::unique_copy(path.begin(), path.end(), std::back_inserter(ret),
-                   [](char c1, char c2) { return c1 == c2 && c1 == '/'; });
-  // The above code ensures no "//" is present in the string, so at most one
-  // '/' is present at the end of the line.
-  if (strip_trailing_slash && !ret.empty() && ret.back() == '/')
-    ret.pop_back();
-  return ret;
-}
-
 bool FileExists(const char* path) {
   struct stat stbuf;
   return 0 == lstat(path, &stbuf);
@@ -575,12 +564,6 @@ bool FileExists(const char* path) {
 bool IsSymlink(const char* path) {
   struct stat stbuf;
   return lstat(path, &stbuf) == 0 && S_ISLNK(stbuf.st_mode) != 0;
-}
-
-bool IsDir(const char* path) {
-  struct stat stbuf;
-  TEST_AND_RETURN_FALSE_ERRNO(lstat(path, &stbuf) == 0);
-  return S_ISDIR(stbuf.st_mode);
 }
 
 bool TryAttachingUbiVolume(int volume_num, int timeout) {

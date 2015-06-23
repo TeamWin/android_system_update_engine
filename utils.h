@@ -115,19 +115,12 @@ off_t FileSize(int fd);
 
 std::string ErrnoNumberAsString(int err);
 
-// Strips duplicate slashes, and optionally removes all trailing slashes.
-// Does not compact /./ or /../.
-std::string NormalizePath(const std::string& path, bool strip_trailing_slash);
-
 // Returns true if the file exists for sure. Returns false if it doesn't exist,
 // or an error occurs.
 bool FileExists(const char* path);
 
 // Returns true if |path| exists and is a symbolic link.
 bool IsSymlink(const char* path);
-
-// Returns true if |path| exists and is a directory.
-bool IsDir(const char* path);
 
 // Try attaching UBI |volume_num|. If there is any error executing required
 // commands to attach the volume, this function returns false. This function
