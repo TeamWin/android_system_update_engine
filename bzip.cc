@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <bzlib.h>
+#include <limits>
+
 #include "update_engine/utils.h"
 
 using std::string;
@@ -51,7 +53,7 @@ template<int F(uint8_t* out,
                const void* in,
                uint32_t in_length)>
 bool BzipData(const void* const in,
-              const int32_t in_size,
+              const size_t in_size,
               chromeos::Blob* const out) {
   TEST_AND_RETURN_FALSE(out);
   out->clear();
@@ -63,6 +65,8 @@ bool BzipData(const void* const in,
   out->resize(buf_size);
 
   for (;;) {
+    if (buf_size > std::numeric_limits<uint32_t>::max())
+      return false;
     uint32_t data_size = buf_size;
     int rc = F(out->data(), &data_size, in, in_size);
     TEST_AND_RETURN_FALSE(rc == BZ_OUTBUFF_FULL || rc == BZ_OK);
@@ -81,9 +85,7 @@ bool BzipData(const void* const in,
 }  // namespace
 
 bool BzipDecompress(const chromeos::Blob& in, chromeos::Blob* out) {
-  return BzipData<BzipBuffToBuffDecompress>(in.data(),
-                                            static_cast<int32_t>(in.size()),
-                                            out);
+  return BzipData<BzipBuffToBuffDecompress>(in.data(), in.size(), out);
 }
 
 bool BzipCompress(const chromeos::Blob& in, chromeos::Blob* out) {
@@ -92,7 +94,7 @@ bool BzipCompress(const chromeos::Blob& in, chromeos::Blob* out) {
 
 namespace {
 template<bool F(const void* const in,
-                const int32_t in_size,
+                const size_t in_size,
                 chromeos::Blob* const out)>
 bool BzipString(const string& str,
                 chromeos::Blob* out) {
