@@ -20,6 +20,7 @@
 #include <vector>
 
 #include <base/macros.h>
+#include <chromeos/key_value_store.h>
 
 #include "update_engine/update_metadata.pb.h"
 
@@ -65,6 +66,10 @@ class FilesystemInterface {
   // happens for example with hard-linked files, but not limited to those cases.
   // Returns whether the function succeeded.
   virtual bool GetFiles(std::vector<File>* files) const = 0;
+
+  // Load the image settings stored in the filesystem in the
+  // /etc/update_engine.conf file. Returns whether the settings were found.
+  virtual bool LoadSettings(chromeos::KeyValueStore* store) const = 0;
 
  protected:
   FilesystemInterface() = default;

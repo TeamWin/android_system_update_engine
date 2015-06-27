@@ -40,11 +40,16 @@ class Ext2Filesystem : public FilesystemInterface {
   //    and bitmap tables.
   bool GetFiles(std::vector<File>* files) const override;
 
+  bool LoadSettings(chromeos::KeyValueStore* store) const override;
+
  private:
   Ext2Filesystem() = default;
 
   // The ext2 main data structure holding the filesystem.
   ext2_filsys filsys_ = nullptr;
+
+  // The file where the filesystem is stored.
+  std::string filename_;
 
   DISALLOW_COPY_AND_ASSIGN(Ext2Filesystem);
 };

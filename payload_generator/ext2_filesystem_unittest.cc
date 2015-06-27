@@ -177,4 +177,26 @@ TEST_F(Ext2FilesystemTest, ParseGeneratedImages) {
   }
 }
 
+TEST_F(Ext2FilesystemTest, LoadSettingsFailsTest) {
+  base::FilePath path = test_utils::GetBuildArtifactsPath().Append(
+      "gen/disk_ext2_1k.img");
+  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
+
+  chromeos::KeyValueStore store;
+  // disk_ext2_1k.img doesn't have the /etc/update_engine.conf file.
+  EXPECT_FALSE(fs->LoadSettings(&store));
+}
+
+TEST_F(Ext2FilesystemTest, LoadSettingsWorksTest) {
+  base::FilePath path = test_utils::GetBuildArtifactsPath().Append(
+      "gen/disk_ext2_ue_settings.img");
+  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
+
+  chromeos::KeyValueStore store;
+  EXPECT_TRUE(fs->LoadSettings(&store));
+  string minor_version;
+  EXPECT_TRUE(store.GetString("PAYLOAD_MINOR_VERSION", &minor_version));
+  EXPECT_EQ("1234", minor_version);
+}
+
 }  // namespace chromeos_update_engine

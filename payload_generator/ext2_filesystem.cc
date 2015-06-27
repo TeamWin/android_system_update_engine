@@ -111,6 +111,7 @@ unique_ptr<Ext2Filesystem> Ext2Filesystem::CreateFromFile(
   if (filename.empty())
     return nullptr;
   unique_ptr<Ext2Filesystem> result(new Ext2Filesystem());
+  result->filename_ = filename;
 
   errcode_t err = ext2fs_open(filename.c_str(),
                               0,  // flags (read only)
@@ -302,6 +303,41 @@ bool Ext2Filesystem::GetFiles(vector<File>* files) const {
   }
 
   return true;
+}
+
+bool Ext2Filesystem::LoadSettings(chromeos::KeyValueStore* store) const {
+  // First search for the settings inode following symlinks if we find some.
+  ext2_ino_t ino_num = 0;
+  errcode_t err = ext2fs_namei_follow(
+      filsys_, EXT2_ROOT_INO /* root */, EXT2_ROOT_INO /* cwd */,
+      "/etc/update_engine.conf", &ino_num);
+  if (err != 0)
+    return false;
+
+  ext2_inode ino_data;
+  if (ext2fs_read_inode(filsys_, ino_num, &ino_data) != 0)
+    return false;
+
+  // Load the list of blocks and then the contents of the inodes.
+  vector<Extent> extents;
+  err = ext2fs_block_iterate2(filsys_, ino_num, BLOCK_FLAG_DATA_ONLY,
+                              nullptr,  // block_buf
+                              ProcessInodeAllBlocks,
+                              &extents);
+  if (err != 0)
+    return false;
+
+  chromeos::Blob blob;
+  uint64_t physical_size = BlocksInExtents(extents) * filsys_->blocksize;
+  // Sparse holes in the settings file are not supported.
+  if (EXT2_I_SIZE(&ino_data) > physical_size)
+    return false;
+  if (!utils::ReadExtents(filename_, extents, &blob, physical_size,
+                          filsys_->blocksize))
+    return false;
+
+  string text(blob.begin(), blob.begin() + EXT2_I_SIZE(&ino_data));
+  return store->LoadFromString(text);
 }
 
 }  // namespace chromeos_update_engine

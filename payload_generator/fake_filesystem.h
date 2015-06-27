@@ -26,17 +26,25 @@ class FakeFilesystem : public FilesystemInterface {
   size_t GetBlockSize() const override;
   size_t GetBlockCount() const override;
   bool GetFiles(std::vector<File>* files) const override;
+  bool LoadSettings(chromeos::KeyValueStore* store) const override;
 
   // Fake methods.
 
   // Add a file to the list of fake files.
   void AddFile(const std::string& filename, const std::vector<Extent> extents);
 
+  // Sets the PAYLOAD_MINOR_VERSION key stored by LoadSettings(). Use a negative
+  // value to produce an error in LoadSettings().
+  void SetMinorVersion(int minor_version) {
+    minor_version_ = minor_version;
+  }
+
  private:
   FakeFilesystem() = default;
 
   uint64_t block_size_;
   uint64_t block_count_;
+  int minor_version_{-1};
 
   std::vector<File> files_;
 

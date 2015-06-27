@@ -332,6 +332,7 @@
           'sources': [
             'sample_images/disk_ext2_1k.txt',
             'sample_images/disk_ext2_4k.txt',
+            'sample_images/disk_ext2_ue_settings.txt',
           ],
           'includes': ['generate_image.gypi'],
         },
