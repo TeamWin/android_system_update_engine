@@ -61,13 +61,16 @@ struct FakeUpdateResponse {
     string entity_str;
     if (include_entity)
       entity_str = "<!DOCTYPE response [<!ENTITY CrOS \"ChromeOS\">]>";
-    return base::StringPrintf(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-        "%s<response protocol=\"3.0\">"
+    return
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+        entity_str + "<response protocol=\"3.0\">"
         "<daystart elapsed_seconds=\"100\"/>"
-        "<app appid=\"%s\" status=\"ok\"><ping status=\"ok\"/>"
-        "<updatecheck status=\"noupdate\"/></app></response>",
-        entity_str.c_str(), app_id.c_str());
+        "<app appid=\"" + app_id + "\" " +
+        (include_cohorts ? "cohort=\"" + cohort + "\" cohorthint=\"" +
+         cohorthint + "\" cohortname=\"" + cohortname + "\" " : "") +
+        " status=\"ok\">"
+        "<ping status=\"ok\"/>"
+        "<updatecheck status=\"noupdate\"/></app></response>";
   }
 
   string GetUpdateResponse() const {
@@ -781,6 +784,36 @@ TEST_F(OmahaRequestActionTest, CohortsAreNotModifiedWhenMissing) {
 
   EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
   EXPECT_FALSE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+}
+
+TEST_F(OmahaRequestActionTest, CohortsArePersistedWhenNoUpdate) {
+  OmahaResponse response;
+  OmahaRequestParams params = request_params_;
+  fake_update_response_.include_cohorts = true;
+  fake_update_response_.cohort = "s/154454/8479665";
+  fake_update_response_.cohorthint = "please-put-me-on-beta";
+  fake_update_response_.cohortname = "stable";
+
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+
+  string value;
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_EQ(fake_update_response_.cohort, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_EQ(fake_update_response_.cohorthint, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+  EXPECT_EQ(fake_update_response_.cohortname, value);
 }
 
 TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {

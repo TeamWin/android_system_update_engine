@@ -714,6 +714,14 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
     }
   }
 
+  // We persist the cohorts sent by omaha even if the status is "noupdate".
+  if (parser_data->app_cohort_set)
+    PersistCohortData(kPrefsOmahaCohort, parser_data->app_cohort);
+  if (parser_data->app_cohorthint_set)
+    PersistCohortData(kPrefsOmahaCohortHint, parser_data->app_cohorthint);
+  if (parser_data->app_cohortname_set)
+    PersistCohortData(kPrefsOmahaCohortName, parser_data->app_cohortname);
+
   if (!ParseStatus(parser_data, output_object, completer))
     return false;
 
@@ -727,13 +735,6 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 
   if (!ParseParams(parser_data, output_object, completer))
     return false;
-
-  if (parser_data->app_cohort_set)
-    PersistCohortData(kPrefsOmahaCohort, parser_data->app_cohort);
-  if (parser_data->app_cohorthint_set)
-    PersistCohortData(kPrefsOmahaCohortHint, parser_data->app_cohorthint);
-  if (parser_data->app_cohortname_set)
-    PersistCohortData(kPrefsOmahaCohortName, parser_data->app_cohortname);
 
   return true;
 }
