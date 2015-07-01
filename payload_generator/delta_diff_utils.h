@@ -11,6 +11,7 @@
 #include <chromeos/secure_blob.h>
 
 #include "update_engine/payload_generator/annotated_operation.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -32,6 +33,29 @@ bool DeltaReadPartition(std::vector<AnnotatedOperation>* aops,
                         off_t* data_file_size,
                         bool skip_block_0,
                         bool src_ops_allowed);
+
+// Create operations in |aops| for identical blocks that moved around in the old
+// and new partition and also handle zeroed blocks. The old and new partition
+// are stored in the |old_part| and |new_part| files and have |old_num_blocks|
+// and |new_num_blocks| respectively. The maximum operation size is
+// |chunk_blocks| blocks, or unlimited if |chunk_blocks| is -1. The blobs of the
+// produced operations are stored in the |data_fd| file whose size is updated
+// in the value pointed by |data_file_size|.
+// The collections |old_visited_blocks| and |new_visited_blocks| state what
+// blocks already have operations reading or writing them and only operations
+// for unvisited blocks are produced by this function updating both collections
+// with the used blocks.
+bool DeltaMovedAndZeroBlocks(std::vector<AnnotatedOperation>* aops,
+                             const std::string& old_part,
+                             const std::string& new_part,
+                             size_t old_num_blocks,
+                             size_t new_num_blocks,
+                             off_t chunk_blocks,
+                             bool src_ops_allowed,
+                             int data_fd,
+                             off_t* data_file_size,
+                             ExtentRanges* old_visited_blocks,
+                             ExtentRanges* new_visited_blocks);
 
 // For a given file |name| append operations to |aops| to produce it in the
 // |new_part|. The file will be split in chunks of |chunk_blocks| blocks each

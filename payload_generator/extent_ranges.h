@@ -48,6 +48,9 @@ class ExtentRanges {
   void AddRanges(const ExtentRanges& ranges);
   void SubtractRanges(const ExtentRanges& ranges);
 
+  // Returns whether the block |block| is in this ExtentRange.
+  bool ContainsBlock(uint64_t block) const;
+
   static bool ExtentsOverlapOrTouch(const Extent& a, const Extent& b);
   static bool ExtentsOverlap(const Extent& a, const Extent& b);
 

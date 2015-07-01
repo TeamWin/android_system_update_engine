@@ -180,6 +180,23 @@ void ExtentRanges::SubtractRepeatedExtents(
   }
 }
 
+bool ExtentRanges::ContainsBlock(uint64_t block) const {
+  auto lower = extent_set_.lower_bound(ExtentForRange(block, 1));
+  // The block could be on the extent before the one in |lower|.
+  if (lower != extent_set_.begin())
+    lower--;
+  // Any extent starting at block+1 or later is not interesting, so this is the
+  // upper limit.
+  auto upper = extent_set_.lower_bound(ExtentForRange(block + 1, 0));
+  for (auto iter = lower; iter != upper; ++iter) {
+    if (iter->start_block() <= block &&
+        block < iter->start_block() + iter->num_blocks()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void ExtentRanges::Dump() const {
   LOG(INFO) << "ExtentRanges Dump. blocks: " << blocks_;
   for (ExtentSet::const_iterator it = extent_set_.begin(),
@@ -223,7 +240,7 @@ vector<Extent> ExtentRanges::GetExtentsForBlockCount(
   return out;
 }
 
-vector<Extent> FilterExtentRanges(const std::vector<Extent>& extents,
+vector<Extent> FilterExtentRanges(const vector<Extent>& extents,
                                   const ExtentRanges& ranges) {
   vector<Extent> result;
   const ExtentRanges::ExtentSet& extent_set = ranges.extent_set();
