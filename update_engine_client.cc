@@ -42,18 +42,28 @@ class UpdateEngineClient : public chromeos::DBusDaemon {
       return ret;
     if (!InitProxy())
       return 1;
-    ret = ProcessFlags();
-    if (ret != kContinueRunning) {
-      base::MessageLoop::current()->PostTask(
-          FROM_HERE,
-          base::Bind(&UpdateEngineClient::QuitWithExitCode,
-                     base::Unretained(this), ret));
-    }
+    // Wait for the UpdateEngine to be available or timeout.
+    proxy_->GetObjectProxy()->WaitForServiceToBeAvailable(
+        base::Bind(&UpdateEngineClient::OnServiceAvailable,
+                   base::Unretained(this)));
+    base::MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&UpdateEngineClient::OnServiceAvailableTimeout,
+                   base::Unretained(this)),
+        base::TimeDelta::FromSeconds(10));
     return EX_OK;
   }
 
  private:
   bool InitProxy();
+
+  // Callback called when the UpdateEngine service becomes available.
+  void OnServiceAvailable(bool service_is_available);
+
+  // Callback called when the UpdateEngine service doesn't become available
+  // after a timeout.
+  void OnServiceAvailableTimeout();
+
 
   // Callback called when a StatusUpdate signal is received.
   void OnStatusUpdateSignal(int64_t last_checked_time,
@@ -152,9 +162,11 @@ class UpdateEngineClient : public chromeos::DBusDaemon {
   int argc_;
   char** argv_;
 
+  // Tell whether the UpdateEngine service is available after startup.
+  bool service_is_available_{false};
+
   DISALLOW_COPY_AND_ASSIGN(UpdateEngineClient);
 };
-
 
 bool UpdateEngineClient::InitProxy() {
   proxy_.reset(new org::chromium::UpdateEngineInterfaceProxy(bus_));
@@ -164,6 +176,25 @@ bool UpdateEngineClient::InitProxy() {
     return false;
   }
   return true;
+}
+
+void UpdateEngineClient::OnServiceAvailable(bool service_is_available) {
+  service_is_available_ = service_is_available;
+  if (!service_is_available) {
+    LOG(ERROR) << "UpdateEngineService not available.";
+    QuitWithExitCode(-1);
+  }
+  int ret = ProcessFlags();
+  if (ret != kContinueRunning)
+    QuitWithExitCode(ret);
+}
+
+void UpdateEngineClient::OnServiceAvailableTimeout() {
+  if (!service_is_available_) {
+    LOG(ERROR) << "Waiting for UpdateEngineService timeout. Is update_engine "
+                  "daemon running?";
+    QuitWithExitCode(-1);
+  }
 }
 
 void UpdateEngineClient::OnStatusUpdateSignal(
