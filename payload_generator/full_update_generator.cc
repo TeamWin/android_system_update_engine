@@ -190,7 +190,8 @@ bool FullUpdateGenerator::GenerateOperations(
       op->set_data_length(use_buf.size());
       Extent* dst_extent = op->add_dst_extents();
       dst_extent->set_start_block(processor->offset() / config.block_size);
-      dst_extent->set_num_blocks(full_chunk_size / config.block_size);
+      dst_extent->set_num_blocks(
+          processor->buffer_in().size() / config.block_size);
 
       int progress = static_cast<int>(
           (processor->offset() + processor->buffer_in().size()) * 100.0 /

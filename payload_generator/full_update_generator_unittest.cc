@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/delta_performer.h"
+#include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/test_utils.h"
 
 using chromeos_update_engine::test_utils::FillWithData;
@@ -25,15 +26,42 @@ class FullUpdateGeneratorTest : public ::testing::Test {
     config_.minor_version = DeltaPerformer::kFullPayloadMinorVersion;
     config_.chunk_size = 128 * 1024;
     config_.block_size = 4096;
+
+    EXPECT_TRUE(utils::MakeTempFile("FullUpdateTest_rootfs.XXXXXX",
+                                    &config_.target.rootfs.path,
+                                    nullptr));
+    EXPECT_TRUE(utils::MakeTempFile("FullUpdateTest_kernel.XXXXXX",
+                                    &config_.target.kernel.path,
+                                    nullptr));
+    EXPECT_TRUE(utils::MakeTempFile("FullUpdateTest_blobs.XXXXXX",
+                                    &out_blobs_path_,
+                                    &out_blobs_fd_));
+
+    rootfs_part_unlinker_.reset(
+        new ScopedPathUnlinker(config_.target.rootfs.path));
+    kernel_part_unlinker_.reset(
+        new ScopedPathUnlinker(config_.target.kernel.path));
+    out_blobs_unlinker_.reset(new ScopedPathUnlinker(out_blobs_path_));
   }
 
   PayloadGenerationConfig config_;
+
+  // Output file holding the payload blobs.
+  string out_blobs_path_;
+  int out_blobs_fd_{-1};
+  ScopedFdCloser out_blobs_fd_closer_{&out_blobs_fd_};
+
+  std::unique_ptr<ScopedPathUnlinker> rootfs_part_unlinker_;
+  std::unique_ptr<ScopedPathUnlinker> kernel_part_unlinker_;
+  std::unique_ptr<ScopedPathUnlinker> out_blobs_unlinker_;
+
+  // FullUpdateGenerator under test.
+  FullUpdateGenerator generator_;
 };
 
-
 TEST_F(FullUpdateGeneratorTest, RunTest) {
-  chromeos::Blob new_root(20 * 1024 * 1024);
-  chromeos::Blob new_kern(16 * 1024 * 1024);
+  chromeos::Blob new_root(9 * 1024 * 1024);
+  chromeos::Blob new_kern(3 * 1024 * 1024);
   FillWithData(&new_root);
   FillWithData(&new_kern);
 
@@ -42,39 +70,20 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
   config_.target.rootfs.size = new_root.size() - 2 * 1024 * 1024;
   config_.target.kernel.size = new_kern.size();
 
-  EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_R.XXXXXX",
-                                  &config_.target.rootfs.path,
-                                  nullptr));
-  ScopedPathUnlinker rootfs_part_unlinker(config_.target.rootfs.path);
   EXPECT_TRUE(test_utils::WriteFileVector(config_.target.rootfs.path,
                                           new_root));
-
-  EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_K.XXXXXX",
-                                  &config_.target.kernel.path,
-                                  nullptr));
-  ScopedPathUnlinker kernel_path_unlinker(config_.target.kernel.path);
   EXPECT_TRUE(test_utils::WriteFileVector(config_.target.kernel.path,
                                           new_kern));
-
-  string out_blobs_path;
-  int out_blobs_fd;
-  EXPECT_TRUE(utils::MakeTempFile("NewFullUpdateTest_D.XXXXXX",
-                                  &out_blobs_path,
-                                  &out_blobs_fd));
-  ScopedPathUnlinker out_blobs_path_unlinker(out_blobs_path);
-  ScopedFdCloser out_blobs_fd_closer(&out_blobs_fd);
 
   off_t out_blobs_length = 0;
   vector<AnnotatedOperation> rootfs_ops;
   vector<AnnotatedOperation> kernel_ops;
 
-  FullUpdateGenerator generator;
-
-  EXPECT_TRUE(generator.GenerateOperations(config_,
-                                           out_blobs_fd,
-                                           &out_blobs_length,
-                                           &rootfs_ops,
-                                           &kernel_ops));
+  EXPECT_TRUE(generator_.GenerateOperations(config_,
+                                            out_blobs_fd_,
+                                            &out_blobs_length,
+                                            &rootfs_ops,
+                                            &kernel_ops));
   int64_t target_rootfs_chunks =
       config_.target.rootfs.size / config_.chunk_size;
   EXPECT_EQ(target_rootfs_chunks, rootfs_ops.size());
@@ -91,6 +100,43 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
                 rootfs_ops[i].op.type());
     }
   }
+}
+
+// Test that if the chunk size is not a divisor of the image size, it handles
+// correctly the last chunk of each partition.
+TEST_F(FullUpdateGeneratorTest, ChunkSizeTooBig) {
+  config_.chunk_size = 1024 * 1024;
+  chromeos::Blob new_root(1536 * 1024);  // 1.5 MiB
+  chromeos::Blob new_kern(128 * 1024);
+  config_.rootfs_partition_size = new_root.size();
+  config_.target.rootfs.size = new_root.size();
+  config_.target.kernel.size = new_kern.size();
+
+  EXPECT_TRUE(test_utils::WriteFileVector(config_.target.rootfs.path,
+                                          new_root));
+  EXPECT_TRUE(test_utils::WriteFileVector(config_.target.kernel.path,
+                                          new_kern));
+
+  off_t out_blobs_length = 0;
+  vector<AnnotatedOperation> rootfs_ops;
+  vector<AnnotatedOperation> kernel_ops;
+
+  EXPECT_TRUE(generator_.GenerateOperations(config_,
+                                            out_blobs_fd_,
+                                            &out_blobs_length,
+                                            &rootfs_ops,
+                                            &kernel_ops));
+  // rootfs has one chunk and a half.
+  EXPECT_EQ(2, rootfs_ops.size());
+  EXPECT_EQ(config_.chunk_size / config_.block_size,
+            BlocksInExtents(rootfs_ops[0].op.dst_extents()));
+  EXPECT_EQ((new_root.size() - config_.chunk_size) / config_.block_size,
+            BlocksInExtents(rootfs_ops[1].op.dst_extents()));
+
+  // kernel has less than one chunk.
+  EXPECT_EQ(1, kernel_ops.size());
+  EXPECT_EQ(new_kern.size() / config_.block_size,
+            BlocksInExtents(kernel_ops[0].op.dst_extents()));
 }
 
 }  // namespace chromeos_update_engine
