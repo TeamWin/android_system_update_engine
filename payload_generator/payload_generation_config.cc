@@ -8,6 +8,8 @@
 
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/ext2_filesystem.h"
+#include "update_engine/payload_generator/raw_filesystem.h"
 #include "update_engine/payload_generator/verity_utils.h"
 #include "update_engine/utils.h"
 
@@ -20,6 +22,34 @@ bool PartitionConfig::ValidateExists() const {
   // The requested size is within the limits of the file.
   TEST_AND_RETURN_FALSE(static_cast<off_t>(size) <=
                         utils::FileSize(path.c_str()));
+  return true;
+}
+
+bool PartitionConfig::OpenFilesystem() {
+  if (path.empty())
+    return true;
+  fs_interface.reset();
+  if (name == PartitionName::kRootfs) {
+    fs_interface = Ext2Filesystem::CreateFromFile(path);
+  }
+
+  if (!fs_interface) {
+    // Fall back to a RAW filesystem.
+    TEST_AND_RETURN_FALSE(size % kBlockSize == 0);
+    std::string str_name = "other";
+    switch (name) {
+      case PartitionName::kKernel:
+        str_name = "kernel";
+        break;
+      case PartitionName::kRootfs:
+        str_name = "rootfs";
+        break;
+    }
+    fs_interface = RawFilesystem::Create(
+      "<" + str_name + "-partition>",
+      kBlockSize,
+      size / kBlockSize);
+  }
   return true;
 }
 

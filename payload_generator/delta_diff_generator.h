@@ -9,13 +9,6 @@
 
 #include "update_engine/payload_generator/payload_generation_config.h"
 
-// There is one function in DeltaDiffGenerator of importance to users
-// of the class: GenerateDeltaUpdateFile(). Before calling it,
-// the old and new images must be mounted. Call GenerateDeltaUpdateFile()
-// with both the mount-points of the images in addition to the paths of
-// the images (both old and new). A delta from old to new will be
-// generated and stored in output_path.
-
 namespace chromeos_update_engine {
 
 extern const size_t kBlockSize;

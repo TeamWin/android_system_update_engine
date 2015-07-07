@@ -19,6 +19,7 @@
 #include <base/posix/eintr_wrapper.h>
 #include <base/time/time.h>
 #include <chromeos/secure_blob.h>
+#include <chromeos/key_value_store.h>
 #include "metrics/metrics_library.h"
 
 #include "update_engine/action.h"
@@ -424,13 +425,10 @@ bool MonotonicDurationHelper(SystemState* system_state,
                              int64_t* storage,
                              base::TimeDelta* out_duration);
 
-// This function looks for a configuration file at |path|. If it finds that
-// file, it will try get the PAYLOAD_MINOR_VERSION value from it and set
-// |minor_version| to that value.
-//
-// The function will return |true| if it succeeds at finding the file and
-// value and setting it, and |false| otherwise.
-bool GetMinorVersion(base::FilePath path, uint32_t* minor_version);
+// Look for the minor version value in the passed |store| and set
+// |minor_version| to that value. Return whether the value was found and valid.
+bool GetMinorVersion(const chromeos::KeyValueStore& store,
+                     uint32_t* minor_version);
 
 // This function reads the specified data in |extents| into |out_data|. The
 // extents are read from the file at |path|. |out_data_size| is the size of

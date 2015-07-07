@@ -11,7 +11,6 @@
 #include <chromeos/secure_blob.h>
 
 #include "update_engine/payload_generator/annotated_operation.h"
-#include "update_engine/payload_generator/filesystem_interface.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -19,22 +18,20 @@ namespace chromeos_update_engine {
 
 namespace diff_utils {
 
-// Create operations in |aops| to produce all the files reported by |new_fs|,
-// including all the blocks not reported by any file.
-// It uses the files reported by |old_fs| and the data in |old_part| to
-// determine the best way to compress the new files (REPLACE, REPLACE_BZ,
-// COPY, BSDIFF) and writes any necessary data to the end of data_fd updating
-// data_file_size accordingly.
-bool DeltaReadFilesystem(std::vector<AnnotatedOperation>* aops,
-                         const std::string& old_part,
-                         const std::string& new_part,
-                         FilesystemInterface* old_fs,
-                         FilesystemInterface* new_fs,
-                         off_t chunk_blocks,
-                         int data_fd,
-                         off_t* data_file_size,
-                         bool skip_block_0,
-                         bool src_ops_allowed);
+// Create operations in |aops| to produce all the blocks in the |new_part|
+// partition using the filesystem opened in that PartitionConfig.
+// It uses the files reported by the filesystem in |old_part| and the data
+// blocks in that partition (if available) to determine the best way to compress
+// the new files (REPLACE, REPLACE_BZ, COPY, BSDIFF) and writes any necessary
+// data to the end of |data_fd| updating |data_file_size| accordingly.
+bool DeltaReadPartition(std::vector<AnnotatedOperation>* aops,
+                        const PartitionConfig& old_part,
+                        const PartitionConfig& new_part,
+                        off_t chunk_blocks,
+                        int data_fd,
+                        off_t* data_file_size,
+                        bool skip_block_0,
+                        bool src_ops_allowed);
 
 // For a given file |name| append operations to |aops| to produce it in the
 // |new_part|. The file will be split in chunks of |chunk_blocks| blocks each
@@ -72,25 +69,6 @@ bool ReadExtentsToDiff(const std::string& old_part,
                        chromeos::Blob* out_data,
                        DeltaArchiveManifest_InstallOperation* out_op,
                        bool src_ops_allowed);
-
-// Delta compresses a kernel partition |new_kernel_part| with knowledge of the
-// old kernel partition |old_kernel_part|. If |old_kernel_part| is an empty
-// string, generates a full update of the partition. The size of the old and
-// new kernel is passed in |old_kernel_size| and |new_kernel_size|. The
-// operations used to generate the new kernel are stored in the |aops|
-// vector, and the blob associated to those operations is written at the end
-// of the |blobs_fd| file, adding to the value pointed by |blobs_length| the
-// bytes written to |blobs_fd|.
-bool DeltaCompressKernelPartition(
-    const std::string& old_kernel_part,
-    const std::string& new_kernel_part,
-    uint64_t old_kernel_size,
-    uint64_t new_kernel_size,
-    uint64_t block_size,
-    std::vector<AnnotatedOperation>* aops,
-    int blobs_fd,
-    off_t* blobs_length,
-    bool src_ops_allowed);
 
 // Runs the bsdiff tool on two files and returns the resulting delta in
 // |out|. Returns true on success.

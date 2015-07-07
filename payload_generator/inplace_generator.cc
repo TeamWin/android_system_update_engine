@@ -15,7 +15,6 @@
 #include "update_engine/payload_generator/cycle_breaker.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
-#include "update_engine/payload_generator/ext2_filesystem.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
@@ -712,27 +711,20 @@ bool InplaceGenerator::GenerateOperations(
     off_t* data_file_size,
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
-  unique_ptr<Ext2Filesystem> old_fs = Ext2Filesystem::CreateFromFile(
-      config.source.rootfs.path);
-  unique_ptr<Ext2Filesystem> new_fs = Ext2Filesystem::CreateFromFile(
-      config.target.rootfs.path);
-
   off_t chunk_blocks = (config.chunk_size == -1 ? -1 :
                         config.chunk_size / config.block_size);
 
   // Temporary list of operations used to construct the dependency graph.
   vector<AnnotatedOperation> aops;
   TEST_AND_RETURN_FALSE(
-      diff_utils::DeltaReadFilesystem(&aops,
-                                      config.source.rootfs.path,
-                                      config.target.rootfs.path,
-                                      old_fs.get(),
-                                      new_fs.get(),
-                                      chunk_blocks,
-                                      data_file_fd,
-                                      data_file_size,
-                                      true,  // skip_block_0
-                                      false));  // src_ops_allowed
+      diff_utils::DeltaReadPartition(&aops,
+                                     config.source.rootfs,
+                                     config.target.rootfs,
+                                     chunk_blocks,
+                                     data_file_fd,
+                                     data_file_size,
+                                     true,  // skip_block_0
+                                     false));  // src_ops_allowed
   // Convert the rootfs operations to the graph.
   Graph graph;
   CheckGraph(graph);
@@ -756,16 +748,18 @@ bool InplaceGenerator::GenerateOperations(
   }
 
   // Read kernel partition
-  TEST_AND_RETURN_FALSE(diff_utils::DeltaCompressKernelPartition(
-      config.source.kernel.path,
-      config.target.kernel.path,
-      config.source.kernel.size,
-      config.target.kernel.size,
-      config.block_size,
-      kernel_ops,
-      data_file_fd,
-      data_file_size,
-      false));  // src_ops_allowed
+  LOG(INFO) << "Delta compressing kernel partition...";
+  // It is safe to not skip the block 0 since we will not be using the cycle
+  // breaking algorithm on this list of operations as we expect no cycles here.
+  TEST_AND_RETURN_FALSE(
+      diff_utils::DeltaReadPartition(kernel_ops,
+                                     config.source.kernel,
+                                     config.target.kernel,
+                                     chunk_blocks,
+                                     data_file_fd,
+                                     data_file_size,
+                                     false,  // skip_block_0
+                                     false));  // src_ops_allowed
   LOG(INFO) << "done reading kernel";
   CheckGraph(graph);
 

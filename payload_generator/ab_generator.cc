@@ -13,7 +13,6 @@
 #include "update_engine/payload_generator/annotated_operation.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
-#include "update_engine/payload_generator/ext2_filesystem.h"
 #include "update_engine/utils.h"
 
 using std::string;
@@ -45,21 +44,15 @@ bool ABGenerator::GenerateOperations(
     off_t* data_file_size,
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
-  unique_ptr<Ext2Filesystem> old_fs = Ext2Filesystem::CreateFromFile(
-      config.source.rootfs.path);
-  unique_ptr<Ext2Filesystem> new_fs = Ext2Filesystem::CreateFromFile(
-      config.target.rootfs.path);
 
   off_t chunk_blocks = (config.chunk_size == -1 ? -1 :
                         config.chunk_size / config.block_size);
 
   rootfs_ops->clear();
-  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadFilesystem(
+  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadPartition(
       rootfs_ops,
-      config.source.rootfs.path,
-      config.target.rootfs.path,
-      old_fs.get(),
-      new_fs.get(),
+      config.source.rootfs,
+      config.target.rootfs,
       chunk_blocks,
       data_file_fd,
       data_file_size,
@@ -68,15 +61,14 @@ bool ABGenerator::GenerateOperations(
   LOG(INFO) << "done reading normal files";
 
   // Read kernel partition
-  TEST_AND_RETURN_FALSE(diff_utils::DeltaCompressKernelPartition(
-      config.source.kernel.path,
-      config.target.kernel.path,
-      config.source.kernel.size,
-      config.target.kernel.size,
-      config.block_size,
+  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadPartition(
       kernel_ops,
+      config.source.kernel,
+      config.target.kernel,
+      chunk_blocks,
       data_file_fd,
       data_file_size,
+      false,  // skip_block_0
       true));  // src_ops_allowed
   LOG(INFO) << "done reading kernel";
 

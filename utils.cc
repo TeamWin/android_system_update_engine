@@ -38,7 +38,6 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <chromeos/data_encoding.h>
-#include <chromeos/key_value_store.h>
 #include <chromeos/message_loops/message_loop.h>
 
 #include "update_engine/clock_interface.h"
@@ -1628,11 +1627,10 @@ bool MonotonicDurationHelper(SystemState* system_state,
   return ret;
 }
 
-bool GetMinorVersion(base::FilePath path, uint32_t* minor_version) {
-  chromeos::KeyValueStore store;
+bool GetMinorVersion(const chromeos::KeyValueStore& store,
+                     uint32_t* minor_version) {
   string result;
-  if (base::PathExists(path) && store.Load(path) &&
-      store.GetString("PAYLOAD_MINOR_VERSION", &result)) {
+  if (store.GetString("PAYLOAD_MINOR_VERSION", &result)) {
     if (!base::StringToUint(result, minor_version)) {
       LOG(ERROR) << "StringToUint failed when parsing delta minor version.";
       return false;

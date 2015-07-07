@@ -16,7 +16,6 @@
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
-#include "update_engine/payload_generator/raw_filesystem.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
 
@@ -139,12 +138,10 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
 
 namespace diff_utils {
 
-bool DeltaReadFilesystem(
+bool DeltaReadPartition(
     vector<AnnotatedOperation>* aops,
-    const string& old_part,
-    const string& new_part,
-    FilesystemInterface* old_fs,
-    FilesystemInterface* new_fs,
+    const PartitionConfig& old_part,
+    const PartitionConfig& new_part,
     off_t chunk_blocks,
     int data_fd,
     off_t* data_file_size,
@@ -164,15 +161,16 @@ bool DeltaReadFilesystem(
   }
 
   map<string, vector<Extent>> old_files_map;
-  if (old_fs) {
+  if (old_part.fs_interface) {
     vector<FilesystemInterface::File> old_files;
-    old_fs->GetFiles(&old_files);
+    old_part.fs_interface->GetFiles(&old_files);
     for (const FilesystemInterface::File& file : old_files)
       old_files_map[file.name] = file.extents;
   }
 
+  TEST_AND_RETURN_FALSE(new_part.fs_interface);
   vector<FilesystemInterface::File> new_files;
-  new_fs->GetFiles(&new_files);
+  new_part.fs_interface->GetFiles(&new_files);
 
   // The processing is very straightforward here, we generate operations for
   // every file (and pseudo-file such as the metadata) in the new filesystem
@@ -210,8 +208,8 @@ bool DeltaReadFilesystem(
 
     TEST_AND_RETURN_FALSE(DeltaReadFile(
         aops,
-        old_part,
-        new_part,
+        old_part.path,
+        new_part.path,
         old_file_extents,
         new_file_extents,
         new_file.name,  // operation name
@@ -222,14 +220,15 @@ bool DeltaReadFilesystem(
   }
   // Process all the blocks not included in any file. We provided all the unused
   // blocks in the old partition as available data.
-  vector<Extent> new_unvisited = { ExtentForRange(0, new_fs->GetBlockCount()) };
+  vector<Extent> new_unvisited = {
+      ExtentForRange(0, new_part.size / kBlockSize)};
   new_unvisited = FilterExtentRanges(new_unvisited, new_visited_blocks);
   if (new_unvisited.empty())
     return true;
 
   vector<Extent> old_unvisited;
-  if (old_fs) {
-    old_unvisited.push_back(ExtentForRange(0, old_fs->GetBlockCount()));
+  if (old_part.fs_interface) {
+    old_unvisited.push_back(ExtentForRange(0, old_part.size / kBlockSize));
     old_unvisited = FilterExtentRanges(old_unvisited, old_visited_blocks);
   }
 
@@ -237,8 +236,8 @@ bool DeltaReadFilesystem(
             << " unwritten blocks";
   TEST_AND_RETURN_FALSE(DeltaReadFile(
       aops,
-      old_part,
-      new_part,
+      old_part.path,
+      new_part.path,
       old_unvisited,
       new_unvisited,
       "<non-file-data>",  // operation name
@@ -457,44 +456,6 @@ bool ReadExtentsToDiff(const string& old_part,
   *out_data = std::move(*data_blob);
   *out_op = operation;
 
-  return true;
-}
-
-bool DeltaCompressKernelPartition(
-    const string& old_kernel_part,
-    const string& new_kernel_part,
-    uint64_t old_kernel_size,
-    uint64_t new_kernel_size,
-    uint64_t block_size,
-    vector<AnnotatedOperation>* aops,
-    int blobs_fd,
-    off_t* blobs_length,
-    bool src_ops_allowed) {
-  LOG(INFO) << "Delta compressing kernel partition...";
-  LOG_IF(INFO, old_kernel_part.empty()) << "Generating full kernel update...";
-
-  unique_ptr<RawFilesystem> old_kernel_fs;
-  if (!old_kernel_part.empty())
-    old_kernel_fs = RawFilesystem::Create("<kernel-delta-operation>",
-                                          block_size,
-                                          old_kernel_size / block_size);
-  unique_ptr<RawFilesystem> new_kernel_fs = RawFilesystem::Create(
-      "<kernel-delta-operation>",
-      block_size,
-      new_kernel_size / block_size);
-
-  TEST_AND_RETURN_FALSE(DeltaReadFilesystem(aops,
-                                            old_kernel_part,
-                                            new_kernel_part,
-                                            old_kernel_fs.get(),
-                                            new_kernel_fs.get(),
-                                            -1,  // chunk_blocks
-                                            blobs_fd,
-                                            blobs_length,
-                                            false,  // skip_block_0
-                                            src_ops_allowed));
-
-  LOG(INFO) << "Done delta compressing kernel partition.";
   return true;
 }
 

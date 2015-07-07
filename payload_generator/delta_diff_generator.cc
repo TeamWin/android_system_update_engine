@@ -58,6 +58,9 @@ bool GenerateUpdatePayloadFile(
   LOG(INFO) << "Block count: "
             << config.target.rootfs.size / config.block_size;
 
+  LOG_IF(INFO, config.source.kernel.path.empty())
+      << "Will generate full kernel update.";
+
   const string kTempFileTemplate("CrAU_temp_data.XXXXXX");
   string temp_file_path;
   off_t data_file_size = 0;
@@ -99,10 +102,9 @@ bool GenerateUpdatePayloadFile(
     }
   } else {
     // Full update.
-    LOG(INFO) << "Using generator FullUpdateGenerator::Run";
+    LOG(INFO) << "Using generator FullUpdateGenerator()";
     strategy.reset(new FullUpdateGenerator());
   }
-
 
   int data_file_fd;
   TEST_AND_RETURN_FALSE(

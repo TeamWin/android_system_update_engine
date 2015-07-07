@@ -135,17 +135,19 @@ bool FullUpdateGenerator::GenerateOperations(
   size_t max_threads = std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
   LOG(INFO) << "Max threads: " << max_threads;
 
-  PartitionConfig partitions[] = { config.target.rootfs, config.target.kernel };
+  const PartitionConfig* partitions[] = {
+      &config.target.rootfs,
+      &config.target.kernel};
 
   for (int part_id = 0; part_id < 2; ++part_id) {
-    const PartitionConfig& partition = partitions[part_id];
-    LOG(INFO) << "compressing " << partition.path;
-    int in_fd = open(partition.path.c_str(), O_RDONLY, 0);
+    const PartitionConfig* partition = partitions[part_id];
+    LOG(INFO) << "compressing " << partition->path;
+    int in_fd = open(partition->path.c_str(), O_RDONLY, 0);
     TEST_AND_RETURN_FALSE(in_fd >= 0);
     ScopedFdCloser in_fd_closer(&in_fd);
     deque<shared_ptr<ChunkProcessor>> threads;
     int last_progress_update = INT_MIN;
-    size_t bytes_left = partition.size, counter = 0, offset = 0;
+    size_t bytes_left = partition->size, counter = 0, offset = 0;
     while (bytes_left > 0 || !threads.empty()) {
       // Check and start new chunk processors if possible.
       while (threads.size() < max_threads && bytes_left > 0) {
@@ -195,7 +197,7 @@ bool FullUpdateGenerator::GenerateOperations(
 
       int progress = static_cast<int>(
           (processor->offset() + processor->buffer_in().size()) * 100.0 /
-          partition.size);
+          partition->size);
       if (last_progress_update < progress &&
           (last_progress_update + 10 <= progress || progress == 100)) {
         LOG(INFO) << progress << "% complete (output size: "

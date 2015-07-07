@@ -532,7 +532,8 @@ static void GenerateDeltaFile(bool full_kernel,
         payload_config.source.kernel.path = state->old_kernel;
       payload_config.source.image_info = old_image_info;
       EXPECT_TRUE(payload_config.source.LoadImageSize());
-
+      EXPECT_TRUE(payload_config.source.rootfs.OpenFilesystem());
+      EXPECT_TRUE(payload_config.source.kernel.OpenFilesystem());
     } else {
       if (payload_config.chunk_size == -1)
         payload_config.chunk_size = kDefaultChunkSize;
@@ -541,6 +542,8 @@ static void GenerateDeltaFile(bool full_kernel,
     payload_config.target.kernel.path = state->new_kernel;
     payload_config.target.image_info = new_image_info;
     EXPECT_TRUE(payload_config.target.LoadImageSize());
+    EXPECT_TRUE(payload_config.target.rootfs.OpenFilesystem());
+    EXPECT_TRUE(payload_config.target.kernel.OpenFilesystem());
 
     EXPECT_TRUE(payload_config.Validate());
     EXPECT_TRUE(
@@ -1404,9 +1407,10 @@ TEST(DeltaPerformerTest, MinorVersionsMatch) {
   // Test that the minor version in update_engine.conf that is installed to
   // the image matches the supported delta minor version in the update engine.
   uint32_t minor_version;
-  base::FilePath conf_path("update_engine.conf");
-  EXPECT_TRUE(utils::GetMinorVersion(conf_path, &minor_version));
-  ASSERT_EQ(DeltaPerformer::kSupportedMinorPayloadVersion, minor_version);
+  chromeos::KeyValueStore store;
+  EXPECT_TRUE(store.Load(base::FilePath("update_engine.conf")));
+  EXPECT_TRUE(utils::GetMinorVersion(store, &minor_version));
+  EXPECT_EQ(DeltaPerformer::kSupportedMinorPayloadVersion, minor_version);
 }
 
 }  // namespace chromeos_update_engine

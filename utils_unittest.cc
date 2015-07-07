@@ -732,18 +732,17 @@ TEST(UtilsTest, GetConnectionType) {
 TEST(UtilsTest, GetMinorVersion) {
   // Test GetMinorVersion by verifying that it parses the conf file and returns
   // the correct value.
-  string contents = "PAYLOAD_MINOR_VERSION=1\n";
   uint32_t minor_version;
 
-  base::ScopedTempDir temp_dir;
-  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  chromeos::KeyValueStore store;
+  EXPECT_FALSE(utils::GetMinorVersion(store, &minor_version));
 
-  base::FilePath temp_file("update_engine.conf");
-  base::FilePath filepath = temp_dir.path().Append(temp_file);
+  EXPECT_TRUE(store.LoadFromString("PAYLOAD_MINOR_VERSION=one-two-three\n"));
+  EXPECT_FALSE(utils::GetMinorVersion(store, &minor_version));
 
-  ASSERT_TRUE(test_utils::WriteFileString(filepath.value(), contents.c_str()));
-  ASSERT_TRUE(utils::GetMinorVersion(filepath, &minor_version));
-  ASSERT_EQ(minor_version, 1);
+  EXPECT_TRUE(store.LoadFromString("PAYLOAD_MINOR_VERSION=123\n"));
+  EXPECT_TRUE(utils::GetMinorVersion(store, &minor_version));
+  EXPECT_EQ(minor_version, 123);
 }
 
 static bool BoolMacroTestHelper() {

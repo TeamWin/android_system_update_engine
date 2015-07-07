@@ -7,9 +7,11 @@
 
 #include <cstddef>
 
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "update_engine/payload_generator/filesystem_interface.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -27,6 +29,10 @@ struct PartitionConfig {
   // fields are set correctly to a valid image file.
   bool ValidateExists() const;
 
+  // Open then filesystem stored in this partition and stores it in
+  // |fs_interface|. Returns whether opening the filesystem worked.
+  bool OpenFilesystem();
+
   // The path to the partition file. This can be a regular file or a block
   // device such as a loop device.
   std::string path;
@@ -38,6 +44,10 @@ struct PartitionConfig {
   // the source image, and the size of that data it should generate for the
   // target image.
   uint64_t size = 0;
+
+  // The FilesystemInterface implementation used to access this partition's
+  // files.
+  std::unique_ptr<FilesystemInterface> fs_interface;
 
   PartitionName name;
 };

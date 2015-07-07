@@ -218,7 +218,8 @@ void ApplyDelta(const string& in_file,
 
 int Main(int argc, char** argv) {
   DEFINE_string(old_dir, "",
-                "Directory where the old rootfs is loop mounted read-only");
+                "[DEPRECATED] Directory where the old rootfs is loop mounted "
+                "read-only. Not required anymore.");
   DEFINE_string(new_dir, "",
                 "[DEPRECATED] Directory where the new rootfs is loop mounted "
                 "read-only. Not required anymore.");
@@ -255,8 +256,9 @@ int Main(int argc, char** argv) {
   DEFINE_uint64(rootfs_partition_size,
                chromeos_update_engine::kRootFSPartitionSize,
                "RootFS partition size for the image once installed");
-  DEFINE_int32(minor_version, DeltaPerformer::kFullPayloadMinorVersion,
-               "The minor version of the payload being generated");
+  DEFINE_int32(minor_version, -1,
+               "The minor version of the payload being generated "
+               "(-1 means autodetect).");
 
   DEFINE_string(old_channel, "",
                 "The channel for the old image. 'dev-channel', 'npo-channel', "
@@ -311,6 +313,9 @@ int Main(int argc, char** argv) {
   logging::InitLogging(log_settings);
 
   // Check flags.
+  if (!FLAGS_old_dir.empty()) {
+    LOG(INFO) << "--old_dir flag is deprecated and ignored.";
+  }
   if (!FLAGS_new_dir.empty()) {
     LOG(INFO) << "--new_dir flag is deprecated and ignored.";
   }
@@ -389,26 +394,41 @@ int Main(int argc, char** argv) {
                  &payload_config.source.image_info);
 
   payload_config.rootfs_partition_size = FLAGS_rootfs_partition_size;
-  payload_config.minor_version = FLAGS_minor_version;
-  // Look for the minor version in the old image if it was not given as an
-  // argument.
-  if (payload_config.is_delta &&
-      !base::CommandLine::ForCurrentProcess()->HasSwitch("minor_version")) {
-    uint32_t minor_version;
-    base::FilePath image_path(FLAGS_old_dir);
-    base::FilePath conf_loc("etc/update_engine.conf");
-    base::FilePath conf_path = image_path.Append(conf_loc);
-    if (utils::GetMinorVersion(conf_path, &minor_version)) {
-      payload_config.minor_version = minor_version;
-    } else {
-      payload_config.minor_version = kInPlaceMinorPayloadVersion;
-    }
-  }
 
   // Load the rootfs size from verity's kernel command line if rootfs
   // verification is enabled.
   payload_config.source.LoadVerityRootfsSize();
   payload_config.target.LoadVerityRootfsSize();
+
+  if (payload_config.is_delta) {
+    // Avoid opening the filesystem interface for full payloads.
+    CHECK(payload_config.target.rootfs.OpenFilesystem());
+    CHECK(payload_config.target.kernel.OpenFilesystem());
+    CHECK(payload_config.source.rootfs.OpenFilesystem());
+    CHECK(payload_config.source.kernel.OpenFilesystem());
+  }
+
+  if (FLAGS_minor_version == -1) {
+    // Autodetect minor_version by looking at the update_engine.conf in the old
+    // image.
+    if (payload_config.is_delta) {
+      CHECK(payload_config.source.rootfs.fs_interface);
+      chromeos::KeyValueStore store;
+      uint32_t minor_version;
+      if (payload_config.source.rootfs.fs_interface->LoadSettings(&store) &&
+          utils::GetMinorVersion(store, &minor_version)) {
+        payload_config.minor_version = minor_version;
+      } else {
+        payload_config.minor_version = kInPlaceMinorPayloadVersion;
+      }
+    } else {
+      payload_config.minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+    }
+    LOG(INFO) << "Auto-detected minor_version=" << payload_config.minor_version;
+  } else {
+    payload_config.minor_version = FLAGS_minor_version;
+    LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
+  }
 
   if (payload_config.is_delta) {
     LOG(INFO) << "Generating delta update";
