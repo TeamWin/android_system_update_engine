@@ -11,8 +11,7 @@
 #include <string>
 #include <vector>
 
-#include <gio/gio.h>
-#include <glib.h>
+#include <chromeos/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/action.h"
@@ -57,15 +56,13 @@ class FilesystemVerifierAction : public InstallPlanAction {
   FRIEND_TEST(FilesystemVerifierActionTest,
               RunAsRootDetermineFilesystemSizeTest);
 
-  // Callbacks from glib when the read operation is done.
-  void AsyncReadReadyCallback(GObject *source_object, GAsyncResult *res);
-  static void StaticAsyncReadReadyCallback(GObject *source_object,
-                                           GAsyncResult *res,
-                                           gpointer user_data);
+  // Callback from the main loop when there's data to read from the file
+  // descriptor.
+  void OnReadReadyCallback();
 
-  // Based on the state of the ping-pong buffers spawns appropriate read
-  // actions asynchronously.
-  void SpawnAsyncActions();
+  // Based on the state of the read buffers, terminates read process and the
+  // action.
+  void CheckTerminationConditions();
 
   // Cleans up all the variables we use for async operations and tells the
   // ActionProcessor we're done w/ |code| as passed in. |cancelled_| should be
@@ -82,17 +79,17 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   // If non-null, this is the GUnixInputStream object for the opened source
   // partition.
-  GInputStream* src_stream_;
+  int src_fd_{-1};
 
   // Buffer for storing data we read.
   chromeos::Blob buffer_;
 
-  // The cancellable object for the in-flight async calls.
-  GCancellable* canceller_;
+  // The task id for the the in-flight async call.
+  chromeos::MessageLoop::TaskId read_task_{chromeos::MessageLoop::kTaskIdNull};
 
-  bool read_done_;  // true if reached EOF on the input stream.
-  bool failed_;  // true if the action has failed.
-  bool cancelled_;  // true if the action has been cancelled.
+  bool read_done_{false};  // true if reached EOF on the input stream.
+  bool failed_{false};  // true if the action has failed.
+  bool cancelled_{false};  // true if the action has been cancelled.
 
   // The install plan we're passed in via the input pipe.
   InstallPlan install_plan_;

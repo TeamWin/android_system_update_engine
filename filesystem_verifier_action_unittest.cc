@@ -10,10 +10,12 @@
 #include <string>
 #include <vector>
 
+#include <base/bind.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <glib.h>
+#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -23,6 +25,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos::MessageLoop;
 using std::set;
 using std::string;
 using std::vector;
@@ -31,30 +34,40 @@ namespace chromeos_update_engine {
 
 class FilesystemVerifierActionTest : public ::testing::Test {
  protected:
+  void SetUp() override {
+    loop_.SetAsCurrent();
+  }
+
+  void TearDown() override {
+    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
+  }
+
   // Returns true iff test has completed successfully.
   bool DoTest(bool terminate_early,
               bool hash_fail,
               PartitionType partition_type);
 
+  chromeos::GlibMessageLoop loop_;
   FakeSystemState fake_system_state_;
 };
 
 class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
  public:
-  FilesystemVerifierActionTestDelegate(GMainLoop* loop,
-                                       FilesystemVerifierAction* action)
-      : loop_(loop), action_(action), ran_(false), code_(ErrorCode::kError) {}
+  explicit FilesystemVerifierActionTestDelegate(
+      FilesystemVerifierAction* action)
+      : action_(action), ran_(false), code_(ErrorCode::kError) {}
   void ExitMainLoop() {
-    GMainContext* context = g_main_loop_get_context(loop_);
-    // We cannot use g_main_context_pending() alone to determine if it is safe
-    // to quit the main loop here because g_main_context_pending() may return
-    // FALSE when g_input_stream_read_async() in FilesystemVerifierAction has
-    // been cancelled but the callback has not yet been invoked.
-    while (g_main_context_pending(context) || action_->IsCleanupPending()) {
-      g_main_context_iteration(context, false);
-      g_usleep(100);
+    // We need to wait for the Action to call Cleanup.
+    if (action_->IsCleanupPending()) {
+      LOG(INFO) << "Waiting for Cleanup() to be called.";
+      MessageLoop::current()->PostDelayedTask(
+          FROM_HERE,
+          base::Bind(&FilesystemVerifierActionTestDelegate::ExitMainLoop,
+                     base::Unretained(this)),
+          base::TimeDelta::FromMilliseconds(100));
+    } else {
+      MessageLoop::current()->BreakLoop();
     }
-    g_main_loop_quit(loop_);
   }
   void ProcessingDone(const ActionProcessor* processor, ErrorCode code) {
     ExitMainLoop();
@@ -74,28 +87,19 @@ class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
   ErrorCode code() const { return code_; }
 
  private:
-  GMainLoop* loop_;
   FilesystemVerifierAction* action_;
   bool ran_;
   ErrorCode code_;
 };
 
-struct StartProcessorCallbackArgs {
-  ActionProcessor* processor;
-  FilesystemVerifierAction* filesystem_copier_action;
-  bool terminate_early;
-};
-
-gboolean StartProcessorInRunLoop(gpointer data) {
-  StartProcessorCallbackArgs* args =
-      reinterpret_cast<StartProcessorCallbackArgs*>(data);
-  ActionProcessor* processor = args->processor;
+void StartProcessorInRunLoop(ActionProcessor* processor,
+                             FilesystemVerifierAction* filesystem_copier_action,
+                             bool terminate_early) {
   processor->StartProcessing();
-  if (args->terminate_early) {
-    EXPECT_TRUE(args->filesystem_copier_action);
-    args->processor->StopProcessing();
+  if (terminate_early) {
+    EXPECT_NE(nullptr, filesystem_copier_action);
+    processor->StopProcessing();
   }
-  return FALSE;
 }
 
 // TODO(garnold) Temporarily disabling this test, see chromium-os:31082 for
@@ -120,8 +124,6 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   testing::NiceMock<MockHardware> mock_hardware;
   fake_system_state_.set_hardware(&mock_hardware);
 
-  GMainLoop *loop = g_main_loop_new(g_main_context_default(), FALSE);
-
   string a_loop_file;
 
   if (!(utils::MakeTempFile("a_loop_file.XXXXXX", &a_loop_file, nullptr))) {
@@ -130,7 +132,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   }
   ScopedPathUnlinker a_loop_file_unlinker(a_loop_file);
 
-  // Make random data for a, zero filled data for b.
+  // Make random data for a.
   const size_t kLoopFileSize = 10 * 1024 * 1024 + 512;
   chromeos::Blob a_loop_data(kLoopFileSize);
   test_utils::FillWithData(&a_loop_data);
@@ -206,7 +208,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   BondActions(&feeder_action, &copier_action);
   BondActions(&copier_action, &collector_action);
 
-  FilesystemVerifierActionTestDelegate delegate(loop, &copier_action);
+  FilesystemVerifierActionTestDelegate delegate(&copier_action);
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&feeder_action);
   processor.EnqueueAction(&copier_action);
@@ -214,14 +216,11 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
 
   feeder_action.set_obj(install_plan);
 
-  StartProcessorCallbackArgs start_callback_args;
-  start_callback_args.processor = &processor;
-  start_callback_args.filesystem_copier_action = &copier_action;
-  start_callback_args.terminate_early = terminate_early;
-
-  g_timeout_add(0, &StartProcessorInRunLoop, &start_callback_args);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  loop_.PostTask(FROM_HERE, base::Bind(&StartProcessorInRunLoop,
+                                       &processor,
+                                       &copier_action,
+                                       terminate_early));
+  loop_.Run();
 
   if (!terminate_early) {
     bool is_delegate_ran = delegate.ran();
@@ -277,7 +276,6 @@ class FilesystemVerifierActionTest2Delegate : public ActionProcessorDelegate {
       code_ = code;
     }
   }
-  GMainLoop *loop_;
   bool ran_;
   ErrorCode code_;
 };
@@ -362,10 +360,7 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootDetermineFilesystemSizeTest) {
   ScopedPathUnlinker img_unlinker(img);
   test_utils::CreateExtImageAtPath(img, nullptr);
   // Extend the "partition" holding the file system from 10MiB to 20MiB.
-  EXPECT_EQ(0, test_utils::System(base::StringPrintf(
-      "dd if=/dev/zero of=%s seek=20971519 bs=1 count=1 status=none",
-      img.c_str())));
-  EXPECT_EQ(20 * 1024 * 1024, utils::FileSize(img));
+  EXPECT_EQ(0, truncate(img.c_str(), 20 * 1024 * 1024));
 
   for (int i = 0; i < 2; ++i) {
     PartitionType fs_type =
