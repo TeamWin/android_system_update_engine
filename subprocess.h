@@ -14,12 +14,14 @@
 
 #include <base/logging.h>
 #include <base/macros.h>
+#include <chromeos/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 // The Subprocess class is a singleton. It's used to spawn off a subprocess
 // and get notified when the subprocess exits. The result of Exec() can
-// be saved and used to cancel the callback request. If you know you won't
-// call CancelExec(), you may safely lose the return value from Exec().
+// be saved and used to cancel the callback request and kill your process. If
+// you know you won't call KillExec(), you may safely lose the return value
+// from Exec().
 
 namespace chromeos_update_engine {
 
@@ -38,9 +40,14 @@ class Subprocess {
   uint32_t Exec(const std::vector<std::string>& cmd,
                 ExecCallback callback,
                 void* p);
+  uint32_t ExecFlags(const std::vector<std::string>& cmd,
+                     GSpawnFlags flags,
+                     bool redirect_stderr_to_stdout,
+                     ExecCallback callback,
+                     void* p);
 
-  // Used to cancel the callback. The process will still run to completion.
-  void CancelExec(uint32_t tag);
+  // Kills the running process with SIGTERM and ignores the callback.
+  void KillExec(uint32_t tag);
 
   // Executes a command synchronously. Returns true on success. If |stdout| is
   // non-null, the process output is stored in it, otherwise the output is
@@ -53,7 +60,7 @@ class Subprocess {
                               int* return_code,
                               std::string* stdout);
 
-  // Gets the one instance
+  // Gets the one instance.
   static Subprocess& Get() {
     return *subprocess_singleton_;
   }
@@ -65,17 +72,17 @@ class Subprocess {
   FRIEND_TEST(SubprocessTest, CancelTest);
 
   struct SubprocessRecord {
-    SubprocessRecord()
-        : tag(0),
-          callback(nullptr),
-          callback_data(nullptr),
-          gioout(nullptr),
-          gioout_tag(0) {}
-    uint32_t tag;
-    ExecCallback callback;
-    void* callback_data;
-    GIOChannel* gioout;
-    guint gioout_tag;
+    SubprocessRecord() = default;
+
+    uint32_t tag{0};
+    chromeos::MessageLoop::TaskId task_id{chromeos::MessageLoop::kTaskIdNull};
+
+    ExecCallback callback{nullptr};
+    void* callback_data{nullptr};
+
+    GPid pid;
+
+    int stdout_fd{-1};
     std::string stdout;
   };
 
@@ -91,16 +98,14 @@ class Subprocess {
 
   // Callback which runs whenever there is input available on the subprocess
   // stdout pipe.
-  static gboolean GStdoutWatchCallback(GIOChannel* source,
-                                       GIOCondition condition,
-                                       gpointer data);
+  static void OnStdoutReady(SubprocessRecord* record);
 
   // The global instance.
   static Subprocess* subprocess_singleton_;
 
   // A map from the asynchronous subprocess tag (see Exec) to the subprocess
   // record structure for all active asynchronous subprocesses.
-  std::map<int, std::shared_ptr<SubprocessRecord>> subprocess_records_;
+  std::map<uint32_t, std::shared_ptr<SubprocessRecord>> subprocess_records_;
 
   DISALLOW_COPY_AND_ASSIGN(Subprocess);
 };

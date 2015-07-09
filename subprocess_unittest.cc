@@ -68,29 +68,40 @@ void CallbackEcho(int return_code, const string& output, void* /* unused */) {
   MessageLoop::current()->BreakLoop();
 }
 
+void CallbackStdoutOnlyEcho(int return_code,
+                            const string& output,
+                            void* /* unused */) {
+  EXPECT_EQ(0, return_code);
+  EXPECT_NE(string::npos, output.find("on stdout"));
+  EXPECT_EQ(string::npos, output.find("on stderr"));
+  MessageLoop::current()->BreakLoop();
+}
+
 }  // namespace
 
 TEST_F(SubprocessTest, SimpleTest) {
-  loop_.PostTask(
-      FROM_HERE,
-      base::Bind([] {
-        Subprocess::Get().Exec(vector<string>{"/bin/false"}, Callback, nullptr);
-      }));
+  Subprocess::Get().Exec(vector<string>{"/bin/false"}, Callback, nullptr);
   loop_.Run();
 }
 
 TEST_F(SubprocessTest, EchoTest) {
-  loop_.PostTask(
-      FROM_HERE,
-      base::Bind([] {
-        Subprocess::Get().Exec(
-            vector<string>{
-                "/bin/sh",
-                "-c",
-                "echo this is stdout; echo this is stderr > /dev/stderr"},
-            CallbackEcho,
-            nullptr);
-      }));
+  Subprocess::Get().Exec(
+      vector<string>{
+          "/bin/sh",
+          "-c",
+          "echo this is stdout; echo this is stderr > /dev/stderr"},
+      CallbackEcho,
+      nullptr);
+  loop_.Run();
+}
+
+TEST_F(SubprocessTest, StderrNotIncludedInOutputTest) {
+  Subprocess::Get().ExecFlags(
+      vector<string>{"/bin/sh", "-c", "echo on stdout; echo on stderr >&2"},
+      static_cast<GSpawnFlags>(0),
+      false,  // don't redirect stderr
+      CallbackStdoutOnlyEcho,
+      nullptr);
   loop_.Run();
 }
 
@@ -107,10 +118,7 @@ TEST_F(SubprocessTest, SynchronousEchoTest) {
 }
 
 TEST_F(SubprocessTest, SynchronousEchoNoOutputTest) {
-  vector<string> cmd = {
-      "/bin/sh",
-      "-c",
-      "echo test"};
+  vector<string> cmd = {"/bin/sh", "-c", "echo test"};
   int rc = -1;
   ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, nullptr));
   EXPECT_EQ(0, rc);
@@ -176,7 +184,7 @@ void StartAndCancelInRunLoop(bool* spawned) {
   remove(temp_file_name);
   CHECK_GT(local_server_port, 0);
   LOG(INFO) << "server listening on port " << local_server_port;
-  Subprocess::Get().CancelExec(tag);
+  Subprocess::Get().KillExec(tag);
 }
 
 void ExitWhenDone(bool* spawned) {

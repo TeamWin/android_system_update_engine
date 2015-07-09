@@ -15,12 +15,16 @@
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/bind_lambda.h>
+#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
+using chromeos::MessageLoop;
 using chromeos_update_engine::test_utils::System;
 using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
@@ -29,34 +33,34 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-namespace {
-gboolean StartProcessorInRunLoop(gpointer data) {
-  ActionProcessor *processor = reinterpret_cast<ActionProcessor*>(data);
-  processor->StartProcessing();
-  return FALSE;
-}
-}  // namespace
-
 class PostinstallRunnerActionTest : public ::testing::Test {
- public:
+ protected:
+  void SetUp() override {
+    loop_.SetAsCurrent();
+  }
+
+  void TearDown() override {
+    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
+  }
+
   // DoTest with various combinations of do_losetup, err_code and
   // powerwash_required.
   void DoTest(bool do_losetup, int err_code, bool powerwash_required);
 
  private:
   static const char* kImageMountPointTemplate;
+
+  chromeos::GlibMessageLoop loop_;
 };
 
 class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
  public:
   PostinstActionProcessorDelegate()
-      : loop_(nullptr),
-        code_(ErrorCode::kError),
+      : code_(ErrorCode::kError),
         code_set_(false) {}
   void ProcessingDone(const ActionProcessor* processor,
                       ErrorCode code) {
-    ASSERT_TRUE(loop_);
-    g_main_loop_quit(loop_);
+    MessageLoop::current()->BreakLoop();
   }
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
@@ -66,38 +70,31 @@ class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
       code_set_ = true;
     }
   }
-  GMainLoop* loop_;
   ErrorCode code_;
   bool code_set_;
 };
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootSimpleTest) {
-  ASSERT_EQ(0, getuid());
   DoTest(true, 0, false);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootPowerwashRequiredTest) {
-  ASSERT_EQ(0, getuid());
   DoTest(true, 0, true);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootCantMountTest) {
-  ASSERT_EQ(0, getuid());
   DoTest(false, 0, true);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootErrScriptTest) {
-  ASSERT_EQ(0, getuid());
   DoTest(true, 1, false);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootFirmwareBErrScriptTest) {
-  ASSERT_EQ(0, getuid());
   DoTest(true, 3, false);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootFirmwareROErrScriptTest) {
-  ASSERT_EQ(0, getuid());
   DoTest(true, 4, false);
 }
 
@@ -189,11 +186,9 @@ void PostinstallRunnerActionTest::DoTest(
   processor.EnqueueAction(&collector_action);
   processor.set_delegate(&delegate);
 
-  GMainLoop* loop = g_main_loop_new(g_main_context_default(), FALSE);
-  delegate.loop_ = loop;
-  g_timeout_add(0, &StartProcessorInRunLoop, &processor);
-  g_main_loop_run(loop);
-  g_main_loop_unref(loop);
+  loop_.PostTask(FROM_HERE,
+                 base::Bind([&processor] { processor.StartProcessing(); }));
+  loop_.Run();
   ASSERT_FALSE(processor.IsRunning());
 
   EXPECT_TRUE(delegate.code_set_);

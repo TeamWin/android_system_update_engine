@@ -4,6 +4,7 @@
 
 #include "update_engine/subprocess.h"
 
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -12,12 +13,15 @@
 #include <string>
 #include <vector>
 
+#include <base/bind.h>
 #include <base/logging.h>
+#include <base/posix/eintr_wrapper.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/glib_utils.h"
 
+using chromeos::MessageLoop;
 using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
@@ -28,13 +32,14 @@ namespace chromeos_update_engine {
 void Subprocess::GChildExitedCallback(GPid pid, gint status, gpointer data) {
   SubprocessRecord* record = reinterpret_cast<SubprocessRecord*>(data);
 
-  // Make sure we read any remaining process output. Then close the pipe.
-  GStdoutWatchCallback(record->gioout, G_IO_IN, &record->stdout);
-  int fd = g_io_channel_unix_get_fd(record->gioout);
-  g_source_remove(record->gioout_tag);
-  g_io_channel_unref(record->gioout);
-  close(fd);
+  // Make sure we read any remaining process output and then close the pipe.
+  OnStdoutReady(record);
 
+  MessageLoop::current()->CancelTask(record->task_id);
+  record->task_id = MessageLoop::kTaskIdNull;
+  if (IGNORE_EINTR(close(record->stdout_fd)) != 0) {
+    PLOG(ERROR) << "Error closing fd " << record->stdout_fd;
+  }
   g_spawn_close_pid(pid);
   gint use_status = status;
   if (WIFEXITED(status))
@@ -56,21 +61,21 @@ void Subprocess::GRedirectStderrToStdout(gpointer user_data) {
   dup2(1, 2);
 }
 
-gboolean Subprocess::GStdoutWatchCallback(GIOChannel* source,
-                                          GIOCondition condition,
-                                          gpointer data) {
-  string* stdout = reinterpret_cast<string*>(data);
+void Subprocess::OnStdoutReady(SubprocessRecord* record) {
   char buf[1024];
-  gsize bytes_read;
-  while (g_io_channel_read_chars(source,
-                                 buf,
-                                 arraysize(buf),
-                                 &bytes_read,
-                                 nullptr) == G_IO_STATUS_NORMAL &&
-         bytes_read > 0) {
-    stdout->append(buf, bytes_read);
-  }
-  return TRUE;  // Keep the callback source. It's freed in GChilExitedCallback.
+  ssize_t rc = 0;
+  do {
+    rc = HANDLE_EINTR(read(record->stdout_fd, buf, arraysize(buf)));
+    if (rc < 0) {
+      // EAGAIN and EWOULDBLOCK are normal return values when there's no more
+      // input as we are in non-blocking mode.
+      if (errno != EWOULDBLOCK && errno != EAGAIN) {
+        PLOG(ERROR) << "Error reading fd " << record->stdout_fd;
+      }
+    } else {
+      record->stdout.append(buf, rc);
+    }
+  } while (rc > 0);
 }
 
 namespace {
@@ -127,16 +132,16 @@ class ScopedFreeArgPointer {
 uint32_t Subprocess::Exec(const vector<string>& cmd,
                           ExecCallback callback,
                           void* p) {
-  GPid child_pid;
-  unique_ptr<char*[]> argv(new char*[cmd.size() + 1]);
-  for (unsigned int i = 0; i < cmd.size(); i++) {
-    argv[i] = strdup(cmd[i].c_str());
-    if (!argv[i]) {
-      FreeArgvInError(argv.get());  // null in argv[i] terminates argv.
-      return 0;
-    }
-  }
-  argv[cmd.size()] = nullptr;
+  return ExecFlags(cmd, static_cast<GSpawnFlags>(0), true, callback, p);
+}
+
+uint32_t Subprocess::ExecFlags(const vector<string>& cmd,
+                               GSpawnFlags flags,
+                               bool redirect_stderr_to_stdout,
+                               ExecCallback callback,
+                               void* p) {
+  unique_ptr<gchar*, utils::GLibStrvFreeDeleter> argv(
+       utils::StringVectorToGStrv(cmd));
 
   char** argp = ArgPointer();
   if (!argp) {
@@ -154,39 +159,47 @@ uint32_t Subprocess::Exec(const vector<string>& cmd,
       nullptr,  // working directory
       argv.get(),
       argp,
-      G_SPAWN_DO_NOT_REAP_CHILD,  // flags
-      GRedirectStderrToStdout,  // child setup function
+      static_cast<GSpawnFlags>(flags | G_SPAWN_DO_NOT_REAP_CHILD),  // flags
+      // child setup function:
+      redirect_stderr_to_stdout ? GRedirectStderrToStdout : nullptr,
       nullptr,  // child setup data pointer
-      &child_pid,
+      &record->pid,
       nullptr,
       &stdout_fd,
       nullptr,
       &error);
-  FreeArgv(argv.get());
   if (!success) {
     LOG(ERROR) << "g_spawn_async failed: " << utils::GetAndFreeGError(&error);
     return 0;
   }
   record->tag =
-      g_child_watch_add(child_pid, GChildExitedCallback, record.get());
+      g_child_watch_add(record->pid, GChildExitedCallback, record.get());
+  record->stdout_fd = stdout_fd;
   subprocess_records_[record->tag] = record;
 
-  // Capture the subprocess output.
-  record->gioout = g_io_channel_unix_new(stdout_fd);
-  g_io_channel_set_encoding(record->gioout, nullptr, nullptr);
-  LOG_IF(WARNING,
-         g_io_channel_set_flags(record->gioout, G_IO_FLAG_NONBLOCK, nullptr) !=
-         G_IO_STATUS_NORMAL) << "Unable to set non-blocking I/O mode.";
-  record->gioout_tag = g_io_add_watch(
-      record->gioout,
-      static_cast<GIOCondition>(G_IO_IN | G_IO_PRI | G_IO_ERR | G_IO_HUP),
-      GStdoutWatchCallback,
-      &record->stdout);
+  // Capture the subprocess output. Make our end of the pipe non-blocking.
+  int fd_flags = fcntl(stdout_fd, F_GETFL, 0) | O_NONBLOCK;
+  if (HANDLE_EINTR(fcntl(record->stdout_fd, F_SETFL, fd_flags)) < 0) {
+    LOG(ERROR) << "Unable to set non-blocking I/O mode on fd "
+               << record->stdout_fd << ".";
+  }
+
+  record->task_id = MessageLoop::current()->WatchFileDescriptor(
+      FROM_HERE,
+      record->stdout_fd,
+      MessageLoop::WatchMode::kWatchRead,
+      true,
+      base::Bind(&Subprocess::OnStdoutReady, record.get()));
+
   return record->tag;
 }
 
-void Subprocess::CancelExec(uint32_t tag) {
-  subprocess_records_[tag]->callback = nullptr;
+void Subprocess::KillExec(uint32_t tag) {
+  const auto& record = subprocess_records_.find(tag);
+  if (record == subprocess_records_.end())
+    return;
+  record->second->callback = nullptr;
+  kill(record->second->pid, SIGTERM);
 }
 
 bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
@@ -250,10 +263,8 @@ bool Subprocess::SynchronousExec(const vector<string>& cmd,
 }
 
 bool Subprocess::SubprocessInFlight() {
-  for (std::map<int, shared_ptr<SubprocessRecord>>::iterator it =
-           subprocess_records_.begin();
-       it != subprocess_records_.end(); ++it) {
-    if (it->second->callback)
+  for (const auto& tag_record_pair : subprocess_records_) {
+    if (tag_record_pair.second->callback)
       return true;
   }
   return false;

@@ -10,7 +10,6 @@
 #include <utility>
 
 #include <curl/curl.h>
-#include <glib.h>
 
 #include <base/logging.h>
 #include <base/macros.h>
@@ -125,16 +124,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // left off.
   virtual void ResumeTransfer(const std::string& url);
 
-  // These two methods are for glib main loop callbacks. They are called
-  // when either a file descriptor is ready for work or when a timer
-  // has fired. The static versions are shims for libcurl which has a C API.
-  bool FDCallback(GIOChannel *source, GIOCondition condition);
-  static gboolean StaticFDCallback(GIOChannel *source,
-                                   GIOCondition condition,
-                                   gpointer data) {
-    return reinterpret_cast<LibcurlHttpFetcher*>(data)->FDCallback(source,
-                                                                   condition);
-  }
   void TimeoutCallback();
   void RetryTimeoutCallback();
 
@@ -146,10 +135,10 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // Returns true if we should resume immediately after this call.
   void CurlPerformOnce();
 
-  // Sets up glib main loop sources as needed by libcurl. This is generally
+  // Sets up message loop sources as needed by libcurl. This is generally
   // the file descriptor of the socket and a timer in case nothing happens
   // on the fds.
-  void SetupMainloopSources();
+  void SetupMessageLoopSources();
 
   // Callback called by libcurl when new data has arrived on the transfer
   size_t LibcurlWrite(void *ptr, size_t size, size_t nmemb);
@@ -160,7 +149,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
   }
 
   // Cleans up the following if they are non-null:
-  // curl(m) handles, io_channels_, timeout_source_.
+  // curl(m) handles, fd_task_maps_, timeout_id_.
   void CleanUp();
 
   // Force terminate the transfer. This will invoke the delegate's (if any)
@@ -185,17 +174,16 @@ class LibcurlHttpFetcher : public HttpFetcher {
   struct curl_slist* curl_http_headers_{nullptr};
 
   // Lists of all read(0)/write(1) file descriptors that we're waiting on from
-  // the glib main loop. libcurl may open/close descriptors and switch their
+  // the message loop. libcurl may open/close descriptors and switch their
   // directions so maintain two separate lists so that watch conditions can be
   // set appropriately.
-  typedef std::map<int, std::pair<GIOChannel*, guint>> IOChannels;
-  IOChannels io_channels_[2];
+  std::map<int, chromeos::MessageLoop::TaskId> fd_task_maps_[2];
 
   // The TaskId of the timer we're waiting on. kTaskIdNull if we are not waiting
   // on it.
   chromeos::MessageLoop::TaskId timeout_id_{chromeos::MessageLoop::kTaskIdNull};
 
-  bool transfer_in_progress_ = false;
+  bool transfer_in_progress_{false};
 
   // The transfer size. -1 if not known.
   off_t transfer_size_{0};
