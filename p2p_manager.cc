@@ -11,10 +11,8 @@
 #include "update_engine/p2p_manager.h"
 
 #include <attr/xattr.h>
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <glib.h>
 #include <linux/falloc.h>
 #include <signal.h>
 #include <string.h>
@@ -30,8 +28,10 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/files/file_enumerator.h>
 #include <base/files/file_path.h>
 #include <base/logging.h>
+#include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/glib_utils.h"
@@ -318,46 +318,32 @@ bool P2PManagerImpl::DeleteP2PFile(const FilePath& path,
 bool P2PManagerImpl::PerformHousekeeping() {
   // Open p2p dir.
   FilePath p2p_dir = configuration_->GetP2PDir();
-  GError* error = nullptr;
-  GDir* dir = g_dir_open(p2p_dir.value().c_str(), 0, &error);
-  if (dir == nullptr) {
-    LOG(ERROR) << "Error opening directory " << p2p_dir.value() << ": "
-               << utils::GetAndFreeGError(&error);
-    return false;
-  }
+  const string ext_visible = GetExt(kVisible);
+  const string ext_non_visible = GetExt(kNonVisible);
 
-  // Go through all files and collect their mtime.
-  string ext_visible = GetExt(kVisible);
-  string ext_non_visible = GetExt(kNonVisible);
   bool deletion_failed = false;
-  const char* name = nullptr;
   vector<pair<FilePath, Time>> matches;
-  while ((name = g_dir_read_name(dir)) != nullptr) {
-    if (!(g_str_has_suffix(name, ext_visible.c_str()) ||
-          g_str_has_suffix(name, ext_non_visible.c_str())))
+
+  base::FileEnumerator dir(p2p_dir, false, base::FileEnumerator::FILES);
+  // Go through all files and collect their mtime.
+  for (FilePath name = dir.Next(); !name.empty(); name = dir.Next()) {
+    if (!(base::EndsWith(name.value(), ext_visible, true) ||
+          base::EndsWith(name.value(), ext_non_visible, true)))
       continue;
 
-    struct stat statbuf;
-    FilePath file = p2p_dir.Append(name);
-    if (stat(file.value().c_str(), &statbuf) != 0) {
-      PLOG(ERROR) << "Error getting file status for " << file.value();
-      continue;
-    }
-
-    Time time = utils::TimeFromStructTimespec(&statbuf.st_mtim);
+    Time time = dir.GetInfo().GetLastModifiedTime();
 
     // If instructed to keep only files younger than a given age
     // (|max_file_age_| != 0), delete files satisfying this criteria
     // right now. Otherwise add it to a list we'll consider for later.
     if (clock_ != nullptr && max_file_age_ != TimeDelta() &&
         clock_->GetWallclockTime() - time > max_file_age_) {
-      if (!DeleteP2PFile(file, "file too old"))
+      if (!DeleteP2PFile(name, "file too old"))
         deletion_failed = true;
     } else {
-      matches.push_back(std::make_pair(file, time));
+      matches.push_back(std::make_pair(name, time));
     }
   }
-  g_dir_close(dir);
 
   // If instructed to only keep N files (|max_files_to_keep_ != 0),
   // sort list of matches, newest (biggest time) to oldest (lowest
@@ -670,28 +656,18 @@ ssize_t P2PManagerImpl::FileGetExpectedSize(const string& file_id) {
 }
 
 int P2PManagerImpl::CountSharedFiles() {
-  GDir* dir;
-  GError* error = nullptr;
-  const char* name;
   int num_files = 0;
 
   FilePath p2p_dir = configuration_->GetP2PDir();
-  dir = g_dir_open(p2p_dir.value().c_str(), 0, &error);
-  if (dir == nullptr) {
-    LOG(ERROR) << "Error opening directory " << p2p_dir.value() << ": "
-               << utils::GetAndFreeGError(&error);
-    return -1;
-  }
+  const string ext_visible = GetExt(kVisible);
+  const string ext_non_visible = GetExt(kNonVisible);
 
-  string ext_visible = GetExt(kVisible);
-  string ext_non_visible = GetExt(kNonVisible);
-  while ((name = g_dir_read_name(dir)) != nullptr) {
-    if (g_str_has_suffix(name, ext_visible.c_str()) ||
-        g_str_has_suffix(name, ext_non_visible.c_str())) {
+  base::FileEnumerator dir(p2p_dir, false, base::FileEnumerator::FILES);
+  for (FilePath name = dir.Next(); !name.empty(); name = dir.Next()) {
+    if (base::EndsWith(name.value(), ext_visible, true) ||
+        base::EndsWith(name.value(), ext_non_visible, true))
       num_files += 1;
-    }
   }
-  g_dir_close(dir);
 
   return num_files;
 }

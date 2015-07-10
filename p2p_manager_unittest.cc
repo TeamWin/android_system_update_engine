@@ -6,7 +6,6 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <glib.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <attr/xattr.h>  // NOLINT - requires typed defined in unistd.h
@@ -17,6 +16,7 @@
 
 #include <base/bind.h>
 #include <base/callback.h>
+#include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
 #include <chromeos/message_loops/glib_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
@@ -36,10 +36,9 @@
 
 using base::TimeDelta;
 using chromeos::MessageLoop;
-using chromeos_update_engine::test_utils::System;
 using std::string;
-using std::vector;
 using std::unique_ptr;
+using std::vector;
 using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
@@ -129,39 +128,20 @@ TEST_F(P2PManagerTest, HousekeepingCountLimit) {
       TimeDelta() /* max_file_age */));
   EXPECT_EQ(manager_->CountSharedFiles(), 0);
 
+  base::Time start_time = base::Time::FromDoubleT(1246996800.);
   // Generate files with different timestamps matching our pattern and generate
   // other files not matching the pattern.
-  double last_timestamp = -1;
   for (int n = 0; n < 5; n++) {
-    double current_timestamp;
-    do {
-      base::FilePath file = test_conf_->GetP2PDir().Append(base::StringPrintf(
-          "file_%d.cros_au.p2p", n));
-      EXPECT_EQ(0, System(base::StringPrintf("touch %s",
-                                             file.value().c_str())));
+    base::FilePath path = test_conf_->GetP2PDir().Append(base::StringPrintf(
+        "file_%d.cros_au.p2p", n));
+    base::Time file_time = start_time + TimeDelta::FromMinutes(n);
+    EXPECT_EQ(0, base::WriteFile(path, nullptr, 0));
+    EXPECT_TRUE(base::TouchFile(path, file_time, file_time));
 
-      // Check that the current timestamp on the file is different from the
-      // previous generated file. This timestamp depends on the file system
-      // time resolution, for example, ext2/ext3 have a time resolution of one
-      // second while ext4 has a resolution of one nanosecond. If the assigned
-      // timestamp is the same, we introduce a bigger sleep and call touch
-      // again.
-      struct stat statbuf;
-      EXPECT_EQ(stat(file.value().c_str(), &statbuf), 0);
-      current_timestamp = utils::TimeFromStructTimespec(&statbuf.st_ctim)
-          .ToDoubleT();
-      if (current_timestamp == last_timestamp)
-        sleep(1);
-    } while (current_timestamp == last_timestamp);
-    last_timestamp = current_timestamp;
-
-    EXPECT_EQ(0, System(base::StringPrintf(
-        "touch %s/file_%d.OTHER.p2p",
-        test_conf_->GetP2PDir().value().c_str(), n)));
-
-    // A sleep of one micro-second is enough to have a different "Change" time
-    // on the file on newer file systems.
-    g_usleep(1);
+    path = test_conf_->GetP2PDir().Append(base::StringPrintf(
+        "file_%d.OTHER.p2p", n));
+    EXPECT_EQ(0, base::WriteFile(path, nullptr, 0));
+    EXPECT_TRUE(base::TouchFile(path, file_time, file_time));
   }
   // CountSharedFiles() only counts 'cros_au' files.
   EXPECT_EQ(manager_->CountSharedFiles(), 5);
@@ -178,12 +158,12 @@ TEST_F(P2PManagerTest, HousekeepingCountLimit) {
     file_name = base::StringPrintf(
         "%s/file_%d.cros_au.p2p",
          test_conf_->GetP2PDir().value().c_str(), n);
-    EXPECT_EQ(!!g_file_test(file_name.c_str(), G_FILE_TEST_EXISTS), expect);
+    EXPECT_EQ(expect, utils::FileExists(file_name.c_str()));
 
     file_name = base::StringPrintf(
         "%s/file_%d.OTHER.p2p",
         test_conf_->GetP2PDir().value().c_str(), n);
-    EXPECT_TRUE(g_file_test(file_name.c_str(), G_FILE_TEST_EXISTS));
+    EXPECT_TRUE(utils::FileExists(file_name.c_str()));
   }
   // CountSharedFiles() only counts 'cros_au' files.
   EXPECT_EQ(manager_->CountSharedFiles(), 3);
@@ -196,14 +176,14 @@ TEST_F(P2PManagerTest, HousekeepingAgeLimit) {
   // September 2001 - arbitrary number, but constant to avoid test
   // flakiness) since the epoch and then we put two files before that
   // date and three files after.
-  time_t cutoff_time = 1000000000;
+  base::Time cutoff_time = base::Time::FromTimeT(1000000000);
   TimeDelta age_limit = TimeDelta::FromDays(5);
 
   // Set the clock just so files with a timestamp before |cutoff_time|
   // will be deleted at housekeeping.
-  fake_clock_.SetWallclockTime(base::Time::FromTimeT(cutoff_time) + age_limit);
+  fake_clock_.SetWallclockTime(cutoff_time + age_limit);
 
-  // Specifically pass 0 for |num_files_to_keep| to allow files of any age.
+  // Specifically pass 0 for |num_files_to_keep| to allow any number of files.
   // Note that we need to reallocate the test_conf_ member, whose currently
   // aliased object will be freed.
   test_conf_ = new FakeP2PManagerConfiguration();
@@ -215,7 +195,7 @@ TEST_F(P2PManagerTest, HousekeepingAgeLimit) {
   // Generate files with different timestamps matching our pattern and generate
   // other files not matching the pattern.
   for (int n = 0; n < 5; n++) {
-    base::FilePath file = test_conf_->GetP2PDir().Append(base::StringPrintf(
+    base::FilePath path = test_conf_->GetP2PDir().Append(base::StringPrintf(
         "file_%d.cros_au.p2p", n));
 
     // With five files and aiming for two of them to be before
@@ -225,32 +205,16 @@ TEST_F(P2PManagerTest, HousekeepingAgeLimit) {
     //                            |
     //                       cutoff_time
     //
-    base::Time file_date = base::Time::FromTimeT(cutoff_time) +
-      (n - 2)*TimeDelta::FromDays(1) + TimeDelta::FromHours(12);
+    base::Time file_date = cutoff_time + (n - 2) * TimeDelta::FromDays(1)
+        + TimeDelta::FromHours(12);
 
-    // The touch(1) command expects input like this
-    // --date="2004-02-27 14:19:13.489392193 +0530"
-    base::Time::Exploded exploded;
-    file_date.UTCExplode(&exploded);
-    string file_date_string = base::StringPrintf(
-        "%d-%02d-%02d %02d:%02d:%02d +0000",
-        exploded.year, exploded.month, exploded.day_of_month,
-        exploded.hour, exploded.minute, exploded.second);
+    EXPECT_EQ(0, base::WriteFile(path, nullptr, 0));
+    EXPECT_TRUE(base::TouchFile(path, file_date, file_date));
 
-    // Sanity check that we generated the correct string.
-    base::Time parsed_time;
-    EXPECT_TRUE(base::Time::FromUTCString(file_date_string.c_str(),
-                                          &parsed_time));
-    EXPECT_EQ(parsed_time, file_date);
-
-    EXPECT_EQ(0, System(base::StringPrintf("touch --date=\"%s\" %s",
-                                           file_date_string.c_str(),
-                                           file.value().c_str())));
-
-    EXPECT_EQ(0, System(base::StringPrintf(
-        "touch --date=\"%s\" %s/file_%d.OTHER.p2p",
-        file_date_string.c_str(),
-        test_conf_->GetP2PDir().value().c_str(), n)));
+    path = test_conf_->GetP2PDir().Append(base::StringPrintf(
+        "file_%d.OTHER.p2p", n));
+    EXPECT_EQ(0, base::WriteFile(path, nullptr, 0));
+    EXPECT_TRUE(base::TouchFile(path, file_date, file_date));
   }
   // CountSharedFiles() only counts 'cros_au' files.
   EXPECT_EQ(manager_->CountSharedFiles(), 5);
@@ -267,12 +231,12 @@ TEST_F(P2PManagerTest, HousekeepingAgeLimit) {
     file_name = base::StringPrintf(
         "%s/file_%d.cros_au.p2p",
          test_conf_->GetP2PDir().value().c_str(), n);
-    EXPECT_EQ(!!g_file_test(file_name.c_str(), G_FILE_TEST_EXISTS), expect);
+    EXPECT_EQ(expect, utils::FileExists(file_name.c_str()));
 
     file_name = base::StringPrintf(
         "%s/file_%d.OTHER.p2p",
         test_conf_->GetP2PDir().value().c_str(), n);
-    EXPECT_TRUE(g_file_test(file_name.c_str(), G_FILE_TEST_EXISTS));
+    EXPECT_TRUE(utils::FileExists(file_name.c_str()));
   }
   // CountSharedFiles() only counts 'cros_au' files.
   EXPECT_EQ(manager_->CountSharedFiles(), 3);
