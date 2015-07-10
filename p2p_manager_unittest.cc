@@ -12,6 +12,8 @@
 #include <attr/xattr.h>  // NOLINT - requires typed defined in unistd.h
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include <base/bind.h>
 #include <base/callback.h>
@@ -36,6 +38,7 @@ using base::TimeDelta;
 using chromeos::MessageLoop;
 using chromeos_update_engine::test_utils::System;
 using std::string;
+using std::vector;
 using std::unique_ptr;
 using testing::DoAll;
 using testing::Return;
@@ -454,30 +457,30 @@ TEST_F(P2PManagerTest, ExistingFiles) {
 // behaviours of initctl(8) that we rely on.
 TEST_F(P2PManagerTest, StartP2P) {
   // Check that we can start the service
-  test_conf_->SetInitctlStartCommandLine("true");
+  test_conf_->SetInitctlStartCommand({"true"});
   EXPECT_TRUE(manager_->EnsureP2PRunning());
-  test_conf_->SetInitctlStartCommandLine("false");
+  test_conf_->SetInitctlStartCommand({"false"});
   EXPECT_FALSE(manager_->EnsureP2PRunning());
-  test_conf_->SetInitctlStartCommandLine(
-      "sh -c 'echo \"initctl: Job is already running: p2p\" >&2; false'");
+  test_conf_->SetInitctlStartCommand({
+      "sh", "-c", "echo \"initctl: Job is already running: p2p\" >&2; false"});
   EXPECT_TRUE(manager_->EnsureP2PRunning());
-  test_conf_->SetInitctlStartCommandLine(
-      "sh -c 'echo something else >&2; false'");
+  test_conf_->SetInitctlStartCommand({
+      "sh", "-c", "echo something else >&2; false"});
   EXPECT_FALSE(manager_->EnsureP2PRunning());
 }
 
 // Same comment as for StartP2P
 TEST_F(P2PManagerTest, StopP2P) {
   // Check that we can start the service
-  test_conf_->SetInitctlStopCommandLine("true");
+  test_conf_->SetInitctlStopCommand({"true"});
   EXPECT_TRUE(manager_->EnsureP2PNotRunning());
-  test_conf_->SetInitctlStopCommandLine("false");
+  test_conf_->SetInitctlStopCommand({"false"});
   EXPECT_FALSE(manager_->EnsureP2PNotRunning());
-  test_conf_->SetInitctlStopCommandLine(
-      "sh -c 'echo \"initctl: Unknown instance \" >&2; false'");
+  test_conf_->SetInitctlStopCommand({
+      "sh", "-c", "echo \"initctl: Unknown instance \" >&2; false"});
   EXPECT_TRUE(manager_->EnsureP2PNotRunning());
-  test_conf_->SetInitctlStopCommandLine(
-      "sh -c 'echo something else >&2; false'");
+  test_conf_->SetInitctlStopCommand({
+      "sh", "-c", "echo something else >&2; false"});
   EXPECT_FALSE(manager_->EnsureP2PNotRunning());
 }
 
@@ -492,40 +495,41 @@ static void ExpectUrl(const string& expected_url,
 TEST_F(P2PManagerTest, LookupURL) {
   // Emulate p2p-client returning valid URL with "fooX", 42 and "cros_au"
   // being propagated in the right places.
-  test_conf_->SetP2PClientCommandLine(
-      "echo 'http://1.2.3.4/{file_id}_{minsize}'");
+  test_conf_->SetP2PClientCommand({
+      "echo", "http://1.2.3.4/{file_id}_{minsize}"});
   manager_->LookupUrlForFile("fooX", 42, TimeDelta(),
                              base::Bind(ExpectUrl,
                                         "http://1.2.3.4/fooX.cros_au_42"));
   loop_.Run();
 
   // Emulate p2p-client returning invalid URL.
-  test_conf_->SetP2PClientCommandLine("echo 'not_a_valid_url'");
+  test_conf_->SetP2PClientCommand({"echo", "not_a_valid_url"});
   manager_->LookupUrlForFile("foobar", 42, TimeDelta(),
                              base::Bind(ExpectUrl, ""));
   loop_.Run();
 
   // Emulate p2p-client conveying failure.
-  test_conf_->SetP2PClientCommandLine("false");
+  test_conf_->SetP2PClientCommand({"false"});
   manager_->LookupUrlForFile("foobar", 42, TimeDelta(),
                              base::Bind(ExpectUrl, ""));
   loop_.Run();
 
   // Emulate p2p-client not existing.
-  test_conf_->SetP2PClientCommandLine("/path/to/non/existent/helper/program");
+  test_conf_->SetP2PClientCommand({"/path/to/non/existent/helper/program"});
   manager_->LookupUrlForFile("foobar", 42,
                              TimeDelta(),
                              base::Bind(ExpectUrl, ""));
   loop_.Run();
 
   // Emulate p2p-client crashing.
-  test_conf_->SetP2PClientCommandLine("sh -c 'kill -SEGV $$'");
+  test_conf_->SetP2PClientCommand({"sh", "-c", "kill -SEGV $$"});
   manager_->LookupUrlForFile("foobar", 42, TimeDelta(),
                              base::Bind(ExpectUrl, ""));
   loop_.Run();
 
   // Emulate p2p-client exceeding its timeout.
-  test_conf_->SetP2PClientCommandLine("sh -c 'echo http://1.2.3.4/; sleep 2'");
+  test_conf_->SetP2PClientCommand({
+      "sh", "-c", "echo http://1.2.3.4/; sleep 2"});
   manager_->LookupUrlForFile("foobar", 42, TimeDelta::FromMilliseconds(500),
                              base::Bind(ExpectUrl, ""));
   loop_.Run();

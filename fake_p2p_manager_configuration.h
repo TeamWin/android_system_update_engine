@@ -12,11 +12,9 @@
 #include <string>
 #include <vector>
 
-#include <glib.h>
-
 #include <base/logging.h>
 #include <base/strings/string_util.h>
-#include <base/strings/stringprintf.h>
+#include <base/strings/string_number_conversions.h>
 
 namespace chromeos_update_engine {
 
@@ -24,12 +22,8 @@ namespace chromeos_update_engine {
 // /var/cache/p2p, a temporary directory is used.
 class FakeP2PManagerConfiguration : public P2PManager::Configuration {
  public:
-  FakeP2PManagerConfiguration()
-    : p2p_client_cmdline_format_(
-        "p2p-client --get-url={file_id} --minimum-size={minsize}") {
+  FakeP2PManagerConfiguration() {
     EXPECT_TRUE(utils::MakeTempDirectory("/tmp/p2p-tc.XXXXXX", &p2p_dir_));
-    SetInitctlStartCommandLine("initctl start p2p");
-    SetInitctlStopCommandLine("initctl stop p2p");
   }
 
   ~FakeP2PManagerConfiguration() {
@@ -51,76 +45,53 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
   // P2PManager::Configuration override
   std::vector<std::string> GetP2PClientArgs(const std::string &file_id,
                                             size_t minimum_size) override {
-    std::string formatted_command_line = p2p_client_cmdline_format_;
+    std::vector<std::string> formatted_command = p2p_client_cmd_format_;
     // Replace {variable} on the passed string.
-    ReplaceSubstringsAfterOffset(
-        &formatted_command_line, 0, "{file_id}", file_id);
-    ReplaceSubstringsAfterOffset(
-        &formatted_command_line, 0,
-        "{minsize}", base::StringPrintf("%zu", minimum_size));
-
-    return ParseCommandLine(formatted_command_line);
+    std::string str_minimum_size = base::SizeTToString(minimum_size);
+    for (std::string& arg : formatted_command) {
+      ReplaceSubstringsAfterOffset(&arg, 0, "{file_id}", file_id);
+      ReplaceSubstringsAfterOffset(&arg, 0, "{minsize}", str_minimum_size);
+    }
+    return formatted_command;
   }
 
   // Use |command_line| instead of "initctl start p2p" when attempting
   // to start the p2p service.
-  void SetInitctlStartCommandLine(const std::string &command_line) {
-    initctl_start_args_ = ParseCommandLine(command_line);
+  void SetInitctlStartCommand(const std::vector<std::string>& command) {
+    initctl_start_args_ = command;
   }
 
   // Use |command_line| instead of "initctl stop p2p" when attempting
   // to stop the p2p service.
-  void SetInitctlStopCommandLine(const std::string &command_line) {
-    initctl_stop_args_ = ParseCommandLine(command_line);
+  void SetInitctlStopCommand(const std::vector<std::string>& command) {
+    initctl_stop_args_ = command;
   }
 
-  // Use |command_line_format| instead of "p2p-client --get-url={file_id}
+  // Use |command_format| instead of "p2p-client --get-url={file_id}
   // --minimum-size={minsize}" when attempting to look up a file using
   // p2p-client(1).
   //
-  // The passed |command_line_format| argument can have "{file_id}" and
-  // "{minsize}" as substrings, that will be replaced by the corresponding
-  // values passed to GetP2PClientArgs().
-  void SetP2PClientCommandLine(const std::string &command_line_format) {
-    p2p_client_cmdline_format_ = command_line_format;
+  // The passed |command_format| argument can have "{file_id}" and "{minsize}"
+  // as substrings of any of its elements, that will be replaced by the
+  // corresponding values passed to GetP2PClientArgs().
+  void SetP2PClientCommand(const std::vector<std::string>& command_format) {
+    p2p_client_cmd_format_ = command_format;
   }
 
  private:
-  // Helper for parsing and splitting |command_line| into an argument
-  // vector in much the same way a shell would except for not
-  // supporting wildcards, globs, operators etc. See
-  // g_shell_parse_argv() for more details. If an error occurs, the
-  // empty vector is returned.
-  std::vector<std::string> ParseCommandLine(const std::string &command_line) {
-    gint argc;
-    gchar **argv;
-    std::vector<std::string> ret;
-
-    if (!g_shell_parse_argv(command_line.c_str(),
-                            &argc,
-                            &argv,
-                            nullptr)) {
-      LOG(ERROR) << "Error splitting '" << command_line << "'";
-      return ret;
-    }
-    for (int n = 0; n < argc; n++)
-      ret.push_back(argv[n]);
-    g_strfreev(argv);
-    return ret;
-  }
-
   // The temporary directory used for p2p.
   std::string p2p_dir_;
 
   // Argument vector for starting p2p.
-  std::vector<std::string> initctl_start_args_;
+  std::vector<std::string> initctl_start_args_{"initctl", "start", "p2p"};
 
   // Argument vector for stopping p2p.
-  std::vector<std::string> initctl_stop_args_;
+  std::vector<std::string> initctl_stop_args_{"initctl", "stop", "p2p"};
 
   // A string for generating the p2p-client command. See the
   // SetP2PClientCommandLine() for details.
-  std::string p2p_client_cmdline_format_;
+  std::vector<std::string> p2p_client_cmd_format_{
+      "p2p-client", "--get-url={file_id}", "--minimum-size={minsize}"};
 
   DISALLOW_COPY_AND_ASSIGN(FakeP2PManagerConfiguration);
 };
