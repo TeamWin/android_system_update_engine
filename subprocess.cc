@@ -72,6 +72,11 @@ void Subprocess::OnStdoutReady(SubprocessRecord* record) {
       if (errno != EWOULDBLOCK && errno != EAGAIN) {
         PLOG(ERROR) << "Error reading fd " << record->stdout_fd;
       }
+    } else if (rc == 0) {
+      // A value of 0 means that the child closed its end of the pipe and there
+      // is nothing else to read from stdout.
+      MessageLoop::current()->CancelTask(record->task_id);
+      record->task_id = MessageLoop::kTaskIdNull;
     } else {
       record->stdout.append(buf, rc);
     }
