@@ -1,0 +1,91 @@
+// Copyright (c) 2009 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef UPDATE_ENGINE_FILE_WRITER_H_
+#define UPDATE_ENGINE_FILE_WRITER_H_
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <base/logging.h>
+
+#include "update_engine/error_code.h"
+#include "update_engine/utils.h"
+
+// FileWriter is a class that is used to (synchronously, for now) write to
+// a file. This file is a thin wrapper around open/write/close system calls,
+// but provides and interface that can be customized by subclasses that wish
+// to filter the data.
+
+namespace chromeos_update_engine {
+
+class FileWriter {
+ public:
+  FileWriter() {}
+  virtual ~FileWriter() {}
+
+  // Wrapper around open. Returns 0 on success or -errno on error.
+  virtual int Open(const char* path, int flags, mode_t mode) = 0;
+
+  // Wrapper around write. Returns true if all requested bytes
+  // were written, or false on any error, regardless of progress.
+  virtual bool Write(const void* bytes, size_t count) = 0;
+
+  // Same as the Write method above but returns a detailed |error| code
+  // in addition if the returned value is false. By default this method
+  // returns kActionExitDownloadWriteError as the error code, but subclasses
+  // can override if they wish to return more specific error codes.
+  virtual bool Write(const void* bytes,
+                     size_t count,
+                     ErrorCode* error) {
+     *error = ErrorCode::kDownloadWriteError;
+     return Write(bytes, count);
+  }
+
+  // Wrapper around close. Returns 0 on success or -errno on error.
+  virtual int Close() = 0;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FileWriter);
+};
+
+// Direct file writer is probably the simplest FileWriter implementation.
+// It calls the system calls directly.
+
+class DirectFileWriter : public FileWriter {
+ public:
+  DirectFileWriter() : fd_(-1) {}
+
+  int Open(const char* path, int flags, mode_t mode) override;
+  bool Write(const void* bytes, size_t count) override;
+  int Close() override;
+
+  int fd() const { return fd_; }
+
+ private:
+  int fd_;
+
+  DISALLOW_COPY_AND_ASSIGN(DirectFileWriter);
+};
+
+class ScopedFileWriterCloser {
+ public:
+  explicit ScopedFileWriterCloser(FileWriter* writer) : writer_(writer) {}
+  ~ScopedFileWriterCloser() {
+    int err = writer_->Close();
+    if (err)
+      LOG(ERROR) << "FileWriter::Close failed: "
+                 << utils::ErrnoNumberAsString(-err);
+  }
+ private:
+  FileWriter* writer_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedFileWriterCloser);
+};
+
+}  // namespace chromeos_update_engine
+
+#endif  // UPDATE_ENGINE_FILE_WRITER_H_

@@ -1,0 +1,67 @@
+// Copyright (c) 2009 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "update_engine/file_writer.h"
+
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <string>
+#include <vector>
+
+#include <gtest/gtest.h>
+#include <chromeos/secure_blob.h>
+
+#include "update_engine/test_utils.h"
+#include "update_engine/utils.h"
+
+using std::string;
+using std::vector;
+
+namespace chromeos_update_engine {
+
+class FileWriterTest : public ::testing::Test { };
+
+TEST(FileWriterTest, SimpleTest) {
+  // Create a uniquely named file for testing.
+  string path;
+  ASSERT_TRUE(utils::MakeTempFile("FileWriterTest-XXXXXX", &path, nullptr));
+  ScopedPathUnlinker path_unlinker(path);
+
+  DirectFileWriter file_writer;
+  EXPECT_EQ(0, file_writer.Open(path.c_str(),
+                                O_CREAT | O_LARGEFILE | O_TRUNC | O_WRONLY,
+                                0644));
+  EXPECT_TRUE(file_writer.Write("test", 4));
+  chromeos::Blob actual_data;
+  EXPECT_TRUE(utils::ReadFile(path, &actual_data));
+
+  EXPECT_FALSE(memcmp("test", actual_data.data(), actual_data.size()));
+  EXPECT_EQ(0, file_writer.Close());
+}
+
+TEST(FileWriterTest, ErrorTest) {
+  DirectFileWriter file_writer;
+  const string path("/tmp/ENOENT/FileWriterTest");
+  EXPECT_EQ(-ENOENT, file_writer.Open(path.c_str(),
+                                      O_CREAT | O_LARGEFILE | O_TRUNC, 0644));
+}
+
+TEST(FileWriterTest, WriteErrorTest) {
+  // Create a uniquely named file for testing.
+  string path;
+  ASSERT_TRUE(utils::MakeTempFile("FileWriterTest-XXXXXX", &path, nullptr));
+  ScopedPathUnlinker path_unlinker(path);
+
+  DirectFileWriter file_writer;
+  EXPECT_EQ(0, file_writer.Open(path.c_str(),
+                                O_CREAT | O_LARGEFILE | O_TRUNC | O_RDONLY,
+                                0644));
+  EXPECT_FALSE(file_writer.Write("x", 1));
+  EXPECT_EQ(0, file_writer.Close());
+}
+
+
+}  // namespace chromeos_update_engine
