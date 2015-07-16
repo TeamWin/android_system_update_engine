@@ -194,6 +194,23 @@ class InplaceGenerator : public OperationsGenerator {
   static void ApplyMap(std::vector<uint64_t>* collection,
                        const std::map<uint64_t, uint64_t>& the_map);
 
+  // Resolve all read-after-write dependencies in the operation list |aops|. The
+  // operations in |aops| are such that they generate the desired |new_part| if
+  // applied reading always from the original image. This function reorders the
+  // operations and generates new operations when needed to make these
+  // operations produce the same |new_part| result when applied in-place.
+  // The new operations will create blobs in |data_file_fd| and update
+  // the file size pointed by |data_file_size| if needed.
+  // On success, stores the new operations in |aops| in the right order and
+  // returns true.
+  static bool ResolveReadAfterWriteDependencies(
+      const PartitionConfig& new_part,
+      uint64_t partition_size,
+      size_t block_size,
+      int data_file_fd,
+      off_t* data_file_size,
+      std::vector<AnnotatedOperation>* aops);
+
   // Generate the update payload operations for the kernel and rootfs using
   // only operations that read from the target and/or write to the target,
   // hence, applying the payload "in-place" in the target partition. This method
