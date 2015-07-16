@@ -38,7 +38,6 @@ bool ABGenerator::GenerateOperations(
       chunk_blocks,
       data_file_fd,
       data_file_size,
-      false,  // skip_block_0
       true));  // src_ops_allowed
   LOG(INFO) << "done reading normal files";
 
@@ -50,7 +49,6 @@ bool ABGenerator::GenerateOperations(
       chunk_blocks,
       data_file_fd,
       data_file_size,
-      false,  // skip_block_0
       true));  // src_ops_allowed
   LOG(INFO) << "done reading kernel";
 

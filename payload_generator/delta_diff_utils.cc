@@ -145,20 +145,9 @@ bool DeltaReadPartition(
     off_t chunk_blocks,
     int data_fd,
     off_t* data_file_size,
-    bool skip_block_0,
     bool src_ops_allowed) {
   ExtentRanges old_visited_blocks;
   ExtentRanges new_visited_blocks;
-
-  // We can't produce a MOVE operation with a 0 block as neither source nor
-  // destination, so we avoid generating an operation for the block 0 here, and
-  // we will add an operation for it in the InplaceGenerator. Excluding both
-  // old and new blocks ensures that identical images would still produce empty
-  // deltas.
-  if (skip_block_0) {
-    old_visited_blocks.AddBlock(0);
-    new_visited_blocks.AddBlock(0);
-  }
 
   TEST_AND_RETURN_FALSE(DeltaMovedAndZeroBlocks(
       aops,

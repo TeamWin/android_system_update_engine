@@ -211,6 +211,23 @@ class InplaceGenerator : public OperationsGenerator {
       off_t* data_file_size,
       std::vector<AnnotatedOperation>* aops);
 
+  // Generates the list of operations to update inplace from the partition
+  // |old_part| to |new_part|. The |partition_size| should be at least
+  // |new_part.size| and any extra space there could be used as scratch space.
+  // The operations generated will not write more than |chunk_blocks| blocks.
+  // The new operations will create blobs in |data_file_fd| and update
+  // the file size pointed by |data_file_size| if needed.
+  // On success, stores the new operations in |aops| and returns true.
+  static bool GenerateOperationsForPartition(
+      const PartitionConfig& old_part,
+      const PartitionConfig& new_part,
+      uint64_t partition_size,
+      size_t block_size,
+      off_t chunk_blocks,
+      int data_file_fd,
+      off_t* data_file_size,
+      std::vector<AnnotatedOperation>* aops);
+
   // Generate the update payload operations for the kernel and rootfs using
   // only operations that read from the target and/or write to the target,
   // hence, applying the payload "in-place" in the target partition. This method

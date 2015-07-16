@@ -11,8 +11,10 @@
 #include <utility>
 #include <vector>
 
+#include <base/format_macros.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/payload_generator/cycle_breaker.h"
@@ -94,6 +96,29 @@ void OpAppendExtent(DeltaArchiveManifest_InstallOperation* op,
 }  // namespace
 
 class InplaceGeneratorTest : public ::testing::Test {
+ protected:
+  // Initialize |blob_path_|, |blob_file_size_| and |blob_file_fd_| variables
+  // with a new blob file. The file is closed and removed automatically when
+  // the test finishes.
+  void CreateBlobFile() {
+    // blob_fd_closer_ takes a pointer to blob_fd_. Make sure we destroy a
+    // previous instance before overriding blob_fd_.
+    blob_fd_closer_.reset();
+    EXPECT_TRUE(utils::MakeTempFile(
+        "InplaceGenerator_blob_file.XXXXXX", &blob_path_, &blob_fd_));
+    blob_path_unlinker_.reset(new ScopedPathUnlinker(blob_path_));
+    blob_fd_closer_.reset(new ScopedFdCloser(&blob_fd_));
+    blob_file_size_ = 0;
+    EXPECT_GE(blob_fd_, 0);
+  }
+
+  // Blob file name, file descriptor and file size used to store operation
+  // blobs.
+  string blob_path_;
+  int blob_fd_{-1};
+  off_t blob_file_size_{0};
+  std::unique_ptr<ScopedPathUnlinker> blob_path_unlinker_;
+  std::unique_ptr<ScopedFdCloser> blob_fd_closer_;
 };
 
 TEST_F(InplaceGeneratorTest, BlockDefaultValues) {
@@ -144,8 +169,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   // Create nodes in graph
   {
     graph.resize(graph.size() + 1);
-    graph.back().aop.op.set_type(
-        DeltaArchiveManifest_InstallOperation_Type_MOVE);
+    graph.back().aop.op.set_type(OP_MOVE);
     // Reads from blocks 3, 5, 7
     vector<Extent> extents;
     AppendBlockToExtents(&extents, 3);
@@ -168,8 +192,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   }
   {
     graph.resize(graph.size() + 1);
-    graph.back().aop.op.set_type(
-        DeltaArchiveManifest_InstallOperation_Type_MOVE);
+    graph.back().aop.op.set_type(OP_MOVE);
     // Reads from blocks 1, 2, 4
     vector<Extent> extents;
     AppendBlockToExtents(&extents, 1);
@@ -209,8 +232,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   EXPECT_EQ(3, graph.size());
 
   // Check new node in graph:
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE,
-            graph.back().aop.op.type());
+  EXPECT_EQ(OP_MOVE, graph.back().aop.op.type());
   EXPECT_EQ(2, graph.back().aop.op.src_extents_size());
   EXPECT_EQ(1, graph.back().aop.op.dst_extents_size());
   EXPECT_EQ(kTempBlockStart, graph.back().aop.op.dst_extents(0).start_block());
@@ -322,17 +344,11 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
   InplaceGenerator::GenerateReverseTopoOrderMap(op_indexes,
                                                 &reverse_op_indexes);
 
-  int fd;
-  EXPECT_TRUE(utils::MakeTempFile("AssignTempBlocksReuseTest.XXXXXX",
-                                  nullptr,
-                                  &fd));
-  ScopedFdCloser fd_closer(&fd);
-  off_t data_file_size = 0;
-
+  CreateBlobFile();
   EXPECT_TRUE(InplaceGenerator::AssignTempBlocks(&graph,
                                                  "/dev/zero",
-                                                 fd,
-                                                 &data_file_size,
+                                                 blob_fd_,
+                                                 &blob_file_size_,
                                                  &op_indexes,
                                                  &reverse_op_indexes,
                                                  cuts));
@@ -347,14 +363,13 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
 TEST_F(InplaceGeneratorTest, MoveAndSortFullOpsToBackTest) {
   Graph graph(4);
   graph[0].aop.name = "A";
-  graph[0].aop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  graph[0].aop.op.set_type(OP_REPLACE);
   graph[1].aop.name = "B";
-  graph[1].aop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_BSDIFF);
+  graph[1].aop.op.set_type(OP_BSDIFF);
   graph[2].aop.name = "C";
-  graph[2].aop.op.set_type(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  graph[2].aop.op.set_type(OP_REPLACE_BZ);
   graph[3].aop.name = "D";
-  graph[3].aop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+  graph[3].aop.op.set_type(OP_MOVE);
 
   vector<Vertex::Index> vect(graph.size());
 
@@ -409,17 +424,11 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
 
   vector<Vertex::Index> final_order;
 
-  int fd;
-  EXPECT_TRUE(utils::MakeTempFile("AssignTempBlocksTestData.XXXXXX",
-                                  nullptr,
-                                  &fd));
-  ScopedFdCloser fd_closer(&fd);
-  off_t data_file_size = 0;
-
+  CreateBlobFile();
   EXPECT_TRUE(InplaceGenerator::ConvertGraphToDag(&graph,
                                                   "/dev/zero",
-                                                  fd,
-                                                  &data_file_size,
+                                                  blob_fd_,
+                                                  &blob_file_size_,
                                                   &final_order,
                                                   Vertex::kInvalidIndex));
 
@@ -493,8 +502,7 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
 TEST_F(InplaceGeneratorTest, CreateScratchNodeTest) {
   Vertex vertex;
   InplaceGenerator::CreateScratchNode(12, 34, &vertex);
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ,
-            vertex.aop.op.type());
+  EXPECT_EQ(OP_REPLACE_BZ, vertex.aop.op.type());
   EXPECT_EQ(0, vertex.aop.op.data_offset());
   EXPECT_EQ(0, vertex.aop.op.data_length());
   EXPECT_EQ(1, vertex.aop.op.dst_extents_size());
@@ -512,6 +520,78 @@ TEST_F(InplaceGeneratorTest, ApplyMapTest) {
 
   InplaceGenerator::ApplyMap(&collection, value_map);
   EXPECT_EQ(expected_values, collection);
+}
+
+// We can't produce MOVE operations with a source or destination in the block 0.
+// This test checks that the cycle breaker procedure doesn't produce such
+// operations.
+TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesAvoidMoveToZero) {
+  size_t block_size = 4096;
+  size_t num_blocks = 4;
+  vector<AnnotatedOperation> aops;
+
+  // Create a REPLACE_BZ for block 0, and a circular dependency among all other
+  // blocks. This situation would prefer to issue a MOVE to scratch space and
+  // the only available block is 0.
+  aops.emplace_back();
+  aops.back().name = base::StringPrintf("<bz-block-0>");
+  aops.back().op.set_type(
+      OP_REPLACE_BZ);
+  StoreExtents({ExtentForRange(0, 1)}, aops.back().op.mutable_dst_extents());
+
+  for (size_t i = 1; i < num_blocks; i++) {
+    AnnotatedOperation aop;
+    aop.name = base::StringPrintf("<op-%" PRIuS ">", i);
+    aop.op.set_type(OP_BSDIFF);
+    StoreExtents({ExtentForRange(1 + i % (num_blocks - 1), 1)},
+                 aop.op.mutable_src_extents());
+    StoreExtents({ExtentForRange(i, 1)}, aop.op.mutable_dst_extents());
+    aops.push_back(aop);
+  }
+
+  PartitionConfig part(PartitionName::kRootfs);
+  part.path = "/dev/zero";
+  part.size = num_blocks * block_size;
+
+  CreateBlobFile();
+
+  // We ran two tests here. The first one without enough blocks for the scratch
+  // space, forcing it to create a new full operation and the second case with
+  // one extra block in the partition that can be used for the move operation.
+  for (const auto part_blocks : vector<uint64_t>{num_blocks, num_blocks + 1}) {
+    SCOPED_TRACE(base::StringPrintf("Using partition_blocs=%" PRIu64,
+                                    part_blocks));
+    vector<AnnotatedOperation> result_aops = aops;
+    EXPECT_TRUE(InplaceGenerator::ResolveReadAfterWriteDependencies(
+      part, part_blocks * block_size, block_size, blob_fd_, &blob_file_size_,
+      &result_aops));
+
+    size_t full_ops = 0;
+    for (const auto& aop : result_aops) {
+      if (aop.op.type() == OP_REPLACE || aop.op.type() == OP_REPLACE_BZ)
+        full_ops++;
+
+      if (aop.op.type() != OP_MOVE)
+        continue;
+      for (const Extent& extent : aop.op.src_extents()) {
+        EXPECT_NE(0, extent.start_block()) << "On src extents for aop: " << aop;
+      }
+      for (const Extent& extent : aop.op.dst_extents()) {
+        EXPECT_NE(0, extent.start_block()) << "On dst extents for aop: " << aop;
+      }
+    }
+
+    // If there's extra space in the partition, it should not use a new full
+    // operation for it.
+    EXPECT_EQ(part_blocks == num_blocks ? 2 : 1, full_ops);
+
+    if (HasNonfatalFailure()) {
+      LOG(INFO) << "Result operation list:";
+      for (const auto& aop : result_aops) {
+        LOG(INFO) << aop;
+      }
+    }
+  }
 }
 
 }  // namespace chromeos_update_engine

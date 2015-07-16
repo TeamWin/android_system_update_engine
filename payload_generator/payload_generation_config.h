@@ -22,6 +22,9 @@ enum class PartitionName {
   kRootfs,
 };
 
+// Return a string name for the PartitionName.
+std::string PartitionNameString(PartitionName name);
+
 struct PartitionConfig {
   explicit PartitionConfig(PartitionName name) : name(name) {}
 

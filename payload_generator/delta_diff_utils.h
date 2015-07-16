@@ -31,7 +31,6 @@ bool DeltaReadPartition(std::vector<AnnotatedOperation>* aops,
                         off_t chunk_blocks,
                         int data_fd,
                         off_t* data_file_size,
-                        bool skip_block_0,
                         bool src_ops_allowed);
 
 // Create operations in |aops| for identical blocks that moved around in the old

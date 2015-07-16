@@ -393,6 +393,14 @@ bool AssignBlockForAdjoiningCuts(
          edge_i != edge_e; ++edge_i) {
       ranges.SubtractExtents(edge_i->second.extents);
     }
+
+    // Prevent using the block 0 as scratch space due to crbug.com/480751.
+    if (ranges.ContainsBlock(0)) {
+      LOG(INFO) << "Removing block 0 from the selected scratch range in vertex "
+                << i;
+      ranges.SubtractBlock(0);
+    }
+
     if (ranges.blocks() == 0)
       continue;
 
@@ -784,6 +792,38 @@ bool InplaceGenerator::ResolveReadAfterWriteDependencies(
   return true;
 }
 
+bool InplaceGenerator::GenerateOperationsForPartition(
+    const PartitionConfig& old_part,
+    const PartitionConfig& new_part,
+    uint64_t partition_size,
+    size_t block_size,
+    off_t chunk_blocks,
+    int data_file_fd,
+    off_t* data_file_size,
+    vector<AnnotatedOperation>* aops) {
+  const string part_name = PartitionNameString(new_part.name);
+  LOG(INFO) << "Delta compressing " << part_name << " partition...";
+  TEST_AND_RETURN_FALSE(
+      diff_utils::DeltaReadPartition(aops,
+                                     old_part,
+                                     new_part,
+                                     chunk_blocks,
+                                     data_file_fd,
+                                     data_file_size,
+                                     false));  // src_ops_allowed
+  LOG(INFO) << "Done reading " << part_name;
+
+  TEST_AND_RETURN_FALSE(
+      ResolveReadAfterWriteDependencies(new_part,
+                                        partition_size,
+                                        block_size,
+                                        data_file_fd,
+                                        data_file_size,
+                                        aops));
+  LOG(INFO) << "Done reordering " << part_name;
+  return true;
+}
+
 bool InplaceGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
     int data_file_fd,
@@ -793,65 +833,25 @@ bool InplaceGenerator::GenerateOperations(
   off_t chunk_blocks = (config.chunk_size == -1 ? -1 :
                         config.chunk_size / config.block_size);
 
-  // Temporary list of operations used to construct the dependency graph.
-  LOG(INFO) << "Delta compressing rootfs partition...";
-  TEST_AND_RETURN_FALSE(
-      diff_utils::DeltaReadPartition(rootfs_ops,
-                                     config.source.rootfs,
-                                     config.target.rootfs,
-                                     chunk_blocks,
-                                     data_file_fd,
-                                     data_file_size,
-                                     true,  // skip_block_0
-                                     false));  // src_ops_allowed
-  LOG(INFO) << "Done reading rootfs";
-
-  // Read kernel partition
-  LOG(INFO) << "Delta compressing kernel partition...";
-  // It is safe to not skip the block 0 since we will not be using the cycle
-  // breaking algorithm on this list of operations as we expect no cycles here.
-  TEST_AND_RETURN_FALSE(
-      diff_utils::DeltaReadPartition(kernel_ops,
-                                     config.source.kernel,
-                                     config.target.kernel,
-                                     chunk_blocks,
-                                     data_file_fd,
-                                     data_file_size,
-                                     false,  // skip_block_0
-                                     false));  // src_ops_allowed
-  LOG(INFO) << "Done reading kernel";
-
-  TEST_AND_RETURN_FALSE(
-      ResolveReadAfterWriteDependencies(config.target.rootfs,
-                                        config.rootfs_partition_size,
-                                        config.block_size,
-                                        data_file_fd,
-                                        data_file_size,
-                                        rootfs_ops));
-  LOG(INFO) << "Done reordering rootfs";
-
-  // The kernel partition uses the whole partition as the "filesystem_size".
-  TEST_AND_RETURN_FALSE(
-      ResolveReadAfterWriteDependencies(config.target.kernel,
-                                        config.target.kernel.size,
-                                        config.block_size,
-                                        data_file_fd,
-                                        data_file_size,
-                                        kernel_ops));
-  LOG(INFO) << "Done reordering kernel";
-
-  // Re-add the operation for the block 0.
-  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadFile(
-      rootfs_ops,
-      config.source.rootfs.path,
-      config.target.rootfs.path,
-      vector<Extent>{ExtentForRange(0, 1)},
-      vector<Extent>{ExtentForRange(0, 1)},
-      "<block-0>",  // operation name
-      -1,  // chunk_blocks
+  TEST_AND_RETURN_FALSE(GenerateOperationsForPartition(
+      config.source.rootfs,
+      config.target.rootfs,
+      config.rootfs_partition_size,
+      config.block_size,
+      chunk_blocks,
       data_file_fd,
       data_file_size,
-      false));  // src_ops_allowed
+      rootfs_ops));
+
+  TEST_AND_RETURN_FALSE(GenerateOperationsForPartition(
+      config.source.kernel,
+      config.target.kernel,
+      config.target.kernel.size,  // kernel "filesystem" is the whole partition.
+      config.block_size,
+      chunk_blocks,
+      data_file_fd,
+      data_file_size,
+      kernel_ops));
 
   return true;
 }
