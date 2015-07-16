@@ -25,8 +25,8 @@ namespace chromeos_update_engine {
 
 namespace {
 void SetOpForNodes(Graph* graph) {
-  for (Graph::iterator it = graph->begin(), e = graph->end(); it != e; ++it) {
-    it->op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+  for (Vertex& vertex : *graph) {
+    vertex.aop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
   }
 }
 }  // namespace
@@ -249,8 +249,10 @@ TEST(CycleBreakerTest, SkipOpsTest) {
 
   Graph graph(kNodeCount);
   SetOpForNodes(&graph);
-  graph[n_a].op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-  graph[n_c].op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  graph[n_a].aop.op.set_type(
+      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  graph[n_c].aop.op.set_type(
+      DeltaArchiveManifest_InstallOperation_Type_REPLACE);
 
   graph[n_a].out_edges.insert(EdgeWithWeight(n_b, 1));
   graph[n_c].out_edges.insert(EdgeWithWeight(n_b, 1));

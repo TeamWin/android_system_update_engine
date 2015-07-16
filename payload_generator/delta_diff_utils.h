@@ -111,6 +111,11 @@ void FilterNoopOperations(std::vector<AnnotatedOperation>* ops);
 bool InitializePartitionInfo(const PartitionConfig& partition,
                              PartitionInfo* info);
 
+// Compare two AnnotatedOperations by the start block of the first Extent in
+// their destination extents.
+bool CompareAopsByDestination(AnnotatedOperation first_aop,
+                              AnnotatedOperation second_aop);
+
 }  // namespace diff_utils
 
 }  // namespace chromeos_update_engine

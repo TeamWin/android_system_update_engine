@@ -43,7 +43,7 @@ void CycleBreaker::BreakCycles(const Graph& graph, set<Edge>* out_cut_edges) {
   skipped_ops_ = 0;
 
   for (Graph::size_type i = 0; i < subgraph_.size(); i++) {
-    DeltaArchiveManifest_InstallOperation_Type op_type = graph[i].op.type();
+    DeltaArchiveManifest_InstallOperation_Type op_type = graph[i].aop.op.type();
     if (op_type == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
         op_type == DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
       skipped_ops_++;

@@ -27,12 +27,13 @@ using std::map;
 using std::pair;
 using std::set;
 using std::string;
-using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
 
 using Block = InplaceGenerator::Block;
+
+namespace {
 
 // This class allocates non-existent temp blocks, starting from
 // kTempBlockStart. Other code is responsible for converting these
@@ -62,9 +63,28 @@ vector<Extent> CompressExtents(const vector<uint64_t>& blocks) {
   return new_extents;
 }
 
+// Helper class to compare two operations by start block of the first Extent in
+// their destination extents given the index of the operations in the graph.
+class IndexedInstallOperationsDstComparator {
+ public:
+  explicit IndexedInstallOperationsDstComparator(Graph* graph)
+    : graph_(graph) {}
+
+  // Compares the operations in the vertex a and b of graph_.
+  bool operator()(size_t a, size_t b) const {
+    return diff_utils::CompareAopsByDestination((*graph_)[a].aop,
+                                                (*graph_)[b].aop);
+  }
+
+ private:
+  const Graph* const graph_;
+};
+
+}  // namespace
+
 void InplaceGenerator::CheckGraph(const Graph& graph) {
   for (const Vertex& v : graph) {
-    CHECK(v.op.has_type());
+    CHECK(v.aop.op.has_type());
   }
 }
 
@@ -74,7 +94,7 @@ void InplaceGenerator::SubstituteBlocks(
     const vector<Extent>& replace_extents) {
   // First, expand out the blocks that op reads from
   vector<uint64_t> read_blocks =
-      ExpandExtents(vertex->op.src_extents());
+      ExpandExtents(vertex->aop.op.src_extents());
   {
     // Expand remove_extents and replace_extents
     vector<uint64_t> remove_extents_expanded = ExpandExtents(remove_extents);
@@ -95,9 +115,9 @@ void InplaceGenerator::SubstituteBlocks(
     }
   }
   // Convert read_blocks back to extents
-  vertex->op.clear_src_extents();
+  vertex->aop.op.clear_src_extents();
   vector<Extent> new_extents = CompressExtents(read_blocks);
-  StoreExtents(new_extents, vertex->op.mutable_src_extents());
+  StoreExtents(new_extents, vertex->aop.op.mutable_src_extents());
 }
 
 bool InplaceGenerator::CutEdges(Graph* graph,
@@ -136,14 +156,15 @@ bool InplaceGenerator::CutEdges(Graph* graph,
                                                     cut_edge_properties));
 
     // Set src/dst extents and other proto variables for copy operation
-    graph->back().op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+    graph->back().aop.op.set_type(
+        DeltaArchiveManifest_InstallOperation_Type_MOVE);
     StoreExtents(cut_edge_properties.extents,
-                 graph->back().op.mutable_src_extents());
+                 graph->back().aop.op.mutable_src_extents());
     StoreExtents(cuts.back().tmp_extents,
-                 graph->back().op.mutable_dst_extents());
-    graph->back().op.set_src_length(
+                 graph->back().aop.op.mutable_dst_extents());
+    graph->back().aop.op.set_src_length(
         graph_utils::EdgeWeight(*graph, edge) * kBlockSize);
-    graph->back().op.set_dst_length(graph->back().op.src_length());
+    graph->back().aop.op.set_dst_length(graph->back().aop.op.src_length());
 
     // make the dest node read from the scratch space
     SubstituteBlocks(
@@ -235,24 +256,27 @@ void InplaceGenerator::SortCutsByTopoOrder(
   sort(cuts->begin(), cuts->end(), less);
 }
 
-void InplaceGenerator::MoveFullOpsToBack(Graph* graph,
-                                         vector<Vertex::Index>* op_indexes) {
+void InplaceGenerator::MoveAndSortFullOpsToBack(
+    Graph* graph,
+    vector<Vertex::Index>* op_indexes) {
   vector<Vertex::Index> ret;
   vector<Vertex::Index> full_ops;
   ret.reserve(op_indexes->size());
-  for (vector<Vertex::Index>::size_type i = 0, e = op_indexes->size(); i != e;
-       ++i) {
+  for (auto op_index : *op_indexes) {
     DeltaArchiveManifest_InstallOperation_Type type =
-        (*graph)[(*op_indexes)[i]].op.type();
+        (*graph)[op_index].aop.op.type();
     if (type == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
         type == DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
-      full_ops.push_back((*op_indexes)[i]);
+      full_ops.push_back(op_index);
     } else {
-      ret.push_back((*op_indexes)[i]);
+      ret.push_back(op_index);
     }
   }
   LOG(INFO) << "Stats: " << full_ops.size() << " full ops out of "
             << (full_ops.size() + ret.size()) << " total ops.";
+  // Sort full ops according to their dst_extents.
+  sort(full_ops.begin(), full_ops.end(),
+       IndexedInstallOperationsDstComparator(graph));
   ret.insert(ret.end(), full_ops.begin(), full_ops.end());
   op_indexes->swap(ret);
 }
@@ -357,10 +381,10 @@ bool AssignBlockForAdjoiningCuts(
       continue;
     // See if this node has sufficient blocks
     ExtentRanges ranges;
-    ranges.AddRepeatedExtents((*graph)[test_node].op.dst_extents());
+    ranges.AddRepeatedExtents((*graph)[test_node].aop.op.dst_extents());
     ranges.SubtractExtent(ExtentForRange(
         kTempBlockStart, kSparseHole - kTempBlockStart));
-    ranges.SubtractRepeatedExtents((*graph)[test_node].op.src_extents());
+    ranges.SubtractRepeatedExtents((*graph)[test_node].aop.op.src_extents());
     // For now, for simplicity, subtract out all blocks in read-before
     // dependencies.
     for (Vertex::EdgeMap::const_iterator edge_i =
@@ -423,7 +447,8 @@ bool AssignBlockForAdjoiningCuts(
     // Fix the new node w/ the real blocks. Since the new node is just a
     // copy operation, we can replace all the dest extents w/ the real
     // blocks.
-    DeltaArchiveManifest_InstallOperation *op = &(*graph)[cut.new_vertex].op;
+    DeltaArchiveManifest_InstallOperation *op =
+        &(*graph)[cut.new_vertex].aop.op;
     op->clear_dst_extents();
     StoreExtents(real_extents, op->mutable_dst_extents());
   }
@@ -450,7 +475,7 @@ bool InplaceGenerator::AssignTempBlocks(
     LOG(INFO) << "Fixing temp blocks in cut " << i
               << ": old dst: " << cuts[i].old_dst << " new vertex: "
               << cuts[i].new_vertex << " path: "
-              << (*graph)[cuts[i].old_dst].file_name;
+              << (*graph)[cuts[i].old_dst].aop.name;
 
     if (cuts_group.empty() || (cuts_group[0].old_dst == cuts[i].old_dst)) {
       cuts_group.push_back(cuts[i]);
@@ -489,7 +514,7 @@ bool InplaceGenerator::NoTempBlocksRemain(const Graph& graph) {
        ++it, ++idx) {
     if (!it->valid)
       continue;
-    const DeltaArchiveManifest_InstallOperation& op = it->op;
+    const DeltaArchiveManifest_InstallOperation& op = it->aop.op;
     if (TempBlocksExistInExtents(op.dst_extents()) ||
         TempBlocksExistInExtents(op.src_extents())) {
       LOG(INFO) << "bad extents in node " << idx;
@@ -518,9 +543,9 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
   // Drop all incoming edges, keep all outgoing edges
 
   // Keep all outgoing edges
-  if ((*graph)[cut.old_dst].op.type() !=
+  if ((*graph)[cut.old_dst].aop.op.type() !=
       DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ &&
-      (*graph)[cut.old_dst].op.type() !=
+      (*graph)[cut.old_dst].aop.op.type() !=
       DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
     Vertex::EdgeMap out_edges = (*graph)[cut.old_dst].out_edges;
     graph_utils::DropWriteBeforeDeps(&out_edges);
@@ -529,7 +554,7 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
     // |new_extents| list of blocks and update the graph.
     vector<AnnotatedOperation> new_aop;
     vector<Extent> new_extents;
-    ExtentsToVector((*graph)[cut.old_dst].op.dst_extents(),
+    ExtentsToVector((*graph)[cut.old_dst].aop.op.dst_extents(),
                     &new_extents);
     TEST_AND_RETURN_FALSE(diff_utils::DeltaReadFile(
         &new_aop,
@@ -537,7 +562,7 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
         new_part,
         vector<Extent>(),  // old_extents
         new_extents,
-        (*graph)[cut.old_dst].file_name,
+        (*graph)[cut.old_dst].aop.name,
         -1,  // chunk_blocks, forces to have a single operation.
         data_fd,
         data_file_size,
@@ -590,7 +615,7 @@ bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
   CheckGraph(*graph);
 
   LOG(INFO) << "Moving full ops to the back";
-  MoveFullOpsToBack(graph, final_order);
+  MoveAndSortFullOpsToBack(graph, final_order);
   LOG(INFO) << "done moving full ops to back";
 
   vector<vector<Vertex::Index>::size_type> inverse_final_order;
@@ -625,11 +650,12 @@ bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
 void InplaceGenerator::CreateScratchNode(uint64_t start_block,
                                          uint64_t num_blocks,
                                          Vertex* vertex) {
-  vertex->file_name = "<scratch>";
-  vertex->op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-  vertex->op.set_data_offset(0);
-  vertex->op.set_data_length(0);
-  Extent* extent = vertex->op.add_dst_extents();
+  vertex->aop.name = "<scratch>";
+  vertex->aop.op.set_type(
+      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  vertex->aop.op.set_data_offset(0);
+  vertex->aop.op.set_data_length(0);
+  Extent* extent = vertex->aop.op.add_dst_extents();
   extent->set_start_block(start_block);
   extent->set_num_blocks(num_blocks);
 }
@@ -661,9 +687,9 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
           LOG(FATAL) << "Block " << block << " is already "
                      << past_participle << " by "
                      << (*blocks)[block].*access_type << "("
-                     << graph[(*blocks)[block].*access_type].file_name
+                     << graph[(*blocks)[block].*access_type].aop.name
                      << ") and also " << vertex << "("
-                     << graph[vertex].file_name << ")";
+                     << graph[vertex].aop.name << ")";
         }
         (*blocks)[block].*access_type = vertex;
       }
@@ -683,13 +709,13 @@ bool InplaceGenerator::AddInstallOpToGraph(
     graph->emplace_back();
     vertex = graph->size() - 1;
   }
-  (*graph)[vertex].op = operation;
-  CHECK((*graph)[vertex].op.has_type());
-  (*graph)[vertex].file_name = op_name;
+  (*graph)[vertex].aop.op = operation;
+  CHECK((*graph)[vertex].aop.op.has_type());
+  (*graph)[vertex].aop.name = op_name;
 
   if (blocks)
     TEST_AND_RETURN_FALSE(InplaceGenerator::AddInstallOpToBlocksVector(
-        (*graph)[vertex].op,
+        (*graph)[vertex].aop.op,
         *graph,
         vertex,
         blocks));
@@ -753,9 +779,7 @@ bool InplaceGenerator::ResolveReadAfterWriteDependencies(
   aops->reserve(final_order.size());
   for (const Vertex::Index vertex_index : final_order) {
     const Vertex& vertex = graph[vertex_index];
-    aops->emplace_back();
-    aops->back().op = vertex.op;
-    aops->back().name = vertex.file_name;
+    aops->push_back(vertex.aop);
   }
   return true;
 }

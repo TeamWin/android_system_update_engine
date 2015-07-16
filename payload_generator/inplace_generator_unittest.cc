@@ -45,10 +45,10 @@ void GenVertex(Vertex* out,
                const vector<Extent>& dst_extents,
                const string& path,
                DeltaArchiveManifest_InstallOperation_Type type) {
-  out->op.set_type(type);
-  out->file_name = path;
-  StoreExtents(src_extents, out->op.mutable_src_extents());
-  StoreExtents(dst_extents, out->op.mutable_dst_extents());
+  out->aop.op.set_type(type);
+  out->aop.name = path;
+  StoreExtents(src_extents, out->aop.op.mutable_src_extents());
+  StoreExtents(dst_extents, out->aop.op.mutable_dst_extents());
 }
 
 vector<Extent> VectOfExt(uint64_t start_block, uint64_t num_blocks) {
@@ -112,7 +112,7 @@ TEST_F(InplaceGeneratorTest, SubstituteBlocksTest) {
   AppendExtent(&replace_blocks, 10, 2);
   AppendExtent(&replace_blocks, 13, 2);
   Vertex vertex;
-  DeltaArchiveManifest_InstallOperation& op = vertex.op;
+  DeltaArchiveManifest_InstallOperation& op = vertex.aop.op;
   OpAppendExtent(&op, 4, 3);
   OpAppendExtent(&op, kSparseHole, 4);  // Sparse hole in file
   OpAppendExtent(&op, 3, 1);
@@ -144,14 +144,14 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   // Create nodes in graph
   {
     graph.resize(graph.size() + 1);
-    graph.back().op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+    graph.back().aop.op.set_type(
+        DeltaArchiveManifest_InstallOperation_Type_MOVE);
     // Reads from blocks 3, 5, 7
     vector<Extent> extents;
     AppendBlockToExtents(&extents, 3);
     AppendBlockToExtents(&extents, 5);
     AppendBlockToExtents(&extents, 7);
-    StoreExtents(extents,
-                                     graph.back().op.mutable_src_extents());
+    StoreExtents(extents, graph.back().aop.op.mutable_src_extents());
     blocks[3].reader = graph.size() - 1;
     blocks[5].reader = graph.size() - 1;
     blocks[7].reader = graph.size() - 1;
@@ -161,22 +161,21 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
     AppendBlockToExtents(&extents, 1);
     AppendBlockToExtents(&extents, 2);
     AppendBlockToExtents(&extents, 4);
-    StoreExtents(extents,
-                                     graph.back().op.mutable_dst_extents());
+    StoreExtents(extents, graph.back().aop.op.mutable_dst_extents());
     blocks[1].writer = graph.size() - 1;
     blocks[2].writer = graph.size() - 1;
     blocks[4].writer = graph.size() - 1;
   }
   {
     graph.resize(graph.size() + 1);
-    graph.back().op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+    graph.back().aop.op.set_type(
+        DeltaArchiveManifest_InstallOperation_Type_MOVE);
     // Reads from blocks 1, 2, 4
     vector<Extent> extents;
     AppendBlockToExtents(&extents, 1);
     AppendBlockToExtents(&extents, 2);
     AppendBlockToExtents(&extents, 4);
-    StoreExtents(extents,
-                                     graph.back().op.mutable_src_extents());
+    StoreExtents(extents, graph.back().aop.op.mutable_src_extents());
     blocks[1].reader = graph.size() - 1;
     blocks[2].reader = graph.size() - 1;
     blocks[4].reader = graph.size() - 1;
@@ -186,8 +185,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
     AppendBlockToExtents(&extents, 3);
     AppendBlockToExtents(&extents, 5);
     AppendBlockToExtents(&extents, 6);
-    StoreExtents(extents,
-                                     graph.back().op.mutable_dst_extents());
+    StoreExtents(extents, graph.back().aop.op.mutable_dst_extents());
     blocks[3].writer = graph.size() - 1;
     blocks[5].writer = graph.size() - 1;
     blocks[6].writer = graph.size() - 1;
@@ -212,26 +210,26 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
 
   // Check new node in graph:
   EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE,
-            graph.back().op.type());
-  EXPECT_EQ(2, graph.back().op.src_extents_size());
-  EXPECT_EQ(1, graph.back().op.dst_extents_size());
-  EXPECT_EQ(kTempBlockStart, graph.back().op.dst_extents(0).start_block());
-  EXPECT_EQ(2, graph.back().op.dst_extents(0).num_blocks());
+            graph.back().aop.op.type());
+  EXPECT_EQ(2, graph.back().aop.op.src_extents_size());
+  EXPECT_EQ(1, graph.back().aop.op.dst_extents_size());
+  EXPECT_EQ(kTempBlockStart, graph.back().aop.op.dst_extents(0).start_block());
+  EXPECT_EQ(2, graph.back().aop.op.dst_extents(0).num_blocks());
   EXPECT_TRUE(graph.back().out_edges.empty());
 
   // Check that old node reads from new blocks
-  EXPECT_EQ(2, graph[0].op.src_extents_size());
-  EXPECT_EQ(kTempBlockStart, graph[0].op.src_extents(0).start_block());
-  EXPECT_EQ(2, graph[0].op.src_extents(0).num_blocks());
-  EXPECT_EQ(7, graph[0].op.src_extents(1).start_block());
-  EXPECT_EQ(1, graph[0].op.src_extents(1).num_blocks());
+  EXPECT_EQ(2, graph[0].aop.op.src_extents_size());
+  EXPECT_EQ(kTempBlockStart, graph[0].aop.op.src_extents(0).start_block());
+  EXPECT_EQ(2, graph[0].aop.op.src_extents(0).num_blocks());
+  EXPECT_EQ(7, graph[0].aop.op.src_extents(1).start_block());
+  EXPECT_EQ(1, graph[0].aop.op.src_extents(1).num_blocks());
 
   // And that the old dst extents haven't changed
-  EXPECT_EQ(2, graph[0].op.dst_extents_size());
-  EXPECT_EQ(1, graph[0].op.dst_extents(0).start_block());
-  EXPECT_EQ(2, graph[0].op.dst_extents(0).num_blocks());
-  EXPECT_EQ(4, graph[0].op.dst_extents(1).start_block());
-  EXPECT_EQ(1, graph[0].op.dst_extents(1).num_blocks());
+  EXPECT_EQ(2, graph[0].aop.op.dst_extents_size());
+  EXPECT_EQ(1, graph[0].aop.op.dst_extents(0).start_block());
+  EXPECT_EQ(2, graph[0].aop.op.dst_extents(0).num_blocks());
+  EXPECT_EQ(4, graph[0].aop.op.dst_extents(1).start_block());
+  EXPECT_EQ(1, graph[0].aop.op.dst_extents(1).num_blocks());
 
   // Ensure it only depends on the next node and the new temp node
   EXPECT_EQ(2, graph[0].out_edges.size());
@@ -240,17 +238,17 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
                                                                   1));
 
   // Check second node has unchanged extents
-  EXPECT_EQ(2, graph[1].op.src_extents_size());
-  EXPECT_EQ(1, graph[1].op.src_extents(0).start_block());
-  EXPECT_EQ(2, graph[1].op.src_extents(0).num_blocks());
-  EXPECT_EQ(4, graph[1].op.src_extents(1).start_block());
-  EXPECT_EQ(1, graph[1].op.src_extents(1).num_blocks());
+  EXPECT_EQ(2, graph[1].aop.op.src_extents_size());
+  EXPECT_EQ(1, graph[1].aop.op.src_extents(0).start_block());
+  EXPECT_EQ(2, graph[1].aop.op.src_extents(0).num_blocks());
+  EXPECT_EQ(4, graph[1].aop.op.src_extents(1).start_block());
+  EXPECT_EQ(1, graph[1].aop.op.src_extents(1).num_blocks());
 
-  EXPECT_EQ(2, graph[1].op.dst_extents_size());
-  EXPECT_EQ(3, graph[1].op.dst_extents(0).start_block());
-  EXPECT_EQ(1, graph[1].op.dst_extents(0).num_blocks());
-  EXPECT_EQ(5, graph[1].op.dst_extents(1).start_block());
-  EXPECT_EQ(2, graph[1].op.dst_extents(1).num_blocks());
+  EXPECT_EQ(2, graph[1].aop.op.dst_extents_size());
+  EXPECT_EQ(3, graph[1].aop.op.dst_extents(0).start_block());
+  EXPECT_EQ(1, graph[1].aop.op.dst_extents(0).num_blocks());
+  EXPECT_EQ(5, graph[1].aop.op.dst_extents(1).start_block());
+  EXPECT_EQ(2, graph[1].aop.op.dst_extents(1).num_blocks());
 
   // Ensure it only depends on the next node
   EXPECT_EQ(1, graph[1].out_edges.size());
@@ -340,34 +338,35 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
                                                  cuts));
   EXPECT_FALSE(graph[6].valid);
   EXPECT_FALSE(graph[7].valid);
-  EXPECT_EQ(1, graph[1].op.src_extents_size());
-  EXPECT_EQ(2, graph[1].op.src_extents(0).start_block());
-  EXPECT_EQ(1, graph[1].op.src_extents(0).num_blocks());
-  EXPECT_EQ(OP_REPLACE_BZ, graph[5].op.type());
+  EXPECT_EQ(1, graph[1].aop.op.src_extents_size());
+  EXPECT_EQ(2, graph[1].aop.op.src_extents(0).start_block());
+  EXPECT_EQ(1, graph[1].aop.op.src_extents(0).num_blocks());
+  EXPECT_EQ(OP_REPLACE_BZ, graph[5].aop.op.type());
 }
 
-TEST_F(InplaceGeneratorTest, MoveFullOpsToBackTest) {
+TEST_F(InplaceGeneratorTest, MoveAndSortFullOpsToBackTest) {
   Graph graph(4);
-  graph[0].file_name = "A";
-  graph[0].op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
-  graph[1].file_name = "B";
-  graph[1].op.set_type(DeltaArchiveManifest_InstallOperation_Type_BSDIFF);
-  graph[2].file_name = "C";
-  graph[2].op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
-  graph[3].file_name = "D";
-  graph[3].op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+  graph[0].aop.name = "A";
+  graph[0].aop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  graph[1].aop.name = "B";
+  graph[1].aop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_BSDIFF);
+  graph[2].aop.name = "C";
+  graph[2].aop.op.set_type(
+      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  graph[3].aop.name = "D";
+  graph[3].aop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
 
   vector<Vertex::Index> vect(graph.size());
 
   for (vector<Vertex::Index>::size_type i = 0; i < vect.size(); ++i) {
     vect[i] = i;
   }
-  InplaceGenerator::MoveFullOpsToBack(&graph, &vect);
+  InplaceGenerator::MoveAndSortFullOpsToBack(&graph, &vect);
   EXPECT_EQ(vect.size(), graph.size());
-  EXPECT_EQ(graph[vect[0]].file_name, "B");
-  EXPECT_EQ(graph[vect[1]].file_name, "D");
-  EXPECT_EQ(graph[vect[2]].file_name, "A");
-  EXPECT_EQ(graph[vect[3]].file_name, "C");
+  EXPECT_EQ(graph[vect[0]].aop.name, "B");
+  EXPECT_EQ(graph[vect[1]].aop.name, "D");
+  EXPECT_EQ(graph[vect[2]].aop.name, "A");
+  EXPECT_EQ(graph[vect[3]].aop.name, "C");
 }
 
 TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
@@ -495,12 +494,12 @@ TEST_F(InplaceGeneratorTest, CreateScratchNodeTest) {
   Vertex vertex;
   InplaceGenerator::CreateScratchNode(12, 34, &vertex);
   EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ,
-            vertex.op.type());
-  EXPECT_EQ(0, vertex.op.data_offset());
-  EXPECT_EQ(0, vertex.op.data_length());
-  EXPECT_EQ(1, vertex.op.dst_extents_size());
-  EXPECT_EQ(12, vertex.op.dst_extents(0).start_block());
-  EXPECT_EQ(34, vertex.op.dst_extents(0).num_blocks());
+            vertex.aop.op.type());
+  EXPECT_EQ(0, vertex.aop.op.data_offset());
+  EXPECT_EQ(0, vertex.aop.op.data_length());
+  EXPECT_EQ(1, vertex.aop.op.dst_extents_size());
+  EXPECT_EQ(12, vertex.aop.op.dst_extents(0).start_block());
+  EXPECT_EQ(34, vertex.aop.op.dst_extents(0).num_blocks());
 }
 
 TEST_F(InplaceGeneratorTest, ApplyMapTest) {

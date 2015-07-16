@@ -103,7 +103,7 @@ class InplaceGenerator : public OperationsGenerator {
   // Given a topologically sorted graph |op_indexes| and |graph|, alters
   // |op_indexes| to move all the full operations to the end of the vector.
   // Full operations should not be depended on, so this is safe.
-  static void MoveFullOpsToBack(Graph* graph,
+  static void MoveAndSortFullOpsToBack(Graph* graph,
                                 std::vector<Vertex::Index>* op_indexes);
 
   // Returns true iff there are no extents in the graph that refer to temp

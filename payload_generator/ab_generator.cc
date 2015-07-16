@@ -16,27 +16,9 @@
 #include "update_engine/utils.h"
 
 using std::string;
-using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
-
-namespace {
-
-// Compare two AnnotatedOperations by the start block of the first Extent in
-// their destination extents.
-bool CompareAopsByDestination(AnnotatedOperation first_aop,
-                              AnnotatedOperation second_aop) {
-  // We want empty operations to be at the end of the payload.
-  if (!first_aop.op.dst_extents().size() || !second_aop.op.dst_extents().size())
-    return ((!first_aop.op.dst_extents().size()) <
-            (!second_aop.op.dst_extents().size()));
-  uint32_t first_dst_start = first_aop.op.dst_extents(0).start_block();
-  uint32_t second_dst_start = second_aop.op.dst_extents(0).start_block();
-  return first_dst_start < second_dst_start;
-}
-
-}  // namespace
 
 bool ABGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
@@ -99,7 +81,7 @@ bool ABGenerator::GenerateOperations(
 
 void ABGenerator::SortOperationsByDestination(
     vector<AnnotatedOperation>* aops) {
-  sort(aops->begin(), aops->end(), CompareAopsByDestination);
+  sort(aops->begin(), aops->end(), diff_utils::CompareAopsByDestination);
 }
 
 bool ABGenerator::FragmentOperations(
