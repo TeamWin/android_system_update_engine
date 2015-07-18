@@ -246,7 +246,8 @@ int Main(int argc, char** argv) {
                 "e.g. /path/to/sig:/path/to/next:/path/to/last_sig . Each "
                 "signature will be assigned a client version, starting from "
                 "kSignatureOriginalVersion.");
-  DEFINE_int32(chunk_size, -1, "Payload chunk size (-1 -- no limit/default)");
+  DEFINE_int32(chunk_size, 200 * 1024 * 1024,
+               "Payload chunk size (-1 for whole files)");
   DEFINE_uint64(rootfs_partition_size,
                chromeos_update_engine::kRootFSPartitionSize,
                "RootFS partition size for the image once installed");
