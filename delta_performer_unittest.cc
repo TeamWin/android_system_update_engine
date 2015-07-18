@@ -314,7 +314,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
 static void GenerateDeltaFile(bool full_kernel,
                               bool full_rootfs,
                               bool noop,
-                              off_t chunk_size,
+                              ssize_t chunk_size,
                               SignatureTest signature_test,
                               DeltaState *state,
                               uint32_t minor_version) {
@@ -529,7 +529,7 @@ static void GenerateDeltaFile(bool full_kernel,
 
     PayloadGenerationConfig payload_config;
     payload_config.is_delta = !full_rootfs;
-    payload_config.chunk_size = chunk_size;
+    payload_config.hard_chunk_size = chunk_size;
     payload_config.rootfs_partition_size = kRootFSPartitionSize;
     payload_config.minor_version = minor_version;
     if (!full_rootfs) {
@@ -541,8 +541,9 @@ static void GenerateDeltaFile(bool full_kernel,
       EXPECT_TRUE(payload_config.source.rootfs.OpenFilesystem());
       EXPECT_TRUE(payload_config.source.kernel.OpenFilesystem());
     } else {
-      if (payload_config.chunk_size == -1)
-        payload_config.chunk_size = kDefaultChunkSize;
+      if (payload_config.hard_chunk_size == -1)
+        // Use 1 MiB chunk size for the full unittests.
+        payload_config.hard_chunk_size = 1024 * 1024;
     }
     payload_config.target.rootfs.path = state->b_img;
     payload_config.target.kernel.path = state->new_kernel;
@@ -906,7 +907,7 @@ void VerifyPayload(DeltaPerformer* performer,
 }
 
 void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
-                      off_t chunk_size,
+                      ssize_t chunk_size,
                       SignatureTest signature_test,
                       bool hash_checks_mandatory, uint32_t minor_version) {
   DeltaState state;

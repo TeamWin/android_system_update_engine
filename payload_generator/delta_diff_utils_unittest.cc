@@ -113,7 +113,7 @@ class DeltaDiffUtilsTest : public ::testing::Test {
 
   // Helper function to call DeltaMovedAndZeroBlocks() using this class' data
   // members. This simply avoid repeating all the arguments that never change.
-  bool RunDeltaMovedAndZeroBlocks(off_t chunk_blocks,
+  bool RunDeltaMovedAndZeroBlocks(ssize_t chunk_blocks,
                                   bool src_ops_allowed) {
     return diff_utils::DeltaMovedAndZeroBlocks(
         &aops_,

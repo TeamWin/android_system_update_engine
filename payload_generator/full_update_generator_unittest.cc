@@ -24,7 +24,7 @@ class FullUpdateGeneratorTest : public ::testing::Test {
   void SetUp() override {
     config_.is_delta = false;
     config_.minor_version = DeltaPerformer::kFullPayloadMinorVersion;
-    config_.chunk_size = 128 * 1024;
+    config_.hard_chunk_size = 128 * 1024;
     config_.block_size = 4096;
 
     EXPECT_TRUE(utils::MakeTempFile("FullUpdateTest_rootfs.XXXXXX",
@@ -85,14 +85,14 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
                                             &rootfs_ops,
                                             &kernel_ops));
   int64_t target_rootfs_chunks =
-      config_.target.rootfs.size / config_.chunk_size;
+      config_.target.rootfs.size / config_.hard_chunk_size;
   EXPECT_EQ(target_rootfs_chunks, rootfs_ops.size());
-  EXPECT_EQ(new_kern.size() / config_.chunk_size, kernel_ops.size());
+  EXPECT_EQ(new_kern.size() / config_.hard_chunk_size, kernel_ops.size());
   for (off_t i = 0; i < target_rootfs_chunks; ++i) {
     EXPECT_EQ(1, rootfs_ops[i].op.dst_extents_size());
-    EXPECT_EQ(i * config_.chunk_size / config_.block_size,
+    EXPECT_EQ(i * config_.hard_chunk_size / config_.block_size,
               rootfs_ops[i].op.dst_extents(0).start_block()) << "i = " << i;
-    EXPECT_EQ(config_.chunk_size / config_.block_size,
+    EXPECT_EQ(config_.hard_chunk_size / config_.block_size,
               rootfs_ops[i].op.dst_extents(0).num_blocks());
     if (rootfs_ops[i].op.type() !=
         DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
@@ -105,7 +105,8 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
 // Test that if the chunk size is not a divisor of the image size, it handles
 // correctly the last chunk of each partition.
 TEST_F(FullUpdateGeneratorTest, ChunkSizeTooBig) {
-  config_.chunk_size = 1024 * 1024;
+  config_.hard_chunk_size = 1024 * 1024;
+  config_.soft_chunk_size = config_.hard_chunk_size;
   chromeos::Blob new_root(1536 * 1024);  // 1.5 MiB
   chromeos::Blob new_kern(128 * 1024);
   config_.rootfs_partition_size = new_root.size();
@@ -128,9 +129,9 @@ TEST_F(FullUpdateGeneratorTest, ChunkSizeTooBig) {
                                             &kernel_ops));
   // rootfs has one chunk and a half.
   EXPECT_EQ(2, rootfs_ops.size());
-  EXPECT_EQ(config_.chunk_size / config_.block_size,
+  EXPECT_EQ(config_.hard_chunk_size / config_.block_size,
             BlocksInExtents(rootfs_ops[0].op.dst_extents()));
-  EXPECT_EQ((new_root.size() - config_.chunk_size) / config_.block_size,
+  EXPECT_EQ((new_root.size() - config_.hard_chunk_size) / config_.block_size,
             BlocksInExtents(rootfs_ops[1].op.dst_extents()));
 
   // kernel has less than one chunk.

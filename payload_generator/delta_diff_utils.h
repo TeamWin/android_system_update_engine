@@ -25,10 +25,16 @@ namespace diff_utils {
 // blocks in that partition (if available) to determine the best way to compress
 // the new files (REPLACE, REPLACE_BZ, COPY, BSDIFF) and writes any necessary
 // data to the end of |data_fd| updating |data_file_size| accordingly.
+// |hard_chunk_blocks| and |soft_chunk_blocks| are the hard and soft chunk
+// limits in number of blocks respectively. The soft chunk limit is used to
+// split MOVE and SOURCE_COPY operations and REPLACE_BZ of zeroed blocks, while
+// the hard limit is used to split a file when generating other operations. A
+// value of -1 in |hard_chunk_blocks| means whole files.
 bool DeltaReadPartition(std::vector<AnnotatedOperation>* aops,
                         const PartitionConfig& old_part,
                         const PartitionConfig& new_part,
-                        off_t chunk_blocks,
+                        ssize_t hard_chunk_blocks,
+                        size_t soft_chunk_blocks,
                         int data_fd,
                         off_t* data_file_size,
                         bool src_ops_allowed);
@@ -49,7 +55,7 @@ bool DeltaMovedAndZeroBlocks(std::vector<AnnotatedOperation>* aops,
                              const std::string& new_part,
                              size_t old_num_blocks,
                              size_t new_num_blocks,
-                             off_t chunk_blocks,
+                             ssize_t chunk_blocks,
                              bool src_ops_allowed,
                              int data_fd,
                              off_t* data_file_size,
@@ -70,7 +76,7 @@ bool DeltaReadFile(std::vector<AnnotatedOperation>* aops,
                    const std::vector<Extent>& old_extents,
                    const std::vector<Extent>& new_extents,
                    const std::string& name,
-                   off_t chunk_blocks,
+                   ssize_t chunk_blocks,
                    int data_fd,
                    off_t* data_file_size,
                    bool src_ops_allowed);

@@ -278,7 +278,7 @@ void TestMergeReplaceOrReplaceBzOperations(
 
   // Merge the operations.
   EXPECT_TRUE(ABGenerator::MergeOperations(
-      &aops, 5 * kBlockSize, part_path, data_fd, &data_file_size));
+      &aops, 5, part_path, data_fd, &data_file_size));
 
   // Check the result.
   DeltaArchiveManifest_InstallOperation_Type expected_op_type =
@@ -471,8 +471,7 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   third_aop.name = "3";
   aops.push_back(third_aop);
 
-  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 5 * kBlockSize,
-                                           "", 0, nullptr));
+  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 5, "", 0, nullptr));
 
   EXPECT_EQ(aops.size(), 1);
   DeltaArchiveManifest_InstallOperation first_result_op = aops[0].op;
@@ -548,8 +547,7 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   fourth_aop.op = fourth_op;
   aops.push_back(fourth_aop);
 
-  EXPECT_TRUE(ABGenerator::MergeOperations(
-      &aops, 4 * kBlockSize, "", 0, nullptr));
+  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 4, "", 0, nullptr));
 
   // No operations were merged, the number of ops is the same.
   EXPECT_EQ(aops.size(), 4);

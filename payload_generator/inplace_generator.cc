@@ -797,7 +797,8 @@ bool InplaceGenerator::GenerateOperationsForPartition(
     const PartitionConfig& new_part,
     uint64_t partition_size,
     size_t block_size,
-    off_t chunk_blocks,
+    ssize_t hard_chunk_blocks,
+    size_t soft_chunk_blocks,
     int data_file_fd,
     off_t* data_file_size,
     vector<AnnotatedOperation>* aops) {
@@ -807,7 +808,8 @@ bool InplaceGenerator::GenerateOperationsForPartition(
       diff_utils::DeltaReadPartition(aops,
                                      old_part,
                                      new_part,
-                                     chunk_blocks,
+                                     hard_chunk_blocks,
+                                     soft_chunk_blocks,
                                      data_file_fd,
                                      data_file_size,
                                      false));  // src_ops_allowed
@@ -830,15 +832,17 @@ bool InplaceGenerator::GenerateOperations(
     off_t* data_file_size,
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
-  off_t chunk_blocks = (config.chunk_size == -1 ? -1 :
-                        config.chunk_size / config.block_size);
+  ssize_t hard_chunk_blocks = (config.hard_chunk_size == -1 ? -1 :
+                               config.hard_chunk_size / config.block_size);
+  size_t soft_chunk_blocks = config.soft_chunk_size / config.block_size;
 
   TEST_AND_RETURN_FALSE(GenerateOperationsForPartition(
       config.source.rootfs,
       config.target.rootfs,
       config.rootfs_partition_size,
       config.block_size,
-      chunk_blocks,
+      hard_chunk_blocks,
+      soft_chunk_blocks,
       data_file_fd,
       data_file_size,
       rootfs_ops));
@@ -848,7 +852,8 @@ bool InplaceGenerator::GenerateOperations(
       config.target.kernel,
       config.target.kernel.size,  // kernel "filesystem" is the whole partition.
       config.block_size,
-      chunk_blocks,
+      hard_chunk_blocks,
+      soft_chunk_blocks,
       data_file_fd,
       data_file_size,
       kernel_ops));

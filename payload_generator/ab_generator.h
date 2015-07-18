@@ -92,9 +92,11 @@ class ABGenerator : public OperationsGenerator {
   // It will merge two operations if:
   //   - They are of the same type.
   //   - They are contiguous.
-  //   - Their combined blocks do not exceed |chunk_size|.
+  //   - Their combined blocks do not exceed |chunk_blocks| blocks.
+  // Note that unlike other methods, you can't pass a negative number in
+  // |chunk_blocks|.
   static bool MergeOperations(std::vector<AnnotatedOperation>* aops,
-                              off_t chunk_size,
+                              size_t chunk_blocks,
                               const std::string& target_part,
                               int data_fd,
                               off_t* data_file_size);

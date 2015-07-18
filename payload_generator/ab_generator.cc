@@ -27,15 +27,17 @@ bool ABGenerator::GenerateOperations(
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
 
-  off_t chunk_blocks = (config.chunk_size == -1 ? -1 :
-                        config.chunk_size / config.block_size);
+  ssize_t hard_chunk_blocks = (config.hard_chunk_size == -1 ? -1 :
+                               config.hard_chunk_size / config.block_size);
+  size_t soft_chunk_blocks = config.soft_chunk_size / config.block_size;
 
   rootfs_ops->clear();
   TEST_AND_RETURN_FALSE(diff_utils::DeltaReadPartition(
       rootfs_ops,
       config.source.rootfs,
       config.target.rootfs,
-      chunk_blocks,
+      hard_chunk_blocks,
+      soft_chunk_blocks,
       data_file_fd,
       data_file_size,
       true));  // src_ops_allowed
@@ -46,7 +48,8 @@ bool ABGenerator::GenerateOperations(
       kernel_ops,
       config.source.kernel,
       config.target.kernel,
-      chunk_blocks,
+      hard_chunk_blocks,
+      soft_chunk_blocks,
       data_file_fd,
       data_file_size,
       true));  // src_ops_allowed
@@ -62,15 +65,22 @@ bool ABGenerator::GenerateOperations(
                                            data_file_size));
   SortOperationsByDestination(rootfs_ops);
   SortOperationsByDestination(kernel_ops);
-  // TODO(alliewood): Change merge operations to use config.chunk_size once
-  // specifying chunk_size on the command line works. crbug/485397.
+
+  // Use the soft_chunk_size when merging operations to prevent merging all
+  // the operations into a huge one if there's no hard limit.
+  size_t merge_chunk_blocks = soft_chunk_blocks;
+  if (hard_chunk_blocks != -1 &&
+      static_cast<size_t>(hard_chunk_blocks) < soft_chunk_blocks) {
+    merge_chunk_blocks = hard_chunk_blocks;
+  }
+
   TEST_AND_RETURN_FALSE(MergeOperations(rootfs_ops,
-                                        kDefaultChunkSize,
+                                        merge_chunk_blocks,
                                         config.target.rootfs.path,
                                         data_file_fd,
                                         data_file_size));
   TEST_AND_RETURN_FALSE(MergeOperations(kernel_ops,
-                                        kDefaultChunkSize,
+                                        merge_chunk_blocks,
                                         config.target.kernel.path,
                                         data_file_fd,
                                         data_file_size));
@@ -203,7 +213,7 @@ bool ABGenerator::SplitReplaceOrReplaceBz(
 }
 
 bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
-                                  off_t chunk_size,
+                                  size_t chunk_blocks,
                                   const string& target_part_path,
                                   int data_fd,
                                   off_t* data_file_size) {
@@ -238,7 +248,7 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
     if (good_op_type &&
         last_aop.op.type() == curr_aop.op.type() &&
         last_end_block == curr_start_block &&
-        static_cast<off_t>(combined_block_count * kBlockSize) <= chunk_size) {
+        combined_block_count <= chunk_blocks) {
       // If the operations have the same type (which is a type that we can
       // merge), are contiguous, are fragmented to have one destination extent,
       // and their combined block count would be less than chunk size, merge

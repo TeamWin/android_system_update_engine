@@ -142,7 +142,8 @@ bool DeltaReadPartition(
     vector<AnnotatedOperation>* aops,
     const PartitionConfig& old_part,
     const PartitionConfig& new_part,
-    off_t chunk_blocks,
+    ssize_t hard_chunk_blocks,
+    size_t soft_chunk_blocks,
     int data_fd,
     off_t* data_file_size,
     bool src_ops_allowed) {
@@ -155,7 +156,7 @@ bool DeltaReadPartition(
       new_part.path,
       old_part.fs_interface ? old_part.fs_interface->GetBlockCount() : 0,
       new_part.fs_interface->GetBlockCount(),
-      chunk_blocks,
+      soft_chunk_blocks,
       src_ops_allowed,
       data_fd,
       data_file_size,
@@ -215,7 +216,7 @@ bool DeltaReadPartition(
         old_file_extents,
         new_file_extents,
         new_file.name,  // operation name
-        chunk_blocks,
+        hard_chunk_blocks,
         data_fd,
         data_file_size,
         src_ops_allowed));
@@ -235,7 +236,11 @@ bool DeltaReadPartition(
   }
 
   LOG(INFO) << "Scanning " << BlocksInExtents(new_unvisited)
-            << " unwritten blocks";
+            << " unwritten blocks using chunk size of "
+            << soft_chunk_blocks << " blocks.";
+  // We use the soft_chunk_blocks limit for the <non-file-data> as we don't
+  // really know the structure of this data and we should not expect it to have
+  // redundancy between partitions.
   TEST_AND_RETURN_FALSE(DeltaReadFile(
       aops,
       old_part.path,
@@ -243,7 +248,7 @@ bool DeltaReadPartition(
       old_unvisited,
       new_unvisited,
       "<non-file-data>",  // operation name
-      chunk_blocks,
+      soft_chunk_blocks,
       data_fd,
       data_file_size,
       src_ops_allowed));
@@ -257,7 +262,7 @@ bool DeltaMovedAndZeroBlocks(
     const string& new_part,
     size_t old_num_blocks,
     size_t new_num_blocks,
-    off_t chunk_blocks,
+    ssize_t chunk_blocks,
     bool src_ops_allowed,
     int data_fd,
     off_t* data_file_size,
@@ -404,7 +409,7 @@ bool DeltaReadFile(
     const vector<Extent>& old_extents,
     const vector<Extent>& new_extents,
     const string& name,
-    off_t chunk_blocks,
+    ssize_t chunk_blocks,
     int data_fd,
     off_t* data_file_size,
     bool src_ops_allowed) {

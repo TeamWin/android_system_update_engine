@@ -113,10 +113,20 @@ struct PayloadGenerationConfig {
   // after the partition used to store the verity hashes and or the bootcache.
   uint64_t rootfs_partition_size = 0;
 
-  // The chunk size is the maximum size that a single operation should write in
-  // the destination. Operations bigger than chunk_size should be split. A value
-  // of -1 means no chunk_size limit.
-  off_t chunk_size = -1;
+  // The |hard_chunk_size| is the maximum size that a single operation should
+  // write in the destination. Operations bigger than chunk_size should be
+  // split. A value of -1 means no hard chunk size limit. A very low limit
+  // means more operations, and less of a chance to reuse the data.
+  ssize_t hard_chunk_size = -1;
+
+  // The |soft_chunk_size| is the preferred chunk size to use when there's no
+  // significant impact to the operations. For example, REPLACE, MOVE and
+  // SOURCE_COPY operations are not significantly impacted by the chunk size,
+  // except for a few bytes overhead in the manifest to describe extra
+  // operations. On the other hand, splitting BSDIFF operations impacts the
+  // payload size since it is not possible to use the redundancy *between*
+  // chunks.
+  size_t soft_chunk_size = 2 * 1024 * 1024;
 
   // TODO(deymo): Remove the block_size member and maybe replace it with a
   // minimum alignment size for blocks (if needed). Algorithms should be able to

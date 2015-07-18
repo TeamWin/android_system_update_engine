@@ -58,7 +58,6 @@ const unsigned DeltaPerformer::kProgressOperationsWeight = 50;
 
 const uint32_t kInPlaceMinorPayloadVersion = 1;
 const uint32_t kSourceMinorPayloadVersion = 2;
-const size_t kDefaultChunkSize = 1024 * 1024;
 
 namespace {
 const int kUpdateStateOperationInvalid = -1;

@@ -223,7 +223,8 @@ class InplaceGenerator : public OperationsGenerator {
       const PartitionConfig& new_part,
       uint64_t partition_size,
       size_t block_size,
-      off_t chunk_blocks,
+      ssize_t hard_chunk_blocks,
+      size_t soft_chunk_blocks,
       int data_file_fd,
       off_t* data_file_size,
       std::vector<AnnotatedOperation>* aops);

@@ -345,7 +345,8 @@ int Main(int argc, char** argv) {
   payload_config.target.rootfs.path = FLAGS_new_image;
   payload_config.target.kernel.path = FLAGS_new_kernel;
 
-  payload_config.chunk_size = FLAGS_chunk_size;
+  // Use the default soft_chunk_size defined in the config.
+  payload_config.hard_chunk_size = FLAGS_chunk_size;
   payload_config.block_size = kBlockSize;
 
   // The kernel and rootfs size is never passed to the delta_generator, so we

@@ -122,10 +122,15 @@ bool FullUpdateGenerator::GenerateOperations(
 
   // FullUpdateGenerator requires a positive chunk_size, otherwise there will
   // be only one operation with the whole partition which should not be allowed.
-  size_t full_chunk_size = kDefaultFullChunkSize;
-  if (config.chunk_size >= 0) {
-    full_chunk_size = config.chunk_size;
+  // For performance reasons, we force a small default hard limit of 1 MiB. This
+  // limit can be changed in the config, and we will use the smaller of the two
+  // soft/hard limits.
+  size_t full_chunk_size;
+  if (config.hard_chunk_size >= 0) {
+    full_chunk_size = std::min(static_cast<size_t>(config.hard_chunk_size),
+                               config.soft_chunk_size);
   } else {
+    full_chunk_size = std::min(kDefaultFullChunkSize, config.soft_chunk_size);
     LOG(INFO) << "No chunk_size provided, using the default chunk_size for the "
               << "full operations: " << full_chunk_size << " bytes.";
   }
