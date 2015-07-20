@@ -217,12 +217,6 @@ void ApplyDelta(const string& in_file,
 }
 
 int Main(int argc, char** argv) {
-  DEFINE_string(old_dir, "",
-                "[DEPRECATED] Directory where the old rootfs is loop mounted "
-                "read-only. Not required anymore.");
-  DEFINE_string(new_dir, "",
-                "[DEPRECATED] Directory where the new rootfs is loop mounted "
-                "read-only. Not required anymore.");
   DEFINE_string(old_image, "", "Path to the old rootfs");
   DEFINE_string(new_image, "", "Path to the new rootfs");
   DEFINE_string(old_kernel, "", "Path to the old kernel partition image");
@@ -311,14 +305,6 @@ int Main(int argc, char** argv) {
   log_settings.delete_old   = logging::APPEND_TO_OLD_LOG_FILE;
 
   logging::InitLogging(log_settings);
-
-  // Check flags.
-  if (!FLAGS_old_dir.empty()) {
-    LOG(INFO) << "--old_dir flag is deprecated and ignored.";
-  }
-  if (!FLAGS_new_dir.empty()) {
-    LOG(INFO) << "--new_dir flag is deprecated and ignored.";
-  }
 
   vector<int> signature_sizes;
   ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
