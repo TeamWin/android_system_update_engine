@@ -20,6 +20,7 @@
 #include "update_engine/action_processor.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/download_action.h"
+#include "update_engine/libcros_proxy.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/proxy_resolver.h"
@@ -36,7 +37,6 @@ class PolicyProvider;
 namespace chromeos_update_engine {
 
 class UpdateEngineAdaptor;
-class DBusWrapperInterface;
 
 enum UpdateStatus {
   UPDATE_STATUS_IDLE = 0,
@@ -59,7 +59,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   static const int kMaxDeltaUpdateFailures;
 
   UpdateAttempter(SystemState* system_state,
-                  DBusWrapperInterface* dbus_iface);
+                  LibCrosProxy* libcros_proxy,
+                  org::chromium::debugdProxyInterface* debugd_proxy);
   ~UpdateAttempter() override;
 
   // Further initialization to be done post construction.
@@ -222,7 +223,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Special ctor + friend declarations for testing purposes.
   UpdateAttempter(SystemState* system_state,
-                  DBusWrapperInterface* dbus_iface,
+                  LibCrosProxy* libcros_proxy,
+                  org::chromium::debugdProxyInterface* debugd_proxy,
                   const std::string& update_completed_marker);
 
   friend class UpdateAttempterUnderTest;
@@ -395,9 +397,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // carved out separately to mock out easily in unit tests.
   SystemState* system_state_;
 
-  // Interface for getting D-Bus connections.
-  DBusWrapperInterface* dbus_iface_ = nullptr;
-
   // If non-null, this UpdateAttempter will send status updates over this
   // dbus service.
   UpdateEngineAdaptor* dbus_adaptor_ = nullptr;
@@ -506,6 +505,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // actually scheduled.
   std::string forced_app_version_;
   std::string forced_omaha_url_;
+
+  org::chromium::debugdProxyInterface* debugd_proxy_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

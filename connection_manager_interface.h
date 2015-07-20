@@ -7,8 +7,6 @@
 
 #include <base/macros.h>
 
-#include "update_engine/dbus_wrapper_interface.h"
-
 namespace chromeos_update_engine {
 
 enum class NetworkConnectionType {
@@ -37,10 +35,8 @@ class ConnectionManagerInterface {
   // Populates |out_type| with the type of the network connection
   // that we are currently connected and |out_tethering| with the estimate of
   // whether that network is being tethered.
-  virtual bool GetConnectionProperties(
-      DBusWrapperInterface* dbus_iface,
-      NetworkConnectionType* out_type,
-      NetworkTethering* out_tethering) const = 0;
+  virtual bool GetConnectionProperties(NetworkConnectionType* out_type,
+                                       NetworkTethering* out_tethering) = 0;
 
   // Returns true if we're allowed to update the system when we're
   // connected to the internet through the given network connection type and the

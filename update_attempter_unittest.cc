@@ -11,6 +11,7 @@
 #include <base/files/file_util.h>
 #include <chromeos/bind_lambda.h>
 #include <chromeos/dbus/service_constants.h>
+#include <chromeos/make_unique_ptr.h>
 #include <chromeos/message_loops/glib_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
@@ -25,7 +26,6 @@
 #include "update_engine/install_plan.h"
 #include "update_engine/mock_action.h"
 #include "update_engine/mock_action_processor.h"
-#include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/mock_http_fetcher.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
@@ -38,9 +38,10 @@
 using base::Time;
 using base::TimeDelta;
 using chromeos::MessageLoop;
+using org::chromium::LibCrosServiceInterfaceProxyMock;
+using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxyMock;
 using std::string;
 using std::unique_ptr;
-using testing::A;
 using testing::DoAll;
 using testing::InSequence;
 using testing::Ne;
@@ -50,7 +51,6 @@ using testing::Return;
 using testing::ReturnPointee;
 using testing::SaveArg;
 using testing::SetArgumentPointee;
-using testing::StrEq;
 using testing::_;
 
 namespace chromeos_update_engine {
@@ -60,17 +60,12 @@ namespace chromeos_update_engine {
 // methods.
 class UpdateAttempterUnderTest : public UpdateAttempter {
  public:
-  // We always feed an explicit update completed marker name; however, unless
-  // explicitly specified, we feed an empty string, which causes the
-  // UpdateAttempter class to ignore / not write the marker file.
   UpdateAttempterUnderTest(SystemState* system_state,
-                           DBusWrapperInterface* dbus_iface)
-      : UpdateAttempterUnderTest(system_state, dbus_iface, "") {}
-
-  UpdateAttempterUnderTest(SystemState* system_state,
-                           DBusWrapperInterface* dbus_iface,
+                           LibCrosProxy* libcros_proxy,
+                           org::chromium::debugdProxyInterface* debugd_proxy,
                            const string& update_completed_marker)
-      : UpdateAttempter(system_state, dbus_iface, update_completed_marker) {}
+      : UpdateAttempter(system_state, libcros_proxy, debugd_proxy,
+                        update_completed_marker) {}
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
@@ -99,9 +94,12 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 class UpdateAttempterTest : public ::testing::Test {
  protected:
   UpdateAttempterTest()
-      : attempter_(&fake_system_state_, &dbus_),
-        fake_dbus_system_bus_(reinterpret_cast<DBusGConnection*>(1)),
-        fake_dbus_debugd_proxy_(reinterpret_cast<DBusGProxy*>(2)) {
+      : service_interface_mock_(new LibCrosServiceInterfaceProxyMock()),
+        ue_proxy_resolved_interface_mock_(
+            new NiceMock<UpdateEngineLibcrosProxyResolvedInterfaceProxyMock>()),
+        libcros_proxy_(
+            chromeos::make_unique_ptr(service_interface_mock_),
+            chromeos::make_unique_ptr(ue_proxy_resolved_interface_mock_)) {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
     fake_system_state_.set_update_attempter(&attempter_);
@@ -146,16 +144,6 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_CALL(*fake_system_state_.mock_payload_state(),
                 GetUsingP2PForDownloading())
         .WillRepeatedly(ReturnPointee(&actual_using_p2p_for_sharing_));
-
-    // Set up mock debugd access over the system D-Bus. ProxyCall_0_1() also
-    // needs to be mocked in any test using debugd to provide the desired value.
-    ON_CALL(dbus_, BusGet(DBUS_BUS_SYSTEM, _))
-        .WillByDefault(Return(fake_dbus_system_bus_));
-    ON_CALL(dbus_, ProxyNewForName(fake_dbus_system_bus_,
-                                   StrEq(debugd::kDebugdServiceName),
-                                   StrEq(debugd::kDebugdServicePath),
-                                   StrEq(debugd::kDebugdInterface)))
-        .WillByDefault(Return(fake_dbus_debugd_proxy_));
   }
 
   void TearDown() override {
@@ -192,15 +180,19 @@ class UpdateAttempterTest : public ::testing::Test {
   chromeos::GlibMessageLoop loop_;
 
   FakeSystemState fake_system_state_;
-  NiceMock<MockDBusWrapper> dbus_;
-  UpdateAttempterUnderTest attempter_;
+  org::chromium::debugdProxyMock debugd_proxy_mock_;
+  LibCrosServiceInterfaceProxyMock* service_interface_mock_;
+  UpdateEngineLibcrosProxyResolvedInterfaceProxyMock*
+      ue_proxy_resolved_interface_mock_;
+  LibCrosProxy libcros_proxy_;
+  UpdateAttempterUnderTest attempter_{&fake_system_state_,
+                                      &libcros_proxy_,
+                                      &debugd_proxy_mock_,
+                                      ""};
+
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
   NiceMock<MockConnectionManager> mock_connection_manager;
-  // fake_dbus_xxx pointers will be non-null for comparison purposes, but won't
-  // be valid objects so don't try to use them.
-  DBusGConnection* fake_dbus_system_bus_;
-  DBusGProxy* fake_dbus_debugd_proxy_;
 
   string test_dir_;
 
@@ -251,15 +243,18 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   ASSERT_TRUE(attempter_.error_event_.get() == nullptr);
 }
 
-TEST_F(UpdateAttempterTest, RunAsRootConstructWithUpdatedMarkerTest) {
+TEST_F(UpdateAttempterTest, ConstructWithUpdatedMarkerTest) {
   string test_update_completed_marker;
   CHECK(utils::MakeTempFile(
-          "update_attempter_unittest-update_completed_marker-XXXXXX",
-          &test_update_completed_marker, nullptr));
+      "update_attempter_unittest-update_completed_marker-XXXXXX",
+      &test_update_completed_marker,
+      nullptr));
   ScopedPathUnlinker completed_marker_unlinker(test_update_completed_marker);
   const base::FilePath marker(test_update_completed_marker);
   EXPECT_EQ(0, base::WriteFile(marker, "", 0));
-  UpdateAttempterUnderTest attempter(&fake_system_state_, &dbus_,
+  UpdateAttempterUnderTest attempter(&fake_system_state_,
+                                     nullptr,
+                                     &debugd_proxy_mock_,
                                      test_update_completed_marker);
   EXPECT_EQ(UPDATE_STATUS_UPDATED_NEED_REBOOT, attempter.status());
 }
@@ -930,8 +925,10 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
 
 TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
   const string update_completed_marker = test_dir_ + "/update-completed-marker";
-  UpdateAttempterUnderTest attempter(&fake_system_state_, &dbus_,
-                                     update_completed_marker);
+  UpdateAttempterUnderTest attempter{&fake_system_state_,
+                                     nullptr,  // libcros_proxy
+                                     &debugd_proxy_mock_,
+                                     update_completed_marker};
 
   FakeClock fake_clock;
   fake_clock.SetBootTime(Time::FromTimeT(42));
@@ -954,11 +951,8 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedUnofficial) {
 TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedOfficialDevmode) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
-  EXPECT_CALL(dbus_, ProxyCall_0_1(fake_dbus_debugd_proxy_,
-                                   StrEq(debugd::kQueryDevFeatures),
-                                   _, A<gint*>()))
-      .WillRepeatedly(DoAll(SetArgumentPointee<3>(0),
-                            Return(true)));
+  EXPECT_CALL(debugd_proxy_mock_, QueryDevFeatures(_, _, _))
+      .WillRepeatedly(DoAll(SetArgumentPointee<0>(0), Return(true)));
   EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
@@ -966,10 +960,7 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
   // debugd should not be queried in this case.
-  EXPECT_CALL(dbus_, ProxyCall_0_1(fake_dbus_debugd_proxy_,
-                                   StrEq(debugd::kQueryDevFeatures),
-                                   _, A<gint*>()))
-      .Times(0);
+  EXPECT_CALL(debugd_proxy_mock_, QueryDevFeatures(_, _, _)).Times(0);
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
@@ -977,20 +968,16 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdDisabled) {
   using debugd::DEV_FEATURES_DISABLED;
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
-  EXPECT_CALL(dbus_, ProxyCall_0_1(fake_dbus_debugd_proxy_,
-                                   StrEq(debugd::kQueryDevFeatures),
-                                   _, A<gint*>()))
-      .WillRepeatedly(DoAll(SetArgumentPointee<3>(DEV_FEATURES_DISABLED),
-                            Return(true)));
+  EXPECT_CALL(debugd_proxy_mock_, QueryDevFeatures(_, _, _))
+      .WillRepeatedly(
+          DoAll(SetArgumentPointee<0>(DEV_FEATURES_DISABLED), Return(true)));
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
 TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdFailure) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
-  EXPECT_CALL(dbus_, ProxyCall_0_1(fake_dbus_debugd_proxy_,
-                                   StrEq(debugd::kQueryDevFeatures),
-                                   _, A<gint*>()))
+  EXPECT_CALL(debugd_proxy_mock_, QueryDevFeatures(_, _, _))
       .WillRepeatedly(Return(false));
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }

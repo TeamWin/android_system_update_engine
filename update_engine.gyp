@@ -77,11 +77,11 @@
       'type': 'static_library',
       'dependencies': [
         'update_metadata-protos',
+        'update_engine-dbus-adaptor',
       ],
       'variables': {
         'exported_deps': [
           'dbus-1',
-          'dbus-glib-1',
           'glib-2.0',
           'libchrome-<(libbase_ver)',
           'libchromeos-<(libbase_ver)',
@@ -131,12 +131,12 @@
         'file_descriptor.cc',
         'file_writer.cc',
         'filesystem_verifier_action.cc',
-        'glib_utils.cc',
         'hardware.cc',
         'http_common.cc',
         'http_fetcher.cc',
         'hwid_override.cc',
         'install_plan.cc',
+        'libcros_proxy.cc',
         'libcurl_http_fetcher.cc',
         'metrics.cc',
         'multi_range_http_fetcher.cc',
@@ -152,6 +152,7 @@
         'prefs.cc',
         'proxy_resolver.cc',
         'real_system_state.cc',
+        'shill_proxy.cc',
         'subprocess.cc',
         'terminator.cc',
         'update_attempter.cc',
@@ -170,6 +171,25 @@
         'update_manager/state_factory.cc',
         'update_manager/update_manager.cc',
         'utils.cc',
+      ],
+      'actions': [
+        {
+          'action_name': 'update_engine-dbus-proxies',
+          'variables': {
+            'dbus_service_config': '',
+            'mock_output_file': 'include/update_engine/dbus_mocks.h',
+            'proxy_output_file': 'include/update_engine/dbus_proxies.h'
+          },
+          'sources': [
+            '../debugd/share/org.chromium.debugd.xml',
+            '../login_manager/org.chromium.SessionManagerInterface.xml',
+            '../power_manager/dbus_bindings/org.chromium.PowerManager.xml',
+            '../shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
+            '../shill/dbus_bindings/org.chromium.flimflam.Service.xml',
+            'dbus_bindings/org.chromium.LibCrosService.xml',
+          ],
+          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+        },
       ],
       'conditions': [
         ['USE_mtd == 1', {
@@ -190,7 +210,6 @@
       'type': 'executable',
       'dependencies': [
         'libupdate_engine',
-        'update_engine-dbus-adaptor',
       ],
       'sources': [
         'main.cc',
@@ -219,10 +238,10 @@
       ],
       'actions': [
         {
-          'action_name': 'update_engine-dbus-proxies',
+          'action_name': 'update_engine_client-dbus-proxies',
           'variables': {
             'dbus_service_config': 'dbus_bindings/dbus-service-config.json',
-            'proxy_output_file': 'include/update_engine/dbus_proxies.h'
+            'proxy_output_file': 'include/update_engine/client_dbus_proxies.h'
           },
           'sources': [
             'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
@@ -373,6 +392,7 @@
             'download_action_unittest.cc',
             'extent_writer_unittest.cc',
             'fake_prefs.cc',
+            'fake_shill_proxy.cc',
             'fake_system_state.cc',
             'file_writer_unittest.cc',
             'filesystem_verifier_action_unittest.cc',

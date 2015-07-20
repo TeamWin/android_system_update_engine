@@ -1,7 +1,6 @@
 // Copyright (c) 2014 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #include "update_engine/update_manager/real_shill_provider.h"
 
 #include <memory>
@@ -9,45 +8,31 @@
 
 #include <base/time/time.h>
 #include <chromeos/dbus/service_constants.h>
-#include <glib.h>
+#include <chromeos/make_unique_ptr.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/dbus_mocks.h"
+#include "update_engine/dbus_proxies.h"
+#include "update_engine/dbus_test_utils.h"
 #include "update_engine/fake_clock.h"
-#include "update_engine/mock_dbus_wrapper.h"
+#include "update_engine/fake_shill_proxy.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
-using chromeos_update_engine::MockDBusWrapper;
-using chromeos_update_engine::test_utils::GValueFree;
-using chromeos_update_engine::test_utils::GValueNewString;
-using std::pair;
+using org::chromium::flimflam::ManagerProxyMock;
+using org::chromium::flimflam::ServiceProxyMock;
 using std::unique_ptr;
-using testing::A;
-using testing::Eq;
 using testing::Mock;
 using testing::Return;
-using testing::SaveArg;
 using testing::SetArgPointee;
-using testing::StrEq;
-using testing::StrictMock;
 using testing::_;
 
 namespace {
-
-// Fake dbus-glib objects. These should be different values, to ease diagnosis
-// of errors.
-DBusGConnection* const kFakeConnection = reinterpret_cast<DBusGConnection*>(1);
-DBusGProxy* const kFakeManagerProxy = reinterpret_cast<DBusGProxy*>(2);
-DBusGProxy* const kFakeEthernetServiceProxy = reinterpret_cast<DBusGProxy*>(3);
-DBusGProxy* const kFakeWifiServiceProxy = reinterpret_cast<DBusGProxy*>(4);
-DBusGProxy* const kFakeWimaxServiceProxy = reinterpret_cast<DBusGProxy*>(5);
-DBusGProxy* const kFakeBluetoothServiceProxy = reinterpret_cast<DBusGProxy*>(6);
-DBusGProxy* const kFakeCellularServiceProxy = reinterpret_cast<DBusGProxy*>(7);
-DBusGProxy* const kFakeVpnServiceProxy = reinterpret_cast<DBusGProxy*>(8);
-DBusGProxy* const kFakeUnknownServiceProxy = reinterpret_cast<DBusGProxy*>(9);
 
 // Fake service paths.
 const char* const kFakeEthernetServicePath = "/fake-ethernet-service";
@@ -64,89 +49,23 @@ namespace chromeos_update_manager {
 
 class UmRealShillProviderTest : public ::testing::Test {
  protected:
+  // Initialize the RealShillProvider under test.
   void SetUp() override {
-    // By default, initialize the provider so that it gets an initial connection
-    // status from shill. This simulates the common case where shill is
-    // available and responding during RealShillProvider initialization.
-    Init(true);
+    fake_clock_.SetWallclockTime(InitTime());
+    loop_.SetAsCurrent();
+    provider_.reset(new RealShillProvider(&fake_shill_proxy_, &fake_clock_));
+
+    ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_.GetManagerProxy();
+
+    // The PropertyChanged signal should be subscribed to.
+    MOCK_SIGNAL_HANDLER_EXPECT_SIGNAL_HANDLER(
+        manager_property_changed_, *manager_proxy_mock, PropertyChanged);
   }
 
   void TearDown() override {
-    Shutdown();
-  }
-
-  // Initialize the RealShillProvider under test. If |do_init_conn_status| is
-  // true, configure mocks to respond to the initial connection status check
-  // with shill. Otherwise, the initial check will fail.
-  void Init(bool do_init_conn_status) {
-    // Properly shutdown a previously initialized provider.
-    if (provider_.get())
-      Shutdown();
-
-    provider_.reset(new RealShillProvider(&mock_dbus_, &fake_clock_));
-    ASSERT_NE(nullptr, provider_.get());
-    fake_clock_.SetWallclockTime(InitTime());
-
-    // A DBus connection should only be obtained once.
-    EXPECT_CALL(mock_dbus_, BusGet(_, _)).WillOnce(
-        Return(kFakeConnection));
-
-    // A manager proxy should only be obtained once.
-    EXPECT_CALL(mock_dbus_, ProxyNewForName(
-            kFakeConnection, StrEq(shill::kFlimflamServiceName),
-            StrEq(shill::kFlimflamServicePath),
-            StrEq(shill::kFlimflamManagerInterface)))
-        .WillOnce(Return(kFakeManagerProxy));
-
-    // The PropertyChanged signal should be subscribed to.
-    EXPECT_CALL(mock_dbus_, ProxyAddSignal_2(
-            kFakeManagerProxy, StrEq(shill::kMonitorPropertyChanged),
-            G_TYPE_STRING, G_TYPE_VALUE))
-        .WillOnce(Return());
-    EXPECT_CALL(mock_dbus_, ProxyConnectSignal(
-            kFakeManagerProxy, StrEq(shill::kMonitorPropertyChanged),
-            _, _, _))
-        .WillOnce(
-            DoAll(SaveArg<2>(reinterpret_cast<void (**)()>(&signal_handler_)),
-                  SaveArg<3>(&signal_data_),
-                  Return()));
-
-    // Mock a response to an initial connection check (optional).
-    GHashTable* manager_properties = nullptr;
-    if (do_init_conn_status) {
-      pair<const char*, const char*> manager_pairs[] = {
-        {shill::kDefaultServiceProperty, "/"},
-      };
-      manager_properties = SetupGetPropertiesOkay(
-          kFakeManagerProxy, arraysize(manager_pairs), manager_pairs);
-    } else {
-      SetupGetPropertiesFail(kFakeManagerProxy);
-    }
-
-    // Check that provider initializes correctly.
-    ASSERT_TRUE(provider_->Init());
-
-    // All mocked calls should have been exercised by now.
-    Mock::VerifyAndClear(&mock_dbus_);
-
-    // Release properties hash table (if provided).
-    if (manager_properties)
-      g_hash_table_unref(manager_properties);
-  }
-
-  // Deletes the RealShillProvider under test.
-  void Shutdown() {
-    // Make sure that DBus resources get freed.
-    EXPECT_CALL(mock_dbus_, ProxyDisconnectSignal(
-            kFakeManagerProxy, StrEq(shill::kMonitorPropertyChanged),
-            Eq(reinterpret_cast<void (*)()>(signal_handler_)),
-            Eq(signal_data_)))
-        .WillOnce(Return());
-    EXPECT_CALL(mock_dbus_, ProxyUnref(kFakeManagerProxy)).WillOnce(Return());
     provider_.reset();
-
-    // All mocked calls should have been exercised by now.
-    Mock::VerifyAndClear(&mock_dbus_);
+    // Check for leaked callbacks on the main loop.
+    EXPECT_FALSE(loop_.PendingTasks());
   }
 
   // These methods generate fixed timestamps for use in faking the current time.
@@ -167,53 +86,41 @@ class UmRealShillProviderTest : public ::testing::Test {
     return InitTime() + TimeDelta::FromSeconds(10);
   }
 
-  // Sets up a successful mock "GetProperties" call on |proxy|, writing a hash
-  // table containing |num_entries| entries formed by key/value pairs from
-  // |key_val_pairs| and returning true. Keys and values are plain C strings
-  // (const char*). The proxy call is expected to be made exactly once. Returns
-  // a pointer to a newly allocated hash table, which should be unreffed with
-  // g_hash_table_unref() when done.
-  GHashTable* SetupGetPropertiesOkay(
-      DBusGProxy* proxy, size_t num_entries,
-      pair<const char*, const char*>* key_val_pairs) {
-    // Allocate and populate the hash table.
-    GHashTable* properties = g_hash_table_new_full(g_str_hash, g_str_equal,
-                                                   free, GValueFree);
-    for (size_t i = 0; i < num_entries; i++) {
-      g_hash_table_insert(properties, strdup(key_val_pairs[i].first),
-                          GValueNewString(key_val_pairs[i].second));
-    }
+  // Sets the default_service object path in the response from the
+  // ManagerProxyMock instance.
+  void SetManagerReply(const char* default_service, bool reply_succeeds);
 
-    // Set mock expectations.
-    EXPECT_CALL(mock_dbus_,
-                ProxyCall_0_1(proxy, StrEq(shill::kGetPropertiesFunction),
-                              _, A<GHashTable**>()))
-        .WillOnce(DoAll(SetArgPointee<3>(g_hash_table_ref(properties)),
-                        Return(true)));
+  // Sets the |service_type|, |physical_technology| and |service_tethering|
+  // properties in the mocked service |service_path|. If any of the three
+  // const char* is a nullptr, the corresponding property will not be included
+  // in the response.
+  // Returns the mock object pointer, owned by the |fake_shill_proxy_|.
+  ServiceProxyMock* SetServiceReply(const std::string& service_path,
+                                    const char* service_type,
+                                    const char* physical_technology,
+                                    const char* service_tethering);
 
-    return properties;
-  }
-
-  // Sets up a failing mock "GetProperties" call on |proxy|, returning false.
-  // The proxy call is expected to be made exactly once.
-  void SetupGetPropertiesFail(DBusGProxy* proxy) {
-    EXPECT_CALL(mock_dbus_,
-                ProxyCall_0_1(proxy, StrEq(shill::kGetPropertiesFunction),
-                              _, A<GHashTable**>()))
-      .WillOnce(Return(false));
+  void InitWithDefaultService(const char* default_service) {
+    SetManagerReply(default_service, true);
+    // Check that provider initializes correctly.
+    EXPECT_TRUE(provider_->Init());
+    // RunOnce to notify the signal handler was connected properly.
+    EXPECT_TRUE(loop_.RunOnce(false));
   }
 
   // Sends a signal informing the provider about a default connection
-  // |service_path|. Returns the fake connection change time.
-  Time SendDefaultServiceSignal(const char* service_path) {
-    auto default_service_gval = GValueNewString(service_path);
+  // |service_path|. Sets the fake connection change time in
+  // |conn_change_time_p| if provided.
+  void SendDefaultServiceSignal(const std::string& service_path,
+                                Time* conn_change_time_p) {
     const Time conn_change_time = ConnChangedTime();
     fake_clock_.SetWallclockTime(conn_change_time);
-    signal_handler_(kFakeManagerProxy, shill::kDefaultServiceProperty,
-                    default_service_gval, signal_data_);
+    ASSERT_TRUE(manager_property_changed_.IsHandlerRegistered());
+    manager_property_changed_.signal_callback().Run(
+        shill::kDefaultServiceProperty, dbus::ObjectPath(service_path));
     fake_clock_.SetWallclockTime(conn_change_time + TimeDelta::FromSeconds(5));
-    GValueFree(default_service_gval);
-    return conn_change_time;
+    if (conn_change_time_p)
+      *conn_change_time_p = conn_change_time;
   }
 
   // Sets up expectations for detection of a connection |service_path| with type
@@ -221,31 +128,18 @@ class UmRealShillProviderTest : public ::testing::Test {
   // new connection status and change time are properly detected by the
   // provider. Writes the fake connection change time to |conn_change_time_p|,
   // if provided.
-  void SetupConnectionAndAttrs(const char* service_path,
-                               DBusGProxy* service_proxy,
-                               const char* shill_type_str,
-                               const char* shill_tethering_str,
+  void SetupConnectionAndAttrs(const std::string& service_path,
+                               const char* shill_type,
+                               const char* shill_tethering,
                                Time* conn_change_time_p) {
-    // Mock logic for querying the default service attributes.
-    EXPECT_CALL(mock_dbus_,
-                ProxyNewForName(
-                    kFakeConnection, StrEq(shill::kFlimflamServiceName),
-                    StrEq(service_path),
-                    StrEq(shill::kFlimflamServiceInterface)))
-        .WillOnce(Return(service_proxy));
-    EXPECT_CALL(mock_dbus_, ProxyUnref(service_proxy)).WillOnce(Return());
-    pair<const char*, const char*> service_pairs[] = {
-      {shill::kTypeProperty, shill_type_str},
-      {shill::kTetheringProperty, shill_tethering_str},
-    };
-    auto service_properties = SetupGetPropertiesOkay(
-        service_proxy, arraysize(service_pairs), service_pairs);
+    SetServiceReply(service_path, shill_type, nullptr, shill_tethering);
+    // Note: We don't setup this |service_path| as the default service path but
+    // we instead send a signal notifying the change since the code won't call
+    // GetProperties on the Manager object at this point.
 
     // Send a signal about a new default service.
-    auto conn_change_time = SendDefaultServiceSignal(service_path);
-
-    // Release the service properties hash tables.
-    g_hash_table_unref(service_properties);
+    Time conn_change_time;
+    SendDefaultServiceSignal(service_path, &conn_change_time);
 
     // Query the connection status, ensure last change time reported correctly.
     UmTestUtils::ExpectVariableHasValue(true, provider_->var_is_connected());
@@ -260,12 +154,12 @@ class UmRealShillProviderTest : public ::testing::Test {
   // Sets up a connection and tests that its type is being properly detected by
   // the provider.
   void SetupConnectionAndTestType(const char* service_path,
-                                  DBusGProxy* service_proxy,
-                                  const char* shill_type_str,
+                                  const char* shill_type,
                                   ConnectionType expected_conn_type) {
     // Set up and test the connection, record the change time.
     Time conn_change_time;
-    SetupConnectionAndAttrs(service_path, service_proxy, shill_type_str,
+    SetupConnectionAndAttrs(service_path,
+                            shill_type,
                             shill::kTetheringNotDetectedState,
                             &conn_change_time);
 
@@ -279,13 +173,13 @@ class UmRealShillProviderTest : public ::testing::Test {
   // Sets up a connection and tests that its tethering mode is being properly
   // detected by the provider.
   void SetupConnectionAndTestTethering(
-      const char* service_path, DBusGProxy* service_proxy,
-      const char* shill_tethering_str,
+      const char* service_path,
+      const char* shill_tethering,
       ConnectionTethering expected_conn_tethering) {
     // Set up and test the connection, record the change time.
     Time conn_change_time;
-    SetupConnectionAndAttrs(service_path, service_proxy, shill::kTypeEthernet,
-                            shill_tethering_str, &conn_change_time);
+    SetupConnectionAndAttrs(
+        service_path, shill::kTypeEthernet, shill_tethering, &conn_change_time);
 
     // Query the connection tethering, ensure last change time did not change.
     UmTestUtils::ExpectVariableHasValue(expected_conn_tethering,
@@ -294,16 +188,74 @@ class UmRealShillProviderTest : public ::testing::Test {
                                         provider_->var_conn_last_changed());
   }
 
-  StrictMock<MockDBusWrapper> mock_dbus_;
+  chromeos::FakeMessageLoop loop_{nullptr};
   FakeClock fake_clock_;
+  chromeos_update_engine::FakeShillProxy fake_shill_proxy_;
+
+  // The registered signal handler for the signal Manager.PropertyChanged.
+  chromeos_update_engine::dbus_test_utils::MockSignalHandler<
+      void(const std::string&, const chromeos::Any&)> manager_property_changed_;
+
   unique_ptr<RealShillProvider> provider_;
-  void (*signal_handler_)(DBusGProxy*, const char*, GValue*, void*);
-  void* signal_data_;
 };
+
+void UmRealShillProviderTest::SetManagerReply(const char* default_service,
+                                              bool reply_succeeds) {
+  ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_.GetManagerProxy();
+  if (!reply_succeeds) {
+    EXPECT_CALL(*manager_proxy_mock, GetProperties(_, _, _))
+        .WillOnce(Return(false));
+    return;
+  }
+
+  // Create a dictionary of properties and optionally include the default
+  // service.
+  chromeos::VariantDictionary reply_dict;
+  reply_dict["SomeOtherProperty"] = 0xC0FFEE;
+
+  if (default_service) {
+    reply_dict[shill::kDefaultServiceProperty] =
+        dbus::ObjectPath(default_service);
+  }
+  EXPECT_CALL(*manager_proxy_mock, GetProperties(_, _, _))
+      .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
+}
+
+ServiceProxyMock* UmRealShillProviderTest::SetServiceReply(
+    const std::string& service_path,
+    const char* service_type,
+    const char* physical_technology,
+    const char* service_tethering) {
+  chromeos::VariantDictionary reply_dict;
+  reply_dict["SomeOtherProperty"] = 0xC0FFEE;
+
+  if (service_type)
+    reply_dict[shill::kTypeProperty] = std::string(service_type);
+
+  if (physical_technology) {
+    reply_dict[shill::kPhysicalTechnologyProperty] =
+        std::string(physical_technology);
+  }
+
+  if (service_tethering)
+    reply_dict[shill::kTetheringProperty] = std::string(service_tethering);
+
+  ServiceProxyMock* service_proxy_mock = new ServiceProxyMock();
+
+  // Plumb return value into mock object.
+  EXPECT_CALL(*service_proxy_mock, GetProperties(_, _, _))
+      .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
+
+  fake_shill_proxy_.SetServiceForPath(
+      service_path, chromeos::make_unique_ptr(service_proxy_mock));
+  return service_proxy_mock;
+}
+
 
 // Query the connection status, type and time last changed, as they were set
 // during initialization (no signals).
 TEST_F(UmRealShillProviderTest, ReadBaseValues) {
+  InitWithDefaultService("/");
   // Query the provider variables.
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_is_connected());
   UmTestUtils::ExpectVariableNotSet(provider_->var_conn_type());
@@ -313,86 +265,77 @@ TEST_F(UmRealShillProviderTest, ReadBaseValues) {
 
 // Test that Ethernet connection is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTypeEthernet) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestType(kFakeEthernetServicePath,
-                             kFakeEthernetServiceProxy,
                              shill::kTypeEthernet,
                              ConnectionType::kEthernet);
 }
 
 // Test that Wifi connection is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTypeWifi) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestType(kFakeWifiServicePath,
-                             kFakeWifiServiceProxy,
                              shill::kTypeWifi,
                              ConnectionType::kWifi);
 }
 
 // Test that Wimax connection is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTypeWimax) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestType(kFakeWimaxServicePath,
-                             kFakeWimaxServiceProxy,
                              shill::kTypeWimax,
                              ConnectionType::kWimax);
 }
 
 // Test that Bluetooth connection is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTypeBluetooth) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestType(kFakeBluetoothServicePath,
-                             kFakeBluetoothServiceProxy,
                              shill::kTypeBluetooth,
                              ConnectionType::kBluetooth);
 }
 
 // Test that Cellular connection is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTypeCellular) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestType(kFakeCellularServicePath,
-                             kFakeCellularServiceProxy,
                              shill::kTypeCellular,
                              ConnectionType::kCellular);
 }
 
 // Test that an unknown connection is identified as such.
 TEST_F(UmRealShillProviderTest, ReadConnTypeUnknown) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestType(kFakeUnknownServicePath,
-                             kFakeUnknownServiceProxy,
                              "FooConnectionType",
                              ConnectionType::kUnknown);
 }
 
 // Tests that VPN connection is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTypeVpn) {
+  InitWithDefaultService("/");
   // Mock logic for returning a default service path and its type.
-  EXPECT_CALL(mock_dbus_, ProxyNewForName(
-          kFakeConnection, StrEq(shill::kFlimflamServiceName),
-          StrEq(kFakeVpnServicePath), StrEq(shill::kFlimflamServiceInterface)))
-      .WillOnce(Return(kFakeVpnServiceProxy));
-  EXPECT_CALL(mock_dbus_, ProxyUnref(kFakeVpnServiceProxy)).WillOnce(Return());
-  pair<const char*, const char*> service_pairs[] = {
-    {shill::kTypeProperty, shill::kTypeVPN},
-    {shill::kPhysicalTechnologyProperty, shill::kTypeWifi},
-  };
-  auto service_properties = SetupGetPropertiesOkay(kFakeVpnServiceProxy,
-                                                   arraysize(service_pairs),
-                                                   service_pairs);
+  SetServiceReply(kFakeVpnServicePath,
+                  shill::kTypeVPN,
+                  shill::kTypeWifi,
+                  shill::kTetheringNotDetectedState);
 
   // Send a signal about a new default service.
-  Time conn_change_time = SendDefaultServiceSignal(kFakeVpnServicePath);
+  Time conn_change_time;
+  SendDefaultServiceSignal(kFakeVpnServicePath, &conn_change_time);
 
   // Query the connection type, ensure last change time reported correctly.
   UmTestUtils::ExpectVariableHasValue(ConnectionType::kWifi,
                                       provider_->var_conn_type());
   UmTestUtils::ExpectVariableHasValue(conn_change_time,
                                       provider_->var_conn_last_changed());
-
-  // Release properties hash tables.
-  g_hash_table_unref(service_properties);
 }
 
 // Ensure that the connection type is properly cached in the provider through
 // subsequent variable readings.
 TEST_F(UmRealShillProviderTest, ConnTypeCacheUsed) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestType(kFakeEthernetServicePath,
-                             kFakeEthernetServiceProxy,
                              shill::kTypeEthernet,
                              ConnectionType::kEthernet);
 
@@ -403,12 +346,12 @@ TEST_F(UmRealShillProviderTest, ConnTypeCacheUsed) {
 // Ensure that the cached connection type remains valid even when a default
 // connection signal occurs but the connection is not changed.
 TEST_F(UmRealShillProviderTest, ConnTypeCacheRemainsValid) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestType(kFakeEthernetServicePath,
-                             kFakeEthernetServiceProxy,
                              shill::kTypeEthernet,
                              ConnectionType::kEthernet);
 
-  SendDefaultServiceSignal(kFakeEthernetServicePath);
+  SendDefaultServiceSignal(kFakeEthernetServicePath, nullptr);
 
   UmTestUtils::ExpectVariableHasValue(ConnectionType::kEthernet,
                                       provider_->var_conn_type());
@@ -417,53 +360,52 @@ TEST_F(UmRealShillProviderTest, ConnTypeCacheRemainsValid) {
 // Ensure that the cached connection type is invalidated and re-read when the
 // default connection changes.
 TEST_F(UmRealShillProviderTest, ConnTypeCacheInvalidated) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestType(kFakeEthernetServicePath,
-                             kFakeEthernetServiceProxy,
                              shill::kTypeEthernet,
                              ConnectionType::kEthernet);
 
   SetupConnectionAndTestType(kFakeWifiServicePath,
-                             kFakeWifiServiceProxy,
                              shill::kTypeWifi,
                              ConnectionType::kWifi);
 }
 
 // Test that a non-tethering mode is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTetheringNotDetected) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestTethering(kFakeWifiServicePath,
-                                  kFakeWifiServiceProxy,
                                   shill::kTetheringNotDetectedState,
                                   ConnectionTethering::kNotDetected);
 }
 
 // Test that a suspected tethering mode is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTetheringSuspected) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestTethering(kFakeWifiServicePath,
-                                  kFakeWifiServiceProxy,
                                   shill::kTetheringSuspectedState,
                                   ConnectionTethering::kSuspected);
 }
 
 // Test that a confirmed tethering mode is identified correctly.
 TEST_F(UmRealShillProviderTest, ReadConnTetheringConfirmed) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestTethering(kFakeWifiServicePath,
-                                  kFakeWifiServiceProxy,
                                   shill::kTetheringConfirmedState,
                                   ConnectionTethering::kConfirmed);
 }
 
 // Test that an unknown tethering mode is identified as such.
 TEST_F(UmRealShillProviderTest, ReadConnTetheringUnknown) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestTethering(kFakeWifiServicePath,
-                                  kFakeWifiServiceProxy,
                                   "FooConnTethering",
                                   ConnectionTethering::kUnknown);
 }
 
 // Ensure that the connection tethering mode is properly cached in the provider.
 TEST_F(UmRealShillProviderTest, ConnTetheringCacheUsed) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestTethering(kFakeEthernetServicePath,
-                                  kFakeEthernetServiceProxy,
                                   shill::kTetheringNotDetectedState,
                                   ConnectionTethering::kNotDetected);
 
@@ -474,12 +416,12 @@ TEST_F(UmRealShillProviderTest, ConnTetheringCacheUsed) {
 // Ensure that the cached connection tethering mode remains valid even when a
 // default connection signal occurs but the connection is not changed.
 TEST_F(UmRealShillProviderTest, ConnTetheringCacheRemainsValid) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestTethering(kFakeEthernetServicePath,
-                                  kFakeEthernetServiceProxy,
                                   shill::kTetheringNotDetectedState,
                                   ConnectionTethering::kNotDetected);
 
-  SendDefaultServiceSignal(kFakeEthernetServicePath);
+  SendDefaultServiceSignal(kFakeEthernetServicePath, nullptr);
 
   UmTestUtils::ExpectVariableHasValue(ConnectionTethering::kNotDetected,
                                       provider_->var_conn_tethering());
@@ -488,13 +430,12 @@ TEST_F(UmRealShillProviderTest, ConnTetheringCacheRemainsValid) {
 // Ensure that the cached connection tethering mode is invalidated and re-read
 // when the default connection changes.
 TEST_F(UmRealShillProviderTest, ConnTetheringCacheInvalidated) {
+  InitWithDefaultService("/");
   SetupConnectionAndTestTethering(kFakeEthernetServicePath,
-                                  kFakeEthernetServiceProxy,
                                   shill::kTetheringNotDetectedState,
                                   ConnectionTethering::kNotDetected);
 
   SetupConnectionAndTestTethering(kFakeWifiServicePath,
-                                  kFakeWifiServiceProxy,
                                   shill::kTetheringConfirmedState,
                                   ConnectionTethering::kConfirmed);
 }
@@ -504,14 +445,19 @@ TEST_F(UmRealShillProviderTest, ConnTetheringCacheInvalidated) {
 // changed, making sure that it is the time when the first signal was sent (and
 // not the second).
 TEST_F(UmRealShillProviderTest, ReadLastChangedTimeTwoSignals) {
+  InitWithDefaultService("/");
   // Send a default service signal twice, advancing the clock in between.
   Time conn_change_time;
-  SetupConnectionAndAttrs(kFakeEthernetServicePath, kFakeEthernetServiceProxy,
+  SetupConnectionAndAttrs(kFakeEthernetServicePath,
                           shill::kTypeEthernet,
-                          shill::kTetheringNotDetectedState, &conn_change_time);
-  SendDefaultServiceSignal(kFakeEthernetServicePath);
+                          shill::kTetheringNotDetectedState,
+                          &conn_change_time);
+  // This will set the service path to the same value, so it should not call
+  // GetProperties() again.
+  SendDefaultServiceSignal(kFakeEthernetServicePath, nullptr);
 
-  // Query the connection status, ensure last change time reported correctly.
+  // Query the connection status, ensure last change time reported as the first
+  // time the signal was sent.
   UmTestUtils::ExpectVariableHasValue(true, provider_->var_is_connected());
   UmTestUtils::ExpectVariableHasValue(conn_change_time,
                                       provider_->var_conn_last_changed());
@@ -521,8 +467,10 @@ TEST_F(UmRealShillProviderTest, ReadLastChangedTimeTwoSignals) {
 // responding, that variables can be obtained, and that they all return a null
 // value (indicating that the underlying values were not set).
 TEST_F(UmRealShillProviderTest, NoInitConnStatusReadBaseValues) {
-  // Re-initialize the provider, no initial connection status response.
-  Init(false);
+  // Initialize the provider, no initial connection status response.
+  SetManagerReply(nullptr, false);
+  EXPECT_TRUE(provider_->Init());
+  EXPECT_TRUE(loop_.RunOnce(false));
   UmTestUtils::ExpectVariableNotSet(provider_->var_is_connected());
   UmTestUtils::ExpectVariableNotSet(provider_->var_conn_type());
   UmTestUtils::ExpectVariableNotSet(provider_->var_conn_last_changed());
@@ -531,12 +479,16 @@ TEST_F(UmRealShillProviderTest, NoInitConnStatusReadBaseValues) {
 // Test that, once a signal is received, the connection status and other info
 // can be read correctly.
 TEST_F(UmRealShillProviderTest, NoInitConnStatusReadConnTypeEthernet) {
-  // Re-initialize the provider, no initial connection status response.
-  Init(false);
-  SetupConnectionAndTestType(kFakeEthernetServicePath,
-                             kFakeEthernetServiceProxy,
-                             shill::kTypeEthernet,
-                             ConnectionType::kEthernet);
+  // Initialize the provider with no initial connection status response.
+  SetManagerReply(nullptr, false);
+  EXPECT_TRUE(provider_->Init());
+  EXPECT_TRUE(loop_.RunOnce(false));
+
+  SetupConnectionAndAttrs(kFakeEthernetServicePath,
+                          shill::kTypeEthernet,
+                          shill::kTetheringNotDetectedState,
+                          nullptr);
+  UmTestUtils::ExpectVariableHasValue(true, provider_->var_is_connected());
 }
 
 }  // namespace chromeos_update_manager

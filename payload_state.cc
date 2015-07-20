@@ -18,7 +18,6 @@
 #include "update_engine/install_plan.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/prefs.h"
-#include "update_engine/real_dbus_wrapper.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
@@ -174,11 +173,9 @@ void PayloadState::AttemptStarted(AttemptType attempt_type) {
   metrics::ConnectionType type;
   NetworkConnectionType network_connection_type;
   NetworkTethering tethering;
-  RealDBusWrapper dbus_iface;
   ConnectionManagerInterface* connection_manager =
       system_state_->connection_manager();
-  if (!connection_manager->GetConnectionProperties(&dbus_iface,
-                                                   &network_connection_type,
+  if (!connection_manager->GetConnectionProperties(&network_connection_type,
                                                    &tethering)) {
     LOG(ERROR) << "Failed to determine connection type.";
     type = metrics::ConnectionType::kUnknown;

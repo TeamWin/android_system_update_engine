@@ -18,10 +18,9 @@ class MockConnectionManager : public ConnectionManagerInterface {
  public:
   MockConnectionManager() = default;
 
-  MOCK_CONST_METHOD3(GetConnectionProperties,
-                     bool(DBusWrapperInterface* dbus_iface,
-                          NetworkConnectionType* out_type,
-                          NetworkTethering* out_tethering));
+  MOCK_METHOD2(GetConnectionProperties,
+               bool(NetworkConnectionType* out_type,
+                    NetworkTethering* out_tethering));
 
   MOCK_CONST_METHOD2(IsUpdateAllowedOver, bool(NetworkConnectionType type,
                                                NetworkTethering tethering));

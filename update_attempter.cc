@@ -32,10 +32,8 @@
 #include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"
 #include "update_engine/dbus_service.h"
-#include "update_engine/dbus_wrapper_interface.h"
 #include "update_engine/download_action.h"
 #include "update_engine/filesystem_verifier_action.h"
-#include "update_engine/glib_utils.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/metrics.h"
@@ -134,18 +132,23 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
   return code;
 }
 
-UpdateAttempter::UpdateAttempter(SystemState* system_state,
-                                 DBusWrapperInterface* dbus_iface)
-    : UpdateAttempter(system_state, dbus_iface, kUpdateCompletedMarker) {}
+UpdateAttempter::UpdateAttempter(
+    SystemState* system_state,
+    LibCrosProxy* libcros_proxy,
+    org::chromium::debugdProxyInterface* debugd_proxy)
+    : UpdateAttempter(system_state, libcros_proxy, debugd_proxy,
+                      kUpdateCompletedMarker) {}
 
-UpdateAttempter::UpdateAttempter(SystemState* system_state,
-                                 DBusWrapperInterface* dbus_iface,
-                                 const string& update_completed_marker)
+UpdateAttempter::UpdateAttempter(
+    SystemState* system_state,
+    LibCrosProxy* libcros_proxy,
+    org::chromium::debugdProxyInterface* debugd_proxy,
+    const string& update_completed_marker)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
-      dbus_iface_(dbus_iface),
-      chrome_proxy_resolver_(dbus_iface),
-      update_completed_marker_(update_completed_marker) {
+      chrome_proxy_resolver_(libcros_proxy),
+      update_completed_marker_(update_completed_marker),
+      debugd_proxy_(debugd_proxy) {
   if (!update_completed_marker_.empty() &&
       utils::FileExists(update_completed_marker_.c_str())) {
     status_ = UPDATE_STATUS_UPDATED_NEED_REBOOT;
@@ -879,35 +882,17 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
 }
 
 bool UpdateAttempter::RequestPowerManagerReboot() {
-  GError* error = nullptr;
-  DBusGConnection* bus = dbus_iface_->BusGet(DBUS_BUS_SYSTEM, &error);
-  if (!bus) {
-    LOG(ERROR) << "Failed to get system bus: "
-               << utils::GetAndFreeGError(&error);
+  org::chromium::PowerManagerProxyInterface* power_manager_proxy =
+      system_state_->power_manager_proxy();
+  if (!power_manager_proxy) {
+    LOG(WARNING) << "No PowerManager proxy defined, skipping reboot.";
     return false;
   }
-
   LOG(INFO) << "Calling " << power_manager::kPowerManagerInterface << "."
             << power_manager::kRequestRestartMethod;
-  DBusGProxy* proxy = dbus_iface_->ProxyNewForName(
-      bus,
-      power_manager::kPowerManagerServiceName,
-      power_manager::kPowerManagerServicePath,
-      power_manager::kPowerManagerInterface);
-  const gboolean success = dbus_iface_->ProxyCall_1_0(
-      proxy,
-      power_manager::kRequestRestartMethod,
-      &error,
-      power_manager::REQUEST_RESTART_FOR_UPDATE);
-  dbus_iface_->ProxyUnref(proxy);
-
-  if (!success) {
-    LOG(ERROR) << "Failed to call " << power_manager::kRequestRestartMethod
-               << ": " << utils::GetAndFreeGError(&error);
-    return false;
-  }
-
-  return true;
+  chromeos::ErrorPtr error;
+  return power_manager_proxy->RequestRestart(
+      power_manager::REQUEST_RESTART_FOR_UPDATE, &error);
 }
 
 bool UpdateAttempter::RebootDirectly() {
@@ -1649,26 +1634,11 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
 
   // Official images in devmode are allowed a custom update source iff the
   // debugd dev tools are enabled.
-  GError* error = nullptr;
-  DBusGConnection* bus = dbus_iface_->BusGet(DBUS_BUS_SYSTEM, &error);
-  if (!bus) {
-    LOG(ERROR) << "Failed to get system bus: "
-               << utils::GetAndFreeGError(&error);
+  if (!debugd_proxy_)
     return false;
-  }
-
-  gint dev_features = debugd::DEV_FEATURES_DISABLED;
-  DBusGProxy* proxy = dbus_iface_->ProxyNewForName(
-      bus,
-      debugd::kDebugdServiceName,
-      debugd::kDebugdServicePath,
-      debugd::kDebugdInterface);
-  const gboolean success = dbus_iface_->ProxyCall_0_1(
-      proxy,
-      debugd::kQueryDevFeatures,
-      &error,
-      &dev_features);
-  dbus_iface_->ProxyUnref(proxy);
+  int32_t dev_features = debugd::DEV_FEATURES_DISABLED;
+  chromeos::ErrorPtr error;
+  bool success = debugd_proxy_->QueryDevFeatures(&dev_features, &error);
 
   // Some boards may not include debugd so it's expected that this may fail,
   // in which case we default to disallowing custom update sources.

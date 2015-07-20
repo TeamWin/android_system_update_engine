@@ -10,182 +10,158 @@
 #include <base/strings/stringprintf.h>
 #include <chromeos/dbus/service_constants.h>
 
-#include "update_engine/glib_utils.h"
-
+using org::chromium::flimflam::ManagerProxyInterface;
+using org::chromium::flimflam::ServiceProxyInterface;
 using std::string;
-
-namespace {
-
-// Looks up a |key| in a GLib |hash_table| and returns the unboxed string from
-// the corresponding GValue, if found.
-const char* GetStrProperty(GHashTable* hash_table, const char* key) {
-  auto gval = reinterpret_cast<GValue*>(g_hash_table_lookup(hash_table, key));
-  return (gval ? g_value_get_string(gval) : nullptr);
-}
-
-};  // namespace
-
 
 namespace chromeos_update_manager {
 
-RealShillProvider::~RealShillProvider() {
-  // Detach signal handler, free manager proxy.
-  dbus_->ProxyDisconnectSignal(manager_proxy_, shill::kMonitorPropertyChanged,
-                               G_CALLBACK(HandlePropertyChangedStatic),
-                               this);
-  dbus_->ProxyUnref(manager_proxy_);
-}
-
-ConnectionType RealShillProvider::ParseConnectionType(const char* type_str) {
-  if (!strcmp(type_str, shill::kTypeEthernet))
+ConnectionType RealShillProvider::ParseConnectionType(const string& type_str) {
+  if (type_str == shill::kTypeEthernet) {
     return ConnectionType::kEthernet;
-  if (!strcmp(type_str, shill::kTypeWifi))
+  } else if (type_str == shill::kTypeWifi) {
     return ConnectionType::kWifi;
-  if (!strcmp(type_str, shill::kTypeWimax))
+  } else if (type_str == shill::kTypeWimax) {
     return ConnectionType::kWimax;
-  if (!strcmp(type_str, shill::kTypeBluetooth))
+  } else if (type_str == shill::kTypeBluetooth) {
     return ConnectionType::kBluetooth;
-  if (!strcmp(type_str, shill::kTypeCellular))
+  } else if (type_str == shill::kTypeCellular) {
     return ConnectionType::kCellular;
-
+  }
   return ConnectionType::kUnknown;
 }
 
 ConnectionTethering RealShillProvider::ParseConnectionTethering(
-    const char* tethering_str) {
-  if (!strcmp(tethering_str, shill::kTetheringNotDetectedState))
+    const string& tethering_str) {
+  if (tethering_str == shill::kTetheringNotDetectedState) {
     return ConnectionTethering::kNotDetected;
-  if (!strcmp(tethering_str, shill::kTetheringSuspectedState))
+  } else if (tethering_str == shill::kTetheringSuspectedState) {
     return ConnectionTethering::kSuspected;
-  if (!strcmp(tethering_str, shill::kTetheringConfirmedState))
+  } else if (tethering_str == shill::kTetheringConfirmedState) {
     return ConnectionTethering::kConfirmed;
-
+  }
   return ConnectionTethering::kUnknown;
 }
 
 bool RealShillProvider::Init() {
-  // Obtain a DBus connection.
-  GError* error = nullptr;
-  connection_ = dbus_->BusGet(DBUS_BUS_SYSTEM, &error);
-  if (!connection_) {
-    LOG(ERROR) << "Failed to initialize DBus connection: "
-               << chromeos_update_engine::utils::GetAndFreeGError(&error);
+  ManagerProxyInterface* manager_proxy = shill_proxy_->GetManagerProxy();
+  if (!manager_proxy)
     return false;
-  }
-
-  // Allocate a shill manager proxy.
-  manager_proxy_ = GetProxy(shill::kFlimflamServicePath,
-                            shill::kFlimflamManagerInterface);
 
   // Subscribe to the manager's PropertyChanged signal.
-  dbus_->ProxyAddSignal_2(manager_proxy_, shill::kMonitorPropertyChanged,
-                          G_TYPE_STRING, G_TYPE_VALUE);
-  dbus_->ProxyConnectSignal(manager_proxy_, shill::kMonitorPropertyChanged,
-                            G_CALLBACK(HandlePropertyChangedStatic),
-                            this, nullptr);
+  manager_proxy->RegisterPropertyChangedSignalHandler(
+      base::Bind(&RealShillProvider::OnManagerPropertyChanged,
+                 base::Unretained(this)),
+      base::Bind(&RealShillProvider::OnSignalConnected,
+                 base::Unretained(this)));
 
   // Attempt to read initial connection status. Even if this fails because shill
   // is not responding (e.g. it is down) we'll be notified via "PropertyChanged"
   // signal as soon as it comes up, so this is not a critical step.
-  GHashTable* hash_table = nullptr;
-  if (GetProperties(manager_proxy_, &hash_table)) {
-    GValue* value = reinterpret_cast<GValue*>(
-        g_hash_table_lookup(hash_table, shill::kDefaultServiceProperty));
-    ProcessDefaultService(value);
-    g_hash_table_unref(hash_table);
+  chromeos::VariantDictionary properties;
+  chromeos::ErrorPtr error;
+  if (!manager_proxy->GetProperties(&properties, &error))
+    return true;
+
+  const auto& prop_default_service =
+      properties.find(shill::kDefaultServiceProperty);
+  if (prop_default_service != properties.end()) {
+    OnManagerPropertyChanged(prop_default_service->first,
+                             prop_default_service->second);
   }
 
   return true;
 }
 
-DBusGProxy* RealShillProvider::GetProxy(const char* path,
-                                        const char* interface) {
-  return dbus_->ProxyNewForName(connection_, shill::kFlimflamServiceName,
-                                path, interface);
+void RealShillProvider::OnManagerPropertyChanged(const string& name,
+                                                 const chromeos::Any& value) {
+  if (name == shill::kDefaultServiceProperty)
+    ProcessDefaultService(value.TryGet<dbus::ObjectPath>().value());
 }
 
-bool RealShillProvider::GetProperties(DBusGProxy* proxy,
-                                      GHashTable** result_p) {
-  GError* error = nullptr;
-  if (!dbus_->ProxyCall_0_1(proxy, shill::kGetPropertiesFunction, &error,
-                            result_p)) {
-    LOG(ERROR) << "Calling shill via DBus proxy failed: "
-               << chromeos_update_engine::utils::GetAndFreeGError(&error);
-    return false;
+void RealShillProvider::OnSignalConnected(const string& interface_name,
+                                          const string& signal_name,
+                                          bool successful) {
+  if (!successful) {
+    LOG(ERROR) << "Couldn't connect to the signal " << interface_name << "."
+               << signal_name;
   }
-  return true;
 }
 
-bool RealShillProvider::ProcessDefaultService(GValue* value) {
-  // Decode the string from the boxed value.
-  const char* default_service_path_str = nullptr;
-  if (!(value && (default_service_path_str = g_value_get_string(value))))
-    return false;
-
-  // Anything changed?
-  if (default_service_path_ == default_service_path_str)
+bool RealShillProvider::ProcessDefaultService(
+    const string& default_service_path) {
+  // We assume that if the service path didn't change, then the connection
+  // type and the tethering status of it also didn't change.
+  if (default_service_path_ == default_service_path)
     return true;
 
   // Update the connection status.
-  default_service_path_ = default_service_path_str;
+  default_service_path_ = default_service_path;
   bool is_connected = (default_service_path_ != "/");
   var_is_connected_.SetValue(is_connected);
   var_conn_last_changed_.SetValue(clock_->GetWallclockTime());
 
-  // Update the connection attributes.
-  if (is_connected) {
-    DBusGProxy* service_proxy = GetProxy(default_service_path_.c_str(),
-                                         shill::kFlimflamServiceInterface);
-    GHashTable* hash_table = nullptr;
-    if (GetProperties(service_proxy, &hash_table)) {
-      // Get the connection type.
-      const char* type_str = GetStrProperty(hash_table, shill::kTypeProperty);
-      if (type_str && !strcmp(type_str, shill::kTypeVPN)) {
-        type_str = GetStrProperty(hash_table,
-                                  shill::kPhysicalTechnologyProperty);
-      }
-      if (type_str) {
-        var_conn_type_.SetValue(ParseConnectionType(type_str));
-      } else {
-        var_conn_type_.UnsetValue();
-        LOG(ERROR) << "Could not find connection type ("
-                   << default_service_path_ << ")";
-      }
-
-      // Get the connection tethering mode.
-      const char* tethering_str = GetStrProperty(hash_table,
-                                                 shill::kTetheringProperty);
-      if (tethering_str) {
-        var_conn_tethering_.SetValue(ParseConnectionTethering(tethering_str));
-      } else {
-        var_conn_tethering_.UnsetValue();
-        LOG(ERROR) << "Could not find connection tethering mode ("
-                   << default_service_path_ << ")";
-      }
-
-      g_hash_table_unref(hash_table);
-    }
-    dbus_->ProxyUnref(service_proxy);
-  } else {
+  if (!is_connected) {
     var_conn_type_.UnsetValue();
     var_conn_tethering_.UnsetValue();
+    return true;
+  }
+
+  // We create and dispose the ServiceProxyInterface on every request.
+  std::unique_ptr<ServiceProxyInterface> service =
+      shill_proxy_->GetServiceForPath(default_service_path_);
+
+  // Get the connection properties synchronously.
+  chromeos::VariantDictionary properties;
+  chromeos::ErrorPtr error;
+  if (!service->GetProperties(&properties, &error)) {
+    var_conn_type_.UnsetValue();
+    var_conn_tethering_.UnsetValue();
+    return false;
+  }
+
+  // Get the connection tethering mode.
+  const auto& prop_tethering = properties.find(shill::kTetheringProperty);
+  if (prop_tethering == properties.end()) {
+    // Remove the value if not present on the service. This most likely means an
+    // error in shill and the policy will handle it, but we will print a log
+    // message as well for accessing an unused variable.
+    var_conn_tethering_.UnsetValue();
+    LOG(ERROR) << "Could not find connection type (" << default_service_path_
+               << ")";
+  } else {
+    // If the property doesn't contain a string value, the empty string will
+    // become kUnknown.
+    var_conn_tethering_.SetValue(
+        ParseConnectionTethering(prop_tethering->second.TryGet<string>()));
+  }
+
+  // Get the connection type.
+  const auto& prop_type = properties.find(shill::kTypeProperty);
+  if (prop_type == properties.end()) {
+    var_conn_type_.UnsetValue();
+    LOG(ERROR) << "Could not find connection tethering mode ("
+               << default_service_path_ << ")";
+  } else {
+    string type_str = prop_type->second.TryGet<string>();
+    if (type_str == shill::kTypeVPN) {
+      const auto& prop_physical =
+          properties.find(shill::kPhysicalTechnologyProperty);
+      if (prop_physical == properties.end()) {
+        LOG(ERROR) << "No PhysicalTechnology property found for a VPN"
+                   << " connection (service: " << default_service_path
+                   << "). Using default kUnknown value.";
+        var_conn_type_.SetValue(ConnectionType::kUnknown);
+      } else {
+        var_conn_type_.SetValue(
+            ParseConnectionType(prop_physical->second.TryGet<string>()));
+      }
+    } else {
+      var_conn_type_.SetValue(ParseConnectionType(type_str));
+    }
   }
 
   return true;
-}
-
-void RealShillProvider::HandlePropertyChanged(DBusGProxy* proxy,
-                                              const char* name, GValue* value) {
-  if (!strcmp(name, shill::kDefaultServiceProperty))
-    ProcessDefaultService(value);
-}
-
-void RealShillProvider::HandlePropertyChangedStatic(DBusGProxy* proxy,
-                                                    const char* name,
-                                                    GValue* value,
-                                                    void* data) {
-  auto obj = reinterpret_cast<RealShillProvider*>(data);
-  obj->HandlePropertyChanged(proxy, name, value);
 }
 
 }  // namespace chromeos_update_manager

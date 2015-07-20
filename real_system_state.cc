@@ -6,6 +6,7 @@
 
 #include <base/files/file_util.h>
 #include <base/time/time.h>
+#include <chromeos/dbus/service_constants.h>
 
 #include "update_engine/constants.h"
 #include "update_engine/update_manager/state_factory.h"
@@ -13,15 +14,21 @@
 
 namespace chromeos_update_engine {
 
-RealSystemState::RealSystemState()
-    : device_policy_(nullptr),
-      connection_manager_(this),
-      update_attempter_(this, &dbus_),
-      request_params_(this),
-      system_rebooted_(false) {}
+RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
+    : debugd_proxy_(bus, debugd::kDebugdServiceName),
+      power_manager_proxy_(bus, power_manager::kPowerManagerServiceName),
+      session_manager_proxy_(bus, login_manager::kSessionManagerServiceName),
+      shill_proxy_(bus),
+      libcros_proxy_(bus) {
+}
 
 bool RealSystemState::Initialize() {
   metrics_lib_.Init();
+
+  if (!shill_proxy_.Init()) {
+    LOG(ERROR) << "Failed to initialize shill proxy.";
+    return false;
+  }
 
   if (!prefs_.Init(base::FilePath(kPrefsDirectory))) {
     LOG(ERROR) << "Failed to initialize preferences.";
@@ -44,7 +51,7 @@ bool RealSystemState::Initialize() {
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(
-          &policy_provider_, &dbus_, this);
+          &policy_provider_, &shill_proxy_, &session_manager_proxy_, this);
   if (!um_state) {
     LOG(ERROR) << "Failed to initialize the Update Manager.";
     return false;

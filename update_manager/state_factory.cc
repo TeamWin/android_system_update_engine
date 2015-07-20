@@ -22,17 +22,19 @@ using std::unique_ptr;
 
 namespace chromeos_update_manager {
 
-State* DefaultStateFactory(policy::PolicyProvider* policy_provider,
-                           chromeos_update_engine::DBusWrapperInterface* dbus,
-                           chromeos_update_engine::SystemState* system_state) {
+State* DefaultStateFactory(
+    policy::PolicyProvider* policy_provider,
+    chromeos_update_engine::ShillProxy* shill_proxy,
+    org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy,
+    chromeos_update_engine::SystemState* system_state) {
   chromeos_update_engine::ClockInterface* const clock = system_state->clock();
   unique_ptr<RealConfigProvider> config_provider(
       new RealConfigProvider(system_state->hardware()));
   unique_ptr<RealDevicePolicyProvider> device_policy_provider(
-      new RealDevicePolicyProvider(dbus, policy_provider));
+      new RealDevicePolicyProvider(session_manager_proxy, policy_provider));
   unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   unique_ptr<RealShillProvider> shill_provider(
-      new RealShillProvider(dbus, clock));
+      new RealShillProvider(shill_proxy, clock));
   unique_ptr<RealSystemProvider> system_provider(
       new RealSystemProvider(system_state->hardware()));
   unique_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));

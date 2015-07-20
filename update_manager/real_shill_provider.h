@@ -14,22 +14,21 @@
 #include <base/time/time.h>
 
 #include "update_engine/clock_interface.h"
-#include "update_engine/dbus_wrapper_interface.h"
+#include "update_engine/dbus_proxies.h"
+#include "update_engine/shill_proxy_interface.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/shill_provider.h"
-
-using chromeos_update_engine::ClockInterface;
-using chromeos_update_engine::DBusWrapperInterface;
 
 namespace chromeos_update_manager {
 
 // ShillProvider concrete implementation.
 class RealShillProvider : public ShillProvider {
  public:
-  RealShillProvider(DBusWrapperInterface* dbus, ClockInterface* clock)
-      : dbus_(dbus), clock_(clock) {}
+  RealShillProvider(chromeos_update_engine::ShillProxyInterface* shill_proxy,
+                    chromeos_update_engine::ClockInterface* clock)
+      : shill_proxy_(shill_proxy), clock_(clock) {}
 
-  ~RealShillProvider() override;
+  ~RealShillProvider() override = default;
 
   // Initializes the provider and returns whether it succeeded.
   bool Init();
@@ -51,37 +50,33 @@ class RealShillProvider : public ShillProvider {
   }
 
   // Helper methods for converting shill strings into symbolic values.
-  static ConnectionType ParseConnectionType(const char* type_str);
+  static ConnectionType ParseConnectionType(const std::string& type_str);
   static ConnectionTethering ParseConnectionTethering(
-      const char* tethering_str);
+      const std::string& tethering_str);
 
  private:
-  // Return a DBus proxy for a given |path| and |interface| within shill.
-  DBusGProxy* GetProxy(const char* path, const char* interface);
+  // A handler for ManagerProxy.PropertyChanged signal.
+  void OnManagerPropertyChanged(const std::string& name,
+                                const chromeos::Any& value);
 
-  // Issues a GetProperties call through a given |proxy|, storing the result to
-  // |*result_p|. Returns true on success.
-  bool GetProperties(DBusGProxy* proxy, GHashTable** result_p);
+  // Called when the signal in ManagerProxy.PropertyChanged is connected.
+  void OnSignalConnected(const std::string& interface_name,
+                         const std::string& signal_name,
+                         bool successful);
 
-  // Process a default connection value, update last change time as needed.
-  bool ProcessDefaultService(GValue* value);
-
-  // A handler for manager PropertyChanged signal, and a static version.
-  void HandlePropertyChanged(DBusGProxy* proxy, const char* name,
-                             GValue* value);
-  static void HandlePropertyChangedStatic(DBusGProxy* proxy, const char* name,
-                                          GValue* value, void* data);
+  // Get the connection and populate the type and tethering status of the given
+  // default connection.
+  bool ProcessDefaultService(const std::string& default_service_path);
 
   // The current default service path, if connected.
   std::string default_service_path_;
 
-  // The DBus interface (mockable), connection, and a shill manager proxy.
-  DBusWrapperInterface* const dbus_;
-  DBusGConnection* connection_ = nullptr;
-  DBusGProxy* manager_proxy_ = nullptr;
+  // The mockable interface to access the shill DBus proxies, owned by the
+  // caller.
+  chromeos_update_engine::ShillProxyInterface* shill_proxy_;
 
   // A clock abstraction (mockable).
-  ClockInterface* const clock_;
+  chromeos_update_engine::ClockInterface* const clock_;
 
   // The provider's variables.
   AsyncCopyVariable<bool> var_is_connected_{"is_connected"};

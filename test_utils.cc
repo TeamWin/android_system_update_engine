@@ -19,8 +19,8 @@
 
 #include <base/files/file_util.h>
 #include <base/logging.h>
-#include <base/strings/stringprintf.h>
 #include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/file_writer.h"
 #include "update_engine/utils.h"
@@ -300,19 +300,6 @@ bool RecursiveUnlinkDir(const string& path) {
   // unlink dir
   TEST_AND_RETURN_FALSE_ERRNO((rmdir(path.c_str()) == 0) || (errno == ENOENT));
   return true;
-}
-
-GValue* GValueNewString(const char* str) {
-  GValue* gval = g_new0(GValue, 1);
-  g_value_init(gval, G_TYPE_STRING);
-  g_value_set_string(gval, str);
-  return gval;
-}
-
-void GValueFree(gpointer arg) {
-  auto gval = reinterpret_cast<GValue*>(arg);
-  g_value_unset(gval);
-  g_free(gval);
 }
 
 base::FilePath GetBuildArtifactsPath() {

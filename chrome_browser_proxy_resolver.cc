@@ -12,11 +12,7 @@
 #include <base/bind.h>
 #include <base/strings/string_tokenizer.h>
 #include <base/strings/string_util.h>
-#include <dbus/dbus-glib-lowlevel.h>
-#include <dbus/dbus-glib.h>
 
-#include "update_engine/dbus_constants.h"
-#include "update_engine/glib_utils.h"
 #include "update_engine/utils.h"
 
 namespace chromeos_update_engine {
@@ -29,22 +25,10 @@ using std::make_pair;
 using std::pair;
 using std::string;
 
-#define LIB_CROS_PROXY_RESOLVE_NAME "ProxyResolved"
-#define LIB_CROS_PROXY_RESOLVE_SIGNAL_INTERFACE                 \
-  "org.chromium.UpdateEngineLibcrosProxyResolvedInterface"
 const char kLibCrosServiceName[] = "org.chromium.LibCrosService";
-const char kLibCrosServicePath[] = "/org/chromium/LibCrosService";
-const char kLibCrosServiceInterface[] = "org.chromium.LibCrosServiceInterface";
-const char kLibCrosServiceResolveNetworkProxyMethodName[] =
-    "ResolveNetworkProxy";
-const char kLibCrosProxyResolveName[] = LIB_CROS_PROXY_RESOLVE_NAME;
+const char kLibCrosProxyResolveName[] = "ProxyResolved";
 const char kLibCrosProxyResolveSignalInterface[] =
-    LIB_CROS_PROXY_RESOLVE_SIGNAL_INTERFACE;
-const char kLibCrosProxyResolveSignalFilter[] = "type='signal', "
-    "interface='" LIB_CROS_PROXY_RESOLVE_SIGNAL_INTERFACE "', "
-    "member='" LIB_CROS_PROXY_RESOLVE_NAME "'";
-#undef LIB_CROS_PROXY_RESOLVE_SIGNAL_INTERFACE
-#undef LIB_CROS_PROXY_RESOLVE_NAME
+    "org.chromium.UpdateEngineLibcrosProxyResolvedInterface";
 
 namespace {
 
@@ -53,59 +37,21 @@ const int kTimeout = 5;  // seconds
 }  // namespace
 
 ChromeBrowserProxyResolver::ChromeBrowserProxyResolver(
-    DBusWrapperInterface* dbus)
-    : dbus_(dbus), timeout_(kTimeout) {}
+    LibCrosProxy* libcros_proxy)
+    : libcros_proxy_(libcros_proxy), timeout_(kTimeout) {}
 
 bool ChromeBrowserProxyResolver::Init() {
-  if (proxy_)
-    return true;  // Already initialized.
-
-  // Set up signal handler. Code lifted from libcros.
-  GError* g_error = nullptr;
-  DBusGConnection* bus = dbus_->BusGet(DBUS_BUS_SYSTEM, &g_error);
-  TEST_AND_RETURN_FALSE(bus);
-  DBusConnection* connection = dbus_->ConnectionGetConnection(bus);
-  TEST_AND_RETURN_FALSE(connection);
-
-  DBusError dbus_error;
-  dbus_error_init(&dbus_error);
-  dbus_->DBusBusAddMatch(connection, kLibCrosProxyResolveSignalFilter,
-                         &dbus_error);
-  TEST_AND_RETURN_FALSE(!dbus_error_is_set(&dbus_error));
-  TEST_AND_RETURN_FALSE(dbus_->DBusConnectionAddFilter(
-      connection,
-      &ChromeBrowserProxyResolver::StaticFilterMessage,
-      this,
-      nullptr));
-
-  proxy_ = dbus_->ProxyNewForName(bus, kLibCrosServiceName, kLibCrosServicePath,
-                                  kLibCrosServiceInterface);
-  if (!proxy_) {
-    dbus_->DBusConnectionRemoveFilter(
-        connection,
-        &ChromeBrowserProxyResolver::StaticFilterMessage,
-        this);
-  }
-  TEST_AND_RETURN_FALSE(proxy_);  // For the error log
+  libcros_proxy_->ue_proxy_resolved_interface()
+      ->RegisterProxyResolvedSignalHandler(
+          base::Bind(&ChromeBrowserProxyResolver::OnProxyResolvedSignal,
+                     base::Unretained(this)),
+          base::Bind(&ChromeBrowserProxyResolver::OnSignalConnected,
+                     base::Unretained(this)));
   return true;
 }
 
 ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() {
-  // Remove DBus connection filters and Kill proxy object.
-  if (proxy_) {
-    GError* gerror = nullptr;
-    DBusGConnection* gbus = dbus_->BusGet(DBUS_BUS_SYSTEM, &gerror);
-    if (gbus) {
-      DBusConnection* connection = dbus_->ConnectionGetConnection(gbus);
-      dbus_->DBusConnectionRemoveFilter(
-          connection,
-          &ChromeBrowserProxyResolver::StaticFilterMessage,
-          this);
-    }
-    dbus_->ProxyUnref(proxy_);
-  }
-
-  // Kill outstanding timers
+  // Kill outstanding timers.
   for (auto& timer : timers_) {
     MessageLoop::current()->CancelTask(timer.second);
     timer.second = MessageLoop::kTaskIdNull;
@@ -115,26 +61,14 @@ ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() {
 bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
                                                   ProxiesResolvedFn callback,
                                                   void* data) {
-  GError* error = nullptr;
-  guint timeout = timeout_;
-  if (proxy_) {
-    if (!dbus_->ProxyCall_3_0(proxy_,
-                              kLibCrosServiceResolveNetworkProxyMethodName,
-                              &error,
-                              url.c_str(),
-                              kLibCrosProxyResolveSignalInterface,
-                              kLibCrosProxyResolveName)) {
-      if (error) {
-        LOG(WARNING) << "dbus_g_proxy_call failed, continuing with no proxy: "
-                     << utils::GetAndFreeGError(&error);
-      } else {
-        LOG(WARNING) << "dbus_g_proxy_call failed with no error string, "
-                        "continuing with no proxy.";
-      }
-      timeout = 0;
-    }
-  } else {
-    LOG(WARNING) << "dbus proxy object missing, continuing with no proxy.";
+  int timeout = timeout_;
+  chromeos::ErrorPtr error;
+  if (!libcros_proxy_->service_interface_proxy()->ResolveNetworkProxy(
+          url.c_str(),
+          kLibCrosProxyResolveSignalInterface,
+          kLibCrosProxyResolveName,
+          &error)) {
+    LOG(WARNING) << "Can't resolve the proxy. Continuing with no proxy.";
     timeout = 0;
   }
 
@@ -147,36 +81,6 @@ bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
       TimeDelta::FromSeconds(timeout));
   timers_.insert(make_pair(url, timer));
   return true;
-}
-
-DBusHandlerResult ChromeBrowserProxyResolver::FilterMessage(
-    DBusConnection* connection,
-    DBusMessage* message) {
-  // Code lifted from libcros.
-  if (!dbus_->DBusMessageIsSignal(message,
-                                  kLibCrosProxyResolveSignalInterface,
-                                  kLibCrosProxyResolveName)) {
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-  }
-  // Get args
-  char* source_url = nullptr;
-  char* proxy_list = nullptr;
-  char* error = nullptr;
-  DBusError arg_error;
-  dbus_error_init(&arg_error);
-  if (!dbus_->DBusMessageGetArgs_3(message, &arg_error,
-                                   &source_url,
-                                   &proxy_list,
-                                   &error)) {
-    LOG(ERROR) << "Error reading dbus signal.";
-    return DBUS_HANDLER_RESULT_HANDLED;
-  }
-  if (!source_url || !proxy_list) {
-    LOG(ERROR) << "Error getting url, proxy list from dbus signal.";
-    return DBUS_HANDLER_RESULT_HANDLED;
-  }
-  HandleReply(source_url, proxy_list);
-  return DBUS_HANDLER_RESULT_HANDLED;
 }
 
 bool ChromeBrowserProxyResolver::DeleteUrlState(
@@ -202,11 +106,25 @@ bool ChromeBrowserProxyResolver::DeleteUrlState(
   return true;
 }
 
-void ChromeBrowserProxyResolver::HandleReply(const string& source_url,
-                                             const string& proxy_list) {
+void ChromeBrowserProxyResolver::OnSignalConnected(const string& interface_name,
+                                                   const string& signal_name,
+                                                   bool successful) {
+  if (!successful) {
+    LOG(ERROR) << "Couldn't connect to the signal " << interface_name << "."
+               << signal_name;
+  }
+}
+
+void ChromeBrowserProxyResolver::OnProxyResolvedSignal(
+    const string& source_url,
+    const string& proxy_info,
+    const string& error_message) {
   pair<ProxiesResolvedFn, void*> callback;
   TEST_AND_RETURN(DeleteUrlState(source_url, true, &callback));
-  (*callback.first)(ParseProxyString(proxy_list), callback.second);
+  if (!error_message.empty()) {
+    LOG(WARNING) << "ProxyResolved error: " << error_message;
+  }
+  (*callback.first)(ParseProxyString(proxy_info), callback.second);
 }
 
 void ChromeBrowserProxyResolver::HandleTimeout(string source_url) {

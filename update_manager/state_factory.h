@@ -5,7 +5,8 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_STATE_FACTORY_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_STATE_FACTORY_H_
 
-#include "update_engine/dbus_wrapper_interface.h"
+#include "update_engine/dbus_proxies.h"
+#include "update_engine/shill_proxy.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/state.h"
 
@@ -18,7 +19,8 @@ namespace chromeos_update_manager {
 // to initialize.
 State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
-    chromeos_update_engine::DBusWrapperInterface* dbus,
+    chromeos_update_engine::ShillProxy* shill_proxy,
+    org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy,
     chromeos_update_engine::SystemState* system_state);
 
 }  // namespace chromeos_update_manager

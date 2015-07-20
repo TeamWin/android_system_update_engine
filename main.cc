@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include "update_engine/daemon.h"
-#include "update_engine/glib_utils.h"
 #include "update_engine/terminator.h"
 #include "update_engine/utils.h"
 
@@ -95,8 +94,6 @@ int main(int argc, char** argv) {
   DEFINE_bool(foreground, false,
               "Don't daemon()ize; run in foreground.");
 
-  ::g_type_init();
-  dbus_threads_init_default();
   chromeos_update_engine::Terminator::Init();
   chromeos::FlagHelper::Init(argc, argv, "Chromium OS Update Engine");
   chromeos_update_engine::SetupLogging(FLAGS_logtostderr);

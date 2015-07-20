@@ -448,10 +448,11 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   MockConnectionManager mock_cm;
   fake_system_state_.set_connection_manager(&mock_cm);
 
-  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _, _)).WillRepeatedly(
-    DoAll(SetArgumentPointee<1>(NetworkConnectionType::kEthernet),
-          SetArgumentPointee<2>(NetworkTethering::kUnknown),
-          Return(true)));
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
+      .WillRepeatedly(
+          DoAll(SetArgumentPointee<0>(NetworkConnectionType::kEthernet),
+                SetArgumentPointee<1>(NetworkTethering::kUnknown),
+                Return(true)));
   EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kEthernet, _))
     .WillRepeatedly(Return(false));
 

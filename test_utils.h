@@ -18,7 +18,6 @@
 
 #include <base/callback.h>
 #include <base/files/file_path.h>
-#include <glib-object.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/action.h"
@@ -182,12 +181,6 @@ class ScopedLoopMounter {
 // on success. This may be called with a regular file--it will just unlink it.
 // This WILL cross filesystem boundaries.
 bool RecursiveUnlinkDir(const std::string& path);
-
-// Allocates, initializes and returns a string GValue object.
-GValue* GValueNewString(const char* str);
-
-// Frees a GValue object and its allocated resources.
-void GValueFree(gpointer arg);
 
 // Returns the path where the build artifacts are stored. This is the directory
 // where the unittest executable is being run from.

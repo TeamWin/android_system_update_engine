@@ -7,19 +7,13 @@
 #include <base/at_exit.h>
 #include <base/command_line.h>
 #include <chromeos/test_helpers.h>
-#include <dbus/dbus-glib.h>
-#include <dbus/dbus-glib-bindings.h>
-#include <dbus/dbus-glib-lowlevel.h>
 #include <glib.h>
-#include <glib-object.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/terminator.h"
 
 int main(int argc, char **argv) {
   LOG(INFO) << "started";
-  ::g_type_init();
-  dbus_threads_init_default();
   base::AtExitManager exit_manager;
   // TODO(garnold) temporarily cause the unittest binary to exit with status
   // code 2 upon catching a SIGTERM. This will help diagnose why the unittest
