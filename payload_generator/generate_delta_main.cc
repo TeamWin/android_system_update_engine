@@ -302,7 +302,7 @@ int Main(int argc, char** argv) {
   logging::LoggingSettings log_settings;
   log_settings.log_file     = "delta_generator.log";
   log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
-  log_settings.lock_log     = logging::DONT_LOCK_LOG_FILE;
+  log_settings.lock_log     = logging::LOCK_LOG_FILE;
   log_settings.delete_old   = logging::APPEND_TO_OLD_LOG_FILE;
 
   logging::InitLogging(log_settings);
