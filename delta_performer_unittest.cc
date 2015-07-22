@@ -62,7 +62,7 @@ struct DeltaState {
   string a_img;
   string b_img;
   string result_img;
-  int image_size;
+  size_t image_size;
 
   string delta_path;
   uint64_t metadata_size;
@@ -75,6 +75,7 @@ struct DeltaState {
 
   string result_kernel;
   chromeos::Blob result_kernel_data;
+  size_t kernel_size;
 
   // The in-memory copy of delta file.
   chromeos::Blob delta;
@@ -138,18 +139,26 @@ class DeltaPerformerTest : public ::testing::Test {
   }
 };
 
-static void CompareFilesByBlock(const string& a_file, const string& b_file) {
+static void CompareFilesByBlock(const string& a_file, const string& b_file,
+                                size_t image_size) {
+  EXPECT_EQ(0, image_size % kBlockSize);
+
   chromeos::Blob a_data, b_data;
   EXPECT_TRUE(utils::ReadFile(a_file, &a_data)) << "file failed: " << a_file;
   EXPECT_TRUE(utils::ReadFile(b_file, &b_data)) << "file failed: " << b_file;
 
-  EXPECT_EQ(a_data.size(), b_data.size());
-  EXPECT_EQ(0, a_data.size() % kBlockSize);
-  for (size_t i = 0; i < a_data.size(); i += kBlockSize) {
+  EXPECT_GE(a_data.size(), image_size);
+  EXPECT_GE(b_data.size(), image_size);
+  for (size_t i = 0; i < image_size; i += kBlockSize) {
     EXPECT_EQ(0, i % kBlockSize);
     chromeos::Blob a_sub(&a_data[i], &a_data[i + kBlockSize]);
     chromeos::Blob b_sub(&b_data[i], &b_data[i + kBlockSize]);
     EXPECT_TRUE(a_sub == b_sub) << "Block " << (i/kBlockSize) << " differs";
+  }
+  if (::testing::Test::HasNonfatalFailure()) {
+    LOG(INFO) << "Compared filesystems with size " << image_size
+              << ", partition A " << a_file << " size: " << a_data.size()
+              << ", partition B " << b_file << " size: " << b_data.size();
   }
 }
 
@@ -318,13 +327,11 @@ static void GenerateDeltaFile(bool full_kernel,
       utils::MakeTempFile("result_img.XXXXXX", &state->result_img, nullptr));
   test_utils::CreateExtImageAtPath(state->a_img, nullptr);
 
-  state->image_size = static_cast<int>(utils::FileSize(state->a_img));
+  state->image_size = utils::FileSize(state->a_img);
 
   // Extend the "partitions" holding the file system a bit.
-  EXPECT_EQ(0, System(base::StringPrintf(
-      "dd if=/dev/zero of=%s seek=%d bs=1 count=1 status=none",
-      state->a_img.c_str(),
-      state->image_size + 1024 * 1024 - 1)));
+  EXPECT_EQ(0, HANDLE_EINTR(truncate(state->a_img.c_str(),
+                                     state->image_size + 1024 * 1024)));
   EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->a_img));
 
   // Create ImageInfo A & B
@@ -405,10 +412,8 @@ static void GenerateDeltaFile(bool full_kernel,
     }
 
     test_utils::CreateExtImageAtPath(state->b_img, nullptr);
-    EXPECT_EQ(0, System(base::StringPrintf(
-        "dd if=/dev/zero of=%s seek=%d bs=1 count=1 status=none",
-        state->b_img.c_str(),
-        state->image_size + 1024 * 1024 - 1)));
+    EXPECT_EQ(0, HANDLE_EINTR(truncate(state->b_img.c_str(),
+                                       state->image_size + 1024 * 1024)));
     EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->b_img));
 
     // Make some changes to the B image.
@@ -487,6 +492,7 @@ static void GenerateDeltaFile(bool full_kernel,
                                   &state->result_kernel,
                                   nullptr));
 
+  state->kernel_size = kDefaultKernelSize;
   state->old_kernel_data.resize(kDefaultKernelSize);
   state->new_kernel_data.resize(state->old_kernel_data.size());
   state->result_kernel_data.resize(state->old_kernel_data.size());
@@ -841,13 +847,17 @@ void VerifyPayloadResult(DeltaPerformer* performer,
 
   chromeos::Blob updated_kernel_partition;
   if (minor_version == kSourceMinorPayloadVersion) {
-    CompareFilesByBlock(state->result_kernel, state->new_kernel);
-    CompareFilesByBlock(state->result_img, state->b_img);
+    CompareFilesByBlock(state->result_kernel, state->new_kernel,
+                        state->kernel_size);
+    CompareFilesByBlock(state->result_img, state->b_img,
+                        state->image_size);
     EXPECT_TRUE(utils::ReadFile(state->result_kernel,
                                 &updated_kernel_partition));
   } else {
-    CompareFilesByBlock(state->old_kernel, state->new_kernel);
-    CompareFilesByBlock(state->a_img, state->b_img);
+    CompareFilesByBlock(state->old_kernel, state->new_kernel,
+                        state->kernel_size);
+    CompareFilesByBlock(state->a_img, state->b_img,
+                        state->image_size);
     EXPECT_TRUE(utils::ReadFile(state->old_kernel, &updated_kernel_partition));
   }
 
