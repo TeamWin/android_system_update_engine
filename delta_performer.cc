@@ -894,10 +894,8 @@ bool DeltaPerformer::PerformBsdiffOperation(
 
   int return_code = 0;
   TEST_AND_RETURN_FALSE(
-      Subprocess::SynchronousExecFlags(cmd,
-                                       G_SPAWN_LEAVE_DESCRIPTORS_OPEN,
-                                       &return_code,
-                                       nullptr));
+      Subprocess::SynchronousExecFlags(cmd, Subprocess::kSearchPath,
+                                       &return_code, nullptr));
   TEST_AND_RETURN_FALSE(return_code == 0);
 
   if (operation.dst_length() % block_size_) {
@@ -965,10 +963,8 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
 
   int return_code = 0;
   TEST_AND_RETURN_FALSE(
-      Subprocess::SynchronousExecFlags(cmd,
-                                       G_SPAWN_LEAVE_DESCRIPTORS_OPEN,
-                                       &return_code,
-                                       nullptr));
+      Subprocess::SynchronousExecFlags(cmd, Subprocess::kSearchPath,
+                                       &return_code, nullptr));
   TEST_AND_RETURN_FALSE(return_code == 0);
   return true;
 }

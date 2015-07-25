@@ -170,7 +170,6 @@ int main(int argc, char** argv) {
   dbus_threads_init_default();
   base::AtExitManager exit_manager;  // Required for base/rand_util.h.
   chromeos_update_engine::Terminator::Init();
-  chromeos_update_engine::Subprocess::Init();
   chromeos::FlagHelper::Init(argc, argv, "Chromium OS Update Engine");
   chromeos_update_engine::SetupLogging(FLAGS_logtostderr);
   if (!FLAGS_foreground)
@@ -191,6 +190,10 @@ int main(int argc, char** argv) {
   // code here uses glib directly.
   chromeos::GlibMessageLoop loop;
   loop.SetAsCurrent();
+
+  // The Subprocess class requires a chromeos::MessageLoop setup.
+  chromeos_update_engine::Subprocess subprocess;
+  subprocess.Init();
 
   // Wait up to 2 minutes for DBus to be ready.
   LOG_IF(FATAL, !chromeos_update_engine::WaitForDBusSystem(

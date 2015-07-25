@@ -1220,25 +1220,26 @@ void UpdateAttempter::UpdateBootFlags() {
   // the script runtime.
   update_boot_flags_running_ = true;
   LOG(INFO) << "Updating boot flags...";
-  vector<string> cmd{set_good_kernel_cmd_};
-  if (!Subprocess::Get().Exec(cmd, StaticCompleteUpdateBootFlags, this)) {
-    CompleteUpdateBootFlags(1);
+  vector<string> cmd{"/usr/sbin/chromeos-setgoodkernel"};
+  if (skip_set_good_kernel_) {
+    CompleteUpdateBootFlags(1, "Skipping the call to set");
+  } else {
+    if (!Subprocess::Get().Exec(cmd,
+                                Bind(&UpdateAttempter::CompleteUpdateBootFlags,
+                                     base::Unretained(this)))) {
+      CompleteUpdateBootFlags(
+          1, "Failed to launch process to mark kernel as good");
+    }
   }
 }
 
-void UpdateAttempter::CompleteUpdateBootFlags(int return_code) {
+void UpdateAttempter::CompleteUpdateBootFlags(int return_code,
+                                              const string& output) {
   update_boot_flags_running_ = false;
   updated_boot_flags_ = true;
   if (start_action_processor_) {
     ScheduleProcessingStart();
   }
-}
-
-void UpdateAttempter::StaticCompleteUpdateBootFlags(
-    int return_code,
-    const string& output,
-    void* p) {
-  reinterpret_cast<UpdateAttempter*>(p)->CompleteUpdateBootFlags(return_code);
 }
 
 void UpdateAttempter::BroadcastStatus() {

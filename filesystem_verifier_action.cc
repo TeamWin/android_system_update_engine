@@ -17,7 +17,6 @@
 #include <base/posix/eintr_wrapper.h>
 
 #include "update_engine/hardware_interface.h"
-#include "update_engine/subprocess.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 

@@ -37,10 +37,7 @@ class PostinstallRunnerActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
-  }
-
-  void TearDown() override {
-    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
+    subprocess_.Init();
   }
 
   // DoTest with various combinations of do_losetup, err_code and
@@ -51,6 +48,7 @@ class PostinstallRunnerActionTest : public ::testing::Test {
   static const char* kImageMountPointTemplate;
 
   chromeos::GlibMessageLoop loop_;
+  Subprocess subprocess_;
 };
 
 class PostinstActionProcessorDelegate : public ActionProcessorDelegate {

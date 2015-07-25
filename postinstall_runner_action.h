@@ -32,10 +32,8 @@ class PostinstallRunnerAction : public InstallPlanAction {
 
  private:
   // Subprocess::Exec callback.
-  void CompletePostinstall(int return_code);
-  static void StaticCompletePostinstall(int return_code,
-                                        const std::string& output,
-                                        void* p);
+  void CompletePostinstall(int return_code,
+                           const std::string& output);
 
   InstallPlan install_plan_;
   std::string temp_rootfs_dir_;

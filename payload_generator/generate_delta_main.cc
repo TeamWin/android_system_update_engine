@@ -25,7 +25,6 @@
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_verifier.h"
 #include "update_engine/prefs.h"
-#include "update_engine/subprocess.h"
 #include "update_engine/terminator.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
@@ -297,7 +296,6 @@ int Main(int argc, char** argv) {
       "image is provided. It also provides debugging options to apply, sign\n"
       "and verify payloads.");
   Terminator::Init();
-  Subprocess::Init();
 
   logging::LoggingSettings log_settings;
   log_settings.log_file     = "delta_generator.log";

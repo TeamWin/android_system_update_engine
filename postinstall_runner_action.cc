@@ -8,6 +8,8 @@
 #include <sys/mount.h>
 #include <vector>
 
+#include <base/bind.h>
+
 #include "update_engine/action_processor.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
@@ -83,12 +85,16 @@ void PostinstallRunnerAction::PerformAction() {
     command.push_back(kPostinstallScript);
   }
   command.push_back(install_device);
-  if (!Subprocess::Get().Exec(command, StaticCompletePostinstall, this)) {
-    CompletePostinstall(1);
+  if (!Subprocess::Get().Exec(command,
+                              base::Bind(
+                                  &PostinstallRunnerAction::CompletePostinstall,
+                                  base::Unretained(this)))) {
+    CompletePostinstall(1, "Postinstall didn't launch");
   }
 }
 
-void PostinstallRunnerAction::CompletePostinstall(int return_code) {
+void PostinstallRunnerAction::CompletePostinstall(int return_code,
+                                                  const string& output) {
   ScopedActionCompleter completer(processor_, this);
   ScopedTempUnmounter temp_unmounter(temp_rootfs_dir_);
   if (return_code != 0) {
@@ -121,13 +127,6 @@ void PostinstallRunnerAction::CompletePostinstall(int return_code) {
   }
 
   completer.set_code(ErrorCode::kSuccess);
-}
-
-void PostinstallRunnerAction::StaticCompletePostinstall(int return_code,
-                                                        const string& output,
-                                                        void* p) {
-  reinterpret_cast<PostinstallRunnerAction*>(p)->CompletePostinstall(
-      return_code);
 }
 
 }  // namespace chromeos_update_engine

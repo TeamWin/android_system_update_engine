@@ -57,6 +57,7 @@ class P2PManagerTest : public testing::Test {
   // Derived from testing::Test.
   void SetUp() override {
     loop_.SetAsCurrent();
+    subprocess_.Init();
     test_conf_ = new FakeP2PManagerConfiguration();
 
     // Allocate and install a mock policy implementation in the fake Update
@@ -71,14 +72,11 @@ class P2PManagerTest : public testing::Test {
                                          TimeDelta::FromDays(5)));
   }
 
-  void TearDown() override {
-    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
-  }
-
   // TODO(deymo): Replace this with a FakeMessageLoop. P2PManager uses glib to
   // interact with the p2p-client tool, so we need to run a GlibMessageLoop
   // here.
   chromeos::GlibMessageLoop loop_;
+  Subprocess subprocess_;
 
   // The P2PManager::Configuration instance used for testing.
   FakeP2PManagerConfiguration *test_conf_;

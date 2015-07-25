@@ -112,10 +112,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void UpdateBootFlags();
 
   // Subprocess::Exec callback.
-  void CompleteUpdateBootFlags(int return_code);
-  static void StaticCompleteUpdateBootFlags(int return_code,
-                                            const std::string& output,
-                                            void* p);
+  void CompleteUpdateBootFlags(int return_code, const std::string& output);
 
   UpdateStatus status() const { return status_; }
 
@@ -469,8 +466,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // True if UpdateBootFlags is running.
   bool update_boot_flags_running_ = false;
 
-  // The command to run to set the current kernel as good.
-  std::string set_good_kernel_cmd_ = "/usr/sbin/chromeos-setgoodkernel";
+  // Whether we should skip the async call to "setgoodkernel" command. Used in
+  // unittests.
+  bool skip_set_good_kernel_ = false;
 
   // True if the action processor needs to be started by the boot flag updater.
   bool start_action_processor_ = false;

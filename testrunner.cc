@@ -14,7 +14,6 @@
 #include <glib-object.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/subprocess.h"
 #include "update_engine/terminator.h"
 
 int main(int argc, char **argv) {
@@ -28,7 +27,6 @@ int main(int argc, char **argv) {
   // the default exit status of 1.  Corresponding reverts are necessary in
   // terminator_unittest.cc.
   chromeos_update_engine::Terminator::Init(2);
-  chromeos_update_engine::Subprocess::Init();
   LOG(INFO) << "parsing command line arguments";
   base::CommandLine::Init(argc, argv);
   LOG(INFO) << "initializing gtest";

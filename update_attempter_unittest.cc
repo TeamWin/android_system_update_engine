@@ -110,12 +110,8 @@ class UpdateAttempterTest : public ::testing::Test {
 
     // Finish initializing the attempter.
     attempter_.Init();
-
-    // We set the set_good_kernel command to a non-existent path so it fails to
-    // run it. This avoids the async call to the command and continues the
-    // update process right away. Tests testing that behavior can override the
-    // default set_good_kernel command if needed.
-    attempter_.set_good_kernel_cmd_ = "/path/to/non-existent/command";
+    // Don't run setgoodkernel command.
+    attempter_.skip_set_good_kernel_ = true;
   }
 
   void SetUp() override {
@@ -165,7 +161,6 @@ class UpdateAttempterTest : public ::testing::Test {
 
   void TearDown() override {
     test_utils::RecursiveUnlinkDir(test_dir_);
-    EXPECT_EQ(0, MessageLoopRunMaxIterations(&loop_, 1));
   }
 
  public:
@@ -514,9 +509,7 @@ void UpdateAttempterTest::RollbackTestVerify() {
 }
 
 TEST_F(UpdateAttempterTest, UpdateTest) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::UpdateTestStart,
-                            base::Unretained(this)));
+  UpdateTestStart();
   loop_.Run();
 }
 
