@@ -100,17 +100,17 @@ bool GetDefaultServicePath(DBusWrapperInterface* dbus_iface, string* out_path) {
 
 NetworkConnectionType ParseConnectionType(const char* type_str) {
   if (!strcmp(type_str, shill::kTypeEthernet)) {
-    return kNetEthernet;
+    return NetworkConnectionType::kEthernet;
   } else if (!strcmp(type_str, shill::kTypeWifi)) {
-    return kNetWifi;
+    return NetworkConnectionType::kWifi;
   } else if (!strcmp(type_str, shill::kTypeWimax)) {
-    return kNetWimax;
+    return NetworkConnectionType::kWimax;
   } else if (!strcmp(type_str, shill::kTypeBluetooth)) {
-    return kNetBluetooth;
+    return NetworkConnectionType::kBluetooth;
   } else if (!strcmp(type_str, shill::kTypeCellular)) {
-    return kNetCellular;
+    return NetworkConnectionType::kCellular;
   }
-  return kNetUnknown;
+  return NetworkConnectionType::kUnknown;
 }
 
 NetworkTethering ParseTethering(const char* tethering_str) {
@@ -167,8 +167,8 @@ bool GetServicePathProperties(DBusWrapperInterface* dbus_iface,
       } else {
         LOG(ERROR) << "No PhysicalTechnology property found for a VPN"
                    << " connection (service: " << path << "). Returning default"
-                   << " kNetUnknown value.";
-        *out_type = kNetUnknown;
+                   << " NetworkConnectionType::kUnknown value.";
+        *out_type = NetworkConnectionType::kUnknown;
       }
     } else {
       *out_type = ParseConnectionType(type_str);
@@ -186,10 +186,10 @@ ConnectionManager::ConnectionManager(SystemState *system_state)
 bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type,
                                             NetworkTethering tethering) const {
   switch (type) {
-    case kNetBluetooth:
+    case NetworkConnectionType::kBluetooth:
       return false;
 
-    case kNetCellular: {
+    case NetworkConnectionType::kCellular: {
       set<string> allowed_types;
       const policy::DevicePolicy* device_policy =
           system_state_->device_policy();
@@ -246,7 +246,8 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type,
         // Treat this connection as if it is a cellular connection.
         LOG(INFO) << "Current connection is confirmed tethered, using Cellular "
                      "setting.";
-        return IsUpdateAllowedOver(kNetCellular, NetworkTethering::kUnknown);
+        return IsUpdateAllowedOver(NetworkConnectionType::kCellular,
+                                   NetworkTethering::kUnknown);
       }
       return true;
   }
@@ -254,15 +255,21 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type,
 
 const char* ConnectionManager::StringForConnectionType(
     NetworkConnectionType type) const {
-  static const char* const kValues[] = {shill::kTypeEthernet,
-                                        shill::kTypeWifi,
-                                        shill::kTypeWimax,
-                                        shill::kTypeBluetooth,
-                                        shill::kTypeCellular};
-  if (type < 0 || type >= static_cast<int>(arraysize(kValues))) {
-    return "Unknown";
+  switch (type) {
+    case NetworkConnectionType::kEthernet:
+      return shill::kTypeEthernet;
+    case NetworkConnectionType::kWifi:
+      return shill::kTypeWifi;
+    case NetworkConnectionType::kWimax:
+      return shill::kTypeWimax;
+    case NetworkConnectionType::kBluetooth:
+      return shill::kTypeBluetooth;
+    case NetworkConnectionType::kCellular:
+      return shill::kTypeCellular;
+    case NetworkConnectionType::kUnknown:
+      return "Unknown";
   }
-  return kValues[type];
+  return "Unknown";
 }
 
 const char* ConnectionManager::StringForTethering(

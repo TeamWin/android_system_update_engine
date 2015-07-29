@@ -425,7 +425,7 @@ gboolean update_engine_service_get_update_over_cellular_permission(
   // updates. A log message could be printed as the result of this test.
   LOG(INFO) << "Checking if updates over cellular networks are allowed:";
   *allowed = cm->IsUpdateAllowedOver(
-      chromeos_update_engine::kNetCellular,
+      chromeos_update_engine::NetworkConnectionType::kCellular,
       chromeos_update_engine::NetworkTethering::kUnknown);
 
   return TRUE;

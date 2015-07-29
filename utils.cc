@@ -1240,32 +1240,33 @@ metrics::ConnectionType GetConnectionType(
     NetworkConnectionType type,
     NetworkTethering tethering) {
   switch (type) {
-    case kNetUnknown:
+    case NetworkConnectionType::kUnknown:
       return metrics::ConnectionType::kUnknown;
 
-    case kNetEthernet:
+    case NetworkConnectionType::kEthernet:
       if (tethering == NetworkTethering::kConfirmed)
         return metrics::ConnectionType::kTetheredEthernet;
       else
         return metrics::ConnectionType::kEthernet;
 
-    case kNetWifi:
+    case NetworkConnectionType::kWifi:
       if (tethering == NetworkTethering::kConfirmed)
         return metrics::ConnectionType::kTetheredWifi;
       else
         return metrics::ConnectionType::kWifi;
 
-    case kNetWimax:
+    case NetworkConnectionType::kWimax:
       return metrics::ConnectionType::kWimax;
 
-    case kNetBluetooth:
+    case NetworkConnectionType::kBluetooth:
       return metrics::ConnectionType::kBluetooth;
 
-    case kNetCellular:
+    case NetworkConnectionType::kCellular:
       return metrics::ConnectionType::kCellular;
   }
 
-  LOG(ERROR) << "Unexpected network connection type: type=" << type
+  LOG(ERROR) << "Unexpected network connection type: type="
+             << static_cast<int>(type)
              << ", tethering=" << static_cast<int>(tethering);
 
   return metrics::ConnectionType::kUnknown;

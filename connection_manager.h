@@ -11,13 +11,13 @@
 
 namespace chromeos_update_engine {
 
-enum NetworkConnectionType {
-  kNetEthernet = 0,
-  kNetWifi,
-  kNetWimax,
-  kNetBluetooth,
-  kNetCellular,
-  kNetUnknown
+enum class NetworkConnectionType {
+  kEthernet = 0,
+  kWifi,
+  kWimax,
+  kBluetooth,
+  kCellular,
+  kUnknown
 };
 
 enum class NetworkTethering {
