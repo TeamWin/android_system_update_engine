@@ -10,7 +10,6 @@
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <base/format_macros.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/clock.h"
@@ -176,7 +175,8 @@ void PayloadState::AttemptStarted(AttemptType attempt_type) {
   NetworkConnectionType network_connection_type;
   NetworkTethering tethering;
   RealDBusWrapper dbus_iface;
-  ConnectionManager* connection_manager = system_state_->connection_manager();
+  ConnectionManagerInterface* connection_manager =
+      system_state_->connection_manager();
   if (!connection_manager->GetConnectionProperties(&dbus_iface,
                                                    &network_connection_type,
                                                    &tethering)) {

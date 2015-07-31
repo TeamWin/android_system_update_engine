@@ -7,17 +7,16 @@
 
 #include <gmock/gmock.h>
 
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 
 namespace chromeos_update_engine {
 
 // This class mocks the generic interface to the connection manager
 // (e.g FlimFlam, Shill, etc.) to consolidate all connection-related
 // logic in update_engine.
-class MockConnectionManager : public ConnectionManager {
+class MockConnectionManager : public ConnectionManagerInterface {
  public:
-  explicit MockConnectionManager(SystemState* system_state)
-      : ConnectionManager(system_state) {}
+  MockConnectionManager() = default;
 
   MOCK_CONST_METHOD3(GetConnectionProperties,
                      bool(DBusWrapperInterface* dbus_iface,
@@ -26,12 +25,6 @@ class MockConnectionManager : public ConnectionManager {
 
   MOCK_CONST_METHOD2(IsUpdateAllowedOver, bool(NetworkConnectionType type,
                                                NetworkTethering tethering));
-
-  MOCK_CONST_METHOD1(StringForConnectionType,
-      const char*(NetworkConnectionType type));
-
-  MOCK_CONST_METHOD1(StringForTethering,
-      const char*(NetworkTethering tethering));
 };
 
 }  // namespace chromeos_update_engine

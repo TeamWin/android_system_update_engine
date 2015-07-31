@@ -253,8 +253,9 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type,
   }
 }
 
+// static
 const char* ConnectionManager::StringForConnectionType(
-    NetworkConnectionType type) const {
+    NetworkConnectionType type) {
   switch (type) {
     case NetworkConnectionType::kEthernet:
       return shill::kTypeEthernet;
@@ -272,8 +273,8 @@ const char* ConnectionManager::StringForConnectionType(
   return "Unknown";
 }
 
-const char* ConnectionManager::StringForTethering(
-    NetworkTethering tethering) const {
+// static
+const char* ConnectionManager::StringForTethering(NetworkTethering tethering) {
   switch (tethering) {
     case NetworkTethering::kNotDetected:
       return shill::kTetheringNotDetectedState;

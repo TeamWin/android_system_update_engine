@@ -13,7 +13,7 @@
 #include <policy/device_policy.h>
 
 #include "update_engine/clock_interface.h"
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/dbus_constants.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/omaha_request_params.h"
@@ -408,7 +408,7 @@ gboolean update_engine_service_get_update_over_cellular_permission(
     UpdateEngineService* self,
     gboolean* allowed,
     GError **error) {
-  chromeos_update_engine::ConnectionManager* cm =
+  chromeos_update_engine::ConnectionManagerInterface* cm =
       self->system_state_->connection_manager();
 
   // The device_policy is loaded in a lazy way before an update check and is

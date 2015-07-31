@@ -10,7 +10,7 @@
 #include <base/strings/string_util.h>
 #include <policy/device_policy.h>
 
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/constants.h"
 #include "update_engine/delta_performer.h"
 #include "update_engine/hardware_interface.h"

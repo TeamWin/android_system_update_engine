@@ -445,7 +445,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   OmahaResponse response;
   // Set up a connection manager that doesn't allow a valid update over
   // the current ethernet connection.
-  MockConnectionManager mock_cm(nullptr);
+  MockConnectionManager mock_cm;
   fake_system_state_.set_connection_manager(&mock_cm);
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _, _)).WillRepeatedly(
@@ -454,9 +454,6 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
           Return(true)));
   EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kEthernet, _))
     .WillRepeatedly(Return(false));
-  EXPECT_CALL(mock_cm,
-              StringForConnectionType(NetworkConnectionType::kEthernet))
-    .WillRepeatedly(Return(shill::kTypeEthernet));
 
   ASSERT_FALSE(
       TestUpdateCheck(nullptr,  // request_params

@@ -18,13 +18,13 @@
 #include <base/files/file_path.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/time/time.h>
-#include <chromeos/secure_blob.h>
 #include <chromeos/key_value_store.h>
+#include <chromeos/secure_blob.h>
 #include "metrics/metrics_library.h"
 
 #include "update_engine/action.h"
 #include "update_engine/action_processor.h"
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/constants.h"
 #include "update_engine/file_descriptor.h"
 #include "update_engine/metrics.h"

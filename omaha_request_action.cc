@@ -21,6 +21,7 @@
 #include <expat.h>
 
 #include "update_engine/action_pipe.h"
+#include "update_engine/connection_manager.h"
 #include "update_engine/constants.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/omaha_hash_calculator.h"
@@ -1448,7 +1449,8 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection() const {
   NetworkConnectionType type;
   NetworkTethering tethering;
   RealDBusWrapper dbus_iface;
-  ConnectionManager* connection_manager = system_state_->connection_manager();
+  ConnectionManagerInterface* connection_manager =
+      system_state_->connection_manager();
   if (!connection_manager->GetConnectionProperties(&dbus_iface,
                                                    &type, &tethering)) {
     LOG(INFO) << "We could not determine our connection type. "
@@ -1457,7 +1459,7 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection() const {
   }
   bool is_allowed = connection_manager->IsUpdateAllowedOver(type, tethering);
   LOG(INFO) << "We are connected via "
-            << connection_manager->StringForConnectionType(type)
+            << ConnectionManager::StringForConnectionType(type)
             << ", Updates allowed: " << (is_allowed ? "Yes" : "No");
   return is_allowed;
 }

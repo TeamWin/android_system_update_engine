@@ -100,7 +100,6 @@ class UpdateAttempterTest : public ::testing::Test {
  protected:
   UpdateAttempterTest()
       : attempter_(&fake_system_state_, &dbus_),
-        mock_connection_manager(&fake_system_state_),
         fake_dbus_system_bus_(reinterpret_cast<DBusGConnection*>(1)),
         fake_dbus_debugd_proxy_(reinterpret_cast<DBusGProxy*>(2)) {
     // Override system state members.

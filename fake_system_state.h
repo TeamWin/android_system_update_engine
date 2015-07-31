@@ -45,7 +45,7 @@ class FakeSystemState : public SystemState {
     return device_policy_;
   }
 
-  inline ConnectionManager* connection_manager() override {
+  inline ConnectionManagerInterface* connection_manager() override {
     return connection_manager_;
   }
 
@@ -89,7 +89,8 @@ class FakeSystemState : public SystemState {
     clock_ = clock ? clock : &fake_clock_;
   }
 
-  inline void set_connection_manager(ConnectionManager* connection_manager) {
+  inline void set_connection_manager(
+      ConnectionManagerInterface* connection_manager) {
     connection_manager_ = (connection_manager ? connection_manager :
                            &mock_connection_manager_);
   }
@@ -215,7 +216,7 @@ class FakeSystemState : public SystemState {
   // Pointers to objects that client code can override. They are initialized to
   // the default implementations above.
   ClockInterface* clock_;
-  ConnectionManager* connection_manager_;
+  ConnectionManagerInterface* connection_manager_;
   HardwareInterface* hardware_;
   MetricsLibraryInterface* metrics_lib_;
   PrefsInterface* prefs_;

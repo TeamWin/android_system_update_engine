@@ -7,59 +7,36 @@
 
 #include <base/macros.h>
 
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/dbus_wrapper_interface.h"
 
 namespace chromeos_update_engine {
 
-enum class NetworkConnectionType {
-  kEthernet = 0,
-  kWifi,
-  kWimax,
-  kBluetooth,
-  kCellular,
-  kUnknown
-};
-
-enum class NetworkTethering {
-  kNotDetected = 0,
-  kSuspected,
-  kConfirmed,
-  kUnknown
-};
-
 class SystemState;
 
-// This class exposes a generic interface to the connection manager
-// (e.g FlimFlam, Shill, etc.) to consolidate all connection-related
-// logic in update_engine.
-class ConnectionManager {
+// This class implements the concrete class that talks with the connection
+// manager (shill) over DBus.
+class ConnectionManager : public ConnectionManagerInterface {
  public:
-  // Constructs a new ConnectionManager object initialized with the
-  // given system state.
-  explicit ConnectionManager(SystemState* system_state);
-  virtual ~ConnectionManager() = default;
-
-  // Populates |out_type| with the type of the network connection
-  // that we are currently connected and |out_tethering| with the estimate of
-  // whether that network is being tethered. The dbus_iface is used to query
-  // the real connection manager (e.g shill).
-  virtual bool GetConnectionProperties(DBusWrapperInterface* dbus_iface,
-                                       NetworkConnectionType* out_type,
-                                       NetworkTethering* out_tethering) const;
-
-  // Returns true if we're allowed to update the system when we're
-  // connected to the internet through the given network connection type and the
-  // given tethering state.
-  virtual bool IsUpdateAllowedOver(NetworkConnectionType type,
-                                   NetworkTethering tethering) const;
-
   // Returns the string representation corresponding to the given
   // connection type.
-  virtual const char* StringForConnectionType(NetworkConnectionType type) const;
+  static const char* StringForConnectionType(NetworkConnectionType type);
 
   // Returns the string representation corresponding to the given tethering
   // state.
-  virtual const char* StringForTethering(NetworkTethering tethering) const;
+  static const char* StringForTethering(NetworkTethering tethering);
+
+  // Constructs a new ConnectionManager object initialized with the
+  // given system state.
+  explicit ConnectionManager(SystemState* system_state);
+  ~ConnectionManager() override = default;
+
+  // ConnectionManagerInterface overrides
+  bool GetConnectionProperties(DBusWrapperInterface* dbus_iface,
+                               NetworkConnectionType* out_type,
+                               NetworkTethering* out_tethering) const override;
+  bool IsUpdateAllowedOver(NetworkConnectionType type,
+                           NetworkTethering tethering) const override;
 
  private:
   // The global context for update_engine

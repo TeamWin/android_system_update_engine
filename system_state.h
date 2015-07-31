@@ -25,7 +25,7 @@ namespace chromeos_update_engine {
 // any circular references in header file inclusion. Hence forward-declaring
 // the required classes.
 class ClockInterface;
-class ConnectionManager;
+class ConnectionManagerInterface;
 class GpioHandler;
 class HardwareInterface;
 class OmahaRequestParams;
@@ -54,7 +54,7 @@ class SystemState {
   virtual ClockInterface* clock() = 0;
 
   // Gets the connection manager object.
-  virtual ConnectionManager* connection_manager() = 0;
+  virtual ConnectionManagerInterface* connection_manager() = 0;
 
   // Gets the hardware interface object.
   virtual HardwareInterface* hardware() = 0;

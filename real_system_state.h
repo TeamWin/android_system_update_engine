@@ -47,7 +47,7 @@ class RealSystemState : public SystemState {
 
   inline ClockInterface* clock() override { return &clock_; }
 
-  inline ConnectionManager* connection_manager() override {
+  inline ConnectionManagerInterface* connection_manager() override {
     return &connection_manager_;
   }
 
