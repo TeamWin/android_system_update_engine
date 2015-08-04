@@ -352,6 +352,8 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootVerifyHashFailTest) {
 TEST_F(FilesystemVerifierActionTest, RunAsRootTerminateEarlyTest) {
   ASSERT_EQ(0, getuid());
   EXPECT_TRUE(DoTest(true, false, PartitionType::kKernel));
+  // TerminateEarlyTest may leak some null callbacks from the Stream class.
+  while (loop_.RunOnce(false)) {}
 }
 
 TEST_F(FilesystemVerifierActionTest, RunAsRootDetermineFilesystemSizeTest) {
@@ -362,19 +364,18 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootDetermineFilesystemSizeTest) {
   // Extend the "partition" holding the file system from 10MiB to 20MiB.
   EXPECT_EQ(0, truncate(img.c_str(), 20 * 1024 * 1024));
 
-  for (int i = 0; i < 2; ++i) {
-    PartitionType fs_type =
-        i ? PartitionType::kSourceKernel : PartitionType::kSourceRootfs;
-    FilesystemVerifierAction action(&fake_system_state_, fs_type);
+  {
+    FilesystemVerifierAction action(&fake_system_state_,
+                                    PartitionType::kSourceKernel);
     EXPECT_EQ(kint64max, action.remaining_size_);
-    {
-      int fd = HANDLE_EINTR(open(img.c_str(), O_RDONLY));
-      EXPECT_GT(fd, 0);
-      ScopedFdCloser fd_closer(&fd);
-      action.DetermineFilesystemSize(fd);
-    }
-    EXPECT_EQ(i ? kint64max : 10 * 1024 * 1024,
-              action.remaining_size_);
+    action.DetermineFilesystemSize(img);
+    EXPECT_EQ(kint64max, action.remaining_size_);
+  }
+  {
+    FilesystemVerifierAction action(&fake_system_state_,
+                                    PartitionType::kSourceRootfs);
+    action.DetermineFilesystemSize(img);
+    EXPECT_EQ(10 * 1024 * 1024, action.remaining_size_);
   }
 }
 
