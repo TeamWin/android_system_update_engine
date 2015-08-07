@@ -193,7 +193,7 @@ void StartAndCancelInRunLoop(bool* spawned) {
                 << strerror(errno);
       break;
     }
-    g_usleep(kSleepTime.InMicroseconds());
+    usleep(kSleepTime.InMicroseconds());
     total_wait_time += kSleepTime;
   }
   close(temp_fd);
