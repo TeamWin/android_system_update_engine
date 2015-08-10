@@ -129,7 +129,7 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
   // Calls into curl_multi_perform to let libcurl do its work. Returns after
   // curl_multi_perform is finished, which may actually be after more than
-  // one call to curl_multi_perform. This method will set up the glib run
+  // one call to curl_multi_perform. This method will set up the message
   // loop with sources for future work that libcurl will do.
   // This method will not block.
   // Returns true if we should resume immediately after this call.

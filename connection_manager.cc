@@ -10,7 +10,6 @@
 #include <base/stl_util.h>
 #include <base/strings/string_util.h>
 #include <chromeos/dbus/service_constants.h>
-#include <glib.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/prefs.h"

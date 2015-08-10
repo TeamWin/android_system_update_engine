@@ -23,7 +23,6 @@
 #include <chromeos/dbus/service_constants.h>
 #include <chromeos/message_loops/message_loop.h>
 
-#include <glib.h>
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>

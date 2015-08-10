@@ -1,8 +1,4 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- COPYRIGHT HERE
-     dbus-binding-tool -mode=glib-server -prefix=update_engine update_engine.xml
-                        &gt; glib_server.h
--->
 <node name="/org/chromium/UpdateEngine">
   <interface name="org.chromium.UpdateEngineInterface">
     <annotation name="org.freedesktop.DBus.GLib.CSymbol"

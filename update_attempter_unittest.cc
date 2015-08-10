@@ -9,10 +9,11 @@
 #include <memory>
 
 #include <base/files/file_util.h>
+#include <base/message_loop/message_loop.h>
 #include <chromeos/bind_lambda.h>
 #include <chromeos/dbus/service_constants.h>
 #include <chromeos/make_unique_ptr.h>
-#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/base_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
@@ -175,9 +176,8 @@ class UpdateAttempterTest : public ::testing::Test {
     return actual_using_p2p_for_sharing_;
   }
 
-  // TODO(deymo): Replace this with a FakeMessageLoop. Some of these tests use a
-  // real LibcurlHttpFetcher, which still requires a GlibMessageLoop.
-  chromeos::GlibMessageLoop loop_;
+  base::MessageLoopForIO base_loop_;
+  chromeos::BaseMessageLoop loop_{&base_loop_};
 
   FakeSystemState fake_system_state_;
   org::chromium::debugdProxyMock debugd_proxy_mock_;

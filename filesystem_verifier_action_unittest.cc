@@ -14,7 +14,7 @@
 #include <base/posix/eintr_wrapper.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/fake_message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -47,7 +47,7 @@ class FilesystemVerifierActionTest : public ::testing::Test {
               bool hash_fail,
               PartitionType partition_type);
 
-  chromeos::GlibMessageLoop loop_;
+  chromeos::FakeMessageLoop loop_{nullptr};
   FakeSystemState fake_system_state_;
 };
 

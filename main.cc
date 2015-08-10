@@ -14,7 +14,6 @@
 #include <base/strings/stringprintf.h>
 #include <chromeos/flag_helper.h>
 #include <chromeos/message_loops/base_message_loop.h>
-#include <glib.h>
 #include <metrics/metrics_library.h>
 #include <sys/stat.h>
 #include <sys/types.h>

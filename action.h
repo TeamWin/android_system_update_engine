@@ -30,12 +30,12 @@
 // How it works:
 //
 // First off, there is only one thread and all I/O should be asynchronous.
-// A glib main loop blocks whenever there is no work to be done. This happens
+// A message loop blocks whenever there is no work to be done. This happens
 // where there is no CPU work to be done and no I/O ready to transfer in or
-// out. Two kinds of events can wake up the main loop: timer alarm or file
-// descriptors. If either of these happens, glib finds out the owner of what
-// fired and calls the appropriate code to handle it. As such, all the code
-// in the Action* classes and the code that is calls is non-blocking.
+// out. Two kinds of events can wake up the message loop: timer alarm or file
+// descriptors. If either of these happens, the message loop finds out the owner
+// of what fired and calls the appropriate code to handle it. As such, all the
+// code in the Action* classes and the code that is calls is non-blocking.
 //
 // An ActionProcessor contains a queue of Actions to perform. When
 // ActionProcessor::StartProcessing() is called, it executes the first action.

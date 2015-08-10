@@ -4,7 +4,6 @@
       'deps': [
         'libchrome-<(libbase_ver)',
         'libchromeos-<(libbase_ver)',
-        'libchromeos-glib-<(libbase_ver)',
       ],
       # Defaults if the -DUSE_* flags are not passed to gyp is 0. You can set
       # the default value for the USE flag in the ebuild.
@@ -82,7 +81,6 @@
       'variables': {
         'exported_deps': [
           'dbus-1',
-          'glib-2.0',
           'libchrome-<(libbase_ver)',
           'libchromeos-<(libbase_ver)',
           'libcrypto',

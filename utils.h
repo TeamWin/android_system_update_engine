@@ -397,9 +397,7 @@ bool DecodeAndStoreBase64String(const std::string& base64_encoded,
 // (NOTE: This function does not currently take daylight savings time
 // into account so the result may up to one hour off. This is because
 // the glibc date and timezone routines depend on the TZ environment
-// variable and changing environment variables is not thread-safe. An
-// alternative, thread-safe API to use would be GDateTime/GTimeZone
-// available in GLib 2.26 or later.)
+// variable and changing environment variables is not thread-safe.
 bool ConvertToOmahaInstallDate(base::Time time, int *out_num_days);
 
 // This function returns the duration on the wallclock since the last

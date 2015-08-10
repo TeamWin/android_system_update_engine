@@ -10,7 +10,6 @@
 
 #include <base/logging.h>
 #include <chromeos/message_loops/message_loop.h>
-#include <glib.h>
 
 #include "update_engine/fake_system_state.h"
 #include "update_engine/http_fetcher.h"

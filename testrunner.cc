@@ -7,7 +7,6 @@
 #include <base/at_exit.h>
 #include <base/command_line.h>
 #include <chromeos/test_helpers.h>
-#include <glib.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/terminator.h"

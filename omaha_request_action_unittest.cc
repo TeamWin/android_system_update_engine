@@ -4,7 +4,6 @@
 
 #include "update_engine/omaha_request_action.h"
 
-#include <glib.h>
 #include <stdint.h>
 
 #include <string>

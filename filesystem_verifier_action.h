@@ -44,7 +44,7 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // Used for testing. Return true if Cleanup() has not yet been called due
   // to a callback upon the completion or cancellation of the verifier action.
   // A test should wait until IsCleanupPending() returns false before
-  // terminating the glib main loop.
+  // terminating the main loop.
   bool IsCleanupPending() const;
 
   // Debugging/logging

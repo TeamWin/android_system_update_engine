@@ -16,7 +16,6 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
 #include <chromeos/flag_helper.h>
-#include <glib.h>
 
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
