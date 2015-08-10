@@ -25,15 +25,13 @@ void OutputExtents(std::ostream* os,
 }
 }  // namespace
 
-bool AnnotatedOperation::SetOperationBlob(chromeos::Blob* blob, int data_fd,
-                                          off_t* data_file_size) {
-  TEST_AND_RETURN_FALSE(utils::PWriteAll(data_fd,
-                                         blob->data(),
-                                         blob->size(),
-                                         *data_file_size));
+bool AnnotatedOperation::SetOperationBlob(chromeos::Blob* blob,
+                                          BlobFileWriter* blob_file) {
   op.set_data_length(blob->size());
-  op.set_data_offset(*data_file_size);
-  *data_file_size += blob->size();
+  off_t data_offset = blob_file->StoreBlob(*blob);
+  if (data_offset == -1)
+    return false;
+  op.set_data_offset(data_offset);
   return true;
 }
 

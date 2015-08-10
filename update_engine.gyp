@@ -266,6 +266,7 @@
       'sources': [
         'payload_generator/ab_generator.cc',
         'payload_generator/annotated_operation.cc',
+        'payload_generator/blob_file_writer.cc',
         'payload_generator/block_mapping.cc',
         'payload_generator/cycle_breaker.cc',
         'payload_generator/delta_diff_generator.cc',
@@ -384,6 +385,7 @@
             'omaha_response_handler_action_unittest.cc',
             'p2p_manager_unittest.cc',
             'payload_generator/ab_generator_unittest.cc',
+            'payload_generator/blob_file_writer_unittest.cc',
             'payload_generator/block_mapping_unittest.cc',
             'payload_generator/cycle_breaker_unittest.cc',
             'payload_generator/delta_diff_utils_unittest.cc',

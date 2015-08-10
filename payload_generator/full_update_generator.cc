@@ -30,52 +30,6 @@ namespace {
 
 const size_t kDefaultFullChunkSize = 1024 * 1024;  // 1 MiB
 
-class BlobFileWriter {
- public:
-  // Create the BlobFileWriter object that will manage the blobs stored to
-  // |blob_fd| in a thread safe way. The number of |total_blobs| is the number
-  // of blobs that will be stored but is only used for logging purposes.
-  BlobFileWriter(int blob_fd, off_t* blob_file_size, size_t total_blobs)
-    : total_blobs_(total_blobs),
-      blob_fd_(blob_fd),
-      blob_file_size_(blob_file_size) {}
-
-  // Store the passed |blob| in the blob file. Returns the offset at which it
-  // was stored, or -1 in case of failure.
-  off_t StoreBlob(const chromeos::Blob& blob);
-
- private:
-  size_t total_blobs_;
-  size_t stored_blobs_{0};
-
-  // The file and its size are protected with the |blob_mutex_|.
-  int blob_fd_;
-  off_t* blob_file_size_;
-
-  base::Lock blob_mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(BlobFileWriter);
-};
-
-off_t BlobFileWriter::StoreBlob(const chromeos::Blob& blob) {
-  base::AutoLock auto_lock(blob_mutex_);
-  if (!utils::WriteAll(blob_fd_, blob.data(), blob.size()))
-    return -1;
-
-  off_t result = *blob_file_size_;
-  *blob_file_size_ += blob.size();
-
-  stored_blobs_++;
-  if (total_blobs_ > 0 &&
-      (10 * (stored_blobs_ - 1) / total_blobs_) !=
-      (10 * stored_blobs_ / total_blobs_)) {
-    LOG(INFO) << (100 * stored_blobs_ / total_blobs_)
-              << "% complete " << stored_blobs_ << "/" << total_blobs_
-              << " ops (output size: " << *blob_file_size_ << ")";
-  }
-  return result;
-}
-
 // This class encapsulates a full update chunk processing thread work. The
 // processor reads a chunk of data from the input file descriptor and compresses
 // it. The processor will destroy itself when the work is done.
@@ -159,8 +113,7 @@ bool ChunkProcessor::ProcessChunk() {
 
 bool FullUpdateGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
-    int data_file_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
   TEST_AND_RETURN_FALSE(config.Validate());
@@ -186,15 +139,13 @@ bool FullUpdateGenerator::GenerateOperations(
       config.target.rootfs,
       config.block_size,
       full_chunk_size / config.block_size,
-      data_file_fd,
-      data_file_size,
+      blob_file,
       rootfs_ops));
   TEST_AND_RETURN_FALSE(GenerateOperationsForPartition(
       config.target.kernel,
       config.block_size,
       full_chunk_size / config.block_size,
-      data_file_fd,
-      data_file_size,
+      blob_file,
       kernel_ops));
   return true;
 }
@@ -203,8 +154,7 @@ bool FullUpdateGenerator::GenerateOperationsForPartition(
     const PartitionConfig& new_part,
     size_t block_size,
     size_t chunk_blocks,
-    int data_file_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     vector<AnnotatedOperation>* aops) {
   size_t max_threads = std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
   LOG(INFO) << "Compressing partition " << PartitionNameString(new_part.name)
@@ -223,8 +173,8 @@ bool FullUpdateGenerator::GenerateOperationsForPartition(
   aops->resize(num_chunks);
   vector<ChunkProcessor> chunk_processors;
   chunk_processors.reserve(num_chunks);
+  blob_file->SetTotalBlobs(num_chunks);
 
-  BlobFileWriter blob_file(data_file_fd, data_file_size, num_chunks);
   const string part_name_str = PartitionNameString(new_part.name);
 
   for (size_t i = 0; i < num_chunks; ++i) {
@@ -246,7 +196,7 @@ bool FullUpdateGenerator::GenerateOperationsForPartition(
         in_fd,
         static_cast<off_t>(start_block) * block_size,
         num_blocks * block_size,
-        &blob_file,
+        blob_file,
         aop);
   }
 

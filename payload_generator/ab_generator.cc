@@ -22,8 +22,7 @@ namespace chromeos_update_engine {
 
 bool ABGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
-    int data_file_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
 
@@ -38,8 +37,7 @@ bool ABGenerator::GenerateOperations(
       config.target.rootfs,
       hard_chunk_blocks,
       soft_chunk_blocks,
-      data_file_fd,
-      data_file_size,
+      blob_file,
       true));  // src_ops_allowed
   LOG(INFO) << "done reading normal files";
 
@@ -50,19 +48,16 @@ bool ABGenerator::GenerateOperations(
       config.target.kernel,
       hard_chunk_blocks,
       soft_chunk_blocks,
-      data_file_fd,
-      data_file_size,
+      blob_file,
       true));  // src_ops_allowed
   LOG(INFO) << "done reading kernel";
 
   TEST_AND_RETURN_FALSE(FragmentOperations(rootfs_ops,
                                            config.target.rootfs.path,
-                                           data_file_fd,
-                                           data_file_size));
+                                           blob_file));
   TEST_AND_RETURN_FALSE(FragmentOperations(kernel_ops,
                                            config.target.kernel.path,
-                                           data_file_fd,
-                                           data_file_size));
+                                           blob_file));
   SortOperationsByDestination(rootfs_ops);
   SortOperationsByDestination(kernel_ops);
 
@@ -77,13 +72,11 @@ bool ABGenerator::GenerateOperations(
   TEST_AND_RETURN_FALSE(MergeOperations(rootfs_ops,
                                         merge_chunk_blocks,
                                         config.target.rootfs.path,
-                                        data_file_fd,
-                                        data_file_size));
+                                        blob_file));
   TEST_AND_RETURN_FALSE(MergeOperations(kernel_ops,
                                         merge_chunk_blocks,
                                         config.target.kernel.path,
-                                        data_file_fd,
-                                        data_file_size));
+                                        blob_file));
   return true;
 }
 
@@ -95,8 +88,7 @@ void ABGenerator::SortOperationsByDestination(
 bool ABGenerator::FragmentOperations(
     vector<AnnotatedOperation>* aops,
     const string& target_part_path,
-    int data_fd,
-    off_t* data_file_size) {
+    BlobFileWriter* blob_file) {
   vector<AnnotatedOperation> fragmented_aops;
   for (const AnnotatedOperation& aop : *aops) {
     if (aop.op.type() ==
@@ -107,8 +99,8 @@ bool ABGenerator::FragmentOperations(
                (aop.op.type() ==
                 DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ)) {
       TEST_AND_RETURN_FALSE(SplitReplaceOrReplaceBz(aop, &fragmented_aops,
-                                                    target_part_path, data_fd,
-                                                    data_file_size));
+                                                    target_part_path,
+                                                    blob_file));
     } else {
       fragmented_aops.push_back(aop);
     }
@@ -175,8 +167,7 @@ bool ABGenerator::SplitReplaceOrReplaceBz(
     const AnnotatedOperation& original_aop,
     vector<AnnotatedOperation>* result_aops,
     const string& target_part_path,
-    int data_fd,
-    off_t* data_file_size) {
+    BlobFileWriter* blob_file) {
   DeltaArchiveManifest_InstallOperation original_op = original_aop.op;
   const bool is_replace =
       original_op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE;
@@ -204,8 +195,8 @@ bool ABGenerator::SplitReplaceOrReplaceBz(
     AnnotatedOperation new_aop;
     new_aop.op = new_op;
     new_aop.name = base::StringPrintf("%s:%d", original_aop.name.c_str(), i);
-    TEST_AND_RETURN_FALSE(AddDataAndSetType(&new_aop, target_part_path, data_fd,
-                                            data_file_size));
+    TEST_AND_RETURN_FALSE(AddDataAndSetType(&new_aop, target_part_path,
+                                            blob_file));
 
     result_aops->push_back(new_aop);
   }
@@ -215,8 +206,7 @@ bool ABGenerator::SplitReplaceOrReplaceBz(
 bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
                                   size_t chunk_blocks,
                                   const string& target_part_path,
-                                  int data_fd,
-                                  off_t* data_file_size) {
+                                  BlobFileWriter* blob_file) {
   vector<AnnotatedOperation> new_aops;
   for (const AnnotatedOperation& curr_aop : *aops) {
     if (new_aops.empty()) {
@@ -288,7 +278,7 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
          curr_aop.op.type() ==
             DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ)) {
       TEST_AND_RETURN_FALSE(AddDataAndSetType(&curr_aop, target_part_path,
-                                              data_fd, data_file_size));
+                                              blob_file));
     }
   }
 
@@ -298,8 +288,7 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
 
 bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
                                     const string& target_part_path,
-                                    int data_fd,
-                                    off_t* data_file_size) {
+                                    BlobFileWriter* blob_file) {
   TEST_AND_RETURN_FALSE(
       aop->op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
       aop->op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
@@ -327,26 +316,11 @@ bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
     data_p = &data;
   }
 
-  // If the operation already points to a data blob, check whether it's
-  // identical to the new one, in which case don't add it.
-  if (aop->op.type() == new_op_type &&
-      aop->op.data_length() == data_p->size()) {
-    chromeos::Blob current_data(data_p->size());
-    ssize_t bytes_read;
-    TEST_AND_RETURN_FALSE(utils::PReadAll(data_fd,
-                                          current_data.data(),
-                                          aop->op.data_length(),
-                                          aop->op.data_offset(),
-                                          &bytes_read));
-    TEST_AND_RETURN_FALSE(bytes_read ==
-                          static_cast<ssize_t>(aop->op.data_length()));
-    if (current_data == *data_p)
-      data_p = nullptr;
-  }
-
-  if (data_p) {
+  // If the operation doesn't point to a data blob, then we add it.
+  if (aop->op.type() != new_op_type ||
+      aop->op.data_length() != data_p->size()) {
     aop->op.set_type(new_op_type);
-    aop->SetOperationBlob(data_p, data_fd, data_file_size);
+    aop->SetOperationBlob(data_p, blob_file);
   }
 
   return true;

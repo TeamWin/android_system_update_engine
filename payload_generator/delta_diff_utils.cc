@@ -144,8 +144,7 @@ bool DeltaReadPartition(
     const PartitionConfig& new_part,
     ssize_t hard_chunk_blocks,
     size_t soft_chunk_blocks,
-    int data_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     bool src_ops_allowed) {
   ExtentRanges old_visited_blocks;
   ExtentRanges new_visited_blocks;
@@ -158,8 +157,7 @@ bool DeltaReadPartition(
       new_part.fs_interface->GetBlockCount(),
       soft_chunk_blocks,
       src_ops_allowed,
-      data_fd,
-      data_file_size,
+      blob_file,
       &old_visited_blocks,
       &new_visited_blocks));
 
@@ -217,8 +215,7 @@ bool DeltaReadPartition(
         new_file_extents,
         new_file.name,  // operation name
         hard_chunk_blocks,
-        data_fd,
-        data_file_size,
+        blob_file,
         src_ops_allowed));
   }
   // Process all the blocks not included in any file. We provided all the unused
@@ -249,8 +246,7 @@ bool DeltaReadPartition(
       new_unvisited,
       "<non-file-data>",  // operation name
       soft_chunk_blocks,
-      data_fd,
-      data_file_size,
+      blob_file,
       src_ops_allowed));
 
   return true;
@@ -264,8 +260,7 @@ bool DeltaMovedAndZeroBlocks(
     size_t new_num_blocks,
     ssize_t chunk_blocks,
     bool src_ops_allowed,
-    int data_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     ExtentRanges* old_visited_blocks,
     ExtentRanges* new_visited_blocks) {
   vector<BlockMapping::BlockId> old_block_ids;
@@ -348,8 +343,7 @@ bool DeltaMovedAndZeroBlocks(
         vector<Extent>{extent},  // new_extents
         "<zeros>",
         chunk_blocks,
-        data_fd,
-        data_file_size,
+        blob_file,
         src_ops_allowed));
   }
   LOG(INFO) << "Produced " << (aops->size() - num_ops) << " operations for "
@@ -410,8 +404,7 @@ bool DeltaReadFile(
     const vector<Extent>& new_extents,
     const string& name,
     ssize_t chunk_blocks,
-    int data_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     bool src_ops_allowed) {
   chromeos::Blob data;
   DeltaArchiveManifest_InstallOperation operation;
@@ -468,17 +461,6 @@ bool DeltaReadFile(
       }
     }
 
-    // Write the data
-    if (operation.type() != DeltaArchiveManifest_InstallOperation_Type_MOVE &&
-        operation.type() !=
-            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
-      operation.set_data_offset(*data_file_size);
-      operation.set_data_length(data.size());
-    }
-
-    TEST_AND_RETURN_FALSE(utils::WriteAll(data_fd, data.data(), data.size()));
-    *data_file_size += data.size();
-
     // Now, insert into the list of operations.
     AnnotatedOperation aop;
     aop.name = name;
@@ -487,6 +469,15 @@ bool DeltaReadFile(
                                     name.c_str(), block_offset / chunk_blocks);
     }
     aop.op = operation;
+
+    // Write the data
+    if (operation.type() != DeltaArchiveManifest_InstallOperation_Type_MOVE &&
+        operation.type() !=
+            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
+      TEST_AND_RETURN_FALSE(aop.SetOperationBlob(&data, blob_file));
+    } else {
+      TEST_AND_RETURN_FALSE(blob_file->StoreBlob(data) != -1);
+    }
     aops->emplace_back(aop);
   }
   return true;

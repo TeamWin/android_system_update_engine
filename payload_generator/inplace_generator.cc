@@ -309,8 +309,7 @@ bool TempBlocksExistInExtents(const T& extents) {
 bool ConvertCutsToFull(
     Graph* graph,
     const string& new_part,
-    int data_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     vector<Vertex::Index>* op_indexes,
     vector<vector<Vertex::Index>::size_type>* reverse_op_indexes,
     const vector<CutEdgeVertexes>& cuts) {
@@ -321,8 +320,7 @@ bool ConvertCutsToFull(
         graph,
         cut,
         new_part,
-        data_fd,
-        data_file_size));
+        blob_file));
     deleted_nodes.insert(cut.new_vertex);
   }
   deleted_nodes.insert(cuts[0].old_dst);
@@ -349,8 +347,7 @@ bool ConvertCutsToFull(
 bool AssignBlockForAdjoiningCuts(
     Graph* graph,
     const string& new_part,
-    int data_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     vector<Vertex::Index>* op_indexes,
     vector<vector<Vertex::Index>::size_type>* reverse_op_indexes,
     const vector<CutEdgeVertexes>& cuts) {
@@ -421,8 +418,7 @@ bool AssignBlockForAdjoiningCuts(
     LOG(INFO) << "Unable to find sufficient scratch";
     TEST_AND_RETURN_FALSE(ConvertCutsToFull(graph,
                                             new_part,
-                                            data_fd,
-                                            data_file_size,
+                                            blob_file,
                                             op_indexes,
                                             reverse_op_indexes,
                                             cuts));
@@ -468,8 +464,7 @@ bool AssignBlockForAdjoiningCuts(
 bool InplaceGenerator::AssignTempBlocks(
     Graph* graph,
     const string& new_part,
-    int data_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     vector<Vertex::Index>* op_indexes,
     vector<vector<Vertex::Index>::size_type>* reverse_op_indexes,
     const vector<CutEdgeVertexes>& cuts) {
@@ -491,8 +486,7 @@ bool InplaceGenerator::AssignTempBlocks(
       CHECK(!cuts_group.empty());
       TEST_AND_RETURN_FALSE(AssignBlockForAdjoiningCuts(graph,
                                                         new_part,
-                                                        data_fd,
-                                                        data_file_size,
+                                                        blob_file,
                                                         op_indexes,
                                                         reverse_op_indexes,
                                                         cuts_group));
@@ -508,8 +502,7 @@ bool InplaceGenerator::AssignTempBlocks(
   CHECK(!cuts_group.empty());
   TEST_AND_RETURN_FALSE(AssignBlockForAdjoiningCuts(graph,
                                                     new_part,
-                                                    data_fd,
-                                                    data_file_size,
+                                                    blob_file,
                                                     op_indexes,
                                                     reverse_op_indexes,
                                                     cuts_group));
@@ -546,8 +539,7 @@ bool InplaceGenerator::NoTempBlocksRemain(const Graph& graph) {
 bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
                                           const CutEdgeVertexes& cut,
                                           const string& new_part,
-                                          int data_fd,
-                                          off_t* data_file_size) {
+                                          BlobFileWriter* blob_file) {
   // Drop all incoming edges, keep all outgoing edges
 
   // Keep all outgoing edges
@@ -572,8 +564,7 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
         new_extents,
         (*graph)[cut.old_dst].aop.name,
         -1,  // chunk_blocks, forces to have a single operation.
-        data_fd,
-        data_file_size,
+        blob_file,
         false));  // src_ops_allowed
     TEST_AND_RETURN_FALSE(new_aop.size() == 1);
     TEST_AND_RETURN_FALSE(AddInstallOpToGraph(
@@ -597,8 +588,7 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
 
 bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
                                          const string& new_part,
-                                         int fd,
-                                         off_t* data_file_size,
+                                         BlobFileWriter* blob_file,
                                          vector<Vertex::Index>* final_order,
                                          Vertex::Index scratch_vertex) {
   CycleBreaker cycle_breaker;
@@ -634,8 +624,7 @@ bool InplaceGenerator::ConvertGraphToDag(Graph* graph,
   if (!cuts.empty())
     TEST_AND_RETURN_FALSE(AssignTempBlocks(graph,
                                            new_part,
-                                           fd,
-                                           data_file_size,
+                                           blob_file,
                                            final_order,
                                            &inverse_final_order,
                                            cuts));
@@ -743,8 +732,7 @@ bool InplaceGenerator::ResolveReadAfterWriteDependencies(
     const PartitionConfig& new_part,
     uint64_t partition_size,
     size_t block_size,
-    int data_file_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     vector<AnnotatedOperation>* aops) {
   // Convert the operations to the graph.
   Graph graph;
@@ -776,8 +764,7 @@ bool InplaceGenerator::ResolveReadAfterWriteDependencies(
   TEST_AND_RETURN_FALSE(ConvertGraphToDag(
       &graph,
       new_part.path,
-      data_file_fd,
-      data_file_size,
+      blob_file,
       &final_order,
       scratch_vertex));
 
@@ -799,8 +786,7 @@ bool InplaceGenerator::GenerateOperationsForPartition(
     size_t block_size,
     ssize_t hard_chunk_blocks,
     size_t soft_chunk_blocks,
-    int data_file_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     vector<AnnotatedOperation>* aops) {
   const string part_name = PartitionNameString(new_part.name);
   LOG(INFO) << "Delta compressing " << part_name << " partition...";
@@ -810,8 +796,7 @@ bool InplaceGenerator::GenerateOperationsForPartition(
                                      new_part,
                                      hard_chunk_blocks,
                                      soft_chunk_blocks,
-                                     data_file_fd,
-                                     data_file_size,
+                                     blob_file,
                                      false));  // src_ops_allowed
   LOG(INFO) << "Done reading " << part_name;
 
@@ -819,8 +804,7 @@ bool InplaceGenerator::GenerateOperationsForPartition(
       ResolveReadAfterWriteDependencies(new_part,
                                         partition_size,
                                         block_size,
-                                        data_file_fd,
-                                        data_file_size,
+                                        blob_file,
                                         aops));
   LOG(INFO) << "Done reordering " << part_name;
   return true;
@@ -828,8 +812,7 @@ bool InplaceGenerator::GenerateOperationsForPartition(
 
 bool InplaceGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
-    int data_file_fd,
-    off_t* data_file_size,
+    BlobFileWriter* blob_file,
     vector<AnnotatedOperation>* rootfs_ops,
     vector<AnnotatedOperation>* kernel_ops) {
   ssize_t hard_chunk_blocks = (config.hard_chunk_size == -1 ? -1 :
@@ -843,8 +826,7 @@ bool InplaceGenerator::GenerateOperations(
       config.block_size,
       hard_chunk_blocks,
       soft_chunk_blocks,
-      data_file_fd,
-      data_file_size,
+      blob_file,
       rootfs_ops));
 
   TEST_AND_RETURN_FALSE(GenerateOperationsForPartition(
@@ -854,8 +836,7 @@ bool InplaceGenerator::GenerateOperations(
       config.block_size,
       hard_chunk_blocks,
       soft_chunk_blocks,
-      data_file_fd,
-      data_file_size,
+      blob_file,
       kernel_ops));
 
   return true;

@@ -110,6 +110,7 @@ class InplaceGeneratorTest : public ::testing::Test {
     blob_fd_closer_.reset(new ScopedFdCloser(&blob_fd_));
     blob_file_size_ = 0;
     EXPECT_GE(blob_fd_, 0);
+    blob_file_.reset(new BlobFileWriter(blob_fd_, &blob_file_size_));
   }
 
   // Blob file name, file descriptor and file size used to store operation
@@ -117,6 +118,7 @@ class InplaceGeneratorTest : public ::testing::Test {
   string blob_path_;
   int blob_fd_{-1};
   off_t blob_file_size_{0};
+  std::unique_ptr<BlobFileWriter> blob_file_;
   std::unique_ptr<ScopedPathUnlinker> blob_path_unlinker_;
   std::unique_ptr<ScopedFdCloser> blob_fd_closer_;
 };
@@ -347,8 +349,7 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
   CreateBlobFile();
   EXPECT_TRUE(InplaceGenerator::AssignTempBlocks(&graph,
                                                  "/dev/zero",
-                                                 blob_fd_,
-                                                 &blob_file_size_,
+                                                 blob_file_.get(),
                                                  &op_indexes,
                                                  &reverse_op_indexes,
                                                  cuts));
@@ -427,8 +428,7 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
   CreateBlobFile();
   EXPECT_TRUE(InplaceGenerator::ConvertGraphToDag(&graph,
                                                   "/dev/zero",
-                                                  blob_fd_,
-                                                  &blob_file_size_,
+                                                  blob_file_.get(),
                                                   &final_order,
                                                   Vertex::kInvalidIndex));
 
@@ -563,7 +563,7 @@ TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesAvoidMoveToZero) {
                                     part_blocks));
     vector<AnnotatedOperation> result_aops = aops;
     EXPECT_TRUE(InplaceGenerator::ResolveReadAfterWriteDependencies(
-      part, part_blocks * block_size, block_size, blob_fd_, &blob_file_size_,
+      part, part_blocks * block_size, block_size, blob_file_.get(),
       &result_aops));
 
     size_t full_ops = 0;

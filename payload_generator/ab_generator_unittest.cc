@@ -105,11 +105,12 @@ void TestSplitReplaceOrReplaceBzOperation(
   EXPECT_TRUE(utils::WriteFile(data_path.c_str(), op_blob.data(),
                                op_blob.size()));
   off_t data_file_size = op_blob.size();
+  BlobFileWriter blob_file(data_fd, &data_file_size);
 
   // Split the operation.
   vector<AnnotatedOperation> result_ops;
   ASSERT_TRUE(ABGenerator::SplitReplaceOrReplaceBz(
-          aop, &result_ops, part_path, data_fd, &data_file_size));
+          aop, &result_ops, part_path, &blob_file));
 
   // Check the result.
   DeltaArchiveManifest_InstallOperation_Type expected_type =
@@ -275,10 +276,11 @@ void TestMergeReplaceOrReplaceBzOperations(
   EXPECT_TRUE(utils::WriteFile(data_path.c_str(), blob_data.data(),
                                blob_data.size()));
   off_t data_file_size = blob_data.size();
+  BlobFileWriter blob_file(data_fd, &data_file_size);
 
   // Merge the operations.
   EXPECT_TRUE(ABGenerator::MergeOperations(
-      &aops, 5, part_path, data_fd, &data_file_size));
+      &aops, 5, part_path, &blob_file));
 
   // Check the result.
   DeltaArchiveManifest_InstallOperation_Type expected_op_type =
@@ -471,7 +473,8 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   third_aop.name = "3";
   aops.push_back(third_aop);
 
-  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 5, "", 0, nullptr));
+  BlobFileWriter blob_file(0, nullptr);
+  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 5, "", &blob_file));
 
   EXPECT_EQ(aops.size(), 1);
   DeltaArchiveManifest_InstallOperation first_result_op = aops[0].op;
@@ -547,7 +550,8 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   fourth_aop.op = fourth_op;
   aops.push_back(fourth_aop);
 
-  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 4, "", 0, nullptr));
+  BlobFileWriter blob_file(0, nullptr);
+  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 4, "", &blob_file));
 
   // No operations were merged, the number of ops is the same.
   EXPECT_EQ(aops.size(), 4);

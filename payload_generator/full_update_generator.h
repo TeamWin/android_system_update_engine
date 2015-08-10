@@ -10,6 +10,7 @@
 
 #include <base/macros.h>
 
+#include "update_engine/payload_generator/blob_file_writer.h"
 #include "update_engine/payload_generator/operations_generator.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 
@@ -27,8 +28,7 @@ class FullUpdateGenerator : public OperationsGenerator {
   // |data_file_size| as it does.
   bool GenerateOperations(
       const PayloadGenerationConfig& config,
-      int data_file_fd,
-      off_t* data_file_size,
+      BlobFileWriter* blob_file,
       std::vector<AnnotatedOperation>* rootfs_ops,
       std::vector<AnnotatedOperation>* kernel_ops) override;
 
@@ -43,8 +43,7 @@ class FullUpdateGenerator : public OperationsGenerator {
       const PartitionConfig& new_part,
       size_t block_size,
       size_t chunk_blocks,
-      int data_file_fd,
-      off_t* data_file_size,
+      BlobFileWriter* blob_file,
       std::vector<AnnotatedOperation>* aops);
 
  private:

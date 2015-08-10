@@ -37,6 +37,7 @@ class FullUpdateGeneratorTest : public ::testing::Test {
                                     &out_blobs_path_,
                                     &out_blobs_fd_));
 
+    blob_file_.reset(new BlobFileWriter(out_blobs_fd_, &out_blobs_length_));
     rootfs_part_unlinker_.reset(
         new ScopedPathUnlinker(config_.target.rootfs.path));
     kernel_part_unlinker_.reset(
@@ -49,8 +50,10 @@ class FullUpdateGeneratorTest : public ::testing::Test {
   // Output file holding the payload blobs.
   string out_blobs_path_;
   int out_blobs_fd_{-1};
+  off_t out_blobs_length_{0};
   ScopedFdCloser out_blobs_fd_closer_{&out_blobs_fd_};
 
+  std::unique_ptr<BlobFileWriter> blob_file_;
   std::unique_ptr<ScopedPathUnlinker> rootfs_part_unlinker_;
   std::unique_ptr<ScopedPathUnlinker> kernel_part_unlinker_;
   std::unique_ptr<ScopedPathUnlinker> out_blobs_unlinker_;
@@ -75,13 +78,11 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
   EXPECT_TRUE(test_utils::WriteFileVector(config_.target.kernel.path,
                                           new_kern));
 
-  off_t out_blobs_length = 0;
   vector<AnnotatedOperation> rootfs_ops;
   vector<AnnotatedOperation> kernel_ops;
 
   EXPECT_TRUE(generator_.GenerateOperations(config_,
-                                            out_blobs_fd_,
-                                            &out_blobs_length,
+                                            blob_file_.get(),
                                             &rootfs_ops,
                                             &kernel_ops));
   int64_t target_rootfs_chunks =
@@ -118,13 +119,11 @@ TEST_F(FullUpdateGeneratorTest, ChunkSizeTooBig) {
   EXPECT_TRUE(test_utils::WriteFileVector(config_.target.kernel.path,
                                           new_kern));
 
-  off_t out_blobs_length = 0;
   vector<AnnotatedOperation> rootfs_ops;
   vector<AnnotatedOperation> kernel_ops;
 
   EXPECT_TRUE(generator_.GenerateOperations(config_,
-                                            out_blobs_fd_,
-                                            &out_blobs_length,
+                                            blob_file_.get(),
                                             &rootfs_ops,
                                             &kernel_ops));
   // rootfs has one chunk and a half.

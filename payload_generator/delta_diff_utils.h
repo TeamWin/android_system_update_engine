@@ -35,8 +35,7 @@ bool DeltaReadPartition(std::vector<AnnotatedOperation>* aops,
                         const PartitionConfig& new_part,
                         ssize_t hard_chunk_blocks,
                         size_t soft_chunk_blocks,
-                        int data_fd,
-                        off_t* data_file_size,
+                        BlobFileWriter* blob_file,
                         bool src_ops_allowed);
 
 // Create operations in |aops| for identical blocks that moved around in the old
@@ -57,8 +56,7 @@ bool DeltaMovedAndZeroBlocks(std::vector<AnnotatedOperation>* aops,
                              size_t new_num_blocks,
                              ssize_t chunk_blocks,
                              bool src_ops_allowed,
-                             int data_fd,
-                             off_t* data_file_size,
+                             BlobFileWriter* blob_file,
                              ExtentRanges* old_visited_blocks,
                              ExtentRanges* new_visited_blocks);
 
@@ -77,8 +75,7 @@ bool DeltaReadFile(std::vector<AnnotatedOperation>* aops,
                    const std::vector<Extent>& new_extents,
                    const std::string& name,
                    ssize_t chunk_blocks,
-                   int data_fd,
-                   off_t* data_file_size,
+                   BlobFileWriter* blob_file,
                    bool src_ops_allowed);
 
 // Reads the blocks |old_extents| from |old_part| (if it exists) and the

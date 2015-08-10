@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "update_engine/payload_generator/blob_file_writer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/operations_generator.h"
@@ -120,8 +121,7 @@ class InplaceGenerator : public OperationsGenerator {
   static bool AssignTempBlocks(
       Graph* graph,
       const std::string& new_part,
-      int data_fd,
-      off_t* data_file_size,
+      BlobFileWriter* blob_file,
       std::vector<Vertex::Index>* op_indexes,
       std::vector<std::vector<Vertex::Index>::size_type>* reverse_op_indexes,
       const std::vector<CutEdgeVertexes>& cuts);
@@ -136,8 +136,7 @@ class InplaceGenerator : public OperationsGenerator {
   static bool ConvertCutToFullOp(Graph* graph,
                                  const CutEdgeVertexes& cut,
                                  const std::string& new_part,
-                                 int data_fd,
-                                 off_t* data_file_size);
+                                 BlobFileWriter* blob_file);
 
   // Takes a graph, which is not a DAG, which represents the files just
   // read from disk, and converts it into a DAG by breaking all cycles
@@ -150,8 +149,7 @@ class InplaceGenerator : public OperationsGenerator {
   // Returns true on success.
   static bool ConvertGraphToDag(Graph* graph,
                                 const std::string& new_part,
-                                int fd,
-                                off_t* data_file_size,
+                                BlobFileWriter* blob_file,
                                 std::vector<Vertex::Index>* final_order,
                                 Vertex::Index scratch_vertex);
 
@@ -207,8 +205,7 @@ class InplaceGenerator : public OperationsGenerator {
       const PartitionConfig& new_part,
       uint64_t partition_size,
       size_t block_size,
-      int data_file_fd,
-      off_t* data_file_size,
+      BlobFileWriter* blob_file,
       std::vector<AnnotatedOperation>* aops);
 
   // Generates the list of operations to update inplace from the partition
@@ -225,8 +222,7 @@ class InplaceGenerator : public OperationsGenerator {
       size_t block_size,
       ssize_t hard_chunk_blocks,
       size_t soft_chunk_blocks,
-      int data_file_fd,
-      off_t* data_file_size,
+      BlobFileWriter* blob_file,
       std::vector<AnnotatedOperation>* aops);
 
   // Generate the update payload operations for the kernel and rootfs using
@@ -242,8 +238,7 @@ class InplaceGenerator : public OperationsGenerator {
   // |data_file_size|.
   bool GenerateOperations(
       const PayloadGenerationConfig& config,
-      int data_file_fd,
-      off_t* data_file_size,
+      BlobFileWriter* blob_file,
       std::vector<AnnotatedOperation>* rootfs_ops,
       std::vector<AnnotatedOperation>* kernel_ops) override;
 

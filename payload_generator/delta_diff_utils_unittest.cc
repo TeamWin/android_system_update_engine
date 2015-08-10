@@ -115,6 +115,7 @@ class DeltaDiffUtilsTest : public ::testing::Test {
   // members. This simply avoid repeating all the arguments that never change.
   bool RunDeltaMovedAndZeroBlocks(ssize_t chunk_blocks,
                                   bool src_ops_allowed) {
+    BlobFileWriter blob_file(blob_fd_, &blob_size_);
     return diff_utils::DeltaMovedAndZeroBlocks(
         &aops_,
         old_part_.path,
@@ -123,8 +124,7 @@ class DeltaDiffUtilsTest : public ::testing::Test {
         new_part_.size / block_size_,
         chunk_blocks,
         src_ops_allowed,
-        blob_fd_,
-        &blob_size_,
+        &blob_file,
         &old_visited_blocks_,
         &new_visited_blocks_);
   }
