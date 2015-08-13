@@ -4,6 +4,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# This script generates some sample images used in unittests and packages them
+# in the sample_images.tar.bz2 file. The list of generated images and their
+# options are described in the main() function. You need to manually run this
+# script to update the generated images whenever you modify this script.
+
 set -e
 
 # cleanup <path>
@@ -145,14 +150,28 @@ generate_fs() {
   trap - INT TERM EXIT
 }
 
-image_desc="${1:-}"
-output_dir="${2:-}"
+OUTPUT_DIR=$(dirname "$0")
+IMAGES=()
 
-if [[ ! -e "${image_desc}" || ! -d "${output_dir}" ]]; then
-  echo "Use: $0 <image_description.txt> <output_dir>" >&2
-  exit 1
-fi
+# generate_image <image_name> [<image args> ...]
+generate_image() {
+  echo "Generating image $1.img"
+  IMAGES+=( "$1.img" )
+  generate_fs "${OUTPUT_DIR}/$1.img" "${@:2}"
+}
 
-args=( $(cat ${image_desc}) )
-dest_image="${output_dir}/$(basename ${image_desc} .txt).img"
-generate_fs "${dest_image}" "${args[@]}"
+main() {
+  # Add more sample images here.
+  generate_image disk_ext2_1k default 16777216 1024
+  generate_image disk_ext2_4k default 16777216 4096
+  generate_image disk_ext2_ue_settings ue_settings 16777216 4096
+
+  # Generate the tarball and delete temporary images.
+  echo "Packing tar file sample_images.tar.bz2"
+  tar -jcf "${OUTPUT_DIR}/sample_images.tar.bz2" -C "${OUTPUT_DIR}" \
+    "${IMAGES[@]}"
+  cd "${OUTPUT_DIR}"
+  rm "${IMAGES[@]}"
+}
+
+main

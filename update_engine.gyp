@@ -338,7 +338,7 @@
           ],
           'includes': ['../common-mk/openssl_pem.gypi'],
         },
-        # Sample images used for testing.
+        # Unpacks sample images used for testing.
         {
           'target_name': 'update_engine-test_images',
           'type': 'none',
@@ -346,11 +346,9 @@
             'image_out_dir': '.',
           },
           'sources': [
-            'sample_images/disk_ext2_1k.txt',
-            'sample_images/disk_ext2_4k.txt',
-            'sample_images/disk_ext2_ue_settings.txt',
+            'sample_images/sample_images.tar.bz2',
           ],
-          'includes': ['generate_image.gypi'],
+          'includes': ['tar_bunzip2.gypi'],
         },
         # Test HTTP Server.
         {
