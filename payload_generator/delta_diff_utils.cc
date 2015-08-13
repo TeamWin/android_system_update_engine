@@ -364,9 +364,8 @@ bool DeltaMovedAndZeroBlocks(
       aops->emplace_back();
       AnnotatedOperation* aop = &aops->back();
       aop->name = "<identical-blocks>";
-      aop->op.set_type(src_ops_allowed ?
-                       DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY :
-                       DeltaArchiveManifest_InstallOperation_Type_MOVE);
+      aop->op.set_type(src_ops_allowed ? InstallOperation::SOURCE_COPY
+                                       : InstallOperation::MOVE);
 
       uint64_t chunk_num_blocks =
         std::min(extent.num_blocks() - op_block_offset,
@@ -407,7 +406,7 @@ bool DeltaReadFile(
     BlobFileWriter* blob_file,
     bool src_ops_allowed) {
   chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation operation;
+  InstallOperation operation;
 
   uint64_t total_blocks = BlocksInExtents(new_extents);
   if (chunk_blocks == -1)
@@ -451,7 +450,7 @@ bool DeltaReadFile(
 
     // Check if the operation writes nothing.
     if (operation.dst_extents_size() == 0) {
-      if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
+      if (operation.type() == InstallOperation::MOVE) {
         LOG(INFO) << "Empty MOVE operation ("
                   << name << "), skipping";
         continue;
@@ -471,9 +470,8 @@ bool DeltaReadFile(
     aop.op = operation;
 
     // Write the data
-    if (operation.type() != DeltaArchiveManifest_InstallOperation_Type_MOVE &&
-        operation.type() !=
-            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
+    if (operation.type() != InstallOperation::MOVE &&
+        operation.type() != InstallOperation::SOURCE_COPY) {
       TEST_AND_RETURN_FALSE(aop.SetOperationBlob(&data, blob_file));
     } else {
       TEST_AND_RETURN_FALSE(blob_file->StoreBlob(data) != -1);
@@ -489,9 +487,9 @@ bool ReadExtentsToDiff(const string& old_part,
                        const vector<Extent>& new_extents,
                        bool bsdiff_allowed,
                        chromeos::Blob* out_data,
-                       DeltaArchiveManifest_InstallOperation* out_op,
+                       InstallOperation* out_op,
                        bool src_ops_allowed) {
-  DeltaArchiveManifest_InstallOperation operation;
+  InstallOperation operation;
   // Data blob that will be written to delta file.
   const chromeos::Blob* data_blob = nullptr;
 
@@ -514,7 +512,7 @@ bool ReadExtentsToDiff(const string& old_part,
 
 
   // Using a REPLACE is always an option.
-  operation.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  operation.set_type(InstallOperation::REPLACE);
   data_blob = &new_data;
 
   // Try compressing it with bzip2.
@@ -523,7 +521,7 @@ bool ReadExtentsToDiff(const string& old_part,
   CHECK(!new_data_bz.empty());
   if (new_data_bz.size() < data_blob->size()) {
     // A REPLACE_BZ is better.
-    operation.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+    operation.set_type(InstallOperation::REPLACE_BZ);
     data_blob = &new_data_bz;
   }
 
@@ -538,10 +536,9 @@ bool ReadExtentsToDiff(const string& old_part,
     if (old_data == new_data) {
       // No change in data.
       if (src_ops_allowed) {
-        operation.set_type(
-            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+        operation.set_type(InstallOperation::SOURCE_COPY);
       } else {
-        operation.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+        operation.set_type(InstallOperation::MOVE);
       }
       data_blob = &empty_blob;
     } else if (bsdiff_allowed) {
@@ -565,10 +562,9 @@ bool ReadExtentsToDiff(const string& old_part,
       CHECK_GT(bsdiff_delta.size(), static_cast<chromeos::Blob::size_type>(0));
       if (bsdiff_delta.size() < data_blob->size()) {
         if (src_ops_allowed) {
-          operation.set_type(
-              DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF);
+          operation.set_type(InstallOperation::SOURCE_BSDIFF);
         } else {
-          operation.set_type(DeltaArchiveManifest_InstallOperation_Type_BSDIFF);
+          operation.set_type(InstallOperation::BSDIFF);
         }
         data_blob = &bsdiff_delta;
       }
@@ -577,7 +573,7 @@ bool ReadExtentsToDiff(const string& old_part,
 
   size_t removed_bytes = 0;
   // Remove identical src/dst block ranges in MOVE operations.
-  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
+  if (operation.type() == InstallOperation::MOVE) {
     removed_bytes = RemoveIdenticalBlockRanges(
         &src_extents, &dst_extents, new_data.size());
   }
@@ -590,9 +586,8 @@ bool ReadExtentsToDiff(const string& old_part,
   StoreExtents(dst_extents, operation.mutable_dst_extents());
 
   // Replace operations should not have source extents.
-  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-      operation.type() ==
-          DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
+  if (operation.type() == InstallOperation::REPLACE ||
+      operation.type() == InstallOperation::REPLACE_BZ) {
     operation.clear_src_extents();
     operation.clear_src_length();
   }
@@ -631,8 +626,8 @@ bool BsdiffFiles(const string& old_file,
 
 // Returns true if |op| is a no-op operation that doesn't do any useful work
 // (e.g., a move operation that copies blocks onto themselves).
-bool IsNoopOperation(const DeltaArchiveManifest_InstallOperation& op) {
-  return (op.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE &&
+bool IsNoopOperation(const InstallOperation& op) {
+  return (op.type() == InstallOperation::MOVE &&
           ExpandExtents(op.src_extents()) == ExpandExtents(op.dst_extents()));
 }
 

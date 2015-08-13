@@ -95,10 +95,8 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
               rootfs_ops[i].op.dst_extents(0).start_block()) << "i = " << i;
     EXPECT_EQ(config_.hard_chunk_size / config_.block_size,
               rootfs_ops[i].op.dst_extents(0).num_blocks());
-    if (rootfs_ops[i].op.type() !=
-        DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
-      EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ,
-                rootfs_ops[i].op.type());
+    if (rootfs_ops[i].op.type() != InstallOperation::REPLACE) {
+      EXPECT_EQ(InstallOperation::REPLACE_BZ, rootfs_ops[i].op.type());
     }
   }
 }

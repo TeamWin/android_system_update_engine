@@ -33,9 +33,8 @@ bool ExtentEquals(Extent ext, uint64_t start_block, uint64_t num_blocks) {
 }
 
 // Tests splitting of a REPLACE/REPLACE_BZ operation.
-void TestSplitReplaceOrReplaceBzOperation(
-    DeltaArchiveManifest_InstallOperation_Type orig_type,
-    bool compressible) {
+void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
+                                          bool compressible) {
   const size_t op_ex1_start_block = 2;
   const size_t op_ex1_num_blocks = 2;
   const size_t op_ex2_start_block = 6;
@@ -66,7 +65,7 @@ void TestSplitReplaceOrReplaceBzOperation(
   const size_t op_ex1_size = op_ex1_num_blocks * kBlockSize;
   const size_t op_ex2_offset = op_ex2_start_block * kBlockSize;
   const size_t op_ex2_size = op_ex2_num_blocks * kBlockSize;
-  DeltaArchiveManifest_InstallOperation op;
+  InstallOperation op;
   op.set_type(orig_type);
   *(op.add_dst_extents()) = ExtentForRange(op_ex1_start_block,
                                            op_ex1_num_blocks);
@@ -82,7 +81,7 @@ void TestSplitReplaceOrReplaceBzOperation(
                  part_data.begin() + op_ex2_offset,
                  part_data.begin() + op_ex2_offset + op_ex2_size);
   chromeos::Blob op_blob;
-  if (orig_type == DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
+  if (orig_type == InstallOperation::REPLACE) {
     op_blob = op_data;
   } else {
     ASSERT_TRUE(BzipCompress(op_data, &op_blob));
@@ -113,15 +112,13 @@ void TestSplitReplaceOrReplaceBzOperation(
           aop, &result_ops, part_path, &blob_file));
 
   // Check the result.
-  DeltaArchiveManifest_InstallOperation_Type expected_type =
-      compressible ?
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ :
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE;
+  InstallOperation_Type expected_type =
+      compressible ? InstallOperation::REPLACE_BZ : InstallOperation::REPLACE;
 
   ASSERT_EQ(2, result_ops.size());
 
   EXPECT_EQ("SplitTestOp:0", result_ops[0].name);
-  DeltaArchiveManifest_InstallOperation first_op = result_ops[0].op;
+  InstallOperation first_op = result_ops[0].op;
   EXPECT_EQ(expected_type, first_op.type());
   EXPECT_EQ(op_ex1_size, first_op.dst_length());
   EXPECT_EQ(1, first_op.dst_extents().size());
@@ -150,7 +147,7 @@ void TestSplitReplaceOrReplaceBzOperation(
   EXPECT_EQ(first_expected_blob, first_data_blob);
 
   EXPECT_EQ("SplitTestOp:1", result_ops[1].name);
-  DeltaArchiveManifest_InstallOperation second_op = result_ops[1].op;
+  InstallOperation second_op = result_ops[1].op;
   EXPECT_EQ(expected_type, second_op.type());
   EXPECT_EQ(op_ex2_size, second_op.dst_length());
   EXPECT_EQ(1, second_op.dst_extents().size());
@@ -182,16 +179,14 @@ void TestSplitReplaceOrReplaceBzOperation(
             second_op.data_offset());
   EXPECT_EQ(second_op.data_offset() + second_op.data_length(), data_file_size);
   // If we split a REPLACE into multiple ones, ensure reuse of preexisting blob.
-  if (!compressible &&
-      orig_type == DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
+  if (!compressible && orig_type == InstallOperation::REPLACE) {
     EXPECT_EQ(0, first_op.data_offset());
   }
 }
 
 // Tests merging of REPLACE/REPLACE_BZ operations.
-void TestMergeReplaceOrReplaceBzOperations(
-    DeltaArchiveManifest_InstallOperation_Type orig_type,
-    bool compressible) {
+void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
+                                           bool compressible) {
   const size_t first_op_num_blocks = 1;
   const size_t second_op_num_blocks = 2;
   const size_t total_op_num_blocks = first_op_num_blocks + second_op_num_blocks;
@@ -221,7 +216,7 @@ void TestMergeReplaceOrReplaceBzOperations(
   chromeos::Blob blob_data;
   const size_t total_op_size = total_op_num_blocks * kBlockSize;
 
-  DeltaArchiveManifest_InstallOperation first_op;
+  InstallOperation first_op;
   first_op.set_type(orig_type);
   const size_t first_op_size = first_op_num_blocks * kBlockSize;
   first_op.set_dst_length(first_op_size);
@@ -229,7 +224,7 @@ void TestMergeReplaceOrReplaceBzOperations(
   chromeos::Blob first_op_data(part_data.begin(),
                                part_data.begin() + first_op_size);
   chromeos::Blob first_op_blob;
-  if (orig_type == DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
+  if (orig_type == InstallOperation::REPLACE) {
     first_op_blob = first_op_data;
   } else {
     ASSERT_TRUE(BzipCompress(first_op_data, &first_op_blob));
@@ -242,7 +237,7 @@ void TestMergeReplaceOrReplaceBzOperations(
   first_aop.name = "first";
   aops.push_back(first_aop);
 
-  DeltaArchiveManifest_InstallOperation second_op;
+  InstallOperation second_op;
   second_op.set_type(orig_type);
   const size_t second_op_size = second_op_num_blocks * kBlockSize;
   second_op.set_dst_length(second_op_size);
@@ -251,7 +246,7 @@ void TestMergeReplaceOrReplaceBzOperations(
   chromeos::Blob second_op_data(part_data.begin() + first_op_size,
                                 part_data.begin() + total_op_size);
   chromeos::Blob second_op_blob;
-  if (orig_type == DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
+  if (orig_type == InstallOperation::REPLACE) {
     second_op_blob = second_op_data;
   } else {
     ASSERT_TRUE(BzipCompress(second_op_data, &second_op_blob));
@@ -283,12 +278,10 @@ void TestMergeReplaceOrReplaceBzOperations(
       &aops, 5, part_path, &blob_file));
 
   // Check the result.
-  DeltaArchiveManifest_InstallOperation_Type expected_op_type =
-      compressible ?
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ :
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE;
+  InstallOperation_Type expected_op_type =
+      compressible ? InstallOperation::REPLACE_BZ : InstallOperation::REPLACE;
   EXPECT_EQ(1, aops.size());
-  DeltaArchiveManifest_InstallOperation new_op = aops[0].op;
+  InstallOperation new_op = aops[0].op;
   EXPECT_EQ(expected_op_type, new_op.type());
   EXPECT_FALSE(new_op.has_src_length());
   EXPECT_EQ(total_op_num_blocks * kBlockSize, new_op.dst_length());
@@ -323,8 +316,8 @@ void TestMergeReplaceOrReplaceBzOperations(
 class ABGeneratorTest : public ::testing::Test {};
 
 TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
-  DeltaArchiveManifest_InstallOperation op;
-  op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+  InstallOperation op;
+  op.set_type(InstallOperation::SOURCE_COPY);
   *(op.add_src_extents()) = ExtentForRange(2, 3);
   *(op.add_src_extents()) = ExtentForRange(6, 1);
   *(op.add_src_extents()) = ExtentForRange(8, 4);
@@ -340,9 +333,8 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ(result_ops.size(), 3);
 
   EXPECT_EQ("SplitSourceCopyTestOp:0", result_ops[0].name);
-  DeltaArchiveManifest_InstallOperation first_op = result_ops[0].op;
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
-            first_op.type());
+  InstallOperation first_op = result_ops[0].op;
+  EXPECT_EQ(InstallOperation::SOURCE_COPY, first_op.type());
   EXPECT_EQ(kBlockSize * 2, first_op.src_length());
   EXPECT_EQ(1, first_op.src_extents().size());
   EXPECT_EQ(2, first_op.src_extents(0).start_block());
@@ -353,9 +345,8 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ(2, first_op.dst_extents(0).num_blocks());
 
   EXPECT_EQ("SplitSourceCopyTestOp:1", result_ops[1].name);
-  DeltaArchiveManifest_InstallOperation second_op = result_ops[1].op;
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
-            second_op.type());
+  InstallOperation second_op = result_ops[1].op;
+  EXPECT_EQ(InstallOperation::SOURCE_COPY, second_op.type());
   EXPECT_EQ(kBlockSize * 3, second_op.src_length());
   EXPECT_EQ(3, second_op.src_extents().size());
   EXPECT_EQ(4, second_op.src_extents(0).start_block());
@@ -370,9 +361,8 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ(3, second_op.dst_extents(0).num_blocks());
 
   EXPECT_EQ("SplitSourceCopyTestOp:2", result_ops[2].name);
-  DeltaArchiveManifest_InstallOperation third_op = result_ops[2].op;
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
-            third_op.type());
+  InstallOperation third_op = result_ops[2].op;
+  EXPECT_EQ(InstallOperation::SOURCE_COPY, third_op.type());
   EXPECT_EQ(kBlockSize * 3, third_op.src_length());
   EXPECT_EQ(1, third_op.src_extents().size());
   EXPECT_EQ(9, third_op.src_extents(0).start_block());
@@ -384,29 +374,25 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
 }
 
 TEST_F(ABGeneratorTest, SplitReplaceTest) {
-  TestSplitReplaceOrReplaceBzOperation(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE, false);
+  TestSplitReplaceOrReplaceBzOperation(InstallOperation::REPLACE, false);
 }
 
 TEST_F(ABGeneratorTest, SplitReplaceIntoReplaceBzTest) {
-  TestSplitReplaceOrReplaceBzOperation(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE, true);
+  TestSplitReplaceOrReplaceBzOperation(InstallOperation::REPLACE, true);
 }
 
 TEST_F(ABGeneratorTest, SplitReplaceBzTest) {
-  TestSplitReplaceOrReplaceBzOperation(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ, true);
+  TestSplitReplaceOrReplaceBzOperation(InstallOperation::REPLACE_BZ, true);
 }
 
 TEST_F(ABGeneratorTest, SplitReplaceBzIntoReplaceTest) {
-  TestSplitReplaceOrReplaceBzOperation(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ, false);
+  TestSplitReplaceOrReplaceBzOperation(InstallOperation::REPLACE_BZ, false);
 }
 
 TEST_F(ABGeneratorTest, SortOperationsByDestinationTest) {
   vector<AnnotatedOperation> aops;
   // One operation with multiple destination extents.
-  DeltaArchiveManifest_InstallOperation first_op;
+  InstallOperation first_op;
   *(first_op.add_dst_extents()) = ExtentForRange(6, 1);
   *(first_op.add_dst_extents()) = ExtentForRange(10, 2);
   AnnotatedOperation first_aop;
@@ -415,14 +401,14 @@ TEST_F(ABGeneratorTest, SortOperationsByDestinationTest) {
   aops.push_back(first_aop);
 
   // One with no destination extent. Should end up at the end of the vector.
-  DeltaArchiveManifest_InstallOperation second_op;
+  InstallOperation second_op;
   AnnotatedOperation second_aop;
   second_aop.op = second_op;
   second_aop.name = "second";
   aops.push_back(second_aop);
 
   // One with one destination extent.
-  DeltaArchiveManifest_InstallOperation third_op;
+  InstallOperation third_op;
   *(third_op.add_dst_extents()) = ExtentForRange(3, 2);
   AnnotatedOperation third_aop;
   third_aop.op = third_op;
@@ -438,8 +424,8 @@ TEST_F(ABGeneratorTest, SortOperationsByDestinationTest) {
 
 TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   vector<AnnotatedOperation> aops;
-  DeltaArchiveManifest_InstallOperation first_op;
-  first_op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+  InstallOperation first_op;
+  first_op.set_type(InstallOperation::SOURCE_COPY);
   first_op.set_src_length(kBlockSize);
   first_op.set_dst_length(kBlockSize);
   *(first_op.add_src_extents()) = ExtentForRange(1, 1);
@@ -449,8 +435,8 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   first_aop.name = "1";
   aops.push_back(first_aop);
 
-  DeltaArchiveManifest_InstallOperation second_op;
-  second_op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+  InstallOperation second_op;
+  second_op.set_type(InstallOperation::SOURCE_COPY);
   second_op.set_src_length(3 * kBlockSize);
   second_op.set_dst_length(3 * kBlockSize);
   *(second_op.add_src_extents()) = ExtentForRange(2, 2);
@@ -462,8 +448,8 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   second_aop.name = "2";
   aops.push_back(second_aop);
 
-  DeltaArchiveManifest_InstallOperation third_op;
-  third_op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+  InstallOperation third_op;
+  third_op.set_type(InstallOperation::SOURCE_COPY);
   third_op.set_src_length(kBlockSize);
   third_op.set_dst_length(kBlockSize);
   *(third_op.add_src_extents()) = ExtentForRange(11, 1);
@@ -477,9 +463,8 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 5, "", &blob_file));
 
   EXPECT_EQ(aops.size(), 1);
-  DeltaArchiveManifest_InstallOperation first_result_op = aops[0].op;
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
-            first_result_op.type());
+  InstallOperation first_result_op = aops[0].op;
+  EXPECT_EQ(InstallOperation::SOURCE_COPY, first_result_op.type());
   EXPECT_EQ(kBlockSize * 5, first_result_op.src_length());
   EXPECT_EQ(3, first_result_op.src_extents().size());
   EXPECT_TRUE(ExtentEquals(first_result_op.src_extents(0), 1, 3));
@@ -493,30 +478,26 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
 }
 
 TEST_F(ABGeneratorTest, MergeReplaceOperationsTest) {
-  TestMergeReplaceOrReplaceBzOperations(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE, false);
+  TestMergeReplaceOrReplaceBzOperations(InstallOperation::REPLACE, false);
 }
 
 TEST_F(ABGeneratorTest, MergeReplaceOperationsToReplaceBzTest) {
-  TestMergeReplaceOrReplaceBzOperations(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE, true);
+  TestMergeReplaceOrReplaceBzOperations(InstallOperation::REPLACE, true);
 }
 
 TEST_F(ABGeneratorTest, MergeReplaceBzOperationsTest) {
-  TestMergeReplaceOrReplaceBzOperations(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ, true);
+  TestMergeReplaceOrReplaceBzOperations(InstallOperation::REPLACE_BZ, true);
 }
 
 TEST_F(ABGeneratorTest, MergeReplaceBzOperationsToReplaceTest) {
-  TestMergeReplaceOrReplaceBzOperations(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ, false);
+  TestMergeReplaceOrReplaceBzOperations(InstallOperation::REPLACE_BZ, false);
 }
 
 TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   // Test to make sure we don't merge operations that shouldn't be merged.
   vector<AnnotatedOperation> aops;
-  DeltaArchiveManifest_InstallOperation first_op;
-  first_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  InstallOperation first_op;
+  first_op.set_type(InstallOperation::REPLACE_BZ);
   *(first_op.add_dst_extents()) = ExtentForRange(0, 1);
   first_op.set_data_length(kBlockSize);
   AnnotatedOperation first_aop;
@@ -524,8 +505,8 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   aops.push_back(first_aop);
 
   // Should merge with first, except op types don't match...
-  DeltaArchiveManifest_InstallOperation second_op;
-  second_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  InstallOperation second_op;
+  second_op.set_type(InstallOperation::REPLACE);
   *(second_op.add_dst_extents()) = ExtentForRange(1, 2);
   second_op.set_data_length(2 * kBlockSize);
   AnnotatedOperation second_aop;
@@ -533,8 +514,8 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   aops.push_back(second_aop);
 
   // Should merge with second, except it would exceed chunk size...
-  DeltaArchiveManifest_InstallOperation third_op;
-  third_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  InstallOperation third_op;
+  third_op.set_type(InstallOperation::REPLACE);
   *(third_op.add_dst_extents()) = ExtentForRange(3, 3);
   third_op.set_data_length(3 * kBlockSize);
   AnnotatedOperation third_aop;
@@ -542,8 +523,8 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   aops.push_back(third_aop);
 
   // Should merge with third, except they aren't contiguous...
-  DeltaArchiveManifest_InstallOperation fourth_op;
-  fourth_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  InstallOperation fourth_op;
+  fourth_op.set_type(InstallOperation::REPLACE);
   *(fourth_op.add_dst_extents()) = ExtentForRange(7, 2);
   fourth_op.set_data_length(2 * kBlockSize);
   AnnotatedOperation fourth_aop;

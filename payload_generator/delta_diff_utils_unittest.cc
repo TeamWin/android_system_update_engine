@@ -159,7 +159,7 @@ TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
   chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
+  InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
       new_part_.path,
@@ -172,7 +172,7 @@ TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
   EXPECT_TRUE(data.empty());
 
   EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE, op.type());
+  EXPECT_EQ(InstallOperation::MOVE, op.type());
   EXPECT_FALSE(op.has_data_offset());
   EXPECT_FALSE(op.has_data_length());
   EXPECT_EQ(1, op.src_extents_size());
@@ -219,7 +219,7 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, file_data));
 
   chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
+  InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
       new_part_.path,
@@ -233,7 +233,7 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
   EXPECT_TRUE(data.empty());
 
   EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE, op.type());
+  EXPECT_EQ(InstallOperation::MOVE, op.type());
   EXPECT_FALSE(op.has_data_offset());
   EXPECT_FALSE(op.has_data_length());
 
@@ -283,7 +283,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
   chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
+  InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
       new_part_.path,
@@ -297,7 +297,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
   EXPECT_FALSE(data.empty());
 
   EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_BSDIFF, op.type());
+  EXPECT_EQ(InstallOperation::BSDIFF, op.type());
   EXPECT_FALSE(op.has_data_offset());
   EXPECT_FALSE(op.has_data_length());
   EXPECT_EQ(1, op.src_extents_size());
@@ -325,7 +325,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedTest) {
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
   chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
+  InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
       new_part_.path,
@@ -341,7 +341,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedTest) {
   // The point of this test is that we don't use BSDIFF the way the above
   // did. The rest of the details are to be caught in other tests.
   EXPECT_TRUE(op.has_type());
-  EXPECT_NE(DeltaArchiveManifest_InstallOperation_Type_BSDIFF, op.type());
+  EXPECT_NE(InstallOperation::BSDIFF, op.type());
 }
 
 TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedMoveTest) {
@@ -356,7 +356,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedMoveTest) {
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
   chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
+  InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
       new_part_.path,
@@ -372,7 +372,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedMoveTest) {
   // The point of this test is that we can still use a MOVE for a file
   // that is blacklisted.
   EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_MOVE, op.type());
+  EXPECT_EQ(InstallOperation::MOVE, op.type());
 }
 
 TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
@@ -398,7 +398,7 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
                              data_to_test));
 
     chromeos::Blob data;
-    DeltaArchiveManifest_InstallOperation op;
+    InstallOperation op;
     EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
         old_part_.path,
         new_part_.path,
@@ -411,9 +411,8 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
     EXPECT_FALSE(data.empty());
 
     EXPECT_TRUE(op.has_type());
-    const DeltaArchiveManifest_InstallOperation_Type expected_type =
-        (i == 0 ? DeltaArchiveManifest_InstallOperation_Type_REPLACE :
-         DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+    const InstallOperation_Type expected_type =
+        (i == 0 ? InstallOperation::REPLACE : InstallOperation::REPLACE_BZ);
     EXPECT_EQ(expected_type, op.type());
     EXPECT_FALSE(op.has_data_offset());
     EXPECT_FALSE(op.has_data_length());
@@ -440,7 +439,7 @@ TEST_F(DeltaDiffUtilsTest, SourceCopyTest) {
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
   chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
+  InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
       new_part_.path,
@@ -453,7 +452,7 @@ TEST_F(DeltaDiffUtilsTest, SourceCopyTest) {
   EXPECT_TRUE(data.empty());
 
   EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY, op.type());
+  EXPECT_EQ(InstallOperation::SOURCE_COPY, op.type());
 }
 
 TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
@@ -473,7 +472,7 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
   chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation op;
+  InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
       new_part_.path,
@@ -486,15 +485,14 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
 
   EXPECT_FALSE(data.empty());
   EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF,
-            op.type());
+  EXPECT_EQ(InstallOperation::SOURCE_BSDIFF, op.type());
 }
 
 TEST_F(DeltaDiffUtilsTest, IsNoopOperationTest) {
-  DeltaArchiveManifest_InstallOperation op;
-  op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  InstallOperation op;
+  op.set_type(InstallOperation::REPLACE_BZ);
   EXPECT_FALSE(diff_utils::IsNoopOperation(op));
-  op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+  op.set_type(InstallOperation::MOVE);
   EXPECT_TRUE(diff_utils::IsNoopOperation(op));
   *(op.add_src_extents()) = ExtentForRange(3, 2);
   *(op.add_dst_extents()) = ExtentForRange(3, 2);
@@ -513,7 +511,7 @@ TEST_F(DeltaDiffUtilsTest, IsNoopOperationTest) {
 
 TEST_F(DeltaDiffUtilsTest, FilterNoopOperations) {
   AnnotatedOperation aop1;
-  aop1.op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  aop1.op.set_type(InstallOperation::REPLACE_BZ);
   *(aop1.op.add_dst_extents()) = ExtentForRange(3, 2);
   aop1.name = "aop1";
 
@@ -521,7 +519,7 @@ TEST_F(DeltaDiffUtilsTest, FilterNoopOperations) {
   aop2.name = "aop2";
 
   AnnotatedOperation noop;
-  noop.op.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+  noop.op.set_type(InstallOperation::MOVE);
   *(noop.op.add_src_extents()) = ExtentForRange(3, 2);
   *(noop.op.add_dst_extents()) = ExtentForRange(3, 2);
   noop.name = "noop";
@@ -618,8 +616,7 @@ TEST_F(DeltaDiffUtilsTest, IdenticalBlocksAreCopiedFromSource) {
   for (size_t i = 0; i < aops_.size() && i < expected_op_extents.size(); ++i) {
     SCOPED_TRACE(base::StringPrintf("Failed on operation number %" PRIuS, i));
     const AnnotatedOperation& aop = aops_[i];
-    EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
-              aop.op.type());
+    EXPECT_EQ(InstallOperation::SOURCE_COPY, aop.op.type());
     EXPECT_EQ(1, aop.op.src_extents_size());
     EXPECT_EQ(expected_op_extents[i], aop.op.src_extents(0));
     EXPECT_EQ(1, aop.op.dst_extents_size());
@@ -655,8 +652,7 @@ TEST_F(DeltaDiffUtilsTest, IdenticalBlocksAreCopiedInOder) {
   // rest of the partition.
   EXPECT_EQ(1, aops_.size());
   const AnnotatedOperation& aop = aops_[0];
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
-            aop.op.type());
+  EXPECT_EQ(InstallOperation::SOURCE_COPY, aop.op.type());
   EXPECT_EQ(5, aop.op.src_extents_size());
   for (int i = 0; i < aop.op.src_extents_size(); ++i) {
     EXPECT_EQ(ExtentForRange(0, 10), aop.op.src_extents(i));
@@ -717,8 +713,7 @@ TEST_F(DeltaDiffUtilsTest, ZeroBlocksUseReplaceBz) {
   for (size_t i = 0; i < aops_.size() && i < expected_op_extents.size(); ++i) {
     SCOPED_TRACE(base::StringPrintf("Failed on operation number %" PRIuS, i));
     const AnnotatedOperation& aop = aops_[i];
-    EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ,
-              aop.op.type());
+    EXPECT_EQ(InstallOperation::REPLACE_BZ, aop.op.type());
     EXPECT_EQ(0, aop.op.src_extents_size());
     EXPECT_EQ(1, aop.op.dst_extents_size());
     EXPECT_EQ(expected_op_extents[i], aop.op.dst_extents(0));
@@ -754,8 +749,7 @@ TEST_F(DeltaDiffUtilsTest, ShuffledBlocksAreTracked) {
   // There should be only one SOURCE_COPY, with a complicate list of extents.
   EXPECT_EQ(1, aops_.size());
   const AnnotatedOperation& aop = aops_[0];
-  EXPECT_EQ(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY,
-            aop.op.type());
+  EXPECT_EQ(InstallOperation::SOURCE_COPY, aop.op.type());
   vector<Extent> aop_src_extents;
   ExtentsToVector(aop.op.src_extents(), &aop_src_extents);
   EXPECT_EQ(perm_extents, aop_src_extents);

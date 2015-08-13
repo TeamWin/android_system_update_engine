@@ -37,16 +37,11 @@ using Block = InplaceGenerator::Block;
 
 namespace {
 
-#define OP_BSDIFF DeltaArchiveManifest_InstallOperation_Type_BSDIFF
-#define OP_MOVE DeltaArchiveManifest_InstallOperation_Type_MOVE
-#define OP_REPLACE DeltaArchiveManifest_InstallOperation_Type_REPLACE
-#define OP_REPLACE_BZ DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ
-
 void GenVertex(Vertex* out,
                const vector<Extent>& src_extents,
                const vector<Extent>& dst_extents,
                const string& path,
-               DeltaArchiveManifest_InstallOperation_Type type) {
+               InstallOperation_Type type) {
   out->aop.op.set_type(type);
   out->aop.name = path;
   StoreExtents(src_extents, out->aop.op.mutable_src_extents());
@@ -85,9 +80,7 @@ void AppendExtent(vector<Extent>* vect, uint64_t start, uint64_t length) {
   vect->back().set_num_blocks(length);
 }
 
-void OpAppendExtent(DeltaArchiveManifest_InstallOperation* op,
-                    uint64_t start,
-                    uint64_t length) {
+void OpAppendExtent(InstallOperation* op, uint64_t start, uint64_t length) {
   Extent* extent = op->add_src_extents();
   extent->set_start_block(start);
   extent->set_num_blocks(length);
@@ -139,7 +132,7 @@ TEST_F(InplaceGeneratorTest, SubstituteBlocksTest) {
   AppendExtent(&replace_blocks, 10, 2);
   AppendExtent(&replace_blocks, 13, 2);
   Vertex vertex;
-  DeltaArchiveManifest_InstallOperation& op = vertex.aop.op;
+  InstallOperation& op = vertex.aop.op;
   OpAppendExtent(&op, 4, 3);
   OpAppendExtent(&op, kSparseHole, 4);  // Sparse hole in file
   OpAppendExtent(&op, 3, 1);
@@ -171,7 +164,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   // Create nodes in graph
   {
     graph.resize(graph.size() + 1);
-    graph.back().aop.op.set_type(OP_MOVE);
+    graph.back().aop.op.set_type(InstallOperation::MOVE);
     // Reads from blocks 3, 5, 7
     vector<Extent> extents;
     AppendBlockToExtents(&extents, 3);
@@ -194,7 +187,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   }
   {
     graph.resize(graph.size() + 1);
-    graph.back().aop.op.set_type(OP_MOVE);
+    graph.back().aop.op.set_type(InstallOperation::MOVE);
     // Reads from blocks 1, 2, 4
     vector<Extent> extents;
     AppendBlockToExtents(&extents, 1);
@@ -234,7 +227,7 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   EXPECT_EQ(3, graph.size());
 
   // Check new node in graph:
-  EXPECT_EQ(OP_MOVE, graph.back().aop.op.type());
+  EXPECT_EQ(InstallOperation::MOVE, graph.back().aop.op.type());
   EXPECT_EQ(2, graph.back().aop.op.src_extents_size());
   EXPECT_EQ(1, graph.back().aop.op.dst_extents_size());
   EXPECT_EQ(kTempBlockStart, graph.back().aop.op.dst_extents(0).start_block());
@@ -290,9 +283,18 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
   cuts.resize(3);
 
   // Simple broken loop:
-  GenVertex(&graph[0], VectOfExt(0, 1), VectOfExt(1, 1), "", OP_MOVE);
-  GenVertex(&graph[1], VectOfExt(tmp, 1), VectOfExt(0, 1), "", OP_MOVE);
-  GenVertex(&graph[2], VectOfExt(1, 1), VectOfExt(tmp, 1), "", OP_MOVE);
+  GenVertex(
+      &graph[0], VectOfExt(0, 1), VectOfExt(1, 1), "", InstallOperation::MOVE);
+  GenVertex(&graph[1],
+            VectOfExt(tmp, 1),
+            VectOfExt(0, 1),
+            "",
+            InstallOperation::MOVE);
+  GenVertex(&graph[2],
+            VectOfExt(1, 1),
+            VectOfExt(tmp, 1),
+            "",
+            InstallOperation::MOVE);
   // Corresponding edges:
   graph[0].out_edges[2] = EdgeWithReadDep(VectOfExt(1, 1));
   graph[1].out_edges[2] = EdgeWithWriteDep(VectOfExt(tmp, 1));
@@ -305,11 +307,25 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
   tmp++;
 
   // Slightly more complex pair of loops:
-  GenVertex(&graph[3], VectOfExt(4, 2), VectOfExt(2, 2), "", OP_MOVE);
-  GenVertex(&graph[4], VectOfExt(6, 1), VectOfExt(7, 1), "", OP_MOVE);
-  GenVertex(&graph[5], VectOfExt(tmp, 3), VectOfExt(4, 3), kFilename, OP_MOVE);
-  GenVertex(&graph[6], VectOfExt(2, 2), VectOfExt(tmp, 2), "", OP_MOVE);
-  GenVertex(&graph[7], VectOfExt(7, 1), VectOfExt(tmp + 2, 1), "", OP_MOVE);
+  GenVertex(
+      &graph[3], VectOfExt(4, 2), VectOfExt(2, 2), "", InstallOperation::MOVE);
+  GenVertex(
+      &graph[4], VectOfExt(6, 1), VectOfExt(7, 1), "", InstallOperation::MOVE);
+  GenVertex(&graph[5],
+            VectOfExt(tmp, 3),
+            VectOfExt(4, 3),
+            kFilename,
+            InstallOperation::MOVE);
+  GenVertex(&graph[6],
+            VectOfExt(2, 2),
+            VectOfExt(tmp, 2),
+            "",
+            InstallOperation::MOVE);
+  GenVertex(&graph[7],
+            VectOfExt(7, 1),
+            VectOfExt(tmp + 2, 1),
+            "",
+            InstallOperation::MOVE);
   // Corresponding edges:
   graph[3].out_edges[6] = EdgeWithReadDep(VectOfExt(2, 2));
   graph[4].out_edges[7] = EdgeWithReadDep(VectOfExt(7, 1));
@@ -328,7 +344,7 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
   cuts[2].tmp_extents = VectOfExt(tmp + 2, 1);
 
   // Supplier of temp block:
-  GenVertex(&graph[8], empt, VectOfExt(8, 1), "", OP_REPLACE);
+  GenVertex(&graph[8], empt, VectOfExt(8, 1), "", InstallOperation::REPLACE);
 
   // Specify the final order:
   vector<Vertex::Index> op_indexes;
@@ -358,19 +374,19 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
   EXPECT_EQ(1, graph[1].aop.op.src_extents_size());
   EXPECT_EQ(2, graph[1].aop.op.src_extents(0).start_block());
   EXPECT_EQ(1, graph[1].aop.op.src_extents(0).num_blocks());
-  EXPECT_EQ(OP_REPLACE_BZ, graph[5].aop.op.type());
+  EXPECT_EQ(InstallOperation::REPLACE_BZ, graph[5].aop.op.type());
 }
 
 TEST_F(InplaceGeneratorTest, MoveAndSortFullOpsToBackTest) {
   Graph graph(4);
   graph[0].aop.name = "A";
-  graph[0].aop.op.set_type(OP_REPLACE);
+  graph[0].aop.op.set_type(InstallOperation::REPLACE);
   graph[1].aop.name = "B";
-  graph[1].aop.op.set_type(OP_BSDIFF);
+  graph[1].aop.op.set_type(InstallOperation::BSDIFF);
   graph[2].aop.name = "C";
-  graph[2].aop.op.set_type(OP_REPLACE_BZ);
+  graph[2].aop.op.set_type(InstallOperation::REPLACE_BZ);
   graph[3].aop.name = "D";
-  graph[3].aop.op.set_type(OP_MOVE);
+  graph[3].aop.op.set_type(InstallOperation::MOVE);
 
   vector<Vertex::Index> vect(graph.size());
 
@@ -391,20 +407,36 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
   const string kFilename = "/foo";
 
   // Some scratch space:
-  GenVertex(&graph[0], empt, VectOfExt(200, 1), "", OP_REPLACE);
-  GenVertex(&graph[1], empt, VectOfExt(210, 10), "", OP_REPLACE);
-  GenVertex(&graph[2], empt, VectOfExt(220, 1), "", OP_REPLACE);
+  GenVertex(&graph[0], empt, VectOfExt(200, 1), "", InstallOperation::REPLACE);
+  GenVertex(&graph[1], empt, VectOfExt(210, 10), "", InstallOperation::REPLACE);
+  GenVertex(&graph[2], empt, VectOfExt(220, 1), "", InstallOperation::REPLACE);
 
   // A cycle that requires 10 blocks to break:
-  GenVertex(&graph[3], VectOfExt(10, 11), VectOfExt(0, 9), "", OP_BSDIFF);
+  GenVertex(&graph[3],
+            VectOfExt(10, 11),
+            VectOfExt(0, 9),
+            "",
+            InstallOperation::BSDIFF);
   graph[3].out_edges[4] = EdgeWithReadDep(VectOfExt(0, 9));
-  GenVertex(&graph[4], VectOfExt(0, 9), VectOfExt(10, 11), "", OP_BSDIFF);
+  GenVertex(&graph[4],
+            VectOfExt(0, 9),
+            VectOfExt(10, 11),
+            "",
+            InstallOperation::BSDIFF);
   graph[4].out_edges[3] = EdgeWithReadDep(VectOfExt(10, 11));
 
   // A cycle that requires 9 blocks to break:
-  GenVertex(&graph[5], VectOfExt(40, 11), VectOfExt(30, 10), "", OP_BSDIFF);
+  GenVertex(&graph[5],
+            VectOfExt(40, 11),
+            VectOfExt(30, 10),
+            "",
+            InstallOperation::BSDIFF);
   graph[5].out_edges[6] = EdgeWithReadDep(VectOfExt(30, 10));
-  GenVertex(&graph[6], VectOfExt(30, 10), VectOfExt(40, 11), "", OP_BSDIFF);
+  GenVertex(&graph[6],
+            VectOfExt(30, 10),
+            VectOfExt(40, 11),
+            "",
+            InstallOperation::BSDIFF);
   graph[6].out_edges[5] = EdgeWithReadDep(VectOfExt(40, 11));
 
   // A cycle that requires 40 blocks to break (which is too many):
@@ -412,13 +444,13 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
             VectOfExt(120, 50),
             VectOfExt(60, 40),
             "",
-            OP_BSDIFF);
+            InstallOperation::BSDIFF);
   graph[7].out_edges[8] = EdgeWithReadDep(VectOfExt(60, 40));
   GenVertex(&graph[8],
             VectOfExt(60, 40),
             VectOfExt(120, 50),
             kFilename,
-            OP_BSDIFF);
+            InstallOperation::BSDIFF);
   graph[8].out_edges[7] = EdgeWithReadDep(VectOfExt(120, 50));
 
   graph_utils::DumpGraph(graph);
@@ -433,34 +465,46 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
                                                   Vertex::kInvalidIndex));
 
   Graph expected_graph(12);
-  GenVertex(&expected_graph[0], empt, VectOfExt(200, 1), "", OP_REPLACE);
-  GenVertex(&expected_graph[1], empt, VectOfExt(210, 10), "", OP_REPLACE);
-  GenVertex(&expected_graph[2], empt, VectOfExt(220, 1), "", OP_REPLACE);
+  GenVertex(&expected_graph[0],
+            empt,
+            VectOfExt(200, 1),
+            "",
+            InstallOperation::REPLACE);
+  GenVertex(&expected_graph[1],
+            empt,
+            VectOfExt(210, 10),
+            "",
+            InstallOperation::REPLACE);
+  GenVertex(&expected_graph[2],
+            empt,
+            VectOfExt(220, 1),
+            "",
+            InstallOperation::REPLACE);
   GenVertex(&expected_graph[3],
             VectOfExt(10, 11),
             VectOfExt(0, 9),
             "",
-            OP_BSDIFF);
+            InstallOperation::BSDIFF);
   expected_graph[3].out_edges[9] = EdgeWithReadDep(VectOfExt(0, 9));
   GenVertex(&expected_graph[4],
             VectOfExt(60, 9),
             VectOfExt(10, 11),
             "",
-            OP_BSDIFF);
+            InstallOperation::BSDIFF);
   expected_graph[4].out_edges[3] = EdgeWithReadDep(VectOfExt(10, 11));
   expected_graph[4].out_edges[9] = EdgeWithWriteDep(VectOfExt(60, 9));
   GenVertex(&expected_graph[5],
             VectOfExt(40, 11),
             VectOfExt(30, 10),
             "",
-            OP_BSDIFF);
+            InstallOperation::BSDIFF);
   expected_graph[5].out_edges[10] = EdgeWithReadDep(VectOfExt(30, 10));
 
   GenVertex(&expected_graph[6],
             VectOfExt(60, 10),
             VectOfExt(40, 11),
             "",
-            OP_BSDIFF);
+            InstallOperation::BSDIFF);
   expected_graph[6].out_edges[5] = EdgeWithReadDep(VectOfExt(40, 11));
   expected_graph[6].out_edges[10] = EdgeWithWriteDep(VectOfExt(60, 10));
 
@@ -468,23 +512,27 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
             VectOfExt(120, 50),
             VectOfExt(60, 40),
             "",
-            OP_BSDIFF);
+            InstallOperation::BSDIFF);
   expected_graph[7].out_edges[6] = EdgeWithReadDep(VectOfExt(60, 10));
 
-  GenVertex(&expected_graph[8], empt, VectOfExt(0, 50), "/foo", OP_REPLACE_BZ);
+  GenVertex(&expected_graph[8],
+            empt,
+            VectOfExt(0, 50),
+            "/foo",
+            InstallOperation::REPLACE_BZ);
   expected_graph[8].out_edges[7] = EdgeWithReadDep(VectOfExt(120, 50));
 
   GenVertex(&expected_graph[9],
             VectOfExt(0, 9),
             VectOfExt(60, 9),
             "",
-            OP_MOVE);
+            InstallOperation::MOVE);
 
   GenVertex(&expected_graph[10],
             VectOfExt(30, 10),
             VectOfExt(60, 10),
             "",
-            OP_MOVE);
+            InstallOperation::MOVE);
   expected_graph[10].out_edges[4] = EdgeWithReadDep(VectOfExt(60, 9));
 
   EXPECT_EQ(12, graph.size());
@@ -502,7 +550,7 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
 TEST_F(InplaceGeneratorTest, CreateScratchNodeTest) {
   Vertex vertex;
   InplaceGenerator::CreateScratchNode(12, 34, &vertex);
-  EXPECT_EQ(OP_REPLACE_BZ, vertex.aop.op.type());
+  EXPECT_EQ(InstallOperation::REPLACE_BZ, vertex.aop.op.type());
   EXPECT_EQ(0, vertex.aop.op.data_offset());
   EXPECT_EQ(0, vertex.aop.op.data_length());
   EXPECT_EQ(1, vertex.aop.op.dst_extents_size());
@@ -535,14 +583,13 @@ TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesAvoidMoveToZero) {
   // the only available block is 0.
   aops.emplace_back();
   aops.back().name = base::StringPrintf("<bz-block-0>");
-  aops.back().op.set_type(
-      OP_REPLACE_BZ);
+  aops.back().op.set_type(InstallOperation::REPLACE_BZ);
   StoreExtents({ExtentForRange(0, 1)}, aops.back().op.mutable_dst_extents());
 
   for (size_t i = 1; i < num_blocks; i++) {
     AnnotatedOperation aop;
     aop.name = base::StringPrintf("<op-%" PRIuS ">", i);
-    aop.op.set_type(OP_BSDIFF);
+    aop.op.set_type(InstallOperation::BSDIFF);
     StoreExtents({ExtentForRange(1 + i % (num_blocks - 1), 1)},
                  aop.op.mutable_src_extents());
     StoreExtents({ExtentForRange(i, 1)}, aop.op.mutable_dst_extents());
@@ -568,10 +615,12 @@ TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesAvoidMoveToZero) {
 
     size_t full_ops = 0;
     for (const auto& aop : result_aops) {
-      if (aop.op.type() == OP_REPLACE || aop.op.type() == OP_REPLACE_BZ)
+      if (aop.op.type() == InstallOperation::REPLACE ||
+          aop.op.type() == InstallOperation::REPLACE_BZ) {
         full_ops++;
+      }
 
-      if (aop.op.type() != OP_MOVE)
+      if (aop.op.type() != InstallOperation::MOVE)
         continue;
       for (const Extent& extent : aop.op.src_extents()) {
         EXPECT_NE(0, extent.start_block()) << "On src extents for aop: " << aop;

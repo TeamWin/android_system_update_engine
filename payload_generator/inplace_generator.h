@@ -168,23 +168,21 @@ class InplaceGenerator : public OperationsGenerator {
   // in |blocks| and set the reader/writer field to the vertex passed.
   // |graph| is not strictly necessary, but useful for printing out
   // error messages.
-  static bool AddInstallOpToBlocksVector(
-      const DeltaArchiveManifest_InstallOperation& operation,
-      const Graph& graph,
-      Vertex::Index vertex,
-      std::vector<Block>* blocks);
+  static bool AddInstallOpToBlocksVector(const InstallOperation& operation,
+                                         const Graph& graph,
+                                         Vertex::Index vertex,
+                                         std::vector<Block>* blocks);
 
   // Add a vertex (if |existing_vertex| is kInvalidVertex) or update an
   // |existing_vertex| with the passed |operation|.
   // This method will also register the vertex as the reader or writer of the
   // blocks involved in the operation updating the |blocks| vector. The
   // |op_name| associated with the Vertex is used for logging purposes.
-  static bool AddInstallOpToGraph(
-      Graph* graph,
-      Vertex::Index existing_vertex,
-      std::vector<Block>* blocks,
-      const DeltaArchiveManifest_InstallOperation operation,
-      const std::string& op_name);
+  static bool AddInstallOpToGraph(Graph* graph,
+                                  Vertex::Index existing_vertex,
+                                  std::vector<Block>* blocks,
+                                  const InstallOperation operation,
+                                  const std::string& op_name);
 
   // Apply the transformation stored in |the_map| to the |collection| vector
   // replacing the map keys found in |collection| with its associated value in

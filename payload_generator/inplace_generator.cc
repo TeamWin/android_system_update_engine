@@ -156,8 +156,7 @@ bool InplaceGenerator::CutEdges(Graph* graph,
                                                     cut_edge_properties));
 
     // Set src/dst extents and other proto variables for copy operation
-    graph->back().aop.op.set_type(
-        DeltaArchiveManifest_InstallOperation_Type_MOVE);
+    graph->back().aop.op.set_type(InstallOperation::MOVE);
     StoreExtents(cut_edge_properties.extents,
                  graph->back().aop.op.mutable_src_extents());
     StoreExtents(cuts.back().tmp_extents,
@@ -263,10 +262,9 @@ void InplaceGenerator::MoveAndSortFullOpsToBack(
   vector<Vertex::Index> full_ops;
   ret.reserve(op_indexes->size());
   for (auto op_index : *op_indexes) {
-    DeltaArchiveManifest_InstallOperation_Type type =
-        (*graph)[op_index].aop.op.type();
-    if (type == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-        type == DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
+    InstallOperation_Type type = (*graph)[op_index].aop.op.type();
+    if (type == InstallOperation::REPLACE ||
+        type == InstallOperation::REPLACE_BZ) {
       full_ops.push_back(op_index);
     } else {
       ret.push_back(op_index);
@@ -451,8 +449,7 @@ bool AssignBlockForAdjoiningCuts(
     // Fix the new node w/ the real blocks. Since the new node is just a
     // copy operation, we can replace all the dest extents w/ the real
     // blocks.
-    DeltaArchiveManifest_InstallOperation *op =
-        &(*graph)[cut.new_vertex].aop.op;
+    InstallOperation* op = &(*graph)[cut.new_vertex].aop.op;
     op->clear_dst_extents();
     StoreExtents(real_extents, op->mutable_dst_extents());
   }
@@ -515,7 +512,7 @@ bool InplaceGenerator::NoTempBlocksRemain(const Graph& graph) {
        ++it, ++idx) {
     if (!it->valid)
       continue;
-    const DeltaArchiveManifest_InstallOperation& op = it->aop.op;
+    const InstallOperation& op = it->aop.op;
     if (TempBlocksExistInExtents(op.dst_extents()) ||
         TempBlocksExistInExtents(op.src_extents())) {
       LOG(INFO) << "bad extents in node " << idx;
@@ -543,10 +540,8 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
   // Drop all incoming edges, keep all outgoing edges
 
   // Keep all outgoing edges
-  if ((*graph)[cut.old_dst].aop.op.type() !=
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ &&
-      (*graph)[cut.old_dst].aop.op.type() !=
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
+  if ((*graph)[cut.old_dst].aop.op.type() != InstallOperation::REPLACE_BZ &&
+      (*graph)[cut.old_dst].aop.op.type() != InstallOperation::REPLACE) {
     Vertex::EdgeMap out_edges = (*graph)[cut.old_dst].out_edges;
     graph_utils::DropWriteBeforeDeps(&out_edges);
 
@@ -648,8 +643,7 @@ void InplaceGenerator::CreateScratchNode(uint64_t start_block,
                                          uint64_t num_blocks,
                                          Vertex* vertex) {
   vertex->aop.name = "<scratch>";
-  vertex->aop.op.set_type(
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  vertex->aop.op.set_type(InstallOperation::REPLACE_BZ);
   vertex->aop.op.set_data_offset(0);
   vertex->aop.op.set_data_length(0);
   Extent* extent = vertex->aop.op.add_dst_extents();
@@ -658,7 +652,7 @@ void InplaceGenerator::CreateScratchNode(uint64_t start_block,
 }
 
 bool InplaceGenerator::AddInstallOpToBlocksVector(
-    const DeltaArchiveManifest_InstallOperation& operation,
+    const InstallOperation& operation,
     const Graph& graph,
     Vertex::Index vertex,
     vector<Block>* blocks) {
@@ -695,12 +689,11 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
   return true;
 }
 
-bool InplaceGenerator::AddInstallOpToGraph(
-    Graph* graph,
-    Vertex::Index existing_vertex,
-    vector<Block>* blocks,
-    const DeltaArchiveManifest_InstallOperation operation,
-    const string& op_name) {
+bool InplaceGenerator::AddInstallOpToGraph(Graph* graph,
+                                           Vertex::Index existing_vertex,
+                                           vector<Block>* blocks,
+                                           const InstallOperation operation,
+                                           const string& op_name) {
   Vertex::Index vertex = existing_vertex;
   if (vertex == Vertex::kInvalidIndex) {
     graph->emplace_back();

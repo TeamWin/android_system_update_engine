@@ -92,13 +92,12 @@ bool ChunkProcessor::ProcessChunk() {
   TEST_AND_RETURN_FALSE(bytes_read == static_cast<ssize_t>(size_));
   TEST_AND_RETURN_FALSE(BzipCompress(buffer_in_, &op_blob));
 
-  DeltaArchiveManifest_InstallOperation_Type op_type =
-      DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ;
+  InstallOperation_Type op_type = InstallOperation::REPLACE_BZ;
 
   if (op_blob.size() >= buffer_in_.size()) {
     // A REPLACE is cheaper than a REPLACE_BZ in this case.
     op_blob = std::move(buffer_in_);
-    op_type = DeltaArchiveManifest_InstallOperation_Type_REPLACE;
+    op_type = InstallOperation::REPLACE;
   }
 
   off_t op_offset = blob_file_->StoreBlob(op_blob);

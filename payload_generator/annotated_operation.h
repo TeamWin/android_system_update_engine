@@ -21,7 +21,7 @@ struct AnnotatedOperation {
   std::string name;
 
   // The InstallOperation, as defined by the protobuf.
-  DeltaArchiveManifest_InstallOperation op;
+  InstallOperation op;
 
   // Writes |blob| to the end of |data_fd|, and updates |data_file_size| to
   // match the new size of |data_fd|. It sets the data_offset and data_length
@@ -32,8 +32,7 @@ struct AnnotatedOperation {
 // For logging purposes.
 std::ostream& operator<<(std::ostream& os, const AnnotatedOperation& aop);
 
-std::string InstallOperationTypeName(
-    DeltaArchiveManifest_InstallOperation_Type op_type);
+std::string InstallOperationTypeName(InstallOperation_Type op_type);
 
 }  // namespace chromeos_update_engine
 

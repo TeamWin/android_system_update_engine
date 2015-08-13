@@ -93,7 +93,7 @@ bool ReadExtentsToDiff(const std::string& old_part,
                        const std::vector<Extent>& new_extents,
                        bool bsdiff_allowed,
                        chromeos::Blob* out_data,
-                       DeltaArchiveManifest_InstallOperation* out_op,
+                       InstallOperation* out_op,
                        bool src_ops_allowed);
 
 // Runs the bsdiff tool on two files and returns the resulting delta in
@@ -104,7 +104,7 @@ bool BsdiffFiles(const std::string& old_file,
 
 // Returns true if |op| is a no-op operation that doesn't do any useful work
 // (e.g., a move operation that copies blocks onto themselves).
-bool IsNoopOperation(const DeltaArchiveManifest_InstallOperation& op);
+bool IsNoopOperation(const InstallOperation& op);
 
 // Filters all the operations that are no-op, maintaining the relative order
 // of the rest of the operations.

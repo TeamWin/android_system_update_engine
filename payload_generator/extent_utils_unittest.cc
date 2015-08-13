@@ -63,11 +63,11 @@ TEST(ExtentUtilsTest, BlocksInExtentsTest) {
 }
 
 TEST(ExtentUtilsTest, ExtendExtentsTest) {
-  DeltaArchiveManifest_InstallOperation first_op;
+  InstallOperation first_op;
   *(first_op.add_src_extents()) = ExtentForRange(1, 1);
   *(first_op.add_src_extents()) = ExtentForRange(3, 1);
 
-  DeltaArchiveManifest_InstallOperation second_op;
+  InstallOperation second_op;
   *(second_op.add_src_extents()) = ExtentForRange(4, 2);
   *(second_op.add_src_extents()) = ExtentForRange(8, 2);
 

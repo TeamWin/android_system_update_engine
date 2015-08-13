@@ -128,11 +128,10 @@ bool PayloadFile::WritePayload(const string& payload_file,
   {
     for (int i = 0; i < (manifest_.install_operations_size() +
                          manifest_.kernel_install_operations_size()); i++) {
-      DeltaArchiveManifest_InstallOperation* op =
-          i < manifest_.install_operations_size() ?
-          manifest_.mutable_install_operations(i) :
-          manifest_.mutable_kernel_install_operations(
-              i - manifest_.install_operations_size());
+      InstallOperation* op = i < manifest_.install_operations_size()
+                                 ? manifest_.mutable_install_operations(i)
+                                 : manifest_.mutable_kernel_install_operations(
+                                       i - manifest_.install_operations_size());
       if (op->has_data_offset()) {
         if (op->data_offset() != next_blob_offset) {
           LOG(FATAL) << "bad blob offset! " << op->data_offset() << " != "
@@ -249,9 +248,8 @@ bool PayloadFile::ReorderDataBlobs(
   return true;
 }
 
-bool PayloadFile::AddOperationHash(
-    DeltaArchiveManifest_InstallOperation* op,
-    const chromeos::Blob& buf) {
+bool PayloadFile::AddOperationHash(InstallOperation* op,
+                                   const chromeos::Blob& buf) {
   OmahaHashCalculator hasher;
   TEST_AND_RETURN_FALSE(hasher.Update(buf.data(), buf.size()));
   TEST_AND_RETURN_FALSE(hasher.Finalize());
@@ -302,9 +300,8 @@ void AddSignatureOp(uint64_t signature_blob_offset,
   manifest->set_signatures_offset(signature_blob_offset);
   LOG(INFO) << "set? " << manifest->has_signatures_offset();
   // Add a dummy op at the end to appease older clients
-  DeltaArchiveManifest_InstallOperation* dummy_op =
-      manifest->add_kernel_install_operations();
-  dummy_op->set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  InstallOperation* dummy_op = manifest->add_kernel_install_operations();
+  dummy_op->set_type(InstallOperation::REPLACE);
   dummy_op->set_data_offset(signature_blob_offset);
   manifest->set_signatures_offset(signature_blob_offset);
   dummy_op->set_data_length(signature_blob_length);

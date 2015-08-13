@@ -50,8 +50,7 @@ class PayloadFile {
   // dummy operation for signature blob because the contents of the signature
   // blob will not be available at payload creation time. So, update_engine will
   // gracefully ignore the dummy signature operation.
-  static bool AddOperationHash(DeltaArchiveManifest_InstallOperation* op,
-                               const chromeos::Blob& buf);
+  static bool AddOperationHash(InstallOperation* op, const chromeos::Blob& buf);
 
   // Install operations in the manifest may reference data blobs, which
   // are in data_blobs_path. This function creates a new data blobs file

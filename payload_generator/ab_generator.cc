@@ -91,13 +91,10 @@ bool ABGenerator::FragmentOperations(
     BlobFileWriter* blob_file) {
   vector<AnnotatedOperation> fragmented_aops;
   for (const AnnotatedOperation& aop : *aops) {
-    if (aop.op.type() ==
-        DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
+    if (aop.op.type() == InstallOperation::SOURCE_COPY) {
       TEST_AND_RETURN_FALSE(SplitSourceCopy(aop, &fragmented_aops));
-    } else if ((aop.op.type() ==
-                DeltaArchiveManifest_InstallOperation_Type_REPLACE) ||
-               (aop.op.type() ==
-                DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ)) {
+    } else if ((aop.op.type() == InstallOperation::REPLACE) ||
+               (aop.op.type() == InstallOperation::REPLACE_BZ)) {
       TEST_AND_RETURN_FALSE(SplitReplaceOrReplaceBz(aop, &fragmented_aops,
                                                     target_part_path,
                                                     blob_file));
@@ -112,16 +109,15 @@ bool ABGenerator::FragmentOperations(
 bool ABGenerator::SplitSourceCopy(
     const AnnotatedOperation& original_aop,
     vector<AnnotatedOperation>* result_aops) {
-  DeltaArchiveManifest_InstallOperation original_op = original_aop.op;
-  TEST_AND_RETURN_FALSE(original_op.type() ==
-                        DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+  InstallOperation original_op = original_aop.op;
+  TEST_AND_RETURN_FALSE(original_op.type() == InstallOperation::SOURCE_COPY);
   // Keeps track of the index of curr_src_ext.
   int curr_src_ext_index = 0;
   Extent curr_src_ext = original_op.src_extents(curr_src_ext_index);
   for (int i = 0; i < original_op.dst_extents_size(); i++) {
     Extent dst_ext = original_op.dst_extents(i);
     // The new operation which will have only one dst extent.
-    DeltaArchiveManifest_InstallOperation new_op;
+    InstallOperation new_op;
     uint64_t blocks_left = dst_ext.num_blocks();
     while (blocks_left > 0) {
       if (curr_src_ext.num_blocks() <= blocks_left) {
@@ -146,7 +142,7 @@ bool ABGenerator::SplitSourceCopy(
       }
     }
     // Fix up our new operation and add it to the results.
-    new_op.set_type(DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+    new_op.set_type(InstallOperation::SOURCE_COPY);
     *(new_op.add_dst_extents()) = dst_ext;
     new_op.set_src_length(dst_ext.num_blocks() * kBlockSize);
     new_op.set_dst_length(dst_ext.num_blocks() * kBlockSize);
@@ -168,25 +164,22 @@ bool ABGenerator::SplitReplaceOrReplaceBz(
     vector<AnnotatedOperation>* result_aops,
     const string& target_part_path,
     BlobFileWriter* blob_file) {
-  DeltaArchiveManifest_InstallOperation original_op = original_aop.op;
-  const bool is_replace =
-      original_op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE;
-  TEST_AND_RETURN_FALSE(
-      is_replace ||
-      (original_op.type() ==
-       DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ));
+  InstallOperation original_op = original_aop.op;
+  const bool is_replace = original_op.type() == InstallOperation::REPLACE;
+  TEST_AND_RETURN_FALSE(is_replace ||
+                        original_op.type() == InstallOperation::REPLACE_BZ);
 
   uint32_t data_offset = original_op.data_offset();
   for (int i = 0; i < original_op.dst_extents_size(); i++) {
     Extent dst_ext = original_op.dst_extents(i);
     // Make a new operation with only one dst extent.
-    DeltaArchiveManifest_InstallOperation new_op;
+    InstallOperation new_op;
     *(new_op.add_dst_extents()) = dst_ext;
     uint32_t data_size = dst_ext.num_blocks() * kBlockSize;
     new_op.set_dst_length(data_size);
     // If this is a REPLACE, attempt to reuse portions of the existing blob.
     if (is_replace) {
-      new_op.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+      new_op.set_type(InstallOperation::REPLACE);
       new_op.set_data_length(data_size);
       new_op.set_data_offset(data_offset);
       data_offset += data_size;
@@ -228,13 +221,9 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
     uint32_t combined_block_count =
         last_aop.op.dst_extents(last_dst_idx).num_blocks() +
         curr_aop.op.dst_extents(0).num_blocks();
-    bool good_op_type =
-        curr_aop.op.type() ==
-            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY ||
-        curr_aop.op.type() ==
-            DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-        curr_aop.op.type() ==
-            DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ;
+    bool good_op_type = curr_aop.op.type() == InstallOperation::SOURCE_COPY ||
+                        curr_aop.op.type() == InstallOperation::REPLACE ||
+                        curr_aop.op.type() == InstallOperation::REPLACE_BZ;
     if (good_op_type &&
         last_aop.op.type() == curr_aop.op.type() &&
         last_end_block == curr_start_block &&
@@ -258,10 +247,8 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
         last_aop.op.set_dst_length(last_aop.op.dst_length() +
                                    curr_aop.op.dst_length());
       // Set the data length to zero so we know to add the blob later.
-      if (curr_aop.op.type() ==
-          DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-          curr_aop.op.type() ==
-          DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
+      if (curr_aop.op.type() == InstallOperation::REPLACE ||
+          curr_aop.op.type() == InstallOperation::REPLACE_BZ) {
         last_aop.op.set_data_length(0);
       }
     } else {
@@ -273,10 +260,8 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
   // Set the blobs for REPLACE/REPLACE_BZ operations that have been merged.
   for (AnnotatedOperation& curr_aop : new_aops) {
     if (curr_aop.op.data_length() == 0 &&
-        (curr_aop.op.type() ==
-            DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-         curr_aop.op.type() ==
-            DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ)) {
+        (curr_aop.op.type() == InstallOperation::REPLACE ||
+         curr_aop.op.type() == InstallOperation::REPLACE_BZ)) {
       TEST_AND_RETURN_FALSE(AddDataAndSetType(&curr_aop, target_part_path,
                                               blob_file));
     }
@@ -289,9 +274,8 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
 bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
                                     const string& target_part_path,
                                     BlobFileWriter* blob_file) {
-  TEST_AND_RETURN_FALSE(
-      aop->op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-      aop->op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+  TEST_AND_RETURN_FALSE(aop->op.type() == InstallOperation::REPLACE ||
+                        aop->op.type() == InstallOperation::REPLACE_BZ);
 
   chromeos::Blob data(aop->op.dst_length());
   vector<Extent> dst_extents;
@@ -307,12 +291,12 @@ bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
   CHECK(!data_bz.empty());
 
   chromeos::Blob* data_p = nullptr;
-  DeltaArchiveManifest_InstallOperation_Type new_op_type;
+  InstallOperation_Type new_op_type;
   if (data_bz.size() < data.size()) {
-    new_op_type = DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ;
+    new_op_type = InstallOperation::REPLACE_BZ;
     data_p = &data_bz;
   } else {
-    new_op_type = DeltaArchiveManifest_InstallOperation_Type_REPLACE;
+    new_op_type = InstallOperation::REPLACE;
     data_p = &data;
   }
 
