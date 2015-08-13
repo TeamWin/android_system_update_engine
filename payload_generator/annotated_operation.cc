@@ -49,6 +49,10 @@ string InstallOperationTypeName(InstallOperation_Type op_type) {
       return "SOURCE_COPY";
     case InstallOperation::SOURCE_BSDIFF:
       return "SOURCE_BSDIFF";
+    case InstallOperation::ZERO:
+      return "ZERO";
+    case InstallOperation::DISCARD:
+      return "DISCARD";
   }
   return "UNK";
 }

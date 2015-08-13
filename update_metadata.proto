@@ -116,9 +116,15 @@ message InstallOperation {
     REPLACE_BZ = 1;  // Replace destination extents w/ attached bzipped data
     MOVE = 2;  // Move source extents to destination extents
     BSDIFF = 3;  // The data is a bsdiff binary diff
-    // SOURCE_COPY and SOURCE_BSDIFF are only supported on minor version 2.
+
+    // SOURCE_COPY and SOURCE_BSDIFF are only supported on minor version 2 or
+    // higher.
     SOURCE_COPY = 4; // Copy from source to target partition
     SOURCE_BSDIFF = 5; // Like BSDIFF, but read from source partition
+
+    // ZERO and DISCARD are only supported on minor version 3.
+    ZERO = 6;  // Write zeros in the destination.
+    DISCARD = 7;  // Discard the destination blocks, reading as undefined.
   }
   required Type type = 1;
   // The offset into the delta file (after the protobuf)
@@ -146,9 +152,45 @@ message InstallOperation {
   // the operation doesn't refer to any blob, this field will have
   // zero bytes.
   optional bytes data_sha256_hash = 8;
+
+  // Indicates the SHA 256 hash of the source data referenced in src_extents at
+  // the time of applying the operation. If present, the update_engine daemon
+  // MUST read and verify the source data before applying the operation.
+  optional bytes src_sha256_hash = 9;
+}
+
+// Describes the update to apply to a single partition.
+message PartitionUpdate {
+  // A platform-specific name to identify the partition set being updated. For
+  // example, in Chrome OS this could be "ROOT" or "KERNEL".
+  required string partition_name = 1;
+
+  // Whether this partition carries a filesystem with a "/postinstall" script
+  // that must be run to finalize the update process.
+  optional bool run_postinstall = 2;
+
+  // If present, a list of signatures of the new_partition_info.hash signed with
+  // different keys. If the update_engine daemon requires vendor-signed images
+  // and has its public key installed, one of the signatures should be valid
+  // for /postinstall to run.
+  repeated Signatures.Signature new_partition_signature = 3;
+
+  optional PartitionInfo old_partition_info = 4;
+  optional PartitionInfo new_partition_info = 5;
+
+  // The list of operations to be performed to apply this PartitionUpdate. The
+  // associated operation blobs (in operations[i].data_offset, data_length)
+  // should be stored contiguously and in the same order.
+  repeated InstallOperation operations = 6;
 }
 
 message DeltaArchiveManifest {
+  // DEPRECATED. List of install operations for the kernel and rootfs
+  // partitions. This information is now present in the |partitions| field. If
+  // you set these fields instead of the ones in the PartitionUpdate, they will
+  // be migrated to the corresponding entries in the PartitionUpdate to support
+  // full payloads on legacy daemons. Delta payloads starting with minor_version
+  // 3 MAY NOT include these fields.
   repeated InstallOperation install_operations = 1;
   repeated InstallOperation kernel_install_operations = 2;
 
@@ -163,7 +205,12 @@ message DeltaArchiveManifest {
   optional uint64 signatures_offset = 4;
   optional uint64 signatures_size = 5;
 
-  // Partition data that can be used to validate the update.
+  // DEPRECATED. Partition metadata used to validate the update.
+  // This information is now present in the |partitions| field. If you set
+  // these fields instead of the ones in the PartitionUpdate, they will be
+  // migrated to the corresponding entries in the PartitionUpdate to support
+  // full payloads on legacy daemons. Delta payloads starting with minor_version
+  // 3 MAY NOT include these fields.
   optional PartitionInfo old_kernel_info = 6;
   optional PartitionInfo new_kernel_info = 7;
   optional PartitionInfo old_rootfs_info = 8;
@@ -175,4 +222,7 @@ message DeltaArchiveManifest {
   optional ImageInfo new_image_info = 11;
 
   optional uint32 minor_version = 12 [default = 0];
+
+  // List of partitions that will be updated, in the order they will be updated.
+  repeated PartitionUpdate partitions = 13;
 }
