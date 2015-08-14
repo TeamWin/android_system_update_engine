@@ -70,6 +70,29 @@
       ],
       'includes': ['../common-mk/generate-dbus-adaptors.gypi'],
     },
+    {
+      'target_name': 'update_engine-dbus-proxies',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'update_engine-dbus-proxies-action',
+          'variables': {
+            'dbus_service_config': '',
+            'mock_output_file': 'include/update_engine/dbus_mocks.h',
+            'proxy_output_file': 'include/update_engine/dbus_proxies.h'
+          },
+          'sources': [
+            '../debugd/share/org.chromium.debugd.xml',
+            '../login_manager/org.chromium.SessionManagerInterface.xml',
+            '../power_manager/dbus_bindings/org.chromium.PowerManager.xml',
+            '../shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
+            '../shill/dbus_bindings/org.chromium.flimflam.Service.xml',
+            'dbus_bindings/org.chromium.LibCrosService.xml',
+          ],
+          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+        },
+      ],
+    },
     # The main static_library with all the code.
     {
       'target_name': 'libupdate_engine',
@@ -77,6 +100,7 @@
       'dependencies': [
         'update_metadata-protos',
         'update_engine-dbus-adaptor',
+        'update_engine-dbus-proxies',
       ],
       'variables': {
         'exported_deps': [
@@ -169,25 +193,6 @@
         'update_manager/state_factory.cc',
         'update_manager/update_manager.cc',
         'utils.cc',
-      ],
-      'actions': [
-        {
-          'action_name': 'update_engine-dbus-proxies',
-          'variables': {
-            'dbus_service_config': '',
-            'mock_output_file': 'include/update_engine/dbus_mocks.h',
-            'proxy_output_file': 'include/update_engine/dbus_proxies.h'
-          },
-          'sources': [
-            '../debugd/share/org.chromium.debugd.xml',
-            '../login_manager/org.chromium.SessionManagerInterface.xml',
-            '../power_manager/dbus_bindings/org.chromium.PowerManager.xml',
-            '../shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
-            '../shill/dbus_bindings/org.chromium.flimflam.Service.xml',
-            'dbus_bindings/org.chromium.LibCrosService.xml',
-          ],
-          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
-        },
       ],
       'conditions': [
         ['USE_mtd == 1', {
