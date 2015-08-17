@@ -7,13 +7,16 @@
 #include <set>
 #include <string>
 
+#include <base/location.h>
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/bind_lambda.h>
+#include <chromeos/message_loops/message_loop.h>
 #include <chromeos/strings/string_utils.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/clock_interface.h"
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/dbus_constants.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/omaha_request_params.h"
@@ -23,400 +26,232 @@
 #include "update_engine/utils.h"
 
 using base::StringPrintf;
+using chromeos::ErrorPtr;
 using chromeos::string_utils::ToString;
 using chromeos_update_engine::AttemptUpdateFlags;
 using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
 using std::set;
 using std::string;
 
-#define UPDATE_ENGINE_SERVICE_ERROR update_engine_service_error_quark ()
-#define UPDATE_ENGINE_SERVICE_TYPE_ERROR \
-  (update_engine_service_error_get_type())
+namespace {
+// Log and set the error on the passed ErrorPtr.
+void LogAndSetError(ErrorPtr *error,
+                    const tracked_objects::Location& location,
+                    const string& reason) {
+  chromeos::Error::AddTo(
+      error, location,
+      chromeos::errors::dbus::kDomain,
+      chromeos_update_engine::kUpdateEngineServiceErrorFailed, reason);
+  LOG(ERROR) << "Sending DBus Failure: " << location.ToString() << ": "
+             << reason;
+}
+}  // namespace
 
-enum UpdateEngineServiceError {
-  UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-  UPDATE_ENGINE_SERVICE_NUM_ERRORS
-};
+namespace chromeos_update_engine {
 
-static GQuark update_engine_service_error_quark(void) {
-  static GQuark ret = 0;
+UpdateEngineService::UpdateEngineService(SystemState* system_state)
+    : system_state_(system_state) {}
 
-  if (ret == 0)
-    ret = g_quark_from_static_string("update_engine_service_error");
+// org::chromium::UpdateEngineInterfaceInterface methods implementation.
 
-  return ret;
+bool UpdateEngineService::AttemptUpdate(ErrorPtr* error,
+                                        const string& in_app_version,
+                                        const string& in_omaha_url) {
+  return AttemptUpdateWithFlags(
+      error, in_app_version, in_omaha_url, 0 /* no flags */);
 }
 
-#define ENUM_ENTRY(NAME, DESC) { NAME, "" #NAME "", DESC }
-
-static GType update_engine_service_error_get_type(void) {
-  static GType etype = 0;
-
-  if (etype == 0) {
-    static const GEnumValue values[] = {
-      ENUM_ENTRY(UPDATE_ENGINE_SERVICE_ERROR_FAILED, "Failed"),
-      { 0, 0, 0 }
-    };
-    G_STATIC_ASSERT(UPDATE_ENGINE_SERVICE_NUM_ERRORS ==
-                    G_N_ELEMENTS(values) - 1);
-    etype = g_enum_register_static("UpdateEngineServiceError", values);
-  }
-
-  return etype;
-}
-
-G_DEFINE_TYPE(UpdateEngineService, update_engine_service, G_TYPE_OBJECT)
-
-static void update_engine_service_finalize(GObject* object) {
-  G_OBJECT_CLASS(update_engine_service_parent_class)->finalize(object);
-}
-
-static void log_and_set_response_error(GError** error,
-                                       UpdateEngineServiceError error_code,
-                                       const string& reason) {
-  LOG(ERROR) << "Sending DBus Failure: " << reason;
-  g_set_error_literal(error, UPDATE_ENGINE_SERVICE_ERROR,
-                      error_code, reason.c_str());
-}
-
-static guint status_update_signal = 0;
-
-static void update_engine_service_class_init(UpdateEngineServiceClass* klass) {
-  GObjectClass *object_class;
-  object_class = G_OBJECT_CLASS(klass);
-  object_class->finalize = update_engine_service_finalize;
-
-  status_update_signal = g_signal_new(
-      "status_update",
-      G_OBJECT_CLASS_TYPE(klass),
-      G_SIGNAL_RUN_LAST,
-      0,  // 0 == no class method associated
-      nullptr,  // Accumulator
-      nullptr,  // Accumulator data
-      nullptr,  // Marshaller
-      G_TYPE_NONE,  // Return type
-      5,  // param count:
-      G_TYPE_INT64,
-      G_TYPE_DOUBLE,
-      G_TYPE_STRING,
-      G_TYPE_STRING,
-      G_TYPE_INT64);
-}
-
-static void update_engine_service_init(UpdateEngineService* object) {
-  dbus_g_error_domain_register(UPDATE_ENGINE_SERVICE_ERROR,
-                               "org.chromium.UpdateEngine.Error",
-                               UPDATE_ENGINE_SERVICE_TYPE_ERROR);
-}
-
-UpdateEngineService* update_engine_service_new(void) {
-  return reinterpret_cast<UpdateEngineService*>(
-      g_object_new(UPDATE_ENGINE_TYPE_SERVICE, nullptr));
-}
-
-gboolean update_engine_service_attempt_update(UpdateEngineService* self,
-                                              gchar* app_version,
-                                              gchar* omaha_url,
-                                              GError **error) {
-  return update_engine_service_attempt_update_with_flags(self,
-                                                         app_version,
-                                                         omaha_url,
-                                                         0,  // No flags set.
-                                                         error);
-}
-
-gboolean update_engine_service_attempt_update_with_flags(
-    UpdateEngineService* self,
-    gchar* app_version,
-    gchar* omaha_url,
-    gint flags_as_int,
-    GError **error) {
-  string app_version_string, omaha_url_string;
-  AttemptUpdateFlags flags = static_cast<AttemptUpdateFlags>(flags_as_int);
+bool UpdateEngineService::AttemptUpdateWithFlags(ErrorPtr* /* error */,
+                                                 const string& in_app_version,
+                                                 const string& in_omaha_url,
+                                                 int32_t in_flags_as_int) {
+  AttemptUpdateFlags flags = static_cast<AttemptUpdateFlags>(in_flags_as_int);
   bool interactive = !(flags & kAttemptUpdateFlagNonInteractive);
 
-  if (app_version)
-    app_version_string = app_version;
-  if (omaha_url)
-    omaha_url_string = omaha_url;
-
-  LOG(INFO) << "Attempt update: app_version=\"" << app_version_string << "\" "
-            << "omaha_url=\"" << omaha_url_string << "\" "
+  LOG(INFO) << "Attempt update: app_version=\"" << in_app_version << "\" "
+            << "omaha_url=\"" << in_omaha_url << "\" "
             << "flags=0x" << std::hex << flags << " "
             << "interactive=" << (interactive? "yes" : "no");
-  self->system_state_->update_attempter()->CheckForUpdate(app_version_string,
-                                                          omaha_url_string,
-                                                          interactive);
-  return TRUE;
+  system_state_->update_attempter()->CheckForUpdate(
+      in_app_version, in_omaha_url, interactive);
+  return true;
 }
 
-gboolean update_engine_service_attempt_rollback(UpdateEngineService* self,
-                                                gboolean powerwash,
-                                                GError **error) {
+bool UpdateEngineService::AttemptRollback(ErrorPtr* error,
+                                          bool in_powerwash) {
   LOG(INFO) << "Attempting rollback to non-active partitions.";
 
-  if (!self->system_state_->update_attempter()->Rollback(powerwash)) {
+  if (!system_state_->update_attempter()->Rollback(in_powerwash)) {
     // TODO(dgarrett): Give a more specific error code/reason.
-    log_and_set_response_error(error,
-                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-                               "Rollback attempt failed.");
-    return FALSE;
+    LogAndSetError(error, FROM_HERE, "Rollback attempt failed.");
+    return false;
   }
-
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_can_rollback(UpdateEngineService* self,
-                                            gboolean* out_can_rollback,
-                                            GError **error) {
-  bool can_rollback = self->system_state_->update_attempter()->CanRollback();
+bool UpdateEngineService::CanRollback(ErrorPtr* /* error */,
+                                      bool* out_can_rollback) {
+  bool can_rollback = system_state_->update_attempter()->CanRollback();
   LOG(INFO) << "Checking to see if we can rollback . Result: " << can_rollback;
   *out_can_rollback = can_rollback;
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_get_rollback_partition(
-    UpdateEngineService* self,
-    gchar** out_rollback_partition_name,
-    GError **error) {
-  auto name = self->system_state_->update_attempter()->GetRollbackPartition();
-  LOG(INFO) << "Getting rollback partition name. Result: " << name;
-  *out_rollback_partition_name = g_strdup(name.c_str());
-  return TRUE;
-}
-
-gboolean update_engine_service_get_kernel_devices(UpdateEngineService* self,
-                                                  gchar** out_kernel_devices,
-                                                  GError **error) {
-  auto devices = self->system_state_->update_attempter()->GetKernelDevices();
-  string info;
-  for (const auto& device : devices) {
-    base::StringAppendF(&info, "%d:%s\n",
-                        device.second ? 1 : 0, device.first.c_str());
-  }
-  LOG(INFO) << "Available kernel devices: " << info;
-  *out_kernel_devices = g_strdup(info.c_str());
-  return TRUE;
-}
-
-
-gboolean update_engine_service_reset_status(UpdateEngineService* self,
-                                            GError **error) {
-  if (!self->system_state_->update_attempter()->ResetStatus()) {
+bool UpdateEngineService::ResetStatus(ErrorPtr* error) {
+  if (!system_state_->update_attempter()->ResetStatus()) {
     // TODO(dgarrett): Give a more specific error code/reason.
-    log_and_set_response_error(error,
-                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-                               "ResetStatus failed.");
-    return FALSE;
+    LogAndSetError(error, FROM_HERE, "ResetStatus failed.");
+    return false;
   }
-
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_get_status(UpdateEngineService* self,
-                                          int64_t* last_checked_time,
-                                          double* progress,
-                                          gchar** current_operation,
-                                          gchar** new_version,
-                                          int64_t* new_size,
-                                          GError **error) {
-  string current_op;
-  string new_version_str;
-
-  CHECK(self->system_state_->update_attempter()->GetStatus(last_checked_time,
-                                                           progress,
-                                                           &current_op,
-                                                           &new_version_str,
-                                                           new_size));
-  *current_operation = g_strdup(current_op.c_str());
-  *new_version = g_strdup(new_version_str.c_str());
-
-  if (!*current_operation) {
-    log_and_set_response_error(error,
-                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-                               "Unable to find current_operation.");
-    return FALSE;
+bool UpdateEngineService::GetStatus(ErrorPtr* error,
+                                    int64_t* out_last_checked_time,
+                                    double* out_progress,
+                                    string* out_current_operation,
+                                    string* out_new_version,
+                                    int64_t* out_new_size) {
+  if (!system_state_->update_attempter()->GetStatus(out_last_checked_time,
+                                                    out_progress,
+                                                    out_current_operation,
+                                                    out_new_version,
+                                                    out_new_size)) {
+    LogAndSetError(error, FROM_HERE, "GetStatus failed.");
+    return false;
   }
-
-  if (!*new_version) {
-    log_and_set_response_error(error,
-                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-                               "Unable to find vew_version.");
-    return FALSE;
-  }
-
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_reboot_if_needed(UpdateEngineService* self,
-                                                GError **error) {
-  if (!self->system_state_->update_attempter()->RebootIfNeeded()) {
+bool UpdateEngineService::RebootIfNeeded(ErrorPtr* error) {
+  if (!system_state_->update_attempter()->RebootIfNeeded()) {
     // TODO(dgarrett): Give a more specific error code/reason.
-    log_and_set_response_error(error,
-                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-                               "Reboot not needed, or attempt failed.");
-    return FALSE;
+    LogAndSetError(error, FROM_HERE, "Reboot not needed, or attempt failed.");
+    return false;
   }
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_set_channel(UpdateEngineService* self,
-                                           gchar* target_channel,
-                                           gboolean is_powerwash_allowed,
-                                           GError **error) {
-  if (!target_channel) {
-    log_and_set_response_error(error,
-                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-                               "Target channel to set not specified.");
-    return FALSE;
-  }
-
-  const policy::DevicePolicy* device_policy =
-      self->system_state_->device_policy();
+bool UpdateEngineService::SetChannel(ErrorPtr* error,
+                                     const string& in_target_channel,
+                                     bool in_is_powerwash_allowed) {
+  const policy::DevicePolicy* device_policy = system_state_->device_policy();
 
   // The device_policy is loaded in a lazy way before an update check. Load it
   // now from the libchromeos cache if it wasn't already loaded.
   if (!device_policy) {
-    chromeos_update_engine::UpdateAttempter* update_attempter =
-        self->system_state_->update_attempter();
+    UpdateAttempter* update_attempter = system_state_->update_attempter();
     if (update_attempter) {
       update_attempter->RefreshDevicePolicy();
-      device_policy = self->system_state_->device_policy();
+      device_policy = system_state_->device_policy();
     }
   }
 
   bool delegated = false;
   if (device_policy &&
       device_policy->GetReleaseChannelDelegated(&delegated) && !delegated) {
-    log_and_set_response_error(
-        error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+    LogAndSetError(
+        error, FROM_HERE,
         "Cannot set target channel explicitly when channel "
         "policy/settings is not delegated");
-    return FALSE;
+    return false;
   }
 
-  LOG(INFO) << "Setting destination channel to: " << target_channel;
-  if (!self->system_state_->request_params()->SetTargetChannel(
-          target_channel, is_powerwash_allowed)) {
+  LOG(INFO) << "Setting destination channel to: " << in_target_channel;
+  if (!system_state_->request_params()->SetTargetChannel(
+          in_target_channel, in_is_powerwash_allowed)) {
     // TODO(dgarrett): Give a more specific error code/reason.
-    log_and_set_response_error(error,
-                               UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-                               "Setting channel failed.");
-    return FALSE;
+    LogAndSetError(error, FROM_HERE, "Setting channel failed.");
+    return false;
   }
-
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_get_channel(UpdateEngineService* self,
-                                           gboolean get_current_channel,
-                                           gchar** channel,
-                                           GError **error) {
-  chromeos_update_engine::OmahaRequestParams* rp =
-      self->system_state_->request_params();
-
-  string channel_str = get_current_channel ?
-      rp->current_channel() : rp->target_channel();
-
-  *channel = g_strdup(channel_str.c_str());
-  return TRUE;
+bool UpdateEngineService::GetChannel(ErrorPtr* /* error */,
+                                     bool in_get_current_channel,
+                                     string* out_channel) {
+  OmahaRequestParams* rp = system_state_->request_params();
+  *out_channel = (in_get_current_channel ?
+                  rp->current_channel() : rp->target_channel());
+  return true;
 }
 
-gboolean update_engine_service_set_p2p_update_permission(
-    UpdateEngineService* self,
-    gboolean enabled,
-    GError **error) {
-  chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
+bool UpdateEngineService::SetP2PUpdatePermission(ErrorPtr* error,
+                                                 bool in_enabled) {
+  PrefsInterface* prefs = system_state_->prefs();
 
-  if (!prefs->SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, enabled)) {
-    log_and_set_response_error(
-        error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
+  if (!prefs->SetBoolean(kPrefsP2PEnabled, in_enabled)) {
+    LogAndSetError(
+        error, FROM_HERE,
         StringPrintf("Error setting the update via p2p permission to %s.",
-                     ToString(enabled).c_str()));
-    return FALSE;
+                     ToString(in_enabled).c_str()));
+    return false;
   }
-
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_get_p2p_update_permission(
-    UpdateEngineService* self,
-    gboolean* enabled,
-    GError **error) {
-  chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
+bool UpdateEngineService::GetP2PUpdatePermission(ErrorPtr* error,
+                                                 bool* out_enabled) {
+  PrefsInterface* prefs = system_state_->prefs();
 
   bool p2p_pref = false;  // Default if no setting is present.
-  if (prefs->Exists(chromeos_update_engine::kPrefsP2PEnabled) &&
-      !prefs->GetBoolean(chromeos_update_engine::kPrefsP2PEnabled, &p2p_pref)) {
-    log_and_set_response_error(error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-                               "Error getting the P2PEnabled setting.");
-    return FALSE;
+  if (prefs->Exists(kPrefsP2PEnabled) &&
+      !prefs->GetBoolean(kPrefsP2PEnabled, &p2p_pref)) {
+    LogAndSetError(error, FROM_HERE, "Error getting the P2PEnabled setting.");
+    return false;
   }
 
-  *enabled = p2p_pref;
-  return TRUE;
+  *out_enabled = p2p_pref;
+  return true;
 }
 
-gboolean update_engine_service_set_update_over_cellular_permission(
-    UpdateEngineService* self,
-    gboolean allowed,
-    GError **error) {
+bool UpdateEngineService::SetUpdateOverCellularPermission(ErrorPtr* error,
+                                                          bool in_allowed) {
   set<string> allowed_types;
-  const policy::DevicePolicy* device_policy =
-      self->system_state_->device_policy();
+  const policy::DevicePolicy* device_policy = system_state_->device_policy();
 
   // The device_policy is loaded in a lazy way before an update check. Load it
   // now from the libchromeos cache if it wasn't already loaded.
   if (!device_policy) {
-    chromeos_update_engine::UpdateAttempter* update_attempter =
-        self->system_state_->update_attempter();
+    UpdateAttempter* update_attempter = system_state_->update_attempter();
     if (update_attempter) {
       update_attempter->RefreshDevicePolicy();
-      device_policy = self->system_state_->device_policy();
+      device_policy = system_state_->device_policy();
     }
   }
 
   // Check if this setting is allowed by the device policy.
   if (device_policy &&
       device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
-    log_and_set_response_error(
-        error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-        "Ignoring the update over cellular setting since there's "
-        "a device policy enforcing this setting.");
-    return FALSE;
+    LogAndSetError(error, FROM_HERE,
+                   "Ignoring the update over cellular setting since there's "
+                   "a device policy enforcing this setting.");
+    return false;
   }
 
   // If the policy wasn't loaded yet, then it is still OK to change the local
   // setting because the policy will be checked again during the update check.
 
-  chromeos_update_engine::PrefsInterface* prefs = self->system_state_->prefs();
+  PrefsInterface* prefs = system_state_->prefs();
 
-  if (!prefs->SetBoolean(
-      chromeos_update_engine::kPrefsUpdateOverCellularPermission,
-      allowed)) {
-    log_and_set_response_error(
-        error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-        string("Error setting the update over cellular to ") +
-        (allowed ? "true" : "false"));
-    return FALSE;
+  if (!prefs->SetBoolean(kPrefsUpdateOverCellularPermission, in_allowed)) {
+    LogAndSetError(error, FROM_HERE,
+                   string("Error setting the update over cellular to ") +
+                   (in_allowed ? "true" : "false"));
+    return false;
   }
-
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_get_update_over_cellular_permission(
-    UpdateEngineService* self,
-    gboolean* allowed,
-    GError **error) {
-  chromeos_update_engine::ConnectionManager* cm =
-      self->system_state_->connection_manager();
+bool UpdateEngineService::GetUpdateOverCellularPermission(ErrorPtr* /* error */,
+                                                          bool* out_allowed) {
+  ConnectionManagerInterface* cm = system_state_->connection_manager();
 
   // The device_policy is loaded in a lazy way before an update check and is
   // used to determine if an update is allowed over cellular. Load the device
   // policy now from the libchromeos cache if it wasn't already loaded.
-  if (!self->system_state_->device_policy()) {
-    chromeos_update_engine::UpdateAttempter* update_attempter =
-        self->system_state_->update_attempter();
+  if (!system_state_->device_policy()) {
+    UpdateAttempter* update_attempter = system_state_->update_attempter();
     if (update_attempter)
       update_attempter->RefreshDevicePolicy();
   }
@@ -424,53 +259,70 @@ gboolean update_engine_service_get_update_over_cellular_permission(
   // Return the current setting based on the same logic used while checking for
   // updates. A log message could be printed as the result of this test.
   LOG(INFO) << "Checking if updates over cellular networks are allowed:";
-  *allowed = cm->IsUpdateAllowedOver(
-      chromeos_update_engine::kNetCellular,
+  *out_allowed = cm->IsUpdateAllowedOver(
+      chromeos_update_engine::NetworkConnectionType::kCellular,
       chromeos_update_engine::NetworkTethering::kUnknown);
-
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_get_duration_since_update(
-    UpdateEngineService* self,
-    gint64* out_usec_wallclock,
-    GError **error) {
-
+bool UpdateEngineService::GetDurationSinceUpdate(ErrorPtr* error,
+                                                 int64_t* out_usec_wallclock) {
   base::Time time;
-  if (!self->system_state_->update_attempter()->GetBootTimeAtUpdate(&time)) {
-    log_and_set_response_error(error, UPDATE_ENGINE_SERVICE_ERROR_FAILED,
-                               "No pending update.");
-    return FALSE;
+  if (!system_state_->update_attempter()->GetBootTimeAtUpdate(&time)) {
+    LogAndSetError(error, FROM_HERE, "No pending update.");
+    return false;
   }
 
-  chromeos_update_engine::ClockInterface *clock = self->system_state_->clock();
+  ClockInterface* clock = system_state_->clock();
   *out_usec_wallclock = (clock->GetBootTime() - time).InMicroseconds();
-  return TRUE;
+  return true;
 }
 
-gboolean update_engine_service_emit_status_update(
-    UpdateEngineService* self,
-    gint64 last_checked_time,
-    gdouble progress,
-    const gchar* current_operation,
-    const gchar* new_version,
-    gint64 new_size) {
-  g_signal_emit(self,
-                status_update_signal,
-                0,
-                last_checked_time,
-                progress,
-                current_operation,
-                new_version,
-                new_size);
-  return TRUE;
+bool UpdateEngineService::GetPrevVersion(ErrorPtr* /* error */,
+                                         string* out_prev_version) {
+  *out_prev_version = system_state_->update_attempter()->GetPrevVersion();
+  return true;
 }
 
-gboolean update_engine_service_get_prev_version(
-    UpdateEngineService* self,
-    gchar** prev_version,
-    GError **error) {
-  string ver = self->system_state_->update_attempter()->GetPrevVersion();
-  *prev_version = g_strdup(ver.c_str());
-  return TRUE;
+bool UpdateEngineService::GetKernelDevices(ErrorPtr* /* error */,
+                                           string* out_kernel_devices) {
+  auto devices = system_state_->update_attempter()->GetKernelDevices();
+  string info;
+  for (const auto& device : devices) {
+    base::StringAppendF(&info, "%d:%s\n",
+                        device.second ? 1 : 0, device.first.c_str());
+  }
+  LOG(INFO) << "Available kernel devices: " << info;
+  *out_kernel_devices = info;
+  return true;
 }
+
+bool UpdateEngineService::GetRollbackPartition(
+    ErrorPtr* /* error */,
+    string* out_rollback_partition_name) {
+  string name = system_state_->update_attempter()->GetRollbackPartition();
+  LOG(INFO) << "Getting rollback partition name. Result: " << name;
+  *out_rollback_partition_name = name;
+  return true;
+}
+
+
+UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state,
+                                         const scoped_refptr<dbus::Bus>& bus)
+    : org::chromium::UpdateEngineInterfaceAdaptor(&dbus_service_),
+    bus_(bus),
+    dbus_service_(system_state),
+    dbus_object_(nullptr, bus, dbus::ObjectPath(kUpdateEngineServicePath)) {}
+
+void UpdateEngineAdaptor::RegisterAsync(
+    const base::Callback<void(bool)>& completion_callback) {
+  RegisterWithDBusObject(&dbus_object_);
+  dbus_object_.RegisterAsync(completion_callback);
+}
+
+bool UpdateEngineAdaptor::RequestOwnership() {
+  return bus_->RequestOwnershipAndBlock(kUpdateEngineServiceName,
+                                        dbus::Bus::REQUIRE_PRIMARY);
+}
+
+}  // namespace chromeos_update_engine

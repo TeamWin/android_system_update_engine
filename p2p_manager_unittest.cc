@@ -17,8 +17,10 @@
 #include <base/bind.h>
 #include <base/callback.h>
 #include <base/files/file_util.h>
+#include <base/message_loop/message_loop.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/asynchronous_signal_handler.h>
+#include <chromeos/message_loops/base_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
@@ -57,6 +59,8 @@ class P2PManagerTest : public testing::Test {
   // Derived from testing::Test.
   void SetUp() override {
     loop_.SetAsCurrent();
+    async_signal_handler_.Init();
+    subprocess_.Init(&async_signal_handler_);
     test_conf_ = new FakeP2PManagerConfiguration();
 
     // Allocate and install a mock policy implementation in the fake Update
@@ -71,14 +75,10 @@ class P2PManagerTest : public testing::Test {
                                          TimeDelta::FromDays(5)));
   }
 
-  void TearDown() override {
-    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
-  }
-
-  // TODO(deymo): Replace this with a FakeMessageLoop. P2PManager uses glib to
-  // interact with the p2p-client tool, so we need to run a GlibMessageLoop
-  // here.
-  chromeos::GlibMessageLoop loop_;
+  base::MessageLoopForIO base_loop_;
+  chromeos::BaseMessageLoop loop_{&base_loop_};
+  chromeos::AsynchronousSignalHandler async_signal_handler_;
+  Subprocess subprocess_;
 
   // The P2PManager::Configuration instance used for testing.
   FakeP2PManagerConfiguration *test_conf_;
@@ -312,7 +312,7 @@ static bool CreateP2PFile(string p2p_dir, string file_name,
   }
 
   if (size_xattr != 0) {
-    string decimal_size = base::StringPrintf("%zu", size_xattr);
+    string decimal_size = std::to_string(size_xattr);
     if (fsetxattr(fd, "user.cros-p2p-filesize",
                   decimal_size.c_str(), decimal_size.size(), 0) != 0) {
       PLOG(ERROR) << "Error setting xattr on " << path;

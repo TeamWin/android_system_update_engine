@@ -11,6 +11,7 @@
 #include <chromeos/secure_blob.h>
 
 #include "update_engine/payload_generator/annotated_operation.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -24,14 +25,40 @@ namespace diff_utils {
 // blocks in that partition (if available) to determine the best way to compress
 // the new files (REPLACE, REPLACE_BZ, COPY, BSDIFF) and writes any necessary
 // data to the end of |data_fd| updating |data_file_size| accordingly.
+// |hard_chunk_blocks| and |soft_chunk_blocks| are the hard and soft chunk
+// limits in number of blocks respectively. The soft chunk limit is used to
+// split MOVE and SOURCE_COPY operations and REPLACE_BZ of zeroed blocks, while
+// the hard limit is used to split a file when generating other operations. A
+// value of -1 in |hard_chunk_blocks| means whole files.
 bool DeltaReadPartition(std::vector<AnnotatedOperation>* aops,
                         const PartitionConfig& old_part,
                         const PartitionConfig& new_part,
-                        off_t chunk_blocks,
-                        int data_fd,
-                        off_t* data_file_size,
-                        bool skip_block_0,
+                        ssize_t hard_chunk_blocks,
+                        size_t soft_chunk_blocks,
+                        BlobFileWriter* blob_file,
                         bool src_ops_allowed);
+
+// Create operations in |aops| for identical blocks that moved around in the old
+// and new partition and also handle zeroed blocks. The old and new partition
+// are stored in the |old_part| and |new_part| files and have |old_num_blocks|
+// and |new_num_blocks| respectively. The maximum operation size is
+// |chunk_blocks| blocks, or unlimited if |chunk_blocks| is -1. The blobs of the
+// produced operations are stored in the |data_fd| file whose size is updated
+// in the value pointed by |data_file_size|.
+// The collections |old_visited_blocks| and |new_visited_blocks| state what
+// blocks already have operations reading or writing them and only operations
+// for unvisited blocks are produced by this function updating both collections
+// with the used blocks.
+bool DeltaMovedAndZeroBlocks(std::vector<AnnotatedOperation>* aops,
+                             const std::string& old_part,
+                             const std::string& new_part,
+                             size_t old_num_blocks,
+                             size_t new_num_blocks,
+                             ssize_t chunk_blocks,
+                             bool src_ops_allowed,
+                             BlobFileWriter* blob_file,
+                             ExtentRanges* old_visited_blocks,
+                             ExtentRanges* new_visited_blocks);
 
 // For a given file |name| append operations to |aops| to produce it in the
 // |new_part|. The file will be split in chunks of |chunk_blocks| blocks each
@@ -47,9 +74,8 @@ bool DeltaReadFile(std::vector<AnnotatedOperation>* aops,
                    const std::vector<Extent>& old_extents,
                    const std::vector<Extent>& new_extents,
                    const std::string& name,
-                   off_t chunk_blocks,
-                   int data_fd,
-                   off_t* data_file_size,
+                   ssize_t chunk_blocks,
+                   BlobFileWriter* blob_file,
                    bool src_ops_allowed);
 
 // Reads the blocks |old_extents| from |old_part| (if it exists) and the
@@ -67,7 +93,7 @@ bool ReadExtentsToDiff(const std::string& old_part,
                        const std::vector<Extent>& new_extents,
                        bool bsdiff_allowed,
                        chromeos::Blob* out_data,
-                       DeltaArchiveManifest_InstallOperation* out_op,
+                       InstallOperation* out_op,
                        bool src_ops_allowed);
 
 // Runs the bsdiff tool on two files and returns the resulting delta in
@@ -78,7 +104,7 @@ bool BsdiffFiles(const std::string& old_file,
 
 // Returns true if |op| is a no-op operation that doesn't do any useful work
 // (e.g., a move operation that copies blocks onto themselves).
-bool IsNoopOperation(const DeltaArchiveManifest_InstallOperation& op);
+bool IsNoopOperation(const InstallOperation& op);
 
 // Filters all the operations that are no-op, maintaining the relative order
 // of the rest of the operations.
@@ -86,6 +112,11 @@ void FilterNoopOperations(std::vector<AnnotatedOperation>* ops);
 
 bool InitializePartitionInfo(const PartitionConfig& partition,
                              PartitionInfo* info);
+
+// Compare two AnnotatedOperations by the start block of the first Extent in
+// their destination extents.
+bool CompareAopsByDestination(AnnotatedOperation first_aop,
+                              AnnotatedOperation second_aop);
 
 }  // namespace diff_utils
 

@@ -14,11 +14,12 @@
 
 #include "update_engine/clock.h"
 #include "update_engine/connection_manager.h"
+#include "update_engine/dbus_proxies.h"
 #include "update_engine/hardware.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
 #include "update_engine/prefs.h"
-#include "update_engine/real_dbus_wrapper.h"
+#include "update_engine/shill_proxy.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/update_manager/update_manager.h"
 
@@ -30,7 +31,7 @@ class RealSystemState : public SystemState {
  public:
   // Constructs all system objects that do not require separate initialization;
   // see Initialize() below for the remaining ones.
-  RealSystemState();
+  explicit RealSystemState(const scoped_refptr<dbus::Bus>& bus);
 
   // Initializes and sets systems objects that require an initialization
   // separately from construction. Returns |true| on success.
@@ -47,7 +48,7 @@ class RealSystemState : public SystemState {
 
   inline ClockInterface* clock() override { return &clock_; }
 
-  inline ConnectionManager* connection_manager() override {
+  inline ConnectionManagerInterface* connection_manager() override {
     return &connection_manager_;
   }
 
@@ -81,18 +82,30 @@ class RealSystemState : public SystemState {
     return update_manager_.get();
   }
 
+  inline org::chromium::PowerManagerProxyInterface* power_manager_proxy()
+      override {
+    return &power_manager_proxy_;
+  }
+
   inline bool system_rebooted() override { return system_rebooted_; }
 
  private:
+  // Real DBus proxies using the DBus connection.
+  org::chromium::debugdProxy debugd_proxy_;
+  org::chromium::PowerManagerProxy power_manager_proxy_;
+  org::chromium::SessionManagerInterfaceProxy session_manager_proxy_;
+  ShillProxy shill_proxy_;
+  LibCrosProxy libcros_proxy_;
+
   // Interface for the clock.
   Clock clock_;
 
   // The latest device policy object from the policy provider.
-  const policy::DevicePolicy* device_policy_;
+  const policy::DevicePolicy* device_policy_{nullptr};
 
-  // The connection manager object that makes download
-  // decisions depending on the current type of connection.
-  ConnectionManager connection_manager_;
+  // The connection manager object that makes download decisions depending on
+  // the current type of connection.
+  ConnectionManager connection_manager_{&shill_proxy_, this};
 
   // Interface for the hardware functions.
   Hardware hardware_;
@@ -106,18 +119,15 @@ class RealSystemState : public SystemState {
   // Interface for persisted store that persists across powerwashes.
   Prefs powerwash_safe_prefs_;
 
-  // All state pertaining to payload state such as
-  // response, URL, backoff states.
+  // All state pertaining to payload state such as response, URL, backoff
+  // states.
   PayloadState payload_state_;
 
-  // The dbus object used to initialize the update attempter.
-  RealDBusWrapper dbus_;
-
   // Pointer to the update attempter object.
-  UpdateAttempter update_attempter_;
+  UpdateAttempter update_attempter_{this, &libcros_proxy_, &debugd_proxy_};
 
   // Common parameters for all Omaha requests.
-  OmahaRequestParams request_params_;
+  OmahaRequestParams request_params_{this};
 
   std::unique_ptr<P2PManager> p2p_manager_;
 
@@ -128,7 +138,7 @@ class RealSystemState : public SystemState {
   // If true, this is the first instance of the update engine since the system
   // rebooted. Important for tracking whether you are running instance of the
   // update engine on first boot or due to a crash/restart.
-  bool system_rebooted_;
+  bool system_rebooted_{false};
 };
 
 }  // namespace chromeos_update_engine

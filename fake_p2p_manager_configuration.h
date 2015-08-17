@@ -47,7 +47,7 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
                                             size_t minimum_size) override {
     std::vector<std::string> formatted_command = p2p_client_cmd_format_;
     // Replace {variable} on the passed string.
-    std::string str_minimum_size = base::SizeTToString(minimum_size);
+    std::string str_minimum_size = std::to_string(minimum_size);
     for (std::string& arg : formatted_command) {
       ReplaceSubstringsAfterOffset(&arg, 0, "{file_id}", file_id);
       ReplaceSubstringsAfterOffset(&arg, 0, "{minsize}", str_minimum_size);

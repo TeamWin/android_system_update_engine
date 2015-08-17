@@ -682,50 +682,50 @@ TEST(UtilsTest, MonotonicDurationHelper) {
 TEST(UtilsTest, GetConnectionType) {
   // Check that expected combinations map to the right value.
   EXPECT_EQ(metrics::ConnectionType::kUnknown,
-            utils::GetConnectionType(kNetUnknown,
+            utils::GetConnectionType(NetworkConnectionType::kUnknown,
                                      NetworkTethering::kUnknown));
   EXPECT_EQ(metrics::ConnectionType::kEthernet,
-            utils::GetConnectionType(kNetEthernet,
+            utils::GetConnectionType(NetworkConnectionType::kEthernet,
                                      NetworkTethering::kUnknown));
   EXPECT_EQ(metrics::ConnectionType::kWifi,
-            utils::GetConnectionType(kNetWifi,
+            utils::GetConnectionType(NetworkConnectionType::kWifi,
                                      NetworkTethering::kUnknown));
   EXPECT_EQ(metrics::ConnectionType::kWimax,
-            utils::GetConnectionType(kNetWimax,
+            utils::GetConnectionType(NetworkConnectionType::kWimax,
                                      NetworkTethering::kUnknown));
   EXPECT_EQ(metrics::ConnectionType::kBluetooth,
-            utils::GetConnectionType(kNetBluetooth,
+            utils::GetConnectionType(NetworkConnectionType::kBluetooth,
                                      NetworkTethering::kUnknown));
   EXPECT_EQ(metrics::ConnectionType::kCellular,
-            utils::GetConnectionType(kNetCellular,
+            utils::GetConnectionType(NetworkConnectionType::kCellular,
                                      NetworkTethering::kUnknown));
   EXPECT_EQ(metrics::ConnectionType::kTetheredEthernet,
-            utils::GetConnectionType(kNetEthernet,
+            utils::GetConnectionType(NetworkConnectionType::kEthernet,
                                      NetworkTethering::kConfirmed));
   EXPECT_EQ(metrics::ConnectionType::kTetheredWifi,
-            utils::GetConnectionType(kNetWifi,
+            utils::GetConnectionType(NetworkConnectionType::kWifi,
                                      NetworkTethering::kConfirmed));
 
   // Ensure that we don't report tethered ethernet unless it's confirmed.
   EXPECT_EQ(metrics::ConnectionType::kEthernet,
-            utils::GetConnectionType(kNetEthernet,
+            utils::GetConnectionType(NetworkConnectionType::kEthernet,
                                      NetworkTethering::kNotDetected));
   EXPECT_EQ(metrics::ConnectionType::kEthernet,
-            utils::GetConnectionType(kNetEthernet,
+            utils::GetConnectionType(NetworkConnectionType::kEthernet,
                                      NetworkTethering::kSuspected));
   EXPECT_EQ(metrics::ConnectionType::kEthernet,
-            utils::GetConnectionType(kNetEthernet,
+            utils::GetConnectionType(NetworkConnectionType::kEthernet,
                                      NetworkTethering::kUnknown));
 
   // Ditto for tethered wifi.
   EXPECT_EQ(metrics::ConnectionType::kWifi,
-            utils::GetConnectionType(kNetWifi,
+            utils::GetConnectionType(NetworkConnectionType::kWifi,
                                      NetworkTethering::kNotDetected));
   EXPECT_EQ(metrics::ConnectionType::kWifi,
-            utils::GetConnectionType(kNetWifi,
+            utils::GetConnectionType(NetworkConnectionType::kWifi,
                                      NetworkTethering::kSuspected));
   EXPECT_EQ(metrics::ConnectionType::kWifi,
-            utils::GetConnectionType(kNetWifi,
+            utils::GetConnectionType(NetworkConnectionType::kWifi,
                                      NetworkTethering::kUnknown));
 }
 

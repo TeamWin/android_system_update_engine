@@ -4,7 +4,6 @@
 
 #include "update_engine/download_action.h"
 
-#include <glib.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 

@@ -11,7 +11,6 @@
 #include <vector>
 
 #include <chromeos/secure_blob.h>
-#include <glib.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/libcurl_http_fetcher.h"

@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include <chromeos/message_loops/message_loop.h>
+#include <chromeos/streams/stream.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/action.h"
@@ -44,7 +44,7 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // Used for testing. Return true if Cleanup() has not yet been called due
   // to a callback upon the completion or cancellation of the verifier action.
   // A test should wait until IsCleanupPending() returns false before
-  // terminating the glib main loop.
+  // terminating the main loop.
   bool IsCleanupPending() const;
 
   // Debugging/logging
@@ -56,13 +56,17 @@ class FilesystemVerifierAction : public InstallPlanAction {
   FRIEND_TEST(FilesystemVerifierActionTest,
               RunAsRootDetermineFilesystemSizeTest);
 
-  // Callback from the main loop when there's data to read from the file
-  // descriptor.
-  void OnReadReadyCallback();
+  // Schedules the asynchronous read of the filesystem.
+  void ScheduleRead();
 
-  // Based on the state of the read buffers, terminates read process and the
-  // action.
-  void CheckTerminationConditions();
+  // Called from the main loop when a single read from |src_stream_| succeeds or
+  // fails, calling OnReadDoneCallback() and OnReadErrorCallback() respectively.
+  void OnReadDoneCallback(size_t bytes_read);
+  void OnReadErrorCallback(const chromeos::Error* error);
+
+  // Based on the state of the read buffer, terminates read process and the
+  // action. Return whether the action was terminated.
+  bool CheckTerminationConditions();
 
   // Cleans up all the variables we use for async operations and tells the
   // ActionProcessor we're done w/ |code| as passed in. |cancelled_| should be
@@ -72,23 +76,18 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // Determine, if possible, the source file system size to avoid copying the
   // whole partition. Currently this supports only the root file system assuming
   // it's ext3-compatible.
-  void DetermineFilesystemSize(int fd);
+  void DetermineFilesystemSize(const std::string& path);
 
   // The type of the partition that we are verifying.
   PartitionType partition_type_;
 
-  // If non-null, this is the GUnixInputStream object for the opened source
-  // partition.
-  int src_fd_{-1};
+  // If not null, the FileStream used to read from the device.
+  chromeos::StreamPtr src_stream_;
 
   // Buffer for storing data we read.
   chromeos::Blob buffer_;
 
-  // The task id for the the in-flight async call.
-  chromeos::MessageLoop::TaskId read_task_{chromeos::MessageLoop::kTaskIdNull};
-
   bool read_done_{false};  // true if reached EOF on the input stream.
-  bool failed_{false};  // true if the action has failed.
   bool cancelled_{false};  // true if the action has been cancelled.
 
   // The install plan we're passed in via the input pipe.

@@ -10,44 +10,31 @@
 #include <string>
 #include <utility>
 
-#include <dbus/dbus-glib.h>
-#include <dbus/dbus-glib-lowlevel.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include <chromeos/message_loops/message_loop.h>
 
-#include "update_engine/dbus_wrapper_interface.h"
+#include "update_engine/dbus_proxies.h"
+#include "update_engine/libcros_proxy.h"
 #include "update_engine/proxy_resolver.h"
 
 namespace chromeos_update_engine {
 
 extern const char kLibCrosServiceName[];
-extern const char kLibCrosServicePath[];
-extern const char kLibCrosServiceInterface[];
-extern const char kLibCrosServiceResolveNetworkProxyMethodName[];
 extern const char kLibCrosProxyResolveName[];
 extern const char kLibCrosProxyResolveSignalInterface[];
-extern const char kLibCrosProxyResolveSignalFilter[];
 
 class ChromeBrowserProxyResolver : public ProxyResolver {
  public:
-  explicit ChromeBrowserProxyResolver(DBusWrapperInterface* dbus);
+  explicit ChromeBrowserProxyResolver(LibCrosProxy* libcros_proxy);
   ~ChromeBrowserProxyResolver() override;
+
+  // Initialize the ProxyResolver using the provided DBus proxies.
   bool Init();
 
   bool GetProxiesForUrl(const std::string& url,
                         ProxiesResolvedFn callback,
                         void* data) override;
-  void set_timeout(int seconds) { timeout_ = seconds; }
-
-  // Public for test
-  static DBusHandlerResult StaticFilterMessage(
-      DBusConnection* connection,
-      DBusMessage* message,
-      void* data) {
-    return reinterpret_cast<ChromeBrowserProxyResolver*>(data)->FilterMessage(
-        connection, message);
-  }
 
  private:
   FRIEND_TEST(ChromeBrowserProxyResolverTest, ParseTest);
@@ -56,12 +43,17 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
       CallbacksMap;
   typedef std::multimap<std::string, chromeos::MessageLoop::TaskId> TimeoutsMap;
 
+  // Called when the signal in UpdateEngineLibcrosProxyResolvedInterface is
+  // connected.
+  void OnSignalConnected(const std::string& interface_name,
+                         const std::string& signal_name,
+                         bool successful);
+
   // Handle a reply from Chrome:
-  void HandleReply(const std::string& source_url,
-                   const std::string& proxy_list);
-  DBusHandlerResult FilterMessage(
-      DBusConnection* connection,
-      DBusMessage* message);
+  void OnProxyResolvedSignal(const std::string& source_url,
+                             const std::string& proxy_info,
+                             const std::string& error_message);
+
   // Handle no reply:
   void HandleTimeout(std::string source_url);
 
@@ -79,9 +71,11 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
   // Shutdown the dbus proxy object.
   void Shutdown();
 
-  DBusWrapperInterface* dbus_;
-  DBusGProxy* proxy_{nullptr};
-  DBusGProxy* peer_proxy_{nullptr};
+  // DBus proxies to request a HTTP proxy resolution. The request is done in the
+  // service_interface_proxy() interface and the response is received as a
+  // signal in the ue_proxy_resolved_interface().
+  LibCrosProxy* libcros_proxy_;
+
   int timeout_;
   TimeoutsMap timers_;
   CallbacksMap callbacks_;

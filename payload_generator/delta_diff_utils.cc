@@ -13,6 +13,7 @@
 
 #include "update_engine/bzip.h"
 #include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/payload_generator/block_mapping.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
@@ -21,7 +22,6 @@
 
 using std::map;
 using std::string;
-using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
@@ -142,23 +142,24 @@ bool DeltaReadPartition(
     vector<AnnotatedOperation>* aops,
     const PartitionConfig& old_part,
     const PartitionConfig& new_part,
-    off_t chunk_blocks,
-    int data_fd,
-    off_t* data_file_size,
-    bool skip_block_0,
+    ssize_t hard_chunk_blocks,
+    size_t soft_chunk_blocks,
+    BlobFileWriter* blob_file,
     bool src_ops_allowed) {
   ExtentRanges old_visited_blocks;
   ExtentRanges new_visited_blocks;
 
-  // We can't produce a MOVE operation with a 0 block as neither source nor
-  // destination, so we avoid generating an operation for the block 0 here, and
-  // we will add an operation for it in the InplaceGenerator. Excluding both
-  // old and new blocks ensures that identical images would still produce empty
-  // deltas.
-  if (skip_block_0) {
-    old_visited_blocks.AddBlock(0);
-    new_visited_blocks.AddBlock(0);
-  }
+  TEST_AND_RETURN_FALSE(DeltaMovedAndZeroBlocks(
+      aops,
+      old_part.path,
+      new_part.path,
+      old_part.fs_interface ? old_part.fs_interface->GetBlockCount() : 0,
+      new_part.fs_interface->GetBlockCount(),
+      soft_chunk_blocks,
+      src_ops_allowed,
+      blob_file,
+      &old_visited_blocks,
+      &new_visited_blocks));
 
   map<string, vector<Extent>> old_files_map;
   if (old_part.fs_interface) {
@@ -213,9 +214,8 @@ bool DeltaReadPartition(
         old_file_extents,
         new_file_extents,
         new_file.name,  // operation name
-        chunk_blocks,
-        data_fd,
-        data_file_size,
+        hard_chunk_blocks,
+        blob_file,
         src_ops_allowed));
   }
   // Process all the blocks not included in any file. We provided all the unused
@@ -233,7 +233,11 @@ bool DeltaReadPartition(
   }
 
   LOG(INFO) << "Scanning " << BlocksInExtents(new_unvisited)
-            << " unwritten blocks";
+            << " unwritten blocks using chunk size of "
+            << soft_chunk_blocks << " blocks.";
+  // We use the soft_chunk_blocks limit for the <non-file-data> as we don't
+  // really know the structure of this data and we should not expect it to have
+  // redundancy between partitions.
   TEST_AND_RETURN_FALSE(DeltaReadFile(
       aops,
       old_part.path,
@@ -241,10 +245,152 @@ bool DeltaReadPartition(
       old_unvisited,
       new_unvisited,
       "<non-file-data>",  // operation name
-      chunk_blocks,
-      data_fd,
-      data_file_size,
+      soft_chunk_blocks,
+      blob_file,
       src_ops_allowed));
+
+  return true;
+}
+
+bool DeltaMovedAndZeroBlocks(
+    vector<AnnotatedOperation>* aops,
+    const string& old_part,
+    const string& new_part,
+    size_t old_num_blocks,
+    size_t new_num_blocks,
+    ssize_t chunk_blocks,
+    bool src_ops_allowed,
+    BlobFileWriter* blob_file,
+    ExtentRanges* old_visited_blocks,
+    ExtentRanges* new_visited_blocks) {
+  vector<BlockMapping::BlockId> old_block_ids;
+  vector<BlockMapping::BlockId> new_block_ids;
+  TEST_AND_RETURN_FALSE(MapPartitionBlocks(old_part,
+                                           new_part,
+                                           old_num_blocks * kBlockSize,
+                                           new_num_blocks * kBlockSize,
+                                           kBlockSize,
+                                           &old_block_ids,
+                                           &new_block_ids));
+
+  // For minor-version=1, we map all the blocks that didn't move, regardless of
+  // the contents since they are already copied and no operation is required.
+  if (!src_ops_allowed) {
+    uint64_t num_blocks = std::min(old_num_blocks, new_num_blocks);
+    for (uint64_t block = 0; block < num_blocks; block++) {
+      if (old_block_ids[block] == new_block_ids[block] &&
+          !old_visited_blocks->ContainsBlock(block) &&
+          !new_visited_blocks->ContainsBlock(block)) {
+        old_visited_blocks->AddBlock(block);
+        new_visited_blocks->AddBlock(block);
+      }
+    }
+  }
+
+  // A mapping from the block_id to the list of block numbers with that block id
+  // in the old partition. This is used to lookup where in the old partition
+  // is a block from the new partition.
+  map<BlockMapping::BlockId, vector<uint64_t>> old_blocks_map;
+
+  for (uint64_t block = old_num_blocks; block-- > 0; ) {
+    if (old_block_ids[block] != 0 && !old_visited_blocks->ContainsBlock(block))
+      old_blocks_map[old_block_ids[block]].push_back(block);
+  }
+
+  // The collection of blocks in the new partition with just zeros. This is a
+  // common case for free-space that's also problematic for bsdiff, so we want
+  // to optimize it using REPLACE_BZ operations. The blob for a REPLACE_BZ of
+  // just zeros is so small that it doesn't make sense to spend the I/O reading
+  // zeros from the old partition.
+  vector<Extent> new_zeros;
+
+  vector<Extent> old_identical_blocks;
+  vector<Extent> new_identical_blocks;
+
+  for (uint64_t block = 0; block < new_num_blocks; block++) {
+    // Only produce operations for blocks that were not yet visited.
+    if (new_visited_blocks->ContainsBlock(block))
+      continue;
+    if (new_block_ids[block] == 0) {
+      AppendBlockToExtents(&new_zeros, block);
+      continue;
+    }
+
+    auto old_blocks_map_it = old_blocks_map.find(new_block_ids[block]);
+    // Check if the block exists in the old partition at all.
+    if (old_blocks_map_it == old_blocks_map.end() ||
+        old_blocks_map_it->second.empty())
+      continue;
+
+    AppendBlockToExtents(&old_identical_blocks,
+                         old_blocks_map_it->second.back());
+    AppendBlockToExtents(&new_identical_blocks, block);
+    // We can't reuse source blocks in minor version 1 because the cycle
+    // breaking algorithm doesn't support that.
+    if (!src_ops_allowed)
+      old_blocks_map_it->second.pop_back();
+  }
+
+  // Produce operations for the zero blocks split per output extent.
+  size_t num_ops = aops->size();
+  new_visited_blocks->AddExtents(new_zeros);
+  for (Extent extent : new_zeros) {
+    TEST_AND_RETURN_FALSE(DeltaReadFile(
+        aops,
+        "",
+        new_part,
+        vector<Extent>(),  // old_extents
+        vector<Extent>{extent},  // new_extents
+        "<zeros>",
+        chunk_blocks,
+        blob_file,
+        src_ops_allowed));
+  }
+  LOG(INFO) << "Produced " << (aops->size() - num_ops) << " operations for "
+            << BlocksInExtents(new_zeros) << " zeroed blocks";
+
+  // Produce MOVE/SOURCE_COPY operations for the moved blocks.
+  num_ops = aops->size();
+  if (chunk_blocks == -1)
+    chunk_blocks = new_num_blocks;
+  uint64_t used_blocks = 0;
+  old_visited_blocks->AddExtents(old_identical_blocks);
+  new_visited_blocks->AddExtents(new_identical_blocks);
+  for (Extent extent : new_identical_blocks) {
+    // We split the operation at the extent boundary or when bigger than
+    // chunk_blocks.
+    for (uint64_t op_block_offset = 0; op_block_offset < extent.num_blocks();
+         op_block_offset += chunk_blocks) {
+      aops->emplace_back();
+      AnnotatedOperation* aop = &aops->back();
+      aop->name = "<identical-blocks>";
+      aop->op.set_type(src_ops_allowed ? InstallOperation::SOURCE_COPY
+                                       : InstallOperation::MOVE);
+
+      uint64_t chunk_num_blocks =
+        std::min(extent.num_blocks() - op_block_offset,
+                 static_cast<uint64_t>(chunk_blocks));
+
+      // The current operation represents the move/copy operation for the
+      // sublist starting at |used_blocks| of length |chunk_num_blocks| where
+      // the src and dst are from |old_identical_blocks| and
+      // |new_identical_blocks| respectively.
+      StoreExtents(
+          ExtentsSublist(old_identical_blocks, used_blocks, chunk_num_blocks),
+          aop->op.mutable_src_extents());
+
+      Extent* op_dst_extent = aop->op.add_dst_extents();
+      op_dst_extent->set_start_block(extent.start_block() + op_block_offset);
+      op_dst_extent->set_num_blocks(chunk_num_blocks);
+      CHECK(
+          vector<Extent>{*op_dst_extent} ==  // NOLINT(whitespace/braces)
+          ExtentsSublist(new_identical_blocks, used_blocks, chunk_num_blocks));
+
+      used_blocks += chunk_num_blocks;
+    }
+  }
+  LOG(INFO) << "Produced " << (aops->size() - num_ops) << " operations for "
+            << used_blocks << " identical blocks moved";
 
   return true;
 }
@@ -256,12 +402,11 @@ bool DeltaReadFile(
     const vector<Extent>& old_extents,
     const vector<Extent>& new_extents,
     const string& name,
-    off_t chunk_blocks,
-    int data_fd,
-    off_t* data_file_size,
+    ssize_t chunk_blocks,
+    BlobFileWriter* blob_file,
     bool src_ops_allowed) {
   chromeos::Blob data;
-  DeltaArchiveManifest_InstallOperation operation;
+  InstallOperation operation;
 
   uint64_t total_blocks = BlocksInExtents(new_extents);
   if (chunk_blocks == -1)
@@ -305,7 +450,7 @@ bool DeltaReadFile(
 
     // Check if the operation writes nothing.
     if (operation.dst_extents_size() == 0) {
-      if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
+      if (operation.type() == InstallOperation::MOVE) {
         LOG(INFO) << "Empty MOVE operation ("
                   << name << "), skipping";
         continue;
@@ -315,17 +460,6 @@ bool DeltaReadFile(
       }
     }
 
-    // Write the data
-    if (operation.type() != DeltaArchiveManifest_InstallOperation_Type_MOVE &&
-        operation.type() !=
-            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY) {
-      operation.set_data_offset(*data_file_size);
-      operation.set_data_length(data.size());
-    }
-
-    TEST_AND_RETURN_FALSE(utils::WriteAll(data_fd, data.data(), data.size()));
-    *data_file_size += data.size();
-
     // Now, insert into the list of operations.
     AnnotatedOperation aop;
     aop.name = name;
@@ -334,6 +468,14 @@ bool DeltaReadFile(
                                     name.c_str(), block_offset / chunk_blocks);
     }
     aop.op = operation;
+
+    // Write the data
+    if (operation.type() != InstallOperation::MOVE &&
+        operation.type() != InstallOperation::SOURCE_COPY) {
+      TEST_AND_RETURN_FALSE(aop.SetOperationBlob(&data, blob_file));
+    } else {
+      TEST_AND_RETURN_FALSE(blob_file->StoreBlob(data) != -1);
+    }
     aops->emplace_back(aop);
   }
   return true;
@@ -345,9 +487,9 @@ bool ReadExtentsToDiff(const string& old_part,
                        const vector<Extent>& new_extents,
                        bool bsdiff_allowed,
                        chromeos::Blob* out_data,
-                       DeltaArchiveManifest_InstallOperation* out_op,
+                       InstallOperation* out_op,
                        bool src_ops_allowed) {
-  DeltaArchiveManifest_InstallOperation operation;
+  InstallOperation operation;
   // Data blob that will be written to delta file.
   const chromeos::Blob* data_blob = nullptr;
 
@@ -370,7 +512,7 @@ bool ReadExtentsToDiff(const string& old_part,
 
 
   // Using a REPLACE is always an option.
-  operation.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE);
+  operation.set_type(InstallOperation::REPLACE);
   data_blob = &new_data;
 
   // Try compressing it with bzip2.
@@ -379,7 +521,7 @@ bool ReadExtentsToDiff(const string& old_part,
   CHECK(!new_data_bz.empty());
   if (new_data_bz.size() < data_blob->size()) {
     // A REPLACE_BZ is better.
-    operation.set_type(DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+    operation.set_type(InstallOperation::REPLACE_BZ);
     data_blob = &new_data_bz;
   }
 
@@ -394,10 +536,9 @@ bool ReadExtentsToDiff(const string& old_part,
     if (old_data == new_data) {
       // No change in data.
       if (src_ops_allowed) {
-        operation.set_type(
-            DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY);
+        operation.set_type(InstallOperation::SOURCE_COPY);
       } else {
-        operation.set_type(DeltaArchiveManifest_InstallOperation_Type_MOVE);
+        operation.set_type(InstallOperation::MOVE);
       }
       data_blob = &empty_blob;
     } else if (bsdiff_allowed) {
@@ -421,10 +562,9 @@ bool ReadExtentsToDiff(const string& old_part,
       CHECK_GT(bsdiff_delta.size(), static_cast<chromeos::Blob::size_type>(0));
       if (bsdiff_delta.size() < data_blob->size()) {
         if (src_ops_allowed) {
-          operation.set_type(
-              DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF);
+          operation.set_type(InstallOperation::SOURCE_BSDIFF);
         } else {
-          operation.set_type(DeltaArchiveManifest_InstallOperation_Type_BSDIFF);
+          operation.set_type(InstallOperation::BSDIFF);
         }
         data_blob = &bsdiff_delta;
       }
@@ -433,7 +573,7 @@ bool ReadExtentsToDiff(const string& old_part,
 
   size_t removed_bytes = 0;
   // Remove identical src/dst block ranges in MOVE operations.
-  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE) {
+  if (operation.type() == InstallOperation::MOVE) {
     removed_bytes = RemoveIdenticalBlockRanges(
         &src_extents, &dst_extents, new_data.size());
   }
@@ -446,9 +586,8 @@ bool ReadExtentsToDiff(const string& old_part,
   StoreExtents(dst_extents, operation.mutable_dst_extents());
 
   // Replace operations should not have source extents.
-  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-      operation.type() ==
-          DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
+  if (operation.type() == InstallOperation::REPLACE ||
+      operation.type() == InstallOperation::REPLACE_BZ) {
     operation.clear_src_extents();
     operation.clear_src_length();
   }
@@ -487,8 +626,8 @@ bool BsdiffFiles(const string& old_file,
 
 // Returns true if |op| is a no-op operation that doesn't do any useful work
 // (e.g., a move operation that copies blocks onto themselves).
-bool IsNoopOperation(const DeltaArchiveManifest_InstallOperation& op) {
-  return (op.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE &&
+bool IsNoopOperation(const InstallOperation& op) {
+  return (op.type() == InstallOperation::MOVE &&
           ExpandExtents(op.src_extents()) == ExpandExtents(op.dst_extents()));
 }
 
@@ -510,6 +649,17 @@ bool InitializePartitionInfo(const PartitionConfig& part, PartitionInfo* info) {
   info->set_hash(hash.data(), hash.size());
   LOG(INFO) << part.path << ": size=" << part.size << " hash=" << hasher.hash();
   return true;
+}
+
+bool CompareAopsByDestination(AnnotatedOperation first_aop,
+                              AnnotatedOperation second_aop) {
+  // We want empty operations to be at the end of the payload.
+  if (!first_aop.op.dst_extents().size() || !second_aop.op.dst_extents().size())
+    return ((!first_aop.op.dst_extents().size()) <
+            (!second_aop.op.dst_extents().size()));
+  uint32_t first_dst_start = first_aop.op.dst_extents(0).start_block();
+  uint32_t second_dst_start = second_aop.op.dst_extents(0).start_block();
+  return first_dst_start < second_dst_start;
 }
 
 }  // namespace diff_utils

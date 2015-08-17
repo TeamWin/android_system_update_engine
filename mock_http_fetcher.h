@@ -10,7 +10,6 @@
 
 #include <base/logging.h>
 #include <chromeos/message_loops/message_loop.h>
-#include <glib.h>
 
 #include "update_engine/fake_system_state.h"
 #include "update_engine/http_fetcher.h"
@@ -40,8 +39,7 @@ class MockHttpFetcher : public HttpFetcher {
         timeout_id_(chromeos::MessageLoop::kTaskIdNull),
         paused_(false),
         fail_transfer_(false),
-        never_use_(false),
-        mock_connection_manager_(&fake_system_state_) {
+        never_use_(false) {
     fake_system_state_.set_connection_manager(&mock_connection_manager_);
     data_.insert(data_.end(), data, data + size);
   }

@@ -30,9 +30,6 @@ extern const uint32_t kInPlaceMinorPayloadVersion;
 // The minor version used by the A to B delta generator algorithm.
 extern const uint32_t kSourceMinorPayloadVersion;
 
-// Chunk size used for payloads during test.
-extern const size_t kDefaultChunkSize;
-
 class PrefsInterface;
 
 // This class performs the actions in a delta update synchronously. The delta
@@ -238,8 +235,7 @@ class DeltaPerformer : public FileWriter {
 
   // Returns true if enough of the delta file has been passed via Write()
   // to be able to perform a given install operation.
-  bool CanPerformInstallOperation(
-      const DeltaArchiveManifest_InstallOperation& operation);
+  bool CanPerformInstallOperation(const InstallOperation& operation);
 
   // Checks the integrity of the payload manifest. Returns true upon success,
   // false otherwise.
@@ -248,8 +244,7 @@ class DeltaPerformer : public FileWriter {
   // Validates that the hash of the blobs corresponding to the given |operation|
   // matches what's specified in the manifest in the payload.
   // Returns ErrorCode::kSuccess on match or a suitable error code otherwise.
-  ErrorCode ValidateOperationHash(
-      const DeltaArchiveManifest_InstallOperation& operation);
+  ErrorCode ValidateOperationHash(const InstallOperation& operation);
 
   // Interprets the given |protobuf| as a DeltaArchiveManifest protocol buffer
   // of the given protobuf_length and verifies that the signed hash of the
@@ -263,30 +258,23 @@ class DeltaPerformer : public FileWriter {
                                       uint64_t protobuf_length);
 
   // Returns true on success.
-  bool PerformInstallOperation(
-      const DeltaArchiveManifest_InstallOperation& operation);
+  bool PerformInstallOperation(const InstallOperation& operation);
 
   // These perform a specific type of operation and return true on success.
-  bool PerformReplaceOperation(
-      const DeltaArchiveManifest_InstallOperation& operation,
-      bool is_kernel_partition);
-  bool PerformMoveOperation(
-      const DeltaArchiveManifest_InstallOperation& operation,
-      bool is_kernel_partition);
-  bool PerformBsdiffOperation(
-      const DeltaArchiveManifest_InstallOperation& operation,
-      bool is_kernel_partition);
-  bool PerformSourceCopyOperation(
-      const DeltaArchiveManifest_InstallOperation& operation,
-      bool is_kernel_partition);
-  bool PerformSourceBsdiffOperation(
-      const DeltaArchiveManifest_InstallOperation& operation,
-      bool is_kernel_partition);
+  bool PerformReplaceOperation(const InstallOperation& operation,
+                               bool is_kernel_partition);
+  bool PerformMoveOperation(const InstallOperation& operation,
+                            bool is_kernel_partition);
+  bool PerformBsdiffOperation(const InstallOperation& operation,
+                              bool is_kernel_partition);
+  bool PerformSourceCopyOperation(const InstallOperation& operation,
+                                  bool is_kernel_partition);
+  bool PerformSourceBsdiffOperation(const InstallOperation& operation,
+                                    bool is_kernel_partition);
 
   // Returns true if the payload signature message has been extracted from
   // |operation|, false otherwise.
-  bool ExtractSignatureMessage(
-      const DeltaArchiveManifest_InstallOperation& operation);
+  bool ExtractSignatureMessage(const InstallOperation& operation);
 
   // Updates the hash calculator with the bytes in |buffer_|. Then discard the
   // content, ensuring that memory is being deallocated. If |do_advance_offset|,

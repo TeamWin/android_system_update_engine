@@ -256,6 +256,25 @@ TEST(ExtentRangesTest, GetExtentsForBlockCountTest) {
   }
 }
 
+TEST(ExtentRangesTest, ContainsBlockTest) {
+  ExtentRanges ranges;
+  EXPECT_FALSE(ranges.ContainsBlock(123));
+
+  ranges.AddExtent(ExtentForRange(10, 10));
+  ranges.AddExtent(ExtentForRange(100, 1));
+
+  EXPECT_FALSE(ranges.ContainsBlock(9));
+  EXPECT_TRUE(ranges.ContainsBlock(10));
+  EXPECT_TRUE(ranges.ContainsBlock(15));
+  EXPECT_TRUE(ranges.ContainsBlock(19));
+  EXPECT_FALSE(ranges.ContainsBlock(20));
+
+  // Test for an extent with just the block we are requesting.
+  EXPECT_FALSE(ranges.ContainsBlock(99));
+  EXPECT_TRUE(ranges.ContainsBlock(100));
+  EXPECT_FALSE(ranges.ContainsBlock(101));
+}
+
 TEST(ExtentRangesTest, FilterExtentRangesEmptyRanges) {
   ExtentRanges ranges;
   EXPECT_EQ(vector<Extent>(),

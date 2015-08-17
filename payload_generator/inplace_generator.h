@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "update_engine/payload_generator/blob_file_writer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/operations_generator.h"
@@ -103,7 +104,7 @@ class InplaceGenerator : public OperationsGenerator {
   // Given a topologically sorted graph |op_indexes| and |graph|, alters
   // |op_indexes| to move all the full operations to the end of the vector.
   // Full operations should not be depended on, so this is safe.
-  static void MoveFullOpsToBack(Graph* graph,
+  static void MoveAndSortFullOpsToBack(Graph* graph,
                                 std::vector<Vertex::Index>* op_indexes);
 
   // Returns true iff there are no extents in the graph that refer to temp
@@ -120,8 +121,7 @@ class InplaceGenerator : public OperationsGenerator {
   static bool AssignTempBlocks(
       Graph* graph,
       const std::string& new_part,
-      int data_fd,
-      off_t* data_file_size,
+      BlobFileWriter* blob_file,
       std::vector<Vertex::Index>* op_indexes,
       std::vector<std::vector<Vertex::Index>::size_type>* reverse_op_indexes,
       const std::vector<CutEdgeVertexes>& cuts);
@@ -136,8 +136,7 @@ class InplaceGenerator : public OperationsGenerator {
   static bool ConvertCutToFullOp(Graph* graph,
                                  const CutEdgeVertexes& cut,
                                  const std::string& new_part,
-                                 int data_fd,
-                                 off_t* data_file_size);
+                                 BlobFileWriter* blob_file);
 
   // Takes a graph, which is not a DAG, which represents the files just
   // read from disk, and converts it into a DAG by breaking all cycles
@@ -150,8 +149,7 @@ class InplaceGenerator : public OperationsGenerator {
   // Returns true on success.
   static bool ConvertGraphToDag(Graph* graph,
                                 const std::string& new_part,
-                                int fd,
-                                off_t* data_file_size,
+                                BlobFileWriter* blob_file,
                                 std::vector<Vertex::Index>* final_order,
                                 Vertex::Index scratch_vertex);
 
@@ -170,29 +168,60 @@ class InplaceGenerator : public OperationsGenerator {
   // in |blocks| and set the reader/writer field to the vertex passed.
   // |graph| is not strictly necessary, but useful for printing out
   // error messages.
-  static bool AddInstallOpToBlocksVector(
-      const DeltaArchiveManifest_InstallOperation& operation,
-      const Graph& graph,
-      Vertex::Index vertex,
-      std::vector<Block>* blocks);
+  static bool AddInstallOpToBlocksVector(const InstallOperation& operation,
+                                         const Graph& graph,
+                                         Vertex::Index vertex,
+                                         std::vector<Block>* blocks);
 
   // Add a vertex (if |existing_vertex| is kInvalidVertex) or update an
   // |existing_vertex| with the passed |operation|.
   // This method will also register the vertex as the reader or writer of the
   // blocks involved in the operation updating the |blocks| vector. The
   // |op_name| associated with the Vertex is used for logging purposes.
-  static bool AddInstallOpToGraph(
-      Graph* graph,
-      Vertex::Index existing_vertex,
-      std::vector<Block>* blocks,
-      const DeltaArchiveManifest_InstallOperation operation,
-      const std::string& op_name);
+  static bool AddInstallOpToGraph(Graph* graph,
+                                  Vertex::Index existing_vertex,
+                                  std::vector<Block>* blocks,
+                                  const InstallOperation operation,
+                                  const std::string& op_name);
 
   // Apply the transformation stored in |the_map| to the |collection| vector
   // replacing the map keys found in |collection| with its associated value in
   // |the_map|.
   static void ApplyMap(std::vector<uint64_t>* collection,
                        const std::map<uint64_t, uint64_t>& the_map);
+
+  // Resolve all read-after-write dependencies in the operation list |aops|. The
+  // operations in |aops| are such that they generate the desired |new_part| if
+  // applied reading always from the original image. This function reorders the
+  // operations and generates new operations when needed to make these
+  // operations produce the same |new_part| result when applied in-place.
+  // The new operations will create blobs in |data_file_fd| and update
+  // the file size pointed by |data_file_size| if needed.
+  // On success, stores the new operations in |aops| in the right order and
+  // returns true.
+  static bool ResolveReadAfterWriteDependencies(
+      const PartitionConfig& new_part,
+      uint64_t partition_size,
+      size_t block_size,
+      BlobFileWriter* blob_file,
+      std::vector<AnnotatedOperation>* aops);
+
+  // Generates the list of operations to update inplace from the partition
+  // |old_part| to |new_part|. The |partition_size| should be at least
+  // |new_part.size| and any extra space there could be used as scratch space.
+  // The operations generated will not write more than |chunk_blocks| blocks.
+  // The new operations will create blobs in |data_file_fd| and update
+  // the file size pointed by |data_file_size| if needed.
+  // On success, stores the new operations in |aops| and returns true.
+  static bool GenerateOperationsForPartition(
+      const PartitionConfig& old_part,
+      const PartitionConfig& new_part,
+      uint64_t partition_size,
+      size_t block_size,
+      ssize_t hard_chunk_blocks,
+      size_t soft_chunk_blocks,
+      BlobFileWriter* blob_file,
+      std::vector<AnnotatedOperation>* aops);
 
   // Generate the update payload operations for the kernel and rootfs using
   // only operations that read from the target and/or write to the target,
@@ -207,8 +236,7 @@ class InplaceGenerator : public OperationsGenerator {
   // |data_file_size|.
   bool GenerateOperations(
       const PayloadGenerationConfig& config,
-      int data_file_fd,
-      off_t* data_file_size,
+      BlobFileWriter* blob_file,
       std::vector<AnnotatedOperation>* rootfs_ops,
       std::vector<AnnotatedOperation>* kernel_ops) override;
 

@@ -8,45 +8,51 @@
 #include <string>
 
 #include <base/logging.h>
+#include <chromeos/any.h>
 #include <chromeos/dbus/service_constants.h>
+#include <chromeos/make_unique_ptr.h>
+#include <chromeos/message_loops/fake_message_loop.h>
+#include <chromeos/variant_dictionary.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/fake_shill_proxy.h"
 #include "update_engine/fake_system_state.h"
-#include "update_engine/mock_dbus_wrapper.h"
 #include "update_engine/test_utils.h"
 
+using org::chromium::flimflam::ManagerProxyMock;
+using org::chromium::flimflam::ServiceProxyMock;
 using std::set;
 using std::string;
-using testing::A;
-using testing::AnyNumber;
 using testing::Return;
-using testing::SetArgumentPointee;
-using testing::StrEq;
+using testing::SetArgPointee;
 using testing::_;
 
 namespace chromeos_update_engine {
 
 class ConnectionManagerTest : public ::testing::Test {
  public:
-  ConnectionManagerTest()
-      : kMockFlimFlamManagerProxy_(nullptr),
-        kMockFlimFlamServiceProxy_(nullptr),
-        kServicePath_(nullptr),
-        cmut_(&fake_system_state_) {
+  void SetUp() override {
+    loop_.SetAsCurrent();
     fake_system_state_.set_connection_manager(&cmut_);
   }
 
- protected:
-  void SetupMocks(const char* service_path);
-  void SetManagerReply(const char* reply_value, const GType& reply_type);
+  void TearDown() override { EXPECT_FALSE(loop_.PendingTasks()); }
 
-  // Sets the |service_type| Type and the |physical_technology|
-  // PhysicalTechnology properties in the mocked service. If a null
-  // |physical_technology| is passed, the property is not set (not present).
-  void SetServiceReply(const char* service_type,
+ protected:
+  // Sets the default_service object path in the response from the
+  // ManagerProxyMock instance.
+  void SetManagerReply(const char* default_service, bool reply_succeeds);
+
+  // Sets the |service_type|, |physical_technology| and |service_tethering|
+  // properties in the mocked service |service_path|. If any of the three
+  // const char* is a nullptr, the corresponding property will not be included
+  // in the response.
+  void SetServiceReply(const string& service_path,
+                       const char* service_type,
                        const char* physical_technology,
                        const char* service_tethering);
+
   void TestWithServiceType(
       const char* service_type,
       const char* physical_technology,
@@ -55,171 +61,119 @@ class ConnectionManagerTest : public ::testing::Test {
       const char* service_tethering,
       NetworkTethering expected_tethering);
 
-  static const char* kGetPropertiesMethod;
-  DBusGProxy* kMockFlimFlamManagerProxy_;
-  DBusGProxy* kMockFlimFlamServiceProxy_;
-  DBusGConnection* kMockSystemBus_;
-  const char* kServicePath_;
-  testing::StrictMock<MockDBusWrapper> dbus_iface_;
-  ConnectionManager cmut_;  // ConnectionManager under test.
+  chromeos::FakeMessageLoop loop_{nullptr};
   FakeSystemState fake_system_state_;
+  FakeShillProxy fake_shill_proxy_;
+
+  // ConnectionManager under test.
+  ConnectionManager cmut_{&fake_shill_proxy_, &fake_system_state_};
 };
 
-// static
-const char* ConnectionManagerTest::kGetPropertiesMethod = "GetProperties";
+void ConnectionManagerTest::SetManagerReply(const char* default_service,
+                                            bool reply_succeeds) {
+  ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_.GetManagerProxy();
+  if (!reply_succeeds) {
+    EXPECT_CALL(*manager_proxy_mock, GetProperties(_, _, _))
+        .WillOnce(Return(false));
+    return;
+  }
 
-void ConnectionManagerTest::SetupMocks(const char* service_path) {
-  int number = 1;
-  kMockSystemBus_ = reinterpret_cast<DBusGConnection*>(number++);
-  kMockFlimFlamManagerProxy_ = reinterpret_cast<DBusGProxy*>(number++);
-  kMockFlimFlamServiceProxy_ = reinterpret_cast<DBusGProxy*>(number++);
-  ASSERT_NE(kMockSystemBus_, static_cast<DBusGConnection*>(nullptr));
+  // Create a dictionary of properties and optionally include the default
+  // service.
+  chromeos::VariantDictionary reply_dict;
+  reply_dict["SomeOtherProperty"] = 0xC0FFEE;
 
-  kServicePath_ = service_path;
-
-  ON_CALL(dbus_iface_, BusGet(DBUS_BUS_SYSTEM, _))
-      .WillByDefault(Return(kMockSystemBus_));
-  EXPECT_CALL(dbus_iface_, BusGet(DBUS_BUS_SYSTEM, _))
-      .Times(AnyNumber());
+  if (default_service) {
+    reply_dict[shill::kDefaultServiceProperty] =
+        dbus::ObjectPath(default_service);
+  }
+  EXPECT_CALL(*manager_proxy_mock, GetProperties(_, _, _))
+      .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
 }
 
-void ConnectionManagerTest::SetManagerReply(const char *reply_value,
-                                            const GType& reply_type) {
-  ASSERT_TRUE(dbus_g_type_is_collection(reply_type));
-
-  // Create the GPtrArray array holding the |reply_value| pointer. The
-  // |reply_value| string is duplicated because it should be mutable on the
-  // interface and is because dbus-glib collections will g_free() each element
-  // of the GPtrArray automatically when the |array_as_value| GValue is unset.
-  // The g_strdup() is not being leaked.
-  GPtrArray* array = g_ptr_array_new();
-  ASSERT_NE(nullptr, array);
-  g_ptr_array_add(array, g_strdup(reply_value));
-
-  GValue* array_as_value = g_new0(GValue, 1);
-  EXPECT_EQ(array_as_value, g_value_init(array_as_value, reply_type));
-  g_value_take_boxed(array_as_value, array);
-
-  // Initialize return value for D-Bus call to Manager object, which is a
-  // hash table of static strings (char*) in GValue* containing a single array.
-  GHashTable* manager_hash_table = g_hash_table_new_full(
-      g_str_hash, g_str_equal,
-      nullptr,  // no key_destroy_func because keys are static.
-      test_utils::GValueFree);  // value_destroy_func
-  g_hash_table_insert(manager_hash_table,
-                      const_cast<char*>("Services"),
-                      array_as_value);
-
-  // Plumb return value into mock object.
-  EXPECT_CALL(dbus_iface_, ProxyCall_0_1(kMockFlimFlamManagerProxy_,
-                                         StrEq(kGetPropertiesMethod),
-                                         _, A<GHashTable**>()))
-      .WillOnce(DoAll(SetArgumentPointee<3>(manager_hash_table), Return(TRUE)));
-
-  // Set other expectations.
-  EXPECT_CALL(dbus_iface_,
-              ProxyNewForName(kMockSystemBus_,
-                              StrEq(shill::kFlimflamServiceName),
-                              StrEq(shill::kFlimflamServicePath),
-                              StrEq(shill::kFlimflamManagerInterface)))
-      .WillOnce(Return(kMockFlimFlamManagerProxy_));
-  EXPECT_CALL(dbus_iface_, ProxyUnref(kMockFlimFlamManagerProxy_));
-  EXPECT_CALL(dbus_iface_, BusGet(DBUS_BUS_SYSTEM, _))
-      .RetiresOnSaturation();
-}
-
-void ConnectionManagerTest::SetServiceReply(const char* service_type,
+void ConnectionManagerTest::SetServiceReply(const string& service_path,
+                                            const char* service_type,
                                             const char* physical_technology,
                                             const char* service_tethering) {
-  // Initialize return value for D-Bus call to Service object, which is a
-  // hash table of static strings (char*) in GValue*.
-  GHashTable* service_hash_table = g_hash_table_new_full(
-      g_str_hash, g_str_equal,
-      nullptr,  // no key_destroy_func because keys are static.
-      test_utils::GValueFree);  // value_destroy_func
-  GValue* service_type_value = test_utils::GValueNewString(service_type);
-  g_hash_table_insert(service_hash_table,
-                      const_cast<char*>("Type"),
-                      service_type_value);
+  chromeos::VariantDictionary reply_dict;
+  reply_dict["SomeOtherProperty"] = 0xC0FFEE;
+
+  if (service_type)
+    reply_dict[shill::kTypeProperty] = string(service_type);
 
   if (physical_technology) {
-    GValue* physical_technology_value =
-        test_utils::GValueNewString(physical_technology);
-    g_hash_table_insert(service_hash_table,
-                        const_cast<char*>("PhysicalTechnology"),
-                        physical_technology_value);
+    reply_dict[shill::kPhysicalTechnologyProperty] =
+        string(physical_technology);
   }
 
-  if (service_tethering) {
-    GValue* service_tethering_value =
-        test_utils::GValueNewString(service_tethering);
-    g_hash_table_insert(service_hash_table,
-                        const_cast<char*>("Tethering"),
-                        service_tethering_value);
-  }
+  if (service_tethering)
+    reply_dict[shill::kTetheringProperty] = string(service_tethering);
+
+  std::unique_ptr<ServiceProxyMock> service_proxy_mock(new ServiceProxyMock());
 
   // Plumb return value into mock object.
-  EXPECT_CALL(dbus_iface_, ProxyCall_0_1(kMockFlimFlamServiceProxy_,
-                                         StrEq(kGetPropertiesMethod),
-                                         _, A<GHashTable**>()))
-      .WillOnce(DoAll(SetArgumentPointee<3>(service_hash_table), Return(TRUE)));
+  EXPECT_CALL(*service_proxy_mock.get(), GetProperties(_, _, _))
+      .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
 
-  // Set other expectations.
-  EXPECT_CALL(dbus_iface_,
-              ProxyNewForName(kMockSystemBus_,
-                              StrEq(shill::kFlimflamServiceName),
-                              StrEq(kServicePath_),
-                              StrEq(shill::kFlimflamServiceInterface)))
-      .WillOnce(Return(kMockFlimFlamServiceProxy_));
-  EXPECT_CALL(dbus_iface_, ProxyUnref(kMockFlimFlamServiceProxy_));
-  EXPECT_CALL(dbus_iface_, BusGet(DBUS_BUS_SYSTEM, _))
-      .RetiresOnSaturation();
+  fake_shill_proxy_.SetServiceForPath(service_path,
+                                      std::move(service_proxy_mock));
 }
 
 void ConnectionManagerTest::TestWithServiceType(
     const char* service_type,
     const char* physical_technology,
     NetworkConnectionType expected_type) {
-
-  SetupMocks("/service/guest-network");
-  SetManagerReply(kServicePath_, DBUS_TYPE_G_OBJECT_PATH_ARRAY);
-  SetServiceReply(service_type, physical_technology,
+  SetManagerReply("/service/guest-network", true);
+  SetServiceReply("/service/guest-network",
+                  service_type,
+                  physical_technology,
                   shill::kTetheringNotDetectedState);
 
   NetworkConnectionType type;
   NetworkTethering tethering;
-  EXPECT_TRUE(cmut_.GetConnectionProperties(&dbus_iface_, &type, &tethering));
+  EXPECT_TRUE(cmut_.GetConnectionProperties(&type, &tethering));
   EXPECT_EQ(expected_type, type);
-  testing::Mock::VerifyAndClearExpectations(&dbus_iface_);
+  testing::Mock::VerifyAndClearExpectations(
+      fake_shill_proxy_.GetManagerProxy());
 }
 
 void ConnectionManagerTest::TestWithServiceTethering(
     const char* service_tethering,
     NetworkTethering expected_tethering) {
-
-  SetupMocks("/service/guest-network");
-  SetManagerReply(kServicePath_, DBUS_TYPE_G_OBJECT_PATH_ARRAY);
-  SetServiceReply(shill::kTypeWifi, nullptr, service_tethering);
+  SetManagerReply("/service/guest-network", true);
+  SetServiceReply(
+      "/service/guest-network", shill::kTypeWifi, nullptr, service_tethering);
 
   NetworkConnectionType type;
   NetworkTethering tethering;
-  EXPECT_TRUE(cmut_.GetConnectionProperties(&dbus_iface_, &type, &tethering));
+  EXPECT_TRUE(cmut_.GetConnectionProperties(&type, &tethering));
   EXPECT_EQ(expected_tethering, tethering);
+  testing::Mock::VerifyAndClearExpectations(
+      fake_shill_proxy_.GetManagerProxy());
 }
 
 TEST_F(ConnectionManagerTest, SimpleTest) {
-  TestWithServiceType(shill::kTypeEthernet, nullptr, kNetEthernet);
-  TestWithServiceType(shill::kTypeWifi, nullptr, kNetWifi);
-  TestWithServiceType(shill::kTypeWimax, nullptr, kNetWimax);
-  TestWithServiceType(shill::kTypeBluetooth, nullptr, kNetBluetooth);
-  TestWithServiceType(shill::kTypeCellular, nullptr, kNetCellular);
+  TestWithServiceType(shill::kTypeEthernet, nullptr,
+                      NetworkConnectionType::kEthernet);
+  TestWithServiceType(shill::kTypeWifi, nullptr,
+                      NetworkConnectionType::kWifi);
+  TestWithServiceType(shill::kTypeWimax, nullptr,
+                      NetworkConnectionType::kWimax);
+  TestWithServiceType(shill::kTypeBluetooth, nullptr,
+                      NetworkConnectionType::kBluetooth);
+  TestWithServiceType(shill::kTypeCellular, nullptr,
+                      NetworkConnectionType::kCellular);
 }
 
 TEST_F(ConnectionManagerTest, PhysicalTechnologyTest) {
-  TestWithServiceType(shill::kTypeVPN, nullptr, kNetUnknown);
-  TestWithServiceType(shill::kTypeVPN, shill::kTypeVPN, kNetUnknown);
-  TestWithServiceType(shill::kTypeVPN, shill::kTypeWifi, kNetWifi);
-  TestWithServiceType(shill::kTypeVPN, shill::kTypeWimax, kNetWimax);
+  TestWithServiceType(shill::kTypeVPN, nullptr,
+                      NetworkConnectionType::kUnknown);
+  TestWithServiceType(shill::kTypeVPN, shill::kTypeVPN,
+                      NetworkConnectionType::kUnknown);
+  TestWithServiceType(shill::kTypeVPN, shill::kTypeWifi,
+                      NetworkConnectionType::kWifi);
+  TestWithServiceType(shill::kTypeVPN, shill::kTypeWimax,
+                      NetworkConnectionType::kWimax);
 }
 
 TEST_F(ConnectionManagerTest, TetheringTest) {
@@ -234,26 +188,27 @@ TEST_F(ConnectionManagerTest, TetheringTest) {
 }
 
 TEST_F(ConnectionManagerTest, UnknownTest) {
-  TestWithServiceType("foo", nullptr, kNetUnknown);
+  TestWithServiceType("foo", nullptr, NetworkConnectionType::kUnknown);
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverEthernetTest) {
   // Updates over Ethernet are allowed even if there's no policy.
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetEthernet,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
                                         NetworkTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverWifiTest) {
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWifi, NetworkTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
+                                        NetworkTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverWimaxTest) {
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWimax,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWimax,
                                         NetworkTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOverBluetoothTest) {
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetBluetooth,
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kBluetooth,
                                          NetworkTethering::kUnknown));
 }
 
@@ -264,13 +219,14 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
 
   // This test tests cellular (3G) being the only connection type being allowed.
   set<string> allowed_set;
-  allowed_set.insert(cmut_.StringForConnectionType(kNetCellular));
+  allowed_set.insert(
+      cmut_.StringForConnectionType(NetworkConnectionType::kCellular));
 
   EXPECT_CALL(allow_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(1)
-      .WillOnce(DoAll(SetArgumentPointee<0>(allowed_set), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<0>(allowed_set), Return(true)));
 
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetCellular,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
                                         NetworkTethering::kUnknown));
 }
 
@@ -283,43 +239,47 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
   // 3G one among them. Only Cellular is currently enforced by the policy
   // setting, the others are ignored (see Bluetooth for example).
   set<string> allowed_set;
-  allowed_set.insert(cmut_.StringForConnectionType(kNetCellular));
-  allowed_set.insert(cmut_.StringForConnectionType(kNetBluetooth));
+  allowed_set.insert(
+      cmut_.StringForConnectionType(NetworkConnectionType::kCellular));
+  allowed_set.insert(
+      cmut_.StringForConnectionType(NetworkConnectionType::kBluetooth));
 
   EXPECT_CALL(allow_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(3)
-      .WillRepeatedly(DoAll(SetArgumentPointee<0>(allowed_set), Return(true)));
+      .WillRepeatedly(DoAll(SetArgPointee<0>(allowed_set), Return(true)));
 
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetEthernet,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
                                         NetworkTethering::kUnknown));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetEthernet,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
                                         NetworkTethering::kNotDetected));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetCellular,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
                                         NetworkTethering::kUnknown));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWifi, NetworkTethering::kUnknown));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWimax, NetworkTethering::kUnknown));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetBluetooth,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
+                                        NetworkTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWimax,
+                                        NetworkTethering::kUnknown));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kBluetooth,
                                          NetworkTethering::kUnknown));
 
   // Tethered networks are treated in the same way as Cellular networks and
   // thus allowed.
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetEthernet,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
                                         NetworkTethering::kConfirmed));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWifi,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
                                         NetworkTethering::kConfirmed));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOverCellularByDefaultTest) {
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular,
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
                                          NetworkTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOverTetheredNetworkByDefaultTest) {
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetWifi,
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
                                          NetworkTethering::kConfirmed));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetEthernet,
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
                                          NetworkTethering::kConfirmed));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetWifi,
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
                                         NetworkTethering::kSuspected));
 }
 
@@ -331,15 +291,18 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
   // Test that updates for 3G are blocked while updates are allowed
   // over several other types.
   set<string> allowed_set;
-  allowed_set.insert(cmut_.StringForConnectionType(kNetEthernet));
-  allowed_set.insert(cmut_.StringForConnectionType(kNetWifi));
-  allowed_set.insert(cmut_.StringForConnectionType(kNetWimax));
+  allowed_set.insert(
+      cmut_.StringForConnectionType(NetworkConnectionType::kEthernet));
+  allowed_set.insert(
+      cmut_.StringForConnectionType(NetworkConnectionType::kWifi));
+  allowed_set.insert(
+      cmut_.StringForConnectionType(NetworkConnectionType::kWimax));
 
   EXPECT_CALL(block_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(1)
-      .WillOnce(DoAll(SetArgumentPointee<0>(allowed_set), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<0>(allowed_set), Return(true)));
 
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular,
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
                                          NetworkTethering::kUnknown));
 }
 
@@ -349,16 +312,17 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
   fake_system_state_.set_device_policy(&allow_3g_policy);
 
   set<string> allowed_set;
-  allowed_set.insert(cmut_.StringForConnectionType(kNetCellular));
+  allowed_set.insert(
+      cmut_.StringForConnectionType(NetworkConnectionType::kCellular));
 
   // Return false for GetAllowedConnectionTypesForUpdate and see
   // that updates are still blocked for 3G despite the value being in
   // the string set above.
   EXPECT_CALL(allow_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(1)
-      .WillOnce(DoAll(SetArgumentPointee<0>(allowed_set), Return(false)));
+      .WillOnce(DoAll(SetArgPointee<0>(allowed_set), Return(false)));
 
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular,
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
                                          NetworkTethering::kUnknown));
 }
 
@@ -377,7 +341,7 @@ TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
   EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
       .Times(1)
       .WillOnce(Return(false));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular,
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
                                          NetworkTethering::kUnknown));
 
   // Allow per user pref.
@@ -386,8 +350,8 @@ TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
       .WillOnce(Return(true));
   EXPECT_CALL(*prefs, GetBoolean(kPrefsUpdateOverCellularPermission, _))
       .Times(1)
-      .WillOnce(DoAll(SetArgumentPointee<1>(true), Return(true)));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(kNetCellular,
+      .WillOnce(DoAll(SetArgPointee<1>(true), Return(true)));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
                                         NetworkTethering::kUnknown));
 
   // Block per user pref.
@@ -396,36 +360,36 @@ TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
       .WillOnce(Return(true));
   EXPECT_CALL(*prefs, GetBoolean(kPrefsUpdateOverCellularPermission, _))
       .Times(1)
-      .WillOnce(DoAll(SetArgumentPointee<1>(false), Return(true)));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(kNetCellular,
+      .WillOnce(DoAll(SetArgPointee<1>(false), Return(true)));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
                                          NetworkTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, StringForConnectionTypeTest) {
   EXPECT_STREQ(shill::kTypeEthernet,
-               cmut_.StringForConnectionType(kNetEthernet));
+               cmut_.StringForConnectionType(NetworkConnectionType::kEthernet));
   EXPECT_STREQ(shill::kTypeWifi,
-               cmut_.StringForConnectionType(kNetWifi));
+               cmut_.StringForConnectionType(NetworkConnectionType::kWifi));
   EXPECT_STREQ(shill::kTypeWimax,
-               cmut_.StringForConnectionType(kNetWimax));
+               cmut_.StringForConnectionType(NetworkConnectionType::kWimax));
   EXPECT_STREQ(shill::kTypeBluetooth,
-               cmut_.StringForConnectionType(kNetBluetooth));
+               cmut_.StringForConnectionType(
+                   NetworkConnectionType::kBluetooth));
   EXPECT_STREQ(shill::kTypeCellular,
-               cmut_.StringForConnectionType(kNetCellular));
+               cmut_.StringForConnectionType(NetworkConnectionType::kCellular));
   EXPECT_STREQ("Unknown",
-               cmut_.StringForConnectionType(kNetUnknown));
+               cmut_.StringForConnectionType(NetworkConnectionType::kUnknown));
   EXPECT_STREQ("Unknown",
                cmut_.StringForConnectionType(
                    static_cast<NetworkConnectionType>(999999)));
 }
 
 TEST_F(ConnectionManagerTest, MalformedServiceList) {
-  SetupMocks("/service/guest-network");
-  SetManagerReply(kServicePath_, DBUS_TYPE_G_STRING_ARRAY);
+  SetManagerReply("/service/guest-network", false);
 
   NetworkConnectionType type;
   NetworkTethering tethering;
-  EXPECT_FALSE(cmut_.GetConnectionProperties(&dbus_iface_, &type, &tethering));
+  EXPECT_FALSE(cmut_.GetConnectionProperties(&type, &tethering));
 }
 
 }  // namespace chromeos_update_engine

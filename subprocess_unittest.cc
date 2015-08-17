@@ -13,19 +13,21 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <set>
 #include <string>
 #include <vector>
 
 #include <base/bind.h>
 #include <base/location.h>
+#include <base/message_loop/message_loop.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 #include <chromeos/bind_lambda.h>
-#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/base_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
-#include <glib.h>
+#include <chromeos/strings/string_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/test_utils.h"
@@ -42,67 +44,82 @@ class SubprocessTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
+    async_signal_handler_.Init();
+    subprocess_.Init(&async_signal_handler_);
   }
 
-  void TearDown() override {
-    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
-  }
-
-  // TODO(deymo): Replace this with a FakeMessageLoop. Subprocess uses glib to
-  // asynchronously spawn a process, so we need to run a GlibMessageLoop here.
-  chromeos::GlibMessageLoop loop_;
+  base::MessageLoopForIO base_loop_;
+  chromeos::BaseMessageLoop loop_{&base_loop_};
+  chromeos::AsynchronousSignalHandler async_signal_handler_;
+  Subprocess subprocess_;
 };
 
 namespace {
+
 int local_server_port = 0;
 
-void Callback(int return_code, const string& output, void* /* unused */) {
-  EXPECT_EQ(1, return_code);
+void ExpectedResults(int expected_return_code, const string& expected_output,
+                     int return_code, const string& output) {
+  EXPECT_EQ(expected_return_code, return_code);
+  EXPECT_EQ(expected_output, output);
   MessageLoop::current()->BreakLoop();
 }
 
-void CallbackEcho(int return_code, const string& output, void* /* unused */) {
+void ExpectedEnvVars(int return_code, const string& output) {
   EXPECT_EQ(0, return_code);
-  EXPECT_NE(string::npos, output.find("this is stdout"));
-  EXPECT_NE(string::npos, output.find("this is stderr"));
-  MessageLoop::current()->BreakLoop();
-}
-
-void CallbackStdoutOnlyEcho(int return_code,
-                            const string& output,
-                            void* /* unused */) {
-  EXPECT_EQ(0, return_code);
-  EXPECT_NE(string::npos, output.find("on stdout"));
-  EXPECT_EQ(string::npos, output.find("on stderr"));
+  const std::set<string> allowed_envs = {"LD_LIBRARY_PATH", "PATH"};
+  for (string key_value : chromeos::string_utils::Split(output, "\n")) {
+    auto key_value_pair = chromeos::string_utils::SplitAtFirst(
+        key_value, "=", true);
+    EXPECT_NE(allowed_envs.end(), allowed_envs.find(key_value_pair.first));
+  }
   MessageLoop::current()->BreakLoop();
 }
 
 }  // namespace
 
+TEST_F(SubprocessTest, IsASingleton) {
+  EXPECT_EQ(&subprocess_, &Subprocess::Get());
+}
+
+TEST_F(SubprocessTest, InactiveInstancesDontChangeTheSingleton) {
+  std::unique_ptr<Subprocess> another_subprocess(new Subprocess());
+  EXPECT_EQ(&subprocess_, &Subprocess::Get());
+  another_subprocess.reset();
+  EXPECT_EQ(&subprocess_, &Subprocess::Get());
+}
+
 TEST_F(SubprocessTest, SimpleTest) {
-  Subprocess::Get().Exec(vector<string>{"/bin/false"}, Callback, nullptr);
+  EXPECT_TRUE(subprocess_.Exec({"/bin/false"},
+                               base::Bind(&ExpectedResults, 1, "")));
   loop_.Run();
 }
 
 TEST_F(SubprocessTest, EchoTest) {
-  Subprocess::Get().Exec(
-      vector<string>{
-          "/bin/sh",
-          "-c",
-          "echo this is stdout; echo this is stderr > /dev/stderr"},
-      CallbackEcho,
-      nullptr);
+  EXPECT_TRUE(subprocess_.Exec(
+      {"/bin/sh", "-c", "echo this is stdout; echo this is stderr >&2"},
+      base::Bind(&ExpectedResults, 0, "this is stdout\nthis is stderr\n")));
   loop_.Run();
 }
 
 TEST_F(SubprocessTest, StderrNotIncludedInOutputTest) {
-  Subprocess::Get().ExecFlags(
-      vector<string>{"/bin/sh", "-c", "echo on stdout; echo on stderr >&2"},
-      static_cast<GSpawnFlags>(0),
-      false,  // don't redirect stderr
-      CallbackStdoutOnlyEcho,
-      nullptr);
+  EXPECT_TRUE(subprocess_.ExecFlags(
+      {"/bin/sh", "-c", "echo on stdout; echo on stderr >&2"},
+      0,
+      base::Bind(&ExpectedResults, 0, "on stdout\n")));
   loop_.Run();
+}
+
+TEST_F(SubprocessTest, EnvVarsAreFiltered) {
+  EXPECT_TRUE(subprocess_.Exec({"/usr/bin/env"}, base::Bind(&ExpectedEnvVars)));
+  loop_.Run();
+}
+
+TEST_F(SubprocessTest, SynchronousTrueSearchsOnPath) {
+  int rc = -1;
+  EXPECT_TRUE(Subprocess::SynchronousExecFlags(
+      {"true"}, Subprocess::kSearchPath, &rc, nullptr));
+  EXPECT_EQ(0, rc);
 }
 
 TEST_F(SubprocessTest, SynchronousEchoTest) {
@@ -118,15 +135,16 @@ TEST_F(SubprocessTest, SynchronousEchoTest) {
 }
 
 TEST_F(SubprocessTest, SynchronousEchoNoOutputTest) {
-  vector<string> cmd = {"/bin/sh", "-c", "echo test"};
   int rc = -1;
-  ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, nullptr));
+  ASSERT_TRUE(Subprocess::SynchronousExec(
+      {"/bin/sh", "-c", "echo test"},
+      &rc, nullptr));
   EXPECT_EQ(0, rc);
 }
 
 namespace {
-void CallbackBad(int return_code, const string& output, void* p) {
-  CHECK(false) << "should never be called.";
+void CallbackBad(int return_code, const string& output) {
+  ADD_FAILURE() << "should never be called.";
 }
 
 // TODO(garnold) this test method uses test_http_server as a representative for
@@ -148,7 +166,7 @@ void StartAndCancelInRunLoop(bool* spawned) {
   vector<string> cmd;
   cmd.push_back("./test_http_server");
   cmd.push_back(temp_file_name);
-  uint32_t tag = Subprocess::Get().Exec(cmd, CallbackBad, nullptr);
+  uint32_t tag = Subprocess::Get().Exec(cmd, base::Bind(&CallbackBad));
   EXPECT_NE(0, tag);
   *spawned = true;
   printf("test http server spawned\n");
@@ -177,7 +195,7 @@ void StartAndCancelInRunLoop(bool* spawned) {
                 << strerror(errno);
       break;
     }
-    g_usleep(kSleepTime.InMicroseconds());
+    usleep(kSleepTime.InMicroseconds());
     total_wait_time += kSleepTime;
   }
   close(temp_fd);

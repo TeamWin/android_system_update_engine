@@ -12,7 +12,7 @@
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 #include <policy/libpolicy.h>
 
-#include "update_engine/dbus_wrapper_interface.h"
+#include "update_engine/dbus_proxies.h"
 #include "update_engine/update_manager/device_policy_provider.h"
 #include "update_engine/update_manager/generic_variables.h"
 
@@ -21,11 +21,11 @@ namespace chromeos_update_manager {
 // DevicePolicyProvider concrete implementation.
 class RealDevicePolicyProvider : public DevicePolicyProvider {
  public:
-  RealDevicePolicyProvider(
-      chromeos_update_engine::DBusWrapperInterface* const dbus,
-      policy::PolicyProvider* policy_provider)
+  RealDevicePolicyProvider(org::chromium::SessionManagerInterfaceProxyInterface*
+                               session_manager_proxy,
+                           policy::PolicyProvider* policy_provider)
       : policy_provider_(policy_provider),
-        dbus_(dbus) {}
+        session_manager_proxy_(session_manager_proxy) {}
   ~RealDevicePolicyProvider();
 
   // Initializes the provider and returns whether it succeeded.
@@ -79,9 +79,13 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
 
   // A static handler for the PropertyChangedCompleted signal from the session
   // manager used as a callback.
-  static void HandlePropertyChangedCompletedStatic(DBusGProxy* proxy,
-                                                   const char* payload,
-                                                   void* data);
+  void OnPropertyChangedCompletedSignal(const std::string& success);
+
+  // Called when the signal in UpdateEngineLibcrosProxyResolvedInterface is
+  // connected.
+  void OnSignalConnected(const std::string& interface_name,
+                         const std::string& signal_name,
+                         bool successful);
 
   // Schedules a call to periodically refresh the device policy.
   void RefreshDevicePolicyAndReschedule();
@@ -116,12 +120,12 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   policy::PolicyProvider* policy_provider_;
 
   // Used to schedule refreshes of the device policy.
-  chromeos::MessageLoop::TaskId scheduled_refresh_ =
-      chromeos::MessageLoop::kTaskIdNull;
+  chromeos::MessageLoop::TaskId scheduled_refresh_{
+      chromeos::MessageLoop::kTaskIdNull};
 
-  // The DBus interface (mockable) and a session manager proxy.
-  chromeos_update_engine::DBusWrapperInterface* const dbus_;
-  DBusGProxy* manager_proxy_ = nullptr;
+  // The DBus (mockable) session manager proxy, owned by the caller.
+  org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy_{
+      nullptr};
 
   // Variable exposing whether the policy is loaded.
   AsyncCopyVariable<bool> var_device_policy_is_loaded_{

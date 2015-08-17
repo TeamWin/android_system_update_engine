@@ -8,6 +8,7 @@
 #include <string>
 
 #include <base/bind.h>
+#include <base/format_macros.h>
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
@@ -132,10 +133,10 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
     }
 
     // Create a string representation of the desired range.
-    string range_str = (end_offset ?
-                        base::StringPrintf("%jd-%zu", resume_offset_,
-                                           end_offset) :
-                        base::StringPrintf("%jd-", resume_offset_));
+    string range_str = base::StringPrintf(
+        "%" PRIu64 "-", static_cast<uint64_t>(resume_offset_));
+    if (end_offset)
+      range_str += std::to_string(end_offset);
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_RANGE, range_str.c_str()),
              CURLE_OK);
   }

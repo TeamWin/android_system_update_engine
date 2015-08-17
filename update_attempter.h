@@ -14,12 +14,12 @@
 
 #include <base/bind.h>
 #include <base/time/time.h>
-#include <glib.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/action_processor.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/download_action.h"
+#include "update_engine/libcros_proxy.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/proxy_resolver.h"
@@ -28,7 +28,6 @@
 #include "update_engine/update_manager/update_manager.h"
 
 class MetricsLibraryInterface;
-struct UpdateEngineService;
 
 namespace policy {
 class PolicyProvider;
@@ -36,7 +35,7 @@ class PolicyProvider;
 
 namespace chromeos_update_engine {
 
-class DBusWrapperInterface;
+class UpdateEngineAdaptor;
 
 enum UpdateStatus {
   UPDATE_STATUS_IDLE = 0,
@@ -59,7 +58,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   static const int kMaxDeltaUpdateFailures;
 
   UpdateAttempter(SystemState* system_state,
-                  DBusWrapperInterface* dbus_iface);
+                  LibCrosProxy* libcros_proxy,
+                  org::chromium::debugdProxyInterface* debugd_proxy);
   ~UpdateAttempter() override;
 
   // Further initialization to be done post construction.
@@ -112,18 +112,15 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void UpdateBootFlags();
 
   // Subprocess::Exec callback.
-  void CompleteUpdateBootFlags(int return_code);
-  static void StaticCompleteUpdateBootFlags(int return_code,
-                                            const std::string& output,
-                                            void* p);
+  void CompleteUpdateBootFlags(int return_code, const std::string& output);
 
   UpdateStatus status() const { return status_; }
 
   int http_response_code() const { return http_response_code_; }
   void set_http_response_code(int code) { http_response_code_ = code; }
 
-  void set_dbus_service(struct UpdateEngineService* dbus_service) {
-    dbus_service_ = dbus_service;
+  void set_dbus_adaptor(UpdateEngineAdaptor* dbus_adaptor) {
+    dbus_adaptor_ = dbus_adaptor;
   }
 
   // This is the internal entry point for going through an
@@ -225,7 +222,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Special ctor + friend declarations for testing purposes.
   UpdateAttempter(SystemState* system_state,
-                  DBusWrapperInterface* dbus_iface,
+                  LibCrosProxy* libcros_proxy,
+                  org::chromium::debugdProxyInterface* debugd_proxy,
                   const std::string& update_completed_marker);
 
   friend class UpdateAttempterUnderTest;
@@ -398,12 +396,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // carved out separately to mock out easily in unit tests.
   SystemState* system_state_;
 
-  // Interface for getting D-Bus connections.
-  DBusWrapperInterface* dbus_iface_ = nullptr;
-
   // If non-null, this UpdateAttempter will send status updates over this
   // dbus service.
-  UpdateEngineService* dbus_service_ = nullptr;
+  UpdateEngineAdaptor* dbus_adaptor_ = nullptr;
 
   // Pointer to the OmahaResponseHandlerAction in the actions_ vector.
   std::shared_ptr<OmahaResponseHandlerAction> response_handler_action_;
@@ -469,8 +464,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // True if UpdateBootFlags is running.
   bool update_boot_flags_running_ = false;
 
-  // The command to run to set the current kernel as good.
-  std::string set_good_kernel_cmd_ = "/usr/sbin/chromeos-setgoodkernel";
+  // Whether we should skip the async call to "setgoodkernel" command. Used in
+  // unittests.
+  bool skip_set_good_kernel_ = false;
 
   // True if the action processor needs to be started by the boot flag updater.
   bool start_action_processor_ = false;
@@ -508,6 +504,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // actually scheduled.
   std::string forced_app_version_;
   std::string forced_omaha_url_;
+
+  org::chromium::debugdProxyInterface* debugd_proxy_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

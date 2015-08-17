@@ -5,64 +5,52 @@
 #ifndef UPDATE_ENGINE_CONNECTION_MANAGER_H_
 #define UPDATE_ENGINE_CONNECTION_MANAGER_H_
 
+#include <string>
+
 #include <base/macros.h>
 
-#include "update_engine/dbus_wrapper_interface.h"
+#include "update_engine/connection_manager_interface.h"
+#include "update_engine/dbus_proxies.h"
+#include "update_engine/shill_proxy_interface.h"
 
 namespace chromeos_update_engine {
 
-enum NetworkConnectionType {
-  kNetEthernet = 0,
-  kNetWifi,
-  kNetWimax,
-  kNetBluetooth,
-  kNetCellular,
-  kNetUnknown
-};
-
-enum class NetworkTethering {
-  kNotDetected = 0,
-  kSuspected,
-  kConfirmed,
-  kUnknown
-};
-
 class SystemState;
 
-// This class exposes a generic interface to the connection manager
-// (e.g FlimFlam, Shill, etc.) to consolidate all connection-related
-// logic in update_engine.
-class ConnectionManager {
+// This class implements the concrete class that talks with the connection
+// manager (shill) over DBus.
+// TODO(deymo): Remove this class and use ShillProvider from the UpdateManager.
+class ConnectionManager : public ConnectionManagerInterface {
  public:
-  // Constructs a new ConnectionManager object initialized with the
-  // given system state.
-  explicit ConnectionManager(SystemState* system_state);
-  virtual ~ConnectionManager() = default;
-
-  // Populates |out_type| with the type of the network connection
-  // that we are currently connected and |out_tethering| with the estimate of
-  // whether that network is being tethered. The dbus_iface is used to query
-  // the real connection manager (e.g shill).
-  virtual bool GetConnectionProperties(DBusWrapperInterface* dbus_iface,
-                                       NetworkConnectionType* out_type,
-                                       NetworkTethering* out_tethering) const;
-
-  // Returns true if we're allowed to update the system when we're
-  // connected to the internet through the given network connection type and the
-  // given tethering state.
-  virtual bool IsUpdateAllowedOver(NetworkConnectionType type,
-                                   NetworkTethering tethering) const;
-
   // Returns the string representation corresponding to the given
   // connection type.
-  virtual const char* StringForConnectionType(NetworkConnectionType type) const;
+  static const char* StringForConnectionType(NetworkConnectionType type);
 
-  // Returns the string representation corresponding to the given tethering
-  // state.
-  virtual const char* StringForTethering(NetworkTethering tethering) const;
+  // Constructs a new ConnectionManager object initialized with the
+  // given system state.
+  ConnectionManager(ShillProxyInterface* shill_proxy,
+                    SystemState* system_state);
+  ~ConnectionManager() override = default;
+
+  // ConnectionManagerInterface overrides.
+  bool GetConnectionProperties(NetworkConnectionType* out_type,
+                               NetworkTethering* out_tethering) override;
+  bool IsUpdateAllowedOver(NetworkConnectionType type,
+                           NetworkTethering tethering) const override;
 
  private:
-  // The global context for update_engine
+  // Returns (via out_path) the default network path, or empty string if
+  // there's no network up. Returns true on success.
+  bool GetDefaultServicePath(std::string* out_path);
+
+  bool GetServicePathProperties(const std::string& path,
+                                NetworkConnectionType* out_type,
+                                NetworkTethering* out_tethering);
+
+  // The mockable interface to access the shill DBus proxies.
+  ShillProxyInterface* shill_proxy_;
+
+  // The global context for update_engine.
   SystemState* system_state_;
 
   DISALLOW_COPY_AND_ASSIGN(ConnectionManager);

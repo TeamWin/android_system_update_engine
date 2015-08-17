@@ -16,7 +16,6 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
 #include <chromeos/flag_helper.h>
-#include <glib.h>
 
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
@@ -25,7 +24,6 @@
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_verifier.h"
 #include "update_engine/prefs.h"
-#include "update_engine/subprocess.h"
 #include "update_engine/terminator.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
@@ -217,12 +215,6 @@ void ApplyDelta(const string& in_file,
 }
 
 int Main(int argc, char** argv) {
-  DEFINE_string(old_dir, "",
-                "[DEPRECATED] Directory where the old rootfs is loop mounted "
-                "read-only. Not required anymore.");
-  DEFINE_string(new_dir, "",
-                "[DEPRECATED] Directory where the new rootfs is loop mounted "
-                "read-only. Not required anymore.");
   DEFINE_string(old_image, "", "Path to the old rootfs");
   DEFINE_string(new_image, "", "Path to the new rootfs");
   DEFINE_string(old_kernel, "", "Path to the old kernel partition image");
@@ -252,7 +244,8 @@ int Main(int argc, char** argv) {
                 "e.g. /path/to/sig:/path/to/next:/path/to/last_sig . Each "
                 "signature will be assigned a client version, starting from "
                 "kSignatureOriginalVersion.");
-  DEFINE_int32(chunk_size, -1, "Payload chunk size (-1 -- no limit/default)");
+  DEFINE_int32(chunk_size, 200 * 1024 * 1024,
+               "Payload chunk size (-1 for whole files)");
   DEFINE_uint64(rootfs_partition_size,
                chromeos_update_engine::kRootFSPartitionSize,
                "RootFS partition size for the image once installed");
@@ -302,23 +295,14 @@ int Main(int argc, char** argv) {
       "image is provided. It also provides debugging options to apply, sign\n"
       "and verify payloads.");
   Terminator::Init();
-  Subprocess::Init();
 
   logging::LoggingSettings log_settings;
   log_settings.log_file     = "delta_generator.log";
   log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
-  log_settings.lock_log     = logging::DONT_LOCK_LOG_FILE;
+  log_settings.lock_log     = logging::LOCK_LOG_FILE;
   log_settings.delete_old   = logging::APPEND_TO_OLD_LOG_FILE;
 
   logging::InitLogging(log_settings);
-
-  // Check flags.
-  if (!FLAGS_old_dir.empty()) {
-    LOG(INFO) << "--old_dir flag is deprecated and ignored.";
-  }
-  if (!FLAGS_new_dir.empty()) {
-    LOG(INFO) << "--new_dir flag is deprecated and ignored.";
-  }
 
   vector<int> signature_sizes;
   ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
@@ -359,7 +343,8 @@ int Main(int argc, char** argv) {
   payload_config.target.rootfs.path = FLAGS_new_image;
   payload_config.target.kernel.path = FLAGS_new_kernel;
 
-  payload_config.chunk_size = FLAGS_chunk_size;
+  // Use the default soft_chunk_size defined in the config.
+  payload_config.hard_chunk_size = FLAGS_chunk_size;
   payload_config.block_size = kBlockSize;
 
   // The kernel and rootfs size is never passed to the delta_generator, so we

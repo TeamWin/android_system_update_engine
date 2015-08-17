@@ -30,11 +30,11 @@
 #include <base/bind.h>
 #include <base/files/file_enumerator.h>
 #include <base/files/file_path.h>
+#include <base/format_macros.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/glib_utils.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
@@ -91,7 +91,7 @@ class ConfigurationImpl : public P2PManager::Configuration {
     vector<string> args;
     args.push_back("p2p-client");
     args.push_back(string("--get-url=") + file_id);
-    args.push_back(StringPrintf("--minimum-size=%zu", minimum_size));
+    args.push_back(StringPrintf("--minimum-size=%" PRIuS, minimum_size));
     return args;
   }
 
@@ -369,8 +369,8 @@ class LookupData {
   ~LookupData() {
     if (timeout_task_ != MessageLoop::kTaskIdNull)
       MessageLoop::current()->CancelTask(timeout_task_);
-    if (child_tag_)
-      Subprocess::Get().KillExec(child_tag_);
+    if (child_pid_)
+      Subprocess::Get().KillExec(child_pid_);
   }
 
   void InitiateLookup(const vector<string>& cmd, TimeDelta timeout) {
@@ -380,11 +380,11 @@ class LookupData {
     // guarantee is useful for testing).
 
     // We expect to run just "p2p-client" and find it in the path.
-    child_tag_ = Subprocess::Get().ExecFlags(
-        cmd, G_SPAWN_SEARCH_PATH, false /* redirect stderr */, OnLookupDone,
-        this);
+    child_pid_ = Subprocess::Get().ExecFlags(
+        cmd, Subprocess::kSearchPath,
+        Bind(&LookupData::OnLookupDone, base::Unretained(this)));
 
-    if (!child_tag_) {
+    if (!child_pid_) {
       LOG(ERROR) << "Error spawning " << utils::StringVectorToString(cmd);
       ReportErrorAndDeleteInIdle();
       return;
@@ -442,19 +442,16 @@ class LookupData {
     reported_ = true;
   }
 
-  static void OnLookupDone(int return_code,
-                           const string& output,
-                           void *user_data) {
-    LookupData *lookup_data = reinterpret_cast<LookupData*>(user_data);
-    lookup_data->child_tag_ = 0;
+  void OnLookupDone(int return_code, const string& output) {
+    child_pid_ = 0;
     if (return_code != 0) {
       LOG(INFO) << "Child exited with non-zero exit code "
                 << return_code;
-      lookup_data->ReportError();
+      ReportError();
     } else {
-      lookup_data->ReportSuccess(output);
+      ReportSuccess(output);
     }
-    delete lookup_data;
+    delete this;
   }
 
   void OnTimeout() {
@@ -467,7 +464,7 @@ class LookupData {
 
   // The Subprocess tag of the running process. A value of 0 means that the
   // process is not running.
-  uint32_t child_tag_{0};
+  pid_t child_pid_{0};
 
   // The timeout task_id we are waiting on, if any.
   MessageLoop::TaskId timeout_task_{MessageLoop::kTaskIdNull};
@@ -557,7 +554,7 @@ bool P2PManagerImpl::FileShare(const string& file_id,
       }
     }
 
-    string decimal_size = StringPrintf("%zu", expected_size);
+    string decimal_size = std::to_string(expected_size);
     if (fsetxattr(fd, kCrosP2PFileSizeXAttrName,
                   decimal_size.c_str(), decimal_size.size(), 0) != 0) {
       PLOG(ERROR) << "Error setting xattr " << path.value();

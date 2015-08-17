@@ -13,6 +13,7 @@
 
 #include <base/macros.h>
 
+#include "update_engine/payload_generator/annotated_operation.h"
 #include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -59,8 +60,7 @@ struct Vertex {
   std::vector<Vertex>::size_type lowlink;
 
   // Other Vertex properties:
-  DeltaArchiveManifest_InstallOperation op;
-  std::string file_name;
+  AnnotatedOperation aop;
 
   typedef std::vector<Vertex>::size_type Index;
   static const Vertex::Index kInvalidIndex;

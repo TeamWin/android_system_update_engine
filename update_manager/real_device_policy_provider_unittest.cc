@@ -10,17 +10,19 @@
 #include <chromeos/message_loops/fake_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <policy/mock_device_policy.h>
 #include <policy/mock_libpolicy.h>
 
-#include "update_engine/mock_dbus_wrapper.h"
+#include "update_engine/dbus_mocks.h"
+#include "update_engine/dbus_test_utils.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::TimeDelta;
 using chromeos::MessageLoop;
-using chromeos::MessageLoopRunMaxIterations;
+using chromeos_update_engine::dbus_test_utils::MockSignalHandler;
 using std::set;
 using std::string;
 using std::unique_ptr;
@@ -28,19 +30,8 @@ using testing::DoAll;
 using testing::Mock;
 using testing::Return;
 using testing::ReturnRef;
-using testing::SaveArg;
-using testing::SetArgumentPointee;
-using testing::StrEq;
+using testing::SetArgPointee;
 using testing::_;
-
-namespace {
-
-// Fake dbus-glib objects. These should be different values, to ease diagnosis
-// of errors.
-DBusGConnection* const kFakeConnection = reinterpret_cast<DBusGConnection*>(1);
-DBusGProxy* const kFakeManagerProxy = reinterpret_cast<DBusGProxy*>(2);
-
-}  // namespace
 
 namespace chromeos_update_manager {
 
@@ -48,30 +39,22 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
-    provider_.reset(new RealDevicePolicyProvider(&mock_dbus_,
+    provider_.reset(new RealDevicePolicyProvider(&session_manager_proxy_mock_,
                                                  &mock_policy_provider_));
     // By default, we have a device policy loaded. Tests can call
     // SetUpNonExistentDevicePolicy() to override this.
     SetUpExistentDevicePolicy();
 
-    SetUpDBusSignalExpectations();
+    // Setup the session manager_proxy such that it will accept the signal
+    // handler and store it in the |property_change_complete_| once registered.
+    MOCK_SIGNAL_HANDLER_EXPECT_SIGNAL_HANDLER(property_change_complete_,
+                                              session_manager_proxy_mock_,
+                                              PropertyChangeComplete);
   }
 
   void TearDown() override {
-    // Check for leaked callbacks on the main loop.
-    EXPECT_EQ(0, MessageLoopRunMaxIterations(MessageLoop::current(), 100));
-
-    // We need to set these expectation before the object is destroyed but
-    // after it finished running the test so the values of signal_callback_ and
-    // signal_callback_data_ are correct.
-    EXPECT_CALL(mock_dbus_, ProxyDisconnectSignal(
-            kFakeManagerProxy,
-            StrEq(login_manager::kPropertyChangeCompleteSignal),
-            signal_callback_,
-            signal_callback_data_));
-    EXPECT_CALL(mock_dbus_, ProxyUnref(kFakeManagerProxy));
-
     provider_.reset();
+    // Check for leaked callbacks on the main loop.
     EXPECT_FALSE(loop_.PendingTasks());
   }
 
@@ -93,58 +76,40 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
         .WillByDefault(ReturnRef(mock_device_policy_));
   }
 
-  void SetUpDBusSignalExpectations() {
-    // Setup the DBus connection with default actions that should be performed
-    // once.
-    EXPECT_CALL(mock_dbus_, BusGet(_, _)).WillOnce(
-        Return(kFakeConnection));
-    EXPECT_CALL(mock_dbus_, ProxyNewForName(
-            kFakeConnection, StrEq(login_manager::kSessionManagerServiceName),
-            StrEq(login_manager::kSessionManagerServicePath),
-            StrEq(login_manager::kSessionManagerInterface)))
-        .WillOnce(Return(kFakeManagerProxy));
-
-    // Expect the signal to be added, registered and released.
-    EXPECT_CALL(mock_dbus_, ProxyAddSignal_1(
-            kFakeManagerProxy,
-            StrEq(login_manager::kPropertyChangeCompleteSignal),
-            G_TYPE_STRING));
-    EXPECT_CALL(mock_dbus_, ProxyConnectSignal(
-            kFakeManagerProxy,
-            StrEq(login_manager::kPropertyChangeCompleteSignal),
-            _ /* callback */, _ /* data */, _ /* free function */))
-        .WillOnce(DoAll(SaveArg<2>(&signal_callback_),
-                        SaveArg<3>(&signal_callback_data_)));
-  }
-
   chromeos::FakeMessageLoop loop_{nullptr};
-  chromeos_update_engine::MockDBusWrapper mock_dbus_;
+  org::chromium::SessionManagerInterfaceProxyMock session_manager_proxy_mock_;
   testing::NiceMock<policy::MockDevicePolicy> mock_device_policy_;
   testing::NiceMock<policy::MockPolicyProvider> mock_policy_provider_;
   unique_ptr<RealDevicePolicyProvider> provider_;
 
   // The registered signal handler for the signal.
-  GCallback signal_callback_ = nullptr;
-  void* signal_callback_data_ = nullptr;
+  MockSignalHandler<void(const string&)> property_change_complete_;
 };
 
 TEST_F(UmRealDevicePolicyProviderTest, RefreshScheduledTest) {
-  // Check that the RefreshPolicy gets scheduled by checking the EventId.
+  // Check that the RefreshPolicy gets scheduled by checking the TaskId.
   EXPECT_TRUE(provider_->Init());
   EXPECT_NE(MessageLoop::kTaskIdNull, provider_->scheduled_refresh_);
+  loop_.RunOnce(false);
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, FirstReload) {
-  // Checks that the policy is reloaded and the DevicePolicy is consulted.
+  // Checks that the policy is reloaded and the DevicePolicy is consulted twice:
+  // once on Init() and once again when the signal is connected.
   EXPECT_CALL(mock_policy_provider_, Reload());
   EXPECT_TRUE(provider_->Init());
+  Mock::VerifyAndClearExpectations(&mock_policy_provider_);
+
+  EXPECT_CALL(mock_policy_provider_, Reload());
+  loop_.RunOnce(false);
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded) {
   // Checks that the policy is reloaded by RefreshDevicePolicy().
   SetUpNonExistentDevicePolicy();
-  EXPECT_CALL(mock_policy_provider_, Reload()).Times(2);
+  EXPECT_CALL(mock_policy_provider_, Reload()).Times(3);
   EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
   // Force the policy refresh.
   provider_->RefreshDevicePolicy();
 }
@@ -154,22 +119,19 @@ TEST_F(UmRealDevicePolicyProviderTest, SessionManagerSignalForcesReload) {
   SetUpNonExistentDevicePolicy();
   EXPECT_CALL(mock_policy_provider_, Reload()).Times(2);
   EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  Mock::VerifyAndClearExpectations(&mock_policy_provider_);
 
-  ASSERT_NE(nullptr, signal_callback_);
-  // Convert the GCallback to a function pointer and call it. GCallback is just
-  // a void function pointer to ensure that the type of the passed callback is a
-  // pointer. We need to cast it back to the right function type before calling
-  // it.
-  typedef void (*StaticSignalHandler)(DBusGProxy*, const char*, void*);
-  StaticSignalHandler signal_handler = reinterpret_cast<StaticSignalHandler>(
-      signal_callback_);
-  (*signal_handler)(kFakeManagerProxy, "success", signal_callback_data_);
+  EXPECT_CALL(mock_policy_provider_, Reload());
+  ASSERT_TRUE(property_change_complete_.IsHandlerRegistered());
+  property_change_complete_.signal_callback().Run("success");
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   SetUpNonExistentDevicePolicy();
   EXPECT_CALL(mock_policy_provider_, GetDevicePolicy()).Times(0);
   EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
 
   UmTestUtils::ExpectVariableHasValue(false,
                                       provider_->var_device_policy_is_loaded());
@@ -189,14 +151,14 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
 TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
   SetUpNonExistentDevicePolicy();
   EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
   Mock::VerifyAndClearExpectations(&mock_policy_provider_);
 
   // Reload the policy with a good one and set some values as present. The
   // remaining values are false.
   SetUpExistentDevicePolicy();
   EXPECT_CALL(mock_device_policy_, GetReleaseChannel(_))
-      .WillOnce(DoAll(SetArgumentPointee<0>(string("mychannel")),
-                      Return(true)));
+      .WillOnce(DoAll(SetArgPointee<0>(string("mychannel")), Return(true)));
   EXPECT_CALL(mock_device_policy_, GetAllowedConnectionTypesForUpdate(_))
       .WillOnce(Return(false));
 
@@ -215,8 +177,10 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
 TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {
   SetUpExistentDevicePolicy();
   EXPECT_CALL(mock_device_policy_, GetScatterFactorInSeconds(_))
-      .WillOnce(DoAll(SetArgumentPointee<0>(1234), Return(true)));
+      .Times(2)
+      .WillRepeatedly(DoAll(SetArgPointee<0>(1234), Return(true)));
   EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
 
   UmTestUtils::ExpectVariableHasValue(TimeDelta::FromSeconds(1234),
                                       provider_->var_scatter_factor());
@@ -225,8 +189,10 @@ TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {
 TEST_F(UmRealDevicePolicyProviderTest, NegativeScatterFactorIgnored) {
   SetUpExistentDevicePolicy();
   EXPECT_CALL(mock_device_policy_, GetScatterFactorInSeconds(_))
-      .WillOnce(DoAll(SetArgumentPointee<0>(-1), Return(true)));
+      .Times(2)
+      .WillRepeatedly(DoAll(SetArgPointee<0>(-1), Return(true)));
   EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
 
   UmTestUtils::ExpectVariableNotSet(provider_->var_scatter_factor());
 }
@@ -234,10 +200,12 @@ TEST_F(UmRealDevicePolicyProviderTest, NegativeScatterFactorIgnored) {
 TEST_F(UmRealDevicePolicyProviderTest, AllowedTypesConverted) {
   SetUpExistentDevicePolicy();
   EXPECT_CALL(mock_device_policy_, GetAllowedConnectionTypesForUpdate(_))
-      .WillOnce(DoAll(SetArgumentPointee<0>(
-                          set<string>{"bluetooth", "wifi", "not-a-type"}),
-                      Return(true)));
+      .Times(2)
+      .WillRepeatedly(DoAll(
+          SetArgPointee<0>(set<string>{"bluetooth", "wifi", "not-a-type"}),
+          Return(true)));
   EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
 
   UmTestUtils::ExpectVariableHasValue(
       set<ConnectionType>{ConnectionType::kWifi, ConnectionType::kBluetooth},

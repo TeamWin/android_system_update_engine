@@ -4,7 +4,6 @@
 
 #include "update_engine/omaha_request_action.h"
 
-#include <glib.h>
 #include <stdint.h>
 
 #include <string>
@@ -445,17 +444,16 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   OmahaResponse response;
   // Set up a connection manager that doesn't allow a valid update over
   // the current ethernet connection.
-  MockConnectionManager mock_cm(nullptr);
+  MockConnectionManager mock_cm;
   fake_system_state_.set_connection_manager(&mock_cm);
 
-  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _, _))
-    .WillRepeatedly(DoAll(SetArgumentPointee<1>(kNetEthernet),
-                          SetArgumentPointee<2>(NetworkTethering::kUnknown),
-                          Return(true)));
-  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(kNetEthernet, _))
+  EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
+      .WillRepeatedly(
+          DoAll(SetArgumentPointee<0>(NetworkConnectionType::kEthernet),
+                SetArgumentPointee<1>(NetworkTethering::kUnknown),
+                Return(true)));
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kEthernet, _))
     .WillRepeatedly(Return(false));
-  EXPECT_CALL(mock_cm, StringForConnectionType(kNetEthernet))
-    .WillRepeatedly(Return(shill::kTypeEthernet));
 
   ASSERT_FALSE(
       TestUpdateCheck(nullptr,  // request_params

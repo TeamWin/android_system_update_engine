@@ -18,13 +18,13 @@
 #include <base/files/file_path.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/time/time.h>
-#include <chromeos/secure_blob.h>
 #include <chromeos/key_value_store.h>
+#include <chromeos/secure_blob.h>
 #include "metrics/metrics_library.h"
 
 #include "update_engine/action.h"
 #include "update_engine/action_processor.h"
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/constants.h"
 #include "update_engine/file_descriptor.h"
 #include "update_engine/metrics.h"
@@ -397,9 +397,7 @@ bool DecodeAndStoreBase64String(const std::string& base64_encoded,
 // (NOTE: This function does not currently take daylight savings time
 // into account so the result may up to one hour off. This is because
 // the glibc date and timezone routines depend on the TZ environment
-// variable and changing environment variables is not thread-safe. An
-// alternative, thread-safe API to use would be GDateTime/GTimeZone
-// available in GLib 2.26 or later.)
+// variable and changing environment variables is not thread-safe.
 bool ConvertToOmahaInstallDate(base::Time time, int *out_num_days);
 
 // This function returns the duration on the wallclock since the last

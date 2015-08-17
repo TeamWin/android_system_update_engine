@@ -114,12 +114,12 @@ void DumpGraph(const Graph& graph) {
   for (Graph::size_type i = 0, e = graph.size(); i != e; ++i) {
     LOG(INFO) << i
               << (graph[i].valid ? "" : "-INV")
-              << ": " << graph[i].file_name
-              << ": " << InstallOperationTypeName(graph[i].op.type());
+              << ": " << graph[i].aop.name
+              << ": " << InstallOperationTypeName(graph[i].aop.op.type());
     LOG(INFO) << "  src_extents:";
-    DumpExtents(graph[i].op.src_extents(), 4);
+    DumpExtents(graph[i].aop.op.src_extents(), 4);
     LOG(INFO) << "  dst_extents:";
-    DumpExtents(graph[i].op.dst_extents(), 4);
+    DumpExtents(graph[i].aop.op.dst_extents(), 4);
     LOG(INFO) << "  out edges:";
     DumpOutEdges(graph[i].out_edges);
   }

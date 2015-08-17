@@ -58,19 +58,40 @@
       ],
       'includes': ['../common-mk/protoc.gypi'],
     },
-    # D-Bus glib bindings.
+    # Chrome D-Bus bindings.
     {
-      'target_name': 'update_engine-dbus-server',
+      'target_name': 'update_engine-dbus-adaptor',
       'type': 'none',
       'variables': {
-        'dbus_glib_type': 'server',
-        'dbus_glib_out_dir': 'include/update_engine',
-        'dbus_glib_prefix': 'update_engine_service',
+        'dbus_adaptors_out_dir': 'include/update_engine/dbus_adaptor',
       },
       'sources': [
         'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
       ],
-      'includes': ['../common-mk/dbus_glib.gypi'],
+      'includes': ['../common-mk/generate-dbus-adaptors.gypi'],
+    },
+    {
+      'target_name': 'update_engine-dbus-proxies',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'update_engine-dbus-proxies-action',
+          'variables': {
+            'dbus_service_config': '',
+            'mock_output_file': 'include/update_engine/dbus_mocks.h',
+            'proxy_output_file': 'include/update_engine/dbus_proxies.h'
+          },
+          'sources': [
+            '../debugd/share/org.chromium.debugd.xml',
+            '../login_manager/org.chromium.SessionManagerInterface.xml',
+            '../power_manager/dbus_bindings/org.chromium.PowerManager.xml',
+            '../shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
+            '../shill/dbus_bindings/org.chromium.flimflam.Service.xml',
+            'dbus_bindings/org.chromium.LibCrosService.xml',
+          ],
+          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+        },
+      ],
     },
     # The main static_library with all the code.
     {
@@ -78,13 +99,12 @@
       'type': 'static_library',
       'dependencies': [
         'update_metadata-protos',
+        'update_engine-dbus-adaptor',
+        'update_engine-dbus-proxies',
       ],
       'variables': {
         'exported_deps': [
           'dbus-1',
-          'dbus-glib-1',
-          'glib-2.0',
-          'gthread-2.0',
           'libchrome-<(libbase_ver)',
           'libchromeos-<(libbase_ver)',
           'libcrypto',
@@ -125,6 +145,7 @@
         'clock.cc',
         'connection_manager.cc',
         'constants.cc',
+        'daemon.cc',
         'dbus_service.cc',
         'delta_performer.cc',
         'download_action.cc',
@@ -132,12 +153,12 @@
         'file_descriptor.cc',
         'file_writer.cc',
         'filesystem_verifier_action.cc',
-        'glib_utils.cc',
         'hardware.cc',
         'http_common.cc',
         'http_fetcher.cc',
         'hwid_override.cc',
         'install_plan.cc',
+        'libcros_proxy.cc',
         'libcurl_http_fetcher.cc',
         'metrics.cc',
         'multi_range_http_fetcher.cc',
@@ -153,6 +174,7 @@
         'prefs.cc',
         'proxy_resolver.cc',
         'real_system_state.cc',
+        'shill_proxy.cc',
         'subprocess.cc',
         'terminator.cc',
         'update_attempter.cc',
@@ -191,7 +213,6 @@
       'type': 'executable',
       'dependencies': [
         'libupdate_engine',
-        'update_engine-dbus-server',
       ],
       'sources': [
         'main.cc',
@@ -220,10 +241,10 @@
       ],
       'actions': [
         {
-          'action_name': 'update_engine-dbus-proxies',
+          'action_name': 'update_engine_client-dbus-proxies',
           'variables': {
             'dbus_service_config': 'dbus_bindings/dbus-service-config.json',
-            'proxy_output_file': 'include/update_engine/dbus_proxies.h'
+            'proxy_output_file': 'include/update_engine/client_dbus_proxies.h'
           },
           'sources': [
             'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
@@ -266,6 +287,8 @@
       'sources': [
         'payload_generator/ab_generator.cc',
         'payload_generator/annotated_operation.cc',
+        'payload_generator/blob_file_writer.cc',
+        'payload_generator/block_mapping.cc',
         'payload_generator/cycle_breaker.cc',
         'payload_generator/delta_diff_generator.cc',
         'payload_generator/delta_diff_utils.cc',
@@ -320,7 +343,7 @@
           ],
           'includes': ['../common-mk/openssl_pem.gypi'],
         },
-        # Sample images used for testing.
+        # Unpacks sample images used for testing.
         {
           'target_name': 'update_engine-test_images',
           'type': 'none',
@@ -328,11 +351,9 @@
             'image_out_dir': '.',
           },
           'sources': [
-            'sample_images/disk_ext2_1k.txt',
-            'sample_images/disk_ext2_4k.txt',
-            'sample_images/disk_ext2_ue_settings.txt',
+            'sample_images/sample_images.tar.bz2',
           ],
-          'includes': ['generate_image.gypi'],
+          'includes': ['tar_bunzip2.gypi'],
         },
         # Test HTTP Server.
         {
@@ -367,10 +388,12 @@
             'certificate_checker_unittest.cc',
             'chrome_browser_proxy_resolver_unittest.cc',
             'connection_manager_unittest.cc',
+            'dbus_service_unittest.cc',
             'delta_performer_unittest.cc',
             'download_action_unittest.cc',
             'extent_writer_unittest.cc',
             'fake_prefs.cc',
+            'fake_shill_proxy.cc',
             'fake_system_state.cc',
             'file_writer_unittest.cc',
             'filesystem_verifier_action_unittest.cc',
@@ -383,6 +406,8 @@
             'omaha_response_handler_action_unittest.cc',
             'p2p_manager_unittest.cc',
             'payload_generator/ab_generator_unittest.cc',
+            'payload_generator/blob_file_writer_unittest.cc',
+            'payload_generator/block_mapping_unittest.cc',
             'payload_generator/cycle_breaker_unittest.cc',
             'payload_generator/delta_diff_utils_unittest.cc',
             'payload_generator/ext2_filesystem_unittest.cc',

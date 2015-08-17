@@ -25,33 +25,34 @@ void OutputExtents(std::ostream* os,
 }
 }  // namespace
 
-bool AnnotatedOperation::SetOperationBlob(chromeos::Blob* blob, int data_fd,
-                                          off_t* data_file_size) {
-  TEST_AND_RETURN_FALSE(utils::PWriteAll(data_fd,
-                                         blob->data(),
-                                         blob->size(),
-                                         *data_file_size));
+bool AnnotatedOperation::SetOperationBlob(chromeos::Blob* blob,
+                                          BlobFileWriter* blob_file) {
   op.set_data_length(blob->size());
-  op.set_data_offset(*data_file_size);
-  *data_file_size += blob->size();
+  off_t data_offset = blob_file->StoreBlob(*blob);
+  if (data_offset == -1)
+    return false;
+  op.set_data_offset(data_offset);
   return true;
 }
 
-string InstallOperationTypeName(
-    DeltaArchiveManifest_InstallOperation_Type op_type) {
+string InstallOperationTypeName(InstallOperation_Type op_type) {
   switch (op_type) {
-    case DeltaArchiveManifest_InstallOperation_Type_BSDIFF:
+    case InstallOperation::BSDIFF:
       return "BSDIFF";
-    case DeltaArchiveManifest_InstallOperation_Type_MOVE:
+    case InstallOperation::MOVE:
       return "MOVE";
-    case DeltaArchiveManifest_InstallOperation_Type_REPLACE:
+    case InstallOperation::REPLACE:
       return "REPLACE";
-    case DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ:
+    case InstallOperation::REPLACE_BZ:
       return "REPLACE_BZ";
-    case DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY:
+    case InstallOperation::SOURCE_COPY:
       return "SOURCE_COPY";
-    case DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF:
+    case InstallOperation::SOURCE_BSDIFF:
       return "SOURCE_BSDIFF";
+    case InstallOperation::ZERO:
+      return "ZERO";
+    case InstallOperation::DISCARD:
+      return "DISCARD";
   }
   return "UNK";
 }

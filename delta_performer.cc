@@ -58,7 +58,6 @@ const unsigned DeltaPerformer::kProgressOperationsWeight = 50;
 
 const uint32_t kInPlaceMinorPayloadVersion = 1;
 const uint32_t kSourceMinorPayloadVersion = 2;
-const size_t kDefaultChunkSize = 1024 * 1024;
 
 namespace {
 const int kUpdateStateOperationInvalid = -1;
@@ -129,12 +128,12 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   string total_operations_str("?");
   string completed_percentage_str("");
   if (num_total_operations_) {
-    total_operations_str = base::StringPrintf("%zu", num_total_operations_);
+    total_operations_str = std::to_string(num_total_operations_);
     // Upcasting to 64-bit to avoid overflow, back to size_t for formatting.
     completed_percentage_str =
         base::StringPrintf(" (%" PRIu64 "%%)",
-                     IntRatio(next_operation_num_, num_total_operations_,
-                              100));
+                           IntRatio(next_operation_num_, num_total_operations_,
+                                    100));
   }
 
   // Format download total count and percentage.
@@ -142,11 +141,11 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   string payload_size_str("?");
   string downloaded_percentage_str("");
   if (payload_size) {
-    payload_size_str = base::StringPrintf("%zu", payload_size);
+    payload_size_str = std::to_string(payload_size);
     // Upcasting to 64-bit to avoid overflow, back to size_t for formatting.
     downloaded_percentage_str =
         base::StringPrintf(" (%" PRIu64 "%%)",
-                     IntRatio(total_bytes_received_, payload_size, 100));
+                           IntRatio(total_bytes_received_, payload_size, 100));
   }
 
   LOG(INFO) << (message_prefix ? message_prefix : "") << next_operation_num_
@@ -551,11 +550,11 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
 
     const bool is_kernel_partition =
         (next_operation_num_ >= num_rootfs_operations_);
-    const DeltaArchiveManifest_InstallOperation &op =
+    const InstallOperation& op =
         is_kernel_partition ?
-        manifest_.kernel_install_operations(
-            next_operation_num_ - num_rootfs_operations_) :
-        manifest_.install_operations(next_operation_num_);
+            manifest_.kernel_install_operations(next_operation_num_ -
+                                                num_rootfs_operations_) :
+            manifest_.install_operations(next_operation_num_);
 
     CopyDataToBuffer(&c_bytes, &count, op.data_length());
 
@@ -592,23 +591,21 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
         ScopedTerminatorExitUnblocker();  // Avoids a compiler unused var bug.
 
     bool op_result;
-    if (op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
-        op.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ)
+    if (op.type() == InstallOperation::REPLACE ||
+        op.type() == InstallOperation::REPLACE_BZ)
       op_result = HandleOpResult(
           PerformReplaceOperation(op, is_kernel_partition), "replace", error);
-    else if (op.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE)
+    else if (op.type() == InstallOperation::MOVE)
       op_result = HandleOpResult(
           PerformMoveOperation(op, is_kernel_partition), "move", error);
-    else if (op.type() == DeltaArchiveManifest_InstallOperation_Type_BSDIFF)
+    else if (op.type() == InstallOperation::BSDIFF)
       op_result = HandleOpResult(
           PerformBsdiffOperation(op, is_kernel_partition), "bsdiff", error);
-    else if (op.type() ==
-             DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY)
+    else if (op.type() == InstallOperation::SOURCE_COPY)
       op_result =
           HandleOpResult(PerformSourceCopyOperation(op, is_kernel_partition),
                          "source_copy", error);
-    else if (op.type() ==
-             DeltaArchiveManifest_InstallOperation_Type_SOURCE_BSDIFF)
+    else if (op.type() == InstallOperation::SOURCE_BSDIFF)
       op_result =
           HandleOpResult(PerformSourceBsdiffOperation(op, is_kernel_partition),
                          "source_bsdiff", error);
@@ -630,13 +627,11 @@ bool DeltaPerformer::IsManifestValid() {
 }
 
 bool DeltaPerformer::CanPerformInstallOperation(
-    const chromeos_update_engine::DeltaArchiveManifest_InstallOperation&
-    operation) {
+    const chromeos_update_engine::InstallOperation& operation) {
   // Move and source_copy operations don't require any data blob, so they can
   // always be performed.
-  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_MOVE ||
-      operation.type() ==
-          DeltaArchiveManifest_InstallOperation_Type_SOURCE_COPY)
+  if (operation.type() == InstallOperation::MOVE ||
+      operation.type() == InstallOperation::SOURCE_COPY)
     return true;
 
   // See if we have the entire data blob in the buffer
@@ -649,13 +644,10 @@ bool DeltaPerformer::CanPerformInstallOperation(
           buffer_offset_ + buffer_.size());
 }
 
-bool DeltaPerformer::PerformReplaceOperation(
-    const DeltaArchiveManifest_InstallOperation& operation,
-    bool is_kernel_partition) {
-  CHECK(operation.type() == \
-        DeltaArchiveManifest_InstallOperation_Type_REPLACE || \
-        operation.type() == \
-        DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ);
+bool DeltaPerformer::PerformReplaceOperation(const InstallOperation& operation,
+                                             bool is_kernel_partition) {
+  CHECK(operation.type() == InstallOperation::REPLACE ||
+        operation.type() == InstallOperation::REPLACE_BZ);
 
   // Since we delete data off the beginning of the buffer as we use it,
   // the data we need should be exactly at the beginning of the buffer.
@@ -672,10 +664,9 @@ bool DeltaPerformer::PerformReplaceOperation(
   // Since bzip decompression is optional, we have a variable writer that will
   // point to one of the ExtentWriter objects above.
   ExtentWriter* writer = nullptr;
-  if (operation.type() == DeltaArchiveManifest_InstallOperation_Type_REPLACE) {
+  if (operation.type() == InstallOperation::REPLACE) {
     writer = &zero_pad_writer;
-  } else if (operation.type() ==
-             DeltaArchiveManifest_InstallOperation_Type_REPLACE_BZ) {
+  } else if (operation.type() == InstallOperation::REPLACE_BZ) {
     bzip_writer.reset(new BzipExtentWriter(&zero_pad_writer));
     writer = bzip_writer.get();
   } else {
@@ -699,9 +690,8 @@ bool DeltaPerformer::PerformReplaceOperation(
   return true;
 }
 
-bool DeltaPerformer::PerformMoveOperation(
-    const DeltaArchiveManifest_InstallOperation& operation,
-    bool is_kernel_partition) {
+bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation,
+                                          bool is_kernel_partition) {
   // Calculate buffer size. Note, this function doesn't do a sliding
   // window to copy in case the source and destination blocks overlap.
   // If we wanted to do a sliding window, we could program the server
@@ -778,7 +768,7 @@ uint64_t GetBlockCount(const RepeatedPtrField<Extent>& extents) {
 }  // namespace
 
 bool DeltaPerformer::PerformSourceCopyOperation(
-    const DeltaArchiveManifest_InstallOperation& operation,
+    const InstallOperation& operation,
     bool is_kernel_partition) {
   if (operation.has_src_length())
     TEST_AND_RETURN_FALSE(operation.src_length() % block_size_ == 0);
@@ -854,9 +844,8 @@ bool DeltaPerformer::ExtentsToBsdiffPositionsString(
   return true;
 }
 
-bool DeltaPerformer::PerformBsdiffOperation(
-    const DeltaArchiveManifest_InstallOperation& operation,
-    bool is_kernel_partition) {
+bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation,
+                                            bool is_kernel_partition) {
   // Since we delete data off the beginning of the buffer as we use it,
   // the data we need should be exactly at the beginning of the buffer.
   TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
@@ -895,10 +884,8 @@ bool DeltaPerformer::PerformBsdiffOperation(
 
   int return_code = 0;
   TEST_AND_RETURN_FALSE(
-      Subprocess::SynchronousExecFlags(cmd,
-                                       G_SPAWN_LEAVE_DESCRIPTORS_OPEN,
-                                       &return_code,
-                                       nullptr));
+      Subprocess::SynchronousExecFlags(cmd, Subprocess::kSearchPath,
+                                       &return_code, nullptr));
   TEST_AND_RETURN_FALSE(return_code == 0);
 
   if (operation.dst_length() % block_size_) {
@@ -919,7 +906,7 @@ bool DeltaPerformer::PerformBsdiffOperation(
 }
 
 bool DeltaPerformer::PerformSourceBsdiffOperation(
-    const DeltaArchiveManifest_InstallOperation& operation,
+    const InstallOperation& operation,
     bool is_kernel_partition) {
   // Since we delete data off the beginning of the buffer as we use it,
   // the data we need should be exactly at the beginning of the buffer.
@@ -966,17 +953,15 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
 
   int return_code = 0;
   TEST_AND_RETURN_FALSE(
-      Subprocess::SynchronousExecFlags(cmd,
-                                       G_SPAWN_LEAVE_DESCRIPTORS_OPEN,
-                                       &return_code,
-                                       nullptr));
+      Subprocess::SynchronousExecFlags(cmd, Subprocess::kSearchPath,
+                                       &return_code, nullptr));
   TEST_AND_RETURN_FALSE(return_code == 0);
   return true;
 }
 
 bool DeltaPerformer::ExtractSignatureMessage(
-    const DeltaArchiveManifest_InstallOperation& operation) {
-  if (operation.type() != DeltaArchiveManifest_InstallOperation_Type_REPLACE ||
+    const InstallOperation& operation) {
+  if (operation.type() != InstallOperation::REPLACE ||
       !manifest_.has_signatures_offset() ||
       manifest_.signatures_offset() != operation.data_offset()) {
     return false;
@@ -1142,8 +1127,7 @@ ErrorCode DeltaPerformer::ValidateManifest() {
 }
 
 ErrorCode DeltaPerformer::ValidateOperationHash(
-    const DeltaArchiveManifest_InstallOperation& operation) {
-
+    const InstallOperation& operation) {
   if (!operation.data_sha256_hash().size()) {
     if (!operation.data_length()) {
       // Operations that do not have any data blob won't have any operation hash
@@ -1468,11 +1452,11 @@ bool DeltaPerformer::CheckpointUpdateProgress() {
     if (next_operation_num_ < num_total_operations_) {
       const bool is_kernel_partition =
           next_operation_num_ >= num_rootfs_operations_;
-      const DeltaArchiveManifest_InstallOperation &op =
-          is_kernel_partition ?
-          manifest_.kernel_install_operations(
-              next_operation_num_ - num_rootfs_operations_) :
-          manifest_.install_operations(next_operation_num_);
+      const InstallOperation& op =
+          is_kernel_partition
+              ? manifest_.kernel_install_operations(next_operation_num_ -
+                                                    num_rootfs_operations_)
+              : manifest_.install_operations(next_operation_num_);
       TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextDataLength,
                                              op.data_length()));
     } else {

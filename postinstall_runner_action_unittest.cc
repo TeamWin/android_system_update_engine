@@ -13,10 +13,11 @@
 #include <vector>
 
 #include <base/files/file_util.h>
+#include <base/message_loop/message_loop.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <chromeos/bind_lambda.h>
-#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/base_message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
@@ -37,10 +38,8 @@ class PostinstallRunnerActionTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
-  }
-
-  void TearDown() override {
-    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
+    async_signal_handler_.Init();
+    subprocess_.Init(&async_signal_handler_);
   }
 
   // DoTest with various combinations of do_losetup, err_code and
@@ -50,7 +49,10 @@ class PostinstallRunnerActionTest : public ::testing::Test {
  private:
   static const char* kImageMountPointTemplate;
 
-  chromeos::GlibMessageLoop loop_;
+  base::MessageLoopForIO base_loop_;
+  chromeos::BaseMessageLoop loop_{&base_loop_};
+  chromeos::AsynchronousSignalHandler async_signal_handler_;
+  Subprocess subprocess_;
 };
 
 class PostinstActionProcessorDelegate : public ActionProcessorDelegate {

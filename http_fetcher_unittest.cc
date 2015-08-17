@@ -14,13 +14,17 @@
 
 #include <base/location.h>
 #include <base/logging.h>
+#include <base/message_loop/message_loop.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <chromeos/message_loops/glib_message_loop.h>
+#include <chromeos/message_loops/base_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
-#include <glib.h>
+#include <chromeos/process.h>
+#include <chromeos/streams/file_stream.h>
+#include <chromeos/streams/stream.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_system_state.h"
@@ -29,6 +33,7 @@
 #include "update_engine/mock_http_fetcher.h"
 #include "update_engine/multi_range_http_fetcher.h"
 #include "update_engine/proxy_resolver.h"
+#include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
 using chromeos::MessageLoop;
@@ -88,74 +93,68 @@ class NullHttpServer : public HttpServer {
 
 class PythonHttpServer : public HttpServer {
  public:
-  PythonHttpServer() : pid_(-1), port_(0) {
+  PythonHttpServer() : port_(0) {
     started_ = false;
 
     // Spawn the server process.
-    gchar *argv[] = {
-      const_cast<gchar*>("./test_http_server"),
-      nullptr
-    };
-    GError *err;
-    gint server_stdout = -1;
-    if (!g_spawn_async_with_pipes(nullptr, argv, nullptr,
-                                  G_SPAWN_DO_NOT_REAP_CHILD, nullptr, nullptr,
-                                  &pid_, nullptr, &server_stdout, nullptr,
-                                  &err)) {
-      LOG(ERROR) << "failed to spawn http server process";
+    unique_ptr<chromeos::Process> http_server(new chromeos::ProcessImpl());
+    base::FilePath test_server_path =
+        test_utils::GetBuildArtifactsPath().Append("test_http_server");
+    http_server->AddArg(test_server_path.value());
+    http_server->RedirectUsingPipe(STDOUT_FILENO, false);
+
+    if (!http_server->Start()) {
+      ADD_FAILURE() << "failed to spawn http server process";
       return;
     }
-    CHECK_GT(pid_, 0);
-    CHECK_GE(server_stdout, 0);
-    LOG(INFO) << "started http server with pid " << pid_;
+    LOG(INFO) << "started http server with pid " << http_server->pid();
 
     // Wait for server to begin accepting connections, obtain its port.
-    char line[80];
-    const size_t listening_msg_prefix_len = strlen(kServerListeningMsgPrefix);
-    CHECK_GT(sizeof(line), listening_msg_prefix_len);
-    int line_len = read(server_stdout, line, sizeof(line) - 1);
-    if (line_len <= static_cast<int>(listening_msg_prefix_len)) {
-      if (line_len < 0) {
-        PLOG(ERROR) << "error reading http server stdout";
-      } else {
-        LOG(ERROR) << "server output too short";
+    chromeos::StreamPtr stdout = chromeos::FileStream::FromFileDescriptor(
+        http_server->GetPipe(STDOUT_FILENO), false /* own */, nullptr);
+    if (!stdout)
+      return;
+
+    vector<char> buf(128);
+    string line;
+    while (line.find('\n') == string::npos) {
+      size_t read;
+      if (!stdout->ReadBlocking(buf.data(), buf.size(), &read, nullptr)) {
+        ADD_FAILURE() << "error reading http server stdout";
+        return;
       }
-      Terminate(true);
+      line.append(buf.data(), read);
+      if (read == 0)
+        break;
+    }
+    // Parse the port from the output line.
+    const size_t listening_msg_prefix_len = strlen(kServerListeningMsgPrefix);
+    if (line.size() < listening_msg_prefix_len) {
+      ADD_FAILURE() << "server output too short";
       return;
     }
 
-    line[line_len] = '\0';
-    CHECK_EQ(strstr(line, kServerListeningMsgPrefix), line);
-    const char* listening_port_str = line + listening_msg_prefix_len;
-    char* end_ptr;
-    long raw_port = strtol(listening_port_str,  // NOLINT(runtime/int)
-                           &end_ptr, 10);
-    CHECK(!*end_ptr || *end_ptr == '\n');
-    port_ = static_cast<in_port_t>(raw_port);
-    CHECK_GT(port_, 0);
+    EXPECT_EQ(kServerListeningMsgPrefix,
+              line.substr(0, listening_msg_prefix_len));
+    string port_str = line.substr(listening_msg_prefix_len);
+    port_str.resize(port_str.find('\n'));
+    EXPECT_TRUE(base::StringToUint(port_str, &port_));
+
     started_ = true;
     LOG(INFO) << "server running, listening on port " << port_;
-    LOG(INFO) << "gdb attach now!";
+
+    // Any failure before this point will SIGKILL the test server if started
+    // when the |http_server| goes out of scope.
+    http_server_ = std::move(http_server);
   }
 
   ~PythonHttpServer() {
     // If there's no process, do nothing.
-    if (pid_ == -1)
+    if (!http_server_)
       return;
-
-    // If server is responsive, request that it gracefully terminate.
-    bool do_kill = false;
-    if (started_) {
-      LOG(INFO) << "running wget to exit";
-      if (system((string("wget -t 1 --output-document=/dev/null ") +
-                  LocalServerUrlForPath(port_, "/quitquitquit")).c_str())) {
-        LOG(WARNING) << "wget failed, resorting to brute force";
-        do_kill = true;
-      }
-    }
-
-    // Server not responding or wget failed, kill the process.
-    Terminate(do_kill);
+    // Wait up to 10 seconds for the process to finish. Destroying the process
+    // will kill it with a SIGKILL otherwise.
+    http_server_->Kill(SIGTERM, 10);
   }
 
   in_port_t GetPort() const override {
@@ -163,27 +162,10 @@ class PythonHttpServer : public HttpServer {
   }
 
  private:
-  void Terminate(bool do_kill) {
-    ASSERT_GT(pid_, 0);
-
-    if (do_kill) {
-      LOG(INFO) << "terminating (SIGKILL) server process with pid " << pid_;
-      kill(pid_, SIGKILL);
-    }
-
-    LOG(INFO) << "waiting for http server with pid " << pid_ << " to terminate";
-    int status;
-    pid_t killed_pid = waitpid(pid_, &status, 0);
-    ASSERT_EQ(killed_pid, pid_);
-    LOG(INFO) << "http server with pid " << pid_
-              << " terminated with status " << status;
-    pid_ = -1;
-  }
-
   static const char* kServerListeningMsgPrefix;
 
-  GPid pid_;
-  in_port_t port_;
+  unique_ptr<chromeos::Process> http_server_;
+  unsigned int port_;
 };
 
 const char* PythonHttpServer::kServerListeningMsgPrefix = "listening on port ";
@@ -345,10 +327,8 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
 template <typename T>
 class HttpFetcherTest : public ::testing::Test {
  public:
-  // TODO(deymo): Replace this with a FakeMessageLoop. We can't do that yet
-  // because these tests use g_spawn_async_with_pipes() to launch the
-  // http_test_server.
-  chromeos::GlibMessageLoop loop_;
+  base::MessageLoopForIO base_loop_;
+  chromeos::BaseMessageLoop loop_{&base_loop_};
 
   T test_;
 

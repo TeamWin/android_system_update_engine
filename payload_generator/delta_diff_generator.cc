@@ -21,6 +21,7 @@
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/ab_generator.h"
+#include "update_engine/payload_generator/blob_file_writer.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/full_update_generator.h"
 #include "update_engine/payload_generator/inplace_generator.h"
@@ -115,10 +116,10 @@ bool GenerateUpdatePayloadFile(
 
   {
     ScopedFdCloser data_file_fd_closer(&data_file_fd);
+    BlobFileWriter blob_file(data_file_fd, &data_file_size);
     // Generate the operations using the strategy we selected above.
     TEST_AND_RETURN_FALSE(strategy->GenerateOperations(config,
-                                                       data_file_fd,
-                                                       &data_file_size,
+                                                       &blob_file,
                                                        &rootfs_ops,
                                                        &kernel_ops));
   }

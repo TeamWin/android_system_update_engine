@@ -12,7 +12,6 @@
 #include <chromeos/dbus/service_constants.h>
 #include <policy/device_policy.h>
 
-#include "update_engine/glib_utils.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/real_shill_provider.h"
 #include "update_engine/utils.h"
@@ -33,12 +32,6 @@ namespace chromeos_update_manager {
 
 RealDevicePolicyProvider::~RealDevicePolicyProvider() {
   MessageLoop::current()->CancelTask(scheduled_refresh_);
-  // Detach signal handler, free manager proxy.
-  dbus_->ProxyDisconnectSignal(manager_proxy_,
-                               login_manager::kPropertyChangeCompleteSignal,
-                               G_CALLBACK(HandlePropertyChangedCompletedStatic),
-                               this);
-  dbus_->ProxyUnref(manager_proxy_);
 }
 
 bool RealDevicePolicyProvider::Init() {
@@ -49,38 +42,39 @@ bool RealDevicePolicyProvider::Init() {
 
   // We also listen for signals from the session manager to force a device
   // policy refresh.
-  GError* error = nullptr;
-  DBusGConnection* connection = dbus_->BusGet(DBUS_BUS_SYSTEM, &error);
-  if (!connection) {
-    LOG(ERROR) << "Failed to initialize DBus connection: "
-               << chromeos_update_engine::utils::GetAndFreeGError(&error);
-    return false;
-  }
-  manager_proxy_ = dbus_->ProxyNewForName(
-      connection,
-      login_manager::kSessionManagerServiceName,
-      login_manager::kSessionManagerServicePath,
-      login_manager::kSessionManagerInterface);
-
-  // Subscribe to the session manager's PropertyChangeComplete signal.
-  dbus_->ProxyAddSignal_1(manager_proxy_,
-                          login_manager::kPropertyChangeCompleteSignal,
-                          G_TYPE_STRING);
-  dbus_->ProxyConnectSignal(manager_proxy_,
-                            login_manager::kPropertyChangeCompleteSignal,
-                            G_CALLBACK(HandlePropertyChangedCompletedStatic),
-                            this, nullptr);
+  session_manager_proxy_->RegisterPropertyChangeCompleteSignalHandler(
+      base::Bind(&RealDevicePolicyProvider::OnPropertyChangedCompletedSignal,
+                 base::Unretained(this)),
+      base::Bind(&RealDevicePolicyProvider::OnSignalConnected,
+                 base::Unretained(this)));
   return true;
 }
 
-// static
-void RealDevicePolicyProvider::HandlePropertyChangedCompletedStatic(
-    DBusGProxy* proxy, const char* /* payload */, void* data) {
+void RealDevicePolicyProvider::OnPropertyChangedCompletedSignal(
+    const string& success) {
+  if (success != "success") {
+    LOG(WARNING) << "Received device policy updated signal with a failure.";
+  }
   // We refresh the policy file even if the payload string is kSignalFailure.
-  RealDevicePolicyProvider* policy_provider =
-      reinterpret_cast<RealDevicePolicyProvider*>(data);
-  LOG(INFO) << "Reloading device policy due to signal received.";
-  policy_provider->RefreshDevicePolicy();
+  LOG(INFO) << "Reloading and re-scheduling device policy due to signal "
+               "received.";
+  MessageLoop::current()->CancelTask(scheduled_refresh_);
+  scheduled_refresh_ = MessageLoop::kTaskIdNull;
+  RefreshDevicePolicyAndReschedule();
+}
+
+void RealDevicePolicyProvider::OnSignalConnected(const string& interface_name,
+                                                 const string& signal_name,
+                                                 bool successful) {
+  if (!successful) {
+    LOG(WARNING) << "We couldn't connect to SessionManager signal for updates "
+                    "on the device policy blob. We will reload the policy file "
+                    "periodically.";
+  }
+  // We do a one-time refresh of the DevicePolicy just in case we missed a
+  // signal between the first refresh and the time the signal handler was
+  // actually connected.
+  RefreshDevicePolicy();
 }
 
 void RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule() {

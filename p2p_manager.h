@@ -77,7 +77,7 @@ class P2PManager {
   // Asynchronously finds a peer that serves the file identified by
   // |file_id|. If |minimum_size| is non-zero, will find a peer that
   // has at least that many bytes. When the result is ready |callback|
-  // is called from the default GLib mainloop.
+  // is called from the current message loop.
   //
   // This operation may take a very long time to complete because part
   // of the p2p protocol involves waiting for the LAN-wide sum of all

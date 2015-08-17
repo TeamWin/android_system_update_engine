@@ -5,16 +5,20 @@
 #ifndef UPDATE_ENGINE_SUBPROCESS_H_
 #define UPDATE_ENGINE_SUBPROCESS_H_
 
-#include <glib.h>
+#include <unistd.h>
 
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <base/callback.h>
 #include <base/logging.h>
 #include <base/macros.h>
+#include <chromeos/asynchronous_signal_handler_interface.h>
 #include <chromeos/message_loops/message_loop.h>
+#include <chromeos/process.h>
+#include <chromeos/process_reaper.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 // The Subprocess class is a singleton. It's used to spawn off a subprocess
@@ -23,42 +27,51 @@
 // you know you won't call KillExec(), you may safely lose the return value
 // from Exec().
 
+// To create the Subprocess singleton just instantiate it with and call Init().
+// You can't have two Subprocess instances initialized at the same time.
+
 namespace chromeos_update_engine {
 
 class Subprocess {
  public:
-  typedef void(*ExecCallback)(int return_code,
-                              const std::string& output,
-                              void *p);
+  enum Flags {
+    kSearchPath = 1 << 0,
+    kRedirectStderrToStdout = 1 << 1,
+  };
 
-  static void Init() {
-    CHECK(!subprocess_singleton_);
-    subprocess_singleton_ = new Subprocess;
-  }
+  // Callback type used when an async process terminates. It receives the exit
+  // code and the stdout output (and stderr if redirected).
+  using ExecCallback = base::Callback<void(int, const std::string&)>;
 
-  // Returns a tag > 0 on success.
-  uint32_t Exec(const std::vector<std::string>& cmd,
-                ExecCallback callback,
-                void* p);
-  uint32_t ExecFlags(const std::vector<std::string>& cmd,
-                     GSpawnFlags flags,
-                     bool redirect_stderr_to_stdout,
-                     ExecCallback callback,
-                     void* p);
+  Subprocess() = default;
+
+  // Destroy and unregister the Subprocess singleton.
+  ~Subprocess();
+
+  // Initialize and register the Subprocess singleton.
+  void Init(chromeos::AsynchronousSignalHandlerInterface* async_signal_handler);
+
+  // Launches a process in the background and calls the passed |callback| when
+  // the process exits.
+  // Returns the process id of the new launched process or 0 in case of failure.
+  pid_t Exec(const std::vector<std::string>& cmd, const ExecCallback& callback);
+  pid_t ExecFlags(const std::vector<std::string>& cmd,
+                  uint32_t flags,
+                  const ExecCallback& callback);
 
   // Kills the running process with SIGTERM and ignores the callback.
-  void KillExec(uint32_t tag);
+  void KillExec(pid_t tag);
 
   // Executes a command synchronously. Returns true on success. If |stdout| is
   // non-null, the process output is stored in it, otherwise the output is
   // logged. Note that stderr is redirected to stdout.
-  static bool SynchronousExecFlags(const std::vector<std::string>& cmd,
-                                   GSpawnFlags flags,
-                                   int* return_code,
-                                   std::string* stdout);
   static bool SynchronousExec(const std::vector<std::string>& cmd,
                               int* return_code,
                               std::string* stdout);
+  static bool SynchronousExecFlags(const std::vector<std::string>& cmd,
+                                   uint32_t flags,
+                                   int* return_code,
+                                   std::string* stdout);
 
   // Gets the one instance.
   static Subprocess& Get() {
@@ -72,40 +85,41 @@ class Subprocess {
   FRIEND_TEST(SubprocessTest, CancelTest);
 
   struct SubprocessRecord {
-    SubprocessRecord() = default;
+    explicit SubprocessRecord(const ExecCallback& callback)
+      : callback(callback) {}
 
-    uint32_t tag{0};
-    chromeos::MessageLoop::TaskId task_id{chromeos::MessageLoop::kTaskIdNull};
+    // The callback supplied by the caller.
+    ExecCallback callback;
 
-    ExecCallback callback{nullptr};
-    void* callback_data{nullptr};
+    // The ProcessImpl instance managing the child process. Destroying this
+    // will close our end of the pipes we have open.
+    chromeos::ProcessImpl proc;
 
-    GPid pid;
-
+    // These are used to monitor the stdout of the running process, including
+    // the stderr if it was redirected.
+    chromeos::MessageLoop::TaskId stdout_task_id{
+        chromeos::MessageLoop::kTaskIdNull};
     int stdout_fd{-1};
     std::string stdout;
   };
 
-  Subprocess() {}
-
-  // Callback for when any subprocess terminates. This calls the user
-  // requested callback.
-  static void GChildExitedCallback(GPid pid, gint status, gpointer data);
-
-  // Callback which runs in the child before exec to redirect stderr onto
-  // stdout.
-  static void GRedirectStderrToStdout(gpointer user_data);
-
   // Callback which runs whenever there is input available on the subprocess
   // stdout pipe.
   static void OnStdoutReady(SubprocessRecord* record);
+
+  // Callback for when any subprocess terminates. This calls the user
+  // requested callback.
+  void ChildExitedCallback(const siginfo_t& info);
 
   // The global instance.
   static Subprocess* subprocess_singleton_;
 
   // A map from the asynchronous subprocess tag (see Exec) to the subprocess
   // record structure for all active asynchronous subprocesses.
-  std::map<uint32_t, std::shared_ptr<SubprocessRecord>> subprocess_records_;
+  std::map<pid_t, std::unique_ptr<SubprocessRecord>> subprocess_records_;
+
+  // Used to watch for child processes.
+  chromeos::ProcessReaper process_reaper_;
 
   DISALLOW_COPY_AND_ASSIGN(Subprocess);
 };

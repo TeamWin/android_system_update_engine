@@ -4,8 +4,6 @@
 
 #include "update_engine/payload_state.h"
 
-#include <glib.h>
-
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
