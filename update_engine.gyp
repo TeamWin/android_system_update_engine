@@ -222,6 +222,9 @@
     {
       'target_name': 'update_engine_client',
       'type': 'executable',
+      'dependencies': [
+        'libupdate_engine-client-headers',
+      ],
       'variables': {
         'exported_deps': [
           'libchrome-<(libbase_ver)',
@@ -239,12 +242,20 @@
       'sources': [
         'update_engine_client.cc',
       ],
+    },
+    # update_engine client library generated headers. Used by other daemons and
+    # by the update_engine_client console program to interact with
+    # update_engine.
+    {
+      'target_name': 'libupdate_engine-client-headers',
+      'type': 'none',
       'actions': [
         {
           'action_name': 'update_engine_client-dbus-proxies',
           'variables': {
             'dbus_service_config': 'dbus_bindings/dbus-service-config.json',
-            'proxy_output_file': 'include/update_engine/client_dbus_proxies.h'
+            'proxy_output_file': 'include/update_engine/dbus-proxies.h',
+            'mock_output_file': 'include/update_engine/dbus-proxy-mocks.h',
           },
           'sources': [
             'dbus_bindings/org.chromium.UpdateEngineInterface.xml',

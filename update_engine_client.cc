@@ -17,8 +17,8 @@
 #include <chromeos/flag_helper.h>
 #include <dbus/bus.h>
 
-#include "update_engine/client_dbus_proxies.h"
 #include "update_engine/dbus_constants.h"
+#include "update_engine/dbus-proxies.h"
 
 using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
 using chromeos_update_engine::kUpdateEngineServiceName;
