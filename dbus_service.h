@@ -26,7 +26,7 @@
 
 #include "update_engine/update_attempter.h"
 
-#include "update_engine/dbus_adaptor/org.chromium.UpdateEngineInterface.h"
+#include "dbus_bindings/org.chromium.UpdateEngineInterface.h"
 
 namespace chromeos {
 namespace dbus {

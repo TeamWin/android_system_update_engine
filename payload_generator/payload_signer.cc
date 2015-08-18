@@ -16,6 +16,8 @@
 
 #include "update_engine/payload_generator/payload_signer.h"
 
+#include <endian.h>
+
 #include <base/logging.h>
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>

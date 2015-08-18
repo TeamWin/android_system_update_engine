@@ -42,6 +42,7 @@
       '-Wl,--gc-sections',
     ],
     'defines': [
+      '_FILE_OFFSET_BITS=64',
       '_POSIX_C_SOURCE=199309L',
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
       'USE_MTD=<(USE_mtd)',
@@ -83,7 +84,7 @@
       'target_name': 'update_engine-dbus-adaptor',
       'type': 'none',
       'variables': {
-        'dbus_adaptors_out_dir': 'include/update_engine/dbus_adaptor',
+        'dbus_adaptors_out_dir': 'include/dbus_bindings',
         'dbus_xml_extension': 'dbus-xml',
       },
       'sources': [
@@ -102,7 +103,7 @@
             'proxy_output_file': 'include/libcros/dbus-proxies.h'
           },
           'sources': [
-            'dbus_bindings/org.chromium.LibCrosService.xml',
+            'dbus_bindings/org.chromium.LibCrosService.dbus-xml',
           ],
           'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
@@ -120,8 +121,6 @@
       'variables': {
         'exported_deps': [
           'dbus-1',
-          'libchrome-<(libbase_ver)',
-          'libchromeos-<(libbase_ver)',
           'libcrypto',
           'libcurl',
           'libdebugd-client',
@@ -142,13 +141,6 @@
           ],
         },
       },
-      'include_dirs': [
-        # We include the update_engine/dbus-constants from the
-        # libupdate_engine-client library path. The file is installed by
-        # system_api, but it is technically part of the library we are
-        # generating but didn't install yet.
-        '<(sysroot)/usr/include/update_engine-client',
-      ],
       'link_settings': {
         'variables': {
           'deps': [
@@ -288,9 +280,6 @@
             '<@(exported_deps)',
           ],
         },
-        'libraries': [
-          '-lvboot_host',
-        ],
       },
       'sources': [
         'payload_generator/ab_generator.cc',

@@ -20,6 +20,7 @@
 
 #include <dirent.h>
 #include <elf.h>
+#include <endian.h>
 #include <errno.h>
 #include <ext2fs/ext2fs.h>
 #include <fcntl.h>

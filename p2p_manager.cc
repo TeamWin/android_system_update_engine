@@ -22,7 +22,6 @@
 
 #include "update_engine/p2p_manager.h"
 
-#include <attr/xattr.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/falloc.h>
@@ -31,6 +30,7 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
+#include <sys/xattr.h>
 #include <unistd.h>
 
 #include <algorithm>

@@ -19,8 +19,9 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/xattr.h>
 #include <unistd.h>
-#include <attr/xattr.h>  // NOLINT - requires typed defined in unistd.h
 
 #include <memory>
 #include <string>
@@ -277,10 +278,10 @@ static bool CheckP2PFile(const string& p2p_dir, const string& file_name,
   if (expected_size_xattr == 0) {
     ea_size = getxattr(path.c_str(), "user.cros-p2p-filesize",
                        &ea_value, sizeof ea_value - 1);
-    if (ea_size == -1 && errno == ENOATTR) {
+    if (ea_size == -1 && errno == ENODATA) {
       // This is valid behavior as we support files without the xattr set.
     } else {
-      PLOG(ERROR) << "getxattr() didn't fail with ENOATTR as expected, "
+      PLOG(ERROR) << "getxattr() didn't fail with ENODATA as expected, "
                   << "ea_size=" << ea_size << ", errno=" << errno;
       return false;
     }

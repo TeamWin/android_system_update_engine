@@ -16,6 +16,8 @@
 
 #include "update_engine/payload_generator/payload_file.h"
 
+#include <endian.h>
+
 #include <algorithm>
 
 #include "update_engine/delta_performer.h"
