@@ -39,11 +39,10 @@ void OutputExtents(std::ostream* os,
 
 bool AnnotatedOperation::SetOperationBlob(chromeos::Blob* blob,
                                           BlobFileWriter* blob_file) {
-  op.set_data_length(blob->size());
   off_t data_offset = blob_file->StoreBlob(*blob);
-  if (data_offset == -1)
-    return false;
+  TEST_AND_RETURN_FALSE(data_offset != -1);
   op.set_data_offset(data_offset);
+  op.set_data_length(blob->size());
   return true;
 }
 

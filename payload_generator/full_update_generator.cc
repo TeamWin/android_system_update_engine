@@ -112,10 +112,7 @@ bool ChunkProcessor::ProcessChunk() {
     op_type = InstallOperation::REPLACE;
   }
 
-  off_t op_offset = blob_file_->StoreBlob(op_blob);
-  TEST_AND_RETURN_FALSE(op_offset >= 0);
-  aop_->op.set_data_offset(op_offset);
-  aop_->op.set_data_length(op_blob.size());
+  TEST_AND_RETURN_FALSE(aop_->SetOperationBlob(&op_blob, blob_file_));
   aop_->op.set_type(op_type);
   return true;
 }
