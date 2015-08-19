@@ -784,66 +784,38 @@ bool InplaceGenerator::ResolveReadAfterWriteDependencies(
   return true;
 }
 
-bool InplaceGenerator::GenerateOperationsForPartition(
-    const PartitionConfig& old_part,
-    const PartitionConfig& new_part,
-    uint64_t partition_size,
-    size_t block_size,
-    ssize_t hard_chunk_blocks,
-    size_t soft_chunk_blocks,
-    BlobFileWriter* blob_file,
-    vector<AnnotatedOperation>* aops) {
-  const string part_name = PartitionNameString(new_part.name);
-  LOG(INFO) << "Delta compressing " << part_name << " partition...";
-  TEST_AND_RETURN_FALSE(
-      diff_utils::DeltaReadPartition(aops,
-                                     old_part,
-                                     new_part,
-                                     hard_chunk_blocks,
-                                     soft_chunk_blocks,
-                                     blob_file,
-                                     false));  // src_ops_allowed
-  LOG(INFO) << "Done reading " << part_name;
-
-  TEST_AND_RETURN_FALSE(
-      ResolveReadAfterWriteDependencies(new_part,
-                                        partition_size,
-                                        block_size,
-                                        blob_file,
-                                        aops));
-  LOG(INFO) << "Done reordering " << part_name;
-  return true;
-}
-
 bool InplaceGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
+    const PartitionConfig& old_part,
+    const PartitionConfig& new_part,
     BlobFileWriter* blob_file,
-    vector<AnnotatedOperation>* rootfs_ops,
-    vector<AnnotatedOperation>* kernel_ops) {
+    vector<AnnotatedOperation>* aops) {
   ssize_t hard_chunk_blocks = (config.hard_chunk_size == -1 ? -1 :
                                config.hard_chunk_size / config.block_size);
   size_t soft_chunk_blocks = config.soft_chunk_size / config.block_size;
+  uint64_t partition_size = new_part.size;
+  if (new_part.name == PartitionName::kRootfs)
+    partition_size = config.rootfs_partition_size;
 
-  TEST_AND_RETURN_FALSE(GenerateOperationsForPartition(
-      config.source.rootfs,
-      config.target.rootfs,
-      config.rootfs_partition_size,
-      config.block_size,
-      hard_chunk_blocks,
-      soft_chunk_blocks,
-      blob_file,
-      rootfs_ops));
+  const string part_name = PartitionNameString(new_part.name);
+  LOG(INFO) << "Delta compressing " << part_name << " partition...";
+  TEST_AND_RETURN_FALSE(
+    diff_utils::DeltaReadPartition(aops,
+                                   old_part,
+                                   new_part,
+                                   hard_chunk_blocks,
+                                   soft_chunk_blocks,
+                                   blob_file,
+                                   false));  // src_ops_allowed
+  LOG(INFO) << "Done reading " << part_name;
 
-  TEST_AND_RETURN_FALSE(GenerateOperationsForPartition(
-      config.source.kernel,
-      config.target.kernel,
-      config.target.kernel.size,  // kernel "filesystem" is the whole partition.
-      config.block_size,
-      hard_chunk_blocks,
-      soft_chunk_blocks,
-      blob_file,
-      kernel_ops));
-
+  TEST_AND_RETURN_FALSE(
+    ResolveReadAfterWriteDependencies(new_part,
+                                      partition_size,
+                                      config.block_size,
+                                      blob_file,
+                                      aops));
+  LOG(INFO) << "Done reordering " << part_name;
   return true;
 }
 

@@ -31,22 +31,21 @@ class OperationsGenerator {
  public:
   virtual ~OperationsGenerator() = default;
 
-  // This method generates two lists of operations, one for the rootfs and one
-  // for the kernel and stores the generated operations in |rootfs_ops| and
-  // |kernel_ops| respectivelly. These operations are generated based on the
-  // given |config|. The operations should be applied in the order specified in
-  // the list, and they respect the payload version and type (delta or full)
-  // specified in |config|.
-  // The operations generated will refer to offsets in the file |data_file_fd|,
+  // This method generates a list of operations to update from the partition
+  // |old_part| to |new_part| and stores the generated operations in |aops|.
+  // These operations are generated based on the given |config|.
+  // The operations should be applied in the order specified in the list, and
+  // they respect the payload version and type (delta or full) specified in
+  // |config|.
+  // The operations generated will refer to offsets in the file |blob_file|,
   // where this function stores the output, but not necessarily in the same
-  // order as they appear in the |rootfs_ops| and |kernel_ops|.
-  // This function stores the amount of data written to |data_file_fd| in
-  // |data_file_size|.
+  // order as they appear in the |aops|.
   virtual bool GenerateOperations(
       const PayloadGenerationConfig& config,
+      const PartitionConfig& old_part,
+      const PartitionConfig& new_part,
       BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* rootfs_ops,
-      std::vector<AnnotatedOperation>* kernel_ops) = 0;
+      std::vector<AnnotatedOperation>* aops) = 0;
 
  protected:
   OperationsGenerator() = default;

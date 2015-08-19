@@ -40,29 +40,30 @@ class ABGenerator : public OperationsGenerator {
  public:
   ABGenerator() = default;
 
-  // Generate the update payload operations for the kernel and rootfs using
+  // Generate the update payload operations for the given partition using
   // SOURCE_* operations, used for generating deltas for the minor version
   // kSourceMinorPayloadVersion. This function will generate operations in the
-  // rootfs that will read blocks from the source partition in random order and
-  // write the new image on the target partition, also possibly in random order.
-  // The rootfs operations are stored in |rootfs_ops| and should be executed in
-  // that order. The kernel operations are stored in |kernel_ops|. All
-  // the offsets in the operations reference the data written to |blob_file|.
+  // partition that will read blocks from the source partition in random order
+  // and write the new image on the target partition, also possibly in random
+  // order. The operations are stored in |aops| and should be executed in that
+  // order. All the offsets in the operations reference the data written to
+  // |blob_file|.
   bool GenerateOperations(
       const PayloadGenerationConfig& config,
+      const PartitionConfig& old_part,
+      const PartitionConfig& new_part,
       BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* rootfs_ops,
-      std::vector<AnnotatedOperation>* kernel_ops) override;
+      std::vector<AnnotatedOperation>* aops) override;
 
   // Split the operations in the vector of AnnotatedOperations |aops|
   // such that for every operation there is only one dst extent and updates
   // |aops| with the new list of operations. All kinds of operations are
   // fragmented except BSDIFF and SOURCE_BSDIFF operations.
-  // The |target_rootfs_part| is the filename of the new image, where the
+  // The |target_part_path| is the filename of the new image, where the
   // destination extents refer to. The blobs of the operations in |aops| should
   // reference |blob_file|. |blob_file| are updated if needed.
   static bool FragmentOperations(std::vector<AnnotatedOperation>* aops,
-                                 const std::string& target_rootfs_part,
+                                 const std::string& target_part_path,
                                  BlobFileWriter* blob_file);
 
   // Takes a vector of AnnotatedOperations |aops| and sorts them by the first
