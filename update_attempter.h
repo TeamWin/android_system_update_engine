@@ -28,6 +28,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "debugd/dbus-proxies.h"
 #include "update_engine/action_processor.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/download_action.h"

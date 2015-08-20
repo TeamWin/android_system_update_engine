@@ -24,7 +24,7 @@
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 #include <policy/libpolicy.h>
 
-#include "update_engine/dbus_proxies.h"
+#include "login_manager/dbus-proxies.h"
 #include "update_engine/update_manager/device_policy_provider.h"
 #include "update_engine/update_manager/generic_variables.h"
 

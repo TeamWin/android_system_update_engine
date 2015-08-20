@@ -28,6 +28,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "shill/dbus-proxies.h"
+#include "shill/dbus-proxy-mocks.h"
 #include "update_engine/fake_shill_proxy.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/test_utils.h"

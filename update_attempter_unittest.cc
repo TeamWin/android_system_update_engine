@@ -32,6 +32,10 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
+#include "debugd/dbus-proxies.h"
+#include "debugd/dbus-proxy-mocks.h"
+#include "libcros/dbus-proxies.h"
+#include "libcros/dbus-proxy-mocks.h"
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"

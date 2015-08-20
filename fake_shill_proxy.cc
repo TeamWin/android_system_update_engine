@@ -16,8 +16,6 @@
 
 #include "update_engine/fake_shill_proxy.h"
 
-#include "update_engine/dbus_proxies.h"
-
 using org::chromium::flimflam::ManagerProxyMock;
 using org::chromium::flimflam::ServiceProxyInterface;
 

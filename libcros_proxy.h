@@ -22,7 +22,7 @@
 #include <base/macros.h>
 #include <dbus/bus.h>
 
-#include "update_engine/dbus_proxies.h"
+#include "libcros/dbus-proxies.h"
 
 namespace chromeos_update_engine {
 

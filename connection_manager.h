@@ -22,7 +22,6 @@
 #include <base/macros.h>
 
 #include "update_engine/connection_manager_interface.h"
-#include "update_engine/dbus_proxies.h"
 #include "update_engine/shill_proxy_interface.h"
 
 namespace chromeos_update_engine {

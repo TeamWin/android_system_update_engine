@@ -24,6 +24,7 @@
 #include <chromeos/dbus/service_constants.h>
 #include <policy/device_policy.h>
 
+#include "shill/dbus-proxies.h"
 #include "update_engine/prefs.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"

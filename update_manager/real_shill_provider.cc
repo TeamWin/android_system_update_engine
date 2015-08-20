@@ -22,6 +22,8 @@
 #include <base/strings/stringprintf.h>
 #include <chromeos/dbus/service_constants.h>
 
+#include "shill/dbus-proxies.h"
+
 using org::chromium::flimflam::ManagerProxyInterface;
 using org::chromium::flimflam::ServiceProxyInterface;
 using std::string;

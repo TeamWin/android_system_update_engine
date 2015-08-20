@@ -22,8 +22,8 @@
 #include <policy/mock_device_policy.h>
 
 #include "metrics/metrics_library_mock.h"
-#include "update_engine/dbus_mocks.h"
-#include "update_engine/dbus_proxies.h"
+#include "power_manager/dbus-proxies.h"
+#include "power_manager/dbus-proxy-mocks.h"
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_hardware.h"
 #include "update_engine/mock_connection_manager.h"

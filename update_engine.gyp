@@ -86,22 +86,61 @@
       'includes': ['../common-mk/generate-dbus-adaptors.gypi'],
     },
     {
-      'target_name': 'update_engine-dbus-proxies',
+      'target_name': 'update_engine-other-dbus-proxies',
       'type': 'none',
       'actions': [
         {
-          'action_name': 'update_engine-dbus-proxies-action',
+          'action_name': 'update_engine-dbus-shill-client',
           'variables': {
-            'dbus_service_config': '',
-            'mock_output_file': 'include/update_engine/dbus_mocks.h',
-            'proxy_output_file': 'include/update_engine/dbus_proxies.h'
+            'mock_output_file': 'include/shill/dbus-proxy-mocks.h',
+            'proxy_output_file': 'include/shill/dbus-proxies.h'
+          },
+          'sources': [
+            '../shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
+            '../shill/dbus_bindings/org.chromium.flimflam.Service.xml',
+          ],
+          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+        },
+        {
+          'action_name': 'update_engine-dbus-debugd-client',
+          'variables': {
+            'mock_output_file': 'include/debugd/dbus-proxy-mocks.h',
+            'proxy_output_file': 'include/debugd/dbus-proxies.h'
           },
           'sources': [
             '../debugd/share/org.chromium.debugd.xml',
+          ],
+          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+        },
+        {
+          'action_name': 'update_engine-dbus-login_manager-client',
+          'variables': {
+            'mock_output_file': 'include/login_manager/dbus-proxy-mocks.h',
+            'proxy_output_file': 'include/login_manager/dbus-proxies.h'
+          },
+          'sources': [
             '../login_manager/org.chromium.SessionManagerInterface.xml',
+          ],
+          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+        },
+        {
+          'action_name': 'update_engine-dbus-power_manager-client',
+          'variables': {
+            'mock_output_file': 'include/power_manager/dbus-proxy-mocks.h',
+            'proxy_output_file': 'include/power_manager/dbus-proxies.h'
+          },
+          'sources': [
             '../power_manager/dbus_bindings/org.chromium.PowerManager.xml',
-            '../shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
-            '../shill/dbus_bindings/org.chromium.flimflam.Service.xml',
+          ],
+          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+        },
+        {
+          'action_name': 'update_engine-dbus-libcros-client',
+          'variables': {
+            'mock_output_file': 'include/libcros/dbus-proxy-mocks.h',
+            'proxy_output_file': 'include/libcros/dbus-proxies.h'
+          },
+          'sources': [
             'dbus_bindings/org.chromium.LibCrosService.xml',
           ],
           'includes': ['../common-mk/generate-dbus-proxies.gypi'],
@@ -115,7 +154,7 @@
       'dependencies': [
         'update_metadata-protos',
         'update_engine-dbus-adaptor',
-        'update_engine-dbus-proxies',
+        'update_engine-other-dbus-proxies',
       ],
       'variables': {
         'exported_deps': [

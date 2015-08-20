@@ -26,7 +26,6 @@
 
 #include <chromeos/message_loops/message_loop.h>
 
-#include "update_engine/dbus_proxies.h"
 #include "update_engine/libcros_proxy.h"
 #include "update_engine/proxy_resolver.h"
 

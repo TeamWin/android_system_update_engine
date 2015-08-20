@@ -18,7 +18,6 @@
 
 #include <chromeos/dbus/service_constants.h>
 
-#include "update_engine/dbus_proxies.h"
 
 using org::chromium::flimflam::ManagerProxy;
 using org::chromium::flimflam::ManagerProxyInterface;

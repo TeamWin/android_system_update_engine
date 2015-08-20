@@ -23,8 +23,8 @@
 
 #include <base/macros.h>
 
-#include "update_engine/dbus_mocks.h"
-#include "update_engine/dbus_proxies.h"
+#include "shill/dbus-proxies.h"
+#include "shill/dbus-proxy-mocks.h"
 #include "update_engine/shill_proxy_interface.h"
 
 namespace chromeos_update_engine {

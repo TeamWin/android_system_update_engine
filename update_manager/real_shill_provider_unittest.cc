@@ -25,8 +25,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/dbus_mocks.h"
-#include "update_engine/dbus_proxies.h"
+#include "shill/dbus-proxies.h"
+#include "shill/dbus-proxy-mocks.h"
 #include "update_engine/dbus_test_utils.h"
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_shill_proxy.h"

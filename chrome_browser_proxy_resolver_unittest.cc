@@ -26,7 +26,8 @@
 #include <chromeos/make_unique_ptr.h>
 #include <chromeos/message_loops/fake_message_loop.h>
 
-#include "update_engine/dbus_mocks.h"
+#include "libcros/dbus-proxies.h"
+#include "libcros/dbus-proxy-mocks.h"
 #include "update_engine/dbus_test_utils.h"
 
 using ::testing::Return;

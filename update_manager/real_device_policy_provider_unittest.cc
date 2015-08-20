@@ -27,7 +27,8 @@
 #include <policy/mock_device_policy.h>
 #include <policy/mock_libpolicy.h>
 
-#include "update_engine/dbus_mocks.h"
+#include "login_manager/dbus-proxies.h"
+#include "login_manager/dbus-proxy-mocks.h"
 #include "update_engine/dbus_test_utils.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/update_manager/umtest_utils.h"

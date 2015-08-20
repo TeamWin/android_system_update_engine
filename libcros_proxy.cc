@@ -16,8 +16,6 @@
 
 #include "update_engine/libcros_proxy.h"
 
-#include "update_engine/dbus_proxies.h"
-
 using org::chromium::LibCrosServiceInterfaceProxy;
 using org::chromium::LibCrosServiceInterfaceProxyInterface;
 using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxy;

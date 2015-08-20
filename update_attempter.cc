@@ -39,6 +39,7 @@
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
 
+#include "power_manager/dbus-proxies.h"
 #include "update_engine/certificate_checker.h"
 #include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"

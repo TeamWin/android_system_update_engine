@@ -24,9 +24,11 @@
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 
+#include "debugd/dbus-proxies.h"
+#include "login_manager/dbus-proxies.h"
+#include "power_manager/dbus-proxies.h"
 #include "update_engine/clock.h"
 #include "update_engine/connection_manager.h"
-#include "update_engine/dbus_proxies.h"
 #include "update_engine/hardware.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
