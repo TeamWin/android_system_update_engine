@@ -96,8 +96,8 @@
             'proxy_output_file': 'include/shill/dbus-proxies.h'
           },
           'sources': [
-            '../shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
-            '../shill/dbus_bindings/org.chromium.flimflam.Service.xml',
+            '<(platform2_root)/shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
+            '<(platform2_root)/shill/dbus_bindings/org.chromium.flimflam.Service.xml',
           ],
           'includes': ['../common-mk/generate-dbus-proxies.gypi'],
         },
@@ -108,7 +108,7 @@
             'proxy_output_file': 'include/debugd/dbus-proxies.h'
           },
           'sources': [
-            '../debugd/share/org.chromium.debugd.xml',
+            '<(platform2_root)/debugd/share/org.chromium.debugd.xml',
           ],
           'includes': ['../common-mk/generate-dbus-proxies.gypi'],
         },
@@ -119,7 +119,7 @@
             'proxy_output_file': 'include/login_manager/dbus-proxies.h'
           },
           'sources': [
-            '../login_manager/org.chromium.SessionManagerInterface.xml',
+            '<(platform2_root)/login_manager/org.chromium.SessionManagerInterface.xml',
           ],
           'includes': ['../common-mk/generate-dbus-proxies.gypi'],
         },
@@ -130,7 +130,7 @@
             'proxy_output_file': 'include/power_manager/dbus-proxies.h'
           },
           'sources': [
-            '../power_manager/dbus_bindings/org.chromium.PowerManager.xml',
+            '<(platform2_root)/power_manager/dbus_bindings/org.chromium.PowerManager.xml',
           ],
           'includes': ['../common-mk/generate-dbus-proxies.gypi'],
         },
