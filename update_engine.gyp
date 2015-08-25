@@ -47,6 +47,11 @@
       'USE_MTD=<(USE_mtd)',
       'USE_POWER_MANAGEMENT=<(USE_power_management)',
     ],
+    'include_dirs': [
+      # We need this include dir because we include all the local code as
+      # "update_engine/...".
+      '<(platform2_root)/../aosp/system',
+    ],
   },
   'targets': [
     # Protobufs.
@@ -71,7 +76,7 @@
       'sources': [
         'update_metadata.proto'
       ],
-      'includes': ['../common-mk/protoc.gypi'],
+      'includes': ['../../../platform2/common-mk/protoc.gypi'],
     },
     # Chrome D-Bus bindings.
     {
@@ -83,7 +88,7 @@
       'sources': [
         'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
       ],
-      'includes': ['../common-mk/generate-dbus-adaptors.gypi'],
+      'includes': ['../../../platform2/common-mk/generate-dbus-adaptors.gypi'],
     },
     {
       'target_name': 'update_engine-other-dbus-proxies',
@@ -99,7 +104,7 @@
             '<(platform2_root)/shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
             '<(platform2_root)/shill/dbus_bindings/org.chromium.flimflam.Service.xml',
           ],
-          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
         {
           'action_name': 'update_engine-dbus-debugd-client',
@@ -110,7 +115,7 @@
           'sources': [
             '<(platform2_root)/debugd/share/org.chromium.debugd.xml',
           ],
-          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
         {
           'action_name': 'update_engine-dbus-login_manager-client',
@@ -121,7 +126,7 @@
           'sources': [
             '<(platform2_root)/login_manager/org.chromium.SessionManagerInterface.xml',
           ],
-          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
         {
           'action_name': 'update_engine-dbus-power_manager-client',
@@ -132,7 +137,7 @@
           'sources': [
             '<(platform2_root)/power_manager/dbus_bindings/org.chromium.PowerManager.xml',
           ],
-          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
         {
           'action_name': 'update_engine-dbus-libcros-client',
@@ -143,7 +148,7 @@
           'sources': [
             'dbus_bindings/org.chromium.LibCrosService.xml',
           ],
-          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
       ],
     },
@@ -314,7 +319,7 @@
           'sources': [
             'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
           ],
-          'includes': ['../common-mk/generate-dbus-proxies.gypi'],
+          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
       ]
     },
@@ -406,7 +411,7 @@
             'unittest_key.pem',
             'unittest_key2.pem',
           ],
-          'includes': ['../common-mk/openssl_pem.gypi'],
+          'includes': ['../../../platform2/common-mk/openssl_pem.gypi'],
         },
         # Unpacks sample images used for testing.
         {
@@ -433,7 +438,7 @@
         {
           'target_name': 'update_engine_unittests',
           'type': 'executable',
-          'includes': ['../common-mk/common_test.gypi'],
+          'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'variables': {
             'deps': [
               'libchromeos-test-<(libbase_ver)',
@@ -444,7 +449,7 @@
             'libupdate_engine',
             'libpayload_generator',
           ],
-          'includes': ['../common-mk/common_test.gypi'],
+          'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'sources': [
             'action_pipe_unittest.cc',
             'action_processor_unittest.cc',
