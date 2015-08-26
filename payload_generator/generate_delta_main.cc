@@ -197,11 +197,15 @@ void ApplyDelta(const string& in_file,
   LOG(INFO) << "Calculating original checksums";
   PartitionInfo kern_info, root_info;
   ImageConfig old_image;
-  old_image.kernel.path = old_kernel;
-  old_image.rootfs.path = old_rootfs;
+  old_image.partitions.emplace_back(kLegacyPartitionNameRoot);
+  old_image.partitions.back().path = old_rootfs;
+  old_image.partitions.emplace_back(kLegacyPartitionNameKernel);
+  old_image.partitions.back().path = old_kernel;
   CHECK(old_image.LoadImageSize());
-  CHECK(diff_utils::InitializePartitionInfo(old_image.kernel, &kern_info));
-  CHECK(diff_utils::InitializePartitionInfo(old_image.rootfs, &root_info));
+  CHECK(diff_utils::InitializePartitionInfo(old_image.partitions[0],
+                                            &root_info));
+  CHECK(diff_utils::InitializePartitionInfo(old_image.partitions[1],
+                                            &kern_info));
   install_plan.kernel_hash.assign(kern_info.hash().begin(),
                                   kern_info.hash().end());
   install_plan.rootfs_hash.assign(root_info.hash().begin(),
@@ -355,11 +359,21 @@ int Main(int argc, char** argv) {
   // A payload generation was requested. Convert the flags to a
   // PayloadGenerationConfig.
   PayloadGenerationConfig payload_config;
-  payload_config.source.rootfs.path = FLAGS_old_image;
-  payload_config.source.kernel.path = FLAGS_old_kernel;
 
-  payload_config.target.rootfs.path = FLAGS_new_image;
-  payload_config.target.kernel.path = FLAGS_new_kernel;
+  payload_config.is_delta = !FLAGS_old_image.empty() ||
+                            !FLAGS_old_kernel.empty();
+
+  if (payload_config.is_delta) {
+    payload_config.source.partitions.emplace_back(kLegacyPartitionNameRoot);
+    payload_config.source.partitions.back().path = FLAGS_old_image;
+    payload_config.source.partitions.emplace_back(kLegacyPartitionNameKernel);
+    payload_config.source.partitions.back().path = FLAGS_old_kernel;
+  }
+
+  payload_config.target.partitions.emplace_back(kLegacyPartitionNameRoot);
+  payload_config.target.partitions.back().path = FLAGS_new_image;
+  payload_config.target.partitions.emplace_back(kLegacyPartitionNameKernel);
+  payload_config.target.partitions.back().path = FLAGS_new_kernel;
 
   // Use the default soft_chunk_size defined in the config.
   payload_config.hard_chunk_size = FLAGS_chunk_size;
@@ -373,8 +387,6 @@ int Main(int argc, char** argv) {
   if (!FLAGS_new_image.empty()) {
     CHECK(payload_config.target.LoadImageSize());
   }
-
-  payload_config.is_delta = !FLAGS_old_image.empty();
 
   CHECK(!FLAGS_out_file.empty());
 
@@ -400,10 +412,10 @@ int Main(int argc, char** argv) {
 
   if (payload_config.is_delta) {
     // Avoid opening the filesystem interface for full payloads.
-    CHECK(payload_config.target.rootfs.OpenFilesystem());
-    CHECK(payload_config.target.kernel.OpenFilesystem());
-    CHECK(payload_config.source.rootfs.OpenFilesystem());
-    CHECK(payload_config.source.kernel.OpenFilesystem());
+    for (PartitionConfig& part : payload_config.target.partitions)
+      CHECK(part.OpenFilesystem());
+    for (PartitionConfig& part : payload_config.source.partitions)
+      CHECK(part.OpenFilesystem());
   }
 
   payload_config.major_version = FLAGS_major_version;
@@ -413,14 +425,15 @@ int Main(int argc, char** argv) {
     // Autodetect minor_version by looking at the update_engine.conf in the old
     // image.
     if (payload_config.is_delta) {
-      CHECK(payload_config.source.rootfs.fs_interface);
+      payload_config.minor_version = kInPlaceMinorPayloadVersion;
       chromeos::KeyValueStore store;
       uint32_t minor_version;
-      if (payload_config.source.rootfs.fs_interface->LoadSettings(&store) &&
-          utils::GetMinorVersion(store, &minor_version)) {
-        payload_config.minor_version = minor_version;
-      } else {
-        payload_config.minor_version = kInPlaceMinorPayloadVersion;
+      for (const PartitionConfig& part : payload_config.source.partitions) {
+        if (part.fs_interface && part.fs_interface->LoadSettings(&store) &&
+            utils::GetMinorVersion(store, &minor_version)) {
+          payload_config.minor_version = minor_version;
+          break;
+        }
       }
     } else {
       payload_config.minor_version = kFullPayloadMinorVersion;

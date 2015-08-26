@@ -80,8 +80,7 @@ struct ImageConfig {
   ImageInfo image_info;
 
   // The updated partitions.
-  PartitionConfig rootfs = PartitionConfig{kLegacyPartitionNameRoot};
-  PartitionConfig kernel = PartitionConfig{kLegacyPartitionNameKernel};
+  std::vector<PartitionConfig> partitions;
 };
 
 // The PayloadGenerationConfig struct encapsulates all the configuration to

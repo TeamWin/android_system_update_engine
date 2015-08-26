@@ -67,19 +67,15 @@ bool PartitionConfig::OpenFilesystem() {
 
 bool ImageConfig::ValidateIsEmpty() const {
   TEST_AND_RETURN_FALSE(ImageInfoIsEmpty());
-
-  TEST_AND_RETURN_FALSE(rootfs.path.empty());
-  TEST_AND_RETURN_FALSE(rootfs.size == 0);
-  TEST_AND_RETURN_FALSE(kernel.path.empty());
-  TEST_AND_RETURN_FALSE(kernel.size == 0);
-  return true;
+  return partitions.empty();
 }
 
 bool ImageConfig::LoadImageSize() {
-  TEST_AND_RETURN_FALSE(!rootfs.path.empty());
-  rootfs.size = utils::FileSize(rootfs.path);
-  if (!kernel.path.empty())
-    kernel.size = utils::FileSize(kernel.path);
+  for (PartitionConfig& part : partitions) {
+    if (part.path.empty())
+      continue;
+    part.size = utils::FileSize(part.path);
+  }
   return true;
 }
 
@@ -94,12 +90,11 @@ bool ImageConfig::ImageInfoIsEmpty() const {
 
 bool PayloadGenerationConfig::Validate() const {
   if (is_delta) {
-    TEST_AND_RETURN_FALSE(source.rootfs.ValidateExists());
-    TEST_AND_RETURN_FALSE(source.rootfs.size % block_size == 0);
-
-    if (!source.kernel.path.empty()) {
-      TEST_AND_RETURN_FALSE(source.kernel.ValidateExists());
-      TEST_AND_RETURN_FALSE(source.kernel.size % block_size == 0);
+    for (const PartitionConfig& part : source.partitions) {
+      if (!part.path.empty()) {
+        TEST_AND_RETURN_FALSE(part.ValidateExists());
+        TEST_AND_RETURN_FALSE(part.size % block_size == 0);
+      }
     }
 
     // Check for the supported minor_version values.
@@ -116,17 +111,19 @@ bool PayloadGenerationConfig::Validate() const {
   }
 
   // In all cases, the target image must exists.
-  TEST_AND_RETURN_FALSE(target.rootfs.ValidateExists());
-  TEST_AND_RETURN_FALSE(target.kernel.ValidateExists());
-  TEST_AND_RETURN_FALSE(target.rootfs.size % block_size == 0);
-  TEST_AND_RETURN_FALSE(target.kernel.size % block_size == 0);
+  for (const PartitionConfig& part : target.partitions) {
+    TEST_AND_RETURN_FALSE(part.ValidateExists());
+    TEST_AND_RETURN_FALSE(part.size % block_size == 0);
+    if (minor_version == kInPlaceMinorPayloadVersion &&
+        part.name == kLegacyPartitionNameRoot)
+      TEST_AND_RETURN_FALSE(rootfs_partition_size >= part.size);
+  }
 
   TEST_AND_RETURN_FALSE(hard_chunk_size == -1 ||
                         hard_chunk_size % block_size == 0);
   TEST_AND_RETURN_FALSE(soft_chunk_size % block_size == 0);
 
   TEST_AND_RETURN_FALSE(rootfs_partition_size % block_size == 0);
-  TEST_AND_RETURN_FALSE(rootfs_partition_size >= target.rootfs.size);
 
   return true;
 }

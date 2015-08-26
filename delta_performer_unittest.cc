@@ -112,15 +112,16 @@ class DeltaPerformerTest : public ::testing::Test {
     PayloadGenerationConfig config;
     config.major_version = kChromeOSMajorPayloadVersion;
     config.minor_version = minor_version;
-    config.target.rootfs.path = blob_path;
-    config.target.rootfs.size = blob_data.size();
-    config.target.kernel.path = blob_path;
-    config.target.kernel.size = blob_data.size();
 
     PayloadFile payload;
     EXPECT_TRUE(payload.Init(config));
 
-    payload.AddPartition(config.source.rootfs, config.target.rootfs, aops);
+    PartitionConfig old_part(kLegacyPartitionNameRoot);
+    PartitionConfig new_part(kLegacyPartitionNameRoot);
+    new_part.path = blob_path;
+    new_part.size = blob_data.size();
+
+    payload.AddPartition(old_part, new_part, aops);
 
     string payload_path;
     EXPECT_TRUE(utils::MakeTempFile("Payload-XXXXXX", &payload_path, nullptr));

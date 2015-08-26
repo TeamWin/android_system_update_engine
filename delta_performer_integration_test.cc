@@ -500,24 +500,28 @@ static void GenerateDeltaFile(bool full_kernel,
     payload_config.major_version = kChromeOSMajorPayloadVersion;
     payload_config.minor_version = minor_version;
     if (!full_rootfs) {
-      payload_config.source.rootfs.path = state->a_img;
+      payload_config.source.partitions.emplace_back(kLegacyPartitionNameRoot);
+      payload_config.source.partitions.emplace_back(kLegacyPartitionNameKernel);
+      payload_config.source.partitions.front().path = state->a_img;
       if (!full_kernel)
-        payload_config.source.kernel.path = state->old_kernel;
+        payload_config.source.partitions.back().path = state->old_kernel;
       payload_config.source.image_info = old_image_info;
       EXPECT_TRUE(payload_config.source.LoadImageSize());
-      EXPECT_TRUE(payload_config.source.rootfs.OpenFilesystem());
-      EXPECT_TRUE(payload_config.source.kernel.OpenFilesystem());
+      for (PartitionConfig& part : payload_config.source.partitions)
+        EXPECT_TRUE(part.OpenFilesystem());
     } else {
       if (payload_config.hard_chunk_size == -1)
         // Use 1 MiB chunk size for the full unittests.
         payload_config.hard_chunk_size = 1024 * 1024;
     }
-    payload_config.target.rootfs.path = state->b_img;
-    payload_config.target.kernel.path = state->new_kernel;
+    payload_config.target.partitions.emplace_back(kLegacyPartitionNameRoot);
+    payload_config.target.partitions.back().path = state->b_img;
+    payload_config.target.partitions.emplace_back(kLegacyPartitionNameKernel);
+    payload_config.target.partitions.back().path = state->new_kernel;
     payload_config.target.image_info = new_image_info;
     EXPECT_TRUE(payload_config.target.LoadImageSize());
-    EXPECT_TRUE(payload_config.target.rootfs.OpenFilesystem());
-    EXPECT_TRUE(payload_config.target.kernel.OpenFilesystem());
+    for (PartitionConfig& part : payload_config.target.partitions)
+      EXPECT_TRUE(part.OpenFilesystem());
 
     EXPECT_TRUE(payload_config.Validate());
     EXPECT_TRUE(
