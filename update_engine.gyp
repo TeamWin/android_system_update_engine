@@ -84,9 +84,10 @@
       'type': 'none',
       'variables': {
         'dbus_adaptors_out_dir': 'include/update_engine/dbus_adaptor',
+        'dbus_xml_extension': 'dbus-xml',
       },
       'sources': [
-        'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
+        'dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml',
       ],
       'includes': ['../../../platform2/common-mk/generate-dbus-adaptors.gypi'],
     },
@@ -317,7 +318,7 @@
             'mock_output_file': 'include/update_engine/dbus-proxy-mocks.h',
           },
           'sources': [
-            'dbus_bindings/org.chromium.UpdateEngineInterface.xml',
+            'dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml',
           ],
           'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
