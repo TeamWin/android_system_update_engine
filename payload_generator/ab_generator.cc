@@ -34,44 +34,30 @@ namespace chromeos_update_engine {
 
 bool ABGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
+    const PartitionConfig& old_part,
+    const PartitionConfig& new_part,
     BlobFileWriter* blob_file,
-    vector<AnnotatedOperation>* rootfs_ops,
-    vector<AnnotatedOperation>* kernel_ops) {
+    vector<AnnotatedOperation>* aops) {
 
   ssize_t hard_chunk_blocks = (config.hard_chunk_size == -1 ? -1 :
                                config.hard_chunk_size / config.block_size);
   size_t soft_chunk_blocks = config.soft_chunk_size / config.block_size;
 
-  rootfs_ops->clear();
+  aops->clear();
   TEST_AND_RETURN_FALSE(diff_utils::DeltaReadPartition(
-      rootfs_ops,
-      config.source.rootfs,
-      config.target.rootfs,
+      aops,
+      old_part,
+      new_part,
       hard_chunk_blocks,
       soft_chunk_blocks,
       blob_file,
       true));  // src_ops_allowed
-  LOG(INFO) << "done reading normal files";
+  LOG(INFO) << "done reading " << PartitionNameString(new_part.name);
 
-  // Read kernel partition
-  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadPartition(
-      kernel_ops,
-      config.source.kernel,
-      config.target.kernel,
-      hard_chunk_blocks,
-      soft_chunk_blocks,
-      blob_file,
-      true));  // src_ops_allowed
-  LOG(INFO) << "done reading kernel";
-
-  TEST_AND_RETURN_FALSE(FragmentOperations(rootfs_ops,
-                                           config.target.rootfs.path,
+  TEST_AND_RETURN_FALSE(FragmentOperations(aops,
+                                           new_part.path,
                                            blob_file));
-  TEST_AND_RETURN_FALSE(FragmentOperations(kernel_ops,
-                                           config.target.kernel.path,
-                                           blob_file));
-  SortOperationsByDestination(rootfs_ops);
-  SortOperationsByDestination(kernel_ops);
+  SortOperationsByDestination(aops);
 
   // Use the soft_chunk_size when merging operations to prevent merging all
   // the operations into a huge one if there's no hard limit.
@@ -81,13 +67,9 @@ bool ABGenerator::GenerateOperations(
     merge_chunk_blocks = hard_chunk_blocks;
   }
 
-  TEST_AND_RETURN_FALSE(MergeOperations(rootfs_ops,
+  TEST_AND_RETURN_FALSE(MergeOperations(aops,
                                         merge_chunk_blocks,
-                                        config.target.rootfs.path,
-                                        blob_file));
-  TEST_AND_RETURN_FALSE(MergeOperations(kernel_ops,
-                                        merge_chunk_blocks,
-                                        config.target.kernel.path,
+                                        new_part.path,
                                         blob_file));
   return true;
 }

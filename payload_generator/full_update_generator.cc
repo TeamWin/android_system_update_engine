@@ -121,10 +121,11 @@ bool ChunkProcessor::ProcessChunk() {
 
 bool FullUpdateGenerator::GenerateOperations(
     const PayloadGenerationConfig& config,
+    const PartitionConfig& old_part,
+    const PartitionConfig& new_part,
     BlobFileWriter* blob_file,
-    vector<AnnotatedOperation>* rootfs_ops,
-    vector<AnnotatedOperation>* kernel_ops) {
-  TEST_AND_RETURN_FALSE(config.Validate());
+    vector<AnnotatedOperation>* aops) {
+  TEST_AND_RETURN_FALSE(new_part.ValidateExists());
 
   // FullUpdateGenerator requires a positive chunk_size, otherwise there will
   // be only one operation with the whole partition which should not be allowed.
@@ -143,31 +144,11 @@ bool FullUpdateGenerator::GenerateOperations(
   TEST_AND_RETURN_FALSE(full_chunk_size > 0);
   TEST_AND_RETURN_FALSE(full_chunk_size % config.block_size == 0);
 
-  TEST_AND_RETURN_FALSE(GenerateOperationsForPartition(
-      config.target.rootfs,
-      config.block_size,
-      full_chunk_size / config.block_size,
-      blob_file,
-      rootfs_ops));
-  TEST_AND_RETURN_FALSE(GenerateOperationsForPartition(
-      config.target.kernel,
-      config.block_size,
-      full_chunk_size / config.block_size,
-      blob_file,
-      kernel_ops));
-  return true;
-}
-
-bool FullUpdateGenerator::GenerateOperationsForPartition(
-    const PartitionConfig& new_part,
-    size_t block_size,
-    size_t chunk_blocks,
-    BlobFileWriter* blob_file,
-    vector<AnnotatedOperation>* aops) {
+  size_t chunk_blocks = full_chunk_size / config.block_size;
   size_t max_threads = std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
   LOG(INFO) << "Compressing partition " << PartitionNameString(new_part.name)
             << " from " << new_part.path << " splitting in chunks of "
-            << chunk_blocks << " blocks (" << block_size
+            << chunk_blocks << " blocks (" << config.block_size
             << " bytes each) using " << max_threads << " threads";
 
   int in_fd = open(new_part.path.c_str(), O_RDONLY, 0);
@@ -176,7 +157,7 @@ bool FullUpdateGenerator::GenerateOperationsForPartition(
 
   // We potentially have all the ChunkProcessors in memory but only
   // |max_threads| will actually hold a block in memory while we process.
-  size_t partition_blocks = new_part.size / block_size;
+  size_t partition_blocks = new_part.size / config.block_size;
   size_t num_chunks = (partition_blocks + chunk_blocks - 1) / chunk_blocks;
   aops->resize(num_chunks);
   vector<ChunkProcessor> chunk_processors;
@@ -202,8 +183,8 @@ bool FullUpdateGenerator::GenerateOperationsForPartition(
 
     chunk_processors.emplace_back(
         in_fd,
-        static_cast<off_t>(start_block) * block_size,
-        num_blocks * block_size,
+        static_cast<off_t>(start_block) * config.block_size,
+        num_blocks * config.block_size,
         blob_file,
         aop);
   }

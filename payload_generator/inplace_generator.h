@@ -218,39 +218,20 @@ class InplaceGenerator : public OperationsGenerator {
       BlobFileWriter* blob_file,
       std::vector<AnnotatedOperation>* aops);
 
-  // Generates the list of operations to update inplace from the partition
-  // |old_part| to |new_part|. The |partition_size| should be at least
-  // |new_part.size| and any extra space there could be used as scratch space.
-  // The operations generated will not write more than |chunk_blocks| blocks.
-  // The new operations will create blobs in |data_file_fd| and update
-  // the file size pointed by |data_file_size| if needed.
-  // On success, stores the new operations in |aops| and returns true.
-  static bool GenerateOperationsForPartition(
-      const PartitionConfig& old_part,
-      const PartitionConfig& new_part,
-      uint64_t partition_size,
-      size_t block_size,
-      ssize_t hard_chunk_blocks,
-      size_t soft_chunk_blocks,
-      BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* aops);
-
-  // Generate the update payload operations for the kernel and rootfs using
+  // Generate the update payload operations for the given partition using
   // only operations that read from the target and/or write to the target,
   // hence, applying the payload "in-place" in the target partition. This method
   // assumes that the contents of the source image are pre-copied to the target
   // partition, up to the size of the source image. Use this method to generate
   // a delta update with the minor version kInPlaceMinorPayloadVersion.
-  // The rootfs operations are stored in |graph| and should be executed in the
-  // |final_order| order. The kernel operations are stored in |kernel_ops|. All
-  // the offsets in the operations reference the data written to |data_file_fd|.
-  // The total amount of data written to that file is stored in
-  // |data_file_size|.
+  // The operations are stored in |aops|. All the offsets in the operations
+  // reference the data written to |blob_file|.
   bool GenerateOperations(
       const PayloadGenerationConfig& config,
+      const PartitionConfig& old_part,
+      const PartitionConfig& new_part,
       BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* rootfs_ops,
-      std::vector<AnnotatedOperation>* kernel_ops) override;
+      std::vector<AnnotatedOperation>* aops) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(InplaceGenerator);

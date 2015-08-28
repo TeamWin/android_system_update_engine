@@ -131,8 +131,14 @@ bool GenerateUpdatePayloadFile(
     BlobFileWriter blob_file(data_file_fd, &data_file_size);
     // Generate the operations using the strategy we selected above.
     TEST_AND_RETURN_FALSE(strategy->GenerateOperations(config,
+                                                       config.source.rootfs,
+                                                       config.target.rootfs,
                                                        &blob_file,
-                                                       &rootfs_ops,
+                                                       &rootfs_ops));
+    TEST_AND_RETURN_FALSE(strategy->GenerateOperations(config,
+                                                       config.source.kernel,
+                                                       config.target.kernel,
+                                                       &blob_file,
                                                        &kernel_ops));
   }
 

@@ -35,28 +35,14 @@ class FullUpdateGenerator : public OperationsGenerator {
   // OperationsGenerator override.
   // Creates a full update for the target image defined in |config|. |config|
   // must be a valid payload generation configuration for a full payload.
-  // Populates |rootfs_ops| and |kernel_ops|, with data about the update
-  // operations, and writes relevant data to |data_file_fd|, updating
-  // |data_file_size| as it does.
+  // Populates |aops|, with data about the update operations, and writes
+  // relevant data to |blob_file|.
   bool GenerateOperations(
       const PayloadGenerationConfig& config,
-      BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* rootfs_ops,
-      std::vector<AnnotatedOperation>* kernel_ops) override;
-
-  // Generates the list of operations to update inplace from the partition
-  // |old_part| to |new_part|. The |partition_size| should be at least
-  // |new_part.size| and any extra space there could be used as scratch space.
-  // The operations generated will not write more than |chunk_blocks| blocks.
-  // The new operations will create blobs in |data_file_fd| and update
-  // the file size pointed by |data_file_size| if needed.
-  // On success, stores the new operations in |aops| and returns true.
-  static bool GenerateOperationsForPartition(
+      const PartitionConfig& old_part,
       const PartitionConfig& new_part,
-      size_t block_size,
-      size_t chunk_blocks,
       BlobFileWriter* blob_file,
-      std::vector<AnnotatedOperation>* aops);
+      std::vector<AnnotatedOperation>* aops) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FullUpdateGenerator);
