@@ -17,6 +17,9 @@
 #ifndef UPDATE_ENGINE_DBUS_CONSTANTS_H_
 #define UPDATE_ENGINE_DBUS_CONSTANTS_H_
 
+// TODO(deymo): Remove this file once all clients use "dbus-constants.h"
+// instead. We need to remove it from the ebuild as well.
+
 namespace chromeos_update_engine {
 
 static const char* const kUpdateEngineServiceName = "org.chromium.UpdateEngine";

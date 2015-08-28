@@ -22,16 +22,16 @@
 #include <chromeos/errors/error.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
+#include <update_engine/dbus-constants.h>
 
-#include "update_engine/dbus_constants.h"
 #include "update_engine/fake_system_state.h"
 
+using chromeos::errors::dbus::kDomain;
 using std::string;
 using testing::Return;
 using testing::SetArgumentPointee;
 using testing::_;
-
-using chromeos::errors::dbus::kDomain;
+using update_engine::kUpdateEngineServiceErrorFailed;
 
 namespace chromeos_update_engine {
 
@@ -69,7 +69,8 @@ TEST_F(UpdateEngineServiceTest, AttemptUpdateWithFlags) {
       "app_ver", "url", false /* interactive */));
   // The update is non-interactive when we pass the non-interactive flag.
   EXPECT_TRUE(dbus_service_.AttemptUpdateWithFlags(
-      &error_, "app_ver", "url", kAttemptUpdateFlagNonInteractive));
+      &error_, "app_ver", "url",
+      update_engine::kAttemptUpdateFlagNonInteractive));
   EXPECT_EQ(nullptr, error_);
 }
 

@@ -23,8 +23,8 @@
 #include <chromeos/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 #include <policy/libpolicy.h>
+#include <session_manager/dbus-proxies.h>
 
-#include "login_manager/dbus-proxies.h"
 #include "update_engine/update_manager/device_policy_provider.h"
 #include "update_engine/update_manager/generic_variables.h"
 

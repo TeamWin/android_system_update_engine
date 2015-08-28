@@ -26,10 +26,10 @@
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/strings/string_utils.h>
 #include <policy/device_policy.h>
+#include <update_engine/dbus-constants.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/connection_manager_interface.h"
-#include "update_engine/dbus_constants.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
@@ -40,10 +40,10 @@
 using base::StringPrintf;
 using chromeos::ErrorPtr;
 using chromeos::string_utils::ToString;
-using chromeos_update_engine::AttemptUpdateFlags;
-using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
 using std::set;
 using std::string;
+using update_engine::AttemptUpdateFlags;
+using update_engine::kAttemptUpdateFlagNonInteractive;
 
 namespace {
 // Log and set the error on the passed ErrorPtr.
@@ -53,7 +53,7 @@ void LogAndSetError(ErrorPtr *error,
   chromeos::Error::AddTo(
       error, location,
       chromeos::errors::dbus::kDomain,
-      chromeos_update_engine::kUpdateEngineServiceErrorFailed, reason);
+      update_engine::kUpdateEngineServiceErrorFailed, reason);
   LOG(ERROR) << "Sending DBus Failure: " << location.ToString() << ": "
              << reason;
 }
@@ -337,7 +337,9 @@ UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state,
     : org::chromium::UpdateEngineInterfaceAdaptor(&dbus_service_),
     bus_(bus),
     dbus_service_(system_state),
-    dbus_object_(nullptr, bus, dbus::ObjectPath(kUpdateEngineServicePath)) {}
+    dbus_object_(nullptr,
+                 bus,
+                 dbus::ObjectPath(update_engine::kUpdateEngineServicePath)) {}
 
 void UpdateEngineAdaptor::RegisterAsync(
     const base::Callback<void(bool)>& completion_callback) {
@@ -346,7 +348,7 @@ void UpdateEngineAdaptor::RegisterAsync(
 }
 
 bool UpdateEngineAdaptor::RequestOwnership() {
-  return bus_->RequestOwnershipAndBlock(kUpdateEngineServiceName,
+  return bus_->RequestOwnershipAndBlock(update_engine::kUpdateEngineServiceName,
                                         dbus::Bus::REQUIRE_PRIMARY);
 }
 

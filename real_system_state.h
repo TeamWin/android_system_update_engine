@@ -21,12 +21,12 @@
 
 #include <memory>
 
+#include <debugd/dbus-proxies.h>
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
+#include <power_manager/dbus-proxies.h>
+#include <session_manager/dbus-proxies.h>
 
-#include "debugd/dbus-proxies.h"
-#include "login_manager/dbus-proxies.h"
-#include "power_manager/dbus-proxies.h"
 #include "update_engine/boot_control_interface.h"
 #include "update_engine/clock.h"
 #include "update_engine/connection_manager.h"

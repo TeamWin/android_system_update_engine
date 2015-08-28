@@ -17,7 +17,8 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_STATE_FACTORY_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_STATE_FACTORY_H_
 
-#include "login_manager/dbus-proxies.h"
+#include <session_manager/dbus-proxies.h>
+
 #include "update_engine/shill_proxy.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/state.h"

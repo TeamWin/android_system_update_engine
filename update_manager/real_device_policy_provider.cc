@@ -21,7 +21,6 @@
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/time/time.h>
-#include <chromeos/dbus/service_constants.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/update_manager/generic_variables.h"

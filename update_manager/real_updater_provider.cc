@@ -23,7 +23,7 @@
 #include <base/bind.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <chromeos/dbus/service_constants.h>
+#include <update_engine/dbus-constants.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/omaha_request_params.h"

@@ -21,15 +21,15 @@
 
 #include <base/logging.h>
 #include <chromeos/any.h>
-#include <chromeos/dbus/service_constants.h>
 #include <chromeos/make_unique_ptr.h>
 #include <chromeos/message_loops/fake_message_loop.h>
 #include <chromeos/variant_dictionary.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <shill/dbus-constants.h>
+#include <shill/dbus-proxies.h>
+#include <shill/dbus-proxy-mocks.h>
 
-#include "shill/dbus-proxies.h"
-#include "shill/dbus-proxy-mocks.h"
 #include "update_engine/fake_shill_proxy.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/test_utils.h"

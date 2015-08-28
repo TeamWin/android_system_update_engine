@@ -96,51 +96,6 @@
       'type': 'none',
       'actions': [
         {
-          'action_name': 'update_engine-dbus-shill-client',
-          'variables': {
-            'mock_output_file': 'include/shill/dbus-proxy-mocks.h',
-            'proxy_output_file': 'include/shill/dbus-proxies.h'
-          },
-          'sources': [
-            '<(platform2_root)/shill/dbus_bindings/org.chromium.flimflam.Manager.xml',
-            '<(platform2_root)/shill/dbus_bindings/org.chromium.flimflam.Service.xml',
-          ],
-          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
-        },
-        {
-          'action_name': 'update_engine-dbus-debugd-client',
-          'variables': {
-            'mock_output_file': 'include/debugd/dbus-proxy-mocks.h',
-            'proxy_output_file': 'include/debugd/dbus-proxies.h'
-          },
-          'sources': [
-            '<(platform2_root)/debugd/share/org.chromium.debugd.xml',
-          ],
-          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
-        },
-        {
-          'action_name': 'update_engine-dbus-login_manager-client',
-          'variables': {
-            'mock_output_file': 'include/login_manager/dbus-proxy-mocks.h',
-            'proxy_output_file': 'include/login_manager/dbus-proxies.h'
-          },
-          'sources': [
-            '<(platform2_root)/login_manager/org.chromium.SessionManagerInterface.xml',
-          ],
-          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
-        },
-        {
-          'action_name': 'update_engine-dbus-power_manager-client',
-          'variables': {
-            'mock_output_file': 'include/power_manager/dbus-proxy-mocks.h',
-            'proxy_output_file': 'include/power_manager/dbus-proxies.h'
-          },
-          'sources': [
-            '<(platform2_root)/power_manager/dbus_bindings/org.chromium.PowerManager.xml',
-          ],
-          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
-        },
-        {
           'action_name': 'update_engine-dbus-libcros-client',
           'variables': {
             'mock_output_file': 'include/libcros/dbus-proxy-mocks.h',
@@ -169,9 +124,14 @@
           'libchromeos-<(libbase_ver)',
           'libcrypto',
           'libcurl',
+          'libdebugd-client',
+          'libsession_manager-client',
           'libmetrics-<(libbase_ver)',
+          'libpower_manager-client',
+          'libupdate_engine-client',
+          'libshill-client',
           'libssl',
-          'expat'
+          'expat',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -182,6 +142,13 @@
           ],
         },
       },
+      'include_dirs': [
+        # We include the update_engine/dbus-constants from the
+        # libupdate_engine-client library path. The file is installed by
+        # system_api, but it is technically part of the library we are
+        # generating but didn't install yet.
+        '<(sysroot)/usr/include/update_engine-client',
+      ],
       'link_settings': {
         'variables': {
           'deps': [
@@ -283,47 +250,15 @@
     {
       'target_name': 'update_engine_client',
       'type': 'executable',
-      'dependencies': [
-        'libupdate_engine-client-headers',
-      ],
       'variables': {
         'exported_deps': [
-          'libchrome-<(libbase_ver)',
-          'libchromeos-<(libbase_ver)',
+          'libupdate_engine-client',
         ],
         'deps': ['<@(exported_deps)'],
-      },
-      'link_settings': {
-        'variables': {
-          'deps': [
-            '<@(exported_deps)',
-          ],
-        },
       },
       'sources': [
         'update_engine_client.cc',
       ],
-    },
-    # update_engine client library generated headers. Used by other daemons and
-    # by the update_engine_client console program to interact with
-    # update_engine.
-    {
-      'target_name': 'libupdate_engine-client-headers',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'update_engine_client-dbus-proxies',
-          'variables': {
-            'dbus_service_config': 'dbus_bindings/dbus-service-config.json',
-            'proxy_output_file': 'include/update_engine/dbus-proxies.h',
-            'mock_output_file': 'include/update_engine/dbus-proxy-mocks.h',
-          },
-          'sources': [
-            'dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml',
-          ],
-          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
-        },
-      ]
     },
     # server-side code. This is used for delta_generator and unittests but not
     # for any client code.
@@ -331,6 +266,7 @@
       'target_name': 'libpayload_generator',
       'type': 'static_library',
       'dependencies': [
+        'libupdate_engine',
         'update_metadata-protos',
       ],
       'variables': {
@@ -445,6 +381,10 @@
             'deps': [
               'libchromeos-test-<(libbase_ver)',
               'libchrome-test-<(libbase_ver)',
+              'libdebugd-client-test',
+              'libpower_manager-client-test',
+              'libsession_manager-client-test',
+              'libshill-client-test',
             ],
           },
           'dependencies': [

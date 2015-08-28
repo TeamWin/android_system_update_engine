@@ -25,16 +25,14 @@
 #include <base/logging.h>
 #include <base/macros.h>
 #include <chromeos/daemons/dbus_daemon.h>
-#include <chromeos/dbus/service_constants.h>
 #include <chromeos/flag_helper.h>
 #include <dbus/bus.h>
+#include <update_engine/dbus-constants.h>
+#include <update_engine/dbus-proxies.h>
 
-#include "update_engine/dbus_constants.h"
-#include "update_engine/dbus-proxies.h"
-
-using chromeos_update_engine::kAttemptUpdateFlagNonInteractive;
-using chromeos_update_engine::kUpdateEngineServiceName;
 using std::string;
+using update_engine::kAttemptUpdateFlagNonInteractive;
+using update_engine::kUpdateEngineServiceName;
 
 namespace {
 

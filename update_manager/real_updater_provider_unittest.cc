@@ -20,8 +20,8 @@
 #include <string>
 
 #include <base/time/time.h>
-#include <chromeos/dbus/service_constants.h>
 #include <gtest/gtest.h>
+#include <update_engine/dbus-constants.h>
 
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_system_state.h"

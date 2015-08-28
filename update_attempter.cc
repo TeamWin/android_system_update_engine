@@ -32,14 +32,15 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <chromeos/bind_lambda.h>
-#include <chromeos/dbus/service_constants.h>
 #include <chromeos/message_loops/message_loop.h>
-
+#include <debugd/dbus-constants.h>
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
+#include <power_manager/dbus-constants.h>
+#include <power_manager/dbus-proxies.h>
+#include <update_engine/dbus-constants.h>
 
-#include "power_manager/dbus-proxies.h"
 #include "update_engine/certificate_checker.h"
 #include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"

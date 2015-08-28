@@ -17,7 +17,7 @@
 #ifndef UPDATE_ENGINE_SYSTEM_STATE_H_
 #define UPDATE_ENGINE_SYSTEM_STATE_H_
 
-#include "power_manager/dbus-proxies.h"
+#include <power_manager/dbus-proxies.h>
 
 class MetricsLibraryInterface;
 

@@ -27,7 +27,6 @@
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 #include <chromeos/bind_lambda.h>
-#include <chromeos/dbus/service_constants.h>
 #include <chromeos/message_loops/fake_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>

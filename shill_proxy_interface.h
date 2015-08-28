@@ -21,8 +21,7 @@
 #include <string>
 
 #include <base/macros.h>
-
-#include "shill/dbus-proxies.h"
+#include <shill/dbus-proxies.h>
 
 namespace chromeos_update_engine {
 

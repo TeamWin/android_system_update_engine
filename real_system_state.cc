@@ -18,7 +18,6 @@
 
 #include <base/files/file_util.h>
 #include <base/time/time.h>
-#include <chromeos/dbus/service_constants.h>
 
 #include "update_engine/boot_control_chromeos.h"
 #include "update_engine/constants.h"
@@ -28,9 +27,9 @@
 namespace chromeos_update_engine {
 
 RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
-    : debugd_proxy_(bus, debugd::kDebugdServiceName),
-      power_manager_proxy_(bus, power_manager::kPowerManagerServiceName),
-      session_manager_proxy_(bus, login_manager::kSessionManagerServiceName),
+    : debugd_proxy_(bus),
+      power_manager_proxy_(bus),
+      session_manager_proxy_(bus),
       shill_proxy_(bus),
       libcros_proxy_(bus) {
 }

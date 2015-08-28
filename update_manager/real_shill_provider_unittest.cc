@@ -19,14 +19,14 @@
 #include <utility>
 
 #include <base/time/time.h>
-#include <chromeos/dbus/service_constants.h>
 #include <chromeos/make_unique_ptr.h>
 #include <chromeos/message_loops/fake_message_loop.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <shill/dbus-constants.h>
+#include <shill/dbus-proxies.h>
+#include <shill/dbus-proxy-mocks.h>
 
-#include "shill/dbus-proxies.h"
-#include "shill/dbus-proxy-mocks.h"
 #include "update_engine/dbus_test_utils.h"
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_shill_proxy.h"

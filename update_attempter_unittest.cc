@@ -23,17 +23,17 @@
 #include <base/files/file_util.h>
 #include <base/message_loop/message_loop.h>
 #include <chromeos/bind_lambda.h>
-#include <chromeos/dbus/service_constants.h>
 #include <chromeos/make_unique_ptr.h>
 #include <chromeos/message_loops/base_message_loop.h>
 #include <chromeos/message_loops/message_loop.h>
 #include <chromeos/message_loops/message_loop_utils.h>
+#include <debugd/dbus-constants.h>
+#include <debugd/dbus-proxies.h>
+#include <debugd/dbus-proxy-mocks.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#include "debugd/dbus-proxies.h"
-#include "debugd/dbus-proxy-mocks.h"
 #include "libcros/dbus-proxies.h"
 #include "libcros/dbus-proxy-mocks.h"
 #include "update_engine/fake_clock.h"

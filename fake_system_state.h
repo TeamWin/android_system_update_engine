@@ -20,10 +20,10 @@
 #include <base/logging.h>
 #include <gmock/gmock.h>
 #include <policy/mock_device_policy.h>
+#include <power_manager/dbus-proxies.h>
+#include <power_manager/dbus-proxy-mocks.h>
 
 #include "metrics/metrics_library_mock.h"
-#include "power_manager/dbus-proxies.h"
-#include "power_manager/dbus-proxy-mocks.h"
 #include "update_engine/fake_boot_control.h"
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_hardware.h"
