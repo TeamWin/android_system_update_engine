@@ -27,6 +27,7 @@
 #include "debugd/dbus-proxies.h"
 #include "login_manager/dbus-proxies.h"
 #include "power_manager/dbus-proxies.h"
+#include "update_engine/boot_control_interface.h"
 #include "update_engine/clock.h"
 #include "update_engine/connection_manager.h"
 #include "update_engine/hardware.h"
@@ -58,6 +59,10 @@ class RealSystemState : public SystemState {
 
   inline const policy::DevicePolicy* device_policy() override {
     return device_policy_;
+  }
+
+  inline BootControlInterface* boot_control() override {
+    return boot_control_.get();
   }
 
   inline ClockInterface* clock() override { return &clock_; }
@@ -110,6 +115,9 @@ class RealSystemState : public SystemState {
   org::chromium::SessionManagerInterfaceProxy session_manager_proxy_;
   ShillProxy shill_proxy_;
   LibCrosProxy libcros_proxy_;
+
+  // Interface for the clock.
+  std::unique_ptr<BootControlInterface> boot_control_;
 
   // Interface for the clock.
   Clock clock_;

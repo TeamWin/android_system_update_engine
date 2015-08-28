@@ -28,7 +28,7 @@
 #include <base/bind.h>
 #include <chromeos/streams/file_stream.h>
 
-#include "update_engine/hardware_interface.h"
+#include "update_engine/boot_control_interface.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
@@ -39,6 +39,21 @@ namespace chromeos_update_engine {
 namespace {
 const off_t kReadFileBufferSize = 128 * 1024;
 }  // namespace
+
+string PartitionTypeToString(const PartitionType partition_type) {
+  // TODO(deymo): The PartitionType class should be replaced with just the
+  // string name that comes from the payload. This function should be deleted
+  // then.
+  switch (partition_type) {
+    case PartitionType::kRootfs:
+    case PartitionType::kSourceRootfs:
+      return kLegacyPartitionNameRoot;
+    case PartitionType::kKernel:
+    case PartitionType::kSourceKernel:
+      return kLegacyPartitionNameKernel;
+  }
+  return "<unknown>";
+}
 
 FilesystemVerifierAction::FilesystemVerifierAction(
     SystemState* system_state,
@@ -57,10 +72,11 @@ void FilesystemVerifierAction::PerformAction() {
   }
   install_plan_ = GetInputObject();
 
+  // TODO(deymo): Remove this from the FileSystemVerifierAction.
   if (partition_type_ == PartitionType::kKernel) {
     LOG(INFO) << "verifying kernel, marking as unbootable";
-    if (!system_state_->hardware()->MarkKernelUnbootable(
-        install_plan_.kernel_install_path)) {
+    if (!system_state_->boot_control()->MarkSlotUnbootable(
+            install_plan_.target_slot)) {
       PLOG(ERROR) << "Unable to clear kernel GPT boot flags: " <<
           install_plan_.kernel_install_path;
     }
@@ -78,33 +94,35 @@ void FilesystemVerifierAction::PerformAction() {
   }
 
   string target_path;
+  string partition_name = PartitionTypeToString(partition_type_);
   switch (partition_type_) {
     case PartitionType::kRootfs:
       target_path = install_plan_.install_path;
       if (target_path.empty()) {
-        utils::GetInstallDev(system_state_->hardware()->BootDevice(),
-                             &target_path);
+        system_state_->boot_control()->GetPartitionDevice(
+            partition_name, install_plan_.target_slot, &target_path);
       }
       break;
     case PartitionType::kKernel:
       target_path = install_plan_.kernel_install_path;
       if (target_path.empty()) {
-        string rootfs_path;
-        utils::GetInstallDev(system_state_->hardware()->BootDevice(),
-                             &rootfs_path);
-        target_path = utils::KernelDeviceOfBootDevice(rootfs_path);
+        system_state_->boot_control()->GetPartitionDevice(
+            partition_name, install_plan_.target_slot, &target_path);
       }
       break;
     case PartitionType::kSourceRootfs:
-      target_path = install_plan_.source_path.empty() ?
-                    system_state_->hardware()->BootDevice() :
-                    install_plan_.source_path;
+      target_path = install_plan_.source_path;
+      if (target_path.empty()) {
+        system_state_->boot_control()->GetPartitionDevice(
+            partition_name, install_plan_.source_slot, &target_path);
+      }
       break;
     case PartitionType::kSourceKernel:
-      target_path = install_plan_.kernel_source_path.empty() ?
-                    utils::KernelDeviceOfBootDevice(
-                        system_state_->hardware()->BootDevice()) :
-                    install_plan_.kernel_source_path;
+      target_path = install_plan_.kernel_source_path;
+      if (target_path.empty()) {
+        system_state_->boot_control()->GetPartitionDevice(
+            partition_name, install_plan_.source_slot, &target_path);
+      }
       break;
   }
 
@@ -239,8 +257,7 @@ bool FilesystemVerifierAction::CheckTerminationConditions() {
   return true;
 }
 
-void FilesystemVerifierAction::DetermineFilesystemSize(
-    const std::string& path) {
+void FilesystemVerifierAction::DetermineFilesystemSize(const string& path) {
   switch (partition_type_) {
     case PartitionType::kRootfs:
       remaining_size_ = install_plan_.rootfs_size;

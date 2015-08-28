@@ -155,7 +155,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // This is the internal entry point for getting a rollback partition name,
   // if one exists. It returns the bootable rollback kernel device partition
   // name or empty string if none is available.
-  std::string GetRollbackPartition() const;
+  BootControlInterface::Slot GetRollbackSlot() const;
 
   // Returns a list of available kernel partitions along with information
   // whether it is possible to boot from it.

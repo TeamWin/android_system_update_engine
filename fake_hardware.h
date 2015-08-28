@@ -36,43 +36,15 @@ class FakeHardware : public HardwareInterface {
   static const int kPowerwashCountNotSet = -1;
 
   FakeHardware()
-    : kernel_device_("/dev/sdz4"),
-      boot_device_("/dev/sdz5"),
-      is_boot_device_removable_(false),
-      kernel_devices_({"/dev/sdz2", "/dev/sdz4"}),
-      is_official_build_(true),
-      is_normal_boot_mode_(true),
-      is_oobe_complete_(false),
-      hardware_class_("Fake HWID BLAH-1234"),
-      firmware_version_("Fake Firmware v1.0.1"),
-      ec_version_("Fake EC v1.0a"),
-      powerwash_count_(kPowerwashCountNotSet) {}
+      : is_official_build_(true),
+        is_normal_boot_mode_(true),
+        is_oobe_complete_(false),
+        hardware_class_("Fake HWID BLAH-1234"),
+        firmware_version_("Fake Firmware v1.0.1"),
+        ec_version_("Fake EC v1.0a"),
+        powerwash_count_(kPowerwashCountNotSet) {}
 
   // HardwareInterface methods.
-  std::string BootKernelDevice() const override { return kernel_device_; }
-
-  std::string BootDevice() const override { return boot_device_; }
-
-  bool IsBootDeviceRemovable() const override {
-    return is_boot_device_removable_;
-  }
-
-  std::vector<std::string> GetKernelDevices() const override {
-    return kernel_devices_;
-  }
-
-  bool IsKernelBootable(const std::string& kernel_device,
-                        bool* bootable) const override {
-    auto i = is_bootable_.find(kernel_device);
-    *bootable = (i != is_bootable_.end()) ? i->second : true;
-    return true;
-  }
-
-  bool MarkKernelUnbootable(const std::string& kernel_device) override {
-    is_bootable_[kernel_device] = false;
-    return true;
-  }
-
   bool IsOfficialBuild() const override { return is_official_build_; }
 
   bool IsNormalBootMode() const override { return is_normal_boot_mode_; }
@@ -92,14 +64,6 @@ class FakeHardware : public HardwareInterface {
   int GetPowerwashCount() const override { return powerwash_count_; }
 
   // Setters
-  void SetBootDevice(const std::string& boot_device) {
-    boot_device_ = boot_device;
-  }
-
-  void SetIsBootDeviceRemovable(bool is_boot_device_removable) {
-    is_boot_device_removable_ = is_boot_device_removable;
-  }
-
   void SetIsOfficialBuild(bool is_official_build) {
     is_official_build_ = is_official_build;
   }
@@ -136,11 +100,6 @@ class FakeHardware : public HardwareInterface {
   }
 
  private:
-  std::string kernel_device_;
-  std::string boot_device_;
-  bool is_boot_device_removable_;
-  std::vector<std::string>  kernel_devices_;
-  std::map<std::string, bool> is_bootable_;
   bool is_official_build_;
   bool is_normal_boot_mode_;
   bool is_oobe_complete_;

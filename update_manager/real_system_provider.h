@@ -20,6 +20,7 @@
 #include <memory>
 #include <string>
 
+#include "update_engine/boot_control_interface.h"
 #include "update_engine/hardware_interface.h"
 #include "update_engine/update_manager/system_provider.h"
 
@@ -29,8 +30,9 @@ namespace chromeos_update_manager {
 class RealSystemProvider : public SystemProvider {
  public:
   explicit RealSystemProvider(
-      chromeos_update_engine::HardwareInterface* hardware)
-      : hardware_(hardware) {}
+      chromeos_update_engine::HardwareInterface* hardware,
+      chromeos_update_engine::BootControlInterface* boot_control)
+      : hardware_(hardware), boot_control_(boot_control) {}
 
   // Initializes the provider and returns whether it succeeded.
   bool Init();
@@ -47,17 +49,18 @@ class RealSystemProvider : public SystemProvider {
     return var_is_oobe_complete_.get();
   }
 
-  Variable<bool>* var_is_boot_device_removable() override {
-    return var_is_boot_device_removable_.get();
+  Variable<unsigned int>* var_num_slots() override {
+    return var_num_slots_.get();
   }
 
  private:
   std::unique_ptr<Variable<bool>> var_is_normal_boot_mode_;
   std::unique_ptr<Variable<bool>> var_is_official_build_;
   std::unique_ptr<Variable<bool>> var_is_oobe_complete_;
-  std::unique_ptr<Variable<bool>> var_is_boot_device_removable_;
+  std::unique_ptr<Variable<unsigned int>> var_num_slots_;
 
   chromeos_update_engine::HardwareInterface* hardware_;
+  chromeos_update_engine::BootControlInterface* boot_control_;
 
   DISALLOW_COPY_AND_ASSIGN(RealSystemProvider);
 };

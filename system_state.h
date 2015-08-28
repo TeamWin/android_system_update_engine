@@ -38,6 +38,7 @@ namespace chromeos_update_engine {
 // SystemState is the root class within the update engine. So we should avoid
 // any circular references in header file inclusion. Hence forward-declaring
 // the required classes.
+class BootControlInterface;
 class ClockInterface;
 class ConnectionManagerInterface;
 class HardwareInterface;
@@ -62,6 +63,9 @@ class SystemState {
   // Sets or gets the latest device policy.
   virtual void set_device_policy(const policy::DevicePolicy* device_policy) = 0;
   virtual const policy::DevicePolicy* device_policy() = 0;
+
+  // Gets the interface object for the bootloader control interface.
+  virtual BootControlInterface* boot_control() = 0;
 
   // Gets the interface object for the clock.
   virtual ClockInterface* clock() = 0;

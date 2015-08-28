@@ -34,18 +34,26 @@ using testing::Return;
 namespace chromeos_update_engine {
 
 class OmahaResponseHandlerActionTest : public ::testing::Test {
- public:
+ protected:
+  void SetUp() override {
+    FakeBootControl* fake_boot_control = fake_system_state_.fake_boot_control();
+    fake_boot_control->SetPartitionDevice(
+        kLegacyPartitionNameKernel, 0, "/dev/sdz2");
+    fake_boot_control->SetPartitionDevice(
+        kLegacyPartitionNameRoot, 0, "/dev/sdz3");
+    fake_boot_control->SetPartitionDevice(
+        kLegacyPartitionNameKernel, 1, "/dev/sdz4");
+    fake_boot_control->SetPartitionDevice(
+        kLegacyPartitionNameRoot, 1, "/dev/sdz5");
+  }
+
   // Return true iff the OmahaResponseHandlerAction succeeded.
   // If out is non-null, it's set w/ the response from the action.
-  bool DoTestCommon(FakeSystemState* fake_system_state,
-                    const OmahaResponse& in,
-                    const string& boot_dev,
-                    const string& deadline_file,
-                    InstallPlan* out);
   bool DoTest(const OmahaResponse& in,
-              const string& boot_dev,
               const string& deadline_file,
               InstallPlan* out);
+
+  FakeSystemState fake_system_state_;
 };
 
 class OmahaResponseHandlerActionProcessorDelegate
@@ -79,10 +87,8 @@ const char* const kLongName =
 const char* const kBadVersion = "don't update me";
 }  // namespace
 
-bool OmahaResponseHandlerActionTest::DoTestCommon(
-    FakeSystemState* fake_system_state,
+bool OmahaResponseHandlerActionTest::DoTest(
     const OmahaResponse& in,
-    const string& boot_dev,
     const string& test_deadline_file,
     InstallPlan* out) {
   ActionProcessor processor;
@@ -92,20 +98,19 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
   ObjectFeederAction<OmahaResponse> feeder_action;
   feeder_action.set_obj(in);
   if (in.update_exists && in.version != kBadVersion) {
-    EXPECT_CALL(*(fake_system_state->mock_prefs()),
+    EXPECT_CALL(*(fake_system_state_.mock_prefs()),
                 SetString(kPrefsUpdateCheckResponseHash, in.hash))
         .WillOnce(Return(true));
   }
 
   string current_url = in.payload_urls.size() ? in.payload_urls[0] : "";
-  EXPECT_CALL(*(fake_system_state->mock_payload_state()), GetCurrentUrl())
+  EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(current_url));
 
   OmahaResponseHandlerAction response_handler_action(
-      fake_system_state,
+      &fake_system_state_,
       (test_deadline_file.empty() ?
        OmahaResponseHandlerAction::kDeadlineFile : test_deadline_file));
-  response_handler_action.set_boot_device(boot_dev);
   BondActions(&feeder_action, &response_handler_action);
   ObjectCollectorAction<InstallPlan> collector_action;
   BondActions(&response_handler_action, &collector_action);
@@ -119,14 +124,6 @@ bool OmahaResponseHandlerActionTest::DoTestCommon(
     *out = collector_action.object();
   EXPECT_TRUE(delegate.code_set_);
   return delegate.code_ == ErrorCode::kSuccess;
-}
-
-bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
-                                            const string& boot_dev,
-                                            const string& deadline_file,
-                                            InstallPlan* out) {
-  FakeSystemState fake_system_state;
-  return DoTestCommon(&fake_system_state, in, boot_dev, deadline_file, out);
 }
 
 TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
@@ -146,10 +143,10 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.prompt = false;
     in.deadline = "20101020";
     InstallPlan install_plan;
-    EXPECT_TRUE(DoTest(in, "/dev/sda3", test_deadline_file, &install_plan));
+    EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
     EXPECT_EQ(in.hash, install_plan.payload_hash);
-    EXPECT_EQ("/dev/sda5", install_plan.install_path);
+    EXPECT_EQ(1, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
     EXPECT_EQ("20101020", deadline);
@@ -169,10 +166,12 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.size = 12;
     in.prompt = true;
     InstallPlan install_plan;
-    EXPECT_TRUE(DoTest(in, "/dev/sda5", test_deadline_file, &install_plan));
+    // Set the other slot as current.
+    fake_system_state_.fake_boot_control()->SetCurrentSlot(1);
+    EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
     EXPECT_EQ(in.hash, install_plan.payload_hash);
-    EXPECT_EQ("/dev/sda3", install_plan.install_path);
+    EXPECT_EQ(0, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline) &&
                 deadline.empty());
@@ -189,10 +188,11 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.prompt = true;
     in.deadline = "some-deadline";
     InstallPlan install_plan;
-    EXPECT_TRUE(DoTest(in, "/dev/sda3", test_deadline_file, &install_plan));
+    fake_system_state_.fake_boot_control()->SetCurrentSlot(0);
+    EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
     EXPECT_EQ(in.hash, install_plan.payload_hash);
-    EXPECT_EQ("/dev/sda5", install_plan.install_path);
+    EXPECT_EQ(1, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
     EXPECT_EQ("some-deadline", deadline);
@@ -204,7 +204,7 @@ TEST_F(OmahaResponseHandlerActionTest, NoUpdatesTest) {
   OmahaResponse in;
   in.update_exists = false;
   InstallPlan install_plan;
-  EXPECT_FALSE(DoTest(in, "/dev/sda1", "", &install_plan));
+  EXPECT_FALSE(DoTest(in, "", &install_plan));
   EXPECT_EQ("", install_plan.download_url);
   EXPECT_EQ("", install_plan.payload_hash);
   EXPECT_EQ("", install_plan.install_path);
@@ -219,14 +219,12 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
   in.size = 12;
-  FakeSystemState fake_system_state;
   // Hash checks are always skipped for non-official update URLs.
-  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(true));
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
-                           &install_plan));
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
@@ -241,13 +239,11 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForUnofficialUpdateUrl) {
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
   in.size = 12;
-  FakeSystemState fake_system_state;
-  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(false));
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
-                           &install_plan));
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
@@ -264,14 +260,12 @@ TEST_F(OmahaResponseHandlerActionTest,
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
   in.size = 12;
-  FakeSystemState fake_system_state;
-  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(true));
-  fake_system_state.fake_hardware()->SetIsOfficialBuild(false);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
-                           &install_plan));
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
@@ -286,13 +280,11 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
   in.size = 12;
-  FakeSystemState fake_system_state;
-  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(true));
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
-                           &install_plan));
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
@@ -308,13 +300,11 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   in.more_info_url = "http://more/info";
   in.hash = "HASHj+";
   in.size = 12;
-  FakeSystemState fake_system_state;
-  EXPECT_CALL(*(fake_system_state.mock_request_params()),
+  EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
       .WillRepeatedly(Return(true));
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
-                           &install_plan));
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
@@ -346,8 +336,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
       "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
 
-  FakeSystemState fake_system_state;
-  OmahaRequestParams params(&fake_system_state);
+  OmahaRequestParams params(&fake_system_state_);
   params.set_root(test_dir);
   params.SetLockDown(false);
   params.Init("1.2.3.4", "", 0);
@@ -356,10 +345,9 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   EXPECT_TRUE(params.to_more_stable_channel());
   EXPECT_TRUE(params.is_powerwash_allowed());
 
-  fake_system_state.set_request_params(&params);
+  fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
-                           &install_plan));
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_TRUE(install_plan.powerwash_required);
 
   ASSERT_TRUE(test_utils::RecursiveUnlinkDir(test_dir));
@@ -389,8 +377,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
       test_dir + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
 
-  FakeSystemState fake_system_state;
-  OmahaRequestParams params(&fake_system_state);
+  OmahaRequestParams params(&fake_system_state_);
   params.set_root(test_dir);
   params.SetLockDown(false);
   params.Init("5.6.7.8", "", 0);
@@ -400,10 +387,9 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   EXPECT_FALSE(params.to_more_stable_channel());
   EXPECT_FALSE(params.is_powerwash_allowed());
 
-  fake_system_state.set_request_params(&params);
+  fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
-                           &install_plan));
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
 
   ASSERT_TRUE(test_utils::RecursiveUnlinkDir(test_dir));
@@ -418,26 +404,24 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   in.hash = "HASHj+";
   in.size = 12;
 
-  FakeSystemState fake_system_state;
-  OmahaRequestParams params(&fake_system_state);
+  OmahaRequestParams params(&fake_system_state_);
   // We're using a real OmahaRequestParams object here so we can't mock
   // IsUpdateUrlOfficial(), but setting the update URL to the AutoUpdate test
   // server will cause IsUpdateUrlOfficial() to return true.
   params.set_update_url(kAUTestOmahaUrl);
-  fake_system_state.set_request_params(&params);
+  fake_system_state_.set_request_params(&params);
 
-  EXPECT_CALL(*fake_system_state.mock_payload_state(),
+  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
               SetUsingP2PForDownloading(true));
 
   string p2p_url = "http://9.8.7.6/p2p";
-  EXPECT_CALL(*fake_system_state.mock_payload_state(), GetP2PUrl())
+  EXPECT_CALL(*fake_system_state_.mock_payload_state(), GetP2PUrl())
       .WillRepeatedly(Return(p2p_url));
-  EXPECT_CALL(*fake_system_state.mock_payload_state(),
+  EXPECT_CALL(*fake_system_state_.mock_payload_state(),
               GetUsingP2PForDownloading()).WillRepeatedly(Return(true));
 
   InstallPlan install_plan;
-  EXPECT_TRUE(DoTestCommon(&fake_system_state, in, "/dev/sda5", "",
-                           &install_plan));
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.hash, install_plan.payload_hash);
   EXPECT_EQ(install_plan.download_url, p2p_url);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);

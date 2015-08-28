@@ -24,6 +24,7 @@
 #include "metrics/metrics_library_mock.h"
 #include "power_manager/dbus-proxies.h"
 #include "power_manager/dbus-proxy-mocks.h"
+#include "update_engine/fake_boot_control.h"
 #include "update_engine/fake_clock.h"
 #include "update_engine/fake_hardware.h"
 #include "update_engine/mock_connection_manager.h"
@@ -46,6 +47,8 @@ class FakeSystemState : public SystemState {
   // Base class overrides. All getters return the current implementation of
   // various members, either the default (fake/mock) or the one set to override
   // it by client code.
+
+  BootControlInterface* boot_control() override { return boot_control_; }
 
   inline ClockInterface* clock() override { return clock_; }
 
@@ -102,6 +105,10 @@ class FakeSystemState : public SystemState {
   // Setters for the various members, can be used for overriding the default
   // implementations. For convenience, setting to a null pointer will restore
   // the default implementation.
+
+  void set_boot_control(BootControlInterface* boot_control) {
+    boot_control_ = boot_control ? boot_control : &fake_boot_control_;
+  }
 
   inline void set_clock(ClockInterface* clock) {
     clock_ = clock ? clock : &fake_clock_;
@@ -162,6 +169,11 @@ class FakeSystemState : public SystemState {
   // whenever the requested default was overridden by a different
   // implementation.
 
+  inline FakeBootControl* fake_boot_control() {
+    CHECK(boot_control_ == &fake_boot_control_);
+    return &fake_boot_control_;
+  }
+
   inline FakeClock* fake_clock() {
     CHECK(clock_ == &fake_clock_);
     return &fake_clock_;
@@ -219,6 +231,7 @@ class FakeSystemState : public SystemState {
 
  private:
   // Default mock/fake implementations (owned).
+  FakeBootControl fake_boot_control_;
   FakeClock fake_clock_;
   testing::NiceMock<MockConnectionManager> mock_connection_manager_;
   FakeHardware fake_hardware_;
@@ -234,6 +247,7 @@ class FakeSystemState : public SystemState {
 
   // Pointers to objects that client code can override. They are initialized to
   // the default implementations above.
+  BootControlInterface* boot_control_{&fake_boot_control_};
   ClockInterface* clock_;
   ConnectionManagerInterface* connection_manager_;
   HardwareInterface* hardware_;

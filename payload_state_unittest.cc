@@ -1492,9 +1492,6 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   FakePrefs fake_prefs;
   fake_system_state.set_prefs(&fake_prefs);
 
-  FakeHardware* fake_hardware = fake_system_state.fake_hardware();
-  fake_hardware->SetBootDevice("/dev/sda3");
-
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   SetupPayloadStateWith2Urls("Hash3141", true, &payload_state, &response);
 
@@ -1540,8 +1537,8 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   FakePrefs fake_prefs;
   fake_system_state.set_prefs(&fake_prefs);
 
-  FakeHardware* fake_hardware = fake_system_state.fake_hardware();
-  fake_hardware->SetBootDevice("/dev/sda3");
+  FakeBootControl* fake_boot_control = fake_system_state.fake_boot_control();
+  fake_boot_control->SetCurrentSlot(0);
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   SetupPayloadStateWith2Urls("Hash3141", true, &payload_state, &response);
@@ -1552,7 +1549,7 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   payload_state.ExpectRebootInNewVersion("Version:12345678");
 
   // Change the BootDevice to a different one, no metric should be sent.
-  fake_hardware->SetBootDevice("/dev/sda5");
+  fake_boot_control->SetCurrentSlot(1);
 
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       "Installer.RebootToNewPartitionAttempt", _, _, _, _))
@@ -1562,9 +1559,9 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
       .Times(0);
   payload_state.ReportFailedBootIfNeeded();
 
-  // A second reboot in eiher partition should not send a metric.
+  // A second reboot in either partition should not send a metric.
   payload_state.ReportFailedBootIfNeeded();
-  fake_hardware->SetBootDevice("/dev/sda3");
+  fake_boot_control->SetCurrentSlot(0);
   payload_state.ReportFailedBootIfNeeded();
 }
 

@@ -187,10 +187,10 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
 
   // Do not perform any updates if booted from removable device. This decision
   // is final.
-  const bool* is_boot_device_removable_p = ec->GetValue(
-      system_provider->var_is_boot_device_removable());
-  if (is_boot_device_removable_p && *is_boot_device_removable_p) {
-    LOG(INFO) << "Booted from removable device, disabling update checks.";
+  const unsigned int* num_slots_p = ec->GetValue(
+      system_provider->var_num_slots());
+  if (!num_slots_p || *num_slots_p < 2) {
+    LOG(INFO) << "Not enough slots for A/B updates, disabling update checks.";
     result->updates_enabled = false;
     return EvalStatus::kSucceeded;
   }

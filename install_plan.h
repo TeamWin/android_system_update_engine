@@ -24,10 +24,17 @@
 #include <chromeos/secure_blob.h>
 
 #include "update_engine/action.h"
+#include "update_engine/boot_control_interface.h"
+#include "update_engine/system_state.h"
 
 // InstallPlan is a simple struct that contains relevant info for many
 // parts of the update system about the install that should happen.
 namespace chromeos_update_engine {
+
+// TODO(deymo): Remove these constants from this interface once the InstallPlan
+// doesn't list the partitions explicitly.
+extern const char* kLegacyPartitionNameKernel;
+extern const char* kLegacyPartitionNameRoot;
 
 struct InstallPlan {
   InstallPlan(bool is_resume,
@@ -43,24 +50,31 @@ struct InstallPlan {
               const std::string& kernel_source_path,
               const std::string& public_key_rsa);
 
-  // Default constructor: Initialize all members which don't have a class
-  // initializer.
-  InstallPlan();
+  // Default constructor.
+  InstallPlan() = default;
 
   bool operator==(const InstallPlan& that) const;
   bool operator!=(const InstallPlan& that) const;
 
   void Dump() const;
 
-  bool is_resume;
-  bool is_full_update;
+  bool LoadPartitionsFromSlots(SystemState* system_state);
+
+  bool is_resume{false};
+  bool is_full_update{false};
   std::string download_url;  // url to download from
   std::string version;       // version we are installing.
 
-  uint64_t payload_size;                 // size of the payload
-  std::string payload_hash;             // SHA256 hash of the payload
-  uint64_t metadata_size;                // size of the metadata
+  uint64_t payload_size{0};              // size of the payload
+  std::string payload_hash;              // SHA256 hash of the payload
+  uint64_t metadata_size{0};             // size of the metadata
   std::string metadata_signature;        // signature of the  metadata
+
+  // The partition slots used for the update.
+  BootControlInterface::Slot source_slot{BootControlInterface::kInvalidSlot};
+  BootControlInterface::Slot target_slot{BootControlInterface::kInvalidSlot};
+
+  // TODO(deymo): Deprecate these fields and use the slots instead.
   std::string install_path;              // path to install device
   std::string kernel_install_path;       // path to kernel install device
   std::string source_path;               // path to source device
@@ -77,8 +91,8 @@ struct InstallPlan {
   //
   // 3. FilesystemVerifierAction computes and verifies the applied and source
   // partition sizes and hashes against the expected values.
-  uint64_t kernel_size;
-  uint64_t rootfs_size;
+  uint64_t kernel_size{0};
+  uint64_t rootfs_size{0};
   chromeos::Blob kernel_hash;
   chromeos::Blob rootfs_hash;
   chromeos::Blob source_kernel_hash;
@@ -86,11 +100,11 @@ struct InstallPlan {
 
   // True if payload hash checks are mandatory based on the system state and
   // the Omaha response.
-  bool hash_checks_mandatory;
+  bool hash_checks_mandatory{false};
 
   // True if Powerwash is required on reboot after applying the payload.
   // False otherwise.
-  bool powerwash_required;
+  bool powerwash_required{false};
 
   // If not blank, a base-64 encoded representation of the PEM-encoded
   // public key in the response.

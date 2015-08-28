@@ -24,6 +24,9 @@ using std::string;
 
 namespace chromeos_update_engine {
 
+const char* kLegacyPartitionNameKernel = "KERNEL";
+const char* kLegacyPartitionNameRoot = "ROOT";
+
 InstallPlan::InstallPlan(bool is_resume,
                          bool is_full_update,
                          const string& url,
@@ -53,15 +56,6 @@ InstallPlan::InstallPlan(bool is_resume,
       powerwash_required(false),
       public_key_rsa(public_key_rsa) {}
 
-InstallPlan::InstallPlan() : is_resume(false),
-                             is_full_update(false),  // play it safe.
-                             payload_size(0),
-                             metadata_size(0),
-                             kernel_size(0),
-                             rootfs_size(0),
-                             hash_checks_mandatory(false),
-                             powerwash_required(false) {}
-
 
 bool InstallPlan::operator==(const InstallPlan& that) const {
   return ((is_resume == that.is_resume) &&
@@ -71,6 +65,8 @@ bool InstallPlan::operator==(const InstallPlan& that) const {
           (payload_hash == that.payload_hash) &&
           (metadata_size == that.metadata_size) &&
           (metadata_signature == that.metadata_signature) &&
+          (source_slot == that.source_slot) &&
+          (target_slot == that.target_slot) &&
           (install_path == that.install_path) &&
           (kernel_install_path == that.kernel_install_path) &&
           (source_path == that.source_path) &&
@@ -85,6 +81,8 @@ void InstallPlan::Dump() const {
   LOG(INFO) << "InstallPlan: "
             << (is_resume ? "resume" : "new_update")
             << ", payload type: " << (is_full_update ? "full" : "delta")
+            << ", source_slot: " << BootControlInterface::SlotName(source_slot)
+            << ", target_slot: " << BootControlInterface::SlotName(target_slot)
             << ", url: " << download_url
             << ", payload size: " << payload_size
             << ", payload hash: " << payload_hash
@@ -98,6 +96,30 @@ void InstallPlan::Dump() const {
                 hash_checks_mandatory)
             << ", powerwash_required: " << utils::ToString(
                 powerwash_required);
+}
+
+bool InstallPlan::LoadPartitionsFromSlots(SystemState* system_state) {
+  bool result = true;
+  if (source_slot != BootControlInterface::kInvalidSlot) {
+    result = system_state->boot_control()->GetPartitionDevice(
+        kLegacyPartitionNameRoot, source_slot, &source_path) && result;
+    result = system_state->boot_control()->GetPartitionDevice(
+        kLegacyPartitionNameKernel, source_slot, &kernel_source_path) && result;
+  } else {
+    source_path.clear();
+    kernel_source_path.clear();
+  }
+
+  if (target_slot != BootControlInterface::kInvalidSlot) {
+    result = system_state->boot_control()->GetPartitionDevice(
+        kLegacyPartitionNameRoot, target_slot, &install_path) && result;
+    result = system_state->boot_control()->GetPartitionDevice(
+        kLegacyPartitionNameKernel, target_slot, &kernel_install_path) && result;
+  } else {
+    install_path.clear();
+    kernel_install_path.clear();
+  }
+  return result;
 }
 
 }  // namespace chromeos_update_engine

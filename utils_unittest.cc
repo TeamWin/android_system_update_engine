@@ -62,37 +62,6 @@ TEST(UtilsTest, CanParseECVersion) {
   EXPECT_EQ("", utils::ParseECVersion("b=1231a fw_version a=fasd2"));
 }
 
-
-TEST(UtilsTest, KernelDeviceOfBootDevice) {
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice(""));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("foo"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda0"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda1"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda2"));
-  EXPECT_EQ("/dev/sda2", utils::KernelDeviceOfBootDevice("/dev/sda3"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda4"));
-  EXPECT_EQ("/dev/sda4", utils::KernelDeviceOfBootDevice("/dev/sda5"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda6"));
-  EXPECT_EQ("/dev/sda6", utils::KernelDeviceOfBootDevice("/dev/sda7"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda8"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/sda9"));
-
-  EXPECT_EQ("/dev/mmcblk0p2",
-            utils::KernelDeviceOfBootDevice("/dev/mmcblk0p3"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/mmcblk0p4"));
-
-  EXPECT_EQ("/dev/mtd2", utils::KernelDeviceOfBootDevice("/dev/ubi3"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/ubi4"));
-
-  EXPECT_EQ("/dev/mtd2",
-            utils::KernelDeviceOfBootDevice("/dev/ubiblock3_0"));
-  EXPECT_EQ("/dev/mtd4",
-            utils::KernelDeviceOfBootDevice("/dev/ubiblock5_0"));
-  EXPECT_EQ("/dev/mtd6",
-            utils::KernelDeviceOfBootDevice("/dev/ubiblock7_0"));
-  EXPECT_EQ("", utils::KernelDeviceOfBootDevice("/dev/ubiblock4_0"));
-}
-
 TEST(UtilsTest, ReadFileFailure) {
   chromeos::Blob empty;
   EXPECT_FALSE(utils::ReadFile("/this/doesn't/exist", &empty));
@@ -137,47 +106,47 @@ TEST(UtilsTest, IsSymlinkTest) {
   EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
 }
 
-TEST(UtilsTest, GetDiskNameTest) {
-  EXPECT_EQ("/dev/sda", utils::GetDiskName("/dev/sda3"));
-  EXPECT_EQ("/dev/sdp", utils::GetDiskName("/dev/sdp1234"));
-  EXPECT_EQ("/dev/mmcblk0", utils::GetDiskName("/dev/mmcblk0p3"));
-  EXPECT_EQ("", utils::GetDiskName("/dev/mmcblk0p"));
-  EXPECT_EQ("", utils::GetDiskName("/dev/sda"));
-  EXPECT_EQ("/dev/ubiblock", utils::GetDiskName("/dev/ubiblock3_2"));
-  EXPECT_EQ("", utils::GetDiskName("/dev/foo/bar"));
-  EXPECT_EQ("", utils::GetDiskName("/"));
-  EXPECT_EQ("", utils::GetDiskName(""));
-}
+TEST(UtilsTest, SplitPartitionNameTest) {
+  string disk;
+  int part_num;
 
-TEST(UtilsTest, SysfsBlockDeviceTest) {
-  EXPECT_EQ("/sys/block/sda", utils::SysfsBlockDevice("/dev/sda"));
-  EXPECT_EQ("", utils::SysfsBlockDevice("/foo/sda"));
-  EXPECT_EQ("", utils::SysfsBlockDevice("/dev/foo/bar"));
-  EXPECT_EQ("", utils::SysfsBlockDevice("/"));
-  EXPECT_EQ("", utils::SysfsBlockDevice("./"));
-  EXPECT_EQ("", utils::SysfsBlockDevice(""));
-}
+  EXPECT_TRUE(utils::SplitPartitionName("/dev/sda3", &disk, &part_num));
+  EXPECT_EQ("/dev/sda", disk);
+  EXPECT_EQ(3, part_num);
 
-TEST(UtilsTest, IsRemovableDeviceTest) {
-  EXPECT_FALSE(utils::IsRemovableDevice(""));
-  EXPECT_FALSE(utils::IsRemovableDevice("/dev/non-existent-device"));
-}
+  EXPECT_TRUE(utils::SplitPartitionName("/dev/sdp1234", &disk, &part_num));
+  EXPECT_EQ("/dev/sdp", disk);
+  EXPECT_EQ(1234, part_num);
 
-TEST(UtilsTest, GetPartitionNumberTest) {
-  EXPECT_EQ(3, utils::GetPartitionNumber("/dev/sda3"));
-  EXPECT_EQ(3, utils::GetPartitionNumber("/dev/sdz3"));
-  EXPECT_EQ(123, utils::GetPartitionNumber("/dev/sda123"));
-  EXPECT_EQ(2, utils::GetPartitionNumber("/dev/mmcblk0p2"));
-  EXPECT_EQ(0, utils::GetPartitionNumber("/dev/mmcblk0p"));
-  EXPECT_EQ(3, utils::GetPartitionNumber("/dev/ubiblock3_2"));
-  EXPECT_EQ(0, utils::GetPartitionNumber(""));
-  EXPECT_EQ(0, utils::GetPartitionNumber("/"));
-  EXPECT_EQ(0, utils::GetPartitionNumber("/dev/"));
-  EXPECT_EQ(0, utils::GetPartitionNumber("/dev/sda"));
-  EXPECT_EQ(10, utils::GetPartitionNumber("/dev/loop10"));
-  EXPECT_EQ(11, utils::GetPartitionNumber("/dev/loop28p11"));
-  EXPECT_EQ(10, utils::GetPartitionNumber("/dev/loop10_0"));
-  EXPECT_EQ(11, utils::GetPartitionNumber("/dev/loop28p11_0"));
+  EXPECT_TRUE(utils::SplitPartitionName("/dev/mmcblk0p3", &disk, &part_num));
+  EXPECT_EQ("/dev/mmcblk0", disk);
+  EXPECT_EQ(3, part_num);
+
+  EXPECT_TRUE(utils::SplitPartitionName("/dev/ubiblock3_2", &disk, &part_num));
+  EXPECT_EQ("/dev/ubiblock", disk);
+  EXPECT_EQ(3, part_num);
+
+  EXPECT_TRUE(utils::SplitPartitionName("/dev/loop10", &disk, &part_num));
+  EXPECT_EQ("/dev/loop", disk);
+  EXPECT_EQ(10, part_num);
+
+  EXPECT_TRUE(utils::SplitPartitionName("/dev/loop28p11", &disk, &part_num));
+  EXPECT_EQ("/dev/loop28", disk);
+  EXPECT_EQ(11, part_num);
+
+  EXPECT_TRUE(utils::SplitPartitionName("/dev/loop10_0", &disk, &part_num));
+  EXPECT_EQ("/dev/loop", disk);
+  EXPECT_EQ(10, part_num);
+
+  EXPECT_TRUE(utils::SplitPartitionName("/dev/loop28p11_0", &disk, &part_num));
+  EXPECT_EQ("/dev/loop28", disk);
+  EXPECT_EQ(11, part_num);
+
+  EXPECT_FALSE(utils::SplitPartitionName("/dev/mmcblk0p", &disk, &part_num));
+  EXPECT_FALSE(utils::SplitPartitionName("/dev/sda", &disk, &part_num));
+  EXPECT_FALSE(utils::SplitPartitionName("/dev/foo/bar", &disk, &part_num));
+  EXPECT_FALSE(utils::SplitPartitionName("/", &disk, &part_num));
+  EXPECT_FALSE(utils::SplitPartitionName("", &disk, &part_num));
 }
 
 TEST(UtilsTest, MakePartitionNameTest) {
@@ -331,31 +300,6 @@ TEST(UtilsTest, GetSquashfs4Size) {
                                       &block_count, &block_size));
   EXPECT_EQ(4096, block_size);
   EXPECT_EQ(6, block_count);
-}
-
-TEST(UtilsTest, GetInstallDevTest) {
-  string boot_dev = "/dev/sda5";
-  string install_dev;
-  EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
-  EXPECT_EQ(install_dev, "/dev/sda3");
-
-  boot_dev = "/dev/sda3";
-  EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
-  EXPECT_EQ(install_dev, "/dev/sda5");
-
-  boot_dev = "/dev/sda12";
-  EXPECT_FALSE(utils::GetInstallDev(boot_dev, &install_dev));
-
-  boot_dev = "/dev/ubiblock3_0";
-  EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
-  EXPECT_EQ(install_dev, "/dev/ubi5_0");
-
-  boot_dev = "/dev/ubiblock5_0";
-  EXPECT_TRUE(utils::GetInstallDev(boot_dev, &install_dev));
-  EXPECT_EQ(install_dev, "/dev/ubi3_0");
-
-  boot_dev = "/dev/ubiblock12_0";
-  EXPECT_FALSE(utils::GetInstallDev(boot_dev, &install_dev));
 }
 
 namespace {

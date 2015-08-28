@@ -31,24 +31,6 @@ class MockHardware : public HardwareInterface {
  public:
   MockHardware() {
     // Delegate all calls to the fake instance
-    ON_CALL(*this, BootKernelDevice())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::BootKernelDevice));
-    ON_CALL(*this, BootDevice())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::BootDevice));
-    ON_CALL(*this, IsBootDeviceRemovable())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::IsBootDeviceRemovable));
-    ON_CALL(*this, GetKernelDevices())
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::GetKernelDevices));
-    ON_CALL(*this, IsKernelBootable(testing::_, testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::IsKernelBootable));
-    ON_CALL(*this, MarkKernelUnbootable(testing::_))
-      .WillByDefault(testing::Invoke(&fake_,
-            &FakeHardware::MarkKernelUnbootable));
     ON_CALL(*this, IsOfficialBuild())
       .WillByDefault(testing::Invoke(&fake_,
             &FakeHardware::IsOfficialBuild));
@@ -72,17 +54,9 @@ class MockHardware : public HardwareInterface {
             &FakeHardware::GetPowerwashCount));
   }
 
-  ~MockHardware() override {}
+  ~MockHardware() override = default;
 
   // Hardware overrides.
-  MOCK_CONST_METHOD0(BootKernelDevice, std::string());
-  MOCK_CONST_METHOD0(BootDevice, std::string());
-  MOCK_CONST_METHOD0(IsBootDeviceRemovable, bool());
-  MOCK_CONST_METHOD0(GetKernelDevices, std::vector<std::string>());
-  MOCK_CONST_METHOD2(IsKernelBootable,
-               bool(const std::string& kernel_device, bool* bootable));
-  MOCK_METHOD1(MarkKernelUnbootable,
-               bool(const std::string& kernel_device));
   MOCK_CONST_METHOD0(IsOfficialBuild, bool());
   MOCK_CONST_METHOD0(IsNormalBootMode, bool());
   MOCK_CONST_METHOD1(IsOOBEComplete, bool(base::Time* out_time_of_oobe));

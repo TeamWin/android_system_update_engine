@@ -29,17 +29,10 @@ namespace chromeos_update_engine {
 // Implements the real interface with the hardware.
 class Hardware : public HardwareInterface {
  public:
-  Hardware();
-  ~Hardware() override;
+  Hardware() = default;
+  ~Hardware() override = default;
 
   // HardwareInterface methods.
-  std::string BootKernelDevice() const override;
-  std::string BootDevice() const override;
-  bool IsBootDeviceRemovable() const override;
-  std::vector<std::string> GetKernelDevices() const override;
-  bool IsKernelBootable(const std::string& kernel_device,
-                        bool* bootable) const override;
-  bool MarkKernelUnbootable(const std::string& kernel_device) override;
   bool IsOfficialBuild() const override;
   bool IsNormalBootMode() const override;
   bool IsOOBEComplete(base::Time* out_time_of_oobe) const override;

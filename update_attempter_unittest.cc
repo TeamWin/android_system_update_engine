@@ -452,12 +452,21 @@ void UpdateAttempterTest::RollbackTestStart(
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
   fake_system_state_.set_device_policy(device_policy);
 
-  if (!valid_slot) {
-    // References bootable kernels in fake_hardware.h
-    string rollback_kernel = "/dev/sdz2";
-    LOG(INFO) << "Test Mark Unbootable: " << rollback_kernel;
-    fake_system_state_.fake_hardware()->MarkKernelUnbootable(
-        rollback_kernel);
+  FakeBootControl* fake_boot_control = fake_system_state_.fake_boot_control();
+  fake_boot_control->SetPartitionDevice(
+      kLegacyPartitionNameKernel, 0, "/dev/sdz2");
+  fake_boot_control->SetPartitionDevice(
+      kLegacyPartitionNameRoot, 0, "/dev/sdz3");
+
+  if (valid_slot) {
+    BootControlInterface::Slot rollback_slot = 1;
+    LOG(INFO) << "Test Mark Bootable: "
+              << BootControlInterface::SlotName(rollback_slot);
+    fake_boot_control->SetSlotBootable(rollback_slot, true);
+    fake_boot_control->SetPartitionDevice(
+        kLegacyPartitionNameKernel, rollback_slot, "/dev/sdz4");
+    fake_boot_control->SetPartitionDevice(
+        kLegacyPartitionNameRoot, rollback_slot, "/dev/sdz5");
   }
 
   bool is_rollback_allowed = false;
@@ -510,10 +519,8 @@ void UpdateAttempterTest::RollbackTestVerify() {
   InstallPlanAction* install_plan_action =
         dynamic_cast<InstallPlanAction*>(attempter_.actions_[0].get());
   InstallPlan* install_plan = install_plan_action->install_plan();
-  // Matches fake_hardware.h -> rollback should move from kernel/boot device
-  // pair to other pair.
-  EXPECT_EQ(install_plan->install_path, string("/dev/sdz3"));
-  EXPECT_EQ(install_plan->kernel_install_path, string("/dev/sdz2"));
+  EXPECT_EQ(install_plan->install_path, string("/dev/sdz5"));
+  EXPECT_EQ(install_plan->kernel_install_path, string("/dev/sdz4"));
   EXPECT_EQ(install_plan->powerwash_required, true);
   loop_.BreakLoop();
 }

@@ -735,15 +735,10 @@ bool UpdateAttempter::Rollback(bool powerwash) {
   LOG(INFO) << "Setting rollback options.";
   InstallPlan install_plan;
 
-  TEST_AND_RETURN_FALSE(utils::GetInstallDev(
-      system_state_->hardware()->BootDevice(),
-      &install_plan.install_path));
+  install_plan.target_slot = GetRollbackSlot();
+  install_plan.source_slot = system_state_->boot_control()->GetCurrentSlot();
 
-  install_plan.kernel_install_path =
-      utils::KernelDeviceOfBootDevice(install_plan.install_path);
-  install_plan.source_path = system_state_->hardware()->BootDevice();
-  install_plan.kernel_source_path =
-      utils::KernelDeviceOfBootDevice(install_plan.source_path);
+  TEST_AND_RETURN_FALSE(install_plan.LoadPartitionsFromSlots(system_state_));
   install_plan.powerwash_required = powerwash;
 
   LOG(INFO) << "Using this install plan:";
@@ -776,59 +771,53 @@ bool UpdateAttempter::Rollback(bool powerwash) {
 bool UpdateAttempter::CanRollback() const {
   // We can only rollback if the update_engine isn't busy and we have a valid
   // rollback partition.
-  return (status_ == UPDATE_STATUS_IDLE && !GetRollbackPartition().empty());
+  return (status_ == UPDATE_STATUS_IDLE &&
+          GetRollbackSlot() != BootControlInterface::kInvalidSlot);
 }
 
-string UpdateAttempter::GetRollbackPartition() const {
-  vector<string> kernel_devices =
-      system_state_->hardware()->GetKernelDevices();
+BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
+  LOG(INFO) << "UpdateAttempter::GetRollbackSlot";
+  const unsigned int num_slots = system_state_->boot_control()->GetNumSlots();
+  const BootControlInterface::Slot current_slot =
+      system_state_->boot_control()->GetCurrentSlot();
 
-  string boot_kernel_device =
-      system_state_->hardware()->BootKernelDevice();
+  LOG(INFO) << "  Installed slots: " << num_slots;
+  LOG(INFO) << "  Booted from slot: "
+            << BootControlInterface::SlotName(current_slot);
 
-  LOG(INFO) << "UpdateAttempter::GetRollbackPartition";
-  for (const auto& name : kernel_devices)
-    LOG(INFO) << "  Available kernel device = " << name;
-  LOG(INFO) << "  Boot kernel device =      " << boot_kernel_device;
-
-  auto current = std::find(kernel_devices.begin(), kernel_devices.end(),
-                           boot_kernel_device);
-
-  if (current == kernel_devices.end()) {
-    LOG(ERROR) << "Unable to find the boot kernel device in the list of "
-               << "available devices";
-    return string();
+  if (current_slot == BootControlInterface::kInvalidSlot || num_slots < 2) {
+    LOG(INFO) << "Device is not updateable.";
+    return BootControlInterface::kInvalidSlot;
   }
 
-  for (string const& device_name : kernel_devices) {
-    if (device_name != *current) {
-      bool bootable = false;
-      if (system_state_->hardware()->IsKernelBootable(device_name, &bootable) &&
-          bootable) {
-        return device_name;
-      }
+  vector<BootControlInterface::Slot> bootable_slots;
+  for(BootControlInterface::Slot slot = 0; slot < num_slots; slot++) {
+    if (slot != current_slot &&
+        system_state_->boot_control()->IsSlotBootable(slot)) {
+      LOG(INFO) << "Found bootable slot "
+                << BootControlInterface::SlotName(slot);
+      return slot;
     }
   }
-
-  return string();
+  LOG(INFO) << "No other bootable slot found.";
+  return BootControlInterface::kInvalidSlot;
 }
 
-vector<std::pair<string, bool>>
-    UpdateAttempter::GetKernelDevices() const {
-  vector<string> kernel_devices =
-    system_state_->hardware()->GetKernelDevices();
-
-  string boot_kernel_device =
-    system_state_->hardware()->BootKernelDevice();
+vector<std::pair<string, bool>> UpdateAttempter::GetKernelDevices() const {
+  const unsigned int num_slots = system_state_->boot_control()->GetNumSlots();
+  const BootControlInterface::Slot current_slot =
+      system_state_->boot_control()->GetCurrentSlot();
 
   vector<std::pair<string, bool>> info_list;
-  info_list.reserve(kernel_devices.size());
-
-  for (string device_name : kernel_devices) {
-    bool bootable = false;
-    system_state_->hardware()->IsKernelBootable(device_name, &bootable);
+  for (BootControlInterface::Slot slot = 0; slot < num_slots; slot++) {
+    bool bootable = system_state_->boot_control()->IsSlotBootable(slot);
+    string device_name;
+    if (!system_state_->boot_control()->GetPartitionDevice(
+            kLegacyPartitionNameKernel, slot, &device_name)) {
+      continue;
+    }
     // Add '*' to the name of the partition we booted from.
-    if (device_name == boot_kernel_device)
+    if (slot == current_slot)
       device_name += '*';
     info_list.emplace_back(device_name, bootable);
   }
