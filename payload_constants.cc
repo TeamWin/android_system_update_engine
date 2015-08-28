@@ -18,6 +18,9 @@
 
 namespace chromeos_update_engine {
 
+const char kLegacyPartitionNameKernel[] = "boot";
+const char kLegacyPartitionNameRoot[] = "system";
+
 const char kDeltaMagic[] = "CrAU";
 const char kBspatchPath[] = "bspatch";
 

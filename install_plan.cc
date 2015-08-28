@@ -18,14 +18,12 @@
 
 #include <base/logging.h>
 
+#include "update_engine/payload_constants.h"
 #include "update_engine/utils.h"
 
 using std::string;
 
 namespace chromeos_update_engine {
-
-const char* kLegacyPartitionNameKernel = "boot";
-const char* kLegacyPartitionNameRoot = "system";
 
 InstallPlan::InstallPlan(bool is_resume,
                          bool is_full_update,

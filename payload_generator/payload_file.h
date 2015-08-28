@@ -17,9 +17,9 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_PAYLOAD_FILE_H_
 #define UPDATE_ENGINE_PAYLOAD_GENERATOR_PAYLOAD_FILE_H_
 
-#include <map>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include <chromeos/secure_blob.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
@@ -41,7 +41,7 @@ class PayloadFile {
 
   // Sets the list of operations to the payload manifest. The operations
   // reference a blob stored in the file provided to WritePayload().
-  void AddPartitionOperations(PartitionName name,
+  bool AddPartitionOperations(const std::string& partition_name,
                               const std::vector<AnnotatedOperation>& aops);
 
   // Write the payload to the |payload_file| file. The operations reference
@@ -77,16 +77,13 @@ class PayloadFile {
   // Print in stderr the Payload usage report.
   void ReportPayloadUsage(uint64_t metadata_size) const;
 
-  // The list of partitions in the order their blobs should appear in the
-  // payload file.
-  static const std::vector<PartitionName> partition_disk_order_;
-
   // The major_version of the requested payload.
   uint64_t major_version_;
 
   DeltaArchiveManifest manifest_;
 
-  std::map<PartitionName, std::vector<AnnotatedOperation>> aops_map_;
+  std::vector<std::pair<std::string,
+                        std::vector<AnnotatedOperation>>> aops_vec_;
 };
 
 // Adds a dummy operation that points to a signature blob located at the

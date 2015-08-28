@@ -31,14 +31,6 @@
 // parts of the update system about the install that should happen.
 namespace chromeos_update_engine {
 
-// The kernel and rootfs partition names used by the BootControlInterface when
-// handling update payloads with a major version 1. The names of the updated
-// partitions are include in the payload itself for major version 2.
-// TODO(deymo): Remove these constants from this interface once the InstallPlan
-// doesn't list the partitions explicitly.
-extern const char* kLegacyPartitionNameKernel;
-extern const char* kLegacyPartitionNameRoot;
-
 struct InstallPlan {
   InstallPlan(bool is_resume,
               bool is_full_update,

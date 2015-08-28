@@ -23,6 +23,7 @@
 #include "update_engine/constants.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_payload_state.h"
+#include "update_engine/payload_constants.h"
 #include "update_engine/platform_constants.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"

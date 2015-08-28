@@ -22,7 +22,6 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/test_utils.h"
 
@@ -64,33 +63,31 @@ TEST_F(PayloadFileTest, ReorderBlobsTest) {
   aop.op.set_data_offset(7);
   aop.op.set_data_length(1);
   aops.push_back(aop);
-  payload_.AddPartitionOperations(PartitionName::kRootfs, aops);
+  payload_.AddPartitionOperations("part0", aops);
 
   aop.op.set_data_offset(0);
   aop.op.set_data_length(6);
   aops = {aop};
-  payload_.AddPartitionOperations(PartitionName::kKernel, aops);
+  payload_.AddPartitionOperations("part1", aops);
 
   EXPECT_TRUE(payload_.ReorderDataBlobs(orig_blobs, new_blobs));
 
-  const vector<AnnotatedOperation>& rootfs_aops =
-      payload_.aops_map_[PartitionName::kRootfs];
-  const vector<AnnotatedOperation>& kernel_aops =
-      payload_.aops_map_[PartitionName::kKernel];
+  const vector<AnnotatedOperation>& part0_aops = payload_.aops_vec_[0].second;
+  const vector<AnnotatedOperation>& part1_aops = payload_.aops_vec_[1].second;
   string new_data;
   EXPECT_TRUE(utils::ReadFile(new_blobs, &new_data));
   // Kernel blobs should appear at the end.
   EXPECT_EQ("bcdakernel", new_data);
 
-  EXPECT_EQ(2, rootfs_aops.size());
-  EXPECT_EQ(0, rootfs_aops[0].op.data_offset());
-  EXPECT_EQ(3, rootfs_aops[0].op.data_length());
-  EXPECT_EQ(3, rootfs_aops[1].op.data_offset());
-  EXPECT_EQ(1, rootfs_aops[1].op.data_length());
+  EXPECT_EQ(2, part0_aops.size());
+  EXPECT_EQ(0, part0_aops[0].op.data_offset());
+  EXPECT_EQ(3, part0_aops[0].op.data_length());
+  EXPECT_EQ(3, part0_aops[1].op.data_offset());
+  EXPECT_EQ(1, part0_aops[1].op.data_length());
 
-  EXPECT_EQ(1, kernel_aops.size());
-  EXPECT_EQ(4, kernel_aops[0].op.data_offset());
-  EXPECT_EQ(6, kernel_aops[0].op.data_length());
+  EXPECT_EQ(1, part1_aops.size());
+  EXPECT_EQ(4, part1_aops[0].op.data_offset());
+  EXPECT_EQ(6, part1_aops[0].op.data_length());
 }
 
 }  // namespace chromeos_update_engine

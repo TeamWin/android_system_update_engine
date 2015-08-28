@@ -29,6 +29,7 @@
 #include <chromeos/streams/file_stream.h>
 
 #include "update_engine/boot_control_interface.h"
+#include "update_engine/payload_constants.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 

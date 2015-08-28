@@ -47,6 +47,7 @@
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/mock_prefs.h"
+#include "update_engine/payload_constants.h"
 #include "update_engine/platform_constants.h"
 #include "update_engine/postinstall_runner_action.h"
 #include "update_engine/prefs.h"
