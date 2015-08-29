@@ -39,8 +39,8 @@ class SystemProvider : public Provider {
   // Returns a variable that tells whether OOBE was completed.
   virtual Variable<bool>* var_is_oobe_complete() = 0;
 
-  // Returns a variable that tells the boot device is removable (USB stick etc).
-  virtual Variable<bool>* var_is_boot_device_removable() = 0;
+  // Returns a variable that tells the number of slots in the system.
+  virtual Variable<unsigned int>* var_num_slots() = 0;
 
  protected:
   SystemProvider() {}

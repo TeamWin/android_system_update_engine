@@ -20,7 +20,6 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
-#include <rootdev/rootdev.h>
 #include <vboot/crossystem.h>
 
 extern "C" {
@@ -47,116 +46,6 @@ static const char kPowerwashCountMarker[] =
 }  // namespace
 
 namespace chromeos_update_engine {
-
-Hardware::Hardware() {}
-
-Hardware::~Hardware() {}
-
-string Hardware::BootKernelDevice() const {
-  return utils::KernelDeviceOfBootDevice(Hardware::BootDevice());
-}
-
-string Hardware::BootDevice() const {
-  char boot_path[PATH_MAX];
-  // Resolve the boot device path fully, including dereferencing
-  // through dm-verity.
-  int ret = rootdev(boot_path, sizeof(boot_path), true, false);
-
-  if (ret < 0) {
-    LOG(ERROR) << "rootdev failed to find the root device";
-    return "";
-  }
-  LOG_IF(WARNING, ret > 0) << "rootdev found a device name with no device node";
-
-  // This local variable is used to construct the return string and is not
-  // passed around after use.
-  return boot_path;
-}
-
-bool Hardware::IsBootDeviceRemovable() const {
-  return utils::IsRemovableDevice(utils::GetDiskName(BootDevice()));
-}
-
-bool Hardware::IsKernelBootable(const string& kernel_device,
-                                bool* bootable) const {
-  CgptAddParams params;
-  memset(&params, '\0', sizeof(params));
-
-  string disk_name;
-  int partition_num = 0;
-
-  if (!utils::SplitPartitionName(kernel_device, &disk_name, &partition_num))
-    return false;
-
-  params.drive_name = const_cast<char *>(disk_name.c_str());
-  params.partition = partition_num;
-
-  int retval = CgptGetPartitionDetails(&params);
-  if (retval != CGPT_OK)
-    return false;
-
-  *bootable = params.successful || (params.tries > 0);
-  return true;
-}
-
-vector<string> Hardware::GetKernelDevices() const {
-  LOG(INFO) << "GetAllKernelDevices";
-
-  string disk_name = utils::GetDiskName(Hardware::BootKernelDevice());
-  if (disk_name.empty()) {
-    LOG(ERROR) << "Failed to get the current kernel boot disk name";
-    return vector<string>();
-  }
-
-  vector<string> devices;
-  for (int partition_num : {2, 4}) {  // for now, only #2, #4 for slot A & B
-    string device = utils::MakePartitionName(disk_name, partition_num);
-    if (!device.empty()) {
-      devices.push_back(std::move(device));
-    } else {
-      LOG(ERROR) << "Cannot make a partition name for disk: "
-                 << disk_name << ", partition: " << partition_num;
-    }
-  }
-
-  return devices;
-}
-
-
-bool Hardware::MarkKernelUnbootable(const string& kernel_device) {
-  LOG(INFO) << "MarkPartitionUnbootable: " << kernel_device;
-
-  if (kernel_device == BootKernelDevice()) {
-    LOG(ERROR) << "Refusing to mark current kernel as unbootable.";
-    return false;
-  }
-
-  string disk_name;
-  int partition_num = 0;
-
-  if (!utils::SplitPartitionName(kernel_device, &disk_name, &partition_num))
-    return false;
-
-  CgptAddParams params;
-  memset(&params, 0, sizeof(params));
-
-  params.drive_name = const_cast<char *>(disk_name.c_str());
-  params.partition = partition_num;
-
-  params.successful = false;
-  params.set_successful = true;
-
-  params.tries = 0;
-  params.set_tries = true;
-
-  int retval = CgptSetAttributes(&params);
-  if (retval != CGPT_OK) {
-    LOG(ERROR) << "Marking kernel unbootable failed.";
-    return false;
-  }
-
-  return true;
-}
 
 bool Hardware::IsOfficialBuild() const {
   return VbGetSystemPropertyInt("debug_build") == 0;

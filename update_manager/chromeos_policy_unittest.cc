@@ -91,8 +91,7 @@ class UmChromeOSPolicyTest : public ::testing::Test {
         new bool(true));
     fake_state_.system_provider()->var_is_oobe_complete()->reset(
         new bool(true));
-    fake_state_.system_provider()->var_is_boot_device_removable()->reset(
-        new bool(false));
+    fake_state_.system_provider()->var_num_slots()->reset(new unsigned int(2));
 
     // Connection is wifi, untethered.
     fake_state_.shill_provider()->var_conn_type()->
@@ -421,8 +420,7 @@ TEST_F(UmChromeOSPolicyTest,
   // UpdateCheckAllowed should return false (kSucceeded) if the image booted
   // from a removable device.
 
-  fake_state_.system_provider()->var_is_boot_device_removable()->reset(
-      new bool(true));
+  fake_state_.system_provider()->var_num_slots()->reset(new unsigned int(1));
 
   UpdateCheckParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,

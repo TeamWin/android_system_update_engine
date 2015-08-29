@@ -56,11 +56,6 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
   // never be called
   void TerminateProcessing() override { CHECK(false); }
 
-  // For unit-testing
-  void set_boot_device(const std::string& boot_device) {
-    boot_device_ = boot_device;
-  }
-
   bool GotNoUpdateResponse() const { return got_no_update_response_; }
   const InstallPlan& install_plan() const { return install_plan_; }
 
@@ -76,9 +71,6 @@ class OmahaResponseHandlerAction : public Action<OmahaResponseHandlerAction> {
 
   // Global system context.
   SystemState* system_state_;
-
-  // set to non-empty in unit tests
-  std::string boot_device_;
 
   // The install plan, if we have an update.
   InstallPlan install_plan_;

@@ -198,6 +198,7 @@
       },
       'sources': [
         'action_processor.cc',
+        'boot_control_chromeos.cc',
         'bzip.cc',
         'bzip_extent_writer.cc',
         'certificate_checker.cc',
@@ -455,6 +456,7 @@
             'action_pipe_unittest.cc',
             'action_processor_unittest.cc',
             'action_unittest.cc',
+            'boot_control_chromeos_unittest.cc',
             'bzip_extent_writer_unittest.cc',
             'certificate_checker_unittest.cc',
             'chrome_browser_proxy_resolver_unittest.cc',

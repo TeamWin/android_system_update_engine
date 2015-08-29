@@ -65,11 +65,6 @@ std::string CalculateP2PFileId(const std::string& payload_hash,
 // "mosys" command.
 std::string ParseECVersion(std::string input_line);
 
-// Given the name of the block device of a boot partition, return the
-// name of the associated kernel partition (e.g. given "/dev/sda3",
-// return "/dev/sda2").
-const std::string KernelDeviceOfBootDevice(const std::string& boot_device);
-
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
 bool WriteFile(const char* path, const void* data, int data_len);
@@ -155,16 +150,6 @@ bool MakeTempFile(const std::string& base_filename_template,
 bool MakeTempDirectory(const std::string& base_dirname_template,
                        std::string* dirname);
 
-// Returns the disk device name for a partition. For example,
-// GetDiskName("/dev/sda3") returns "/dev/sda". Returns an empty string
-// if the input device is not of the "/dev/xyz#" form.
-std::string GetDiskName(const std::string& partition_name);
-
-// Returns the partition number, of partition device name. For example,
-// GetPartitionNumber("/dev/sda3") returns 3.
-// Returns 0 on failure
-int GetPartitionNumber(const std::string& partition_name);
-
 // Splits the partition device name into the block device name and partition
 // number. For example, "/dev/sda3" will be split into {"/dev/sda", 3} and
 // "/dev/mmcblk0p2" into {"/dev/mmcblk0", 2}
@@ -192,16 +177,6 @@ std::string MakePartitionName(const std::string& disk_name,
 // mountable with "/dev/ubiX_0". The input is a partition device such as
 // /dev/sda3. Return empty string on error.
 std::string MakePartitionNameForMount(const std::string& part_name);
-
-// Returns the sysfs block device for a root block device. For
-// example, SysfsBlockDevice("/dev/sda") returns
-// "/sys/block/sda". Returns an empty string if the input device is
-// not of the "/dev/xyz" form.
-std::string SysfsBlockDevice(const std::string& device);
-
-// Returns true if the root |device| (e.g., "/dev/sdb") is known to be
-// removable, false otherwise.
-bool IsRemovableDevice(const std::string& device);
 
 // Synchronously mount or unmount a filesystem. Return true on success.
 // When mounting, it will attempt to mount the the device as "ext3", "ext2" and
@@ -379,13 +354,6 @@ bool CreatePowerwashMarkerFile(const char* file_path);
 // |file_path| as the path to the marker file if non-null, otherwise uses the
 // global default. Returns true if successfully deleted. False otherwise.
 bool DeletePowerwashMarkerFile(const char* file_path);
-
-// Assumes you want to install on the "other" device, where the other
-// device is what you get if you swap 1 for 2 or 3 for 4 or vice versa
-// for the number at the end of the boot device. E.g., /dev/sda1 -> /dev/sda2
-// or /dev/sda4 -> /dev/sda3. See
-// http://www.chromium.org/chromium-os/chromiumos-design-docs/disk-format
-bool GetInstallDev(const std::string& boot_dev, std::string* install_dev);
 
 // Decodes the data in |base64_encoded| and stores it in a temporary
 // file. Returns false if the given data is empty, not well-formed

@@ -131,11 +131,6 @@ TEST_F(FilesystemVerifierActionTest, DISABLED_RunAsRootSimpleTest) {
 bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
                                           bool hash_fail,
                                           PartitionType partition_type) {
-  // We need MockHardware to verify MarkUnbootable calls, but don't want
-  // warnings about other usages.
-  testing::NiceMock<MockHardware> mock_hardware;
-  fake_system_state_.set_hardware(&mock_hardware);
-
   string a_loop_file;
 
   if (!(utils::MakeTempFile("a_loop_file.XXXXXX", &a_loop_file, nullptr))) {
@@ -170,6 +165,8 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
 
   // Set up the action objects
   InstallPlan install_plan;
+  install_plan.source_slot = 0;
+  install_plan.target_slot = 1;
   switch (partition_type) {
     case PartitionType::kRootfs:
       install_plan.rootfs_size = kLoopFileSize - (hash_fail ? 1 : 0);
@@ -207,9 +204,8 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
       break;
   }
 
-  EXPECT_CALL(mock_hardware,
-              MarkKernelUnbootable(a_dev)).Times(
-                  partition_type == PartitionType::kKernel ? 1 : 0);
+  fake_system_state_.fake_boot_control()->SetSlotBootable(
+    install_plan.target_slot, true);
 
   ActionProcessor processor;
 
@@ -269,12 +265,12 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   success = success && is_install_plan_eq;
 
   LOG(INFO) << "Verifying bootable flag on: " << a_dev;
-  bool bootable;
-  EXPECT_TRUE(mock_hardware.fake().IsKernelBootable(a_dev, &bootable));
+
   // We should always mark a partition as unbootable if it's a kernel
   // partition, but never if it's anything else.
-  EXPECT_EQ(bootable, (partition_type != PartitionType::kKernel));
-
+  EXPECT_EQ((partition_type != PartitionType::kKernel),
+            fake_system_state_.fake_boot_control()->IsSlotBootable(
+                install_plan.target_slot));
   return success;
 }
 

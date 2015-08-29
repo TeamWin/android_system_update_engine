@@ -20,6 +20,7 @@
 #include <base/time/time.h>
 #include <chromeos/dbus/service_constants.h>
 
+#include "update_engine/boot_control_chromeos.h"
 #include "update_engine/constants.h"
 #include "update_engine/update_manager/state_factory.h"
 #include "update_engine/utils.h"
@@ -36,6 +37,13 @@ RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
 
 bool RealSystemState::Initialize() {
   metrics_lib_.Init();
+
+  // TODO(deymo): Initialize BootControl based on the build environment.
+  BootControlChromeOS* boot_control_cros = new BootControlChromeOS();
+  boot_control_.reset(boot_control_cros);
+  if (!boot_control_cros->Init()) {
+    LOG(ERROR) << "Ignoring BootControlChromeOS failure. We won't run updates.";
+  }
 
   if (!shill_proxy_.Init()) {
     LOG(ERROR) << "Failed to initialize shill proxy.";

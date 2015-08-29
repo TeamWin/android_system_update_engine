@@ -45,6 +45,9 @@ enum class PartitionType {
   kKernel,
 };
 
+// Return the partition name string for the passed partition type.
+std::string PartitionTypeToString(const PartitionType partition_type);
+
 class FilesystemVerifierAction : public InstallPlanAction {
  public:
   FilesystemVerifierAction(SystemState* system_state,

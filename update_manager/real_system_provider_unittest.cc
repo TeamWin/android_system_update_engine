@@ -21,6 +21,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/fake_boot_control.h"
 #include "update_engine/fake_hardware.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
@@ -31,11 +32,13 @@ namespace chromeos_update_manager {
 class UmRealSystemProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    provider_.reset(new RealSystemProvider(&fake_hardware_));
+    provider_.reset(
+        new RealSystemProvider(&fake_hardware_, &fake_boot_control_));
     EXPECT_TRUE(provider_->Init());
   }
 
   chromeos_update_engine::FakeHardware fake_hardware_;
+  chromeos_update_engine::FakeBootControl fake_boot_control_;
   unique_ptr<RealSystemProvider> provider_;
 };
 

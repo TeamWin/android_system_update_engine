@@ -24,37 +24,13 @@
 
 namespace chromeos_update_engine {
 
-// The hardware interface allows access to the following parts of the system,
-// closely related to the hardware:
-//  * crossystem exposed properties: firmware, hwid, etc.
-//  * Physical disk: partition booted from and partition name conversions.
+// The hardware interface allows access to the crossystem exposed properties,
+// such as the firmware version, hwid, verified boot mode.
 // These stateless functions are tied together in this interface to facilitate
 // unit testing.
 class HardwareInterface {
  public:
   virtual ~HardwareInterface() {}
-
-  // Returns the currently booted kernel partition. "/dev/sda2", for example.
-  virtual std::string BootKernelDevice() const = 0;
-
-  // Returns the currently booted rootfs partition. "/dev/sda3", for example.
-  virtual std::string BootDevice() const = 0;
-
-  // Return whether the BootDevice() is a removable device.
-  virtual bool IsBootDeviceRemovable() const = 0;
-
-  // Returns a list of all kernel partitions available (whether bootable or not)
-  virtual std::vector<std::string> GetKernelDevices() const = 0;
-
-  // Is the specified kernel partition currently bootable, based on GPT flags?
-  // Returns success.
-  virtual bool IsKernelBootable(const std::string& kernel_device,
-                                bool* bootable) const = 0;
-
-  // Mark the specified kernel partition unbootable in GPT flags. We mark
-  // the other kernel as bootable inside postinst, not inside the UE.
-  // Returns success.
-  virtual bool MarkKernelUnbootable(const std::string& kernel_device) = 0;
 
   // Returns true if this is an official Chrome OS build, false otherwise.
   virtual bool IsOfficialBuild() const = 0;

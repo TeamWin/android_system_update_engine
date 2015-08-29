@@ -39,8 +39,8 @@ class FakeSystemProvider : public SystemProvider {
     return &var_is_oobe_complete_;
   }
 
-  FakeVariable<bool>* var_is_boot_device_removable() override {
-    return &var_is_boot_device_removable_;
+  FakeVariable<unsigned int>* var_num_slots() override {
+    return &var_num_slots_;
   }
 
  private:
@@ -50,9 +50,7 @@ class FakeSystemProvider : public SystemProvider {
     "is_official_build", kVariableModeConst};
   FakeVariable<bool> var_is_oobe_complete_{  // NOLINT(whitespace/braces)
     "is_oobe_complete", kVariableModePoll};
-  FakeVariable<bool>
-      var_is_boot_device_removable_{  // NOLINT(whitespace/braces)
-        "is_boot_device_removable", kVariableModePoll};
+  FakeVariable<unsigned int> var_num_slots_{"num_slots", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeSystemProvider);
 };

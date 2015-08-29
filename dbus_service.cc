@@ -312,12 +312,25 @@ bool UpdateEngineService::GetKernelDevices(ErrorPtr* /* error */,
 bool UpdateEngineService::GetRollbackPartition(
     ErrorPtr* /* error */,
     string* out_rollback_partition_name) {
-  string name = system_state_->update_attempter()->GetRollbackPartition();
+  BootControlInterface::Slot rollback_slot =
+      system_state_->update_attempter()->GetRollbackSlot();
+
+  if (rollback_slot == BootControlInterface::kInvalidSlot) {
+    out_rollback_partition_name->clear();
+    return true;
+  }
+
+  string name;
+  if (!system_state_->boot_control()->GetPartitionDevice(
+          "KERNEL", rollback_slot, &name)) {
+    LOG(ERROR) << "Invalid rollback device";
+    return false;
+  }
+
   LOG(INFO) << "Getting rollback partition name. Result: " << name;
   *out_rollback_partition_name = name;
   return true;
 }
-
 
 UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state,
                                          const scoped_refptr<dbus::Bus>& bus)

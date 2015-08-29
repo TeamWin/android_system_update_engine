@@ -1422,8 +1422,14 @@ void PayloadState::ReportFailedBootIfNeeded() {
       LOG(ERROR) << "Error reading TargetVersionInstalledFrom on reboot.";
       return;
     }
-    if (static_cast<int>(installed_from) ==
-        utils::GetPartitionNumber(system_state_->hardware()->BootDevice())) {
+    // Old Chrome OS devices will write 2 or 4 in this setting, with the
+    // partition number. We are now using slot numbers (0 or 1) instead, so
+    // the following comparison will not match if we are comparing an old
+    // partition number against a new slot number, which is the correct outcome
+    // since we successfully booted the new update in that case. If the boot
+    // failed, we will read this value from the same version, so it will always
+    // be compatible.
+    if (installed_from == system_state_->boot_control()->GetCurrentSlot()) {
       // A reboot was pending, but the chromebook is again in the same
       // BootDevice where the update was installed from.
       int64_t target_attempt;
@@ -1483,8 +1489,7 @@ void PayloadState::ExpectRebootInNewVersion(const string& target_version_uid) {
   prefs_->SetInt64(kPrefsTargetVersionAttempt, target_attempt + 1);
 
   prefs_->SetInt64(kPrefsTargetVersionInstalledFrom,
-                    utils::GetPartitionNumber(
-                        system_state_->hardware()->BootDevice()));
+                   system_state_->boot_control()->GetCurrentSlot());
 }
 
 void PayloadState::ResetUpdateStatus() {
@@ -1496,7 +1501,7 @@ void PayloadState::ResetUpdateStatus() {
   // Also decrement the attempt number if it exists.
   int64_t target_attempt;
   if (prefs_->GetInt64(kPrefsTargetVersionAttempt, &target_attempt))
-    prefs_->SetInt64(kPrefsTargetVersionAttempt, target_attempt-1);
+    prefs_->SetInt64(kPrefsTargetVersionAttempt, target_attempt - 1);
 }
 
 int PayloadState::GetP2PNumAttempts() {

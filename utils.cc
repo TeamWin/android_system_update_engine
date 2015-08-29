@@ -155,25 +155,6 @@ string ParseECVersion(string input_line) {
   return "";
 }
 
-
-const string KernelDeviceOfBootDevice(const string& boot_device) {
-  string kernel_partition_name;
-
-  string disk_name;
-  int partition_num;
-  if (SplitPartitionName(boot_device, &disk_name, &partition_num)) {
-    // Currently this assumes the partition number of the boot device is
-    // 3, 5, or 7, and changes it to 2, 4, or 6, respectively, to
-    // get the kernel device.
-    if (partition_num == 3 || partition_num == 5 || partition_num == 7) {
-      kernel_partition_name = MakePartitionName(disk_name, partition_num - 1);
-    }
-  }
-
-  return kernel_partition_name;
-}
-
-
 bool WriteFile(const char* path, const void* data, int data_len) {
   DirectFileWriter writer;
   TEST_AND_RETURN_FALSE_ERRNO(0 == writer.Open(path,
@@ -438,18 +419,6 @@ void HexDumpArray(const uint8_t* const arr, const size_t length) {
   }
 }
 
-string GetDiskName(const string& partition_name) {
-  string disk_name;
-  return SplitPartitionName(partition_name, &disk_name, nullptr) ?
-      disk_name : string();
-}
-
-int GetPartitionNumber(const string& partition_name) {
-  int partition_num = 0;
-  return SplitPartitionName(partition_name, nullptr, &partition_num) ?
-      partition_num : 0;
-}
-
 bool SplitPartitionName(const string& partition_name,
                         string* out_disk_name,
                         int* out_partition_num) {
@@ -541,26 +510,6 @@ string MakePartitionNameForMount(const string& part_name) {
     return MakeNandPartitionNameForMount(partition_num);
   }
   return part_name;
-}
-
-string SysfsBlockDevice(const string& device) {
-  base::FilePath device_path(device);
-  if (device_path.DirName().value() != "/dev") {
-    return "";
-  }
-  return base::FilePath("/sys/block").Append(device_path.BaseName()).value();
-}
-
-bool IsRemovableDevice(const string& device) {
-  string sysfs_block = SysfsBlockDevice(device);
-  string removable;
-  if (sysfs_block.empty() ||
-      !base::ReadFileToString(base::FilePath(sysfs_block).Append("removable"),
-                              &removable)) {
-    return false;
-  }
-  base::TrimWhitespaceASCII(removable, base::TRIM_ALL, &removable);
-  return removable == "1";
 }
 
 string ErrnoNumberAsString(int err) {
@@ -1486,27 +1435,6 @@ bool DeletePowerwashMarkerFile(const char* file_path) {
                 << marker_file;
 
   return result;
-}
-
-bool GetInstallDev(const string& boot_dev, string* install_dev) {
-  string disk_name;
-  int partition_num;
-  if (!SplitPartitionName(boot_dev, &disk_name, &partition_num))
-    return false;
-
-  // Right now, we just switch '3' and '5' partition numbers.
-  if (partition_num == 3) {
-    partition_num = 5;
-  } else if (partition_num == 5) {
-    partition_num = 3;
-  } else {
-    return false;
-  }
-
-  if (install_dev)
-    *install_dev = MakePartitionName(disk_name, partition_num);
-
-  return true;
 }
 
 Time TimeFromStructTimespec(struct timespec *ts) {
