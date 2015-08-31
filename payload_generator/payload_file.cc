@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "update_engine/delta_performer.h"
 #include "update_engine/file_writer.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/payload_constants.h"
@@ -32,8 +33,6 @@ using std::vector;
 namespace chromeos_update_engine {
 
 namespace {
-
-const uint64_t kMajorVersionNumber = 1;
 
 static const char* kInstallOperationTypes[] = {
   "REPLACE",
@@ -73,6 +72,9 @@ const vector<PartitionName> PayloadFile::partition_disk_order_ = {
 };
 
 bool PayloadFile::Init(const PayloadGenerationConfig& config) {
+  major_version_ = config.major_version;
+  TEST_AND_RETURN_FALSE(major_version_ == kChromeOSMajorPayloadVersion ||
+                        major_version_ == kBrilloMajorPayloadVersion);
   manifest_.set_minor_version(config.minor_version);
 
   if (!config.source.ImageInfoIsEmpty())
@@ -179,7 +181,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
   TEST_AND_RETURN_FALSE(writer.Write(kDeltaMagic, strlen(kDeltaMagic)));
 
   // Write major version number
-  TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer, kMajorVersionNumber));
+  TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer, major_version_));
 
   // Write protobuf length
   TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer,

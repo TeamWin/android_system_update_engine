@@ -261,6 +261,8 @@ int Main(int argc, char** argv) {
   DEFINE_uint64(rootfs_partition_size,
                chromeos_update_engine::kRootFSPartitionSize,
                "RootFS partition size for the image once installed");
+  DEFINE_uint64(major_version, 1,
+               "The major version of the payload being generated.");
   DEFINE_int32(minor_version, -1,
                "The minor version of the payload being generated "
                "(-1 means autodetect).");
@@ -404,6 +406,9 @@ int Main(int argc, char** argv) {
     CHECK(payload_config.source.rootfs.OpenFilesystem());
     CHECK(payload_config.source.kernel.OpenFilesystem());
   }
+
+  payload_config.major_version = FLAGS_major_version;
+  LOG(INFO) << "Using provided major_version=" << FLAGS_major_version;
 
   if (FLAGS_minor_version == -1) {
     // Autodetect minor_version by looking at the update_engine.conf in the old

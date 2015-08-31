@@ -81,6 +81,9 @@ class PayloadFile {
   // payload file.
   static const std::vector<PartitionName> partition_disk_order_;
 
+  // The major_version of the requested payload.
+  uint64_t major_version_;
+
   DeltaArchiveManifest manifest_;
 
   std::map<PartitionName, std::vector<AnnotatedOperation>> aops_map_;

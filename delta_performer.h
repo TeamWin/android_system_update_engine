@@ -36,6 +36,12 @@
 
 namespace chromeos_update_engine {
 
+// The major version used by Chrome OS.
+extern const uint64_t kChromeOSMajorPayloadVersion;
+
+// The major version used by Brillo.
+extern const uint64_t kBrilloMajorPayloadVersion;
+
 // The minor version used by the in-place delta generator algorithm.
 extern const uint32_t kInPlaceMinorPayloadVersion;
 

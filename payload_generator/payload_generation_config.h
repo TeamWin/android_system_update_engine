@@ -117,6 +117,9 @@ struct PayloadGenerationConfig {
   // Wheter the requested payload is a delta payload.
   bool is_delta = false;
 
+  // The major_version of the requested payload.
+  uint64_t major_version;
+
   // The minor_version of the requested payload.
   uint32_t minor_version;
 
