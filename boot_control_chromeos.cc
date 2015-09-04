@@ -21,12 +21,14 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
+#include <chromeos/make_unique_ptr.h>
 #include <rootdev/rootdev.h>
 
 extern "C" {
 #include <vboot/vboot_host.h>
 }
 
+#include "update_engine/boot_control.h"
 #include "update_engine/utils.h"
 
 using std::string;
@@ -58,6 +60,20 @@ string GetBootDevice() {
 }  // namespace
 
 namespace chromeos_update_engine {
+
+namespace boot_control {
+
+// Factory defined in boot_control.h.
+std::unique_ptr<BootControlInterface> CreateBootControl() {
+  std::unique_ptr<BootControlChromeOS> boot_control_chromeos(
+      new BootControlChromeOS());
+  if (!boot_control_chromeos->Init()) {
+    LOG(ERROR) << "Ignoring BootControlChromeOS failure. We won't run updates.";
+  }
+  return chromeos::make_unique_ptr(boot_control_chromeos.release());
+}
+
+}  // namespace boot_control
 
 bool BootControlChromeOS::Init() {
   string boot_device = GetBootDevice();
