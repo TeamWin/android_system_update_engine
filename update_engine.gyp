@@ -32,7 +32,6 @@
       '-Wextra',
       '-Werror',
       '-Wno-unused-parameter',
-      '-Wno-deprecated-register',
     ],
     'cflags_cc': [
       '-fno-strict-aliasing',
