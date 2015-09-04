@@ -17,34 +17,18 @@
 #ifndef UPDATE_ENGINE_HARDWARE_H_
 #define UPDATE_ENGINE_HARDWARE_H_
 
-#include <string>
-#include <vector>
-
-#include <base/macros.h>
+#include <memory>
 
 #include "update_engine/hardware_interface.h"
 
 namespace chromeos_update_engine {
+namespace hardware {
 
-// Implements the real interface with the hardware.
-class Hardware : public HardwareInterface {
- public:
-  Hardware() = default;
-  ~Hardware() override = default;
+// The real HardwareInterface is platform-specific. This factory function
+// creates a new HardwareInterface instance for the current platform.
+std::unique_ptr<HardwareInterface> CreateHardware();
 
-  // HardwareInterface methods.
-  bool IsOfficialBuild() const override;
-  bool IsNormalBootMode() const override;
-  bool IsOOBEComplete(base::Time* out_time_of_oobe) const override;
-  std::string GetHardwareClass() const override;
-  std::string GetFirmwareVersion() const override;
-  std::string GetECVersion() const override;
-  int GetPowerwashCount() const override;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(Hardware);
-};
-
+}  // namespace hardware
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_HARDWARE_H_

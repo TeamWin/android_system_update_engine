@@ -27,7 +27,6 @@
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <vboot/crossystem.h>
 
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/utils.h"
@@ -39,11 +38,11 @@ namespace chromeos_update_manager {
 bool RealSystemProvider::Init() {
   var_is_normal_boot_mode_.reset(
       new ConstCopyVariable<bool>("is_normal_boot_mode",
-                                  VbGetSystemPropertyInt("devsw_boot") != 0));
+                                  hardware_->IsNormalBootMode()));
 
   var_is_official_build_.reset(
       new ConstCopyVariable<bool>("is_official_build",
-                                  VbGetSystemPropertyInt("debug_build") == 0));
+                                  hardware_->IsOfficialBuild()));
 
   var_is_oobe_complete_.reset(
       new CallCopyVariable<bool>(

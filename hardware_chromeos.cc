@@ -14,18 +14,20 @@
 // limitations under the License.
 //
 
-#include "update_engine/hardware.h"
+#include "update_engine/hardware_chromeos.h"
 
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
+#include <chromeos/make_unique_ptr.h>
 #include <vboot/crossystem.h>
 
 extern "C" {
 #include "vboot/vboot_host.h"
 }
 
+#include "update_engine/hardware.h"
 #include "update_engine/hwid_override.h"
 #include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
@@ -47,17 +49,26 @@ static const char kPowerwashCountMarker[] =
 
 namespace chromeos_update_engine {
 
-bool Hardware::IsOfficialBuild() const {
+namespace hardware {
+
+// Factory defined in hardware.h.
+std::unique_ptr<HardwareInterface> CreateHardware() {
+  return chromeos::make_unique_ptr(new HardwareChromeOS());
+}
+
+}  // namespace hardware
+
+bool HardwareChromeOS::IsOfficialBuild() const {
   return VbGetSystemPropertyInt("debug_build") == 0;
 }
 
-bool Hardware::IsNormalBootMode() const {
+bool HardwareChromeOS::IsNormalBootMode() const {
   bool dev_mode = VbGetSystemPropertyInt("devsw_boot") != 0;
   LOG_IF(INFO, dev_mode) << "Booted in dev mode.";
   return !dev_mode;
 }
 
-bool Hardware::IsOOBEComplete(base::Time* out_time_of_oobe) const {
+bool HardwareChromeOS::IsOOBEComplete(base::Time* out_time_of_oobe) const {
   struct stat statbuf;
   if (stat(kOOBECompletedMarker, &statbuf) != 0) {
     if (errno != ENOENT) {
@@ -75,7 +86,7 @@ bool Hardware::IsOOBEComplete(base::Time* out_time_of_oobe) const {
 static string ReadValueFromCrosSystem(const string& key) {
   char value_buffer[VB_MAX_STRING_PROPERTY];
 
-  const char *rv = VbGetSystemPropertyString(key.c_str(), value_buffer,
+  const char* rv = VbGetSystemPropertyString(key.c_str(), value_buffer,
                                              sizeof(value_buffer));
   if (rv != nullptr) {
     string return_value(value_buffer);
@@ -87,18 +98,18 @@ static string ReadValueFromCrosSystem(const string& key) {
   return "";
 }
 
-string Hardware::GetHardwareClass() const {
+string HardwareChromeOS::GetHardwareClass() const {
   if (USE_HWID_OVERRIDE) {
     return HwidOverride::Read(base::FilePath("/"));
   }
   return ReadValueFromCrosSystem("hwid");
 }
 
-string Hardware::GetFirmwareVersion() const {
+string HardwareChromeOS::GetFirmwareVersion() const {
   return ReadValueFromCrosSystem("fwid");
 }
 
-string Hardware::GetECVersion() const {
+string HardwareChromeOS::GetECVersion() const {
   string input_line;
   int exit_code = 0;
   vector<string> cmd = {"/usr/sbin/mosys", "-k", "ec", "info"};
@@ -112,7 +123,7 @@ string Hardware::GetECVersion() const {
   return utils::ParseECVersion(input_line);
 }
 
-int Hardware::GetPowerwashCount() const {
+int HardwareChromeOS::GetPowerwashCount() const {
   int powerwash_count;
   string contents;
   if (!utils::ReadFile(kPowerwashCountMarker, &contents))

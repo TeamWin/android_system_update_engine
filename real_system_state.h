@@ -30,7 +30,7 @@
 #include "update_engine/boot_control_interface.h"
 #include "update_engine/clock.h"
 #include "update_engine/connection_manager.h"
-#include "update_engine/hardware.h"
+#include "update_engine/hardware_interface.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
 #include "update_engine/prefs.h"
@@ -71,7 +71,7 @@ class RealSystemState : public SystemState {
     return &connection_manager_;
   }
 
-  inline HardwareInterface* hardware() override { return &hardware_; }
+  inline HardwareInterface* hardware() override { return hardware_.get(); }
 
   inline MetricsLibraryInterface* metrics_lib() override {
     return &metrics_lib_;
@@ -130,7 +130,7 @@ class RealSystemState : public SystemState {
   ConnectionManager connection_manager_{&shill_proxy_, this};
 
   // Interface for the hardware functions.
-  Hardware hardware_;
+  std::unique_ptr<HardwareInterface> hardware_;
 
   // The Metrics Library interface for reporting UMA stats.
   MetricsLibrary metrics_lib_;

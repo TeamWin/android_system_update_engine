@@ -173,7 +173,7 @@
         'file_descriptor.cc',
         'file_writer.cc',
         'filesystem_verifier_action.cc',
-        'hardware.cc',
+        'hardware_chromeos.cc',
         'http_common.cc',
         'http_fetcher.cc',
         'hwid_override.cc',

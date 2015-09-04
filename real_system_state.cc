@@ -21,6 +21,7 @@
 
 #include "update_engine/boot_control_chromeos.h"
 #include "update_engine/constants.h"
+#include "update_engine/hardware.h"
 #include "update_engine/update_manager/state_factory.h"
 #include "update_engine/utils.h"
 
@@ -42,6 +43,12 @@ bool RealSystemState::Initialize() {
   boot_control_.reset(boot_control_cros);
   if (!boot_control_cros->Init()) {
     LOG(ERROR) << "Ignoring BootControlChromeOS failure. We won't run updates.";
+  }
+
+  hardware_ = hardware::CreateHardware();
+  if (!hardware_) {
+    LOG(ERROR) << "Error intializing the HardwareInterface.";
+    return false;
   }
 
   if (!shill_proxy_.Init()) {

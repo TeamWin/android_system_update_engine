@@ -18,7 +18,6 @@
 #define UPDATE_ENGINE_MOCK_HARDWARE_H_
 
 #include <string>
-#include <vector>
 
 #include "update_engine/fake_hardware.h"
 
