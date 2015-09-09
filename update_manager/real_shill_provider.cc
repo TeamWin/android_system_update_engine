@@ -20,6 +20,7 @@
 
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
+#include <chromeos/type_name_undecorate.h>
 #include <shill/dbus-constants.h>
 #include <shill/dbus-proxies.h>
 
@@ -88,8 +89,17 @@ bool RealShillProvider::Init() {
 
 void RealShillProvider::OnManagerPropertyChanged(const string& name,
                                                  const chromeos::Any& value) {
-  if (name == shill::kDefaultServiceProperty)
-    ProcessDefaultService(value.TryGet<dbus::ObjectPath>().value());
+  if (name == shill::kDefaultServiceProperty) {
+    dbus::ObjectPath service_path = value.TryGet<dbus::ObjectPath>();
+    if (!service_path.IsValid()) {
+      LOG(WARNING) << "Got an invalid DefaultService path. The property value "
+                      "contains a "
+                   << chromeos::UndecorateTypeName(value.GetType().name())
+                   << ", read as the object path: '" << service_path.value()
+                   << "'";
+    }
+    ProcessDefaultService(service_path);
+  }
 }
 
 void RealShillProvider::OnSignalConnected(const string& interface_name,
@@ -102,7 +112,7 @@ void RealShillProvider::OnSignalConnected(const string& interface_name,
 }
 
 bool RealShillProvider::ProcessDefaultService(
-    const string& default_service_path) {
+    const dbus::ObjectPath& default_service_path) {
   // We assume that if the service path didn't change, then the connection
   // type and the tethering status of it also didn't change.
   if (default_service_path_ == default_service_path)
@@ -110,7 +120,8 @@ bool RealShillProvider::ProcessDefaultService(
 
   // Update the connection status.
   default_service_path_ = default_service_path;
-  bool is_connected = (default_service_path_ != "/");
+  bool is_connected = (default_service_path_.IsValid() &&
+                       default_service_path_.value() != "/");
   var_is_connected_.SetValue(is_connected);
   var_conn_last_changed_.SetValue(clock_->GetWallclockTime());
 
@@ -140,8 +151,8 @@ bool RealShillProvider::ProcessDefaultService(
     // error in shill and the policy will handle it, but we will print a log
     // message as well for accessing an unused variable.
     var_conn_tethering_.UnsetValue();
-    LOG(ERROR) << "Could not find connection type (" << default_service_path_
-               << ")";
+    LOG(ERROR) << "Could not find connection type (service: "
+               << default_service_path_.value() << ")";
   } else {
     // If the property doesn't contain a string value, the empty string will
     // become kUnknown.
@@ -153,8 +164,8 @@ bool RealShillProvider::ProcessDefaultService(
   const auto& prop_type = properties.find(shill::kTypeProperty);
   if (prop_type == properties.end()) {
     var_conn_type_.UnsetValue();
-    LOG(ERROR) << "Could not find connection tethering mode ("
-               << default_service_path_ << ")";
+    LOG(ERROR) << "Could not find connection tethering mode (service: "
+               << default_service_path_.value() << ")";
   } else {
     string type_str = prop_type->second.TryGet<string>();
     if (type_str == shill::kTypeVPN) {
@@ -162,7 +173,7 @@ bool RealShillProvider::ProcessDefaultService(
           properties.find(shill::kPhysicalTechnologyProperty);
       if (prop_physical == properties.end()) {
         LOG(ERROR) << "No PhysicalTechnology property found for a VPN"
-                   << " connection (service: " << default_service_path
+                   << " connection (service: " << default_service_path_.value()
                    << "). Using default kUnknown value.";
         var_conn_type_.SetValue(ConnectionType::kUnknown);
       } else {

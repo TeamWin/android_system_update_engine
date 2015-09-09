@@ -24,6 +24,7 @@
 #include <string>
 
 #include <base/time/time.h>
+#include <dbus/object_path.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/shill_proxy_interface.h"
@@ -77,10 +78,10 @@ class RealShillProvider : public ShillProvider {
 
   // Get the connection and populate the type and tethering status of the given
   // default connection.
-  bool ProcessDefaultService(const std::string& default_service_path);
+  bool ProcessDefaultService(const dbus::ObjectPath& default_service_path);
 
-  // The current default service path, if connected.
-  std::string default_service_path_;
+  // The current default service path, if connected. "/" means not connected.
+  dbus::ObjectPath default_service_path_{"uninitialized"};
 
   // The mockable interface to access the shill DBus proxies, owned by the
   // caller.

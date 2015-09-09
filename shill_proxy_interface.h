@@ -21,6 +21,7 @@
 #include <string>
 
 #include <base/macros.h>
+#include <dbus/object_path.h>
 #include <shill/dbus-proxies.h>
 
 namespace chromeos_update_engine {
@@ -41,7 +42,7 @@ class ShillProxyInterface {
   // Return a ServiceProxy for the given path. The ownership of the returned
   // instance is transferred to the caller.
   virtual std::unique_ptr<org::chromium::flimflam::ServiceProxyInterface>
-  GetServiceForPath(const std::string& path) = 0;
+  GetServiceForPath(const dbus::ObjectPath& path) = 0;
 
  protected:
   ShillProxyInterface() = default;

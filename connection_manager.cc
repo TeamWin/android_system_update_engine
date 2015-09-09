@@ -164,16 +164,16 @@ const char* ConnectionManager::StringForConnectionType(
 bool ConnectionManager::GetConnectionProperties(
     NetworkConnectionType* out_type,
     NetworkTethering* out_tethering) {
-  string default_service_path;
+  dbus::ObjectPath default_service_path;
   TEST_AND_RETURN_FALSE(GetDefaultServicePath(&default_service_path));
-  if (default_service_path.empty())
+  if (!default_service_path.IsValid())
     return false;
   TEST_AND_RETURN_FALSE(
       GetServicePathProperties(default_service_path, out_type, out_tethering));
   return true;
 }
 
-bool ConnectionManager::GetDefaultServicePath(string* out_path) {
+bool ConnectionManager::GetDefaultServicePath(dbus::ObjectPath* out_path) {
   chromeos::VariantDictionary properties;
   chromeos::ErrorPtr error;
   ManagerProxyInterface* manager_proxy = shill_proxy_->GetManagerProxy();
@@ -186,12 +186,12 @@ bool ConnectionManager::GetDefaultServicePath(string* out_path) {
   if (prop_default_service == properties.end())
     return false;
 
-  *out_path = prop_default_service->second.TryGet<dbus::ObjectPath>().value();
-  return !out_path->empty();
+  *out_path = prop_default_service->second.TryGet<dbus::ObjectPath>();
+  return out_path->IsValid();
 }
 
 bool ConnectionManager::GetServicePathProperties(
-    const string& path,
+    const dbus::ObjectPath& path,
     NetworkConnectionType* out_type,
     NetworkTethering* out_tethering) {
   // We create and dispose the ServiceProxyInterface on every request.
@@ -227,8 +227,8 @@ bool ConnectionManager::GetServicePathProperties(
         properties.find(shill::kPhysicalTechnologyProperty);
     if (prop_physical == properties.end()) {
       LOG(ERROR) << "No PhysicalTechnology property found for a VPN"
-                 << " connection (service: " << path << "). Returning default"
-                 << " kUnknown value.";
+                    " connection (service: "
+                 << path.value() << "). Returning default kUnknown value.";
       *out_type = NetworkConnectionType::kUnknown;
     } else {
       *out_type = ParseConnectionType(prop_physical->second.TryGet<string>());

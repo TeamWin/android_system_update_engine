@@ -29,19 +29,19 @@ ManagerProxyMock* FakeShillProxy::GetManagerProxy() {
 }
 
 std::unique_ptr<ServiceProxyInterface> FakeShillProxy::GetServiceForPath(
-    const std::string& path) {
-  auto it = service_proxy_mocks_.find(path);
+    const dbus::ObjectPath& path) {
+  auto it = service_proxy_mocks_.find(path.value());
   CHECK(it != service_proxy_mocks_.end()) << "No ServiceProxyMock set for "
-                                          << path;
+                                          << path.value();
   std::unique_ptr<ServiceProxyInterface> result = std::move(it->second);
   service_proxy_mocks_.erase(it);
   return result;
 }
 
 void FakeShillProxy::SetServiceForPath(
-    const std::string& path,
+    const dbus::ObjectPath& path,
     std::unique_ptr<ServiceProxyInterface> service_proxy) {
-  service_proxy_mocks_[path] = std::move(service_proxy);
+  service_proxy_mocks_[path.value()] = std::move(service_proxy);
 }
 
 }  // namespace chromeos_update_engine

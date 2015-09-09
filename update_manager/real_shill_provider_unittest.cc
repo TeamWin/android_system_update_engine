@@ -47,13 +47,13 @@ using testing::_;
 namespace {
 
 // Fake service paths.
-const char* const kFakeEthernetServicePath = "/fake-ethernet-service";
-const char* const kFakeWifiServicePath = "/fake-wifi-service";
-const char* const kFakeWimaxServicePath = "/fake-wimax-service";
-const char* const kFakeBluetoothServicePath = "/fake-bluetooth-service";
-const char* const kFakeCellularServicePath = "/fake-cellular-service";
-const char* const kFakeVpnServicePath = "/fake-vpn-service";
-const char* const kFakeUnknownServicePath = "/fake-unknown-service";
+const char* const kFakeEthernetServicePath = "/fake/ethernet/service";
+const char* const kFakeWifiServicePath = "/fake/wifi/service";
+const char* const kFakeWimaxServicePath = "/fake/wimax/service";
+const char* const kFakeBluetoothServicePath = "/fake/bluetooth/service";
+const char* const kFakeCellularServicePath = "/fake/cellular/service";
+const char* const kFakeVpnServicePath = "/fake/vpn/service";
+const char* const kFakeUnknownServicePath = "/fake/unknown/service";
 
 }  // namespace
 
@@ -259,7 +259,8 @@ ServiceProxyMock* UmRealShillProviderTest::SetServiceReply(
       .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
 
   fake_shill_proxy_.SetServiceForPath(
-      service_path, chromeos::make_unique_ptr(service_proxy_mock));
+      dbus::ObjectPath(service_path),
+      chromeos::make_unique_ptr(service_proxy_mock));
   return service_proxy_mock;
 }
 
@@ -273,6 +274,29 @@ TEST_F(UmRealShillProviderTest, ReadBaseValues) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_conn_type());
   UmTestUtils::ExpectVariableHasValue(InitTime(),
                                       provider_->var_conn_last_changed());
+}
+
+// Ensure that invalid DBus paths are ignored.
+TEST_F(UmRealShillProviderTest, InvalidServicePath) {
+  InitWithDefaultService("invalid");
+  UmTestUtils::ExpectVariableHasValue(false, provider_->var_is_connected());
+  UmTestUtils::ExpectVariableNotSet(provider_->var_conn_type());
+  UmTestUtils::ExpectVariableHasValue(InitTime(),
+                                      provider_->var_conn_last_changed());
+}
+
+// Ensure that a service path property including a different type is ignored.
+TEST_F(UmRealShillProviderTest, InvalidServicePathType) {
+  ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_.GetManagerProxy();
+  chromeos::VariantDictionary reply_dict;
+  reply_dict[shill::kDefaultServiceProperty] = "/not/an/object/path";
+  EXPECT_CALL(*manager_proxy_mock, GetProperties(_, _, _))
+      .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
+
+  EXPECT_TRUE(provider_->Init());
+  EXPECT_TRUE(loop_.RunOnce(false));
+
+  UmTestUtils::ExpectVariableHasValue(false, provider_->var_is_connected());
 }
 
 // Test that Ethernet connection is identified correctly.

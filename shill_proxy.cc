@@ -35,10 +35,9 @@ ManagerProxyInterface* ShillProxy::GetManagerProxy() {
 }
 
 std::unique_ptr<ServiceProxyInterface> ShillProxy::GetServiceForPath(
-    const std::string& path) {
+    const dbus::ObjectPath& path) {
   DCHECK(bus_.get());
-  return std::unique_ptr<ServiceProxyInterface>(
-      new ServiceProxy(bus_, dbus::ObjectPath(path)));
+  return std::unique_ptr<ServiceProxyInterface>(new ServiceProxy(bus_, path));
 }
 
 }  // namespace chromeos_update_engine

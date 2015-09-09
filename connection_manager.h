@@ -20,6 +20,7 @@
 #include <string>
 
 #include <base/macros.h>
+#include <dbus/object_path.h>
 
 #include "update_engine/connection_manager_interface.h"
 #include "update_engine/shill_proxy_interface.h"
@@ -52,9 +53,9 @@ class ConnectionManager : public ConnectionManagerInterface {
  private:
   // Returns (via out_path) the default network path, or empty string if
   // there's no network up. Returns true on success.
-  bool GetDefaultServicePath(std::string* out_path);
+  bool GetDefaultServicePath(dbus::ObjectPath* out_path);
 
-  bool GetServicePathProperties(const std::string& path,
+  bool GetServicePathProperties(const dbus::ObjectPath& path,
                                 NetworkConnectionType* out_type,
                                 NetworkTethering* out_tethering);
 

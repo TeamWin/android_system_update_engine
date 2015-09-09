@@ -22,6 +22,7 @@
 
 #include <base/macros.h>
 #include <dbus/bus.h>
+#include <dbus/object_path.h>
 #include <shill/dbus-proxies.h>
 
 #include "update_engine/shill_proxy_interface.h"
@@ -41,7 +42,7 @@ class ShillProxy : public ShillProxyInterface {
   // ShillProxyInterface overrides.
   org::chromium::flimflam::ManagerProxyInterface* GetManagerProxy() override;
   std::unique_ptr<org::chromium::flimflam::ServiceProxyInterface>
-  GetServiceForPath(const std::string& path) override;
+  GetServiceForPath(const dbus::ObjectPath& path) override;
 
  private:
   // A reference to the main bus for creating new ServiceProxy instances.

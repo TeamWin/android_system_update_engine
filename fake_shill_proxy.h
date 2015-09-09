@@ -42,11 +42,11 @@ class FakeShillProxy : public ShillProxyInterface {
   // with SetServiceForPath().
   org::chromium::flimflam::ManagerProxyMock* GetManagerProxy() override;
   std::unique_ptr<org::chromium::flimflam::ServiceProxyInterface>
-  GetServiceForPath(const std::string& path) override;
+  GetServiceForPath(const dbus::ObjectPath& path) override;
 
   // Sets the service_proxy that will be returned by GetServiceForPath().
   void SetServiceForPath(
-      const std::string& path,
+      const dbus::ObjectPath& path,
       std::unique_ptr<org::chromium::flimflam::ServiceProxyInterface>
           service_proxy);
 

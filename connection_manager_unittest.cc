@@ -129,7 +129,7 @@ void ConnectionManagerTest::SetServiceReply(const string& service_path,
   EXPECT_CALL(*service_proxy_mock.get(), GetProperties(_, _, _))
       .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
 
-  fake_shill_proxy_.SetServiceForPath(service_path,
+  fake_shill_proxy_.SetServiceForPath(dbus::ObjectPath(service_path),
                                       std::move(service_proxy_mock));
 }
 
@@ -137,8 +137,8 @@ void ConnectionManagerTest::TestWithServiceType(
     const char* service_type,
     const char* physical_technology,
     NetworkConnectionType expected_type) {
-  SetManagerReply("/service/guest-network", true);
-  SetServiceReply("/service/guest-network",
+  SetManagerReply("/service/guest/network", true);
+  SetServiceReply("/service/guest/network",
                   service_type,
                   physical_technology,
                   shill::kTetheringNotDetectedState);
@@ -154,9 +154,9 @@ void ConnectionManagerTest::TestWithServiceType(
 void ConnectionManagerTest::TestWithServiceTethering(
     const char* service_tethering,
     NetworkTethering expected_tethering) {
-  SetManagerReply("/service/guest-network", true);
+  SetManagerReply("/service/guest/network", true);
   SetServiceReply(
-      "/service/guest-network", shill::kTypeWifi, nullptr, service_tethering);
+      "/service/guest/network", shill::kTypeWifi, nullptr, service_tethering);
 
   NetworkConnectionType type;
   NetworkTethering tethering;
@@ -399,7 +399,7 @@ TEST_F(ConnectionManagerTest, StringForConnectionTypeTest) {
 }
 
 TEST_F(ConnectionManagerTest, MalformedServiceList) {
-  SetManagerReply("/service/guest-network", false);
+  SetManagerReply("/service/guest/network", false);
 
   NetworkConnectionType type;
   NetworkTethering tethering;
