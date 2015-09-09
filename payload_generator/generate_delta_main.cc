@@ -394,11 +394,6 @@ int Main(int argc, char** argv) {
 
   payload_config.rootfs_partition_size = FLAGS_rootfs_partition_size;
 
-  // Load the rootfs size from verity's kernel command line if rootfs
-  // verification is enabled.
-  payload_config.source.LoadVerityRootfsSize();
-  payload_config.target.LoadVerityRootfsSize();
-
   if (payload_config.is_delta) {
     // Avoid opening the filesystem interface for full payloads.
     CHECK(payload_config.target.rootfs.OpenFilesystem());

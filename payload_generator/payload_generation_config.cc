@@ -22,7 +22,6 @@
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/ext2_filesystem.h"
 #include "update_engine/payload_generator/raw_filesystem.h"
-#include "update_engine/payload_generator/verity_utils.h"
 #include "update_engine/utils.h"
 
 namespace chromeos_update_engine {
@@ -93,24 +92,6 @@ bool ImageConfig::LoadImageSize() {
                << " has a block size of " << rootfs_block_size
                << " but delta_generator only supports 4096.";
     return false;
-  }
-  return true;
-}
-
-bool ImageConfig::LoadVerityRootfsSize() {
-  if (kernel.path.empty())
-    return false;
-  uint64_t verity_rootfs_size = 0;
-  if (!GetVerityRootfsSize(kernel.path, &verity_rootfs_size)) {
-    LOG(INFO) << "Couldn't find verity options in source kernel config, will "
-              << "use the rootfs filesystem size instead: " << rootfs.size;
-    return false;
-  }
-  if (rootfs.size != verity_rootfs_size) {
-    LOG(WARNING) << "Using the rootfs size found in the kernel config ("
-                 << verity_rootfs_size << ") instead of the rootfs filesystem "
-                 << " size (" << rootfs.size << ").";
-    rootfs.size = verity_rootfs_size;
   }
   return true;
 }
