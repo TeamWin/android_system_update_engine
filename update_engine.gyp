@@ -302,7 +302,6 @@
         'payload_generator/raw_filesystem.cc',
         'payload_generator/tarjan.cc',
         'payload_generator/topological_sort.cc',
-        'payload_generator/verity_utils.cc',
       ],
     },
     # server-side delta generator.
@@ -423,7 +422,6 @@
             'payload_generator/payload_file_unittest.cc',
             'payload_generator/tarjan_unittest.cc',
             'payload_generator/topological_sort_unittest.cc',
-            'payload_generator/verity_utils_unittest.cc',
             'payload_state_unittest.cc',
             'postinstall_runner_action_unittest.cc',
             'prefs_unittest.cc',
