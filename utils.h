@@ -422,35 +422,16 @@ bool ReadExtents(const std::string& path, const std::vector<Extent>& extents,
 // Utility class to close a file descriptor
 class ScopedFdCloser {
  public:
-  explicit ScopedFdCloser(int* fd) : fd_(fd), should_close_(true) {}
+  explicit ScopedFdCloser(int* fd) : fd_(fd) {}
   ~ScopedFdCloser() {
-    if (should_close_ && fd_ && (*fd_ >= 0)) {
-      if (!close(*fd_))
-        *fd_ = -1;
-    }
+    if (should_close_ && fd_ && (*fd_ >= 0) && !IGNORE_EINTR(close(*fd_)))
+      *fd_ = -1;
   }
   void set_should_close(bool should_close) { should_close_ = should_close; }
  private:
   int* fd_;
-  bool should_close_;
+  bool should_close_ = true;
   DISALLOW_COPY_AND_ASSIGN(ScopedFdCloser);
-};
-
-// An EINTR-immune file descriptor closer.
-class ScopedEintrSafeFdCloser {
- public:
-  explicit ScopedEintrSafeFdCloser(int* fd) : fd_(fd), should_close_(true) {}
-  ~ScopedEintrSafeFdCloser() {
-    if (should_close_ && fd_ && (*fd_ >= 0)) {
-      if (!IGNORE_EINTR(close(*fd_)))
-        *fd_ = -1;
-    }
-  }
-  void set_should_close(bool should_close) { should_close_ = should_close; }
- private:
-  int* fd_;
-  bool should_close_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedEintrSafeFdCloser);
 };
 
 // Utility class to delete a file when it goes out of scope.
