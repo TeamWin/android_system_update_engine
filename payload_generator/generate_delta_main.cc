@@ -256,6 +256,11 @@ int Main(int argc, char** argv) {
                 "e.g. /path/to/sig:/path/to/next:/path/to/last_sig . Each "
                 "signature will be assigned a client version, starting from "
                 "kSignatureOriginalVersion.");
+  DEFINE_string(metadata_signature_file, "",
+                "Raw signature file with the signature of the metadata hash. "
+                "To pass multiple signatures, use a single argument with a "
+                "colon between paths, "
+                "e.g. /path/to/sig:/path/to/next:/path/to/last_sig .");
   DEFINE_int32(chunk_size, 200 * 1024 * 1024,
                "Payload chunk size (-1 for whole files)");
   DEFINE_uint64(rootfs_partition_size,
