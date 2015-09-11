@@ -19,10 +19,19 @@
 // version. The update format is represented by this struct pseudocode:
 // struct delta_update_file {
 //   char magic[4] = "CrAU";
-//   uint64 file_format_version = 1;
+//   uint64 file_format_version;
 //   uint64 manifest_size;  // Size of protobuf DeltaArchiveManifest
+//
+//   // Only present if format_version > 1:
+//   uint32 metadata_signature_size;
+//
 //   // The Bzip2 compressed DeltaArchiveManifest
 //   char manifest[];
+//
+//   // The signature of the metadata (from the beginning of the payload up to
+//   // this location, not including the signature itself). This is a serialized
+//   // Signatures message.
+//   char medatada_signature_message[metadata_signature_size];
 //
 //   // Data blobs for files, no specific format. The specific offset
 //   // and length of each data blob is recorded in the DeltaArchiveManifest.
@@ -31,8 +40,8 @@
 //   } blobs[];
 //
 //   // These two are not signed:
-//   uint64 signatures_message_size;
-//   char signatures_message[];
+//   uint64 payload_signatures_message_size;
+//   char payload_signatures_message[];
 //
 // };
 
@@ -53,9 +62,24 @@
 // - MOVE: Copy the data in src_extents to dst_extents. Extents may overlap,
 //   so it may be desirable to read all src_extents data into memory before
 //   writing it out.
+// - SOURCE_COPY: Copy the data in src_extents in the old partition to
+//   dst_extents in the new partition. There's no overlapping of data because
+//   the extents are in different partitions.
 // - BSDIFF: Read src_length bytes from src_extents into memory, perform
 //   bspatch with attached data, write new data to dst_extents, zero padding
 //   to block size.
+// - SOURCE_BSDIFF: Read the data in src_extents in the old partition, perform
+//   bspatch with the attached data and write the new data to dst_extents in the
+//   new partition.
+// - ZERO: Write zeros to the destination dst_extents.
+// - DISCARD: Discard the destination dst_extents blocks on the physical medium.
+//   the data read from those block is undefined.
+// - REPLACE_XZ: Replace the dst_extents with the contents of the attached
+//   xz file after decompression. The xz file should only use crc32 or no crc at
+//   all to be compatible with xz-embedded.
+//
+// The operations allowed in the payload (supported by the client) depend on the
+// major and minor version. See InstallOperation.Type bellow for details.
 
 package chromeos_update_engine;
 option optimize_for = LITE_RUNTIME;
@@ -129,14 +153,15 @@ message InstallOperation {
     MOVE = 2;  // Move source extents to destination extents
     BSDIFF = 3;  // The data is a bsdiff binary diff
 
-    // SOURCE_COPY and SOURCE_BSDIFF are only supported on minor version 2 or
-    // higher.
+    // On minor version 2 or newer, these operations are supported:
     SOURCE_COPY = 4; // Copy from source to target partition
     SOURCE_BSDIFF = 5; // Like BSDIFF, but read from source partition
 
-    // ZERO and DISCARD are only supported on minor version 3.
+    // On minor version 3 or newer and on major version 2 or newer, these
+    // operations are supported:
     ZERO = 6;  // Write zeros in the destination.
     DISCARD = 7;  // Discard the destination blocks, reading as undefined.
+    REPLACE_XZ = 8; // Replace destination extents w/ attached xz data.
   }
   required Type type = 1;
   // The offset into the delta file (after the protobuf)
@@ -197,12 +222,9 @@ message PartitionUpdate {
 }
 
 message DeltaArchiveManifest {
-  // DEPRECATED. List of install operations for the kernel and rootfs
-  // partitions. This information is now present in the |partitions| field. If
-  // you set these fields instead of the ones in the PartitionUpdate, they will
-  // be migrated to the corresponding entries in the PartitionUpdate to support
-  // full payloads on legacy daemons. Delta payloads starting with minor_version
-  // 3 MAY NOT include these fields.
+  // Only present in major version = 1. List of install operations for the
+  // kernel and rootfs partitions. For major version = 2 see the |partitions|
+  // field.
   repeated InstallOperation install_operations = 1;
   repeated InstallOperation kernel_install_operations = 2;
 
@@ -217,12 +239,8 @@ message DeltaArchiveManifest {
   optional uint64 signatures_offset = 4;
   optional uint64 signatures_size = 5;
 
-  // DEPRECATED. Partition metadata used to validate the update.
-  // This information is now present in the |partitions| field. If you set
-  // these fields instead of the ones in the PartitionUpdate, they will be
-  // migrated to the corresponding entries in the PartitionUpdate to support
-  // full payloads on legacy daemons. Delta payloads starting with minor_version
-  // 3 MAY NOT include these fields.
+  // Only present in major version = 1. Partition metadata used to validate the
+  // update. For major version = 2 see the |partitions| field.
   optional PartitionInfo old_kernel_info = 6;
   optional PartitionInfo new_kernel_info = 7;
   optional PartitionInfo old_rootfs_info = 8;
@@ -233,8 +251,14 @@ message DeltaArchiveManifest {
 
   optional ImageInfo new_image_info = 11;
 
+  // The minor version, also referred as "delta version", of the payload.
   optional uint32 minor_version = 12 [default = 0];
 
-  // List of partitions that will be updated, in the order they will be updated.
+  // Only present in major version >= 2. List of partitions that will be
+  // updated, in the order they will be updated. This field replaces the
+  // |install_operations|, |kernel_install_operations| and the
+  // |{old,new}_{kernel,rootfs}_info| fields used in major version = 1. This
+  // array can have more than two partitions if needed, and they are identified
+  // by the partition name.
   repeated PartitionUpdate partitions = 13;
 }
