@@ -30,6 +30,7 @@
 #include <chromeos/flag_helper.h>
 
 #include "update_engine/delta_performer.h"
+#include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
@@ -424,7 +425,7 @@ int Main(int argc, char** argv) {
         payload_config.minor_version = kInPlaceMinorPayloadVersion;
       }
     } else {
-      payload_config.minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+      payload_config.minor_version = kFullPayloadMinorVersion;
     }
     LOG(INFO) << "Auto-detected minor_version=" << payload_config.minor_version;
   } else {

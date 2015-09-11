@@ -24,6 +24,7 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
@@ -187,7 +188,7 @@ class DeltaPerformerTest : public ::testing::Test {
     // Loads the payload and parses the manifest.
     chromeos::Blob payload = GeneratePayload(chromeos::Blob(),
         vector<AnnotatedOperation>(), sign_payload,
-        DeltaPerformer::kFullPayloadMinorVersion);
+        kFullPayloadMinorVersion);
 
     LOG(INFO) << "Payload size: " << payload.size();
 
@@ -270,7 +271,7 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
   aops.push_back(aop);
 
   chromeos::Blob payload_data = GeneratePayload(expected_data, aops, false,
-      DeltaPerformer::kFullPayloadMinorVersion);
+      kFullPayloadMinorVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, ""));
 }
@@ -363,7 +364,7 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullGoodTest) {
   DeltaArchiveManifest manifest;
   manifest.mutable_new_kernel_info();
   manifest.mutable_new_rootfs_info();
-  manifest.set_minor_version(DeltaPerformer::kFullPayloadMinorVersion);
+  manifest.set_minor_version(kFullPayloadMinorVersion);
 
   RunManifestValidation(manifest, true, ErrorCode::kSuccess);
 }
@@ -573,14 +574,20 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
 }
 
-TEST_F(DeltaPerformerTest, MinorVersionsMatch) {
-  // Test that the minor version in update_engine.conf that is installed to
-  // the image matches the supported delta minor version in the update engine.
+TEST_F(DeltaPerformerTest, ConfVersionsMatch) {
+  // Test that the versions in update_engine.conf that is installed to the
+  // image match the supported delta versions in the update engine.
   uint32_t minor_version;
   chromeos::KeyValueStore store;
   EXPECT_TRUE(store.Load(base::FilePath("update_engine.conf")));
   EXPECT_TRUE(utils::GetMinorVersion(store, &minor_version));
   EXPECT_EQ(DeltaPerformer::kSupportedMinorPayloadVersion, minor_version);
+
+  string major_version_str;
+  uint64_t major_version;
+  EXPECT_TRUE(store.GetString("PAYLOAD_MAJOR_VERSION", &major_version_str));
+  EXPECT_TRUE(base::StringToUint64(major_version_str, &major_version));
+  EXPECT_EQ(DeltaPerformer::kSupportedMajorPayloadVersion, major_version);
 }
 
 }  // namespace chromeos_update_engine

@@ -115,8 +115,7 @@ bool PayloadGenerationConfig::Validate() const {
   } else {
     // All the "source" image fields must be empty for full payloads.
     TEST_AND_RETURN_FALSE(source.ValidateIsEmpty());
-    TEST_AND_RETURN_FALSE(minor_version ==
-                          DeltaPerformer::kFullPayloadMinorVersion);
+    TEST_AND_RETURN_FALSE(minor_version == kFullPayloadMinorVersion);
   }
 
   // In all cases, the target image must exists.

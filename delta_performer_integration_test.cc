@@ -910,7 +910,7 @@ void DoSmallImageTest(bool full_kernel, bool full_rootfs, bool noop,
 void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
                                  bool hash_checks_mandatory) {
   DeltaState state;
-  uint64_t minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+  uint64_t minor_version = kFullPayloadMinorVersion;
   GenerateDeltaFile(true, true, false, -1, kSignatureGenerated, &state,
                     minor_version);
   ScopedPathUnlinker a_img_unlinker(state.a_img);
@@ -955,7 +955,7 @@ TEST(DeltaPerformerIntegrationTest, RunAsRootFullKernelSmallImageTest) {
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootFullSmallImageTest) {
   DoSmallImageTest(true, true, false, -1, kSignatureGenerator,
-                   true, DeltaPerformer::kFullPayloadMinorVersion);
+                   true, kFullPayloadMinorVersion);
 }
 
 TEST(DeltaPerformerIntegrationTest, RunAsRootNoopSmallImageTest) {

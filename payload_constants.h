@@ -23,6 +23,22 @@
 
 namespace chromeos_update_engine {
 
+// The major version used by Chrome OS.
+extern const uint64_t kChromeOSMajorPayloadVersion;
+
+// The major version used by Brillo.
+extern const uint64_t kBrilloMajorPayloadVersion;
+
+// The minor version used for all full payloads.
+extern const uint32_t kFullPayloadMinorVersion;
+
+// The minor version used by the in-place delta generator algorithm.
+extern const uint32_t kInPlaceMinorPayloadVersion;
+
+// The minor version used by the A to B delta generator algorithm.
+extern const uint32_t kSourceMinorPayloadVersion;
+
+
 // The kernel and rootfs partition names used by the BootControlInterface when
 // handling update payloads with a major version 1. The names of the updated
 // partitions are include in the payload itself for major version 2.

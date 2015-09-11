@@ -21,7 +21,7 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/delta_performer.h"
+#include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/test_utils.h"
 
@@ -35,7 +35,7 @@ class FullUpdateGeneratorTest : public ::testing::Test {
  protected:
   void SetUp() override {
     config_.is_delta = false;
-    config_.minor_version = DeltaPerformer::kFullPayloadMinorVersion;
+    config_.minor_version = kFullPayloadMinorVersion;
     config_.hard_chunk_size = 128 * 1024;
     config_.block_size = 4096;
 

@@ -36,18 +36,6 @@
 
 namespace chromeos_update_engine {
 
-// The major version used by Chrome OS.
-extern const uint64_t kChromeOSMajorPayloadVersion;
-
-// The major version used by Brillo.
-extern const uint64_t kBrilloMajorPayloadVersion;
-
-// The minor version used by the in-place delta generator algorithm.
-extern const uint32_t kInPlaceMinorPayloadVersion;
-
-// The minor version used by the A to B delta generator algorithm.
-extern const uint32_t kSourceMinorPayloadVersion;
-
 class PrefsInterface;
 
 // This class performs the actions in a delta update synchronously. The delta
@@ -65,7 +53,6 @@ class DeltaPerformer : public FileWriter {
   static const uint64_t kDeltaManifestSizeSize;
   static const uint64_t kSupportedMajorPayloadVersion;
   static const uint64_t kSupportedMinorPayloadVersion;
-  static const uint64_t kFullPayloadMinorVersion;
   static const char kUpdatePayloadPublicKeyPath[];
 
   // Defines the granularity of progress logging in terms of how many "completed
