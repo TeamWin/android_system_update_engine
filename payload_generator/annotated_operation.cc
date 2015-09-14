@@ -64,6 +64,8 @@ string InstallOperationTypeName(InstallOperation_Type op_type) {
       return "ZERO";
     case InstallOperation::DISCARD:
       return "DISCARD";
+    case InstallOperation::REPLACE_XZ:
+      return "REPLACE_XZ";
   }
   return "UNK";
 }
