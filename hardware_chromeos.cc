@@ -37,13 +37,21 @@ using std::vector;
 
 namespace {
 
-static const char kOOBECompletedMarker[] = "/home/chronos/.oobe_completed";
+const char kOOBECompletedMarker[] = "/home/chronos/.oobe_completed";
+
+// The stateful directory used by update_engine to store powerwash-safe files.
+// The files stored here must be whitelisted in the powerwash scripts.
+const char kPowerwashSafeDirectory[] =
+    "/mnt/stateful_partition/unencrypted/preserve";
 
 // The powerwash_count marker file contains the number of times the device was
 // powerwashed. This value is incremented by the clobber-state script when
 // a powerwash is performed.
-static const char kPowerwashCountMarker[] =
-    "/mnt/stateful_partition/unencrypted/preserve/powerwash_count";
+const char kPowerwashCountMarker[] = "powerwash_count";
+
+// The stateful directory used by update_engine. This directory is wiped during
+// powerwash.
+const char kNonVolatileDirectory[] = "/var/lib/update_engine";
 
 }  // namespace
 
@@ -125,13 +133,25 @@ string HardwareChromeOS::GetECVersion() const {
 
 int HardwareChromeOS::GetPowerwashCount() const {
   int powerwash_count;
+  base::FilePath marker_path = base::FilePath(kPowerwashSafeDirectory).Append(
+      kPowerwashCountMarker);
   string contents;
-  if (!utils::ReadFile(kPowerwashCountMarker, &contents))
+  if (!utils::ReadFile(marker_path.value(), &contents))
     return -1;
   base::TrimWhitespaceASCII(contents, base::TRIM_TRAILING, &contents);
   if (!base::StringToInt(contents, &powerwash_count))
     return -1;
   return powerwash_count;
+}
+
+bool HardwareChromeOS::GetNonVolatileDirectory(base::FilePath* path) const {
+  *path = base::FilePath(kNonVolatileDirectory);
+  return true;
+}
+
+bool HardwareChromeOS::GetPowerwashSafeDirectory(base::FilePath* path) const {
+  *path = base::FilePath(kPowerwashSafeDirectory);
+  return true;
 }
 
 }  // namespace chromeos_update_engine

@@ -85,6 +85,9 @@ const int kUnmountRetryIntervalInMicroseconds = 200 * 1000;  // 200 ms
 // in GetFileFormat.
 const int kGetFileFormatMaxHeaderSize = 32;
 
+// The path to the kernel's boot_id.
+const char kBootIdPath[] = "/proc/sys/kernel/random/boot_id";
+
 // Return true if |disk_name| is an MTD or a UBI device. Note that this test is
 // simply based on the name of the device.
 bool IsMtdDeviceName(const string& disk_name) {
@@ -1606,6 +1609,13 @@ bool ReadExtents(const string& path, const vector<Extent>& extents,
   }
   TEST_AND_RETURN_FALSE(out_data_size == bytes_read);
   *out_data = data;
+  return true;
+}
+
+bool GetBootId(string* boot_id) {
+  TEST_AND_RETURN_FALSE(
+      base::ReadFileToString(base::FilePath(kBootIdPath), boot_id));
+  base::TrimWhitespaceASCII(*boot_id, base::TRIM_TRAILING, boot_id);
   return true;
 }
 

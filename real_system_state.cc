@@ -53,21 +53,44 @@ bool RealSystemState::Initialize() {
     return false;
   }
 
-  if (!prefs_.Init(base::FilePath(kPrefsDirectory))) {
+  // Initialize standard and powerwash-safe prefs.
+  base::FilePath non_volatile_path;
+  // TODO(deymo): Fall back to in-memory prefs if there's no physical directory
+  // available.
+  if (!hardware_->GetNonVolatileDirectory(&non_volatile_path)) {
+    LOG(ERROR) << "Failed to get a non-volatile directory.";
+    return false;
+  }
+  Prefs* prefs;
+  prefs_.reset(prefs = new Prefs());
+  if (!prefs->Init(non_volatile_path.Append(kPrefsSubDirectory))) {
     LOG(ERROR) << "Failed to initialize preferences.";
     return false;
   }
 
-  if (!powerwash_safe_prefs_.Init(base::FilePath(kPowerwashSafePrefsDir))) {
+  base::FilePath powerwash_safe_path;
+  if (!hardware_->GetPowerwashSafeDirectory(&powerwash_safe_path)) {
+    // TODO(deymo): Fall-back to in-memory prefs if there's no powerwash-safe
+    // directory, or disable powerwash feature.
+    powerwash_safe_path = non_volatile_path.Append("powerwash-safe");
+    LOG(WARNING) << "No powerwash-safe directory, using non-volatile one.";
+  }
+  powerwash_safe_prefs_.reset(prefs = new Prefs());
+  if (!prefs->Init(
+          powerwash_safe_path.Append(kPowerwashSafePrefsSubDirectory))) {
     LOG(ERROR) << "Failed to initialize powerwash preferences.";
     return false;
   }
 
-  if (!utils::FileExists(kSystemRebootedMarkerFile)) {
-    if (!utils::WriteFile(kSystemRebootedMarkerFile, "", 0)) {
-      LOG(ERROR) << "Could not create reboot marker file";
-      return false;
-    }
+  // Check the system rebooted marker file.
+  std::string boot_id;
+  if (utils::GetBootId(&boot_id)) {
+    std::string prev_boot_id;
+    system_rebooted_ = (!prefs_->GetString(kPrefsBootId, &prev_boot_id) ||
+                        prev_boot_id != boot_id);
+    prefs_->SetString(kPrefsBootId, boot_id);
+  } else {
+    LOG(WARNING) << "Couldn't detect the bootid, assuming system was rebooted.";
     system_rebooted_ = true;
   }
 

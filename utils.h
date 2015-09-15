@@ -416,6 +416,11 @@ bool ReadExtents(const std::string& path, const std::vector<Extent>& extents,
                  chromeos::Blob* out_data, ssize_t out_data_size,
                  size_t block_size);
 
+// Read the current boot identifier and store it in |boot_id|. This identifier
+// is constants during the same boot of the kernel and is regenerated after
+// reboot. Returns whether it succeeded getting the boot_id.
+bool GetBootId(std::string* boot_id);
+
 }  // namespace utils
 
 

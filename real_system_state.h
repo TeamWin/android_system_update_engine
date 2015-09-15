@@ -77,11 +77,11 @@ class RealSystemState : public SystemState {
     return &metrics_lib_;
   }
 
-  inline PrefsInterface* prefs() override { return &prefs_; }
+  inline PrefsInterface* prefs() override { return prefs_.get(); }
 
   inline PrefsInterface* powerwash_safe_prefs() override {
-      return &powerwash_safe_prefs_;
-    }
+    return powerwash_safe_prefs_.get();
+  }
 
   inline PayloadStateInterface* payload_state() override {
     return &payload_state_;
@@ -136,10 +136,10 @@ class RealSystemState : public SystemState {
   MetricsLibrary metrics_lib_;
 
   // Interface for persisted store.
-  Prefs prefs_;
+  std::unique_ptr<PrefsInterface> prefs_;
 
   // Interface for persisted store that persists across powerwashes.
-  Prefs powerwash_safe_prefs_;
+  std::unique_ptr<PrefsInterface> powerwash_safe_prefs_;
 
   // All state pertaining to payload state such as response, URL, backoff
   // states.

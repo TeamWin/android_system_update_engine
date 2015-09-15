@@ -62,6 +62,14 @@ class FakeHardware : public HardwareInterface {
 
   int GetPowerwashCount() const override { return powerwash_count_; }
 
+  bool GetNonVolatileDirectory(base::FilePath* path) const override {
+    return false;
+  }
+
+  bool GetPowerwashSafeDirectory(base::FilePath* path) const override {
+    return false;
+  }
+
   // Setters
   void SetIsOfficialBuild(bool is_official_build) {
     is_official_build_ = is_official_build;

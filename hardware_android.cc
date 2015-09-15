@@ -16,11 +16,19 @@
 
 #include "update_engine/hardware_android.h"
 
+#include <base/files/file_util.h>
 #include <chromeos/make_unique_ptr.h>
 
 #include "update_engine/hardware.h"
 
 using std::string;
+
+namespace {
+
+// The stateful directory used by update_engine.
+const char kNonVolatileDirectory[] = "/data/misc/update_engine";
+
+}  // namespace
 
 namespace chromeos_update_engine {
 
@@ -72,6 +80,21 @@ string HardwareAndroid::GetECVersion() const {
 int HardwareAndroid::GetPowerwashCount() const {
   LOG(WARNING) << "STUB: Assuming no factory reset was performed.";
   return 0;
+}
+
+bool HardwareAndroid::GetNonVolatileDirectory(base::FilePath* path) const {
+  base::FilePath local_path(kNonVolatileDirectory);
+  if (!base::PathExists(local_path)) {
+    LOG(ERROR) << "Non-volatile directory not found: " << local_path.value();
+    return false;
+  }
+  *path = local_path;
+  return true;
+}
+
+bool HardwareAndroid::GetPowerwashSafeDirectory(base::FilePath* path) const {
+  // On Android, we don't have a directory persisted across powerwash.
+  return false;
 }
 
 }  // namespace chromeos_update_engine

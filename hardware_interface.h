@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include <base/files/file_path.h>
 #include <base/time/time.h>
 
 namespace chromeos_update_engine {
@@ -60,6 +61,16 @@ class HardwareInterface {
   // or is invalid, returns -1. Brand new machines out of the factory or after
   // recovery don't have this value set.
   virtual int GetPowerwashCount() const = 0;
+
+  // Store in |path| the path to a non-volatile directory (persisted across
+  // reboots) available for this daemon. In case of an error, such as no
+  // directory available, returns false.
+  virtual bool GetNonVolatileDirectory(base::FilePath* path) const = 0;
+
+  // Store in |path| the path to a non-volatile directory persisted across
+  // powerwash cycles. In case of an error, such as no directory available,
+  // returns false.
+  virtual bool GetPowerwashSafeDirectory(base::FilePath* path) const = 0;
 };
 
 }  // namespace chromeos_update_engine

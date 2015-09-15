@@ -23,18 +23,16 @@ const char kPowerwashMarkerFile[] =
 
 const char kPowerwashCommand[] = "safe fast keepimg reason=update_engine\n";
 
-const char kPowerwashSafePrefsDir[] =
-    "/mnt/stateful_partition/unencrypted/preserve/update_engine/prefs";
+const char kPowerwashSafePrefsSubDirectory[] = "update_engine/prefs";
 
-const char kPrefsDirectory[] = "/var/lib/update_engine/prefs";
+const char kPrefsSubDirectory[] = "prefs";
 
 const char kStatefulPartition[] = "/mnt/stateful_partition";
-
-const char kSystemRebootedMarkerFile[] = "/tmp/update_engine_update_recorded";
 
 // Constants defining keys for the persisted state of update engine.
 const char kPrefsAttemptInProgress[] = "attempt-in-progress";
 const char kPrefsBackoffExpiryTime[] = "backoff-expiry-time";
+const char kPrefsBootId[] = "boot-id";
 const char kPrefsCertificateReportToSendDownload[] =
     "certificate-report-to-send-download";
 const char kPrefsCertificateReportToSendUpdate[] =

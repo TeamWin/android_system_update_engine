@@ -23,17 +23,14 @@ namespace chromeos_update_engine {
 // completes successfully so that the device is powerwashed on next reboot.
 extern const char kPowerwashMarkerFile[];
 
-// Path to the marker file we use to indicate we've recorded a system reboot.
-extern const char kSystemRebootedMarkerFile[];
-
 // The contents of the powerwash marker file.
 extern const char kPowerwashCommand[];
 
 // Directory for AU prefs that are preserved across powerwash.
-extern const char kPowerwashSafePrefsDir[];
+extern const char kPowerwashSafePrefsSubDirectory[];
 
 // The location where we store the AU preferences (state etc).
-extern const char kPrefsDirectory[];
+extern const char kPrefsSubDirectory[];
 
 // Path to the stateful partition on the root filesystem.
 extern const char kStatefulPartition[];
@@ -41,6 +38,7 @@ extern const char kStatefulPartition[];
 // Constants related to preferences.
 extern const char kPrefsAttemptInProgress[];
 extern const char kPrefsBackoffExpiryTime[];
+extern const char kPrefsBootId[];
 extern const char kPrefsCertificateReportToSendDownload[];
 extern const char kPrefsCertificateReportToSendUpdate[];
 extern const char kPrefsCurrentBytesDownloaded[];
