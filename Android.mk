@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+ifeq ($(HOST_OS),linux)
+
 LOCAL_PATH := $(my-dir)
 
 # Definitions applying to all targets. $(eval) this last.
@@ -305,3 +307,5 @@ LOCAL_SRC_FILES := \
     dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml
 LOCAL_DBUS_PROXY_PREFIX := update_engine
 include $(BUILD_STATIC_LIBRARY)
+
+endif # HOST_OS == linux
