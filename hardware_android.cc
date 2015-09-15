@@ -49,7 +49,8 @@ bool HardwareAndroid::IsNormalBootMode() const {
 
 bool HardwareAndroid::IsOOBEComplete(base::Time* out_time_of_oobe) const {
   LOG(WARNING) << "STUB: Assuming OOBE is complete.";
-  *out_time_of_oobe = base::Time();
+  if (out_time_of_oobe)
+    *out_time_of_oobe = base::Time();
   return true;
 }
 
