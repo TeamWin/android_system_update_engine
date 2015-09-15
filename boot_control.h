@@ -25,7 +25,8 @@ namespace chromeos_update_engine {
 namespace boot_control {
 
 // The real BootControlInterface is platform-specific. This factory function
-// creates a new BootControlInterface instance for the current platform.
+// creates a new BootControlInterface instance for the current platform. If
+// this fails nullptr is returned.
 std::unique_ptr<BootControlInterface> CreateBootControl();
 
 }  // namespace boot_control
