@@ -107,12 +107,15 @@ LOCAL_STATIC_LIBRARIES += \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
     update_engine_client-dbus-proxies \
-    libbz
+    libbz \
+    libfs_mgr
 LOCAL_SHARED_LIBRARIES += \
     libprotobuf-cpp-lite-rtti \
     libdbus \
     libcrypto \
     libcurl \
+    libcutils \
+    libhardware \
     libmetrics \
     libssl \
     libexpat \
@@ -187,6 +190,7 @@ LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
     libbz \
+    libfs_mgr \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
@@ -196,6 +200,8 @@ LOCAL_SHARED_LIBRARIES += \
     libdbus \
     libcrypto \
     libcurl \
+    libcutils \
+    libhardware \
     libmetrics \
     libssl \
     libexpat \
@@ -230,6 +236,7 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
     libbz \
+    libfs_mgr \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
@@ -279,6 +286,7 @@ LOCAL_STATIC_LIBRARIES += \
     libpayload_generator \
     libupdate_engine \
     libbz \
+    libfs_mgr \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \

@@ -19,9 +19,10 @@
 
 #include <string>
 
-#include <gtest/gtest_prod.h>  // for FRIEND_TEST
+#include <hardware/boot_control.h>
+#include <hardware/hardware.h>
 
-#include "update_engine/boot_control_interface.h"
+#include "update_engine/boot_control.h"
 
 namespace chromeos_update_engine {
 
@@ -31,6 +32,10 @@ class BootControlAndroid : public BootControlInterface {
  public:
   BootControlAndroid() = default;
   ~BootControlAndroid() = default;
+
+  // Load boot_control HAL implementation using libhardware and
+  // initializes it. Returns false if an error occurred.
+  bool Init();
 
   // BootControlInterface overrides.
   unsigned int GetNumSlots() const override;
@@ -42,6 +47,10 @@ class BootControlAndroid : public BootControlInterface {
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
 
  private:
+  // NOTE: There is no way to release/unload HAL implementations so
+  // this is essentially leaked on object destruction.
+  boot_control_module_t* module_;
+
   DISALLOW_COPY_AND_ASSIGN(BootControlAndroid);
 };
 
