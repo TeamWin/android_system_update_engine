@@ -296,19 +296,6 @@ bool UpdateEngineService::GetPrevVersion(ErrorPtr* /* error */,
   return true;
 }
 
-bool UpdateEngineService::GetKernelDevices(ErrorPtr* /* error */,
-                                           string* out_kernel_devices) {
-  auto devices = system_state_->update_attempter()->GetKernelDevices();
-  string info;
-  for (const auto& device : devices) {
-    base::StringAppendF(&info, "%d:%s\n",
-                        device.second ? 1 : 0, device.first.c_str());
-  }
-  LOG(INFO) << "Available kernel devices: " << info;
-  *out_kernel_devices = info;
-  return true;
-}
-
 bool UpdateEngineService::GetRollbackPartition(
     ErrorPtr* /* error */,
     string* out_rollback_partition_name) {

@@ -157,10 +157,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // name or empty string if none is available.
   BootControlInterface::Slot GetRollbackSlot() const;
 
-  // Returns a list of available kernel partitions along with information
-  // whether it is possible to boot from it.
-  std::vector<std::pair<std::string, bool>> GetKernelDevices() const;
-
   // Initiates a reboot if the current state is
   // UPDATED_NEED_REBOOT. Returns true on sucess, false otherwise.
   bool RebootIfNeeded();
