@@ -143,8 +143,8 @@ class DeltaDiffUtilsTest : public ::testing::Test {
 
   // Old and new temporary partitions used in the tests. These are initialized
   // with
-  PartitionConfig old_part_{PartitionName::kRootfs};
-  PartitionConfig new_part_{PartitionName::kRootfs};
+  PartitionConfig old_part_{"part"};
+  PartitionConfig new_part_{"part"};
 
   // The file holding the output blob from the various diff utils functions.
   string blob_path_;

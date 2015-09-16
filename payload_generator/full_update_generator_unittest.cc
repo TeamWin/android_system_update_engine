@@ -52,7 +52,7 @@ class FullUpdateGeneratorTest : public ::testing::Test {
   }
 
   PayloadGenerationConfig config_;
-  PartitionConfig new_part_conf{PartitionName::kRootfs};
+  PartitionConfig new_part_conf{"part"};
 
   vector<AnnotatedOperation> aops;
 

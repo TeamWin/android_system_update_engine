@@ -38,6 +38,7 @@ bool ABGenerator::GenerateOperations(
     const PartitionConfig& new_part,
     BlobFileWriter* blob_file,
     vector<AnnotatedOperation>* aops) {
+  TEST_AND_RETURN_FALSE(old_part.name == new_part.name);
 
   ssize_t hard_chunk_blocks = (config.hard_chunk_size == -1 ? -1 :
                                config.hard_chunk_size / config.block_size);
@@ -52,7 +53,7 @@ bool ABGenerator::GenerateOperations(
       soft_chunk_blocks,
       blob_file,
       true));  // src_ops_allowed
-  LOG(INFO) << "done reading " << PartitionNameString(new_part.name);
+  LOG(INFO) << "done reading " << new_part.name;
 
   TEST_AND_RETURN_FALSE(FragmentOperations(aops,
                                            new_part.path,

@@ -146,7 +146,7 @@ bool FullUpdateGenerator::GenerateOperations(
 
   size_t chunk_blocks = full_chunk_size / config.block_size;
   size_t max_threads = std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
-  LOG(INFO) << "Compressing partition " << PartitionNameString(new_part.name)
+  LOG(INFO) << "Compressing partition " << new_part.name
             << " from " << new_part.path << " splitting in chunks of "
             << chunk_blocks << " blocks (" << config.block_size
             << " bytes each) using " << max_threads << " threads";
@@ -164,8 +164,6 @@ bool FullUpdateGenerator::GenerateOperations(
   chunk_processors.reserve(num_chunks);
   blob_file->SetTotalBlobs(num_chunks);
 
-  const string part_name_str = PartitionNameString(new_part.name);
-
   for (size_t i = 0; i < num_chunks; ++i) {
     size_t start_block = i * chunk_blocks;
     // The last chunk could be smaller.
@@ -176,7 +174,7 @@ bool FullUpdateGenerator::GenerateOperations(
     // ChunkProcessor will set the rest.
     AnnotatedOperation* aop = aops->data() + i;
     aop->name = base::StringPrintf("<%s-operation-%" PRIuS ">",
-                                   part_name_str.c_str(), i);
+                                   new_part.name.c_str(), i);
     Extent* dst_extent = aop->op.add_dst_extents();
     dst_extent->set_start_block(start_block);
     dst_extent->set_num_blocks(num_blocks);

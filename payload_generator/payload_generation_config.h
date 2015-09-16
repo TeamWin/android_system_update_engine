@@ -23,22 +23,14 @@
 #include <string>
 #include <vector>
 
+#include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/filesystem_interface.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
 
-// The list different kind of partitions supported by the updater.
-enum class PartitionName {
-  kKernel,
-  kRootfs,
-};
-
-// Return a string name for the PartitionName.
-std::string PartitionNameString(PartitionName name);
-
 struct PartitionConfig {
-  explicit PartitionConfig(PartitionName name) : name(name) {}
+  explicit PartitionConfig(std::string name) : name(name) {}
 
   // Returns whether the PartitionConfig is not an empty image and all the
   // fields are set correctly to a valid image file.
@@ -64,7 +56,7 @@ struct PartitionConfig {
   // files.
   std::unique_ptr<FilesystemInterface> fs_interface;
 
-  PartitionName name;
+  std::string name;
 };
 
 // The ImageConfig struct describes a pair of binaries kernel and rootfs and the
@@ -88,8 +80,8 @@ struct ImageConfig {
   ImageInfo image_info;
 
   // The updated partitions.
-  PartitionConfig rootfs = PartitionConfig{PartitionName::kRootfs};
-  PartitionConfig kernel = PartitionConfig{PartitionName::kKernel};
+  PartitionConfig rootfs = PartitionConfig{kLegacyPartitionNameRoot};
+  PartitionConfig kernel = PartitionConfig{kLegacyPartitionNameKernel};
 };
 
 // The PayloadGenerationConfig struct encapsulates all the configuration to

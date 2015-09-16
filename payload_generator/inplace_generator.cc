@@ -790,15 +790,16 @@ bool InplaceGenerator::GenerateOperations(
     const PartitionConfig& new_part,
     BlobFileWriter* blob_file,
     vector<AnnotatedOperation>* aops) {
+  TEST_AND_RETURN_FALSE(old_part.name == new_part.name);
+
   ssize_t hard_chunk_blocks = (config.hard_chunk_size == -1 ? -1 :
                                config.hard_chunk_size / config.block_size);
   size_t soft_chunk_blocks = config.soft_chunk_size / config.block_size;
   uint64_t partition_size = new_part.size;
-  if (new_part.name == PartitionName::kRootfs)
+  if (new_part.name == kLegacyPartitionNameRoot)
     partition_size = config.rootfs_partition_size;
 
-  const string part_name = PartitionNameString(new_part.name);
-  LOG(INFO) << "Delta compressing " << part_name << " partition...";
+  LOG(INFO) << "Delta compressing " << new_part.name << " partition...";
   TEST_AND_RETURN_FALSE(
     diff_utils::DeltaReadPartition(aops,
                                    old_part,
@@ -807,7 +808,7 @@ bool InplaceGenerator::GenerateOperations(
                                    soft_chunk_blocks,
                                    blob_file,
                                    false));  // src_ops_allowed
-  LOG(INFO) << "Done reading " << part_name;
+  LOG(INFO) << "Done reading " << new_part.name;
 
   TEST_AND_RETURN_FALSE(
     ResolveReadAfterWriteDependencies(new_part,
@@ -815,7 +816,7 @@ bool InplaceGenerator::GenerateOperations(
                                       config.block_size,
                                       blob_file,
                                       aops));
-  LOG(INFO) << "Done reordering " << part_name;
+  LOG(INFO) << "Done reordering " << new_part.name;
   return true;
 }
 
