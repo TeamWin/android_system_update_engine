@@ -23,6 +23,7 @@
 #include "update_engine/constants.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_payload_state.h"
+#include "update_engine/platform_constants.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -408,7 +409,7 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   // We're using a real OmahaRequestParams object here so we can't mock
   // IsUpdateUrlOfficial(), but setting the update URL to the AutoUpdate test
   // server will cause IsUpdateUrlOfficial() to return true.
-  params.set_update_url(kAUTestOmahaUrl);
+  params.set_update_url(constants::kOmahaDefaultAUTestURL);
   fake_system_state_.set_request_params(&params);
 
   EXPECT_CALL(*fake_system_state_.mock_payload_state(),

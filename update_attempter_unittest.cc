@@ -47,6 +47,7 @@
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/mock_prefs.h"
+#include "update_engine/platform_constants.h"
 #include "update_engine/postinstall_runner_action.h"
 #include "update_engine/prefs.h"
 #include "update_engine/test_utils.h"
@@ -1009,16 +1010,14 @@ TEST_F(UpdateAttempterTest, CheckForUpdateAUTest) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
   attempter_.CheckForUpdate("", "autest", true);
-  EXPECT_EQ(chromeos_update_engine::kAUTestOmahaUrl,
-            attempter_.forced_omaha_url());
+  EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
 }
 
 TEST_F(UpdateAttempterTest, CheckForUpdateScheduledAUTest) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
   attempter_.CheckForUpdate("", "autest-scheduled", true);
-  EXPECT_EQ(chromeos_update_engine::kAUTestOmahaUrl,
-            attempter_.forced_omaha_url());
+  EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
 }
 
 }  // namespace chromeos_update_engine

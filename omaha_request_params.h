@@ -25,16 +25,12 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/platform_constants.h"
+
 // This gathers local system information and prepares info used by the
 // Omaha request action.
 
 namespace chromeos_update_engine {
-
-// The default "official" Omaha update URL.
-extern const char kProductionOmahaUrl[];
-
-// The autoupdate test Omaha update URL.
-extern const char kAUTestOmahaUrl[];
 
 class SystemState;
 
@@ -48,7 +44,7 @@ class OmahaRequestParams {
  public:
   explicit OmahaRequestParams(SystemState* system_state)
       : system_state_(system_state),
-        os_platform_(kOsPlatform),
+        os_platform_(constants::kOmahaPlatformName),
         os_version_(kOsVersion),
         board_app_id_(kAppId),
         canary_app_id_(kAppId),
@@ -192,9 +188,7 @@ class OmahaRequestParams {
 
   // Suggested defaults
   static const char kAppId[];
-  static const char kOsPlatform[];
   static const char kOsVersion[];
-  static const char kUpdateUrl[];
   static const char kUpdateChannelKey[];
   static const char kIsPowerwashAllowedKey[];
   static const char kAutoUpdateServerKey[];

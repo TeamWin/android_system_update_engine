@@ -40,6 +40,7 @@
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
+#include "update_engine/platform_constants.h"
 #include "update_engine/prefs_interface.h"
 #include "update_engine/utils.h"
 
@@ -71,9 +72,9 @@ static const char* kTagDisableP2PForDownloading = "DisableP2PForDownloading";
 static const char* kTagDisableP2PForSharing = "DisableP2PForSharing";
 static const char* kTagPublicKeyRsa = "PublicKeyRsa";
 
-namespace {
+static const char* kOmahaUpdaterVersion = "0.1.0.0";
 
-static const char* const kGupdateVersion = "ChromeOSUpdateEngine-0.1.0.0";
+namespace {
 
 // Returns an XML ping element attribute assignment with attribute
 // |name| and value |ping_days| if |ping_days| has a value that needs
@@ -289,12 +290,15 @@ string GetRequestXml(const OmahaEvent* event,
   string install_source = base::StringPrintf("installsource=\"%s\" ",
       (params->interactive() ? "ondemandupdate" : "scheduler"));
 
+  string updater_version = XmlEncodeWithDefault(
+      base::StringPrintf("%s-%s",
+                         constants::kOmahaUpdaterID,
+                         kOmahaUpdaterVersion), "");
   string request_xml =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
       "<request protocol=\"3.0\" " + (
-          "version=\"" + XmlEncodeWithDefault(kGupdateVersion, "") + "\" "
-          "updaterversion=\"" + XmlEncodeWithDefault(kGupdateVersion,
-                                                     "") + "\" " +
+          "version=\"" + updater_version + "\" "
+          "updaterversion=\"" + updater_version + "\" " +
           install_source +
           "ismachine=\"1\">\n") +
       os_xml +

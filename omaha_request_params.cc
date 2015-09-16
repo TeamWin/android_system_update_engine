@@ -31,6 +31,7 @@
 
 #include "update_engine/constants.h"
 #include "update_engine/hardware_interface.h"
+#include "update_engine/platform_constants.h"
 #include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
@@ -42,14 +43,8 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-const char kProductionOmahaUrl[] =
-    "https://tools.google.com/service/update2";
-const char kAUTestOmahaUrl[] =
-    "https://omaha.sandbox.google.com/service/update2";
-
 const char OmahaRequestParams::kAppId[] =
     "{87efface-864d-49a5-9bb3-4b050a7c227a}";
-const char OmahaRequestParams::kOsPlatform[] = "Chrome OS";
 const char OmahaRequestParams::kOsVersion[] = "Indy";
 const char OmahaRequestParams::kUpdateChannelKey[] = "CHROMEOS_RELEASE_TRACK";
 const char OmahaRequestParams::kIsPowerwashAllowedKey[] =
@@ -70,7 +65,7 @@ bool OmahaRequestParams::Init(const string& in_app_version,
   LOG(INFO) << "Initializing parameters for this update attempt";
   InitFromLsbValue();
   bool stateful_override = !ShouldLockDown();
-  os_platform_ = OmahaRequestParams::kOsPlatform;
+  os_platform_ = constants::kOmahaPlatformName;
   os_version_ = OmahaRequestParams::kOsVersion;
   app_version_ = in_app_version.empty() ?
       GetLsbValue("CHROMEOS_RELEASE_VERSION", "", nullptr, stateful_override) :
@@ -117,7 +112,8 @@ bool OmahaRequestParams::Init(const string& in_app_version,
   }
 
   if (in_update_url.empty())
-    update_url_ = GetLsbValue(kAutoUpdateServerKey, kProductionOmahaUrl,
+    update_url_ = GetLsbValue(kAutoUpdateServerKey,
+                              constants::kOmahaDefaultProductionURL,
                               nullptr, stateful_override);
   else
     update_url_ = in_update_url;
@@ -128,8 +124,9 @@ bool OmahaRequestParams::Init(const string& in_app_version,
 }
 
 bool OmahaRequestParams::IsUpdateUrlOfficial() const {
-  return (update_url_ == kAUTestOmahaUrl ||
-          update_url_ == GetLsbValue(kAutoUpdateServerKey, kProductionOmahaUrl,
+  return (update_url_ == constants::kOmahaDefaultAUTestURL ||
+          update_url_ == GetLsbValue(kAutoUpdateServerKey,
+                                     constants::kOmahaDefaultProductionURL,
                                      nullptr, !ShouldLockDown()));
 }
 

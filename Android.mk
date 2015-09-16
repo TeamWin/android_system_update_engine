@@ -155,6 +155,7 @@ LOCAL_SRC_FILES := \
     payload_constants.cc \
     payload_state.cc \
     payload_verifier.cc \
+    platform_constants_android.cc \
     postinstall_runner_action.cc \
     prefs.cc \
     proxy_resolver.cc \

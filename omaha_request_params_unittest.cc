@@ -26,6 +26,7 @@
 #include "update_engine/constants.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/install_plan.h"
+#include "update_engine/platform_constants.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -247,7 +248,7 @@ TEST_F(OmahaRequestParamsTest, MissingURLTest) {
   EXPECT_EQ("en-US", out.app_lang());
   EXPECT_TRUE(out.delta_okay());
   EXPECT_EQ("dev-channel", out.target_channel());
-  EXPECT_EQ(kProductionOmahaUrl, out.update_url());
+  EXPECT_EQ(constants::kOmahaDefaultProductionURL, out.update_url());
 }
 
 TEST_F(OmahaRequestParamsTest, NoDeltasTest) {

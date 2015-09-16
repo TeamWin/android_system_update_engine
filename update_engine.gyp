@@ -189,6 +189,7 @@
         'payload_constants.cc',
         'payload_state.cc',
         'payload_verifier.cc',
+        'platform_constants_chromeos.cc',
         'postinstall_runner_action.cc',
         'prefs.cc',
         'proxy_resolver.cc',

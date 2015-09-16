@@ -40,6 +40,7 @@
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/platform_constants.h"
 #include "update_engine/prefs.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
@@ -211,7 +212,7 @@ class OmahaRequestActionTest : public ::testing::Test {
   // fake_system_state_.
   OmahaRequestParams request_params_ = OmahaRequestParams{
       &fake_system_state_,
-      OmahaRequestParams::kOsPlatform,
+      constants::kOmahaPlatformName,
       OmahaRequestParams::kOsVersion,
       "service_pack",
       "x86-generic",
@@ -1043,7 +1044,7 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
 
   // Make sure XML Encode is being called on the params
   OmahaRequestParams params(&fake_system_state_,
-                            OmahaRequestParams::kOsPlatform,
+                            constants::kOmahaPlatformName,
                             OmahaRequestParams::kOsVersion,
                             "testtheservice_pack>",
                             "x86 generic<id",
@@ -1236,7 +1237,7 @@ TEST_F(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
     const char* delta_okay_str = delta_okay ? "true" : "false";
     chromeos::Blob post_data;
     OmahaRequestParams params(&fake_system_state_,
-                              OmahaRequestParams::kOsPlatform,
+                              constants::kOmahaPlatformName,
                               OmahaRequestParams::kOsVersion,
                               "service_pack",
                               "x86-generic",
@@ -1277,7 +1278,7 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
     chromeos::Blob post_data;
     FakeSystemState fake_system_state;
     OmahaRequestParams params(&fake_system_state_,
-                              OmahaRequestParams::kOsPlatform,
+                              constants::kOmahaPlatformName,
                               OmahaRequestParams::kOsVersion,
                               "service_pack",
                               "x86-generic",

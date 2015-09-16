@@ -56,6 +56,7 @@
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
+#include "update_engine/platform_constants.h"
 #include "update_engine/postinstall_runner_action.h"
 #include "update_engine/prefs_interface.h"
 #include "update_engine/subprocess.h"
@@ -819,13 +820,13 @@ void UpdateAttempter::CheckForUpdate(const string& app_version,
     forced_omaha_url_ = omaha_url;
   }
   if (omaha_url == kScheduledAUTestURLRequest) {
-    forced_omaha_url_ = chromeos_update_engine::kAUTestOmahaUrl;
+    forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
     // Pretend that it's not user-initiated even though it is,
     // so as to test scattering logic, etc. which get kicked off
     // only in scheduled update checks.
     interactive = false;
   } else if (omaha_url == kAUTestURLRequest) {
-    forced_omaha_url_ = chromeos_update_engine::kAUTestOmahaUrl;
+    forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
   }
 
   if (forced_update_pending_callback_.get()) {
@@ -1232,8 +1233,10 @@ uint32_t UpdateAttempter::GetErrorCodeFlags()  {
   if (!system_state_->hardware()->IsOfficialBuild())
     flags |= static_cast<uint32_t>(ErrorCode::kTestImageFlag);
 
-  if (omaha_request_params_->update_url() != kProductionOmahaUrl)
+  if (omaha_request_params_->update_url() !=
+      constants::kOmahaDefaultProductionURL) {
     flags |= static_cast<uint32_t>(ErrorCode::kTestOmahaUrlFlag);
+  }
 
   return flags;
 }
