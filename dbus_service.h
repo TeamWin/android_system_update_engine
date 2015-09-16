@@ -129,11 +129,6 @@ class UpdateEngineService
   bool GetPrevVersion(chromeos::ErrorPtr* error,
                       std::string* out_prev_version) override;
 
-  // Returns a list of available kernel partitions and whether each of them
-  // can be booted from or not.
-  bool GetKernelDevices(chromeos::ErrorPtr* error,
-                        std::string* out_kernel_devices) override;
-
   // Returns the name of kernel partition that can be rolled back into.
   bool GetRollbackPartition(chromeos::ErrorPtr* error,
                             std::string* out_rollback_partition_name) override;

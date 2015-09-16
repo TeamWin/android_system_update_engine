@@ -103,7 +103,6 @@ class UpdateEngineClient : public chromeos::DBusDaemon {
 
   void Rollback(bool rollback);
   string GetRollbackPartition();
-  string GetKernelDevices();
   void CheckForUpdates(const string& app_version,
                        const string& omaha_url,
                        bool interactive);
@@ -292,13 +291,6 @@ string UpdateEngineClient::GetRollbackPartition() {
   return rollback_partition;
 }
 
-string UpdateEngineClient::GetKernelDevices() {
-  string kernel_devices;
-  bool ret = proxy_->GetKernelDevices(&kernel_devices, nullptr);
-  CHECK(ret) << "Error while getting a list of kernel devices";
-  return kernel_devices;
-}
-
 void UpdateEngineClient::CheckForUpdates(const string& app_version,
                                          const string& omaha_url,
                                          bool interactive) {
@@ -473,8 +465,6 @@ int UpdateEngineClient::ProcessFlags() {
               "Listen for status updates and print them to the screen.");
   DEFINE_bool(prev_version, false,
               "Show the previous OS version used before the update reboot.");
-  DEFINE_bool(show_kernels, false, "Show the list of kernel patritions and "
-              "whether each of them is bootable or not");
 
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
@@ -636,11 +626,6 @@ int UpdateEngineClient::ProcessFlags() {
 
   if (FLAGS_prev_version) {
     ShowPrevVersion();
-  }
-
-  if (FLAGS_show_kernels) {
-    LOG(INFO) << "Kernel partitions:\n"
-              << GetKernelDevices();
   }
 
   if (FLAGS_is_reboot_needed) {

@@ -77,9 +77,6 @@
     <method name="GetPrevVersion">
       <arg type="s" name="prev_version" direction="out" />
     </method>
-    <method name="GetKernelDevices">
-      <arg type="s" name="kernel_devices" direction="out" />
-    </method>
     <method name="GetRollbackPartition">
       <arg type="s" name="rollback_partition_name" direction="out" />
     </method>

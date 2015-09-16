@@ -804,28 +804,6 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
   return BootControlInterface::kInvalidSlot;
 }
 
-vector<std::pair<string, bool>> UpdateAttempter::GetKernelDevices() const {
-  const unsigned int num_slots = system_state_->boot_control()->GetNumSlots();
-  const BootControlInterface::Slot current_slot =
-      system_state_->boot_control()->GetCurrentSlot();
-
-  vector<std::pair<string, bool>> info_list;
-  for (BootControlInterface::Slot slot = 0; slot < num_slots; slot++) {
-    bool bootable = system_state_->boot_control()->IsSlotBootable(slot);
-    string device_name;
-    if (!system_state_->boot_control()->GetPartitionDevice(
-            kLegacyPartitionNameKernel, slot, &device_name)) {
-      continue;
-    }
-    // Add '*' to the name of the partition we booted from.
-    if (slot == current_slot)
-      device_name += '*';
-    info_list.emplace_back(device_name, bootable);
-  }
-
-  return info_list;
-}
-
 void UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
                                      bool interactive) {
