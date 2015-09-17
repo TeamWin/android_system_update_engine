@@ -65,6 +65,13 @@ class FakeBootControl : public BootControlInterface {
     return true;
   }
 
+  bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override {
+    // We run the callback directly from here to avoid having to setup a message
+    // loop in the test environment.
+    callback.Run(true);
+    return true;
+  }
+
   // Setters
   void SetNumSlots(unsigned int num_slots) {
     num_slots_ = num_slots;

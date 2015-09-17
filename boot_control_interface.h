@@ -20,6 +20,7 @@
 #include <climits>
 #include <string>
 
+#include <base/callback.h>
 #include <base/macros.h>
 
 namespace chromeos_update_engine {
@@ -63,6 +64,12 @@ class BootControlInterface {
   // Mark the specified slot unbootable. No other slot flags are modified.
   // Returns true on success.
   virtual bool MarkSlotUnbootable(Slot slot) = 0;
+
+  // Mark the current slot as successfully booted asynchronously. No other slot
+  // flags are modified. Returns false if it was not able to schedule the
+  // operation, otherwise, returns true and calls the |callback| with the result
+  // of the operation.
+  virtual bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) = 0;
 
   // Return a human-readable slot name used for logging.
   static std::string SlotName(Slot slot) {

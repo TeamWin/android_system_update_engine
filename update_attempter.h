@@ -124,8 +124,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // attempt goes through this method.
   void UpdateBootFlags();
 
-  // Subprocess::Exec callback.
-  void CompleteUpdateBootFlags(int return_code, const std::string& output);
+  // Called when the boot flags have been updated.
+  void CompleteUpdateBootFlags(bool success);
 
   UpdateStatus status() const { return status_; }
 
@@ -472,10 +472,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   bool updated_boot_flags_ = false;
   // True if UpdateBootFlags is running.
   bool update_boot_flags_running_ = false;
-
-  // Whether we should skip the async call to "setgoodkernel" command. Used in
-  // unittests.
-  bool skip_set_good_kernel_ = false;
 
   // True if the action processor needs to be started by the boot flag updater.
   bool start_action_processor_ = false;

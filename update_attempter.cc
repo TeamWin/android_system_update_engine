@@ -41,6 +41,7 @@
 #include <power_manager/dbus-proxies.h>
 #include <update_engine/dbus-constants.h>
 
+#include "update_engine/boot_control_interface.h"
 #include "update_engine/certificate_checker.h"
 #include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"
@@ -1185,22 +1186,15 @@ void UpdateAttempter::UpdateBootFlags() {
   // the script asynchronously to avoid blocking the event loop regardless of
   // the script runtime.
   update_boot_flags_running_ = true;
-  LOG(INFO) << "Updating boot flags...";
-  vector<string> cmd{"/usr/sbin/chromeos-setgoodkernel"};
-  if (skip_set_good_kernel_) {
-    CompleteUpdateBootFlags(1, "Skipping the call to set");
-  } else {
-    if (!Subprocess::Get().Exec(cmd,
-                                Bind(&UpdateAttempter::CompleteUpdateBootFlags,
-                                     base::Unretained(this)))) {
-      CompleteUpdateBootFlags(
-          1, "Failed to launch process to mark kernel as good");
-    }
+  LOG(INFO) << "Marking booted slot as good.";
+  if (!system_state_->boot_control()->MarkBootSuccessfulAsync(Bind(
+          &UpdateAttempter::CompleteUpdateBootFlags, base::Unretained(this)))) {
+    LOG(ERROR) << "Failed to mark current boot as successful.";
+    CompleteUpdateBootFlags(false);
   }
 }
 
-void UpdateAttempter::CompleteUpdateBootFlags(int return_code,
-                                              const string& output) {
+void UpdateAttempter::CompleteUpdateBootFlags(bool successful) {
   update_boot_flags_running_ = false;
   updated_boot_flags_ = true;
   if (start_action_processor_) {

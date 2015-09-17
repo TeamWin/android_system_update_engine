@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include <base/bind.h>
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
@@ -29,6 +30,7 @@ extern "C" {
 }
 
 #include "update_engine/boot_control.h"
+#include "update_engine/subprocess.h"
 #include "update_engine/utils.h"
 
 using std::string;
@@ -55,6 +57,15 @@ string GetBootDevice() {
   // This local variable is used to construct the return string and is not
   // passed around after use.
   return boot_path;
+}
+
+// ExecCallback called when the execution of setgoodkernel finishes. Notifies
+// the caller of MarkBootSuccessfullAsync() by calling |callback| with the
+// result.
+void OnMarkBootSuccessfulDone(base::Callback<void(bool)> callback,
+                              int return_code,
+                              const string& output) {
+  callback.Run(return_code == 0);
 }
 
 }  // namespace
@@ -192,6 +203,13 @@ bool BootControlChromeOS::MarkSlotUnbootable(Slot slot) {
   }
 
   return true;
+}
+
+bool BootControlChromeOS::MarkBootSuccessfulAsync(
+    base::Callback<void(bool)> callback) {
+  return Subprocess::Get().Exec(
+             {"/usr/sbin/chromeos-setgoodkernel"},
+             base::Bind(&OnMarkBootSuccessfulDone, callback)) != 0;
 }
 
 // static

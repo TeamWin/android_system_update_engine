@@ -125,8 +125,6 @@ class UpdateAttempterTest : public ::testing::Test {
 
     // Finish initializing the attempter.
     attempter_.Init();
-    // Don't run setgoodkernel command.
-    attempter_.skip_set_good_kernel_ = true;
   }
 
   void SetUp() override {
