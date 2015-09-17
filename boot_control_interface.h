@@ -65,6 +65,12 @@ class BootControlInterface {
   // Returns true on success.
   virtual bool MarkSlotUnbootable(Slot slot) = 0;
 
+  // Set the passed |slot| as the preferred boot slot. Returns whether it
+  // succeeded setting the active slot. If succeeded, on next boot the
+  // bootloader will attempt to load the |slot| marked as active. Note that this
+  // method doesn't change the value of GetCurrentSlot() on the current boot.
+  virtual bool SetActiveBootSlot(Slot slot) = 0;
+
   // Mark the current slot as successfully booted asynchronously. No other slot
   // flags are modified. Returns false if it was not able to schedule the
   // operation, otherwise, returns true and calls the |callback| with the result

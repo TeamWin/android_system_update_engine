@@ -126,8 +126,8 @@ bool BootControlChromeOS::Init() {
   }
 
   LOG(INFO) << "Booted from slot " << current_slot_ << " (slot "
-            << BootControlInterface::SlotName(current_slot_) << ") of "
-            << num_slots_ << " slots present on disk " << boot_disk_name_;
+            << SlotName(current_slot_) << ") of " << num_slots_
+            << " slots present on disk " << boot_disk_name_;
   return true;
 }
 
@@ -172,8 +172,7 @@ bool BootControlChromeOS::IsSlotBootable(Slot slot) const {
 }
 
 bool BootControlChromeOS::MarkSlotUnbootable(Slot slot) {
-  LOG(INFO) << "Marking slot " << BootControlInterface::SlotName(slot)
-            << " unbootable";
+  LOG(INFO) << "Marking slot " << SlotName(slot) << " unbootable";
 
   if (slot == current_slot_) {
     LOG(ERROR) << "Refusing to mark current slot as unbootable.";
@@ -199,6 +198,48 @@ bool BootControlChromeOS::MarkSlotUnbootable(Slot slot) {
   int retval = CgptSetAttributes(&params);
   if (retval != CGPT_OK) {
     LOG(ERROR) << "Marking kernel unbootable failed.";
+    return false;
+  }
+
+  return true;
+}
+
+bool BootControlChromeOS::SetActiveBootSlot(Slot slot) {
+  LOG(INFO) << "Marking slot " << SlotName(slot) << " active.";
+
+  int partition_num = GetPartitionNumber(kChromeOSPartitionNameKernel, slot);
+  if (partition_num < 0)
+    return false;
+
+  CgptPrioritizeParams prio_params;
+  memset(&prio_params, 0, sizeof(prio_params));
+
+  prio_params.drive_name = const_cast<char*>(boot_disk_name_.c_str());
+  prio_params.set_partition = partition_num;
+
+  prio_params.max_priority = 0;
+
+  int retval = CgptPrioritize(&prio_params);
+  if (retval != CGPT_OK) {
+    LOG(ERROR) << "Unable to set highest priority for slot " << SlotName(slot)
+               << " (partition " << partition_num << ").";
+    return false;
+  }
+
+  CgptAddParams add_params;
+  memset(&add_params, 0, sizeof(add_params));
+
+  add_params.drive_name = const_cast<char*>(boot_disk_name_.c_str());
+  add_params.partition = partition_num;
+
+  add_params.tries = 6;
+  add_params.set_tries = true;
+
+  retval = CgptSetAttributes(&add_params);
+  if (retval != CGPT_OK) {
+    LOG(ERROR) << "Unable to set NumTriesLeft to " << add_params.tries
+               << " for slot " << SlotName(slot) << " (partition "
+               << partition_num << ").";
     return false;
   }
 

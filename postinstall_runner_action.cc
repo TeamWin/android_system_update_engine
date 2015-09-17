@@ -109,8 +109,23 @@ void PostinstallRunnerAction::CompletePostinstall(int return_code,
                                                   const string& output) {
   ScopedActionCompleter completer(processor_, this);
   ScopedTempUnmounter temp_unmounter(temp_rootfs_dir_);
+
+  bool success = true;
+
   if (return_code != 0) {
     LOG(ERROR) << "Postinst command failed with code: " << return_code;
+    success = false;
+  }
+
+  // We only attempt to mark the new slot as active if the /postinst script
+  // succeeded.
+  if (success && !system_state_->boot_control()->SetActiveBootSlot(
+        install_plan_.target_slot)) {
+    success = false;
+  }
+
+  if (!success) {
+    LOG(ERROR) << "Postinstall action failed.";
 
     // Undo any changes done to trigger Powerwash using clobber-state.
     if (powerwash_marker_created_)

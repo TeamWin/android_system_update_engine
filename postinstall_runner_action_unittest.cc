@@ -34,6 +34,7 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
+#include "update_engine/fake_system_state.h"
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -58,13 +59,14 @@ class PostinstallRunnerActionTest : public ::testing::Test {
   // powerwash_required.
   void DoTest(bool do_losetup, int err_code, bool powerwash_required);
 
- private:
+ protected:
   static const char* kImageMountPointTemplate;
 
   base::MessageLoopForIO base_loop_;
   chromeos::BaseMessageLoop loop_{&base_loop_};
   chromeos::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
+  FakeSystemState fake_system_state_;
 };
 
 class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
@@ -190,7 +192,8 @@ void PostinstallRunnerActionTest::DoTest(
   install_plan.download_url = "http://devserver:8080/update";
   install_plan.powerwash_required = powerwash_required;
   feeder_action.set_obj(install_plan);
-  PostinstallRunnerAction runner_action(powerwash_marker_file.c_str());
+  PostinstallRunnerAction runner_action(&fake_system_state_,
+                                        powerwash_marker_file.c_str());
   BondActions(&feeder_action, &runner_action);
   ObjectCollectorAction<InstallPlan> collector_action;
   BondActions(&runner_action, &collector_action);
@@ -246,7 +249,7 @@ void PostinstallRunnerActionTest::DoTest(
 // Death tests don't seem to be working on Hardy
 TEST_F(PostinstallRunnerActionTest, DISABLED_RunAsRootDeathTest) {
   ASSERT_EQ(0, getuid());
-  PostinstallRunnerAction runner_action;
+  PostinstallRunnerAction runner_action(&fake_system_state_);
   ASSERT_DEATH({ runner_action.TerminateProcessing(); },
                "postinstall_runner_action.h:.*] Check failed");
 }

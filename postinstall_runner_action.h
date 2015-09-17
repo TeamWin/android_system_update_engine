@@ -21,6 +21,7 @@
 
 #include "update_engine/action.h"
 #include "update_engine/install_plan.h"
+#include "update_engine/system_state.h"
 
 // The Postinstall Runner Action is responsible for running the postinstall
 // script of a successfully downloaded update.
@@ -29,9 +30,8 @@ namespace chromeos_update_engine {
 
 class PostinstallRunnerAction : public InstallPlanAction {
  public:
-  PostinstallRunnerAction()
-      : powerwash_marker_created_(false),
-        powerwash_marker_file_(nullptr) {}
+  explicit PostinstallRunnerAction(SystemState* system_state)
+      : PostinstallRunnerAction(system_state, nullptr) {}
 
   void PerformAction();
 
@@ -43,6 +43,14 @@ class PostinstallRunnerAction : public InstallPlanAction {
   std::string Type() const { return StaticType(); }
 
  private:
+  friend class PostinstallRunnerActionTest;
+
+  // Special constructor used for testing purposes.
+  PostinstallRunnerAction(SystemState* system_state,
+                          const char* powerwash_marker_file)
+      : system_state_(system_state),
+        powerwash_marker_file_(powerwash_marker_file) {}
+
   // Subprocess::Exec callback.
   void CompletePostinstall(int return_code,
                            const std::string& output);
@@ -50,20 +58,16 @@ class PostinstallRunnerAction : public InstallPlanAction {
   InstallPlan install_plan_;
   std::string temp_rootfs_dir_;
 
+  // The main SystemState singleton.
+  SystemState* system_state_;
+
   // True if Powerwash Marker was created before invoking post-install script.
   // False otherwise. Used for cleaning up if post-install fails.
-  bool powerwash_marker_created_;
+  bool powerwash_marker_created_ = false;
 
   // Non-null value will cause post-install to override the default marker
   // file name; used for testing.
   const char* powerwash_marker_file_;
-
-  // Special ctor + friend declaration for testing purposes.
-  explicit PostinstallRunnerAction(const char* powerwash_marker_file)
-      : powerwash_marker_created_(false),
-        powerwash_marker_file_(powerwash_marker_file) {}
-
-  friend class PostinstallRunnerActionTest;
 
   DISALLOW_COPY_AND_ASSIGN(PostinstallRunnerAction);
 };

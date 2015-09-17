@@ -142,7 +142,8 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
 
   const char* suffix = module_->getSuffix(module_, slot);
   if (suffix == nullptr) {
-    LOG(ERROR) << "boot_control impl returned no suffix for slot " << slot;
+    LOG(ERROR) << "boot_control impl returned no suffix for slot "
+               << SlotName(slot);
     return false;
   }
 
@@ -159,7 +160,7 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
 bool BootControlAndroid::IsSlotBootable(Slot slot) const {
   int ret = module_->isSlotBootable(module_, slot);
   if (ret < 0) {
-    LOG(ERROR) << "Unable to determine if slot " << slot
+    LOG(ERROR) << "Unable to determine if slot " << SlotName(slot)
                << " is bootable: " << strerror(-ret);
     return false;
   }
@@ -169,9 +170,18 @@ bool BootControlAndroid::IsSlotBootable(Slot slot) const {
 bool BootControlAndroid::MarkSlotUnbootable(Slot slot) {
   int ret = module_->setSlotAsUnbootable(module_, slot);
   if (ret < 0) {
-    LOG(ERROR) << "Unable to mark slot " << slot
+    LOG(ERROR) << "Unable to mark slot " << SlotName(slot)
                << " as bootable: " << strerror(-ret);
     return false;
+  }
+  return ret == 0;
+}
+
+bool BootControlAndroid::SetActiveBootSlot(Slot slot) {
+  int ret = module_->setActiveBootSlot(module_, slot);
+  if (ret < 0) {
+    LOG(ERROR) << "Unable to set the active slot to slot " << SlotName(slot)
+               << ": " << strerror(-ret);
   }
   return ret == 0;
 }
