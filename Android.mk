@@ -209,7 +209,7 @@ LOCAL_SHARED_LIBRARIES += \
     libchromeos-policy
 LOCAL_SRC_FILES := \
     main.cc
-LOCAL_INIT_RC := init.update_engine.rc
+LOCAL_INIT_RC := update_engine.rc
 $(eval $(update_engine_common))
 include $(BUILD_EXECUTABLE)
 
