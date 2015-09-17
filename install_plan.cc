@@ -24,8 +24,8 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-const char* kLegacyPartitionNameKernel = "KERNEL";
-const char* kLegacyPartitionNameRoot = "ROOT";
+const char* kLegacyPartitionNameKernel = "boot";
+const char* kLegacyPartitionNameRoot = "system";
 
 InstallPlan::InstallPlan(bool is_resume,
                          bool is_full_update,
