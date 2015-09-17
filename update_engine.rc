@@ -2,6 +2,6 @@ on boot
     mkdir /data/misc/update_engine 0700 system system
 
 service update_engine /system/bin/update_engine --logtostderr --foreground
-    class main
+    class late_start
     user system
     group system dbus inet
