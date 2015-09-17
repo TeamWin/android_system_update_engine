@@ -1,7 +1,7 @@
 on boot
     mkdir /data/misc/update_engine 0700 system system
 
-service update_engine /system/bin/update_engine --logtostderr
+service update_engine /system/bin/update_engine --logtostderr --foreground
     class main
     user system
     group system dbus inet
