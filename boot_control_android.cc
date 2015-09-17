@@ -16,10 +16,12 @@
 
 #include "update_engine/boot_control_android.h"
 
-#include <base/logging.h>
+#include <base/bind.h>
 #include <base/files/file_util.h>
+#include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <chromeos/make_unique_ptr.h>
+#include <chromeos/message_loops/message_loop.h>
 #include <cutils/properties.h>
 #include <fs_mgr.h>
 
@@ -172,6 +174,17 @@ bool BootControlAndroid::MarkSlotUnbootable(Slot slot) {
     return false;
   }
   return ret == 0;
+}
+
+bool BootControlAndroid::MarkBootSuccessfulAsync(
+    base::Callback<void(bool)> callback) {
+  int ret = module_->markBootSuccessful(module_);
+  if (ret < 0) {
+    LOG(ERROR) << "Unable to mark boot successful: " << strerror(-ret);
+  }
+  return chromeos::MessageLoop::current()->PostTask(
+             FROM_HERE, base::Bind(callback, ret == 0)) !=
+         chromeos::MessageLoop::kTaskIdNull;
 }
 
 }  // namespace chromeos_update_engine
