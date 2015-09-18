@@ -627,7 +627,7 @@ bool MountFilesystem(const string& device,
                      const string& mountpoint,
                      unsigned long mountflags) {  // NOLINT(runtime/int)
   // TODO(sosa): Remove "ext3" once crbug.com/208022 is resolved.
-  const vector<const char*> fstypes{"ext2", "ext3", "squashfs"};
+  const vector<const char*> fstypes{"ext2", "ext3", "ext4", "squashfs"};
   for (const char* fstype : fstypes) {
     int rc = mount(device.c_str(), mountpoint.c_str(), fstype, mountflags,
                    nullptr);
