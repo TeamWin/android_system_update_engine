@@ -48,8 +48,8 @@ void PostinstallRunnerAction::PerformAction() {
   ScopedActionCompleter completer(processor_, this);
 
   // Make mountpoint.
-  TEST_AND_RETURN(utils::MakeTempDirectory("/tmp/au_postint_mount.XXXXXX",
-                                           &temp_rootfs_dir_));
+  TEST_AND_RETURN(
+      utils::MakeTempDirectory("au_postint_mount.XXXXXX", &temp_rootfs_dir_));
   ScopedDirRemover temp_dir_remover(temp_rootfs_dir_);
 
   const string mountable_device =

@@ -35,7 +35,7 @@ namespace chromeos_update_engine {
 class FakeP2PManagerConfiguration : public P2PManager::Configuration {
  public:
   FakeP2PManagerConfiguration() {
-    EXPECT_TRUE(utils::MakeTempDirectory("/tmp/p2p-tc.XXXXXX", &p2p_dir_));
+    EXPECT_TRUE(utils::MakeTempDirectory("p2p-tc.XXXXXX", &p2p_dir_));
   }
 
   ~FakeP2PManagerConfiguration() {

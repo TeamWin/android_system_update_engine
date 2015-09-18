@@ -131,9 +131,8 @@ bool TryAttachingUbiVolume(int volume_num, int timeout);
 
 // If |base_filename_template| is neither absolute (starts with "/") nor
 // explicitly relative to the current working directory (starts with "./" or
-// "../"), then it is prepended the value of TMPDIR, which defaults to /tmp if
-// it isn't set or is empty.  It then calls mkstemp(3) with the resulting
-// template.  Writes the name of a new temporary file to |filename|. If |fd| is
+// "../"), then it is prepended the system's temporary directory. On success,
+// stores the name of the new temporary file in |filename|. If |fd| is
 // non-null, the file descriptor returned by mkstemp is written to it and
 // kept open; otherwise, it is closed. The template must end with "XXXXXX".
 // Returns true on success.
@@ -141,12 +140,11 @@ bool MakeTempFile(const std::string& base_filename_template,
                   std::string* filename,
                   int* fd);
 
-// If |base_filename_template| is neither absolute (starts with "/") nor
+// If |base_dirname_template| is neither absolute (starts with "/") nor
 // explicitly relative to the current working directory (starts with "./" or
-// "../"), then it is prepended the value of TMPDIR, which defaults to /tmp if
-// it isn't set or is empty.  It then calls mkdtemp() with the resulting
-// template. Writes the name of the new temporary directory to |dirname|.
-// The template must end with "XXXXXX". Returns true on success.
+// "../"), then it is prepended the system's temporary directory. On success,
+// stores the name of the new temporary directory in |dirname|. The template
+// must end with "XXXXXX". Returns true on success.
 bool MakeTempDirectory(const std::string& base_dirname_template,
                        std::string* dirname);
 

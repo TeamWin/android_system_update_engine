@@ -130,6 +130,23 @@ string MakeNandPartitionNameForMount(int partition_num) {
   }
 }
 
+// If |path| is absolute, or explicit relative to the current working directory,
+// leaves it as is. Otherwise, uses the system's temp directory, as defined by
+// base::GetTempDir() and prepends it to |path|. On success stores the full
+// temporary path in |template_path| and returns true.
+bool GetTempName(const string& path, base::FilePath* template_path) {
+  if (path[0] == '/' || base::StartsWithASCII(path, "./", true) ||
+      base::StartsWithASCII(path, "../", true)) {
+    *template_path = base::FilePath(path);
+    return true;
+  }
+
+  base::FilePath temp_dir;
+  TEST_AND_RETURN_FALSE(base::GetTempDir(&temp_dir));
+  *template_path = temp_dir.Append(path);
+  return true;
+}
+
 }  // namespace
 
 namespace utils {
@@ -565,28 +582,17 @@ bool TryAttachingUbiVolume(int volume_num, int timeout) {
   return FileExists(volume_path.c_str());
 }
 
-// If |path| is absolute, or explicit relative to the current working directory,
-// leaves it as is. Otherwise, if TMPDIR is defined in the environment and is
-// non-empty, prepends it to |path|. Otherwise, prepends /tmp.  Returns the
-// resulting path.
-static const string PrependTmpdir(const string& path) {
-  if (path[0] == '/' || base::StartsWithASCII(path, "./", true) ||
-      base::StartsWithASCII(path, "../", true))
-    return path;
-
-  const char *tmpdir = getenv("TMPDIR");
-  const string prefix = (tmpdir && *tmpdir ? tmpdir : "/tmp");
-  return prefix + "/" + path;
-}
-
 bool MakeTempFile(const string& base_filename_template,
                   string* filename,
                   int* fd) {
-  const string filename_template = PrependTmpdir(base_filename_template);
+  base::FilePath filename_template;
+  TEST_AND_RETURN_FALSE(
+      GetTempName(base_filename_template, &filename_template));
   DCHECK(filename || fd);
-  vector<char> buf(filename_template.size() + 1);
-  memcpy(buf.data(), filename_template.data(), filename_template.size());
-  buf[filename_template.size()] = '\0';
+  vector<char> buf(filename_template.value().size() + 1);
+  memcpy(buf.data(), filename_template.value().data(),
+         filename_template.value().size());
+  buf[filename_template.value().size()] = '\0';
 
   int mkstemp_fd = mkstemp(buf.data());
   TEST_AND_RETURN_FALSE_ERRNO(mkstemp_fd >= 0);
@@ -603,11 +609,13 @@ bool MakeTempFile(const string& base_filename_template,
 
 bool MakeTempDirectory(const string& base_dirname_template,
                        string* dirname) {
-  const string dirname_template = PrependTmpdir(base_dirname_template);
+  base::FilePath dirname_template;
+  TEST_AND_RETURN_FALSE(GetTempName(base_dirname_template, &dirname_template));
   DCHECK(dirname);
-  vector<char> buf(dirname_template.size() + 1);
-  memcpy(buf.data(), dirname_template.data(), dirname_template.size());
-  buf[dirname_template.size()] = '\0';
+  vector<char> buf(dirname_template.value().size() + 1);
+  memcpy(buf.data(), dirname_template.value().data(),
+         dirname_template.value().size());
+  buf[dirname_template.value().size()] = '\0';
 
   char* return_code = mkdtemp(buf.data());
   TEST_AND_RETURN_FALSE_ERRNO(return_code != nullptr);

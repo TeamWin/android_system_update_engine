@@ -877,7 +877,7 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation,
                                                        &output_positions));
 
   string temp_filename;
-  TEST_AND_RETURN_FALSE(utils::MakeTempFile("/tmp/au_patch.XXXXXX",
+  TEST_AND_RETURN_FALSE(utils::MakeTempFile("au_patch.XXXXXX",
                                             &temp_filename,
                                             nullptr));
   ScopedPathUnlinker path_unlinker(temp_filename);
@@ -943,7 +943,7 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
                                                        &output_positions));
 
   string temp_filename;
-  TEST_AND_RETURN_FALSE(utils::MakeTempFile("/tmp/au_patch.XXXXXX",
+  TEST_AND_RETURN_FALSE(utils::MakeTempFile("au_patch.XXXXXX",
                                             &temp_filename,
                                             nullptr));
   ScopedPathUnlinker path_unlinker(temp_filename);

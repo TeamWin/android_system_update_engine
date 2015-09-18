@@ -162,7 +162,7 @@ class ScopedLoopbackDeviceBinder {
 class ScopedTempFile {
  public:
   ScopedTempFile() {
-    EXPECT_TRUE(utils::MakeTempFile("/tmp/update_engine_test_temp_file.XXXXXX",
+    EXPECT_TRUE(utils::MakeTempFile("update_engine_test_temp_file.XXXXXX",
                                     &path_,
                                     nullptr));
     unlinker_.reset(new ScopedPathUnlinker(path_));
