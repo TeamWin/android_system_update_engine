@@ -114,10 +114,11 @@ int main(int argc, char** argv) {
   LOG(INFO) << "Chrome OS Update Engine starting";
 
   // Ensure that all written files have safe permissions.
-  // This is a mask, so we _block_ execute for the owner, and ALL
-  // permissions for other users.
+  // This is a mask, so we _block_ all permissions for the group owner and other
+  // users but allow all permissions for the user owner. We allow execution
+  // for the owner so we can create directories.
   // Done _after_ log file creation.
-  umask(S_IXUSR | S_IRWXG | S_IRWXO);
+  umask(S_IRWXG | S_IRWXO);
 
   chromeos_update_engine::UpdateEngineDaemon update_engine_daemon;
   int exit_code = update_engine_daemon.Run();
