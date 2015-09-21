@@ -54,6 +54,8 @@ TEST_F(PayloadFileTest, ReorderBlobsTest) {
       utils::MakeTempFile("ReorderBlobsTest.new.XXXXXX", &new_blobs, nullptr));
   ScopedPathUnlinker new_blobs_unlinker(new_blobs);
 
+  payload_.part_vec_.resize(2);
+
   vector<AnnotatedOperation> aops;
   AnnotatedOperation aop;
   aop.op.set_data_offset(8);
@@ -63,17 +65,16 @@ TEST_F(PayloadFileTest, ReorderBlobsTest) {
   aop.op.set_data_offset(7);
   aop.op.set_data_length(1);
   aops.push_back(aop);
-  payload_.AddPartitionOperations("part0", aops);
+  payload_.part_vec_[0].aops = aops;
 
   aop.op.set_data_offset(0);
   aop.op.set_data_length(6);
-  aops = {aop};
-  payload_.AddPartitionOperations("part1", aops);
+  payload_.part_vec_[1].aops = {aop};
 
   EXPECT_TRUE(payload_.ReorderDataBlobs(orig_blobs, new_blobs));
 
-  const vector<AnnotatedOperation>& part0_aops = payload_.aops_vec_[0].second;
-  const vector<AnnotatedOperation>& part1_aops = payload_.aops_vec_[1].second;
+  const vector<AnnotatedOperation>& part0_aops = payload_.part_vec_[0].aops;
+  const vector<AnnotatedOperation>& part1_aops = payload_.part_vec_[1].aops;
   string new_data;
   EXPECT_TRUE(utils::ReadFile(new_blobs, &new_data));
   // Kernel blobs should appear at the end.
