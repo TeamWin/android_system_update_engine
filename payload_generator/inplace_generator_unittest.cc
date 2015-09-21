@@ -608,7 +608,7 @@ TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesAvoidMoveToZero) {
     aops.push_back(aop);
   }
 
-  PartitionConfig part(PartitionName::kRootfs);
+  PartitionConfig part("part");
   part.path = "/dev/zero";
   part.size = num_blocks * block_size;
 

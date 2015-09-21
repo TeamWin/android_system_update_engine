@@ -26,16 +26,6 @@
 
 namespace chromeos_update_engine {
 
-std::string PartitionNameString(PartitionName name) {
-  switch (name) {
-    case PartitionName::kKernel:
-      return "kernel";
-    case PartitionName::kRootfs:
-      return "rootfs";
-  }
-  return "other";
-}
-
 bool PartitionConfig::ValidateExists() const {
   TEST_AND_RETURN_FALSE(!path.empty());
   TEST_AND_RETURN_FALSE(utils::FileExists(path.c_str()));
@@ -50,7 +40,7 @@ bool PartitionConfig::OpenFilesystem() {
   if (path.empty())
     return true;
   fs_interface.reset();
-  if (name == PartitionName::kRootfs) {
+  if (utils::IsExtFilesystem(path)) {
     fs_interface = Ext2Filesystem::CreateFromFile(path);
   }
 
@@ -58,7 +48,7 @@ bool PartitionConfig::OpenFilesystem() {
     // Fall back to a RAW filesystem.
     TEST_AND_RETURN_FALSE(size % kBlockSize == 0);
     fs_interface = RawFilesystem::Create(
-      "<" + PartitionNameString(name) + "-partition>",
+      "<" + name + "-partition>",
       kBlockSize,
       size / kBlockSize);
   }
