@@ -202,23 +202,36 @@ message PartitionUpdate {
   // example, in Chrome OS this could be "ROOT" or "KERNEL".
   required string partition_name = 1;
 
-  // Whether this partition carries a filesystem with a "/postinstall" script
-  // that must be run to finalize the update process.
+  // Whether this partition carries a filesystem with post-install program that
+  // must be run to finalize the update process. See also |postinstall_path| and
+  // |filesystem_type|.
   optional bool run_postinstall = 2;
+
+  // The path of the executable program to run during the post-install step,
+  // relative to the root of this filesystem. If not set, the default "postinst"
+  // will be used. This setting is only used when |run_postinstall| is set and
+  // true.
+  optional string postinstall_path = 3;
+
+  // The filesystem type as passed to the mount(2) syscall when mounting the new
+  // filesystem to run the post-install program. If not set, a fixed list of
+  // filesystems will be attempted. This setting is only used if
+  // |run_postinstall| is set and true.
+  optional string filesystem_type = 4;
 
   // If present, a list of signatures of the new_partition_info.hash signed with
   // different keys. If the update_engine daemon requires vendor-signed images
   // and has its public key installed, one of the signatures should be valid
   // for /postinstall to run.
-  repeated Signatures.Signature new_partition_signature = 3;
+  repeated Signatures.Signature new_partition_signature = 5;
 
-  optional PartitionInfo old_partition_info = 4;
-  optional PartitionInfo new_partition_info = 5;
+  optional PartitionInfo old_partition_info = 6;
+  optional PartitionInfo new_partition_info = 7;
 
   // The list of operations to be performed to apply this PartitionUpdate. The
   // associated operation blobs (in operations[i].data_offset, data_length)
   // should be stored contiguously and in the same order.
-  repeated InstallOperation operations = 6;
+  repeated InstallOperation operations = 8;
 }
 
 message DeltaArchiveManifest {
