@@ -18,6 +18,7 @@
 
 #include <base/files/file_util.h>
 #include <chromeos/make_unique_ptr.h>
+#include <cutils/properties.h>
 
 #include "update_engine/hardware.h"
 
@@ -41,18 +42,36 @@ std::unique_ptr<HardwareInterface> CreateHardware() {
 
 }  // namespace hardware
 
+// In Android there are normally three kinds of builds: eng, userdebug and user.
+// These builds target respectively a developer build, a debuggable version of
+// the final product and the pristine final product the end user will run.
+// Apart from the ro.build.type property name, they differ in the following
+// properties that characterize the builds:
+// * eng builds: ro.secure=0 and ro.debuggable=1
+// * userdebug builds: ro.secure=1 and ro.debuggable=1
+// * user builds: ro.secure=1 and ro.debuggable=0
+//
+// See IsOfficialBuild() and IsNormalMode() for the meaning of these options in
+// Android.
+
 bool HardwareAndroid::IsOfficialBuild() const {
-  // TODO(deymo): Read the kind of build we are running from the metadata
-  // partition.
-  LOG(WARNING) << "STUB: Assuming we are not an official build.";
-  return false;
+  // We run an official build iff ro.secure == 1, because we expect the build to
+  // behave like the end user product and check for updates. Note that while
+  // developers are able to build "official builds" by just running "make user",
+  // that will only result in a more restrictive environment. The important part
+  // is that we don't produce and push "non-official" builds to the end user.
+  //
+  // In case of a non-bool value, we take the most restrictive option and
+  // assume we are in an official-build.
+  return property_get_bool("ro.secure", 1) != 0;
 }
 
 bool HardwareAndroid::IsNormalBootMode() const {
-  // TODO(deymo): Read the kind of build we are running from the metadata
-  // partition.
-  LOG(WARNING) << "STUB: Assuming we are in dev-mode.";
-  return false;
+  // We are running in "dev-mode" iff ro.debuggable == 1. In dev-mode the
+  // update_engine will allow extra developers options, such as providing a
+  // different update URL. In case of error, we assume the build is in
+  // normal-mode.
+  return property_get_bool("ro.debuggable", 0) != 1;
 }
 
 bool HardwareAndroid::IsOOBEComplete(base::Time* out_time_of_oobe) const {

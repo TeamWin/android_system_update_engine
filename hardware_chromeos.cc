@@ -72,7 +72,6 @@ bool HardwareChromeOS::IsOfficialBuild() const {
 
 bool HardwareChromeOS::IsNormalBootMode() const {
   bool dev_mode = VbGetSystemPropertyInt("devsw_boot") != 0;
-  LOG_IF(INFO, dev_mode) << "Booted in dev mode.";
   return !dev_mode;
 }
 

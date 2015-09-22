@@ -33,12 +33,15 @@ class HardwareInterface {
  public:
   virtual ~HardwareInterface() {}
 
-  // Returns true if this is an official Chrome OS build, false otherwise.
+  // Returns whether this is an official build. Official build means that the
+  // server maintains and updates the build, so update_engine should run and
+  // periodically check for updates.
   virtual bool IsOfficialBuild() const = 0;
 
   // Returns true if the boot mode is normal or if it's unable to
   // determine the boot mode. Returns false if the boot mode is
-  // developer.
+  // developer. A dev-mode boot will allow the user to access developer-only
+  // features.
   virtual bool IsNormalBootMode() const = 0;
 
   // Returns true if the OOBE process has been completed and EULA accepted,

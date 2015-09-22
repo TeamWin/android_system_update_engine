@@ -48,6 +48,9 @@ bool RealSystemState::Initialize() {
     return false;
   }
 
+  LOG_IF(INFO, !hardware_->IsNormalBootMode()) << "Booted in dev mode.";
+  LOG_IF(INFO, !hardware_->IsOfficialBuild()) << "Booted non-official build.";
+
   if (!shill_proxy_.Init()) {
     LOG(ERROR) << "Failed to initialize shill proxy.";
     return false;
