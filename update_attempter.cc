@@ -1145,6 +1145,11 @@ bool UpdateAttempter::ResetStatus() {
           ret_value = false;
       }
 
+      // Update the boot flags so the current slot has higher priority.
+      BootControlInterface* boot_control = system_state_->boot_control();
+      if (!boot_control->SetActiveBootSlot(boot_control->GetCurrentSlot()))
+        ret_value = false;
+
       // Notify the PayloadState that the successful payload was canceled.
       system_state_->payload_state()->ResetUpdateStatus();
 
