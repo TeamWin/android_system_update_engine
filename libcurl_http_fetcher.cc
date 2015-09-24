@@ -514,9 +514,6 @@ void LibcurlHttpFetcher::RetryTimeoutCallback() {
 }
 
 void LibcurlHttpFetcher::TimeoutCallback() {
-  if (transfer_in_progress_)
-    CurlPerformOnce();
-
   // We always re-schedule the callback, even if we don't want to be called
   // anymore. We will remove the event source separately if we don't want to
   // be called back.
@@ -524,6 +521,11 @@ void LibcurlHttpFetcher::TimeoutCallback() {
       FROM_HERE,
       base::Bind(&LibcurlHttpFetcher::TimeoutCallback, base::Unretained(this)),
       TimeDelta::FromSeconds(idle_seconds_));
+
+  // CurlPerformOnce() may call CleanUp(), so we need to schedule our callback
+  // first, since it could be canceled by this call.
+  if (transfer_in_progress_)
+    CurlPerformOnce();
 }
 
 void LibcurlHttpFetcher::CleanUp() {

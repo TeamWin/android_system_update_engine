@@ -41,6 +41,7 @@
 #include <vector>
 
 #include <base/logging.h>
+#include <base/posix/eintr_wrapper.h>
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -450,6 +451,12 @@ ssize_t HandleErrorIfOffset(int fd, const HttpRequest& request,
   }
 }
 
+void HandleHang(int fd) {
+  LOG(INFO) << "Hanging until the other side of the connection is closed.";
+  char c;
+  while (HANDLE_EINTR(read(fd, &c, 1)) > 0) {}
+}
+
 void HandleDefault(int fd, const HttpRequest& request) {
   const off_t start_offset = request.start_offset;
   const string data("unhandled path");
@@ -517,6 +524,8 @@ void HandleConnection(int fd) {
   } else if (base::StartsWithASCII(url, "/error-if-offset/", true)) {
     const UrlTerms terms(url, 3);
     HandleErrorIfOffset(fd, request, terms.GetSizeT(1), terms.GetInt(2));
+  } else if (url == "/hang") {
+    HandleHang(fd);
   } else {
     HandleDefault(fd, request);
   }

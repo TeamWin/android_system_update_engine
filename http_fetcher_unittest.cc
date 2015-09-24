@@ -711,6 +711,42 @@ TYPED_TEST(HttpFetcherTest, FailureTest) {
   }
 }
 
+TYPED_TEST(HttpFetcherTest, NoResponseTest) {
+  // This test starts a new http server but the server doesn't respond and just
+  // closes the connection.
+  if (this->test_.IsMock())
+    return;
+
+  PythonHttpServer* server = new PythonHttpServer();
+  int port = server->GetPort();
+  ASSERT_TRUE(server->started_);
+
+  // Handles destruction and claims ownership.
+  FailureHttpFetcherTestDelegate delegate(server);
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
+  // The server will not reply at all, so we can limit the execution time of the
+  // test by reducing the low-speed timeout to something small. The test will
+  // finish once the TimeoutCallback() triggers (every second) and the timeout
+  // expired.
+  fetcher->set_low_speed_limit(kDownloadLowSpeedLimitBps, 1);
+
+  this->loop_.PostTask(FROM_HERE, base::Bind(
+      StartTransfer,
+      fetcher.get(),
+      LocalServerUrlForPath(port, "/hang")));
+  this->loop_.Run();
+
+  // Check that no other callback runs in the next two seconds. That would
+  // indicate a leaked callback.
+  bool timeout = false;
+  auto callback = base::Bind([&timeout]{ timeout = true;});
+  this->loop_.PostDelayedTask(FROM_HERE, callback,
+                              base::TimeDelta::FromSeconds(2));
+  EXPECT_TRUE(this->loop_.RunOnce(true));
+  EXPECT_TRUE(timeout);
+}
+
 TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
   // This test starts a new http server and kills it after receiving its first
   // set of bytes. It test whether or not our fetcher eventually gives up on
