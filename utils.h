@@ -334,11 +334,6 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code);
 metrics::ConnectionType GetConnectionType(NetworkConnectionType type,
                                           NetworkTethering tethering);
 
-// Sends the error code to UMA using the metrics interface object in the given
-// system state. It also uses the system state to determine the right UMA
-// bucket for the error code.
-void SendErrorCodeToUma(SystemState* system_state, ErrorCode code);
-
 // Returns a string representation of the ErrorCodes (either the base
 // error codes or the bit flags) for logging purposes.
 std::string CodeToString(ErrorCode code);

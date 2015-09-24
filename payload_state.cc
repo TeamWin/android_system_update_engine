@@ -114,7 +114,6 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
     SetNumResponsesSeen(num_responses_seen_ + 1);
     SetResponseSignature(new_response_signature);
     ResetPersistedState();
-    ReportUpdatesAbandonedEventCountMetric();
     return;
   }
 
@@ -420,18 +419,6 @@ void PayloadState::Rollback() {
 void PayloadState::IncrementPayloadAttemptNumber() {
   // Update the payload attempt number for both payload types: full and delta.
   SetPayloadAttemptNumber(GetPayloadAttemptNumber() + 1);
-
-  // Report the metric every time the value is incremented.
-  string metric = "Installer.PayloadAttemptNumber";
-  int value = GetPayloadAttemptNumber();
-
-  LOG(INFO) << "Uploading " << value << " (count) for metric " <<  metric;
-  system_state_->metrics_lib()->SendToUMA(
-       metric,
-       value,
-       1,    // min value
-       50,   // max value
-       kNumDefaultUmaBuckets);
 }
 
 void PayloadState::IncrementFullPayloadAttemptNumber() {
@@ -444,18 +431,6 @@ void PayloadState::IncrementFullPayloadAttemptNumber() {
   LOG(INFO) << "Incrementing the full payload attempt number";
   SetFullPayloadAttemptNumber(GetFullPayloadAttemptNumber() + 1);
   UpdateBackoffExpiryTime();
-
-  // Report the metric every time the value is incremented.
-  string metric = "Installer.FullPayloadAttemptNumber";
-  int value = GetFullPayloadAttemptNumber();
-
-  LOG(INFO) << "Uploading " << value << " (count) for metric " <<  metric;
-  system_state_->metrics_lib()->SendToUMA(
-       metric,
-       value,
-       1,    // min value
-       50,   // max value
-       kNumDefaultUmaBuckets);
 }
 
 void PayloadState::IncrementUrlIndex() {
@@ -679,7 +654,6 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
   string metric;
 
   // Report metrics collected from all known download sources to UMA.
-  int64_t successful_bytes_by_source[kNumDownloadSources];
   int64_t total_bytes_by_source[kNumDownloadSources];
   int64_t successful_bytes = 0;
   int64_t total_bytes = 0;
@@ -697,7 +671,6 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
     // zero-byte events in the histogram.
 
     bytes = GetCurrentBytesDownloaded(source);
-    successful_bytes_by_source[i] = bytes;
     successful_bytes += bytes;
     successful_mbs += bytes / kNumBytesInOneMiB;
     SetCurrentBytesDownloaded(source, 0, true);
@@ -722,7 +695,6 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
   SetNumReboots(0);
 
   TimeDelta duration = GetUpdateDuration();
-  TimeDelta duration_uptime = GetUpdateDurationUptime();
 
   prefs_->Delete(kPrefsUpdateTimestampStart);
   prefs_->Delete(kPrefsUpdateDurationUptime);
@@ -745,142 +717,6 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
                                          duration,
                                          reboot_count,
                                          url_switch_count);
-
-  // TODO(zeuthen): This is the old metric reporting code which is
-  // slated for removal soon. See http://crbug.com/355745 for details.
-
-  // The old metrics code is using MiB's instead of bytes to calculate
-  // the overhead which due to rounding makes the numbers slightly
-  // different.
-  download_overhead_percentage = 0;
-  if (successful_mbs > 0) {
-    download_overhead_percentage = (total_mbs - successful_mbs) * 100ULL /
-                                   successful_mbs;
-  }
-
-  int download_sources_used = 0;
-  for (int i = 0; i < kNumDownloadSources; i++) {
-    DownloadSource source = static_cast<DownloadSource>(i);
-    const int kMaxMiBs = 10240;  // Anything above 10GB goes in the last bucket.
-    int64_t mbs;
-
-    // Only consider this download source (and send byte counts) as
-    // having been used if we downloaded a non-trivial amount of bytes
-    // (e.g. at least 1 MiB) that contributed to the final success of
-    // the update. Otherwise we're going to end up with a lot of
-    // zero-byte events in the histogram.
-
-    mbs = successful_bytes_by_source[i] / kNumBytesInOneMiB;
-    if (mbs > 0) {
-      metric = "Installer.SuccessfulMBsDownloadedFrom" +
-          utils::ToString(source);
-      LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " << metric;
-      system_state_->metrics_lib()->SendToUMA(metric,
-                                              mbs,
-                                              0,  // min
-                                              kMaxMiBs,
-                                              kNumDefaultUmaBuckets);
-    }
-
-    mbs = total_bytes_by_source[i] / kNumBytesInOneMiB;
-    if (mbs > 0) {
-      metric = "Installer.TotalMBsDownloadedFrom" + utils::ToString(source);
-      LOG(INFO) << "Uploading " << mbs << " (MBs) for metric " << metric;
-      system_state_->metrics_lib()->SendToUMA(metric,
-                                              mbs,
-                                              0,  // min
-                                              kMaxMiBs,
-                                              kNumDefaultUmaBuckets);
-      download_sources_used |= (1 << i);
-    }
-  }
-
-  metric = "Installer.DownloadSourcesUsed";
-  LOG(INFO) << "Uploading 0x" << std::hex << download_sources_used
-            << " (bit flags) for metric " << metric;
-  int num_buckets = min(1 << kNumDownloadSources, kNumDefaultUmaBuckets);
-  system_state_->metrics_lib()->SendToUMA(metric,
-                                          download_sources_used,
-                                          0,  // min
-                                          1 << kNumDownloadSources,
-                                          num_buckets);
-
-  metric = "Installer.DownloadOverheadPercentage";
-  LOG(INFO) << "Uploading " << download_overhead_percentage
-            << "% for metric " << metric;
-  system_state_->metrics_lib()->SendToUMA(metric,
-                                          download_overhead_percentage,
-                                          0,     // min: 0% overhead
-                                          1000,  // max: 1000% overhead
-                                          kNumDefaultUmaBuckets);
-
-  metric = "Installer.UpdateURLSwitches";
-  LOG(INFO) << "Uploading " << url_switch_count
-            << " (count) for metric " << metric;
-  system_state_->metrics_lib()->SendToUMA(
-       metric,
-       url_switch_count,
-       0,    // min value
-       100,  // max value
-       kNumDefaultUmaBuckets);
-
-  metric = "Installer.UpdateNumReboots";
-  LOG(INFO) << "Uploading reboot count of " << reboot_count << " for metric "
-            <<  metric;
-  system_state_->metrics_lib()->SendToUMA(
-      metric,
-      reboot_count,  // sample
-      0,    // min = 0.
-      50,   // max
-      25);  // buckets
-
-  metric = "Installer.UpdateDurationMinutes";
-  system_state_->metrics_lib()->SendToUMA(
-       metric,
-       static_cast<int>(duration.InMinutes()),
-       1,             // min: 1 minute
-       365*24*60,     // max: 1 year (approx)
-       kNumDefaultUmaBuckets);
-  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(duration)
-            << " for metric " <<  metric;
-
-  metric = "Installer.UpdateDurationUptimeMinutes";
-  system_state_->metrics_lib()->SendToUMA(
-       metric,
-       static_cast<int>(duration_uptime.InMinutes()),
-       1,             // min: 1 minute
-       30*24*60,      // max: 1 month (approx)
-       kNumDefaultUmaBuckets);
-  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(duration_uptime)
-            << " for metric " <<  metric;
-
-  metric = "Installer.PayloadFormat";
-  system_state_->metrics_lib()->SendEnumToUMA(
-      metric,
-      payload_type,
-      kNumPayloadTypes);
-  LOG(INFO) << "Uploading " << utils::ToString(payload_type)
-            << " for metric " <<  metric;
-
-  metric = "Installer.AttemptsCount.Total";
-  system_state_->metrics_lib()->SendToUMA(
-       metric,
-       attempt_count,
-       1,      // min
-       50,     // max
-       kNumDefaultUmaBuckets);
-  LOG(INFO) << "Uploading " << attempt_count
-            << " for metric " <<  metric;
-
-  metric = "Installer.UpdatesAbandonedCount";
-  LOG(INFO) << "Uploading " << updates_abandoned_count
-            << " (count) for metric " <<  metric;
-  system_state_->metrics_lib()->SendToUMA(
-       metric,
-       updates_abandoned_count,
-       0,    // min value
-       100,  // max value
-       kNumDefaultUmaBuckets);
 }
 
 void PayloadState::UpdateNumReboots() {
@@ -1309,24 +1145,6 @@ void PayloadState::SetNumResponsesSeen(int num_responses_seen) {
   prefs_->SetInt64(kPrefsNumResponsesSeen, num_responses_seen_);
 }
 
-void PayloadState::ReportUpdatesAbandonedEventCountMetric() {
-  string metric = "Installer.UpdatesAbandonedEventCount";
-  int value = num_responses_seen_ - 1;
-
-  // Do not send an "abandoned" event when 0 payloads were abandoned since the
-  // last successful update.
-  if (value == 0)
-    return;
-
-  LOG(INFO) << "Uploading " << value << " (count) for metric " <<  metric;
-  system_state_->metrics_lib()->SendToUMA(
-       metric,
-       value,
-       0,    // min value
-       100,  // max value
-       kNumDefaultUmaBuckets);
-}
-
 void PayloadState::ComputeCandidateUrls() {
   bool http_url_ok = true;
 
@@ -1361,16 +1179,7 @@ void PayloadState::CreateSystemUpdatedMarkerFile() {
 
 void PayloadState::BootedIntoUpdate(TimeDelta time_to_reboot) {
   // Send |time_to_reboot| as a UMA stat.
-  string metric = "Installer.TimeToRebootMinutes";
-  system_state_->metrics_lib()->SendToUMA(metric,
-                                          time_to_reboot.InMinutes(),
-                                          0,         // min: 0 minute
-                                          30*24*60,  // max: 1 month (approx)
-                                          kNumDefaultUmaBuckets);
-  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(time_to_reboot)
-            << " for metric " <<  metric;
-
-  metric = metrics::kMetricTimeToRebootMinutes;
+  string metric = metrics::kMetricTimeToRebootMinutes;
   system_state_->metrics_lib()->SendToUMA(metric,
                                           time_to_reboot.InMinutes(),
                                           0,         // min: 0 minute
@@ -1440,18 +1249,7 @@ void PayloadState::ReportFailedBootIfNeeded() {
       }
 
       // Report the UMA metric of the current boot failure.
-      string metric = "Installer.RebootToNewPartitionAttempt";
-
-      LOG(INFO) << "Uploading " << target_attempt
-                << " (count) for metric " <<  metric;
-      system_state_->metrics_lib()->SendToUMA(
-           metric,
-           target_attempt,
-           1,    // min value
-           50,   // max value
-           kNumDefaultUmaBuckets);
-
-      metric = metrics::kMetricFailedUpdateCount;
+      string metric = metrics::kMetricFailedUpdateCount;
       LOG(INFO) << "Uploading " << target_attempt
                 << " (count) for metric " <<  metric;
       system_state_->metrics_lib()->SendToUMA(

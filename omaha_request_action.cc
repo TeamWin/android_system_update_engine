@@ -1343,13 +1343,7 @@ bool OmahaRequestAction::PersistInstallDate(
   if (!prefs->SetInt64(kPrefsInstallDateDays, install_date_days))
     return false;
 
-  string metric_name = "Installer.InstallDateProvisioningSource";
-  system_state->metrics_lib()->SendEnumToUMA(
-      metric_name,
-      static_cast<int>(source),  // Sample.
-      kProvisionedMax);          // Maximum.
-
-  metric_name = metrics::kMetricInstallDateProvisioningSource;
+  string metric_name = metrics::kMetricInstallDateProvisioningSource;
   system_state->metrics_lib()->SendEnumToUMA(
       metric_name,
       static_cast<int>(source),  // Sample.

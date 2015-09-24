@@ -324,10 +324,6 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
     .Times(AnyNumber());
 
-  // The first response doesn't send an abandoned event.
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.UpdatesAbandonedEventCount", 0, _, _, _)).Times(0);
-
   // Set the first response.
   SetupPayloadStateWith2Urls("Hash5823", true, &payload_state, &response);
   EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
@@ -338,9 +334,6 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
   EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
 
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.UpdatesAbandonedEventCount", 1, _, _, _));
-
   // Now, slightly change the response and set it again.
   SetupPayloadStateWith2Urls("Hash8225", true, &payload_state, &response);
   EXPECT_EQ(2, payload_state.GetNumResponsesSeen());
@@ -349,9 +342,6 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
   payload_state.UpdateFailed(error);
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
   EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
-
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.UpdatesAbandonedEventCount", 2, _, _, _));
 
   // Return a third different response.
   SetupPayloadStateWith2Urls("Hash9999", true, &payload_state, &response);
@@ -546,11 +536,6 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
 
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
 
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.PayloadAttemptNumber", 1, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.FullPayloadAttemptNumber", 1, _, _, _));
-
   // This should just advance the payload attempt number;
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetFullPayloadAttemptNumber());
@@ -590,13 +575,6 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
   SetupPayloadStateWith2Urls("Hash8593", true, &payload_state, &response);
-
-  // Metrics for Full payload attempt number is not sent with Delta payloads.
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.PayloadAttemptNumber", 1, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.FullPayloadAttemptNumber", _, _, _, _))
-      .Times(0);
 
   // This should just advance the payload attempt number;
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
@@ -873,7 +851,6 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   int third_chunk = 32345678;
   int http_chunk = first_chunk + third_chunk;
   http_total += third_chunk;
-  int https_chunk = second_chunk;
   payload_state.DownloadProgress(third_chunk);
 
   // Test that third chunk is again back on HTTP. HTTPS remains on second chunk.
@@ -901,57 +878,19 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
     .Times(AnyNumber());
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.SuccessfulMBsDownloadedFromHttpServer",
-      http_chunk / kNumBytesInOneMiB, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.TotalMBsDownloadedFromHttpServer",
-      http_total / kNumBytesInOneMiB, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.SuccessfulMBsDownloadedFromHttpsServer",
-      https_chunk / kNumBytesInOneMiB, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.TotalMBsDownloadedFromHttpsServer",
-      https_total / kNumBytesInOneMiB, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.SuccessfulMBsDownloadedFromHttpPeer",
-      p2p_total / kNumBytesInOneMiB, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.TotalMBsDownloadedFromHttpPeer",
-      p2p_total / kNumBytesInOneMiB, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.UpdateURLSwitches",
-      3, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricSuccessfulUpdateUrlSwitchCount,
       3, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.UpdateDurationMinutes",
-      _, _, _, _));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricSuccessfulUpdateTotalDurationMinutes,
       _, _, _, _));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.UpdateDurationUptimeMinutes",
-      _, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.DownloadSourcesUsed",
-      (1 << kDownloadSourceHttpsServer) | (1 << kDownloadSourceHttpServer) |
-      (1 << kDownloadSourceHttpPeer),
-      _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.DownloadOverheadPercentage", 318, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricSuccessfulUpdateDownloadOverheadPercentage,
       314, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
-      "Installer.PayloadFormat", kPayloadTypeFull, kNumPayloadTypes));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
       metrics::kMetricAttemptPayloadType, kPayloadTypeFull, kNumPayloadTypes));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
       metrics::kMetricSuccessfulUpdatePayloadType, kPayloadTypeFull,
       kNumPayloadTypes));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.AttemptsCount.Total", 1, _, _, _));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricSuccessfulUpdateAttemptCount, 1, _, _, _));
 
@@ -990,10 +929,6 @@ TEST(PayloadStateTest, DownloadSourcesUsedIsCorrect) {
   // Check that only HTTP is reported as a download source.
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(_, _, _, _, _))
     .Times(AnyNumber());
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.DownloadSourcesUsed",
-      (1 << kDownloadSourceHttpServer),
-      _, _, _));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricSuccessfulUpdateDownloadSourcesUsed,
       (1 << kDownloadSourceHttpServer),
@@ -1199,9 +1134,6 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
 
   // Expect 500 - 30 seconds = 470 seconds ~= 7 min 50 sec
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.TimeToRebootMinutes",
-      7, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricTimeToRebootMinutes,
       7, _, _, _));
   fake_system_state.set_system_rebooted(true);
@@ -1394,8 +1326,6 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsDelta) {
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
     .Times(AnyNumber());
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
-      "Installer.PayloadFormat", kPayloadTypeDelta, kNumPayloadTypes));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
       metrics::kMetricAttemptPayloadType, kPayloadTypeDelta, kNumPayloadTypes));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
       metrics::kMetricSuccessfulUpdatePayloadType, kPayloadTypeDelta,
@@ -1413,8 +1343,6 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsDelta) {
 
   payload_state.DownloadComplete();
 
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
-      "Installer.PayloadFormat", kPayloadTypeDelta, kNumPayloadTypes));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
       metrics::kMetricAttemptPayloadType, kPayloadTypeDelta,
       kNumPayloadTypes));
@@ -1443,8 +1371,6 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsForcedFull) {
 
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
     .Times(AnyNumber());
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
-      "Installer.PayloadFormat", kPayloadTypeForcedFull, kNumPayloadTypes));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
       metrics::kMetricAttemptPayloadType, kPayloadTypeForcedFull,
       kNumPayloadTypes));
@@ -1475,8 +1401,6 @@ TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsFull) {
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(_, _, _))
     .Times(AnyNumber());
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
-      "Installer.PayloadFormat", kPayloadTypeFull, kNumPayloadTypes));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
       metrics::kMetricAttemptPayloadType, kPayloadTypeFull,
       kNumPayloadTypes));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendEnumToUMA(
@@ -1502,8 +1426,6 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
 
   // Reboot into the same environment to get an UMA metric with a value of 1.
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.RebootToNewPartitionAttempt", 1, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricFailedUpdateCount, 1, _, _, _));
   payload_state.ReportFailedBootIfNeeded();
   Mock::VerifyAndClearExpectations(fake_system_state.mock_metrics_lib());
@@ -1513,8 +1435,6 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   payload_state.ExpectRebootInNewVersion("Version:12345678");
 
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.RebootToNewPartitionAttempt", 2, _, _, _));
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricFailedUpdateCount, 2, _, _, _));
   payload_state.ReportFailedBootIfNeeded();
   Mock::VerifyAndClearExpectations(fake_system_state.mock_metrics_lib());
@@ -1522,8 +1442,6 @@ TEST(PayloadStateTest, RebootAfterUpdateFailedMetric) {
   // Simulate a third failed reboot to new version, but this time for a
   // different payload. This should send a value of 1 this time.
   payload_state.ExpectRebootInNewVersion("Version:3141592");
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.RebootToNewPartitionAttempt", 1, _, _, _));
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricFailedUpdateCount, 1, _, _, _));
   payload_state.ReportFailedBootIfNeeded();
@@ -1552,9 +1470,6 @@ TEST(PayloadStateTest, RebootAfterUpdateSucceed) {
   fake_boot_control->SetCurrentSlot(1);
 
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.RebootToNewPartitionAttempt", _, _, _, _))
-      .Times(0);
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricFailedUpdateCount, _, _, _, _))
       .Times(0);
   payload_state.ReportFailedBootIfNeeded();
@@ -1581,9 +1496,6 @@ TEST(PayloadStateTest, RebootAfterCanceledUpdate) {
   payload_state.ExpectRebootInNewVersion("Version:12345678");
 
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.RebootToNewPartitionAttempt", _, _, _, _))
-      .Times(0);
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricFailedUpdateCount, _, _, _, _))
       .Times(0);
 
@@ -1602,9 +1514,6 @@ TEST(PayloadStateTest, UpdateSuccessWithWipedPrefs) {
   fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
-  EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
-      "Installer.RebootToNewPartitionAttempt", _, _, _, _))
-      .Times(0);
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(
       metrics::kMetricFailedUpdateCount, _, _, _, _))
       .Times(0);

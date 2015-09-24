@@ -449,7 +449,6 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
                  << install_plan_->metadata_size
                  << ") in Omaha response as validation is not mandatory. "
                  << "Trusting metadata size in payload = " << metadata_size_;
-    SendUmaStat(ErrorCode::kDownloadInvalidMetadataSize);
   }
 
   // We have the full metadata in |payload|. Verify its integrity
@@ -465,7 +464,6 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
 
     // For non-mandatory cases, just send a UMA stat.
     LOG(WARNING) << "Ignoring metadata signature validation failures";
-    SendUmaStat(*error);
     *error = ErrorCode::kSuccess;
   }
 
@@ -595,7 +593,6 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
 
         // For non-mandatory cases, just send a UMA stat.
         LOG(WARNING) << "Ignoring operation validation errors";
-        SendUmaStat(*error);
         *error = ErrorCode::kSuccess;
       }
     }
@@ -1036,9 +1033,7 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
       return ErrorCode::kDownloadMetadataSignatureMissingError;
     }
 
-    // For non-mandatory cases, just send a UMA stat.
     LOG(WARNING) << "Cannot validate metadata as the signature is empty";
-    SendUmaStat(ErrorCode::kDownloadMetadataSignatureMissingError);
     return ErrorCode::kSuccess;
   }
 
@@ -1171,10 +1166,8 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
         return ErrorCode::kDownloadOperationHashMissingError;
       }
 
-      // For non-mandatory cases, just send a UMA stat.
       LOG(WARNING) << "Cannot validate operation " << next_operation_num_ + 1
                    << " as there's no operation hash in manifest";
-      SendUmaStat(ErrorCode::kDownloadOperationHashMissingError);
     }
     return ErrorCode::kSuccess;
   }
@@ -1538,10 +1531,6 @@ bool DeltaPerformer::PrimeUpdateState() {
   }
   prefs_->SetInt64(kPrefsResumedUpdateFailures, resumed_update_failures);
   return true;
-}
-
-void DeltaPerformer::SendUmaStat(ErrorCode code) {
-  utils::SendErrorCodeToUma(system_state_, code);
 }
 
 }  // namespace chromeos_update_engine

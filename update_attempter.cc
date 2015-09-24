@@ -257,16 +257,6 @@ void UpdateAttempter::ReportOSAge() {
     return;
   }
 
-  string metric = "Installer.OSAgeDays";
-  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(age)
-            << " for metric " <<  metric;
-  system_state_->metrics_lib()->SendToUMA(
-       metric,
-       static_cast<int>(age.InDays()),
-       0,             // min: 0 days
-       6*30,          // max: 6 months (approx)
-       kNumDefaultUmaBuckets);
-
   metrics::ReportDailyMetrics(system_state_, age);
 }
 
@@ -1001,10 +991,6 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
       // next boot.
       system_state_->payload_state()->ExpectRebootInNewVersion(
           target_version_uid);
-
-      // Also report the success code so that the percentiles can be
-      // interpreted properly for the remaining error codes in UMA.
-      utils::SendErrorCodeToUma(system_state_, code);
     } else {
       // If we just finished a rollback, then we expect to have no Omaha
       // response. Otherwise, it's an error.
@@ -1314,11 +1300,8 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
   LOG(ERROR) << "Update failed.";
   system_state_->payload_state()->UpdateFailed(error_event_->error_code);
 
-  // Send it to Uma.
-  LOG(INFO) << "Reporting the error event";
-  utils::SendErrorCodeToUma(system_state_, error_event_->error_code);
-
   // Send it to Omaha.
+  LOG(INFO) << "Reporting the error event";
   shared_ptr<OmahaRequestAction> error_event_action(
       new OmahaRequestAction(system_state_,
                              error_event_.release(),  // Pass ownership.

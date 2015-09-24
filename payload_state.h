@@ -377,13 +377,6 @@ class PayloadState : public PayloadStateInterface {
   // Initializes |num_responses_seen_| from persisted state.
   void LoadNumResponsesSeen();
 
-  // Reports metric conveying how many times updates were abandoned since
-  // the last update was applied. The difference between this metric and the
-  // previous ReportUpdatesAbandonedCountMetric() one is that this metric is
-  // reported every time an update is abandoned, as oposed to the mentioned
-  // metric that is reported once the new update was applied.
-  void ReportUpdatesAbandonedEventCountMetric();
-
   // Initializes |num_reboots_| from the persisted state.
   void LoadNumReboots();
 

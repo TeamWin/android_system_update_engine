@@ -90,7 +90,7 @@ enum class ErrorCode : int {
   // particular value for this enum so that it's just one more than the last
   // one above and thus always represents the correct count of UMA metrics
   // buckets, even when new enums are added above this line in future. See
-  // utils::SendErrorCodeToUma on how this enum is used.
+  // metrics::ReportUpdateAttemptMetrics() on how this enum is used.
   kUmaReportedMax,
 
   // use the 2xxx range to encode HTTP errors. These errors are available in

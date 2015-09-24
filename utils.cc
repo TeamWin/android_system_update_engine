@@ -1246,56 +1246,6 @@ metrics::ConnectionType GetConnectionType(
   return metrics::ConnectionType::kUnknown;
 }
 
-// Returns a printable version of the various flags denoted in the higher order
-// bits of the given code. Returns an empty string if none of those bits are
-// set.
-string GetFlagNames(uint32_t code) {
-  uint32_t flags = (static_cast<uint32_t>(code) &
-                    static_cast<uint32_t>(ErrorCode::kSpecialFlags));
-  string flag_names;
-  string separator = "";
-  for (size_t i = 0; i < sizeof(flags) * 8; i++) {
-    uint32_t flag = flags & (1 << i);
-    if (flag) {
-      flag_names += separator + CodeToString(static_cast<ErrorCode>(flag));
-      separator = ", ";
-    }
-  }
-
-  return flag_names;
-}
-
-void SendErrorCodeToUma(SystemState* system_state, ErrorCode code) {
-  if (!system_state)
-    return;
-
-  ErrorCode uma_error_code = GetBaseErrorCode(code);
-
-  // If the code doesn't have flags computed already, compute them now based on
-  // the state of the current update attempt.
-  uint32_t flags =
-      static_cast<int>(code) & static_cast<int>(ErrorCode::kSpecialFlags);
-  if (!flags)
-    flags = system_state->update_attempter()->GetErrorCodeFlags();
-
-  // Determine the UMA bucket depending on the flags. But, ignore the resumed
-  // flag, as it's perfectly normal for production devices to resume their
-  // downloads and so we want to record those cases also in NormalErrorCodes
-  // bucket.
-  string metric =
-      flags & ~static_cast<uint32_t>(ErrorCode::kResumedFlag) ?
-      "Installer.DevModeErrorCodes" : "Installer.NormalErrorCodes";
-
-  LOG(INFO) << "Sending error code " << uma_error_code
-            << " (" << CodeToString(uma_error_code) << ")"
-            << " to UMA metric: " << metric
-            << ". Flags = " << (flags ? GetFlagNames(flags) : "None");
-
-  system_state->metrics_lib()->SendEnumToUMA(
-      metric, static_cast<int>(uma_error_code),
-      static_cast<int>(ErrorCode::kUmaReportedMax));
-}
-
 string CodeToString(ErrorCode code) {
   // If the given code has both parts (i.e. the error code part and the flags
   // part) then strip off the flags part since the switch statement below
