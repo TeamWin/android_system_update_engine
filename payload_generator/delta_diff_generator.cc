@@ -149,10 +149,12 @@ bool GenerateUpdatePayloadFile(
   diff_utils::FilterNoopOperations(&kernel_ops);
 
   // Write payload file to disk.
-  TEST_AND_RETURN_FALSE(payload.AddPartitionOperations(
-      kLegacyPartitionNameRoot, rootfs_ops));
-  TEST_AND_RETURN_FALSE(payload.AddPartitionOperations(
-      kLegacyPartitionNameKernel, kernel_ops));
+  TEST_AND_RETURN_FALSE(payload.AddPartition(config.source.rootfs,
+                                             config.target.rootfs,
+                                             rootfs_ops));
+  TEST_AND_RETURN_FALSE(payload.AddPartition(config.source.kernel,
+                                             config.target.kernel,
+                                             kernel_ops));
   TEST_AND_RETURN_FALSE(payload.WritePayload(output_path, temp_file_path,
                                              private_key_path, metadata_size));
   temp_file_unlinker.reset();

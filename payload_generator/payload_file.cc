@@ -81,38 +81,29 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
     *(manifest_.mutable_new_image_info()) = config.target.image_info;
 
   manifest_.set_block_size(config.block_size);
-
-  // Initialize the PartitionInfo objects if present.
-  if (!config.source.kernel.path.empty()) {
-    TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(
-        config.source.kernel,
-        manifest_.mutable_old_kernel_info()));
-  }
-  TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(
-      config.target.kernel,
-      manifest_.mutable_new_kernel_info()));
-  if (!config.source.rootfs.path.empty()) {
-    TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(
-        config.source.rootfs,
-        manifest_.mutable_old_rootfs_info()));
-  }
-  TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(
-      config.target.rootfs,
-      manifest_.mutable_new_rootfs_info()));
   return true;
 }
 
-bool PayloadFile::AddPartitionOperations(
-    const std::string& partition_name,
-    const vector<AnnotatedOperation>& aops) {
+bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
+                               const PartitionConfig& new_conf,
+                               const vector<AnnotatedOperation>& aops) {
   // Check partitions order for Chrome OS
   if (major_version_ == kChromeOSMajorPayloadVersion) {
     const vector<const char*> part_order = { kLegacyPartitionNameRoot,
                                              kLegacyPartitionNameKernel };
-    TEST_AND_RETURN_FALSE(aops_vec_.size() < part_order.size());
-    TEST_AND_RETURN_FALSE(partition_name == part_order[aops_vec_.size()]);
+    TEST_AND_RETURN_FALSE(part_vec_.size() < part_order.size());
+    TEST_AND_RETURN_FALSE(new_conf.name == part_order[part_vec_.size()]);
   }
-  aops_vec_.emplace_back(partition_name, aops);
+  Partition part;
+  part.name = new_conf.name;
+  part.aops = aops;
+  // Initialize the PartitionInfo objects if present.
+  if (!old_conf.path.empty())
+    TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(old_conf,
+                                                              &part.old_info));
+  TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(new_conf,
+                                                            &part.new_info));
+  part_vec_.push_back(std::move(part));
   return true;
 }
 
@@ -131,8 +122,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
 
   // Check that install op blobs are in order.
   uint64_t next_blob_offset = 0;
-  for (const auto& part_name_aops_pair : aops_vec_) {
-    for (const auto& aop : part_name_aops_pair.second) {
+  for (const auto& part : part_vec_) {
+    for (const auto& aop : part.aops) {
       if (!aop.op.has_data_offset())
         continue;
       if (aop.op.data_offset() != next_blob_offset) {
@@ -143,24 +134,37 @@ bool PayloadFile::WritePayload(const string& payload_file,
     }
   }
 
-  // Copy the operations from the aops_vec_ to the manifest.
+  // Copy the operations and partition info from the part_vec_ to the manifest.
   manifest_.clear_install_operations();
   manifest_.clear_kernel_install_operations();
   manifest_.clear_partitions();
-  for (const auto& part_name_aops_pair : aops_vec_) {
+  for (const auto& part : part_vec_) {
     if (major_version_ == kBrilloMajorPayloadVersion) {
       PartitionUpdate* partition = manifest_.add_partitions();
-      partition->set_partition_name(part_name_aops_pair.first);
-      for (const AnnotatedOperation& aop : part_name_aops_pair.second) {
+      partition->set_partition_name(part.name);
+      for (const AnnotatedOperation& aop : part.aops) {
         *partition->add_operations() = aop.op;
       }
+      if (part.old_info.has_size() || part.old_info.has_hash())
+        *(partition->mutable_old_partition_info()) = part.old_info;
+      if (part.new_info.has_size() || part.new_info.has_hash())
+        *(partition->mutable_new_partition_info()) = part.new_info;
     } else {
-      for (const AnnotatedOperation& aop : part_name_aops_pair.second) {
-        if (part_name_aops_pair.first == kLegacyPartitionNameKernel) {
+      // major_version_ == kChromeOSMajorPayloadVersion
+      if (part.name == kLegacyPartitionNameKernel) {
+        for (const AnnotatedOperation& aop : part.aops)
           *manifest_.add_kernel_install_operations() = aop.op;
-        } else {
+        if (part.old_info.has_size() || part.old_info.has_hash())
+          *manifest_.mutable_old_kernel_info() = part.old_info;
+        if (part.new_info.has_size() || part.new_info.has_hash())
+          *manifest_.mutable_new_kernel_info() = part.new_info;
+      } else {
+        for (const AnnotatedOperation& aop : part.aops)
           *manifest_.add_install_operations() = aop.op;
-        }
+        if (part.old_info.has_size() || part.old_info.has_hash())
+          *manifest_.mutable_old_rootfs_info() = part.old_info;
+        if (part.new_info.has_size() || part.new_info.has_hash())
+          *manifest_.mutable_new_rootfs_info() = part.new_info;
       }
     }
   }
@@ -251,8 +255,8 @@ bool PayloadFile::ReorderDataBlobs(
   ScopedFileWriterCloser writer_closer(&writer);
   uint64_t out_file_size = 0;
 
-  for (auto& part_name_aops_pair : aops_vec_) {
-    for (AnnotatedOperation& aop : part_name_aops_pair.second) {
+  for (auto& part: part_vec_) {
+    for (AnnotatedOperation& aop : part.aops) {
       if (!aop.op.has_data_offset())
         continue;
       CHECK(aop.op.has_data_length());
@@ -285,8 +289,8 @@ void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
   vector<DeltaObject> objects;
   off_t total_size = 0;
 
-  for (const auto& part_name_aops_pair : aops_vec_) {
-    for (const AnnotatedOperation& aop : part_name_aops_pair.second) {
+  for (const auto& part : part_vec_) {
+    for (const AnnotatedOperation& aop : part.aops) {
       objects.push_back(DeltaObject(aop.name,
                                     aop.op.type(),
                                     aop.op.data_length()));

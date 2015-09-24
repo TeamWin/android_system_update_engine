@@ -19,7 +19,6 @@
 
 #include <string>
 #include <vector>
-#include <utility>
 
 #include <chromeos/secure_blob.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
@@ -39,10 +38,12 @@ class PayloadFile {
   // required hashes of the requested partitions.
   bool Init(const PayloadGenerationConfig& config);
 
-  // Sets the list of operations to the payload manifest. The operations
+  // Add a partition to the payload manifest. Including partition name, list of
+  // operations and partition info. The operations in |aops|
   // reference a blob stored in the file provided to WritePayload().
-  bool AddPartitionOperations(const std::string& partition_name,
-                              const std::vector<AnnotatedOperation>& aops);
+  bool AddPartition(const PartitionConfig& old_conf,
+                    const PartitionConfig& new_conf,
+                    const std::vector<AnnotatedOperation>& aops);
 
   // Write the payload to the |payload_file| file. The operations reference
   // blobs in the |data_blobs_path| file and the blobs will be reordered in the
@@ -82,8 +83,19 @@ class PayloadFile {
 
   DeltaArchiveManifest manifest_;
 
-  std::vector<std::pair<std::string,
-                        std::vector<AnnotatedOperation>>> aops_vec_;
+  // Struct has necessary information to write PartitionUpdate in protobuf.
+  struct Partition {
+    // The name of the partition.
+    std::string name;
+
+    // The operations to be performed to this partition.
+    std::vector<AnnotatedOperation> aops;
+
+    PartitionInfo old_info;
+    PartitionInfo new_info;
+  };
+
+  std::vector<Partition> part_vec_;
 };
 
 // Adds a dummy operation that points to a signature blob located at the
