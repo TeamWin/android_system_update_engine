@@ -318,4 +318,16 @@ LOCAL_SRC_FILES := \
 LOCAL_DBUS_PROXY_PREFIX := update_engine
 include $(BUILD_STATIC_LIBRARY)
 
+
+# Update payload signing public key.
+# ========================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := brillo-update-payload-key
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/update_engine
+LOCAL_MODULE_STEM := update-payload-key.pub.pem
+LOCAL_SRC_FILES := update_payload_key/brillo-update-payload-key.pub.pem
+LOCAL_BUILT_MODULE_STEM := update_payload_key/brillo-update-payload-key.pub.pem
+include $(BUILD_PREBUILT)
+
 endif # HOST_OS == linux
