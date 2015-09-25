@@ -50,8 +50,12 @@ class DeltaPerformer : public FileWriter {
     kMetadataParseInsufficientData,
   };
 
+  static const uint64_t kDeltaVersionOffset;
   static const uint64_t kDeltaVersionSize;
+  static const uint64_t kDeltaManifestSizeOffset;
   static const uint64_t kDeltaManifestSizeSize;
+  static const uint64_t kDeltaMetadataSignatureSizeSize;
+  static const uint64_t kMaxPayloadHeaderSize;
   static const uint64_t kSupportedMajorPayloadVersion;
   static const uint64_t kSupportedMinorPayloadVersion;
 
@@ -81,6 +85,8 @@ class DeltaPerformer : public FileWriter {
         manifest_parsed_(false),
         manifest_valid_(false),
         metadata_size_(0),
+        manifest_size_(0),
+        major_payload_version_(0),
         next_operation_num_(0),
         buffer_offset_(0),
         last_updated_buffer_offset_(kuint64max),
@@ -93,6 +99,7 @@ class DeltaPerformer : public FileWriter {
         last_progress_chunk_(0),
         forced_progress_log_wait_(
             base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)),
+        supported_major_version_(kSupportedMajorPayloadVersion),
         supported_minor_version_(kSupportedMinorPayloadVersion) {}
 
   // Opens the kernel. Should be called before or after Open(), but before
@@ -186,25 +193,29 @@ class DeltaPerformer : public FileWriter {
     public_key_path_ = public_key_path;
   }
 
-  // Returns the byte offset at which the payload version can be found.
-  static uint64_t GetVersionOffset();
+  // Set |*out_offset| to the byte offset where the size of the metadata signature
+  // is stored in a payload. Return true on success, if this field is not
+  // present in the payload, return false.
+  bool GetMetadataSignatureSizeOffset(uint64_t* out_offset) const;
 
-  // Returns the byte offset where the size of the manifest is stored in
-  // a payload. This offset precedes the actual start of the manifest
-  // that's returned by the GetManifestOffset method.
-  static uint64_t GetManifestSizeOffset();
-
-  // Returns the byte offset at which the manifest protobuf begins in a
-  // payload.
-  static uint64_t GetManifestOffset();
+  // Set |*out_offset| to the byte offset at which the manifest protobuf begins
+  // in a payload. Return true on success, false if the offset is unknown.
+  bool GetManifestOffset(uint64_t* out_offset) const;
 
   // Returns the size of the payload metadata, which includes the payload header
-  // and the manifest. Is the header was not yet parsed, returns zero.
+  // and the manifest. If the header was not yet parsed, returns zero.
   uint64_t GetMetadataSize() const;
 
   // If the manifest was successfully parsed, copies it to |*out_manifest_p|.
   // Returns true on success.
   bool GetManifest(DeltaArchiveManifest* out_manifest_p) const;
+
+  // Return true if header parsing is finished and no errors occurred.
+  bool IsHeaderParsed() const;
+
+  // Returns the major payload version. If the version was not yet parsed,
+  // returns zero.
+  uint64_t GetMajorVersion() const;
 
   // Returns the delta minor version. If this value is defined in the manifest,
   // it returns that value, otherwise it returns the default value.
@@ -331,6 +342,8 @@ class DeltaPerformer : public FileWriter {
   bool manifest_parsed_;
   bool manifest_valid_;
   uint64_t metadata_size_;
+  uint64_t manifest_size_;
+  uint64_t major_payload_version_;
 
   // Index of the next operation to perform in the manifest.
   size_t next_operation_num_;
@@ -379,6 +392,9 @@ class DeltaPerformer : public FileWriter {
   // and the actual point in time for the next forced log to be emitted.
   const base::TimeDelta forced_progress_log_wait_;
   base::Time forced_progress_log_time_;
+
+  // The payload major payload version supported by DeltaPerformer.
+  uint64_t supported_major_version_;
 
   // The delta minor payload version supported by DeltaPerformer.
   uint32_t supported_minor_version_;

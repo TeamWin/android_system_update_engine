@@ -48,7 +48,7 @@ extern const char kLegacyPartitionNameKernel[];
 extern const char kLegacyPartitionNameRoot[];
 
 extern const char kBspatchPath[];
-extern const char kDeltaMagic[];
+extern const char kDeltaMagic[4];
 
 // A block number denoting a hole on a sparse file. Used on Extents to refer to
 // section of blocks not present on disk on a sparse file.

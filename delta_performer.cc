@@ -56,8 +56,13 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
+const uint64_t DeltaPerformer::kDeltaVersionOffset = sizeof(kDeltaMagic);
 const uint64_t DeltaPerformer::kDeltaVersionSize = 8;
+const uint64_t DeltaPerformer::kDeltaManifestSizeOffset =
+    kDeltaVersionOffset + kDeltaVersionSize;
 const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
+const uint64_t DeltaPerformer::kDeltaMetadataSignatureSizeSize = 4;
+const uint64_t DeltaPerformer::kMaxPayloadHeaderSize = 24;
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 1;
 const uint64_t DeltaPerformer::kSupportedMinorPayloadVersion = 2;
 
@@ -327,23 +332,37 @@ void LogPartitionInfo(const DeltaArchiveManifest& manifest) {
 
 }  // namespace
 
-uint64_t DeltaPerformer::GetVersionOffset() {
-  // Manifest size is stored right after the magic string and the version.
-  return strlen(kDeltaMagic);
+bool DeltaPerformer::GetMetadataSignatureSizeOffset(
+    uint64_t* out_offset) const {
+  if (GetMajorVersion() == kBrilloMajorPayloadVersion) {
+    *out_offset = kDeltaManifestSizeOffset + kDeltaManifestSizeSize;
+    return true;
+  }
+  return false;
 }
 
-uint64_t DeltaPerformer::GetManifestSizeOffset() {
-  // Manifest size is stored right after the magic string and the version.
-  return strlen(kDeltaMagic) + kDeltaVersionSize;
-}
-
-uint64_t DeltaPerformer::GetManifestOffset() {
-  // Actual manifest begins right after the manifest size field.
-  return GetManifestSizeOffset() + kDeltaManifestSizeSize;
+bool DeltaPerformer::GetManifestOffset(uint64_t* out_offset) const {
+  // Actual manifest begins right after the manifest size field or
+  // metadata signature size field if major version >= 2.
+  if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
+    *out_offset = kDeltaManifestSizeOffset + kDeltaManifestSizeSize;
+    return true;
+  }
+  if (major_payload_version_ == kBrilloMajorPayloadVersion) {
+    *out_offset = kDeltaManifestSizeOffset + kDeltaManifestSizeSize +
+                  kDeltaMetadataSignatureSizeSize;
+    return true;
+  }
+  LOG(ERROR) << "Unknown major payload version: " << major_payload_version_;
+  return false;
 }
 
 uint64_t DeltaPerformer::GetMetadataSize() const {
   return metadata_size_;
+}
+
+uint64_t DeltaPerformer::GetMajorVersion() const {
+  return major_payload_version_;
 }
 
 uint32_t DeltaPerformer::GetMinorVersion() const {
@@ -363,56 +382,82 @@ bool DeltaPerformer::GetManifest(DeltaArchiveManifest* out_manifest_p) const {
   return true;
 }
 
+bool DeltaPerformer::IsHeaderParsed() const {
+  return metadata_size_ != 0;
+}
 
 DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     const chromeos::Blob& payload, ErrorCode* error) {
   *error = ErrorCode::kSuccess;
-  const uint64_t manifest_offset = GetManifestOffset();
-  uint64_t manifest_size = (metadata_size_ ?
-                            metadata_size_ - manifest_offset : 0);
+  uint64_t manifest_offset;
 
-  if (!manifest_size) {
-    // Ensure we have data to cover the payload header.
-    if (payload.size() < manifest_offset)
+  if (!IsHeaderParsed()) {
+    // Ensure we have data to cover the major payload version.
+    if (payload.size() < kDeltaManifestSizeOffset)
       return kMetadataParseInsufficientData;
 
     // Validate the magic string.
-    if (memcmp(payload.data(), kDeltaMagic, strlen(kDeltaMagic)) != 0) {
+    if (memcmp(payload.data(), kDeltaMagic, sizeof(kDeltaMagic)) != 0) {
       LOG(ERROR) << "Bad payload format -- invalid delta magic.";
       *error = ErrorCode::kDownloadInvalidMetadataMagicString;
       return kMetadataParseError;
     }
 
     // Extract the payload version from the metadata.
-    uint64_t major_payload_version;
-    COMPILE_ASSERT(sizeof(major_payload_version) == kDeltaVersionSize,
+    COMPILE_ASSERT(sizeof(major_payload_version_) == kDeltaVersionSize,
                    major_payload_version_size_mismatch);
-    memcpy(&major_payload_version,
-           &payload[GetVersionOffset()],
+    memcpy(&major_payload_version_,
+           &payload[kDeltaVersionOffset],
            kDeltaVersionSize);
     // switch big endian to host
-    major_payload_version = be64toh(major_payload_version);
+    major_payload_version_ = be64toh(major_payload_version_);
 
-    if (major_payload_version != kSupportedMajorPayloadVersion) {
+    if (major_payload_version_ != supported_major_version_) {
       LOG(ERROR) << "Bad payload format -- unsupported payload version: "
-          << major_payload_version;
+          << major_payload_version_;
       *error = ErrorCode::kUnsupportedMajorPayloadVersion;
       return kMetadataParseError;
     }
 
+    // Get the manifest offset now that we have payload version.
+    if (!GetManifestOffset(&manifest_offset)) {
+      *error = ErrorCode::kUnsupportedMajorPayloadVersion;
+      return kMetadataParseError;
+    }
+    // Check again with the manifest offset.
+    if (payload.size() < manifest_offset)
+      return kMetadataParseInsufficientData;
+
     // Next, parse the manifest size.
-    COMPILE_ASSERT(sizeof(manifest_size) == kDeltaManifestSizeSize,
+    COMPILE_ASSERT(sizeof(manifest_size_) == kDeltaManifestSizeSize,
                    manifest_size_size_mismatch);
-    memcpy(&manifest_size,
-           &payload[GetManifestSizeOffset()],
+    memcpy(&manifest_size_,
+           &payload[kDeltaManifestSizeOffset],
            kDeltaManifestSizeSize);
-    manifest_size = be64toh(manifest_size);  // switch big endian to host
+    manifest_size_ = be64toh(manifest_size_);  // switch big endian to host
+
+    uint32_t metadata_signature_size = 0;
+    if (GetMajorVersion() == kBrilloMajorPayloadVersion) {
+      // Parse the metadata signature size.
+      COMPILE_ASSERT(sizeof(metadata_signature_size) ==
+                     kDeltaMetadataSignatureSizeSize,
+                     metadata_signature_size_size_mismatch);
+      uint64_t metadata_signature_size_offset;
+      if (!GetMetadataSignatureSizeOffset(&metadata_signature_size_offset)) {
+        *error = ErrorCode::kError;
+        return kMetadataParseError;
+      }
+      memcpy(&metadata_signature_size,
+             &payload[metadata_signature_size_offset],
+             kDeltaMetadataSignatureSizeSize);
+      metadata_signature_size = be32toh(metadata_signature_size);
+    }
 
     // If the metadata size is present in install plan, check for it immediately
     // even before waiting for that many number of bytes to be downloaded in the
     // payload. This will prevent any attack which relies on us downloading data
     // beyond the expected metadata size.
-    metadata_size_ = manifest_offset + manifest_size;
+    metadata_size_ = manifest_offset + manifest_size_ + metadata_signature_size;
     if (install_plan_->hash_checks_mandatory) {
       if (install_plan_->metadata_size != metadata_size_) {
         LOG(ERROR) << "Mandatory metadata size in Omaha response ("
@@ -460,8 +505,12 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     *error = ErrorCode::kSuccess;
   }
 
+  if (!GetManifestOffset(&manifest_offset)) {
+    *error = ErrorCode::kUnsupportedMajorPayloadVersion;
+    return kMetadataParseError;
+  }
   // The payload metadata is deemed valid, it's safe to parse the protobuf.
-  if (!manifest_.ParseFromArray(&payload[manifest_offset], manifest_size)) {
+  if (!manifest_.ParseFromArray(&payload[manifest_offset], manifest_size_)) {
     LOG(ERROR) << "Unable to parse manifest in update file.";
     *error = ErrorCode::kDownloadManifestParseError;
     return kMetadataParseError;
@@ -485,11 +534,11 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
   UpdateOverallProgress(false, "Completed ");
 
   while (!manifest_valid_) {
-    // Read data up to the needed limit; this is either the payload header size,
-    // or the full metadata size (once it becomes known).
-    const bool do_read_header = !metadata_size_;
+    // Read data up to the needed limit; this is either maximium payload header
+    // size, or the full metadata size (once it becomes known).
+    const bool do_read_header = !IsHeaderParsed();
     CopyDataToBuffer(&c_bytes, &count,
-                     (do_read_header ? GetManifestOffset() :
+                     (do_read_header ? kMaxPayloadHeaderSize :
                       metadata_size_));
 
     MetadataParseResult result = ParsePayloadMetadata(buffer_, error);
@@ -497,7 +546,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
       return false;
     if (result == kMetadataParseInsufficientData) {
       // If we just processed the header, make an attempt on the manifest.
-      if (do_read_header && metadata_size_)
+      if (do_read_header && IsHeaderParsed())
         continue;
 
       return true;

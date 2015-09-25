@@ -260,6 +260,9 @@ class DeltaPerformerTest : public ::testing::Test {
     EXPECT_EQ(install_plan_.metadata_size, performer_.GetMetadataSize());
   }
 
+  void SetSupportedMajorVersion(uint64_t major_version) {
+    performer_.supported_major_version_ = major_version;
+  }
   FakePrefs prefs_;
   InstallPlan install_plan_;
   FakeSystemState fake_system_state_;
@@ -460,11 +463,38 @@ TEST_F(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
                         ErrorCode::kUnsupportedMinorPayloadVersion);
 }
 
+TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
+  SetSupportedMajorVersion(kBrilloMajorPayloadVersion);
+  EXPECT_EQ(0, performer_.Open("/dev/null", 0, 0));
+  EXPECT_TRUE(performer_.OpenKernel("/dev/null"));
+  EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
+
+  uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
+  EXPECT_TRUE(performer_.Write(&major_version, 8));
+
+  uint64_t manifest_size = rand() % 256;
+  uint64_t manifest_size_be = htobe64(manifest_size);
+  EXPECT_TRUE(performer_.Write(&manifest_size_be, 8));
+
+  uint32_t metadata_signature_size = rand() % 256;
+  uint32_t metadata_signature_size_be = htobe32(metadata_signature_size);
+  EXPECT_TRUE(performer_.Write(&metadata_signature_size_be, 4));
+
+  EXPECT_LT(performer_.Close(), 0);
+
+  EXPECT_TRUE(performer_.IsHeaderParsed());
+  EXPECT_EQ(kBrilloMajorPayloadVersion, performer_.GetMajorVersion());
+  uint64_t manifest_offset;
+  EXPECT_TRUE(performer_.GetManifestOffset(&manifest_offset));
+  EXPECT_EQ(24, manifest_offset);  // 4 + 8 + 8 + 4
+  EXPECT_EQ(24 + manifest_size + metadata_signature_size,
+            performer_.GetMetadataSize());
+}
+
 TEST_F(DeltaPerformerTest, BadDeltaMagicTest) {
   EXPECT_EQ(0, performer_.Open("/dev/null", 0, 0));
   EXPECT_TRUE(performer_.OpenKernel("/dev/null"));
   EXPECT_TRUE(performer_.Write("junk", 4));
-  EXPECT_TRUE(performer_.Write("morejunk", 8));
   EXPECT_FALSE(performer_.Write("morejunk", 8));
   EXPECT_LT(performer_.Close(), 0);
 }
@@ -476,10 +506,9 @@ TEST_F(DeltaPerformerTest, WriteUpdatesPayloadState) {
   EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
               DownloadProgress(4)).Times(1);
   EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
-              DownloadProgress(8)).Times(2);
+              DownloadProgress(8)).Times(1);
 
   EXPECT_TRUE(performer_.Write("junk", 4));
-  EXPECT_TRUE(performer_.Write("morejunk", 8));
   EXPECT_FALSE(performer_.Write("morejunk", 8));
   EXPECT_LT(performer_.Close(), 0);
 }
