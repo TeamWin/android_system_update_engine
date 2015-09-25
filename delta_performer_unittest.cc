@@ -36,6 +36,7 @@
 #include "update_engine/mock_prefs.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_verifier.h"
 #include "update_engine/test_utils.h"
@@ -148,6 +149,43 @@ class DeltaPerformerTest : public ::testing::Test {
   static void SetSupportedVersion(DeltaPerformer* performer,
                                   uint64_t minor_version) {
     performer->supported_minor_version_ = minor_version;
+  }
+
+  static chromeos::Blob GeneratePayload(const chromeos::Blob& blob_data,
+                                        const vector<AnnotatedOperation>& aops,
+                                        bool sign_payload,
+                                        int32_t minor_version,
+                                        uint64_t* out_metadata_size) {
+    string blob_path;
+    EXPECT_TRUE(utils::MakeTempFile("Blob-XXXXXX", &blob_path, nullptr));
+    ScopedPathUnlinker blob_unlinker(blob_path);
+    EXPECT_TRUE(utils::WriteFile(blob_path.c_str(),
+                                 blob_data.data(),
+                                 blob_data.size()));
+
+    PayloadGenerationConfig config;
+    config.major_version = kChromeOSMajorPayloadVersion;
+    config.minor_version = minor_version;
+    config.target.rootfs.path = blob_path;
+    config.target.rootfs.size = blob_data.size();
+    config.target.kernel.path = blob_path;
+    config.target.kernel.size = blob_data.size();
+
+    PayloadFile payload;
+    EXPECT_TRUE(payload.Init(config));
+
+    payload.AddPartition(config.source.rootfs, config.target.rootfs, aops);
+
+    string payload_path;
+    EXPECT_TRUE(utils::MakeTempFile("Payload-XXXXXX", &payload_path, nullptr));
+    ScopedPathUnlinker payload_unlinker(payload_path);
+    EXPECT_TRUE(payload.WritePayload(payload_path, blob_path,
+        sign_payload ? kUnittestPrivateKeyPath : "",
+        out_metadata_size));
+
+    chromeos::Blob payload_data;
+    EXPECT_TRUE(utils::ReadFile(payload_path, &payload_data));
+    return payload_data;
   }
 };
 
@@ -983,30 +1021,18 @@ void DoMetadataSizeTest(uint64_t expected_metadata_size,
 // different metadata signatures as per omaha_metadata_signature flag and
 // sees if the result of the parsing are as per hash_checks_mandatory flag.
 void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
-                             SignatureTest signature_test,
+                             bool sign_payload,
                              bool hash_checks_mandatory) {
-  DeltaState state;
-
-  // Using kSignatureNone since it doesn't affect the results of our test.
-  // If we've to use other signature options, then we'd have to get the
-  // metadata size again after adding the signing operation to the manifest.
-  GenerateDeltaFile(true, true, false, -1, signature_test, &state,
-                    DeltaPerformer::kFullPayloadMinorVersion);
-
-  ScopedPathUnlinker a_img_unlinker(state.a_img);
-  ScopedPathUnlinker b_img_unlinker(state.b_img);
-  ScopedPathUnlinker delta_unlinker(state.delta_path);
-  ScopedPathUnlinker old_kernel_unlinker(state.old_kernel);
-  ScopedPathUnlinker new_kernel_unlinker(state.new_kernel);
+  InstallPlan install_plan;
 
   // Loads the payload and parses the manifest.
-  chromeos::Blob payload;
-  EXPECT_TRUE(utils::ReadFile(state.delta_path, &payload));
+  chromeos::Blob payload = DeltaPerformerTest::GeneratePayload(chromeos::Blob(),
+      vector<AnnotatedOperation>(), sign_payload,
+      DeltaPerformer::kFullPayloadMinorVersion, &install_plan.metadata_size);
+
   LOG(INFO) << "Payload size: " << payload.size();
 
-  InstallPlan install_plan;
   install_plan.hash_checks_mandatory = hash_checks_mandatory;
-  install_plan.metadata_size = state.metadata_size;
 
   DeltaPerformer::MetadataParseResult expected_result, actual_result;
   ErrorCode expected_error, actual_error;
@@ -1032,7 +1058,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
       // then we can get to manifest signature checks.
       ASSERT_TRUE(PayloadSigner::GetMetadataSignature(
           payload.data(),
-          state.metadata_size,
+          install_plan.metadata_size,
           kUnittestPrivateKeyPath,
           &install_plan.metadata_signature));
       EXPECT_FALSE(install_plan.metadata_signature.empty());
@@ -1049,8 +1075,9 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
 
   // Create the delta performer object.
   MockPrefs prefs;
+  FakeSystemState fake_system_state;
   DeltaPerformer delta_performer(&prefs,
-                                 &state.fake_system_state,
+                                 &fake_system_state,
                                  &install_plan);
 
   // Use the public key corresponding to the private key used above to
@@ -1068,7 +1095,7 @@ void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
 
   // Check that the parsed metadata size is what's expected. This test
   // implicitly confirms that the metadata signature is valid, if required.
-  EXPECT_EQ(state.metadata_size, delta_performer.GetMetadataSize());
+  EXPECT_EQ(install_plan.metadata_size, delta_performer.GetMetadataSize());
 }
 
 void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
@@ -1316,32 +1343,31 @@ TEST(DeltaPerformerTest, ValidMandatoryMetadataSizeTest) {
 }
 
 TEST(DeltaPerformerTest, RunAsRootMandatoryEmptyMetadataSignatureTest) {
-  DoMetadataSignatureTest(kEmptyMetadataSignature, kSignatureGenerated, true);
+  DoMetadataSignatureTest(kEmptyMetadataSignature, true, true);
 }
 
 TEST(DeltaPerformerTest, RunAsRootNonMandatoryEmptyMetadataSignatureTest) {
-  DoMetadataSignatureTest(kEmptyMetadataSignature, kSignatureGenerated, false);
+  DoMetadataSignatureTest(kEmptyMetadataSignature, true, false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootMandatoryInvalidMetadataSignatureTest) {
-  DoMetadataSignatureTest(kInvalidMetadataSignature, kSignatureGenerated, true);
+  DoMetadataSignatureTest(kInvalidMetadataSignature, true, true);
 }
 
 TEST(DeltaPerformerTest, RunAsRootNonMandatoryInvalidMetadataSignatureTest) {
-  DoMetadataSignatureTest(kInvalidMetadataSignature, kSignatureGenerated,
-                          false);
+  DoMetadataSignatureTest(kInvalidMetadataSignature, true, false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootMandatoryValidMetadataSignature1Test) {
-  DoMetadataSignatureTest(kValidMetadataSignature, kSignatureNone, true);
+  DoMetadataSignatureTest(kValidMetadataSignature, false, true);
 }
 
 TEST(DeltaPerformerTest, RunAsRootMandatoryValidMetadataSignature2Test) {
-  DoMetadataSignatureTest(kValidMetadataSignature, kSignatureGenerated, true);
+  DoMetadataSignatureTest(kValidMetadataSignature, true, true);
 }
 
 TEST(DeltaPerformerTest, RunAsRootNonMandatoryValidMetadataSignatureTest) {
-  DoMetadataSignatureTest(kValidMetadataSignature, kSignatureGenerated, false);
+  DoMetadataSignatureTest(kValidMetadataSignature, true, false);
 }
 
 TEST(DeltaPerformerTest, RunAsRootMandatoryOperationHashMismatchTest) {
