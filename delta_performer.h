@@ -225,7 +225,7 @@ class DeltaPerformer : public FileWriter {
 
  private:
   friend class DeltaPerformerTest;
-  FRIEND_TEST(DeltaPerformerTest, IsIdempotentOperationTest);
+  friend class DeltaPerformerIntegrationTest;
   FRIEND_TEST(DeltaPerformerTest, UsePublicKeyFromResponse);
 
   // Appends up to |*count_p| bytes from |*bytes_p| to |buffer_|, but only to

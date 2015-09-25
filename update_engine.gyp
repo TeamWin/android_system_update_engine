@@ -390,6 +390,7 @@
             'chrome_browser_proxy_resolver_unittest.cc',
             'connection_manager_unittest.cc',
             'dbus_service_unittest.cc',
+            'delta_performer_integration_test.cc',
             'delta_performer_unittest.cc',
             'download_action_unittest.cc',
             'extent_writer_unittest.cc',
