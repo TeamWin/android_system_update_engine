@@ -28,11 +28,13 @@
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/bzip.h"
 #include "update_engine/constants.h"
 #include "update_engine/fake_hardware.h"
+#include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
-#include "update_engine/mock_prefs.h"
 #include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/test_utils.h"
@@ -72,30 +74,25 @@ enum MetadataSignatureTest {
 }  // namespace
 
 class DeltaPerformerTest : public ::testing::Test {
- public:
-  // Test helper placed where it can easily be friended from DeltaPerformer.
-  static void RunManifestValidation(const DeltaArchiveManifest& manifest,
-                                    bool full_payload,
-                                    ErrorCode expected) {
-    MockPrefs prefs;
-    InstallPlan install_plan;
-    FakeSystemState fake_system_state;
-    DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
+ protected:
 
+  // Test helper placed where it can easily be friended from DeltaPerformer.
+  void RunManifestValidation(const DeltaArchiveManifest& manifest,
+                             bool full_payload,
+                             ErrorCode expected) {
     // The install plan is for Full or Delta.
-    install_plan.is_full_update = full_payload;
+    install_plan_.is_full_update = full_payload;
 
     // The Manifest we are validating.
-    performer.manifest_.CopyFrom(manifest);
+    performer_.manifest_.CopyFrom(manifest);
 
-    EXPECT_EQ(expected, performer.ValidateManifest());
+    EXPECT_EQ(expected, performer_.ValidateManifest());
   }
 
-  static chromeos::Blob GeneratePayload(const chromeos::Blob& blob_data,
-                                        const vector<AnnotatedOperation>& aops,
-                                        bool sign_payload,
-                                        int32_t minor_version,
-                                        uint64_t* out_metadata_size) {
+  chromeos::Blob GeneratePayload(const chromeos::Blob& blob_data,
+                                 const vector<AnnotatedOperation>& aops,
+                                 bool sign_payload,
+                                 int32_t minor_version) {
     string blob_path;
     EXPECT_TRUE(utils::MakeTempFile("Blob-XXXXXX", &blob_path, nullptr));
     ScopedPathUnlinker blob_unlinker(blob_path);
@@ -121,133 +118,227 @@ class DeltaPerformerTest : public ::testing::Test {
     ScopedPathUnlinker payload_unlinker(payload_path);
     EXPECT_TRUE(payload.WritePayload(payload_path, blob_path,
         sign_payload ? kUnittestPrivateKeyPath : "",
-        out_metadata_size));
+        &install_plan_.metadata_size));
 
     chromeos::Blob payload_data;
     EXPECT_TRUE(utils::ReadFile(payload_path, &payload_data));
     return payload_data;
   }
-};
 
-// Calls delta performer's Write method by pretending to pass in bytes from a
-// delta file whose metadata size is actual_metadata_size and tests if all
-// checks are correctly performed if the install plan contains
-// expected_metadata_size and that the result of the parsing are as per
-// hash_checks_mandatory flag.
-void DoMetadataSizeTest(uint64_t expected_metadata_size,
-                        uint64_t actual_metadata_size,
-                        bool hash_checks_mandatory) {
-  MockPrefs prefs;
-  InstallPlan install_plan;
-  install_plan.hash_checks_mandatory = hash_checks_mandatory;
-  FakeSystemState fake_system_state;
-  DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
-  EXPECT_EQ(0, performer.Open("/dev/null", 0, 0));
-  EXPECT_TRUE(performer.OpenKernel("/dev/null"));
+  // Apply |payload_data| on partition specified in |source_path|.
+  chromeos::Blob ApplyPayload(const chromeos::Blob& payload_data,
+                              const string& source_path) {
+    install_plan_.source_path = source_path;
+    install_plan_.kernel_source_path = "/dev/null";
 
-  // Set a valid magic string and version number 1.
-  EXPECT_TRUE(performer.Write("CrAU", 4));
-  uint64_t version = htobe64(1);
-  EXPECT_TRUE(performer.Write(&version, 8));
+    string new_part;
+    EXPECT_TRUE(utils::MakeTempFile("Partition-XXXXXX", &new_part, nullptr));
+    ScopedPathUnlinker partition_unlinker(new_part);
 
-  install_plan.metadata_size = expected_metadata_size;
-  ErrorCode error_code;
-  // When filling in size in manifest, exclude the size of the 20-byte header.
-  uint64_t size_in_manifest = htobe64(actual_metadata_size - 20);
-  bool result = performer.Write(&size_in_manifest, 8, &error_code);
-  if (expected_metadata_size == actual_metadata_size ||
-      !hash_checks_mandatory) {
-    EXPECT_TRUE(result);
-  } else {
-    EXPECT_FALSE(result);
-    EXPECT_EQ(ErrorCode::kDownloadInvalidMetadataSize, error_code);
+    EXPECT_EQ(0, performer_.Open(new_part.c_str(), 0, 0));
+    EXPECT_TRUE(performer_.Write(payload_data.data(), payload_data.size()));
+    EXPECT_EQ(0, performer_.Close());
+
+    chromeos::Blob partition_data;
+    EXPECT_TRUE(utils::ReadFile(new_part, &partition_data));
+    return partition_data;
   }
 
-  EXPECT_LT(performer.Close(), 0);
-}
+  // Calls delta performer's Write method by pretending to pass in bytes from a
+  // delta file whose metadata size is actual_metadata_size and tests if all
+  // checks are correctly performed if the install plan contains
+  // expected_metadata_size and that the result of the parsing are as per
+  // hash_checks_mandatory flag.
+  void DoMetadataSizeTest(uint64_t expected_metadata_size,
+                          uint64_t actual_metadata_size,
+                          bool hash_checks_mandatory) {
+    install_plan_.hash_checks_mandatory = hash_checks_mandatory;
+    EXPECT_EQ(0, performer_.Open("/dev/null", 0, 0));
+    EXPECT_TRUE(performer_.OpenKernel("/dev/null"));
 
-// Generates a valid delta file but tests the delta performer by suppling
-// different metadata signatures as per omaha_metadata_signature flag and
-// sees if the result of the parsing are as per hash_checks_mandatory flag.
-void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
-                             bool sign_payload,
-                             bool hash_checks_mandatory) {
-  InstallPlan install_plan;
+    // Set a valid magic string and version number 1.
+    EXPECT_TRUE(performer_.Write("CrAU", 4));
+    uint64_t version = htobe64(kChromeOSMajorPayloadVersion);
+    EXPECT_TRUE(performer_.Write(&version, 8));
 
-  // Loads the payload and parses the manifest.
-  chromeos::Blob payload = DeltaPerformerTest::GeneratePayload(chromeos::Blob(),
-      vector<AnnotatedOperation>(), sign_payload,
-      DeltaPerformer::kFullPayloadMinorVersion, &install_plan.metadata_size);
+    install_plan_.metadata_size = expected_metadata_size;
+    ErrorCode error_code;
+    // When filling in size in manifest, exclude the size of the 20-byte header.
+    uint64_t size_in_manifest = htobe64(actual_metadata_size - 20);
+    bool result = performer_.Write(&size_in_manifest, 8, &error_code);
+    if (expected_metadata_size == actual_metadata_size ||
+        !hash_checks_mandatory) {
+      EXPECT_TRUE(result);
+    } else {
+      EXPECT_FALSE(result);
+      EXPECT_EQ(ErrorCode::kDownloadInvalidMetadataSize, error_code);
+    }
 
-  LOG(INFO) << "Payload size: " << payload.size();
+    EXPECT_LT(performer_.Close(), 0);
+  }
 
-  install_plan.hash_checks_mandatory = hash_checks_mandatory;
+  // Generates a valid delta file but tests the delta performer by suppling
+  // different metadata signatures as per metadata_signature_test flag and
+  // sees if the result of the parsing are as per hash_checks_mandatory flag.
+  void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
+                               bool sign_payload,
+                               bool hash_checks_mandatory) {
 
-  DeltaPerformer::MetadataParseResult expected_result, actual_result;
-  ErrorCode expected_error, actual_error;
+    // Loads the payload and parses the manifest.
+    chromeos::Blob payload = GeneratePayload(chromeos::Blob(),
+        vector<AnnotatedOperation>(), sign_payload,
+        DeltaPerformer::kFullPayloadMinorVersion);
 
-  // Fill up the metadata signature in install plan according to the test.
-  switch (metadata_signature_test) {
-    case kEmptyMetadataSignature:
-      install_plan.metadata_signature.clear();
-      expected_result = DeltaPerformer::kMetadataParseError;
-      expected_error = ErrorCode::kDownloadMetadataSignatureMissingError;
-      break;
+    LOG(INFO) << "Payload size: " << payload.size();
 
-    case kInvalidMetadataSignature:
-      install_plan.metadata_signature = kBogusMetadataSignature1;
-      expected_result = DeltaPerformer::kMetadataParseError;
-      expected_error = ErrorCode::kDownloadMetadataSignatureMismatch;
-      break;
+    install_plan_.hash_checks_mandatory = hash_checks_mandatory;
 
-    case kValidMetadataSignature:
-    default:
-      // Set the install plan's metadata size to be the same as the one
-      // in the manifest so that we pass the metadata size checks. Only
-      // then we can get to manifest signature checks.
-      ASSERT_TRUE(PayloadSigner::GetMetadataSignature(
-          payload.data(),
-          install_plan.metadata_size,
-          kUnittestPrivateKeyPath,
-          &install_plan.metadata_signature));
-      EXPECT_FALSE(install_plan.metadata_signature.empty());
+    DeltaPerformer::MetadataParseResult expected_result, actual_result;
+    ErrorCode expected_error, actual_error;
+
+    // Fill up the metadata signature in install plan according to the test.
+    switch (metadata_signature_test) {
+      case kEmptyMetadataSignature:
+        install_plan_.metadata_signature.clear();
+        expected_result = DeltaPerformer::kMetadataParseError;
+        expected_error = ErrorCode::kDownloadMetadataSignatureMissingError;
+        break;
+
+      case kInvalidMetadataSignature:
+        install_plan_.metadata_signature = kBogusMetadataSignature1;
+        expected_result = DeltaPerformer::kMetadataParseError;
+        expected_error = ErrorCode::kDownloadMetadataSignatureMismatch;
+        break;
+
+      case kValidMetadataSignature:
+      default:
+        // Set the install plan's metadata size to be the same as the one
+        // in the manifest so that we pass the metadata size checks. Only
+        // then we can get to manifest signature checks.
+        ASSERT_TRUE(PayloadSigner::GetMetadataSignature(
+            payload.data(),
+            install_plan_.metadata_size,
+            kUnittestPrivateKeyPath,
+            &install_plan_.metadata_signature));
+        EXPECT_FALSE(install_plan_.metadata_signature.empty());
+        expected_result = DeltaPerformer::kMetadataParseSuccess;
+        expected_error = ErrorCode::kSuccess;
+        break;
+    }
+
+    // Ignore the expected result/error if hash checks are not mandatory.
+    if (!hash_checks_mandatory) {
       expected_result = DeltaPerformer::kMetadataParseSuccess;
       expected_error = ErrorCode::kSuccess;
-      break;
+    }
+
+    // Use the public key corresponding to the private key used above to
+    // sign the metadata.
+    EXPECT_TRUE(utils::FileExists(kUnittestPublicKeyPath));
+    performer_.set_public_key_path(kUnittestPublicKeyPath);
+
+    // Init actual_error with an invalid value so that we make sure
+    // ParsePayloadMetadata properly populates it in all cases.
+    actual_error = ErrorCode::kUmaReportedMax;
+    actual_result = performer_.ParsePayloadMetadata(payload, &actual_error);
+
+    EXPECT_EQ(expected_result, actual_result);
+    EXPECT_EQ(expected_error, actual_error);
+
+    // Check that the parsed metadata size is what's expected. This test
+    // implicitly confirms that the metadata signature is valid, if required.
+    EXPECT_EQ(install_plan_.metadata_size, performer_.GetMetadataSize());
   }
 
-  // Ignore the expected result/error if hash checks are not mandatory.
-  if (!hash_checks_mandatory) {
-    expected_result = DeltaPerformer::kMetadataParseSuccess;
-    expected_error = ErrorCode::kSuccess;
-  }
+  FakePrefs prefs_;
+  InstallPlan install_plan_;
+  FakeSystemState fake_system_state_;
+  DeltaPerformer performer_{&prefs_, &fake_system_state_, &install_plan_};
+};
 
-  // Create the delta performer object.
-  MockPrefs prefs;
-  FakeSystemState fake_system_state;
-  DeltaPerformer delta_performer(&prefs,
-                                 &fake_system_state,
-                                 &install_plan);
+TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
+  install_plan_.is_full_update = true;
+  chromeos::Blob expected_data = chromeos::Blob(std::begin(kRandomString),
+                                                std::end(kRandomString));
+  expected_data.resize(4096);  // block size
+  vector<AnnotatedOperation> aops;
+  AnnotatedOperation aop;
+  *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
+  aop.op.set_data_offset(0);
+  aop.op.set_data_length(expected_data.size());
+  aop.op.set_type(InstallOperation::REPLACE);
+  aops.push_back(aop);
 
-  // Use the public key corresponding to the private key used above to
-  // sign the metadata.
-  EXPECT_TRUE(utils::FileExists(kUnittestPublicKeyPath));
-  delta_performer.set_public_key_path(kUnittestPublicKeyPath);
+  chromeos::Blob payload_data = GeneratePayload(expected_data, aops, false,
+      DeltaPerformer::kFullPayloadMinorVersion);
 
-  // Init actual_error with an invalid value so that we make sure
-  // ParsePayloadMetadata properly populates it in all cases.
-  actual_error = ErrorCode::kUmaReportedMax;
-  actual_result = delta_performer.ParsePayloadMetadata(payload, &actual_error);
-
-  EXPECT_EQ(expected_result, actual_result);
-  EXPECT_EQ(expected_error, actual_error);
-
-  // Check that the parsed metadata size is what's expected. This test
-  // implicitly confirms that the metadata signature is valid, if required.
-  EXPECT_EQ(install_plan.metadata_size, delta_performer.GetMetadataSize());
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, ""));
 }
 
-TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
+TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
+  chromeos::Blob expected_data = chromeos::Blob(std::begin(kRandomString),
+                                                std::end(kRandomString));
+  expected_data.resize(4096);  // block size
+  vector<AnnotatedOperation> aops;
+  AnnotatedOperation aop;
+  *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
+  aop.op.set_data_offset(0);
+  aop.op.set_data_length(expected_data.size());
+  aop.op.set_type(InstallOperation::REPLACE);
+  aops.push_back(aop);
+
+  chromeos::Blob payload_data = GeneratePayload(expected_data, aops, false,
+                                                kSourceMinorPayloadVersion);
+
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
+}
+
+TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
+  chromeos::Blob expected_data = chromeos::Blob(std::begin(kRandomString),
+                                                std::end(kRandomString));
+  expected_data.resize(4096);  // block size
+  chromeos::Blob bz_data;
+  EXPECT_TRUE(BzipCompress(expected_data, &bz_data));
+
+  vector<AnnotatedOperation> aops;
+  AnnotatedOperation aop;
+  *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
+  aop.op.set_data_offset(0);
+  aop.op.set_data_length(bz_data.size());
+  aop.op.set_type(InstallOperation::REPLACE_BZ);
+  aops.push_back(aop);
+
+  chromeos::Blob payload_data = GeneratePayload(bz_data, aops, false,
+                                                kSourceMinorPayloadVersion);
+
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
+}
+
+TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
+  chromeos::Blob expected_data = chromeos::Blob(std::begin(kRandomString),
+                                                std::end(kRandomString));
+  expected_data.resize(4096);  // block size
+  vector<AnnotatedOperation> aops;
+  AnnotatedOperation aop;
+  *(aop.op.add_src_extents()) = ExtentForRange(0, 1);
+  *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
+  aop.op.set_type(InstallOperation::SOURCE_COPY);
+  aops.push_back(aop);
+
+  chromeos::Blob payload_data = GeneratePayload(chromeos::Blob(), aops, false,
+                                                kSourceMinorPayloadVersion);
+  string source_path;
+  EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX",
+                                  &source_path, nullptr));
+  ScopedPathUnlinker path_unlinker(source_path);
+  EXPECT_TRUE(utils::WriteFile(source_path.c_str(),
+                               expected_data.data(),
+                               expected_data.size()));
+
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, source_path));
+}
+
+TEST_F(DeltaPerformerTest, ExtentsToByteStringTest) {
   uint64_t test[] = {1, 1, 4, 2, 0, 1};
   COMPILE_ASSERT(arraysize(test) % 2 == 0, array_size_uneven);
   const uint64_t block_size = 4096;
@@ -255,9 +346,7 @@ TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
 
   google::protobuf::RepeatedPtrField<Extent> extents;
   for (size_t i = 0; i < arraysize(test); i += 2) {
-    Extent* extent = extents.Add();
-    extent->set_start_block(test[i]);
-    extent->set_num_blocks(test[i + 1]);
+    *(extents.Add()) = ExtentForRange(test[i], test[i + 1]);
   }
 
   string expected_output = "4096:4096,16384:8192,0:4083";
@@ -269,18 +358,17 @@ TEST(DeltaPerformerTest, ExtentsToByteStringTest) {
   EXPECT_EQ(expected_output, actual_output);
 }
 
-TEST(DeltaPerformerTest, ValidateManifestFullGoodTest) {
+TEST_F(DeltaPerformerTest, ValidateManifestFullGoodTest) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
   manifest.mutable_new_kernel_info();
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(DeltaPerformer::kFullPayloadMinorVersion);
 
-  DeltaPerformerTest::RunManifestValidation(manifest, true,
-                                            ErrorCode::kSuccess);
+  RunManifestValidation(manifest, true, ErrorCode::kSuccess);
 }
 
-TEST(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
+TEST_F(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
   manifest.mutable_old_kernel_info();
@@ -289,28 +377,25 @@ TEST(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
 
-  DeltaPerformerTest::RunManifestValidation(manifest, false,
-                                            ErrorCode::kSuccess);
+  RunManifestValidation(manifest, false, ErrorCode::kSuccess);
 }
 
-TEST(DeltaPerformerTest, ValidateManifestFullUnsetMinorVersion) {
+TEST_F(DeltaPerformerTest, ValidateManifestFullUnsetMinorVersion) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
 
-  DeltaPerformerTest::RunManifestValidation(manifest, true,
-                                            ErrorCode::kSuccess);
+  RunManifestValidation(manifest, true, ErrorCode::kSuccess);
 }
 
-TEST(DeltaPerformerTest, ValidateManifestDeltaUnsetMinorVersion) {
+TEST_F(DeltaPerformerTest, ValidateManifestDeltaUnsetMinorVersion) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
 
-  DeltaPerformerTest::RunManifestValidation(
-      manifest, false,
-      ErrorCode::kUnsupportedMinorPayloadVersion);
+  RunManifestValidation(manifest, false,
+                        ErrorCode::kUnsupportedMinorPayloadVersion);
 }
 
-TEST(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
+TEST_F(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
   manifest.mutable_old_kernel_info();
@@ -318,12 +403,10 @@ TEST(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
 
-  DeltaPerformerTest::RunManifestValidation(
-      manifest, true,
-      ErrorCode::kPayloadMismatchedType);
+  RunManifestValidation(manifest, true, ErrorCode::kPayloadMismatchedType);
 }
 
-TEST(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
+TEST_F(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
   manifest.mutable_old_rootfs_info();
@@ -331,12 +414,10 @@ TEST(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
 
-  DeltaPerformerTest::RunManifestValidation(
-      manifest, true,
-      ErrorCode::kPayloadMismatchedType);
+  RunManifestValidation(manifest, true, ErrorCode::kPayloadMismatchedType);
 }
 
-TEST(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
+TEST_F(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
 
@@ -344,95 +425,83 @@ TEST(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion +
                              10000);
 
-  DeltaPerformerTest::RunManifestValidation(
-      manifest, false,
-      ErrorCode::kUnsupportedMinorPayloadVersion);
+  RunManifestValidation(manifest, false,
+                        ErrorCode::kUnsupportedMinorPayloadVersion);
 }
 
-TEST(DeltaPerformerTest, BadDeltaMagicTest) {
-  MockPrefs prefs;
-  InstallPlan install_plan;
-  FakeSystemState fake_system_state;
-  DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
-  EXPECT_EQ(0, performer.Open("/dev/null", 0, 0));
-  EXPECT_TRUE(performer.OpenKernel("/dev/null"));
-  EXPECT_TRUE(performer.Write("junk", 4));
-  EXPECT_TRUE(performer.Write("morejunk", 8));
-  EXPECT_FALSE(performer.Write("morejunk", 8));
-  EXPECT_LT(performer.Close(), 0);
+TEST_F(DeltaPerformerTest, BadDeltaMagicTest) {
+  EXPECT_EQ(0, performer_.Open("/dev/null", 0, 0));
+  EXPECT_TRUE(performer_.OpenKernel("/dev/null"));
+  EXPECT_TRUE(performer_.Write("junk", 4));
+  EXPECT_TRUE(performer_.Write("morejunk", 8));
+  EXPECT_FALSE(performer_.Write("morejunk", 8));
+  EXPECT_LT(performer_.Close(), 0);
 }
 
-TEST(DeltaPerformerTest, WriteUpdatesPayloadState) {
-  MockPrefs prefs;
-  InstallPlan install_plan;
-  FakeSystemState fake_system_state;
-  DeltaPerformer performer(&prefs, &fake_system_state, &install_plan);
-  EXPECT_EQ(0, performer.Open("/dev/null", 0, 0));
-  EXPECT_TRUE(performer.OpenKernel("/dev/null"));
+TEST_F(DeltaPerformerTest, WriteUpdatesPayloadState) {
+  EXPECT_EQ(0, performer_.Open("/dev/null", 0, 0));
+  EXPECT_TRUE(performer_.OpenKernel("/dev/null"));
 
-  EXPECT_CALL(*(fake_system_state.mock_payload_state()),
+  EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
               DownloadProgress(4)).Times(1);
-  EXPECT_CALL(*(fake_system_state.mock_payload_state()),
+  EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
               DownloadProgress(8)).Times(2);
 
-  EXPECT_TRUE(performer.Write("junk", 4));
-  EXPECT_TRUE(performer.Write("morejunk", 8));
-  EXPECT_FALSE(performer.Write("morejunk", 8));
-  EXPECT_LT(performer.Close(), 0);
+  EXPECT_TRUE(performer_.Write("junk", 4));
+  EXPECT_TRUE(performer_.Write("morejunk", 8));
+  EXPECT_FALSE(performer_.Write("morejunk", 8));
+  EXPECT_LT(performer_.Close(), 0);
 }
 
-TEST(DeltaPerformerTest, MissingMandatoryMetadataSizeTest) {
+TEST_F(DeltaPerformerTest, MissingMandatoryMetadataSizeTest) {
   DoMetadataSizeTest(0, 75456, true);
 }
 
-TEST(DeltaPerformerTest, MissingNonMandatoryMetadataSizeTest) {
+TEST_F(DeltaPerformerTest, MissingNonMandatoryMetadataSizeTest) {
   DoMetadataSizeTest(0, 123456, false);
 }
 
-TEST(DeltaPerformerTest, InvalidMandatoryMetadataSizeTest) {
+TEST_F(DeltaPerformerTest, InvalidMandatoryMetadataSizeTest) {
   DoMetadataSizeTest(13000, 140000, true);
 }
 
-TEST(DeltaPerformerTest, InvalidNonMandatoryMetadataSizeTest) {
+TEST_F(DeltaPerformerTest, InvalidNonMandatoryMetadataSizeTest) {
   DoMetadataSizeTest(40000, 50000, false);
 }
 
-TEST(DeltaPerformerTest, ValidMandatoryMetadataSizeTest) {
+TEST_F(DeltaPerformerTest, ValidMandatoryMetadataSizeTest) {
   DoMetadataSizeTest(85376, 85376, true);
 }
 
-TEST(DeltaPerformerTest, RunAsRootMandatoryEmptyMetadataSignatureTest) {
+TEST_F(DeltaPerformerTest, MandatoryEmptyMetadataSignatureTest) {
   DoMetadataSignatureTest(kEmptyMetadataSignature, true, true);
 }
 
-TEST(DeltaPerformerTest, RunAsRootNonMandatoryEmptyMetadataSignatureTest) {
+TEST_F(DeltaPerformerTest, NonMandatoryEmptyMetadataSignatureTest) {
   DoMetadataSignatureTest(kEmptyMetadataSignature, true, false);
 }
 
-TEST(DeltaPerformerTest, RunAsRootMandatoryInvalidMetadataSignatureTest) {
+TEST_F(DeltaPerformerTest, MandatoryInvalidMetadataSignatureTest) {
   DoMetadataSignatureTest(kInvalidMetadataSignature, true, true);
 }
 
-TEST(DeltaPerformerTest, RunAsRootNonMandatoryInvalidMetadataSignatureTest) {
+TEST_F(DeltaPerformerTest, NonMandatoryInvalidMetadataSignatureTest) {
   DoMetadataSignatureTest(kInvalidMetadataSignature, true, false);
 }
 
-TEST(DeltaPerformerTest, RunAsRootMandatoryValidMetadataSignature1Test) {
+TEST_F(DeltaPerformerTest, MandatoryValidMetadataSignature1Test) {
   DoMetadataSignatureTest(kValidMetadataSignature, false, true);
 }
 
-TEST(DeltaPerformerTest, RunAsRootMandatoryValidMetadataSignature2Test) {
+TEST_F(DeltaPerformerTest, MandatoryValidMetadataSignature2Test) {
   DoMetadataSignatureTest(kValidMetadataSignature, true, true);
 }
 
-TEST(DeltaPerformerTest, RunAsRootNonMandatoryValidMetadataSignatureTest) {
+TEST_F(DeltaPerformerTest, NonMandatoryValidMetadataSignatureTest) {
   DoMetadataSignatureTest(kValidMetadataSignature, true, false);
 }
 
-TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
-  MockPrefs prefs;
-  FakeSystemState fake_system_state;
-  InstallPlan install_plan;
+TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   base::FilePath key_path;
 
   // The result of the GetPublicKeyResponse() method is based on three things
@@ -447,10 +516,7 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
   //  a. it's not an official build; and
   //  b. there is no key in the root filesystem.
 
-  DeltaPerformer *performer = new DeltaPerformer(&prefs,
-                                                 &fake_system_state,
-                                                 &install_plan);
-  FakeHardware* fake_hardware = fake_system_state.fake_hardware();
+  FakeHardware* fake_hardware = fake_system_state_.fake_hardware();
 
   string temp_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("PublicKeyFromResponseTests.XXXXXX",
@@ -461,54 +527,53 @@ TEST(DeltaPerformerTest, UsePublicKeyFromResponse) {
 
   // Non-official build, non-existing public-key, key in response -> true
   fake_hardware->SetIsOfficialBuild(false);
-  performer->public_key_path_ = non_existing_file;
-  install_plan.public_key_rsa = "VGVzdAo=";  // result of 'echo "Test" | base64'
-  EXPECT_TRUE(performer->GetPublicKeyFromResponse(&key_path));
+  performer_.public_key_path_ = non_existing_file;
+  install_plan_.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
+  EXPECT_TRUE(performer_.GetPublicKeyFromResponse(&key_path));
   EXPECT_FALSE(key_path.empty());
   EXPECT_EQ(unlink(key_path.value().c_str()), 0);
   // Same with official build -> false
   fake_hardware->SetIsOfficialBuild(true);
-  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, existing public-key, key in response -> false
   fake_hardware->SetIsOfficialBuild(false);
-  performer->public_key_path_ = existing_file;
-  install_plan.public_key_rsa = "VGVzdAo=";  // result of 'echo "Test" | base64'
-  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  performer_.public_key_path_ = existing_file;
+  install_plan_.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
+  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
   fake_hardware->SetIsOfficialBuild(true);
-  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, non-existing public-key, no key in response -> false
   fake_hardware->SetIsOfficialBuild(false);
-  performer->public_key_path_ = non_existing_file;
-  install_plan.public_key_rsa = "";
-  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  performer_.public_key_path_ = non_existing_file;
+  install_plan_.public_key_rsa = "";
+  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
   fake_hardware->SetIsOfficialBuild(true);
-  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, existing public-key, no key in response -> false
   fake_hardware->SetIsOfficialBuild(false);
-  performer->public_key_path_ = existing_file;
-  install_plan.public_key_rsa = "";
-  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  performer_.public_key_path_ = existing_file;
+  install_plan_.public_key_rsa = "";
+  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
   fake_hardware->SetIsOfficialBuild(true);
-  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, non-existing public-key, key in response
   // but invalid base64 -> false
   fake_hardware->SetIsOfficialBuild(false);
-  performer->public_key_path_ = non_existing_file;
-  install_plan.public_key_rsa = "not-valid-base64";
-  EXPECT_FALSE(performer->GetPublicKeyFromResponse(&key_path));
+  performer_.public_key_path_ = non_existing_file;
+  install_plan_.public_key_rsa = "not-valid-base64";
+  EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
-  delete performer;
   EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
 }
 
-TEST(DeltaPerformerTest, MinorVersionsMatch) {
+TEST_F(DeltaPerformerTest, MinorVersionsMatch) {
   // Test that the minor version in update_engine.conf that is installed to
   // the image matches the supported delta minor version in the update engine.
   uint32_t minor_version;

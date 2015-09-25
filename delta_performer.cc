@@ -283,7 +283,7 @@ bool DeltaPerformer::OpenSourceKernel(const string& source_kernel_path) {
 
 int DeltaPerformer::Close() {
   int err = 0;
-  if (!kernel_fd_->Close()) {
+  if (kernel_fd_ && !kernel_fd_->Close()) {
     err = errno;
     PLOG(ERROR) << "Unable to close kernel fd:";
   }
