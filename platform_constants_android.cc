@@ -25,6 +25,8 @@ const char kOmahaDefaultAUTestURL[] =
     "https://clients2.google.com/service/update2/brillo";
 const char kOmahaUpdaterID[] = "Brillo";
 const char kOmahaPlatformName[] = "Brillo";
+const char kUpdatePayloadPublicKeyPath[] =
+    "/etc/update_engine/update-payload-key.pub.pem";
 
 }  // namespace constants
 }  // namespace chromeos_update_engine

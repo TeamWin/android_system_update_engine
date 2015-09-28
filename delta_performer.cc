@@ -60,8 +60,6 @@ const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 1;
 const uint64_t DeltaPerformer::kSupportedMinorPayloadVersion = 2;
 
-const char DeltaPerformer::kUpdatePayloadPublicKeyPath[] =
-    "/usr/share/update_engine/update-payload-key.pub.pem";
 const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
 const unsigned DeltaPerformer::kProgressLogTimeoutSeconds = 30;
 const unsigned DeltaPerformer::kProgressDownloadWeight = 50;

@@ -31,6 +31,7 @@
 #include "update_engine/file_writer.h"
 #include "update_engine/install_plan.h"
 #include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/platform_constants.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -53,7 +54,6 @@ class DeltaPerformer : public FileWriter {
   static const uint64_t kDeltaManifestSizeSize;
   static const uint64_t kSupportedMajorPayloadVersion;
   static const uint64_t kSupportedMinorPayloadVersion;
-  static const char kUpdatePayloadPublicKeyPath[];
 
   // Defines the granularity of progress logging in terms of how many "completed
   // chunks" we want to report at the most.
@@ -85,7 +85,7 @@ class DeltaPerformer : public FileWriter {
         buffer_offset_(0),
         last_updated_buffer_offset_(kuint64max),
         block_size_(0),
-        public_key_path_(kUpdatePayloadPublicKeyPath),
+        public_key_path_(constants::kUpdatePayloadPublicKeyPath),
         total_bytes_received_(0),
         num_rootfs_operations_(0),
         num_total_operations_(0),

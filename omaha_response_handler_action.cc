@@ -40,16 +40,13 @@ const char OmahaResponseHandlerAction::kDeadlineFile[] =
 
 OmahaResponseHandlerAction::OmahaResponseHandlerAction(
     SystemState* system_state)
-    : system_state_(system_state),
-      got_no_update_response_(false),
-      key_path_(DeltaPerformer::kUpdatePayloadPublicKeyPath),
-      deadline_file_(kDeadlineFile) {}
+    : OmahaResponseHandlerAction(system_state, kDeadlineFile) {}
 
 OmahaResponseHandlerAction::OmahaResponseHandlerAction(
     SystemState* system_state, const string& deadline_file)
     : system_state_(system_state),
       got_no_update_response_(false),
-      key_path_(DeltaPerformer::kUpdatePayloadPublicKeyPath),
+      key_path_(constants::kUpdatePayloadPublicKeyPath),
       deadline_file_(deadline_file) {}
 
 void OmahaResponseHandlerAction::PerformAction() {

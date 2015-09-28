@@ -25,6 +25,8 @@ const char kOmahaDefaultAUTestURL[] =
     "https://omaha.sandbox.google.com/service/update2";
 const char kOmahaUpdaterID[] = "ChromeOSUpdateEngine";
 const char kOmahaPlatformName[] = "Chrome OS";
+const char kUpdatePayloadPublicKeyPath[] =
+    "/usr/share/update_engine/update-payload-key.pub.pem";
 
 }  // namespace constants
 }  // namespace chromeos_update_engine

@@ -33,6 +33,11 @@ extern const char kOmahaUpdaterID[];
 // The name of the platform as sent to Omaha.
 extern const char kOmahaPlatformName[];
 
+// Path to the location of the public half of the payload key. The payload key
+// is used to sign the contents of the payload binary file: the manifest and the
+// whole payload.
+extern const char kUpdatePayloadPublicKeyPath[];
+
 }  // namespace constants
 }  // namespace chromeos_update_engine
 
