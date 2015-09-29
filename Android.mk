@@ -14,8 +14,6 @@
 # limitations under the License.
 #
 
-ifeq ($(HOST_OS),linux)
-
 LOCAL_PATH := $(my-dir)
 
 # Definitions applying to all targets. $(eval) this last.
@@ -329,5 +327,3 @@ LOCAL_MODULE_STEM := update-payload-key.pub.pem
 LOCAL_SRC_FILES := update_payload_key/brillo-update-payload-key.pub.pem
 LOCAL_BUILT_MODULE_STEM := update_payload_key/brillo-update-payload-key.pub.pem
 include $(BUILD_PREBUILT)
-
-endif # HOST_OS == linux
