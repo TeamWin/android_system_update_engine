@@ -200,6 +200,12 @@ bool PayloadFile::WritePayload(const string& payload_file,
   TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer,
                                                serialized_manifest.size()));
 
+  if (major_version_ == kBrilloMajorPayloadVersion) {
+    // Write metadata signature size.
+    uint32_t zero = htobe32(0);
+    TEST_AND_RETURN_FALSE(writer.Write(&zero, sizeof(zero)));
+  }
+
   // Write protobuf
   LOG(INFO) << "Writing final delta file protobuf... "
             << serialized_manifest.size();
