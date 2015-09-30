@@ -20,10 +20,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 #include <algorithm>
 #include <string>
 #include <vector>
+
+#include <chromeos/make_unique_ptr.h>
 #include <gtest/gtest.h>
+
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
@@ -74,8 +78,8 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
     0x22, 0x9c, 0x28, 0x48, 0x66, 0x61, 0xb8, 0xea, 0x00,
   };
 
-  DirectExtentWriter direct_writer;
-  BzipExtentWriter bzip_writer(&direct_writer);
+  BzipExtentWriter bzip_writer(
+      chromeos::make_unique_ptr(new DirectExtentWriter()));
   EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
   EXPECT_TRUE(bzip_writer.Write(test, sizeof(test)));
   EXPECT_TRUE(bzip_writer.End());
@@ -114,8 +118,8 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   chromeos::Blob compressed_data;
   EXPECT_TRUE(utils::ReadFile(compressed_path, &compressed_data));
 
-  DirectExtentWriter direct_writer;
-  BzipExtentWriter bzip_writer(&direct_writer);
+  BzipExtentWriter bzip_writer(
+      chromeos::make_unique_ptr(new DirectExtentWriter()));
   EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
 
   chromeos::Blob original_compressed_data = compressed_data;

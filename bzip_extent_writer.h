@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_BZIP_EXTENT_WRITER_H_
 
 #include <bzlib.h>
+#include <memory>
 #include <vector>
 
 #include <chromeos/secure_blob.h>
@@ -33,19 +34,20 @@ namespace chromeos_update_engine {
 
 class BzipExtentWriter : public ExtentWriter {
  public:
-  explicit BzipExtentWriter(ExtentWriter* next) : next_(next) {
+  explicit BzipExtentWriter(std::unique_ptr<ExtentWriter> next)
+      : next_(std::move(next)) {
     memset(&stream_, 0, sizeof(stream_));
   }
-  ~BzipExtentWriter() {}
+  ~BzipExtentWriter() override = default;
 
   bool Init(FileDescriptorPtr fd,
             const std::vector<Extent>& extents,
-            uint32_t block_size);
-  bool Write(const void* bytes, size_t count);
-  bool EndImpl();
+            uint32_t block_size) override;
+  bool Write(const void* bytes, size_t count) override;
+  bool EndImpl() override;
 
  private:
-  ExtentWriter* const next_;  // The underlying ExtentWriter.
+  std::unique_ptr<ExtentWriter> next_;  // The underlying ExtentWriter.
   bz_stream stream_;  // the libbz2 stream
   chromeos::Blob input_buffer_;
 };

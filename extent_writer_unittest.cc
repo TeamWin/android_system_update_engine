@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include <chromeos/make_unique_ptr.h>
 #include <chromeos/secure_blob.h>
 #include <gtest/gtest.h>
 
@@ -189,8 +190,8 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
   chromeos::Blob data(kBlockSize * 2);
   test_utils::FillWithData(&data);
 
-  DirectExtentWriter direct_writer;
-  ZeroPadExtentWriter zero_pad_writer(&direct_writer);
+  ZeroPadExtentWriter zero_pad_writer(
+      chromeos::make_unique_ptr(new DirectExtentWriter()));
 
   EXPECT_TRUE(zero_pad_writer.Init(fd_, extents, kBlockSize));
   size_t bytes_to_write = data.size();

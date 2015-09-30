@@ -33,7 +33,7 @@ namespace chromeos_update_engine {
 
 class ExtentWriter {
  public:
-  ExtentWriter() : end_called_(false) {}
+  ExtentWriter() = default;
   virtual ~ExtentWriter() {
     LOG_IF(ERROR, !end_called_) << "End() not called on ExtentWriter.";
   }
@@ -54,7 +54,7 @@ class ExtentWriter {
   }
   virtual bool EndImpl() = 0;
  private:
-  bool end_called_;
+  bool end_called_{false};
 };
 
 // DirectExtentWriter is probably the simplest ExtentWriter implementation.
@@ -62,35 +62,29 @@ class ExtentWriter {
 
 class DirectExtentWriter : public ExtentWriter {
  public:
-  DirectExtentWriter()
-      : fd_(nullptr),
-        block_size_(0),
-        extent_bytes_written_(0),
-        next_extent_index_(0) {}
-  ~DirectExtentWriter() {}
+  DirectExtentWriter() = default;
+  ~DirectExtentWriter() override = default;
 
   bool Init(FileDescriptorPtr fd,
             const std::vector<Extent>& extents,
-            uint32_t block_size) {
+            uint32_t block_size) override {
     fd_ = fd;
     block_size_ = block_size;
     extents_ = extents;
     return true;
   }
-  bool Write(const void* bytes, size_t count);
-  bool EndImpl() {
-    return true;
-  }
+  bool Write(const void* bytes, size_t count) override;
+  bool EndImpl() override { return true; }
 
  private:
-  FileDescriptorPtr fd_;
+  FileDescriptorPtr fd_{nullptr};
 
-  size_t block_size_;
+  size_t block_size_{0};
   // Bytes written into next_extent_index_ thus far
-  uint64_t extent_bytes_written_;
+  uint64_t extent_bytes_written_{0};
   std::vector<Extent> extents_;
   // The next call to write should correspond to extents_[next_extent_index_]
-  std::vector<Extent>::size_type next_extent_index_;
+  std::vector<Extent>::size_type next_extent_index_{0};
 };
 
 // Takes an underlying ExtentWriter to which all operations are delegated.
@@ -100,19 +94,18 @@ class DirectExtentWriter : public ExtentWriter {
 
 class ZeroPadExtentWriter : public ExtentWriter {
  public:
-  explicit ZeroPadExtentWriter(ExtentWriter* underlying_extent_writer)
-      : underlying_extent_writer_(underlying_extent_writer),
-        block_size_(0),
-        bytes_written_mod_block_size_(0) {}
-  ~ZeroPadExtentWriter() {}
+  explicit ZeroPadExtentWriter(
+      std::unique_ptr<ExtentWriter> underlying_extent_writer)
+      : underlying_extent_writer_(std::move(underlying_extent_writer)) {}
+  ~ZeroPadExtentWriter() override = default;
 
   bool Init(FileDescriptorPtr fd,
             const std::vector<Extent>& extents,
-            uint32_t block_size) {
+            uint32_t block_size) override {
     block_size_ = block_size;
     return underlying_extent_writer_->Init(fd, extents, block_size);
   }
-  bool Write(const void* bytes, size_t count) {
+  bool Write(const void* bytes, size_t count) override {
     if (underlying_extent_writer_->Write(bytes, count)) {
       bytes_written_mod_block_size_ += count;
       bytes_written_mod_block_size_ %= block_size_;
@@ -120,7 +113,7 @@ class ZeroPadExtentWriter : public ExtentWriter {
     }
     return false;
   }
-  bool EndImpl() {
+  bool EndImpl() override {
     if (bytes_written_mod_block_size_) {
       const size_t write_size = block_size_ - bytes_written_mod_block_size_;
       chromeos::Blob zeros(write_size, 0);
@@ -131,9 +124,9 @@ class ZeroPadExtentWriter : public ExtentWriter {
   }
 
  private:
-  ExtentWriter* underlying_extent_writer_;  // The underlying ExtentWriter.
-  size_t block_size_;
-  size_t bytes_written_mod_block_size_;
+  std::unique_ptr<ExtentWriter> underlying_extent_writer_;
+  size_t block_size_{0};
+  size_t bytes_written_mod_block_size_{0};
 };
 
 }  // namespace chromeos_update_engine

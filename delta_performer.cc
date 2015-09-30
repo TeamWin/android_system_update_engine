@@ -30,6 +30,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <chromeos/data_encoding.h>
+#include <chromeos/make_unique_ptr.h>
 #include <google/protobuf/repeated_field.h>
 
 #include "update_engine/bzip_extent_writer.h"
@@ -50,7 +51,6 @@
 using google::protobuf::RepeatedPtrField;
 using std::min;
 using std::string;
-using std::unique_ptr;
 using std::vector;
 
 namespace chromeos_update_engine {
@@ -660,21 +660,13 @@ bool DeltaPerformer::PerformReplaceOperation(const InstallOperation& operation,
   // Extract the signature message if it's in this operation.
   ExtractSignatureMessage(operation);
 
-  DirectExtentWriter direct_writer;
-  ZeroPadExtentWriter zero_pad_writer(&direct_writer);
-  unique_ptr<BzipExtentWriter> bzip_writer;
+  // Setup the ExtentWriter stack based on the operation type.
+  std::unique_ptr<ExtentWriter> writer =
+    chromeos::make_unique_ptr(new ZeroPadExtentWriter(
+      chromeos::make_unique_ptr(new DirectExtentWriter())));
 
-  // Since bzip decompression is optional, we have a variable writer that will
-  // point to one of the ExtentWriter objects above.
-  ExtentWriter* writer = nullptr;
-  if (operation.type() == InstallOperation::REPLACE) {
-    writer = &zero_pad_writer;
-  } else if (operation.type() == InstallOperation::REPLACE_BZ) {
-    bzip_writer.reset(new BzipExtentWriter(&zero_pad_writer));
-    writer = bzip_writer.get();
-  } else {
-    NOTREACHED();
-  }
+  if (operation.type() == InstallOperation::REPLACE_BZ)
+    writer.reset(new BzipExtentWriter(std::move(writer)));
 
   // Create a vector of extents to pass to the ExtentWriter.
   vector<Extent> extents;
