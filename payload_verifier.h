@@ -30,26 +30,16 @@
 
 namespace chromeos_update_engine {
 
-extern const uint32_t kSignatureMessageOriginalVersion;
-extern const uint32_t kSignatureMessageCurrentVersion;
-
 class PayloadVerifier {
  public:
-  // Returns false if the payload signature can't be verified. Returns true
-  // otherwise and sets |out_hash| to the signed payload hash.
+  // Interprets |signature_blob| as a protocol buffer containing the Signatures
+  // message and decrypts each signature data using the |public_key_path|.
+  // Returns whether *any* of the decrypted hashes matches the |hash_data|.
+  // In case of any error parsing the signatures or the public key, returns
+  // false.
   static bool VerifySignature(const chromeos::Blob& signature_blob,
                               const std::string& public_key_path,
-                              chromeos::Blob* out_hash_data);
-
-  // Interprets signature_blob as a protocol buffer containing the Signatures
-  // message and decrypts the signature data using the public_key_path and
-  // stores the resultant raw hash data in out_hash_data. Returns true if
-  // everything is successful. False otherwise. It also takes the client_version
-  // and interprets the signature blob according to that version.
-  static bool VerifySignatureBlob(const chromeos::Blob& signature_blob,
-                                  const std::string& public_key_path,
-                                  uint32_t client_version,
-                                  chromeos::Blob* out_hash_data);
+                              const chromeos::Blob& hash_data);
 
   // Decrypts sig_data with the given public_key_path and populates
   // out_hash_data with the decoded raw hash. Returns true if successful,
@@ -62,8 +52,7 @@ class PayloadVerifier {
   // verified using the public key in |public_key_path| with the signature
   // of a given version in the signature blob. Returns false otherwise.
   static bool VerifySignedPayload(const std::string& payload_path,
-                                  const std::string& public_key_path,
-                                  uint32_t client_key_check_version);
+                                  const std::string& public_key_path);
 
   // Pads a SHA256 hash so that it may be encrypted/signed with RSA2048
   // using the PKCS#1 v1.5 scheme.

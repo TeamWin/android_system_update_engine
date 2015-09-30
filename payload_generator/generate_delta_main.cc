@@ -171,15 +171,13 @@ void SignPayload(const string& in_file,
 }
 
 void VerifySignedPayload(const string& in_file,
-                         const string& public_key,
-                         int public_key_version) {
+                         const string& public_key) {
   LOG(INFO) << "Verifying signed payload.";
   LOG_IF(FATAL, in_file.empty())
       << "Must pass --in_file to verify signed payload.";
   LOG_IF(FATAL, public_key.empty())
       << "Must pass --public_key to verify signed payload.";
-  CHECK(PayloadVerifier::VerifySignedPayload(in_file, public_key,
-                                             public_key_version));
+  CHECK(PayloadVerifier::VerifySignedPayload(in_file, public_key));
   LOG(INFO) << "Done verifying signed payload.";
 }
 
@@ -241,9 +239,8 @@ int Main(int argc, char** argv) {
                 "Path to output metadata hash file");
   DEFINE_string(private_key, "", "Path to private key in .pem format");
   DEFINE_string(public_key, "", "Path to public key in .pem format");
-  DEFINE_int32(public_key_version,
-               chromeos_update_engine::kSignatureMessageCurrentVersion,
-               "Key-check version # of client");
+  DEFINE_int32(public_key_version, -1,
+               "DEPRECATED. Key-check version # of client");
   DEFINE_string(prefs_dir, "/tmp/update_engine_prefs",
                 "Preferences directory, used with apply_delta");
   DEFINE_string(signature_size, "",
@@ -344,8 +341,9 @@ int Main(int argc, char** argv) {
     return 0;
   }
   if (!FLAGS_public_key.empty()) {
-    VerifySignedPayload(FLAGS_in_file, FLAGS_public_key,
-                        FLAGS_public_key_version);
+    LOG_IF(WARNING, FLAGS_public_key_version != -1)
+        << "--public_key_version is deprecated and ignored.";
+    VerifySignedPayload(FLAGS_in_file, FLAGS_public_key);
     return 0;
   }
   if (!FLAGS_in_file.empty()) {

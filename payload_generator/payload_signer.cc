@@ -38,22 +38,21 @@ namespace chromeos_update_engine {
 
 namespace {
 
+// The payload verifier will check all the signatures included in the payload
+// regardless of the version field. Old version of the verifier require the
+// version field to be included and be 1.
+const uint32_t kSignatureMessageLegacyVersion = 1;
+
 // Given raw |signatures|, packs them into a protobuf and serializes it into a
 // binary blob. Returns true on success, false otherwise.
 bool ConvertSignatureToProtobufBlob(const vector<chromeos::Blob>& signatures,
                                     chromeos::Blob* out_signature_blob) {
   // Pack it into a protobuf
   Signatures out_message;
-  uint32_t version = kSignatureMessageOriginalVersion;
-  LOG_IF(WARNING, kSignatureMessageCurrentVersion -
-         kSignatureMessageOriginalVersion + 1 < signatures.size())
-      << "You may want to support clients in the range ["
-      << kSignatureMessageOriginalVersion << ", "
-      << kSignatureMessageCurrentVersion << "] inclusive, but you only "
-      << "provided " << signatures.size() << " signatures.";
   for (const chromeos::Blob& signature : signatures) {
     Signatures_Signature* sig_message = out_message.add_signatures();
-    sig_message->set_version(version++);
+    // Set all the signatures with the same version number.
+    sig_message->set_version(kSignatureMessageLegacyVersion);
     sig_message->set_data(signature.data(), signature.size());
   }
 
@@ -156,16 +155,10 @@ bool PayloadSigner::SignHash(const chromeos::Blob& hash,
                                          padded_hash.data(),
                                          padded_hash.size()));
 
-  // This runs on the server, so it's okay to cop out and call openssl
-  // executable rather than properly use the library
-  vector<string> cmd;
-  base::SplitString("openssl rsautl -raw -sign -inkey x -in x -out x",
-                    ' ',
-                    &cmd);
-  cmd[cmd.size() - 5] = private_key_path;
-  cmd[cmd.size() - 3] = hash_path;
-  cmd[cmd.size() - 1] = sig_path;
-
+  // This runs on the server, so it's okay to copy out and call openssl
+  // executable rather than properly use the library.
+  vector<string> cmd = {"openssl", "rsautl", "-raw", "-sign", "-inkey",
+                        private_key_path, "-in", hash_path, "-out", sig_path};
   int return_code = 0;
   TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &return_code,
                                                     nullptr));

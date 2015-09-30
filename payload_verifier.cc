@@ -28,9 +28,6 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-const uint32_t kSignatureMessageOriginalVersion = 1;
-const uint32_t kSignatureMessageCurrentVersion = 1;
-
 namespace {
 
 // The following is a standard PKCS1-v1_5 padding for SHA256 signatures, as
@@ -111,38 +108,43 @@ bool PayloadVerifier::LoadPayload(const string& payload_path,
 
 bool PayloadVerifier::VerifySignature(const chromeos::Blob& signature_blob,
                                       const string& public_key_path,
-                                      chromeos::Blob* out_hash_data) {
-  return VerifySignatureBlob(signature_blob, public_key_path,
-                             kSignatureMessageCurrentVersion, out_hash_data);
-}
-
-bool PayloadVerifier::VerifySignatureBlob(
-    const chromeos::Blob& signature_blob,
-    const string& public_key_path,
-    uint32_t client_version,
-    chromeos::Blob* out_hash_data) {
+                                      const chromeos::Blob& hash_data) {
   TEST_AND_RETURN_FALSE(!public_key_path.empty());
 
   Signatures signatures;
-  LOG(INFO) << "signature size = " <<  signature_blob.size();
+  LOG(INFO) << "signature blob size = " <<  signature_blob.size();
   TEST_AND_RETURN_FALSE(signatures.ParseFromArray(signature_blob.data(),
                                                   signature_blob.size()));
 
-  // Finds a signature that matches the current version.
-  int sig_index = 0;
-  for (; sig_index < signatures.signatures_size(); sig_index++) {
-    const Signatures_Signature& signature = signatures.signatures(sig_index);
-    if (signature.has_version() &&
-        signature.version() == client_version) {
-      break;
-    }
+  if (!signatures.signatures_size()) {
+    LOG(ERROR) << "No signatures stored in the blob.";
+    return false;
   }
-  TEST_AND_RETURN_FALSE(sig_index < signatures.signatures_size());
 
-  const Signatures_Signature& signature = signatures.signatures(sig_index);
-  chromeos::Blob sig_data(signature.data().begin(), signature.data().end());
+  std::vector<chromeos::Blob> tested_hashes;
+  // Tries every signature in the signature blob.
+  for (int i = 0; i < signatures.signatures_size(); i++) {
+    const Signatures_Signature& signature = signatures.signatures(i);
+    chromeos::Blob sig_data(signature.data().begin(), signature.data().end());
+    chromeos::Blob sig_hash_data;
+    if (!GetRawHashFromSignature(sig_data, public_key_path, &sig_hash_data))
+      continue;
 
-  return GetRawHashFromSignature(sig_data, public_key_path, out_hash_data);
+    if (hash_data == sig_hash_data) {
+      LOG(INFO) << "Verified correct signature " << i + 1 << " out of "
+                << signatures.signatures_size() << " signatures.";
+      return true;
+    }
+    tested_hashes.push_back(sig_hash_data);
+  }
+  LOG(ERROR) << "None of the " << signatures.signatures_size()
+             << " signatures is correct. Expected:";
+  utils::HexDumpVector(hash_data);
+  LOG(ERROR) << "But found decrypted hashes:";
+  for (const auto& sig_hash_data : tested_hashes) {
+    utils::HexDumpVector(sig_hash_data);
+  }
+  return false;
 }
 
 
@@ -191,8 +193,7 @@ bool PayloadVerifier::GetRawHashFromSignature(
 }
 
 bool PayloadVerifier::VerifySignedPayload(const string& payload_path,
-                                          const string& public_key_path,
-                                          uint32_t client_key_check_version) {
+                                          const string& public_key_path) {
   chromeos::Blob payload;
   DeltaArchiveManifest manifest;
   uint64_t metadata_size;
@@ -206,15 +207,12 @@ bool PayloadVerifier::VerifySignedPayload(const string& payload_path,
   chromeos::Blob signature_blob(
       payload.begin() + metadata_size + manifest.signatures_offset(),
       payload.end());
-  chromeos::Blob signed_hash;
-  TEST_AND_RETURN_FALSE(VerifySignatureBlob(
-      signature_blob, public_key_path, client_key_check_version, &signed_hash));
-  TEST_AND_RETURN_FALSE(!signed_hash.empty());
   chromeos::Blob hash;
   TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfBytes(
       payload.data(), metadata_size + manifest.signatures_offset(), &hash));
-  PadRSA2048SHA256Hash(&hash);
-  TEST_AND_RETURN_FALSE(hash == signed_hash);
+  TEST_AND_RETURN_FALSE(PadRSA2048SHA256Hash(&hash));
+  TEST_AND_RETURN_FALSE(VerifySignature(
+      signature_blob, public_key_path, hash));
   return true;
 }
 

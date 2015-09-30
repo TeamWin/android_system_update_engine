@@ -193,8 +193,7 @@ static void SignGeneratedPayload(const string& payload_path,
       out_metadata_size));
   EXPECT_TRUE(PayloadVerifier::VerifySignedPayload(
       payload_path,
-      kUnittestPublicKeyPath,
-      kSignatureMessageOriginalVersion));
+      kUnittestPublicKeyPath));
 }
 
 static void SignGeneratedShellPayload(SignatureTest signature_test,

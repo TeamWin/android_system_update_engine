@@ -94,30 +94,37 @@ const uint8_t kDataSignature[] = {
 };
 
 namespace {
-void SignSampleData(chromeos::Blob* out_signature_blob) {
+void SignSampleData(chromeos::Blob* out_signature_blob,
+                    const vector<string>& private_keys) {
   string data_path;
-  ASSERT_TRUE(
-      utils::MakeTempFile("data.XXXXXX", &data_path, nullptr));
+  ASSERT_TRUE(utils::MakeTempFile("data.XXXXXX", &data_path, nullptr));
   ScopedPathUnlinker data_path_unlinker(data_path);
   ASSERT_TRUE(utils::WriteFile(data_path.c_str(),
                                kDataToSign,
                                strlen(kDataToSign)));
   uint64_t length = 0;
-  EXPECT_TRUE(PayloadSigner::SignatureBlobLength(
-      vector<string> (1, kUnittestPrivateKeyPath),
-      &length));
+  EXPECT_TRUE(PayloadSigner::SignatureBlobLength(private_keys, &length));
   EXPECT_GT(length, 0);
   EXPECT_TRUE(PayloadSigner::SignPayload(
       data_path,
-      vector<string>(1, kUnittestPrivateKeyPath),
+      private_keys,
       out_signature_blob));
   EXPECT_EQ(length, out_signature_blob->size());
 }
 }  // namespace
 
-TEST(PayloadSignerTest, SimpleTest) {
+class PayloadSignerTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    PayloadVerifier::PadRSA2048SHA256Hash(&padded_hash_data_);
+  }
+
+  chromeos::Blob padded_hash_data_{std::begin(kDataHash), std::end(kDataHash)};
+};
+
+TEST_F(PayloadSignerTest, SignSimpleTextTest) {
   chromeos::Blob signature_blob;
-  SignSampleData(&signature_blob);
+  SignSampleData(&signature_blob, {kUnittestPrivateKeyPath});
 
   // Check the signature itself
   Signatures signatures;
@@ -125,7 +132,7 @@ TEST(PayloadSignerTest, SimpleTest) {
                                         signature_blob.size()));
   EXPECT_EQ(1, signatures.signatures_size());
   const Signatures_Signature& signature = signatures.signatures(0);
-  EXPECT_EQ(kSignatureMessageOriginalVersion, signature.version());
+  EXPECT_EQ(1, signature.version());
   const string sig_data = signature.data();
   ASSERT_EQ(arraysize(kDataSignature), sig_data.size());
   for (size_t i = 0; i < arraysize(kDataSignature); i++) {
@@ -133,20 +140,31 @@ TEST(PayloadSignerTest, SimpleTest) {
   }
 }
 
-TEST(PayloadSignerTest, VerifySignatureTest) {
+TEST_F(PayloadSignerTest, VerifyAllSignatureTest) {
   chromeos::Blob signature_blob;
-  SignSampleData(&signature_blob);
+  SignSampleData(&signature_blob,
+                 {kUnittestPrivateKeyPath, kUnittestPrivateKey2Path});
 
-  chromeos::Blob hash_data;
+  // Either public key should pass the verification.
   EXPECT_TRUE(PayloadVerifier::VerifySignature(signature_blob,
-                                             kUnittestPublicKeyPath,
-                                             &hash_data));
-  chromeos::Blob padded_hash_data(std::begin(kDataHash), std::end(kDataHash));
-  PayloadVerifier::PadRSA2048SHA256Hash(&padded_hash_data);
-  ASSERT_EQ(padded_hash_data.size(), hash_data.size());
-  for (size_t i = 0; i < padded_hash_data.size(); i++) {
-    EXPECT_EQ(padded_hash_data[i], hash_data[i]);
-  }
+                                               kUnittestPublicKeyPath,
+                                               padded_hash_data_));
+  EXPECT_TRUE(PayloadVerifier::VerifySignature(signature_blob,
+                                               kUnittestPublicKey2Path,
+                                               padded_hash_data_));
+}
+
+TEST_F(PayloadSignerTest, VerifySignatureTest) {
+  chromeos::Blob signature_blob;
+  SignSampleData(&signature_blob, {kUnittestPrivateKeyPath});
+
+  EXPECT_TRUE(PayloadVerifier::VerifySignature(signature_blob,
+                                               kUnittestPublicKeyPath,
+                                               padded_hash_data_));
+  // Passing the invalid key should fail the verification.
+  EXPECT_FALSE(PayloadVerifier::VerifySignature(signature_blob,
+                                                kUnittestPublicKey2Path,
+                                                padded_hash_data_));
 }
 
 }  // namespace chromeos_update_engine

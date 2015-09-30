@@ -1226,29 +1226,22 @@ ErrorCode DeltaPerformer::VerifyPayload(
   }
   TEST_AND_RETURN_VAL(ErrorCode::kSignedDeltaPayloadExpectedError,
                       !signatures_message_data_.empty());
-  chromeos::Blob signed_hash_data;
-  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
-                      PayloadVerifier::VerifySignature(
-                          signatures_message_data_,
-                          path_to_public_key.value(),
-                          &signed_hash_data));
   OmahaHashCalculator signed_hasher;
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       signed_hasher.SetContext(signed_hash_context_));
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       signed_hasher.Finalize());
   chromeos::Blob hash_data = signed_hasher.raw_hash();
-  PayloadVerifier::PadRSA2048SHA256Hash(&hash_data);
+  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
+                      PayloadVerifier::PadRSA2048SHA256Hash(&hash_data));
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       !hash_data.empty());
-  if (hash_data != signed_hash_data) {
+
+  if (!PayloadVerifier::VerifySignature(
+      signatures_message_data_, path_to_public_key.value(), hash_data)) {
     // The autoupdate_CatchBadSignatures test checks for this string
     // in log-files. Keep in sync.
-    LOG(ERROR) << "Public key verification failed, thus update failed. "
-        "Attached Signature:";
-    utils::HexDumpVector(signed_hash_data);
-    LOG(ERROR) << "Computed Signature:";
-    utils::HexDumpVector(hash_data);
+    LOG(ERROR) << "Public key verification failed, thus update failed.";
     return ErrorCode::kDownloadPayloadPubKeyVerificationError;
   }
 
