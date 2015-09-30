@@ -305,11 +305,6 @@ static void GenerateDeltaFile(bool full_kernel,
 
   state->image_size = utils::FileSize(state->a_img);
 
-  // Extend the "partitions" holding the file system a bit.
-  EXPECT_EQ(0, HANDLE_EINTR(truncate(state->a_img.c_str(),
-                                     state->image_size + 1024 * 1024)));
-  EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->a_img));
-
   // Create ImageInfo A & B
   ImageInfo old_image_info;
   ImageInfo new_image_info;
@@ -376,10 +371,8 @@ static void GenerateDeltaFile(bool full_kernel,
     old_image_info = new_image_info;
   } else {
     if (minor_version == kSourceMinorPayloadVersion) {
-      // Create a result image with image_size bytes of garbage, followed by
-      // zeroes after the rootfs, like image A and B have.
+      // Create a result image with image_size bytes of garbage.
       chromeos::Blob ones(state->image_size, 0xff);
-      ones.insert(ones.end(), 1024 * 1024, 0);
       EXPECT_TRUE(utils::WriteFile(state->result_img.c_str(),
                                    ones.data(),
                                    ones.size()));
@@ -388,9 +381,6 @@ static void GenerateDeltaFile(bool full_kernel,
     }
 
     test_utils::CreateExtImageAtPath(state->b_img, nullptr);
-    EXPECT_EQ(0, HANDLE_EINTR(truncate(state->b_img.c_str(),
-                                       state->image_size + 1024 * 1024)));
-    EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->b_img));
 
     // Make some changes to the B image.
     string b_mnt;
@@ -537,6 +527,13 @@ static void GenerateDeltaFile(bool full_kernel,
             private_key,
             &state->metadata_size));
   }
+  // Extend the "partitions" holding the file system a bit.
+  EXPECT_EQ(0, HANDLE_EINTR(truncate(state->a_img.c_str(),
+                                     state->image_size + 1024 * 1024)));
+  EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->a_img));
+  EXPECT_EQ(0, HANDLE_EINTR(truncate(state->b_img.c_str(),
+                                     state->image_size + 1024 * 1024)));
+  EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->b_img));
 
   if (signature_test == kSignatureGeneratedPlaceholder ||
       signature_test == kSignatureGeneratedPlaceholderMismatch) {

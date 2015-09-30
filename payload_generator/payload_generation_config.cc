@@ -33,6 +33,16 @@ bool PartitionConfig::ValidateExists() const {
   // The requested size is within the limits of the file.
   TEST_AND_RETURN_FALSE(static_cast<off_t>(size) <=
                         utils::FileSize(path.c_str()));
+  // TODO(deymo): The delta generator algorithm doesn't support a block size
+  // different than 4 KiB. Remove this check once that's fixed. crbug.com/455045
+  int block_count, block_size;
+  if (utils::GetFilesystemSize(path, &block_count, &block_size) &&
+      block_size != 4096) {
+   LOG(ERROR) << "The filesystem provided in " << path
+              << " has a block size of " << block_size
+              << " but delta_generator only supports 4096.";
+   return false;
+  }
   return true;
 }
 
@@ -67,22 +77,9 @@ bool ImageConfig::ValidateIsEmpty() const {
 
 bool ImageConfig::LoadImageSize() {
   TEST_AND_RETURN_FALSE(!rootfs.path.empty());
-  int rootfs_block_count, rootfs_block_size;
-  TEST_AND_RETURN_FALSE(utils::GetFilesystemSize(rootfs.path,
-                                                 &rootfs_block_count,
-                                                 &rootfs_block_size));
-  rootfs.size = static_cast<uint64_t>(rootfs_block_count) * rootfs_block_size;
+  rootfs.size = utils::FileSize(rootfs.path);
   if (!kernel.path.empty())
     kernel.size = utils::FileSize(kernel.path);
-
-  // TODO(deymo): The delta generator algorithm doesn't support a block size
-  // different than 4 KiB. Remove this check once that's fixed. crbug.com/455045
-  if (rootfs_block_size != 4096) {
-    LOG(ERROR) << "The filesystem provided in " << rootfs.path
-               << " has a block size of " << rootfs_block_size
-               << " but delta_generator only supports 4096.";
-    return false;
-  }
   return true;
 }
 
