@@ -14,7 +14,10 @@
 // limitations under the License.
 //
 
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
+#include <xz.h>
 
 #include <string>
 
@@ -27,8 +30,6 @@
 #include <chromeos/flag_helper.h>
 #include <chromeos/message_loops/base_message_loop.h>
 #include <metrics/metrics_library.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #include "update_engine/daemon.h"
 #include "update_engine/terminator.h"
@@ -112,6 +113,9 @@ int main(int argc, char** argv) {
     PLOG_IF(FATAL, daemon(0, 0) == 1) << "daemon() failed";
 
   LOG(INFO) << "Chrome OS Update Engine starting";
+
+  // xz-embedded requires to initialize its CRC-32 table once on startup.
+  xz_crc32_init();
 
   // Ensure that all written files have safe permissions.
   // This is a mask, so we _block_ all permissions for the group owner and other

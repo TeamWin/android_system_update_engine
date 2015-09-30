@@ -106,7 +106,8 @@ LOCAL_STATIC_LIBRARIES += \
     update_engine-dbus-libcros-client \
     update_engine_client-dbus-proxies \
     libbz \
-    libfs_mgr
+    libfs_mgr \
+    libxz
 LOCAL_SHARED_LIBRARIES += \
     libprotobuf-cpp-lite-rtti \
     libdbus \
@@ -176,7 +177,8 @@ LOCAL_SRC_FILES := \
     update_manager/real_updater_provider.cc \
     update_manager/state_factory.cc \
     update_manager/update_manager.cc \
-    utils.cc
+    utils.cc \
+    xz_extent_writer.cc
 $(eval $(update_engine_common))
 include $(BUILD_STATIC_LIBRARY)
 
@@ -190,6 +192,7 @@ LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
     libbz \
     libfs_mgr \
+    libxz \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
@@ -237,6 +240,7 @@ LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
     libbz \
     libfs_mgr \
+    libxz \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
@@ -287,6 +291,7 @@ LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
     libbz \
     libfs_mgr \
+    libxz \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \

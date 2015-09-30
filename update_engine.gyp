@@ -130,6 +130,7 @@
           'libshill-client',
           'libssl',
           'expat',
+          'xz-embedded',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -213,6 +214,7 @@
         'update_manager/state_factory.cc',
         'update_manager/update_manager.cc',
         'utils.cc',
+        'xz_extent_writer.cc',
       ],
       'conditions': [
         ['USE_mtd == 1', {
@@ -447,6 +449,7 @@
             'update_manager/update_manager_unittest.cc',
             'update_manager/variable_unittest.cc',
             'utils_unittest.cc',
+            'xz_extent_writer_unittest.cc',
             'zip_unittest.cc',
             # Main entry point for runnning tests.
             'testrunner.cc',
