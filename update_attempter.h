@@ -39,6 +39,7 @@
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
+#include "update_engine/update_status.h"
 
 class MetricsLibraryInterface;
 
@@ -50,24 +51,10 @@ namespace chromeos_update_engine {
 
 class UpdateEngineAdaptor;
 
-enum UpdateStatus {
-  UPDATE_STATUS_IDLE = 0,
-  UPDATE_STATUS_CHECKING_FOR_UPDATE,
-  UPDATE_STATUS_UPDATE_AVAILABLE,
-  UPDATE_STATUS_DOWNLOADING,
-  UPDATE_STATUS_VERIFYING,
-  UPDATE_STATUS_FINALIZING,
-  UPDATE_STATUS_UPDATED_NEED_REBOOT,
-  UPDATE_STATUS_REPORTING_ERROR_EVENT,
-  UPDATE_STATUS_ATTEMPTING_ROLLBACK,
-  UPDATE_STATUS_DISABLED,
-};
-
-const char* UpdateStatusToString(UpdateStatus status);
-
 class UpdateAttempter : public ActionProcessorDelegate,
                         public DownloadActionDelegate {
  public:
+  using UpdateStatus = update_engine::UpdateStatus;
   static const int kMaxDeltaUpdateFailures;
 
   UpdateAttempter(SystemState* system_state,

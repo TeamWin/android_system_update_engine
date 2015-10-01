@@ -51,6 +51,7 @@
       # We need this include dir because we include all the local code as
       # "update_engine/...".
       '<(platform2_root)/../aosp/system',
+      '<(platform2_root)/../aosp/system/update_engine/client_library/include',
     ],
   },
   'targets': [
@@ -213,6 +214,7 @@
         'update_manager/real_updater_provider.cc',
         'update_manager/state_factory.cc',
         'update_manager/update_manager.cc',
+        'update_status_utils.cc',
         'utils.cc',
         'xz_extent_writer.cc',
       ],

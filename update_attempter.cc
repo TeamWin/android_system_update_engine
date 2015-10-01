@@ -64,6 +64,7 @@
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
+#include "update_engine/update_status_utils.h"
 #include "update_engine/utils.h"
 
 using base::Bind;
@@ -97,33 +98,6 @@ const char kUpdateCompletedMarker[] =
 const char kAUTestURLRequest[] = "autest";
 const char kScheduledAUTestURLRequest[] = "autest-scheduled";
 }  // namespace
-
-const char* UpdateStatusToString(UpdateStatus status) {
-  switch (status) {
-    case UPDATE_STATUS_IDLE:
-      return update_engine::kUpdateStatusIdle;
-    case UPDATE_STATUS_CHECKING_FOR_UPDATE:
-      return update_engine::kUpdateStatusCheckingForUpdate;
-    case UPDATE_STATUS_UPDATE_AVAILABLE:
-      return update_engine::kUpdateStatusUpdateAvailable;
-    case UPDATE_STATUS_DOWNLOADING:
-      return update_engine::kUpdateStatusDownloading;
-    case UPDATE_STATUS_VERIFYING:
-      return update_engine::kUpdateStatusVerifying;
-    case UPDATE_STATUS_FINALIZING:
-      return update_engine::kUpdateStatusFinalizing;
-    case UPDATE_STATUS_UPDATED_NEED_REBOOT:
-      return update_engine::kUpdateStatusUpdatedNeedReboot;
-    case UPDATE_STATUS_REPORTING_ERROR_EVENT:
-      return update_engine::kUpdateStatusReportingErrorEvent;
-    case UPDATE_STATUS_ATTEMPTING_ROLLBACK:
-      return update_engine::kUpdateStatusAttemptingRollback;
-    case UPDATE_STATUS_DISABLED:
-      return update_engine::kUpdateStatusDisabled;
-    default:
-      return "unknown status";
-  }
-}
 
 // Turns a generic ErrorCode::kError to a generic error code specific
 // to |action| (e.g., ErrorCode::kFilesystemVerifierError). If |code| is
@@ -166,9 +140,9 @@ UpdateAttempter::UpdateAttempter(
       debugd_proxy_(debugd_proxy) {
   if (!update_completed_marker_.empty() &&
       utils::FileExists(update_completed_marker_.c_str())) {
-    status_ = UPDATE_STATUS_UPDATED_NEED_REBOOT;
+    status_ = UpdateStatus::UPDATED_NEED_REBOOT;
   } else {
-    status_ = UPDATE_STATUS_IDLE;
+    status_ = UpdateStatus::IDLE;
   }
 }
 
@@ -278,7 +252,7 @@ void UpdateAttempter::Update(const string& app_version,
 
   chrome_proxy_resolver_.Init();
   fake_update_success_ = false;
-  if (status_ == UPDATE_STATUS_UPDATED_NEED_REBOOT) {
+  if (status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
     // Although we have applied an update, we still want to ping Omaha
     // to ensure the number of active statistics is accurate.
     //
@@ -293,7 +267,7 @@ void UpdateAttempter::Update(const string& app_version,
     PingOmaha();
     return;
   }
-  if (status_ != UPDATE_STATUS_IDLE) {
+  if (status_ != UpdateStatus::IDLE) {
     // Update in progress. Do nothing
     return;
   }
@@ -309,7 +283,7 @@ void UpdateAttempter::Update(const string& app_version,
 
   BuildUpdateActions(interactive);
 
-  SetStatusAndNotify(UPDATE_STATUS_CHECKING_FOR_UPDATE);
+  SetStatusAndNotify(UpdateStatus::CHECKING_FOR_UPDATE);
 
   // Update the last check time here; it may be re-updated when an Omaha
   // response is received, but this will prevent us from repeatedly scheduling
@@ -751,7 +725,7 @@ bool UpdateAttempter::Rollback(bool powerwash) {
   // Update the payload state for Rollback.
   system_state_->payload_state()->Rollback();
 
-  SetStatusAndNotify(UPDATE_STATUS_ATTEMPTING_ROLLBACK);
+  SetStatusAndNotify(UpdateStatus::ATTEMPTING_ROLLBACK);
 
   // Just in case we didn't update boot flags yet, make sure they're updated
   // before any update processing starts. This also schedules the start of the
@@ -764,7 +738,7 @@ bool UpdateAttempter::Rollback(bool powerwash) {
 bool UpdateAttempter::CanRollback() const {
   // We can only rollback if the update_engine isn't busy and we have a valid
   // rollback partition.
-  return (status_ == UPDATE_STATUS_IDLE &&
+  return (status_ == UpdateStatus::IDLE &&
           GetRollbackSlot() != BootControlInterface::kInvalidSlot);
 }
 
@@ -829,7 +803,7 @@ void UpdateAttempter::CheckForUpdate(const string& app_version,
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
-  if (status_ != UPDATE_STATUS_UPDATED_NEED_REBOOT) {
+  if (status_ != UpdateStatus::UPDATED_NEED_REBOOT) {
     LOG(INFO) << "Reboot requested, but status is "
               << UpdateStatusToString(status_) << ", so not rebooting.";
     return false;
@@ -890,8 +864,8 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
       // actually notice one on subsequent calls. Note that we don't need to
       // re-schedule a check in this case as updates are permanently disabled;
       // further (forced) checks may still initiate a scheduling call.
-      SetStatusAndNotify(UPDATE_STATUS_DISABLED);
-      SetStatusAndNotify(UPDATE_STATUS_IDLE);
+      SetStatusAndNotify(UpdateStatus::DISABLED);
+      SetStatusAndNotify(UpdateStatus::IDLE);
       return;
     }
 
@@ -937,11 +911,11 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   // Reset cpu shares back to normal.
   CleanupCpuSharesManagement();
 
-  if (status_ == UPDATE_STATUS_REPORTING_ERROR_EVENT) {
+  if (status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     LOG(INFO) << "Error event sent.";
 
     // Inform scheduler of new status;
-    SetStatusAndNotify(UPDATE_STATUS_IDLE);
+    SetStatusAndNotify(UpdateStatus::IDLE);
     ScheduleUpdates();
 
     if (!fake_update_success_) {
@@ -973,7 +947,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     system_state_->payload_state()->SetScatteringWaitPeriod(TimeDelta());
     prefs_->Delete(kPrefsUpdateFirstSeenAt);
 
-    SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT);
+    SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
     ScheduleUpdates();
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
 
@@ -1006,7 +980,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
     return;
   }
   LOG(INFO) << "No update.";
-  SetStatusAndNotify(UPDATE_STATUS_IDLE);
+  SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
 }
 
@@ -1014,7 +988,7 @@ void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
   // Reset cpu shares back to normal.
   CleanupCpuSharesManagement();
   download_progress_ = 0.0;
-  SetStatusAndNotify(UPDATE_STATUS_IDLE);
+  SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
   actions_.clear();
   error_event_.reset(nullptr);
@@ -1058,7 +1032,7 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     // If the current state is at or past the download phase, count the failure
     // in case a switch to full update becomes necessary. Ignore network
     // transfer timeouts and failures.
-    if (status_ >= UPDATE_STATUS_DOWNLOADING &&
+    if (status_ >= UpdateStatus::DOWNLOADING &&
         code != ErrorCode::kDownloadTransferError) {
       MarkDeltaUpdateFailure();
     }
@@ -1079,9 +1053,9 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     new_payload_size_ = plan.payload_size;
     SetupDownload();
     SetupCpuSharesManagement();
-    SetStatusAndNotify(UPDATE_STATUS_UPDATE_AVAILABLE);
+    SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
   } else if (type == DownloadAction::StaticType()) {
-    SetStatusAndNotify(UPDATE_STATUS_FINALIZING);
+    SetStatusAndNotify(UpdateStatus::FINALIZING);
   }
 }
 
@@ -1100,32 +1074,32 @@ void UpdateAttempter::BytesReceived(uint64_t bytes_received, uint64_t total) {
   // Self throttle based on progress. Also send notifications if
   // progress is too slow.
   const double kDeltaPercent = 0.01;  // 1%
-  if (status_ != UPDATE_STATUS_DOWNLOADING ||
+  if (status_ != UpdateStatus::DOWNLOADING ||
       bytes_received == total ||
       progress - download_progress_ >= kDeltaPercent ||
       TimeTicks::Now() - last_notify_time_ >= TimeDelta::FromSeconds(10)) {
     download_progress_ = progress;
-    SetStatusAndNotify(UPDATE_STATUS_DOWNLOADING);
+    SetStatusAndNotify(UpdateStatus::DOWNLOADING);
   }
 }
 
 bool UpdateAttempter::ResetStatus() {
   LOG(INFO) << "Attempting to reset state from "
-            << UpdateStatusToString(status_) << " to UPDATE_STATUS_IDLE";
+            << UpdateStatusToString(status_) << " to UpdateStatus::IDLE";
 
   switch (status_) {
-    case UPDATE_STATUS_IDLE:
+    case UpdateStatus::IDLE:
       // no-op.
       return true;
 
-    case UPDATE_STATUS_UPDATED_NEED_REBOOT:  {
+    case UpdateStatus::UPDATED_NEED_REBOOT:  {
       bool ret_value = true;
-      status_ = UPDATE_STATUS_IDLE;
+      status_ = UpdateStatus::IDLE;
       LOG(INFO) << "Reset Successful";
 
       // Remove the reboot marker so that if the machine is rebooted
       // after resetting to idle state, it doesn't go back to
-      // UPDATE_STATUS_UPDATED_NEED_REBOOT state.
+      // UpdateStatus::UPDATED_NEED_REBOOT state.
       if (!update_completed_marker_.empty()) {
         if (!base::DeleteFile(base::FilePath(update_completed_marker_), false))
           ret_value = false;
@@ -1261,7 +1235,7 @@ void UpdateAttempter::CreatePendingErrorEvent(AbstractAction* action,
   // don't schedule another. This shouldn't really happen but just in case...
   if ((action->Type() == OmahaResponseHandlerAction::StaticType() &&
        code == ErrorCode::kError) ||
-      status_ == UPDATE_STATUS_REPORTING_ERROR_EVENT) {
+      status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     return;
   }
 
@@ -1310,7 +1284,7 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
                              false));
   actions_.push_back(shared_ptr<AbstractAction>(error_event_action));
   processor_->EnqueueAction(error_event_action.get());
-  SetStatusAndNotify(UPDATE_STATUS_REPORTING_ERROR_EVENT);
+  SetStatusAndNotify(UpdateStatus::REPORTING_ERROR_EVENT);
   processor_->StartProcessing();
   return true;
 }
@@ -1439,7 +1413,7 @@ void UpdateAttempter::PingOmaha() {
   UpdateLastCheckedTime();
 
   // Update the status which will schedule the next update check
-  SetStatusAndNotify(UPDATE_STATUS_UPDATED_NEED_REBOOT);
+  SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
   ScheduleUpdates();
 }
 
@@ -1574,8 +1548,8 @@ bool UpdateAttempter::GetBootTimeAtUpdate(Time *out_boot_time) {
 }
 
 bool UpdateAttempter::IsUpdateRunningOrScheduled() {
-  return ((status_ != UPDATE_STATUS_IDLE &&
-           status_ != UPDATE_STATUS_UPDATED_NEED_REBOOT) ||
+  return ((status_ != UpdateStatus::IDLE &&
+           status_ != UpdateStatus::UPDATED_NEED_REBOOT) ||
           waiting_for_scheduled_check_);
 }
 
