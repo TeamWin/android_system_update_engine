@@ -230,6 +230,9 @@ bool PayloadFile::WritePayload(const string& payload_file,
     TEST_AND_RETURN_FALSE(PayloadSigner::SignPayload(
         payload_file,
         vector<string>(1, private_key_path),
+        metadata_size,
+        0,
+        metadata_size + manifest_.signatures_offset(),
         &signature_blob));
     TEST_AND_RETURN_FALSE(writer.Write(signature_blob.data(),
                                        signature_blob.size()));

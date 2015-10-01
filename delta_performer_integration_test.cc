@@ -185,7 +185,8 @@ static void SignGeneratedPayload(const string& payload_path,
   ASSERT_TRUE(PayloadSigner::HashPayloadForSigning(
       payload_path,
       vector<int>(1, signature_size),
-      &hash));
+      &hash,
+      nullptr));
   brillo::Blob signature;
   ASSERT_TRUE(PayloadSigner::SignHash(hash,
                                       kUnittestPrivateKeyPath,

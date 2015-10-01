@@ -22,6 +22,7 @@
 #include <base/logging.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_verifier.h"
 #include "update_engine/update_metadata.pb.h"
@@ -97,17 +98,17 @@ const uint8_t kDataSignature[] = {
 namespace {
 void SignSampleData(brillo::Blob* out_signature_blob,
                     const vector<string>& private_keys) {
-  string data_path;
-  ASSERT_TRUE(utils::MakeTempFile("data.XXXXXX", &data_path, nullptr));
-  ScopedPathUnlinker data_path_unlinker(data_path);
-  ASSERT_TRUE(utils::WriteFile(data_path.c_str(),
-                               kDataToSign,
-                               strlen(kDataToSign)));
+  brillo::Blob data_blob(std::begin(kDataToSign),
+                         std::begin(kDataToSign) + strlen(kDataToSign));
   uint64_t length = 0;
   EXPECT_TRUE(PayloadSigner::SignatureBlobLength(private_keys, &length));
   EXPECT_GT(length, 0);
-  EXPECT_TRUE(PayloadSigner::SignPayload(
-      data_path,
+  brillo::Blob hash_blob;
+  EXPECT_TRUE(OmahaHashCalculator::RawHashOfBytes(data_blob.data(),
+                                                  data_blob.size(),
+                                                  &hash_blob));
+  EXPECT_TRUE(PayloadSigner::SignHashWithKeys(
+      hash_blob,
       private_keys,
       out_signature_blob));
   EXPECT_EQ(length, out_signature_blob->size());

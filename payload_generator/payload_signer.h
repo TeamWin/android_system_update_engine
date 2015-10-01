@@ -63,13 +63,25 @@ class PayloadSigner {
                        const std::string& private_key_path,
                        brillo::Blob* out_signature);
 
-  // Given an unsigned payload in |unsigned_payload_path| and private keys in
-  // |private_key_path|, calculates the signature blob into
-  // |out_signature_blob|. Note that the payload must already have an updated
-  // manifest that includes the dummy signature op. Returns true on success,
-  // false otherwise.
+  // Sign |hash_data| blob with all private keys in |private_key_paths|, then
+  // convert the signatures to protobuf blob.
+  static bool SignHashWithKeys(
+      const brillo::Blob& hash_data,
+      const std::vector<std::string>& private_key_paths,
+      brillo::Blob* out_signature_blob);
+
+  // Given an unsigned payload in |unsigned_payload_path|, private keys in
+  // |private_key_path|, metadata size in |metadata_size|, metadata signature
+  // size in |metadata_signature_size| and signatures offset in
+  // |signatures_offset|, calculates the payload signature blob into
+  // |out_signature_blob|. Note that the payload must already have an
+  // updated manifest that includes the dummy signature op and correct metadata
+  // signature size in header. Returns true on success, false otherwise.
   static bool SignPayload(const std::string& unsigned_payload_path,
                           const std::vector<std::string>& private_key_paths,
+                          const uint64_t metadata_size,
+                          const uint32_t metadata_signature_size,
+                          const uint64_t signatures_offset,
                           brillo::Blob* out_signature_blob);
 
   // Returns the length of out_signature_blob that will result in a call
@@ -78,42 +90,21 @@ class PayloadSigner {
       const std::vector<std::string>& private_key_paths,
       uint64_t* out_length);
 
-  // This is a helper method for HashPayloadforSigning and
-  // HashMetadataForSigning. It loads the payload into memory, and inserts
-  // signature placeholders if Signatures aren't already present.
-  static bool PrepPayloadForHashing(
-        const std::string& payload_path,
-        const std::vector<int>& signature_sizes,
-        brillo::Blob* payload_out,
-        uint64_t* metadata_size_out,
-        uint64_t* signatures_offset_out);
-
   // Given an unsigned payload in |payload_path|,
   // this method does two things:
-  // 1. Uses PrepPayloadForHashing to inserts placeholder signature operations
-  //    to make the manifest match what the final signed payload will look
-  //    like based on |signatures_sizes|, if needed.
-  // 2. It calculates the raw SHA256 hash of the payload in |payload_path|
-  //    (except signatures) and returns the result in |out_hash_data|.
+  // 1. It loads the payload into memory, and inserts placeholder signature
+  //    operations and placeholder metadata signature to make the header and
+  //    the manifest match what the final signed payload will look like based
+  //    on |signatures_sizes|, if needed.
+  // 2. It calculates the raw SHA256 hash of the payload and the metadata in
+  //    |payload_path| (except signatures) and returns the result in
+  //    |out_hash_data| and |out_metadata_hash| respectively.
   //
-  // The dummy signatures are not preserved or written to disk.
+  // The changes to payload are not preserved or written to disk.
   static bool HashPayloadForSigning(const std::string& payload_path,
                                     const std::vector<int>& signature_sizes,
-                                    brillo::Blob* out_hash_data);
-
-  // Given an unsigned payload in |payload_path|,
-  // this method does two things:
-  // 1. Uses PrepPayloadForHashing to inserts placeholder signature operations
-  //    to make the manifest match what the final signed payload will look
-  //    like based on |signatures_sizes|, if needed.
-  // 2. It calculates the raw SHA256 hash of the metadata from the payload in
-  //    |payload_path| (except signatures) and returns the result in
-  //    |out_metadata_hash|.
-  //
-  // The dummy signatures are not preserved or written to disk.
-  static bool HashMetadataForSigning(const std::string& payload_path,
-                                     const std::vector<int>& signature_sizes,
-                                     brillo::Blob* out_metadata_hash);
+                                    brillo::Blob* out_payload_hash_data,
+                                    brillo::Blob* out_metadata_hash);
 
   // Given an unsigned payload in |payload_path| (with no dummy signature op)
   // and the raw |signatures| updates the payload to include the signature thus

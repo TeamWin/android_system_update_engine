@@ -103,45 +103,26 @@ bool ParseImageInfo(const string& channel,
   return true;
 }
 
-void CalculatePayloadHashForSigning(const vector<int> &sizes,
-                                    const string& out_hash_file,
-                                    const string& in_file) {
-  LOG(INFO) << "Calculating payload hash for signing.";
+void CalculateHashForSigning(const vector<int> &sizes,
+                             const string& out_hash_file,
+                             const string& out_metadata_hash_file,
+                             const string& in_file) {
+  LOG(INFO) << "Calculating hash for signing.";
   LOG_IF(FATAL, in_file.empty())
       << "Must pass --in_file to calculate hash for signing.";
   LOG_IF(FATAL, out_hash_file.empty())
       << "Must pass --out_hash_file to calculate hash for signing.";
 
-  brillo::Blob hash;
-  bool result = PayloadSigner::HashPayloadForSigning(in_file, sizes,
-                                                     &hash);
-  CHECK(result);
+  brillo::Blob payload_hash, metadata_hash;
+  CHECK(PayloadSigner::HashPayloadForSigning(in_file, sizes, &payload_hash,
+                                             &metadata_hash));
+  CHECK(utils::WriteFile(out_hash_file.c_str(), payload_hash.data(),
+                         payload_hash.size()));
+  if (!out_metadata_hash_file.empty())
+    CHECK(utils::WriteFile(out_metadata_hash_file.c_str(), metadata_hash.data(),
+                           metadata_hash.size()));
 
-  result = utils::WriteFile(out_hash_file.c_str(), hash.data(), hash.size());
-  CHECK(result);
-  LOG(INFO) << "Done calculating payload hash for signing.";
-}
-
-
-void CalculateMetadataHashForSigning(const vector<int> &sizes,
-                                     const string& out_metadata_hash_file,
-                                     const string& in_file) {
-  LOG(INFO) << "Calculating metadata hash for signing.";
-  LOG_IF(FATAL, in_file.empty())
-      << "Must pass --in_file to calculate metadata hash for signing.";
-  LOG_IF(FATAL, out_metadata_hash_file.empty())
-      << "Must pass --out_metadata_hash_file to calculate metadata hash.";
-
-  brillo::Blob hash;
-  bool result = PayloadSigner::HashMetadataForSigning(in_file, sizes,
-                                                      &hash);
-  CHECK(result);
-
-  result = utils::WriteFile(out_metadata_hash_file.c_str(), hash.data(),
-                            hash.size());
-  CHECK(result);
-
-  LOG(INFO) << "Done calculating metadata hash for signing.";
+  LOG(INFO) << "Done calculating hash for signing.";
 }
 
 void SignPayload(const string& in_file,
@@ -360,15 +341,8 @@ int Main(int argc, char** argv) {
 
   if (!FLAGS_out_hash_file.empty() || !FLAGS_out_metadata_hash_file.empty()) {
     CHECK(FLAGS_out_metadata_size_file.empty());
-    if (!FLAGS_out_hash_file.empty()) {
-      CalculatePayloadHashForSigning(signature_sizes, FLAGS_out_hash_file,
-                                     FLAGS_in_file);
-    }
-    if (!FLAGS_out_metadata_hash_file.empty()) {
-      CalculateMetadataHashForSigning(signature_sizes,
-                                      FLAGS_out_metadata_hash_file,
-                                      FLAGS_in_file);
-    }
+    CalculateHashForSigning(signature_sizes, FLAGS_out_hash_file,
+                            FLAGS_out_metadata_hash_file, FLAGS_in_file);
     return 0;
   }
   if (!FLAGS_signature_file.empty()) {
