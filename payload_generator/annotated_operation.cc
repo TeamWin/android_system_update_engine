@@ -20,9 +20,8 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/stringprintf.h>
 
+#include "update_engine/payload_constants.h"
 #include "update_engine/utils.h"
-
-using std::string;
 
 namespace chromeos_update_engine {
 
@@ -44,30 +43,6 @@ bool AnnotatedOperation::SetOperationBlob(chromeos::Blob* blob,
   op.set_data_offset(data_offset);
   op.set_data_length(blob->size());
   return true;
-}
-
-string InstallOperationTypeName(InstallOperation_Type op_type) {
-  switch (op_type) {
-    case InstallOperation::BSDIFF:
-      return "BSDIFF";
-    case InstallOperation::MOVE:
-      return "MOVE";
-    case InstallOperation::REPLACE:
-      return "REPLACE";
-    case InstallOperation::REPLACE_BZ:
-      return "REPLACE_BZ";
-    case InstallOperation::SOURCE_COPY:
-      return "SOURCE_COPY";
-    case InstallOperation::SOURCE_BSDIFF:
-      return "SOURCE_BSDIFF";
-    case InstallOperation::ZERO:
-      return "ZERO";
-    case InstallOperation::DISCARD:
-      return "DISCARD";
-    case InstallOperation::REPLACE_XZ:
-      return "REPLACE_XZ";
-  }
-  return "UNK";
 }
 
 std::ostream& operator<<(std::ostream& os, const AnnotatedOperation& aop) {

@@ -47,6 +47,7 @@
 #include "update_engine/subprocess.h"
 #include "update_engine/terminator.h"
 #include "update_engine/update_attempter.h"
+#include "update_engine/xz_extent_writer.h"
 
 using google::protobuf::RepeatedPtrField;
 using std::min;
@@ -594,28 +595,28 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
         ScopedTerminatorExitUnblocker();  // Avoids a compiler unused var bug.
 
     bool op_result;
-    if (op.type() == InstallOperation::REPLACE ||
-        op.type() == InstallOperation::REPLACE_BZ)
-      op_result = HandleOpResult(
-          PerformReplaceOperation(op, is_kernel_partition), "replace", error);
-    else if (op.type() == InstallOperation::MOVE)
-      op_result = HandleOpResult(
-          PerformMoveOperation(op, is_kernel_partition), "move", error);
-    else if (op.type() == InstallOperation::BSDIFF)
-      op_result = HandleOpResult(
-          PerformBsdiffOperation(op, is_kernel_partition), "bsdiff", error);
-    else if (op.type() == InstallOperation::SOURCE_COPY)
-      op_result =
-          HandleOpResult(PerformSourceCopyOperation(op, is_kernel_partition),
-                         "source_copy", error);
-    else if (op.type() == InstallOperation::SOURCE_BSDIFF)
-      op_result =
-          HandleOpResult(PerformSourceBsdiffOperation(op, is_kernel_partition),
-                         "source_bsdiff", error);
-    else
-      op_result = HandleOpResult(false, "unknown", error);
-
-    if (!op_result)
+    switch (op.type()) {
+      case InstallOperation::REPLACE:
+      case InstallOperation::REPLACE_BZ:
+      case InstallOperation::REPLACE_XZ:
+        op_result = PerformReplaceOperation(op, is_kernel_partition);
+        break;
+      case InstallOperation::MOVE:
+        op_result = PerformMoveOperation(op, is_kernel_partition);
+        break;
+      case InstallOperation::BSDIFF:
+        op_result = PerformBsdiffOperation(op, is_kernel_partition);
+        break;
+      case InstallOperation::SOURCE_COPY:
+        op_result = PerformSourceCopyOperation(op, is_kernel_partition);
+        break;
+      case InstallOperation::SOURCE_BSDIFF:
+        op_result = PerformSourceBsdiffOperation(op, is_kernel_partition);
+        break;
+      default:
+       op_result = false;
+    }
+    if (!HandleOpResult(op_result, InstallOperationTypeName(op.type()), error))
       return false;
 
     next_operation_num_++;
@@ -650,7 +651,8 @@ bool DeltaPerformer::CanPerformInstallOperation(
 bool DeltaPerformer::PerformReplaceOperation(const InstallOperation& operation,
                                              bool is_kernel_partition) {
   CHECK(operation.type() == InstallOperation::REPLACE ||
-        operation.type() == InstallOperation::REPLACE_BZ);
+        operation.type() == InstallOperation::REPLACE_BZ ||
+        operation.type() == InstallOperation::REPLACE_XZ);
 
   // Since we delete data off the beginning of the buffer as we use it,
   // the data we need should be exactly at the beginning of the buffer.
@@ -665,8 +667,11 @@ bool DeltaPerformer::PerformReplaceOperation(const InstallOperation& operation,
     chromeos::make_unique_ptr(new ZeroPadExtentWriter(
       chromeos::make_unique_ptr(new DirectExtentWriter())));
 
-  if (operation.type() == InstallOperation::REPLACE_BZ)
+  if (operation.type() == InstallOperation::REPLACE_BZ) {
     writer.reset(new BzipExtentWriter(std::move(writer)));
+  } else if (operation.type() == InstallOperation::REPLACE_XZ) {
+    writer.reset(new XzExtentWriter(std::move(writer)));
+  }
 
   // Create a vector of extents to pass to the ExtentWriter.
   vector<Extent> extents;

@@ -21,6 +21,8 @@
 
 #include <limits>
 
+#include "update_engine/update_metadata.pb.h"
+
 namespace chromeos_update_engine {
 
 // The major version used by Chrome OS.
@@ -51,6 +53,9 @@ extern const char kDeltaMagic[];
 // A block number denoting a hole on a sparse file. Used on Extents to refer to
 // section of blocks not present on disk on a sparse file.
 const uint64_t kSparseHole = std::numeric_limits<uint64_t>::max();
+
+// Return the name of the operation type.
+const char* InstallOperationTypeName(InstallOperation_Type op_type);
 
 }  // namespace chromeos_update_engine
 

@@ -23,9 +23,9 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
-#include <base/strings/stringprintf.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
 
@@ -46,10 +46,8 @@ namespace chromeos_update_engine {
 
 using std::string;
 using std::vector;
-using testing::Return;
-using testing::_;
-using test_utils::kRandomString;
 using test_utils::System;
+using test_utils::kRandomString;
 
 extern const char* kUnittestPrivateKeyPath;
 extern const char* kUnittestPublicKeyPath;
@@ -70,6 +68,16 @@ enum MetadataSignatureTest {
   kEmptyMetadataSignature,
   kInvalidMetadataSignature,
   kValidMetadataSignature,
+};
+
+// Compressed data without checksum, generated with:
+// echo -n a | xz -9 --check=none | hexdump -v -e '"    " 12/1 "0x%02x, " "\n"'
+const uint8_t kXzCompressedData[] = {
+    0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00, 0x00, 0x00, 0xff, 0x12, 0xd9, 0x41,
+    0x02, 0x00, 0x21, 0x01, 0x1c, 0x00, 0x00, 0x00, 0x10, 0xcf, 0x58, 0xcc,
+    0x01, 0x00, 0x00, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x11, 0x01,
+    0xad, 0xa6, 0x58, 0x04, 0x06, 0x72, 0x9e, 0x7a, 0x01, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x59, 0x5a,
 };
 
 }  // namespace
@@ -310,6 +318,27 @@ TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
   aops.push_back(aop);
 
   chromeos::Blob payload_data = GeneratePayload(bz_data, aops, false,
+                                                kSourceMinorPayloadVersion);
+
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
+}
+
+TEST_F(DeltaPerformerTest, ReplaceXzOperationTest) {
+  chromeos::Blob xz_data(std::begin(kXzCompressedData),
+                         std::end(kXzCompressedData));
+  // The compressed xz data contains only a single "a", but the operation should
+  // pad the rest of the two blocks with zeros.
+  chromeos::Blob expected_data = chromeos::Blob(4096, 0);
+  expected_data[0] = 'a';
+
+  AnnotatedOperation aop;
+  *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
+  aop.op.set_data_offset(0);
+  aop.op.set_data_length(xz_data.size());
+  aop.op.set_type(InstallOperation::REPLACE_XZ);
+  vector<AnnotatedOperation> aops = {aop};
+
+  chromeos::Blob payload_data = GeneratePayload(xz_data, aops, false,
                                                 kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));

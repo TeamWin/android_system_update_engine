@@ -44,8 +44,6 @@ struct AnnotatedOperation {
 // For logging purposes.
 std::ostream& operator<<(std::ostream& os, const AnnotatedOperation& aop);
 
-std::string InstallOperationTypeName(InstallOperation_Type op_type);
-
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_PAYLOAD_GENERATOR_ANNOTATED_OPERATION_H_
