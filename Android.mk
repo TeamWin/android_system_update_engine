@@ -323,6 +323,36 @@ LOCAL_SRC_FILES := \
 LOCAL_DBUS_PROXY_PREFIX := update_engine
 include $(BUILD_STATIC_LIBRARY)
 
+# libupdate_engine_client
+# ========================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := libupdate_engine_client
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CFLAGS := \
+    -Wall \
+    -Werror \
+    -Wno-unused-parameter
+LOCAL_CLANG := true
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_C_INCLUDES := \
+    $(LOCAL_PATH)/client_library/include \
+    external/cros/system_api/dbus \
+    system \
+    external/gtest/include
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/client_library/include
+LOCAL_SHARED_LIBRARIES := \
+    libchrome \
+    libchrome-dbus \
+    libchromeos \
+    libchromeos-dbus
+LOCAL_STATIC_LIBRARIES := \
+    update_engine_client-dbus-proxies
+LOCAL_SRC_FILES := \
+    client_library/client.cc \
+    client_library/client_impl.cc \
+    update_status_utils.cc
+include $(BUILD_SHARED_LIBRARY)
+
 
 # Update payload signing public key.
 # ========================================================
