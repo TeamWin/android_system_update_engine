@@ -138,14 +138,29 @@ class DeltaPerformerTest : public ::testing::Test {
   // Apply |payload_data| on partition specified in |source_path|.
   chromeos::Blob ApplyPayload(const chromeos::Blob& payload_data,
                               const string& source_path) {
-    install_plan_.source_path = source_path;
-    install_plan_.kernel_source_path = "/dev/null";
+    return ApplyPayloadToData(payload_data, source_path, chromeos::Blob());
+  }
 
+  // Apply the payload provided in |payload_data| reading from the |source_path|
+  // file and writing the contents to a new partition. The existing data in the
+  // new target file are set to |target_data| before applying the payload.
+  // Returns the result of the payload application.
+  chromeos::Blob ApplyPayloadToData(const chromeos::Blob& payload_data,
+                                    const string& source_path,
+                                    const chromeos::Blob& target_data) {
     string new_part;
     EXPECT_TRUE(utils::MakeTempFile("Partition-XXXXXX", &new_part, nullptr));
     ScopedPathUnlinker partition_unlinker(new_part);
+    EXPECT_TRUE(utils::WriteFile(new_part.c_str(), target_data.data(),
+                                 target_data.size()));
+
+    install_plan_.source_path = source_path;
+    install_plan_.kernel_source_path = "/dev/null";
+    install_plan_.install_path = new_part;
+    install_plan_.kernel_install_path = "/dev/null";
 
     EXPECT_EQ(0, performer_.Open(new_part.c_str(), 0, 0));
+    EXPECT_TRUE(performer_.OpenSourceRootfs(source_path.c_str()));
     EXPECT_TRUE(performer_.Write(payload_data.data(), payload_data.size()));
     EXPECT_EQ(0, performer_.Close());
 
@@ -285,7 +300,7 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
   chromeos::Blob payload_data = GeneratePayload(expected_data, aops, false,
       kFullPayloadMinorVersion);
 
-  EXPECT_EQ(expected_data, ApplyPayload(payload_data, ""));
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
 }
 
 TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
@@ -346,6 +361,29 @@ TEST_F(DeltaPerformerTest, ReplaceXzOperationTest) {
                                                 kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
+}
+
+TEST_F(DeltaPerformerTest, ZeroOperationTest) {
+  chromeos::Blob existing_data = chromeos::Blob(4096 * 10, 'a');
+  chromeos::Blob expected_data = existing_data;
+  // Blocks 4, 5 and 7 should have zeros instead of 'a' after the operation is
+  // applied.
+  std::fill(expected_data.data() + 4096 * 4, expected_data.data() + 4096 * 6,
+            0);
+  std::fill(expected_data.data() + 4096 * 7, expected_data.data() + 4096 * 8,
+            0);
+
+  AnnotatedOperation aop;
+  *(aop.op.add_dst_extents()) = ExtentForRange(4, 2);
+  *(aop.op.add_dst_extents()) = ExtentForRange(7, 1);
+  aop.op.set_type(InstallOperation::ZERO);
+  vector<AnnotatedOperation> aops = {aop};
+
+  chromeos::Blob payload_data = GeneratePayload(chromeos::Blob(), aops, false,
+                                                kSourceMinorPayloadVersion);
+
+  EXPECT_EQ(expected_data,
+            ApplyPayloadToData(payload_data, "/dev/null", existing_data));
 }
 
 TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {

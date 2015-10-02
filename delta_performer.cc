@@ -18,6 +18,7 @@
 
 #include <endian.h>
 #include <errno.h>
+#include <linux/fs.h>
 
 #include <algorithm>
 #include <cstring>
@@ -650,6 +651,10 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
       case InstallOperation::REPLACE_XZ:
         op_result = PerformReplaceOperation(op, is_kernel_partition);
         break;
+      case InstallOperation::ZERO:
+      case InstallOperation::DISCARD:
+        op_result = PerformZeroOrDiscardOperation(op, is_kernel_partition);
+        break;
       case InstallOperation::MOVE:
         op_result = PerformMoveOperation(op, is_kernel_partition);
         break;
@@ -736,6 +741,43 @@ bool DeltaPerformer::PerformReplaceOperation(const InstallOperation& operation,
 
   // Update buffer
   DiscardBuffer(true);
+  return true;
+}
+
+bool DeltaPerformer::PerformZeroOrDiscardOperation(
+    const InstallOperation& operation,
+    bool is_kernel_partition) {
+  CHECK(operation.type() == InstallOperation::DISCARD ||
+        operation.type() == InstallOperation::ZERO);
+
+  // These operations have no blob.
+  TEST_AND_RETURN_FALSE(!operation.has_data_offset());
+  TEST_AND_RETURN_FALSE(!operation.has_data_length());
+
+  int request =
+      (operation.type() == InstallOperation::ZERO ? BLKZEROOUT : BLKDISCARD);
+
+  FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
+  bool attempt_ioctl = true;
+  chromeos::Blob zeros;
+  for (int i = 0; i < operation.dst_extents_size(); i++) {
+    Extent extent = operation.dst_extents(i);
+    const uint64_t start = extent.start_block() * block_size_;
+    const uint64_t length = extent.num_blocks() * block_size_;
+    if (attempt_ioctl) {
+      int result = 0;
+      if (fd->BlkIoctl(request, start, length, &result) && result == 0)
+        continue;
+      attempt_ioctl = false;
+      zeros.resize(16 * block_size_);
+    }
+    // In case of failure, we fall back to writing 0 to the selected region.
+    for (uint64_t offset = 0; offset < length; offset += zeros.size()) {
+      uint64_t chunk_length = min(length - offset, zeros.size());
+      TEST_AND_RETURN_FALSE(
+          utils::PWriteAll(fd, zeros.data(), chunk_length, start + offset));
+    }
+  }
   return true;
 }
 

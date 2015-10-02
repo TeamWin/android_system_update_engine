@@ -279,6 +279,8 @@ class DeltaPerformer : public FileWriter {
   // These perform a specific type of operation and return true on success.
   bool PerformReplaceOperation(const InstallOperation& operation,
                                bool is_kernel_partition);
+  bool PerformZeroOrDiscardOperation(const InstallOperation& operation,
+                                     bool is_kernel_partition);
   bool PerformMoveOperation(const InstallOperation& operation,
                             bool is_kernel_partition);
   bool PerformBsdiffOperation(const InstallOperation& operation,

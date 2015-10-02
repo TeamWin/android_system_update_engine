@@ -78,6 +78,17 @@ class FileDescriptor {
   // may set errno accordingly.
   virtual off64_t Seek(off64_t offset, int whence) = 0;
 
+  // Runs a ioctl() on the file descriptor if supported. Returns whether
+  // the operation is supported. The |request| can be one of BLKDISCARD,
+  // BLKZEROOUT and BLKSECDISCARD to discard, write zeros or securely discard
+  // the blocks. These ioctls accept a range of bytes (|start| and |length|)
+  // over which they perform the operation. The return value from the ioctl is
+  // stored in |result|.
+  virtual bool BlkIoctl(int request,
+                        uint64_t start,
+                        uint64_t length,
+                        int* result) = 0;
+
   // Closes a file descriptor. The descriptor must be open prior to this call.
   // Returns true on success, false otherwise. Specific implementations may set
   // errno accordingly.
@@ -108,6 +119,10 @@ class EintrSafeFileDescriptor : public FileDescriptor {
   ssize_t Read(void* buf, size_t count) override;
   ssize_t Write(const void* buf, size_t count) override;
   off64_t Seek(off64_t offset, int whence) override;
+  bool BlkIoctl(int request,
+                uint64_t start,
+                uint64_t length,
+                int* result) override;
   bool Close() override;
   void Reset() override;
   bool IsSettingErrno() override {

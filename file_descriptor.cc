@@ -17,6 +17,8 @@
 #include "update_engine/file_descriptor.h"
 
 #include <fcntl.h>
+#include <linux/fs.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -61,6 +63,42 @@ ssize_t EintrSafeFileDescriptor::Write(const void* buf, size_t count) {
 off64_t EintrSafeFileDescriptor::Seek(off64_t offset, int whence) {
   CHECK_GE(fd_, 0);
   return lseek64(fd_, offset, whence);
+}
+
+bool EintrSafeFileDescriptor::BlkIoctl(int request,
+                                       uint64_t start,
+                                       uint64_t length,
+                                       int* result) {
+  DCHECK(request == BLKDISCARD || request == BLKZEROOUT ||
+         request == BLKSECDISCARD);
+  // On some devices, the BLKDISCARD will actually read back as zeros, instead
+  // of "undefined" data. The BLKDISCARDZEROES ioctl tells whether that's the
+  // case, so we issue a BLKDISCARD in those cases to speed up the writes.
+  unsigned int arg;
+  if (request == BLKZEROOUT && ioctl(fd_, BLKDISCARDZEROES, &arg) == 0 && arg)
+    request = BLKDISCARD;
+
+  // Ensure the |fd_| is in O_DIRECT mode during this operation, so the write
+  // cache for this region is invalidated. This is required since otherwise
+  // reading back this region could consume stale data from the cache.
+  int flags = fcntl(fd_, F_GETFL, 0);
+  if (flags == -1) {
+    PLOG(WARNING) << "Couldn't get flags on fd " << fd_;
+    return false;
+  }
+  if ((flags & O_DIRECT) == 0 && fcntl(fd_, F_SETFL, flags | O_DIRECT) == -1) {
+    PLOG(WARNING) << "Couldn't set O_DIRECT on fd " << fd_;
+    return false;
+  }
+
+  uint64_t range[2] = {start, length};
+  *result = ioctl(fd_, request, range);
+
+  if ((flags & O_DIRECT) == 0 && fcntl(fd_, F_SETFL, flags) == -1) {
+    PLOG(WARNING) << "Couldn't remove O_DIRECT on fd " << fd_;
+    return false;
+  }
+  return true;
 }
 
 bool EintrSafeFileDescriptor::Close() {
