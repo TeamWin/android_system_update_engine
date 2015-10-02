@@ -50,4 +50,40 @@ const char* UpdateStatusToString(const UpdateStatus& status) {
   return nullptr;
 }
 
+bool StringToUpdateStatus(const std::string& s,
+                          UpdateStatus* status) {
+  if (s == update_engine::kUpdateStatusIdle) {
+    *status = UpdateStatus::IDLE;
+    return true;
+  } else if (s == update_engine::kUpdateStatusCheckingForUpdate) {
+    *status = UpdateStatus::CHECKING_FOR_UPDATE;
+    return true;
+  } else if (s == update_engine::kUpdateStatusUpdateAvailable) {
+    *status = UpdateStatus::UPDATE_AVAILABLE;
+    return true;
+  } else if (s == update_engine::kUpdateStatusDownloading) {
+    *status = UpdateStatus::DOWNLOADING;
+    return true;
+  } else if (s == update_engine::kUpdateStatusVerifying) {
+    *status = UpdateStatus::VERIFYING;
+    return true;
+  } else if (s == update_engine::kUpdateStatusFinalizing) {
+    *status = UpdateStatus::FINALIZING;
+    return true;
+  } else if (s == update_engine::kUpdateStatusUpdatedNeedReboot) {
+    *status = UpdateStatus::UPDATED_NEED_REBOOT;
+    return true;
+  } else if (s == update_engine::kUpdateStatusReportingErrorEvent) {
+    *status = UpdateStatus::REPORTING_ERROR_EVENT;
+    return true;
+  } else if (s == update_engine::kUpdateStatusAttemptingRollback) {
+    *status = UpdateStatus::ATTEMPTING_ROLLBACK;
+    return true;
+  } else if (s == update_engine::kUpdateStatusDisabled) {
+    *status = UpdateStatus::DISABLED;
+    return true;
+  }
+  return false;
+}
+
 }  // namespace chromeos_update_engine
