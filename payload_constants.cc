@@ -28,7 +28,7 @@ const uint32_t kSourceMinorPayloadVersion = 2;
 const char kLegacyPartitionNameKernel[] = "boot";
 const char kLegacyPartitionNameRoot[] = "system";
 
-const char kDeltaMagic[] = "CrAU";
+const char kDeltaMagic[4] = {'C', 'r', 'A', 'U'};
 const char kBspatchPath[] = "bspatch";
 
 const char* InstallOperationTypeName(InstallOperation_Type op_type) {

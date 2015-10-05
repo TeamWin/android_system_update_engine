@@ -191,7 +191,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
   ScopedFileWriterCloser writer_closer(&writer);
 
   // Write header
-  TEST_AND_RETURN_FALSE(writer.Write(kDeltaMagic, strlen(kDeltaMagic)));
+  TEST_AND_RETURN_FALSE(writer.Write(kDeltaMagic, sizeof(kDeltaMagic)));
 
   // Write major version number
   TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer, major_version_));
@@ -241,7 +241,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
   }
 
   *medatata_size_out =
-      strlen(kDeltaMagic) + 2 * sizeof(uint64_t) + serialized_manifest.size();
+      sizeof(kDeltaMagic) + 2 * sizeof(uint64_t) + serialized_manifest.size();
   ReportPayloadUsage(*medatata_size_out);
   return true;
 }
