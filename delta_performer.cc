@@ -65,7 +65,7 @@ const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
 const uint64_t DeltaPerformer::kDeltaMetadataSignatureSizeSize = 4;
 const uint64_t DeltaPerformer::kMaxPayloadHeaderSize = 24;
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 1;
-const uint64_t DeltaPerformer::kSupportedMinorPayloadVersion = 2;
+const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 2;
 
 const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
 const unsigned DeltaPerformer::kProgressLogTimeoutSeconds = 30;
@@ -109,9 +109,8 @@ FileDescriptorPtr CreateFileDescriptor(const char* path) {
 
 // Opens path for read/write. On success returns an open FileDescriptor
 // and sets *err to 0. On failure, sets *err to errno and returns nullptr.
-FileDescriptorPtr OpenFile(const char* path, int* err) {
+FileDescriptorPtr OpenFile(const char* path, int mode, int* err) {
   FileDescriptorPtr fd = CreateFileDescriptor(path);
-  int mode = O_RDWR;
 #if USE_MTD
   // On NAND devices, we can either read, or write, but not both. So here we
   // use O_WRONLY.
@@ -252,64 +251,70 @@ bool DeltaPerformer::HandleOpResult(bool op_result, const char* op_type_name,
   return false;
 }
 
-int DeltaPerformer::Open(const char* path, int flags, mode_t mode) {
-  int err;
-  fd_ = OpenFile(path, &err);
-  if (fd_)
-    path_ = path;
-  return -err;
-}
-
-bool DeltaPerformer::OpenKernel(const char* kernel_path) {
-  int err;
-  kernel_fd_ = OpenFile(kernel_path, &err);
-  if (kernel_fd_)
-    kernel_path_ = kernel_path;
-  return static_cast<bool>(kernel_fd_);
-}
-
-bool DeltaPerformer::OpenSourceRootfs(const string& source_path) {
-  int err;
-  source_fd_ = OpenFile(source_path.c_str(), &err);
-  return static_cast<bool>(source_fd_);
-}
-
-bool DeltaPerformer::OpenSourceKernel(const string& source_kernel_path) {
-  int err;
-  source_kernel_fd_ = OpenFile(source_kernel_path.c_str(), &err);
-  return static_cast<bool>(source_kernel_fd_);
-}
-
 int DeltaPerformer::Close() {
-  int err = 0;
-  if (kernel_fd_ && !kernel_fd_->Close()) {
-    err = errno;
-    PLOG(ERROR) << "Unable to close kernel fd:";
-  }
-  if (!fd_->Close()) {
-    err = errno;
-    PLOG(ERROR) << "Unable to close rootfs fd:";
-  }
-  if (source_fd_ && !source_fd_->Close()) {
-    err = errno;
-    PLOG(ERROR) << "Unable to close source rootfs fd:";
-  }
-  if (source_kernel_fd_ && !source_kernel_fd_->Close()) {
-    err = errno;
-    PLOG(ERROR) << "Unable to close source kernel fd:";
-  }
+  int err = -CloseCurrentPartition();
   LOG_IF(ERROR, !hash_calculator_.Finalize()) << "Unable to finalize the hash.";
-  fd_.reset();  // Set to invalid so that calls to Open() will fail.
-  kernel_fd_.reset();
-  source_fd_.reset();
-  source_kernel_fd_.reset();
-  path_ = "";
   if (!buffer_.empty()) {
     LOG(INFO) << "Discarding " << buffer_.size() << " unused downloaded bytes";
     if (err >= 0)
       err = 1;
   }
   return -err;
+}
+
+int DeltaPerformer::CloseCurrentPartition() {
+  int err = 0;
+  if (source_fd_ && !source_fd_->Close()) {
+    err = errno;
+    PLOG(ERROR) << "Error closing source partition";
+    if (!err)
+      err = 1;
+  }
+  source_fd_.reset();
+  source_path_.clear();
+
+  if (target_fd_ && !target_fd_->Close()) {
+    err = errno;
+    PLOG(ERROR) << "Error closing target partition";
+    if (!err)
+      err = 1;
+  }
+  target_fd_.reset();
+  target_path_.clear();
+  return -err;
+}
+
+bool DeltaPerformer::OpenCurrentPartition() {
+  if (current_partition_ >= partitions_.size())
+    return false;
+
+  const PartitionUpdate& partition = partitions_[current_partition_];
+  // Open source fds if we have a delta payload with minor version 2.
+  if (!install_plan_->is_full_update &&
+      GetMinorVersion() == kSourceMinorPayloadVersion) {
+    source_path_ = install_plan_->partitions[current_partition_].source_path;
+    int err;
+    source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, &err);
+    if (!source_fd_) {
+      LOG(ERROR) << "Unable to open source partition "
+                 << partition.partition_name() << " on slot "
+                 << BootControlInterface::SlotName(install_plan_->source_slot)
+                 << ", file " << source_path_;
+      return false;
+    }
+  }
+
+  target_path_ = install_plan_->partitions[current_partition_].target_path;
+  int err;
+  target_fd_ = OpenFile(target_path_.c_str(), O_RDWR, &err);
+  if (!target_fd_) {
+    LOG(ERROR) << "Unable to open target partition "
+               << partition.partition_name() << " on slot "
+               << BootControlInterface::SlotName(install_plan_->target_slot)
+               << ", file " << target_path_;
+    return false;
+  }
+  return true;
 }
 
 namespace {
@@ -320,15 +325,13 @@ void LogPartitionInfoHash(const PartitionInfo& info, const string& tag) {
             << " size: " << info.size();
 }
 
-void LogPartitionInfo(const DeltaArchiveManifest& manifest) {
-  if (manifest.has_old_kernel_info())
-    LogPartitionInfoHash(manifest.old_kernel_info(), "old_kernel_info");
-  if (manifest.has_old_rootfs_info())
-    LogPartitionInfoHash(manifest.old_rootfs_info(), "old_rootfs_info");
-  if (manifest.has_new_kernel_info())
-    LogPartitionInfoHash(manifest.new_kernel_info(), "new_kernel_info");
-  if (manifest.has_new_rootfs_info())
-    LogPartitionInfoHash(manifest.new_rootfs_info(), "new_rootfs_info");
+void LogPartitionInfo(const std::vector<PartitionUpdate>& partitions) {
+  for (const PartitionUpdate& partition : partitions) {
+    LogPartitionInfoHash(partition.old_partition_info(),
+                         "old " + partition.partition_name());
+    LogPartitionInfoHash(partition.new_partition_info(),
+                         "new " + partition.partition_name());
+  }
 }
 
 }  // namespace
@@ -560,37 +563,33 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
 
     // Clear the download buffer.
     DiscardBuffer(false);
+
+    // This populates |partitions_| and the |install_plan.partitions| with the
+    // list of partitions from the manifest.
+    if (!ParseManifestPartitions(error))
+      return false;
+
+    num_total_operations_ = 0;
+    for (const auto& partition : partitions_) {
+      num_total_operations_ += partition.operations_size();
+      acc_num_operations_.push_back(num_total_operations_);
+    }
+
     LOG_IF(WARNING, !prefs_->SetInt64(kPrefsManifestMetadataSize,
                                       metadata_size_))
         << "Unable to save the manifest metadata size.";
 
-    LogPartitionInfo(manifest_);
     if (!PrimeUpdateState()) {
       *error = ErrorCode::kDownloadStateInitializationError;
       LOG(ERROR) << "Unable to prime the update state.";
       return false;
     }
 
-    // Open source fds if we have a delta payload with minor version 2.
-    if (!install_plan_->is_full_update &&
-        GetMinorVersion() == kSourceMinorPayloadVersion) {
-      if (!OpenSourceRootfs(install_plan_->source_path)) {
-        LOG(ERROR) << "Unable to open source rootfs partition file "
-                   << install_plan_->source_path;
-        Close();
-        return false;
-      }
-      if (!OpenSourceKernel(install_plan_->kernel_source_path)) {
-        LOG(ERROR) << "Unable to open source kernel partition file "
-                   << install_plan_->kernel_source_path;
-        Close();
-        return false;
-      }
+    if (!OpenCurrentPartition()) {
+      *error = ErrorCode::kInstallDeviceOpenError;
+      return false;
     }
 
-    num_rootfs_operations_ = manifest_.install_operations_size();
-    num_total_operations_ =
-        num_rootfs_operations_ + manifest_.kernel_install_operations_size();
     if (next_operation_num_ > 0)
       UpdateOverallProgress(true, "Resuming after ");
     LOG(INFO) << "Starting to apply update payload operations";
@@ -599,17 +598,25 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
   while (next_operation_num_ < num_total_operations_) {
     // Check if we should cancel the current attempt for any reason.
     // In this case, *error will have already been populated with the reason
-    // why we're cancelling.
+    // why we're canceling.
     if (system_state_->update_attempter()->ShouldCancel(error))
       return false;
 
-    const bool is_kernel_partition =
-        (next_operation_num_ >= num_rootfs_operations_);
+    // We know there are more operations to perform because we didn't reach the
+    // |num_total_operations_| limit yet.
+    while (next_operation_num_ >= acc_num_operations_[current_partition_]) {
+      CloseCurrentPartition();
+      current_partition_++;
+      if (!OpenCurrentPartition()) {
+        *error = ErrorCode::kInstallDeviceOpenError;
+        return false;
+      }
+    }
+    const size_t partition_operation_num = next_operation_num_ - (
+        current_partition_ ? acc_num_operations_[current_partition_ - 1] : 0);
+
     const InstallOperation& op =
-        is_kernel_partition ?
-            manifest_.kernel_install_operations(next_operation_num_ -
-                                                num_rootfs_operations_) :
-            manifest_.install_operations(next_operation_num_);
+        partitions_[current_partition_].operations(partition_operation_num);
 
     CopyDataToBuffer(&c_bytes, &count, op.data_length());
 
@@ -649,23 +656,23 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
       case InstallOperation::REPLACE:
       case InstallOperation::REPLACE_BZ:
       case InstallOperation::REPLACE_XZ:
-        op_result = PerformReplaceOperation(op, is_kernel_partition);
+        op_result = PerformReplaceOperation(op);
         break;
       case InstallOperation::ZERO:
       case InstallOperation::DISCARD:
-        op_result = PerformZeroOrDiscardOperation(op, is_kernel_partition);
+        op_result = PerformZeroOrDiscardOperation(op);
         break;
       case InstallOperation::MOVE:
-        op_result = PerformMoveOperation(op, is_kernel_partition);
+        op_result = PerformMoveOperation(op);
         break;
       case InstallOperation::BSDIFF:
-        op_result = PerformBsdiffOperation(op, is_kernel_partition);
+        op_result = PerformBsdiffOperation(op);
         break;
       case InstallOperation::SOURCE_COPY:
-        op_result = PerformSourceCopyOperation(op, is_kernel_partition);
+        op_result = PerformSourceCopyOperation(op);
         break;
       case InstallOperation::SOURCE_BSDIFF:
-        op_result = PerformSourceBsdiffOperation(op, is_kernel_partition);
+        op_result = PerformSourceBsdiffOperation(op);
         break;
       default:
        op_result = false;
@@ -682,6 +689,94 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
 
 bool DeltaPerformer::IsManifestValid() {
   return manifest_valid_;
+}
+
+bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
+  if (major_payload_version_ == kBrilloMajorPayloadVersion) {
+    partitions_.clear();
+    for (const PartitionUpdate& partition : manifest_.partitions()) {
+      partitions_.push_back(partition);
+    }
+    manifest_.clear_partitions();
+  } else if (major_payload_version_ == kChromeOSMajorPayloadVersion) {
+    LOG(INFO) << "Converting update information from old format.";
+    PartitionUpdate root_part;
+    root_part.set_partition_name(kLegacyPartitionNameRoot);
+    root_part.set_run_postinstall(true);
+    if (manifest_.has_old_rootfs_info()) {
+      *root_part.mutable_old_partition_info() = manifest_.old_rootfs_info();
+      manifest_.clear_old_rootfs_info();
+    }
+    if (manifest_.has_new_rootfs_info()) {
+      *root_part.mutable_new_partition_info() = manifest_.new_rootfs_info();
+      manifest_.clear_new_rootfs_info();
+    }
+    *root_part.mutable_operations() = manifest_.install_operations();
+    manifest_.clear_install_operations();
+    partitions_.push_back(std::move(root_part));
+
+    PartitionUpdate kern_part;
+    kern_part.set_partition_name(kLegacyPartitionNameKernel);
+    kern_part.set_run_postinstall(false);
+    if (manifest_.has_old_kernel_info()) {
+      *kern_part.mutable_old_partition_info() = manifest_.old_kernel_info();
+      manifest_.clear_old_kernel_info();
+    }
+    if (manifest_.has_new_kernel_info()) {
+      *kern_part.mutable_new_partition_info() = manifest_.new_kernel_info();
+      manifest_.clear_new_kernel_info();
+    }
+    *kern_part.mutable_operations() = manifest_.kernel_install_operations();
+    manifest_.clear_kernel_install_operations();
+    partitions_.push_back(std::move(kern_part));
+  }
+
+  // TODO(deymo): Remove this block of code once we switched to optional
+  // source partition verification. This list of partitions in the InstallPlan
+  // is initialized with the expected hashes in the payload major version 1,
+  // so we need to check those now if already set. See b/23182225.
+  if (!install_plan_->partitions.empty()) {
+    if (!VerifySourcePartitions()) {
+      *error = ErrorCode::kDownloadStateInitializationError;
+      return false;
+    }
+  }
+
+  // Fill in the InstallPlan::partitions based on the partitions from the
+  // payload.
+  install_plan_->partitions.clear();
+  for (const auto& partition : partitions_) {
+    InstallPlan::Partition install_part;
+    install_part.name = partition.partition_name();
+    install_part.run_postinstall =
+        partition.has_run_postinstall() && partition.run_postinstall();
+
+    if (partition.has_old_partition_info()) {
+      const PartitionInfo& info = partition.old_partition_info();
+      install_part.source_size = info.size();
+      install_part.source_hash.assign(info.hash().begin(), info.hash().end());
+    }
+
+    if (!partition.has_new_partition_info()) {
+      LOG(ERROR) << "Unable to get new partition hash info on partition "
+                 << install_part.name << ".";
+      *error = ErrorCode::kDownloadNewPartitionInfoError;
+      return false;
+    }
+    const PartitionInfo& info = partition.new_partition_info();
+    install_part.target_size = info.size();
+    install_part.target_hash.assign(info.hash().begin(), info.hash().end());
+
+    install_plan_->partitions.push_back(install_part);
+  }
+
+  if (!install_plan_->LoadPartitionsFromSlots(system_state_)) {
+    LOG(ERROR) << "Unable to determine all the partition devices.";
+    *error = ErrorCode::kInstallDeviceOpenError;
+    return false;
+  }
+  LogPartitionInfo(partitions_);
+  return true;
 }
 
 bool DeltaPerformer::CanPerformInstallOperation(
@@ -702,8 +797,8 @@ bool DeltaPerformer::CanPerformInstallOperation(
           buffer_offset_ + buffer_.size());
 }
 
-bool DeltaPerformer::PerformReplaceOperation(const InstallOperation& operation,
-                                             bool is_kernel_partition) {
+bool DeltaPerformer::PerformReplaceOperation(
+    const InstallOperation& operation) {
   CHECK(operation.type() == InstallOperation::REPLACE ||
         operation.type() == InstallOperation::REPLACE_BZ ||
         operation.type() == InstallOperation::REPLACE_XZ);
@@ -733,9 +828,7 @@ bool DeltaPerformer::PerformReplaceOperation(const InstallOperation& operation,
     extents.push_back(operation.dst_extents(i));
   }
 
-  FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
-
-  TEST_AND_RETURN_FALSE(writer->Init(fd, extents, block_size_));
+  TEST_AND_RETURN_FALSE(writer->Init(target_fd_, extents, block_size_));
   TEST_AND_RETURN_FALSE(writer->Write(buffer_.data(), operation.data_length()));
   TEST_AND_RETURN_FALSE(writer->End());
 
@@ -745,8 +838,7 @@ bool DeltaPerformer::PerformReplaceOperation(const InstallOperation& operation,
 }
 
 bool DeltaPerformer::PerformZeroOrDiscardOperation(
-    const InstallOperation& operation,
-    bool is_kernel_partition) {
+    const InstallOperation& operation) {
   CHECK(operation.type() == InstallOperation::DISCARD ||
         operation.type() == InstallOperation::ZERO);
 
@@ -757,7 +849,6 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
   int request =
       (operation.type() == InstallOperation::ZERO ? BLKZEROOUT : BLKDISCARD);
 
-  FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
   bool attempt_ioctl = true;
   chromeos::Blob zeros;
   for (int i = 0; i < operation.dst_extents_size(); i++) {
@@ -766,7 +857,7 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
     const uint64_t length = extent.num_blocks() * block_size_;
     if (attempt_ioctl) {
       int result = 0;
-      if (fd->BlkIoctl(request, start, length, &result) && result == 0)
+      if (target_fd_->BlkIoctl(request, start, length, &result) && result == 0)
         continue;
       attempt_ioctl = false;
       zeros.resize(16 * block_size_);
@@ -776,14 +867,13 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
       uint64_t chunk_length = min(length - offset,
                                   static_cast<uint64_t>(zeros.size()));
       TEST_AND_RETURN_FALSE(
-          utils::PWriteAll(fd, zeros.data(), chunk_length, start + offset));
+          utils::PWriteAll(target_fd_, zeros.data(), chunk_length, start + offset));
     }
   }
   return true;
 }
 
-bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation,
-                                          bool is_kernel_partition) {
+bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation) {
   // Calculate buffer size. Note, this function doesn't do a sliding
   // window to copy in case the source and destination blocks overlap.
   // If we wanted to do a sliding window, we could program the server
@@ -800,8 +890,6 @@ bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation,
   DCHECK_EQ(blocks_to_write, blocks_to_read);
   chromeos::Blob buf(blocks_to_write * block_size_);
 
-  FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
-
   // Read in bytes.
   ssize_t bytes_read = 0;
   for (int i = 0; i < operation.src_extents_size(); i++) {
@@ -809,7 +897,7 @@ bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation,
     const Extent& extent = operation.src_extents(i);
     const size_t bytes = extent.num_blocks() * block_size_;
     TEST_AND_RETURN_FALSE(extent.start_block() != kSparseHole);
-    TEST_AND_RETURN_FALSE(utils::PReadAll(fd,
+    TEST_AND_RETURN_FALSE(utils::PReadAll(target_fd_,
                                           &buf[bytes_read],
                                           bytes,
                                           extent.start_block() * block_size_,
@@ -825,7 +913,7 @@ bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation,
     const Extent& extent = operation.dst_extents(i);
     const size_t bytes = extent.num_blocks() * block_size_;
     TEST_AND_RETURN_FALSE(extent.start_block() != kSparseHole);
-    TEST_AND_RETURN_FALSE(utils::PWriteAll(fd,
+    TEST_AND_RETURN_FALSE(utils::PWriteAll(target_fd_,
                                            &buf[bytes_written],
                                            bytes,
                                            extent.start_block() * block_size_));
@@ -860,8 +948,7 @@ uint64_t GetBlockCount(const RepeatedPtrField<Extent>& extents) {
 }  // namespace
 
 bool DeltaPerformer::PerformSourceCopyOperation(
-    const InstallOperation& operation,
-    bool is_kernel_partition) {
+    const InstallOperation& operation) {
   if (operation.has_src_length())
     TEST_AND_RETURN_FALSE(operation.src_length() % block_size_ == 0);
   if (operation.has_dst_length())
@@ -879,10 +966,6 @@ bool DeltaPerformer::PerformSourceCopyOperation(
   DCHECK_EQ(src_blocks.size(), blocks_to_read);
   DCHECK_EQ(src_blocks.size(), dst_blocks.size());
 
-  FileDescriptorPtr src_fd =
-      is_kernel_partition ? source_kernel_fd_ : source_fd_;
-  FileDescriptorPtr dst_fd = is_kernel_partition? kernel_fd_ : fd_;
-
   chromeos::Blob buf(block_size_);
   ssize_t bytes_read = 0;
   // Read/write one block at a time.
@@ -893,7 +976,7 @@ bool DeltaPerformer::PerformSourceCopyOperation(
 
     // Read in bytes.
     TEST_AND_RETURN_FALSE(
-        utils::PReadAll(src_fd,
+        utils::PReadAll(source_fd_,
                         buf.data(),
                         block_size_,
                         src_block * block_size_,
@@ -901,7 +984,7 @@ bool DeltaPerformer::PerformSourceCopyOperation(
 
     // Write bytes out.
     TEST_AND_RETURN_FALSE(
-        utils::PWriteAll(dst_fd,
+        utils::PWriteAll(target_fd_,
                          buf.data(),
                          block_size_,
                          dst_block * block_size_));
@@ -936,8 +1019,7 @@ bool DeltaPerformer::ExtentsToBsdiffPositionsString(
   return true;
 }
 
-bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation,
-                                            bool is_kernel_partition) {
+bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
   // Since we delete data off the beginning of the buffer as we use it,
   // the data we need should be exactly at the beginning of the buffer.
   TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
@@ -970,8 +1052,7 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation,
   // file is written out.
   DiscardBuffer(true);
 
-  const string& path = is_kernel_partition ? kernel_path_ : path_;
-  vector<string> cmd{kBspatchPath, path, path, temp_filename,
+  vector<string> cmd{kBspatchPath, target_path_, target_path_, temp_filename,
                      input_positions, output_positions};
 
   int return_code = 0;
@@ -990,16 +1071,14 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation,
     const uint64_t begin_byte =
         end_byte - (block_size_ - operation.dst_length() % block_size_);
     chromeos::Blob zeros(end_byte - begin_byte);
-    FileDescriptorPtr fd = is_kernel_partition ? kernel_fd_ : fd_;
     TEST_AND_RETURN_FALSE(
-        utils::PWriteAll(fd, zeros.data(), end_byte - begin_byte, begin_byte));
+        utils::PWriteAll(target_fd_, zeros.data(), end_byte - begin_byte, begin_byte));
   }
   return true;
 }
 
 bool DeltaPerformer::PerformSourceBsdiffOperation(
-    const InstallOperation& operation,
-    bool is_kernel_partition) {
+    const InstallOperation& operation) {
   // Since we delete data off the beginning of the buffer as we use it,
   // the data we need should be exactly at the beginning of the buffer.
   TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
@@ -1036,11 +1115,7 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
   // file is written out.
   DiscardBuffer(true);
 
-  const string& src_path = is_kernel_partition ?
-                           install_plan_->kernel_source_path :
-                           install_plan_->source_path;
-  const string& dst_path = is_kernel_partition ? kernel_path_ : path_;
-  vector<string> cmd{kBspatchPath, src_path, dst_path, temp_filename,
+  vector<string> cmd{kBspatchPath, source_path_, target_path_, temp_filename,
                      input_positions, output_positions};
 
   int return_code = 0;
@@ -1354,29 +1429,12 @@ ErrorCode DeltaPerformer::VerifyPayload(
   return ErrorCode::kSuccess;
 }
 
-bool DeltaPerformer::GetNewPartitionInfo(uint64_t* kernel_size,
-                                         chromeos::Blob* kernel_hash,
-                                         uint64_t* rootfs_size,
-                                         chromeos::Blob* rootfs_hash) {
-  TEST_AND_RETURN_FALSE(manifest_valid_ &&
-                        manifest_.has_new_kernel_info() &&
-                        manifest_.has_new_rootfs_info());
-  *kernel_size = manifest_.new_kernel_info().size();
-  *rootfs_size = manifest_.new_rootfs_info().size();
-  chromeos::Blob new_kernel_hash(manifest_.new_kernel_info().hash().begin(),
-                                 manifest_.new_kernel_info().hash().end());
-  chromeos::Blob new_rootfs_hash(manifest_.new_rootfs_info().hash().begin(),
-                                 manifest_.new_rootfs_info().hash().end());
-  kernel_hash->swap(new_kernel_hash);
-  rootfs_hash->swap(new_rootfs_hash);
-  return true;
-}
-
 namespace {
-void LogVerifyError(bool is_kern,
+void LogVerifyError(const string& type,
+                    const string& device,
+                    uint64_t size,
                     const string& local_hash,
                     const string& expected_hash) {
-  const char* type = is_kern ? "kernel" : "rootfs";
   LOG(ERROR) << "This is a server-side error due to "
              << "mismatched delta update image!";
   LOG(ERROR) << "The delta I've been given contains a " << type << " delta "
@@ -1387,19 +1445,10 @@ void LogVerifyError(bool is_kern,
              << "system. The " << type << " partition I have has hash: "
              << local_hash << " but the update expected me to have "
              << expected_hash << " .";
-  if (is_kern) {
-    LOG(INFO) << "To get the checksum of a kernel partition on a "
-              << "booted machine, run this command (change /dev/sda2 "
-              << "as needed): dd if=/dev/sda2 bs=1M 2>/dev/null | "
-              << "openssl dgst -sha256 -binary | openssl base64";
-  } else {
-    LOG(INFO) << "To get the checksum of a rootfs partition on a "
-              << "booted machine, run this command (change /dev/sda3 "
-              << "as needed): dd if=/dev/sda3 bs=1M count=$(( "
-              << "$(dumpe2fs /dev/sda3  2>/dev/null | grep 'Block count' "
-              << "| sed 's/[^0-9]*//') / 256 )) | "
-              << "openssl dgst -sha256 -binary | openssl base64";
-  }
+  LOG(INFO) << "To get the checksum of the " << type << " partition run this"
+               "command: dd if=" << device << " bs=1M count=" << size
+            << " iflag=count_bytes 2>/dev/null | openssl dgst -sha256 -binary "
+               "| openssl base64";
   LOG(INFO) << "To get the checksum of partitions in a bin file, "
             << "run: .../src/scripts/sha256_partitions.sh .../file.bin";
 }
@@ -1413,41 +1462,43 @@ bool DeltaPerformer::VerifySourcePartitions() {
   LOG(INFO) << "Verifying source partitions.";
   CHECK(manifest_valid_);
   CHECK(install_plan_);
-  if (manifest_.has_old_kernel_info()) {
-    const PartitionInfo& info = manifest_.old_kernel_info();
-    bool valid =
-        !install_plan_->source_kernel_hash.empty() &&
-        install_plan_->source_kernel_hash.size() == info.hash().size() &&
-        memcmp(install_plan_->source_kernel_hash.data(),
-               info.hash().data(),
-               install_plan_->source_kernel_hash.size()) == 0;
-    if (!valid) {
-      LogVerifyError(true,
-                     StringForHashBytes(
-                         install_plan_->source_kernel_hash.data(),
-                         install_plan_->source_kernel_hash.size()),
-                     StringForHashBytes(info.hash().data(),
-                                        info.hash().size()));
-    }
-    TEST_AND_RETURN_FALSE(valid);
+  if (install_plan_->partitions.size() != partitions_.size()) {
+    DLOG(ERROR) << "The list of partitions in the InstallPlan doesn't match the "
+                   "list received in the payload. The InstallPlan has "
+                << install_plan_->partitions.size()
+                << " partitions while the payload has " << partitions_.size()
+                << " partitions.";
+    return false;
   }
-  if (manifest_.has_old_rootfs_info()) {
-    const PartitionInfo& info = manifest_.old_rootfs_info();
+  for (size_t i = 0; i < partitions_.size(); ++i) {
+    if (partitions_[i].partition_name() != install_plan_->partitions[i].name) {
+      DLOG(ERROR) << "The InstallPlan's partition " << i << " is \""
+                  << install_plan_->partitions[i].name
+                  << "\" but the payload expects it to be \""
+                  << partitions_[i].partition_name()
+                  << "\". This is an error in the DeltaPerformer setup.";
+      return false;
+    }
+    if (!partitions_[i].has_old_partition_info())
+      continue;
+    const PartitionInfo& info = partitions_[i].old_partition_info();
+    const InstallPlan::Partition& plan_part = install_plan_->partitions[i];
     bool valid =
-        !install_plan_->source_rootfs_hash.empty() &&
-        install_plan_->source_rootfs_hash.size() == info.hash().size() &&
-        memcmp(install_plan_->source_rootfs_hash.data(),
+        !plan_part.source_hash.empty() &&
+        plan_part.source_hash.size() == info.hash().size() &&
+        memcmp(plan_part.source_hash.data(),
                info.hash().data(),
-               install_plan_->source_rootfs_hash.size()) == 0;
+               plan_part.source_hash.size()) == 0;
     if (!valid) {
-      LogVerifyError(false,
-                     StringForHashBytes(
-                         install_plan_->source_rootfs_hash.data(),
-                         install_plan_->source_rootfs_hash.size()),
+      LogVerifyError(partitions_[i].partition_name(),
+                     plan_part.source_path,
+                     info.hash().size(),
+                     StringForHashBytes(plan_part.source_hash.data(),
+                                        plan_part.source_hash.size()),
                      StringForHashBytes(info.hash().data(),
                                         info.hash().size()));
+      return false;
     }
-    TEST_AND_RETURN_FALSE(valid);
   }
   return true;
 }
@@ -1531,13 +1582,13 @@ bool DeltaPerformer::CheckpointUpdateProgress() {
     last_updated_buffer_offset_ = buffer_offset_;
 
     if (next_operation_num_ < num_total_operations_) {
-      const bool is_kernel_partition =
-          next_operation_num_ >= num_rootfs_operations_;
+      size_t partition_index = current_partition_;
+      while (next_operation_num_ >= acc_num_operations_[partition_index])
+        partition_index++;
+      const size_t partition_operation_num = next_operation_num_ - (
+          partition_index ? acc_num_operations_[partition_index - 1] : 0);
       const InstallOperation& op =
-          is_kernel_partition
-              ? manifest_.kernel_install_operations(next_operation_num_ -
-                                                    num_rootfs_operations_)
-              : manifest_.install_operations(next_operation_num_);
+          partitions_[partition_index].operations(partition_operation_num);
       TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextDataLength,
                                              op.data_length()));
     } else {
@@ -1559,7 +1610,6 @@ bool DeltaPerformer::PrimeUpdateState() {
       next_operation == kUpdateStateOperationInvalid ||
       next_operation <= 0) {
     // Initiating a new update, no more state needs to be initialized.
-    TEST_AND_RETURN_FALSE(VerifySourcePartitions());
     return true;
   }
   next_operation_num_ = next_operation;

@@ -51,11 +51,11 @@ using base::WriteFile;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+using test_utils::ScopedTempFile;
 using testing::AtLeast;
 using testing::InSequence;
 using testing::Return;
 using testing::_;
-using test_utils::ScopedTempFile;
 
 class DownloadActionTest : public ::testing::Test { };
 
@@ -139,10 +139,12 @@ void TestWithData(const chromeos::Blob& data,
   // TODO(adlr): see if we need a different file for build bots
   ScopedTempFile output_temp_file;
   TestDirectFileWriter writer;
+  EXPECT_EQ(0, writer.Open(output_temp_file.GetPath().c_str(),
+                           O_WRONLY | O_CREAT,
+                           0));
   writer.set_fail_write(fail_write);
 
   // We pull off the first byte from data and seek past it.
-
   string hash =
       OmahaHashCalculator::OmahaHashOfBytes(&data[1], data.size() - 1);
   uint64_t size = data.size();
@@ -152,10 +154,6 @@ void TestWithData(const chromeos::Blob& data,
                            size,
                            hash,
                            0,
-                           "",
-                           output_temp_file.GetPath(),
-                           "",
-                           "",
                            "",
                            "");
   install_plan.source_slot = 0;
@@ -277,11 +275,13 @@ void TestTerminateEarly(bool use_download_delegate) {
   ScopedTempFile temp_file;
   {
     DirectFileWriter writer;
+    EXPECT_EQ(0, writer.Open(temp_file.GetPath().c_str(),
+                             O_WRONLY | O_CREAT,
+                             0));
 
     // takes ownership of passed in HttpFetcher
     ObjectFeederAction<InstallPlan> feeder_action;
-    InstallPlan install_plan(false, false, "", 0, "", 0, "",
-                             temp_file.GetPath(), "", "", "", "");
+    InstallPlan install_plan(false, false, "", 0, "", 0, "", "");
     feeder_action.set_obj(install_plan);
     FakeSystemState fake_system_state_;
     MockPrefs prefs;
@@ -375,6 +375,7 @@ TEST(DownloadActionTest, PassObjectOutTest) {
   loop.SetAsCurrent();
 
   DirectFileWriter writer;
+  EXPECT_EQ(0, writer.Open("/dev/null", O_WRONLY | O_CREAT, 0));
 
   // takes ownership of passed in HttpFetcher
   InstallPlan install_plan(false,
@@ -384,10 +385,6 @@ TEST(DownloadActionTest, PassObjectOutTest) {
                            OmahaHashCalculator::OmahaHashOfString("x"),
                            0,
                            "",
-                           "/dev/null",
-                           "/dev/null",
-                           "/dev/null",
-                           "/dev/null",
                            "");
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
@@ -415,36 +412,6 @@ TEST(DownloadActionTest, PassObjectOutTest) {
   EXPECT_FALSE(loop.PendingTasks());
 
   EXPECT_EQ(true, test_action.did_run_);
-}
-
-TEST(DownloadActionTest, BadOutFileTest) {
-  chromeos::FakeMessageLoop loop(nullptr);
-  loop.SetAsCurrent();
-
-  const string path("/fake/path/that/cant/be/created/because/of/missing/dirs");
-  DirectFileWriter writer;
-
-  // takes ownership of passed in HttpFetcher
-  InstallPlan install_plan(
-      false, false, "", 0, "", 0, "", path, "", "", "", "");
-  ObjectFeederAction<InstallPlan> feeder_action;
-  feeder_action.set_obj(install_plan);
-  MockPrefs prefs;
-  FakeSystemState fake_system_state_;
-  DownloadAction download_action(&prefs, &fake_system_state_,
-                                 new MockHttpFetcher("x", 1, nullptr));
-  download_action.SetTestFileWriter(&writer);
-
-  BondActions(&feeder_action, &download_action);
-
-  ActionProcessor processor;
-  processor.EnqueueAction(&feeder_action);
-  processor.EnqueueAction(&download_action);
-  processor.StartProcessing();
-  ASSERT_FALSE(processor.IsRunning());
-
-  loop.Run();
-  EXPECT_FALSE(loop.PendingTasks());
 }
 
 // Test fixture for P2P tests.
@@ -493,16 +460,15 @@ class P2PDownloadActionTest : public testing::Test {
 
     ScopedTempFile output_temp_file;
     TestDirectFileWriter writer;
+    EXPECT_EQ(0, writer.Open(output_temp_file.GetPath().c_str(),
+                             O_WRONLY | O_CREAT,
+                             0));
     InstallPlan install_plan(false,
                              false,
                              "",
                              data_.length(),
                              "1234hash",
                              0,
-                             "",
-                             output_temp_file.GetPath(),
-                             "",
-                             "",
                              "",
                              "");
     ObjectFeederAction<InstallPlan> feeder_action;

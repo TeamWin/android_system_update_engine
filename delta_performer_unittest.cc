@@ -84,6 +84,10 @@ const uint8_t kXzCompressedData[] = {
 
 class DeltaPerformerTest : public ::testing::Test {
  protected:
+  void SetUp() override {
+    install_plan_.source_slot = 0;
+    install_plan_.target_slot = 1;
+  }
 
   // Test helper placed where it can easily be friended from DeltaPerformer.
   void RunManifestValidation(const DeltaArchiveManifest& manifest,
@@ -118,10 +122,16 @@ class DeltaPerformerTest : public ::testing::Test {
 
     PartitionConfig old_part(kLegacyPartitionNameRoot);
     PartitionConfig new_part(kLegacyPartitionNameRoot);
-    new_part.path = blob_path;
-    new_part.size = blob_data.size();
+    new_part.path = "/dev/zero";
+    new_part.size = 1234;
 
     payload.AddPartition(old_part, new_part, aops);
+
+    // We include a kernel partition without operations.
+    old_part.name = kLegacyPartitionNameKernel;
+    new_part.name = kLegacyPartitionNameKernel;
+    new_part.size = 0;
+    payload.AddPartition(old_part, new_part, {});
 
     string payload_path;
     EXPECT_TRUE(utils::MakeTempFile("Payload-XXXXXX", &payload_path, nullptr));
@@ -154,13 +164,17 @@ class DeltaPerformerTest : public ::testing::Test {
     EXPECT_TRUE(utils::WriteFile(new_part.c_str(), target_data.data(),
                                  target_data.size()));
 
-    install_plan_.source_path = source_path;
-    install_plan_.kernel_source_path = "/dev/null";
-    install_plan_.install_path = new_part;
-    install_plan_.kernel_install_path = "/dev/null";
+    // We installed the operations only in the rootfs partition, but the
+    // delta performer needs to access all the partitions.
+    fake_system_state_.fake_boot_control()->SetPartitionDevice(
+        kLegacyPartitionNameRoot, install_plan_.target_slot, new_part);
+    fake_system_state_.fake_boot_control()->SetPartitionDevice(
+        kLegacyPartitionNameRoot, install_plan_.source_slot, source_path);
+    fake_system_state_.fake_boot_control()->SetPartitionDevice(
+        kLegacyPartitionNameKernel, install_plan_.target_slot, "/dev/null");
+    fake_system_state_.fake_boot_control()->SetPartitionDevice(
+        kLegacyPartitionNameKernel, install_plan_.source_slot, "/dev/null");
 
-    EXPECT_EQ(0, performer_.Open(new_part.c_str(), 0, 0));
-    EXPECT_TRUE(performer_.OpenSourceRootfs(source_path.c_str()));
     EXPECT_TRUE(performer_.Write(payload_data.data(), payload_data.size()));
     EXPECT_EQ(0, performer_.Close());
 
@@ -178,8 +192,6 @@ class DeltaPerformerTest : public ::testing::Test {
                           uint64_t actual_metadata_size,
                           bool hash_checks_mandatory) {
     install_plan_.hash_checks_mandatory = hash_checks_mandatory;
-    EXPECT_EQ(0, performer_.Open("/dev/null", 0, 0));
-    EXPECT_TRUE(performer_.OpenKernel("/dev/null"));
 
     // Set a valid magic string and version number 1.
     EXPECT_TRUE(performer_.Write("CrAU", 4));
@@ -503,8 +515,6 @@ TEST_F(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
 
 TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   SetSupportedMajorVersion(kBrilloMajorPayloadVersion);
-  EXPECT_EQ(0, performer_.Open("/dev/null", 0, 0));
-  EXPECT_TRUE(performer_.OpenKernel("/dev/null"));
   EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
 
   uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
@@ -530,17 +540,12 @@ TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
 }
 
 TEST_F(DeltaPerformerTest, BadDeltaMagicTest) {
-  EXPECT_EQ(0, performer_.Open("/dev/null", 0, 0));
-  EXPECT_TRUE(performer_.OpenKernel("/dev/null"));
   EXPECT_TRUE(performer_.Write("junk", 4));
   EXPECT_FALSE(performer_.Write("morejunk", 8));
   EXPECT_LT(performer_.Close(), 0);
 }
 
 TEST_F(DeltaPerformerTest, WriteUpdatesPayloadState) {
-  EXPECT_EQ(0, performer_.Open("/dev/null", 0, 0));
-  EXPECT_TRUE(performer_.OpenKernel("/dev/null"));
-
   EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
               DownloadProgress(4)).Times(1);
   EXPECT_CALL(*(fake_system_state_.mock_payload_state()),

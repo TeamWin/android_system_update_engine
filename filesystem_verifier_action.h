@@ -30,28 +30,27 @@
 #include "update_engine/install_plan.h"
 #include "update_engine/omaha_hash_calculator.h"
 
-// This action will only do real work if it's a delta update. It will
-// copy the root partition to install partition, and then terminate.
+// This action will hash all the partitions of a single slot involved in the
+// update (either source or target slot). The hashes are then either stored in
+// the InstallPlan (for source partitions) or verified against it (for target
+// partitions).
 
 namespace chromeos_update_engine {
 
-class SystemState;
-
-// The type of filesystem that we are verifying.
-enum class PartitionType {
-  kSourceRootfs,
-  kSourceKernel,
-  kRootfs,
-  kKernel,
+// The mode we are running the FilesystemVerifier on. On kComputeSourceHash mode
+// it computes the source_hash of all the partitions in the InstallPlan, based
+// on the already populated source_size values. On kVerifyTargetHash it computes
+// the hash on the target partitions based on the already populated size and
+// verifies it matches the one in the target_hash in the InstallPlan.
+enum class VerifierMode {
+  kComputeSourceHash,
+  kVerifyTargetHash,
 };
-
-// Return the partition name string for the passed partition type.
-std::string PartitionTypeToString(const PartitionType partition_type);
 
 class FilesystemVerifierAction : public InstallPlanAction {
  public:
-  FilesystemVerifierAction(SystemState* system_state,
-                           PartitionType partition_type);
+  FilesystemVerifierAction(const BootControlInterface* boot_control,
+                           VerifierMode verifier_mode);
 
   void PerformAction() override;
   void TerminateProcessing() override;
@@ -71,6 +70,10 @@ class FilesystemVerifierAction : public InstallPlanAction {
   FRIEND_TEST(FilesystemVerifierActionTest,
               RunAsRootDetermineFilesystemSizeTest);
 
+  // Starts the hashing of the current partition. If there aren't any partitions
+  // remaining to be hashed, if finishes the action.
+  void StartPartitionHashing();
+
   // Schedules the asynchronous read of the filesystem.
   void ScheduleRead();
 
@@ -79,22 +82,24 @@ class FilesystemVerifierAction : public InstallPlanAction {
   void OnReadDoneCallback(size_t bytes_read);
   void OnReadErrorCallback(const chromeos::Error* error);
 
-  // Based on the state of the read buffer, terminates read process and the
-  // action. Return whether the action was terminated.
-  bool CheckTerminationConditions();
+  // When the read is done, finalize the hash checking of the current partition
+  // and continue checking the next one.
+  void FinishPartitionHashing();
 
   // Cleans up all the variables we use for async operations and tells the
   // ActionProcessor we're done w/ |code| as passed in. |cancelled_| should be
   // true if TerminateProcessing() was called.
   void Cleanup(ErrorCode code);
 
-  // Determine, if possible, the source file system size to avoid copying the
-  // whole partition. Currently this supports only the root file system assuming
-  // it's ext3-compatible.
-  void DetermineFilesystemSize(const std::string& path);
-
   // The type of the partition that we are verifying.
-  PartitionType partition_type_;
+  const VerifierMode verifier_mode_;
+
+  // The BootControlInterface used to get the partitions based on the slots.
+  const BootControlInterface* const boot_control_;
+
+  // The index in the install_plan_.partitions vector of the partition currently
+  // being hashed.
+  size_t partition_index_{0};
 
   // If not null, the FileStream used to read from the device.
   chromeos::StreamPtr src_stream_;
@@ -109,15 +114,12 @@ class FilesystemVerifierAction : public InstallPlanAction {
   InstallPlan install_plan_;
 
   // Calculates the hash of the data.
-  OmahaHashCalculator hasher_;
+  std::unique_ptr<OmahaHashCalculator> hasher_;
 
   // Reads and hashes this many bytes from the head of the input stream. This
-  // field is initialized when the action is started and decremented as more
-  // bytes get read.
-  int64_t remaining_size_;
-
-  // The global context for update_engine.
-  SystemState* system_state_;
+  // field is initialized from the corresponding InstallPlan::Partition size,
+  // when the partition starts to be hashed.
+  int64_t remaining_size_{0};
 
   DISALLOW_COPY_AND_ASSIGN(FilesystemVerifierAction);
 };

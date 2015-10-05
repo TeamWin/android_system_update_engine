@@ -30,7 +30,6 @@
 
 #include "update_engine/boot_control_interface.h"
 #include "update_engine/payload_constants.h"
-#include "update_engine/system_state.h"
 #include "update_engine/utils.h"
 
 using std::string;
@@ -41,27 +40,11 @@ namespace {
 const off_t kReadFileBufferSize = 128 * 1024;
 }  // namespace
 
-string PartitionTypeToString(const PartitionType partition_type) {
-  // TODO(deymo): The PartitionType class should be replaced with just the
-  // string name that comes from the payload. This function should be deleted
-  // then.
-  switch (partition_type) {
-    case PartitionType::kRootfs:
-    case PartitionType::kSourceRootfs:
-      return kLegacyPartitionNameRoot;
-    case PartitionType::kKernel:
-    case PartitionType::kSourceKernel:
-      return kLegacyPartitionNameKernel;
-  }
-  return "<unknown>";
-}
-
 FilesystemVerifierAction::FilesystemVerifierAction(
-    SystemState* system_state,
-    PartitionType partition_type)
-    : partition_type_(partition_type),
-      remaining_size_(kint64max),
-      system_state_(system_state) {}
+    const BootControlInterface* boot_control,
+    VerifierMode verifier_mode)
+    : verifier_mode_(verifier_mode),
+      boot_control_(boot_control) {}
 
 void FilesystemVerifierAction::PerformAction() {
   // Will tell the ActionProcessor we've failed if we return.
@@ -73,68 +56,48 @@ void FilesystemVerifierAction::PerformAction() {
   }
   install_plan_ = GetInputObject();
 
-  if (install_plan_.is_full_update &&
-      (partition_type_ == PartitionType::kSourceRootfs ||
-       partition_type_ == PartitionType::kSourceKernel)) {
-    // No hash verification needed. Done!
-    LOG(INFO) << "filesystem verifying skipped on full update.";
+  // For delta updates (major version 1) we need to populate the source
+  // partition hash if not pre-populated.
+  if (!install_plan_.is_full_update && install_plan_.partitions.empty() &&
+      verifier_mode_ == VerifierMode::kComputeSourceHash) {
+    LOG(INFO) << "Using legacy partition names.";
+    InstallPlan::Partition part;
+    string part_path;
+
+    part.name = kLegacyPartitionNameRoot;
+    if (!boot_control_->GetPartitionDevice(
+        part.name, install_plan_.source_slot, &part_path))
+      return;
+    int block_count = 0, block_size = 0;
+    if (utils::GetFilesystemSize(part_path, &block_count, &block_size)) {
+      part.source_size = static_cast<int64_t>(block_count) * block_size;
+      LOG(INFO) << "Partition " << part.name << " size: " << part.source_size
+                << " bytes (" << block_count << "x" << block_size << ").";
+    }
+    install_plan_.partitions.push_back(part);
+
+    part.name = kLegacyPartitionNameKernel;
+    if (!boot_control_->GetPartitionDevice(
+        part.name, install_plan_.source_slot, &part_path))
+      return;
+    off_t kernel_part_size = utils::FileSize(part_path);
+    if (kernel_part_size < 0)
+      return;
+    LOG(INFO) << "Partition " << part.name << " size: " << kernel_part_size
+              << " bytes.";
+    part.source_size = kernel_part_size;
+    install_plan_.partitions.push_back(part);
+  }
+
+  if (install_plan_.partitions.empty()) {
+    LOG(INFO) << "No partitions to verify.";
     if (HasOutputPipe())
       SetOutputObject(install_plan_);
     abort_action_completer.set_code(ErrorCode::kSuccess);
     return;
   }
 
-  string target_path;
-  string partition_name = PartitionTypeToString(partition_type_);
-  switch (partition_type_) {
-    case PartitionType::kRootfs:
-      target_path = install_plan_.install_path;
-      if (target_path.empty()) {
-        system_state_->boot_control()->GetPartitionDevice(
-            partition_name, install_plan_.target_slot, &target_path);
-      }
-      break;
-    case PartitionType::kKernel:
-      target_path = install_plan_.kernel_install_path;
-      if (target_path.empty()) {
-        system_state_->boot_control()->GetPartitionDevice(
-            partition_name, install_plan_.target_slot, &target_path);
-      }
-      break;
-    case PartitionType::kSourceRootfs:
-      target_path = install_plan_.source_path;
-      if (target_path.empty()) {
-        system_state_->boot_control()->GetPartitionDevice(
-            partition_name, install_plan_.source_slot, &target_path);
-      }
-      break;
-    case PartitionType::kSourceKernel:
-      target_path = install_plan_.kernel_source_path;
-      if (target_path.empty()) {
-        system_state_->boot_control()->GetPartitionDevice(
-            partition_name, install_plan_.source_slot, &target_path);
-      }
-      break;
-  }
-
-  chromeos::ErrorPtr error;
-  src_stream_ = chromeos::FileStream::Open(
-      base::FilePath(target_path),
-      chromeos::Stream::AccessMode::READ,
-      chromeos::FileStream::Disposition::OPEN_EXISTING,
-      &error);
-
-  if (!src_stream_) {
-    LOG(ERROR) << "Unable to open " << target_path << " for reading";
-    return;
-  }
-
-  DetermineFilesystemSize(target_path);
-  buffer_.resize(kReadFileBufferSize);
-
-  // Start the first read.
-  ScheduleRead();
-
+  StartPartitionHashing();
   abort_action_completer.set_should_complete(false);
 }
 
@@ -157,6 +120,52 @@ void FilesystemVerifierAction::Cleanup(ErrorCode code) {
   if (code == ErrorCode::kSuccess && HasOutputPipe())
     SetOutputObject(install_plan_);
   processor_->ActionComplete(this, code);
+}
+
+void FilesystemVerifierAction::StartPartitionHashing() {
+  if (partition_index_ == install_plan_.partitions.size()) {
+    Cleanup(ErrorCode::kSuccess);
+    return;
+  }
+  InstallPlan::Partition& partition =
+      install_plan_.partitions[partition_index_];
+
+  string part_path;
+  switch (verifier_mode_) {
+    case VerifierMode::kComputeSourceHash:
+      boot_control_->GetPartitionDevice(
+          partition.name, install_plan_.source_slot, &part_path);
+      remaining_size_ = partition.source_size;
+      break;
+    case VerifierMode::kVerifyTargetHash:
+      boot_control_->GetPartitionDevice(
+          partition.name, install_plan_.target_slot, &part_path);
+      remaining_size_ = partition.target_size;
+      break;
+  }
+  LOG(INFO) << "Hashing partition " << partition_index_ << " ("
+            << partition.name << ") on device " << part_path;
+  if (part_path.empty())
+    return Cleanup(ErrorCode::kFilesystemVerifierError);
+
+  chromeos::ErrorPtr error;
+  src_stream_ = chromeos::FileStream::Open(
+      base::FilePath(part_path),
+      chromeos::Stream::AccessMode::READ,
+      chromeos::FileStream::Disposition::OPEN_EXISTING,
+      &error);
+
+  if (!src_stream_) {
+    LOG(ERROR) << "Unable to open " << part_path << " for reading";
+    return Cleanup(ErrorCode::kFilesystemVerifierError);
+  }
+
+  buffer_.resize(kReadFileBufferSize);
+  read_done_ = false;
+  hasher_.reset(new OmahaHashCalculator());
+
+  // Start the first read.
+  ScheduleRead();
 }
 
 void FilesystemVerifierAction::ScheduleRead() {
@@ -188,16 +197,27 @@ void FilesystemVerifierAction::OnReadDoneCallback(size_t bytes_read) {
   } else {
     remaining_size_ -= bytes_read;
     CHECK(!read_done_);
-    if (!hasher_.Update(buffer_.data(), bytes_read)) {
+    if (!hasher_->Update(buffer_.data(), bytes_read)) {
       LOG(ERROR) << "Unable to update the hash.";
       Cleanup(ErrorCode::kError);
       return;
     }
   }
 
-  // We either terminate the action or have more data to read.
-  if (!CheckTerminationConditions())
-    ScheduleRead();
+  // We either terminate the current partition or have more data to read.
+  if (cancelled_)
+    return Cleanup(ErrorCode::kError);
+
+  if (read_done_ || remaining_size_ == 0) {
+    if (remaining_size_ != 0) {
+      LOG(ERROR) << "Failed to read the remaining " << remaining_size_
+                 << " bytes from partition "
+                 << install_plan_.partitions[partition_index_].name;
+      return Cleanup(ErrorCode::kFilesystemVerifierError);
+    }
+    return FinishPartitionHashing();
+  }
+  ScheduleRead();
 }
 
 void FilesystemVerifierAction::OnReadErrorCallback(
@@ -207,70 +227,33 @@ void FilesystemVerifierAction::OnReadErrorCallback(
   Cleanup(ErrorCode::kError);
 }
 
-bool FilesystemVerifierAction::CheckTerminationConditions() {
-  if (cancelled_) {
-    Cleanup(ErrorCode::kError);
-    return true;
-  }
-
-  if (!read_done_)
-    return false;
-
-  // We're done!
-  ErrorCode code = ErrorCode::kSuccess;
-  if (hasher_.Finalize()) {
-    LOG(INFO) << "Hash: " << hasher_.hash();
-    switch (partition_type_) {
-      case PartitionType::kRootfs:
-        if (install_plan_.rootfs_hash != hasher_.raw_hash()) {
-          code = ErrorCode::kNewRootfsVerificationError;
-          LOG(ERROR) << "New rootfs verification failed.";
-        }
-        break;
-      case PartitionType::kKernel:
-        if (install_plan_.kernel_hash != hasher_.raw_hash()) {
-          code = ErrorCode::kNewKernelVerificationError;
-          LOG(ERROR) << "New kernel verification failed.";
-        }
-        break;
-      case PartitionType::kSourceRootfs:
-        install_plan_.source_rootfs_hash = hasher_.raw_hash();
-        break;
-      case PartitionType::kSourceKernel:
-        install_plan_.source_kernel_hash = hasher_.raw_hash();
-        break;
-    }
-  } else {
+void FilesystemVerifierAction::FinishPartitionHashing() {
+  if (!hasher_->Finalize()) {
     LOG(ERROR) << "Unable to finalize the hash.";
-    code = ErrorCode::kError;
+    return Cleanup(ErrorCode::kError);
   }
-  Cleanup(code);
-  return true;
-}
+  InstallPlan::Partition& partition =
+      install_plan_.partitions[partition_index_];
+  LOG(INFO) << "Hash of " << partition.name << ": " << hasher_->hash();
 
-void FilesystemVerifierAction::DetermineFilesystemSize(const string& path) {
-  switch (partition_type_) {
-    case PartitionType::kRootfs:
-      remaining_size_ = install_plan_.rootfs_size;
-      LOG(INFO) << "Filesystem size: " << remaining_size_ << " bytes.";
+  switch (verifier_mode_) {
+    case VerifierMode::kComputeSourceHash:
+      partition.source_hash = hasher_->raw_hash();
       break;
-    case PartitionType::kKernel:
-      remaining_size_ = install_plan_.kernel_size;
-      LOG(INFO) << "Filesystem size: " << remaining_size_ << " bytes.";
-      break;
-    case PartitionType::kSourceRootfs:
-      {
-        int block_count = 0, block_size = 0;
-        if (utils::GetFilesystemSize(path, &block_count, &block_size)) {
-          remaining_size_ = static_cast<int64_t>(block_count) * block_size;
-          LOG(INFO) << "Filesystem size: " << remaining_size_ << " bytes ("
-                    << block_count << "x" << block_size << ").";
-        }
+    case VerifierMode::kVerifyTargetHash:
+      if (partition.target_hash != hasher_->raw_hash()) {
+        LOG(ERROR) << "New '" << partition.name
+                   << "' partition verification failed.";
+        return Cleanup(ErrorCode::kNewRootfsVerificationError);
       }
       break;
-    default:
-      break;
   }
+  // Start hashing the next partition, if any.
+  partition_index_++;
+  hasher_.reset();
+  buffer_.clear();
+  src_stream_->CloseBlocking(nullptr);
+  StartPartitionHashing();
 }
 
 }  // namespace chromeos_update_engine

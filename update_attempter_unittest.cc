@@ -292,7 +292,7 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
             GetErrorCodeForAction(&omaha_response_handler_action,
                                   ErrorCode::kError));
   FilesystemVerifierAction filesystem_verifier_action(
-      &fake_system_state_, PartitionType::kRootfs);
+      fake_system_state_.boot_control(), VerifierMode::kVerifyTargetHash);
   EXPECT_EQ(ErrorCode::kFilesystemVerifierError,
             GetErrorCodeForAction(&filesystem_verifier_action,
                                   ErrorCode::kError));
@@ -383,11 +383,9 @@ const string kUpdateActionTypes[] = {  // NOLINT(runtime/string)
   OmahaRequestAction::StaticType(),
   OmahaResponseHandlerAction::StaticType(),
   FilesystemVerifierAction::StaticType(),
-  FilesystemVerifierAction::StaticType(),
   OmahaRequestAction::StaticType(),
   DownloadAction::StaticType(),
   OmahaRequestAction::StaticType(),
-  FilesystemVerifierAction::StaticType(),
   FilesystemVerifierAction::StaticType(),
   PostinstallRunnerAction::StaticType(),
   OmahaRequestAction::StaticType()
@@ -437,7 +435,7 @@ void UpdateAttempterTest::UpdateTestVerify() {
   EXPECT_EQ(attempter_.response_handler_action_.get(),
             attempter_.actions_[1].get());
   DownloadAction* download_action =
-      dynamic_cast<DownloadAction*>(attempter_.actions_[5].get());
+      dynamic_cast<DownloadAction*>(attempter_.actions_[4].get());
   ASSERT_NE(nullptr, download_action);
   EXPECT_EQ(&attempter_, download_action->delegate());
   EXPECT_EQ(UpdateStatus::CHECKING_FOR_UPDATE, attempter_.status());
@@ -453,21 +451,12 @@ void UpdateAttempterTest::RollbackTestStart(
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
   fake_system_state_.set_device_policy(device_policy);
 
-  FakeBootControl* fake_boot_control = fake_system_state_.fake_boot_control();
-  fake_boot_control->SetPartitionDevice(
-      kLegacyPartitionNameKernel, 0, "/dev/sdz2");
-  fake_boot_control->SetPartitionDevice(
-      kLegacyPartitionNameRoot, 0, "/dev/sdz3");
-
   if (valid_slot) {
     BootControlInterface::Slot rollback_slot = 1;
     LOG(INFO) << "Test Mark Bootable: "
               << BootControlInterface::SlotName(rollback_slot);
-    fake_boot_control->SetSlotBootable(rollback_slot, true);
-    fake_boot_control->SetPartitionDevice(
-        kLegacyPartitionNameKernel, rollback_slot, "/dev/sdz4");
-    fake_boot_control->SetPartitionDevice(
-        kLegacyPartitionNameRoot, rollback_slot, "/dev/sdz5");
+    fake_system_state_.fake_boot_control()->SetSlotBootable(rollback_slot,
+                                                            true);
   }
 
   bool is_rollback_allowed = false;
@@ -520,8 +509,7 @@ void UpdateAttempterTest::RollbackTestVerify() {
   InstallPlanAction* install_plan_action =
         dynamic_cast<InstallPlanAction*>(attempter_.actions_[0].get());
   InstallPlan* install_plan = install_plan_action->install_plan();
-  EXPECT_EQ(install_plan->install_path, string("/dev/sdz5"));
-  EXPECT_EQ(install_plan->kernel_install_path, string("/dev/sdz4"));
+  EXPECT_EQ(0, install_plan->partitions.size());
   EXPECT_EQ(install_plan->powerwash_required, true);
   loop_.BreakLoop();
 }

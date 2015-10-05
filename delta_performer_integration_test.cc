@@ -25,8 +25,8 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
-#include <base/strings/stringprintf.h>
 #include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
 
@@ -46,11 +46,11 @@ namespace chromeos_update_engine {
 
 using std::string;
 using std::vector;
-using testing::Return;
-using testing::_;
-using test_utils::kRandomString;
 using test_utils::ScopedLoopMounter;
 using test_utils::System;
+using test_utils::kRandomString;
+using testing::Return;
+using testing::_;
 
 extern const char* kUnittestPrivateKeyPath;
 extern const char* kUnittestPublicKeyPath;
@@ -80,6 +80,10 @@ struct DeltaState {
   string result_kernel;
   chromeos::Blob result_kernel_data;
   size_t kernel_size;
+
+  // The InstallPlan referenced by the DeltaPerformer. This needs to outlive
+  // the DeltaPerformer.
+  InstallPlan install_plan;
 
   // The in-memory copy of delta file.
   chromeos::Blob delta;
@@ -699,12 +703,18 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   }
 
   // Update the A image in place.
-  InstallPlan install_plan;
-  install_plan.hash_checks_mandatory = hash_checks_mandatory;
-  install_plan.metadata_size = state->metadata_size;
-  install_plan.is_full_update = full_kernel && full_rootfs;
-  install_plan.source_path = state->a_img.c_str();
-  install_plan.kernel_source_path = state->old_kernel.c_str();
+  InstallPlan* install_plan = &state->install_plan;
+  install_plan->hash_checks_mandatory = hash_checks_mandatory;
+  install_plan->metadata_size = state->metadata_size;
+  install_plan->is_full_update = full_kernel && full_rootfs;
+  install_plan->source_slot = 0;
+  install_plan->target_slot = 1;
+
+  InstallPlan::Partition root_part;
+  root_part.name = kLegacyPartitionNameRoot;
+
+  InstallPlan::Partition kernel_part;
+  kernel_part.name = kLegacyPartitionNameKernel;
 
   LOG(INFO) << "Setting payload metadata size in Omaha  = "
             << state->metadata_size;
@@ -712,12 +722,12 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       state->delta.data(),
       state->metadata_size,
       kUnittestPrivateKeyPath,
-      &install_plan.metadata_signature));
-  EXPECT_FALSE(install_plan.metadata_signature.empty());
+      &install_plan->metadata_signature));
+  EXPECT_FALSE(install_plan->metadata_signature.empty());
 
   *performer = new DeltaPerformer(&prefs,
                                   &state->fake_system_state,
-                                  &install_plan);
+                                  install_plan);
   EXPECT_TRUE(utils::FileExists(kUnittestPublicKeyPath));
   (*performer)->set_public_key_path(kUnittestPublicKeyPath);
   DeltaPerformerIntegrationTest::SetSupportedVersion(*performer, minor_version);
@@ -726,21 +736,34 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
             OmahaHashCalculator::RawHashOfFile(
                 state->a_img,
                 state->image_size,
-                &install_plan.source_rootfs_hash));
+                &root_part.source_hash));
   EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(
                   state->old_kernel_data,
-                  &install_plan.source_kernel_hash));
+                  &kernel_part.source_hash));
+
+  // This partitions are normally filed by the FilesystemVerifierAction with
+  // the source hashes used for deltas.
+  install_plan->partitions = {root_part, kernel_part};
 
   // With minor version 2, we want the target to be the new image, result_img,
   // but with version 1, we want to update A in place.
+  string target_root, target_kernel;
   if (minor_version == kSourceMinorPayloadVersion) {
-    EXPECT_EQ(0, (*performer)->Open(state->result_img.c_str(), 0, 0));
-    EXPECT_TRUE((*performer)->OpenKernel(state->result_kernel.c_str()));
+    target_root = state->result_img;
+    target_kernel = state->result_kernel;
   } else {
-    EXPECT_EQ(0, (*performer)->Open(state->a_img.c_str(), 0, 0));
-    EXPECT_TRUE((*performer)->OpenKernel(state->old_kernel.c_str()));
+    target_root = state->a_img;
+    target_kernel = state->old_kernel;
   }
 
+  state->fake_system_state.fake_boot_control()->SetPartitionDevice(
+      kLegacyPartitionNameRoot, install_plan->source_slot, state->a_img);
+  state->fake_system_state.fake_boot_control()->SetPartitionDevice(
+      kLegacyPartitionNameKernel, install_plan->source_slot, state->old_kernel);
+  state->fake_system_state.fake_boot_control()->SetPartitionDevice(
+      kLegacyPartitionNameRoot, install_plan->target_slot, target_root);
+  state->fake_system_state.fake_boot_control()->SetPartitionDevice(
+      kLegacyPartitionNameKernel, install_plan->target_slot, target_kernel);
 
   ErrorCode expected_error, actual_error;
   bool continue_writing;
@@ -844,26 +867,24 @@ void VerifyPayloadResult(DeltaPerformer* performer,
   EXPECT_TRUE(std::equal(std::begin(kNewData), std::end(kNewData),
                          updated_kernel_partition.begin()));
 
-  uint64_t new_kernel_size;
-  chromeos::Blob new_kernel_hash;
-  uint64_t new_rootfs_size;
-  chromeos::Blob new_rootfs_hash;
-  EXPECT_TRUE(performer->GetNewPartitionInfo(&new_kernel_size,
-                                             &new_kernel_hash,
-                                             &new_rootfs_size,
-                                             &new_rootfs_hash));
-  EXPECT_EQ(kDefaultKernelSize, new_kernel_size);
+  const auto& partitions = state->install_plan.partitions;
+  EXPECT_EQ(2, partitions.size());
+  EXPECT_EQ(kLegacyPartitionNameRoot, partitions[0].name);
+  EXPECT_EQ(kLegacyPartitionNameKernel, partitions[1].name);
+
+  EXPECT_EQ(kDefaultKernelSize, partitions[1].target_size);
   chromeos::Blob expected_new_kernel_hash;
   EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(state->new_kernel_data,
                                                  &expected_new_kernel_hash));
-  EXPECT_TRUE(expected_new_kernel_hash == new_kernel_hash);
-  EXPECT_EQ(state->image_size, new_rootfs_size);
+  EXPECT_EQ(expected_new_kernel_hash, partitions[1].target_hash);
+
+  EXPECT_EQ(state->image_size, partitions[0].target_size);
   chromeos::Blob expected_new_rootfs_hash;
   EXPECT_EQ(state->image_size,
             OmahaHashCalculator::RawHashOfFile(state->b_img,
                                                state->image_size,
                                                &expected_new_rootfs_hash));
-  EXPECT_TRUE(expected_new_rootfs_hash == new_rootfs_hash);
+  EXPECT_EQ(expected_new_rootfs_hash, partitions[0].target_hash);
 }
 
 void VerifyPayload(DeltaPerformer* performer,

@@ -110,7 +110,6 @@ void OmahaResponseHandlerAction::PerformAction() {
 
   install_plan_.source_slot = system_state_->boot_control()->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
-  TEST_AND_RETURN(install_plan_.LoadPartitionsFromSlots(system_state_));
 
   if (params->to_more_stable_channel() && params->is_powerwash_allowed())
     install_plan_.powerwash_required = true;

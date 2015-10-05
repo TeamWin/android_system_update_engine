@@ -21,6 +21,8 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/files/file_path.h>
+#include <base/files/file_util.h>
 
 #include "update_engine/action_processor.h"
 #include "update_engine/subprocess.h"
@@ -44,38 +46,53 @@ const char kDebugPostinstallBinaryPath[] = "/usr/bin/cros_installer";
 void PostinstallRunnerAction::PerformAction() {
   CHECK(HasInputObject());
   install_plan_ = GetInputObject();
-  const string install_device = install_plan_.install_path;
-  ScopedActionCompleter completer(processor_, this);
-
-  // Make mountpoint.
-  TEST_AND_RETURN(
-      utils::MakeTempDirectory("au_postint_mount.XXXXXX", &temp_rootfs_dir_));
-  ScopedDirRemover temp_dir_remover(temp_rootfs_dir_);
-
-  const string mountable_device =
-      utils::MakePartitionNameForMount(install_device);
-  if (mountable_device.empty()) {
-    LOG(ERROR) << "Cannot make mountable device from " << install_device;
-    return;
-  }
-
-  if (!utils::MountFilesystem(mountable_device, temp_rootfs_dir_, MS_RDONLY))
-    return;
-
-  LOG(INFO) << "Performing postinst with install device " << install_device
-            << " and mountable device " << mountable_device;
-
-  temp_dir_remover.set_should_remove(false);
-  completer.set_should_complete(false);
 
   if (install_plan_.powerwash_required) {
     if (utils::CreatePowerwashMarkerFile(powerwash_marker_file_)) {
       powerwash_marker_created_ = true;
     } else {
-      completer.set_code(ErrorCode::kPostinstallPowerwashError);
-      return;
+      return CompletePostinstall(ErrorCode::kPostinstallPowerwashError);
     }
   }
+
+  PerformPartitionPostinstall();
+}
+
+void PostinstallRunnerAction::PerformPartitionPostinstall() {
+  // Skip all the partitions that don't have a post-install step.
+  while (current_partition_ < install_plan_.partitions.size() &&
+         !install_plan_.partitions[current_partition_].run_postinstall) {
+    VLOG(1) << "Skipping post-install on partition "
+            << install_plan_.partitions[current_partition_].name;
+    current_partition_++;
+  }
+  if (current_partition_ == install_plan_.partitions.size())
+    return CompletePostinstall(ErrorCode::kSuccess);
+
+  const InstallPlan::Partition& partition =
+      install_plan_.partitions[current_partition_];
+
+  const string mountable_device =
+      utils::MakePartitionNameForMount(partition.target_path);
+  if (mountable_device.empty()) {
+    LOG(ERROR) << "Cannot make mountable device from " << partition.target_path;
+    return CompletePostinstall(ErrorCode::kPostinstallRunnerError);
+  }
+
+  // Perform post-install for the current_partition_ partition. At this point we
+  // need to call CompletePartitionPostinstall to complete the operation and
+  // cleanup.
+  TEST_AND_RETURN(
+      utils::MakeTempDirectory("au_postint_mount.XXXXXX", &temp_rootfs_dir_));
+
+  if (!utils::MountFilesystem(mountable_device, temp_rootfs_dir_, MS_RDONLY)) {
+    return CompletePartitionPostinstall(
+        1, "Error mounting the device " + mountable_device);
+  }
+
+  LOG(INFO) << "Performing postinst (" << kPostinstallScript
+            << ") installed on device " << partition.target_path
+            << " and mountable device " << mountable_device;
 
   // Logs the file format of the postinstall script we are about to run. This
   // will help debug when the postinstall script doesn't match the architecture
@@ -96,59 +113,70 @@ void PostinstallRunnerAction::PerformAction() {
     // If we're doing a rollback, just run our own postinstall.
     command.push_back(kPostinstallScript);
   }
-  command.push_back(install_device);
-  if (!Subprocess::Get().Exec(command,
-                              base::Bind(
-                                  &PostinstallRunnerAction::CompletePostinstall,
-                                  base::Unretained(this)))) {
-    CompletePostinstall(1, "Postinstall didn't launch");
+  command.push_back(partition.target_path);
+  if (!Subprocess::Get().Exec(
+          command,
+          base::Bind(
+              &PostinstallRunnerAction::CompletePartitionPostinstall,
+              base::Unretained(this)))) {
+    CompletePartitionPostinstall(1, "Postinstall didn't launch");
   }
 }
 
-void PostinstallRunnerAction::CompletePostinstall(int return_code,
-                                                  const string& output) {
-  ScopedActionCompleter completer(processor_, this);
-  ScopedTempUnmounter temp_unmounter(temp_rootfs_dir_);
-
-  bool success = true;
+void PostinstallRunnerAction::CompletePartitionPostinstall(
+    int return_code,
+    const string& output) {
+  utils::UnmountFilesystem(temp_rootfs_dir_);
+  if (!base::DeleteFile(base::FilePath(temp_rootfs_dir_), false)) {
+    PLOG(WARNING) << "Not removing mountpoint " << temp_rootfs_dir_;
+  }
+  temp_rootfs_dir_.clear();
 
   if (return_code != 0) {
     LOG(ERROR) << "Postinst command failed with code: " << return_code;
-    success = false;
-  }
-
-  // We only attempt to mark the new slot as active if the /postinst script
-  // succeeded.
-  if (success && !system_state_->boot_control()->SetActiveBootSlot(
-        install_plan_.target_slot)) {
-    success = false;
-  }
-
-  if (!success) {
-    LOG(ERROR) << "Postinstall action failed.";
-
-    // Undo any changes done to trigger Powerwash using clobber-state.
-    if (powerwash_marker_created_)
-      utils::DeletePowerwashMarkerFile(powerwash_marker_file_);
+    ErrorCode error_code = ErrorCode::kPostinstallRunnerError;
 
     if (return_code == 3) {
       // This special return code means that we tried to update firmware,
       // but couldn't because we booted from FW B, and we need to reboot
       // to get back to FW A.
-      completer.set_code(ErrorCode::kPostinstallBootedFromFirmwareB);
+      error_code = ErrorCode::kPostinstallBootedFromFirmwareB;
     }
 
     if (return_code == 4) {
       // This special return code means that we tried to update firmware,
       // but couldn't because we booted from FW B, and we need to reboot
       // to get back to FW A.
-      completer.set_code(ErrorCode::kPostinstallFirmwareRONotUpdatable);
+      error_code = ErrorCode::kPostinstallFirmwareRONotUpdatable;
     }
+    return CompletePostinstall(error_code);
+  }
+  current_partition_++;
+  PerformPartitionPostinstall();
+}
+
+void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
+  // We only attempt to mark the new slot as active if all the postinstall
+  // steps succeeded.
+  if (error_code == ErrorCode::kSuccess &&
+      !system_state_->boot_control()->SetActiveBootSlot(
+          install_plan_.target_slot)) {
+    error_code = ErrorCode::kPostinstallRunnerError;
+  }
+
+  ScopedActionCompleter completer(processor_, this);
+
+  if (error_code != ErrorCode::kSuccess) {
+    LOG(ERROR) << "Postinstall action failed.";
+
+    // Undo any changes done to trigger Powerwash using clobber-state.
+    if (powerwash_marker_created_)
+      utils::DeletePowerwashMarkerFile(powerwash_marker_file_);
 
     return;
   }
 
-  LOG(INFO) << "Postinst command succeeded";
+  LOG(INFO) << "All post-install commands succeeded";
   if (HasOutputPipe()) {
     SetOutputObject(install_plan_);
   }

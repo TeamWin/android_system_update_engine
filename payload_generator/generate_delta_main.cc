@@ -181,6 +181,9 @@ void VerifySignedPayload(const string& in_file,
   LOG(INFO) << "Done verifying signed payload.";
 }
 
+// TODO(deymo): This function is likely broken for deltas minor version 2 or
+// newer. Move this function to a new file and make the delta_performer
+// integration tests use this instead.
 void ApplyDelta(const string& in_file,
                 const string& old_kernel,
                 const string& old_rootfs,
@@ -195,24 +198,26 @@ void ApplyDelta(const string& in_file,
       << "Failed to initialize preferences.";
   // Get original checksums
   LOG(INFO) << "Calculating original checksums";
-  PartitionInfo kern_info, root_info;
   ImageConfig old_image;
   old_image.partitions.emplace_back(kLegacyPartitionNameRoot);
   old_image.partitions.back().path = old_rootfs;
   old_image.partitions.emplace_back(kLegacyPartitionNameKernel);
   old_image.partitions.back().path = old_kernel;
   CHECK(old_image.LoadImageSize());
-  CHECK(diff_utils::InitializePartitionInfo(old_image.partitions[0],
-                                            &root_info));
-  CHECK(diff_utils::InitializePartitionInfo(old_image.partitions[1],
-                                            &kern_info));
-  install_plan.kernel_hash.assign(kern_info.hash().begin(),
-                                  kern_info.hash().end());
-  install_plan.rootfs_hash.assign(root_info.hash().begin(),
-                                  root_info.hash().end());
+  for (const auto& old_part : old_image.partitions) {
+    PartitionInfo part_info;
+    CHECK(diff_utils::InitializePartitionInfo(old_part, &part_info));
+    InstallPlan::Partition part;
+    part.name = old_part.name;
+    part.source_hash.assign(part_info.hash().begin(),
+                            part_info.hash().end());
+    part.source_path = old_part.path;
+    // Apply the delta in-place to the old_part.
+    part.target_path = old_part.path;
+    install_plan.partitions.push_back(part);
+  }
+
   DeltaPerformer performer(&prefs, nullptr, &install_plan);
-  CHECK_EQ(performer.Open(old_rootfs.c_str(), 0, 0), 0);
-  CHECK(performer.OpenKernel(old_kernel.c_str()));
   chromeos::Blob buf(1024 * 1024);
   int fd = open(in_file.c_str(), O_RDONLY, 0);
   CHECK_GE(fd, 0);

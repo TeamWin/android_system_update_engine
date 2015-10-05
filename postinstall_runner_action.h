@@ -51,19 +51,28 @@ class PostinstallRunnerAction : public InstallPlanAction {
       : system_state_(system_state),
         powerwash_marker_file_(powerwash_marker_file) {}
 
+  void PerformPartitionPostinstall();
+
   // Subprocess::Exec callback.
-  void CompletePostinstall(int return_code,
-                           const std::string& output);
+  void CompletePartitionPostinstall(int return_code,
+                                    const std::string& output);
+
+  //
+  void CompletePostinstall(ErrorCode error_code);
 
   InstallPlan install_plan_;
   std::string temp_rootfs_dir_;
+
+  // The partition being processed on the list of partitions specified in the
+  // InstallPlan.
+  size_t current_partition_{0};
 
   // The main SystemState singleton.
   SystemState* system_state_;
 
   // True if Powerwash Marker was created before invoking post-install script.
   // False otherwise. Used for cleaning up if post-install fails.
-  bool powerwash_marker_created_ = false;
+  bool powerwash_marker_created_{false};
 
   // Non-null value will cause post-install to override the default marker
   // file name; used for testing.

@@ -39,9 +39,6 @@ class FileWriter {
   FileWriter() {}
   virtual ~FileWriter() {}
 
-  // Wrapper around open. Returns 0 on success or -errno on error.
-  virtual int Open(const char* path, int flags, mode_t mode) = 0;
-
   // Wrapper around write. Returns true if all requested bytes
   // were written, or false on any error, regardless of progress.
   virtual bool Write(const void* bytes, size_t count) = 0;
@@ -69,16 +66,19 @@ class FileWriter {
 
 class DirectFileWriter : public FileWriter {
  public:
-  DirectFileWriter() : fd_(-1) {}
+  DirectFileWriter() = default;
 
-  int Open(const char* path, int flags, mode_t mode) override;
+  // FileWriter overrides.
   bool Write(const void* bytes, size_t count) override;
   int Close() override;
+
+  // Wrapper around open. Returns 0 on success or -errno on error.
+  int Open(const char* path, int flags, mode_t mode);
 
   int fd() const { return fd_; }
 
  private:
-  int fd_;
+  int fd_{-1};
 
   DISALLOW_COPY_AND_ASSIGN(DirectFileWriter);
 };

@@ -57,7 +57,7 @@ class DeltaPerformer : public FileWriter {
   static const uint64_t kDeltaMetadataSignatureSizeSize;
   static const uint64_t kMaxPayloadHeaderSize;
   static const uint64_t kSupportedMajorPayloadVersion;
-  static const uint64_t kSupportedMinorPayloadVersion;
+  static const uint32_t kSupportedMinorPayloadVersion;
 
   // Defines the granularity of progress logging in terms of how many "completed
   // chunks" we want to report at the most.
@@ -77,44 +77,7 @@ class DeltaPerformer : public FileWriter {
                  InstallPlan* install_plan)
       : prefs_(prefs),
         system_state_(system_state),
-        install_plan_(install_plan),
-        fd_(nullptr),
-        kernel_fd_(nullptr),
-        source_fd_(nullptr),
-        source_kernel_fd_(nullptr),
-        manifest_parsed_(false),
-        manifest_valid_(false),
-        metadata_size_(0),
-        manifest_size_(0),
-        major_payload_version_(0),
-        next_operation_num_(0),
-        buffer_offset_(0),
-        last_updated_buffer_offset_(kuint64max),
-        block_size_(0),
-        public_key_path_(constants::kUpdatePayloadPublicKeyPath),
-        total_bytes_received_(0),
-        num_rootfs_operations_(0),
-        num_total_operations_(0),
-        overall_progress_(0),
-        last_progress_chunk_(0),
-        forced_progress_log_wait_(
-            base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)),
-        supported_major_version_(kSupportedMajorPayloadVersion),
-        supported_minor_version_(kSupportedMinorPayloadVersion) {}
-
-  // Opens the kernel. Should be called before or after Open(), but before
-  // Write(). The kernel file will be close()d when Close() is called.
-  bool OpenKernel(const char* kernel_path);
-
-  // Opens the source partition. The file will be closed when Close() is called.
-  bool OpenSourceRootfs(const std::string& kernel_path);
-
-  // Opens the source kernel. The file will be closed when Close() is called.
-  bool OpenSourceKernel(const std::string& source_kernel_path);
-
-  // flags and mode ignored. Once Close()d, a DeltaPerformer can't be
-  // Open()ed again.
-  int Open(const char* path, int flags, mode_t mode) override;
+        install_plan_(install_plan) {}
 
   // FileWriter's Write implementation where caller doesn't care about
   // error codes.
@@ -131,6 +94,15 @@ class DeltaPerformer : public FileWriter {
   // Closes both 'path' given to Open() and the kernel path.
   int Close() override;
 
+  // Open the target and source (if delta payload) file descriptors for the
+  // |current_partition_|. The manifest needs to be already parsed for this to
+  // work. Returns whether the required file descriptors were successfully open.
+  bool OpenCurrentPartition();
+
+  // Closes the current partition file descriptors if open. Returns 0 on success
+  // or -errno on error.
+  int CloseCurrentPartition();
+
   // Returns |true| only if the manifest has been processed and it's valid.
   bool IsManifestValid();
 
@@ -143,17 +115,6 @@ class DeltaPerformer : public FileWriter {
   // public key is available but the delta payload doesn't include a signature.
   ErrorCode VerifyPayload(const std::string& update_check_response_hash,
                           const uint64_t update_check_response_size);
-
-  // Reads from the update manifest the expected sizes and hashes of the target
-  // kernel and rootfs partitions. These values can be used for applied update
-  // hash verification. This method must be called after the update manifest has
-  // been parsed (e.g., after closing the stream). Returns true on success, and
-  // false on failure (e.g., when the values are not present in the update
-  // manifest).
-  bool GetNewPartitionInfo(uint64_t* kernel_size,
-                           chromeos::Blob* kernel_hash,
-                           uint64_t* rootfs_size,
-                           chromeos::Blob* rootfs_hash);
 
   // Converts an ordered collection of Extent objects which contain data of
   // length full_length to a comma-separated string. For each Extent, the
@@ -226,6 +187,11 @@ class DeltaPerformer : public FileWriter {
   friend class DeltaPerformerIntegrationTest;
   FRIEND_TEST(DeltaPerformerTest, UsePublicKeyFromResponse);
 
+  // Parse and move the update instructions of all partitions into our local
+  // |partitions_| variable based on the version of the payload. Requires the
+  // manifest to be parsed and valid.
+  bool ParseManifestPartitions(ErrorCode* error);
+
   // Appends up to |*count_p| bytes from |*bytes_p| to |buffer_|, but only to
   // the extent that the size of |buffer_| does not exceed |max|. Advances
   // |*cbytes_p| and decreases |*count_p| by the actual number of bytes copied,
@@ -277,18 +243,12 @@ class DeltaPerformer : public FileWriter {
   bool PerformInstallOperation(const InstallOperation& operation);
 
   // These perform a specific type of operation and return true on success.
-  bool PerformReplaceOperation(const InstallOperation& operation,
-                               bool is_kernel_partition);
-  bool PerformZeroOrDiscardOperation(const InstallOperation& operation,
-                                     bool is_kernel_partition);
-  bool PerformMoveOperation(const InstallOperation& operation,
-                            bool is_kernel_partition);
-  bool PerformBsdiffOperation(const InstallOperation& operation,
-                              bool is_kernel_partition);
-  bool PerformSourceCopyOperation(const InstallOperation& operation,
-                                  bool is_kernel_partition);
-  bool PerformSourceBsdiffOperation(const InstallOperation& operation,
-                                    bool is_kernel_partition);
+  bool PerformReplaceOperation(const InstallOperation& operation);
+  bool PerformZeroOrDiscardOperation(const InstallOperation& operation);
+  bool PerformMoveOperation(const InstallOperation& operation);
+  bool PerformBsdiffOperation(const InstallOperation& operation);
+  bool PerformSourceCopyOperation(const InstallOperation& operation);
+  bool PerformSourceBsdiffOperation(const InstallOperation& operation);
 
   // Returns true if the payload signature message has been extracted from
   // |operation|, false otherwise.
@@ -325,43 +285,61 @@ class DeltaPerformer : public FileWriter {
   // Install Plan based on Omaha Response.
   InstallPlan* install_plan_;
 
-  // File descriptor of open device.
-  FileDescriptorPtr fd_;
+  // File descriptor of the source partition. Only set while updating a
+  // partition when using a delta payload.
+  FileDescriptorPtr source_fd_{nullptr};
 
-  // File descriptor of the kernel device.
-  FileDescriptorPtr kernel_fd_;
+  // File descriptor of the target partition. Only set while performing the
+  // operations of a given partition.
+  FileDescriptorPtr target_fd_{nullptr};
 
-  // File descriptor of the source device.
-  FileDescriptorPtr source_fd_;
+  // Paths the |source_fd_| and |target_fd_| refer to.
+  std::string source_path_;
+  std::string target_path_;
 
-  // File descriptor of the source kernel device.
-  FileDescriptorPtr source_kernel_fd_;
-
-  std::string path_;  // Path that fd_ refers to.
-  std::string kernel_path_;  // Path that kernel_fd_ refers to.
-
+  // Parsed manifest. Set after enough bytes to parse the manifest were
+  // downloaded.
   DeltaArchiveManifest manifest_;
-  bool manifest_parsed_;
-  bool manifest_valid_;
-  uint64_t metadata_size_;
-  uint64_t manifest_size_;
-  uint64_t major_payload_version_;
+  bool manifest_parsed_{false};
+  bool manifest_valid_{false};
+  uint64_t metadata_size_{0};
+  uint64_t manifest_size_{0};
+  uint64_t major_payload_version_{0};
 
-  // Index of the next operation to perform in the manifest.
-  size_t next_operation_num_;
+  // Accumulated number of operations per partition. The i-th element is the
+  // sum of the number of operations for all the partitions from 0 to i
+  // inclusive. Valid when |manifest_valid_| is true.
+  std::vector<size_t> acc_num_operations_;
+
+  // The total operations in a payload. Valid when |manifest_valid_| is true,
+  // otherwise 0.
+  size_t num_total_operations_{0};
+
+  // The list of partitions to update as found in the manifest major version 2.
+  // When parsing an older manifest format, the information is converted over to
+  // this format instead.
+  std::vector<PartitionUpdate> partitions_;
+
+  // Index in the list of partitions (|partitions_| member) of the current
+  // partition being processed.
+  size_t current_partition_{0};
+
+  // Index of the next operation to perform in the manifest. The index is linear
+  // on the total number of operation on the manifest.
+  size_t next_operation_num_{0};
 
   // A buffer used for accumulating downloaded data. Initially, it stores the
   // payload metadata; once that's downloaded and parsed, it stores data for the
   // next update operation.
   chromeos::Blob buffer_;
   // Offset of buffer_ in the binary blobs section of the update.
-  uint64_t buffer_offset_;
+  uint64_t buffer_offset_{0};
 
   // Last |buffer_offset_| value updated as part of the progress update.
-  uint64_t last_updated_buffer_offset_;
+  uint64_t last_updated_buffer_offset_{kuint64max};
 
   // The block size (parsed from the manifest).
-  uint32_t block_size_;
+  uint32_t block_size_{0};
 
   // Calculates the payload hash.
   OmahaHashCalculator hash_calculator_;
@@ -374,32 +352,29 @@ class DeltaPerformer : public FileWriter {
 
   // The public key to be used. Provided as a member so that tests can
   // override with test keys.
-  std::string public_key_path_;
+  std::string public_key_path_{constants::kUpdatePayloadPublicKeyPath};
 
   // The number of bytes received so far, used for progress tracking.
-  size_t total_bytes_received_;
-
-  // The number rootfs and total operations in a payload, once we know them.
-  size_t num_rootfs_operations_;
-  size_t num_total_operations_;
+  size_t total_bytes_received_{0};
 
   // An overall progress counter, which should reflect both download progress
   // and the ratio of applied operations. Range is 0-100.
-  unsigned overall_progress_;
+  unsigned overall_progress_{0};
 
   // The last progress chunk recorded.
-  unsigned last_progress_chunk_;
+  unsigned last_progress_chunk_{0};
 
   // The timeout after which we should force emitting a progress log (constant),
   // and the actual point in time for the next forced log to be emitted.
-  const base::TimeDelta forced_progress_log_wait_;
+  const base::TimeDelta forced_progress_log_wait_{
+      base::TimeDelta::FromSeconds(kProgressLogTimeoutSeconds)};
   base::Time forced_progress_log_time_;
 
   // The payload major payload version supported by DeltaPerformer.
-  uint64_t supported_major_version_;
+  uint64_t supported_major_version_{kSupportedMajorPayloadVersion};
 
   // The delta minor payload version supported by DeltaPerformer.
-  uint32_t supported_minor_version_;
+  uint32_t supported_minor_version_{kSupportedMinorPayloadVersion};
 
   DISALLOW_COPY_AND_ASSIGN(DeltaPerformer);
 };

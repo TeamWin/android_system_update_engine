@@ -24,7 +24,6 @@ namespace chromeos_update_engine {
 
 class MockFileWriter : public FileWriter {
  public:
-  MOCK_METHOD3(Open, int(const char* path, int flags, mode_t mode));
   MOCK_METHOD2(Write, ssize_t(const void* bytes, size_t count));
   MOCK_METHOD0(Close, int());
 };

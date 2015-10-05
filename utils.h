@@ -472,19 +472,6 @@ class ScopedDirRemover {
   DISALLOW_COPY_AND_ASSIGN(ScopedDirRemover);
 };
 
-// Utility class to unmount a filesystem mounted on a temporary directory and
-// delete the temporary directory when it goes out of scope.
-class ScopedTempUnmounter : public ScopedDirRemover {
- public:
-  explicit ScopedTempUnmounter(const std::string& path) :
-      ScopedDirRemover(path) {}
-  ~ScopedTempUnmounter() {
-    utils::UnmountFilesystem(path_);
-  }
- private:
-  DISALLOW_COPY_AND_ASSIGN(ScopedTempUnmounter);
-};
-
 // A little object to call ActionComplete on the ActionProcessor when
 // it's destructed.
 class ScopedActionCompleter {

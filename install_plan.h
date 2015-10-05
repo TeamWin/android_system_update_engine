@@ -39,10 +39,6 @@ struct InstallPlan {
               const std::string& payload_hash,
               uint64_t metadata_size,
               const std::string& metadata_signature,
-              const std::string& install_path,
-              const std::string& kernel_install_path,
-              const std::string& source_path,
-              const std::string& kernel_source_path,
               const std::string& public_key_rsa);
 
   // Default constructor.
@@ -53,6 +49,9 @@ struct InstallPlan {
 
   void Dump() const;
 
+  // Load the |source_path| and |target_path| of all |partitions| based on the
+  // |source_slot| and |target_slot| if available. Returns whether it succeeded
+  // to load all the partitions for the valid slots.
   bool LoadPartitionsFromSlots(SystemState* system_state);
 
   bool is_resume{false};
@@ -69,29 +68,35 @@ struct InstallPlan {
   BootControlInterface::Slot source_slot{BootControlInterface::kInvalidSlot};
   BootControlInterface::Slot target_slot{BootControlInterface::kInvalidSlot};
 
-  // TODO(deymo): Deprecate these fields and use the slots instead.
-  std::string install_path;              // path to install device
-  std::string kernel_install_path;       // path to kernel install device
-  std::string source_path;               // path to source device
-  std::string kernel_source_path;        // path to source kernel device
-
-  // The fields below are used for kernel and rootfs verification. The flow is:
+  // The vector below is used for partition verification. The flow is:
   //
   // 1. FilesystemVerifierAction computes and fills in the source partition
-  // sizes and hashes.
+  // hash based on the guessed source size for delta major version 1 updates.
   //
   // 2. DownloadAction verifies the source partition sizes and hashes against
   // the expected values transmitted in the update manifest. It fills in the
-  // expected applied partition sizes and hashes based on the manifest.
+  // expected target partition sizes and hashes based on the manifest.
   //
-  // 3. FilesystemVerifierAction computes and verifies the applied and source
-  // partition sizes and hashes against the expected values.
-  uint64_t kernel_size{0};
-  uint64_t rootfs_size{0};
-  chromeos::Blob kernel_hash;
-  chromeos::Blob rootfs_hash;
-  chromeos::Blob source_kernel_hash;
-  chromeos::Blob source_rootfs_hash;
+  // 3. FilesystemVerifierAction computes and verifies the applied partition
+  // sizes and hashes against the expected values in target_partition_hashes.
+  struct Partition {
+    bool operator==(const Partition& that) const;
+
+    // The name of the partition.
+    std::string name;
+
+    std::string source_path;
+    uint64_t source_size{0};
+    chromeos::Blob source_hash;
+
+    std::string target_path;
+    uint64_t target_size{0};
+    chromeos::Blob target_hash;
+
+    // Whether we should run the postinstall script from this partition.
+    bool run_postinstall{false};
+  };
+  std::vector<Partition> partitions;
 
   // True if payload hash checks are mandatory based on the system state and
   // the Omaha response.

@@ -207,10 +207,7 @@ TEST_F(OmahaResponseHandlerActionTest, NoUpdatesTest) {
   in.update_exists = false;
   InstallPlan install_plan;
   EXPECT_FALSE(DoTest(in, "", &install_plan));
-  EXPECT_EQ("", install_plan.download_url);
-  EXPECT_EQ("", install_plan.payload_hash);
-  EXPECT_EQ("", install_plan.install_path);
-  EXPECT_EQ("", install_plan.version);
+  EXPECT_TRUE(install_plan.partitions.empty());
 }
 
 TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {

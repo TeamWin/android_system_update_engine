@@ -187,8 +187,12 @@ void PostinstallRunnerActionTest::DoTest(
 
   ActionProcessor processor;
   ObjectFeederAction<InstallPlan> feeder_action;
+  InstallPlan::Partition part;
+  part.name = "part";
+  part.target_path = dev;
+  part.run_postinstall = true;
   InstallPlan install_plan;
-  install_plan.install_path = dev;
+  install_plan.partitions = {part};
   install_plan.download_url = "http://devserver:8080/update";
   install_plan.powerwash_required = powerwash_required;
   feeder_action.set_obj(install_plan);
@@ -210,7 +214,6 @@ void PostinstallRunnerActionTest::DoTest(
 
   EXPECT_TRUE(delegate.code_set_);
   EXPECT_EQ(should_succeed, delegate.code_ == ErrorCode::kSuccess);
-  EXPECT_EQ(should_succeed, !collector_action.object().install_path.empty());
   if (should_succeed)
     EXPECT_TRUE(install_plan == collector_action.object());
 

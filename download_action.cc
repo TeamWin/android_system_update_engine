@@ -17,6 +17,7 @@
 #include "update_engine/download_action.h"
 
 #include <errno.h>
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -185,24 +186,6 @@ void DownloadAction::PerformAction() {
                                               &install_plan_));
     writer_ = delta_performer_.get();
   }
-  int rc = writer_->Open(install_plan_.install_path.c_str(),
-                         O_TRUNC | O_WRONLY | O_CREAT | O_LARGEFILE,
-                         0644);
-  if (rc < 0) {
-    LOG(ERROR) << "Unable to open output file " << install_plan_.install_path;
-    // report error to processor
-    processor_->ActionComplete(this, ErrorCode::kInstallDeviceOpenError);
-    return;
-  }
-  if (delta_performer_.get() &&
-      !delta_performer_->OpenKernel(
-          install_plan_.kernel_install_path.c_str())) {
-    LOG(ERROR) << "Unable to open kernel file "
-               << install_plan_.kernel_install_path.c_str();
-    writer_->Close();
-    processor_->ActionComplete(this, ErrorCode::kKernelDeviceOpenError);
-    return;
-  }
   if (delegate_) {
     delegate_->SetDownloadStatus(true);  // Set to active.
   }
@@ -319,13 +302,6 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
       // Delete p2p file, if applicable.
       if (!p2p_file_id_.empty())
         CloseP2PSharingFd(true);
-    } else if (!delta_performer_->GetNewPartitionInfo(
-        &install_plan_.kernel_size,
-        &install_plan_.kernel_hash,
-        &install_plan_.rootfs_size,
-        &install_plan_.rootfs_hash)) {
-      LOG(ERROR) << "Unable to get new partition hash info.";
-      code = ErrorCode::kDownloadNewPartitionInfoError;
     }
   }
 
