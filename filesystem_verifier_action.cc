@@ -73,16 +73,6 @@ void FilesystemVerifierAction::PerformAction() {
   }
   install_plan_ = GetInputObject();
 
-  // TODO(deymo): Remove this from the FileSystemVerifierAction.
-  if (partition_type_ == PartitionType::kKernel) {
-    LOG(INFO) << "verifying kernel, marking as unbootable";
-    if (!system_state_->boot_control()->MarkSlotUnbootable(
-            install_plan_.target_slot)) {
-      PLOG(ERROR) << "Unable to clear kernel GPT boot flags: " <<
-          install_plan_.kernel_install_path;
-    }
-  }
-
   if (install_plan_.is_full_update &&
       (partition_type_ == PartitionType::kSourceRootfs ||
        partition_type_ == PartitionType::kSourceKernel)) {

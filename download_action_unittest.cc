@@ -134,6 +134,7 @@ void TestWithData(const chromeos::Blob& data,
                   bool use_download_delegate) {
   chromeos::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
+  FakeSystemState fake_system_state;
 
   // TODO(adlr): see if we need a different file for build bots
   ScopedTempFile output_temp_file;
@@ -157,6 +158,14 @@ void TestWithData(const chromeos::Blob& data,
                            "",
                            "",
                            "");
+  install_plan.source_slot = 0;
+  install_plan.target_slot = 1;
+  // We mark both slots as bootable. Only the target slot should be unbootable
+  // after the download starts.
+  fake_system_state.fake_boot_control()->SetSlotBootable(
+      install_plan.source_slot, true);
+  fake_system_state.fake_boot_control()->SetSlotBootable(
+      install_plan.target_slot, true);
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
@@ -164,7 +173,7 @@ void TestWithData(const chromeos::Blob& data,
                                                       data.size(),
                                                       nullptr);
   // takes ownership of passed in HttpFetcher
-  DownloadAction download_action(&prefs, nullptr, http_fetcher);
+  DownloadAction download_action(&prefs, &fake_system_state, http_fetcher);
   download_action.SetTestFileWriter(&writer);
   BondActions(&feeder_action, &download_action);
   DownloadActionDelegateMock download_delegate;
@@ -193,6 +202,11 @@ void TestWithData(const chromeos::Blob& data,
                 base::Bind(&StartProcessorInRunLoop, &processor, http_fetcher));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
+
+  EXPECT_TRUE(fake_system_state.fake_boot_control()->IsSlotBootable(
+      install_plan.source_slot));
+  EXPECT_FALSE(fake_system_state.fake_boot_control()->IsSlotBootable(
+      install_plan.target_slot));
 }
 }  // namespace
 
@@ -269,8 +283,9 @@ void TestTerminateEarly(bool use_download_delegate) {
     InstallPlan install_plan(false, false, "", 0, "", 0, "",
                              temp_file.GetPath(), "", "", "", "");
     feeder_action.set_obj(install_plan);
+    FakeSystemState fake_system_state_;
     MockPrefs prefs;
-    DownloadAction download_action(&prefs, nullptr,
+    DownloadAction download_action(&prefs, &fake_system_state_,
                                    new MockHttpFetcher(data.data(),
                                                        data.size(),
                                                        nullptr));
@@ -377,7 +392,8 @@ TEST(DownloadActionTest, PassObjectOutTest) {
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
-  DownloadAction download_action(&prefs, nullptr,
+  FakeSystemState fake_system_state_;
+  DownloadAction download_action(&prefs, &fake_system_state_,
                                  new MockHttpFetcher("x", 1, nullptr));
   download_action.SetTestFileWriter(&writer);
 
@@ -414,7 +430,8 @@ TEST(DownloadActionTest, BadOutFileTest) {
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
-  DownloadAction download_action(&prefs, nullptr,
+  FakeSystemState fake_system_state_;
+  DownloadAction download_action(&prefs, &fake_system_state_,
                                  new MockHttpFetcher("x", 1, nullptr));
   download_action.SetTestFileWriter(&writer);
 

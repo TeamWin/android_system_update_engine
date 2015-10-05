@@ -204,9 +204,6 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
       break;
   }
 
-  fake_system_state_.fake_boot_control()->SetSlotBootable(
-    install_plan.target_slot, true);
-
   ActionProcessor processor;
 
   ObjectFeederAction<InstallPlan> feeder_action;
@@ -263,14 +260,6 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   bool is_install_plan_eq = (collector_action.object() == install_plan);
   EXPECT_TRUE(is_install_plan_eq);
   success = success && is_install_plan_eq;
-
-  LOG(INFO) << "Verifying bootable flag on: " << a_dev;
-
-  // We should always mark a partition as unbootable if it's a kernel
-  // partition, but never if it's anything else.
-  EXPECT_EQ((partition_type != PartitionType::kKernel),
-            fake_system_state_.fake_boot_control()->IsSlotBootable(
-                install_plan.target_slot));
   return success;
 }
 

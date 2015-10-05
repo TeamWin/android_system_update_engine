@@ -25,6 +25,7 @@
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/action_pipe.h"
+#include "update_engine/boot_control_interface.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
@@ -167,6 +168,14 @@ void DownloadAction::PerformAction() {
   bytes_received_ = 0;
 
   install_plan_.Dump();
+
+  LOG(INFO) << "Marking new slot as unbootable";
+  if (!system_state_->boot_control()->MarkSlotUnbootable(
+          install_plan_.target_slot)) {
+    LOG(WARNING) << "Unable to mark new slot "
+                 << BootControlInterface::SlotName(install_plan_.target_slot)
+                 << ". Proceeding with the update anyway.";
+  }
 
   if (writer_) {
     LOG(INFO) << "Using writer for test.";
