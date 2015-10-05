@@ -45,6 +45,7 @@ define update_engine_common
     LOCAL_LDFLAGS += \
         -Wl,--gc-sections
     LOCAL_C_INCLUDES += \
+        $(LOCAL_PATH)/client_library/include \
         external/gtest/include \
         system
     LOCAL_SHARED_LIBRARIES += \
@@ -177,6 +178,7 @@ LOCAL_SRC_FILES := \
     update_manager/real_updater_provider.cc \
     update_manager/state_factory.cc \
     update_manager/update_manager.cc \
+    update_status_utils.cc \
     utils.cc \
     xz_extent_writer.cc
 $(eval $(update_engine_common))
