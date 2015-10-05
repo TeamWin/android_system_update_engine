@@ -17,11 +17,16 @@
 #ifndef CLIENT_LIBRARY_UPDATE_STATUS_TO_STRING_H_
 #define CLIENT_LIBRARY_UPDATE_STATUS_TO_STRING_H_
 
+#include <string>
+
 #include "update_engine/update_status.h"
 
 namespace chromeos_update_engine {
 
 const char* UpdateStatusToString(const update_engine::UpdateStatus& status);
+
+bool StringToUpdateStatus(const std::string& update_status_as_string,
+                          update_engine::UpdateStatus* status);
 
 }  // namespace chromeos_update_engine
 
