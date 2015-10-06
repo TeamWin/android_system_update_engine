@@ -71,6 +71,7 @@ using testing::ReturnPointee;
 using testing::SaveArg;
 using testing::SetArgumentPointee;
 using testing::_;
+using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
 
@@ -137,7 +138,7 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_EQ(utils::kCpuSharesNormal, attempter_.shares_);
     EXPECT_EQ(MessageLoop::kTaskIdNull, attempter_.manage_shares_id_);
     EXPECT_FALSE(attempter_.download_active_);
-    EXPECT_EQ(UPDATE_STATUS_IDLE, attempter_.status_);
+    EXPECT_EQ(UpdateStatus::IDLE, attempter_.status_);
     EXPECT_EQ(0.0, attempter_.download_progress_);
     EXPECT_EQ(0, attempter_.last_checked_time_);
     EXPECT_EQ("0.0.0.0", attempter_.new_version_);
@@ -227,14 +228,14 @@ TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_EQ(503, attempter_.http_response_code());
-  EXPECT_EQ(UPDATE_STATUS_FINALIZING, attempter_.status());
+  EXPECT_EQ(UpdateStatus::FINALIZING, attempter_.status());
   ASSERT_EQ(nullptr, attempter_.error_event_.get());
 }
 
 TEST_F(UpdateAttempterTest, ActionCompletedErrorTest) {
   MockAction action;
   EXPECT_CALL(action, Type()).WillRepeatedly(Return("MockAction"));
-  attempter_.status_ = UPDATE_STATUS_DOWNLOADING;
+  attempter_.status_ = UpdateStatus::DOWNLOADING;
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
       .WillOnce(Return(false));
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kError);
@@ -254,7 +255,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_EQ(500, attempter_.http_response_code());
-  EXPECT_EQ(UPDATE_STATUS_IDLE, attempter_.status());
+  EXPECT_EQ(UpdateStatus::IDLE, attempter_.status());
   EXPECT_EQ(234, attempter_.server_dictated_poll_interval_);
   ASSERT_TRUE(attempter_.error_event_.get() == nullptr);
 }
@@ -272,7 +273,7 @@ TEST_F(UpdateAttempterTest, ConstructWithUpdatedMarkerTest) {
                                      nullptr,
                                      &debugd_proxy_mock_,
                                      test_update_completed_marker);
-  EXPECT_EQ(UPDATE_STATUS_UPDATED_NEED_REBOOT, attempter.status());
+  EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter.status());
 }
 
 TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
@@ -373,7 +374,7 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionTest) {
                                                OmahaEvent::kResultError,
                                                err));
   attempter_.ScheduleErrorEventAction();
-  EXPECT_EQ(UPDATE_STATUS_REPORTING_ERROR_EVENT, attempter_.status());
+  EXPECT_EQ(UpdateStatus::REPORTING_ERROR_EVENT, attempter_.status());
 }
 
 namespace {
@@ -439,7 +440,7 @@ void UpdateAttempterTest::UpdateTestVerify() {
       dynamic_cast<DownloadAction*>(attempter_.actions_[5].get());
   ASSERT_NE(nullptr, download_action);
   EXPECT_EQ(&attempter_, download_action->delegate());
-  EXPECT_EQ(UPDATE_STATUS_CHECKING_FOR_UPDATE, attempter_.status());
+  EXPECT_EQ(UpdateStatus::CHECKING_FOR_UPDATE, attempter_.status());
   loop_.BreakLoop();
 }
 
@@ -515,7 +516,7 @@ void UpdateAttempterTest::RollbackTestVerify() {
   for (size_t i = 0; i < arraysize(kRollbackActionTypes); ++i) {
     EXPECT_EQ(kRollbackActionTypes[i], attempter_.actions_[i]->Type());
   }
-  EXPECT_EQ(UPDATE_STATUS_ATTEMPTING_ROLLBACK, attempter_.status());
+  EXPECT_EQ(UpdateStatus::ATTEMPTING_ROLLBACK, attempter_.status());
   InstallPlanAction* install_plan_action =
         dynamic_cast<InstallPlanAction*>(attempter_.actions_[0].get());
   InstallPlan* install_plan = install_plan_action->install_plan();
@@ -573,7 +574,7 @@ TEST_F(UpdateAttempterTest, PingOmahaTest) {
                  base::Bind(&UpdateAttempterTest::PingOmahaTestStart,
                             base::Unretained(this)));
   chromeos::MessageLoopRunMaxIterations(&loop_, 100);
-  EXPECT_EQ(UPDATE_STATUS_UPDATED_NEED_REBOOT, attempter_.status());
+  EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter_.status());
   EXPECT_TRUE(attempter_.schedule_updates_called());
 }
 
