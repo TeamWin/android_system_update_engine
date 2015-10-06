@@ -23,6 +23,7 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_verifier.h"
 #include "update_engine/update_metadata.pb.h"
@@ -198,6 +199,47 @@ TEST_F(PayloadSignerTest, VerifySignatureTest) {
   EXPECT_FALSE(PayloadVerifier::VerifySignature(signature_blob,
                                                 kUnittestPublicKey2Path,
                                                 padded_hash_data_));
+}
+
+TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
+  string payload_path;
+  EXPECT_TRUE(utils::MakeTempFile("payload.XXXXXX", &payload_path, nullptr));
+  ScopedPathUnlinker payload_path_unlinker(payload_path);
+
+  PayloadGenerationConfig config;
+  config.major_version = kBrilloMajorPayloadVersion;
+  PayloadFile payload;
+  EXPECT_TRUE(payload.Init(config));
+  uint64_t metadata_size;
+  EXPECT_TRUE(
+      payload.WritePayload(payload_path, "/dev/null", "", &metadata_size));
+  const vector<int> sizes = {256};
+  brillo::Blob unsigned_payload_hash, unsigned_metadata_hash;
+  EXPECT_TRUE(PayloadSigner::HashPayloadForSigning(
+      payload_path, sizes, &unsigned_payload_hash, &unsigned_metadata_hash));
+  EXPECT_TRUE(payload.WritePayload(
+      payload_path, "/dev/null", kUnittestPrivateKeyPath, &metadata_size));
+  brillo::Blob signed_payload_hash, signed_metadata_hash;
+  EXPECT_TRUE(PayloadSigner::HashPayloadForSigning(
+      payload_path, sizes, &signed_payload_hash, &signed_metadata_hash));
+  EXPECT_EQ(unsigned_payload_hash, signed_payload_hash);
+  EXPECT_EQ(unsigned_metadata_hash, signed_metadata_hash);
+}
+
+TEST_F(PayloadSignerTest, VerifySignedPayloadTest) {
+  string payload_path;
+  EXPECT_TRUE(utils::MakeTempFile("payload.XXXXXX", &payload_path, nullptr));
+  ScopedPathUnlinker payload_path_unlinker(payload_path);
+
+  PayloadGenerationConfig config;
+  config.major_version = kBrilloMajorPayloadVersion;
+  PayloadFile payload;
+  EXPECT_TRUE(payload.Init(config));
+  uint64_t metadata_size;
+  EXPECT_TRUE(payload.WritePayload(
+      payload_path, "/dev/null", kUnittestPrivateKeyPath, &metadata_size));
+  EXPECT_TRUE(PayloadSigner::VerifySignedPayload(payload_path,
+                                                 kUnittestPublicKeyPath));
 }
 
 }  // namespace chromeos_update_engine

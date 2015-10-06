@@ -161,8 +161,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
 
   // Signatures appear at the end of the blobs. Note the offset in the
   // manifest_.
+  uint64_t signature_blob_length = 0;
   if (!private_key_path.empty()) {
-    uint64_t signature_blob_length = 0;
     TEST_AND_RETURN_FALSE(
         PayloadSigner::SignatureBlobLength(vector<string>(1, private_key_path),
                                            &signature_blob_length));
@@ -194,11 +194,17 @@ bool PayloadFile::WritePayload(const string& payload_file,
   TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer,
                                                serialized_manifest.size()));
 
+  // Write metadata signature size.
+  uint32_t metadata_signature_size = 0;
   if (major_version_ == kBrilloMajorPayloadVersion) {
-    // Write metadata signature size.
-    uint32_t zero = htobe32(0);
-    TEST_AND_RETURN_FALSE(writer.Write(&zero, sizeof(zero)));
-    metadata_size += sizeof(zero);
+    // Metadata signature has the same size as payload signature, because they
+    // are both the same kind of signature for the same kind of hash.
+    uint32_t metadata_signature_size = htobe32(signature_blob_length);
+    TEST_AND_RETURN_FALSE(writer.Write(&metadata_signature_size,
+                                       sizeof(metadata_signature_size)));
+    metadata_size += sizeof(metadata_signature_size);
+    // Set correct size instead of big endian size.
+    metadata_signature_size = signature_blob_length;
   }
 
   // Write protobuf
@@ -206,6 +212,21 @@ bool PayloadFile::WritePayload(const string& payload_file,
             << serialized_manifest.size();
   TEST_AND_RETURN_FALSE(writer.Write(serialized_manifest.data(),
                                      serialized_manifest.size()));
+
+  // Write metadata signature blob.
+  if (major_version_ == kBrilloMajorPayloadVersion &&
+      !private_key_path.empty()) {
+    brillo::Blob metadata_hash, metadata_signature;
+    TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfFile(payload_file,
+                                                             metadata_size,
+                                                             &metadata_hash));
+    TEST_AND_RETURN_FALSE(
+        PayloadSigner::SignHashWithKeys(metadata_hash,
+                                        vector<string>(1, private_key_path),
+                                        &metadata_signature));
+    TEST_AND_RETURN_FALSE(writer.Write(metadata_signature.data(),
+                                       metadata_signature.size()));
+  }
 
   // Append the data blobs
   LOG(INFO) << "Writing final delta file data blobs...";
@@ -223,7 +244,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
     TEST_AND_RETURN_FALSE(writer.Write(buf.data(), rc));
   }
 
-  // Write signature blob.
+  // Write payload signature blob.
   if (!private_key_path.empty()) {
     LOG(INFO) << "Signing the update...";
     brillo::Blob signature_blob;
@@ -231,8 +252,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
         payload_file,
         vector<string>(1, private_key_path),
         metadata_size,
-        0,
-        metadata_size + manifest_.signatures_offset(),
+        metadata_signature_size,
+        metadata_size + metadata_signature_size + manifest_.signatures_offset(),
         &signature_blob));
     TEST_AND_RETURN_FALSE(writer.Write(signature_blob.data(),
                                        signature_blob.size()));

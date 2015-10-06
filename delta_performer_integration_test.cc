@@ -174,6 +174,7 @@ static bool InsertSignaturePlaceholder(int signature_size,
   return PayloadSigner::AddSignatureToPayload(
       payload_path,
       signatures,
+      {},
       payload_path,
       out_metadata_size);
 }
@@ -194,6 +195,7 @@ static void SignGeneratedPayload(const string& payload_path,
   ASSERT_TRUE(PayloadSigner::AddSignatureToPayload(
       payload_path,
       vector<brillo::Blob>(1, signature),
+      {},
       payload_path,
       out_metadata_size));
   EXPECT_TRUE(PayloadSigner::VerifySignedPayload(

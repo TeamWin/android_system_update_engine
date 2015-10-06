@@ -423,21 +423,27 @@ bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
 
 bool PayloadSigner::AddSignatureToPayload(
     const string& payload_path,
-    const vector<brillo::Blob>& signatures,
+    const vector<brillo::Blob>& payload_signatures,
+    const vector<brillo::Blob>& metadata_signatures,
     const string& signed_payload_path,
     uint64_t *out_metadata_size) {
   // TODO(petkov): Reduce memory usage -- the payload is manipulated in memory.
 
   // Loads the payload and adds the signature op to it.
-  brillo::Blob signature_blob;
-  TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(signatures,
+  brillo::Blob signature_blob, metadata_signature_blob;
+  TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(payload_signatures,
                                                        &signature_blob));
+  if (!metadata_signatures.empty()) {
+    TEST_AND_RETURN_FALSE(
+        ConvertSignatureToProtobufBlob(metadata_signatures,
+                                       &metadata_signature_blob));
+  }
   brillo::Blob payload;
   uint64_t signatures_offset;
   uint32_t metadata_signature_size;
   TEST_AND_RETURN_FALSE(AddSignatureBlobToPayload(payload_path,
                                                   signature_blob,
-                                                  brillo::Blob(),
+                                                  metadata_signature_blob,
                                                   &payload,
                                                   out_metadata_size,
                                                   &metadata_signature_size,

@@ -125,28 +125,35 @@ void CalculateHashForSigning(const vector<int> &sizes,
   LOG(INFO) << "Done calculating hash for signing.";
 }
 
+void SignatureFileFlagToBlobs(const string& signature_file_flag,
+                              vector<brillo::Blob>* signatures) {
+  vector<string> signature_files;
+  base::SplitString(signature_file_flag, ':', &signature_files);
+  for (const string& signature_file : signature_files) {
+    brillo::Blob signature;
+    CHECK(utils::ReadFile(signature_file, &signature));
+    signatures->push_back(signature);
+  }
+}
+
 void SignPayload(const string& in_file,
                  const string& out_file,
-                 const string& signature_file,
+                 const string& payload_signature_file,
+                 const string& metadata_signature_file,
                  const string& out_metadata_size_file) {
   LOG(INFO) << "Signing payload.";
   LOG_IF(FATAL, in_file.empty())
       << "Must pass --in_file to sign payload.";
   LOG_IF(FATAL, out_file.empty())
       << "Must pass --out_file to sign payload.";
-  LOG_IF(FATAL, signature_file.empty())
+  LOG_IF(FATAL, payload_signature_file.empty())
       << "Must pass --signature_file to sign payload.";
-  vector<brillo::Blob> signatures;
-  vector<string> signature_files;
-  base::SplitString(signature_file, ':', &signature_files);
-  for (const string& signature_file : signature_files) {
-    brillo::Blob signature;
-    CHECK(utils::ReadFile(signature_file, &signature));
-    signatures.push_back(signature);
-  }
+  vector<brillo::Blob> signatures, metadata_signatures;
+  SignatureFileFlagToBlobs(payload_signature_file, &signatures);
+  SignatureFileFlagToBlobs(metadata_signature_file, &metadata_signatures);
   uint64_t final_metadata_size;
-  CHECK(PayloadSigner::AddSignatureToPayload(
-      in_file, signatures, out_file, &final_metadata_size));
+  CHECK(PayloadSigner::AddSignatureToPayload(in_file, signatures,
+      metadata_signatures, out_file, &final_metadata_size));
   LOG(INFO) << "Done signing payload. Final metadata size = "
             << final_metadata_size;
   if (!out_metadata_size_file.empty()) {
@@ -347,7 +354,7 @@ int Main(int argc, char** argv) {
   }
   if (!FLAGS_signature_file.empty()) {
     SignPayload(FLAGS_in_file, FLAGS_out_file, FLAGS_signature_file,
-                FLAGS_out_metadata_size_file);
+                FLAGS_metadata_signature_file, FLAGS_out_metadata_size_file);
     return 0;
   }
   if (!FLAGS_public_key.empty()) {

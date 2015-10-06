@@ -107,15 +107,17 @@ class PayloadSigner {
                                     brillo::Blob* out_metadata_hash);
 
   // Given an unsigned payload in |payload_path| (with no dummy signature op)
-  // and the raw |signatures| updates the payload to include the signature thus
-  // turning it into a signed payload. The new payload is stored in
-  // |signed_payload_path|. |payload_path| and |signed_payload_path| can point
-  // to the same file. Populates |out_metadata_size| with the size of the
-  // metadata after adding the signature operation in the manifest.Returns true
-  // on success, false otherwise.
+  // and the raw |payload_signatures| and |metadata_signatures| updates the
+  // payload to include the signature thus turning it into a signed payload. The
+  // new payload is stored in |signed_payload_path|. |payload_path| and
+  // |signed_payload_path| can point to the same file. Populates
+  // |out_metadata_size| with the size of the metadata after adding the
+  // signature operation in the manifest. Returns true on success, false
+  // otherwise.
   static bool AddSignatureToPayload(
       const std::string& payload_path,
-      const std::vector<brillo::Blob>& signatures,
+      const std::vector<brillo::Blob>& payload_signatures,
+      const std::vector<brillo::Blob>& metadata_signatures,
       const std::string& signed_payload_path,
       uint64_t* out_metadata_size);
 
