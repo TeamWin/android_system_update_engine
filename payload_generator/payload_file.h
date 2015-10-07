@@ -52,7 +52,7 @@ class PayloadFile {
   bool WritePayload(const std::string& payload_file,
                     const std::string& data_blobs_path,
                     const std::string& private_key_path,
-                    uint64_t* medatata_size_out);
+                    uint64_t* metadata_size_out);
 
  private:
   FRIEND_TEST(PayloadFileTest, ReorderBlobsTest);
@@ -97,12 +97,6 @@ class PayloadFile {
 
   std::vector<Partition> part_vec_;
 };
-
-// Adds a dummy operation that points to a signature blob located at the
-// specified offset/length.
-void AddSignatureOp(uint64_t signature_blob_offset,
-                    uint64_t signature_blob_length,
-                    DeltaArchiveManifest* manifest);
 
 }  // namespace chromeos_update_engine
 

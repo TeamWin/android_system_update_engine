@@ -19,7 +19,6 @@
 #include <base/logging.h>
 #include <openssl/pem.h>
 
-#include "update_engine/delta_performer.h"
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/update_metadata.pb.h"
 #include "update_engine/utils.h"
@@ -84,27 +83,6 @@ const uint8_t kRSA2048SHA256Padding[] = {
 };
 
 }  // namespace
-
-bool PayloadVerifier::LoadPayload(const string& payload_path,
-                                  brillo::Blob* out_payload,
-                                  DeltaArchiveManifest* out_manifest,
-                                  uint64_t* out_metadata_size) {
-  brillo::Blob payload;
-  // Loads the payload and parses the manifest.
-  TEST_AND_RETURN_FALSE(utils::ReadFile(payload_path, &payload));
-  LOG(INFO) << "Payload size: " << payload.size();
-  ErrorCode error = ErrorCode::kSuccess;
-  InstallPlan install_plan;
-  DeltaPerformer delta_performer(nullptr, nullptr, &install_plan);
-  TEST_AND_RETURN_FALSE(
-      delta_performer.ParsePayloadMetadata(payload, &error) ==
-      DeltaPerformer::kMetadataParseSuccess);
-  TEST_AND_RETURN_FALSE(delta_performer.GetManifest(out_manifest));
-  *out_metadata_size = delta_performer.GetMetadataSize();
-  LOG(INFO) << "Metadata size: " << *out_metadata_size;
-  out_payload->swap(payload);
-  return true;
-}
 
 bool PayloadVerifier::VerifySignature(const brillo::Blob& signature_blob,
                                       const string& public_key_path,
@@ -189,30 +167,6 @@ bool PayloadVerifier::GetRawHashFromSignature(
                         decrypt_size <= static_cast<int>(hash_data.size()));
   hash_data.resize(decrypt_size);
   out_hash_data->swap(hash_data);
-  return true;
-}
-
-bool PayloadVerifier::VerifySignedPayload(const string& payload_path,
-                                          const string& public_key_path) {
-  brillo::Blob payload;
-  DeltaArchiveManifest manifest;
-  uint64_t metadata_size;
-  TEST_AND_RETURN_FALSE(LoadPayload(
-      payload_path, &payload, &manifest, &metadata_size));
-  TEST_AND_RETURN_FALSE(manifest.has_signatures_offset() &&
-                        manifest.has_signatures_size());
-  CHECK_EQ(payload.size(),
-           metadata_size + manifest.signatures_offset() +
-           manifest.signatures_size());
-  brillo::Blob signature_blob(
-      payload.begin() + metadata_size + manifest.signatures_offset(),
-      payload.end());
-  brillo::Blob hash;
-  TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfBytes(
-      payload.data(), metadata_size + manifest.signatures_offset(), &hash));
-  TEST_AND_RETURN_FALSE(PadRSA2048SHA256Hash(&hash));
-  TEST_AND_RETURN_FALSE(VerifySignature(
-      signature_blob, public_key_path, hash));
   return true;
 }
 

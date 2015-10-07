@@ -35,7 +35,6 @@
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/payload_generator/payload_signer.h"
-#include "update_engine/payload_verifier.h"
 #include "update_engine/prefs.h"
 #include "update_engine/terminator.h"
 #include "update_engine/update_metadata.pb.h"
@@ -184,7 +183,7 @@ void VerifySignedPayload(const string& in_file,
       << "Must pass --in_file to verify signed payload.";
   LOG_IF(FATAL, public_key.empty())
       << "Must pass --public_key to verify signed payload.";
-  CHECK(PayloadVerifier::VerifySignedPayload(in_file, public_key));
+  CHECK(PayloadSigner::VerifySignedPayload(in_file, public_key));
   LOG(INFO) << "Done verifying signed payload.";
 }
 

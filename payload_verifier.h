@@ -48,27 +48,12 @@ class PayloadVerifier {
                                       const std::string& public_key_path,
                                       brillo::Blob* out_hash_data);
 
-  // Returns true if the payload in |payload_path| is signed and its hash can be
-  // verified using the public key in |public_key_path| with the signature
-  // of a given version in the signature blob. Returns false otherwise.
-  static bool VerifySignedPayload(const std::string& payload_path,
-                                  const std::string& public_key_path);
-
   // Pads a SHA256 hash so that it may be encrypted/signed with RSA2048
   // using the PKCS#1 v1.5 scheme.
   // hash should be a pointer to vector of exactly 256 bits. The vector
   // will be modified in place and will result in having a length of
   // 2048 bits. Returns true on success, false otherwise.
   static bool PadRSA2048SHA256Hash(brillo::Blob* hash);
-
-  // Reads the payload from the given |payload_path| into the |out_payload|
-  // vector. It also parses the manifest protobuf in the payload and returns it
-  // in |out_manifest| along with the size of the entire metadata in
-  // |out_metadata_size|.
-  static bool LoadPayload(const std::string& payload_path,
-                          brillo::Blob* out_payload,
-                          DeltaArchiveManifest* out_manifest,
-                          uint64_t* out_metadata_size);
 
  private:
   // This should never be constructed

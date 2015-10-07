@@ -24,7 +24,10 @@
 #include <brillo/data_encoding.h>
 #include <openssl/pem.h>
 
+#include "update_engine/delta_performer.h"
 #include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_verifier.h"
 #include "update_engine/subprocess.h"
@@ -83,9 +86,10 @@ bool AddSignatureOpToPayload(const string& payload_path,
   // Loads the payload.
   brillo::Blob payload;
   DeltaArchiveManifest manifest;
-  uint64_t metadata_size;
-  TEST_AND_RETURN_FALSE(PayloadVerifier::LoadPayload(
-      payload_path, &payload, &manifest, &metadata_size));
+  uint64_t metadata_size, major_version;
+  uint32_t metadata_signature_size;
+  TEST_AND_RETURN_FALSE(PayloadSigner::LoadPayload(payload_path, &payload,
+      &manifest, &major_version, &metadata_size, &metadata_signature_size));
 
   // Is there already a signature op in place?
   if (manifest.has_signatures_size()) {
@@ -103,9 +107,9 @@ bool AddSignatureOpToPayload(const string& payload_path,
     LOG(INFO) << "Matching signature sizes already present.";
   } else {
     // Updates the manifest to include the signature operation.
-    AddSignatureOp(payload.size() - metadata_size,
-                   signature_blob_size,
-                   &manifest);
+    PayloadSigner::AddSignatureOp(payload.size() - metadata_size,
+                                  signature_blob_size,
+                                  &manifest);
 
     // Updates the payload to include the new manifest.
     string serialized_manifest;
@@ -133,6 +137,99 @@ bool AddSignatureOpToPayload(const string& payload_path,
   return true;
 }
 }  // namespace
+
+void PayloadSigner::AddSignatureOp(uint64_t signature_blob_offset,
+                                   uint64_t signature_blob_length,
+                                   DeltaArchiveManifest* manifest) {
+  LOG(INFO) << "Making room for signature in file";
+  manifest->set_signatures_offset(signature_blob_offset);
+  LOG(INFO) << "set? " << manifest->has_signatures_offset();
+  // Add a dummy op at the end to appease older clients
+  InstallOperation* dummy_op = manifest->add_kernel_install_operations();
+  dummy_op->set_type(InstallOperation::REPLACE);
+  dummy_op->set_data_offset(signature_blob_offset);
+  manifest->set_signatures_offset(signature_blob_offset);
+  dummy_op->set_data_length(signature_blob_length);
+  manifest->set_signatures_size(signature_blob_length);
+  Extent* dummy_extent = dummy_op->add_dst_extents();
+  // Tell the dummy op to write this data to a big sparse hole
+  dummy_extent->set_start_block(kSparseHole);
+  dummy_extent->set_num_blocks((signature_blob_length + kBlockSize - 1) /
+                               kBlockSize);
+}
+
+bool PayloadSigner::LoadPayload(const std::string& payload_path,
+                                brillo::Blob* out_payload,
+                                DeltaArchiveManifest* out_manifest,
+                                uint64_t* out_major_version,
+                                uint64_t* out_metadata_size,
+                                uint32_t* out_metadata_signature_size) {
+  brillo::Blob payload;
+  TEST_AND_RETURN_FALSE(utils::ReadFile(payload_path, &payload));
+  TEST_AND_RETURN_FALSE(payload.size() >=
+                        DeltaPerformer::kMaxPayloadHeaderSize);
+  const uint8_t* read_pointer = payload.data();
+  TEST_AND_RETURN_FALSE(
+      memcmp(read_pointer, kDeltaMagic, sizeof(kDeltaMagic)) == 0);
+  read_pointer += sizeof(kDeltaMagic);
+
+  uint64_t major_version;
+  memcpy(&major_version, read_pointer, sizeof(major_version));
+  read_pointer += sizeof(major_version);
+  major_version = be64toh(major_version);
+  TEST_AND_RETURN_FALSE(major_version == kChromeOSMajorPayloadVersion ||
+                        major_version == kBrilloMajorPayloadVersion);
+  if (out_major_version)
+    *out_major_version = major_version;
+
+  uint64_t manifest_size = 0;
+  memcpy(&manifest_size, read_pointer, sizeof(manifest_size));
+  read_pointer += sizeof(manifest_size);
+  manifest_size = be64toh(manifest_size);
+
+  uint32_t metadata_signature_size = 0;
+  if (major_version == kBrilloMajorPayloadVersion) {
+    memcpy(&metadata_signature_size, read_pointer,
+           sizeof(metadata_signature_size));
+    read_pointer += sizeof(metadata_signature_size);
+    metadata_signature_size = be32toh(metadata_signature_size);
+  }
+  if (out_metadata_signature_size)
+    *out_metadata_signature_size = metadata_signature_size;
+
+  *out_metadata_size = read_pointer - payload.data() + manifest_size;
+  TEST_AND_RETURN_FALSE(payload.size() >= *out_metadata_size);
+  if (out_manifest)
+    TEST_AND_RETURN_FALSE(
+        out_manifest->ParseFromArray(read_pointer, manifest_size));
+  *out_payload = std::move(payload);
+  return true;
+}
+
+bool PayloadSigner::VerifySignedPayload(const string& payload_path,
+                                        const string& public_key_path) {
+  brillo::Blob payload;
+  DeltaArchiveManifest manifest;
+  uint64_t metadata_size, major_version;
+  uint32_t metadata_signature_size;
+  TEST_AND_RETURN_FALSE(LoadPayload(payload_path, &payload, &manifest,
+      &major_version, &metadata_size, &metadata_signature_size));
+  TEST_AND_RETURN_FALSE(manifest.has_signatures_offset() &&
+                        manifest.has_signatures_size());
+  CHECK_EQ(payload.size(),
+           metadata_size + manifest.signatures_offset() +
+           manifest.signatures_size());
+  brillo::Blob signature_blob(
+      payload.begin() + metadata_size + manifest.signatures_offset(),
+      payload.end());
+  brillo::Blob hash;
+  TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfBytes(
+      payload.data(), metadata_size + manifest.signatures_offset(), &hash));
+  TEST_AND_RETURN_FALSE(PayloadVerifier::PadRSA2048SHA256Hash(&hash));
+  TEST_AND_RETURN_FALSE(PayloadVerifier::VerifySignature(
+      signature_blob, public_key_path, hash));
+  return true;
+}
 
 bool PayloadSigner::SignHash(const brillo::Blob& hash,
                              const string& private_key_path,

@@ -25,7 +25,6 @@
 #include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/annotated_operation.h"
-#include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/payload_signer.h"
 
@@ -101,7 +100,7 @@ bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
 bool PayloadFile::WritePayload(const string& payload_file,
                                const string& data_blobs_path,
                                const string& private_key_path,
-                               uint64_t* medatata_size_out) {
+                               uint64_t* metadata_size_out) {
   // Reorder the data blobs with the manifest_.
   string ordered_blobs_path;
   TEST_AND_RETURN_FALSE(utils::MakeTempFile(
@@ -167,12 +166,16 @@ bool PayloadFile::WritePayload(const string& payload_file,
     TEST_AND_RETURN_FALSE(
         PayloadSigner::SignatureBlobLength(vector<string>(1, private_key_path),
                                            &signature_blob_length));
-    AddSignatureOp(next_blob_offset, signature_blob_length, &manifest_);
+    PayloadSigner::AddSignatureOp(next_blob_offset, signature_blob_length,
+                                  &manifest_);
   }
 
   // Serialize protobuf
   string serialized_manifest;
   TEST_AND_RETURN_FALSE(manifest_.AppendToString(&serialized_manifest));
+
+  uint64_t metadata_size =
+      sizeof(kDeltaMagic) + 2 * sizeof(uint64_t) + serialized_manifest.size();
 
   LOG(INFO) << "Writing final delta file header...";
   DirectFileWriter writer;
@@ -195,6 +198,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
     // Write metadata signature size.
     uint32_t zero = htobe32(0);
     TEST_AND_RETURN_FALSE(writer.Write(&zero, sizeof(zero)));
+    metadata_size += sizeof(zero);
   }
 
   // Write protobuf
@@ -231,9 +235,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
                                        signature_blob.size()));
   }
 
-  *medatata_size_out =
-      sizeof(kDeltaMagic) + 2 * sizeof(uint64_t) + serialized_manifest.size();
-  ReportPayloadUsage(*medatata_size_out);
+  ReportPayloadUsage(metadata_size);
+  *metadata_size_out = metadata_size;
   return true;
 }
 
@@ -315,26 +318,6 @@ void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
   }
   fprintf(stderr, kFormatString,
           100.0, static_cast<intmax_t>(total_size), "", "<total>");
-}
-
-void AddSignatureOp(uint64_t signature_blob_offset,
-                    uint64_t signature_blob_length,
-                    DeltaArchiveManifest* manifest) {
-  LOG(INFO) << "Making room for signature in file";
-  manifest->set_signatures_offset(signature_blob_offset);
-  LOG(INFO) << "set? " << manifest->has_signatures_offset();
-  // Add a dummy op at the end to appease older clients
-  InstallOperation* dummy_op = manifest->add_kernel_install_operations();
-  dummy_op->set_type(InstallOperation::REPLACE);
-  dummy_op->set_data_offset(signature_blob_offset);
-  manifest->set_signatures_offset(signature_blob_offset);
-  dummy_op->set_data_length(signature_blob_length);
-  manifest->set_signatures_size(signature_blob_length);
-  Extent* dummy_extent = dummy_op->add_dst_extents();
-  // Tell the dummy op to write this data to a big sparse hole
-  dummy_extent->set_start_block(kSparseHole);
-  dummy_extent->set_num_blocks((signature_blob_length + kBlockSize - 1) /
-                               kBlockSize);
 }
 
 }  // namespace chromeos_update_engine

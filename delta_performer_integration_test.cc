@@ -195,7 +195,7 @@ static void SignGeneratedPayload(const string& payload_path,
       vector<brillo::Blob>(1, signature),
       payload_path,
       out_metadata_size));
-  EXPECT_TRUE(PayloadVerifier::VerifySignedPayload(
+  EXPECT_TRUE(PayloadSigner::VerifySignedPayload(
       payload_path,
       kUnittestPublicKeyPath));
 }
@@ -584,10 +584,12 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   // Check the metadata.
   {
     DeltaArchiveManifest manifest;
-    EXPECT_TRUE(PayloadVerifier::LoadPayload(state->delta_path,
-                                             &state->delta,
-                                             &manifest,
-                                             &state->metadata_size));
+    EXPECT_TRUE(PayloadSigner::LoadPayload(state->delta_path,
+                                           &state->delta,
+                                           &manifest,
+                                           nullptr,
+                                           &state->metadata_size,
+                                           nullptr));
     LOG(INFO) << "Metadata size: " << state->metadata_size;
 
 

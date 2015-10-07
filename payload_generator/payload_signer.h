@@ -32,6 +32,31 @@ namespace chromeos_update_engine {
 
 class PayloadSigner {
  public:
+  // Reads the payload from the given |payload_path| into the |out_payload|
+  // vector. It also parses the manifest protobuf in the payload and returns it
+  // in |out_manifest| if not null, along with the major version of the payload
+  // in |out_major_version| if not null, the size of the entire metadata in
+  // |out_metadata_size| and the size of metadata signature in
+  // |out_metadata_signature_size| if not null.
+  static bool LoadPayload(const std::string& payload_path,
+                          brillo::Blob* out_payload,
+                          DeltaArchiveManifest* out_manifest,
+                          uint64_t* out_major_version,
+                          uint64_t* out_metadata_size,
+                          uint32_t* out_metadata_signature_size);
+
+  // Returns true if the payload in |payload_path| is signed and its hash can be
+  // verified using the public key in |public_key_path| with the signature
+  // of a given version in the signature blob. Returns false otherwise.
+  static bool VerifySignedPayload(const std::string& payload_path,
+                                  const std::string& public_key_path);
+
+  // Adds a dummy operation that points to a signature blob located at the
+  // specified offset/length.
+  static void AddSignatureOp(uint64_t signature_blob_offset,
+                             uint64_t signature_blob_length,
+                             DeltaArchiveManifest* manifest);
+
   // Given a raw |hash| and a private key in |private_key_path| calculates the
   // raw signature in |out_signature|. Returns true on success, false otherwise.
   static bool SignHash(const brillo::Blob& hash,
