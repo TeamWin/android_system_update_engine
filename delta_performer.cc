@@ -773,7 +773,8 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
     }
     // In case of failure, we fall back to writing 0 to the selected region.
     for (uint64_t offset = 0; offset < length; offset += zeros.size()) {
-      uint64_t chunk_length = min(length - offset, zeros.size());
+      uint64_t chunk_length = min(length - offset,
+                                  static_cast<uint64_t>(zeros.size()));
       TEST_AND_RETURN_FALSE(
           utils::PWriteAll(fd, zeros.data(), chunk_length, start + offset));
     }
