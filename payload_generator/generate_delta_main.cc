@@ -234,6 +234,23 @@ int Main(int argc, char** argv) {
   DEFINE_string(new_image, "", "Path to the new rootfs");
   DEFINE_string(old_kernel, "", "Path to the old kernel partition image");
   DEFINE_string(new_kernel, "", "Path to the new kernel partition image");
+  DEFINE_string(old_partitions, "",
+                "Path to the old partitions. To pass multiple partitions, use "
+                "a single argument with a colon between paths, e.g. "
+                "/path/to/part:/path/to/part2::/path/to/last_part . Path can "
+                "be empty, but it has to match the order of partition_names.");
+  DEFINE_string(new_partitions, "",
+                "Path to the new partitions. To pass multiple partitions, use "
+                "a single argument with a colon between paths, e.g. "
+                "/path/to/part:/path/to/part2:/path/to/last_part . Path has "
+                "to match the order of partition_names.");
+  DEFINE_string(partition_names,
+                string(kLegacyPartitionNameRoot) + ":" +
+                kLegacyPartitionNameKernel,
+                "Names of the partitions. To pass multiple names, use a single "
+                "argument with a colon between names, e.g. "
+                "name:name2:name3:last_name . Name can not be empty, and it "
+                "has to match the order of partitions.");
   DEFINE_string(in_file, "",
                 "Path to input delta payload file used to hash/sign payloads "
                 "and apply delta over old_image (for debugging)");
@@ -359,34 +376,74 @@ int Main(int argc, char** argv) {
   // A payload generation was requested. Convert the flags to a
   // PayloadGenerationConfig.
   PayloadGenerationConfig payload_config;
+  vector<string> partition_names, old_partitions, new_partitions;
 
-  payload_config.is_delta = !FLAGS_old_image.empty() ||
-                            !FLAGS_old_kernel.empty();
-
-  if (payload_config.is_delta) {
-    payload_config.source.partitions.emplace_back(kLegacyPartitionNameRoot);
-    payload_config.source.partitions.back().path = FLAGS_old_image;
-    payload_config.source.partitions.emplace_back(kLegacyPartitionNameKernel);
-    payload_config.source.partitions.back().path = FLAGS_old_kernel;
+  base::SplitString(FLAGS_partition_names, ':', &partition_names);
+  CHECK(!partition_names.empty());
+  if (FLAGS_major_version == kChromeOSMajorPayloadVersion ||
+      FLAGS_new_partitions.empty()) {
+    LOG_IF(FATAL, partition_names.size() != 2)
+        << "To support more than 2 partitions, please use the "
+        << "--new_partitions flag and major version 2.";
+    LOG_IF(FATAL, partition_names[0] != kLegacyPartitionNameRoot ||
+                  partition_names[1] != kLegacyPartitionNameKernel)
+        << "To support non-default partition name, please use the "
+        << "--new_partitions flag and major version 2.";
   }
 
-  payload_config.target.partitions.emplace_back(kLegacyPartitionNameRoot);
-  payload_config.target.partitions.back().path = FLAGS_new_image;
-  payload_config.target.partitions.emplace_back(kLegacyPartitionNameKernel);
-  payload_config.target.partitions.back().path = FLAGS_new_kernel;
+  if (!FLAGS_new_partitions.empty()) {
+    LOG_IF(FATAL, !FLAGS_new_image.empty() || !FLAGS_new_kernel.empty())
+        << "--new_image and --new_kernel are deprecated, please use "
+        << "--new_partitions for all partitions.";
+    base::SplitString(FLAGS_new_partitions, ':', &new_partitions);
+    CHECK(partition_names.size() == new_partitions.size());
+
+    payload_config.is_delta = !FLAGS_old_partitions.empty();
+    LOG_IF(FATAL, !FLAGS_old_image.empty() || !FLAGS_old_kernel.empty())
+        << "--old_image and --old_kernel are deprecated, please use "
+        << "--old_partitions if you are using --new_partitions.";
+  } else {
+    new_partitions = {FLAGS_new_image, FLAGS_new_kernel};
+    LOG(WARNING) << "--new_partitions is empty, using deprecated --new_image "
+                 << "and --new_kernel flags.";
+
+    payload_config.is_delta = !FLAGS_old_image.empty() ||
+                              !FLAGS_old_kernel.empty();
+    LOG_IF(FATAL, !FLAGS_old_partitions.empty())
+        << "Please use --new_partitions if you are using --old_partitions.";
+  }
+  for (size_t i = 0; i < partition_names.size(); i++) {
+    LOG_IF(FATAL, partition_names[i].empty())
+        << "Partition name can't be empty, see --partition_names.";
+    payload_config.target.partitions.emplace_back(partition_names[i]);
+    payload_config.target.partitions.back().path = new_partitions[i];
+  }
+
+  if (payload_config.is_delta) {
+    if (!FLAGS_old_partitions.empty()) {
+      base::SplitString(FLAGS_old_partitions, ':', &old_partitions);
+      CHECK(old_partitions.size() == new_partitions.size());
+    } else {
+      old_partitions = {FLAGS_old_image, FLAGS_old_kernel};
+      LOG(WARNING) << "--old_partitions is empty, using deprecated --old_image "
+                   << "and --old_kernel flags.";
+    }
+    for (size_t i = 0; i < partition_names.size(); i++) {
+      payload_config.source.partitions.emplace_back(partition_names[i]);
+      payload_config.source.partitions.back().path = old_partitions[i];
+    }
+  }
 
   // Use the default soft_chunk_size defined in the config.
   payload_config.hard_chunk_size = FLAGS_chunk_size;
   payload_config.block_size = kBlockSize;
 
-  // The kernel and rootfs size is never passed to the delta_generator, so we
+  // The partition size is never passed to the delta_generator, so we
   // need to detect those from the provided files.
-  if (!FLAGS_old_image.empty()) {
+  if (payload_config.is_delta) {
     CHECK(payload_config.source.LoadImageSize());
   }
-  if (!FLAGS_new_image.empty()) {
-    CHECK(payload_config.target.LoadImageSize());
-  }
+  CHECK(payload_config.target.LoadImageSize());
 
   CHECK(!FLAGS_out_file.empty());
 
