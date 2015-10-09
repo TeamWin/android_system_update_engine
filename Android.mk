@@ -106,20 +106,20 @@ LOCAL_STATIC_LIBRARIES += \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
     update_engine_client-dbus-proxies \
+    libxz \
     libbz \
-    libfs_mgr \
-    libxz
+    libfs_mgr
 LOCAL_SHARED_LIBRARIES += \
     libprotobuf-cpp-lite-rtti \
     libdbus \
     libcrypto \
     libcurl \
-    libcutils \
-    libhardware \
     libmetrics \
     libssl \
     libexpat \
-    libchromeos-policy
+    libchromeos-policy \
+    libhardware \
+    libcutils
 LOCAL_SRC_FILES := \
     action_processor.cc \
     boot_control_android.cc \
@@ -194,22 +194,22 @@ LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
     libbz \
     libfs_mgr \
-    libxz \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies
+    update_engine_client-dbus-proxies \
+    libxz
 LOCAL_SHARED_LIBRARIES += \
     libprotobuf-cpp-lite-rtti \
     libdbus \
     libcrypto \
     libcurl \
-    libcutils \
-    libhardware \
     libmetrics \
     libssl \
     libexpat \
-    libchromeos-policy
+    libchromeos-policy \
+    libhardware \
+    libcutils
 LOCAL_SRC_FILES := \
     main.cc
 LOCAL_INIT_RC := update_engine.rc
@@ -242,11 +242,11 @@ LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
     libbz \
     libfs_mgr \
-    libxz \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
     update_engine_client-dbus-proxies \
+    libxz \
     update_metadata-protos
 LOCAL_SHARED_LIBRARIES += \
     libdbus \
@@ -256,6 +256,8 @@ LOCAL_SHARED_LIBRARIES += \
     libssl \
     libexpat \
     libchromeos-policy \
+    libhardware \
+    libcutils \
     libprotobuf-cpp-lite-rtti \
     libext2fs
 LOCAL_SRC_FILES := \
@@ -293,11 +295,11 @@ LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
     libbz \
     libfs_mgr \
-    libxz \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies
+    update_engine_client-dbus-proxies \
+    libxz
 LOCAL_SHARED_LIBRARIES += \
     libdbus \
     libcrypto \
@@ -306,6 +308,8 @@ LOCAL_SHARED_LIBRARIES += \
     libssl \
     libexpat \
     libchromeos-policy \
+    libhardware \
+    libcutils \
     libprotobuf-cpp-lite-rtti \
     libext2fs
 LOCAL_SRC_FILES := \
