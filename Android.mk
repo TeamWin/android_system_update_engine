@@ -97,10 +97,12 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_C_INCLUDES += \
-    external/e2fsprogs/lib \
-    $(LOCAL_PATH)/include
+    $(LOCAL_PATH)/include \
+    external/cros/system_api/dbus \
+    external/e2fsprogs/lib
 LOCAL_EXPORT_C_INCLUDE_DIRS += \
-    $(LOCAL_PATH)/include
+    $(LOCAL_PATH)/include \
+    external/cros/system_api/dbus
 LOCAL_STATIC_LIBRARIES += \
     update_metadata-protos \
     update_engine-dbus-adaptor \
@@ -115,6 +117,7 @@ LOCAL_SHARED_LIBRARIES += \
     libcrypto \
     libcurl \
     libmetrics \
+    libshill-client \
     libssl \
     libexpat \
     libchromeos-policy \
@@ -205,6 +208,7 @@ LOCAL_SHARED_LIBRARIES += \
     libcrypto \
     libcurl \
     libmetrics \
+    libshill-client \
     libssl \
     libexpat \
     libchromeos-policy \
@@ -253,6 +257,7 @@ LOCAL_SHARED_LIBRARIES += \
     libcrypto \
     libcurl \
     libmetrics \
+    libshill-client \
     libssl \
     libexpat \
     libchromeos-policy \
@@ -305,6 +310,7 @@ LOCAL_SHARED_LIBRARIES += \
     libcrypto \
     libcurl \
     libmetrics \
+    libshill-client \
     libssl \
     libexpat \
     libchromeos-policy \
