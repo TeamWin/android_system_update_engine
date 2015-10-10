@@ -38,6 +38,10 @@ extern const char kOmahaPlatformName[];
 // whole payload.
 extern const char kUpdatePayloadPublicKeyPath[];
 
+// Path to the file used to notify chrome about the deadline of the last omaha
+// response. Empty if not supported.
+extern const char kOmahaResponseDeadlineFile[];
+
 }  // namespace constants
 }  // namespace chromeos_update_engine
 

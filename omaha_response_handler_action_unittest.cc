@@ -112,7 +112,7 @@ bool OmahaResponseHandlerActionTest::DoTest(
   OmahaResponseHandlerAction response_handler_action(
       &fake_system_state_,
       (test_deadline_file.empty() ?
-       OmahaResponseHandlerAction::kDeadlineFile : test_deadline_file));
+       constants::kOmahaResponseDeadlineFile : test_deadline_file));
   BondActions(&feeder_action, &response_handler_action);
   ObjectCollectorAction<InstallPlan> collector_action;
   BondActions(&response_handler_action, &collector_action);

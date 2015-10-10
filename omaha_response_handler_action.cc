@@ -35,12 +35,10 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-const char OmahaResponseHandlerAction::kDeadlineFile[] =
-    "/tmp/update-check-response-deadline";
-
 OmahaResponseHandlerAction::OmahaResponseHandlerAction(
     SystemState* system_state)
-    : OmahaResponseHandlerAction(system_state, kDeadlineFile) {}
+    : OmahaResponseHandlerAction(system_state,
+                                 constants::kOmahaResponseDeadlineFile) {}
 
 OmahaResponseHandlerAction::OmahaResponseHandlerAction(
     SystemState* system_state, const string& deadline_file)
@@ -127,10 +125,12 @@ void OmahaResponseHandlerAction::PerformAction() {
   // file. Ideally, we would include this information in D-Bus's GetStatus
   // method and UpdateStatus signal. A potential issue is that update_engine may
   // be unresponsive during an update download.
-  utils::WriteFile(deadline_file_.c_str(),
-                   response.deadline.data(),
-                   response.deadline.size());
-  chmod(deadline_file_.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  if (!deadline_file_.empty()) {
+    utils::WriteFile(deadline_file_.c_str(),
+                     response.deadline.data(),
+                     response.deadline.size());
+    chmod(deadline_file_.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  }
 
   completer.set_code(ErrorCode::kSuccess);
 }

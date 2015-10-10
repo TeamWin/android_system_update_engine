@@ -27,6 +27,8 @@ const char kOmahaUpdaterID[] = "ChromeOSUpdateEngine";
 const char kOmahaPlatformName[] = "Chrome OS";
 const char kUpdatePayloadPublicKeyPath[] =
     "/usr/share/update_engine/update-payload-key.pub.pem";
+const char kOmahaResponseDeadlineFile[] =
+    "/tmp/update-check-response-deadline";
 
 }  // namespace constants
 }  // namespace chromeos_update_engine

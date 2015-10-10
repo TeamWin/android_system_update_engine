@@ -27,6 +27,8 @@ const char kOmahaUpdaterID[] = "Brillo";
 const char kOmahaPlatformName[] = "Brillo";
 const char kUpdatePayloadPublicKeyPath[] =
     "/etc/update_engine/update-payload-key.pub.pem";
+// No deadline file API support on Android.
+const char kOmahaResponseDeadlineFile[] = "";
 
 }  // namespace constants
 }  // namespace chromeos_update_engine
