@@ -31,6 +31,7 @@
 #include "debugd/dbus-proxies.h"
 #include "update_engine/action_processor.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
+#include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/download_action.h"
 #include "update_engine/libcros_proxy.h"
 #include "update_engine/omaha_request_params.h"
@@ -39,7 +40,6 @@
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
-#include "update_engine/update_status.h"
 
 class MetricsLibraryInterface;
 
@@ -174,8 +174,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // from the server asynchronously at its own frequency.
   virtual void RefreshDevicePolicy();
 
-  // Returns the boottime (CLOCK_BOOTTIME) recorded at the last
-  // successful update. Returns false if the device has not updated.
+  // Stores in |out_boot_time| the boottime (CLOCK_BOOTTIME) recorded at the
+  // time of the last successful update in the current boot. Returns false if
+  // there wasn't a successful update in the current boot.
   virtual bool GetBootTimeAtUpdate(base::Time *out_boot_time);
 
   // Returns a version OS version that was being used before the last reboot,
@@ -216,12 +217,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Update server URL for automated lab test.
   static const char* const kTestUpdateUrl;
 
-  // Special ctor + friend declarations for testing purposes.
-  UpdateAttempter(SystemState* system_state,
-                  LibCrosProxy* libcros_proxy,
-                  org::chromium::debugdProxyInterface* debugd_proxy,
-                  const std::string& update_completed_marker);
-
+  // Friend declarations for testing purposes.
   friend class UpdateAttempterUnderTest;
   friend class UpdateAttempterTest;
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedDownloadTest);
@@ -231,7 +227,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
   FRIEND_TEST(UpdateAttempterTest, DisableDeltaUpdateIfNeededTest);
   FRIEND_TEST(UpdateAttempterTest, MarkDeltaUpdateFailureTest);
-  FRIEND_TEST(UpdateAttempterTest, ReadTrackFromPolicy);
   FRIEND_TEST(UpdateAttempterTest, PingOmahaTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
@@ -428,7 +423,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   bool download_active_ = false;
 
   // For status:
-  UpdateStatus status_;
+  UpdateStatus status_{UpdateStatus::IDLE};
   double download_progress_ = 0.0;
   int64_t last_checked_time_ = 0;
   std::string prev_version_;
@@ -468,10 +463,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // The current scatter factor as found in the policy setting.
   base::TimeDelta scatter_factor_;
-
-  // Update completed marker file. An empty string means this marker is being
-  // ignored (nor is it being written), which is useful for testing situations.
-  std::string update_completed_marker_;
 
   // The number of consecutive failed update checks. Needed for calculating the
   // next update check interval.

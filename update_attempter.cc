@@ -69,7 +69,6 @@
 
 using base::Bind;
 using base::Callback;
-using base::StringPrintf;
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
@@ -88,9 +87,6 @@ const int UpdateAttempter::kMaxDeltaUpdateFailures = 3;
 
 namespace {
 const int kMaxConsecutiveObeyProxyRequests = 20;
-
-const char kUpdateCompletedMarker[] =
-    "/var/run/update_engine_autoupdate_completed";
 
 // By default autest bypasses scattering. If we want to test scattering,
 // use kScheduledAUTestURLRequest. The URL used is same in both cases, but
@@ -125,25 +121,10 @@ UpdateAttempter::UpdateAttempter(
     SystemState* system_state,
     LibCrosProxy* libcros_proxy,
     org::chromium::debugdProxyInterface* debugd_proxy)
-    : UpdateAttempter(system_state, libcros_proxy, debugd_proxy,
-                      kUpdateCompletedMarker) {}
-
-UpdateAttempter::UpdateAttempter(
-    SystemState* system_state,
-    LibCrosProxy* libcros_proxy,
-    org::chromium::debugdProxyInterface* debugd_proxy,
-    const string& update_completed_marker)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
       chrome_proxy_resolver_(libcros_proxy),
-      update_completed_marker_(update_completed_marker),
       debugd_proxy_(debugd_proxy) {
-  if (!update_completed_marker_.empty() &&
-      utils::FileExists(update_completed_marker_.c_str())) {
-    status_ = UpdateStatus::UPDATED_NEED_REBOOT;
-  } else {
-    status_ = UpdateStatus::IDLE;
-  }
 }
 
 UpdateAttempter::~UpdateAttempter() {
@@ -156,6 +137,13 @@ void UpdateAttempter::Init() {
   // which requires them all to be constructed prior to it being used.
   prefs_ = system_state_->prefs();
   omaha_request_params_ = system_state_->request_params();
+
+  // In case of update_engine restart without a reboot we need to restore the
+  // reboot needed state.
+  if (GetBootTimeAtUpdate(nullptr))
+    status_ = UpdateStatus::UPDATED_NEED_REBOOT;
+  else
+    status_ = UpdateStatus::IDLE;
 }
 
 void UpdateAttempter::ScheduleUpdates() {
@@ -803,15 +791,13 @@ bool UpdateAttempter::RebootIfNeeded() {
 }
 
 void UpdateAttempter::WriteUpdateCompletedMarker() {
-  if (update_completed_marker_.empty())
+  string boot_id;
+  if (!utils::GetBootId(&boot_id))
     return;
+  prefs_->SetString(kPrefsUpdateCompletedOnBootId, boot_id);
 
   int64_t value = system_state_->clock()->GetBootTime().ToInternalValue();
-  string contents = StringPrintf("%" PRIi64, value);
-
-  utils::WriteFile(update_completed_marker_.c_str(),
-                   contents.c_str(),
-                   contents.length());
+  prefs_->SetInt64(kPrefsUpdateCompletedBootTime, value);
 }
 
 bool UpdateAttempter::RequestPowerManagerReboot() {
@@ -1082,15 +1068,12 @@ bool UpdateAttempter::ResetStatus() {
     case UpdateStatus::UPDATED_NEED_REBOOT:  {
       bool ret_value = true;
       status_ = UpdateStatus::IDLE;
-      LOG(INFO) << "Reset Successful";
 
       // Remove the reboot marker so that if the machine is rebooted
       // after resetting to idle state, it doesn't go back to
       // UpdateStatus::UPDATED_NEED_REBOOT state.
-      if (!update_completed_marker_.empty()) {
-        if (!base::DeleteFile(base::FilePath(update_completed_marker_), false))
-          ret_value = false;
-      }
+      ret_value = prefs_->Delete(kPrefsUpdateCompletedOnBootId) && ret_value;
+      ret_value = prefs_->Delete(kPrefsUpdateCompletedBootTime) && ret_value;
 
       // Update the boot flags so the current slot has higher priority.
       BootControlInterface* boot_control = system_state_->boot_control();
@@ -1100,6 +1083,7 @@ bool UpdateAttempter::ResetStatus() {
       // Notify the PayloadState that the successful payload was canceled.
       system_state_->payload_state()->ResetUpdateStatus();
 
+      LOG(INFO) << "Reset status " << (ret_value ? "successful" : "failed");
       return ret_value;
     }
 
@@ -1515,22 +1499,28 @@ bool UpdateAttempter::StartP2PAndPerformHousekeeping() {
 }
 
 bool UpdateAttempter::GetBootTimeAtUpdate(Time *out_boot_time) {
-  if (update_completed_marker_.empty())
+  // In case of an update_engine restart without a reboot, we stored the boot_id
+  // when the update was completed by setting a pref, so we can check whether
+  // the last update was on this boot or a previous one.
+  string boot_id;
+  TEST_AND_RETURN_FALSE(utils::GetBootId(&boot_id));
+
+  string update_completed_on_boot_id;
+  if (!prefs_->Exists(kPrefsUpdateCompletedOnBootId) ||
+      !prefs_->GetString(kPrefsUpdateCompletedOnBootId,
+                         &update_completed_on_boot_id) ||
+      update_completed_on_boot_id != boot_id)
     return false;
 
-  string contents;
-  if (!utils::ReadFile(update_completed_marker_, &contents))
-    return false;
-
-  char *endp;
-  int64_t stored_value = strtoll(contents.c_str(), &endp, 10);
-  if (*endp != '\0') {
-    LOG(ERROR) << "Error parsing file " << update_completed_marker_ << " "
-               << "with content '" << contents << "'";
-    return false;
+  // Short-circuit avoiding the read in case out_boot_time is nullptr.
+  if (out_boot_time) {
+    int64_t boot_time = 0;
+    // Since the kPrefsUpdateCompletedOnBootId was correctly set, this pref
+    // should not fail.
+    TEST_AND_RETURN_FALSE(
+        prefs_->GetInt64(kPrefsUpdateCompletedBootTime, &boot_time));
+    *out_boot_time = Time::FromInternalValue(boot_time);
   }
-
-  *out_boot_time = Time::FromInternalValue(stored_value);
   return true;
 }
 

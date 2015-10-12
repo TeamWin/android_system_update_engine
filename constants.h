@@ -73,6 +73,8 @@ extern const char kPrefsTargetVersionUniqueId[];
 extern const char kPrefsTotalBytesDownloaded[];
 extern const char kPrefsUpdateCheckCount[];
 extern const char kPrefsUpdateCheckResponseHash[];
+extern const char kPrefsUpdateCompletedBootTime[];
+extern const char kPrefsUpdateCompletedOnBootId[];
 extern const char kPrefsUpdateDurationUptime[];
 extern const char kPrefsUpdateFirstSeenAt[];
 extern const char kPrefsUpdateOverCellularPermission[];

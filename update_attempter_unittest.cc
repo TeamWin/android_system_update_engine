@@ -82,10 +82,8 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
  public:
   UpdateAttempterUnderTest(SystemState* system_state,
                            LibCrosProxy* libcros_proxy,
-                           org::chromium::debugdProxyInterface* debugd_proxy,
-                           const string& update_completed_marker)
-      : UpdateAttempter(system_state, libcros_proxy, debugd_proxy,
-                        update_completed_marker) {}
+                           org::chromium::debugdProxyInterface* debugd_proxy)
+      : UpdateAttempter(system_state, libcros_proxy, debugd_proxy) {}
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
@@ -204,8 +202,7 @@ class UpdateAttempterTest : public ::testing::Test {
   LibCrosProxy libcros_proxy_;
   UpdateAttempterUnderTest attempter_{&fake_system_state_,
                                       &libcros_proxy_,
-                                      &debugd_proxy_mock_,
-                                      ""};
+                                      &debugd_proxy_mock_};
 
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
@@ -261,18 +258,14 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
 }
 
 TEST_F(UpdateAttempterTest, ConstructWithUpdatedMarkerTest) {
-  string test_update_completed_marker;
-  CHECK(utils::MakeTempFile(
-      "update_attempter_unittest-update_completed_marker-XXXXXX",
-      &test_update_completed_marker,
-      nullptr));
-  ScopedPathUnlinker completed_marker_unlinker(test_update_completed_marker);
-  const base::FilePath marker(test_update_completed_marker);
-  EXPECT_EQ(0, base::WriteFile(marker, "", 0));
-  UpdateAttempterUnderTest attempter(&fake_system_state_,
-                                     nullptr,
-                                     &debugd_proxy_mock_,
-                                     test_update_completed_marker);
+  FakePrefs fake_prefs;
+  string boot_id;
+  EXPECT_TRUE(utils::GetBootId(&boot_id));
+  fake_prefs.SetString(kPrefsUpdateCompletedOnBootId, boot_id);
+  fake_system_state_.set_prefs(&fake_prefs);
+  UpdateAttempterUnderTest attempter(&fake_system_state_, nullptr,
+                                     &debugd_proxy_mock_);
+  attempter.Init();
   EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter.status());
 }
 
@@ -936,15 +929,15 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
 }
 
 TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
-  const string update_completed_marker = test_dir_ + "/update-completed-marker";
   UpdateAttempterUnderTest attempter{&fake_system_state_,
                                      nullptr,  // libcros_proxy
-                                     &debugd_proxy_mock_,
-                                     update_completed_marker};
-
+                                     &debugd_proxy_mock_};
   FakeClock fake_clock;
   fake_clock.SetBootTime(Time::FromTimeT(42));
   fake_system_state_.set_clock(&fake_clock);
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
+  attempter.Init();
 
   Time boot_time;
   EXPECT_FALSE(attempter.GetBootTimeAtUpdate(&boot_time));
