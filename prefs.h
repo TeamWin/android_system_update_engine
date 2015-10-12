@@ -17,9 +17,12 @@
 #ifndef UPDATE_ENGINE_PREFS_H_
 #define UPDATE_ENGINE_PREFS_H_
 
+#include <map>
 #include <string>
+#include <vector>
 
 #include <base/files/file_path.h>
+
 #include "gtest/gtest_prod.h"  // for FRIEND_TEST
 #include "update_engine/prefs_interface.h"
 
@@ -31,7 +34,7 @@ namespace chromeos_update_engine {
 
 class Prefs : public PrefsInterface {
  public:
-  Prefs() {}
+  Prefs() = default;
 
   // Initializes the store by associating this object with |prefs_dir|
   // as the preference store directory. Returns true on success, false
@@ -39,15 +42,20 @@ class Prefs : public PrefsInterface {
   bool Init(const base::FilePath& prefs_dir);
 
   // PrefsInterface methods.
-  bool GetString(const std::string& key, std::string* value) override;
+  bool GetString(const std::string& key, std::string* value) const override;
   bool SetString(const std::string& key, const std::string& value) override;
-  bool GetInt64(const std::string& key, int64_t* value) override;
+  bool GetInt64(const std::string& key, int64_t* value) const override;
   bool SetInt64(const std::string& key, const int64_t value) override;
-  bool GetBoolean(const std::string& key, bool* value) override;
+  bool GetBoolean(const std::string& key, bool* value) const override;
   bool SetBoolean(const std::string& key, const bool value) override;
 
-  bool Exists(const std::string& key) override;
+  bool Exists(const std::string& key) const override;
   bool Delete(const std::string& key) override;
+
+  void AddObserver(const std::string& key,
+                   ObserverInterface* observer) override;
+  void RemoveObserver(const std::string& key,
+                      ObserverInterface* observer) override;
 
  private:
   FRIEND_TEST(PrefsTest, GetFileNameForKey);
@@ -56,10 +64,14 @@ class Prefs : public PrefsInterface {
 
   // Sets |filename| to the full path to the file containing the data
   // associated with |key|. Returns true on success, false otherwise.
-  bool GetFileNameForKey(const std::string& key, base::FilePath* filename);
+  bool GetFileNameForKey(const std::string& key,
+                         base::FilePath* filename) const;
 
   // Preference store directory.
   base::FilePath prefs_dir_;
+
+  // The registered observers watching for changes.
+  std::map<std::string, std::vector<ObserverInterface*>> observers_;
 
   DISALLOW_COPY_AND_ASSIGN(Prefs);
 };

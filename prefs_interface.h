@@ -30,12 +30,24 @@ namespace chromeos_update_engine {
 
 class PrefsInterface {
  public:
-  virtual ~PrefsInterface() {}
+  // Observer class to be notified about key value changes.
+  class ObserverInterface {
+   public:
+    virtual ~ObserverInterface() = default;
+
+    // Called when the value is set for the observed |key|.
+    virtual void OnPrefSet(const std::string& key) = 0;
+
+    // Called when the observed |key| is deleted.
+    virtual void OnPrefDeleted(const std::string& key) = 0;
+  };
+
+  virtual ~PrefsInterface() = default;
 
   // Gets a string |value| associated with |key|. Returns true on
   // success, false on failure (including when the |key| is not
   // present in the store).
-  virtual bool GetString(const std::string& key, std::string* value) = 0;
+  virtual bool GetString(const std::string& key, std::string* value) const = 0;
 
   // Associates |key| with a string |value|. Returns true on success,
   // false otherwise.
@@ -44,7 +56,7 @@ class PrefsInterface {
   // Gets an int64_t |value| associated with |key|. Returns true on
   // success, false on failure (including when the |key| is not
   // present in the store).
-  virtual bool GetInt64(const std::string& key, int64_t* value) = 0;
+  virtual bool GetInt64(const std::string& key, int64_t* value) const = 0;
 
   // Associates |key| with an int64_t |value|. Returns true on success,
   // false otherwise.
@@ -53,7 +65,7 @@ class PrefsInterface {
   // Gets a boolean |value| associated with |key|. Returns true on
   // success, false on failure (including when the |key| is not
   // present in the store).
-  virtual bool GetBoolean(const std::string& key, bool* value) = 0;
+  virtual bool GetBoolean(const std::string& key, bool* value) const = 0;
 
   // Associates |key| with a boolean |value|. Returns true on success,
   // false otherwise.
@@ -61,11 +73,23 @@ class PrefsInterface {
 
   // Returns true if the setting exists (i.e. a file with the given key
   // exists in the prefs directory)
-  virtual bool Exists(const std::string& key) = 0;
+  virtual bool Exists(const std::string& key) const = 0;
 
   // Returns true if successfully deleted the file corresponding to
   // this key. Calling with non-existent keys does nothing.
   virtual bool Delete(const std::string& key) = 0;
+
+  // Add an observer to watch whenever the given |key| is modified. The
+  // OnPrefSet() and OnPrefDelete() methods will be called whenever any of the
+  // Set*() methods or the Delete() method are called on the given key,
+  // respectively.
+  virtual void AddObserver(const std::string& key,
+                           ObserverInterface* observer) = 0;
+
+  // Remove an observer added with AddObserver(). The observer won't be called
+  // anymore for future Set*() and Delete() method calls.
+  virtual void RemoveObserver(const std::string& key,
+                              ObserverInterface* observer) = 0;
 };
 
 }  // namespace chromeos_update_engine

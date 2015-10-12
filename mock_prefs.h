@@ -28,17 +28,22 @@ namespace chromeos_update_engine {
 
 class MockPrefs : public PrefsInterface {
  public:
-  MOCK_METHOD2(GetString, bool(const std::string& key, std::string* value));
+  MOCK_CONST_METHOD2(GetString,
+                     bool(const std::string& key, std::string* value));
   MOCK_METHOD2(SetString, bool(const std::string& key,
                                const std::string& value));
-  MOCK_METHOD2(GetInt64, bool(const std::string& key, int64_t* value));
+  MOCK_CONST_METHOD2(GetInt64, bool(const std::string& key, int64_t* value));
   MOCK_METHOD2(SetInt64, bool(const std::string& key, const int64_t value));
 
-  MOCK_METHOD2(GetBoolean, bool(const std::string& key, bool* value));
+  MOCK_CONST_METHOD2(GetBoolean, bool(const std::string& key, bool* value));
   MOCK_METHOD2(SetBoolean, bool(const std::string& key, const bool value));
 
-  MOCK_METHOD1(Exists, bool(const std::string& key));
+  MOCK_CONST_METHOD1(Exists, bool(const std::string& key));
   MOCK_METHOD1(Delete, bool(const std::string& key));
+
+  MOCK_METHOD2(AddObserver, void(const std::string& key, ObserverInterface*));
+  MOCK_METHOD2(RemoveObserver,
+               void(const std::string& key, ObserverInterface*));
 };
 
 }  // namespace chromeos_update_engine

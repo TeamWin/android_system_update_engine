@@ -24,9 +24,17 @@
 #include <base/macros.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 using std::string;
+using testing::Eq;
+using testing::_;
+
+namespace {
+// Test key used along the tests.
+const char kKey[] = "test-key";
+}
 
 namespace chromeos_update_engine {
 
@@ -51,10 +59,11 @@ class PrefsTest : public ::testing::Test {
 };
 
 TEST_F(PrefsTest, GetFileNameForKey) {
-  const char kKey[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-";
+  const char kAllvalidCharsKey[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-";
   base::FilePath path;
-  EXPECT_TRUE(prefs_.GetFileNameForKey(kKey, &path));
-  EXPECT_EQ(prefs_dir_.Append(kKey).value(), path.value());
+  EXPECT_TRUE(prefs_.GetFileNameForKey(kAllvalidCharsKey, &path));
+  EXPECT_EQ(prefs_dir_.Append(kAllvalidCharsKey).value(), path.value());
 }
 
 TEST_F(PrefsTest, GetFileNameForKeyBadCharacter) {
@@ -68,7 +77,6 @@ TEST_F(PrefsTest, GetFileNameForKeyEmpty) {
 }
 
 TEST_F(PrefsTest, GetString) {
-  const char kKey[] = "test-key";
   const string test_data = "test data";
   ASSERT_TRUE(SetValue(kKey, test_data));
   string value;
@@ -87,7 +95,6 @@ TEST_F(PrefsTest, GetStringNonExistentKey) {
 }
 
 TEST_F(PrefsTest, SetString) {
-  const char kKey[] = "my_test_key";
   const char kValue[] = "some test value\non 2 lines";
   EXPECT_TRUE(prefs_.SetString(kKey, kValue));
   string value;
@@ -96,13 +103,12 @@ TEST_F(PrefsTest, SetString) {
 }
 
 TEST_F(PrefsTest, SetStringBadKey) {
-  const char kKey[] = ".no-dots";
-  EXPECT_FALSE(prefs_.SetString(kKey, "some value"));
-  EXPECT_FALSE(base::PathExists(prefs_dir_.Append(kKey)));
+  const char kKeyWithDots[] = ".no-dots";
+  EXPECT_FALSE(prefs_.SetString(kKeyWithDots, "some value"));
+  EXPECT_FALSE(base::PathExists(prefs_dir_.Append(kKeyWithDots)));
 }
 
 TEST_F(PrefsTest, SetStringCreateDir) {
-  const char kKey[] = "a-test-key";
   const char kValue[] = "test value";
   base::FilePath subdir = prefs_dir_.Append("subdir1").Append("subdir2");
   EXPECT_TRUE(prefs_.Init(subdir));
@@ -114,19 +120,16 @@ TEST_F(PrefsTest, SetStringCreateDir) {
 
 TEST_F(PrefsTest, SetStringDirCreationFailure) {
   EXPECT_TRUE(prefs_.Init(base::FilePath("/dev/null")));
-  const char kKey[] = "test-key";
   EXPECT_FALSE(prefs_.SetString(kKey, "test value"));
 }
 
 TEST_F(PrefsTest, SetStringFileCreationFailure) {
-  const char kKey[] = "a-test-key";
   base::CreateDirectory(prefs_dir_.Append(kKey));
   EXPECT_FALSE(prefs_.SetString(kKey, "test value"));
   EXPECT_TRUE(base::DirectoryExists(prefs_dir_.Append(kKey)));
 }
 
 TEST_F(PrefsTest, GetInt64) {
-  const char kKey[] = "test-key";
   ASSERT_TRUE(SetValue(kKey, " \n 25 \t "));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
@@ -134,14 +137,12 @@ TEST_F(PrefsTest, GetInt64) {
 }
 
 TEST_F(PrefsTest, GetInt64BadValue) {
-  const char kKey[] = "test-key";
   ASSERT_TRUE(SetValue(kKey, "30a"));
   int64_t value;
   EXPECT_FALSE(prefs_.GetInt64(kKey, &value));
 }
 
 TEST_F(PrefsTest, GetInt64Max) {
-  const char kKey[] = "test-key";
   ASSERT_TRUE(SetValue(kKey, base::StringPrintf("%" PRIi64, kint64max)));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
@@ -149,7 +150,6 @@ TEST_F(PrefsTest, GetInt64Max) {
 }
 
 TEST_F(PrefsTest, GetInt64Min) {
-  const char kKey[] = "test-key";
   ASSERT_TRUE(SetValue(kKey, base::StringPrintf("%" PRIi64, kint64min)));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
@@ -157,7 +157,6 @@ TEST_F(PrefsTest, GetInt64Min) {
 }
 
 TEST_F(PrefsTest, GetInt64Negative) {
-  const char kKey[] = "test-key";
   ASSERT_TRUE(SetValue(kKey, " \t -100 \n "));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
@@ -170,7 +169,6 @@ TEST_F(PrefsTest, GetInt64NonExistentKey) {
 }
 
 TEST_F(PrefsTest, SetInt64) {
-  const char kKey[] = "test_int";
   EXPECT_TRUE(prefs_.SetInt64(kKey, -123));
   string value;
   EXPECT_TRUE(base::ReadFileToString(prefs_dir_.Append(kKey), &value));
@@ -178,13 +176,12 @@ TEST_F(PrefsTest, SetInt64) {
 }
 
 TEST_F(PrefsTest, SetInt64BadKey) {
-  const char kKey[] = "s p a c e s";
-  EXPECT_FALSE(prefs_.SetInt64(kKey, 20));
-  EXPECT_FALSE(base::PathExists(prefs_dir_.Append(kKey)));
+  const char kKeyWithSpaces[] = "s p a c e s";
+  EXPECT_FALSE(prefs_.SetInt64(kKeyWithSpaces, 20));
+  EXPECT_FALSE(base::PathExists(prefs_dir_.Append(kKeyWithSpaces)));
 }
 
 TEST_F(PrefsTest, SetInt64Max) {
-  const char kKey[] = "test-max-int";
   EXPECT_TRUE(prefs_.SetInt64(kKey, kint64max));
   string value;
   EXPECT_TRUE(base::ReadFileToString(prefs_dir_.Append(kKey), &value));
@@ -192,7 +189,6 @@ TEST_F(PrefsTest, SetInt64Max) {
 }
 
 TEST_F(PrefsTest, SetInt64Min) {
-  const char kKey[] = "test-min-int";
   EXPECT_TRUE(prefs_.SetInt64(kKey, kint64min));
   string value;
   EXPECT_TRUE(base::ReadFileToString(prefs_dir_.Append(kKey), &value));
@@ -200,7 +196,6 @@ TEST_F(PrefsTest, SetInt64Min) {
 }
 
 TEST_F(PrefsTest, GetBooleanFalse) {
-  const char kKey[] = "test-key";
   ASSERT_TRUE(SetValue(kKey, " \n false \t "));
   bool value;
   EXPECT_TRUE(prefs_.GetBoolean(kKey, &value));
@@ -257,8 +252,6 @@ TEST_F(PrefsTest, SetBooleanBadKey) {
 }
 
 TEST_F(PrefsTest, ExistsWorks) {
-  const char kKey[] = "exists-key";
-
   // test that the key doesn't exist before we set it.
   EXPECT_FALSE(prefs_.Exists(kKey));
 
@@ -268,8 +261,6 @@ TEST_F(PrefsTest, ExistsWorks) {
 }
 
 TEST_F(PrefsTest, DeleteWorks) {
-  const char kKey[] = "delete-key";
-
   // test that it's alright to delete a non-existent key.
   EXPECT_TRUE(prefs_.Delete(kKey));
 
@@ -279,6 +270,68 @@ TEST_F(PrefsTest, DeleteWorks) {
 
   // make sure it doesn't exist anymore.
   EXPECT_FALSE(prefs_.Exists(kKey));
+}
+
+class MockPrefsObserver : public PrefsInterface::ObserverInterface {
+ public:
+  MOCK_METHOD1(OnPrefSet, void(const string&));
+  MOCK_METHOD1(OnPrefDeleted, void(const string& key));
+};
+
+TEST_F(PrefsTest, ObserversCalled) {
+  MockPrefsObserver mock_obserser;
+  prefs_.AddObserver(kKey, &mock_obserser);
+
+  EXPECT_CALL(mock_obserser, OnPrefSet(Eq(kKey)));
+  EXPECT_CALL(mock_obserser, OnPrefDeleted(_)).Times(0);
+  prefs_.SetString(kKey, "value");
+  testing::Mock::VerifyAndClearExpectations(&mock_obserser);
+
+  EXPECT_CALL(mock_obserser, OnPrefSet(_)).Times(0);
+  EXPECT_CALL(mock_obserser, OnPrefDeleted(Eq(kKey)));
+  prefs_.Delete(kKey);
+  testing::Mock::VerifyAndClearExpectations(&mock_obserser);
+
+  prefs_.RemoveObserver(kKey, &mock_obserser);
+}
+
+TEST_F(PrefsTest, OnlyCalledOnObservedKeys) {
+  MockPrefsObserver mock_obserser;
+  const char kUnusedKey[] = "unused-key";
+  prefs_.AddObserver(kUnusedKey, &mock_obserser);
+
+  EXPECT_CALL(mock_obserser, OnPrefSet(_)).Times(0);
+  EXPECT_CALL(mock_obserser, OnPrefDeleted(_)).Times(0);
+  prefs_.SetString(kKey, "value");
+  prefs_.Delete(kKey);
+
+  prefs_.RemoveObserver(kUnusedKey, &mock_obserser);
+}
+
+TEST_F(PrefsTest, RemovedObserversNotCalled) {
+  MockPrefsObserver mock_obserser_a, mock_obserser_b;
+  prefs_.AddObserver(kKey, &mock_obserser_a);
+  prefs_.AddObserver(kKey, &mock_obserser_b);
+  EXPECT_CALL(mock_obserser_a, OnPrefSet(_)).Times(2);
+  EXPECT_CALL(mock_obserser_b, OnPrefSet(_)).Times(1);
+  EXPECT_TRUE(prefs_.SetString(kKey, "value"));
+  prefs_.RemoveObserver(kKey, &mock_obserser_b);
+  EXPECT_TRUE(prefs_.SetString(kKey, "other value"));
+  prefs_.RemoveObserver(kKey, &mock_obserser_a);
+  EXPECT_TRUE(prefs_.SetString(kKey, "yet another value"));
+}
+
+TEST_F(PrefsTest, UnsuccessfulCallsNotObserved) {
+  MockPrefsObserver mock_obserser;
+  const char kInvalidKey[] = "no spaces or .";
+  prefs_.AddObserver(kInvalidKey, &mock_obserser);
+
+  EXPECT_CALL(mock_obserser, OnPrefSet(_)).Times(0);
+  EXPECT_CALL(mock_obserser, OnPrefDeleted(_)).Times(0);
+  EXPECT_FALSE(prefs_.SetString(kInvalidKey, "value"));
+  EXPECT_FALSE(prefs_.Delete(kInvalidKey));
+
+  prefs_.RemoveObserver(kInvalidKey, &mock_obserser);
 }
 
 }  // namespace chromeos_update_engine

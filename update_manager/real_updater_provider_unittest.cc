@@ -24,8 +24,8 @@
 #include <update_engine/dbus-constants.h>
 
 #include "update_engine/fake_clock.h"
+#include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
-#include "update_engine/mock_prefs.h"
 #include "update_engine/mock_update_attempter.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/update_manager/umtest_utils.h"
@@ -33,14 +33,13 @@
 using base::Time;
 using base::TimeDelta;
 using chromeos_update_engine::FakeClock;
+using chromeos_update_engine::FakePrefs;
 using chromeos_update_engine::FakeSystemState;
-using chromeos_update_engine::MockPrefs;
 using chromeos_update_engine::OmahaRequestParams;
 using std::string;
 using std::unique_ptr;
 using testing::Return;
 using testing::SetArgPointee;
-using testing::StrEq;
 using testing::_;
 
 namespace {
@@ -76,28 +75,11 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
     fake_clock_ = fake_sys_state_.fake_clock();
+    fake_sys_state_.set_prefs(&fake_prefs_);
     provider_.reset(new RealUpdaterProvider(&fake_sys_state_));
     ASSERT_NE(nullptr, provider_.get());
     // Check that provider initializes correctly.
     ASSERT_TRUE(provider_->Init());
-  }
-
-  // Sets up mock expectations for testing a variable that reads a Boolean pref
-  // |key|. |key_exists| determines whether the key is present. If it is, then
-  // |get_boolean_success| determines whether reading it is successful, and if
-  // so |output| is the value being read.
-  void SetupReadBooleanPref(const char* key, bool key_exists,
-                            bool get_boolean_success, bool output) {
-    MockPrefs* const mock_prefs = fake_sys_state_.mock_prefs();
-    EXPECT_CALL(*mock_prefs, Exists(StrEq(key))).WillOnce(Return(key_exists));
-    if (key_exists) {
-      auto& get_boolean = EXPECT_CALL(
-          *fake_sys_state_.mock_prefs(), GetBoolean(StrEq(key), _));
-      if (get_boolean_success)
-        get_boolean.WillOnce(DoAll(SetArgPointee<1>(output), Return(true)));
-      else
-        get_boolean.WillOnce(Return(false));
-    }
   }
 
   // Sets up mock expectations for testing the update completed time reporting.
@@ -120,6 +102,7 @@ class UmRealUpdaterProviderTest : public ::testing::Test {
 
   FakeSystemState fake_sys_state_;
   FakeClock* fake_clock_;  // Short for fake_sys_state_.fake_clock()
+  FakePrefs fake_prefs_;
   unique_ptr<RealUpdaterProvider> provider_;
 };
 
@@ -389,55 +372,37 @@ TEST_F(UmRealUpdaterProviderTest, GetNewChannelFailEmpty) {
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledOkayPrefDoesntExist) {
-  SetupReadBooleanPref(chromeos_update_engine::kPrefsP2PEnabled,
-                       false, false, false);
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_p2p_enabled());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledOkayPrefReadsFalse) {
-  SetupReadBooleanPref(chromeos_update_engine::kPrefsP2PEnabled,
-                       true, true, false);
+  fake_prefs_.SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, false);
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_p2p_enabled());
 }
 
-TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledOkayPrefReadsTrue) {
-  SetupReadBooleanPref(chromeos_update_engine::kPrefsP2PEnabled,
-                       true, true, true);
+TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledReadWhenInitialized) {
+  fake_prefs_.SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, true);
+  SetUp();
   UmTestUtils::ExpectVariableHasValue(true, provider_->var_p2p_enabled());
 }
 
-TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledFailCannotReadPref) {
-  SetupReadBooleanPref(chromeos_update_engine::kPrefsP2PEnabled,
-                       true, false, false);
-  UmTestUtils::ExpectVariableNotSet(provider_->var_p2p_enabled());
+TEST_F(UmRealUpdaterProviderTest, GetP2PEnabledUpdated) {
+  fake_prefs_.SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, false);
+  UmTestUtils::ExpectVariableHasValue(false, provider_->var_p2p_enabled());
+  fake_prefs_.SetBoolean(chromeos_update_engine::kPrefsP2PEnabled, true);
+  UmTestUtils::ExpectVariableHasValue(true, provider_->var_p2p_enabled());
+  fake_prefs_.Delete(chromeos_update_engine::kPrefsP2PEnabled);
+  UmTestUtils::ExpectVariableHasValue(false, provider_->var_p2p_enabled());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetCellularEnabledOkayPrefDoesntExist) {
-  SetupReadBooleanPref(
-      chromeos_update_engine::kPrefsUpdateOverCellularPermission,
-      false, false, false);
-  UmTestUtils::ExpectVariableHasValue(false, provider_->var_cellular_enabled());
-}
-
-TEST_F(UmRealUpdaterProviderTest, GetCellularEnabledOkayPrefReadsFalse) {
-  SetupReadBooleanPref(
-      chromeos_update_engine::kPrefsUpdateOverCellularPermission,
-      true, true, false);
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_cellular_enabled());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetCellularEnabledOkayPrefReadsTrue) {
-  SetupReadBooleanPref(
-      chromeos_update_engine::kPrefsUpdateOverCellularPermission,
-      true, true, true);
+  fake_prefs_.SetBoolean(
+      chromeos_update_engine::kPrefsUpdateOverCellularPermission, true);
   UmTestUtils::ExpectVariableHasValue(true, provider_->var_cellular_enabled());
-}
-
-TEST_F(UmRealUpdaterProviderTest, GetCellularEnabledFailCannotReadPref) {
-  SetupReadBooleanPref(
-      chromeos_update_engine::kPrefsUpdateOverCellularPermission,
-      true, false, false);
-  UmTestUtils::ExpectVariableNotSet(provider_->var_cellular_enabled());
 }
 
 TEST_F(UmRealUpdaterProviderTest, GetUpdateCompletedTimeOkay) {

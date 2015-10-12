@@ -106,10 +106,12 @@ class FakeUpdaterProvider : public UpdaterProvider {
     "curr_channel", kVariableModePoll};
   FakeVariable<std::string> var_new_channel_{  // NOLINT(whitespace/braces)
     "new_channel", kVariableModePoll};
-  FakeVariable<bool> var_p2p_enabled_{  // NOLINT(whitespace/braces)
-    "p2p_enabled", kVariableModePoll};
-  FakeVariable<bool> var_cellular_enabled_{  // NOLINT(whitespace/braces)
-    "cellular_enabled", kVariableModePoll};
+  FakeVariable<bool> var_p2p_enabled_{// NOLINT(whitespace/braces)
+                                      "p2p_enabled",
+                                      kVariableModeAsync};
+  FakeVariable<bool> var_cellular_enabled_{// NOLINT(whitespace/braces)
+                                           "cellular_enabled",
+                                           kVariableModeAsync};
   FakeVariable<unsigned int>
       var_consecutive_failed_update_checks_{  // NOLINT(whitespace/braces)
     "consecutive_failed_update_checks", kVariableModePoll};

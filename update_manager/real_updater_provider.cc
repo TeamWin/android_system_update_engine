@@ -298,24 +298,41 @@ class NewChannelVariable : public UpdaterVariableBase<string> {
 };
 
 // A variable class for reading Boolean prefs values.
-class BooleanPrefVariable : public UpdaterVariableBase<bool> {
+class BooleanPrefVariable
+    : public AsyncCopyVariable<bool>,
+      public chromeos_update_engine::PrefsInterface::ObserverInterface {
  public:
-  BooleanPrefVariable(const string& name, SystemState* system_state,
-                      const char* key, bool default_val)
-      : UpdaterVariableBase<bool>(name, kVariableModePoll, system_state),
-        key_(key), default_val_(default_val) {}
+  BooleanPrefVariable(const string& name,
+                      chromeos_update_engine::PrefsInterface* prefs,
+                      const char* key,
+                      bool default_val)
+      : AsyncCopyVariable<bool>(name),
+        prefs_(prefs),
+        key_(key),
+        default_val_(default_val) {
+    prefs->AddObserver(key, this);
+    OnPrefSet(key);
+  }
+  ~BooleanPrefVariable() {
+    prefs_->RemoveObserver(key_, this);
+  }
 
  private:
-  const bool* GetValue(TimeDelta /* timeout */, string* errmsg) override {
+  // Reads the actual value from the Prefs instance and updates the Variable
+  // value.
+  void OnPrefSet(const string& key) override {
     bool result = default_val_;
-    chromeos_update_engine::PrefsInterface* prefs = system_state()->prefs();
-    if (prefs && prefs->Exists(key_) && !prefs->GetBoolean(key_, &result)) {
-      if (errmsg)
-        *errmsg = string("Could not read boolean pref ") + key_;
-      return nullptr;
-    }
-    return new bool(result);
+    if (prefs_ && prefs_->Exists(key_) && !prefs_->GetBoolean(key_, &result))
+      result = default_val_;
+    // AsyncCopyVariable will take care of values that didn't change.
+    SetValue(result);
   }
+
+  void OnPrefDeleted(const string& key) override {
+    SetValue(default_val_);
+  }
+
+  chromeos_update_engine::PrefsInterface* prefs_;
 
   // The Boolean preference key and default value.
   const char* const key_;
@@ -415,12 +432,12 @@ RealUpdaterProvider::RealUpdaterProvider(SystemState* system_state)
     var_curr_channel_(new CurrChannelVariable("curr_channel", system_state_)),
     var_new_channel_(new NewChannelVariable("new_channel", system_state_)),
     var_p2p_enabled_(
-        new BooleanPrefVariable("p2p_enabled", system_state_,
+        new BooleanPrefVariable("p2p_enabled", system_state_->prefs(),
                                 chromeos_update_engine::kPrefsP2PEnabled,
                                 false)),
     var_cellular_enabled_(
         new BooleanPrefVariable(
-            "cellular_enabled", system_state_,
+            "cellular_enabled", system_state_->prefs(),
             chromeos_update_engine::kPrefsUpdateOverCellularPermission,
             false)),
     var_consecutive_failed_update_checks_(

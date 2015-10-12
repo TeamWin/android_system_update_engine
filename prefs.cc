@@ -16,6 +16,8 @@
 
 #include "update_engine/prefs.h"
 
+#include <algorithm>
+
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
@@ -32,7 +34,7 @@ bool Prefs::Init(const base::FilePath& prefs_dir) {
   return true;
 }
 
-bool Prefs::GetString(const string& key, string* value) {
+bool Prefs::GetString(const string& key, string* value) const {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
   if (!base::ReadFileToString(filename, value)) {
@@ -48,10 +50,16 @@ bool Prefs::SetString(const string& key, const string& value) {
   TEST_AND_RETURN_FALSE(base::CreateDirectory(filename.DirName()));
   TEST_AND_RETURN_FALSE(base::WriteFile(filename, value.data(), value.size()) ==
                         static_cast<int>(value.size()));
+  const auto observers_for_key = observers_.find(key);
+  if (observers_for_key != observers_.end()) {
+    std::vector<ObserverInterface*> copy_observers(observers_for_key->second);
+    for (ObserverInterface* observer : copy_observers)
+      observer->OnPrefSet(key);
+  }
   return true;
 }
 
-bool Prefs::GetInt64(const string& key, int64_t* value) {
+bool Prefs::GetInt64(const string& key, int64_t* value) const {
   string str_value;
   if (!GetString(key, &str_value))
     return false;
@@ -64,7 +72,7 @@ bool Prefs::SetInt64(const string& key, const int64_t value) {
   return SetString(key, base::Int64ToString(value));
 }
 
-bool Prefs::GetBoolean(const string& key, bool* value) {
+bool Prefs::GetBoolean(const string& key, bool* value) const {
   string str_value;
   if (!GetString(key, &str_value))
     return false;
@@ -84,7 +92,7 @@ bool Prefs::SetBoolean(const string& key, const bool value) {
   return SetString(key, value ? "true" : "false");
 }
 
-bool Prefs::Exists(const string& key) {
+bool Prefs::Exists(const string& key) const {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
   return base::PathExists(filename);
@@ -93,11 +101,30 @@ bool Prefs::Exists(const string& key) {
 bool Prefs::Delete(const string& key) {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
-  return base::DeleteFile(filename, false);
+  TEST_AND_RETURN_FALSE(base::DeleteFile(filename, false));
+  const auto observers_for_key = observers_.find(key);
+  if (observers_for_key != observers_.end()) {
+    std::vector<ObserverInterface*> copy_observers(observers_for_key->second);
+    for (ObserverInterface* observer : copy_observers)
+      observer->OnPrefDeleted(key);
+  }
+  return true;
+}
+
+void Prefs::AddObserver(const string& key, ObserverInterface* observer) {
+  observers_[key].push_back(observer);
+}
+
+void Prefs::RemoveObserver(const string& key, ObserverInterface* observer) {
+  std::vector<ObserverInterface*>& observers_for_key = observers_[key];
+  auto observer_it =
+      std::find(observers_for_key.begin(), observers_for_key.end(), observer);
+  if (observer_it != observers_for_key.end())
+    observers_for_key.erase(observer_it);
 }
 
 bool Prefs::GetFileNameForKey(const string& key,
-                              base::FilePath* filename) {
+                              base::FilePath* filename) const {
   // Allows only non-empty keys containing [A-Za-z0-9_-].
   TEST_AND_RETURN_FALSE(!key.empty());
   for (size_t i = 0; i < key.size(); ++i) {

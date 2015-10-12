@@ -19,6 +19,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <base/macros.h>
 
@@ -34,18 +35,24 @@ namespace chromeos_update_engine {
 
 class FakePrefs : public PrefsInterface {
  public:
-  FakePrefs() {}
+  FakePrefs() = default;
+  ~FakePrefs();
 
   // PrefsInterface methods.
-  bool GetString(const std::string& key, std::string* value) override;
+  bool GetString(const std::string& key, std::string* value) const override;
   bool SetString(const std::string& key, const std::string& value) override;
-  bool GetInt64(const std::string& key, int64_t* value) override;
+  bool GetInt64(const std::string& key, int64_t* value) const override;
   bool SetInt64(const std::string& key, const int64_t value) override;
-  bool GetBoolean(const std::string& key, bool* value) override;
+  bool GetBoolean(const std::string& key, bool* value) const override;
   bool SetBoolean(const std::string& key, const bool value) override;
 
-  bool Exists(const std::string& key) override;
+  bool Exists(const std::string& key) const override;
   bool Delete(const std::string& key) override;
+
+  void AddObserver(const std::string& key,
+                   ObserverInterface* observer) override;
+  void RemoveObserver(const std::string& key,
+                      ObserverInterface* observer) override;
 
  private:
   enum class PrefType {
@@ -94,6 +101,9 @@ class FakePrefs : public PrefsInterface {
 
   // Container for all the key/value pairs.
   std::map<std::string, PrefTypeValue> values_;
+
+  // The registered observers watching for changes.
+  std::map<std::string, std::vector<ObserverInterface*>> observers_;
 
   DISALLOW_COPY_AND_ASSIGN(FakePrefs);
 };
