@@ -440,10 +440,9 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
            kDeltaManifestSizeSize);
     manifest_size_ = be64toh(manifest_size_);  // switch big endian to host
 
-    uint32_t metadata_signature_size = 0;
     if (GetMajorVersion() == kBrilloMajorPayloadVersion) {
       // Parse the metadata signature size.
-      COMPILE_ASSERT(sizeof(metadata_signature_size) ==
+      COMPILE_ASSERT(sizeof(metadata_signature_size_) ==
                      kDeltaMetadataSignatureSizeSize,
                      metadata_signature_size_size_mismatch);
       uint64_t metadata_signature_size_offset;
@@ -451,17 +450,17 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
         *error = ErrorCode::kError;
         return kMetadataParseError;
       }
-      memcpy(&metadata_signature_size,
+      memcpy(&metadata_signature_size_,
              &payload[metadata_signature_size_offset],
              kDeltaMetadataSignatureSizeSize);
-      metadata_signature_size = be32toh(metadata_signature_size);
+      metadata_signature_size_ = be32toh(metadata_signature_size_);
     }
 
     // If the metadata size is present in install plan, check for it immediately
     // even before waiting for that many number of bytes to be downloaded in the
     // payload. This will prevent any attack which relies on us downloading data
     // beyond the expected metadata size.
-    metadata_size_ = manifest_offset + manifest_size_ + metadata_signature_size;
+    metadata_size_ = manifest_offset + manifest_size_;
     if (install_plan_->hash_checks_mandatory) {
       if (install_plan_->metadata_size != metadata_size_) {
         LOG(ERROR) << "Mandatory metadata size in Omaha response ("
@@ -474,8 +473,8 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   }
 
   // Now that we have validated the metadata size, we should wait for the full
-  // metadata to be read in before we can parse it.
-  if (payload.size() < metadata_size_)
+  // metadata and its signature (if exist) to be read in before we can parse it.
+  if (payload.size() < metadata_size_ + metadata_signature_size_)
     return kMetadataParseInsufficientData;
 
   // Log whether we validated the size or simply trusting what's in the payload
@@ -495,7 +494,7 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
 
   // We have the full metadata in |payload|. Verify its integrity
   // and authenticity based on the information we have in Omaha response.
-  *error = ValidateMetadataSignature(payload.data(), metadata_size_);
+  *error = ValidateMetadataSignature(payload);
   if (*error != ErrorCode::kSuccess) {
     if (install_plan_->hash_checks_mandatory) {
       // The autoupdate_CatchBadSignatures test checks for this string
@@ -543,7 +542,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     const bool do_read_header = !IsHeaderParsed();
     CopyDataToBuffer(&c_bytes, &count,
                      (do_read_header ? kMaxPayloadHeaderSize :
-                      metadata_size_));
+                      metadata_size_ + metadata_signature_size_));
 
     MetadataParseResult result = ParsePayloadMetadata(buffer_, error);
     if (result == kMetadataParseError)
@@ -1188,25 +1187,35 @@ bool DeltaPerformer::GetPublicKeyFromResponse(base::FilePath *out_tmp_key) {
 }
 
 ErrorCode DeltaPerformer::ValidateMetadataSignature(
-    const void* metadata, uint64_t metadata_size) {
+    const brillo::Blob& payload) {
+  if (payload.size() < metadata_size_ + metadata_signature_size_)
+    return ErrorCode::kDownloadMetadataSignatureError;
 
-  if (install_plan_->metadata_signature.empty()) {
+  brillo::Blob metadata_signature_blob, metadata_signature_protobuf_blob;
+  if (!install_plan_->metadata_signature.empty()) {
+    // Convert base64-encoded signature to raw bytes.
+    if (!brillo::data_encoding::Base64Decode(
+        install_plan_->metadata_signature, &metadata_signature_blob)) {
+      LOG(ERROR) << "Unable to decode base64 metadata signature: "
+                 << install_plan_->metadata_signature;
+      return ErrorCode::kDownloadMetadataSignatureError;
+    }
+  } else if (major_payload_version_ == kBrilloMajorPayloadVersion) {
+    metadata_signature_protobuf_blob.assign(payload.begin() + metadata_size_,
+                                            payload.begin() + metadata_size_ +
+                                            metadata_signature_size_);
+  }
+
+  if (metadata_signature_blob.empty() &&
+      metadata_signature_protobuf_blob.empty()) {
     if (install_plan_->hash_checks_mandatory) {
-      LOG(ERROR) << "Missing mandatory metadata signature in Omaha response";
+      LOG(ERROR) << "Missing mandatory metadata signature in both Omaha "
+                 << "response and payload.";
       return ErrorCode::kDownloadMetadataSignatureMissingError;
     }
 
     LOG(WARNING) << "Cannot validate metadata as the signature is empty";
     return ErrorCode::kSuccess;
-  }
-
-  // Convert base64-encoded signature to raw bytes.
-  brillo::Blob metadata_signature;
-  if (!brillo::data_encoding::Base64Decode(install_plan_->metadata_signature,
-                                             &metadata_signature)) {
-    LOG(ERROR) << "Unable to decode base64 metadata signature: "
-               << install_plan_->metadata_signature;
-    return ErrorCode::kDownloadMetadataSignatureError;
   }
 
   // See if we should use the public RSA key in the Omaha response.
@@ -1221,16 +1230,8 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   LOG(INFO) << "Verifying metadata hash signature using public key: "
             << path_to_public_key.value();
 
-  brillo::Blob expected_metadata_hash;
-  if (!PayloadVerifier::GetRawHashFromSignature(metadata_signature,
-                                                path_to_public_key.value(),
-                                                &expected_metadata_hash)) {
-    LOG(ERROR) << "Unable to compute expected hash from metadata signature";
-    return ErrorCode::kDownloadMetadataSignatureError;
-  }
-
   OmahaHashCalculator metadata_hasher;
-  metadata_hasher.Update(metadata, metadata_size);
+  metadata_hasher.Update(payload.data(), metadata_size_);
   if (!metadata_hasher.Finalize()) {
     LOG(ERROR) << "Unable to compute actual hash of manifest";
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
@@ -1243,12 +1244,28 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
   }
 
-  if (calculated_metadata_hash != expected_metadata_hash) {
-    LOG(ERROR) << "Manifest hash verification failed. Expected hash = ";
-    utils::HexDumpVector(expected_metadata_hash);
-    LOG(ERROR) << "Calculated hash = ";
-    utils::HexDumpVector(calculated_metadata_hash);
-    return ErrorCode::kDownloadMetadataSignatureMismatch;
+  if (!metadata_signature_blob.empty()) {
+    brillo::Blob expected_metadata_hash;
+    if (!PayloadVerifier::GetRawHashFromSignature(metadata_signature_blob,
+                                                  path_to_public_key.value(),
+                                                  &expected_metadata_hash)) {
+      LOG(ERROR) << "Unable to compute expected hash from metadata signature";
+      return ErrorCode::kDownloadMetadataSignatureError;
+    }
+    if (calculated_metadata_hash != expected_metadata_hash) {
+      LOG(ERROR) << "Manifest hash verification failed. Expected hash = ";
+      utils::HexDumpVector(expected_metadata_hash);
+      LOG(ERROR) << "Calculated hash = ";
+      utils::HexDumpVector(calculated_metadata_hash);
+      return ErrorCode::kDownloadMetadataSignatureMismatch;
+    }
+  } else {
+    if (!PayloadVerifier::VerifySignature(metadata_signature_protobuf_blob,
+                                          path_to_public_key.value(),
+                                          calculated_metadata_hash)) {
+      LOG(ERROR) << "Manifest hash verification failed.";
+      return ErrorCode::kDownloadMetadataSignatureMismatch;
+    }
   }
 
   // The autoupdate_CatchBadSignatures test checks for this string in
@@ -1397,7 +1414,8 @@ ErrorCode DeltaPerformer::VerifyPayload(
   // Verifies the download size.
   TEST_AND_RETURN_VAL(ErrorCode::kPayloadSizeMismatchError,
                       update_check_response_size ==
-                      metadata_size_ + buffer_offset_);
+                      metadata_size_ + metadata_signature_size_ +
+                      buffer_offset_);
 
   // Verifies the payload hash.
   const string& payload_hash_data = hash_calculator_.hash();

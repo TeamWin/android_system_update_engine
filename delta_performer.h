@@ -185,6 +185,8 @@ class DeltaPerformer : public FileWriter {
  private:
   friend class DeltaPerformerTest;
   friend class DeltaPerformerIntegrationTest;
+  FRIEND_TEST(DeltaPerformerTest, BrilloMetadataSignatureSizeTest);
+  FRIEND_TEST(DeltaPerformerTest, BrilloVerifyMetadataSignatureTest);
   FRIEND_TEST(DeltaPerformerTest, UsePublicKeyFromResponse);
 
   // Parse and move the update instructions of all partitions into our local
@@ -228,16 +230,15 @@ class DeltaPerformer : public FileWriter {
   // Returns ErrorCode::kSuccess on match or a suitable error code otherwise.
   ErrorCode ValidateOperationHash(const InstallOperation& operation);
 
-  // Interprets the given |protobuf| as a DeltaArchiveManifest protocol buffer
-  // of the given protobuf_length and verifies that the signed hash of the
-  // metadata matches what's specified in the install plan from Omaha.
-  // Returns ErrorCode::kSuccess on match or a suitable error code otherwise.
-  // This method must be called before any part of the |protobuf| is parsed
-  // so that a man-in-the-middle attack on the SSL connection to the payload
-  // server doesn't exploit any vulnerability in the code that parses the
-  // protocol buffer.
-  ErrorCode ValidateMetadataSignature(const void* protobuf,
-                                      uint64_t protobuf_length);
+  // Given the |payload|, verifies that the signed hash of its metadata matches
+  // what's specified in the install plan from Omaha (if present) or the
+  // metadata signature in payload itself (if present). Returns
+  // ErrorCode::kSuccess on match or a suitable error code otherwise. This
+  // method must be called before any part of the metadata is parsed so that a
+  // man-in-the-middle attack on the SSL connection to the payload server
+  // doesn't exploit any vulnerability in the code that parses the protocol
+  // buffer.
+  ErrorCode ValidateMetadataSignature(const brillo::Blob& payload);
 
   // Returns true on success.
   bool PerformInstallOperation(const InstallOperation& operation);
@@ -304,6 +305,7 @@ class DeltaPerformer : public FileWriter {
   bool manifest_valid_{false};
   uint64_t metadata_size_{0};
   uint64_t manifest_size_{0};
+  uint32_t metadata_signature_size_{0};
   uint64_t major_payload_version_{0};
 
   // Accumulated number of operations per partition. The i-th element is the

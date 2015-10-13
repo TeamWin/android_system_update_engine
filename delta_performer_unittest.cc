@@ -105,7 +105,8 @@ class DeltaPerformerTest : public ::testing::Test {
   brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
                                const vector<AnnotatedOperation>& aops,
                                bool sign_payload,
-                               int32_t minor_version) {
+                               uint64_t major_version,
+                               uint32_t minor_version) {
     string blob_path;
     EXPECT_TRUE(utils::MakeTempFile("Blob-XXXXXX", &blob_path, nullptr));
     ScopedPathUnlinker blob_unlinker(blob_path);
@@ -114,7 +115,7 @@ class DeltaPerformerTest : public ::testing::Test {
                                  blob_data.size()));
 
     PayloadGenerationConfig config;
-    config.major_version = kChromeOSMajorPayloadVersion;
+    config.major_version = major_version;
     config.minor_version = minor_version;
 
     PayloadFile payload;
@@ -224,7 +225,7 @@ class DeltaPerformerTest : public ::testing::Test {
     // Loads the payload and parses the manifest.
     brillo::Blob payload = GeneratePayload(brillo::Blob(),
         vector<AnnotatedOperation>(), sign_payload,
-        kFullPayloadMinorVersion);
+        kChromeOSMajorPayloadVersion, kFullPayloadMinorVersion);
 
     LOG(INFO) << "Payload size: " << payload.size();
 
@@ -310,7 +311,7 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
   aops.push_back(aop);
 
   brillo::Blob payload_data = GeneratePayload(expected_data, aops, false,
-      kFullPayloadMinorVersion);
+      kChromeOSMajorPayloadVersion, kFullPayloadMinorVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
 }
@@ -328,6 +329,7 @@ TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
   aops.push_back(aop);
 
   brillo::Blob payload_data = GeneratePayload(expected_data, aops, false,
+                                              kChromeOSMajorPayloadVersion,
                                               kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
@@ -349,6 +351,7 @@ TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
   aops.push_back(aop);
 
   brillo::Blob payload_data = GeneratePayload(bz_data, aops, false,
+                                              kChromeOSMajorPayloadVersion,
                                               kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
@@ -370,6 +373,7 @@ TEST_F(DeltaPerformerTest, ReplaceXzOperationTest) {
   vector<AnnotatedOperation> aops = {aop};
 
   brillo::Blob payload_data = GeneratePayload(xz_data, aops, false,
+                                              kChromeOSMajorPayloadVersion,
                                               kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
@@ -392,6 +396,7 @@ TEST_F(DeltaPerformerTest, ZeroOperationTest) {
   vector<AnnotatedOperation> aops = {aop};
 
   brillo::Blob payload_data = GeneratePayload(brillo::Blob(), aops, false,
+                                              kChromeOSMajorPayloadVersion,
                                               kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data,
@@ -410,6 +415,7 @@ TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
   aops.push_back(aop);
 
   brillo::Blob payload_data = GeneratePayload(brillo::Blob(), aops, false,
+                                              kChromeOSMajorPayloadVersion,
                                               kSourceMinorPayloadVersion);
   string source_path;
   EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX",
@@ -546,8 +552,26 @@ TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   uint64_t manifest_offset;
   EXPECT_TRUE(performer_.GetManifestOffset(&manifest_offset));
   EXPECT_EQ(24, manifest_offset);  // 4 + 8 + 8 + 4
-  EXPECT_EQ(24 + manifest_size + metadata_signature_size,
-            performer_.GetMetadataSize());
+  EXPECT_EQ(manifest_offset + manifest_size, performer_.GetMetadataSize());
+  EXPECT_EQ(metadata_signature_size, performer_.metadata_signature_size_);
+}
+
+TEST_F(DeltaPerformerTest, BrilloVerifyMetadataSignatureTest) {
+  SetSupportedMajorVersion(kBrilloMajorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload({}, {}, true,
+                                              kBrilloMajorPayloadVersion,
+                                              kSourceMinorPayloadVersion);
+  install_plan_.hash_checks_mandatory = true;
+  // Just set these value so that we can use ValidateMetadataSignature directly.
+  performer_.major_payload_version_ = kBrilloMajorPayloadVersion;
+  performer_.metadata_size_ = install_plan_.metadata_size;
+  uint64_t signature_length;
+  EXPECT_TRUE(PayloadSigner::SignatureBlobLength({kUnittestPrivateKeyPath},
+                                                 &signature_length));
+  performer_.metadata_signature_size_ = signature_length;
+  performer_.set_public_key_path(kUnittestPublicKeyPath);
+  EXPECT_EQ(ErrorCode::kSuccess,
+            performer_.ValidateMetadataSignature(payload_data));
 }
 
 TEST_F(DeltaPerformerTest, BadDeltaMagicTest) {
