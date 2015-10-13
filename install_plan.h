@@ -21,7 +21,7 @@
 #include <vector>
 
 #include <base/macros.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/action.h"
 #include "update_engine/boot_control_interface.h"
@@ -87,11 +87,11 @@ struct InstallPlan {
 
     std::string source_path;
     uint64_t source_size{0};
-    chromeos::Blob source_hash;
+    brillo::Blob source_hash;
 
     std::string target_path;
     uint64_t target_size{0};
-    chromeos::Blob target_hash;
+    brillo::Blob target_hash;
 
     // Whether we should run the postinstall script from this partition.
     bool run_postinstall{false};

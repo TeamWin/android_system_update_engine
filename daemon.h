@@ -20,7 +20,7 @@
 #include <memory>
 #include <string>
 
-#include <chromeos/daemons/dbus_daemon.h>
+#include <brillo/daemons/dbus_daemon.h>
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/dbus_service.h"
@@ -29,7 +29,7 @@
 
 namespace chromeos_update_engine {
 
-class UpdateEngineDaemon : public chromeos::DBusDaemon {
+class UpdateEngineDaemon : public brillo::DBusDaemon {
  public:
   UpdateEngineDaemon() = default;
 
@@ -42,7 +42,7 @@ class UpdateEngineDaemon : public chromeos::DBusDaemon {
   // initialization.
   void OnDBusRegistered(bool succeeded);
 
-  // The Subprocess singleton class requires a chromeos::MessageLoop in the
+  // The Subprocess singleton class requires a brillo::MessageLoop in the
   // current thread, so we need to initialize it from this class instead of
   // the main() function.
   Subprocess subprocess_;

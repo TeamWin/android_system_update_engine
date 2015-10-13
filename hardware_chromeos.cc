@@ -20,7 +20,7 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
-#include <chromeos/make_unique_ptr.h>
+#include <brillo/make_unique_ptr.h>
 #include <vboot/crossystem.h>
 
 extern "C" {
@@ -61,7 +61,7 @@ namespace hardware {
 
 // Factory defined in hardware.h.
 std::unique_ptr<HardwareInterface> CreateHardware() {
-  return chromeos::make_unique_ptr(new HardwareChromeOS());
+  return brillo::make_unique_ptr(new HardwareChromeOS());
 }
 
 }  // namespace hardware

@@ -27,8 +27,8 @@
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/flag_helper.h>
-#include <chromeos/message_loops/base_message_loop.h>
+#include <brillo/flag_helper.h>
+#include <brillo/message_loops/base_message_loop.h>
 #include <metrics/metrics_library.h>
 
 #include "update_engine/daemon.h"
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
               "Don't daemon()ize; run in foreground.");
 
   chromeos_update_engine::Terminator::Init();
-  chromeos::FlagHelper::Init(argc, argv, "Chromium OS Update Engine");
+  brillo::FlagHelper::Init(argc, argv, "Chromium OS Update Engine");
   chromeos_update_engine::SetupLogging(FLAGS_logtostderr);
   if (!FLAGS_foreground)
     PLOG_IF(FATAL, daemon(0, 0) == 1) << "daemon() failed";

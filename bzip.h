@@ -20,15 +20,15 @@
 #include <string>
 #include <vector>
 
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 namespace chromeos_update_engine {
 
 // Bzip2 compresses or decompresses str/in to out.
-bool BzipDecompress(const chromeos::Blob& in, chromeos::Blob* out);
-bool BzipCompress(const chromeos::Blob& in, chromeos::Blob* out);
-bool BzipCompressString(const std::string& str, chromeos::Blob* out);
-bool BzipDecompressString(const std::string& str, chromeos::Blob* out);
+bool BzipDecompress(const brillo::Blob& in, brillo::Blob* out);
+bool BzipCompress(const brillo::Blob& in, brillo::Blob* out);
+bool BzipCompressString(const std::string& str, brillo::Blob* out);
+bool BzipDecompressString(const std::string& str, brillo::Blob* out);
 
 }  // namespace chromeos_update_engine
 

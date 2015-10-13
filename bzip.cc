@@ -66,7 +66,7 @@ template<int F(uint8_t* out,
                uint32_t in_length)>
 bool BzipData(const void* const in,
               const size_t in_size,
-              chromeos::Blob* const out) {
+              brillo::Blob* const out) {
   TEST_AND_RETURN_FALSE(out);
   out->clear();
   if (in_size == 0) {
@@ -96,22 +96,22 @@ bool BzipData(const void* const in,
 
 }  // namespace
 
-bool BzipDecompress(const chromeos::Blob& in, chromeos::Blob* out) {
+bool BzipDecompress(const brillo::Blob& in, brillo::Blob* out) {
   return BzipData<BzipBuffToBuffDecompress>(in.data(), in.size(), out);
 }
 
-bool BzipCompress(const chromeos::Blob& in, chromeos::Blob* out) {
+bool BzipCompress(const brillo::Blob& in, brillo::Blob* out) {
   return BzipData<BzipBuffToBuffCompress>(in.data(), in.size(), out);
 }
 
 namespace {
 template<bool F(const void* const in,
                 const size_t in_size,
-                chromeos::Blob* const out)>
+                brillo::Blob* const out)>
 bool BzipString(const string& str,
-                chromeos::Blob* out) {
+                brillo::Blob* out) {
   TEST_AND_RETURN_FALSE(out);
-  chromeos::Blob temp;
+  brillo::Blob temp;
   TEST_AND_RETURN_FALSE(F(str.data(), str.size(), &temp));
   out->clear();
   out->insert(out->end(), temp.begin(), temp.end());
@@ -119,11 +119,11 @@ bool BzipString(const string& str,
 }
 }  // namespace
 
-bool BzipCompressString(const string& str, chromeos::Blob* out) {
+bool BzipCompressString(const string& str, brillo::Blob* out) {
   return BzipString<BzipData<BzipBuffToBuffCompress>>(str, out);
 }
 
-bool BzipDecompressString(const string& str, chromeos::Blob* out) {
+bool BzipDecompressString(const string& str, brillo::Blob* out) {
   return BzipString<BzipData<BzipBuffToBuffDecompress>>(str, out);
 }
 

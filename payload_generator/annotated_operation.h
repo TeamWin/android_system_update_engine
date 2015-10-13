@@ -20,7 +20,7 @@
 #include <ostream>  // NOLINT(readability/streams)
 #include <string>
 
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/payload_generator/blob_file_writer.h"
 #include "update_engine/update_metadata.pb.h"
@@ -38,7 +38,7 @@ struct AnnotatedOperation {
   // Writes |blob| to the end of |data_fd|, and updates |data_file_size| to
   // match the new size of |data_fd|. It sets the data_offset and data_length
   // in AnnotatedOperation to match the offset and size of |blob| in |data_fd|.
-  bool SetOperationBlob(chromeos::Blob* blob, BlobFileWriter* blob_file);
+  bool SetOperationBlob(brillo::Blob* blob, BlobFileWriter* blob_file);
 };
 
 // For logging purposes.

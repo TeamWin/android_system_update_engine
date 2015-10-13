@@ -11,12 +11,12 @@
 #include <base/logging.h>
 #include <base/macros.h>
 #include <base/memory/ref_counted.h>
-#include <chromeos/any.h>
-#include <chromeos/dbus/dbus_method_invoker.h>
-#include <chromeos/dbus/dbus_property.h>
-#include <chromeos/dbus/dbus_signal_handler.h>
-#include <chromeos/errors/error.h>
-#include <chromeos/variant_dictionary.h>
+#include <brillo/any.h>
+#include <brillo/dbus/dbus_method_invoker.h>
+#include <brillo/dbus/dbus_property.h>
+#include <brillo/dbus/dbus_signal_handler.h>
+#include <brillo/errors/error.h>
+#include <brillo/variant_dictionary.h>
 #include <dbus/bus.h>
 #include <dbus/message.h>
 #include <dbus/object_manager.h>
@@ -38,9 +38,9 @@ class debugdProxyInterface {
   virtual bool PingStart(
       const dbus::FileDescriptor& in_outfd,
       const std::string& in_destination,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       std::string* out_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Starts pinging the specified hostname with the specified options, with
@@ -50,22 +50,22 @@ class debugdProxyInterface {
   virtual void PingStartAsync(
       const dbus::FileDescriptor& in_outfd,
       const std::string& in_destination,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       const base::Callback<void(const std::string& /*handle*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops a running ping.
   virtual bool PingStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops a running ping.
   virtual void PingStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Start system/kernel tracing.  If tracing is already enabled it is
@@ -73,7 +73,7 @@ class debugdProxyInterface {
   // must have been configured to support tracing.
   virtual bool SystraceStart(
       const std::string& in_categories,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Start system/kernel tracing.  If tracing is already enabled it is
@@ -82,91 +82,91 @@ class debugdProxyInterface {
   virtual void SystraceStartAsync(
       const std::string& in_categories,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stop system/kernel tracing and write the collected event data.
   virtual bool SystraceStop(
       const dbus::FileDescriptor& in_outfd,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stop system/kernel tracing and write the collected event data.
   virtual void SystraceStopAsync(
       const dbus::FileDescriptor& in_outfd,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Return current status for system/kernel tracing including whether it
   // is enabled, the tracing clock, and the set of events enabled.
   virtual bool SystraceStatus(
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Return current status for system/kernel tracing including whether it
   // is enabled, the tracing clock, and the set of events enabled.
   virtual void SystraceStatusAsync(
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool TracePathStart(
       const dbus::FileDescriptor& in_outfd,
       const std::string& in_destination,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       std::string* out_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void TracePathStartAsync(
       const dbus::FileDescriptor& in_outfd,
       const std::string& in_destination,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       const base::Callback<void(const std::string& /*handle*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops a running tracepath.
   virtual bool TracePathStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops a running tracepath.
   virtual void TracePathStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns the routing table.
   virtual bool GetRoutes(
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       std::vector<std::string>* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns the routing table.
   virtual void GetRoutesAsync(
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       const base::Callback<void(const std::vector<std::string>& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns modem information as a JSON string. See the design document for
   // a rationale.
   virtual bool GetModemStatus(
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns modem information as a JSON string. See the design document for
   // a rationale.
   virtual void GetModemStatusAsync(
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs the specified command through the modem serial interface and
@@ -174,7 +174,7 @@ class debugdProxyInterface {
   virtual bool RunModemCommand(
       const std::string& in_command,
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs the specified command through the modem serial interface and
@@ -182,35 +182,35 @@ class debugdProxyInterface {
   virtual void RunModemCommandAsync(
       const std::string& in_command,
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns network information as a JSON string. See the design document
   // for a rationale.
   virtual bool GetNetworkStatus(
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns network information as a JSON string. See the design document
   // for a rationale.
   virtual void GetNetworkStatusAsync(
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns WiMAX information as a JSON string. See the design document for
   // a rationale.
   virtual bool GetWiMaxStatus(
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns WiMAX information as a JSON string. See the design document for
   // a rationale.
   virtual void GetWiMaxStatusAsync(
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs system-wide perf profiling. The profile parameters are selected by
@@ -221,7 +221,7 @@ class debugdProxyInterface {
       int32_t* out_status,
       std::vector<uint8_t>* out_perf_data,
       std::vector<uint8_t>* out_perf_stat,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs system-wide perf profiling. The profile parameters are selected by
@@ -230,7 +230,7 @@ class debugdProxyInterface {
       uint32_t in_duration_sec,
       const std::vector<std::string>& in_perf_args,
       const base::Callback<void(int32_t /*status*/, const std::vector<uint8_t>& /*perf_data*/, const std::vector<uint8_t>& /*perf_stat*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs system-wide perf profiling. It can can profile events other than
@@ -243,7 +243,7 @@ class debugdProxyInterface {
       int32_t* out_status,
       std::vector<uint8_t>* out_perf_data,
       std::vector<uint8_t>* out_perf_stat,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs system-wide perf profiling. It can can profile events other than
@@ -254,7 +254,7 @@ class debugdProxyInterface {
   virtual void GetRandomPerfOutputAsync(
       uint32_t in_duration_sec,
       const base::Callback<void(int32_t /*status*/, const std::vector<uint8_t>& /*perf_data*/, const std::vector<uint8_t>& /*perf_stat*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns perf event data. Does systemwide profiling. It can profile
@@ -265,7 +265,7 @@ class debugdProxyInterface {
   virtual bool GetRichPerfData(
       uint32_t in_duration_sec,
       std::vector<uint8_t>* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns perf event data. Does systemwide profiling. It can profile
@@ -276,7 +276,7 @@ class debugdProxyInterface {
   virtual void GetRichPerfDataAsync(
       uint32_t in_duration_sec,
       const base::Callback<void(const std::vector<uint8_t>& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // DEPRECATED: Use DumpDebugLogs instead.
@@ -284,7 +284,7 @@ class debugdProxyInterface {
   // file descriptor.
   virtual bool GetDebugLogs(
       const dbus::FileDescriptor& in_outfd,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // DEPRECATED: Use DumpDebugLogs instead.
@@ -293,7 +293,7 @@ class debugdProxyInterface {
   virtual void GetDebugLogsAsync(
       const dbus::FileDescriptor& in_outfd,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Packages up system logs into a .tar(.gz) and returns it over the
@@ -301,7 +301,7 @@ class debugdProxyInterface {
   virtual bool DumpDebugLogs(
       bool in_is_compressed,
       const dbus::FileDescriptor& in_outfd,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Packages up system logs into a .tar(.gz) and returns it over the
@@ -310,20 +310,20 @@ class debugdProxyInterface {
       bool in_is_compressed,
       const dbus::FileDescriptor& in_outfd,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Enables or disables debug mode for a specified subsystem.
   virtual bool SetDebugMode(
       const std::string& in_subsystem,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Enables or disables debug mode for a specified subsystem.
   virtual void SetDebugModeAsync(
       const std::string& in_subsystem,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Fetches the contents of a single system log, identified by name. See
@@ -331,7 +331,7 @@ class debugdProxyInterface {
   virtual bool GetLog(
       const std::string& in_log,
       std::string* out_contents,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Fetches the contents of a single system log, identified by name. See
@@ -339,31 +339,31 @@ class debugdProxyInterface {
   virtual void GetLogAsync(
       const std::string& in_log,
       const base::Callback<void(const std::string& /*contents*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns all the system logs.
   virtual bool GetAllLogs(
       std::map<std::string, std::string>* out_logs,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns all the system logs.
   virtual void GetAllLogsAsync(
       const base::Callback<void(const std::map<std::string, std::string>& /*logs*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns system logs for feedback reports.
   virtual bool GetFeedbackLogs(
       std::map<std::string, std::string>* out_logs,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns system logs for feedback reports.
   virtual void GetFeedbackLogsAsync(
       const base::Callback<void(const std::map<std::string, std::string>& /*logs*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns list of User log file names that Chrome itself must collect.
@@ -371,7 +371,7 @@ class debugdProxyInterface {
   // collected separately for each user.
   virtual bool GetUserLogFiles(
       std::map<std::string, std::string>* out_user_log_files,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns list of User log file names that Chrome itself must collect.
@@ -379,45 +379,45 @@ class debugdProxyInterface {
   // collected separately for each user.
   virtual void GetUserLogFilesAsync(
       const base::Callback<void(const std::map<std::string, std::string>& /*user_log_files*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Example method. See /doc/hacking.md.
   virtual bool GetExample(
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Example method. See /doc/hacking.md.
   virtual void GetExampleAsync(
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns information about network interfaces as a JSON string.
   virtual bool GetInterfaces(
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Returns information about network interfaces as a JSON string.
   virtual void GetInterfacesAsync(
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Tests ICMP connectivity to a specified host.
   virtual bool TestICMP(
       const std::string& in_host,
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Tests ICMP connectivity to a specified host.
   virtual void TestICMPAsync(
       const std::string& in_host,
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Tests ICMP connectivity to a specified host (with options).
@@ -425,7 +425,7 @@ class debugdProxyInterface {
       const std::string& in_host,
       const std::map<std::string, std::string>& in_options,
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Tests ICMP connectivity to a specified host (with options).
@@ -433,35 +433,35 @@ class debugdProxyInterface {
       const std::string& in_host,
       const std::map<std::string, std::string>& in_options,
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs BatteryFirmware utility.
   virtual bool BatteryFirmware(
       const std::string& in_option,
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs BatteryFirmware utility.
   virtual void BatteryFirmwareAsync(
       const std::string& in_option,
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs Smartctl utility.
   virtual bool Smartctl(
       const std::string& in_option,
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Runs Smartctl utility.
   virtual void SmartctlAsync(
       const std::string& in_option,
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Starts running memtester.
@@ -469,7 +469,7 @@ class debugdProxyInterface {
       const dbus::FileDescriptor& in_outfd,
       uint32_t in_memory,
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Starts running memtester.
@@ -477,47 +477,47 @@ class debugdProxyInterface {
       const dbus::FileDescriptor& in_outfd,
       uint32_t in_memory,
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops running memtester.
   virtual bool MemtesterStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops running memtester.
   virtual void MemtesterStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Starts running badblocks test.
   virtual bool BadblocksStart(
       const dbus::FileDescriptor& in_outfd,
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Starts running badblocks test.
   virtual void BadblocksStartAsync(
       const dbus::FileDescriptor& in_outfd,
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops running badblocks.
   virtual bool BadblocksStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops running badblocks.
   virtual void BadblocksStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Starts a packet capture with the specified options, with diagnostic
@@ -534,9 +534,9 @@ class debugdProxyInterface {
   virtual bool PacketCaptureStart(
       const dbus::FileDescriptor& in_statfd,
       const dbus::FileDescriptor& in_outfd,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       std::string* out_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Starts a packet capture with the specified options, with diagnostic
@@ -553,70 +553,70 @@ class debugdProxyInterface {
   virtual void PacketCaptureStartAsync(
       const dbus::FileDescriptor& in_statfd,
       const dbus::FileDescriptor& in_outfd,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       const base::Callback<void(const std::string& /*handle*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops a running packet capture.
   virtual bool PacketCaptureStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Stops a running packet capture.
   virtual void PacketCaptureStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Triggers show-task-states(T) SysRq.
   // See https://www.kernel.org/doc/Documentation/sysrq.txt.
   virtual bool LogKernelTaskStates(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Triggers show-task-states(T) SysRq.
   // See https://www.kernel.org/doc/Documentation/sysrq.txt.
   virtual void LogKernelTaskStatesAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Triggers uploading of system crashes (the crash_sender program).
   virtual bool UploadCrashes(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Triggers uploading of system crashes (the crash_sender program).
   virtual void UploadCrashesAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Removes rootfs verification. Requires a system reboot before it will
   // take effect. Restricted to pre-owner dev mode.
   virtual bool RemoveRootfsVerification(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Removes rootfs verification. Requires a system reboot before it will
   // take effect. Restricted to pre-owner dev mode.
   virtual void RemoveRootfsVerificationAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Enables OS booting from a USB image. Restricted to pre-owner dev mode.
   virtual bool EnableBootFromUsb(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Enables OS booting from a USB image. Restricted to pre-owner dev mode.
   virtual void EnableBootFromUsbAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Sets up sshd to provide an SSH server immediately and on future reboots.
@@ -624,7 +624,7 @@ class debugdProxyInterface {
   // that rootfs verification has been removed. Restricted to pre-owner dev
   // mode.
   virtual bool ConfigureSshServer(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Sets up sshd to provide an SSH server immediately and on future reboots.
@@ -633,7 +633,7 @@ class debugdProxyInterface {
   // mode.
   virtual void ConfigureSshServerAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Sets both the system and dev mode password for the indicated account.
@@ -641,7 +641,7 @@ class debugdProxyInterface {
   virtual bool SetUserPassword(
       const std::string& in_username,
       const std::string& in_password,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Sets both the system and dev mode password for the indicated account.
@@ -650,7 +650,7 @@ class debugdProxyInterface {
       const std::string& in_username,
       const std::string& in_password,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Sets up Chrome for remote debugging. It will take effect after a reboot
@@ -658,7 +658,7 @@ class debugdProxyInterface {
   // Requires that rootfs verification has been removed. Restricted to
   // pre-owner dev mode.
   virtual bool EnableChromeRemoteDebugging(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Sets up Chrome for remote debugging. It will take effect after a reboot
@@ -667,7 +667,7 @@ class debugdProxyInterface {
   // pre-owner dev mode.
   virtual void EnableChromeRemoteDebuggingAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Convenience function to enable a predefined set of tools from the Chrome
@@ -680,7 +680,7 @@ class debugdProxyInterface {
   // further configuration or rollback. Restricted to pre-owner dev mode.
   virtual bool EnableChromeDevFeatures(
       const std::string& in_root_password,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Convenience function to enable a predefined set of tools from the Chrome
@@ -694,7 +694,7 @@ class debugdProxyInterface {
   virtual void EnableChromeDevFeaturesAsync(
       const std::string& in_root_password,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Queries which dev features have been enabled. Each dev feature will be
@@ -704,7 +704,7 @@ class debugdProxyInterface {
   // set and the rest of the bits will always be set to 0.
   virtual bool QueryDevFeatures(
       int32_t* out_features,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Queries which dev features have been enabled. Each dev feature will be
@@ -714,29 +714,29 @@ class debugdProxyInterface {
   // set and the rest of the bits will always be set to 0.
   virtual void QueryDevFeaturesAsync(
       const base::Callback<void(int32_t /*features*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Allow uploading of device coredump files.
   virtual bool EnableDevCoredumpUpload(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Allow uploading of device coredump files.
   virtual void EnableDevCoredumpUploadAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Disallow uploading of device coredump files.
   virtual bool DisableDevCoredumpUpload(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // Disallow uploading of device coredump files.
   virtual void DisableDevCoredumpUploadAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 };
 
@@ -777,11 +777,11 @@ class debugdProxy final : public debugdProxyInterface {
   bool PingStart(
       const dbus::FileDescriptor& in_outfd,
       const std::string& in_destination,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       std::string* out_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -790,7 +790,7 @@ class debugdProxy final : public debugdProxyInterface {
         in_outfd,
         in_destination,
         in_options);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_handle);
   }
 
@@ -801,11 +801,11 @@ class debugdProxy final : public debugdProxyInterface {
   void PingStartAsync(
       const dbus::FileDescriptor& in_outfd,
       const std::string& in_destination,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       const base::Callback<void(const std::string& /*handle*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -820,16 +820,16 @@ class debugdProxy final : public debugdProxyInterface {
   // Stops a running ping.
   bool PingStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "PingStop",
         error,
         in_handle);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -837,9 +837,9 @@ class debugdProxy final : public debugdProxyInterface {
   void PingStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -854,16 +854,16 @@ class debugdProxy final : public debugdProxyInterface {
   // must have been configured to support tracing.
   bool SystraceStart(
       const std::string& in_categories,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "SystraceStart",
         error,
         in_categories);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -873,9 +873,9 @@ class debugdProxy final : public debugdProxyInterface {
   void SystraceStartAsync(
       const std::string& in_categories,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -888,16 +888,16 @@ class debugdProxy final : public debugdProxyInterface {
   // Stop system/kernel tracing and write the collected event data.
   bool SystraceStop(
       const dbus::FileDescriptor& in_outfd,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "SystraceStop",
         error,
         in_outfd);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -905,9 +905,9 @@ class debugdProxy final : public debugdProxyInterface {
   void SystraceStopAsync(
       const dbus::FileDescriptor& in_outfd,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -921,15 +921,15 @@ class debugdProxy final : public debugdProxyInterface {
   // is enabled, the tracing clock, and the set of events enabled.
   bool SystraceStatus(
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "SystraceStatus",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status);
   }
 
@@ -937,9 +937,9 @@ class debugdProxy final : public debugdProxyInterface {
   // is enabled, the tracing clock, and the set of events enabled.
   void SystraceStatusAsync(
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -951,11 +951,11 @@ class debugdProxy final : public debugdProxyInterface {
   bool TracePathStart(
       const dbus::FileDescriptor& in_outfd,
       const std::string& in_destination,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       std::string* out_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -964,18 +964,18 @@ class debugdProxy final : public debugdProxyInterface {
         in_outfd,
         in_destination,
         in_options);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_handle);
   }
 
   void TracePathStartAsync(
       const dbus::FileDescriptor& in_outfd,
       const std::string& in_destination,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       const base::Callback<void(const std::string& /*handle*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -990,16 +990,16 @@ class debugdProxy final : public debugdProxyInterface {
   // Stops a running tracepath.
   bool TracePathStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "TracePathStop",
         error,
         in_handle);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1007,9 +1007,9 @@ class debugdProxy final : public debugdProxyInterface {
   void TracePathStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1021,28 +1021,28 @@ class debugdProxy final : public debugdProxyInterface {
 
   // Returns the routing table.
   bool GetRoutes(
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       std::vector<std::string>* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetRoutes",
         error,
         in_options);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_result);
   }
 
   // Returns the routing table.
   void GetRoutesAsync(
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       const base::Callback<void(const std::vector<std::string>& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1056,15 +1056,15 @@ class debugdProxy final : public debugdProxyInterface {
   // a rationale.
   bool GetModemStatus(
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetModemStatus",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status);
   }
 
@@ -1072,9 +1072,9 @@ class debugdProxy final : public debugdProxyInterface {
   // a rationale.
   void GetModemStatusAsync(
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1088,16 +1088,16 @@ class debugdProxy final : public debugdProxyInterface {
   bool RunModemCommand(
       const std::string& in_command,
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "RunModemCommand",
         error,
         in_command);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status);
   }
 
@@ -1106,9 +1106,9 @@ class debugdProxy final : public debugdProxyInterface {
   void RunModemCommandAsync(
       const std::string& in_command,
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1122,15 +1122,15 @@ class debugdProxy final : public debugdProxyInterface {
   // for a rationale.
   bool GetNetworkStatus(
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetNetworkStatus",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status);
   }
 
@@ -1138,9 +1138,9 @@ class debugdProxy final : public debugdProxyInterface {
   // for a rationale.
   void GetNetworkStatusAsync(
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1153,15 +1153,15 @@ class debugdProxy final : public debugdProxyInterface {
   // a rationale.
   bool GetWiMaxStatus(
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetWiMaxStatus",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status);
   }
 
@@ -1169,9 +1169,9 @@ class debugdProxy final : public debugdProxyInterface {
   // a rationale.
   void GetWiMaxStatusAsync(
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1188,9 +1188,9 @@ class debugdProxy final : public debugdProxyInterface {
       int32_t* out_status,
       std::vector<uint8_t>* out_perf_data,
       std::vector<uint8_t>* out_perf_stat,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1198,7 +1198,7 @@ class debugdProxy final : public debugdProxyInterface {
         error,
         in_duration_sec,
         in_perf_args);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status, out_perf_data, out_perf_stat);
   }
 
@@ -1208,9 +1208,9 @@ class debugdProxy final : public debugdProxyInterface {
       uint32_t in_duration_sec,
       const std::vector<std::string>& in_perf_args,
       const base::Callback<void(int32_t /*status*/, const std::vector<uint8_t>& /*perf_data*/, const std::vector<uint8_t>& /*perf_stat*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1231,16 +1231,16 @@ class debugdProxy final : public debugdProxyInterface {
       int32_t* out_status,
       std::vector<uint8_t>* out_perf_data,
       std::vector<uint8_t>* out_perf_stat,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetRandomPerfOutput",
         error,
         in_duration_sec);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status, out_perf_data, out_perf_stat);
   }
 
@@ -1252,9 +1252,9 @@ class debugdProxy final : public debugdProxyInterface {
   void GetRandomPerfOutputAsync(
       uint32_t in_duration_sec,
       const base::Callback<void(int32_t /*status*/, const std::vector<uint8_t>& /*perf_data*/, const std::vector<uint8_t>& /*perf_stat*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1272,16 +1272,16 @@ class debugdProxy final : public debugdProxyInterface {
   bool GetRichPerfData(
       uint32_t in_duration_sec,
       std::vector<uint8_t>* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetRichPerfData",
         error,
         in_duration_sec);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status);
   }
 
@@ -1293,9 +1293,9 @@ class debugdProxy final : public debugdProxyInterface {
   void GetRichPerfDataAsync(
       uint32_t in_duration_sec,
       const base::Callback<void(const std::vector<uint8_t>& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1310,16 +1310,16 @@ class debugdProxy final : public debugdProxyInterface {
   // file descriptor.
   bool GetDebugLogs(
       const dbus::FileDescriptor& in_outfd,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetDebugLogs",
         error,
         in_outfd);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1329,9 +1329,9 @@ class debugdProxy final : public debugdProxyInterface {
   void GetDebugLogsAsync(
       const dbus::FileDescriptor& in_outfd,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1346,9 +1346,9 @@ class debugdProxy final : public debugdProxyInterface {
   bool DumpDebugLogs(
       bool in_is_compressed,
       const dbus::FileDescriptor& in_outfd,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1356,7 +1356,7 @@ class debugdProxy final : public debugdProxyInterface {
         error,
         in_is_compressed,
         in_outfd);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1366,9 +1366,9 @@ class debugdProxy final : public debugdProxyInterface {
       bool in_is_compressed,
       const dbus::FileDescriptor& in_outfd,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1382,16 +1382,16 @@ class debugdProxy final : public debugdProxyInterface {
   // Enables or disables debug mode for a specified subsystem.
   bool SetDebugMode(
       const std::string& in_subsystem,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "SetDebugMode",
         error,
         in_subsystem);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1399,9 +1399,9 @@ class debugdProxy final : public debugdProxyInterface {
   void SetDebugModeAsync(
       const std::string& in_subsystem,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1416,16 +1416,16 @@ class debugdProxy final : public debugdProxyInterface {
   bool GetLog(
       const std::string& in_log,
       std::string* out_contents,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetLog",
         error,
         in_log);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_contents);
   }
 
@@ -1434,9 +1434,9 @@ class debugdProxy final : public debugdProxyInterface {
   void GetLogAsync(
       const std::string& in_log,
       const base::Callback<void(const std::string& /*contents*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1449,24 +1449,24 @@ class debugdProxy final : public debugdProxyInterface {
   // Returns all the system logs.
   bool GetAllLogs(
       std::map<std::string, std::string>* out_logs,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetAllLogs",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_logs);
   }
 
   // Returns all the system logs.
   void GetAllLogsAsync(
       const base::Callback<void(const std::map<std::string, std::string>& /*logs*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1478,24 +1478,24 @@ class debugdProxy final : public debugdProxyInterface {
   // Returns system logs for feedback reports.
   bool GetFeedbackLogs(
       std::map<std::string, std::string>* out_logs,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetFeedbackLogs",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_logs);
   }
 
   // Returns system logs for feedback reports.
   void GetFeedbackLogsAsync(
       const base::Callback<void(const std::map<std::string, std::string>& /*logs*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1509,15 +1509,15 @@ class debugdProxy final : public debugdProxyInterface {
   // collected separately for each user.
   bool GetUserLogFiles(
       std::map<std::string, std::string>* out_user_log_files,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetUserLogFiles",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_user_log_files);
   }
 
@@ -1526,9 +1526,9 @@ class debugdProxy final : public debugdProxyInterface {
   // collected separately for each user.
   void GetUserLogFilesAsync(
       const base::Callback<void(const std::map<std::string, std::string>& /*user_log_files*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1540,24 +1540,24 @@ class debugdProxy final : public debugdProxyInterface {
   // Example method. See /doc/hacking.md.
   bool GetExample(
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetExample",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_result);
   }
 
   // Example method. See /doc/hacking.md.
   void GetExampleAsync(
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1569,24 +1569,24 @@ class debugdProxy final : public debugdProxyInterface {
   // Returns information about network interfaces as a JSON string.
   bool GetInterfaces(
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "GetInterfaces",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_result);
   }
 
   // Returns information about network interfaces as a JSON string.
   void GetInterfacesAsync(
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1599,16 +1599,16 @@ class debugdProxy final : public debugdProxyInterface {
   bool TestICMP(
       const std::string& in_host,
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "TestICMP",
         error,
         in_host);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_result);
   }
 
@@ -1616,9 +1616,9 @@ class debugdProxy final : public debugdProxyInterface {
   void TestICMPAsync(
       const std::string& in_host,
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1633,9 +1633,9 @@ class debugdProxy final : public debugdProxyInterface {
       const std::string& in_host,
       const std::map<std::string, std::string>& in_options,
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1643,7 +1643,7 @@ class debugdProxy final : public debugdProxyInterface {
         error,
         in_host,
         in_options);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_result);
   }
 
@@ -1652,9 +1652,9 @@ class debugdProxy final : public debugdProxyInterface {
       const std::string& in_host,
       const std::map<std::string, std::string>& in_options,
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1669,16 +1669,16 @@ class debugdProxy final : public debugdProxyInterface {
   bool BatteryFirmware(
       const std::string& in_option,
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "BatteryFirmware",
         error,
         in_option);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_result);
   }
 
@@ -1686,9 +1686,9 @@ class debugdProxy final : public debugdProxyInterface {
   void BatteryFirmwareAsync(
       const std::string& in_option,
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1702,16 +1702,16 @@ class debugdProxy final : public debugdProxyInterface {
   bool Smartctl(
       const std::string& in_option,
       std::string* out_result,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "Smartctl",
         error,
         in_option);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_result);
   }
 
@@ -1719,9 +1719,9 @@ class debugdProxy final : public debugdProxyInterface {
   void SmartctlAsync(
       const std::string& in_option,
       const base::Callback<void(const std::string& /*result*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1736,9 +1736,9 @@ class debugdProxy final : public debugdProxyInterface {
       const dbus::FileDescriptor& in_outfd,
       uint32_t in_memory,
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1746,7 +1746,7 @@ class debugdProxy final : public debugdProxyInterface {
         error,
         in_outfd,
         in_memory);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status);
   }
 
@@ -1755,9 +1755,9 @@ class debugdProxy final : public debugdProxyInterface {
       const dbus::FileDescriptor& in_outfd,
       uint32_t in_memory,
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1771,16 +1771,16 @@ class debugdProxy final : public debugdProxyInterface {
   // Stops running memtester.
   bool MemtesterStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "MemtesterStop",
         error,
         in_handle);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1788,9 +1788,9 @@ class debugdProxy final : public debugdProxyInterface {
   void MemtesterStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1804,16 +1804,16 @@ class debugdProxy final : public debugdProxyInterface {
   bool BadblocksStart(
       const dbus::FileDescriptor& in_outfd,
       std::string* out_status,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "BadblocksStart",
         error,
         in_outfd);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_status);
   }
 
@@ -1821,9 +1821,9 @@ class debugdProxy final : public debugdProxyInterface {
   void BadblocksStartAsync(
       const dbus::FileDescriptor& in_outfd,
       const base::Callback<void(const std::string& /*status*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1836,16 +1836,16 @@ class debugdProxy final : public debugdProxyInterface {
   // Stops running badblocks.
   bool BadblocksStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "BadblocksStop",
         error,
         in_handle);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1853,9 +1853,9 @@ class debugdProxy final : public debugdProxyInterface {
   void BadblocksStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1879,11 +1879,11 @@ class debugdProxy final : public debugdProxyInterface {
   bool PacketCaptureStart(
       const dbus::FileDescriptor& in_statfd,
       const dbus::FileDescriptor& in_outfd,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       std::string* out_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1892,7 +1892,7 @@ class debugdProxy final : public debugdProxyInterface {
         in_statfd,
         in_outfd,
         in_options);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_handle);
   }
 
@@ -1910,11 +1910,11 @@ class debugdProxy final : public debugdProxyInterface {
   void PacketCaptureStartAsync(
       const dbus::FileDescriptor& in_statfd,
       const dbus::FileDescriptor& in_outfd,
-      const chromeos::VariantDictionary& in_options,
+      const brillo::VariantDictionary& in_options,
       const base::Callback<void(const std::string& /*handle*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1929,16 +1929,16 @@ class debugdProxy final : public debugdProxyInterface {
   // Stops a running packet capture.
   bool PacketCaptureStop(
       const std::string& in_handle,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "PacketCaptureStop",
         error,
         in_handle);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1946,9 +1946,9 @@ class debugdProxy final : public debugdProxyInterface {
   void PacketCaptureStopAsync(
       const std::string& in_handle,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1961,15 +1961,15 @@ class debugdProxy final : public debugdProxyInterface {
   // Triggers show-task-states(T) SysRq.
   // See https://www.kernel.org/doc/Documentation/sysrq.txt.
   bool LogKernelTaskStates(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "LogKernelTaskStates",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1977,9 +1977,9 @@ class debugdProxy final : public debugdProxyInterface {
   // See https://www.kernel.org/doc/Documentation/sysrq.txt.
   void LogKernelTaskStatesAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -1990,24 +1990,24 @@ class debugdProxy final : public debugdProxyInterface {
 
   // Triggers uploading of system crashes (the crash_sender program).
   bool UploadCrashes(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "UploadCrashes",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   // Triggers uploading of system crashes (the crash_sender program).
   void UploadCrashesAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2019,15 +2019,15 @@ class debugdProxy final : public debugdProxyInterface {
   // Removes rootfs verification. Requires a system reboot before it will
   // take effect. Restricted to pre-owner dev mode.
   bool RemoveRootfsVerification(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "RemoveRootfsVerification",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -2035,9 +2035,9 @@ class debugdProxy final : public debugdProxyInterface {
   // take effect. Restricted to pre-owner dev mode.
   void RemoveRootfsVerificationAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2048,24 +2048,24 @@ class debugdProxy final : public debugdProxyInterface {
 
   // Enables OS booting from a USB image. Restricted to pre-owner dev mode.
   bool EnableBootFromUsb(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "EnableBootFromUsb",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   // Enables OS booting from a USB image. Restricted to pre-owner dev mode.
   void EnableBootFromUsbAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2079,15 +2079,15 @@ class debugdProxy final : public debugdProxyInterface {
   // that rootfs verification has been removed. Restricted to pre-owner dev
   // mode.
   bool ConfigureSshServer(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "ConfigureSshServer",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -2097,9 +2097,9 @@ class debugdProxy final : public debugdProxyInterface {
   // mode.
   void ConfigureSshServerAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2113,9 +2113,9 @@ class debugdProxy final : public debugdProxyInterface {
   bool SetUserPassword(
       const std::string& in_username,
       const std::string& in_password,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2123,7 +2123,7 @@ class debugdProxy final : public debugdProxyInterface {
         error,
         in_username,
         in_password);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -2133,9 +2133,9 @@ class debugdProxy final : public debugdProxyInterface {
       const std::string& in_username,
       const std::string& in_password,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2151,15 +2151,15 @@ class debugdProxy final : public debugdProxyInterface {
   // Requires that rootfs verification has been removed. Restricted to
   // pre-owner dev mode.
   bool EnableChromeRemoteDebugging(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "EnableChromeRemoteDebugging",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -2169,9 +2169,9 @@ class debugdProxy final : public debugdProxyInterface {
   // pre-owner dev mode.
   void EnableChromeRemoteDebuggingAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2190,16 +2190,16 @@ class debugdProxy final : public debugdProxyInterface {
   // further configuration or rollback. Restricted to pre-owner dev mode.
   bool EnableChromeDevFeatures(
       const std::string& in_root_password,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "EnableChromeDevFeatures",
         error,
         in_root_password);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -2214,9 +2214,9 @@ class debugdProxy final : public debugdProxyInterface {
   void EnableChromeDevFeaturesAsync(
       const std::string& in_root_password,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2233,15 +2233,15 @@ class debugdProxy final : public debugdProxyInterface {
   // set and the rest of the bits will always be set to 0.
   bool QueryDevFeatures(
       int32_t* out_features,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "QueryDevFeatures",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_features);
   }
 
@@ -2252,9 +2252,9 @@ class debugdProxy final : public debugdProxyInterface {
   // set and the rest of the bits will always be set to 0.
   void QueryDevFeaturesAsync(
       const base::Callback<void(int32_t /*features*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2265,24 +2265,24 @@ class debugdProxy final : public debugdProxyInterface {
 
   // Allow uploading of device coredump files.
   bool EnableDevCoredumpUpload(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "EnableDevCoredumpUpload",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   // Allow uploading of device coredump files.
   void EnableDevCoredumpUploadAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
@@ -2293,24 +2293,24 @@ class debugdProxy final : public debugdProxyInterface {
 
   // Disallow uploading of device coredump files.
   bool DisableDevCoredumpUpload(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",
         "DisableDevCoredumpUpload",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   // Disallow uploading of device coredump files.
   void DisableDevCoredumpUploadAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.debugd",

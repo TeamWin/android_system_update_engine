@@ -8,9 +8,9 @@
 #include <base/callback_forward.h>
 #include <base/logging.h>
 #include <base/macros.h>
-#include <chromeos/any.h>
-#include <chromeos/errors/error.h>
-#include <chromeos/variant_dictionary.h>
+#include <brillo/any.h>
+#include <brillo/errors/error.h>
+#include <brillo/variant_dictionary.h>
 #include <gmock/gmock.h>
 
 #include "session_manager/dbus-proxies.h"
@@ -24,205 +24,205 @@ class SessionManagerInterfaceProxyMock : public SessionManagerInterfaceProxyInte
   SessionManagerInterfaceProxyMock() = default;
 
   MOCK_METHOD2(EmitLoginPromptVisible,
-               bool(chromeos::ErrorPtr* /*error*/,
+               bool(brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(EmitLoginPromptVisibleAsync,
                void(const base::Callback<void()>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(EnableChromeTesting,
                bool(bool /*in_force_relaunch*/,
                     const std::vector<std::string>& /*in_extra_arguments*/,
                     std::string* /*out_filepath*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(EnableChromeTestingAsync,
                void(bool /*in_force_relaunch*/,
                     const std::vector<std::string>& /*in_extra_arguments*/,
                     const base::Callback<void(const std::string& /*filepath*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(StartSession,
                bool(const std::string& /*in_email_address*/,
                     const std::string& /*in_unique_identifier*/,
                     bool* /*out_done*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(StartSessionAsync,
                void(const std::string& /*in_email_address*/,
                     const std::string& /*in_unique_identifier*/,
                     const base::Callback<void(bool /*done*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(StopSession,
                bool(const std::string& /*in_unique_identifier*/,
                     bool* /*out_done*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(StopSessionAsync,
                void(const std::string& /*in_unique_identifier*/,
                     const base::Callback<void(bool /*done*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(StorePolicy,
                bool(const std::vector<uint8_t>& /*in_policy_blob*/,
                     bool* /*out_done*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(StorePolicyAsync,
                void(const std::vector<uint8_t>& /*in_policy_blob*/,
                     const base::Callback<void(bool /*done*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(RetrievePolicy,
                bool(std::vector<uint8_t>* /*out_policy_blob*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(RetrievePolicyAsync,
                void(const base::Callback<void(const std::vector<uint8_t>& /*policy_blob*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(StorePolicyForUser,
                bool(const std::string& /*in_user_email*/,
                     const std::vector<uint8_t>& /*in_policy_blob*/,
                     bool* /*out_done*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(StorePolicyForUserAsync,
                void(const std::string& /*in_user_email*/,
                     const std::vector<uint8_t>& /*in_policy_blob*/,
                     const base::Callback<void(bool /*done*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(RetrievePolicyForUser,
                bool(const std::string& /*in_user_email*/,
                     std::vector<uint8_t>* /*out_policy_blob*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(RetrievePolicyForUserAsync,
                void(const std::string& /*in_user_email*/,
                     const base::Callback<void(const std::vector<uint8_t>& /*policy_blob*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(StoreDeviceLocalAccountPolicy,
                bool(const std::string& /*in_account_id*/,
                     const std::vector<uint8_t>& /*in_policy_blob*/,
                     bool* /*out_done*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(StoreDeviceLocalAccountPolicyAsync,
                void(const std::string& /*in_account_id*/,
                     const std::vector<uint8_t>& /*in_policy_blob*/,
                     const base::Callback<void(bool /*done*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(RetrieveDeviceLocalAccountPolicy,
                bool(const std::string& /*in_account_id*/,
                     std::vector<uint8_t>* /*out_policy_blob*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(RetrieveDeviceLocalAccountPolicyAsync,
                void(const std::string& /*in_account_id*/,
                     const base::Callback<void(const std::vector<uint8_t>& /*policy_blob*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(RetrieveSessionState,
                bool(std::string* /*out_state*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(RetrieveSessionStateAsync,
                void(const base::Callback<void(const std::string& /*state*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(RetrieveActiveSessions,
                bool(std::map<std::string, std::string>* /*out_sessions*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(RetrieveActiveSessionsAsync,
                void(const base::Callback<void(const std::map<std::string, std::string>& /*sessions*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD2(HandleSupervisedUserCreationStarting,
-               bool(chromeos::ErrorPtr* /*error*/,
+               bool(brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(HandleSupervisedUserCreationStartingAsync,
                void(const base::Callback<void()>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD2(HandleSupervisedUserCreationFinished,
-               bool(chromeos::ErrorPtr* /*error*/,
+               bool(brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(HandleSupervisedUserCreationFinishedAsync,
                void(const base::Callback<void()>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD2(LockScreen,
-               bool(chromeos::ErrorPtr* /*error*/,
+               bool(brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(LockScreenAsync,
                void(const base::Callback<void()>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD2(HandleLockScreenShown,
-               bool(chromeos::ErrorPtr* /*error*/,
+               bool(brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(HandleLockScreenShownAsync,
                void(const base::Callback<void()>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD2(HandleLockScreenDismissed,
-               bool(chromeos::ErrorPtr* /*error*/,
+               bool(brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(HandleLockScreenDismissedAsync,
                void(const base::Callback<void()>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(RestartJob,
                bool(const dbus::FileDescriptor& /*in_cred_fd*/,
                     const std::vector<std::string>& /*in_argv*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(RestartJobAsync,
                void(const dbus::FileDescriptor& /*in_cred_fd*/,
                     const std::vector<std::string>& /*in_argv*/,
                     const base::Callback<void()>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(StartDeviceWipe,
                bool(bool* /*out_done*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(StartDeviceWipeAsync,
                void(const base::Callback<void(bool /*done*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(SetFlagsForUser,
                bool(const std::string& /*in_user_email*/,
                     const std::vector<std::string>& /*in_flags*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD5(SetFlagsForUserAsync,
                void(const std::string& /*in_user_email*/,
                     const std::vector<std::string>& /*in_flags*/,
                     const base::Callback<void()>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(GetServerBackedStateKeys,
                bool(std::vector<std::vector<uint8_t>>* /*out_state_keys*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(GetServerBackedStateKeysAsync,
                void(const base::Callback<void(const std::vector<std::vector<uint8_t>>& /*state_keys*/)>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD3(InitMachineInfo,
                bool(const std::string& /*in_data*/,
-                    chromeos::ErrorPtr* /*error*/,
+                    brillo::ErrorPtr* /*error*/,
                     int /*timeout_ms*/));
   MOCK_METHOD4(InitMachineInfoAsync,
                void(const std::string& /*in_data*/,
                     const base::Callback<void()>& /*success_callback*/,
-                    const base::Callback<void(chromeos::Error*)>& /*error_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
   MOCK_METHOD2(RegisterLoginPromptVisibleSignalHandler,
                void(const base::Closure& /*signal_callback*/,

@@ -23,8 +23,8 @@
 #include <gtest/gtest.h>
 
 #include <base/bind.h>
-#include <chromeos/make_unique_ptr.h>
-#include <chromeos/message_loops/fake_message_loop.h>
+#include <brillo/make_unique_ptr.h>
+#include <brillo/message_loops/fake_message_loop.h>
 
 #include "libcros/dbus-proxies.h"
 #include "libcros/dbus-proxy-mocks.h"
@@ -33,7 +33,7 @@
 using ::testing::Return;
 using ::testing::StrEq;
 using ::testing::_;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using org::chromium::LibCrosServiceInterfaceProxyMock;
 using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxyMock;
 using std::deque;
@@ -49,8 +49,8 @@ class ChromeBrowserProxyResolverTest : public ::testing::Test {
         ue_proxy_resolved_interface_mock_(
             new UpdateEngineLibcrosProxyResolvedInterfaceProxyMock()),
         libcros_proxy_(
-            chromeos::make_unique_ptr(service_interface_mock_),
-            chromeos::make_unique_ptr(ue_proxy_resolved_interface_mock_)) {}
+            brillo::make_unique_ptr(service_interface_mock_),
+            brillo::make_unique_ptr(ue_proxy_resolved_interface_mock_)) {}
 
   void SetUp() override {
     loop_.SetAsCurrent();
@@ -78,7 +78,7 @@ class ChromeBrowserProxyResolverTest : public ::testing::Test {
   void RunTest(bool chrome_replies, bool chrome_alive);
 
  private:
-  chromeos::FakeMessageLoop loop_{nullptr};
+  brillo::FakeMessageLoop loop_{nullptr};
 
   // Local pointers to the mocks. The instances are owned by the
   // |libcros_proxy_|.

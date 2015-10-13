@@ -50,7 +50,7 @@ void FakeFilesystem::AddFile(const std::string& filename,
   files_.push_back(file);
 }
 
-bool FakeFilesystem::LoadSettings(chromeos::KeyValueStore* store) const {
+bool FakeFilesystem::LoadSettings(brillo::KeyValueStore* store) const {
   if (minor_version_ < 0)
     return false;
   store->SetString("PAYLOAD_MINOR_VERSION", std::to_string(minor_version_));

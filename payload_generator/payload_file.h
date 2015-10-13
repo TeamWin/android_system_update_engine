@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/payload_generator/annotated_operation.h"
@@ -63,7 +63,7 @@ class PayloadFile {
   // dummy operation for signature blob because the contents of the signature
   // blob will not be available at payload creation time. So, update_engine will
   // gracefully ignore the dummy signature operation.
-  static bool AddOperationHash(InstallOperation* op, const chromeos::Blob& buf);
+  static bool AddOperationHash(InstallOperation* op, const brillo::Blob& buf);
 
   // Install operations in the manifest may reference data blobs, which
   // are in data_blobs_path. This function creates a new data blobs file

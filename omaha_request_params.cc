@@ -26,7 +26,7 @@
 
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
-#include <chromeos/key_value_store.h>
+#include <brillo/key_value_store.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/constants.h"
@@ -148,7 +148,7 @@ bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,
             << ", existing target channel = " << target_channel_
             << ", download channel = " << download_channel_;
   TEST_AND_RETURN_FALSE(IsValidChannel(new_target_channel));
-  chromeos::KeyValueStore lsb_release;
+  brillo::KeyValueStore lsb_release;
   base::FilePath kFile(root_ + kStatefulPartition + "/etc/lsb-release");
 
   lsb_release.Load(kFile);
@@ -232,7 +232,7 @@ string OmahaRequestParams::GetLsbValue(const string& key,
        it != files.end(); ++it) {
     // TODO(adlr): make sure files checked are owned as root (and all their
     // parents are recursively, too).
-    chromeos::KeyValueStore data;
+    brillo::KeyValueStore data;
     if (!data.Load(base::FilePath(root_ + *it)))
       continue;
 

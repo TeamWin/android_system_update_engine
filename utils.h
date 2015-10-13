@@ -30,8 +30,8 @@
 #include <base/files/file_path.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/time/time.h>
-#include <chromeos/key_value_store.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/key_value_store.h>
+#include <brillo/secure_blob.h>
 #include "metrics/metrics_library.h"
 
 #include "update_engine/action.h"
@@ -93,10 +93,10 @@ bool PReadAll(FileDescriptorPtr fd, void* buf, size_t count, off_t offset,
 // file's content, false otherwise, in which case the state of the output
 // container is unknown. ReadFileChunk starts reading the file from |offset|; if
 // |size| is not -1, only up to |size| bytes are read in.
-bool ReadFile(const std::string& path, chromeos::Blob* out_p);
+bool ReadFile(const std::string& path, brillo::Blob* out_p);
 bool ReadFile(const std::string& path, std::string* out_p);
 bool ReadFileChunk(const std::string& path, off_t offset, off_t size,
-                   chromeos::Blob* out_p);
+                   brillo::Blob* out_p);
 
 // Invokes |cmd| in a pipe and appends its stdout to the container pointed to by
 // |out_p|. Returns true upon successfully reading all of the output, false
@@ -251,7 +251,7 @@ void HexDumpArray(const uint8_t* const arr, const size_t length);
 inline void HexDumpString(const std::string& str) {
   HexDumpArray(reinterpret_cast<const uint8_t*>(str.data()), str.size());
 }
-inline void HexDumpVector(const chromeos::Blob& vect) {
+inline void HexDumpVector(const brillo::Blob& vect) {
   HexDumpArray(vect.data(), vect.size());
 }
 
@@ -398,7 +398,7 @@ bool MonotonicDurationHelper(SystemState* system_state,
 
 // Look for the minor version value in the passed |store| and set
 // |minor_version| to that value. Return whether the value was found and valid.
-bool GetMinorVersion(const chromeos::KeyValueStore& store,
+bool GetMinorVersion(const brillo::KeyValueStore& store,
                      uint32_t* minor_version);
 
 // This function reads the specified data in |extents| into |out_data|. The
@@ -406,7 +406,7 @@ bool GetMinorVersion(const chromeos::KeyValueStore& store,
 // |out_data|. Returns false if the number of bytes to read given in
 // |extents| does not equal |out_data_size|.
 bool ReadExtents(const std::string& path, const std::vector<Extent>& extents,
-                 chromeos::Blob* out_data, ssize_t out_data_size,
+                 brillo::Blob* out_data, ssize_t out_data_size,
                  size_t block_size);
 
 // Read the current boot identifier and store it in |boot_id|. This identifier

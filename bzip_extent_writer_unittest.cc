@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-#include <chromeos/make_unique_ptr.h>
+#include <brillo/make_unique_ptr.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/test_utils.h"
@@ -79,19 +79,19 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
   };
 
   BzipExtentWriter bzip_writer(
-      chromeos::make_unique_ptr(new DirectExtentWriter()));
+      brillo::make_unique_ptr(new DirectExtentWriter()));
   EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
   EXPECT_TRUE(bzip_writer.Write(test, sizeof(test)));
   EXPECT_TRUE(bzip_writer.End());
 
-  chromeos::Blob buf;
+  brillo::Blob buf;
   EXPECT_TRUE(utils::ReadFile(path_, &buf));
   EXPECT_EQ(strlen(test_uncompressed), buf.size());
   EXPECT_EQ(string(buf.begin(), buf.end()), string(test_uncompressed));
 }
 
 TEST_F(BzipExtentWriterTest, ChunkedTest) {
-  const chromeos::Blob::size_type kDecompressedLength = 2048 * 1024;  // 2 MiB
+  const brillo::Blob::size_type kDecompressedLength = 2048 * 1024;  // 2 MiB
   string decompressed_path;
   ASSERT_TRUE(utils::MakeTempFile("BzipExtentWriterTest-decompressed-XXXXXX",
                                   &decompressed_path, nullptr));
@@ -106,7 +106,7 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   extent.set_num_blocks(kDecompressedLength / kBlockSize + 1);
   extents.push_back(extent);
 
-  chromeos::Blob decompressed_data(kDecompressedLength);
+  brillo::Blob decompressed_data(kDecompressedLength);
   test_utils::FillWithData(&decompressed_data);
 
   EXPECT_TRUE(test_utils::WriteFileVector(
@@ -115,15 +115,15 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   EXPECT_EQ(0, test_utils::System(
       string("cat ") + decompressed_path + "|bzip2>" + compressed_path));
 
-  chromeos::Blob compressed_data;
+  brillo::Blob compressed_data;
   EXPECT_TRUE(utils::ReadFile(compressed_path, &compressed_data));
 
   BzipExtentWriter bzip_writer(
-      chromeos::make_unique_ptr(new DirectExtentWriter()));
+      brillo::make_unique_ptr(new DirectExtentWriter()));
   EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
 
-  chromeos::Blob original_compressed_data = compressed_data;
-  for (chromeos::Blob::size_type i = 0; i < compressed_data.size();
+  brillo::Blob original_compressed_data = compressed_data;
+  for (brillo::Blob::size_type i = 0; i < compressed_data.size();
        i += kChunkSize) {
     size_t this_chunk_size = min(kChunkSize, compressed_data.size() - i);
     EXPECT_TRUE(bzip_writer.Write(&compressed_data[i], this_chunk_size));
@@ -133,7 +133,7 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   // Check that the const input has not been clobbered.
   test_utils::ExpectVectorsEq(original_compressed_data, compressed_data);
 
-  chromeos::Blob output;
+  brillo::Blob output;
   EXPECT_TRUE(utils::ReadFile(path_, &output));
   EXPECT_EQ(kDecompressedLength, output.size());
   test_utils::ExpectVectorsEq(decompressed_data, output);

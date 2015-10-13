@@ -20,7 +20,7 @@
 
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/type_name_undecorate.h>
+#include <brillo/type_name_undecorate.h>
 #include <shill/dbus-constants.h>
 #include <shill/dbus-proxies.h>
 
@@ -72,8 +72,8 @@ bool RealShillProvider::Init() {
   // Attempt to read initial connection status. Even if this fails because shill
   // is not responding (e.g. it is down) we'll be notified via "PropertyChanged"
   // signal as soon as it comes up, so this is not a critical step.
-  chromeos::VariantDictionary properties;
-  chromeos::ErrorPtr error;
+  brillo::VariantDictionary properties;
+  brillo::ErrorPtr error;
   if (!manager_proxy->GetProperties(&properties, &error))
     return true;
 
@@ -88,13 +88,13 @@ bool RealShillProvider::Init() {
 }
 
 void RealShillProvider::OnManagerPropertyChanged(const string& name,
-                                                 const chromeos::Any& value) {
+                                                 const brillo::Any& value) {
   if (name == shill::kDefaultServiceProperty) {
     dbus::ObjectPath service_path = value.TryGet<dbus::ObjectPath>();
     if (!service_path.IsValid()) {
       LOG(WARNING) << "Got an invalid DefaultService path. The property value "
                       "contains a "
-                   << chromeos::UndecorateTypeName(value.GetType().name())
+                   << brillo::UndecorateTypeName(value.GetType().name())
                    << ", read as the object path: '" << service_path.value()
                    << "'";
     }
@@ -136,8 +136,8 @@ bool RealShillProvider::ProcessDefaultService(
       shill_proxy_->GetServiceForPath(default_service_path_);
 
   // Get the connection properties synchronously.
-  chromeos::VariantDictionary properties;
-  chromeos::ErrorPtr error;
+  brillo::VariantDictionary properties;
+  brillo::ErrorPtr error;
   if (!service->GetProperties(&properties, &error)) {
     var_conn_type_.UnsetValue();
     var_conn_tethering_.UnsetValue();

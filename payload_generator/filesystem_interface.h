@@ -32,7 +32,7 @@
 #include <vector>
 
 #include <base/macros.h>
-#include <chromeos/key_value_store.h>
+#include <brillo/key_value_store.h>
 
 #include "update_engine/update_metadata.pb.h"
 
@@ -81,7 +81,7 @@ class FilesystemInterface {
 
   // Load the image settings stored in the filesystem in the
   // /etc/update_engine.conf file. Returns whether the settings were found.
-  virtual bool LoadSettings(chromeos::KeyValueStore* store) const = 0;
+  virtual bool LoadSettings(brillo::KeyValueStore* store) const = 0;
 
  protected:
   FilesystemInterface() = default;

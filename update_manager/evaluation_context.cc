@@ -32,7 +32,7 @@ using base::Callback;
 using base::Closure;
 using base::Time;
 using base::TimeDelta;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using chromeos_update_engine::ClockInterface;
 using std::string;
 using std::unique_ptr;

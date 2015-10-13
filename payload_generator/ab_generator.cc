@@ -272,7 +272,7 @@ bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
   TEST_AND_RETURN_FALSE(aop->op.type() == InstallOperation::REPLACE ||
                         aop->op.type() == InstallOperation::REPLACE_BZ);
 
-  chromeos::Blob data(aop->op.dst_length());
+  brillo::Blob data(aop->op.dst_length());
   vector<Extent> dst_extents;
   ExtentsToVector(aop->op.dst_extents(), &dst_extents);
   TEST_AND_RETURN_FALSE(utils::ReadExtents(target_part_path,
@@ -281,11 +281,11 @@ bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
                                            data.size(),
                                            kBlockSize));
 
-  chromeos::Blob data_bz;
+  brillo::Blob data_bz;
   TEST_AND_RETURN_FALSE(BzipCompress(data, &data_bz));
   CHECK(!data_bz.empty());
 
-  chromeos::Blob* data_p = nullptr;
+  brillo::Blob* data_p = nullptr;
   InstallOperation_Type new_op_type;
   if (data_bz.size() < data.size()) {
     new_op_type = InstallOperation::REPLACE_BZ;

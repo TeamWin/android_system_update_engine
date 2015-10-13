@@ -20,7 +20,7 @@
 #include <vector>
 
 #include <base/macros.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/file_writer.h"
 
@@ -56,13 +56,13 @@ class FakeFileWriter : public FileWriter {
     return 0;
   }
 
-  const chromeos::Blob& bytes() {
+  const brillo::Blob& bytes() {
     return bytes_;
   }
 
  private:
   // The internal store of all bytes that have been written
-  chromeos::Blob bytes_;
+  brillo::Blob bytes_;
 
   // These are just to ensure FileWriter methods are called properly.
   bool was_opened_;

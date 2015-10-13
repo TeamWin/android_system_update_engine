@@ -22,7 +22,7 @@
 #include <vector>
 
 #include <base/time/time.h>
-#include <chromeos/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/fake_message_loop.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
@@ -195,7 +195,7 @@ class UmChromeOSPolicyTest : public ::testing::Test {
         << "\nEvaluation context: " << eval_ctx_->DumpContext();
   }
 
-  chromeos::FakeMessageLoop loop_{nullptr};
+  brillo::FakeMessageLoop loop_{nullptr};
   FakeClock fake_clock_;
   FakeState fake_state_;
   scoped_refptr<EvaluationContext> eval_ctx_;

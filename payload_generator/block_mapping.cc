@@ -31,7 +31,7 @@ using std::vector;
 
 namespace {
 
-size_t HashValue(const chromeos::Blob& blob) {
+size_t HashValue(const brillo::Blob& blob) {
   std::hash<string> hash_fn;
   return hash_fn(string(blob.begin(), blob.end()));
 }
@@ -40,12 +40,12 @@ size_t HashValue(const chromeos::Blob& blob) {
 
 namespace chromeos_update_engine {
 
-BlockMapping::BlockId BlockMapping::AddBlock(const chromeos::Blob& block_data) {
+BlockMapping::BlockId BlockMapping::AddBlock(const brillo::Blob& block_data) {
   return AddBlock(-1, 0, block_data);
 }
 
 BlockMapping::BlockId BlockMapping::AddDiskBlock(int fd, off_t byte_offset) {
-  chromeos::Blob blob(block_size_);
+  brillo::Blob blob(block_size_);
   ssize_t bytes_read = 0;
   if (!utils::PReadAll(fd, blob.data(), block_size_, byte_offset, &bytes_read))
     return -1;
@@ -70,7 +70,7 @@ bool BlockMapping::AddManyDiskBlocks(int fd,
 
 BlockMapping::BlockId BlockMapping::AddBlock(int fd,
                                              off_t byte_offset,
-                                             const chromeos::Blob& block_data) {
+                                             const brillo::Blob& block_data) {
   if (block_data.size() != block_size_)
     return -1;
   size_t h = HashValue(block_data);
@@ -110,14 +110,14 @@ BlockMapping::BlockId BlockMapping::AddBlock(int fd,
   return new_ublock->block_id;
 }
 
-bool BlockMapping::UniqueBlock::CompareData(const chromeos::Blob& other_block,
+bool BlockMapping::UniqueBlock::CompareData(const brillo::Blob& other_block,
                                             bool* equals) {
   if (!block_data.empty()) {
     *equals = block_data == other_block;
     return true;
   }
   const size_t block_size = other_block.size();
-  chromeos::Blob blob(block_size);
+  brillo::Blob blob(block_size);
   ssize_t bytes_read = 0;
   if (!utils::PReadAll(fd, blob.data(), block_size, byte_offset, &bytes_read))
     return false;
@@ -144,7 +144,7 @@ bool MapPartitionBlocks(const string& old_part,
                         vector<BlockMapping::BlockId>* old_block_ids,
                         vector<BlockMapping::BlockId>* new_block_ids) {
   BlockMapping mapping(block_size);
-  if (mapping.AddBlock(chromeos::Blob(block_size, '\0')) != 0)
+  if (mapping.AddBlock(brillo::Blob(block_size, '\0')) != 0)
     return false;
   int old_fd = HANDLE_EINTR(open(old_part.c_str(), O_RDONLY));
   int new_fd = HANDLE_EINTR(open(new_part.c_str(), O_RDONLY));

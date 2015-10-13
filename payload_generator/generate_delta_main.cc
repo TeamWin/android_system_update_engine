@@ -27,7 +27,7 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
-#include <chromeos/flag_helper.h>
+#include <brillo/flag_helper.h>
 
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_constants.h"
@@ -113,7 +113,7 @@ void CalculatePayloadHashForSigning(const vector<int> &sizes,
   LOG_IF(FATAL, out_hash_file.empty())
       << "Must pass --out_hash_file to calculate hash for signing.";
 
-  chromeos::Blob hash;
+  brillo::Blob hash;
   bool result = PayloadSigner::HashPayloadForSigning(in_file, sizes,
                                                      &hash);
   CHECK(result);
@@ -133,7 +133,7 @@ void CalculateMetadataHashForSigning(const vector<int> &sizes,
   LOG_IF(FATAL, out_metadata_hash_file.empty())
       << "Must pass --out_metadata_hash_file to calculate metadata hash.";
 
-  chromeos::Blob hash;
+  brillo::Blob hash;
   bool result = PayloadSigner::HashMetadataForSigning(in_file, sizes,
                                                       &hash);
   CHECK(result);
@@ -156,11 +156,11 @@ void SignPayload(const string& in_file,
       << "Must pass --out_file to sign payload.";
   LOG_IF(FATAL, signature_file.empty())
       << "Must pass --signature_file to sign payload.";
-  vector<chromeos::Blob> signatures;
+  vector<brillo::Blob> signatures;
   vector<string> signature_files;
   base::SplitString(signature_file, ':', &signature_files);
   for (const string& signature_file : signature_files) {
-    chromeos::Blob signature;
+    brillo::Blob signature;
     CHECK(utils::ReadFile(signature_file, &signature));
     signatures.push_back(signature);
   }
@@ -225,7 +225,7 @@ void ApplyDelta(const string& in_file,
   }
 
   DeltaPerformer performer(&prefs, nullptr, &install_plan);
-  chromeos::Blob buf(1024 * 1024);
+  brillo::Blob buf(1024 * 1024);
   int fd = open(in_file.c_str(), O_RDONLY, 0);
   CHECK_GE(fd, 0);
   ScopedFdCloser fd_closer(&fd);
@@ -341,7 +341,7 @@ int Main(int argc, char** argv) {
   DEFINE_string(new_build_version, "",
                 "The version of the build containing the new image.");
 
-  chromeos::FlagHelper::Init(argc, argv,
+  brillo::FlagHelper::Init(argc, argv,
       "Generates a payload to provide to ChromeOS' update_engine.\n\n"
       "This tool can create full payloads and also delta payloads if the src\n"
       "image is provided. It also provides debugging options to apply, sign\n"
@@ -499,7 +499,7 @@ int Main(int argc, char** argv) {
     // image.
     if (payload_config.is_delta) {
       payload_config.minor_version = kInPlaceMinorPayloadVersion;
-      chromeos::KeyValueStore store;
+      brillo::KeyValueStore store;
       uint32_t minor_version;
       for (const PartitionConfig& part : payload_config.source.partitions) {
         if (part.fs_interface && part.fs_interface->LoadSettings(&store) &&

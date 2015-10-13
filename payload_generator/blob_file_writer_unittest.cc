@@ -40,12 +40,12 @@ TEST(BlobFileWriterTest, SimpleTest) {
   BlobFileWriter blob_file(blob_fd, &blob_file_size);
 
   off_t blob_size = 1024;
-  chromeos::Blob blob(blob_size);
+  brillo::Blob blob(blob_size);
   FillWithData(&blob);
   EXPECT_EQ(0, blob_file.StoreBlob(blob));
   EXPECT_EQ(blob_size, blob_file.StoreBlob(blob));
 
-  chromeos::Blob stored_blob(blob_size);
+  brillo::Blob stored_blob(blob_size);
   ssize_t bytes_read;
   ASSERT_TRUE(utils::PReadAll(blob_fd,
                               stored_blob.data(),

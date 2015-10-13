@@ -22,9 +22,9 @@
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/bind_lambda.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/strings/string_utils.h>
+#include <brillo/bind_lambda.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/strings/string_utils.h>
 #include <policy/device_policy.h>
 #include <update_engine/dbus-constants.h>
 
@@ -38,8 +38,8 @@
 #include "update_engine/utils.h"
 
 using base::StringPrintf;
-using chromeos::ErrorPtr;
-using chromeos::string_utils::ToString;
+using brillo::ErrorPtr;
+using brillo::string_utils::ToString;
 using std::set;
 using std::string;
 using update_engine::AttemptUpdateFlags;
@@ -50,9 +50,9 @@ namespace {
 void LogAndSetError(ErrorPtr *error,
                     const tracked_objects::Location& location,
                     const string& reason) {
-  chromeos::Error::AddTo(
+  brillo::Error::AddTo(
       error, location,
-      chromeos::errors::dbus::kDomain,
+      brillo::errors::dbus::kDomain,
       update_engine::kUpdateEngineServiceErrorFailed, reason);
   LOG(ERROR) << "Sending DBus Failure: " << location.ToString() << ": "
              << reason;

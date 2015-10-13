@@ -25,8 +25,8 @@
 #include <string>
 #include <vector>
 
-#include <chromeos/make_unique_ptr.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/make_unique_ptr.h>
+#include <brillo/secure_blob.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/payload_constants.h"
@@ -88,10 +88,10 @@ TEST_F(ExtentWriterTest, SimpleTest) {
 
   EXPECT_EQ(kBlockSize + bytes.size(), utils::FileSize(path_));
 
-  chromeos::Blob result_file;
+  brillo::Blob result_file;
   EXPECT_TRUE(utils::ReadFile(path_, &result_file));
 
-  chromeos::Blob expected_file(kBlockSize);
+  brillo::Blob expected_file(kBlockSize);
   expected_file.insert(expected_file.end(),
                        bytes.data(), bytes.data() + bytes.size());
   ExpectVectorsEq(expected_file, result_file);
@@ -136,7 +136,7 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
   extent.set_num_blocks(1);
   extents.push_back(extent);
 
-  chromeos::Blob data(kBlockSize * 3);
+  brillo::Blob data(kBlockSize * 3);
   test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
@@ -155,10 +155,10 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
 
   EXPECT_EQ(data.size(), utils::FileSize(path_));
 
-  chromeos::Blob result_file;
+  brillo::Blob result_file;
   EXPECT_TRUE(utils::ReadFile(path_, &result_file));
 
-  chromeos::Blob expected_file;
+  brillo::Blob expected_file;
   expected_file.insert(expected_file.end(),
                        data.begin() + kBlockSize,
                        data.begin() + kBlockSize * 2);
@@ -187,11 +187,11 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
   extent.set_num_blocks(1);
   extents.push_back(extent);
 
-  chromeos::Blob data(kBlockSize * 2);
+  brillo::Blob data(kBlockSize * 2);
   test_utils::FillWithData(&data);
 
   ZeroPadExtentWriter zero_pad_writer(
-      chromeos::make_unique_ptr(new DirectExtentWriter()));
+      brillo::make_unique_ptr(new DirectExtentWriter()));
 
   EXPECT_TRUE(zero_pad_writer.Init(fd_, extents, kBlockSize));
   size_t bytes_to_write = data.size();
@@ -204,10 +204,10 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
 
   EXPECT_EQ(data.size(), utils::FileSize(path_));
 
-  chromeos::Blob result_file;
+  brillo::Blob result_file;
   EXPECT_TRUE(utils::ReadFile(path_, &result_file));
 
-  chromeos::Blob expected_file;
+  brillo::Blob expected_file;
   expected_file.insert(expected_file.end(),
                        data.begin() + kBlockSize,
                        data.begin() + kBlockSize * 2);
@@ -235,7 +235,7 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   const int block_count = 4;
   const int on_disk_count = 2;
 
-  chromeos::Blob data(17);
+  brillo::Blob data(17);
   test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
@@ -253,13 +253,13 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   // check file size, then data inside
   ASSERT_EQ(2 * kBlockSize, utils::FileSize(path_));
 
-  chromeos::Blob resultant_data;
+  brillo::Blob resultant_data;
   EXPECT_TRUE(utils::ReadFile(path_, &resultant_data));
 
   // Create expected data
-  chromeos::Blob expected_data(on_disk_count * kBlockSize);
-  chromeos::Blob big(block_count * kBlockSize);
-  for (chromeos::Blob::size_type i = 0; i < big.size(); i++) {
+  brillo::Blob expected_data(on_disk_count * kBlockSize);
+  brillo::Blob big(block_count * kBlockSize);
+  for (brillo::Blob::size_type i = 0; i < big.size(); i++) {
     big[i] = data[i % data.size()];
   }
   memcpy(&expected_data[kBlockSize], &big[0], kBlockSize);

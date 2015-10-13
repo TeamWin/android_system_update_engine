@@ -18,14 +18,14 @@
 
 #include <vector>
 
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 using base::TimeDelta;
-using chromeos::MessageLoop;
-using chromeos::MessageLoopRunMaxIterations;
+using brillo::MessageLoop;
+using brillo::MessageLoopRunMaxIterations;
 using std::string;
 using std::vector;
 
@@ -57,7 +57,7 @@ class UmBaseVariableTest : public ::testing::Test {
     loop_.SetAsCurrent();
   }
 
-  chromeos::FakeMessageLoop loop_{nullptr};
+  brillo::FakeMessageLoop loop_{nullptr};
 };
 
 TEST_F(UmBaseVariableTest, GetNameTest) {

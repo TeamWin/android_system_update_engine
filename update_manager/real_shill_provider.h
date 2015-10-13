@@ -69,7 +69,7 @@ class RealShillProvider : public ShillProvider {
  private:
   // A handler for ManagerProxy.PropertyChanged signal.
   void OnManagerPropertyChanged(const std::string& name,
-                                const chromeos::Any& value);
+                                const brillo::Any& value);
 
   // Called when the signal in ManagerProxy.PropertyChanged is connected.
   void OnSignalConnected(const std::string& interface_name,

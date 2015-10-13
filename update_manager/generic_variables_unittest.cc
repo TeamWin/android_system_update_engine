@@ -19,15 +19,15 @@
 #include <memory>
 
 #include <base/callback.h>
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/update_manager/umtest_utils.h"
 
-using chromeos::MessageLoop;
-using chromeos::MessageLoopRunMaxIterations;
+using brillo::MessageLoop;
+using brillo::MessageLoopRunMaxIterations;
 using std::unique_ptr;
 
 namespace chromeos_update_manager {
@@ -158,7 +158,7 @@ class UmAsyncCopyVariableTest : public ::testing::Test {
   }
 
 
-  chromeos::FakeMessageLoop loop_{nullptr};
+  brillo::FakeMessageLoop loop_{nullptr};
 };
 
 TEST_F(UmAsyncCopyVariableTest, ConstructorTest) {

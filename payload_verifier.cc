@@ -86,10 +86,10 @@ const uint8_t kRSA2048SHA256Padding[] = {
 }  // namespace
 
 bool PayloadVerifier::LoadPayload(const string& payload_path,
-                                  chromeos::Blob* out_payload,
+                                  brillo::Blob* out_payload,
                                   DeltaArchiveManifest* out_manifest,
                                   uint64_t* out_metadata_size) {
-  chromeos::Blob payload;
+  brillo::Blob payload;
   // Loads the payload and parses the manifest.
   TEST_AND_RETURN_FALSE(utils::ReadFile(payload_path, &payload));
   LOG(INFO) << "Payload size: " << payload.size();
@@ -106,9 +106,9 @@ bool PayloadVerifier::LoadPayload(const string& payload_path,
   return true;
 }
 
-bool PayloadVerifier::VerifySignature(const chromeos::Blob& signature_blob,
+bool PayloadVerifier::VerifySignature(const brillo::Blob& signature_blob,
                                       const string& public_key_path,
-                                      const chromeos::Blob& hash_data) {
+                                      const brillo::Blob& hash_data) {
   TEST_AND_RETURN_FALSE(!public_key_path.empty());
 
   Signatures signatures;
@@ -121,12 +121,12 @@ bool PayloadVerifier::VerifySignature(const chromeos::Blob& signature_blob,
     return false;
   }
 
-  std::vector<chromeos::Blob> tested_hashes;
+  std::vector<brillo::Blob> tested_hashes;
   // Tries every signature in the signature blob.
   for (int i = 0; i < signatures.signatures_size(); i++) {
     const Signatures_Signature& signature = signatures.signatures(i);
-    chromeos::Blob sig_data(signature.data().begin(), signature.data().end());
-    chromeos::Blob sig_hash_data;
+    brillo::Blob sig_data(signature.data().begin(), signature.data().end());
+    brillo::Blob sig_hash_data;
     if (!GetRawHashFromSignature(sig_data, public_key_path, &sig_hash_data))
       continue;
 
@@ -149,9 +149,9 @@ bool PayloadVerifier::VerifySignature(const chromeos::Blob& signature_blob,
 
 
 bool PayloadVerifier::GetRawHashFromSignature(
-    const chromeos::Blob& sig_data,
+    const brillo::Blob& sig_data,
     const string& public_key_path,
-    chromeos::Blob* out_hash_data) {
+    brillo::Blob* out_hash_data) {
   TEST_AND_RETURN_FALSE(!public_key_path.empty());
 
   // The code below executes the equivalent of:
@@ -178,7 +178,7 @@ bool PayloadVerifier::GetRawHashFromSignature(
   }
 
   // Decrypts the signature.
-  chromeos::Blob hash_data(keysize);
+  brillo::Blob hash_data(keysize);
   int decrypt_size = RSA_public_decrypt(sig_data.size(),
                                         sig_data.data(),
                                         hash_data.data(),
@@ -194,7 +194,7 @@ bool PayloadVerifier::GetRawHashFromSignature(
 
 bool PayloadVerifier::VerifySignedPayload(const string& payload_path,
                                           const string& public_key_path) {
-  chromeos::Blob payload;
+  brillo::Blob payload;
   DeltaArchiveManifest manifest;
   uint64_t metadata_size;
   TEST_AND_RETURN_FALSE(LoadPayload(
@@ -204,10 +204,10 @@ bool PayloadVerifier::VerifySignedPayload(const string& payload_path,
   CHECK_EQ(payload.size(),
            metadata_size + manifest.signatures_offset() +
            manifest.signatures_size());
-  chromeos::Blob signature_blob(
+  brillo::Blob signature_blob(
       payload.begin() + metadata_size + manifest.signatures_offset(),
       payload.end());
-  chromeos::Blob hash;
+  brillo::Blob hash;
   TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfBytes(
       payload.data(), metadata_size + manifest.signatures_offset(), &hash));
   TEST_AND_RETURN_FALSE(PadRSA2048SHA256Hash(&hash));
@@ -216,7 +216,7 @@ bool PayloadVerifier::VerifySignedPayload(const string& payload_path,
   return true;
 }
 
-bool PayloadVerifier::PadRSA2048SHA256Hash(chromeos::Blob* hash) {
+bool PayloadVerifier::PadRSA2048SHA256Hash(brillo::Blob* hash) {
   TEST_AND_RETURN_FALSE(hash->size() == 32);
   hash->insert(hash->begin(),
                reinterpret_cast<const char*>(kRSA2048SHA256Padding),

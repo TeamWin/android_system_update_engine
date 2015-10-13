@@ -23,7 +23,7 @@
 #include <vector>
 
 #include <base/time/time.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
@@ -147,7 +147,7 @@ class DeltaPerformer : public FileWriter {
   // kMetadataParseInsufficientData if more data is needed to parse the complete
   // metadata. Returns kMetadataParseError if the metadata can't be parsed given
   // the payload.
-  MetadataParseResult ParsePayloadMetadata(const chromeos::Blob& payload,
+  MetadataParseResult ParsePayloadMetadata(const brillo::Blob& payload,
                                            ErrorCode* error);
 
   void set_public_key_path(const std::string& public_key_path) {
@@ -331,7 +331,7 @@ class DeltaPerformer : public FileWriter {
   // A buffer used for accumulating downloaded data. Initially, it stores the
   // payload metadata; once that's downloaded and parsed, it stores data for the
   // next update operation.
-  chromeos::Blob buffer_;
+  brillo::Blob buffer_;
   // Offset of buffer_ in the binary blobs section of the update.
   uint64_t buffer_offset_{0};
 
@@ -348,7 +348,7 @@ class DeltaPerformer : public FileWriter {
   std::string signed_hash_context_;
 
   // Signatures message blob extracted directly from the payload.
-  chromeos::Blob signatures_message_data_;
+  brillo::Blob signatures_message_data_;
 
   // The public key to be used. Provided as a member so that tests can
   // override with test keys.

@@ -30,7 +30,7 @@
 #include "update_engine/hardware_interface.h"
 
 using base::TimeDelta;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::max;
 using std::string;
 

@@ -102,10 +102,10 @@ class DeltaPerformerTest : public ::testing::Test {
     EXPECT_EQ(expected, performer_.ValidateManifest());
   }
 
-  chromeos::Blob GeneratePayload(const chromeos::Blob& blob_data,
-                                 const vector<AnnotatedOperation>& aops,
-                                 bool sign_payload,
-                                 int32_t minor_version) {
+  brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
+                               const vector<AnnotatedOperation>& aops,
+                               bool sign_payload,
+                               int32_t minor_version) {
     string blob_path;
     EXPECT_TRUE(utils::MakeTempFile("Blob-XXXXXX", &blob_path, nullptr));
     ScopedPathUnlinker blob_unlinker(blob_path);
@@ -140,24 +140,24 @@ class DeltaPerformerTest : public ::testing::Test {
         sign_payload ? kUnittestPrivateKeyPath : "",
         &install_plan_.metadata_size));
 
-    chromeos::Blob payload_data;
+    brillo::Blob payload_data;
     EXPECT_TRUE(utils::ReadFile(payload_path, &payload_data));
     return payload_data;
   }
 
   // Apply |payload_data| on partition specified in |source_path|.
-  chromeos::Blob ApplyPayload(const chromeos::Blob& payload_data,
-                              const string& source_path) {
-    return ApplyPayloadToData(payload_data, source_path, chromeos::Blob());
+  brillo::Blob ApplyPayload(const brillo::Blob& payload_data,
+                            const string& source_path) {
+    return ApplyPayloadToData(payload_data, source_path, brillo::Blob());
   }
 
   // Apply the payload provided in |payload_data| reading from the |source_path|
   // file and writing the contents to a new partition. The existing data in the
   // new target file are set to |target_data| before applying the payload.
   // Returns the result of the payload application.
-  chromeos::Blob ApplyPayloadToData(const chromeos::Blob& payload_data,
-                                    const string& source_path,
-                                    const chromeos::Blob& target_data) {
+  brillo::Blob ApplyPayloadToData(const brillo::Blob& payload_data,
+                                  const string& source_path,
+                                  const brillo::Blob& target_data) {
     string new_part;
     EXPECT_TRUE(utils::MakeTempFile("Partition-XXXXXX", &new_part, nullptr));
     ScopedPathUnlinker partition_unlinker(new_part);
@@ -178,7 +178,7 @@ class DeltaPerformerTest : public ::testing::Test {
     EXPECT_TRUE(performer_.Write(payload_data.data(), payload_data.size()));
     EXPECT_EQ(0, performer_.Close());
 
-    chromeos::Blob partition_data;
+    brillo::Blob partition_data;
     EXPECT_TRUE(utils::ReadFile(new_part, &partition_data));
     return partition_data;
   }
@@ -222,7 +222,7 @@ class DeltaPerformerTest : public ::testing::Test {
                                bool hash_checks_mandatory) {
 
     // Loads the payload and parses the manifest.
-    chromeos::Blob payload = GeneratePayload(chromeos::Blob(),
+    brillo::Blob payload = GeneratePayload(brillo::Blob(),
         vector<AnnotatedOperation>(), sign_payload,
         kFullPayloadMinorVersion);
 
@@ -298,8 +298,8 @@ class DeltaPerformerTest : public ::testing::Test {
 
 TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
   install_plan_.is_full_update = true;
-  chromeos::Blob expected_data = chromeos::Blob(std::begin(kRandomString),
-                                                std::end(kRandomString));
+  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
+                                            std::end(kRandomString));
   expected_data.resize(4096);  // block size
   vector<AnnotatedOperation> aops;
   AnnotatedOperation aop;
@@ -309,15 +309,15 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
   aop.op.set_type(InstallOperation::REPLACE);
   aops.push_back(aop);
 
-  chromeos::Blob payload_data = GeneratePayload(expected_data, aops, false,
+  brillo::Blob payload_data = GeneratePayload(expected_data, aops, false,
       kFullPayloadMinorVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
 }
 
 TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
-  chromeos::Blob expected_data = chromeos::Blob(std::begin(kRandomString),
-                                                std::end(kRandomString));
+  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
+                                            std::end(kRandomString));
   expected_data.resize(4096);  // block size
   vector<AnnotatedOperation> aops;
   AnnotatedOperation aop;
@@ -327,17 +327,17 @@ TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
   aop.op.set_type(InstallOperation::REPLACE);
   aops.push_back(aop);
 
-  chromeos::Blob payload_data = GeneratePayload(expected_data, aops, false,
-                                                kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(expected_data, aops, false,
+                                              kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
 }
 
 TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
-  chromeos::Blob expected_data = chromeos::Blob(std::begin(kRandomString),
-                                                std::end(kRandomString));
+  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
+                                            std::end(kRandomString));
   expected_data.resize(4096);  // block size
-  chromeos::Blob bz_data;
+  brillo::Blob bz_data;
   EXPECT_TRUE(BzipCompress(expected_data, &bz_data));
 
   vector<AnnotatedOperation> aops;
@@ -348,18 +348,18 @@ TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
   aop.op.set_type(InstallOperation::REPLACE_BZ);
   aops.push_back(aop);
 
-  chromeos::Blob payload_data = GeneratePayload(bz_data, aops, false,
-                                                kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(bz_data, aops, false,
+                                              kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
 }
 
 TEST_F(DeltaPerformerTest, ReplaceXzOperationTest) {
-  chromeos::Blob xz_data(std::begin(kXzCompressedData),
+  brillo::Blob xz_data(std::begin(kXzCompressedData),
                          std::end(kXzCompressedData));
   // The compressed xz data contains only a single "a", but the operation should
   // pad the rest of the two blocks with zeros.
-  chromeos::Blob expected_data = chromeos::Blob(4096, 0);
+  brillo::Blob expected_data = brillo::Blob(4096, 0);
   expected_data[0] = 'a';
 
   AnnotatedOperation aop;
@@ -369,15 +369,15 @@ TEST_F(DeltaPerformerTest, ReplaceXzOperationTest) {
   aop.op.set_type(InstallOperation::REPLACE_XZ);
   vector<AnnotatedOperation> aops = {aop};
 
-  chromeos::Blob payload_data = GeneratePayload(xz_data, aops, false,
-                                                kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(xz_data, aops, false,
+                                              kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
 }
 
 TEST_F(DeltaPerformerTest, ZeroOperationTest) {
-  chromeos::Blob existing_data = chromeos::Blob(4096 * 10, 'a');
-  chromeos::Blob expected_data = existing_data;
+  brillo::Blob existing_data = brillo::Blob(4096 * 10, 'a');
+  brillo::Blob expected_data = existing_data;
   // Blocks 4, 5 and 7 should have zeros instead of 'a' after the operation is
   // applied.
   std::fill(expected_data.data() + 4096 * 4, expected_data.data() + 4096 * 6,
@@ -391,16 +391,16 @@ TEST_F(DeltaPerformerTest, ZeroOperationTest) {
   aop.op.set_type(InstallOperation::ZERO);
   vector<AnnotatedOperation> aops = {aop};
 
-  chromeos::Blob payload_data = GeneratePayload(chromeos::Blob(), aops, false,
-                                                kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), aops, false,
+                                              kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data,
             ApplyPayloadToData(payload_data, "/dev/null", existing_data));
 }
 
 TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
-  chromeos::Blob expected_data = chromeos::Blob(std::begin(kRandomString),
-                                                std::end(kRandomString));
+  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
+                                            std::end(kRandomString));
   expected_data.resize(4096);  // block size
   vector<AnnotatedOperation> aops;
   AnnotatedOperation aop;
@@ -409,8 +409,8 @@ TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
   aop.op.set_type(InstallOperation::SOURCE_COPY);
   aops.push_back(aop);
 
-  chromeos::Blob payload_data = GeneratePayload(chromeos::Blob(), aops, false,
-                                                kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), aops, false,
+                                              kSourceMinorPayloadVersion);
   string source_path;
   EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX",
                                   &source_path, nullptr));
@@ -680,7 +680,7 @@ TEST_F(DeltaPerformerTest, ConfVersionsMatch) {
   // Test that the versions in update_engine.conf that is installed to the
   // image match the supported delta versions in the update engine.
   uint32_t minor_version;
-  chromeos::KeyValueStore store;
+  brillo::KeyValueStore store;
   EXPECT_TRUE(store.Load(base::FilePath("update_engine.conf")));
   EXPECT_TRUE(utils::GetMinorVersion(store, &minor_version));
   EXPECT_EQ(DeltaPerformer::kSupportedMinorPayloadVersion, minor_version);

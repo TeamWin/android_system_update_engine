@@ -58,7 +58,7 @@ using base::FilePath;
 using base::StringPrintf;
 using base::Time;
 using base::TimeDelta;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateManager;

@@ -21,7 +21,7 @@
 #include <string>
 
 #include <base/logging.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/utils.h"
 
@@ -71,8 +71,8 @@ class DirectProxyResolver : public ProxyResolver {
 
  private:
   // The ID of the main loop callback.
-  chromeos::MessageLoop::TaskId idle_callback_id_{
-      chromeos::MessageLoop::kTaskIdNull};
+  brillo::MessageLoop::TaskId idle_callback_id_{
+      brillo::MessageLoop::kTaskIdNull};
 
   // Number of direct proxies to return on resolved list; currently used for
   // testing.

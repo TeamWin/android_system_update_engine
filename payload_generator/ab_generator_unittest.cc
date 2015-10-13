@@ -59,7 +59,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
       "SplitReplaceOrReplaceBzTest_part.XXXXXX", &part_path, nullptr));
   ScopedPathUnlinker part_path_unlinker(part_path);
   const size_t part_size = part_num_blocks * kBlockSize;
-  chromeos::Blob part_data;
+  brillo::Blob part_data;
   if (compressible) {
     part_data.resize(part_size);
     test_utils::FillWithData(&part_data);
@@ -85,14 +85,14 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
                                            op_ex2_num_blocks);
   op.set_dst_length(op_ex1_num_blocks + op_ex2_num_blocks);
 
-  chromeos::Blob op_data;
+  brillo::Blob op_data;
   op_data.insert(op_data.end(),
                  part_data.begin() + op_ex1_offset,
                  part_data.begin() + op_ex1_offset + op_ex1_size);
   op_data.insert(op_data.end(),
                  part_data.begin() + op_ex2_offset,
                  part_data.begin() + op_ex2_offset + op_ex2_size);
-  chromeos::Blob op_blob;
+  brillo::Blob op_blob;
   if (orig_type == InstallOperation::REPLACE) {
     op_blob = op_data;
   } else {
@@ -137,10 +137,10 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   EXPECT_TRUE(ExtentEquals(first_op.dst_extents(0), op_ex1_start_block,
                            op_ex1_num_blocks));
   // Obtain the expected blob.
-  chromeos::Blob first_expected_data(
+  brillo::Blob first_expected_data(
       part_data.begin() + op_ex1_offset,
       part_data.begin() + op_ex1_offset + op_ex1_size);
-  chromeos::Blob first_expected_blob;
+  brillo::Blob first_expected_blob;
   if (compressible) {
     ASSERT_TRUE(BzipCompress(first_expected_data, &first_expected_blob));
   } else {
@@ -148,7 +148,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   }
   EXPECT_EQ(first_expected_blob.size(), first_op.data_length());
   // Check that the actual blob matches what's expected.
-  chromeos::Blob first_data_blob(first_op.data_length());
+  brillo::Blob first_data_blob(first_op.data_length());
   ssize_t bytes_read;
   ASSERT_TRUE(utils::PReadAll(data_fd,
                               first_data_blob.data(),
@@ -166,10 +166,10 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   EXPECT_TRUE(ExtentEquals(second_op.dst_extents(0), op_ex2_start_block,
                            op_ex2_num_blocks));
   // Obtain the expected blob.
-  chromeos::Blob second_expected_data(
+  brillo::Blob second_expected_data(
       part_data.begin() + op_ex2_offset,
       part_data.begin() + op_ex2_offset + op_ex2_size);
-  chromeos::Blob second_expected_blob;
+  brillo::Blob second_expected_blob;
   if (compressible) {
     ASSERT_TRUE(BzipCompress(second_expected_data, &second_expected_blob));
   } else {
@@ -177,7 +177,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   }
   EXPECT_EQ(second_expected_blob.size(), second_op.data_length());
   // Check that the actual blob matches what's expected.
-  chromeos::Blob second_data_blob(second_op.data_length());
+  brillo::Blob second_data_blob(second_op.data_length());
   ASSERT_TRUE(utils::PReadAll(data_fd,
                               second_data_blob.data(),
                               second_op.data_length(),
@@ -210,7 +210,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
       "MergeReplaceOrReplaceBzTest_part.XXXXXX", &part_path, nullptr));
   ScopedPathUnlinker part_path_unlinker(part_path);
   const size_t part_size = part_num_blocks * kBlockSize;
-  chromeos::Blob part_data;
+  brillo::Blob part_data;
   if (compressible) {
     part_data.resize(part_size);
     test_utils::FillWithData(&part_data);
@@ -225,7 +225,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
 
   // Create original operations and blob data.
   vector<AnnotatedOperation> aops;
-  chromeos::Blob blob_data;
+  brillo::Blob blob_data;
   const size_t total_op_size = total_op_num_blocks * kBlockSize;
 
   InstallOperation first_op;
@@ -233,9 +233,9 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   const size_t first_op_size = first_op_num_blocks * kBlockSize;
   first_op.set_dst_length(first_op_size);
   *(first_op.add_dst_extents()) = ExtentForRange(0, first_op_num_blocks);
-  chromeos::Blob first_op_data(part_data.begin(),
+  brillo::Blob first_op_data(part_data.begin(),
                                part_data.begin() + first_op_size);
-  chromeos::Blob first_op_blob;
+  brillo::Blob first_op_blob;
   if (orig_type == InstallOperation::REPLACE) {
     first_op_blob = first_op_data;
   } else {
@@ -255,9 +255,9 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   second_op.set_dst_length(second_op_size);
   *(second_op.add_dst_extents()) = ExtentForRange(first_op_num_blocks,
                                                   second_op_num_blocks);
-  chromeos::Blob second_op_data(part_data.begin() + first_op_size,
+  brillo::Blob second_op_data(part_data.begin() + first_op_size,
                                 part_data.begin() + total_op_size);
-  chromeos::Blob second_op_blob;
+  brillo::Blob second_op_blob;
   if (orig_type == InstallOperation::REPLACE) {
     second_op_blob = second_op_data;
   } else {
@@ -302,9 +302,9 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   EXPECT_EQ("first,second", aops[0].name);
 
   // Check to see if the blob pointed to in the new extent has what we expect.
-  chromeos::Blob expected_data(part_data.begin(),
+  brillo::Blob expected_data(part_data.begin(),
                                part_data.begin() + total_op_size);
-  chromeos::Blob expected_blob;
+  brillo::Blob expected_blob;
   if (compressible) {
     ASSERT_TRUE(BzipCompress(expected_data, &expected_blob));
   } else {
@@ -312,7 +312,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   }
   ASSERT_EQ(expected_blob.size(), new_op.data_length());
   ASSERT_EQ(blob_data.size() + expected_blob.size(), data_file_size);
-  chromeos::Blob new_op_blob(new_op.data_length());
+  brillo::Blob new_op_blob(new_op.data_length());
   ssize_t bytes_read;
   ASSERT_TRUE(utils::PReadAll(data_fd,
                               new_op_blob.data(),

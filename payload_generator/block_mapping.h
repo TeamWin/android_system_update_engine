@@ -21,14 +21,14 @@
 #include <string>
 #include <vector>
 
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/payload_generator/payload_generation_config.h"
 
 namespace chromeos_update_engine {
 
-// BlockMapping allows to map data blocks (chromeos::Blobs of block_size size)
+// BlockMapping allows to map data blocks (brillo::Blobs of block_size size)
 // into unique integer values called "block ids". This mapping differs from a
 // hash function in that two blocks with the same data will have the same id but
 // also two blocks with the same id will have the same data. This is only valid
@@ -41,7 +41,7 @@ class BlockMapping {
 
   // Add a single data block to the mapping. Returns its unique block id.
   // In case of error returns -1.
-  BlockId AddBlock(const chromeos::Blob& block_data);
+  BlockId AddBlock(const brillo::Blob& block_data);
 
   // Add a block from disk reading it from the file descriptor |fd| from the
   // offset in bytes |byte_offset|. The data block may or may not be cached, so
@@ -62,7 +62,7 @@ class BlockMapping {
   // Add a single block passed in |block_data|. If |fd| is not -1, the block
   // can be discarded to save RAM and retrieved later from |fd| at the position
   // |byte_offset|.
-  BlockId AddBlock(int fd, off_t byte_offset, const chromeos::Blob& block_data);
+  BlockId AddBlock(int fd, off_t byte_offset, const brillo::Blob& block_data);
 
   size_t block_size_;
 
@@ -71,7 +71,7 @@ class BlockMapping {
   // The UniqueBlock represents the data of a block associated to a unique
   // block id.
   struct UniqueBlock {
-    chromeos::Blob block_data;
+    brillo::Blob block_data;
 
     // The block id assigned to this unique block.
     BlockId block_id;
@@ -86,7 +86,7 @@ class BlockMapping {
     // Compares the UniqueBlock data with the other_block data and stores if
     // they are equal in |equals|. Returns whether there was an error reading
     // the block from disk while comparing it.
-    bool CompareData(const chromeos::Blob& other_block, bool* equals);
+    bool CompareData(const brillo::Blob& other_block, bool* equals);
   };
 
   // A mapping from hash values to possible block ids.

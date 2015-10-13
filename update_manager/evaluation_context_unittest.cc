@@ -20,8 +20,8 @@
 #include <string>
 
 #include <base/bind.h>
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
@@ -34,9 +34,9 @@ using base::Bind;
 using base::Closure;
 using base::Time;
 using base::TimeDelta;
-using chromeos::MessageLoop;
-using chromeos::MessageLoopRunMaxIterations;
-using chromeos::MessageLoopRunUntil;
+using brillo::MessageLoop;
+using brillo::MessageLoopRunMaxIterations;
+using brillo::MessageLoopRunUntil;
 using chromeos_update_engine::FakeClock;
 using std::string;
 using std::unique_ptr;
@@ -121,7 +121,7 @@ class UmEvaluationContextTest : public ::testing::Test {
 
   TimeDelta default_timeout_ = TimeDelta::FromSeconds(5);
 
-  chromeos::FakeMessageLoop loop_{nullptr};
+  brillo::FakeMessageLoop loop_{nullptr};
   FakeClock fake_clock_;
   scoped_refptr<EvaluationContext> eval_ctx_;
 

@@ -20,7 +20,7 @@
 #include <base/macros.h>
 
 #include <base/synchronization/lock.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 namespace chromeos_update_engine {
 
@@ -34,7 +34,7 @@ class BlobFileWriter {
 
   // Store the passed |blob| in the blob file. Returns the offset at which it
   // was stored, or -1 in case of failure.
-  off_t StoreBlob(const chromeos::Blob& blob);
+  off_t StoreBlob(const brillo::Blob& blob);
 
   // The number of |total_blobs| is the number of blobs that will be stored but
   // is only used for logging purposes. If not set, logging will be skipped.

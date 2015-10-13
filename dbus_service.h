@@ -22,17 +22,11 @@
 #include <string>
 
 #include <base/memory/ref_counted.h>
-#include <chromeos/errors/error.h>
+#include <brillo/errors/error.h>
 
 #include "update_engine/update_attempter.h"
 
 #include "dbus_bindings/org.chromium.UpdateEngineInterface.h"
-
-namespace chromeos {
-namespace dbus {
-class Bus;
-}  // namespace dbus
-}  // namespace chromeos
 
 namespace chromeos_update_engine {
 
@@ -43,29 +37,29 @@ class UpdateEngineService
   virtual ~UpdateEngineService() = default;
 
   // Implementation of org::chromium::UpdateEngineInterfaceInterface.
-  bool AttemptUpdate(chromeos::ErrorPtr* error,
+  bool AttemptUpdate(brillo::ErrorPtr* error,
                      const std::string& in_app_version,
                      const std::string& in_omaha_url) override;
 
-  bool AttemptUpdateWithFlags(chromeos::ErrorPtr* error,
+  bool AttemptUpdateWithFlags(brillo::ErrorPtr* error,
                               const std::string& in_app_version,
                               const std::string& in_omaha_url,
                               int32_t in_flags_as_int) override;
 
-  bool AttemptRollback(chromeos::ErrorPtr* error, bool in_powerwash) override;
+  bool AttemptRollback(brillo::ErrorPtr* error, bool in_powerwash) override;
 
   // Checks if the system rollback is available by verifying if the secondary
   // system partition is valid and bootable.
-  bool CanRollback(chromeos::ErrorPtr* error, bool* out_can_rollback) override;
+  bool CanRollback(brillo::ErrorPtr* error, bool* out_can_rollback) override;
 
   // Resets the status of the update_engine to idle, ignoring any applied
   // update. This is used for development only.
-  bool ResetStatus(chromeos::ErrorPtr* error) override;
+  bool ResetStatus(brillo::ErrorPtr* error) override;
 
   // Returns the current status of the Update Engine. If an update is in
   // progress, the number of operations, size to download and overall progress
   // is reported.
-  bool GetStatus(chromeos::ErrorPtr* error,
+  bool GetStatus(brillo::ErrorPtr* error,
                  int64_t* out_last_checked_time,
                  double* out_progress,
                  std::string* out_current_operation,
@@ -73,7 +67,7 @@ class UpdateEngineService
                  int64_t* out_new_size) override;
 
   // Reboots the device if an update is applied and a reboot is required.
-  bool RebootIfNeeded(chromeos::ErrorPtr* error) override;
+  bool RebootIfNeeded(brillo::ErrorPtr* error) override;
 
   // Changes the current channel of the device to the target channel. If the
   // target channel is a less stable channel than the current channel, then the
@@ -83,7 +77,7 @@ class UpdateEngineService
   // if required. Otherwise, the change takes effect eventually (when the
   // version on the target channel goes above the version number of what the
   // device currently has).
-  bool SetChannel(chromeos::ErrorPtr* error,
+  bool SetChannel(brillo::ErrorPtr* error,
                   const std::string& in_target_channel,
                   bool in_is_powerwash_allowed) override;
 
@@ -91,46 +85,46 @@ class UpdateEngineService
   // the channel that the device is currently on. Otherwise, it populates it
   // with the name of the channel the device is supposed to be (in case of a
   // pending channel change).
-  bool GetChannel(chromeos::ErrorPtr* error,
+  bool GetChannel(brillo::ErrorPtr* error,
                   bool in_get_current_channel,
                   std::string* out_channel) override;
 
   // Enables or disables the sharing and consuming updates over P2P feature
   // according to the |enabled| argument passed.
-  bool SetP2PUpdatePermission(chromeos::ErrorPtr* error,
+  bool SetP2PUpdatePermission(brillo::ErrorPtr* error,
                               bool in_enabled) override;
 
   // Returns the current value for the P2P enabled setting. This involves both
   // sharing and consuming updates over P2P.
-  bool GetP2PUpdatePermission(chromeos::ErrorPtr* error,
+  bool GetP2PUpdatePermission(brillo::ErrorPtr* error,
                               bool* out_enabled) override;
 
   // If there's no device policy installed, sets the update over cellular
   // networks permission to the |allowed| value. Otherwise, this method returns
   // with an error since this setting is overridden by the applied policy.
-  bool SetUpdateOverCellularPermission(chromeos::ErrorPtr* error,
+  bool SetUpdateOverCellularPermission(brillo::ErrorPtr* error,
                                        bool in_allowed) override;
 
   // Returns the current value of the update over cellular network setting,
   // either forced by the device policy if the device is enrolled or the current
   // user preference otherwise.
-  bool GetUpdateOverCellularPermission(chromeos::ErrorPtr* error,
+  bool GetUpdateOverCellularPermission(brillo::ErrorPtr* error,
                                        bool* out_allowed) override;
 
   // Returns the duration since the last successful update, as the
   // duration on the wallclock. Returns an error if the device has not
   // updated.
-  bool GetDurationSinceUpdate(chromeos::ErrorPtr* error,
+  bool GetDurationSinceUpdate(brillo::ErrorPtr* error,
                               int64_t* out_usec_wallclock) override;
 
   // Returns the version string of OS that was used before the last reboot
   // into an updated version. This is available only when rebooting into an
   // update from previous version, otherwise an empty string is returned.
-  bool GetPrevVersion(chromeos::ErrorPtr* error,
+  bool GetPrevVersion(brillo::ErrorPtr* error,
                       std::string* out_prev_version) override;
 
   // Returns the name of kernel partition that can be rolled back into.
-  bool GetRollbackPartition(chromeos::ErrorPtr* error,
+  bool GetRollbackPartition(brillo::ErrorPtr* error,
                             std::string* out_rollback_partition_name) override;
 
  private:
@@ -158,7 +152,7 @@ class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor {
  private:
   scoped_refptr<dbus::Bus> bus_;
   UpdateEngineService dbus_service_;
-  chromeos::dbus_utils::DBusObject dbus_object_;
+  brillo::dbus_utils::DBusObject dbus_object_;
 };
 
 }  // namespace chromeos_update_engine

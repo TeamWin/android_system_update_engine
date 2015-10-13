@@ -18,9 +18,9 @@
 
 #include <memory>
 
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <policy/mock_device_policy.h>
@@ -33,7 +33,7 @@
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::TimeDelta;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using chromeos_update_engine::dbus_test_utils::MockSignalHandler;
 using std::set;
 using std::string;
@@ -88,7 +88,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
         .WillByDefault(ReturnRef(mock_device_policy_));
   }
 
-  chromeos::FakeMessageLoop loop_{nullptr};
+  brillo::FakeMessageLoop loop_{nullptr};
   org::chromium::SessionManagerInterfaceProxyMock session_manager_proxy_mock_;
   testing::NiceMock<policy::MockDevicePolicy> mock_device_policy_;
   testing::NiceMock<policy::MockPolicyProvider> mock_policy_provider_;

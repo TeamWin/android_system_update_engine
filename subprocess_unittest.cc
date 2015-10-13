@@ -35,18 +35,18 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <chromeos/bind_lambda.h>
-#include <chromeos/message_loops/base_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
-#include <chromeos/strings/string_utils.h>
+#include <brillo/bind_lambda.h>
+#include <brillo/message_loops/base_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
+#include <brillo/strings/string_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
 using base::TimeDelta;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::string;
 using std::vector;
 
@@ -61,8 +61,8 @@ class SubprocessTest : public ::testing::Test {
   }
 
   base::MessageLoopForIO base_loop_;
-  chromeos::BaseMessageLoop loop_{&base_loop_};
-  chromeos::AsynchronousSignalHandler async_signal_handler_;
+  brillo::BaseMessageLoop loop_{&base_loop_};
+  brillo::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
 };
 
@@ -80,8 +80,8 @@ void ExpectedResults(int expected_return_code, const string& expected_output,
 void ExpectedEnvVars(int return_code, const string& output) {
   EXPECT_EQ(0, return_code);
   const std::set<string> allowed_envs = {"LD_LIBRARY_PATH", "PATH"};
-  for (string key_value : chromeos::string_utils::Split(output, "\n")) {
-    auto key_value_pair = chromeos::string_utils::SplitAtFirst(
+  for (string key_value : brillo::string_utils::Split(output, "\n")) {
+    auto key_value_pair = brillo::string_utils::SplitAtFirst(
         key_value, "=", true);
     EXPECT_NE(allowed_envs.end(), allowed_envs.find(key_value_pair.first));
   }
@@ -252,7 +252,7 @@ TEST_F(SubprocessTest, CancelTest) {
   loop_.Run();
   // This test would leak a callback that runs when the child process exits
   // unless we wait for it to run.
-  chromeos::MessageLoopRunUntil(
+  brillo::MessageLoopRunUntil(
       &loop_,
       TimeDelta::FromSeconds(10),
       base::Bind([] {

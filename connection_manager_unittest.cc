@@ -20,10 +20,10 @@
 #include <string>
 
 #include <base/logging.h>
-#include <chromeos/any.h>
-#include <chromeos/make_unique_ptr.h>
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/variant_dictionary.h>
+#include <brillo/any.h>
+#include <brillo/make_unique_ptr.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/variant_dictionary.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <shill/dbus-constants.h>
@@ -75,7 +75,7 @@ class ConnectionManagerTest : public ::testing::Test {
       const char* service_tethering,
       NetworkTethering expected_tethering);
 
-  chromeos::FakeMessageLoop loop_{nullptr};
+  brillo::FakeMessageLoop loop_{nullptr};
   FakeSystemState fake_system_state_;
   FakeShillProxy fake_shill_proxy_;
 
@@ -94,7 +94,7 @@ void ConnectionManagerTest::SetManagerReply(const char* default_service,
 
   // Create a dictionary of properties and optionally include the default
   // service.
-  chromeos::VariantDictionary reply_dict;
+  brillo::VariantDictionary reply_dict;
   reply_dict["SomeOtherProperty"] = 0xC0FFEE;
 
   if (default_service) {
@@ -109,7 +109,7 @@ void ConnectionManagerTest::SetServiceReply(const string& service_path,
                                             const char* service_type,
                                             const char* physical_technology,
                                             const char* service_tethering) {
-  chromeos::VariantDictionary reply_dict;
+  brillo::VariantDictionary reply_dict;
   reply_dict["SomeOtherProperty"] = 0xC0FFEE;
 
   if (service_type)

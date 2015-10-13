@@ -22,11 +22,11 @@
 
 #include <base/files/file_util.h>
 #include <base/message_loop/message_loop.h>
-#include <chromeos/bind_lambda.h>
-#include <chromeos/make_unique_ptr.h>
-#include <chromeos/message_loops/base_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/bind_lambda.h>
+#include <brillo/make_unique_ptr.h>
+#include <brillo/message_loops/base_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <debugd/dbus-constants.h>
 #include <debugd/dbus-proxies.h>
 #include <debugd/dbus-proxy-mocks.h>
@@ -56,7 +56,7 @@
 
 using base::Time;
 using base::TimeDelta;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using org::chromium::LibCrosServiceInterfaceProxyMock;
 using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxyMock;
 using std::string;
@@ -118,8 +118,8 @@ class UpdateAttempterTest : public ::testing::Test {
         ue_proxy_resolved_interface_mock_(
             new NiceMock<UpdateEngineLibcrosProxyResolvedInterfaceProxyMock>()),
         libcros_proxy_(
-            chromeos::make_unique_ptr(service_interface_mock_),
-            chromeos::make_unique_ptr(ue_proxy_resolved_interface_mock_)) {
+            brillo::make_unique_ptr(service_interface_mock_),
+            brillo::make_unique_ptr(ue_proxy_resolved_interface_mock_)) {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
     fake_system_state_.set_update_attempter(&attempter_);
@@ -194,7 +194,7 @@ class UpdateAttempterTest : public ::testing::Test {
   }
 
   base::MessageLoopForIO base_loop_;
-  chromeos::BaseMessageLoop loop_{&base_loop_};
+  brillo::BaseMessageLoop loop_{&base_loop_};
 
   FakeSystemState fake_system_state_;
   org::chromium::debugdProxyMock debugd_proxy_mock_;
@@ -561,7 +561,7 @@ TEST_F(UpdateAttempterTest, PingOmahaTest) {
   loop_.PostTask(FROM_HERE,
                  base::Bind(&UpdateAttempterTest::PingOmahaTestStart,
                             base::Unretained(this)));
-  chromeos::MessageLoopRunMaxIterations(&loop_, 100);
+  brillo::MessageLoopRunMaxIterations(&loop_, 100);
   EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter_.status());
   EXPECT_TRUE(attempter_.schedule_updates_called());
 }

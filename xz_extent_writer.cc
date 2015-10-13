@@ -21,7 +21,7 @@ using std::vector;
 namespace chromeos_update_engine {
 
 namespace {
-const chromeos::Blob::size_type kOutputBufferLength = 16 * 1024;
+const brillo::Blob::size_type kOutputBufferLength = 16 * 1024;
 
 // xz uses a variable dictionary size which impacts on the compression ratio
 // and is required to be reconstructed in RAM during decompression. While we
@@ -78,7 +78,7 @@ bool XzExtentWriter::Write(const void* bytes, size_t count) {
   request.in_pos = 0;
   request.in_size = count;
 
-  chromeos::Blob output_buffer(kOutputBufferLength);
+  brillo::Blob output_buffer(kOutputBufferLength);
   request.out = output_buffer.data();
   request.out_size = output_buffer.size();
   for (;;) {
@@ -104,8 +104,8 @@ bool XzExtentWriter::Write(const void* bytes, size_t count) {
 
   // Store unconsumed data (if any) in |input_buffer_|. Since |input| can point
   // to the existing |input_buffer_| we create a new one before assigning it.
-  chromeos::Blob new_input_buffer(request.in + request.in_pos,
-                                  request.in + request.in_size);
+  brillo::Blob new_input_buffer(request.in + request.in_pos,
+                                request.in + request.in_size);
   input_buffer_ = std::move(new_input_buffer);
   return true;
 }

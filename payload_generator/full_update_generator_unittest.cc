@@ -71,7 +71,7 @@ class FullUpdateGeneratorTest : public ::testing::Test {
 };
 
 TEST_F(FullUpdateGeneratorTest, RunTest) {
-  chromeos::Blob new_part(9 * 1024 * 1024);
+  brillo::Blob new_part(9 * 1024 * 1024);
   FillWithData(&new_part);
   new_part_conf.size = new_part.size();
 
@@ -101,7 +101,7 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
 TEST_F(FullUpdateGeneratorTest, ChunkSizeTooBig) {
   config_.hard_chunk_size = 1024 * 1024;
   config_.soft_chunk_size = config_.hard_chunk_size;
-  chromeos::Blob new_part(1536 * 1024);  // 1.5 MiB
+  brillo::Blob new_part(1536 * 1024);  // 1.5 MiB
   new_part_conf.size = new_part.size();
 
   EXPECT_TRUE(test_utils::WriteFileVector(new_part_conf.path, new_part));
@@ -122,7 +122,7 @@ TEST_F(FullUpdateGeneratorTest, ChunkSizeTooBig) {
 // Test that if the image size is much smaller than the chunk size, it handles
 // correctly the only chunk of the partition.
 TEST_F(FullUpdateGeneratorTest, ImageSizeTooSmall) {
-  chromeos::Blob new_part(16 * 1024);
+  brillo::Blob new_part(16 * 1024);
   new_part_conf.size = new_part.size();
 
   EXPECT_TRUE(test_utils::WriteFileVector(new_part_conf.path, new_part));

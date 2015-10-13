@@ -19,7 +19,7 @@
 #include <base/bind.h>
 
 using base::Closure;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::deque;
 using std::string;
 

@@ -26,7 +26,7 @@
 #include <base/memory/ref_counted.h>
 #include <base/memory/weak_ptr.h>
 #include <base/time/time.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/update_manager/boxed_value.h"
@@ -163,8 +163,8 @@ class EvaluationContext : public base::RefCounted<EvaluationContext>,
 
   // The TaskId returned by the message loop identifying the timeout callback.
   // Used for canceling the timeout callback.
-  chromeos::MessageLoop::TaskId timeout_event_ =
-      chromeos::MessageLoop::kTaskIdNull;
+  brillo::MessageLoop::TaskId timeout_event_ =
+      brillo::MessageLoop::kTaskIdNull;
 
   // Whether a timeout event firing marks the expiration of the evaluation
   // context.

@@ -31,7 +31,7 @@ namespace chromeos_update_engine {
 
 using base::StringTokenizer;
 using base::TimeDelta;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::deque;
 using std::make_pair;
 using std::pair;
@@ -74,7 +74,7 @@ bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
                                                   ProxiesResolvedFn callback,
                                                   void* data) {
   int timeout = timeout_;
-  chromeos::ErrorPtr error;
+  brillo::ErrorPtr error;
   if (!libcros_proxy_->service_interface_proxy()->ResolveNetworkProxy(
           url.c_str(),
           kLibCrosProxyResolveSignalInterface,

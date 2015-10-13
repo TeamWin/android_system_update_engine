@@ -26,9 +26,9 @@
 #include <base/posix/eintr_wrapper.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/bind_lambda.h>
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/bind_lambda.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -38,7 +38,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::set;
 using std::string;
 using std::vector;
@@ -52,7 +52,7 @@ class FilesystemVerifierActionTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
+    EXPECT_EQ(0, brillo::MessageLoopRunMaxIterations(&loop_, 1));
   }
 
   // Returns true iff test has completed successfully.
@@ -60,7 +60,7 @@ class FilesystemVerifierActionTest : public ::testing::Test {
               bool hash_fail,
               VerifierMode verifier_mode);
 
-  chromeos::FakeMessageLoop loop_{nullptr};
+  brillo::FakeMessageLoop loop_{nullptr};
   FakeBootControl fake_boot_control_;
 };
 
@@ -142,7 +142,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
 
   // Make random data for a.
   const size_t kLoopFileSize = 10 * 1024 * 1024 + 512;
-  chromeos::Blob a_loop_data(kLoopFileSize);
+  brillo::Blob a_loop_data(kLoopFileSize);
   test_utils::FillWithData(&a_loop_data);
 
   // Write data to disk
@@ -232,7 +232,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   EXPECT_EQ(ErrorCode::kSuccess, delegate.code());
 
   // Make sure everything in the out_image is there
-  chromeos::Blob a_out;
+  brillo::Blob a_out;
   if (!utils::ReadFile(a_dev, &a_out)) {
     ADD_FAILURE();
     return false;

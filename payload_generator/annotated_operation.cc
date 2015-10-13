@@ -36,7 +36,7 @@ void OutputExtents(std::ostream* os,
 }
 }  // namespace
 
-bool AnnotatedOperation::SetOperationBlob(chromeos::Blob* blob,
+bool AnnotatedOperation::SetOperationBlob(brillo::Blob* blob,
                                           BlobFileWriter* blob_file) {
   off_t data_offset = blob_file->StoreBlob(*blob);
   TEST_AND_RETURN_FALSE(data_offset != -1);

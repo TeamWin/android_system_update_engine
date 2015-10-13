@@ -24,7 +24,7 @@
 #include <base/callback.h>
 #include <base/logging.h>
 #include <base/macros.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/http_common.h"
 #include "update_engine/proxy_resolver.h"
@@ -140,7 +140,7 @@ class HttpFetcher {
 
   // POST data for the transfer, and whether or not it was ever set
   bool post_data_set_;
-  chromeos::Blob post_data_;
+  brillo::Blob post_data_;
   HttpContentType post_content_type_;
 
   // The server's HTTP response code from the last transfer. This
@@ -157,8 +157,8 @@ class HttpFetcher {
   ProxyResolver* const proxy_resolver_;
 
   // The ID of the idle callback, used when we have no proxy resolver.
-  chromeos::MessageLoop::TaskId no_resolver_idle_id_{
-      chromeos::MessageLoop::kTaskIdNull};
+  brillo::MessageLoop::TaskId no_resolver_idle_id_{
+      brillo::MessageLoop::kTaskIdNull};
 
   // Callback for when we are resolving proxies
   std::unique_ptr<base::Closure> callback_;

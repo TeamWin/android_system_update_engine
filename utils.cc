@@ -51,8 +51,8 @@
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/data_encoding.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/data_encoding.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/clock_interface.h"
 #include "update_engine/constants.h"
@@ -275,7 +275,7 @@ bool PReadAll(FileDescriptorPtr fd, void* buf, size_t count, off_t offset,
 // Append |nbytes| of content from |buf| to the vector pointed to by either
 // |vec_p| or |str_p|.
 static void AppendBytes(const uint8_t* buf, size_t nbytes,
-                        chromeos::Blob* vec_p) {
+                        brillo::Blob* vec_p) {
   CHECK(buf);
   CHECK(vec_p);
   vec_p->insert(vec_p->end(), buf, buf + nbytes);
@@ -351,7 +351,7 @@ bool ReadPipe(const string& cmd, string* out_p) {
   return (success && pclose(fp) >= 0);
 }
 
-bool ReadFile(const string& path, chromeos::Blob* out_p) {
+bool ReadFile(const string& path, brillo::Blob* out_p) {
   return ReadFileChunkAndAppend(path, 0, -1, out_p);
 }
 
@@ -360,7 +360,7 @@ bool ReadFile(const string& path, string* out_p) {
 }
 
 bool ReadFileChunk(const string& path, off_t offset, off_t size,
-                   chromeos::Blob* out_p) {
+                   brillo::Blob* out_p) {
   return ReadFileChunkAndAppend(path, offset, size, out_p);
 }
 
@@ -771,7 +771,7 @@ bool GetSquashfs4Size(const uint8_t* buffer, size_t buffer_size,
 }
 
 bool IsExtFilesystem(const string& device) {
-  chromeos::Blob header;
+  brillo::Blob header;
   // The first 2 KiB is enough to read the ext2 superblock (located at offset
   // 1024).
   if (!ReadFileChunk(device, 0, 2048, &header))
@@ -780,7 +780,7 @@ bool IsExtFilesystem(const string& device) {
 }
 
 bool IsSquashfsFilesystem(const string& device) {
-  chromeos::Blob header;
+  brillo::Blob header;
   // The first 96 is enough to read the squashfs superblock.
   const ssize_t kSquashfsSuperBlockSize = 96;
   if (!ReadFileChunk(device, 0, kSquashfsSuperBlockSize, &header))
@@ -860,7 +860,7 @@ static bool GetFileFormatELF(const uint8_t* buffer, size_t size,
 }
 
 string GetFileFormat(const string& path) {
-  chromeos::Blob buffer;
+  brillo::Blob buffer;
   if (!ReadFileChunkAndAppend(path, 0, kGetFileFormatMaxHeaderSize, &buffer))
     return "File not found.";
 
@@ -888,7 +888,7 @@ void TriggerCrashReporterUpload() {
 }  // namespace
 
 void ScheduleCrashReporterUpload() {
-  chromeos::MessageLoop::current()->PostTask(
+  brillo::MessageLoop::current()->PostTask(
       FROM_HERE,
       base::Bind(&TriggerCrashReporterUpload));
 }
@@ -1420,7 +1420,7 @@ string StringVectorToString(const vector<string> &vec_str) {
 }
 
 string CalculateP2PFileId(const string& payload_hash, size_t payload_size) {
-  string encoded_hash = chromeos::data_encoding::Base64Encode(payload_hash);
+  string encoded_hash = brillo::data_encoding::Base64Encode(payload_hash);
   return base::StringPrintf("cros_update_size_%" PRIuS "_hash_%s",
                             payload_size,
                             encoded_hash.c_str());
@@ -1428,7 +1428,7 @@ string CalculateP2PFileId(const string& payload_hash, size_t payload_size) {
 
 bool DecodeAndStoreBase64String(const string& base64_encoded,
                                 base::FilePath *out_path) {
-  chromeos::Blob contents;
+  brillo::Blob contents;
 
   out_path->clear();
 
@@ -1437,7 +1437,7 @@ bool DecodeAndStoreBase64String(const string& base64_encoded,
     return false;
   }
 
-  if (!chromeos::data_encoding::Base64Decode(base64_encoded, &contents) ||
+  if (!brillo::data_encoding::Base64Decode(base64_encoded, &contents) ||
       contents.size() == 0) {
     LOG(ERROR) << "Error decoding base64.";
     return false;
@@ -1531,7 +1531,7 @@ bool MonotonicDurationHelper(SystemState* system_state,
   return ret;
 }
 
-bool GetMinorVersion(const chromeos::KeyValueStore& store,
+bool GetMinorVersion(const brillo::KeyValueStore& store,
                      uint32_t* minor_version) {
   string result;
   if (store.GetString("PAYLOAD_MINOR_VERSION", &result)) {
@@ -1545,9 +1545,9 @@ bool GetMinorVersion(const chromeos::KeyValueStore& store,
 }
 
 bool ReadExtents(const string& path, const vector<Extent>& extents,
-                 chromeos::Blob* out_data, ssize_t out_data_size,
+                 brillo::Blob* out_data, ssize_t out_data_size,
                  size_t block_size) {
-  chromeos::Blob data(out_data_size);
+  brillo::Blob data(out_data_size);
   ssize_t bytes_read = 0;
   int fd = open(path.c_str(), O_RDONLY);
   TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);

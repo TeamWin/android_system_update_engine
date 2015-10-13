@@ -124,7 +124,7 @@ bool IsXAttrSupported(const base::FilePath& dir_path) {
   return xattr_res == 0;
 }
 
-bool WriteFileVector(const string& path, const chromeos::Blob& data) {
+bool WriteFileVector(const string& path, const brillo::Blob& data) {
   return utils::WriteFile(path.c_str(), data.data(), data.size());
 }
 
@@ -155,8 +155,8 @@ bool BindToUnusedLoopDevice(const string& filename, string* lo_dev_name_p) {
   return true;
 }
 
-bool ExpectVectorsEq(const chromeos::Blob& expected,
-                     const chromeos::Blob& actual) {
+bool ExpectVectorsEq(const brillo::Blob& expected,
+                     const brillo::Blob& actual) {
   EXPECT_EQ(expected.size(), actual.size());
   if (expected.size() != actual.size())
     return false;
@@ -168,7 +168,7 @@ bool ExpectVectorsEq(const chromeos::Blob& expected,
   return is_all_eq;
 }
 
-void FillWithData(chromeos::Blob* buffer) {
+void FillWithData(brillo::Blob* buffer) {
   size_t input_counter = 0;
   for (uint8_t& b : *buffer) {
     b = kRandomString[input_counter];

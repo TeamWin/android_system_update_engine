@@ -19,14 +19,14 @@
 #include <gtest/gtest.h>
 #include <string>
 
-#include <chromeos/errors/error.h>
+#include <brillo/errors/error.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 #include <update_engine/dbus-constants.h>
 
 #include "update_engine/fake_system_state.h"
 
-using chromeos::errors::dbus::kDomain;
+using brillo::errors::dbus::kDomain;
 using std::string;
 using testing::Return;
 using testing::SetArgumentPointee;
@@ -52,7 +52,7 @@ class UpdateEngineServiceTest : public ::testing::Test {
   // Shortcut for fake_system_state_.mock_update_attempter().
   MockUpdateAttempter* mock_update_attempter_;
 
-  chromeos::ErrorPtr error_;
+  brillo::ErrorPtr error_;
   UpdateEngineService dbus_service_;
 };
 

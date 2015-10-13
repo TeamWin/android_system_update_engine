@@ -45,7 +45,7 @@ namespace {
 bool WriteExtents(const string& part_path,
                   const vector<Extent>& extents,
                   off_t block_size,
-                  const chromeos::Blob& data) {
+                  const brillo::Blob& data) {
   uint64_t offset = 0;
   base::ScopedFILE fp(fopen(part_path.c_str(), "r+"));
   TEST_AND_RETURN_FALSE(fp.get());
@@ -86,11 +86,11 @@ bool InitializePartitionWithUniqueBlocks(const PartitionConfig& part,
                                          uint64_t tag) {
   TEST_AND_RETURN_FALSE(part.size % block_size == 0);
   size_t num_blocks = part.size / block_size;
-  chromeos::Blob file_data(part.size);
+  brillo::Blob file_data(part.size);
   for (size_t i = 0; i < num_blocks; ++i) {
     string prefix = base::StringPrintf(
         "block tag 0x%.16" PRIx64 ", block number %16" PRIuS " ", tag, i);
-    chromeos::Blob block_data(prefix.begin(), prefix.end());
+    brillo::Blob block_data(prefix.begin(), prefix.end());
     TEST_AND_RETURN_FALSE(prefix.size() <= block_size);
     block_data.resize(block_size, 'X');
     std::copy(block_data.begin(), block_data.end(),
@@ -160,7 +160,7 @@ class DeltaDiffUtilsTest : public ::testing::Test {
 };
 
 TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
-  chromeos::Blob data_blob(block_size_);
+  brillo::Blob data_blob(block_size_);
   test_utils::FillWithData(&data_blob);
 
   // The old file is on a different block than the new one.
@@ -170,7 +170,7 @@ TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
   EXPECT_TRUE(WriteExtents(old_part_.path, old_extents, kBlockSize, data_blob));
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
-  chromeos::Blob data;
+  brillo::Blob data;
   InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
@@ -222,7 +222,7 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
 
   // The size of the data should match the total number of blocks. Each block
   // has a different content.
-  chromeos::Blob file_data;
+  brillo::Blob file_data;
   for (uint64_t i = 0; i < num_blocks; ++i) {
     file_data.resize(file_data.size() + kBlockSize, 'a' + i);
   }
@@ -230,7 +230,7 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
   EXPECT_TRUE(WriteExtents(old_part_.path, old_extents, kBlockSize, file_data));
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, file_data));
 
-  chromeos::Blob data;
+  brillo::Blob data;
   InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
@@ -282,7 +282,7 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
 
 TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
   // Test a BSDIFF operation from block 1 to block 2.
-  chromeos::Blob data_blob(kBlockSize);
+  brillo::Blob data_blob(kBlockSize);
   test_utils::FillWithData(&data_blob);
 
   // The old file is on a different block than the new one.
@@ -294,7 +294,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
   data_blob[0]++;
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
-  chromeos::Blob data;
+  brillo::Blob data;
   InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
@@ -324,7 +324,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
 TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedTest) {
   // Same setup as the previous test, but this time BSDIFF operations are not
   // allowed.
-  chromeos::Blob data_blob(kBlockSize);
+  brillo::Blob data_blob(kBlockSize);
   test_utils::FillWithData(&data_blob);
 
   // The old file is on a different block than the new one.
@@ -336,7 +336,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedTest) {
   data_blob[0]++;
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
-  chromeos::Blob data;
+  brillo::Blob data;
   InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
@@ -357,7 +357,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedTest) {
 }
 
 TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedMoveTest) {
-  chromeos::Blob data_blob(kBlockSize);
+  brillo::Blob data_blob(kBlockSize);
   test_utils::FillWithData(&data_blob);
 
   // The old file is on a different block than the new one.
@@ -367,7 +367,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedMoveTest) {
   EXPECT_TRUE(WriteExtents(old_part_.path, old_extents, kBlockSize, data_blob));
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
-  chromeos::Blob data;
+  brillo::Blob data;
   InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
@@ -393,10 +393,10 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
   vector<Extent> new_extents = { ExtentForRange(2, 1) };
 
   // Make a blob that's just 1's that will compress well.
-  chromeos::Blob ones(kBlockSize, 1);
+  brillo::Blob ones(kBlockSize, 1);
 
   // Make a blob with random data that won't compress well.
-  chromeos::Blob random_data;
+  brillo::Blob random_data;
   std::mt19937 gen(12345);
   std::uniform_int_distribution<uint8_t> dis(0, 255);
   for (uint32_t i = 0; i < kBlockSize; i++) {
@@ -404,12 +404,12 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
   }
 
   for (int i = 0; i < 2; i++) {
-    chromeos::Blob data_to_test = i == 0 ? random_data : ones;
+    brillo::Blob data_to_test = i == 0 ? random_data : ones;
     // The old_extents will be initialized with 0.
     EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize,
                              data_to_test));
 
-    chromeos::Blob data;
+    brillo::Blob data;
     InstallOperation op;
     EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
         old_part_.path,
@@ -440,7 +440,7 @@ TEST_F(DeltaDiffUtilsTest, SourceCopyTest) {
   // Makes sure SOURCE_COPY operations are emitted whenever src_ops_allowed
   // is true. It is the same setup as MoveSmallTest, which checks that
   // the operation is well-formed.
-  chromeos::Blob data_blob(kBlockSize);
+  brillo::Blob data_blob(kBlockSize);
   test_utils::FillWithData(&data_blob);
 
   // The old file is on a different block than the new one.
@@ -450,7 +450,7 @@ TEST_F(DeltaDiffUtilsTest, SourceCopyTest) {
   EXPECT_TRUE(WriteExtents(old_part_.path, old_extents, kBlockSize, data_blob));
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
-  chromeos::Blob data;
+  brillo::Blob data;
   InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
@@ -471,7 +471,7 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
   // Makes sure SOURCE_BSDIFF operations are emitted whenever src_ops_allowed
   // is true. It is the same setup as BsdiffSmallTest, which checks
   // that the operation is well-formed.
-  chromeos::Blob data_blob(kBlockSize);
+  brillo::Blob data_blob(kBlockSize);
   test_utils::FillWithData(&data_blob);
 
   // The old file is on a different block than the new one.
@@ -483,7 +483,7 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
   data_blob[0]++;
   EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
 
-  chromeos::Blob data;
+  brillo::Blob data;
   InstallOperation op;
   EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
       old_part_.path,
@@ -600,7 +600,7 @@ TEST_F(DeltaDiffUtilsTest, IdenticalBlocksAreCopiedFromSource) {
   // Override some of the old blocks with different data.
   vector<Extent> different_blocks = {ExtentForRange(40, 5)};
   EXPECT_TRUE(WriteExtents(old_part_.path, different_blocks, kBlockSize,
-                           chromeos::Blob(5 * kBlockSize, 'a')));
+                           brillo::Blob(5 * kBlockSize, 'a')));
 
   EXPECT_TRUE(RunDeltaMovedAndZeroBlocks(10,  // chunk_blocks
                                          true));  // src_ops_allowed
@@ -642,11 +642,11 @@ TEST_F(DeltaDiffUtilsTest, IdenticalBlocksAreCopiedInOder) {
   new_part_.size = block_size_ * 50;
 
   // Create two identical partitions with 5 copies of the same unique "file".
-  chromeos::Blob file_data(block_size_ * 10, 'a');
+  brillo::Blob file_data(block_size_ * 10, 'a');
   for (size_t offset = 0; offset < file_data.size(); offset += block_size_)
     file_data[offset] = 'a' + offset / block_size_;
 
-  chromeos::Blob partition_data(old_part_.size);
+  brillo::Blob partition_data(old_part_.size);
   for (size_t offset = 0; offset < partition_data.size();
        offset += file_data.size()) {
     std::copy(file_data.begin(), file_data.end(),
@@ -691,7 +691,7 @@ TEST_F(DeltaDiffUtilsTest, ZeroBlocksUseReplaceBz) {
       // The last range is split since the old image has zeros in part of it.
       ExtentForRange(30, 20),
   };
-  chromeos::Blob zeros_data(BlocksInExtents(new_zeros) * block_size_, '\0');
+  brillo::Blob zeros_data(BlocksInExtents(new_zeros) * block_size_, '\0');
   EXPECT_TRUE(WriteExtents(new_part_.path, new_zeros, block_size_, zeros_data));
 
   vector<Extent> old_zeros = vector<Extent>{ExtentForRange(43, 7)};
@@ -747,7 +747,7 @@ TEST_F(DeltaDiffUtilsTest, ShuffledBlocksAreTracked) {
   // We initialize the old_part_ with the blocks from new_part but in the
   // |permutation| order. Block i in the old_part_ will contain the same data
   // as block permutation[i] in the new_part_.
-  chromeos::Blob new_contents;
+  brillo::Blob new_contents;
   EXPECT_TRUE(utils::ReadFile(new_part_.path, &new_contents));
   EXPECT_TRUE(WriteExtents(old_part_.path, perm_extents, block_size_,
                            new_contents));

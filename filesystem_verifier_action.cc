@@ -26,7 +26,7 @@
 #include <string>
 
 #include <base/bind.h>
-#include <chromeos/streams/file_stream.h>
+#include <brillo/streams/file_stream.h>
 
 #include "update_engine/boot_control_interface.h"
 #include "update_engine/payload_constants.h"
@@ -148,11 +148,11 @@ void FilesystemVerifierAction::StartPartitionHashing() {
   if (part_path.empty())
     return Cleanup(ErrorCode::kFilesystemVerifierError);
 
-  chromeos::ErrorPtr error;
-  src_stream_ = chromeos::FileStream::Open(
+  brillo::ErrorPtr error;
+  src_stream_ = brillo::FileStream::Open(
       base::FilePath(part_path),
-      chromeos::Stream::AccessMode::READ,
-      chromeos::FileStream::Disposition::OPEN_EXISTING,
+      brillo::Stream::AccessMode::READ,
+      brillo::FileStream::Disposition::OPEN_EXISTING,
       &error);
 
   if (!src_stream_) {
@@ -221,7 +221,7 @@ void FilesystemVerifierAction::OnReadDoneCallback(size_t bytes_read) {
 }
 
 void FilesystemVerifierAction::OnReadErrorCallback(
-      const chromeos::Error* error) {
+      const brillo::Error* error) {
   // TODO(deymo): Transform the read-error into an specific ErrorCode.
   LOG(ERROR) << "Asynchronous read failed.";
   Cleanup(ErrorCode::kError);

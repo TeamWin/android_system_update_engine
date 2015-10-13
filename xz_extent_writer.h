@@ -22,7 +22,7 @@
 #include <memory>
 #include <vector>
 
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/extent_writer.h"
 
@@ -50,7 +50,7 @@ class XzExtentWriter : public ExtentWriter {
   std::unique_ptr<ExtentWriter> underlying_writer_;
   // The opaque xz decompressor struct.
   xz_dec* stream_{nullptr};
-  chromeos::Blob input_buffer_;
+  brillo::Blob input_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(XzExtentWriter);
 };

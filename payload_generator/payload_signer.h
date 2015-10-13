@@ -21,7 +21,7 @@
 #include <vector>
 
 #include <base/macros.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/update_metadata.pb.h"
 
@@ -34,9 +34,9 @@ class PayloadSigner {
  public:
   // Given a raw |hash| and a private key in |private_key_path| calculates the
   // raw signature in |out_signature|. Returns true on success, false otherwise.
-  static bool SignHash(const chromeos::Blob& hash,
+  static bool SignHash(const brillo::Blob& hash,
                        const std::string& private_key_path,
-                       chromeos::Blob* out_signature);
+                       brillo::Blob* out_signature);
 
   // Given an unsigned payload in |unsigned_payload_path| and private keys in
   // |private_key_path|, calculates the signature blob into
@@ -45,7 +45,7 @@ class PayloadSigner {
   // false otherwise.
   static bool SignPayload(const std::string& unsigned_payload_path,
                           const std::vector<std::string>& private_key_paths,
-                          chromeos::Blob* out_signature_blob);
+                          brillo::Blob* out_signature_blob);
 
   // Returns the length of out_signature_blob that will result in a call
   // to SignPayload with the given private keys. Returns true on success.
@@ -59,7 +59,7 @@ class PayloadSigner {
   static bool PrepPayloadForHashing(
         const std::string& payload_path,
         const std::vector<int>& signature_sizes,
-        chromeos::Blob* payload_out,
+        brillo::Blob* payload_out,
         uint64_t* metadata_size_out,
         uint64_t* signatures_offset_out);
 
@@ -74,7 +74,7 @@ class PayloadSigner {
   // The dummy signatures are not preserved or written to disk.
   static bool HashPayloadForSigning(const std::string& payload_path,
                                     const std::vector<int>& signature_sizes,
-                                    chromeos::Blob* out_hash_data);
+                                    brillo::Blob* out_hash_data);
 
   // Given an unsigned payload in |payload_path|,
   // this method does two things:
@@ -88,7 +88,7 @@ class PayloadSigner {
   // The dummy signatures are not preserved or written to disk.
   static bool HashMetadataForSigning(const std::string& payload_path,
                                      const std::vector<int>& signature_sizes,
-                                     chromeos::Blob* out_metadata_hash);
+                                     brillo::Blob* out_metadata_hash);
 
   // Given an unsigned payload in |payload_path| (with no dummy signature op)
   // and the raw |signatures| updates the payload to include the signature thus
@@ -99,7 +99,7 @@ class PayloadSigner {
   // on success, false otherwise.
   static bool AddSignatureToPayload(
       const std::string& payload_path,
-      const std::vector<chromeos::Blob>& signatures,
+      const std::vector<brillo::Blob>& signatures,
       const std::string& signed_payload_path,
       uint64_t* out_metadata_size);
 

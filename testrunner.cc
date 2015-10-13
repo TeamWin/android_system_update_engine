@@ -20,7 +20,7 @@
 
 #include <base/at_exit.h>
 #include <base/command_line.h>
-#include <chromeos/test_helpers.h>
+#include <brillo/test_helpers.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/terminator.h"

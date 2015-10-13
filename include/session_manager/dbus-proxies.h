@@ -11,12 +11,12 @@
 #include <base/logging.h>
 #include <base/macros.h>
 #include <base/memory/ref_counted.h>
-#include <chromeos/any.h>
-#include <chromeos/dbus/dbus_method_invoker.h>
-#include <chromeos/dbus/dbus_property.h>
-#include <chromeos/dbus/dbus_signal_handler.h>
-#include <chromeos/errors/error.h>
-#include <chromeos/variant_dictionary.h>
+#include <brillo/any.h>
+#include <brillo/dbus/dbus_method_invoker.h>
+#include <brillo/dbus/dbus_property.h>
+#include <brillo/dbus/dbus_signal_handler.h>
+#include <brillo/errors/error.h>
+#include <brillo/variant_dictionary.h>
 #include <dbus/bus.h>
 #include <dbus/message.h>
 #include <dbus/object_manager.h>
@@ -32,248 +32,248 @@ class SessionManagerInterfaceProxyInterface {
   virtual ~SessionManagerInterfaceProxyInterface() = default;
 
   virtual bool EmitLoginPromptVisible(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void EmitLoginPromptVisibleAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool EnableChromeTesting(
       bool in_force_relaunch,
       const std::vector<std::string>& in_extra_arguments,
       std::string* out_filepath,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void EnableChromeTestingAsync(
       bool in_force_relaunch,
       const std::vector<std::string>& in_extra_arguments,
       const base::Callback<void(const std::string& /*filepath*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool StartSession(
       const std::string& in_email_address,
       const std::string& in_unique_identifier,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void StartSessionAsync(
       const std::string& in_email_address,
       const std::string& in_unique_identifier,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool StopSession(
       const std::string& in_unique_identifier,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void StopSessionAsync(
       const std::string& in_unique_identifier,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool StorePolicy(
       const std::vector<uint8_t>& in_policy_blob,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void StorePolicyAsync(
       const std::vector<uint8_t>& in_policy_blob,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool RetrievePolicy(
       std::vector<uint8_t>* out_policy_blob,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void RetrievePolicyAsync(
       const base::Callback<void(const std::vector<uint8_t>& /*policy_blob*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool StorePolicyForUser(
       const std::string& in_user_email,
       const std::vector<uint8_t>& in_policy_blob,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void StorePolicyForUserAsync(
       const std::string& in_user_email,
       const std::vector<uint8_t>& in_policy_blob,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool RetrievePolicyForUser(
       const std::string& in_user_email,
       std::vector<uint8_t>* out_policy_blob,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void RetrievePolicyForUserAsync(
       const std::string& in_user_email,
       const base::Callback<void(const std::vector<uint8_t>& /*policy_blob*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool StoreDeviceLocalAccountPolicy(
       const std::string& in_account_id,
       const std::vector<uint8_t>& in_policy_blob,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void StoreDeviceLocalAccountPolicyAsync(
       const std::string& in_account_id,
       const std::vector<uint8_t>& in_policy_blob,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool RetrieveDeviceLocalAccountPolicy(
       const std::string& in_account_id,
       std::vector<uint8_t>* out_policy_blob,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void RetrieveDeviceLocalAccountPolicyAsync(
       const std::string& in_account_id,
       const base::Callback<void(const std::vector<uint8_t>& /*policy_blob*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool RetrieveSessionState(
       std::string* out_state,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void RetrieveSessionStateAsync(
       const base::Callback<void(const std::string& /*state*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool RetrieveActiveSessions(
       std::map<std::string, std::string>* out_sessions,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void RetrieveActiveSessionsAsync(
       const base::Callback<void(const std::map<std::string, std::string>& /*sessions*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool HandleSupervisedUserCreationStarting(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void HandleSupervisedUserCreationStartingAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool HandleSupervisedUserCreationFinished(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void HandleSupervisedUserCreationFinishedAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool LockScreen(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void LockScreenAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool HandleLockScreenShown(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void HandleLockScreenShownAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool HandleLockScreenDismissed(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void HandleLockScreenDismissedAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool RestartJob(
       const dbus::FileDescriptor& in_cred_fd,
       const std::vector<std::string>& in_argv,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void RestartJobAsync(
       const dbus::FileDescriptor& in_cred_fd,
       const std::vector<std::string>& in_argv,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool StartDeviceWipe(
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void StartDeviceWipeAsync(
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool SetFlagsForUser(
       const std::string& in_user_email,
       const std::vector<std::string>& in_flags,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void SetFlagsForUserAsync(
       const std::string& in_user_email,
       const std::vector<std::string>& in_flags,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool GetServerBackedStateKeys(
       std::vector<std::vector<uint8_t>>* out_state_keys,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void GetServerBackedStateKeysAsync(
       const base::Callback<void(const std::vector<std::vector<uint8_t>>& /*state_keys*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool InitMachineInfo(
       const std::string& in_data,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void InitMachineInfoAsync(
       const std::string& in_data,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void RegisterLoginPromptVisibleSignalHandler(
@@ -324,7 +324,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   void RegisterLoginPromptVisibleSignalHandler(
       const base::Closure& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "LoginPromptVisible",
@@ -335,7 +335,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   void RegisterSessionStateChangedSignalHandler(
       const base::Callback<void(const std::string&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "SessionStateChanged",
@@ -346,7 +346,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   void RegisterSetOwnerKeyCompleteSignalHandler(
       const base::Callback<void(const std::string&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "SetOwnerKeyComplete",
@@ -357,7 +357,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   void RegisterPropertyChangeCompleteSignalHandler(
       const base::Callback<void(const std::string&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "PropertyChangeComplete",
@@ -368,7 +368,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   void RegisterScreenIsLockedSignalHandler(
       const base::Closure& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "ScreenIsLocked",
@@ -379,7 +379,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   void RegisterScreenIsUnlockedSignalHandler(
       const base::Closure& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "ScreenIsUnlocked",
@@ -398,23 +398,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   dbus::ObjectProxy* GetObjectProxy() const { return dbus_object_proxy_; }
 
   bool EmitLoginPromptVisible(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "EmitLoginPromptVisible",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void EmitLoginPromptVisibleAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -427,9 +427,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       bool in_force_relaunch,
       const std::vector<std::string>& in_extra_arguments,
       std::string* out_filepath,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -437,7 +437,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
         error,
         in_force_relaunch,
         in_extra_arguments);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_filepath);
   }
 
@@ -445,9 +445,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       bool in_force_relaunch,
       const std::vector<std::string>& in_extra_arguments,
       const base::Callback<void(const std::string& /*filepath*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -462,9 +462,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       const std::string& in_email_address,
       const std::string& in_unique_identifier,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -472,7 +472,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
         error,
         in_email_address,
         in_unique_identifier);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_done);
   }
 
@@ -480,9 +480,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       const std::string& in_email_address,
       const std::string& in_unique_identifier,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -496,25 +496,25 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   bool StopSession(
       const std::string& in_unique_identifier,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "StopSession",
         error,
         in_unique_identifier);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_done);
   }
 
   void StopSessionAsync(
       const std::string& in_unique_identifier,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -527,25 +527,25 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   bool StorePolicy(
       const std::vector<uint8_t>& in_policy_blob,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "StorePolicy",
         error,
         in_policy_blob);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_done);
   }
 
   void StorePolicyAsync(
       const std::vector<uint8_t>& in_policy_blob,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -557,23 +557,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
 
   bool RetrievePolicy(
       std::vector<uint8_t>* out_policy_blob,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "RetrievePolicy",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_policy_blob);
   }
 
   void RetrievePolicyAsync(
       const base::Callback<void(const std::vector<uint8_t>& /*policy_blob*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -586,9 +586,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       const std::string& in_user_email,
       const std::vector<uint8_t>& in_policy_blob,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -596,7 +596,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
         error,
         in_user_email,
         in_policy_blob);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_done);
   }
 
@@ -604,9 +604,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       const std::string& in_user_email,
       const std::vector<uint8_t>& in_policy_blob,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -620,25 +620,25 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   bool RetrievePolicyForUser(
       const std::string& in_user_email,
       std::vector<uint8_t>* out_policy_blob,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "RetrievePolicyForUser",
         error,
         in_user_email);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_policy_blob);
   }
 
   void RetrievePolicyForUserAsync(
       const std::string& in_user_email,
       const base::Callback<void(const std::vector<uint8_t>& /*policy_blob*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -652,9 +652,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       const std::string& in_account_id,
       const std::vector<uint8_t>& in_policy_blob,
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -662,7 +662,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
         error,
         in_account_id,
         in_policy_blob);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_done);
   }
 
@@ -670,9 +670,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       const std::string& in_account_id,
       const std::vector<uint8_t>& in_policy_blob,
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -686,25 +686,25 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   bool RetrieveDeviceLocalAccountPolicy(
       const std::string& in_account_id,
       std::vector<uint8_t>* out_policy_blob,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "RetrieveDeviceLocalAccountPolicy",
         error,
         in_account_id);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_policy_blob);
   }
 
   void RetrieveDeviceLocalAccountPolicyAsync(
       const std::string& in_account_id,
       const base::Callback<void(const std::vector<uint8_t>& /*policy_blob*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -716,23 +716,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
 
   bool RetrieveSessionState(
       std::string* out_state,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "RetrieveSessionState",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_state);
   }
 
   void RetrieveSessionStateAsync(
       const base::Callback<void(const std::string& /*state*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -743,23 +743,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
 
   bool RetrieveActiveSessions(
       std::map<std::string, std::string>* out_sessions,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "RetrieveActiveSessions",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_sessions);
   }
 
   void RetrieveActiveSessionsAsync(
       const base::Callback<void(const std::map<std::string, std::string>& /*sessions*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -769,23 +769,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   }
 
   bool HandleSupervisedUserCreationStarting(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "HandleSupervisedUserCreationStarting",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void HandleSupervisedUserCreationStartingAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -795,23 +795,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   }
 
   bool HandleSupervisedUserCreationFinished(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "HandleSupervisedUserCreationFinished",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void HandleSupervisedUserCreationFinishedAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -821,23 +821,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   }
 
   bool LockScreen(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "LockScreen",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void LockScreenAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -847,23 +847,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   }
 
   bool HandleLockScreenShown(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "HandleLockScreenShown",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void HandleLockScreenShownAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -873,23 +873,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   }
 
   bool HandleLockScreenDismissed(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "HandleLockScreenDismissed",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void HandleLockScreenDismissedAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -901,9 +901,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   bool RestartJob(
       const dbus::FileDescriptor& in_cred_fd,
       const std::vector<std::string>& in_argv,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -911,7 +911,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
         error,
         in_cred_fd,
         in_argv);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -919,9 +919,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       const dbus::FileDescriptor& in_cred_fd,
       const std::vector<std::string>& in_argv,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -934,23 +934,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
 
   bool StartDeviceWipe(
       bool* out_done,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "StartDeviceWipe",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_done);
   }
 
   void StartDeviceWipeAsync(
       const base::Callback<void(bool /*done*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -962,9 +962,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
   bool SetFlagsForUser(
       const std::string& in_user_email,
       const std::vector<std::string>& in_flags,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -972,7 +972,7 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
         error,
         in_user_email,
         in_flags);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -980,9 +980,9 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
       const std::string& in_user_email,
       const std::vector<std::string>& in_flags,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -995,23 +995,23 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
 
   bool GetServerBackedStateKeys(
       std::vector<std::vector<uint8_t>>* out_state_keys,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "GetServerBackedStateKeys",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_state_keys);
   }
 
   void GetServerBackedStateKeysAsync(
       const base::Callback<void(const std::vector<std::vector<uint8_t>>& /*state_keys*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
@@ -1022,25 +1022,25 @@ class SessionManagerInterfaceProxy final : public SessionManagerInterfaceProxyIn
 
   bool InitMachineInfo(
       const std::string& in_data,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",
         "InitMachineInfo",
         error,
         in_data);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void InitMachineInfoAsync(
       const std::string& in_data,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.SessionManagerInterface",

@@ -25,7 +25,7 @@
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/time/time.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 namespace chromeos_update_manager {
@@ -120,7 +120,7 @@ class BaseVariable {
     // to avoid scheduling these callbacks when it is not needed, we check
     // first the list of observers.
     if (!observer_list_.empty()) {
-      chromeos::MessageLoop::current()->PostTask(
+      brillo::MessageLoop::current()->PostTask(
           FROM_HERE,
           base::Bind(&BaseVariable::OnValueChangedNotification,
                      base::Unretained(this)));

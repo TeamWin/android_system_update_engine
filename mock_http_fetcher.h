@@ -21,7 +21,7 @@
 #include <vector>
 
 #include <base/logging.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/fake_system_state.h"
 #include "update_engine/http_fetcher.h"
@@ -48,7 +48,7 @@ class MockHttpFetcher : public HttpFetcher {
                   ProxyResolver* proxy_resolver)
       : HttpFetcher(proxy_resolver, &fake_system_state_),
         sent_size_(0),
-        timeout_id_(chromeos::MessageLoop::kTaskIdNull),
+        timeout_id_(brillo::MessageLoop::kTaskIdNull),
         paused_(false),
         fail_transfer_(false),
         never_use_(false) {
@@ -102,7 +102,7 @@ class MockHttpFetcher : public HttpFetcher {
   // If set to true, this will EXPECT fail on BeginTransfer
   void set_never_use(bool never_use) { never_use_ = never_use; }
 
-  const chromeos::Blob& post_data() const {
+  const brillo::Blob& post_data() const {
     return post_data_;
   }
 
@@ -123,14 +123,14 @@ class MockHttpFetcher : public HttpFetcher {
   void SignalTransferComplete();
 
   // A full copy of the data we'll return to the delegate
-  chromeos::Blob data_;
+  brillo::Blob data_;
 
   // The number of bytes we've sent so far
   size_t sent_size_;
 
   // The TaskId of the timeout callback. After each chunk of data sent, we
   // time out for 0s just to make sure that run loop services other clients.
-  chromeos::MessageLoop::TaskId timeout_id_;
+  brillo::MessageLoop::TaskId timeout_id_;
 
   // True iff the fetcher is paused.
   bool paused_;

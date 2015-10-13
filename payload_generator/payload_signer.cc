@@ -21,7 +21,7 @@
 #include <base/logging.h>
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
-#include <chromeos/data_encoding.h>
+#include <brillo/data_encoding.h>
 #include <openssl/pem.h>
 
 #include "update_engine/omaha_hash_calculator.h"
@@ -45,11 +45,11 @@ const uint32_t kSignatureMessageLegacyVersion = 1;
 
 // Given raw |signatures|, packs them into a protobuf and serializes it into a
 // binary blob. Returns true on success, false otherwise.
-bool ConvertSignatureToProtobufBlob(const vector<chromeos::Blob>& signatures,
-                                    chromeos::Blob* out_signature_blob) {
+bool ConvertSignatureToProtobufBlob(const vector<brillo::Blob>& signatures,
+                                    brillo::Blob* out_signature_blob) {
   // Pack it into a protobuf
   Signatures out_message;
-  for (const chromeos::Blob& signature : signatures) {
+  for (const brillo::Blob& signature : signatures) {
     Signatures_Signature* sig_message = out_message.add_signatures();
     // Set all the signatures with the same version number.
     sig_message->set_version(kSignatureMessageLegacyVersion);
@@ -74,14 +74,14 @@ bool ConvertSignatureToProtobufBlob(const vector<chromeos::Blob>& signatures,
 // true on success, false otherwise.
 bool AddSignatureOpToPayload(const string& payload_path,
                              uint64_t signature_blob_size,
-                             chromeos::Blob* out_payload,
+                             brillo::Blob* out_payload,
                              uint64_t* out_metadata_size,
                              uint64_t* out_signatures_offset) {
   const int kProtobufOffset = 20;
   const int kProtobufSizeOffset = 12;
 
   // Loads the payload.
-  chromeos::Blob payload;
+  brillo::Blob payload;
   DeltaArchiveManifest manifest;
   uint64_t metadata_size;
   TEST_AND_RETURN_FALSE(PayloadVerifier::LoadPayload(
@@ -134,9 +134,9 @@ bool AddSignatureOpToPayload(const string& payload_path,
 }
 }  // namespace
 
-bool PayloadSigner::SignHash(const chromeos::Blob& hash,
+bool PayloadSigner::SignHash(const brillo::Blob& hash,
                              const string& private_key_path,
-                             chromeos::Blob* out_signature) {
+                             brillo::Blob* out_signature) {
   LOG(INFO) << "Signing hash with private key: " << private_key_path;
   string sig_path;
   TEST_AND_RETURN_FALSE(
@@ -149,7 +149,7 @@ bool PayloadSigner::SignHash(const chromeos::Blob& hash,
   ScopedPathUnlinker hash_path_unlinker(hash_path);
   // We expect unpadded SHA256 hash coming in
   TEST_AND_RETURN_FALSE(hash.size() == 32);
-  chromeos::Blob padded_hash(hash);
+  brillo::Blob padded_hash(hash);
   PayloadVerifier::PadRSA2048SHA256Hash(&padded_hash);
   TEST_AND_RETURN_FALSE(utils::WriteFile(hash_path.c_str(),
                                          padded_hash.data(),
@@ -164,7 +164,7 @@ bool PayloadSigner::SignHash(const chromeos::Blob& hash,
                                                     nullptr));
   TEST_AND_RETURN_FALSE(return_code == 0);
 
-  chromeos::Blob signature;
+  brillo::Blob signature;
   TEST_AND_RETURN_FALSE(utils::ReadFile(sig_path, &signature));
   out_signature->swap(signature);
   return true;
@@ -172,15 +172,15 @@ bool PayloadSigner::SignHash(const chromeos::Blob& hash,
 
 bool PayloadSigner::SignPayload(const string& unsigned_payload_path,
                                 const vector<string>& private_key_paths,
-                                chromeos::Blob* out_signature_blob) {
-  chromeos::Blob hash_data;
+                                brillo::Blob* out_signature_blob) {
+  brillo::Blob hash_data;
   TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfFile(
       unsigned_payload_path, -1, &hash_data) ==
                         utils::FileSize(unsigned_payload_path));
 
-  vector<chromeos::Blob> signatures;
+  vector<brillo::Blob> signatures;
   for (const string& path : private_key_paths) {
-    chromeos::Blob signature;
+    brillo::Blob signature;
     TEST_AND_RETURN_FALSE(SignHash(hash_data, path, &signature));
     signatures.push_back(signature);
   }
@@ -199,7 +199,7 @@ bool PayloadSigner::SignatureBlobLength(const vector<string>& private_key_paths,
   ScopedPathUnlinker x_path_unlinker(x_path);
   TEST_AND_RETURN_FALSE(utils::WriteFile(x_path.c_str(), "x", 1));
 
-  chromeos::Blob sig_blob;
+  brillo::Blob sig_blob;
   TEST_AND_RETURN_FALSE(PayloadSigner::SignPayload(x_path,
                                                    private_key_paths,
                                                    &sig_blob));
@@ -210,17 +210,17 @@ bool PayloadSigner::SignatureBlobLength(const vector<string>& private_key_paths,
 bool PayloadSigner::PrepPayloadForHashing(
         const string& payload_path,
         const vector<int>& signature_sizes,
-        chromeos::Blob* payload_out,
+        brillo::Blob* payload_out,
         uint64_t* metadata_size_out,
         uint64_t* signatures_offset_out) {
   // TODO(petkov): Reduce memory usage -- the payload is manipulated in memory.
 
   // Loads the payload and adds the signature op to it.
-  vector<chromeos::Blob> signatures;
+  vector<brillo::Blob> signatures;
   for (int signature_size : signature_sizes) {
     signatures.emplace_back(signature_size, 0);
   }
-  chromeos::Blob signature_blob;
+  brillo::Blob signature_blob;
   TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(signatures,
                                                        &signature_blob));
   TEST_AND_RETURN_FALSE(AddSignatureOpToPayload(payload_path,
@@ -234,8 +234,8 @@ bool PayloadSigner::PrepPayloadForHashing(
 
 bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
                                           const vector<int>& signature_sizes,
-                                          chromeos::Blob* out_hash_data) {
-  chromeos::Blob payload;
+                                          brillo::Blob* out_hash_data) {
+  brillo::Blob payload;
   uint64_t metadata_size;
   uint64_t signatures_offset;
 
@@ -255,8 +255,8 @@ bool PayloadSigner::HashPayloadForSigning(const string& payload_path,
 
 bool PayloadSigner::HashMetadataForSigning(const string& payload_path,
                                            const vector<int>& signature_sizes,
-                                           chromeos::Blob* out_metadata_hash) {
-  chromeos::Blob payload;
+                                           brillo::Blob* out_metadata_hash) {
+  brillo::Blob payload;
   uint64_t metadata_size;
   uint64_t signatures_offset;
 
@@ -275,16 +275,16 @@ bool PayloadSigner::HashMetadataForSigning(const string& payload_path,
 
 bool PayloadSigner::AddSignatureToPayload(
     const string& payload_path,
-    const vector<chromeos::Blob>& signatures,
+    const vector<brillo::Blob>& signatures,
     const string& signed_payload_path,
     uint64_t *out_metadata_size) {
   // TODO(petkov): Reduce memory usage -- the payload is manipulated in memory.
 
   // Loads the payload and adds the signature op to it.
-  chromeos::Blob signature_blob;
+  brillo::Blob signature_blob;
   TEST_AND_RETURN_FALSE(ConvertSignatureToProtobufBlob(signatures,
                                                        &signature_blob));
-  chromeos::Blob payload;
+  brillo::Blob payload;
   uint64_t signatures_offset;
   TEST_AND_RETURN_FALSE(AddSignatureOpToPayload(payload_path,
                                                 signature_blob.size(),
@@ -311,17 +311,17 @@ bool PayloadSigner::GetMetadataSignature(const void* const metadata,
                                          string* out_signature) {
   // Calculates the hash on the updated payload. Note that the payload includes
   // the signature op but doesn't include the signature blob at the end.
-  chromeos::Blob metadata_hash;
+  brillo::Blob metadata_hash;
   TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfBytes(metadata,
                                                             metadata_size,
                                                             &metadata_hash));
 
-  chromeos::Blob signature;
+  brillo::Blob signature;
   TEST_AND_RETURN_FALSE(SignHash(metadata_hash,
                                  private_key_path,
                                  &signature));
 
-  *out_signature = chromeos::data_encoding::Base64Encode(signature);
+  *out_signature = brillo::data_encoding::Base64Encode(signature);
   return true;
 }
 

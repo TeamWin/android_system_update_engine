@@ -41,7 +41,7 @@ class RawFilesystem : public FilesystemInterface {
   // with the name passed during construction.
   bool GetFiles(std::vector<File>* files) const override;
 
-  bool LoadSettings(chromeos::KeyValueStore* store) const override {
+  bool LoadSettings(brillo::KeyValueStore* store) const override {
     return false;
   }
 

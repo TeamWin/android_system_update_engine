@@ -38,7 +38,7 @@ class FakeFilesystem : public FilesystemInterface {
   size_t GetBlockSize() const override;
   size_t GetBlockCount() const override;
   bool GetFiles(std::vector<File>* files) const override;
-  bool LoadSettings(chromeos::KeyValueStore* store) const override;
+  bool LoadSettings(brillo::KeyValueStore* store) const override;
 
   // Fake methods.
 

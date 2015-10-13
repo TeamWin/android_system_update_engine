@@ -24,7 +24,7 @@
 
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/libcros_proxy.h"
 #include "update_engine/proxy_resolver.h"
@@ -52,7 +52,7 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
   FRIEND_TEST(ChromeBrowserProxyResolverTest, SuccessTest);
   typedef std::multimap<std::string, std::pair<ProxiesResolvedFn, void*>>
       CallbacksMap;
-  typedef std::multimap<std::string, chromeos::MessageLoop::TaskId> TimeoutsMap;
+  typedef std::multimap<std::string, brillo::MessageLoop::TaskId> TimeoutsMap;
 
   // Called when the signal in UpdateEngineLibcrosProxyResolvedInterface is
   // connected.

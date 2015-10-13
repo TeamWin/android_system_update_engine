@@ -25,7 +25,7 @@
 
 #include <base/logging.h>
 #include <base/macros.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 // Omaha uses base64 encoded SHA-256 as the hash. This class provides a simple
 // wrapper around OpenSSL providing such a formatted hash of data passed in.
@@ -61,7 +61,7 @@ class OmahaHashCalculator {
     return hash_;
   }
 
-  const chromeos::Blob& raw_hash() const {
+  const brillo::Blob& raw_hash() const {
     DCHECK(!raw_hash_.empty()) << "Call Finalize() first";
     return raw_hash_;
   }
@@ -77,22 +77,22 @@ class OmahaHashCalculator {
 
   static bool RawHashOfBytes(const void* data,
                              size_t length,
-                             chromeos::Blob* out_hash);
-  static bool RawHashOfData(const chromeos::Blob& data,
-                            chromeos::Blob* out_hash);
+                             brillo::Blob* out_hash);
+  static bool RawHashOfData(const brillo::Blob& data,
+                            brillo::Blob* out_hash);
   static off_t RawHashOfFile(const std::string& name, off_t length,
-                             chromeos::Blob* out_hash);
+                             brillo::Blob* out_hash);
 
   // Used by tests
   static std::string OmahaHashOfBytes(const void* data, size_t length);
   static std::string OmahaHashOfString(const std::string& str);
-  static std::string OmahaHashOfData(const chromeos::Blob& data);
+  static std::string OmahaHashOfData(const brillo::Blob& data);
 
  private:
   // If non-empty, the final base64 encoded hash and the raw hash. Will only be
   // set to non-empty when Finalize is called.
   std::string hash_;
-  chromeos::Blob raw_hash_;
+  brillo::Blob raw_hash_;
 
   // Init success
   bool valid_;

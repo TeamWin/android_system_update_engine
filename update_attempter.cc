@@ -31,8 +31,8 @@
 #include <base/rand_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/bind_lambda.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/bind_lambda.h>
+#include <brillo/message_loops/message_loop.h>
 #include <debugd/dbus-constants.h>
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
@@ -73,7 +73,7 @@ using base::StringPrintf;
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::Policy;
 using chromeos_update_manager::UpdateCheckParams;
@@ -823,7 +823,7 @@ bool UpdateAttempter::RequestPowerManagerReboot() {
   }
   LOG(INFO) << "Calling " << power_manager::kPowerManagerInterface << "."
             << power_manager::kRequestRestartMethod;
-  chromeos::ErrorPtr error;
+  brillo::ErrorPtr error;
   return power_manager_proxy->RequestRestart(
       power_manager::REQUEST_RESTART_FOR_UPDATE, &error);
 }
@@ -1563,7 +1563,7 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
   if (!debugd_proxy_)
     return false;
   int32_t dev_features = debugd::DEV_FEATURES_DISABLED;
-  chromeos::ErrorPtr error;
+  brillo::ErrorPtr error;
   bool success = debugd_proxy_->QueryDevFeatures(&dev_features, &error);
 
   // Some boards may not include debugd so it's expected that this may fail,

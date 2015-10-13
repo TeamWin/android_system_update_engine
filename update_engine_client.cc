@@ -24,8 +24,8 @@
 #include <base/command_line.h>
 #include <base/logging.h>
 #include <base/macros.h>
-#include <chromeos/daemons/dbus_daemon.h>
-#include <chromeos/flag_helper.h>
+#include <brillo/daemons/dbus_daemon.h>
+#include <brillo/flag_helper.h>
 #include <dbus/bus.h>
 #include <update_engine/dbus-constants.h>
 #include <update_engine/dbus-proxies.h>
@@ -40,7 +40,7 @@ namespace {
 // initialization.
 const int kContinueRunning = -1;
 
-class UpdateEngineClient : public chromeos::DBusDaemon {
+class UpdateEngineClient : public brillo::DBusDaemon {
  public:
   UpdateEngineClient(int argc, char** argv) : argc_(argc), argv_(argv) {}
   ~UpdateEngineClient() override = default;
@@ -468,7 +468,7 @@ int UpdateEngineClient::ProcessFlags() {
 
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
-  chromeos::FlagHelper::Init(argc_, argv_, "Chromium OS Update Engine Client");
+  brillo::FlagHelper::Init(argc_, argv_, "Chromium OS Update Engine Client");
 
   // Ensure there are no positional arguments.
   const std::vector<string> positional_args =

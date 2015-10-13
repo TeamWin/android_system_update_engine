@@ -31,12 +31,12 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <chromeos/message_loops/base_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
-#include <chromeos/process.h>
-#include <chromeos/streams/file_stream.h>
-#include <chromeos/streams/stream.h>
+#include <brillo/message_loops/base_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
+#include <brillo/process.h>
+#include <brillo/streams/file_stream.h>
+#include <brillo/streams/stream.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_system_state.h"
@@ -48,7 +48,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::make_pair;
 using std::pair;
 using std::string;
@@ -109,7 +109,7 @@ class PythonHttpServer : public HttpServer {
     started_ = false;
 
     // Spawn the server process.
-    unique_ptr<chromeos::Process> http_server(new chromeos::ProcessImpl());
+    unique_ptr<brillo::Process> http_server(new brillo::ProcessImpl());
     base::FilePath test_server_path =
         test_utils::GetBuildArtifactsPath().Append("test_http_server");
     http_server->AddArg(test_server_path.value());
@@ -122,7 +122,7 @@ class PythonHttpServer : public HttpServer {
     LOG(INFO) << "started http server with pid " << http_server->pid();
 
     // Wait for server to begin accepting connections, obtain its port.
-    chromeos::StreamPtr stdout = chromeos::FileStream::FromFileDescriptor(
+    brillo::StreamPtr stdout = brillo::FileStream::FromFileDescriptor(
         http_server->GetPipe(STDOUT_FILENO), false /* own */, nullptr);
     if (!stdout)
       return;
@@ -176,7 +176,7 @@ class PythonHttpServer : public HttpServer {
  private:
   static const char* kServerListeningMsgPrefix;
 
-  unique_ptr<chromeos::Process> http_server_;
+  unique_ptr<brillo::Process> http_server_;
   unsigned int port_;
 };
 
@@ -222,7 +222,7 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
   // Necessary to unhide the definition in the base class.
   using AnyHttpFetcherTest::NewLargeFetcher;
   HttpFetcher* NewLargeFetcher(size_t num_proxies) override {
-    chromeos::Blob big_data(1000000);
+    brillo::Blob big_data(1000000);
     CHECK_GT(num_proxies, 0u);
     proxy_resolver_.set_num_proxies(num_proxies);
     return new MockHttpFetcher(
@@ -340,7 +340,7 @@ template <typename T>
 class HttpFetcherTest : public ::testing::Test {
  public:
   base::MessageLoopForIO base_loop_;
-  chromeos::BaseMessageLoop loop_{&base_loop_};
+  brillo::BaseMessageLoop loop_{&base_loop_};
 
   T test_;
 
@@ -350,7 +350,7 @@ class HttpFetcherTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    EXPECT_EQ(0, chromeos::MessageLoopRunMaxIterations(&loop_, 1));
+    EXPECT_EQ(0, brillo::MessageLoopRunMaxIterations(&loop_, 1));
   }
 
  private:

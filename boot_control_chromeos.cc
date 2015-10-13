@@ -22,7 +22,7 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
-#include <chromeos/make_unique_ptr.h>
+#include <brillo/make_unique_ptr.h>
 #include <rootdev/rootdev.h>
 
 extern "C" {
@@ -81,7 +81,7 @@ std::unique_ptr<BootControlInterface> CreateBootControl() {
   if (!boot_control_chromeos->Init()) {
     LOG(ERROR) << "Ignoring BootControlChromeOS failure. We won't run updates.";
   }
-  return chromeos::make_unique_ptr(boot_control_chromeos.release());
+  return brillo::make_unique_ptr(boot_control_chromeos.release());
 }
 
 }  // namespace boot_control

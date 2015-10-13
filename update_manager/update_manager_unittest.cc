@@ -28,9 +28,9 @@
 #include <base/bind.h>
 #include <base/test/simple_test_clock.h>
 #include <base/time/time.h>
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -44,8 +44,8 @@ using base::Bind;
 using base::Callback;
 using base::Time;
 using base::TimeDelta;
-using chromeos::MessageLoop;
-using chromeos::MessageLoopRunMaxIterations;
+using brillo::MessageLoop;
+using brillo::MessageLoopRunMaxIterations;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::FakeClock;
 using std::pair;
@@ -88,7 +88,7 @@ class UmUpdateManagerTest : public ::testing::Test {
   }
 
   base::SimpleTestClock test_clock_;
-  chromeos::FakeMessageLoop loop_{&test_clock_};
+  brillo::FakeMessageLoop loop_{&test_clock_};
   FakeState* fake_state_;  // Owned by the umut_.
   FakeClock fake_clock_;
   unique_ptr<UpdateManager> umut_;

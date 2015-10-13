@@ -94,7 +94,7 @@ const uint8_t kDataSignature[] = {
 };
 
 namespace {
-void SignSampleData(chromeos::Blob* out_signature_blob,
+void SignSampleData(brillo::Blob* out_signature_blob,
                     const vector<string>& private_keys) {
   string data_path;
   ASSERT_TRUE(utils::MakeTempFile("data.XXXXXX", &data_path, nullptr));
@@ -119,11 +119,11 @@ class PayloadSignerTest : public ::testing::Test {
     PayloadVerifier::PadRSA2048SHA256Hash(&padded_hash_data_);
   }
 
-  chromeos::Blob padded_hash_data_{std::begin(kDataHash), std::end(kDataHash)};
+  brillo::Blob padded_hash_data_{std::begin(kDataHash), std::end(kDataHash)};
 };
 
 TEST_F(PayloadSignerTest, SignSimpleTextTest) {
-  chromeos::Blob signature_blob;
+  brillo::Blob signature_blob;
   SignSampleData(&signature_blob, {kUnittestPrivateKeyPath});
 
   // Check the signature itself
@@ -141,7 +141,7 @@ TEST_F(PayloadSignerTest, SignSimpleTextTest) {
 }
 
 TEST_F(PayloadSignerTest, VerifyAllSignatureTest) {
-  chromeos::Blob signature_blob;
+  brillo::Blob signature_blob;
   SignSampleData(&signature_blob,
                  {kUnittestPrivateKeyPath, kUnittestPrivateKey2Path});
 
@@ -155,7 +155,7 @@ TEST_F(PayloadSignerTest, VerifyAllSignatureTest) {
 }
 
 TEST_F(PayloadSignerTest, VerifySignatureTest) {
-  chromeos::Blob signature_blob;
+  brillo::Blob signature_blob;
   SignSampleData(&signature_blob, {kUnittestPrivateKeyPath});
 
   EXPECT_TRUE(PayloadVerifier::VerifySignature(signature_blob,

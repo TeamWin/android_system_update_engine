@@ -417,7 +417,7 @@ bool DeltaReadFile(
     ssize_t chunk_blocks,
     BlobFileWriter* blob_file,
     bool src_ops_allowed) {
-  chromeos::Blob data;
+  brillo::Blob data;
   InstallOperation operation;
 
   uint64_t total_blocks = BlocksInExtents(new_extents);
@@ -498,12 +498,12 @@ bool ReadExtentsToDiff(const string& old_part,
                        const vector<Extent>& old_extents,
                        const vector<Extent>& new_extents,
                        bool bsdiff_allowed,
-                       chromeos::Blob* out_data,
+                       brillo::Blob* out_data,
                        InstallOperation* out_op,
                        bool src_ops_allowed) {
   InstallOperation operation;
   // Data blob that will be written to delta file.
-  const chromeos::Blob* data_blob = nullptr;
+  const brillo::Blob* data_blob = nullptr;
 
   // We read blocks from old_extents and write blocks to new_extents.
   uint64_t blocks_to_read = BlocksInExtents(old_extents);
@@ -514,7 +514,7 @@ bool ReadExtentsToDiff(const string& old_part,
   vector<Extent> dst_extents = new_extents;
 
   // Read in bytes from new data.
-  chromeos::Blob new_data;
+  brillo::Blob new_data;
   TEST_AND_RETURN_FALSE(utils::ReadExtents(new_part,
                                            new_extents,
                                            &new_data,
@@ -528,7 +528,7 @@ bool ReadExtentsToDiff(const string& old_part,
   data_blob = &new_data;
 
   // Try compressing it with bzip2.
-  chromeos::Blob new_data_bz;
+  brillo::Blob new_data_bz;
   TEST_AND_RETURN_FALSE(BzipCompress(new_data, &new_data_bz));
   CHECK(!new_data_bz.empty());
   if (new_data_bz.size() < data_blob->size()) {
@@ -537,9 +537,9 @@ bool ReadExtentsToDiff(const string& old_part,
     data_blob = &new_data_bz;
   }
 
-  chromeos::Blob old_data;
-  chromeos::Blob empty_blob;
-  chromeos::Blob bsdiff_delta;
+  brillo::Blob old_data;
+  brillo::Blob empty_blob;
+  brillo::Blob bsdiff_delta;
   if (blocks_to_read > 0) {
     // Read old data.
     TEST_AND_RETURN_FALSE(
@@ -571,7 +571,7 @@ bool ReadExtentsToDiff(const string& old_part,
 
       TEST_AND_RETURN_FALSE(
           BsdiffFiles(old_chunk.value(), new_chunk.value(), &bsdiff_delta));
-      CHECK_GT(bsdiff_delta.size(), static_cast<chromeos::Blob::size_type>(0));
+      CHECK_GT(bsdiff_delta.size(), static_cast<brillo::Blob::size_type>(0));
       if (bsdiff_delta.size() < data_blob->size()) {
         if (src_ops_allowed) {
           operation.set_type(InstallOperation::SOURCE_BSDIFF);
@@ -614,7 +614,7 @@ bool ReadExtentsToDiff(const string& old_part,
 // 'out'. Returns true on success.
 bool BsdiffFiles(const string& old_file,
                  const string& new_file,
-                 chromeos::Blob* out) {
+                 brillo::Blob* out) {
   const string kPatchFile = "delta.patchXXXXXX";
   string patch_file_path;
 
@@ -628,7 +628,7 @@ bool BsdiffFiles(const string& old_file,
   cmd.push_back(patch_file_path);
 
   int rc = 1;
-  chromeos::Blob patch_file;
+  brillo::Blob patch_file;
   TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &rc, nullptr));
   TEST_AND_RETURN_FALSE(rc == 0);
   TEST_AND_RETURN_FALSE(utils::ReadFile(patch_file_path, out));
@@ -657,7 +657,7 @@ bool InitializePartitionInfo(const PartitionConfig& part, PartitionInfo* info) {
   TEST_AND_RETURN_FALSE(hasher.UpdateFile(part.path, part.size) ==
                         static_cast<off_t>(part.size));
   TEST_AND_RETURN_FALSE(hasher.Finalize());
-  const chromeos::Blob& hash = hasher.raw_hash();
+  const brillo::Blob& hash = hasher.raw_hash();
   info->set_hash(hash.data(), hash.size());
   LOG(INFO) << part.path << ": size=" << part.size << " hash=" << hasher.hash();
   return true;

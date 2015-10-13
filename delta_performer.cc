@@ -30,8 +30,8 @@
 #include <base/format_macros.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/data_encoding.h>
-#include <chromeos/make_unique_ptr.h>
+#include <brillo/data_encoding.h>
+#include <brillo/make_unique_ptr.h>
 #include <google/protobuf/repeated_field.h>
 
 #include "update_engine/bzip_extent_writer.h"
@@ -320,7 +320,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
 namespace {
 
 void LogPartitionInfoHash(const PartitionInfo& info, const string& tag) {
-  string sha256 = chromeos::data_encoding::Base64Encode(info.hash());
+  string sha256 = brillo::data_encoding::Base64Encode(info.hash());
   LOG(INFO) << "PartitionInfo " << tag << " sha256: " << sha256
             << " size: " << info.size();
 }
@@ -391,7 +391,7 @@ bool DeltaPerformer::IsHeaderParsed() const {
 }
 
 DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
-    const chromeos::Blob& payload, ErrorCode* error) {
+    const brillo::Blob& payload, ErrorCode* error) {
   *error = ErrorCode::kSuccess;
   uint64_t manifest_offset;
 
@@ -813,8 +813,8 @@ bool DeltaPerformer::PerformReplaceOperation(
 
   // Setup the ExtentWriter stack based on the operation type.
   std::unique_ptr<ExtentWriter> writer =
-    chromeos::make_unique_ptr(new ZeroPadExtentWriter(
-      chromeos::make_unique_ptr(new DirectExtentWriter())));
+    brillo::make_unique_ptr(new ZeroPadExtentWriter(
+      brillo::make_unique_ptr(new DirectExtentWriter())));
 
   if (operation.type() == InstallOperation::REPLACE_BZ) {
     writer.reset(new BzipExtentWriter(std::move(writer)));
@@ -850,7 +850,7 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
       (operation.type() == InstallOperation::ZERO ? BLKZEROOUT : BLKDISCARD);
 
   bool attempt_ioctl = true;
-  chromeos::Blob zeros;
+  brillo::Blob zeros;
   for (int i = 0; i < operation.dst_extents_size(); i++) {
     Extent extent = operation.dst_extents(i);
     const uint64_t start = extent.start_block() * block_size_;
@@ -888,7 +888,7 @@ bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation) {
     blocks_to_write += operation.dst_extents(i).num_blocks();
 
   DCHECK_EQ(blocks_to_write, blocks_to_read);
-  chromeos::Blob buf(blocks_to_write * block_size_);
+  brillo::Blob buf(blocks_to_write * block_size_);
 
   // Read in bytes.
   ssize_t bytes_read = 0;
@@ -966,7 +966,7 @@ bool DeltaPerformer::PerformSourceCopyOperation(
   DCHECK_EQ(src_blocks.size(), blocks_to_read);
   DCHECK_EQ(src_blocks.size(), dst_blocks.size());
 
-  chromeos::Blob buf(block_size_);
+  brillo::Blob buf(block_size_);
   ssize_t bytes_read = 0;
   // Read/write one block at a time.
   for (uint64_t i = 0; i < blocks_to_read; i++) {
@@ -1070,7 +1070,7 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
         (last_extent.start_block() + last_extent.num_blocks()) * block_size_;
     const uint64_t begin_byte =
         end_byte - (block_size_ - operation.dst_length() % block_size_);
-    chromeos::Blob zeros(end_byte - begin_byte);
+    brillo::Blob zeros(end_byte - begin_byte);
     TEST_AND_RETURN_FALSE(
         utils::PWriteAll(target_fd_, zeros.data(), end_byte - begin_byte, begin_byte));
   }
@@ -1194,8 +1194,8 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   }
 
   // Convert base64-encoded signature to raw bytes.
-  chromeos::Blob metadata_signature;
-  if (!chromeos::data_encoding::Base64Decode(install_plan_->metadata_signature,
+  brillo::Blob metadata_signature;
+  if (!brillo::data_encoding::Base64Decode(install_plan_->metadata_signature,
                                              &metadata_signature)) {
     LOG(ERROR) << "Unable to decode base64 metadata signature: "
                << install_plan_->metadata_signature;
@@ -1214,7 +1214,7 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   LOG(INFO) << "Verifying metadata hash signature using public key: "
             << path_to_public_key.value();
 
-  chromeos::Blob expected_metadata_hash;
+  brillo::Blob expected_metadata_hash;
   if (!PayloadVerifier::GetRawHashFromSignature(metadata_signature,
                                                 path_to_public_key.value(),
                                                 &expected_metadata_hash)) {
@@ -1229,7 +1229,7 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
   }
 
-  chromeos::Blob calculated_metadata_hash = metadata_hasher.raw_hash();
+  brillo::Blob calculated_metadata_hash = metadata_hasher.raw_hash();
   PayloadVerifier::PadRSA2048SHA256Hash(&calculated_metadata_hash);
   if (calculated_metadata_hash.empty()) {
     LOG(ERROR) << "Computed actual hash of metadata is empty.";
@@ -1328,7 +1328,7 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
     return ErrorCode::kSuccess;
   }
 
-  chromeos::Blob expected_op_hash;
+  brillo::Blob expected_op_hash;
   expected_op_hash.assign(operation.data_sha256_hash().data(),
                           (operation.data_sha256_hash().data() +
                            operation.data_sha256_hash().size()));
@@ -1341,7 +1341,7 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
     return ErrorCode::kDownloadOperationHashVerificationError;
   }
 
-  chromeos::Blob calculated_op_hash = operation_hasher.raw_hash();
+  brillo::Blob calculated_op_hash = operation_hasher.raw_hash();
   if (calculated_op_hash != expected_op_hash) {
     LOG(ERROR) << "Hash verification failed for operation "
                << next_operation_num_ << ". Expected hash = ";
@@ -1403,7 +1403,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
                       signed_hasher.SetContext(signed_hash_context_));
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       signed_hasher.Finalize());
-  chromeos::Blob hash_data = signed_hasher.raw_hash();
+  brillo::Blob hash_data = signed_hasher.raw_hash();
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       PayloadVerifier::PadRSA2048SHA256Hash(&hash_data));
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
@@ -1454,7 +1454,7 @@ void LogVerifyError(const string& type,
 }
 
 string StringForHashBytes(const void* bytes, size_t size) {
-  return chromeos::data_encoding::Base64Encode(bytes, size);
+  return brillo::data_encoding::Base64Encode(bytes, size);
 }
 }  // namespace
 
@@ -1512,7 +1512,7 @@ void DeltaPerformer::DiscardBuffer(bool do_advance_offset) {
   hash_calculator_.Update(buffer_.data(), buffer_.size());
 
   // Swap content with an empty vector to ensure that all memory is released.
-  chromeos::Blob().swap(buffer_);
+  brillo::Blob().swap(buffer_);
 }
 
 bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,

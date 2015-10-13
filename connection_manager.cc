@@ -174,8 +174,8 @@ bool ConnectionManager::GetConnectionProperties(
 }
 
 bool ConnectionManager::GetDefaultServicePath(dbus::ObjectPath* out_path) {
-  chromeos::VariantDictionary properties;
-  chromeos::ErrorPtr error;
+  brillo::VariantDictionary properties;
+  brillo::ErrorPtr error;
   ManagerProxyInterface* manager_proxy = shill_proxy_->GetManagerProxy();
   if (!manager_proxy)
     return false;
@@ -198,8 +198,8 @@ bool ConnectionManager::GetServicePathProperties(
   std::unique_ptr<ServiceProxyInterface> service =
       shill_proxy_->GetServiceForPath(path);
 
-  chromeos::VariantDictionary properties;
-  chromeos::ErrorPtr error;
+  brillo::VariantDictionary properties;
+  brillo::ErrorPtr error;
   TEST_AND_RETURN_FALSE(service->GetProperties(&properties, &error));
 
   // Populate the out_tethering.

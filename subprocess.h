@@ -27,10 +27,10 @@
 #include <base/callback.h>
 #include <base/logging.h>
 #include <base/macros.h>
-#include <chromeos/asynchronous_signal_handler_interface.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/process.h>
-#include <chromeos/process_reaper.h>
+#include <brillo/asynchronous_signal_handler_interface.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/process.h>
+#include <brillo/process_reaper.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 // The Subprocess class is a singleton. It's used to spawn off a subprocess
@@ -61,7 +61,7 @@ class Subprocess {
   ~Subprocess();
 
   // Initialize and register the Subprocess singleton.
-  void Init(chromeos::AsynchronousSignalHandlerInterface* async_signal_handler);
+  void Init(brillo::AsynchronousSignalHandlerInterface* async_signal_handler);
 
   // Launches a process in the background and calls the passed |callback| when
   // the process exits.
@@ -105,12 +105,12 @@ class Subprocess {
 
     // The ProcessImpl instance managing the child process. Destroying this
     // will close our end of the pipes we have open.
-    chromeos::ProcessImpl proc;
+    brillo::ProcessImpl proc;
 
     // These are used to monitor the stdout of the running process, including
     // the stderr if it was redirected.
-    chromeos::MessageLoop::TaskId stdout_task_id{
-        chromeos::MessageLoop::kTaskIdNull};
+    brillo::MessageLoop::TaskId stdout_task_id{
+        brillo::MessageLoop::kTaskIdNull};
     int stdout_fd{-1};
     std::string stdout;
   };
@@ -131,7 +131,7 @@ class Subprocess {
   std::map<pid_t, std::unique_ptr<SubprocessRecord>> subprocess_records_;
 
   // Used to watch for child processes.
-  chromeos::ProcessReaper process_reaper_;
+  brillo::ProcessReaper process_reaper_;
 
   DISALLOW_COPY_AND_ASSIGN(Subprocess);
 };

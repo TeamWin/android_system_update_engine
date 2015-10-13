@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-#include <chromeos/make_unique_ptr.h>
+#include <brillo/make_unique_ptr.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_extent_writer.h"
@@ -89,10 +89,10 @@ class XzExtentWriterTest : public ::testing::Test {
   void SetUp() override {
     fake_extent_writer_ = new FakeExtentWriter();
     xz_writer_.reset(
-        new XzExtentWriter(chromeos::make_unique_ptr(fake_extent_writer_)));
+        new XzExtentWriter(brillo::make_unique_ptr(fake_extent_writer_)));
   }
 
-  void WriteAll(const chromeos::Blob& compressed) {
+  void WriteAll(const brillo::Blob& compressed) {
     EXPECT_TRUE(xz_writer_->Init(fd_, {}, 1024));
     EXPECT_TRUE(xz_writer_->Write(compressed.data(), compressed.size()));
     EXPECT_TRUE(xz_writer_->End());
@@ -106,7 +106,7 @@ class XzExtentWriterTest : public ::testing::Test {
   FakeExtentWriter* fake_extent_writer_{nullptr};
   std::unique_ptr<XzExtentWriter> xz_writer_;
 
-  const chromeos::Blob sample_data_{
+  const brillo::Blob sample_data_{
       std::begin(kSampleData),
       std::begin(kSampleData) + strlen(kSampleData)};
   FileDescriptorPtr fd_;
@@ -119,13 +119,13 @@ TEST_F(XzExtentWriterTest, CreateAndDestroy) {
 }
 
 TEST_F(XzExtentWriterTest, CompressedSampleData) {
-  WriteAll(chromeos::Blob(std::begin(kCompressedDataNoCheck),
+  WriteAll(brillo::Blob(std::begin(kCompressedDataNoCheck),
                           std::end(kCompressedDataNoCheck)));
   EXPECT_EQ(sample_data_, fake_extent_writer_->WrittenData());
 }
 
 TEST_F(XzExtentWriterTest, CompressedSampleDataWithCrc) {
-  WriteAll(chromeos::Blob(std::begin(kCompressedDataCRC32),
+  WriteAll(brillo::Blob(std::begin(kCompressedDataCRC32),
                           std::end(kCompressedDataCRC32)));
   EXPECT_EQ(sample_data_, fake_extent_writer_->WrittenData());
 }
@@ -133,9 +133,9 @@ TEST_F(XzExtentWriterTest, CompressedSampleDataWithCrc) {
 TEST_F(XzExtentWriterTest, CompressedDataBiggerThanTheBuffer) {
   // Test that even if the output data is bigger than the internal buffer, all
   // the data is written.
-  WriteAll(chromeos::Blob(std::begin(kCompressed30KiBofA),
+  WriteAll(brillo::Blob(std::begin(kCompressed30KiBofA),
                           std::end(kCompressed30KiBofA)));
-  chromeos::Blob expected_data(30 * 1024, 'a');
+  brillo::Blob expected_data(30 * 1024, 'a');
   EXPECT_EQ(expected_data, fake_extent_writer_->WrittenData());
 }
 
@@ -149,7 +149,7 @@ TEST_F(XzExtentWriterTest, GarbageDataRejected) {
 }
 
 TEST_F(XzExtentWriterTest, PartialDataIsKept) {
-  chromeos::Blob compressed(std::begin(kCompressed30KiBofA),
+  brillo::Blob compressed(std::begin(kCompressed30KiBofA),
                             std::end(kCompressed30KiBofA));
   EXPECT_TRUE(xz_writer_->Init(fd_, {}, 1024));
   for (uint8_t byte : compressed) {
@@ -158,7 +158,7 @@ TEST_F(XzExtentWriterTest, PartialDataIsKept) {
   EXPECT_TRUE(xz_writer_->End());
 
   // The sample_data_ is an uncompressed string.
-  chromeos::Blob expected_data(30 * 1024, 'a');
+  brillo::Blob expected_data(30 * 1024, 'a');
   EXPECT_EQ(expected_data, fake_extent_writer_->WrittenData());
 }
 

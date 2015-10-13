@@ -21,7 +21,7 @@
 #include <string>
 
 #include <base/bind.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 #include <gmock/gmock.h>
 
 namespace chromeos_update_engine {
@@ -41,8 +41,8 @@ class MockSignalHandler {
  public:
   MockSignalHandler() = default;
   ~MockSignalHandler() {
-    if (callback_connected_task_ != chromeos::MessageLoop::kTaskIdNull)
-      chromeos::MessageLoop::current()->CancelTask(callback_connected_task_);
+    if (callback_connected_task_ != brillo::MessageLoop::kTaskIdNull)
+      brillo::MessageLoop::current()->CancelTask(callback_connected_task_);
   }
 
   // Returns whether the signal handler is registered.
@@ -57,7 +57,7 @@ class MockSignalHandler {
     on_connected_callback_.reset(
         new dbus::ObjectProxy::OnConnectedCallback(on_connected_callback));
     // Notify from the main loop that the callback was connected.
-    callback_connected_task_ = chromeos::MessageLoop::current()->PostTask(
+    callback_connected_task_ = brillo::MessageLoop::current()->PostTask(
         FROM_HERE,
         base::Bind(&MockSignalHandler<T>::OnCallbackConnected,
                    base::Unretained(this)));
@@ -65,12 +65,12 @@ class MockSignalHandler {
 
  private:
   void OnCallbackConnected() {
-    callback_connected_task_ = chromeos::MessageLoop::kTaskIdNull;
+    callback_connected_task_ = brillo::MessageLoop::kTaskIdNull;
     on_connected_callback_->Run("", "", true);
   }
 
-  chromeos::MessageLoop::TaskId callback_connected_task_{
-      chromeos::MessageLoop::kTaskIdNull};
+  brillo::MessageLoop::TaskId callback_connected_task_{
+      brillo::MessageLoop::kTaskIdNull};
 
   std::unique_ptr<base::Callback<T>> signal_callback_;
   std::unique_ptr<dbus::ObjectProxy::OnConnectedCallback>

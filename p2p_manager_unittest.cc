@@ -32,10 +32,10 @@
 #include <base/files/file_util.h>
 #include <base/message_loop/message_loop.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/asynchronous_signal_handler.h>
-#include <chromeos/message_loops/base_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/asynchronous_signal_handler.h>
+#include <brillo/message_loops/base_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
@@ -50,7 +50,7 @@
 #include "update_engine/utils.h"
 
 using base::TimeDelta;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -89,8 +89,8 @@ class P2PManagerTest : public testing::Test {
   }
 
   base::MessageLoopForIO base_loop_;
-  chromeos::BaseMessageLoop loop_{&base_loop_};
-  chromeos::AsynchronousSignalHandler async_signal_handler_;
+  brillo::BaseMessageLoop loop_{&base_loop_};
+  brillo::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
 
   // The P2PManager::Configuration instance used for testing.
@@ -111,7 +111,7 @@ TEST_F(P2PManagerTest, P2PEnabledInitAndNotChanged) {
   EXPECT_CALL(*mock_policy_, P2PEnabledChanged(_, _, _, _, false));
 
   EXPECT_FALSE(manager_->IsP2PEnabled());
-  chromeos::MessageLoopRunMaxIterations(MessageLoop::current(), 100);
+  brillo::MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_FALSE(manager_->IsP2PEnabled());
 }
 
@@ -126,7 +126,7 @@ TEST_F(P2PManagerTest, P2PEnabledInitAndChanged) {
   EXPECT_CALL(*mock_policy_, P2PEnabledChanged(_, _, _, _, false));
 
   EXPECT_TRUE(manager_->IsP2PEnabled());
-  chromeos::MessageLoopRunMaxIterations(MessageLoop::current(), 100);
+  brillo::MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_FALSE(manager_->IsP2PEnabled());
 }
 

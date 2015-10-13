@@ -21,7 +21,7 @@
 #include <vector>
 
 #include <base/macros.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/blob_file_writer.h"

@@ -72,13 +72,13 @@ struct DeltaState {
   uint64_t metadata_size;
 
   string old_kernel;
-  chromeos::Blob old_kernel_data;
+  brillo::Blob old_kernel_data;
 
   string new_kernel;
-  chromeos::Blob new_kernel_data;
+  brillo::Blob new_kernel_data;
 
   string result_kernel;
-  chromeos::Blob result_kernel_data;
+  brillo::Blob result_kernel_data;
   size_t kernel_size;
 
   // The InstallPlan referenced by the DeltaPerformer. This needs to outlive
@@ -86,7 +86,7 @@ struct DeltaState {
   InstallPlan install_plan;
 
   // The in-memory copy of delta file.
-  chromeos::Blob delta;
+  brillo::Blob delta;
 
   // The mock system state object with which we initialize the
   // delta performer.
@@ -124,7 +124,7 @@ static void CompareFilesByBlock(const string& a_file, const string& b_file,
                                 size_t image_size) {
   EXPECT_EQ(0, image_size % kBlockSize);
 
-  chromeos::Blob a_data, b_data;
+  brillo::Blob a_data, b_data;
   EXPECT_TRUE(utils::ReadFile(a_file, &a_data)) << "file failed: " << a_file;
   EXPECT_TRUE(utils::ReadFile(b_file, &b_data)) << "file failed: " << b_file;
 
@@ -132,8 +132,8 @@ static void CompareFilesByBlock(const string& a_file, const string& b_file,
   EXPECT_GE(b_data.size(), image_size);
   for (size_t i = 0; i < image_size; i += kBlockSize) {
     EXPECT_EQ(0, i % kBlockSize);
-    chromeos::Blob a_sub(&a_data[i], &a_data[i + kBlockSize]);
-    chromeos::Blob b_sub(&b_data[i], &b_data[i + kBlockSize]);
+    brillo::Blob a_sub(&a_data[i], &a_data[i + kBlockSize]);
+    brillo::Blob b_sub(&b_data[i], &b_data[i + kBlockSize]);
     EXPECT_TRUE(a_sub == b_sub) << "Block " << (i/kBlockSize) << " differs";
   }
   if (::testing::Test::HasNonfatalFailure()) {
@@ -155,10 +155,10 @@ static bool WriteSparseFile(const string& path, off_t size) {
 }
 
 static size_t GetSignatureSize(const string& private_key_path) {
-  const chromeos::Blob data(1, 'x');
-  chromeos::Blob hash;
+  const brillo::Blob data(1, 'x');
+  brillo::Blob hash;
   EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(data, &hash));
-  chromeos::Blob signature;
+  brillo::Blob signature;
   EXPECT_TRUE(PayloadSigner::SignHash(hash,
                                       private_key_path,
                                       &signature));
@@ -168,8 +168,8 @@ static size_t GetSignatureSize(const string& private_key_path) {
 static bool InsertSignaturePlaceholder(int signature_size,
                                        const string& payload_path,
                                        uint64_t* out_metadata_size) {
-  vector<chromeos::Blob> signatures;
-  signatures.push_back(chromeos::Blob(signature_size, 0));
+  vector<brillo::Blob> signatures;
+  signatures.push_back(brillo::Blob(signature_size, 0));
 
   return PayloadSigner::AddSignatureToPayload(
       payload_path,
@@ -181,18 +181,18 @@ static bool InsertSignaturePlaceholder(int signature_size,
 static void SignGeneratedPayload(const string& payload_path,
                                  uint64_t* out_metadata_size) {
   int signature_size = GetSignatureSize(kUnittestPrivateKeyPath);
-  chromeos::Blob hash;
+  brillo::Blob hash;
   ASSERT_TRUE(PayloadSigner::HashPayloadForSigning(
       payload_path,
       vector<int>(1, signature_size),
       &hash));
-  chromeos::Blob signature;
+  brillo::Blob signature;
   ASSERT_TRUE(PayloadSigner::SignHash(hash,
                                       kUnittestPrivateKeyPath,
                                       &signature));
   ASSERT_TRUE(PayloadSigner::AddSignatureToPayload(
       payload_path,
-      vector<chromeos::Blob>(1, signature),
+      vector<brillo::Blob>(1, signature),
       payload_path,
       out_metadata_size));
   EXPECT_TRUE(PayloadVerifier::VerifySignedPayload(
@@ -241,7 +241,7 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
                 hash_file.c_str())));
 
   // Pad the hash
-  chromeos::Blob hash;
+  brillo::Blob hash;
   ASSERT_TRUE(utils::ReadFile(hash_file, &hash));
   ASSERT_TRUE(PayloadVerifier::PadRSA2048SHA256Hash(&hash));
   ASSERT_TRUE(test_utils::WriteFileVector(hash_file, hash));
@@ -334,7 +334,7 @@ static void GenerateDeltaFile(bool full_kernel,
     string a_mnt;
     ScopedLoopMounter b_mounter(state->a_img, &a_mnt, 0);
 
-    chromeos::Blob hardtocompress;
+    brillo::Blob hardtocompress;
     while (hardtocompress.size() < 3 * kBlockSize) {
       hardtocompress.insert(hardtocompress.end(),
                             std::begin(kRandomString), std::end(kRandomString));
@@ -344,7 +344,7 @@ static void GenerateDeltaFile(bool full_kernel,
                                  hardtocompress.data(),
                                  hardtocompress.size()));
 
-    chromeos::Blob zeros(16 * 1024, 0);
+    brillo::Blob zeros(16 * 1024, 0);
     EXPECT_EQ(zeros.size(),
               base::WriteFile(base::FilePath(base::StringPrintf(
                                   "%s/move-to-sparse", a_mnt.c_str())),
@@ -362,7 +362,7 @@ static void GenerateDeltaFile(bool full_kernel,
 
     // Write 1 MiB of 0xff to try to catch the case where writing a bsdiff
     // patch fails to zero out the final block.
-    chromeos::Blob ones(1024 * 1024, 0xff);
+    brillo::Blob ones(1024 * 1024, 0xff);
     EXPECT_TRUE(utils::WriteFile(base::StringPrintf("%s/ones",
                                                     a_mnt.c_str()).c_str(),
                                  ones.data(),
@@ -376,7 +376,7 @@ static void GenerateDeltaFile(bool full_kernel,
   } else {
     if (minor_version == kSourceMinorPayloadVersion) {
       // Create a result image with image_size bytes of garbage.
-      chromeos::Blob ones(state->image_size, 0xff);
+      brillo::Blob ones(state->image_size, 0xff);
       EXPECT_TRUE(utils::WriteFile(state->result_img.c_str(),
                                    ones.data(),
                                    ones.size()));
@@ -410,7 +410,7 @@ static void GenerateDeltaFile(bool full_kernel,
         WriteSparseFile(base::StringPrintf("%s/move-to-sparse", b_mnt.c_str()),
                         16 * 1024));
 
-    chromeos::Blob zeros(16 * 1024, 0);
+    brillo::Blob zeros(16 * 1024, 0);
     EXPECT_EQ(zeros.size(),
               base::WriteFile(base::FilePath(base::StringPrintf(
                                   "%s/move-from-sparse", b_mnt.c_str())),
@@ -436,7 +436,7 @@ static void GenerateDeltaFile(bool full_kernel,
         base::StringPrintf("rm %s/boguslink && echo foobar > %s/boguslink",
                            b_mnt.c_str(), b_mnt.c_str()).c_str()));
 
-    chromeos::Blob hardtocompress;
+    brillo::Blob hardtocompress;
     while (hardtocompress.size() < 3 * kBlockSize) {
       hardtocompress.insert(hardtocompress.end(),
                             std::begin(kRandomString), std::end(kRandomString));
@@ -847,7 +847,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
     return;
   }
 
-  chromeos::Blob updated_kernel_partition;
+  brillo::Blob updated_kernel_partition;
   if (minor_version == kSourceMinorPayloadVersion) {
     CompareFilesByBlock(state->result_kernel, state->new_kernel,
                         state->kernel_size);
@@ -873,13 +873,13 @@ void VerifyPayloadResult(DeltaPerformer* performer,
   EXPECT_EQ(kLegacyPartitionNameKernel, partitions[1].name);
 
   EXPECT_EQ(kDefaultKernelSize, partitions[1].target_size);
-  chromeos::Blob expected_new_kernel_hash;
+  brillo::Blob expected_new_kernel_hash;
   EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(state->new_kernel_data,
                                                  &expected_new_kernel_hash));
   EXPECT_EQ(expected_new_kernel_hash, partitions[1].target_hash);
 
   EXPECT_EQ(state->image_size, partitions[0].target_size);
-  chromeos::Blob expected_new_rootfs_hash;
+  brillo::Blob expected_new_rootfs_hash;
   EXPECT_EQ(state->image_size,
             OmahaHashCalculator::RawHashOfFile(state->b_img,
                                                state->image_size,

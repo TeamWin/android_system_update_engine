@@ -30,8 +30,8 @@
 #include <base/files/scoped_temp_dir.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/fake_clock.h"
@@ -40,7 +40,7 @@
 #include "update_engine/prefs.h"
 #include "update_engine/test_utils.h"
 
-using chromeos::FakeMessageLoop;
+using brillo::FakeMessageLoop;
 using std::map;
 using std::string;
 using std::vector;
@@ -63,7 +63,7 @@ TEST(UtilsTest, CanParseECVersion) {
 }
 
 TEST(UtilsTest, ReadFileFailure) {
-  chromeos::Blob empty;
+  brillo::Blob empty;
   EXPECT_FALSE(utils::ReadFile("/this/doesn't/exist", &empty));
 }
 
@@ -71,20 +71,20 @@ TEST(UtilsTest, ReadFileChunk) {
   base::FilePath file;
   EXPECT_TRUE(base::CreateTemporaryFile(&file));
   ScopedPathUnlinker unlinker(file.value());
-  chromeos::Blob data;
+  brillo::Blob data;
   const size_t kSize = 1024 * 1024;
   for (size_t i = 0; i < kSize; i++) {
     data.push_back(i % 255);
   }
   EXPECT_TRUE(utils::WriteFile(file.value().c_str(), data.data(), data.size()));
-  chromeos::Blob in_data;
+  brillo::Blob in_data;
   EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), kSize, 10, &in_data));
   EXPECT_TRUE(in_data.empty());
   EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), 0, -1, &in_data));
   EXPECT_TRUE(data == in_data);
   in_data.clear();
   EXPECT_TRUE(utils::ReadFileChunk(file.value().c_str(), 10, 20, &in_data));
-  EXPECT_TRUE(chromeos::Blob(data.begin() + 10, data.begin() + 10 + 20) ==
+  EXPECT_TRUE(brillo::Blob(data.begin() + 10, data.begin() + 10 + 20) ==
               in_data);
 }
 
@@ -359,7 +359,7 @@ TEST(UtilsTest, ScheduleCrashReporterUploadTest) {
   loop.SetAsCurrent();
   utils::ScheduleCrashReporterUpload();
   // Test that we scheduled one callback from the crash reporter.
-  EXPECT_EQ(1, chromeos::MessageLoopRunMaxIterations(&loop, 100));
+  EXPECT_EQ(1, brillo::MessageLoopRunMaxIterations(&loop, 100));
   EXPECT_FALSE(loop.PendingTasks());
 }
 
@@ -690,7 +690,7 @@ TEST(UtilsTest, GetMinorVersion) {
   // the correct value.
   uint32_t minor_version;
 
-  chromeos::KeyValueStore store;
+  brillo::KeyValueStore store;
   EXPECT_FALSE(utils::GetMinorVersion(store, &minor_version));
 
   EXPECT_TRUE(store.LoadFromString("PAYLOAD_MINOR_VERSION=one-two-three\n"));

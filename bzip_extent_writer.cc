@@ -21,7 +21,7 @@ using std::vector;
 namespace chromeos_update_engine {
 
 namespace {
-const chromeos::Blob::size_type kOutputBufferLength = 16 * 1024;
+const brillo::Blob::size_type kOutputBufferLength = 16 * 1024;
 }
 
 bool BzipExtentWriter::Init(FileDescriptorPtr fd,
@@ -38,7 +38,7 @@ bool BzipExtentWriter::Init(FileDescriptorPtr fd,
 }
 
 bool BzipExtentWriter::Write(const void* bytes, size_t count) {
-  chromeos::Blob output_buffer(kOutputBufferLength);
+  brillo::Blob output_buffer(kOutputBufferLength);
 
   // Copy the input data into |input_buffer_| only if |input_buffer_| already
   // contains unconsumed data. Otherwise, process the data directly from the
@@ -75,7 +75,7 @@ bool BzipExtentWriter::Write(const void* bytes, size_t count) {
 
   // Store unconsumed data (if any) in |input_buffer_|.
   if (stream_.avail_in || !input_buffer_.empty()) {
-    chromeos::Blob new_input_buffer(input_end - stream_.avail_in, input_end);
+    brillo::Blob new_input_buffer(input_end - stream_.avail_in, input_end);
     new_input_buffer.swap(input_buffer_);
   }
 

@@ -19,7 +19,7 @@
 #include <base/bind.h>
 #include <base/location.h>
 
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::deque;
 using std::string;
 

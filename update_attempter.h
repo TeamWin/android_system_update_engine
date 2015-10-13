@@ -420,8 +420,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   utils::CpuShares shares_ = utils::kCpuSharesNormal;
 
   // The cpu shares management timeout task id.
-  chromeos::MessageLoop::TaskId manage_shares_id_{
-      chromeos::MessageLoop::kTaskIdNull};
+  brillo::MessageLoop::TaskId manage_shares_id_{
+      brillo::MessageLoop::kTaskIdNull};
 
   // Set to true if an update download is active (and BytesReceived
   // will be called), set to false otherwise.

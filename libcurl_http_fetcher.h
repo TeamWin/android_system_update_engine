@@ -25,7 +25,7 @@
 
 #include <base/logging.h>
 #include <base/macros.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/hardware_interface.h"
@@ -189,11 +189,11 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // the message loop. libcurl may open/close descriptors and switch their
   // directions so maintain two separate lists so that watch conditions can be
   // set appropriately.
-  std::map<int, chromeos::MessageLoop::TaskId> fd_task_maps_[2];
+  std::map<int, brillo::MessageLoop::TaskId> fd_task_maps_[2];
 
   // The TaskId of the timer we're waiting on. kTaskIdNull if we are not waiting
   // on it.
-  chromeos::MessageLoop::TaskId timeout_id_{chromeos::MessageLoop::kTaskIdNull};
+  brillo::MessageLoop::TaskId timeout_id_{brillo::MessageLoop::kTaskIdNull};
 
   bool transfer_in_progress_{false};
 

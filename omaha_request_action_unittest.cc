@@ -26,10 +26,10 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <chromeos/bind_lambda.h>
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/bind_lambda.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/action_pipe.h"
@@ -182,7 +182,7 @@ class OmahaRequestActionTest : public ::testing::Test {
                        metrics::CheckReaction expected_check_reaction,
                        metrics::DownloadErrorCode expected_download_error_code,
                        OmahaResponse* out_response,
-                       chromeos::Blob* out_post_data);
+                       brillo::Blob* out_post_data);
 
   // Runs and checks a ping test. |ping_only| indicates whether it should send
   // only a ping or also an updatecheck.
@@ -240,7 +240,7 @@ class OmahaRequestActionTestProcessorDelegate : public ActionProcessorDelegate {
   }
   void ProcessingDone(const ActionProcessor* processor,
                       ErrorCode code) override {
-    chromeos::MessageLoop::current()->BreakLoop();
+    brillo::MessageLoop::current()->BreakLoop();
   }
 
   void ActionCompleted(ActionProcessor* processor,
@@ -300,8 +300,8 @@ bool OmahaRequestActionTest::TestUpdateCheck(
     metrics::CheckReaction expected_check_reaction,
     metrics::DownloadErrorCode expected_download_error_code,
     OmahaResponse* out_response,
-    chromeos::Blob* out_post_data) {
-  chromeos::FakeMessageLoop loop(nullptr);
+    brillo::Blob* out_post_data) {
+  brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
   MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
                                                  http_response.size(),
@@ -362,8 +362,8 @@ bool OmahaRequestActionTest::TestUpdateCheck(
 void TestEvent(OmahaRequestParams params,
                OmahaEvent* event,
                const string& http_response,
-               chromeos::Blob* out_post_data) {
-  chromeos::FakeMessageLoop loop(nullptr);
+               brillo::Blob* out_post_data) {
+  brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
   MockHttpFetcher* fetcher = new MockHttpFetcher(http_response.data(),
                                                  http_response.size(),
@@ -829,7 +829,7 @@ TEST_F(OmahaRequestActionTest, CohortsArePersistedWhenNoUpdate) {
 TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   const string http_response(fake_update_response_.GetNoUpdateResponse());
 
-  chromeos::FakeMessageLoop loop(nullptr);
+  brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
   OmahaRequestParams params = request_params_;
@@ -987,7 +987,7 @@ namespace {
 class TerminateEarlyTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   void ProcessingStopped(const ActionProcessor* processor) {
-    chromeos::MessageLoop::current()->BreakLoop();
+    brillo::MessageLoop::current()->BreakLoop();
   }
 };
 
@@ -999,7 +999,7 @@ void TerminateTransferTestStarter(ActionProcessor* processor) {
 }  // namespace
 
 TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
-  chromeos::FakeMessageLoop loop(nullptr);
+  brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
   string http_response("doesn't matter");
@@ -1040,7 +1040,7 @@ TEST_F(OmahaRequestActionTest, XmlEncodeWithDefaultTest) {
 }
 
 TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
 
   // Make sure XML Encode is being called on the params
   OmahaRequestParams params(&fake_system_state_,
@@ -1136,7 +1136,7 @@ TEST_F(OmahaRequestActionTest, ParseIntTest) {
 }
 
 TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
 
@@ -1169,7 +1169,7 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
 
 
 TEST_F(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   TestEvent(request_params_,
             new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
             "invalid xml>",
@@ -1186,7 +1186,7 @@ TEST_F(OmahaRequestActionTest, FormatSuccessEventOutputTest) {
 }
 
 TEST_F(OmahaRequestActionTest, FormatErrorEventOutputTest) {
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   TestEvent(request_params_,
             new OmahaEvent(OmahaEvent::kTypeDownloadComplete,
                            OmahaEvent::kResultError,
@@ -1235,7 +1235,7 @@ TEST_F(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
   for (int i = 0; i < 2; i++) {
     bool delta_okay = i == 1;
     const char* delta_okay_str = delta_okay ? "true" : "false";
-    chromeos::Blob post_data;
+    brillo::Blob post_data;
     OmahaRequestParams params(&fake_system_state_,
                               constants::kOmahaPlatformName,
                               OmahaRequestParams::kOsVersion,
@@ -1275,7 +1275,7 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
   for (int i = 0; i < 2; i++) {
     bool interactive = i == 1;
     const char* interactive_str = interactive ? "ondemandupdate" : "scheduler";
-    chromeos::Blob post_data;
+    brillo::Blob post_data;
     FakeSystemState fake_system_state;
     OmahaRequestParams params(&fake_system_state_,
                               constants::kOmahaPlatformName,
@@ -1348,7 +1348,7 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
       .WillOnce(DoAll(SetArgumentPointee<1>(six_days_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(five_days_ago), Return(true)));
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       fake_update_response_.GetNoUpdateResponse(),
@@ -1395,7 +1395,7 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
       .WillOnce(DoAll(SetArgumentPointee<1>(three_days_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       fake_update_response_.GetNoUpdateResponse(),
@@ -1427,7 +1427,7 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
       .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(four_days_ago), Return(true)));
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       fake_update_response_.GetNoUpdateResponse(),
@@ -1464,7 +1464,7 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
       .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(Return(true));
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       fake_update_response_.GetNoUpdateResponse(),
@@ -1491,7 +1491,7 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
       .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   EXPECT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       fake_update_response_.GetNoUpdateResponse(),
@@ -1524,7 +1524,7 @@ TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
       .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(Return(true));
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
@@ -1625,7 +1625,7 @@ TEST_F(OmahaRequestActionTest, BadElapsedSecondsTest) {
 }
 
 TEST_F(OmahaRequestActionTest, NoUniqueIDTest) {
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   ASSERT_FALSE(TestUpdateCheck(nullptr,  // request_params
                                "invalid xml>",
                                -1,
@@ -1760,7 +1760,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   ASSERT_TRUE(WriteFileString(
@@ -1809,7 +1809,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
   ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
                       kStatefulPartition + "/etc"));
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   NiceMock<MockPrefs> prefs;
   fake_system_state_.set_prefs(&prefs);
   ASSERT_TRUE(WriteFileString(
@@ -1855,7 +1855,7 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
   // Flag that the device was powerwashed in the past.
   fake_system_state_.fake_hardware()->SetPowerwashCount(1);
 
-  chromeos::Blob post_data;
+  brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       fake_update_response_.GetNoUpdateResponse(),

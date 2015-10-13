@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/libcurl_http_fetcher.h"
@@ -54,8 +54,8 @@ TEST_F(OmahaHashCalculatorTest, SimpleTest) {
   calc.Update("hi", 2);
   calc.Finalize();
   EXPECT_EQ(kExpectedHash, calc.hash());
-  chromeos::Blob raw_hash(std::begin(kExpectedRawHash),
-                          std::end(kExpectedRawHash));
+  brillo::Blob raw_hash(std::begin(kExpectedRawHash),
+                        std::end(kExpectedRawHash));
   EXPECT_TRUE(raw_hash == calc.raw_hash());
 }
 
@@ -65,8 +65,8 @@ TEST_F(OmahaHashCalculatorTest, MultiUpdateTest) {
   calc.Update("i", 1);
   calc.Finalize();
   EXPECT_EQ(kExpectedHash, calc.hash());
-  chromeos::Blob raw_hash(std::begin(kExpectedRawHash),
-                          std::end(kExpectedRawHash));
+  brillo::Blob raw_hash(std::begin(kExpectedRawHash),
+                        std::end(kExpectedRawHash));
   EXPECT_TRUE(raw_hash == calc.raw_hash());
 }
 
@@ -80,8 +80,8 @@ TEST_F(OmahaHashCalculatorTest, ContextTest) {
   calc_next.Update("i", 1);
   calc_next.Finalize();
   EXPECT_EQ(kExpectedHash, calc_next.hash());
-  chromeos::Blob raw_hash(std::begin(kExpectedRawHash),
-                          std::end(kExpectedRawHash));
+  brillo::Blob raw_hash(std::begin(kExpectedRawHash),
+                        std::end(kExpectedRawHash));
   EXPECT_TRUE(raw_hash == calc_next.raw_hash());
 }
 
@@ -123,8 +123,8 @@ TEST_F(OmahaHashCalculatorTest, UpdateFileSimpleTest) {
     EXPECT_EQ(2, calc.UpdateFile(data_path, kLengths[i]));
     EXPECT_TRUE(calc.Finalize());
     EXPECT_EQ(kExpectedHash, calc.hash());
-    chromeos::Blob raw_hash(std::begin(kExpectedRawHash),
-                            std::end(kExpectedRawHash));
+    brillo::Blob raw_hash(std::begin(kExpectedRawHash),
+                          std::end(kExpectedRawHash));
     EXPECT_TRUE(raw_hash == calc.raw_hash());
   }
 
@@ -145,9 +145,9 @@ TEST_F(OmahaHashCalculatorTest, RawHashOfFileSimpleTest) {
 
   static const int kLengths[] = { -1, 2, 10 };
   for (size_t i = 0; i < arraysize(kLengths); i++) {
-    chromeos::Blob exp_raw_hash(std::begin(kExpectedRawHash),
-                                std::end(kExpectedRawHash));
-    chromeos::Blob raw_hash;
+    brillo::Blob exp_raw_hash(std::begin(kExpectedRawHash),
+                              std::end(kExpectedRawHash));
+    brillo::Blob raw_hash;
     EXPECT_EQ(2, OmahaHashCalculator::RawHashOfFile(data_path,
                                                     kLengths[i],
                                                     &raw_hash));

@@ -53,14 +53,14 @@ extern const uint8_t kRandomString[300];
 
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
-bool WriteFileVector(const std::string& path, const chromeos::Blob& data);
+bool WriteFileVector(const std::string& path, const brillo::Blob& data);
 bool WriteFileString(const std::string& path, const std::string& data);
 
 bool BindToUnusedLoopDevice(const std::string &filename,
                             std::string* lo_dev_name_ptr);
 
 // Returns true iff a == b
-bool ExpectVectorsEq(const chromeos::Blob& a, const chromeos::Blob& b);
+bool ExpectVectorsEq(const brillo::Blob& a, const brillo::Blob& b);
 
 inline int System(const std::string& cmd) {
   return system(cmd.c_str());
@@ -87,7 +87,7 @@ inline int Chdir(const std::string& path) {
 // supported, false if not or if an error occurred.
 bool IsXAttrSupported(const base::FilePath& dir_path);
 
-void FillWithData(chromeos::Blob* buffer);
+void FillWithData(brillo::Blob* buffer);
 
 // Creates an empty ext image.
 void CreateEmptyExtImageAtPath(const std::string& path,

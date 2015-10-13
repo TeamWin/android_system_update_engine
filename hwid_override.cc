@@ -21,7 +21,7 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
-#include <chromeos/key_value_store.h>
+#include <brillo/key_value_store.h>
 
 using std::map;
 using std::string;
@@ -35,7 +35,7 @@ HwidOverride::HwidOverride() {}
 HwidOverride::~HwidOverride() {}
 
 string HwidOverride::Read(const base::FilePath& root) {
-  chromeos::KeyValueStore lsb_release;
+  brillo::KeyValueStore lsb_release;
   lsb_release.Load(base::FilePath(root.value() + "/etc/lsb-release"));
   string result;
   if (lsb_release.GetString(kHwidOverrideKey, &result))

@@ -20,7 +20,7 @@
 #include <set>
 #include <string>
 
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 #include <policy/libpolicy.h>
 #include <session_manager/dbus-proxies.h>
@@ -132,8 +132,8 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   policy::PolicyProvider* policy_provider_;
 
   // Used to schedule refreshes of the device policy.
-  chromeos::MessageLoop::TaskId scheduled_refresh_{
-      chromeos::MessageLoop::kTaskIdNull};
+  brillo::MessageLoop::TaskId scheduled_refresh_{
+      brillo::MessageLoop::kTaskIdNull};
 
   // The DBus (mockable) session manager proxy, owned by the caller.
   org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy_{

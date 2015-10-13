@@ -62,7 +62,7 @@ class BlockMappingTest : public ::testing::Test {
 };
 
 TEST_F(BlockMappingTest, FirstAddedBlockIsZero) {
-  chromeos::Blob blob(block_size_);
+  brillo::Blob blob(block_size_);
   // The BlockMapping just assigns the block ids in order, so it doesn't matter
   // what are the contents of the first block.
   blob[0] = 42;
@@ -86,7 +86,7 @@ TEST_F(BlockMappingTest, BlocksAreNotKeptInMemory) {
     }
   }
 
-  chromeos::Blob block(block_size_, 'a');
+  brillo::Blob block(block_size_, 'a');
   for (int i = 0; i < 5; ++i) {
     // Re-add the same block 5 times.
     EXPECT_EQ(0, bm_.AddBlock(block));

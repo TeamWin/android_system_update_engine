@@ -20,7 +20,7 @@
 #include <memory>
 #include <vector>
 
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/extent_writer.h"
 
@@ -56,12 +56,12 @@ class FakeExtentWriter : public ExtentWriter {
   // Fake methods.
   bool InitCalled() { return init_called_; }
   bool EndCalled() { return end_called_; }
-  chromeos::Blob WrittenData() { return written_data_; }
+  brillo::Blob WrittenData() { return written_data_; }
 
  private:
   bool init_called_{false};
   bool end_called_{false};
-  chromeos::Blob written_data_;
+  brillo::Blob written_data_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeExtentWriter);
 };

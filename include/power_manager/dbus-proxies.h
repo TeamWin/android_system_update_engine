@@ -11,12 +11,12 @@
 #include <base/logging.h>
 #include <base/macros.h>
 #include <base/memory/ref_counted.h>
-#include <chromeos/any.h>
-#include <chromeos/dbus/dbus_method_invoker.h>
-#include <chromeos/dbus/dbus_property.h>
-#include <chromeos/dbus/dbus_signal_handler.h>
-#include <chromeos/errors/error.h>
-#include <chromeos/variant_dictionary.h>
+#include <brillo/any.h>
+#include <brillo/dbus/dbus_method_invoker.h>
+#include <brillo/dbus/dbus_property.h>
+#include <brillo/dbus/dbus_signal_handler.h>
+#include <brillo/errors/error.h>
+#include <brillo/variant_dictionary.h>
 #include <dbus/bus.h>
 #include <dbus/message.h>
 #include <dbus/object_manager.h>
@@ -32,25 +32,25 @@ class PowerManagerProxyInterface {
   virtual ~PowerManagerProxyInterface() = default;
 
   virtual bool RequestShutdown(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void RequestShutdownAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |reason| arg is a power_manager::RequestRestartReason value.
   virtual bool RequestRestart(
       int32_t in_reason,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |reason| arg is a power_manager::RequestRestartReason value.
   virtual void RequestRestartAsync(
       int32_t in_reason,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |external_wakeup_count| arg is optional, and it will call two
@@ -58,7 +58,7 @@ class PowerManagerProxyInterface {
   // Introspection XML file.
   virtual bool RequestSuspend(
       uint64_t in_external_wakeup_count,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |external_wakeup_count| arg is optional, and it will call two
@@ -67,37 +67,37 @@ class PowerManagerProxyInterface {
   virtual void RequestSuspendAsync(
       uint64_t in_external_wakeup_count,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool DecreaseScreenBrightness(
       bool in_allow_off,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void DecreaseScreenBrightnessAsync(
       bool in_allow_off,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool IncreaseScreenBrightness(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void IncreaseScreenBrightnessAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool GetScreenBrightnessPercent(
       double* out_percent,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void GetScreenBrightnessPercentAsync(
       const base::Callback<void(double /*percent*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |style| arg must be one of the values:
@@ -106,7 +106,7 @@ class PowerManagerProxyInterface {
   virtual bool SetScreenBrightnessPercent(
       double in_percent,
       int32_t in_style,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |style| arg must be one of the values:
@@ -116,81 +116,81 @@ class PowerManagerProxyInterface {
       double in_percent,
       int32_t in_style,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool DecreaseKeyboardBrightness(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void DecreaseKeyboardBrightnessAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool IncreaseKeyboardBrightness(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void IncreaseKeyboardBrightnessAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
   // power_manager::PowerSupplyProperties protobuf.
   virtual bool GetPowerSupplyProperties(
       std::vector<uint8_t>* out_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
   // power_manager::PowerSupplyProperties protobuf.
   virtual void GetPowerSupplyPropertiesAsync(
       const base::Callback<void(const std::vector<uint8_t>& /*serialized_proto*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool HandleVideoActivity(
       bool in_fullscreen,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void HandleVideoActivityAsync(
       bool in_fullscreen,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |type| arg is a power_manager::UserActivityType.
   virtual bool HandleUserActivity(
       int32_t in_type,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |type| arg is a power_manager::UserActivityType.
   virtual void HandleUserActivityAsync(
       int32_t in_type,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool SetIsProjecting(
       bool in_is_projecting,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void SetIsProjectingAsync(
       bool in_is_projecting,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
   // power_manager::PowerManagementPolicy protobuf.
   virtual bool SetPolicy(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
@@ -198,25 +198,25 @@ class PowerManagerProxyInterface {
   virtual void SetPolicyAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual bool SetPowerSource(
       const std::string& in_id,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void SetPowerSourceAsync(
       const std::string& in_id,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |timestamp_internal| arg is represented as the return value of
   // base::TimeTicks::ToInternalValue().
   virtual bool HandlePowerButtonAcknowledgment(
       int64_t in_timestamp_internal,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |timestamp_internal| arg is represented as the return value of
@@ -224,7 +224,7 @@ class PowerManagerProxyInterface {
   virtual void HandlePowerButtonAcknowledgmentAsync(
       int64_t in_timestamp_internal,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_request_proto| arg is a serialized
@@ -234,7 +234,7 @@ class PowerManagerProxyInterface {
   virtual bool RegisterSuspendDelay(
       const std::vector<uint8_t>& in_serialized_request_proto,
       std::vector<uint8_t>* out_serialized_reply_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_request_proto| arg is a serialized
@@ -244,14 +244,14 @@ class PowerManagerProxyInterface {
   virtual void RegisterSuspendDelayAsync(
       const std::vector<uint8_t>& in_serialized_request_proto,
       const base::Callback<void(const std::vector<uint8_t>& /*serialized_reply_proto*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
   // power_manager::UnregisterSuspendDelayRequest protobuf.
   virtual bool UnregisterSuspendDelay(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
@@ -259,14 +259,14 @@ class PowerManagerProxyInterface {
   virtual void UnregisterSuspendDelayAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
   // power_manager::SuspendReadinessInfo protobuf.
   virtual bool HandleSuspendReadiness(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
@@ -274,7 +274,7 @@ class PowerManagerProxyInterface {
   virtual void HandleSuspendReadinessAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_request_proto| arg is a serialized
@@ -284,7 +284,7 @@ class PowerManagerProxyInterface {
   virtual bool RegisterDarkSuspendDelay(
       const std::vector<uint8_t>& in_serialized_request_proto,
       std::vector<uint8_t>* out_serialized_reply_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_request_proto| arg is a serialized
@@ -294,14 +294,14 @@ class PowerManagerProxyInterface {
   virtual void RegisterDarkSuspendDelayAsync(
       const std::vector<uint8_t>& in_serialized_request_proto,
       const base::Callback<void(const std::vector<uint8_t>& /*serialized_reply_proto*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
   // power_manager::UnregisterSuspendDelayRequest protobuf.
   virtual bool UnregisterDarkSuspendDelay(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
@@ -309,14 +309,14 @@ class PowerManagerProxyInterface {
   virtual void UnregisterDarkSuspendDelayAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
   // power_manager::SuspendReadinessInfo protobuf.
   virtual bool HandleDarkSuspendReadiness(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
@@ -324,14 +324,14 @@ class PowerManagerProxyInterface {
   virtual void HandleDarkSuspendReadinessAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
   // power_manager::DarkResumeWakeReason protobuf.
   virtual bool RecordDarkResumeWakeReason(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   // The |serialized_proto| arg is a serialized
@@ -339,7 +339,7 @@ class PowerManagerProxyInterface {
   virtual void RecordDarkResumeWakeReasonAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) = 0;
 
   virtual void RegisterBrightnessChangedSignalHandler(
@@ -409,7 +409,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
       const base::Callback<void(int32_t,
                                 bool)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "BrightnessChanged",
@@ -421,7 +421,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
       const base::Callback<void(int32_t,
                                 bool)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "KeyboardBrightnessChanged",
@@ -432,7 +432,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterPeripheralBatteryStatusSignalHandler(
       const base::Callback<void(const std::vector<uint8_t>&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "PeripheralBatteryStatus",
@@ -443,7 +443,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterPowerSupplyPollSignalHandler(
       const base::Callback<void(const std::vector<uint8_t>&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "PowerSupplyPoll",
@@ -454,7 +454,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterSuspendImminentSignalHandler(
       const base::Callback<void(const std::vector<uint8_t>&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "SuspendImminent",
@@ -465,7 +465,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterSuspendDoneSignalHandler(
       const base::Callback<void(const std::vector<uint8_t>&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "SuspendDone",
@@ -476,7 +476,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterDarkSuspendImminentSignalHandler(
       const base::Callback<void(const std::vector<uint8_t>&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "DarkSuspendImminent",
@@ -487,7 +487,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterInputEventSignalHandler(
       const base::Callback<void(const std::vector<uint8_t>&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "InputEvent",
@@ -498,7 +498,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterIdleActionImminentSignalHandler(
       const base::Callback<void(const std::vector<uint8_t>&)>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "IdleActionImminent",
@@ -509,7 +509,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterIdleActionDeferredSignalHandler(
       const base::Closure& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback on_connected_callback) override {
-    chromeos::dbus_utils::ConnectToSignal(
+    brillo::dbus_utils::ConnectToSignal(
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "IdleActionDeferred",
@@ -528,23 +528,23 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   dbus::ObjectProxy* GetObjectProxy() const { return dbus_object_proxy_; }
 
   bool RequestShutdown(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "RequestShutdown",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void RequestShutdownAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -556,16 +556,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // The |reason| arg is a power_manager::RequestRestartReason value.
   bool RequestRestart(
       int32_t in_reason,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "RequestRestart",
         error,
         in_reason);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -573,9 +573,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RequestRestartAsync(
       int32_t in_reason,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -590,16 +590,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // Introspection XML file.
   bool RequestSuspend(
       uint64_t in_external_wakeup_count,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "RequestSuspend",
         error,
         in_external_wakeup_count);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -609,9 +609,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RequestSuspendAsync(
       uint64_t in_external_wakeup_count,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -623,25 +623,25 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
 
   bool DecreaseScreenBrightness(
       bool in_allow_off,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "DecreaseScreenBrightness",
         error,
         in_allow_off);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void DecreaseScreenBrightnessAsync(
       bool in_allow_off,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -652,23 +652,23 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   }
 
   bool IncreaseScreenBrightness(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "IncreaseScreenBrightness",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void IncreaseScreenBrightnessAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -679,23 +679,23 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
 
   bool GetScreenBrightnessPercent(
       double* out_percent,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "GetScreenBrightnessPercent",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_percent);
   }
 
   void GetScreenBrightnessPercentAsync(
       const base::Callback<void(double /*percent*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -710,9 +710,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   bool SetScreenBrightnessPercent(
       double in_percent,
       int32_t in_style,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -720,7 +720,7 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
         error,
         in_percent,
         in_style);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -731,9 +731,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
       double in_percent,
       int32_t in_style,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -745,23 +745,23 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   }
 
   bool DecreaseKeyboardBrightness(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "DecreaseKeyboardBrightness",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void DecreaseKeyboardBrightnessAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -771,23 +771,23 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   }
 
   bool IncreaseKeyboardBrightness(
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "IncreaseKeyboardBrightness",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void IncreaseKeyboardBrightnessAsync(
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -800,15 +800,15 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // power_manager::PowerSupplyProperties protobuf.
   bool GetPowerSupplyProperties(
       std::vector<uint8_t>* out_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "GetPowerSupplyProperties",
         error);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_serialized_proto);
   }
 
@@ -816,9 +816,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // power_manager::PowerSupplyProperties protobuf.
   void GetPowerSupplyPropertiesAsync(
       const base::Callback<void(const std::vector<uint8_t>& /*serialized_proto*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -829,25 +829,25 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
 
   bool HandleVideoActivity(
       bool in_fullscreen,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "HandleVideoActivity",
         error,
         in_fullscreen);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void HandleVideoActivityAsync(
       bool in_fullscreen,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -860,16 +860,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // The |type| arg is a power_manager::UserActivityType.
   bool HandleUserActivity(
       int32_t in_type,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "HandleUserActivity",
         error,
         in_type);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -877,9 +877,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void HandleUserActivityAsync(
       int32_t in_type,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -891,25 +891,25 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
 
   bool SetIsProjecting(
       bool in_is_projecting,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "SetIsProjecting",
         error,
         in_is_projecting);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void SetIsProjectingAsync(
       bool in_is_projecting,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -923,16 +923,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // power_manager::PowerManagementPolicy protobuf.
   bool SetPolicy(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "SetPolicy",
         error,
         in_serialized_proto);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -941,9 +941,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void SetPolicyAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -955,25 +955,25 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
 
   bool SetPowerSource(
       const std::string& in_id,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "SetPowerSource",
         error,
         in_id);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
   void SetPowerSourceAsync(
       const std::string& in_id,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -987,16 +987,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // base::TimeTicks::ToInternalValue().
   bool HandlePowerButtonAcknowledgment(
       int64_t in_timestamp_internal,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "HandlePowerButtonAcknowledgment",
         error,
         in_timestamp_internal);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1005,9 +1005,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void HandlePowerButtonAcknowledgmentAsync(
       int64_t in_timestamp_internal,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -1024,16 +1024,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   bool RegisterSuspendDelay(
       const std::vector<uint8_t>& in_serialized_request_proto,
       std::vector<uint8_t>* out_serialized_reply_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "RegisterSuspendDelay",
         error,
         in_serialized_request_proto);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_serialized_reply_proto);
   }
 
@@ -1044,9 +1044,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterSuspendDelayAsync(
       const std::vector<uint8_t>& in_serialized_request_proto,
       const base::Callback<void(const std::vector<uint8_t>& /*serialized_reply_proto*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -1060,16 +1060,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // power_manager::UnregisterSuspendDelayRequest protobuf.
   bool UnregisterSuspendDelay(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "UnregisterSuspendDelay",
         error,
         in_serialized_proto);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1078,9 +1078,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void UnregisterSuspendDelayAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -1094,16 +1094,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // power_manager::SuspendReadinessInfo protobuf.
   bool HandleSuspendReadiness(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "HandleSuspendReadiness",
         error,
         in_serialized_proto);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1112,9 +1112,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void HandleSuspendReadinessAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -1131,16 +1131,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   bool RegisterDarkSuspendDelay(
       const std::vector<uint8_t>& in_serialized_request_proto,
       std::vector<uint8_t>* out_serialized_reply_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "RegisterDarkSuspendDelay",
         error,
         in_serialized_request_proto);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error, out_serialized_reply_proto);
   }
 
@@ -1151,9 +1151,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RegisterDarkSuspendDelayAsync(
       const std::vector<uint8_t>& in_serialized_request_proto,
       const base::Callback<void(const std::vector<uint8_t>& /*serialized_reply_proto*/)>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -1167,16 +1167,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // power_manager::UnregisterSuspendDelayRequest protobuf.
   bool UnregisterDarkSuspendDelay(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "UnregisterDarkSuspendDelay",
         error,
         in_serialized_proto);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1185,9 +1185,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void UnregisterDarkSuspendDelayAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -1201,16 +1201,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // power_manager::SuspendReadinessInfo protobuf.
   bool HandleDarkSuspendReadiness(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "HandleDarkSuspendReadiness",
         error,
         in_serialized_proto);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1219,9 +1219,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void HandleDarkSuspendReadinessAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
@@ -1235,16 +1235,16 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   // power_manager::DarkResumeWakeReason protobuf.
   bool RecordDarkResumeWakeReason(
       const std::vector<uint8_t>& in_serialized_proto,
-      chromeos::ErrorPtr* error,
+      brillo::ErrorPtr* error,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    auto response = chromeos::dbus_utils::CallMethodAndBlockWithTimeout(
+    auto response = brillo::dbus_utils::CallMethodAndBlockWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",
         "RecordDarkResumeWakeReason",
         error,
         in_serialized_proto);
-    return response && chromeos::dbus_utils::ExtractMethodCallResults(
+    return response && brillo::dbus_utils::ExtractMethodCallResults(
         response.get(), error);
   }
 
@@ -1253,9 +1253,9 @@ class PowerManagerProxy final : public PowerManagerProxyInterface {
   void RecordDarkResumeWakeReasonAsync(
       const std::vector<uint8_t>& in_serialized_proto,
       const base::Callback<void()>& success_callback,
-      const base::Callback<void(chromeos::Error*)>& error_callback,
+      const base::Callback<void(brillo::Error*)>& error_callback,
       int timeout_ms = dbus::ObjectProxy::TIMEOUT_USE_DEFAULT) override {
-    chromeos::dbus_utils::CallMethodWithTimeout(
+    brillo::dbus_utils::CallMethodWithTimeout(
         timeout_ms,
         dbus_object_proxy_,
         "org.chromium.PowerManager",

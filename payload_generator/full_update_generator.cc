@@ -28,7 +28,7 @@
 #include <base/strings/stringprintf.h>
 #include <base/synchronization/lock.h>
 #include <base/threading/simple_thread.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/bzip.h"
 #include "update_engine/utils.h"
@@ -73,7 +73,7 @@ class ChunkProcessor : public base::DelegateSimpleThread::Delegate {
   // |blob_file_size| accordingly.
   // This method is thread-safe since it uses a mutex to access the file.
   // Returns the data offset where the data was written to.
-  off_t StoreBlob(const chromeos::Blob& blob);
+  off_t StoreBlob(const brillo::Blob& blob);
 
   // Work parameters.
   int fd_;
@@ -93,8 +93,8 @@ void ChunkProcessor::Run() {
 }
 
 bool ChunkProcessor::ProcessChunk() {
-  chromeos::Blob buffer_in_(size_);
-  chromeos::Blob op_blob;
+  brillo::Blob buffer_in_(size_);
+  brillo::Blob op_blob;
   ssize_t bytes_read = -1;
   TEST_AND_RETURN_FALSE(utils::PReadAll(fd_,
                                         buffer_in_.data(),

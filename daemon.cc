@@ -21,12 +21,12 @@
 #include <base/bind.h>
 #include <base/location.h>
 #include <base/time/time.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/clock.h"
 #include "update_engine/update_attempter.h"
 
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 
 namespace {
 const int kDBusSystemMaxWaitSeconds = 2 * 60;

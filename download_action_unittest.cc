@@ -29,9 +29,9 @@
 #include <base/files/file_util.h>
 #include <base/location.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/bind_lambda.h>
-#include <chromeos/message_loops/fake_message_loop.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/bind_lambda.h>
+#include <brillo/message_loops/fake_message_loop.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/action_pipe.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
@@ -76,8 +76,8 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
   }
   void ProcessingDone(const ActionProcessor* processor,
                       ErrorCode code) override {
-    chromeos::MessageLoop::current()->BreakLoop();
-    chromeos::Blob found_data;
+    brillo::MessageLoop::current()->BreakLoop();
+    brillo::Blob found_data;
     ASSERT_TRUE(utils::ReadFile(path_, &found_data));
     if (expected_code_ != ErrorCode::kDownloadWriteError) {
       ASSERT_EQ(expected_data_.size(), found_data.size());
@@ -100,7 +100,7 @@ class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
   }
 
   string path_;
-  chromeos::Blob expected_data_;
+  brillo::Blob expected_data_;
   bool processing_done_called_;
   ErrorCode expected_code_;
 };
@@ -129,10 +129,10 @@ void StartProcessorInRunLoop(ActionProcessor* processor,
   http_fetcher->SetOffset(1);
 }
 
-void TestWithData(const chromeos::Blob& data,
+void TestWithData(const brillo::Blob& data,
                   int fail_write,
                   bool use_download_delegate) {
-  chromeos::FakeMessageLoop loop(nullptr);
+  brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
   FakeSystemState fake_system_state;
 
@@ -189,7 +189,7 @@ void TestWithData(const chromeos::Blob& data,
   if (fail_write > 0)
     expected_code = ErrorCode::kDownloadWriteError;
   DownloadActionTestProcessorDelegate delegate(expected_code);
-  delegate.expected_data_ = chromeos::Blob(data.begin() + 1, data.end());
+  delegate.expected_data_ = brillo::Blob(data.begin() + 1, data.end());
   delegate.path_ = output_temp_file.GetPath();
   ActionProcessor processor;
   processor.set_delegate(&delegate);
@@ -209,7 +209,7 @@ void TestWithData(const chromeos::Blob& data,
 }  // namespace
 
 TEST(DownloadActionTest, SimpleTest) {
-  chromeos::Blob small;
+  brillo::Blob small;
   const char* foo = "foo";
   small.insert(small.end(), foo, foo + strlen(foo));
   TestWithData(small,
@@ -218,7 +218,7 @@ TEST(DownloadActionTest, SimpleTest) {
 }
 
 TEST(DownloadActionTest, LargeTest) {
-  chromeos::Blob big(5 * kMockHttpFetcherChunkSize);
+  brillo::Blob big(5 * kMockHttpFetcherChunkSize);
   char c = '0';
   for (unsigned int i = 0; i < big.size(); i++) {
     big[i] = c;
@@ -230,7 +230,7 @@ TEST(DownloadActionTest, LargeTest) {
 }
 
 TEST(DownloadActionTest, FailWriteTest) {
-  chromeos::Blob big(5 * kMockHttpFetcherChunkSize);
+  brillo::Blob big(5 * kMockHttpFetcherChunkSize);
   char c = '0';
   for (unsigned int i = 0; i < big.size(); i++) {
     big[i] = c;
@@ -242,7 +242,7 @@ TEST(DownloadActionTest, FailWriteTest) {
 }
 
 TEST(DownloadActionTest, NoDownloadDelegateTest) {
-  chromeos::Blob small;
+  brillo::Blob small;
   const char* foo = "foofoo";
   small.insert(small.end(), foo, foo + strlen(foo));
   TestWithData(small,
@@ -254,7 +254,7 @@ namespace {
 class TerminateEarlyTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   void ProcessingStopped(const ActionProcessor* processor) {
-    chromeos::MessageLoop::current()->BreakLoop();
+    brillo::MessageLoop::current()->BreakLoop();
   }
 };
 
@@ -265,10 +265,10 @@ void TerminateEarlyTestStarter(ActionProcessor* processor) {
 }
 
 void TestTerminateEarly(bool use_download_delegate) {
-  chromeos::FakeMessageLoop loop(nullptr);
+  brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
-  chromeos::Blob data(kMockHttpFetcherChunkSize +
+  brillo::Blob data(kMockHttpFetcherChunkSize +
                       kMockHttpFetcherChunkSize / 2);
   memset(data.data(), 0, data.size());
 
@@ -364,14 +364,14 @@ namespace {
 class PassObjectOutTestProcessorDelegate : public ActionProcessorDelegate {
  public:
   void ProcessingDone(const ActionProcessor* processor, ErrorCode code) {
-    chromeos::MessageLoop::current()->BreakLoop();
+    brillo::MessageLoop::current()->BreakLoop();
   }
 };
 
 }  // namespace
 
 TEST(DownloadActionTest, PassObjectOutTest) {
-  chromeos::FakeMessageLoop loop(nullptr);
+  brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
 
   DirectFileWriter writer;
@@ -483,8 +483,8 @@ class P2PDownloadActionTest : public testing::Test {
     download_action_->SetTestFileWriter(&writer);
     BondActions(&feeder_action, download_action_.get());
     DownloadActionTestProcessorDelegate delegate(ErrorCode::kSuccess);
-    delegate.expected_data_ = chromeos::Blob(data_.begin() + start_at_offset_,
-                                             data_.end());
+    delegate.expected_data_ = brillo::Blob(data_.begin() + start_at_offset_,
+                                           data_.end());
     delegate.path_ = output_temp_file.GetPath();
     processor_.set_delegate(&delegate);
     processor_.EnqueueAction(&feeder_action);
@@ -497,7 +497,7 @@ class P2PDownloadActionTest : public testing::Test {
   }
 
   // Mainloop used to make StartDownload() synchronous.
-  chromeos::FakeMessageLoop loop_{nullptr};
+  brillo::FakeMessageLoop loop_{nullptr};
 
   // The DownloadAction instance under test.
   unique_ptr<DownloadAction> download_action_;

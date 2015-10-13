@@ -20,8 +20,8 @@
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
-#include <chromeos/make_unique_ptr.h>
-#include <chromeos/message_loops/message_loop.h>
+#include <brillo/make_unique_ptr.h>
+#include <brillo/message_loops/message_loop.h>
 #include <cutils/properties.h>
 #include <fs_mgr.h>
 
@@ -60,7 +60,7 @@ std::unique_ptr<BootControlInterface> CreateBootControl() {
   if (!boot_control->Init()) {
     return nullptr;
   }
-  return chromeos::make_unique_ptr(boot_control.release());
+  return brillo::make_unique_ptr(boot_control.release());
 }
 
 }  // namespace boot_control
@@ -192,9 +192,9 @@ bool BootControlAndroid::MarkBootSuccessfulAsync(
   if (ret < 0) {
     LOG(ERROR) << "Unable to mark boot successful: " << strerror(-ret);
   }
-  return chromeos::MessageLoop::current()->PostTask(
+  return brillo::MessageLoop::current()->PostTask(
              FROM_HERE, base::Bind(callback, ret == 0)) !=
-         chromeos::MessageLoop::kTaskIdNull;
+         brillo::MessageLoop::kTaskIdNull;
 }
 
 }  // namespace chromeos_update_engine

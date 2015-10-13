@@ -21,7 +21,7 @@
 #include <memory>
 #include <vector>
 
-#include <chromeos/secure_blob.h>
+#include <brillo/secure_blob.h>
 
 #include "update_engine/extent_writer.h"
 #include "update_engine/utils.h"
@@ -49,7 +49,7 @@ class BzipExtentWriter : public ExtentWriter {
  private:
   std::unique_ptr<ExtentWriter> next_;  // The underlying ExtentWriter.
   bz_stream stream_;  // the libbz2 stream
-  chromeos::Blob input_buffer_;
+  brillo::Blob input_buffer_;
 };
 
 }  // namespace chromeos_update_engine

@@ -17,7 +17,7 @@
 #include "update_engine/hardware_android.h"
 
 #include <base/files/file_util.h>
-#include <chromeos/make_unique_ptr.h>
+#include <brillo/make_unique_ptr.h>
 #include <cutils/properties.h>
 
 #include "update_engine/hardware.h"
@@ -37,7 +37,7 @@ namespace hardware {
 
 // Factory defined in hardware.h.
 std::unique_ptr<HardwareInterface> CreateHardware() {
-  return chromeos::make_unique_ptr(new HardwareAndroid());
+  return brillo::make_unique_ptr(new HardwareAndroid());
 }
 
 }  // namespace hardware

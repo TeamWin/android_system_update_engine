@@ -317,7 +317,7 @@ bool Ext2Filesystem::GetFiles(vector<File>* files) const {
   return true;
 }
 
-bool Ext2Filesystem::LoadSettings(chromeos::KeyValueStore* store) const {
+bool Ext2Filesystem::LoadSettings(brillo::KeyValueStore* store) const {
   // First search for the settings inode following symlinks if we find some.
   ext2_ino_t ino_num = 0;
   errcode_t err = ext2fs_namei_follow(
@@ -339,7 +339,7 @@ bool Ext2Filesystem::LoadSettings(chromeos::KeyValueStore* store) const {
   if (err != 0)
     return false;
 
-  chromeos::Blob blob;
+  brillo::Blob blob;
   uint64_t physical_size = BlocksInExtents(extents) * filsys_->blocksize;
   // Sparse holes in the settings file are not supported.
   if (EXT2_I_SIZE(&ino_data) > physical_size)

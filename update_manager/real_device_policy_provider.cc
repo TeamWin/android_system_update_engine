@@ -28,7 +28,7 @@
 #include "update_engine/utils.h"
 
 using base::TimeDelta;
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using policy::DevicePolicy;
 using std::set;
 using std::string;

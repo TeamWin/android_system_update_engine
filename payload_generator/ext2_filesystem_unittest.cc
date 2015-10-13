@@ -194,7 +194,7 @@ TEST_F(Ext2FilesystemTest, LoadSettingsFailsTest) {
       "gen/disk_ext2_1k.img");
   unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
 
-  chromeos::KeyValueStore store;
+  brillo::KeyValueStore store;
   // disk_ext2_1k.img doesn't have the /etc/update_engine.conf file.
   EXPECT_FALSE(fs->LoadSettings(&store));
 }
@@ -204,7 +204,7 @@ TEST_F(Ext2FilesystemTest, LoadSettingsWorksTest) {
       "gen/disk_ext2_ue_settings.img");
   unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
 
-  chromeos::KeyValueStore store;
+  brillo::KeyValueStore store;
   EXPECT_TRUE(fs->LoadSettings(&store));
   string minor_version;
   EXPECT_TRUE(store.GetString("PAYLOAD_MINOR_VERSION", &minor_version));

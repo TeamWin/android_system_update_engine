@@ -30,10 +30,10 @@
 #include <base/posix/eintr_wrapper.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/process.h>
-#include <chromeos/secure_blob.h>
+#include <brillo/process.h>
+#include <brillo/secure_blob.h>
 
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -71,7 +71,7 @@ bool SetupChild(const std::map<string, string>& env, uint32_t flags) {
 // Process.
 bool LaunchProcess(const vector<string>& cmd,
                    uint32_t flags,
-                   chromeos::Process* proc) {
+                   brillo::Process* proc) {
   for (const string& arg : cmd)
     proc->AddArg(arg);
   proc->SetSearchPath((flags & Subprocess::kSearchPath) != 0);
@@ -93,7 +93,7 @@ bool LaunchProcess(const vector<string>& cmd,
 }  // namespace
 
 void Subprocess::Init(
-      chromeos::AsynchronousSignalHandlerInterface* async_signal_handler) {
+      brillo::AsynchronousSignalHandlerInterface* async_signal_handler) {
   if (subprocess_singleton_ == this)
     return;
   CHECK(subprocess_singleton_ == nullptr);
@@ -226,7 +226,7 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
                                       uint32_t flags,
                                       int* return_code,
                                       string* stdout) {
-  chromeos::ProcessImpl proc;
+  brillo::ProcessImpl proc;
   if (!LaunchProcess(cmd, flags, &proc)) {
     LOG(ERROR) << "Failed to launch subprocess";
     return false;
@@ -255,7 +255,7 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
   int proc_return_code = proc.Wait();
   if (return_code)
     *return_code = proc_return_code;
-  return proc_return_code != chromeos::Process::kErrorExitStatus;
+  return proc_return_code != brillo::Process::kErrorExitStatus;
 }
 
 bool Subprocess::SubprocessInFlight() {

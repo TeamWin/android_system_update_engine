@@ -28,9 +28,9 @@
 #include <base/message_loop/message_loop.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <chromeos/bind_lambda.h>
-#include <chromeos/message_loops/base_message_loop.h>
-#include <chromeos/message_loops/message_loop_utils.h>
+#include <brillo/bind_lambda.h>
+#include <brillo/message_loops/base_message_loop.h>
+#include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
@@ -38,7 +38,7 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using chromeos_update_engine::test_utils::System;
 using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
@@ -63,8 +63,8 @@ class PostinstallRunnerActionTest : public ::testing::Test {
   static const char* kImageMountPointTemplate;
 
   base::MessageLoopForIO base_loop_;
-  chromeos::BaseMessageLoop loop_{&base_loop_};
-  chromeos::AsynchronousSignalHandler async_signal_handler_;
+  brillo::BaseMessageLoop loop_{&base_loop_};
+  brillo::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
   FakeSystemState fake_system_state_;
 };

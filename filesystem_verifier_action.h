@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include <chromeos/streams/stream.h>
+#include <brillo/streams/stream.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/action.h"
@@ -80,7 +80,7 @@ class FilesystemVerifierAction : public InstallPlanAction {
   // Called from the main loop when a single read from |src_stream_| succeeds or
   // fails, calling OnReadDoneCallback() and OnReadErrorCallback() respectively.
   void OnReadDoneCallback(size_t bytes_read);
-  void OnReadErrorCallback(const chromeos::Error* error);
+  void OnReadErrorCallback(const brillo::Error* error);
 
   // When the read is done, finalize the hash checking of the current partition
   // and continue checking the next one.
@@ -102,10 +102,10 @@ class FilesystemVerifierAction : public InstallPlanAction {
   size_t partition_index_{0};
 
   // If not null, the FileStream used to read from the device.
-  chromeos::StreamPtr src_stream_;
+  brillo::StreamPtr src_stream_;
 
   // Buffer for storing data we read.
-  chromeos::Blob buffer_;
+  brillo::Blob buffer_;
 
   bool read_done_{false};  // true if reached EOF on the input stream.
   bool cancelled_{false};  // true if the action has been cancelled.

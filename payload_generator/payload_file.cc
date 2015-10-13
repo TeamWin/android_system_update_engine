@@ -231,7 +231,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
   // Write signature blob.
   if (!private_key_path.empty()) {
     LOG(INFO) << "Signing the update...";
-    chromeos::Blob signature_blob;
+    brillo::Blob signature_blob;
     TEST_AND_RETURN_FALSE(PayloadSigner::SignPayload(
         payload_file,
         vector<string>(1, private_key_path),
@@ -266,7 +266,7 @@ bool PayloadFile::ReorderDataBlobs(
       if (!aop.op.has_data_offset())
         continue;
       CHECK(aop.op.has_data_length());
-      chromeos::Blob buf(aop.op.data_length());
+      brillo::Blob buf(aop.op.data_length());
       ssize_t rc = pread(in_fd, buf.data(), buf.size(), aop.op.data_offset());
       TEST_AND_RETURN_FALSE(rc == static_cast<ssize_t>(buf.size()));
 
@@ -282,11 +282,11 @@ bool PayloadFile::ReorderDataBlobs(
 }
 
 bool PayloadFile::AddOperationHash(InstallOperation* op,
-                                   const chromeos::Blob& buf) {
+                                   const brillo::Blob& buf) {
   OmahaHashCalculator hasher;
   TEST_AND_RETURN_FALSE(hasher.Update(buf.data(), buf.size()));
   TEST_AND_RETURN_FALSE(hasher.Finalize());
-  const chromeos::Blob& hash = hasher.raw_hash();
+  const brillo::Blob& hash = hasher.raw_hash();
   op->set_data_sha256_hash(hash.data(), hash.size());
   return true;
 }

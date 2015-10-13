@@ -23,7 +23,7 @@
 
 // This is a mock implementation of HttpFetcher which is useful for testing.
 
-using chromeos::MessageLoop;
+using brillo::MessageLoop;
 using std::min;
 
 namespace chromeos_update_engine {
