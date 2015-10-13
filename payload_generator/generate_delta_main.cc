@@ -147,7 +147,8 @@ void CalculateMetadataHashForSigning(const vector<int> &sizes,
 
 void SignPayload(const string& in_file,
                  const string& out_file,
-                 const string& signature_file) {
+                 const string& signature_file,
+                 const string& out_metadata_size_file) {
   LOG(INFO) << "Signing payload.";
   LOG_IF(FATAL, in_file.empty())
       << "Must pass --in_file to sign payload.";
@@ -168,6 +169,12 @@ void SignPayload(const string& in_file,
       in_file, signatures, out_file, &final_metadata_size));
   LOG(INFO) << "Done signing payload. Final metadata size = "
             << final_metadata_size;
+  if (!out_metadata_size_file.empty()) {
+    string metadata_size_string = std::to_string(final_metadata_size);
+    CHECK(utils::WriteFile(out_metadata_size_file.c_str(),
+                           metadata_size_string.data(),
+                           metadata_size_string.size()));
+  }
 }
 
 void VerifySignedPayload(const string& in_file,
@@ -263,6 +270,8 @@ int Main(int argc, char** argv) {
   DEFINE_string(out_hash_file, "", "Path to output hash file");
   DEFINE_string(out_metadata_hash_file, "",
                 "Path to output metadata hash file");
+  DEFINE_string(out_metadata_size_file, "",
+                "Path to output metadata size file");
   DEFINE_string(private_key, "", "Path to private key in .pem format");
   DEFINE_string(public_key, "", "Path to public key in .pem format");
   DEFINE_int32(public_key_version, -1,
@@ -351,6 +360,7 @@ int Main(int argc, char** argv) {
   ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
 
   if (!FLAGS_out_hash_file.empty() || !FLAGS_out_metadata_hash_file.empty()) {
+    CHECK(FLAGS_out_metadata_size_file.empty());
     if (!FLAGS_out_hash_file.empty()) {
       CalculatePayloadHashForSigning(signature_sizes, FLAGS_out_hash_file,
                                      FLAGS_in_file);
@@ -363,7 +373,8 @@ int Main(int argc, char** argv) {
     return 0;
   }
   if (!FLAGS_signature_file.empty()) {
-    SignPayload(FLAGS_in_file, FLAGS_out_file, FLAGS_signature_file);
+    SignPayload(FLAGS_in_file, FLAGS_out_file, FLAGS_signature_file,
+                FLAGS_out_metadata_size_file);
     return 0;
   }
   if (!FLAGS_public_key.empty()) {
@@ -525,7 +536,12 @@ int Main(int argc, char** argv) {
                                  &metadata_size)) {
     return 1;
   }
-
+  if (!FLAGS_out_metadata_size_file.empty()) {
+    string metadata_size_string = std::to_string(metadata_size);
+    CHECK(utils::WriteFile(FLAGS_out_metadata_size_file.c_str(),
+                           metadata_size_string.data(),
+                           metadata_size_string.size()));
+  }
   return 0;
 }
 
