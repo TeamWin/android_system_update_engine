@@ -36,15 +36,6 @@ namespace chromeos_update_engine {
 
 namespace {
 
-static const char* kInstallOperationTypes[] = {
-  "REPLACE",
-  "REPLACE_BZ",
-  "MOVE",
-  "BSDIFF",
-  "SOURCE_COPY",
-  "SOURCE_BSDIFF"
-};
-
 struct DeltaObject {
   DeltaObject(const string& in_name, const int in_type, const off_t in_size)
       : name(in_name),
@@ -313,11 +304,14 @@ void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
 
   static const char kFormatString[] = "%6.2f%% %10jd %-10s %s\n";
   for (const DeltaObject& object : objects) {
-    fprintf(stderr, kFormatString,
-            object.size * 100.0 / total_size,
-            static_cast<intmax_t>(object.size),
-            object.type >= 0 ? kInstallOperationTypes[object.type] : "-",
-            object.name.c_str());
+    fprintf(
+        stderr, kFormatString,
+        object.size * 100.0 / total_size,
+        static_cast<intmax_t>(object.size),
+        (object.type >= 0 ? InstallOperationTypeName(
+                                static_cast<InstallOperation_Type>(object.type))
+                          : "-"),
+        object.name.c_str());
   }
   fprintf(stderr, kFormatString,
           100.0, static_cast<intmax_t>(total_size), "", "<total>");
