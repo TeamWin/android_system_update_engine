@@ -47,7 +47,11 @@ bool Prefs::GetString(const string& key, string* value) const {
 bool Prefs::SetString(const string& key, const string& value) {
   base::FilePath filename;
   TEST_AND_RETURN_FALSE(GetFileNameForKey(key, &filename));
-  TEST_AND_RETURN_FALSE(base::CreateDirectory(filename.DirName()));
+  if (!base::DirectoryExists(filename.DirName())) {
+    // Only attempt to create the directory if it doesn't exist to avoid calls
+    // to parent directories where we might not have permission to write to.
+    TEST_AND_RETURN_FALSE(base::CreateDirectory(filename.DirName()));
+  }
   TEST_AND_RETURN_FALSE(base::WriteFile(filename, value.data(), value.size()) ==
                         static_cast<int>(value.size()));
   const auto observers_for_key = observers_.find(key);
