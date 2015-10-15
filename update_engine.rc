@@ -1,8 +1,4 @@
-on boot
-    mkdir /data/misc/update_engine 0700 system system
-
 service update_engine /system/bin/update_engine --logtostderr --foreground
     class late_start
-    user system
-    group system dbus inet
-    disabled
+    user root
+    group root dbus inet
