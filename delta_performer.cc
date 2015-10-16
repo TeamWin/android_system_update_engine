@@ -702,7 +702,14 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     LOG(INFO) << "Converting update information from old format.";
     PartitionUpdate root_part;
     root_part.set_partition_name(kLegacyPartitionNameRoot);
+#ifdef __ANDROID__
+    LOG(WARNING) << "Legacy payload major version provided to an Android "
+                    "build. Assuming no post-install. Please use major version "
+                    "2 or newer.";
+    root_part.set_run_postinstall(false);
+#else
     root_part.set_run_postinstall(true);
+#endif  // __ANDROID__
     if (manifest_.has_old_rootfs_info()) {
       *root_part.mutable_old_partition_info() = manifest_.old_rootfs_info();
       manifest_.clear_old_rootfs_info();
