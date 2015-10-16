@@ -126,6 +126,7 @@ LOCAL_SHARED_LIBRARIES += \
 LOCAL_SRC_FILES := \
     action_processor.cc \
     boot_control_android.cc \
+    boot_control_stub.cc \
     bzip.cc \
     bzip_extent_writer.cc \
     certificate_checker.cc \

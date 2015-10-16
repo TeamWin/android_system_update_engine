@@ -159,6 +159,7 @@
       'sources': [
         'action_processor.cc',
         'boot_control_chromeos.cc',
+        'boot_control_stub.cc',
         'bzip.cc',
         'bzip_extent_writer.cc',
         'certificate_checker.cc',

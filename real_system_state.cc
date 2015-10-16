@@ -18,8 +18,10 @@
 
 #include <base/files/file_util.h>
 #include <base/time/time.h>
+#include <brillo/make_unique_ptr.h>
 
 #include "update_engine/boot_control.h"
+#include "update_engine/boot_control_stub.h"
 #include "update_engine/constants.h"
 #include "update_engine/hardware.h"
 #include "update_engine/update_manager/state_factory.h"
@@ -39,8 +41,11 @@ bool RealSystemState::Initialize() {
   metrics_lib_.Init();
 
   boot_control_ = boot_control::CreateBootControl();
-  if (!boot_control_)
-    return false;
+  if (!boot_control_) {
+    LOG(WARNING) << "Unable to create BootControl instance, using stub "
+                 << "instead. All update attempts will fail.";
+    boot_control_ = brillo::make_unique_ptr(new BootControlStub());
+  }
 
   hardware_ = hardware::CreateHardware();
   if (!hardware_) {
