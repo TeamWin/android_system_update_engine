@@ -178,6 +178,7 @@
         'http_common.cc',
         'http_fetcher.cc',
         'hwid_override.cc',
+        'image_properties_chromeos.cc',
         'install_plan.cc',
         'libcros_proxy.cc',
         'libcurl_http_fetcher.cc',

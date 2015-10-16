@@ -25,6 +25,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/image_properties.h"
 #include "update_engine/platform_constants.h"
 
 // This gathers local system information and prepares info used by the
@@ -46,19 +47,12 @@ class OmahaRequestParams {
       : system_state_(system_state),
         os_platform_(constants::kOmahaPlatformName),
         os_version_(kOsVersion),
-        board_app_id_(kAppId),
-        canary_app_id_(kAppId),
         delta_okay_(true),
         interactive_(false),
         wall_clock_based_wait_enabled_(false),
         update_check_count_wait_enabled_(false),
         min_update_checks_needed_(kDefaultMinUpdateChecks),
-        max_update_checks_allowed_(kDefaultMaxUpdateChecks),
-        is_powerwash_allowed_(false),
-        force_lock_down_(false),
-        forced_lock_down_(false) {
-    InitFromLsbValue();
-  }
+        max_update_checks_allowed_(kDefaultMaxUpdateChecks) {}
 
   OmahaRequestParams(SystemState* system_state,
                      const std::string& in_os_platform,
@@ -80,13 +74,7 @@ class OmahaRequestParams {
         os_platform_(in_os_platform),
         os_version_(in_os_version),
         os_sp_(in_os_sp),
-        os_board_(in_os_board),
-        board_app_id_(in_app_id),
-        canary_app_id_(in_app_id),
-        app_version_(in_app_version),
         app_lang_(in_app_lang),
-        current_channel_(in_target_channel),
-        target_channel_(in_target_channel),
         hwid_(in_hwid),
         fw_version_(in_fw_version),
         ec_version_(in_ec_version),
@@ -97,10 +85,15 @@ class OmahaRequestParams {
         wall_clock_based_wait_enabled_(false),
         update_check_count_wait_enabled_(false),
         min_update_checks_needed_(kDefaultMinUpdateChecks),
-        max_update_checks_allowed_(kDefaultMaxUpdateChecks),
-        is_powerwash_allowed_(false),
-        force_lock_down_(false),
-        forced_lock_down_(false) {}
+        max_update_checks_allowed_(kDefaultMaxUpdateChecks) {
+    image_props_.board = in_os_board;
+    image_props_.product_id = in_app_id;
+    image_props_.canary_product_id = in_app_id;
+    image_props_.version = in_app_version;
+    image_props_.current_channel = in_target_channel;
+    mutable_image_props_.target_channel = in_target_channel;
+    mutable_image_props_.is_powerwash_allowed = false;
+  }
 
   virtual ~OmahaRequestParams() = default;
 
@@ -108,21 +101,27 @@ class OmahaRequestParams {
   inline std::string os_platform() const { return os_platform_; }
   inline std::string os_version() const { return os_version_; }
   inline std::string os_sp() const { return os_sp_; }
-  inline std::string os_board() const { return os_board_; }
-  inline std::string board_app_id() const { return board_app_id_; }
-  inline std::string canary_app_id() const { return canary_app_id_; }
+  inline std::string os_board() const { return image_props_.board; }
+  inline std::string board_app_id() const { return image_props_.product_id; }
+  inline std::string canary_app_id() const {
+    return image_props_.canary_product_id;
+  }
   inline std::string app_lang() const { return app_lang_; }
   inline std::string hwid() const { return hwid_; }
   inline std::string fw_version() const { return fw_version_; }
   inline std::string ec_version() const { return ec_version_; }
 
   inline void set_app_version(const std::string& version) {
-    app_version_ = version;
+    image_props_.version = version;
   }
-  inline std::string app_version() const { return app_version_; }
+  inline std::string app_version() const { return image_props_.version; }
 
-  inline std::string current_channel() const { return current_channel_; }
-  inline std::string target_channel() const { return target_channel_; }
+  inline std::string current_channel() const {
+    return image_props_.current_channel;
+  }
+  inline std::string target_channel() const {
+    return mutable_image_props_.target_channel;
+  }
   inline std::string download_channel() const { return download_channel_; }
 
   // Can client accept a delta ?
@@ -187,11 +186,8 @@ class OmahaRequestParams {
   virtual std::string GetAppId() const;
 
   // Suggested defaults
-  static const char kAppId[];
   static const char kOsVersion[];
-  static const char kUpdateChannelKey[];
   static const char kIsPowerwashAllowedKey[];
-  static const char kAutoUpdateServerKey[];
   static const int64_t kDefaultMinUpdateChecks = 0;
   static const int64_t kDefaultMaxUpdateChecks = 8;
 
@@ -220,7 +216,9 @@ class OmahaRequestParams {
   // or Init is called again.
   virtual void UpdateDownloadChannel();
 
-  virtual bool is_powerwash_allowed() const { return is_powerwash_allowed_; }
+  virtual bool is_powerwash_allowed() const {
+    return mutable_image_props_.is_powerwash_allowed;
+  }
 
   // Check if the provided update URL is official, meaning either the default
   // autoupdate server or the autoupdate autotest server.
@@ -229,14 +227,11 @@ class OmahaRequestParams {
   // For unit-tests.
   void set_root(const std::string& root);
   void set_current_channel(const std::string& channel) {
-    current_channel_ = channel;
+    image_props_.current_channel = channel;
   }
   void set_target_channel(const std::string& channel) {
-    target_channel_ = channel;
+    mutable_image_props_.target_channel = channel;
   }
-
-  // Enforce security mode for testing purposes.
-  void SetLockDown(bool lock);
 
  private:
   FRIEND_TEST(OmahaRequestParamsTest, IsValidChannelTest);
@@ -245,21 +240,7 @@ class OmahaRequestParams {
   FRIEND_TEST(OmahaRequestParamsTest, LsbPreserveTest);
   FRIEND_TEST(OmahaRequestParamsTest, CollectECFWVersionsTest);
 
-  // Use a validator that is a non-static member of this class so that its
-  // inputs can be mocked in unit tests (e.g., build type for IsValidChannel).
-  typedef bool(
-      OmahaRequestParams::*ValueValidator)(  // NOLINT(readability/casting)
-      const std::string&) const;
-
-  // Returns true if parameter values should be locked down for security
-  // reasons. If this is an official build running in normal boot mode, all
-  // values except the release channel are parsed only from the read-only rootfs
-  // partition and the channel values are restricted to a pre-approved set.
-  bool ShouldLockDown() const;
-
-  // Returns true if |channel| is a valid channel, false otherwise. This method
-  // restricts the channel value only if the image is official (see
-  // IsOfficialBuild).
+  // Returns true if |channel| is a valid channel, false otherwise.
   bool IsValidChannel(const std::string& channel) const;
 
   // Returns the index of the given channel.
@@ -278,55 +259,40 @@ class OmahaRequestParams {
   // Initializes the required properties from the LSB value.
   void InitFromLsbValue();
 
-  // Fetches the value for a given key from
-  // /mnt/stateful_partition/etc/lsb-release if possible and |stateful_override|
-  // is true. Failing that, it looks for the key in /etc/lsb-release. If
-  // |validator| is non-null, uses it to validate and ignore invalid values.
-  std::string GetLsbValue(const std::string& key,
-                          const std::string& default_value,
-                          ValueValidator validator,
-                          bool stateful_override) const;
-
   // Gets the machine type (e.g. "i686").
   std::string GetMachineType() const;
 
   // Global system context.
   SystemState* system_state_;
 
+  // The system image properties.
+  ImageProperties image_props_;
+  MutableImageProperties mutable_image_props_;
+
   // Basic properties of the OS and Application that go into the Omaha request.
   std::string os_platform_;
   std::string os_version_;
   std::string os_sp_;
-  std::string os_board_;
-
-  // The board app id identifies the app id for the board irrespective of the
-  // channel that we're on. The canary app id identifies the app id to be used
-  // iff we're in the canary-channel. These values could be different depending
-  // on how the release tools are implemented.
-  std::string board_app_id_;
-  std::string canary_app_id_;
-
-  std::string app_version_;
   std::string app_lang_;
 
-  // The three channel values we deal with.
-  // Current channel: is always the channel from /etc/lsb-release. It never
-  // changes. It's just read in during initialization.
-  std::string current_channel_;
-
-  // Target channel: It starts off with the value of current channel. But if
-  // the user changes the channel, then it'll have a different value. If the
-  // user changes multiple times, target channel will always contain the most
-  // recent change and is updated immediately to the user-selected value even
-  // if we're in the middle of a download (as opposed to download channel
-  // which gets updated only at the start of next download)
-  std::string target_channel_;
-
-  // The channel from which we're downloading the payload. This should normally
-  // be the same as target channel. But if the user made another channel change
-  // we started the download, then they'd be different, in which case, we'd
-  // detect elsewhere that the target channel has been changed and cancel the
-  // current download attempt.
+  // There are three channel values we deal with:
+  // * The channel we got the image we are running from or "current channel"
+  //   stored in |image_props_.current_channel|.
+  //
+  // * The release channel we are tracking, where we should get updates from,
+  //   stored in |mutable_image_props_.target_channel|. This channel is
+  //   normally the same as the current_channel, except when the user changes
+  //   the channel. In that case it'll have the release channel the user
+  //   switched to, regardless of whether we downloaded an update from that
+  //   channel or not, or if we are in the middle of a download from a
+  //   previously selected channel  (as opposed to download channel
+  //   which gets updated only at the start of next download).
+  //
+  // * The channel from which we're downloading the payload. This should
+  //   normally be the same as target channel. But if the user made another
+  //   channel change after we started the download, then they'd be different,
+  //   in which case, we'd detect elsewhere that the target channel has been
+  //   changed and cancel the current download attempt.
   std::string download_channel_;
 
   std::string hwid_;  // Hardware Qualification ID of the client
@@ -356,15 +322,8 @@ class OmahaRequestParams {
   int64_t min_update_checks_needed_;
   int64_t max_update_checks_allowed_;
 
-  // True if we are allowed to do powerwash, if required, on a channel change.
-  bool is_powerwash_allowed_;
-
   // When reading files, prepend root_ to the paths. Useful for testing.
   std::string root_;
-
-  // Force security lock down for testing purposes.
-  bool force_lock_down_;
-  bool forced_lock_down_;
 
   // TODO(jaysri): Uncomment this after fixing unit tests, as part of
   // chromium-os:39752

@@ -145,6 +145,7 @@ LOCAL_SRC_FILES := \
     http_common.cc \
     http_fetcher.cc \
     hwid_override.cc \
+    image_properties_android.cc \
     install_plan.cc \
     libcros_proxy.cc \
     libcurl_http_fetcher.cc \

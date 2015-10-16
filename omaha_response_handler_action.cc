@@ -109,6 +109,15 @@ void OmahaResponseHandlerAction::PerformAction() {
   install_plan_.source_slot = system_state_->boot_control()->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
 
+  // The Omaha response doesn't include the channel name for this image, so we
+  // use the download_channel we used during the request to tag the target slot.
+  // This will be used in the next boot to know the channel the image was
+  // downloaded from.
+  string current_channel_key =
+      kPrefsChannelOnSlotPrefix + std::to_string(install_plan_.target_slot);
+  system_state_->prefs()->SetString(current_channel_key,
+                                    params->download_channel());
+
   if (params->to_more_stable_channel() && params->is_powerwash_allowed())
     install_plan_.powerwash_required = true;
 

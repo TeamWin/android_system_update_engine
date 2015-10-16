@@ -65,6 +65,8 @@ using testing::_;
 
 namespace {
 
+const char kTestAppId[] = "test-app-id";
+
 // This is a helper struct to allow unit tests build an update response with the
 // values they care about.
 struct FakeUpdateResponse {
@@ -120,7 +122,7 @@ struct FakeUpdateResponse {
     return codebase + filename;
   }
 
-  string app_id = chromeos_update_engine::OmahaRequestParams::kAppId;
+  string app_id = kTestAppId;
   string version = "1.2.3.4";
   string more_info_url = "http://more/info";
   string prompt = "true";
@@ -216,7 +218,7 @@ class OmahaRequestActionTest : public ::testing::Test {
       OmahaRequestParams::kOsVersion,
       "service_pack",
       "x86-generic",
-      OmahaRequestParams::kAppId,
+      kTestAppId,
       "0.1.0.0",
       "en-US",
       "unittest",
@@ -1048,7 +1050,7 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
                             OmahaRequestParams::kOsVersion,
                             "testtheservice_pack>",
                             "x86 generic<id",
-                            OmahaRequestParams::kAppId,
+                            kTestAppId,
                             "0.1.0.0",
                             "en-US",
                             "unittest_track&lt;",
@@ -1241,7 +1243,7 @@ TEST_F(OmahaRequestActionTest, FormatDeltaOkayOutputTest) {
                               OmahaRequestParams::kOsVersion,
                               "service_pack",
                               "x86-generic",
-                              OmahaRequestParams::kAppId,
+                              kTestAppId,
                               "0.1.0.0",
                               "en-US",
                               "unittest_track",
@@ -1282,7 +1284,7 @@ TEST_F(OmahaRequestActionTest, FormatInteractiveOutputTest) {
                               OmahaRequestParams::kOsVersion,
                               "service_pack",
                               "x86-generic",
-                              OmahaRequestParams::kAppId,
+                              kTestAppId,
                               "0.1.0.0",
                               "en-US",
                               "unittest_track",
@@ -1774,7 +1776,6 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   OmahaRequestParams params = request_params_;
   params.set_root(test_dir);
-  params.SetLockDown(false);
   params.Init("1.2.3.4", "", 0);
   EXPECT_EQ("canary-channel", params.current_channel());
   EXPECT_EQ("stable-channel", params.target_channel());
@@ -1822,7 +1823,6 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   OmahaRequestParams params = request_params_;
   params.set_root(test_dir);
-  params.SetLockDown(false);
   params.Init("5.6.7.8", "", 0);
   EXPECT_EQ("stable-channel", params.current_channel());
   EXPECT_EQ("canary-channel", params.target_channel());

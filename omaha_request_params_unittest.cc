@@ -30,7 +30,6 @@
 #include "update_engine/test_utils.h"
 #include "update_engine/utils.h"
 
-using chromeos_update_engine::test_utils::System;
 using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
 
@@ -48,22 +47,25 @@ class OmahaRequestParamsTest : public ::testing::Test {
 
   void SetUp() override {
     // Create a uniquely named test directory.
-    ASSERT_TRUE(utils::MakeTempDirectory(kTestDirTemplate,
-                                         &test_dir_));
-
-    ASSERT_EQ(0, System(string("mkdir -p ") + test_dir_ + "/etc"));
-    ASSERT_EQ(0, System(string("mkdir -p ") + test_dir_ +
-                        kStatefulPartition + "/etc"));
+    ASSERT_TRUE(utils::MakeTempDirectory(kTestDirTemplate, &test_dir_));
+    EXPECT_TRUE(base::CreateDirectory(base::FilePath(test_dir_ + "/etc")));
+    EXPECT_TRUE(base::CreateDirectory(
+        base::FilePath(test_dir_ + kStatefulPartition + "/etc")));
     // Create a fresh copy of the params for each test, so there's no
     // unintended reuse of state across tests.
     OmahaRequestParams new_params(&fake_system_state_);
     params_ = new_params;
     params_.set_root(test_dir_);
-    params_.SetLockDown(false);
+    SetLockDown(false);
   }
 
   void TearDown() override {
-    EXPECT_EQ(0, System(string("rm -rf ") + test_dir_));
+    EXPECT_TRUE(base::DeleteFile(base::FilePath(test_dir_), true));
+  }
+
+  void SetLockDown(bool locked_down) {
+    fake_system_state_.fake_hardware()->SetIsOfficialBuild(locked_down);
+    fake_system_state_.fake_hardware()->SetIsNormalBootMode(locked_down);
   }
 
   OmahaRequestParams params_;
@@ -156,7 +158,8 @@ TEST_F(OmahaRequestParamsTest, MissingChannelTest) {
   EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
-  EXPECT_EQ("", out.target_channel());
+  // By default, if no channel is set, we should track the stable-channel.
+  EXPECT_EQ("stable-channel", out.target_channel());
 }
 
 TEST_F(OmahaRequestParamsTest, ConfusingReleaseTest) {
@@ -172,7 +175,7 @@ TEST_F(OmahaRequestParamsTest, ConfusingReleaseTest) {
   EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", out.GetAppId());
   EXPECT_EQ("0.2.2.3", out.app_version());
   EXPECT_EQ("en-US", out.app_lang());
-  EXPECT_EQ("", out.target_channel());
+  EXPECT_EQ("stable-channel", out.target_channel());
 }
 
 TEST_F(OmahaRequestParamsTest, MissingVersionTest) {
@@ -303,7 +306,7 @@ TEST_F(OmahaRequestParamsTest, OverrideLockDownTest) {
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
-  params_.SetLockDown(true);
+  SetLockDown(true);
   OmahaRequestParams out(&fake_system_state_);
   EXPECT_TRUE(DoTest(&out, "", ""));
   EXPECT_EQ("arm-generic", out.os_board());
@@ -349,7 +352,6 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
   {
     OmahaRequestParams params(&fake_system_state_);
     params.set_root(test_dir_);
-    params.SetLockDown(false);
     EXPECT_TRUE(params.Init("", "", false));
     params.SetTargetChannel("canary-channel", false);
     EXPECT_FALSE(params.is_powerwash_allowed());
@@ -371,7 +373,6 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
   {
     OmahaRequestParams params(&fake_system_state_);
     params.set_root(test_dir_);
-    params.SetLockDown(false);
     EXPECT_TRUE(params.Init("", "", false));
     params.SetTargetChannel("canary-channel", true);
     EXPECT_TRUE(params.is_powerwash_allowed());
@@ -392,8 +393,8 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
       "CHROMEOS_AUSERVER=http://www.google.com"));
   {
     OmahaRequestParams params(&fake_system_state_);
-    params.set_root(string("./") + test_dir_);
-    params.SetLockDown(true);
+    params.set_root(test_dir_);
+    SetLockDown(true);
     EXPECT_TRUE(params.Init("", "", false));
     params.SetTargetChannel("dogfood-channel", true);
     EXPECT_FALSE(params.is_powerwash_allowed());
@@ -406,7 +407,6 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
 }
 
 TEST_F(OmahaRequestParamsTest, IsValidChannelTest) {
-  params_.SetLockDown(false);
   EXPECT_TRUE(params_.IsValidChannel("canary-channel"));
   EXPECT_TRUE(params_.IsValidChannel("stable-channel"));
   EXPECT_TRUE(params_.IsValidChannel("beta-channel"));
@@ -425,7 +425,7 @@ TEST_F(OmahaRequestParamsTest, ValidChannelTest) {
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
       "CHROMEOS_RELEASE_TRACK=dev-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
-  params_.SetLockDown(true);
+  SetLockDown(true);
   OmahaRequestParams out(&fake_system_state_);
   EXPECT_TRUE(DoTest(&out, "", ""));
   EXPECT_EQ("Chrome OS", out.os_platform());
@@ -448,7 +448,6 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
       "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
       "CHROMEOS_RELEASE_TRACK=dev-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
-  params_.SetLockDown(false);
 
   // Check LSB value is used by default when SetTargetChannel is not called.
   params_.Init("", "", false);
@@ -534,10 +533,6 @@ TEST_F(OmahaRequestParamsTest, ToMoreStableChannelFlagTest) {
   EXPECT_TRUE(out.to_more_stable_channel());
 }
 
-TEST_F(OmahaRequestParamsTest, ShouldLockDownTest) {
-  EXPECT_FALSE(params_.ShouldLockDown());
-}
-
 TEST_F(OmahaRequestParamsTest, BoardAppIdUsedForNonCanaryChannelTest) {
   ASSERT_TRUE(WriteFileString(
       test_dir_ + "/etc/lsb-release",
@@ -592,6 +587,5 @@ TEST_F(OmahaRequestParamsTest, CollectECFWVersionsTest) {
   out.hwid_ = string("SAMS ALEX 12345");
   EXPECT_TRUE(out.CollectECFWVersions());
 }
-
 
 }  // namespace chromeos_update_engine

@@ -103,6 +103,11 @@ bool OmahaResponseHandlerActionTest::DoTest(
     EXPECT_CALL(*(fake_system_state_.mock_prefs()),
                 SetString(kPrefsUpdateCheckResponseHash, in.hash))
         .WillOnce(Return(true));
+
+    int slot = 1 - fake_system_state_.fake_boot_control()->GetCurrentSlot();
+    string key = kPrefsChannelOnSlotPrefix + std::to_string(slot);
+    EXPECT_CALL(*(fake_system_state_.mock_prefs()), SetString(key, testing::_))
+        .WillOnce(Return(true));
   }
 
   string current_url = in.payload_urls.size() ? in.payload_urls[0] : "";
@@ -336,8 +341,8 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
 
   OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(test_dir);
-  params.SetLockDown(false);
   params.Init("1.2.3.4", "", 0);
   EXPECT_EQ("canary-channel", params.current_channel());
   EXPECT_EQ("stable-channel", params.target_channel());
@@ -377,8 +382,8 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
 
   OmahaRequestParams params(&fake_system_state_);
+  fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(test_dir);
-  params.SetLockDown(false);
   params.Init("5.6.7.8", "", 0);
   EXPECT_EQ("stable-channel", params.current_channel());
   params.SetTargetChannel("canary-channel", false);
