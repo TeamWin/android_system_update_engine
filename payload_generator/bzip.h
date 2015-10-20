@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_BZIP_H_
-#define UPDATE_ENGINE_BZIP_H_
+#ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_BZIP_H_
+#define UPDATE_ENGINE_PAYLOAD_GENERATOR_BZIP_H_
 
 #include <string>
 #include <vector>
@@ -32,4 +32,4 @@ bool BzipDecompressString(const std::string& str, brillo::Blob* out);
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_BZIP_H_
+#endif  // UPDATE_ENGINE_PAYLOAD_GENERATOR_BZIP_H_

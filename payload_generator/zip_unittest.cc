@@ -22,9 +22,8 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/bzip.h"
+#include "update_engine/payload_generator/bzip.h"
 #include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
 
 using chromeos_update_engine::test_utils::kRandomString;
 using std::string;
@@ -35,14 +34,10 @@ namespace chromeos_update_engine {
 template <typename T>
 class ZipTest : public ::testing::Test {
  public:
-  bool ZipDecompress(const brillo::Blob& in,
-                     brillo::Blob* out) const = 0;
-  bool ZipCompress(const brillo::Blob& in,
-                   brillo::Blob* out) const = 0;
-  bool ZipCompressString(const string& str,
-                         brillo::Blob* out) const = 0;
-  bool ZipDecompressString(const string& str,
-                           brillo::Blob* out) const = 0;
+  bool ZipDecompress(const brillo::Blob& in, brillo::Blob* out) const = 0;
+  bool ZipCompress(const brillo::Blob& in, brillo::Blob* out) const = 0;
+  bool ZipCompressString(const string& str, brillo::Blob* out) const = 0;
+  bool ZipDecompressString(const string& str, brillo::Blob* out) const = 0;
 };
 
 class BzipTest {};
@@ -50,20 +45,16 @@ class BzipTest {};
 template <>
 class ZipTest<BzipTest> : public ::testing::Test {
  public:
-  bool ZipDecompress(const brillo::Blob& in,
-                     brillo::Blob* out) const {
+  bool ZipDecompress(const brillo::Blob& in, brillo::Blob* out) const {
     return BzipDecompress(in, out);
   }
-  bool ZipCompress(const brillo::Blob& in,
-                   brillo::Blob* out) const {
+  bool ZipCompress(const brillo::Blob& in, brillo::Blob* out) const {
     return BzipCompress(in, out);
   }
-  bool ZipCompressString(const string& str,
-                         brillo::Blob* out) const {
+  bool ZipCompressString(const string& str, brillo::Blob* out) const {
     return BzipCompressString(str, out);
   }
-  bool ZipDecompressString(const string& str,
-                           brillo::Blob* out) const {
+  bool ZipDecompressString(const string& str, brillo::Blob* out) const {
     return BzipDecompressString(str, out);
   }
 };

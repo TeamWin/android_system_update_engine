@@ -29,12 +29,12 @@
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/bzip.h"
 #include "update_engine/constants.h"
 #include "update_engine/fake_hardware.h"
 #include "update_engine/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/payload_constants.h"
+#include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/payload_generator/payload_signer.h"

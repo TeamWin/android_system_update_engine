@@ -127,7 +127,6 @@ LOCAL_SRC_FILES := \
     action_processor.cc \
     boot_control_android.cc \
     boot_control_stub.cc \
-    bzip.cc \
     bzip_extent_writer.cc \
     certificate_checker.cc \
     chrome_browser_proxy_resolver.cc \
@@ -272,6 +271,7 @@ LOCAL_SRC_FILES := \
     payload_generator/annotated_operation.cc \
     payload_generator/blob_file_writer.cc \
     payload_generator/block_mapping.cc \
+    payload_generator/bzip.cc \
     payload_generator/cycle_breaker.cc \
     payload_generator/delta_diff_generator.cc \
     payload_generator/delta_diff_utils.cc \

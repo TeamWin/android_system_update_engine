@@ -14,17 +14,17 @@
 // limitations under the License.
 //
 
-#include "update_engine/bzip.h"
+#include "update_engine/payload_generator/bzip.h"
 
-#include <stdlib.h>
-#include <algorithm>
 #include <bzlib.h>
+#include <stdlib.h>
+
+#include <algorithm>
 #include <limits>
 
 #include "update_engine/utils.h"
 
 using std::string;
-using std::vector;
 
 namespace chromeos_update_engine {
 
