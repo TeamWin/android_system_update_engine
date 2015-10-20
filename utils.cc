@@ -374,21 +374,6 @@ off_t BlockDevSize(int fd) {
   return dev_size;
 }
 
-off_t BlockDevSize(const string& path) {
-  int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
-  if (fd == -1) {
-    PLOG(ERROR) << "Error opening " << path;
-    return fd;
-  }
-
-  off_t dev_size = BlockDevSize(fd);
-  if (dev_size == -1)
-    PLOG(ERROR) << "Error getting block device size on " << path;
-
-  close(fd);
-  return dev_size;
-}
-
 off_t FileSize(int fd) {
   struct stat stbuf;
   int rc = fstat(fd, &stbuf);
