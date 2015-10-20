@@ -25,6 +25,7 @@
 #include <vector>
 
 #include <base/logging.h>
+#include <base/files/file_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/string_number_conversions.h>
 
@@ -39,7 +40,8 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
   }
 
   ~FakeP2PManagerConfiguration() {
-    if (p2p_dir_.size() > 0 && !test_utils::RecursiveUnlinkDir(p2p_dir_)) {
+    if (p2p_dir_.size() > 0 &&
+        !base::DeleteFile(base::FilePath(p2p_dir_), true)) {
       PLOG(ERROR) << "Unable to unlink files and directory in " << p2p_dir_;
     }
   }

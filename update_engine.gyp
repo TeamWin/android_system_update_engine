@@ -435,7 +435,6 @@
             'subprocess_unittest.cc',
             'terminator_unittest.cc',
             'test_utils.cc',
-            'test_utils_unittest.cc',
             'update_attempter_unittest.cc',
             'update_manager/boxed_value_unittest.cc',
             'update_manager/chromeos_policy_unittest.cc',

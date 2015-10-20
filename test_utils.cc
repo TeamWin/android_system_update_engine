@@ -258,63 +258,6 @@ ScopedLoopMounter::ScopedLoopMounter(const string& file_path,
   unmounter_.reset(new ScopedFilesystemUnmounter(*mnt_path));
 }
 
-namespace {
-class ScopedDirCloser {
- public:
-  explicit ScopedDirCloser(DIR** dir) : dir_(dir) {}
-  ~ScopedDirCloser() {
-    if (dir_ && *dir_) {
-      int r = closedir(*dir_);
-      TEST_AND_RETURN_ERRNO(r == 0);
-      *dir_ = nullptr;
-      dir_ = nullptr;
-    }
-  }
- private:
-  DIR** dir_;
-};
-}  // namespace
-
-bool RecursiveUnlinkDir(const string& path) {
-  struct stat stbuf;
-  int r = lstat(path.c_str(), &stbuf);
-  TEST_AND_RETURN_FALSE_ERRNO((r == 0) || (errno == ENOENT));
-  if ((r < 0) && (errno == ENOENT))
-    // path request is missing. that's fine.
-    return true;
-  if (!S_ISDIR(stbuf.st_mode)) {
-    TEST_AND_RETURN_FALSE_ERRNO((unlink(path.c_str()) == 0) ||
-                                (errno == ENOENT));
-    // success or path disappeared before we could unlink.
-    return true;
-  }
-  {
-    // We have a dir, unlink all children, then delete dir
-    DIR *dir = opendir(path.c_str());
-    TEST_AND_RETURN_FALSE_ERRNO(dir);
-    ScopedDirCloser dir_closer(&dir);
-    struct dirent dir_entry;
-    struct dirent *dir_entry_p;
-    int err = 0;
-    while ((err = readdir_r(dir, &dir_entry, &dir_entry_p)) == 0) {
-      if (dir_entry_p == nullptr) {
-        // end of stream reached
-        break;
-      }
-      // Skip . and ..
-      if (!strcmp(dir_entry_p->d_name, ".") ||
-          !strcmp(dir_entry_p->d_name, ".."))
-        continue;
-      TEST_AND_RETURN_FALSE(RecursiveUnlinkDir(path + "/" +
-                                               dir_entry_p->d_name));
-    }
-    TEST_AND_RETURN_FALSE(err == 0);
-  }
-  // unlink dir
-  TEST_AND_RETURN_FALSE_ERRNO((rmdir(path.c_str()) == 0) || (errno == ENOENT));
-  return true;
-}
-
 base::FilePath GetBuildArtifactsPath() {
   base::FilePath exe_path;
   base::ReadSymbolicLink(base::FilePath("/proc/self/exe"), &exe_path);

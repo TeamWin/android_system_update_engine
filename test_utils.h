@@ -189,11 +189,6 @@ class ScopedLoopMounter {
   std::unique_ptr<ScopedFilesystemUnmounter> unmounter_;
 };
 
-// Deletes a directory and all its contents synchronously. Returns true
-// on success. This may be called with a regular file--it will just unlink it.
-// This WILL cross filesystem boundaries.
-bool RecursiveUnlinkDir(const std::string& path);
-
 // Returns the path where the build artifacts are stored. This is the directory
 // where the unittest executable is being run from.
 base::FilePath GetBuildArtifactsPath();

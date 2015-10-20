@@ -103,7 +103,7 @@ TEST(UtilsTest, IsSymlinkTest) {
   EXPECT_FALSE(utils::IsSymlink(temp_file.c_str()));
   EXPECT_TRUE(utils::IsSymlink(temp_symlink.c_str()));
   EXPECT_FALSE(utils::IsSymlink("/non/existent/path"));
-  EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
+  EXPECT_TRUE(base::DeleteFile(base::FilePath(temp_dir), true));
 }
 
 TEST(UtilsTest, SplitPartitionNameTest) {

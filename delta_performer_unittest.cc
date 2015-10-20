@@ -673,7 +673,7 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   install_plan_.public_key_rsa = "not-valid-base64";
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
-  EXPECT_TRUE(test_utils::RecursiveUnlinkDir(temp_dir));
+  EXPECT_TRUE(base::DeleteFile(base::FilePath(temp_dir), true));
 }
 
 TEST_F(DeltaPerformerTest, ConfVersionsMatch) {

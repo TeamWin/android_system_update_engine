@@ -22,6 +22,7 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/files/file_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -1798,7 +1799,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
       "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
       "track=\"stable-channel\" from_track=\"canary-channel\" "));
 
-  ASSERT_TRUE(test_utils::RecursiveUnlinkDir(test_dir));
+  ASSERT_TRUE(base::DeleteFile(base::FilePath(test_dir), true));
 }
 
 TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {

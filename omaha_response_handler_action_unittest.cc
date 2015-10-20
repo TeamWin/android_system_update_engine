@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include <base/files/file_util.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/constants.h"
@@ -354,7 +355,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_TRUE(install_plan.powerwash_required);
 
-  ASSERT_TRUE(test_utils::RecursiveUnlinkDir(test_dir));
+  ASSERT_TRUE(base::DeleteFile(base::FilePath(test_dir), true));
 }
 
 TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
@@ -396,7 +397,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
 
-  ASSERT_TRUE(test_utils::RecursiveUnlinkDir(test_dir));
+  ASSERT_TRUE(base::DeleteFile(base::FilePath(test_dir), true));
 }
 
 TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {

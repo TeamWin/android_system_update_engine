@@ -163,7 +163,7 @@ class UpdateAttempterTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    test_utils::RecursiveUnlinkDir(test_dir_);
+    base::DeleteFile(base::FilePath(test_dir_), true);
   }
 
  public:
