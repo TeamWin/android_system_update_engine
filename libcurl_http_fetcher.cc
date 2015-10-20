@@ -28,6 +28,7 @@
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/hardware_interface.h"
+#include "update_engine/platform_constants.h"
 
 using base::TimeDelta;
 using brillo::MessageLoop;
@@ -41,7 +42,6 @@ namespace chromeos_update_engine {
 
 namespace {
 const int kNoNetworkRetrySeconds = 10;
-const char kCACertificatesPath[] = "/usr/share/chromeos-ca-certificates";
 }  // namespace
 
 LibcurlHttpFetcher::~LibcurlHttpFetcher() {
@@ -212,7 +212,8 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttps() {
   LOG(INFO) << "Setting up curl options for HTTPS";
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_VERIFYPEER, 1),
            CURLE_OK);
-  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_CAPATH, kCACertificatesPath),
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_CAPATH,
+                            constants::kCACertificatesPath),
            CURLE_OK);
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS),
            CURLE_OK);

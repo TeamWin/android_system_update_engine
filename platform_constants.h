@@ -38,6 +38,11 @@ extern const char kOmahaPlatformName[];
 // whole payload.
 extern const char kUpdatePayloadPublicKeyPath[];
 
+// Path to the directory containing all the SSL certificates accepted by
+// update_engine when sending requests to Omaha and the download server (if
+// HTTPS is used for that as well).
+extern const char kCACertificatesPath[];
+
 // Path to the file used to notify chrome about the deadline of the last omaha
 // response. Empty if not supported.
 extern const char kOmahaResponseDeadlineFile[];
