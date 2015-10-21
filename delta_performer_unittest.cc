@@ -501,6 +501,17 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
   RunManifestValidation(manifest, true, ErrorCode::kPayloadMismatchedType);
 }
 
+TEST_F(DeltaPerformerTest, ValidateManifestFullPartitionUpdateTest) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+  PartitionUpdate* partition = manifest.add_partitions();
+  partition->mutable_old_partition_info();
+  partition->mutable_new_partition_info();
+  manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
+
+  RunManifestValidation(manifest, true, ErrorCode::kPayloadMismatchedType);
+}
+
 TEST_F(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;

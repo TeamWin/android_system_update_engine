@@ -1275,6 +1275,14 @@ ErrorCode DeltaPerformer::ValidateManifest() {
       return ErrorCode::kPayloadMismatchedType;
     }
 
+    for (const PartitionUpdate& partition : manifest_.partitions()) {
+      if (partition.has_old_partition_info()) {
+        LOG(ERROR) << "Purported full payload contains old partition "
+                      "hash(es), aborting update";
+        return ErrorCode::kPayloadMismatchedType;
+      }
+    }
+
     if (manifest_.minor_version() != kFullPayloadMinorVersion) {
       LOG(ERROR) << "Manifest contains minor version "
                  << manifest_.minor_version()
