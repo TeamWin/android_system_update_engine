@@ -25,8 +25,8 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/bzip.h"
 #include "update_engine/payload_generator/annotated_operation.h"
+#include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"

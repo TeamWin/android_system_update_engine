@@ -23,8 +23,8 @@
 #include <base/format_macros.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/bzip.h"
 #include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/block_mapping.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"

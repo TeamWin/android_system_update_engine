@@ -20,9 +20,9 @@
 
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/bzip.h"
 #include "update_engine/delta_performer.h"
 #include "update_engine/payload_generator/annotated_operation.h"
+#include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/utils.h"
