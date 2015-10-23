@@ -94,7 +94,7 @@ void RealShillProvider::OnManagerPropertyChanged(const string& name,
     if (!service_path.IsValid()) {
       LOG(WARNING) << "Got an invalid DefaultService path. The property value "
                       "contains a "
-                   << brillo::UndecorateTypeName(value.GetType().name())
+                   << value.GetUndecoratedTypeName()
                    << ", read as the object path: '" << service_path.value()
                    << "'";
     }
