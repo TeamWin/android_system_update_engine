@@ -95,7 +95,7 @@ class OmahaRequestParams {
     mutable_image_props_.is_powerwash_allowed = false;
   }
 
-  virtual ~OmahaRequestParams() = default;
+  virtual ~OmahaRequestParams();
 
   // Setters and getters for the various properties.
   inline std::string os_platform() const { return os_platform_; }

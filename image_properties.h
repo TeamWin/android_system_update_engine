@@ -74,7 +74,7 @@ bool StoreMutableImageProperties(SystemState* system_state,
                                  const MutableImageProperties& properties);
 
 // Sets the root_prefix used to load files from during unittests to
-// |test_root_prefix|.
+// |test_root_prefix|. Passing a nullptr value resets it to the default.
 namespace test {
 void SetImagePropertiesRootPrefix(const char* test_root_prefix);
 }  // namespace test

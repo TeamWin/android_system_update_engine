@@ -53,6 +53,11 @@ const char* kChannelsByStability[] = {
     "stable-channel",
 };
 
+OmahaRequestParams::~OmahaRequestParams() {
+  if (!root_.empty())
+    test::SetImagePropertiesRootPrefix(nullptr);
+}
+
 bool OmahaRequestParams::Init(const string& in_app_version,
                               const string& in_update_url,
                               bool in_interactive) {

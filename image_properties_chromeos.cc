@@ -44,7 +44,7 @@ const char kLsbReleaseVersionKey[] = "CHROMEOS_RELEASE_VERSION";
 const char kDefaultAppId[] = "{87efface-864d-49a5-9bb3-4b050a7c227a}";
 
 // A prefix added to the path, used for testing.
-const char* root_prefix = "";
+const char* root_prefix = nullptr;
 
 std::string GetStringWithDefault(const brillo::KeyValueStore& store,
                                  const std::string& key,
@@ -67,7 +67,9 @@ enum class LsbReleaseSource {
 // |source|. The loaded values are added to the store, possibly overriding
 // existing values.
 void LoadLsbRelease(LsbReleaseSource source, brillo::KeyValueStore* store) {
-  std::string path = root_prefix;
+  std::string path;
+  if (root_prefix)
+    path = root_prefix;
   if (source == LsbReleaseSource::kStateful)
     path += chromeos_update_engine::kStatefulPartition;
   store->Load(base::FilePath(path + kLsbRelease));

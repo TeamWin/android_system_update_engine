@@ -357,6 +357,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
     EXPECT_FALSE(params.is_powerwash_allowed());
   }
   OmahaRequestParams out(&fake_system_state_);
+  out.set_root(test_dir_);
   EXPECT_TRUE(DoTest(&out, "", ""));
   EXPECT_EQ("canary-channel", out.target_channel());
   EXPECT_FALSE(out.is_powerwash_allowed());
@@ -378,6 +379,7 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
     EXPECT_TRUE(params.is_powerwash_allowed());
   }
   OmahaRequestParams out(&fake_system_state_);
+  out.set_root(test_dir_);
   EXPECT_TRUE(DoTest(&out, "", ""));
   EXPECT_EQ("canary-channel", out.target_channel());
   EXPECT_TRUE(out.is_powerwash_allowed());
@@ -400,6 +402,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
     EXPECT_FALSE(params.is_powerwash_allowed());
   }
   OmahaRequestParams out(&fake_system_state_);
+  out.set_root(test_dir_);
   EXPECT_TRUE(DoTest(&out, "", ""));
   EXPECT_EQ("arm-generic", out.os_board());
   EXPECT_EQ("dev-channel", out.target_channel());
