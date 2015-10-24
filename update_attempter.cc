@@ -762,7 +762,7 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
   }
 
   vector<BootControlInterface::Slot> bootable_slots;
-  for(BootControlInterface::Slot slot = 0; slot < num_slots; slot++) {
+  for (BootControlInterface::Slot slot = 0; slot < num_slots; slot++) {
     if (slot != current_slot &&
         system_state_->boot_control()->IsSlotBootable(slot)) {
       LOG(INFO) << "Found bootable slot "
@@ -1083,6 +1083,42 @@ void UpdateAttempter::DownloadComplete() {
   system_state_->payload_state()->DownloadComplete();
 }
 
+bool UpdateAttempter::OnCheckForUpdates(brillo::ErrorPtr* error) {
+  CheckForUpdate(
+      "" /* app_version */, "" /* omaha_url */, true /* interactive */);
+  return true;
+}
+
+bool UpdateAttempter::OnTrackChannel(const string& channel,
+                                     brillo::ErrorPtr* error) {
+  LOG(INFO) << "Setting destination channel to: " << channel;
+  string error_message;
+  if (!system_state_->request_params()->SetTargetChannel(
+          channel, false /* powerwash_allowed */, &error_message)) {
+    brillo::Error::AddTo(error,
+                         FROM_HERE,
+                         brillo::errors::dbus::kDomain,
+                         "_set_target_error",
+                         error_message);
+    return false;
+  }
+  return true;
+}
+
+bool UpdateAttempter::GetWeaveState(int64_t* last_checked_time,
+                                    double* progress,
+                                    UpdateStatus* update_status,
+                                    string* current_channel,
+                                    string* tracking_channel) {
+  *last_checked_time = last_checked_time_;
+  *progress = download_progress_;
+  *update_status = status_;
+  OmahaRequestParams* rp = system_state_->request_params();
+  *current_channel = rp->current_channel();
+  *tracking_channel = rp->target_channel();
+  return true;
+}
+
 bool UpdateAttempter::ResetStatus() {
   LOG(INFO) << "Attempting to reset state from "
             << UpdateStatusToString(status_) << " to UpdateStatus::IDLE";
@@ -1172,6 +1208,9 @@ void UpdateAttempter::CompleteUpdateBootFlags(bool successful) {
 }
 
 void UpdateAttempter::BroadcastStatus() {
+  if (system_state_->weave_service())
+    system_state_->weave_service()->UpdateWeaveState();
+
   if (!dbus_adaptor_)
     return;
   last_notify_time_ = TimeTicks::Now();

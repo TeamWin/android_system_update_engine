@@ -38,6 +38,7 @@
 #include "update_engine/shill_proxy.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/update_manager/update_manager.h"
+#include "update_engine/weave_service_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -92,6 +93,10 @@ class RealSystemState : public SystemState {
     return update_attempter_.get();
   }
 
+  inline WeaveServiceInterface* weave_service() override {
+    return weave_service_.get();
+  }
+
   inline OmahaRequestParams* request_params() override {
     return &request_params_;
   }
@@ -110,6 +115,9 @@ class RealSystemState : public SystemState {
   inline bool system_rebooted() override { return system_rebooted_; }
 
  private:
+  // Reference to the DBus bus.
+  scoped_refptr<dbus::Bus> bus_;
+
   // Real DBus proxies using the DBus connection.
   org::chromium::debugdProxy debugd_proxy_;
   org::chromium::PowerManagerProxy power_manager_proxy_;
@@ -157,6 +165,8 @@ class RealSystemState : public SystemState {
   OmahaRequestParams request_params_{this};
 
   std::unique_ptr<P2PManager> p2p_manager_;
+
+  std::unique_ptr<WeaveServiceInterface> weave_service_;
 
   std::unique_ptr<chromeos_update_manager::UpdateManager> update_manager_;
 

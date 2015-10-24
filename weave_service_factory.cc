@@ -14,24 +14,28 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_UPDATE_STATUS_UTILS_H_
-#define UPDATE_ENGINE_UPDATE_STATUS_UTILS_H_
+#include "update_engine/weave_service_factory.h"
 
-#include <string>
-
-#include "update_engine/client_library/include/update_engine/update_status.h"
+#if USE_WEAVE
+#include "update_engine/weave_service.h"
+#endif
 
 namespace chromeos_update_engine {
 
-const char* UpdateStatusToString(const update_engine::UpdateStatus& status);
+std::unique_ptr<WeaveServiceInterface> ConstructWeaveService(
+    const scoped_refptr<dbus::Bus>& bus,
+    WeaveServiceInterface::DelegateInterface* delegate) {
+  std::unique_ptr<WeaveServiceInterface> result;
+  if (!delegate || !bus.get())
+    return result;
 
-// Convert the UpdateStatus |status| to the string reported in the weave status.
-const char* UpdateStatusToWeaveStatus(
-    const update_engine::UpdateStatus& status);
-
-bool StringToUpdateStatus(const std::string& update_status_as_string,
-                          update_engine::UpdateStatus* status);
+#if USE_WEAVE
+  WeaveService* weave_service = new WeaveService();
+  result.reset(weave_service);
+  if (!weave_service->Init(bus, delegate))
+    result.reset();
+#endif
+  return result;
+}
 
 }  // namespace chromeos_update_engine
-
-#endif  // UPDATE_ENGINE_UPDATE_STATUS_UTILS_H_
