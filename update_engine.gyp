@@ -17,8 +17,8 @@
   'target_defaults': {
     'variables': {
       'deps': [
+        'libbrillo-<(libbase_ver)',
         'libchrome-<(libbase_ver)',
-        'libchromeos-<(libbase_ver)',
       ],
       # Defaults if the -DUSE_* flags are not passed to gyp is 0. You can set
       # the default value for the USE flag in the ebuild.
@@ -373,7 +373,7 @@
           'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'variables': {
             'deps': [
-              'libchromeos-test-<(libbase_ver)',
+              'libbrillo-test-<(libbase_ver)',
               'libchrome-test-<(libbase_ver)',
               'libdebugd-client-test',
               'libpower_manager-client-test',

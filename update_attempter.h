@@ -168,9 +168,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Called at update_engine startup to do various house-keeping.
   void UpdateEngineStarted();
 
-  // Reloads the device policy from libchromeos. Note: This method doesn't
+  // Reloads the device policy from libbrillo. Note: This method doesn't
   // cause a real-time policy fetch from the policy server. It just reloads the
-  // latest value that libchromeos has cached. libchromeos fetches the policies
+  // latest value that libbrillo has cached. libbrillo fetches the policies
   // from the server asynchronously at its own frequency.
   virtual void RefreshDevicePolicy();
 

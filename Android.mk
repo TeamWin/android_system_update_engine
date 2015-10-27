@@ -49,12 +49,12 @@ define update_engine_common
         external/gtest/include \
         system
     LOCAL_SHARED_LIBRARIES += \
+        libbrillo \
+        libbrillo-dbus \
+        libbrillo-http \
+        libbrillo-stream
         libchrome \
         libchrome-dbus \
-        libchromeos \
-        libchromeos-dbus \
-        libchromeos-http \
-        libchromeos-stream
 endef
 
 # update_metadata-protos (type: static_library)
@@ -120,7 +120,7 @@ LOCAL_SHARED_LIBRARIES += \
     libshill-client \
     libssl \
     libexpat \
-    libchromeos-policy \
+    libbrillo-policy \
     libhardware \
     libcutils
 LOCAL_SRC_FILES := \
@@ -212,7 +212,7 @@ LOCAL_SHARED_LIBRARIES += \
     libshill-client \
     libssl \
     libexpat \
-    libchromeos-policy \
+    libbrillo-policy \
     libhardware \
     libcutils
 LOCAL_SRC_FILES := \
@@ -261,7 +261,7 @@ LOCAL_SHARED_LIBRARIES += \
     libshill-client \
     libssl \
     libexpat \
-    libchromeos-policy \
+    libbrillo-policy \
     libhardware \
     libcutils \
     libprotobuf-cpp-lite-rtti \
@@ -315,7 +315,7 @@ LOCAL_SHARED_LIBRARIES += \
     libshill-client \
     libssl \
     libexpat \
-    libchromeos-policy \
+    libbrillo-policy \
     libhardware \
     libcutils \
     libprotobuf-cpp-lite-rtti \
@@ -355,8 +355,8 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/client_library/include
 LOCAL_SHARED_LIBRARIES := \
     libchrome \
     libchrome-dbus \
-    libchromeos \
-    libchromeos-dbus
+    libbrillo \
+    libbrillo-dbus
 LOCAL_STATIC_LIBRARIES := \
     update_engine_client-dbus-proxies
 LOCAL_SRC_FILES := \

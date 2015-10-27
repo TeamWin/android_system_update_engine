@@ -150,7 +150,7 @@ bool UpdateEngineService::SetChannel(ErrorPtr* error,
   const policy::DevicePolicy* device_policy = system_state_->device_policy();
 
   // The device_policy is loaded in a lazy way before an update check. Load it
-  // now from the libchromeos cache if it wasn't already loaded.
+  // now from the libbrillo cache if it wasn't already loaded.
   if (!device_policy) {
     UpdateAttempter* update_attempter = system_state_->update_attempter();
     if (update_attempter) {
@@ -223,7 +223,7 @@ bool UpdateEngineService::SetUpdateOverCellularPermission(ErrorPtr* error,
   const policy::DevicePolicy* device_policy = system_state_->device_policy();
 
   // The device_policy is loaded in a lazy way before an update check. Load it
-  // now from the libchromeos cache if it wasn't already loaded.
+  // now from the libbrillo cache if it wasn't already loaded.
   if (!device_policy) {
     UpdateAttempter* update_attempter = system_state_->update_attempter();
     if (update_attempter) {
@@ -261,7 +261,7 @@ bool UpdateEngineService::GetUpdateOverCellularPermission(ErrorPtr* /* error */,
 
   // The device_policy is loaded in a lazy way before an update check and is
   // used to determine if an update is allowed over cellular. Load the device
-  // policy now from the libchromeos cache if it wasn't already loaded.
+  // policy now from the libbrillo cache if it wasn't already loaded.
   if (!system_state_->device_policy()) {
     UpdateAttempter* update_attempter = system_state_->update_attempter();
     if (update_attempter)
