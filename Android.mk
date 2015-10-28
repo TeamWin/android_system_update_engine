@@ -52,9 +52,9 @@ define update_engine_common
         libbrillo \
         libbrillo-dbus \
         libbrillo-http \
-        libbrillo-stream
+        libbrillo-stream \
         libchrome \
-        libchrome-dbus \
+        libchrome-dbus
 endef
 
 # update_metadata-protos (type: static_library)
