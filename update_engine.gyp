@@ -23,6 +23,7 @@
       # Defaults if the -DUSE_* flags are not passed to gyp is 0. You can set
       # the default value for the USE flag in the ebuild.
       'USE_hwid_override%': '0',
+      'USE_mtd%': '0',
       'USE_power_management%': '0',
     },
     'cflags': [

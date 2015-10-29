@@ -16,10 +16,15 @@
 
 LOCAL_PATH := $(my-dir)
 
+# Default values for the USE flags. Override these USE flags from your product.
+BRILLO_USE_HWID_OVERRIDE ?= 0
+BRILLO_USE_MTD ?= 0
+BRILLO_USE_POWER_MANAGEMENT ?= 0
+
 ue_common_cflags := \
-    -DUSE_HWID_OVERRIDE=0 \
-    -DUSE_MTD=0 \
-    -DUSE_POWER_MANAGEMENT=0 \
+    -DUSE_HWID_OVERRIDE=$(BRILLO_USE_HWID_OVERRIDE) \
+    -DUSE_MTD=$(BRILLO_USE_MTD) \
+    -DUSE_POWER_MANAGEMENT=$(BRILLO_USE_POWER_MANAGEMENT) \
     -D_FILE_OFFSET_BITS=64 \
     -D_POSIX_C_SOURCE=199309L \
     -Wa,--noexecstack \
