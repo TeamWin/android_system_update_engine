@@ -16,67 +16,75 @@
 
 LOCAL_PATH := $(my-dir)
 
-# Definitions applying to all targets. $(eval) this last.
-define update_engine_common
-    LOCAL_CPP_EXTENSION := .cc
-    LOCAL_RTTI_FLAG := -frtti
-    LOCAL_CLANG := true
+ue_common_cflags := \
+    -DUSE_HWID_OVERRIDE=0 \
+    -DUSE_MTD=0 \
+    -DUSE_POWER_MANAGEMENT=0 \
+    -D_FILE_OFFSET_BITS=64 \
+    -D_POSIX_C_SOURCE=199309L \
+    -Wa,--noexecstack \
+    -Wall \
+    -Werror \
+    -Wextra \
+    -Wformat=2 \
+    -Wno-psabi \
+    -Wno-unused-parameter \
+    -ffunction-sections \
+    -fstack-protector-strong \
+    -fvisibility=hidden
+ue_common_cppflags := \
+    -Wnon-virtual-dtor \
+    -fno-strict-aliasing \
+    -std=gnu++11
+ue_common_ldflags := \
+    -Wl,--gc-sections
+ue_common_c_includes := \
+    $(LOCAL_PATH)/client_library/include \
+    external/gtest/include \
+    system
+ue_common_shared_libraries := \
+    libbrillo \
+    libbrillo-dbus \
+    libbrillo-http \
+    libbrillo-stream \
+    libchrome \
+    libchrome-dbus
 
-    LOCAL_CFLAGS += \
-        -DUSE_HWID_OVERRIDE=0 \
-        -DUSE_MTD=0 \
-        -DUSE_POWER_MANAGEMENT=0 \
-        -D_FILE_OFFSET_BITS=64 \
-        -D_POSIX_C_SOURCE=199309L \
-        -Wa,--noexecstack \
-        -Wall \
-        -Werror \
-        -Wextra \
-        -Wformat=2 \
-        -Wno-psabi \
-        -Wno-unused-parameter \
-        -ffunction-sections \
-        -fstack-protector-strong \
-        -fvisibility=hidden
-    LOCAL_CPPFLAGS += \
-        -Wnon-virtual-dtor \
-        -fno-strict-aliasing \
-        -std=gnu++11
-    LOCAL_LDFLAGS += \
-        -Wl,--gc-sections
-    LOCAL_C_INCLUDES += \
-        $(LOCAL_PATH)/client_library/include \
-        external/gtest/include \
-        system
-    LOCAL_SHARED_LIBRARIES += \
-        libbrillo \
-        libbrillo-dbus \
-        libbrillo-http \
-        libbrillo-stream \
-        libchrome \
-        libchrome-dbus
-endef
+
+# update_engine_client-dbus-proxies (from generate-dbus-proxies.gypi)
+# ========================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := update_engine_client-dbus-proxies
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+LOCAL_SRC_FILES := \
+    dbus_bindings/dbus-service-config.json \
+    dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml
+LOCAL_DBUS_PROXY_PREFIX := update_engine
+include $(BUILD_STATIC_LIBRARY)
 
 # update_metadata-protos (type: static_library)
 # ========================================================
 # Protobufs.
+ue_update_metadata_protos_exported_static_libraries := \
+    update_metadata-protos
+ue_update_metadata_protos_exported_shared_libraries := \
+    libprotobuf-cpp-lite-rtti
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_metadata-protos
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 generated_sources_dir := $(call local-generated-sources-dir)
-LOCAL_EXPORT_C_INCLUDE_DIRS += \
-    $(generated_sources_dir)/proto/system
-LOCAL_SHARED_LIBRARIES += \
-    libprotobuf-cpp-lite-rtti
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(generated_sources_dir)/proto/system
 LOCAL_SRC_FILES := \
     update_metadata.proto
-$(eval $(update_engine_common))
 include $(BUILD_STATIC_LIBRARY)
 
 # update_engine-dbus-adaptor (from generate-dbus-adaptors.gypi)
 # ========================================================
+# Chrome D-Bus bindings.
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine-dbus-adaptor
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_SRC_FILES := \
     dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml
 include $(BUILD_STATIC_LIBRARY)
@@ -85,6 +93,7 @@ include $(BUILD_STATIC_LIBRARY)
 # ========================================================
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine-dbus-libcros-client
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_SRC_FILES := \
     dbus_bindings/org.chromium.LibCrosService.dbus-xml
 LOCAL_DBUS_PROXY_PREFIX := libcros
@@ -93,26 +102,19 @@ include $(BUILD_STATIC_LIBRARY)
 # libupdate_engine (type: static_library)
 # ========================================================
 # The main static_library with all the code.
-include $(CLEAR_VARS)
-LOCAL_MODULE := libupdate_engine
-LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-LOCAL_C_INCLUDES += \
-    $(LOCAL_PATH)/include \
-    external/cros/system_api/dbus \
-    external/e2fsprogs/lib
-LOCAL_EXPORT_C_INCLUDE_DIRS += \
+ue_libupdate_engine_exported_c_includes := \
     $(LOCAL_PATH)/include \
     external/cros/system_api/dbus
-LOCAL_STATIC_LIBRARIES += \
+ue_libupdate_engine_exported_static_libraries := \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
     update_engine_client-dbus-proxies \
     libxz \
     libbz \
-    libfs_mgr
-LOCAL_SHARED_LIBRARIES += \
-    libprotobuf-cpp-lite-rtti \
+    libfs_mgr \
+    $(ue_update_metadata_protos_exported_static_libraries)
+ue_libupdate_engine_exported_shared_libraries := \
     libdbus \
     libcrypto \
     libcurl \
@@ -122,7 +124,34 @@ LOCAL_SHARED_LIBRARIES += \
     libexpat \
     libbrillo-policy \
     libhardware \
-    libcutils
+    libcutils \
+    $(ue_update_metadata_protos_exported_shared_libraries)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libupdate_engine
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(ue_libupdate_engine_exported_c_includes)
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    $(ue_libupdate_engine_exported_c_includes) \
+    external/e2fsprogs/lib
+LOCAL_STATIC_LIBRARIES := \
+    update_metadata-protos \
+    update_engine-dbus-adaptor \
+    update_engine-dbus-libcros-client \
+    update_engine_client-dbus-proxies \
+    $(ue_libupdate_engine_exported_static_libraries) \
+    $(ue_update_metadata_protos_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libupdate_engine_exported_shared_libraries) \
+    $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     action_processor.cc \
     boot_control_android.cc \
@@ -185,7 +214,6 @@ LOCAL_SRC_FILES := \
     update_status_utils.cc \
     utils.cc \
     xz_extent_writer.cc
-$(eval $(update_engine_common))
 include $(BUILD_STATIC_LIBRARY)
 
 # update_engine (type: executable)
@@ -194,31 +222,24 @@ include $(BUILD_STATIC_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine
 LOCAL_MODULE_CLASS := EXECUTABLES
-LOCAL_STATIC_LIBRARIES += \
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    $(ue_libupdate_engine_exported_c_includes)
+LOCAL_STATIC_LIBRARIES := \
     libupdate_engine \
-    libbz \
-    libfs_mgr \
-    update_metadata-protos \
-    update_engine-dbus-adaptor \
-    update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies \
-    libxz
-LOCAL_SHARED_LIBRARIES += \
-    libprotobuf-cpp-lite-rtti \
-    libdbus \
-    libcrypto \
-    libcurl \
-    libmetrics \
-    libshill-client \
-    libssl \
-    libexpat \
-    libbrillo-policy \
-    libhardware \
-    libcutils
+    $(ue_libupdate_engine_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libupdate_engine_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     main.cc
 LOCAL_INIT_RC := update_engine.rc
-$(eval $(update_engine_common))
 include $(BUILD_EXECUTABLE)
 
 # update_engine_client (type: executable)
@@ -227,45 +248,60 @@ include $(BUILD_EXECUTABLE)
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine_client
 LOCAL_MODULE_CLASS := EXECUTABLES
-LOCAL_C_INCLUDES += \
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
     $(LOCAL_PATH)/include
-LOCAL_STATIC_LIBRARIES += \
-    update_engine_client-dbus-proxies
+LOCAL_STATIC_LIBRARIES := update_engine_client-dbus-proxies
+LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
 LOCAL_SRC_FILES := \
     update_engine_client.cc
-$(eval $(update_engine_common))
 include $(BUILD_EXECUTABLE)
 
 # libpayload_generator (type: static_library)
 # ========================================================
 # server-side code. This is used for delta_generator and unittests but not
 # for any client code.
+ue_libpayload_generator_exported_c_includes := \
+    $(ue_libupdate_engine_exported_c_includes)
+ue_libpayload_generator_exported_static_libraries := \
+    libupdate_engine \
+    update_metadata-protos \
+    $(ue_libupdate_engine_exported_static_libraries) \
+    $(ue_update_metadata_protos_exported_static_libraries)
+ue_libpayload_generator_exported_shared_libraries := \
+    libext2fs \
+    $(ue_libupdate_engine_exported_shared_libraries) \
+    $(ue_update_metadata_protos_exported_shared_libraries)
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_generator
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-LOCAL_STATIC_LIBRARIES += \
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(ue_libpayload_generator_exported_c_includes)
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    $(ue_libupdate_engine_exported_c_includes)
+LOCAL_STATIC_LIBRARIES := \
     libupdate_engine \
-    libbz \
-    libfs_mgr \
     update_metadata-protos \
-    update_engine-dbus-adaptor \
-    update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies \
-    libxz \
-    update_metadata-protos
-LOCAL_SHARED_LIBRARIES += \
-    libdbus \
-    libcrypto \
-    libcurl \
-    libmetrics \
-    libshill-client \
-    libssl \
-    libexpat \
-    libbrillo-policy \
-    libhardware \
-    libcutils \
-    libprotobuf-cpp-lite-rtti \
-    libext2fs
+    $(ue_libupdate_engine_exported_static_libraries) \
+    $(ue_update_metadata_protos_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libpayload_generator_exported_shared_libraries) \
+    $(ue_libupdate_engine_exported_shared_libraries) \
+    $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     payload_generator/ab_generator.cc \
     payload_generator/annotated_operation.cc \
@@ -288,7 +324,6 @@ LOCAL_SRC_FILES := \
     payload_generator/raw_filesystem.cc \
     payload_generator/tarjan.cc \
     payload_generator/topological_sort.cc
-$(eval $(update_engine_common))
 include $(BUILD_STATIC_LIBRARY)
 
 # delta_generator (type: executable)
@@ -297,43 +332,28 @@ include $(BUILD_STATIC_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_MODULE := delta_generator
 LOCAL_MODULE_CLASS := EXECUTABLES
-LOCAL_STATIC_LIBRARIES += \
-    libpayload_generator \
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    $(ue_libupdate_engine_exported_c_includes) \
+    $(ue_libpayload_generator_exported_c_includes)
+LOCAL_STATIC_LIBRARIES := \
     libupdate_engine \
-    libbz \
-    libfs_mgr \
-    update_metadata-protos \
-    update_engine-dbus-adaptor \
-    update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies \
-    libxz
-LOCAL_SHARED_LIBRARIES += \
-    libdbus \
-    libcrypto \
-    libcurl \
-    libmetrics \
-    libshill-client \
-    libssl \
-    libexpat \
-    libbrillo-policy \
-    libhardware \
-    libcutils \
-    libprotobuf-cpp-lite-rtti \
-    libext2fs
+    libpayload_generator \
+    $(ue_libupdate_engine_exported_static_libraries) \
+    $(ue_libpayload_generator_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libupdate_engine_exported_shared_libraries) \
+    $(ue_libpayload_generator_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     payload_generator/generate_delta_main.cc
-$(eval $(update_engine_common))
 include $(BUILD_EXECUTABLE)
-
-# update_engine_client-dbus-proxies (from generate-dbus-proxies.gypi)
-# ========================================================
-include $(CLEAR_VARS)
-LOCAL_MODULE := update_engine_client-dbus-proxies
-LOCAL_SRC_FILES := \
-    dbus_bindings/dbus-service-config.json \
-    dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml
-LOCAL_DBUS_PROXY_PREFIX := update_engine
-include $(BUILD_STATIC_LIBRARY)
 
 # libupdate_engine_client
 # ========================================================
