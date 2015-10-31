@@ -1083,6 +1083,12 @@ bool UpdateAttempter::ResetStatus() {
       // Notify the PayloadState that the successful payload was canceled.
       system_state_->payload_state()->ResetUpdateStatus();
 
+      // The previous version is used to report back to omaha after reboot that
+      // we actually rebooted into the new version from this "prev-version". We
+      // need to clear out this value now to prevent it being sent on the next
+      // updatecheck request.
+      ret_value = prefs_->SetString(kPrefsPreviousVersion, "") && ret_value;
+
       LOG(INFO) << "Reset status " << (ret_value ? "successful" : "failed");
       return ret_value;
     }

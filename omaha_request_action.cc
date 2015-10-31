@@ -123,20 +123,25 @@ string GetAppBody(const OmahaEvent* event,
       // generated with a previous version of 0.0.0.0 -- this is relevant for
       // older clients or new installs. The previous version event is not sent
       // for ping-only requests because they come before the client has
-      // rebooted.
+      // rebooted. The previous version event is also not sent if it was already
+      // sent for this new version with a previous updatecheck.
       string prev_version;
       if (!prefs->GetString(kPrefsPreviousVersion, &prev_version)) {
         prev_version = "0.0.0.0";
       }
-
-      app_body += base::StringPrintf(
-          "        <event eventtype=\"%d\" eventresult=\"%d\" "
-          "previousversion=\"%s\"></event>\n",
-          OmahaEvent::kTypeUpdateComplete,
-          OmahaEvent::kResultSuccessReboot,
-          XmlEncodeWithDefault(prev_version, "0.0.0.0").c_str());
-      LOG_IF(WARNING, !prefs->SetString(kPrefsPreviousVersion, ""))
-          << "Unable to reset the previous version.";
+      // We only store a non-empty previous version value after a successful
+      // update in the previous boot. After reporting it back to the server,
+      // we clear the previous version value so it doesn't get reported again.
+      if (!prev_version.empty()) {
+        app_body += base::StringPrintf(
+            "        <event eventtype=\"%d\" eventresult=\"%d\" "
+            "previousversion=\"%s\"></event>\n",
+            OmahaEvent::kTypeUpdateComplete,
+            OmahaEvent::kResultSuccessReboot,
+            XmlEncodeWithDefault(prev_version, "0.0.0.0").c_str());
+        LOG_IF(WARNING, !prefs->SetString(kPrefsPreviousVersion, ""))
+            << "Unable to reset the previous version.";
+      }
     }
   } else {
     // The error code is an optional attribute so append it only if the result
