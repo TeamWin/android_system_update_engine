@@ -1145,7 +1145,9 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
 
   EXPECT_CALL(prefs, GetString(kPrefsPreviousVersion, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(string("")), Return(true)));
-  EXPECT_CALL(prefs, SetString(kPrefsPreviousVersion, _)).Times(1);
+  // An existing but empty previous version means that we didn't reboot to a new
+  // update, therefore, no need to update the previous version.
+  EXPECT_CALL(prefs, SetString(kPrefsPreviousVersion, _)).Times(0);
   ASSERT_FALSE(TestUpdateCheck(nullptr,  // request_params
                                "invalid xml>",
                                -1,
@@ -1168,6 +1170,8 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
             string::npos);
   EXPECT_NE(post_str.find("ec_version=\"0X0A1\""),
             string::npos);
+  // No <event> tag should be sent if we didn't reboot to an update.
+  EXPECT_EQ(post_str.find("<event"), string::npos);
 }
 
 
