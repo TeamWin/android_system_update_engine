@@ -64,7 +64,7 @@ const uint64_t DeltaPerformer::kDeltaManifestSizeOffset =
 const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
 const uint64_t DeltaPerformer::kDeltaMetadataSignatureSizeSize = 4;
 const uint64_t DeltaPerformer::kMaxPayloadHeaderSize = 24;
-const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 1;
+const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 2;
 const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 2;
 
 const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
@@ -418,7 +418,8 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     // switch big endian to host
     major_payload_version_ = be64toh(major_payload_version_);
 
-    if (major_payload_version_ != supported_major_version_) {
+    if (major_payload_version_ != supported_major_version_ &&
+        major_payload_version_ != kChromeOSMajorPayloadVersion) {
       LOG(ERROR) << "Bad payload format -- unsupported payload version: "
           << major_payload_version_;
       *error = ErrorCode::kUnsupportedMajorPayloadVersion;
