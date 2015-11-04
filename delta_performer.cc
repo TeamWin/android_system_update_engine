@@ -253,7 +253,9 @@ bool DeltaPerformer::HandleOpResult(bool op_result, const char* op_type_name,
 
 int DeltaPerformer::Close() {
   int err = -CloseCurrentPartition();
-  LOG_IF(ERROR, !hash_calculator_.Finalize()) << "Unable to finalize the hash.";
+  LOG_IF(ERROR, !payload_hash_calculator_.Finalize() ||
+                !signed_hash_calculator_.Finalize())
+      << "Unable to finalize the hash.";
   if (!buffer_.empty()) {
     LOG(INFO) << "Discarding " << buffer_.size() << " unused downloaded bytes";
     if (err >= 0)
@@ -561,7 +563,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     manifest_valid_ = true;
 
     // Clear the download buffer.
-    DiscardBuffer(false);
+    DiscardBuffer(false, metadata_size_);
 
     // This populates |partitions_| and the |install_plan.partitions| with the
     // list of partitions from the manifest.
@@ -683,6 +685,30 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     UpdateOverallProgress(false, "Completed ");
     CheckpointUpdateProgress();
   }
+
+  // In major version 2, we don't add dummy operation to the payload.
+  if (major_payload_version_ == kBrilloMajorPayloadVersion &&
+      manifest_.has_signatures_offset() && manifest_.has_signatures_size()) {
+    if (manifest_.signatures_offset() != buffer_offset_) {
+      LOG(ERROR) << "Payload signatures offset points to blob offset "
+                 << manifest_.signatures_offset()
+                 << " but signatures are expected at offset "
+                 << buffer_offset_;
+      *error = ErrorCode::kDownloadPayloadVerificationError;
+      return false;
+    }
+    CopyDataToBuffer(&c_bytes, &count, manifest_.signatures_size());
+    // Needs more data to cover entire signature.
+    if (buffer_.size() < manifest_.signatures_size())
+      return true;
+    if (!ExtractSignatureMessage()) {
+      LOG(ERROR) << "Extract payload signature failed.";
+      *error = ErrorCode::kDownloadPayloadVerificationError;
+      return false;
+    }
+    DiscardBuffer(true, 0);
+  }
+
   return true;
 }
 
@@ -815,7 +841,12 @@ bool DeltaPerformer::PerformReplaceOperation(
   TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
 
   // Extract the signature message if it's in this operation.
-  ExtractSignatureMessage(operation);
+  if (ExtractSignatureMessageFromOperation(operation)) {
+    // If this is dummy replace operation, we ignore it after extracting the
+    // signature.
+    DiscardBuffer(true, 0);
+    return true;
+  }
 
   // Setup the ExtentWriter stack based on the operation type.
   std::unique_ptr<ExtentWriter> writer =
@@ -839,7 +870,7 @@ bool DeltaPerformer::PerformReplaceOperation(
   TEST_AND_RETURN_FALSE(writer->End());
 
   // Update buffer
-  DiscardBuffer(true);
+  DiscardBuffer(true, buffer_.size());
   return true;
 }
 
@@ -1056,7 +1087,7 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
 
   // Update the buffer to release the patch data memory as soon as the patch
   // file is written out.
-  DiscardBuffer(true);
+  DiscardBuffer(true, buffer_.size());
 
   vector<string> cmd{kBspatchPath, target_path_, target_path_, temp_filename,
                      input_positions, output_positions};
@@ -1119,7 +1150,7 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
 
   // Update the buffer to release the patch data memory as soon as the patch
   // file is written out.
-  DiscardBuffer(true);
+  DiscardBuffer(true, buffer_.size());
 
   vector<string> cmd{kBspatchPath, source_path_, target_path_, temp_filename,
                      input_positions, output_positions};
@@ -1132,7 +1163,7 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
   return true;
 }
 
-bool DeltaPerformer::ExtractSignatureMessage(
+bool DeltaPerformer::ExtractSignatureMessageFromOperation(
     const InstallOperation& operation) {
   if (operation.type() != InstallOperation::REPLACE ||
       !manifest_.has_signatures_offset() ||
@@ -1141,6 +1172,11 @@ bool DeltaPerformer::ExtractSignatureMessage(
   }
   TEST_AND_RETURN_FALSE(manifest_.has_signatures_size() &&
                         manifest_.signatures_size() == operation.data_length());
+  TEST_AND_RETURN_FALSE(ExtractSignatureMessage());
+  return true;
+}
+
+bool DeltaPerformer::ExtractSignatureMessage() {
   TEST_AND_RETURN_FALSE(signatures_message_data_.empty());
   TEST_AND_RETURN_FALSE(buffer_offset_ == manifest_.signatures_offset());
   TEST_AND_RETURN_FALSE(buffer_.size() >= manifest_.signatures_size());
@@ -1161,12 +1197,7 @@ bool DeltaPerformer::ExtractSignatureMessage(
                                      string(signatures_message_data_.begin(),
                                             signatures_message_data_.end())))
       << "Unable to store the signature blob.";
-  // The hash of all data consumed so far should be verified against the signed
-  // hash.
-  signed_hash_context_ = hash_calculator_.GetContext();
-  LOG_IF(WARNING, !prefs_->SetString(kPrefsUpdateStateSignedSHA256Context,
-                                     signed_hash_context_))
-      << "Unable to store the signed hash context.";
+
   LOG(INFO) << "Extracted signature data of size "
             << manifest_.signatures_size() << " at "
             << manifest_.signatures_offset();
@@ -1418,7 +1449,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
                       buffer_offset_);
 
   // Verifies the payload hash.
-  const string& payload_hash_data = hash_calculator_.hash();
+  const string& payload_hash_data = payload_hash_calculator_.hash();
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadVerificationError,
                       !payload_hash_data.empty());
   TEST_AND_RETURN_VAL(ErrorCode::kPayloadHashMismatchError,
@@ -1431,12 +1462,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
   }
   TEST_AND_RETURN_VAL(ErrorCode::kSignedDeltaPayloadExpectedError,
                       !signatures_message_data_.empty());
-  OmahaHashCalculator signed_hasher;
-  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
-                      signed_hasher.SetContext(signed_hash_context_));
-  TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
-                      signed_hasher.Finalize());
-  brillo::Blob hash_data = signed_hasher.raw_hash();
+  brillo::Blob hash_data = signed_hash_calculator_.raw_hash();
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       PayloadVerifier::PadRSA2048SHA256Hash(&hash_data));
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
@@ -1536,13 +1562,15 @@ bool DeltaPerformer::VerifySourcePartitions() {
   return true;
 }
 
-void DeltaPerformer::DiscardBuffer(bool do_advance_offset) {
+void DeltaPerformer::DiscardBuffer(bool do_advance_offset,
+                                   size_t signed_hash_buffer_size) {
   // Update the buffer offset.
   if (do_advance_offset)
     buffer_offset_ += buffer_.size();
 
   // Hash the content.
-  hash_calculator_.Update(buffer_.data(), buffer_.size());
+  payload_hash_calculator_.Update(buffer_.data(), buffer_.size());
+  signed_hash_calculator_.Update(buffer_.data(), signed_hash_buffer_size);
 
   // Swap content with an empty vector to ensure that all memory is released.
   brillo::Blob().swap(buffer_);
@@ -1609,7 +1637,10 @@ bool DeltaPerformer::CheckpointUpdateProgress() {
     ResetUpdateProgress(prefs_, true);
     TEST_AND_RETURN_FALSE(
         prefs_->SetString(kPrefsUpdateStateSHA256Context,
-                          hash_calculator_.GetContext()));
+                          payload_hash_calculator_.GetContext()));
+    TEST_AND_RETURN_FALSE(
+        prefs_->SetString(kPrefsUpdateStateSignedSHA256Context,
+                          signed_hash_calculator_.GetContext()));
     TEST_AND_RETURN_FALSE(prefs_->SetInt64(kPrefsUpdateStateNextDataOffset,
                                            buffer_offset_));
     last_updated_buffer_offset_ = buffer_offset_;
@@ -1656,8 +1687,13 @@ bool DeltaPerformer::PrimeUpdateState() {
 
   // The signed hash context and the signature blob may be empty if the
   // interrupted update didn't reach the signature.
-  prefs_->GetString(kPrefsUpdateStateSignedSHA256Context,
-                    &signed_hash_context_);
+  string signed_hash_context;
+  if (prefs_->GetString(kPrefsUpdateStateSignedSHA256Context,
+                        &signed_hash_context)) {
+    TEST_AND_RETURN_FALSE(
+        signed_hash_calculator_.SetContext(signed_hash_context));
+  }
+
   string signature_blob;
   if (prefs_->GetString(kPrefsUpdateStateSignatureBlob, &signature_blob)) {
     signatures_message_data_.assign(signature_blob.begin(),
@@ -1667,7 +1703,7 @@ bool DeltaPerformer::PrimeUpdateState() {
   string hash_context;
   TEST_AND_RETURN_FALSE(prefs_->GetString(kPrefsUpdateStateSHA256Context,
                                           &hash_context) &&
-                        hash_calculator_.SetContext(hash_context));
+                        payload_hash_calculator_.SetContext(hash_context));
 
   int64_t manifest_metadata_size = 0;
   TEST_AND_RETURN_FALSE(prefs_->GetInt64(kPrefsManifestMetadataSize,

@@ -251,14 +251,22 @@ class DeltaPerformer : public FileWriter {
   bool PerformSourceCopyOperation(const InstallOperation& operation);
   bool PerformSourceBsdiffOperation(const InstallOperation& operation);
 
-  // Returns true if the payload signature message has been extracted from
-  // |operation|, false otherwise.
-  bool ExtractSignatureMessage(const InstallOperation& operation);
+  // Extracts the payload signature message from the blob on the |operation| if
+  // the offset matches the one specified by the manifest. Returns whether the
+  // signature was extracted.
+  bool ExtractSignatureMessageFromOperation(const InstallOperation& operation);
 
-  // Updates the hash calculator with the bytes in |buffer_|. Then discard the
-  // content, ensuring that memory is being deallocated. If |do_advance_offset|,
-  // advances the internal offset counter accordingly.
-  void DiscardBuffer(bool do_advance_offset);
+  // Extracts the payload signature message from the current |buffer_| if the
+  // offset matches the one specified by the manifest. Returns whether the
+  // signature was extracted.
+  bool ExtractSignatureMessage();
+
+  // Updates the payload hash calculator with the bytes in |buffer_|, also
+  // updates the signed hash calculator with the first |signed_hash_buffer_size|
+  // bytes in |buffer_|. Then discard the content, ensuring that memory is being
+  // deallocated. If |do_advance_offset|, advances the internal offset counter
+  // accordingly.
+  void DiscardBuffer(bool do_advance_offset, size_t signed_hash_buffer_size);
 
   // Checkpoints the update progress into persistent storage to allow this
   // update attempt to be resumed after reboot.
@@ -343,11 +351,13 @@ class DeltaPerformer : public FileWriter {
   // The block size (parsed from the manifest).
   uint32_t block_size_{0};
 
-  // Calculates the payload hash.
-  OmahaHashCalculator hash_calculator_;
+  // Calculates the whole payload file hash, including headers and signatures.
+  OmahaHashCalculator payload_hash_calculator_;
 
-  // Saves the signed hash context.
-  std::string signed_hash_context_;
+  // Calculates the hash of the portion of the payload signed by the payload
+  // signature. This hash skips the metadata signature portion, located after
+  // the metadata and doesn't include the payload signature itself.
+  OmahaHashCalculator signed_hash_calculator_;
 
   // Signatures message blob extracted directly from the payload.
   brillo::Blob signatures_message_data_;
