@@ -1349,6 +1349,20 @@ ErrorCode DeltaPerformer::ValidateManifest() {
     }
   }
 
+  if (major_payload_version_ != kChromeOSMajorPayloadVersion) {
+    if (manifest_.has_old_rootfs_info() ||
+        manifest_.has_new_rootfs_info() ||
+        manifest_.has_old_kernel_info() ||
+        manifest_.has_new_kernel_info() ||
+        manifest_.install_operations_size() != 0 ||
+        manifest_.kernel_install_operations_size() != 0) {
+      LOG(ERROR) << "Manifest contains deprecated field only supported in "
+                 << "major payload version 1, but the payload major version is "
+                 << major_payload_version_;
+      return ErrorCode::kPayloadMismatchedType;
+    }
+  }
+
   // TODO(garnold) we should be adding more and more manifest checks, such as
   // partition boundaries etc (see chromium-os:37661).
 

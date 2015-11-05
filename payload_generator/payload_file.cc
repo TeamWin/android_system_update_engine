@@ -166,8 +166,9 @@ bool PayloadFile::WritePayload(const string& payload_file,
     TEST_AND_RETURN_FALSE(
         PayloadSigner::SignatureBlobLength(vector<string>(1, private_key_path),
                                            &signature_blob_length));
-    PayloadSigner::AddSignatureOp(next_blob_offset, signature_blob_length,
-                                  &manifest_);
+    PayloadSigner::AddSignatureToManifest(
+        next_blob_offset, signature_blob_length,
+        major_version_ == kChromeOSMajorPayloadVersion, &manifest_);
   }
 
   // Serialize protobuf

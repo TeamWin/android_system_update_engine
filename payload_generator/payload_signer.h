@@ -51,11 +51,13 @@ class PayloadSigner {
   static bool VerifySignedPayload(const std::string& payload_path,
                                   const std::string& public_key_path);
 
-  // Adds a dummy operation that points to a signature blob located at the
-  // specified offset/length.
-  static void AddSignatureOp(uint64_t signature_blob_offset,
-                             uint64_t signature_blob_length,
-                             DeltaArchiveManifest* manifest);
+  // Adds specified signature offset/length to given |manifest|, also adds a
+  // dummy operation that points to a signature blob located at the specified
+  // offset/length if |add_dummy_op| is true.
+  static void AddSignatureToManifest(uint64_t signature_blob_offset,
+                                     uint64_t signature_blob_length,
+                                     bool add_dummy_op,
+                                     DeltaArchiveManifest* manifest);
 
   // Given a raw |hash| and a private key in |private_key_path| calculates the
   // raw signature in |out_signature|. Returns true on success, false otherwise.

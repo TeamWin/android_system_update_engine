@@ -128,10 +128,11 @@ bool AddSignatureBlobToPayload(const string& payload_path,
     LOG(INFO) << "Matching signature sizes already present.";
   } else {
     // Updates the manifest to include the signature operation.
-    PayloadSigner::AddSignatureOp(payload.size() - metadata_size -
-                                  metadata_signature_size,
-                                  signature_blob.size(),
-                                  &manifest);
+    PayloadSigner::AddSignatureToManifest(
+        payload.size() - metadata_size - metadata_signature_size,
+        signature_blob.size(),
+        major_version == kChromeOSMajorPayloadVersion,
+        &manifest);
 
     // Updates the payload to include the new manifest.
     string serialized_manifest;
@@ -198,24 +199,27 @@ bool CalculateHashFromPayload(const brillo::Blob& payload,
 
 }  // namespace
 
-void PayloadSigner::AddSignatureOp(uint64_t signature_blob_offset,
-                                   uint64_t signature_blob_length,
-                                   DeltaArchiveManifest* manifest) {
+void PayloadSigner::AddSignatureToManifest(uint64_t signature_blob_offset,
+                                           uint64_t signature_blob_length,
+                                           bool add_dummy_op,
+                                           DeltaArchiveManifest* manifest) {
   LOG(INFO) << "Making room for signature in file";
   manifest->set_signatures_offset(signature_blob_offset);
   LOG(INFO) << "set? " << manifest->has_signatures_offset();
-  // Add a dummy op at the end to appease older clients
-  InstallOperation* dummy_op = manifest->add_kernel_install_operations();
-  dummy_op->set_type(InstallOperation::REPLACE);
-  dummy_op->set_data_offset(signature_blob_offset);
   manifest->set_signatures_offset(signature_blob_offset);
-  dummy_op->set_data_length(signature_blob_length);
   manifest->set_signatures_size(signature_blob_length);
-  Extent* dummy_extent = dummy_op->add_dst_extents();
-  // Tell the dummy op to write this data to a big sparse hole
-  dummy_extent->set_start_block(kSparseHole);
-  dummy_extent->set_num_blocks((signature_blob_length + kBlockSize - 1) /
-                               kBlockSize);
+  // Add a dummy op at the end to appease older clients
+  if (add_dummy_op) {
+    InstallOperation* dummy_op = manifest->add_kernel_install_operations();
+    dummy_op->set_type(InstallOperation::REPLACE);
+    dummy_op->set_data_offset(signature_blob_offset);
+    dummy_op->set_data_length(signature_blob_length);
+    Extent* dummy_extent = dummy_op->add_dst_extents();
+    // Tell the dummy op to write this data to a big sparse hole
+    dummy_extent->set_start_block(kSparseHole);
+    dummy_extent->set_num_blocks((signature_blob_length + kBlockSize - 1) /
+                                 kBlockSize);
+  }
 }
 
 bool PayloadSigner::LoadPayload(const std::string& payload_path,
