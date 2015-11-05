@@ -136,8 +136,8 @@ string GetAppBody(const OmahaEvent* event,
         app_body += base::StringPrintf(
             "        <event eventtype=\"%d\" eventresult=\"%d\" "
             "previousversion=\"%s\"></event>\n",
-            OmahaEvent::kTypeUpdateComplete,
-            OmahaEvent::kResultSuccessReboot,
+            OmahaEvent::kTypeRebootedAfterUpdate,
+            OmahaEvent::kResultSuccess,
             XmlEncodeWithDefault(prev_version, "0.0.0.0").c_str());
         LOG_IF(WARNING, !prefs->SetString(kPrefsPreviousVersion, ""))
             << "Unable to reset the previous version.";

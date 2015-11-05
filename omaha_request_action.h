@@ -59,13 +59,15 @@ struct OmahaEvent {
     kTypeUpdateComplete = 3,
     kTypeUpdateDownloadStarted = 13,
     kTypeUpdateDownloadFinished = 14,
+    // Chromium OS reserved type sent after the first reboot following an update
+    // completed.
+    kTypeRebootedAfterUpdate = 54,
   };
 
   // The Result values correspond to EVENT_RESULT values of Omaha.
   enum Result {
     kResultError = 0,
     kResultSuccess = 1,
-    kResultSuccessReboot = 2,
     kResultUpdateDeferred = 9,  // When we ignore/defer updates due to policy.
   };
 

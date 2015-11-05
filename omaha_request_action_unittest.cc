@@ -1877,6 +1877,40 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
   EXPECT_EQ(string::npos, post_str.find("<ping"));
 }
 
+// Checks that the event 54 is sent on a reboot to a new update.
+TEST_F(OmahaRequestActionTest, RebootAfterUpdateEvent) {
+  // Flag that the device was updated in a previous boot.
+  fake_prefs_.SetString(kPrefsPreviousVersion, "1.2.3.4");
+
+  brillo::Blob post_data;
+  ASSERT_TRUE(
+      TestUpdateCheck(nullptr,  // request_params
+                      fake_update_response_.GetNoUpdateResponse(),
+                      -1,
+                      false,  // ping_only
+                      ErrorCode::kSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
+                      nullptr,
+                      &post_data));
+  string post_str(post_data.begin(), post_data.end());
+
+  // An event 54 is included and has the right version.
+  EXPECT_NE(string::npos,
+            post_str.find(base::StringPrintf(
+                              "<event eventtype=\"%d\"",
+                              OmahaEvent::kTypeRebootedAfterUpdate)));
+  EXPECT_NE(string::npos,
+            post_str.find("previousversion=\"1.2.3.4\"></event>"));
+
+  // The previous version flag should have been removed.
+  EXPECT_TRUE(fake_prefs_.Exists(kPrefsPreviousVersion));
+  string prev_version;
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsPreviousVersion, &prev_version));
+  EXPECT_TRUE(prev_version.empty());
+}
+
 void OmahaRequestActionTest::P2PTest(
     bool initial_allow_p2p_for_downloading,
     bool initial_allow_p2p_for_sharing,
