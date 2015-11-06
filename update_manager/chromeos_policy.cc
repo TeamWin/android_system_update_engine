@@ -169,11 +169,12 @@ const int ChromeOSPolicy::kTimeoutInitialInterval =  7 * 60;
 // make the update check periodic interval configurable.
 #ifdef __ANDROID__
 const int ChromeOSPolicy::kTimeoutPeriodicInterval = 5 * 60 * 60;
+const int ChromeOSPolicy::kTimeoutMaxBackoffInterval = 26 * 60 * 60;
 #else
 const int ChromeOSPolicy::kTimeoutPeriodicInterval = 45 * 60;
+const int ChromeOSPolicy::kTimeoutMaxBackoffInterval = 4 * 60 * 60;
 #endif  // __ANDROID__
 
-const int ChromeOSPolicy::kTimeoutMaxBackoffInterval = 4 * 60 * 60;
 const int ChromeOSPolicy::kTimeoutRegularFuzz = 10 * 60;
 const int ChromeOSPolicy::kAttemptBackoffMaxIntervalInDays = 16;
 const int ChromeOSPolicy::kAttemptBackoffFuzzInHours = 12;
