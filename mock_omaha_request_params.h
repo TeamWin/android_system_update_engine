@@ -38,7 +38,7 @@ class MockOmahaRequestParams : public OmahaRequestParams {
     ON_CALL(*this, GetAppId())
         .WillByDefault(testing::Invoke(
             this, &MockOmahaRequestParams::FakeGetAppId));
-    ON_CALL(*this, SetTargetChannel(testing::_, testing::_))
+    ON_CALL(*this, SetTargetChannel(testing::_, testing::_, testing::_))
         .WillByDefault(testing::Invoke(
             this, &MockOmahaRequestParams::FakeSetTargetChannel));
     ON_CALL(*this, UpdateDownloadChannel())
@@ -51,8 +51,9 @@ class MockOmahaRequestParams : public OmahaRequestParams {
 
   MOCK_CONST_METHOD0(to_more_stable_channel, bool(void));
   MOCK_CONST_METHOD0(GetAppId, std::string(void));
-  MOCK_METHOD2(SetTargetChannel, bool(const std::string& channel,
-                                      bool is_powerwash_allowed));
+  MOCK_METHOD3(SetTargetChannel, bool(const std::string& channel,
+                                      bool is_powerwash_allowed,
+                                      std::string* error));
   MOCK_METHOD0(UpdateDownloadChannel, void(void));
   MOCK_CONST_METHOD0(is_powerwash_allowed, bool(void));
   MOCK_CONST_METHOD0(IsUpdateUrlOfficial, bool(void));
@@ -69,8 +70,11 @@ class MockOmahaRequestParams : public OmahaRequestParams {
   }
 
   bool FakeSetTargetChannel(const std::string& channel,
-                            bool is_powerwash_allowed) {
-    return OmahaRequestParams::SetTargetChannel(channel, is_powerwash_allowed);
+                            bool is_powerwash_allowed,
+                            std::string* error) {
+    return OmahaRequestParams::SetTargetChannel(channel,
+                                                is_powerwash_allowed,
+                                                error);
   }
 
   void FakeUpdateDownloadChannel() {

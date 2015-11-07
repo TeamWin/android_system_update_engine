@@ -387,7 +387,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   params.set_root(test_dir);
   params.Init("5.6.7.8", "", 0);
   EXPECT_EQ("stable-channel", params.current_channel());
-  params.SetTargetChannel("canary-channel", false);
+  params.SetTargetChannel("canary-channel", false, nullptr);
   EXPECT_EQ("canary-channel", params.target_channel());
   EXPECT_FALSE(params.to_more_stable_channel());
   EXPECT_FALSE(params.is_powerwash_allowed());

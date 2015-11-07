@@ -26,7 +26,9 @@
 
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
+#include <base/strings/stringprintf.h>
 #include <brillo/key_value_store.h>
+#include <brillo/strings/string_utils.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/constants.h"
@@ -131,7 +133,8 @@ bool OmahaRequestParams::CollectECFWVersions() const {
 }
 
 bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,
-                                          bool is_powerwash_allowed) {
+                                          bool is_powerwash_allowed,
+                                          string* error_message) {
   LOG(INFO) << "SetTargetChannel called with " << new_target_channel
             << ", Is Powerwash Allowed = "
             << utils::ToString(is_powerwash_allowed)
@@ -139,13 +142,28 @@ bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,
             << ", existing target channel = "
             << mutable_image_props_.target_channel
             << ", download channel = " << download_channel_;
-  TEST_AND_RETURN_FALSE(IsValidChannel(new_target_channel));
+  if (!IsValidChannel(new_target_channel)) {
+    string valid_channels = brillo::string_utils::JoinRange(
+        ", ",
+        std::begin(kChannelsByStability),
+        std::end(kChannelsByStability));
+    if (error_message) {
+      *error_message = base::StringPrintf(
+          "Invalid channel name \"%s\", valid names are: %s",
+          new_target_channel.c_str(), valid_channels.c_str());
+    }
+    return false;
+  }
 
   MutableImageProperties new_props;
   new_props.target_channel = new_target_channel;
   new_props.is_powerwash_allowed = is_powerwash_allowed;
 
-  TEST_AND_RETURN_FALSE(StoreMutableImageProperties(system_state_, new_props));
+  if (!StoreMutableImageProperties(system_state_, new_props)) {
+    if (error_message)
+      *error_message = "Error storing the new channel value.";
+    return false;
+  }
   mutable_image_props_ = new_props;
   return true;
 }

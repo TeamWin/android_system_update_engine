@@ -80,7 +80,7 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithNoPolicy) {
   EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
   // If SetTargetChannel is called it means the policy check passed.
   EXPECT_CALL(*fake_system_state_.mock_request_params(),
-              SetTargetChannel("stable-channel", true))
+              SetTargetChannel("stable-channel", true, _))
       .WillOnce(Return(true));
   EXPECT_TRUE(dbus_service_.SetChannel(&error_, "stable-channel", true));
   ASSERT_EQ(nullptr, error_);
@@ -93,7 +93,7 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithDelegatedPolicy) {
   EXPECT_CALL(mock_device_policy, GetReleaseChannelDelegated(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(true), Return(true)));
   EXPECT_CALL(*fake_system_state_.mock_request_params(),
-              SetTargetChannel("beta-channel", true))
+              SetTargetChannel("beta-channel", true, _))
       .WillOnce(Return(true));
 
   EXPECT_TRUE(dbus_service_.SetChannel(&error_, "beta-channel", true));
@@ -105,7 +105,7 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithDelegatedPolicy) {
 TEST_F(UpdateEngineServiceTest, SetChannelWithInvalidChannel) {
   EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
   EXPECT_CALL(*fake_system_state_.mock_request_params(),
-              SetTargetChannel("foo-channel", true)).WillOnce(Return(false));
+              SetTargetChannel("foo-channel", true, _)).WillOnce(Return(false));
 
   EXPECT_FALSE(dbus_service_.SetChannel(&error_, "foo-channel", true));
   ASSERT_NE(nullptr, error_);

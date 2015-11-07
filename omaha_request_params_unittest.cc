@@ -353,7 +353,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
     OmahaRequestParams params(&fake_system_state_);
     params.set_root(test_dir_);
     EXPECT_TRUE(params.Init("", "", false));
-    params.SetTargetChannel("canary-channel", false);
+    params.SetTargetChannel("canary-channel", false, nullptr);
     EXPECT_FALSE(params.is_powerwash_allowed());
   }
   OmahaRequestParams out(&fake_system_state_);
@@ -375,7 +375,7 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
     OmahaRequestParams params(&fake_system_state_);
     params.set_root(test_dir_);
     EXPECT_TRUE(params.Init("", "", false));
-    params.SetTargetChannel("canary-channel", true);
+    params.SetTargetChannel("canary-channel", true, nullptr);
     EXPECT_TRUE(params.is_powerwash_allowed());
   }
   OmahaRequestParams out(&fake_system_state_);
@@ -398,7 +398,11 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
     params.set_root(test_dir_);
     SetLockDown(true);
     EXPECT_TRUE(params.Init("", "", false));
-    params.SetTargetChannel("dogfood-channel", true);
+    string error_message;
+    EXPECT_FALSE(
+        params.SetTargetChannel("dogfood-channel", true, &error_message));
+    // The error message should include a message about the valid channels.
+    EXPECT_NE(string::npos, error_message.find("stable-channel"));
     EXPECT_FALSE(params.is_powerwash_allowed());
   }
   OmahaRequestParams out(&fake_system_state_);
@@ -459,23 +463,23 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
   // When an invalid value is set, it should be ignored and the
   // value from lsb-release should be used instead.
   params_.Init("", "", false);
-  EXPECT_FALSE(params_.SetTargetChannel("invalid-channel", false));
+  EXPECT_FALSE(params_.SetTargetChannel("invalid-channel", false, nullptr));
   EXPECT_EQ("dev-channel", params_.target_channel());
 
   // When set to a valid value, it should take effect.
   params_.Init("", "", false);
-  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true));
+  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true, nullptr));
   EXPECT_EQ("beta-channel", params_.target_channel());
 
   // When set to the same value, it should be idempotent.
   params_.Init("", "", false);
-  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true));
+  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true, nullptr));
   EXPECT_EQ("beta-channel", params_.target_channel());
 
   // When set to a valid value while a change is already pending, it should
   // succeed.
   params_.Init("", "", false);
-  EXPECT_TRUE(params_.SetTargetChannel("stable-channel", true));
+  EXPECT_TRUE(params_.SetTargetChannel("stable-channel", true, nullptr));
   EXPECT_EQ("stable-channel", params_.target_channel());
 
   // Set a different channel in stateful LSB release.
@@ -487,7 +491,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
   // When set to a valid value while a change is already pending, it should
   // succeed.
   params_.Init("", "", false);
-  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true));
+  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true, nullptr));
   // The target channel should reflect the change, but the download channel
   // should continue to retain the old value ...
   EXPECT_EQ("beta-channel", params_.target_channel());

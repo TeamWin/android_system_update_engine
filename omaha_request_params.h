@@ -206,7 +206,8 @@ class OmahaRequestParams {
   // numerous edge cases around ensuring the powerwash happens as intended in
   // all such cases.
   virtual bool SetTargetChannel(const std::string& channel,
-                                bool is_powerwash_allowed);
+                                bool is_powerwash_allowed,
+                                std::string* error_message);
 
   // Updates the download channel for this particular attempt from the current
   // value of target channel.  This method takes a "snapshot" of the current

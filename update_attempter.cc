@@ -381,7 +381,11 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
     LOG(INFO) << "Setting target channel as mandated: " << target_channel;
     // Pass in false for powerwash_allowed until we add it to the policy
     // protobuf.
-    omaha_request_params_->SetTargetChannel(target_channel, false);
+    string error_message;
+    if (!omaha_request_params_->SetTargetChannel(target_channel, false,
+                                                 &error_message)) {
+      LOG(ERROR) << "Setting the channel failed: " << error_message;
+    }
 
     // Since this is the beginning of a new attempt, update the download
     // channel. The download channel won't be updated until the next attempt,

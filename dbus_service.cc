@@ -170,10 +170,10 @@ bool UpdateEngineService::SetChannel(ErrorPtr* error,
   }
 
   LOG(INFO) << "Setting destination channel to: " << in_target_channel;
+  string error_message;
   if (!system_state_->request_params()->SetTargetChannel(
-          in_target_channel, in_is_powerwash_allowed)) {
-    // TODO(dgarrett): Give a more specific error code/reason.
-    LogAndSetError(error, FROM_HERE, "Setting channel failed.");
+          in_target_channel, in_is_powerwash_allowed, &error_message)) {
+    LogAndSetError(error, FROM_HERE, error_message);
     return false;
   }
   return true;
