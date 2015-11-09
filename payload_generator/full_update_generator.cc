@@ -68,12 +68,6 @@ class ChunkProcessor : public base::DelegateSimpleThread::Delegate {
  private:
   bool ProcessChunk();
 
-  // Stores the operation blob in the |blob_fd_| and updates the
-  // |blob_file_size| accordingly.
-  // This method is thread-safe since it uses a mutex to access the file.
-  // Returns the data offset where the data was written to.
-  off_t StoreBlob(const brillo::Blob& blob);
-
   // Work parameters.
   int fd_;
   off_t offset_;
@@ -193,6 +187,10 @@ bool FullUpdateGenerator::GenerateOperations(
   for (ChunkProcessor& processor : chunk_processors)
     thread_pool.AddWork(&processor);
   thread_pool.JoinAll();
+
+  // All the work done, disable logging.
+  blob_file->SetTotalBlobs(0);
+
   // All the operations must have a type set at this point. Otherwise, a
   // ChunkProcessor failed to complete.
   for (const AnnotatedOperation& aop : *aops) {

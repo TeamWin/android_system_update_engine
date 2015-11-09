@@ -41,6 +41,7 @@ off_t BlobFileWriter::StoreBlob(const brillo::Blob& blob) {
 
 void BlobFileWriter::SetTotalBlobs(size_t total_blobs) {
   total_blobs_ = total_blobs;
+  stored_blobs_ = 0;
 }
 
 }  // namespace chromeos_update_engine

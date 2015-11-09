@@ -37,7 +37,8 @@ class BlobFileWriter {
   off_t StoreBlob(const brillo::Blob& blob);
 
   // The number of |total_blobs| is the number of blobs that will be stored but
-  // is only used for logging purposes. If not set, logging will be skipped.
+  // is only used for logging purposes. If not set or set to 0, logging will be
+  // skipped. This function will also reset the number of stored blobs to 0.
   void SetTotalBlobs(size_t total_blobs);
 
  private:
