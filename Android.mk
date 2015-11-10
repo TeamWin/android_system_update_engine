@@ -104,13 +104,99 @@ LOCAL_SRC_FILES := \
 LOCAL_DBUS_PROXY_PREFIX := libcros
 include $(BUILD_STATIC_LIBRARY)
 
-# libupdate_engine (type: static_library)
+# libpayload_consumer (type: static_library)
 # ========================================================
-# The main static_library with all the code.
-ue_libupdate_engine_exported_c_includes := \
+# The payload application component and common dependencies.
+ue_libpayload_consumer_exported_c_includes := \
     $(LOCAL_PATH)/include \
     external/cros/system_api/dbus
+ue_libpayload_consumer_exported_static_libraries := \
+    update_metadata-protos \
+    update_engine-dbus-libcros-client \
+    update_engine_client-dbus-proxies \
+    libxz \
+    libbz \
+    libfs_mgr \
+    $(ue_update_metadata_protos_exported_static_libraries)
+ue_libpayload_consumer_exported_shared_libraries := \
+    libcrypto \
+    libcurl \
+    libmetrics \
+    libshill-client \
+    libssl \
+    libexpat \
+    libbrillo-policy \
+    libhardware \
+    libcutils \
+    $(ue_update_metadata_protos_exported_shared_libraries)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libpayload_consumer
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(ue_libpayload_consumer_exported_c_includes)
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    $(ue_libpayload_consumer_exported_c_includes) \
+    external/e2fsprogs/lib
+LOCAL_STATIC_LIBRARIES := \
+    update_metadata-protos \
+    update_engine-dbus-libcros-client \
+    update_engine_client-dbus-proxies \
+    $(ue_libpayload_consumer_exported_static_libraries) \
+    $(ue_update_metadata_protos_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
+    $(ue_update_metadata_protos_exported_shared_libraries)
+LOCAL_SRC_FILES := \
+    common/action_processor.cc \
+    common/boot_control_android.cc \
+    common/boot_control_stub.cc \
+    common/certificate_checker.cc \
+    common/clock.cc \
+    common/constants.cc \
+    common/hardware_android.cc \
+    common/hash_calculator.cc \
+    common/http_common.cc \
+    common/http_fetcher.cc \
+    common/hwid_override.cc \
+    common/libcurl_http_fetcher.cc \
+    common/multi_range_http_fetcher.cc \
+    common/platform_constants_android.cc \
+    common/prefs.cc \
+    common/subprocess.cc \
+    common/terminator.cc \
+    common/utils.cc \
+    payload_consumer/bzip_extent_writer.cc \
+    payload_consumer/delta_performer.cc \
+    payload_consumer/download_action.cc \
+    payload_consumer/extent_writer.cc \
+    payload_consumer/file_descriptor.cc \
+    payload_consumer/file_writer.cc \
+    payload_consumer/filesystem_verifier_action.cc \
+    payload_consumer/install_plan.cc \
+    payload_consumer/payload_constants.cc \
+    payload_consumer/payload_verifier.cc \
+    payload_consumer/postinstall_runner_action.cc \
+    payload_consumer/xz_extent_writer.cc
+include $(BUILD_STATIC_LIBRARY)
+
+# libupdate_engine (type: static_library)
+# ========================================================
+# The main daemon static_library with all the code used to check for updates
+# with Omaha and expose a DBus daemon.
+ue_libupdate_engine_exported_c_includes := \
+    $(LOCAL_PATH)/include \
+    external/cros/system_api/dbus \
+    $(ue_libpayload_consumer_exported_c_includes)
 ue_libupdate_engine_exported_static_libraries := \
+    libpayload_consumer \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
@@ -118,6 +204,7 @@ ue_libupdate_engine_exported_static_libraries := \
     libxz \
     libbz \
     libfs_mgr \
+    $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libupdate_engine_exported_shared_libraries := \
     libdbus \
@@ -130,6 +217,7 @@ ue_libupdate_engine_exported_shared_libraries := \
     libbrillo-policy \
     libhardware \
     libcutils \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 
 include $(CLEAR_VARS)
@@ -145,62 +233,37 @@ LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
     $(ue_common_c_includes) \
     $(ue_libupdate_engine_exported_c_includes) \
-    external/e2fsprogs/lib
+    $(ue_libpayload_consumer_exported_c_includes)
 LOCAL_STATIC_LIBRARIES := \
+    libpayload_consumer \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
     update_engine_client-dbus-proxies \
     $(ue_libupdate_engine_exported_static_libraries) \
+    $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     $(ue_libupdate_engine_exported_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
-    action_processor.cc \
-    boot_control_android.cc \
-    boot_control_stub.cc \
-    bzip_extent_writer.cc \
-    certificate_checker.cc \
     chrome_browser_proxy_resolver.cc \
-    clock.cc \
     connection_manager.cc \
-    constants.cc \
     daemon.cc \
     dbus_service.cc \
-    delta_performer.cc \
-    download_action.cc \
-    extent_writer.cc \
-    file_descriptor.cc \
-    file_writer.cc \
-    filesystem_verifier_action.cc \
-    hardware_android.cc \
-    http_common.cc \
-    http_fetcher.cc \
-    hwid_override.cc \
     image_properties_android.cc \
-    install_plan.cc \
     libcros_proxy.cc \
-    libcurl_http_fetcher.cc \
     metrics.cc \
-    multi_range_http_fetcher.cc \
-    omaha_hash_calculator.cc \
     omaha_request_action.cc \
     omaha_request_params.cc \
     omaha_response_handler_action.cc \
     p2p_manager.cc \
-    payload_constants.cc \
     payload_state.cc \
-    payload_verifier.cc \
-    platform_constants_android.cc \
-    postinstall_runner_action.cc \
-    prefs.cc \
     proxy_resolver.cc \
     real_system_state.cc \
     shill_proxy.cc \
-    subprocess.cc \
-    terminator.cc \
     update_attempter.cc \
     update_manager/boxed_value.cc \
     update_manager/chromeos_policy.cc \
@@ -216,9 +279,7 @@ LOCAL_SRC_FILES := \
     update_manager/real_updater_provider.cc \
     update_manager/state_factory.cc \
     update_manager/update_manager.cc \
-    update_status_utils.cc \
-    utils.cc \
-    xz_extent_writer.cc
+    update_status_utils.cc
 include $(BUILD_STATIC_LIBRARY)
 
 # update_engine (type: executable)

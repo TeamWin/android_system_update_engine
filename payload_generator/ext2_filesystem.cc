@@ -26,10 +26,10 @@
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
 
+#include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/update_metadata.pb.h"
-#include "update_engine/utils.h"
 
 using std::set;
 using std::string;

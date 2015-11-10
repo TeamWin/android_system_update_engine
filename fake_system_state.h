@@ -24,14 +24,14 @@
 #include <power_manager/dbus-proxy-mocks.h>
 
 #include "metrics/metrics_library_mock.h"
-#include "update_engine/fake_boot_control.h"
-#include "update_engine/fake_clock.h"
-#include "update_engine/fake_hardware.h"
+#include "update_engine/common/fake_boot_control.h"
+#include "update_engine/common/fake_clock.h"
+#include "update_engine/common/fake_hardware.h"
+#include "update_engine/common/mock_prefs.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_omaha_request_params.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
-#include "update_engine/mock_prefs.h"
 #include "update_engine/mock_update_attempter.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/fake_update_manager.h"

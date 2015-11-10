@@ -31,9 +31,9 @@
 #include <brillo/message_loops/base_message_loop.h>
 #include <metrics/metrics_library.h>
 
+#include "update_engine/common/terminator.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/daemon.h"
-#include "update_engine/terminator.h"
-#include "update_engine/utils.h"
 
 using std::string;
 

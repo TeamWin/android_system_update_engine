@@ -23,9 +23,9 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/common/prefs_interface.h"
 #include "update_engine/metrics.h"
 #include "update_engine/payload_state_interface.h"
-#include "update_engine/prefs_interface.h"
 
 namespace chromeos_update_engine {
 

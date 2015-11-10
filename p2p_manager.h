@@ -27,8 +27,8 @@
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
 
-#include "update_engine/clock_interface.h"
-#include "update_engine/prefs_interface.h"
+#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/prefs_interface.h"
 #include "update_engine/update_manager/update_manager.h"
 
 namespace chromeos_update_engine {

@@ -18,11 +18,11 @@
 
 #include <base/logging.h>
 
-#include "update_engine/delta_performer.h"
+#include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/ext2_filesystem.h"
 #include "update_engine/payload_generator/raw_filesystem.h"
-#include "update_engine/utils.h"
 
 namespace chromeos_update_engine {
 

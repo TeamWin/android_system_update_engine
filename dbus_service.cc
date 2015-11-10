@@ -28,14 +28,14 @@
 #include <policy/device_policy.h>
 #include <update_engine/dbus-constants.h>
 
-#include "update_engine/clock_interface.h"
+#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/prefs.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/connection_manager_interface.h"
-#include "update_engine/hardware_interface.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
-#include "update_engine/prefs.h"
 #include "update_engine/update_attempter.h"
-#include "update_engine/utils.h"
 
 using base::StringPrintf;
 using brillo::ErrorPtr;

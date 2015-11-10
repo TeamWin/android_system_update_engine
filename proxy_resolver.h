@@ -23,7 +23,7 @@
 #include <base/logging.h>
 #include <brillo/message_loops/message_loop.h>
 
-#include "update_engine/utils.h"
+#include "update_engine/common/utils.h"
 
 namespace chromeos_update_engine {
 

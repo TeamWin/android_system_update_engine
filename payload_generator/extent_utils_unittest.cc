@@ -21,9 +21,9 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/payload_constants.h"
+#include "update_engine/common/test_utils.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/extent_ranges.h"
-#include "update_engine/test_utils.h"
 
 using std::vector;
 

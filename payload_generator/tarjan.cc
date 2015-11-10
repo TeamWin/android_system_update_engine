@@ -20,7 +20,7 @@
 
 #include <base/logging.h>
 
-#include "update_engine/utils.h"
+#include "update_engine/common/utils.h"
 
 using std::min;
 using std::vector;

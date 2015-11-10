@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "update_engine/payload_constants.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/filesystem_interface.h"
 #include "update_engine/update_metadata.pb.h"
 

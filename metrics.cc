@@ -20,11 +20,11 @@
 
 #include <base/logging.h>
 
-#include "update_engine/clock_interface.h"
-#include "update_engine/constants.h"
-#include "update_engine/prefs_interface.h"
+#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/prefs_interface.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/system_state.h"
-#include "update_engine/utils.h"
 
 using std::string;
 

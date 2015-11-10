@@ -26,7 +26,7 @@
 #include <base/strings/string_util.h>
 #include <base/values.h>
 
-#include "update_engine/utils.h"
+#include "update_engine/common/utils.h"
 
 using base::Callback;
 using base::Closure;

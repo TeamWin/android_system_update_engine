@@ -21,10 +21,10 @@
 #include <base/logging.h>
 #include <brillo/osrelease_reader.h>
 
-#include "update_engine/boot_control_interface.h"
-#include "update_engine/constants.h"
-#include "update_engine/platform_constants.h"
-#include "update_engine/prefs_interface.h"
+#include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/platform_constants.h"
+#include "update_engine/common/prefs_interface.h"
 #include "update_engine/system_state.h"
 
 namespace chromeos_update_engine {

@@ -20,12 +20,12 @@
 #include <base/time/time.h>
 #include <brillo/make_unique_ptr.h>
 
-#include "update_engine/boot_control.h"
-#include "update_engine/boot_control_stub.h"
-#include "update_engine/constants.h"
-#include "update_engine/hardware.h"
+#include "update_engine/common/boot_control.h"
+#include "update_engine/common/boot_control_stub.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/hardware.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/update_manager/state_factory.h"
-#include "update_engine/utils.h"
 
 namespace chromeos_update_engine {
 

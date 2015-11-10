@@ -22,16 +22,16 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/constants.h"
-#include "update_engine/fake_clock.h"
-#include "update_engine/fake_hardware.h"
-#include "update_engine/fake_prefs.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/fake_clock.h"
+#include "update_engine/common/fake_hardware.h"
+#include "update_engine/common/fake_prefs.h"
+#include "update_engine/common/mock_prefs.h"
+#include "update_engine/common/prefs.h"
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/fake_system_state.h"
-#include "update_engine/mock_prefs.h"
 #include "update_engine/omaha_request_action.h"
-#include "update_engine/prefs.h"
-#include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
 
 using base::Time;
 using base::TimeDelta;

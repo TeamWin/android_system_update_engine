@@ -24,9 +24,9 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/time/time.h>
 
+#include "update_engine/common/utils.h"
 #include "update_engine/update_manager/shill_provider.h"
 #include "update_engine/update_manager/updater_provider.h"
-#include "update_engine/utils.h"
 
 using std::set;
 using std::string;

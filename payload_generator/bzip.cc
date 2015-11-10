@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <limits>
 
-#include "update_engine/utils.h"
+#include "update_engine/common/utils.h"
 
 using std::string;
 

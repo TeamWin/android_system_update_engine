@@ -21,13 +21,13 @@
 #include <base/files/file_util.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/constants.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/platform_constants.h"
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_payload_state.h"
-#include "update_engine/payload_constants.h"
-#include "update_engine/platform_constants.h"
-#include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 
 using chromeos_update_engine::test_utils::System;
 using chromeos_update_engine::test_utils::WriteFileString;

@@ -32,17 +32,17 @@
 #include <base/time/time.h>
 #include <expat.h>
 
-#include "update_engine/action_pipe.h"
+#include "update_engine/common/action_pipe.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/hash_calculator.h"
+#include "update_engine/common/platform_constants.h"
+#include "update_engine/common/prefs_interface.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/connection_manager.h"
-#include "update_engine/constants.h"
-#include "update_engine/hardware_interface.h"
-#include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
-#include "update_engine/platform_constants.h"
-#include "update_engine/prefs_interface.h"
-#include "update_engine/utils.h"
 
 using base::Time;
 using base::TimeDelta;

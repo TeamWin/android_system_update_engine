@@ -30,8 +30,8 @@
 #include <base/threading/simple_thread.h>
 #include <brillo/secure_blob.h>
 
+#include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/bzip.h"
-#include "update_engine/utils.h"
 
 using std::vector;
 

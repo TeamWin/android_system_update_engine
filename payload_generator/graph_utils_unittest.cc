@@ -21,7 +21,7 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/payload_constants.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
 

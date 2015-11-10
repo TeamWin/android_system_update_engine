@@ -22,12 +22,12 @@
 #include <base/logging.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/omaha_hash_calculator.h"
-#include "update_engine/payload_constants.h"
+#include "update_engine/common/hash_calculator.h"
+#include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_generator/payload_file.h"
-#include "update_engine/payload_verifier.h"
 #include "update_engine/update_metadata.pb.h"
-#include "update_engine/utils.h"
 
 using std::string;
 using std::vector;
@@ -105,9 +105,9 @@ void SignSampleData(brillo::Blob* out_signature_blob,
   EXPECT_TRUE(PayloadSigner::SignatureBlobLength(private_keys, &length));
   EXPECT_GT(length, 0);
   brillo::Blob hash_blob;
-  EXPECT_TRUE(OmahaHashCalculator::RawHashOfBytes(data_blob.data(),
-                                                  data_blob.size(),
-                                                  &hash_blob));
+  EXPECT_TRUE(HashCalculator::RawHashOfBytes(data_blob.data(),
+                                             data_blob.size(),
+                                             &hash_blob));
   EXPECT_TRUE(PayloadSigner::SignHashWithKeys(
       hash_blob,
       private_keys,

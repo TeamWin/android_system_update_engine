@@ -47,10 +47,10 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/subprocess.h"
+#include "update_engine/common/subprocess.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
-#include "update_engine/utils.h"
 
 using base::Bind;
 using base::Callback;

@@ -20,10 +20,10 @@
 
 #include <algorithm>
 
-#include "update_engine/delta_performer.h"
-#include "update_engine/file_writer.h"
-#include "update_engine/omaha_hash_calculator.h"
-#include "update_engine/payload_constants.h"
+#include "update_engine/common/hash_calculator.h"
+#include "update_engine/payload_consumer/delta_performer.h"
+#include "update_engine/payload_consumer/file_writer.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/annotated_operation.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/payload_signer.h"
@@ -218,7 +218,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
   if (major_version_ == kBrilloMajorPayloadVersion &&
       !private_key_path.empty()) {
     brillo::Blob metadata_hash, metadata_signature;
-    TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfFile(payload_file,
+    TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfFile(payload_file,
                                                              metadata_size,
                                                              &metadata_hash));
     TEST_AND_RETURN_FALSE(
@@ -302,7 +302,7 @@ bool PayloadFile::ReorderDataBlobs(
 
 bool PayloadFile::AddOperationHash(InstallOperation* op,
                                    const brillo::Blob& buf) {
-  OmahaHashCalculator hasher;
+  HashCalculator hasher;
   TEST_AND_RETURN_FALSE(hasher.Update(buf.data(), buf.size()));
   TEST_AND_RETURN_FALSE(hasher.Finalize());
   const brillo::Blob& hash = hasher.raw_hash();

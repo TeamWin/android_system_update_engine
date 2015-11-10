@@ -31,11 +31,11 @@
 #include <brillo/strings/string_utils.h>
 #include <policy/device_policy.h>
 
-#include "update_engine/constants.h"
-#include "update_engine/hardware_interface.h"
-#include "update_engine/platform_constants.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/platform_constants.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/system_state.h"
-#include "update_engine/utils.h"
 
 #define CALL_MEMBER_FN(object, member) ((object).*(member))
 

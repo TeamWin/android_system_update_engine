@@ -20,8 +20,8 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 
 using chromeos_update_engine::test_utils::FillWithData;
 using std::string;

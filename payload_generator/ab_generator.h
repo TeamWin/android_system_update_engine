@@ -23,7 +23,7 @@
 #include <base/macros.h>
 #include <brillo/secure_blob.h>
 
-#include "update_engine/payload_constants.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/blob_file_writer.h"
 #include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/payload_generator/filesystem_interface.h"

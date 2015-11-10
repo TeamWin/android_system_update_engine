@@ -24,15 +24,15 @@
 #include <brillo/data_encoding.h>
 #include <openssl/pem.h>
 
-#include "update_engine/delta_performer.h"
-#include "update_engine/omaha_hash_calculator.h"
-#include "update_engine/payload_constants.h"
+#include "update_engine/common/hash_calculator.h"
+#include "update_engine/common/subprocess.h"
+#include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/delta_performer.h"
+#include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/payload_file.h"
-#include "update_engine/payload_verifier.h"
-#include "update_engine/subprocess.h"
 #include "update_engine/update_metadata.pb.h"
-#include "update_engine/utils.h"
 
 using std::string;
 using std::vector;
@@ -180,13 +180,13 @@ bool CalculateHashFromPayload(const brillo::Blob& payload,
   if (out_metadata_hash) {
     // Calculates the hash on the manifest.
     TEST_AND_RETURN_FALSE(
-        OmahaHashCalculator::RawHashOfBytes(payload.data(), metadata_size,
-                                            out_metadata_hash));
+        HashCalculator::RawHashOfBytes(payload.data(), metadata_size,
+                                       out_metadata_hash));
   }
   if (out_hash_data) {
     // Calculates the hash on the updated payload. Note that we skip metadata
     // signature and payload signature.
-    OmahaHashCalculator calc;
+    HashCalculator calc;
     TEST_AND_RETURN_FALSE(calc.Update(payload.data(), metadata_size));
     TEST_AND_RETURN_FALSE(calc.Update(
         payload.data() + metadata_size + metadata_signature_size,
@@ -222,7 +222,7 @@ void PayloadSigner::AddSignatureToManifest(uint64_t signature_blob_offset,
   }
 }
 
-bool PayloadSigner::LoadPayload(const std::string& payload_path,
+bool PayloadSigner::LoadPayload(const string& payload_path,
                                 brillo::Blob* out_payload,
                                 DeltaArchiveManifest* out_manifest,
                                 uint64_t* out_major_version,
@@ -382,9 +382,9 @@ bool PayloadSigner::SignatureBlobLength(const vector<string>& private_key_paths,
                                         uint64_t* out_length) {
   DCHECK(out_length);
   brillo::Blob x_blob(1, 'x'), hash_blob, sig_blob;
-  TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfBytes(x_blob.data(),
-                                                            x_blob.size(),
-                                                            &hash_blob));
+  TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfBytes(x_blob.data(),
+                                                       x_blob.size(),
+                                                       &hash_blob));
   TEST_AND_RETURN_FALSE(
       SignHashWithKeys(hash_blob, private_key_paths, &sig_blob));
   *out_length = sig_blob.size();
@@ -467,9 +467,9 @@ bool PayloadSigner::GetMetadataSignature(const void* const metadata,
   // Calculates the hash on the updated payload. Note that the payload includes
   // the signature op but doesn't include the signature blob at the end.
   brillo::Blob metadata_hash;
-  TEST_AND_RETURN_FALSE(OmahaHashCalculator::RawHashOfBytes(metadata,
-                                                            metadata_size,
-                                                            &metadata_hash));
+  TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfBytes(metadata,
+                                                       metadata_size,
+                                                       &metadata_hash));
 
   brillo::Blob signature;
   TEST_AND_RETURN_FALSE(SignHash(metadata_hash,

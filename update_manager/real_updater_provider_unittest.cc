@@ -23,8 +23,8 @@
 #include <gtest/gtest.h>
 #include <update_engine/dbus-constants.h>
 
-#include "update_engine/fake_clock.h"
-#include "update_engine/fake_prefs.h"
+#include "update_engine/common/fake_clock.h"
+#include "update_engine/common/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_update_attempter.h"
 #include "update_engine/omaha_request_params.h"

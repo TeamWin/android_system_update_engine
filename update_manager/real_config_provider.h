@@ -20,7 +20,7 @@
 #include <memory>
 #include <string>
 
-#include "update_engine/hardware_interface.h"
+#include "update_engine/common/hardware_interface.h"
 #include "update_engine/update_manager/config_provider.h"
 #include "update_engine/update_manager/generic_variables.h"
 

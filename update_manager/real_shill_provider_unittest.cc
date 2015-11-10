@@ -27,10 +27,10 @@
 #include <shill/dbus-proxies.h>
 #include <shill/dbus-proxy-mocks.h>
 
+#include "update_engine/common/fake_clock.h"
+#include "update_engine/common/test_utils.h"
 #include "update_engine/dbus_test_utils.h"
-#include "update_engine/fake_clock.h"
 #include "update_engine/fake_shill_proxy.h"
-#include "update_engine/test_utils.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::Time;

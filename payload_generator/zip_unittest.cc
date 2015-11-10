@@ -22,8 +22,8 @@
 
 #include <gtest/gtest.h>
 
+#include "update_engine/common/test_utils.h"
 #include "update_engine/payload_generator/bzip.h"
-#include "update_engine/test_utils.h"
 
 using chromeos_update_engine::test_utils::kRandomString;
 using std::string;

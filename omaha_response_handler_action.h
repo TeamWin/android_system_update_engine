@@ -21,9 +21,9 @@
 
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
-#include "update_engine/action.h"
-#include "update_engine/install_plan.h"
+#include "update_engine/common/action.h"
 #include "update_engine/omaha_request_action.h"
+#include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/system_state.h"
 
 // This class reads in an Omaha response and converts what it sees into

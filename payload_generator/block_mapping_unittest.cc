@@ -25,8 +25,8 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 
 using std::string;
 using std::vector;

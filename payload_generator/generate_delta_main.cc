@@ -29,16 +29,16 @@
 #include <base/strings/string_split.h>
 #include <brillo/flag_helper.h>
 
-#include "update_engine/delta_performer.h"
-#include "update_engine/payload_constants.h"
+#include "update_engine/common/prefs.h"
+#include "update_engine/common/terminator.h"
+#include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/delta_performer.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/payload_generator/payload_signer.h"
-#include "update_engine/prefs.h"
-#include "update_engine/terminator.h"
 #include "update_engine/update_metadata.pb.h"
-#include "update_engine/utils.h"
 
 // This file contains a simple program that takes an old path, a new path,
 // and an output file as arguments and the path to an output file and

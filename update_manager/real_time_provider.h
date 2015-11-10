@@ -21,7 +21,7 @@
 
 #include <base/time/time.h>
 
-#include "update_engine/clock_interface.h"
+#include "update_engine/common/clock_interface.h"
 #include "update_engine/update_manager/time_provider.h"
 
 namespace chromeos_update_manager {

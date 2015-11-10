@@ -22,7 +22,7 @@
 #include <base/macros.h>
 #include <brillo/secure_blob.h>
 
-#include "update_engine/file_writer.h"
+#include "update_engine/payload_consumer/file_writer.h"
 
 // FakeFileWriter is an implementation of FileWriter. It will succeed
 // calls to Open(), Close(), but not do any work. All calls to Write()

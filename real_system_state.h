@@ -27,13 +27,13 @@
 #include <power_manager/dbus-proxies.h>
 #include <session_manager/dbus-proxies.h>
 
-#include "update_engine/boot_control_interface.h"
-#include "update_engine/clock.h"
+#include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/clock.h"
+#include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/prefs.h"
 #include "update_engine/connection_manager.h"
-#include "update_engine/hardware_interface.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
-#include "update_engine/prefs.h"
 #include "update_engine/shill_proxy.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/update_manager/update_manager.h"

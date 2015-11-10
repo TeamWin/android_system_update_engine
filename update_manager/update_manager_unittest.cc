@@ -34,7 +34,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/fake_clock.h"
+#include "update_engine/common/fake_clock.h"
 #include "update_engine/update_manager/default_policy.h"
 #include "update_engine/update_manager/fake_state.h"
 #include "update_engine/update_manager/mock_policy.h"

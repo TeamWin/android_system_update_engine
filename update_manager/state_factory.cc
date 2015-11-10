@@ -20,7 +20,7 @@
 
 #include <base/logging.h>
 
-#include "update_engine/clock_interface.h"
+#include "update_engine/common/clock_interface.h"
 #include "update_engine/update_manager/real_config_provider.h"
 #include "update_engine/update_manager/real_device_policy_provider.h"
 #include "update_engine/update_manager/real_random_provider.h"

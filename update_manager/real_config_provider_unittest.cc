@@ -22,9 +22,9 @@
 #include <base/files/scoped_temp_dir.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/constants.h"
-#include "update_engine/fake_hardware.h"
-#include "update_engine/test_utils.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/fake_hardware.h"
+#include "update_engine/common/test_utils.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::TimeDelta;

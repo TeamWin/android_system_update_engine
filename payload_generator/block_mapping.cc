@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-#include "update_engine/utils.h"
+#include "update_engine/common/utils.h"
 
 using std::string;
 using std::vector;
@@ -57,7 +57,7 @@ BlockMapping::BlockId BlockMapping::AddDiskBlock(int fd, off_t byte_offset) {
 bool BlockMapping::AddManyDiskBlocks(int fd,
                                      off_t initial_byte_offset,
                                      size_t num_blocks,
-                                     std::vector<BlockId>* block_ids) {
+                                     vector<BlockId>* block_ids) {
   bool ret = true;
   block_ids->resize(num_blocks);
   for (size_t block = 0; block < num_blocks; block++) {

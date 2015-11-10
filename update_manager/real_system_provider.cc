@@ -28,8 +28,8 @@
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 
+#include "update_engine/common/utils.h"
 #include "update_engine/update_manager/generic_variables.h"
-#include "update_engine/utils.h"
 
 using std::string;
 

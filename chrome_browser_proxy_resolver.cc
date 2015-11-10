@@ -25,7 +25,7 @@
 #include <base/strings/string_tokenizer.h>
 #include <base/strings/string_util.h>
 
-#include "update_engine/utils.h"
+#include "update_engine/common/utils.h"
 
 namespace chromeos_update_engine {
 

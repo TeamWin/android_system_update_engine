@@ -25,9 +25,9 @@
 #include <base/time/time.h>
 #include <update_engine/dbus-constants.h>
 
-#include "update_engine/clock_interface.h"
+#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/prefs.h"
 #include "update_engine/omaha_request_params.h"
-#include "update_engine/prefs.h"
 #include "update_engine/update_attempter.h"
 
 using base::StringPrintf;

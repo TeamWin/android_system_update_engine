@@ -19,8 +19,8 @@
 
 #include <base/time/time.h>
 
-#include "update_engine/constants.h"
-#include "update_engine/error_code.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/error_code.h"
 
 namespace chromeos_update_engine {
 

@@ -28,7 +28,7 @@
 #include <base/time/time.h>
 #include <brillo/message_loops/message_loop.h>
 
-#include "update_engine/clock_interface.h"
+#include "update_engine/common/clock_interface.h"
 #include "update_engine/update_manager/boxed_value.h"
 #include "update_engine/update_manager/variable.h"
 

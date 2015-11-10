@@ -26,7 +26,7 @@
 #include <base/time/time.h>
 #include <dbus/object_path.h>
 
-#include "update_engine/clock_interface.h"
+#include "update_engine/common/clock_interface.h"
 #include "update_engine/shill_proxy_interface.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/shill_provider.h"

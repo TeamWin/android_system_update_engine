@@ -21,7 +21,7 @@
 
 #include <gmock/gmock.h>
 
-#include "update_engine/action.h"
+#include "update_engine/common/action.h"
 
 namespace chromeos_update_engine {
 

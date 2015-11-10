@@ -46,7 +46,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/http_common.h"
+#include "update_engine/common/http_common.h"
 
 
 // HTTP end-of-line delimiter; sorry, this needs to be a macro.

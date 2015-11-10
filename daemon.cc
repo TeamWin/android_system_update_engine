@@ -23,7 +23,7 @@
 #include <base/time/time.h>
 #include <brillo/message_loops/message_loop.h>
 
-#include "update_engine/clock.h"
+#include "update_engine/common/clock.h"
 #include "update_engine/update_attempter.h"
 
 using brillo::MessageLoop;

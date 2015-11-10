@@ -22,8 +22,8 @@
 #include <base/logging.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/graph_types.h"
-#include "update_engine/utils.h"
 
 using std::make_pair;
 using std::string;

@@ -23,9 +23,9 @@
 #include <base/logging.h>
 #include <brillo/key_value_store.h>
 
-#include "update_engine/constants.h"
-#include "update_engine/hardware_interface.h"
-#include "update_engine/platform_constants.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/platform_constants.h"
 #include "update_engine/system_state.h"
 
 namespace {

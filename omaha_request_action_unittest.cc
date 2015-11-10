@@ -33,18 +33,18 @@
 #include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/action_pipe.h"
-#include "update_engine/constants.h"
-#include "update_engine/fake_prefs.h"
+#include "update_engine/common/action_pipe.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/fake_prefs.h"
+#include "update_engine/common/hash_calculator.h"
+#include "update_engine/common/mock_http_fetcher.h"
+#include "update_engine/common/platform_constants.h"
+#include "update_engine/common/prefs.h"
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/mock_connection_manager.h"
-#include "update_engine/mock_http_fetcher.h"
 #include "update_engine/mock_payload_state.h"
-#include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/omaha_request_params.h"
-#include "update_engine/platform_constants.h"
-#include "update_engine/prefs.h"
-#include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
 
 using base::Time;
 using base::TimeDelta;

@@ -25,14 +25,14 @@
 
 #include <gtest/gtest.h>
 
-#include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/common/hash_calculator.h"
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/annotated_operation.h"
 #include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
-#include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
 
 using std::string;
 using std::vector;
@@ -581,7 +581,7 @@ TEST_F(ABGeneratorTest, AddSourceHashTest) {
   EXPECT_TRUE(aops[0].op.has_src_sha256_hash());
   EXPECT_FALSE(aops[1].op.has_src_sha256_hash());
   brillo::Blob expected_hash;
-  EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(src_data, &expected_hash));
+  EXPECT_TRUE(HashCalculator::RawHashOfData(src_data, &expected_hash));
   brillo::Blob result_hash(aops[0].op.src_sha256_hash().begin(),
                            aops[0].op.src_sha256_hash().end());
   EXPECT_EQ(expected_hash, result_hash);

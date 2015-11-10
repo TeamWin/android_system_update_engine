@@ -21,7 +21,7 @@
 #include <tuple>
 #include <vector>
 
-#include "update_engine/error_code.h"
+#include "update_engine/common/error_code.h"
 #include "update_engine/update_manager/evaluation_context.h"
 #include "update_engine/update_manager/state.h"
 

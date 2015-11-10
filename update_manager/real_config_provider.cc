@@ -20,9 +20,9 @@
 #include <base/logging.h>
 #include <brillo/key_value_store.h>
 
-#include "update_engine/constants.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/update_manager/generic_variables.h"
-#include "update_engine/utils.h"
 
 using brillo::KeyValueStore;
 

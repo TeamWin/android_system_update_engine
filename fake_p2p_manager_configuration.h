@@ -17,17 +17,17 @@
 #ifndef UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
 #define UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
 
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/p2p_manager.h"
-#include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
 
 #include <string>
 #include <vector>
 
-#include <base/logging.h>
 #include <base/files/file_util.h>
-#include <base/strings/string_util.h>
+#include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
+#include <base/strings/string_util.h>
 
 namespace chromeos_update_engine {
 

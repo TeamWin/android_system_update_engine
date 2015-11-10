@@ -23,7 +23,7 @@
 #include <brillo/test_helpers.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/terminator.h"
+#include "update_engine/common/terminator.h"
 
 int main(int argc, char **argv) {
   LOG(INFO) << "started";

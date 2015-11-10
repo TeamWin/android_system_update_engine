@@ -23,12 +23,12 @@
 #include <base/files/file_util.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/constants.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/platform_constants.h"
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/fake_system_state.h"
-#include "update_engine/install_plan.h"
-#include "update_engine/platform_constants.h"
-#include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
+#include "update_engine/payload_consumer/install_plan.h"
 
 using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;

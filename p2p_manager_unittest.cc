@@ -41,13 +41,13 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#include "update_engine/fake_clock.h"
+#include "update_engine/common/fake_clock.h"
+#include "update_engine/common/prefs.h"
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
-#include "update_engine/prefs.h"
-#include "update_engine/test_utils.h"
 #include "update_engine/update_manager/fake_update_manager.h"
 #include "update_engine/update_manager/mock_policy.h"
-#include "update_engine/utils.h"
 
 using base::TimeDelta;
 using brillo::MessageLoop;

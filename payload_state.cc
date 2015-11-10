@@ -24,14 +24,14 @@
 #include <base/strings/stringprintf.h>
 #include <policy/device_policy.h>
 
-#include "update_engine/clock.h"
-#include "update_engine/constants.h"
-#include "update_engine/hardware_interface.h"
-#include "update_engine/install_plan.h"
+#include "update_engine/common/clock.h"
+#include "update_engine/common/constants.h"
+#include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/prefs.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/omaha_request_params.h"
-#include "update_engine/prefs.h"
+#include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/system_state.h"
-#include "update_engine/utils.h"
 
 using base::Time;
 using base::TimeDelta;

@@ -30,15 +30,15 @@
 
 #include <base/logging.h>
 
-#include "update_engine/delta_performer.h"
-#include "update_engine/payload_constants.h"
+#include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/delta_performer.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/ab_generator.h"
 #include "update_engine/payload_generator/blob_file_writer.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/full_update_generator.h"
 #include "update_engine/payload_generator/inplace_generator.h"
 #include "update_engine/payload_generator/payload_file.h"
-#include "update_engine/utils.h"
 
 using std::string;
 using std::unique_ptr;

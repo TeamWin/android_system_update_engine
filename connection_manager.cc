@@ -25,9 +25,9 @@
 #include <shill/dbus-constants.h>
 #include <shill/dbus-proxies.h>
 
-#include "update_engine/prefs.h"
+#include "update_engine/common/prefs.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/system_state.h"
-#include "update_engine/utils.h"
 
 using org::chromium::flimflam::ManagerProxyInterface;
 using org::chromium::flimflam::ServiceProxyInterface;

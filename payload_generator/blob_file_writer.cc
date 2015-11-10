@@ -16,7 +16,7 @@
 
 #include "update_engine/payload_generator/blob_file_writer.h"
 
-#include "update_engine/utils.h"
+#include "update_engine/common/utils.h"
 
 namespace chromeos_update_engine {
 

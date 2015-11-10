@@ -18,7 +18,7 @@
 #define UPDATE_ENGINE_MOCK_FILE_WRITER_H_
 
 #include <gmock/gmock.h>
-#include "update_engine/file_writer.h"
+#include "update_engine/payload_consumer/file_writer.h"
 
 namespace chromeos_update_engine {
 

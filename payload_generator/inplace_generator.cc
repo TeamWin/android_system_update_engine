@@ -23,7 +23,8 @@
 #include <utility>
 #include <vector>
 
-#include "update_engine/payload_constants.h"
+#include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/cycle_breaker.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
@@ -32,7 +33,6 @@
 #include "update_engine/payload_generator/graph_utils.h"
 #include "update_engine/payload_generator/topological_sort.h"
 #include "update_engine/update_metadata.pb.h"
-#include "update_engine/utils.h"
 
 using std::make_pair;
 using std::map;

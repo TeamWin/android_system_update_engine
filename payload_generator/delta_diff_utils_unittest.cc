@@ -25,12 +25,12 @@
 #include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/common/test_utils.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
 #include "update_engine/payload_generator/fake_filesystem.h"
-#include "update_engine/test_utils.h"
-#include "update_engine/utils.h"
 
 using std::string;
 using std::vector;

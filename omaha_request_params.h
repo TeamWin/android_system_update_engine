@@ -25,8 +25,8 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#include "update_engine/common/platform_constants.h"
 #include "update_engine/image_properties.h"
-#include "update_engine/platform_constants.h"
 
 // This gathers local system information and prepares info used by the
 // Omaha request action.

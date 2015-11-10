@@ -28,8 +28,8 @@
 #include <session_manager/dbus-proxies.h>
 #include <session_manager/dbus-proxy-mocks.h>
 
+#include "update_engine/common/test_utils.h"
 #include "update_engine/dbus_test_utils.h"
-#include "update_engine/test_utils.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::TimeDelta;

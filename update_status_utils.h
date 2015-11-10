@@ -14,12 +14,12 @@
 // limitations under the License.
 //
 
-#ifndef CLIENT_LIBRARY_UPDATE_STATUS_TO_STRING_H_
-#define CLIENT_LIBRARY_UPDATE_STATUS_TO_STRING_H_
+#ifndef UPDATE_ENGINE_UPDATE_STATUS_UTILS_H_
+#define UPDATE_ENGINE_UPDATE_STATUS_UTILS_H_
 
 #include <string>
 
-#include "update_engine/update_status.h"
+#include "update_engine/client_library/include/update_engine/update_status.h"
 
 namespace chromeos_update_engine {
 
@@ -30,4 +30,4 @@ bool StringToUpdateStatus(const std::string& update_status_as_string,
 
 }  // namespace chromeos_update_engine
 
-#endif  // CLIENT_LIBRARY_UPDATE_STATUS_TO_STRING_H_
+#endif  // UPDATE_ENGINE_UPDATE_STATUS_UTILS_H_

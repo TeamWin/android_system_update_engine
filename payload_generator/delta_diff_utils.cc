@@ -23,14 +23,14 @@
 #include <base/format_macros.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/omaha_hash_calculator.h"
-#include "update_engine/payload_generator/bzip.h"
+#include "update_engine/common/hash_calculator.h"
+#include "update_engine/common/subprocess.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/block_mapping.h"
+#include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
-#include "update_engine/subprocess.h"
-#include "update_engine/utils.h"
 
 using std::map;
 using std::string;
@@ -653,7 +653,7 @@ void FilterNoopOperations(vector<AnnotatedOperation>* ops) {
 
 bool InitializePartitionInfo(const PartitionConfig& part, PartitionInfo* info) {
   info->set_size(part.size);
-  OmahaHashCalculator hasher;
+  HashCalculator hasher;
   TEST_AND_RETURN_FALSE(hasher.UpdateFile(part.path, part.size) ==
                         static_cast<off_t>(part.size));
   TEST_AND_RETURN_FALSE(hasher.Finalize());

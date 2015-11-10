@@ -22,7 +22,7 @@
 #include <base/time/time.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/fake_clock.h"
+#include "update_engine/common/fake_clock.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::Time;

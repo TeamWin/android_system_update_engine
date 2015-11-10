@@ -23,7 +23,7 @@
 
 #include <base/logging.h>
 
-#include "update_engine/payload_constants.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 
 using std::set;
 using std::vector;

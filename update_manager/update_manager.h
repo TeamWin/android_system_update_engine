@@ -25,7 +25,7 @@
 #include <base/memory/ref_counted.h>
 #include <base/time/time.h>
 
-#include "update_engine/clock_interface.h"
+#include "update_engine/common/clock_interface.h"
 #include "update_engine/update_manager/default_policy.h"
 #include "update_engine/update_manager/evaluation_context.h"
 #include "update_engine/update_manager/policy.h"

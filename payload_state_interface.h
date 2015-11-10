@@ -19,8 +19,8 @@
 
 #include <string>
 
-#include "update_engine/action_processor.h"
-#include "update_engine/constants.h"
+#include "update_engine/common/action_processor.h"
+#include "update_engine/common/constants.h"
 #include "update_engine/omaha_response.h"
 
 namespace chromeos_update_engine {

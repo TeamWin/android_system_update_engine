@@ -20,8 +20,8 @@
 #include <memory>
 #include <string>
 
-#include "update_engine/boot_control_interface.h"
-#include "update_engine/hardware_interface.h"
+#include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/hardware_interface.h"
 #include "update_engine/update_manager/system_provider.h"
 
 namespace chromeos_update_manager {

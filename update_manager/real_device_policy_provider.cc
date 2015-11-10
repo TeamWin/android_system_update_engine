@@ -23,9 +23,9 @@
 #include <base/time/time.h>
 #include <policy/device_policy.h>
 
+#include "update_engine/common/utils.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/real_shill_provider.h"
-#include "update_engine/utils.h"
 
 using base::TimeDelta;
 using brillo::MessageLoop;

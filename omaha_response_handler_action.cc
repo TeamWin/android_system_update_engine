@@ -22,14 +22,14 @@
 #include <base/strings/string_util.h>
 #include <policy/device_policy.h>
 
+#include "update_engine/common/constants.h"
+#include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/prefs_interface.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/connection_manager_interface.h"
-#include "update_engine/constants.h"
-#include "update_engine/delta_performer.h"
-#include "update_engine/hardware_interface.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_state_interface.h"
-#include "update_engine/prefs_interface.h"
-#include "update_engine/utils.h"
 
 using std::string;
 

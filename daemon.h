@@ -22,10 +22,10 @@
 
 #include <brillo/daemons/dbus_daemon.h>
 
-#include "update_engine/certificate_checker.h"
+#include "update_engine/common/certificate_checker.h"
+#include "update_engine/common/subprocess.h"
 #include "update_engine/dbus_service.h"
 #include "update_engine/real_system_state.h"
-#include "update_engine/subprocess.h"
 
 namespace chromeos_update_engine {
 

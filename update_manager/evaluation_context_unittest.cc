@@ -24,7 +24,7 @@
 #include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/fake_clock.h"
+#include "update_engine/common/fake_clock.h"
 #include "update_engine/update_manager/fake_variable.h"
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/mock_variable.h"

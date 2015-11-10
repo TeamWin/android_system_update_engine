@@ -24,11 +24,11 @@
 #include <base/strings/string_util.h>
 #include <base/time/time.h>
 
-#include "update_engine/error_code.h"
+#include "update_engine/common/error_code.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/update_manager/device_policy_provider.h"
 #include "update_engine/update_manager/policy_utils.h"
 #include "update_engine/update_manager/shill_provider.h"
-#include "update_engine/utils.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -533,7 +533,7 @@ EvalStatus ChromeOSPolicy::UpdateDownloadAllowed(
 
 EvalStatus ChromeOSPolicy::P2PEnabled(EvaluationContext* ec,
                                       State* state,
-                                      std::string* error,
+                                      string* error,
                                       bool* result) const {
   bool enabled = false;
 
@@ -569,7 +569,7 @@ EvalStatus ChromeOSPolicy::P2PEnabled(EvaluationContext* ec,
 
 EvalStatus ChromeOSPolicy::P2PEnabledChanged(EvaluationContext* ec,
                                              State* state,
-                                             std::string* error,
+                                             string* error,
                                              bool* result,
                                              bool prev_result) const {
   EvalStatus status = P2PEnabled(ec, state, error, result);
