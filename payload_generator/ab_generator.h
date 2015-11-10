@@ -107,6 +107,11 @@ class ABGenerator : public OperationsGenerator {
                               const std::string& target_part,
                               BlobFileWriter* blob_file);
 
+  // Takes a vector of AnnotatedOperations |aops|, adds source hash to all
+  // operations that have src_extents.
+  static bool AddSourceHash(std::vector<AnnotatedOperation>* aops,
+                            const std::string& source_part_path);
+
  private:
   // Adds the data payload for a REPLACE/REPLACE_BZ operation |aop| by reading
   // its output extents from |target_part_path| and appending a corresponding

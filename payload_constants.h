@@ -40,6 +40,9 @@ extern const uint32_t kInPlaceMinorPayloadVersion;
 // The minor version used by the A to B delta generator algorithm.
 extern const uint32_t kSourceMinorPayloadVersion;
 
+// The minor version that allows per-operation source hash.
+extern const uint32_t kOpSrcHashMinorPayloadVersion;
+
 
 // The kernel and rootfs partition names used by the BootControlInterface when
 // handling update payloads with a major version 1. The names of the updated

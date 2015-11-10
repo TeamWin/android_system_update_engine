@@ -20,7 +20,8 @@
 
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/delta_performer.h"
+#include "update_engine/omaha_hash_calculator.h"
+#include "update_engine/payload_constants.h"
 #include "update_engine/payload_generator/annotated_operation.h"
 #include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
@@ -72,6 +73,10 @@ bool ABGenerator::GenerateOperations(
                                         merge_chunk_blocks,
                                         new_part.path,
                                         blob_file));
+
+  if (config.minor_version == kOpSrcHashMinorPayloadVersion)
+    TEST_AND_RETURN_FALSE(AddSourceHash(aops, old_part.path));
+
   return true;
 }
 
@@ -302,6 +307,28 @@ bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
     aop->SetOperationBlob(data_p, blob_file);
   }
 
+  return true;
+}
+
+bool ABGenerator::AddSourceHash(vector<AnnotatedOperation>* aops,
+                                const string& source_part_path) {
+  for (AnnotatedOperation& aop : *aops) {
+    if (aop.op.src_extents_size() == 0)
+      continue;
+
+    vector<Extent> src_extents;
+    ExtentsToVector(aop.op.src_extents(), &src_extents);
+    brillo::Blob src_data, src_hash;
+    uint64_t src_length =
+        aop.op.has_src_length()
+            ? aop.op.src_length()
+            : BlocksInExtents(aop.op.src_extents()) * kBlockSize;
+    TEST_AND_RETURN_FALSE(utils::ReadExtents(
+        source_part_path, src_extents, &src_data, src_length, kBlockSize));
+    TEST_AND_RETURN_FALSE(
+        OmahaHashCalculator::RawHashOfData(src_data, &src_hash));
+    aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
+  }
   return true;
 }
 

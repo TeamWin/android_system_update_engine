@@ -104,7 +104,8 @@ bool GenerateUpdatePayloadFile(
         if (config.minor_version == kInPlaceMinorPayloadVersion) {
           LOG(INFO) << "Using generator InplaceGenerator().";
           strategy.reset(new InplaceGenerator());
-        } else if (config.minor_version == kSourceMinorPayloadVersion) {
+        } else if (config.minor_version == kSourceMinorPayloadVersion ||
+                   config.minor_version == kOpSrcHashMinorPayloadVersion) {
           LOG(INFO) << "Using generator ABGenerator().";
           strategy.reset(new ABGenerator());
         } else {

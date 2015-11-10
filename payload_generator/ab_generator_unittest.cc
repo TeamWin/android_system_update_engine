@@ -25,6 +25,7 @@
 
 #include <gtest/gtest.h>
 
+#include "update_engine/omaha_hash_calculator.h"
 #include "update_engine/payload_generator/annotated_operation.h"
 #include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
@@ -548,6 +549,42 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
 
   // No operations were merged, the number of ops is the same.
   EXPECT_EQ(aops.size(), 4);
+}
+
+TEST_F(ABGeneratorTest, AddSourceHashTest) {
+  vector<AnnotatedOperation> aops;
+  InstallOperation first_op;
+  first_op.set_type(InstallOperation::SOURCE_COPY);
+  first_op.set_src_length(kBlockSize);
+  *(first_op.add_src_extents()) = ExtentForRange(0, 1);
+  AnnotatedOperation first_aop;
+  first_aop.op = first_op;
+  aops.push_back(first_aop);
+
+  InstallOperation second_op;
+  second_op.set_type(InstallOperation::REPLACE);
+  AnnotatedOperation second_aop;
+  second_aop.op = second_op;
+  aops.push_back(second_aop);
+
+  string src_part_path;
+  EXPECT_TRUE(utils::MakeTempFile("AddSourceHashTest_src_part.XXXXXX",
+                                  &src_part_path, nullptr));
+  ScopedPathUnlinker src_part_path_unlinker(src_part_path);
+  brillo::Blob src_data(kBlockSize);
+  test_utils::FillWithData(&src_data);
+  ASSERT_TRUE(utils::WriteFile(src_part_path.c_str(), src_data.data(),
+                               src_data.size()));
+
+  EXPECT_TRUE(ABGenerator::AddSourceHash(&aops, src_part_path));
+
+  EXPECT_TRUE(aops[0].op.has_src_sha256_hash());
+  EXPECT_FALSE(aops[1].op.has_src_sha256_hash());
+  brillo::Blob expected_hash;
+  EXPECT_TRUE(OmahaHashCalculator::RawHashOfData(src_data, &expected_hash));
+  brillo::Blob result_hash(aops[0].op.src_sha256_hash().begin(),
+                           aops[0].op.src_sha256_hash().end());
+  EXPECT_EQ(expected_hash, result_hash);
 }
 
 }  // namespace chromeos_update_engine
