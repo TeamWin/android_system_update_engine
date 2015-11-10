@@ -140,8 +140,8 @@ bool StoreMutableImageProperties(SystemState* system_state,
   lsb_release.SetBoolean(kLsbReleaseIsPowerwashAllowedKey,
                          properties.is_powerwash_allowed);
 
-  base::FilePath path(std::string(root_prefix) + kStatefulPartition +
-                      kLsbRelease);
+  std::string root_prefix_str = root_prefix ? root_prefix : "";
+  base::FilePath path(root_prefix_str + kStatefulPartition + kLsbRelease);
   if (!base::DirectoryExists(path.DirName()))
     base::CreateDirectory(path.DirName());
   return lsb_release.Save(path);

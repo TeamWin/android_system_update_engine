@@ -102,6 +102,15 @@ bool RealSystemState::Initialize() {
     system_rebooted_ = true;
   }
 
+  // Initialize the OmahaRequestParams with the default settings. These settings
+  // will be re-initialized before every request using the actual request
+  // options. This initialization here pre-loads current channel and version, so
+  // the DBus service can access it.
+  if (!request_params_.Init("", "", false)) {
+    LOG(WARNING) << "Ignoring OmahaRequestParams initialization error. Some "
+                    "features might not work properly.";
+  }
+
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(
