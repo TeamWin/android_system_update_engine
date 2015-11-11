@@ -486,6 +486,7 @@
             'payload_generator/graph_utils_unittest.cc',
             'payload_generator/inplace_generator_unittest.cc',
             'payload_generator/payload_file_unittest.cc',
+            'payload_generator/payload_generation_config_unittest.cc',
             'payload_generator/payload_signer_unittest.cc',
             'payload_generator/tarjan_unittest.cc',
             'payload_generator/topological_sort_unittest.cc',

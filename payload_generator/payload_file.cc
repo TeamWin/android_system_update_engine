@@ -87,6 +87,7 @@ bool PayloadFile::AddPartition(const PartitionConfig& old_conf,
   Partition part;
   part.name = new_conf.name;
   part.aops = aops;
+  part.postinstall = new_conf.postinstall;
   // Initialize the PartitionInfo objects if present.
   if (!old_conf.path.empty())
     TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(old_conf,
@@ -132,6 +133,13 @@ bool PayloadFile::WritePayload(const string& payload_file,
     if (major_version_ == kBrilloMajorPayloadVersion) {
       PartitionUpdate* partition = manifest_.add_partitions();
       partition->set_partition_name(part.name);
+      if (part.postinstall.run) {
+        partition->set_run_postinstall(true);
+        if (!part.postinstall.path.empty())
+          partition->set_postinstall_path(part.postinstall.path);
+        if (!part.postinstall.filesystem_type.empty())
+          partition->set_filesystem_type(part.postinstall.filesystem_type);
+      }
       for (const AnnotatedOperation& aop : part.aops) {
         *partition->add_operations() = aop.op;
       }

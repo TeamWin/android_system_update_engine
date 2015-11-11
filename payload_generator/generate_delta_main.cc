@@ -28,6 +28,7 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
 #include <brillo/flag_helper.h>
+#include <brillo/key_value_store.h>
 
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/terminator.h"
@@ -327,6 +328,9 @@ int Main(int argc, char** argv) {
                 "'npo-channel'. Ignored, except during delta generation.");
   DEFINE_string(new_build_version, "",
                 "The version of the build containing the new image.");
+  DEFINE_string(new_postinstall_config_file, "",
+                "A config file specifying postinstall related metadata. "
+                "Only allowed in major version 2 or newer.");
 
   brillo::FlagHelper::Init(argc, argv,
       "Generates a payload to provide to ChromeOS' update_engine.\n\n"
@@ -428,6 +432,14 @@ int Main(int argc, char** argv) {
       payload_config.source.partitions.emplace_back(partition_names[i]);
       payload_config.source.partitions.back().path = old_partitions[i];
     }
+  }
+
+  if (!FLAGS_new_postinstall_config_file.empty()) {
+    LOG_IF(FATAL, FLAGS_major_version == kChromeOSMajorPayloadVersion)
+        << "Postinstall config is only allowed in major version 2 or newer.";
+    brillo::KeyValueStore store;
+    CHECK(store.Load(base::FilePath(FLAGS_new_postinstall_config_file)));
+    CHECK(payload_config.target.LoadPostInstallConfig(store));
   }
 
   // Use the default soft_chunk_size defined in the config.

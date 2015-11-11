@@ -23,11 +23,30 @@
 #include <string>
 #include <vector>
 
+#include <brillo/key_value_store.h>
+
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/filesystem_interface.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
+
+struct PostInstallConfig {
+  // Whether the postinstall config is empty.
+  bool IsEmpty() const;
+
+  // Whether this partition carries a filesystem with post-install program that
+  // must be run to finalize the update process.
+  bool run = false;
+
+  // The path to the post-install program relative to the root of this
+  // filesystem.
+  std::string path;
+
+  // The filesystem type used to mount the partition in order to run the
+  // post-install program.
+  std::string filesystem_type;
+};
 
 struct PartitionConfig {
   explicit PartitionConfig(std::string name) : name(name) {}
@@ -57,6 +76,8 @@ struct PartitionConfig {
   std::unique_ptr<FilesystemInterface> fs_interface;
 
   std::string name;
+
+  PostInstallConfig postinstall;
 };
 
 // The ImageConfig struct describes a pair of binaries kernel and rootfs and the
@@ -71,6 +92,9 @@ struct ImageConfig {
   // size is detected from the filesystem.
   // Returns whether the image size was properly detected.
   bool LoadImageSize();
+
+  // Load postinstall config from a key value store.
+  bool LoadPostInstallConfig(const brillo::KeyValueStore& store);
 
   // Returns whether the |image_info| field is empty.
   bool ImageInfoIsEmpty() const;

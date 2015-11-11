@@ -93,6 +93,8 @@ class PayloadFile {
 
     PartitionInfo old_info;
     PartitionInfo new_info;
+
+    PostInstallConfig postinstall;
   };
 
   std::vector<Partition> part_vec_;

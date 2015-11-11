@@ -26,6 +26,10 @@
 
 namespace chromeos_update_engine {
 
+bool PostInstallConfig::IsEmpty() const {
+  return run == false && path.empty() && filesystem_type.empty();
+}
+
 bool PartitionConfig::ValidateExists() const {
   TEST_AND_RETURN_FALSE(!path.empty());
   TEST_AND_RETURN_FALSE(utils::FileExists(path.c_str()));
@@ -79,6 +83,26 @@ bool ImageConfig::LoadImageSize() {
   return true;
 }
 
+bool ImageConfig::LoadPostInstallConfig(const brillo::KeyValueStore& store) {
+  bool found_postinstall = false;
+  for (PartitionConfig& part : partitions) {
+    bool run_postinstall;
+    if (!store.GetBoolean("RUN_POSTINSTALL_" + part.name, &run_postinstall) ||
+        !run_postinstall)
+      continue;
+    found_postinstall = true;
+    part.postinstall.run = true;
+    store.GetString("POSTINSTALL_PATH_" + part.name, &part.postinstall.path);
+    store.GetString("FILESYSTEM_TYPE_" + part.name,
+                    &part.postinstall.filesystem_type);
+  }
+  if (!found_postinstall) {
+    LOG(ERROR) << "No valid postinstall config found.";
+    return false;
+  }
+  return true;
+}
+
 bool ImageConfig::ImageInfoIsEmpty() const {
   return image_info.board().empty()
     && image_info.key().empty()
@@ -95,6 +119,8 @@ bool PayloadGenerationConfig::Validate() const {
         TEST_AND_RETURN_FALSE(part.ValidateExists());
         TEST_AND_RETURN_FALSE(part.size % block_size == 0);
       }
+      // Source partition should not have postinstall.
+      TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());
     }
 
     // Check for the supported minor_version values.
@@ -118,6 +144,8 @@ bool PayloadGenerationConfig::Validate() const {
     if (minor_version == kInPlaceMinorPayloadVersion &&
         part.name == kLegacyPartitionNameRoot)
       TEST_AND_RETURN_FALSE(rootfs_partition_size >= part.size);
+    if (major_version == kChromeOSMajorPayloadVersion)
+      TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());
   }
 
   TEST_AND_RETURN_FALSE(hard_chunk_size == -1 ||
