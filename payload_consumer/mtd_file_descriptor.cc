@@ -28,8 +28,8 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <update_engine/subprocess.h>
 
+#include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 
 using std::string;
