@@ -635,56 +635,6 @@ TEST(UtilsTest, MonotonicDurationHelper) {
   EXPECT_EQ(duration.InSeconds(), 0);
 }
 
-TEST(UtilsTest, GetConnectionType) {
-  // Check that expected combinations map to the right value.
-  EXPECT_EQ(metrics::ConnectionType::kUnknown,
-            utils::GetConnectionType(NetworkConnectionType::kUnknown,
-                                     NetworkTethering::kUnknown));
-  EXPECT_EQ(metrics::ConnectionType::kEthernet,
-            utils::GetConnectionType(NetworkConnectionType::kEthernet,
-                                     NetworkTethering::kUnknown));
-  EXPECT_EQ(metrics::ConnectionType::kWifi,
-            utils::GetConnectionType(NetworkConnectionType::kWifi,
-                                     NetworkTethering::kUnknown));
-  EXPECT_EQ(metrics::ConnectionType::kWimax,
-            utils::GetConnectionType(NetworkConnectionType::kWimax,
-                                     NetworkTethering::kUnknown));
-  EXPECT_EQ(metrics::ConnectionType::kBluetooth,
-            utils::GetConnectionType(NetworkConnectionType::kBluetooth,
-                                     NetworkTethering::kUnknown));
-  EXPECT_EQ(metrics::ConnectionType::kCellular,
-            utils::GetConnectionType(NetworkConnectionType::kCellular,
-                                     NetworkTethering::kUnknown));
-  EXPECT_EQ(metrics::ConnectionType::kTetheredEthernet,
-            utils::GetConnectionType(NetworkConnectionType::kEthernet,
-                                     NetworkTethering::kConfirmed));
-  EXPECT_EQ(metrics::ConnectionType::kTetheredWifi,
-            utils::GetConnectionType(NetworkConnectionType::kWifi,
-                                     NetworkTethering::kConfirmed));
-
-  // Ensure that we don't report tethered ethernet unless it's confirmed.
-  EXPECT_EQ(metrics::ConnectionType::kEthernet,
-            utils::GetConnectionType(NetworkConnectionType::kEthernet,
-                                     NetworkTethering::kNotDetected));
-  EXPECT_EQ(metrics::ConnectionType::kEthernet,
-            utils::GetConnectionType(NetworkConnectionType::kEthernet,
-                                     NetworkTethering::kSuspected));
-  EXPECT_EQ(metrics::ConnectionType::kEthernet,
-            utils::GetConnectionType(NetworkConnectionType::kEthernet,
-                                     NetworkTethering::kUnknown));
-
-  // Ditto for tethered wifi.
-  EXPECT_EQ(metrics::ConnectionType::kWifi,
-            utils::GetConnectionType(NetworkConnectionType::kWifi,
-                                     NetworkTethering::kNotDetected));
-  EXPECT_EQ(metrics::ConnectionType::kWifi,
-            utils::GetConnectionType(NetworkConnectionType::kWifi,
-                                     NetworkTethering::kSuspected));
-  EXPECT_EQ(metrics::ConnectionType::kWifi,
-            utils::GetConnectionType(NetworkConnectionType::kWifi,
-                                     NetworkTethering::kUnknown));
-}
-
 TEST(UtilsTest, GetMinorVersion) {
   // Test GetMinorVersion by verifying that it parses the conf file and returns
   // the correct value.

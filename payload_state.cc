@@ -29,6 +29,7 @@
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/metrics_utils.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/system_state.h"
@@ -191,7 +192,7 @@ void PayloadState::AttemptStarted(AttemptType attempt_type) {
     LOG(ERROR) << "Failed to determine connection type.";
     type = metrics::ConnectionType::kUnknown;
   } else {
-    type = utils::GetConnectionType(network_connection_type, tethering);
+    type = metrics_utils::GetConnectionType(network_connection_type, tethering);
   }
   attempt_connection_type_ = type;
 
@@ -578,12 +579,12 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
   metrics::DownloadErrorCode payload_download_error_code =
     metrics::DownloadErrorCode::kUnset;
   ErrorCode internal_error_code = ErrorCode::kSuccess;
-  metrics::AttemptResult attempt_result = utils::GetAttemptResult(code);
+  metrics::AttemptResult attempt_result = metrics_utils::GetAttemptResult(code);
 
   // Add additional detail to AttemptResult
   switch (attempt_result) {
     case metrics::AttemptResult::kPayloadDownloadError:
-      payload_download_error_code = utils::GetDownloadErrorCode(code);
+      payload_download_error_code = metrics_utils::GetDownloadErrorCode(code);
       break;
 
     case metrics::AttemptResult::kInternalError:

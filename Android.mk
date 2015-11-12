@@ -256,6 +256,7 @@ LOCAL_SRC_FILES := \
     image_properties_android.cc \
     libcros_proxy.cc \
     metrics.cc \
+    metrics_utils.cc \
     omaha_request_action.cc \
     omaha_request_params.cc \
     omaha_response_handler_action.cc \

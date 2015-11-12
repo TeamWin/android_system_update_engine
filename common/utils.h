@@ -38,7 +38,6 @@
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/connection_manager_interface.h"
-#include "update_engine/metrics.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/update_metadata.pb.h"
 
@@ -316,22 +315,6 @@ std::string FormatTimeDelta(base::TimeDelta delta);
 // idempotent, i.e. if called with a value previously returned by this method,
 // it'll return the same value again.
 ErrorCode GetBaseErrorCode(ErrorCode code);
-
-// Transforms a ErrorCode value into a metrics::DownloadErrorCode.
-// This obviously only works for errors related to downloading so if |code|
-// is e.g. |ErrorCode::kFilesystemCopierError| then
-// |kDownloadErrorCodeInputMalformed| is returned.
-metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code);
-
-// Transforms a ErrorCode value into a metrics::AttemptResult.
-//
-// If metrics::AttemptResult::kPayloadDownloadError is returned, you
-// can use utils::GetDownloadError() to get more detail.
-metrics::AttemptResult GetAttemptResult(ErrorCode code);
-
-// Calculates the internet connection type given |type| and |tethering|.
-metrics::ConnectionType GetConnectionType(NetworkConnectionType type,
-                                          NetworkTethering tethering);
 
 // Returns a string representation of the ErrorCodes (either the base
 // error codes or the bit flags) for logging purposes.

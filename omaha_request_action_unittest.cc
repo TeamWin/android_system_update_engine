@@ -42,6 +42,7 @@
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/metrics.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/omaha_request_params.h"

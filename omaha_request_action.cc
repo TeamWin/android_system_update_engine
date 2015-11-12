@@ -40,6 +40,8 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/connection_manager.h"
+#include "update_engine/metrics.h"
+#include "update_engine/metrics_utils.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state_interface.h"
@@ -1417,7 +1419,8 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
     // We report two flavors of errors, "Download errors" and "Parsing
     // error". Try to convert to the former and if that doesn't work
     // we know it's the latter.
-    metrics::DownloadErrorCode tmp_error = utils::GetDownloadErrorCode(code);
+    metrics::DownloadErrorCode tmp_error =
+        metrics_utils::GetDownloadErrorCode(code);
     if (tmp_error != metrics::DownloadErrorCode::kInputMalformed) {
       result = metrics::CheckResult::kDownloadError;
       download_error_code = tmp_error;
