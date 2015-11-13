@@ -983,6 +983,22 @@ uint64_t GetBlockCount(const RepeatedPtrField<Extent>& extents) {
   return sum;
 }
 
+// Compare |calculated_hash| with source hash in |operation|, return false and
+// dump hash if don't match.
+bool ValidateSourceHash(const brillo::Blob& calculated_hash,
+                        const InstallOperation& operation) {
+  brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
+                                    operation.src_sha256_hash().end());
+  if (calculated_hash != expected_source_hash) {
+    LOG(ERROR) << "Hash verification failed. Expected hash = ";
+    utils::HexDumpVector(expected_source_hash);
+    LOG(ERROR) << "Calculated hash = ";
+    utils::HexDumpVector(calculated_hash);
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 bool DeltaPerformer::PerformSourceCopyOperation(
@@ -1006,6 +1022,7 @@ bool DeltaPerformer::PerformSourceCopyOperation(
 
   brillo::Blob buf(block_size_);
   ssize_t bytes_read = 0;
+  HashCalculator source_hasher;
   // Read/write one block at a time.
   for (uint64_t i = 0; i < blocks_to_read; i++) {
     ssize_t bytes_read_this_iteration = 0;
@@ -1030,7 +1047,17 @@ bool DeltaPerformer::PerformSourceCopyOperation(
     bytes_read += bytes_read_this_iteration;
     TEST_AND_RETURN_FALSE(bytes_read_this_iteration ==
                           static_cast<ssize_t>(block_size_));
+
+    if (operation.has_src_sha256_hash())
+      TEST_AND_RETURN_FALSE(source_hasher.Update(buf.data(), buf.size()));
   }
+
+  if (operation.has_src_sha256_hash()) {
+    TEST_AND_RETURN_FALSE(source_hasher.Finalize());
+    TEST_AND_RETURN_FALSE(
+        ValidateSourceHash(source_hasher.raw_hash(), operation));
+  }
+
   DCHECK_EQ(bytes_read, static_cast<ssize_t>(blocks_to_read * block_size_));
   return true;
 }
@@ -1125,6 +1152,29 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
     TEST_AND_RETURN_FALSE(operation.src_length() % block_size_ == 0);
   if (operation.has_dst_length())
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
+
+  if (operation.has_src_sha256_hash()) {
+    HashCalculator source_hasher;
+    const uint64_t kMaxBlocksToRead = 512;  // 2MB if block size is 4KB
+    brillo::Blob buf(kMaxBlocksToRead * block_size_);
+    for (const Extent& extent : operation.src_extents()) {
+      for (uint64_t i = 0; i < extent.num_blocks(); i += kMaxBlocksToRead) {
+        uint64_t blocks_to_read =
+            min(kMaxBlocksToRead, extent.num_blocks() - i);
+        ssize_t bytes_to_read = blocks_to_read * block_size_;
+        ssize_t bytes_read_this_iteration = 0;
+        TEST_AND_RETURN_FALSE(
+            utils::PReadAll(source_fd_, buf.data(), bytes_to_read,
+                            (extent.start_block() + i) * block_size_,
+                            &bytes_read_this_iteration));
+        TEST_AND_RETURN_FALSE(bytes_read_this_iteration == bytes_to_read);
+        TEST_AND_RETURN_FALSE(source_hasher.Update(buf.data(), bytes_to_read));
+      }
+    }
+    TEST_AND_RETURN_FALSE(source_hasher.Finalize());
+    TEST_AND_RETURN_FALSE(
+        ValidateSourceHash(source_hasher.raw_hash(), operation));
+  }
 
   string input_positions;
   TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(operation.src_extents(),

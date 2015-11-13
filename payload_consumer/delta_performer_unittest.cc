@@ -149,18 +149,24 @@ class DeltaPerformerTest : public ::testing::Test {
   }
 
   // Apply |payload_data| on partition specified in |source_path|.
+  // Expect result of performer_.Write() to be |expect_success|.
+  // Returns the result of the payload application.
   brillo::Blob ApplyPayload(const brillo::Blob& payload_data,
-                            const string& source_path) {
-    return ApplyPayloadToData(payload_data, source_path, brillo::Blob());
+                            const string& source_path,
+                            bool expect_success) {
+    return ApplyPayloadToData(payload_data, source_path, brillo::Blob(),
+                              expect_success);
   }
 
   // Apply the payload provided in |payload_data| reading from the |source_path|
   // file and writing the contents to a new partition. The existing data in the
   // new target file are set to |target_data| before applying the payload.
+  // Expect result of performer_.Write() to be |expect_success|.
   // Returns the result of the payload application.
   brillo::Blob ApplyPayloadToData(const brillo::Blob& payload_data,
                                   const string& source_path,
-                                  const brillo::Blob& target_data) {
+                                  const brillo::Blob& target_data,
+                                  bool expect_success) {
     string new_part;
     EXPECT_TRUE(utils::MakeTempFile("Partition-XXXXXX", &new_part, nullptr));
     ScopedPathUnlinker partition_unlinker(new_part);
@@ -178,7 +184,8 @@ class DeltaPerformerTest : public ::testing::Test {
     fake_system_state_.fake_boot_control()->SetPartitionDevice(
         kLegacyPartitionNameKernel, install_plan_.source_slot, "/dev/null");
 
-    EXPECT_TRUE(performer_.Write(payload_data.data(), payload_data.size()));
+    EXPECT_EQ(expect_success,
+              performer_.Write(payload_data.data(), payload_data.size()));
     EXPECT_EQ(0, performer_.Close());
 
     brillo::Blob partition_data;
@@ -315,7 +322,7 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
   brillo::Blob payload_data = GeneratePayload(expected_data, aops, false,
       kChromeOSMajorPayloadVersion, kFullPayloadMinorVersion);
 
-  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
 }
 
 TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
@@ -334,7 +341,7 @@ TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
                                               kChromeOSMajorPayloadVersion,
                                               kSourceMinorPayloadVersion);
 
-  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
 }
 
 TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
@@ -356,7 +363,7 @@ TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
                                               kChromeOSMajorPayloadVersion,
                                               kSourceMinorPayloadVersion);
 
-  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
 }
 
 TEST_F(DeltaPerformerTest, ReplaceXzOperationTest) {
@@ -378,7 +385,7 @@ TEST_F(DeltaPerformerTest, ReplaceXzOperationTest) {
                                               kChromeOSMajorPayloadVersion,
                                               kSourceMinorPayloadVersion);
 
-  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null"));
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
 }
 
 TEST_F(DeltaPerformerTest, ZeroOperationTest) {
@@ -402,23 +409,24 @@ TEST_F(DeltaPerformerTest, ZeroOperationTest) {
                                               kSourceMinorPayloadVersion);
 
   EXPECT_EQ(expected_data,
-            ApplyPayloadToData(payload_data, "/dev/null", existing_data));
+            ApplyPayloadToData(payload_data, "/dev/null", existing_data, true));
 }
 
 TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
-  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
-                                            std::end(kRandomString));
+  brillo::Blob expected_data(std::begin(kRandomString),
+                             std::end(kRandomString));
   expected_data.resize(4096);  // block size
-  vector<AnnotatedOperation> aops;
   AnnotatedOperation aop;
   *(aop.op.add_src_extents()) = ExtentForRange(0, 1);
   *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
   aop.op.set_type(InstallOperation::SOURCE_COPY);
-  aops.push_back(aop);
+  brillo::Blob src_hash;
+  EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
+  aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), aops, false,
-                                              kChromeOSMajorPayloadVersion,
-                                              kSourceMinorPayloadVersion);
+  brillo::Blob payload_data =
+      GeneratePayload(brillo::Blob(), {aop}, false,
+                      kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion);
   string source_path;
   EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX",
                                   &source_path, nullptr));
@@ -427,7 +435,33 @@ TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
                                expected_data.data(),
                                expected_data.size()));
 
-  EXPECT_EQ(expected_data, ApplyPayload(payload_data, source_path));
+  EXPECT_EQ(expected_data, ApplyPayload(payload_data, source_path, true));
+}
+
+TEST_F(DeltaPerformerTest, SourceHashMismatchTest) {
+  brillo::Blob expected_data = {'f', 'o', 'o'};
+  brillo::Blob actual_data = {'b', 'a', 'r'};
+  expected_data.resize(4096);  // block size
+  actual_data.resize(4096);    // block size
+
+  AnnotatedOperation aop;
+  *(aop.op.add_src_extents()) = ExtentForRange(0, 1);
+  *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
+  aop.op.set_type(InstallOperation::SOURCE_COPY);
+  brillo::Blob src_hash;
+  EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
+  aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
+
+  brillo::Blob payload_data =
+      GeneratePayload(brillo::Blob(), {aop}, false,
+                      kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion);
+  string source_path;
+  EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX", &source_path, nullptr));
+  ScopedPathUnlinker path_unlinker(source_path);
+  EXPECT_TRUE(utils::WriteFile(source_path.c_str(), actual_data.data(),
+                               actual_data.size()));
+
+  EXPECT_EQ(actual_data, ApplyPayload(payload_data, source_path, false));
 }
 
 TEST_F(DeltaPerformerTest, ExtentsToByteStringTest) {
