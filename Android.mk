@@ -290,7 +290,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
@@ -301,11 +300,31 @@ LOCAL_C_INCLUDES := \
 LOCAL_STATIC_LIBRARIES := \
     libupdate_engine \
     $(ue_libupdate_engine_exported_static_libraries)
+
+ifdef BRILLO
+
+LOCAL_RTTI_FLAG := -frtti
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     $(ue_libupdate_engine_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     main.cc
+
+else  # !defined(BRILLO)
+
+LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
+LOCAL_SHARED_LIBRARIES := \
+    libbinder \
+    liblog \
+    libutils
+LOCAL_SRC_FILES := \
+    binder_bindings/android/os/IUpdateEngine.aidl \
+    binder_bindings/android/os/IUpdateEnginePayloadApplicationCallback.aidl \
+    binder_main.cc \
+    binder_service.cc
+
+endif  # defined(BRILLO)
+
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)
 
