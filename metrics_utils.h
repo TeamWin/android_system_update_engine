@@ -21,6 +21,9 @@
 #include "update_engine/metrics.h"
 
 namespace chromeos_update_engine {
+
+class SystemState;
+
 namespace metrics_utils {
 
 // Transforms a ErrorCode value into a metrics::DownloadErrorCode.
@@ -38,6 +41,29 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code);
 // Calculates the internet connection type given |type| and |tethering|.
 metrics::ConnectionType GetConnectionType(NetworkConnectionType type,
                                           NetworkTethering tethering);
+
+// This function returns the duration on the wallclock since the last
+// time it was called for the same |state_variable_key| value.
+//
+// If the function returns |true|, the duration (always non-negative)
+// is returned in |out_duration|. If the function returns |false|
+// something went wrong or there was no previous measurement.
+bool WallclockDurationHelper(SystemState* system_state,
+                             const std::string& state_variable_key,
+                             base::TimeDelta* out_duration);
+
+// This function returns the duration on the monotonic clock since the
+// last time it was called for the same |storage| pointer.
+//
+// You should pass a pointer to a 64-bit integer in |storage| which
+// should be initialized to 0.
+//
+// If the function returns |true|, the duration (always non-negative)
+// is returned in |out_duration|. If the function returns |false|
+// something went wrong or there was no previous measurement.
+bool MonotonicDurationHelper(SystemState* system_state,
+                             int64_t* storage,
+                             base::TimeDelta* out_duration);
 
 }  // namespace metrics_utils
 }  // namespace chromeos_update_engine

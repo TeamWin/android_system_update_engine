@@ -61,7 +61,6 @@
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/file_writer.h"
-#include "update_engine/system_state.h"
 #include "update_engine/update_attempter.h"
 
 using base::Time;
@@ -1245,48 +1244,6 @@ bool ConvertToOmahaInstallDate(Time time, int *out_num_days) {
   *out_num_days = num_weeks_since_omaha_epoch * kNumDaysPerWeek;
 
   return true;
-}
-
-bool WallclockDurationHelper(SystemState* system_state,
-                             const string& state_variable_key,
-                             TimeDelta* out_duration) {
-  bool ret = false;
-
-  Time now = system_state->clock()->GetWallclockTime();
-  int64_t stored_value;
-  if (system_state->prefs()->GetInt64(state_variable_key, &stored_value)) {
-    Time stored_time = Time::FromInternalValue(stored_value);
-    if (stored_time > now) {
-      LOG(ERROR) << "Stored time-stamp used for " << state_variable_key
-                 << " is in the future.";
-    } else {
-      *out_duration = now - stored_time;
-      ret = true;
-    }
-  }
-
-  if (!system_state->prefs()->SetInt64(state_variable_key,
-                                       now.ToInternalValue())) {
-    LOG(ERROR) << "Error storing time-stamp in " << state_variable_key;
-  }
-
-  return ret;
-}
-
-bool MonotonicDurationHelper(SystemState* system_state,
-                             int64_t* storage,
-                             TimeDelta* out_duration) {
-  bool ret = false;
-
-  Time now = system_state->clock()->GetMonotonicTime();
-  if (*storage != 0) {
-    Time stored_time = Time::FromInternalValue(*storage);
-    *out_duration = now - stored_time;
-    ret = true;
-  }
-  *storage = now.ToInternalValue();
-
-  return ret;
 }
 
 bool GetMinorVersion(const brillo::KeyValueStore& store,

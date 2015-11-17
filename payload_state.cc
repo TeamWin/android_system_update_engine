@@ -22,6 +22,7 @@
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/common/clock.h"

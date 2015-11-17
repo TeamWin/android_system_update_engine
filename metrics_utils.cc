@@ -16,6 +16,17 @@
 
 #include "update_engine/metrics_utils.h"
 
+#include <string>
+
+#include <base/time/time.h>
+
+#include "update_engine/common/clock_interface.h"
+#include "update_engine/common/prefs_interface.h"
+#include "update_engine/system_state.h"
+
+using base::Time;
+using base::TimeDelta;
+
 namespace chromeos_update_engine {
 namespace metrics_utils {
 
@@ -242,6 +253,48 @@ metrics::ConnectionType GetConnectionType(NetworkConnectionType type,
              << ", tethering=" << static_cast<int>(tethering);
 
   return metrics::ConnectionType::kUnknown;
+}
+
+bool WallclockDurationHelper(SystemState* system_state,
+                             const std::string& state_variable_key,
+                             TimeDelta* out_duration) {
+  bool ret = false;
+
+  Time now = system_state->clock()->GetWallclockTime();
+  int64_t stored_value;
+  if (system_state->prefs()->GetInt64(state_variable_key, &stored_value)) {
+    Time stored_time = Time::FromInternalValue(stored_value);
+    if (stored_time > now) {
+      LOG(ERROR) << "Stored time-stamp used for " << state_variable_key
+                 << " is in the future.";
+    } else {
+      *out_duration = now - stored_time;
+      ret = true;
+    }
+  }
+
+  if (!system_state->prefs()->SetInt64(state_variable_key,
+                                       now.ToInternalValue())) {
+    LOG(ERROR) << "Error storing time-stamp in " << state_variable_key;
+  }
+
+  return ret;
+}
+
+bool MonotonicDurationHelper(SystemState* system_state,
+                             int64_t* storage,
+                             TimeDelta* out_duration) {
+  bool ret = false;
+
+  Time now = system_state->clock()->GetMonotonicTime();
+  if (*storage != 0) {
+    Time stored_time = Time::FromInternalValue(*storage);
+    *out_duration = now - stored_time;
+    ret = true;
+  }
+  *storage = now.ToInternalValue();
+
+  return ret;
 }
 
 }  // namespace metrics_utils

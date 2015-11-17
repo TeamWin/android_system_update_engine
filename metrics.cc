@@ -19,11 +19,13 @@
 #include <string>
 
 #include <base/logging.h>
+#include <metrics/metrics_library.h>
 
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/metrics_utils.h"
 #include "update_engine/system_state.h"
 
 using std::string;
@@ -149,9 +151,10 @@ void ReportUpdateCheckMetrics(SystemState *system_state,
   }
 
   base::TimeDelta time_since_last;
-  if (utils::WallclockDurationHelper(system_state,
-                                     kPrefsMetricsCheckLastReportingTime,
-                                     &time_since_last)) {
+  if (metrics_utils::WallclockDurationHelper(
+          system_state,
+          kPrefsMetricsCheckLastReportingTime,
+          &time_since_last)) {
     metric = kMetricCheckTimeSinceLastCheckMinutes;
     LOG(INFO) << "Sending " << utils::FormatTimeDelta(time_since_last)
               << " for metric " << metric;
@@ -165,9 +168,9 @@ void ReportUpdateCheckMetrics(SystemState *system_state,
 
   base::TimeDelta uptime_since_last;
   static int64_t uptime_since_last_storage = 0;
-  if (utils::MonotonicDurationHelper(system_state,
-                                     &uptime_since_last_storage,
-                                     &uptime_since_last)) {
+  if (metrics_utils::MonotonicDurationHelper(system_state,
+                                             &uptime_since_last_storage,
+                                             &uptime_since_last)) {
     metric = kMetricCheckTimeSinceLastCheckUptimeMinutes;
     LOG(INFO) << "Sending " << utils::FormatTimeDelta(uptime_since_last)
               << " for metric " << metric;
@@ -308,9 +311,10 @@ void ReportUpdateAttemptMetrics(
   }
 
   base::TimeDelta time_since_last;
-  if (utils::WallclockDurationHelper(system_state,
-                                     kPrefsMetricsAttemptLastReportingTime,
-                                     &time_since_last)) {
+  if (metrics_utils::WallclockDurationHelper(
+          system_state,
+          kPrefsMetricsAttemptLastReportingTime,
+          &time_since_last)) {
     metric = kMetricAttemptTimeSinceLastAttemptMinutes;
     LOG(INFO) << "Sending " << utils::FormatTimeDelta(time_since_last)
               << " for metric " << metric;
@@ -324,9 +328,9 @@ void ReportUpdateAttemptMetrics(
 
   static int64_t uptime_since_last_storage = 0;
   base::TimeDelta uptime_since_last;
-  if (utils::MonotonicDurationHelper(system_state,
-                                     &uptime_since_last_storage,
-                                     &uptime_since_last)) {
+  if (metrics_utils::MonotonicDurationHelper(system_state,
+                                             &uptime_since_last_storage,
+                                             &uptime_since_last)) {
     metric = kMetricAttemptTimeSinceLastAttemptUptimeMinutes;
     LOG(INFO) << "Sending " << utils::FormatTimeDelta(uptime_since_last)
               << " for metric " << metric;

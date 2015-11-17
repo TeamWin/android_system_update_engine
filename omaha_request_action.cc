@@ -31,6 +31,7 @@
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 #include <expat.h>
+#include <metrics/metrics_library.h>
 
 #include "update_engine/common/action_pipe.h"
 #include "update_engine/common/constants.h"
