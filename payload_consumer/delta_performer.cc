@@ -64,7 +64,7 @@ const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
 const uint64_t DeltaPerformer::kDeltaMetadataSignatureSizeSize = 4;
 const uint64_t DeltaPerformer::kMaxPayloadHeaderSize = 24;
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 2;
-const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 2;
+const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 3;
 
 const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
 const unsigned DeltaPerformer::kProgressLogTimeoutSeconds = 30;
@@ -290,9 +290,9 @@ bool DeltaPerformer::OpenCurrentPartition() {
     return false;
 
   const PartitionUpdate& partition = partitions_[current_partition_];
-  // Open source fds if we have a delta payload with minor version 2.
+  // Open source fds if we have a delta payload with minor version >= 2.
   if (!install_plan_->is_full_update &&
-      GetMinorVersion() == kSourceMinorPayloadVersion) {
+      GetMinorVersion() != kInPlaceMinorPayloadVersion) {
     source_path_ = install_plan_->partitions[current_partition_].source_path;
     int err;
     source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, &err);

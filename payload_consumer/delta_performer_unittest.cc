@@ -111,6 +111,14 @@ class DeltaPerformerTest : public ::testing::Test {
 
   brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
                                const vector<AnnotatedOperation>& aops,
+                               bool sign_payload) {
+    return GeneratePayload(blob_data, aops, sign_payload,
+                           DeltaPerformer::kSupportedMajorPayloadVersion,
+                           DeltaPerformer::kSupportedMinorPayloadVersion);
+  }
+
+  brillo::Blob GeneratePayload(const brillo::Blob& blob_data,
+                               const vector<AnnotatedOperation>& aops,
                                bool sign_payload,
                                uint64_t major_version,
                                uint32_t minor_version) {
@@ -370,9 +378,7 @@ TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
   aop.op.set_type(InstallOperation::REPLACE);
   aops.push_back(aop);
 
-  brillo::Blob payload_data = GeneratePayload(expected_data, aops, false,
-                                              kChromeOSMajorPayloadVersion,
-                                              kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(expected_data, aops, false);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
 }
@@ -392,9 +398,7 @@ TEST_F(DeltaPerformerTest, ReplaceBzOperationTest) {
   aop.op.set_type(InstallOperation::REPLACE_BZ);
   aops.push_back(aop);
 
-  brillo::Blob payload_data = GeneratePayload(bz_data, aops, false,
-                                              kChromeOSMajorPayloadVersion,
-                                              kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(bz_data, aops, false);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
 }
@@ -414,9 +418,7 @@ TEST_F(DeltaPerformerTest, ReplaceXzOperationTest) {
   aop.op.set_type(InstallOperation::REPLACE_XZ);
   vector<AnnotatedOperation> aops = {aop};
 
-  brillo::Blob payload_data = GeneratePayload(xz_data, aops, false,
-                                              kChromeOSMajorPayloadVersion,
-                                              kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(xz_data, aops, false);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
 }
@@ -437,9 +439,7 @@ TEST_F(DeltaPerformerTest, ZeroOperationTest) {
   aop.op.set_type(InstallOperation::ZERO);
   vector<AnnotatedOperation> aops = {aop};
 
-  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), aops, false,
-                                              kChromeOSMajorPayloadVersion,
-                                              kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), aops, false);
 
   EXPECT_EQ(expected_data,
             ApplyPayloadToData(payload_data, "/dev/null", existing_data, true));
@@ -457,9 +457,8 @@ TEST_F(DeltaPerformerTest, SourceCopyOperationTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  brillo::Blob payload_data =
-      GeneratePayload(brillo::Blob(), {aop}, false,
-                      kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), {aop}, false);
+
   string source_path;
   EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX",
                                   &source_path, nullptr));
@@ -485,9 +484,8 @@ TEST_F(DeltaPerformerTest, SourceHashMismatchTest) {
   EXPECT_TRUE(HashCalculator::RawHashOfData(expected_data, &src_hash));
   aop.op.set_src_sha256_hash(src_hash.data(), src_hash.size());
 
-  brillo::Blob payload_data =
-      GeneratePayload(brillo::Blob(), {aop}, false,
-                      kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion);
+  brillo::Blob payload_data = GeneratePayload(brillo::Blob(), {aop}, false);
+
   string source_path;
   EXPECT_TRUE(utils::MakeTempFile("Source-XXXXXX", &source_path, nullptr));
   ScopedPathUnlinker path_unlinker(source_path);
