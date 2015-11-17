@@ -30,6 +30,7 @@
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 
 using std::string;
@@ -59,7 +60,9 @@ void FilesystemVerifierAction::PerformAction() {
   // For delta updates (major version 1) we need to populate the source
   // partition hash if not pre-populated.
   if (!install_plan_.is_full_update && install_plan_.partitions.empty() &&
-      verifier_mode_ == VerifierMode::kComputeSourceHash) {
+      verifier_mode_ == VerifierMode::kComputeSourceHash &&
+      DeltaPerformer::kSupportedMinorPayloadVersion <
+          kOpSrcHashMinorPayloadVersion) {
     LOG(INFO) << "Using legacy partition names.";
     InstallPlan::Partition part;
     string part_path;
@@ -124,7 +127,13 @@ void FilesystemVerifierAction::Cleanup(ErrorCode code) {
 
 void FilesystemVerifierAction::StartPartitionHashing() {
   if (partition_index_ == install_plan_.partitions.size()) {
-    Cleanup(ErrorCode::kSuccess);
+    // We never called this action with kVerifySourceHash directly, if we are in
+    // this mode, it means the target partition verification has failed, so we
+    // should set the error code to reflect the error in target.
+    if (verifier_mode_ == VerifierMode::kVerifySourceHash)
+      Cleanup(ErrorCode::kNewRootfsVerificationError);
+    else
+      Cleanup(ErrorCode::kSuccess);
     return;
   }
   InstallPlan::Partition& partition =
@@ -133,6 +142,7 @@ void FilesystemVerifierAction::StartPartitionHashing() {
   string part_path;
   switch (verifier_mode_) {
     case VerifierMode::kComputeSourceHash:
+    case VerifierMode::kVerifySourceHash:
       boot_control_->GetPartitionDevice(
           partition.name, install_plan_.source_slot, &part_path);
       remaining_size_ = partition.source_size;
@@ -239,17 +249,35 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
   switch (verifier_mode_) {
     case VerifierMode::kComputeSourceHash:
       partition.source_hash = hasher_->raw_hash();
+      partition_index_++;
       break;
     case VerifierMode::kVerifyTargetHash:
       if (partition.target_hash != hasher_->raw_hash()) {
         LOG(ERROR) << "New '" << partition.name
                    << "' partition verification failed.";
-        return Cleanup(ErrorCode::kNewRootfsVerificationError);
+        if (DeltaPerformer::kSupportedMinorPayloadVersion <
+            kOpSrcHashMinorPayloadVersion)
+          return Cleanup(ErrorCode::kNewRootfsVerificationError);
+        // If we support per-operation source hash, then we skipped source
+        // filesystem verification, now that the target partition does not
+        // match, we need to switch to kVerifySourceHash mode to check if it's
+        // because the source partition does not match either.
+        verifier_mode_ = VerifierMode::kVerifySourceHash;
+        partition_index_ = 0;
+      } else {
+        partition_index_++;
       }
+      break;
+    case VerifierMode::kVerifySourceHash:
+      if (partition.source_hash != hasher_->raw_hash()) {
+        LOG(ERROR) << "Old '" << partition.name
+                   << "' partition verification failed.";
+        return Cleanup(ErrorCode::kDownloadStateInitializationError);
+      }
+      partition_index_++;
       break;
   }
   // Start hashing the next partition, if any.
-  partition_index_++;
   hasher_.reset();
   buffer_.clear();
   src_stream_->CloseBlocking(nullptr);

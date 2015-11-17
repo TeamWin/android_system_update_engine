@@ -45,6 +45,7 @@ namespace chromeos_update_engine {
 enum class VerifierMode {
   kComputeSourceHash,
   kVerifyTargetHash,
+  kVerifySourceHash,
 };
 
 class FilesystemVerifierAction : public InstallPlanAction {
@@ -92,7 +93,7 @@ class FilesystemVerifierAction : public InstallPlanAction {
   void Cleanup(ErrorCode code);
 
   // The type of the partition that we are verifying.
-  const VerifierMode verifier_mode_;
+  VerifierMode verifier_mode_;
 
   // The BootControlInterface used to get the partitions based on the slots.
   const BootControlInterface* const boot_control_;

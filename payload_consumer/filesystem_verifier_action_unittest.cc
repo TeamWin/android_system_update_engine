@@ -181,6 +181,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
       }
       break;
     case VerifierMode::kComputeSourceHash:
+    case VerifierMode::kVerifySourceHash:
       part.source_size = kLoopFileSize;
       part.source_path = a_dev;
       fake_boot_control_.SetPartitionDevice(
