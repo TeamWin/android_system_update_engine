@@ -17,11 +17,13 @@
 LOCAL_PATH := $(my-dir)
 
 # Default values for the USE flags. Override these USE flags from your product.
+BRILLO_USE_DBUS ?= 1
 BRILLO_USE_HWID_OVERRIDE ?= 0
 BRILLO_USE_MTD ?= 0
 BRILLO_USE_POWER_MANAGEMENT ?= 0
 
 ue_common_cflags := \
+    -DUSE_DBUS=$(BRILLO_USE_DBUS) \
     -DUSE_HWID_OVERRIDE=$(BRILLO_USE_HWID_OVERRIDE) \
     -DUSE_MTD=$(BRILLO_USE_MTD) \
     -DUSE_POWER_MANAGEMENT=$(BRILLO_USE_POWER_MANAGEMENT) \
@@ -49,12 +51,18 @@ ue_common_c_includes := \
     system
 ue_common_shared_libraries := \
     libbrillo \
-    libbrillo-dbus \
     libbrillo-http \
     libbrillo-stream \
-    libchrome \
-    libchrome-dbus
+    libchrome
 
+ifeq ($(BRILLO_USE_DBUS),1)
+ue_common_shared_libraries += \
+    libbrillo-dbus \
+    libchrome-dbus
+endif  # BRILLO_USE_DBUS == 1
+
+
+ifeq ($(BRILLO_USE_DBUS),1)
 
 # update_engine_client-dbus-proxies (from generate-dbus-proxies.gypi)
 # ========================================================
@@ -66,6 +74,8 @@ LOCAL_SRC_FILES := \
     dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml
 LOCAL_DBUS_PROXY_PREFIX := update_engine
 include $(BUILD_STATIC_LIBRARY)
+
+endif  # BRILLO_USE_DBUS == 1
 
 # update_metadata-protos (type: static_library)
 # ========================================================
@@ -83,6 +93,8 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := $(generated_sources_dir)/proto/system
 LOCAL_SRC_FILES := \
     update_metadata.proto
 include $(BUILD_STATIC_LIBRARY)
+
+ifeq ($(BRILLO_USE_DBUS),1)
 
 # update_engine-dbus-adaptor (from generate-dbus-adaptors.gypi)
 # ========================================================
@@ -103,6 +115,13 @@ LOCAL_SRC_FILES := \
     dbus_bindings/org.chromium.LibCrosService.dbus-xml
 LOCAL_DBUS_PROXY_PREFIX := libcros
 include $(BUILD_STATIC_LIBRARY)
+
+endif  # BRILLO_USE_DBUS == 1
+
+
+#TODO(deymo): Re-enable this library once the dbus dependencies are removed from
+# the code.
+ifeq ($(BRILLO_USE_DBUS),1)
 
 # libpayload_consumer (type: static_library)
 # ========================================================
@@ -186,6 +205,10 @@ LOCAL_SRC_FILES := \
     payload_consumer/postinstall_runner_action.cc \
     payload_consumer/xz_extent_writer.cc
 include $(BUILD_STATIC_LIBRARY)
+
+endif  # BRILLO_USE_DBUS == 1
+
+ifdef BRILLO
 
 # libupdate_engine (type: static_library)
 # ========================================================
@@ -283,6 +306,8 @@ LOCAL_SRC_FILES := \
     update_status_utils.cc
 include $(BUILD_STATIC_LIBRARY)
 
+endif  # defined(BRILLO)
+
 # update_engine (type: executable)
 # ========================================================
 # update_engine daemon.
@@ -295,13 +320,15 @@ LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
+    $(ue_common_c_includes)
+
+ifdef BRILLO
+
+LOCAL_C_INCLUDES += \
     $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libupdate_engine \
     $(ue_libupdate_engine_exported_static_libraries)
-
-ifdef BRILLO
 
 LOCAL_RTTI_FLAG := -frtti
 LOCAL_SHARED_LIBRARIES := \
@@ -328,6 +355,8 @@ endif  # defined(BRILLO)
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)
 
+ifeq ($(BRILLO_USE_DBUS),1)
+
 # update_engine_client (type: executable)
 # ========================================================
 # update_engine console client.
@@ -348,6 +377,12 @@ LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
 LOCAL_SRC_FILES := \
     update_engine_client.cc
 include $(BUILD_EXECUTABLE)
+
+endif  # BRILLO_USE_DBUS == 1
+
+#TODO(deymo): Re-enable this library once the dbus dependencies are removed from
+# the code.
+ifeq ($(BRILLO_USE_DBUS),1)
 
 # libpayload_generator (type: static_library)
 # ========================================================
@@ -441,6 +476,10 @@ LOCAL_SRC_FILES := \
     payload_generator/generate_delta_main.cc
 include $(BUILD_EXECUTABLE)
 
+endif  # BRILLO_USE_DBUS == 1
+
+ifeq ($(BRILLO_USE_DBUS),1)
+
 # libupdate_engine_client
 # ========================================================
 include $(CLEAR_VARS)
@@ -471,6 +510,7 @@ LOCAL_SRC_FILES := \
     update_status_utils.cc
 include $(BUILD_SHARED_LIBRARY)
 
+endif  # BRILLO_USE_DBUS == 1
 
 # Update payload signing public key.
 # ========================================================
