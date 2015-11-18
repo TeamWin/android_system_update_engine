@@ -208,7 +208,7 @@ include $(BUILD_STATIC_LIBRARY)
 
 endif  # BRILLO_USE_DBUS == 1
 
-ifdef BRILLO
+ifeq ($(BRILLO_USE_DBUS),1)
 
 # libupdate_engine (type: static_library)
 # ========================================================
@@ -306,7 +306,7 @@ LOCAL_SRC_FILES := \
     update_status_utils.cc
 include $(BUILD_STATIC_LIBRARY)
 
-endif  # defined(BRILLO)
+endif  # BRILLO_USE_DBUS == 1
 
 # update_engine (type: executable)
 # ========================================================
