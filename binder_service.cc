@@ -20,30 +20,30 @@ using android::OK;
 using android::String16;
 using android::os::IUpdateEnginePayloadApplicationCallback;
 using android::sp;
-using android::status_t;
+using android::binder::Status;
 using std::vector;
 
 namespace chromeos_update_engine {
 
-status_t BinderService::applyPayload(
+Status BinderService::applyPayload(
     const String16& url,
     const vector<String16>& header_kv_pairs,
     const sp<IUpdateEnginePayloadApplicationCallback>& callback,
     int32_t* return_value) {
   *return_value = 0;
-  return OK;
+  return Status::ok();
 }
 
-status_t BinderService::suspend() {
-  return OK;
+Status BinderService::suspend() {
+  return Status::ok();
 }
 
-status_t BinderService::resume() {
-  return OK;
+Status BinderService::resume() {
+  return Status::ok();
 }
 
-status_t BinderService::cancel() {
-  return OK;
+Status BinderService::cancel() {
+  return Status::ok();
 }
 
 }  // namespace chromeos_update_engine

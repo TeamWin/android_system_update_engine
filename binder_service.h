@@ -33,18 +33,18 @@ class BinderService : public android::os::BnUpdateEngine {
   BinderService() = default;
   virtual ~BinderService() = default;
 
-  android::status_t applyPayload(
+  android::binder::Status applyPayload(
       const android::String16& url,
       const std::vector<android::String16>& header_kv_pairs,
       const android::sp<android::os::IUpdateEnginePayloadApplicationCallback>&
           callback,
       int32_t* return_value) override;
 
-  android::status_t suspend() override;
+  android::binder::Status suspend() override;
 
-  android::status_t resume() override;
+  android::binder::Status resume() override;
 
-  android::status_t cancel() override;
+  android::binder::Status cancel() override;
 };  // class BinderService
 
 }  // namespace chromeos_update_engine
