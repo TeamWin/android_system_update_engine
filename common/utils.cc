@@ -56,6 +56,7 @@
 
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
+#include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/omaha_request_params.h"
@@ -141,7 +142,13 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
   }
 
   base::FilePath temp_dir;
+#ifdef __ANDROID__
+  temp_dir = base::FilePath(constants::kNonVolatileDirectory).Append("tmp");
+  if (!base::PathExists(temp_dir))
+    TEST_AND_RETURN_FALSE(base::CreateDirectory(temp_dir));
+#else
   TEST_AND_RETURN_FALSE(base::GetTempDir(&temp_dir));
+#endif  // __ANDROID__
   *template_path = temp_dir.Append(path);
   return true;
 }

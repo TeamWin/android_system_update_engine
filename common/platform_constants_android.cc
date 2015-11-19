@@ -30,6 +30,7 @@ const char kUpdatePayloadPublicKeyPath[] =
 const char kCACertificatesPath[] = "/system/etc/security/cacerts";
 // No deadline file API support on Android.
 const char kOmahaResponseDeadlineFile[] = "";
+const char kNonVolatileDirectory[] = "/data/misc/update_engine";
 
 }  // namespace constants
 }  // namespace chromeos_update_engine

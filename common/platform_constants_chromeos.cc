@@ -30,6 +30,8 @@ const char kUpdatePayloadPublicKeyPath[] =
 const char kCACertificatesPath[] = "/usr/share/chromeos-ca-certificates";
 const char kOmahaResponseDeadlineFile[] =
     "/tmp/update-check-response-deadline";
+// This directory is wiped during powerwash.
+const char kNonVolatileDirectory[] = "/var/lib/update_engine";
 
 }  // namespace constants
 }  // namespace chromeos_update_engine

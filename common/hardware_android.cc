@@ -21,15 +21,9 @@
 #include <cutils/properties.h>
 
 #include "update_engine/common/hardware.h"
+#include "update_engine/common/platform_constants.h"
 
 using std::string;
-
-namespace {
-
-// The stateful directory used by update_engine.
-const char kNonVolatileDirectory[] = "/data/misc/update_engine";
-
-}  // namespace
 
 namespace chromeos_update_engine {
 
@@ -102,7 +96,7 @@ int HardwareAndroid::GetPowerwashCount() const {
 }
 
 bool HardwareAndroid::GetNonVolatileDirectory(base::FilePath* path) const {
-  base::FilePath local_path(kNonVolatileDirectory);
+  base::FilePath local_path(constants::kNonVolatileDirectory);
   if (!base::PathExists(local_path)) {
     LOG(ERROR) << "Non-volatile directory not found: " << local_path.value();
     return false;

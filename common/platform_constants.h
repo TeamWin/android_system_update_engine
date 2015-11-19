@@ -47,6 +47,9 @@ extern const char kCACertificatesPath[];
 // response. Empty if not supported.
 extern const char kOmahaResponseDeadlineFile[];
 
+// The stateful directory used by update_engine.
+extern const char kNonVolatileDirectory[];
+
 }  // namespace constants
 }  // namespace chromeos_update_engine
 

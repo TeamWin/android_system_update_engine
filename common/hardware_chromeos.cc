@@ -29,6 +29,7 @@ extern "C" {
 
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/hwid_override.h"
+#include "update_engine/common/platform_constants.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 
@@ -48,10 +49,6 @@ const char kPowerwashSafeDirectory[] =
 // powerwashed. This value is incremented by the clobber-state script when
 // a powerwash is performed.
 const char kPowerwashCountMarker[] = "powerwash_count";
-
-// The stateful directory used by update_engine. This directory is wiped during
-// powerwash.
-const char kNonVolatileDirectory[] = "/var/lib/update_engine";
 
 }  // namespace
 
@@ -144,7 +141,7 @@ int HardwareChromeOS::GetPowerwashCount() const {
 }
 
 bool HardwareChromeOS::GetNonVolatileDirectory(base::FilePath* path) const {
-  *path = base::FilePath(kNonVolatileDirectory);
+  *path = base::FilePath(constants::kNonVolatileDirectory);
   return true;
 }
 
