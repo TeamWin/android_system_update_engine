@@ -352,7 +352,12 @@ LOCAL_SRC_FILES := \
 
 endif  # defined(BRILLO)
 
+ifeq ($(BRILLO_USE_DBUS),1)
+LOCAL_INIT_RC := update_engine-dbus.rc
+else  # BRILLO_USE_DBUS != 1
 LOCAL_INIT_RC := update_engine.rc
+endif  # BRILLO_USE_DBUS == 1
+
 include $(BUILD_EXECUTABLE)
 
 ifeq ($(BRILLO_USE_DBUS),1)
