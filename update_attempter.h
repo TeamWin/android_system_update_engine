@@ -148,8 +148,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // UPDATED_NEED_REBOOT. Returns true on sucess, false otherwise.
   bool RebootIfNeeded();
 
-  // DownloadActionDelegate methods
-  void SetDownloadStatus(bool active) override;
+  // DownloadActionDelegate method.
   void BytesReceived(uint64_t bytes_received, uint64_t total) override;
 
   // Broadcasts the current status over D-Bus.
@@ -417,10 +416,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // The cpu shares management timeout task id.
   brillo::MessageLoop::TaskId manage_shares_id_{
       brillo::MessageLoop::kTaskIdNull};
-
-  // Set to true if an update download is active (and BytesReceived
-  // will be called), set to false otherwise.
-  bool download_active_ = false;
 
   // For status:
   UpdateStatus status_{UpdateStatus::IDLE};

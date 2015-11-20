@@ -186,9 +186,7 @@ void DownloadAction::PerformAction() {
                                               &install_plan_));
     writer_ = delta_performer_.get();
   }
-  if (delegate_) {
-    delegate_->SetDownloadStatus(true);  // Set to active.
-  }
+  download_active_= true;
 
   if (system_state_ != nullptr) {
     const PayloadStateInterface* payload_state = system_state_->payload_state();
@@ -236,9 +234,7 @@ void DownloadAction::TerminateProcessing() {
     writer_->Close();
     writer_ = nullptr;
   }
-  if (delegate_) {
-    delegate_->SetDownloadStatus(false);  // Set to inactive.
-  }
+  download_active_= false;
   CloseP2PSharingFd(false);  // Keep p2p file.
   // Terminates the transfer. The action is terminated, if necessary, when the
   // TransferTerminated callback is received.
@@ -258,7 +254,7 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
   }
 
   bytes_received_ += length;
-  if (delegate_)
+  if (delegate_ && download_active_)
     delegate_->BytesReceived(bytes_received_, install_plan_.payload_size);
   if (writer_ && !writer_->Write(bytes, length, &code_)) {
     LOG(ERROR) << "Error " << code_ << " in DeltaPerformer's Write method when "
@@ -288,9 +284,7 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
     LOG_IF(WARNING, writer_->Close() != 0) << "Error closing the writer.";
     writer_ = nullptr;
   }
-  if (delegate_) {
-    delegate_->SetDownloadStatus(false);  // Set to inactive.
-  }
+  download_active_= false;
   ErrorCode code =
       successful ? ErrorCode::kSuccess : ErrorCode::kDownloadTransferError;
   if (code == ErrorCode::kSuccess && delta_performer_.get()) {

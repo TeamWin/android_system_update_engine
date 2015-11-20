@@ -1036,16 +1036,7 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
   }
 }
 
-void UpdateAttempter::SetDownloadStatus(bool active) {
-  download_active_ = active;
-  LOG(INFO) << "Download status: " << (active ? "active" : "inactive");
-}
-
 void UpdateAttempter::BytesReceived(uint64_t bytes_received, uint64_t total) {
-  if (!download_active_) {
-    LOG(ERROR) << "BytesReceived called while not downloading.";
-    return;
-  }
   double progress = static_cast<double>(bytes_received) /
       static_cast<double>(total);
   // Self throttle based on progress. Also send notifications if

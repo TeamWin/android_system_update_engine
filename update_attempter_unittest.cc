@@ -135,7 +135,6 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_EQ(0, attempter_.http_response_code_);
     EXPECT_EQ(utils::kCpuSharesNormal, attempter_.shares_);
     EXPECT_EQ(MessageLoop::kTaskIdNull, attempter_.manage_shares_id_);
-    EXPECT_FALSE(attempter_.download_active_);
     EXPECT_EQ(UpdateStatus::IDLE, attempter_.status_);
     EXPECT_EQ(0.0, attempter_.download_progress_);
     EXPECT_EQ(0, attempter_.last_checked_time_);

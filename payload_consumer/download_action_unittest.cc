@@ -62,7 +62,6 @@ class DownloadActionTest : public ::testing::Test { };
 namespace {
 class DownloadActionDelegateMock : public DownloadActionDelegate {
  public:
-  MOCK_METHOD1(SetDownloadStatus, void(bool active));
   MOCK_METHOD2(BytesReceived, void(uint64_t bytes_received, uint64_t total));
 };
 
@@ -177,12 +176,10 @@ void TestWithData(const brillo::Blob& data,
   if (use_download_delegate) {
     InSequence s;
     download_action.set_delegate(&download_delegate);
-    EXPECT_CALL(download_delegate, SetDownloadStatus(true)).Times(1);
     if (data.size() > kMockHttpFetcherChunkSize)
       EXPECT_CALL(download_delegate,
                   BytesReceived(1 + kMockHttpFetcherChunkSize, _));
     EXPECT_CALL(download_delegate, BytesReceived(_, _)).Times(AtLeast(1));
-    EXPECT_CALL(download_delegate, SetDownloadStatus(false)).Times(1);
   }
   ErrorCode expected_code = ErrorCode::kSuccess;
   if (fail_write > 0)
@@ -291,10 +288,8 @@ void TestTerminateEarly(bool use_download_delegate) {
     download_action.SetTestFileWriter(&writer);
     DownloadActionDelegateMock download_delegate;
     if (use_download_delegate) {
-      InSequence s;
       download_action.set_delegate(&download_delegate);
-      EXPECT_CALL(download_delegate, SetDownloadStatus(true)).Times(1);
-      EXPECT_CALL(download_delegate, SetDownloadStatus(false)).Times(1);
+      EXPECT_CALL(download_delegate, BytesReceived(_, _)).Times(0);
     }
     TerminateEarlyTestProcessorDelegate delegate;
     ActionProcessor processor;

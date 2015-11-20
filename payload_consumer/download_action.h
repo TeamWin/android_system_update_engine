@@ -42,15 +42,9 @@ class DownloadActionDelegate {
  public:
   virtual ~DownloadActionDelegate() = default;
 
-  // Called right before starting the download with |active| set to
-  // true. Called after completing the download with |active| set to
-  // false.
-  virtual void SetDownloadStatus(bool active) = 0;
-
-  // Called periodically after bytes are received. This method will be
-  // invoked only if the download is active. |bytes_received| is the
-  // number of bytes downloaded thus far. |total| is the number of
-  // bytes expected.
+  // Called periodically after bytes are received. This method will be invoked
+  // only if the DownloadAction is running. |bytes_received| is the number of
+  // bytes downloaded thus far. |total| is the number of bytes expected.
   virtual void BytesReceived(uint64_t bytes_received, uint64_t total) = 0;
 };
 
@@ -142,6 +136,7 @@ class DownloadAction : public InstallPlanAction,
   // For reporting status to outsiders
   DownloadActionDelegate* delegate_;
   uint64_t bytes_received_;
+  bool download_active_{false};
 
   // The file-id for the file we're sharing or the empty string
   // if we're not using p2p to share.
