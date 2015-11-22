@@ -59,10 +59,8 @@
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
-#include "update_engine/omaha_request_params.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/file_writer.h"
-#include "update_engine/update_attempter.h"
 
 using base::Time;
 using base::TimeDelta;

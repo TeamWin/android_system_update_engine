@@ -36,7 +36,6 @@
 #include "update_engine/common/action.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/constants.h"
-#include "update_engine/connection_manager_interface.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/update_metadata.pb.h"
 
