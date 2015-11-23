@@ -39,8 +39,6 @@ extern const char kStatefulPartition[];
 extern const char kPrefsAttemptInProgress[];
 extern const char kPrefsBackoffExpiryTime[];
 extern const char kPrefsBootId[];
-extern const char kPrefsCertificateReportToSendDownload[];
-extern const char kPrefsCertificateReportToSendUpdate[];
 extern const char kPrefsCurrentBytesDownloaded[];
 extern const char kPrefsCurrentResponseSignature[];
 extern const char kPrefsCurrentUrlFailureCount[];

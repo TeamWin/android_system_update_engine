@@ -25,15 +25,15 @@
 #include <base/macros.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
-#include "update_engine/system_state.h"
-
 namespace chromeos_update_engine {
+
+class PrefsInterface;
 
 // Wrapper for openssl operations with the certificates.
 class OpenSSLWrapper {
  public:
-  OpenSSLWrapper() {}
-  virtual ~OpenSSLWrapper() {}
+  OpenSSLWrapper() = default;
+  virtual ~OpenSSLWrapper() = default;
 
   // Takes an openssl X509_STORE_CTX, extracts the corresponding certificate
   // from it and calculates its fingerprint (SHA256 digest). Returns true on
@@ -54,78 +54,102 @@ class OpenSSLWrapper {
   DISALLOW_COPY_AND_ASSIGN(OpenSSLWrapper);
 };
 
+// The values in this enum are replicated in the metrics server. See metrics.h
+// for instructions on how to update these values in the server side.
+enum class CertificateCheckResult {
+  // The certificate is valid and the same as seen before or the first time we
+  // see a certificate.
+  kValid,
+  // The certificate is valid, but is different than a previously seen
+  // certificate for the selected server.
+  kValidChanged,
+  // The certificate validation failed.
+  kFailed,
+
+  // This value must be the last entry.
+  kNumConstants
+};
+
+// These values are used to generate the keys of files persisted via prefs.
+// This means that changing these will cause loss of information on metrics
+// reporting, during the transition. These values are also mapped to a metric
+// name in metrics.cc, so adding values here requires to assign a new metric
+// name in that file.
+enum class ServerToCheck {
+  kUpdate = 0,
+  kDownload,
+};
+
 // Responsible for checking whether update server certificates change, and
 // reporting to UMA when this happens. Since all state information is persisted,
 // and openssl forces us to use a static callback with no data pointer, this
 // class is entirely static.
 class CertificateChecker {
  public:
-  // These values are used to generate the keys of files persisted via prefs.
-  // This means that changing these will cause loss of information on metrics
-  // reporting, during the transition.
-  enum ServerToCheck {
-    kUpdate = 0,
-    kDownload = 1,
-    kNone = 2  // This needs to be the last element. Changing its value is ok.
+  class Observer {
+   public:
+    virtual ~Observer() = default;
+
+    // Called whenever a certificate is checked for the server |server_to_check|
+    // passing the result of said certificate check.
+    virtual void CertificateChecked(ServerToCheck server_to_check,
+                                    CertificateCheckResult result) = 0;
   };
 
-  CertificateChecker() {}
-  virtual ~CertificateChecker() {}
+  CertificateChecker(PrefsInterface* prefs,
+                     OpenSSLWrapper* openssl_wrapper,
+                     ServerToCheck server_to_check);
+  virtual ~CertificateChecker() = default;
 
   // This callback is called by libcurl just before the initialization of an
   // SSL connection after having processed all other SSL related options. Used
-  // to check if server certificates change. |ptr| is expected to be a
-  // pointer to a ServerToCheck.
-  static CURLcode ProcessSSLContext(CURL* curl_handle, SSL_CTX* ssl_ctx,
-                                    void* ptr);
+  // to check if server certificates change. |cert_checker| is expected to be a
+  // pointer to the CertificateChecker instance.
+  static CURLcode ProcessSSLContext(CURL* curl_handle,
+                                    SSL_CTX* ssl_ctx,
+                                    void* cert_checker);
 
-  // Flushes to UMA any certificate-related report that was persisted.
-  static void FlushReport();
-
-  // Setters.
-  static void set_system_state(SystemState* system_state) {
-    system_state_ = system_state;
-  }
-
-  static void set_openssl_wrapper(OpenSSLWrapper* openssl_wrapper) {
-    openssl_wrapper_ = openssl_wrapper;
-  }
+  // Set the certificate observer to the passed instance. To remove the
+  // observer, pass a nullptr. The |observer| instance must be valid while this
+  // CertificateChecker verifies certificates.
+  void SetObserver(Observer* observer) { observer_ = observer; }
 
  private:
   FRIEND_TEST(CertificateCheckerTest, NewCertificate);
   FRIEND_TEST(CertificateCheckerTest, SameCertificate);
   FRIEND_TEST(CertificateCheckerTest, ChangedCertificate);
   FRIEND_TEST(CertificateCheckerTest, FailedCertificate);
-  FRIEND_TEST(CertificateCheckerTest, FlushReport);
-  FRIEND_TEST(CertificateCheckerTest, FlushNothingToReport);
 
-  // These callbacks are called by openssl after initial SSL verification. They
-  // are used to perform any additional security verification on the connection,
+  // This callback is called by openssl after initial SSL verification. It is
+  // used to perform any additional security verification on the connection,
   // but we use them here to get hold of the server certificate, in order to
   // determine if it has changed since the last connection. Since openssl forces
-  // us to do this statically, we define two different callbacks for the two
-  // different official update servers, and only assign the correspondent one.
-  // The assigned callback is then called once per each certificate on the
-  // server and returns 1 for success and 0 for failure.
-  static int VerifySSLCallbackUpdateCheck(int preverify_ok,
-                                          X509_STORE_CTX* x509_ctx);
-  static int VerifySSLCallbackDownload(int preverify_ok,
-                                       X509_STORE_CTX* x509_ctx);
+  // us to do this statically, we pass a pointer to this instance via a
+  // thread-safe global pointer. The assigned callback is then called once per
+  // each certificate on the server and returns 1 for success and 0 for failure.
+  static int VerifySSLCallback(int preverify_ok, X509_STORE_CTX* x509_ctx);
 
-  // Checks if server certificate for |server_to_check|, stored in |x509_ctx|,
-  // has changed since last connection to that same server. This is called by
-  // one of the two callbacks defined above. If certificate fails to check or
-  // changes, a report is generated and persisted, to be later sent by
-  // FlushReport. Returns true on success and false otherwise.
-  static bool CheckCertificateChange(ServerToCheck server_to_check,
-                                     int preverify_ok,
-                                     X509_STORE_CTX* x509_ctx);
+  // Checks if server certificate stored in |x509_ctx| has changed since last
+  // connection to that same server, specified by the |server_to_check_| member.
+  // This is called by the callbacks defined above. The result of the
+  // certificate check is passed to the observer, if any. Returns true on
+  // success and false otherwise.
+  bool CheckCertificateChange(int preverify_ok, X509_STORE_CTX* x509_ctx);
 
-  // Global system context.
-  static SystemState* system_state_;
+  // Notifies the observer, if any, of a certificate checking.
+  void NotifyCertificateChecked(CertificateCheckResult result);
+
+  // Prefs instance used to store the certificates seen in the past.
+  PrefsInterface* prefs_;
 
   // The wrapper for openssl operations.
-  static OpenSSLWrapper* openssl_wrapper_;
+  OpenSSLWrapper* openssl_wrapper_;
+
+  // The server to check from this certificate checker instance.
+  ServerToCheck server_to_check_;
+
+  // The observer called whenever a certificate is checked, if not null.
+  Observer* observer_{nullptr};
 
   DISALLOW_COPY_AND_ASSIGN(CertificateChecker);
 };

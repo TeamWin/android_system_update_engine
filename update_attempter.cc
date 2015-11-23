@@ -32,9 +32,9 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/bind_lambda.h>
+#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
 #include <debugd/dbus-constants.h>
-#include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
 #include <power_manager/dbus-constants.h>
@@ -159,6 +159,13 @@ void UpdateAttempter::ScheduleUpdates() {
   // starvation due to a transient bug.
   update_manager->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   waiting_for_scheduled_check_ = true;
+}
+
+void UpdateAttempter::CertificateChecked(ServerToCheck server_to_check,
+                                         CertificateCheckResult result) {
+  metrics::ReportCertificateCheckMetrics(system_state_,
+                                         server_to_check,
+                                         result);
 }
 
 bool UpdateAttempter::CheckAndReportDailyMetrics() {
@@ -568,16 +575,21 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   processor_->set_delegate(this);
 
   // Actions:
-  LibcurlHttpFetcher* update_check_fetcher =
-      new LibcurlHttpFetcher(GetProxyResolver(), system_state_);
+  std::unique_ptr<CertificateChecker> update_check_checker(
+      new CertificateChecker(prefs_, &openssl_wrapper_,
+                             ServerToCheck::kUpdate));
+  update_check_checker->SetObserver(this);
+  std::unique_ptr<LibcurlHttpFetcher> update_check_fetcher(
+      new LibcurlHttpFetcher(GetProxyResolver(),
+                             system_state_,
+                             std::move(update_check_checker)));
   // Try harder to connect to the network, esp when not interactive.
   // See comment in libcurl_http_fetcher.cc.
   update_check_fetcher->set_no_network_max_retries(interactive ? 1 : 3);
-  update_check_fetcher->set_check_certificate(CertificateChecker::kUpdate);
   shared_ptr<OmahaRequestAction> update_check_action(
       new OmahaRequestAction(system_state_,
                              nullptr,
-                             update_check_fetcher,  // passes ownership
+                             std::move(update_check_fetcher),
                              false));
   shared_ptr<OmahaResponseHandlerAction> response_handler_action(
       new OmahaResponseHandlerAction(system_state_));
@@ -589,12 +601,17 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(
                                  OmahaEvent::kTypeUpdateDownloadStarted),
-                             new LibcurlHttpFetcher(GetProxyResolver(),
-                                                    system_state_),
+                             brillo::make_unique_ptr(
+                                new LibcurlHttpFetcher(GetProxyResolver(),
+                                                       system_state_)),
                              false));
+  std::unique_ptr<CertificateChecker> download_checker(
+      new CertificateChecker(prefs_, &openssl_wrapper_,
+                             ServerToCheck::kDownload));
+  download_checker->SetObserver(this);
   LibcurlHttpFetcher* download_fetcher =
-      new LibcurlHttpFetcher(GetProxyResolver(), system_state_);
-  download_fetcher->set_check_certificate(CertificateChecker::kDownload);
+      new LibcurlHttpFetcher(GetProxyResolver(), system_state_,
+                             std::move(download_checker));
   shared_ptr<DownloadAction> download_action(
       new DownloadAction(prefs_,
                          system_state_,
@@ -604,8 +621,9 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(
                                  OmahaEvent::kTypeUpdateDownloadFinished),
-                             new LibcurlHttpFetcher(GetProxyResolver(),
-                                                    system_state_),
+                             brillo::make_unique_ptr(
+                                new LibcurlHttpFetcher(GetProxyResolver(),
+                                                       system_state_)),
                              false));
   shared_ptr<FilesystemVerifierAction> dst_filesystem_verifier_action(
       new FilesystemVerifierAction(system_state_->boot_control(),
@@ -613,8 +631,9 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   shared_ptr<OmahaRequestAction> update_complete_action(
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-                             new LibcurlHttpFetcher(GetProxyResolver(),
-                                                    system_state_),
+                             brillo::make_unique_ptr(
+                                new LibcurlHttpFetcher(GetProxyResolver(),
+                                                       system_state_)),
                              false));
 
   download_action->set_delegate(this);
@@ -854,9 +873,6 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
     if (params.is_interactive) {
       app_version = forced_app_version_;
       omaha_url = forced_omaha_url_;
-    } else {
-      // Flush previously generated UMA reports before periodic updates.
-      CertificateChecker::FlushReport();
     }
 
     Update(app_version, omaha_url, params.target_channel,
@@ -1251,8 +1267,8 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
   shared_ptr<OmahaRequestAction> error_event_action(
       new OmahaRequestAction(system_state_,
                              error_event_.release(),  // Pass ownership.
-                             new LibcurlHttpFetcher(GetProxyResolver(),
-                                                    system_state_),
+                             brillo::make_unique_ptr(new LibcurlHttpFetcher(
+                                 GetProxyResolver(), system_state_)),
                              false));
   actions_.push_back(shared_ptr<AbstractAction>(error_event_action));
   processor_->EnqueueAction(error_event_action.get());
@@ -1355,12 +1371,13 @@ void UpdateAttempter::SetupDownload() {
 
 void UpdateAttempter::PingOmaha() {
   if (!processor_->IsRunning()) {
-    shared_ptr<OmahaRequestAction> ping_action(
-        new OmahaRequestAction(system_state_,
-                               nullptr,
-                               new LibcurlHttpFetcher(GetProxyResolver(),
-                                                      system_state_),
-                               true));
+    shared_ptr<OmahaRequestAction> ping_action(new OmahaRequestAction(
+        system_state_,
+        nullptr,
+        brillo::make_unique_ptr(new LibcurlHttpFetcher(
+            GetProxyResolver(),
+            system_state_)),
+        true));
     actions_.push_back(shared_ptr<OmahaRequestAction>(ping_action));
     processor_->set_delegate(nullptr);
     processor_->EnqueueAction(ping_action.get());

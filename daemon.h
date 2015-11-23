@@ -22,7 +22,6 @@
 
 #include <brillo/daemons/dbus_daemon.h>
 
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/dbus_service.h"
 #include "update_engine/real_system_state.h"
@@ -48,7 +47,6 @@ class UpdateEngineDaemon : public brillo::DBusDaemon {
   Subprocess subprocess_;
 
   std::unique_ptr<RealSystemState> real_system_state_;
-  OpenSSLWrapper openssl_wrapper_;
   std::unique_ptr<UpdateEngineAdaptor> dbus_adaptor_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateEngineDaemon);

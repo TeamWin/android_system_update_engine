@@ -29,7 +29,6 @@
 #include <base/strings/stringprintf.h>
 #include <brillo/flag_helper.h>
 #include <brillo/message_loops/base_message_loop.h>
-#include <metrics/metrics_library.h>
 
 #include "update_engine/common/terminator.h"
 #include "update_engine/common/utils.h"

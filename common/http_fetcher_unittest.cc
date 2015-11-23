@@ -39,6 +39,7 @@
 #include <brillo/streams/stream.h>
 #include <gtest/gtest.h>
 
+#include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/http_common.h"
 #include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/mock_http_fetcher.h"
@@ -211,6 +212,10 @@ class AnyHttpFetcherTest {
   virtual void IgnoreServerAborting(HttpServer* server) const {}
 
   virtual HttpServer* CreateServer() = 0;
+
+  FakeHardware* fake_hardware() {
+    return fake_system_state_.fake_hardware();
+  }
 
  protected:
   DirectProxyResolver proxy_resolver_;
@@ -913,6 +918,7 @@ class MultiHttpFetcherTestDelegate : public HttpFetcherDelegate {
 };
 
 void MultiTest(HttpFetcher* fetcher_in,
+               FakeHardware* fake_hardware,
                const string& url,
                const vector<pair<off_t, off_t>>& ranges,
                const string& expected_prefix,
@@ -937,8 +943,7 @@ void MultiTest(HttpFetcher* fetcher_in,
     }
     LOG(INFO) << "added range: " << tmp_str;
   }
-  dynamic_cast<FakeSystemState*>(fetcher_in->GetSystemState())
-      ->fake_hardware()->SetIsOfficialBuild(false);
+  fake_hardware->SetIsOfficialBuild(false);
   multi_fetcher->set_delegate(&delegate);
 
   MessageLoop::current()->PostTask(
@@ -963,6 +968,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherSimpleTest) {
   ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(),
+            this->test_.fake_hardware(),
             this->test_.BigUrl(server->GetPort()),
             ranges,
             "abcdefghijabcdefghijabcdejabcdefghijabcdef",
@@ -980,6 +986,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherLengthLimitTest) {
   vector<pair<off_t, off_t>> ranges;
   ranges.push_back(make_pair(0, 24));
   MultiTest(this->test_.NewLargeFetcher(),
+            this->test_.fake_hardware(),
             this->test_.BigUrl(server->GetPort()),
             ranges,
             "abcdefghijabcdefghijabcd",
@@ -998,6 +1005,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherMultiEndTest) {
   ranges.push_back(make_pair(kBigLength - 2, 0));
   ranges.push_back(make_pair(kBigLength - 3, 0));
   MultiTest(this->test_.NewLargeFetcher(),
+            this->test_.fake_hardware(),
             this->test_.BigUrl(server->GetPort()),
             ranges,
             "ijhij",
@@ -1017,6 +1025,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherInsufficientTest) {
   for (int i = 0; i < 2; ++i) {
     LOG(INFO) << "i = " << i;
     MultiTest(this->test_.NewLargeFetcher(),
+              this->test_.fake_hardware(),
               this->test_.BigUrl(server->GetPort()),
               ranges,
               "ij",
@@ -1042,6 +1051,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetRecoverableTest) {
   ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(3),
+            this->test_.fake_hardware(),
             LocalServerUrlForPath(server->GetPort(),
                                   base::StringPrintf("/error-if-offset/%d/2",
                                                      kBigLength)),
@@ -1064,6 +1074,7 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetUnrecoverableTest) {
   ranges.push_back(make_pair(0, 25));
   ranges.push_back(make_pair(99, 0));
   MultiTest(this->test_.NewLargeFetcher(2),
+            this->test_.fake_hardware(),
             LocalServerUrlForPath(server->GetPort(),
                                   base::StringPrintf("/error-if-offset/%d/3",
                                                      kBigLength)),
@@ -1103,8 +1114,7 @@ void BlockedTransferTestHelper(AnyHttpFetcherTest* fetcher_test,
   unique_ptr<HttpFetcher> fetcher(fetcher_test->NewLargeFetcher());
   LOG(INFO) << "is_official_build: " << is_official_build;
   // NewLargeFetcher creates the HttpFetcher* with a FakeSystemState.
-  dynamic_cast<FakeSystemState*>(fetcher->GetSystemState())
-      ->fake_hardware()->SetIsOfficialBuild(is_official_build);
+  fetcher_test->fake_hardware()->SetIsOfficialBuild(is_official_build);
   fetcher->set_delegate(&delegate);
 
   MessageLoop::current()->PostTask(FROM_HERE, base::Bind(

@@ -28,7 +28,6 @@
 
 #include "update_engine/common/http_common.h"
 #include "update_engine/proxy_resolver.h"
-#include "update_engine/system_state.h"
 
 // This class is a simple wrapper around an HTTP library (libcurl). We can
 // easily mock out this interface for testing.
@@ -45,14 +44,13 @@ class HttpFetcher {
   // |proxy_resolver| is the resolver that will be consulted for proxy
   // settings. It may be null, in which case direct connections will
   // be used. Does not take ownership of the resolver.
-  HttpFetcher(ProxyResolver* proxy_resolver, SystemState* system_state)
+  HttpFetcher(ProxyResolver* proxy_resolver)
       : post_data_set_(false),
         http_response_code_(0),
         delegate_(nullptr),
         proxies_(1, kNoProxy),
         proxy_resolver_(proxy_resolver),
-        callback_(nullptr),
-        system_state_(system_state) {}
+        callback_(nullptr) {}
   virtual ~HttpFetcher();
 
   void set_delegate(HttpFetcherDelegate* delegate) { delegate_ = delegate; }
@@ -129,11 +127,6 @@ class HttpFetcher {
 
   ProxyResolver* proxy_resolver() const { return proxy_resolver_; }
 
-  // Returns the global SystemState.
-  SystemState* GetSystemState() {
-    return system_state_;
-  }
-
  protected:
   // The URL we're actively fetching from
   std::string url_;
@@ -162,9 +155,6 @@ class HttpFetcher {
 
   // Callback for when we are resolving proxies
   std::unique_ptr<base::Closure> callback_;
-
-  // Global system context.
-  SystemState* system_state_;
 
  private:
   // Callback from the proxy resolver

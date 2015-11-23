@@ -242,7 +242,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   unique_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(500);  // Sets the HTTP response code.
   OmahaRequestAction action(&fake_system_state_, nullptr,
-                            fetcher.release(), false);
+                            std::move(fetcher), false);
   ObjectCollectorAction<OmahaResponse> collector_action;
   BondActions(&action, &collector_action);
   OmahaResponse response;

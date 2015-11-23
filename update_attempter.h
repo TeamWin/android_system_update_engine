@@ -32,6 +32,7 @@
 #include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
+#include "update_engine/common/certificate_checker.h"
 #include "update_engine/libcros_proxy.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
@@ -52,7 +53,8 @@ namespace chromeos_update_engine {
 class UpdateEngineAdaptor;
 
 class UpdateAttempter : public ActionProcessorDelegate,
-                        public DownloadActionDelegate {
+                        public DownloadActionDelegate,
+                        public CertificateChecker::Observer {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
   static const int kMaxDeltaUpdateFailures;
@@ -232,6 +234,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, UpdateTest);
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
   FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
+
+  // CertificateChecker::Observer method.
+  // Report metrics about the certificate being checked.
+  void CertificateChecked(ServerToCheck server_to_check,
+                          CertificateCheckResult result) override;
 
   // Checks if it's more than 24 hours since daily metrics were last
   // reported and, if so, reports daily metrics. Returns |true| if
@@ -438,6 +445,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Our two proxy resolvers
   DirectProxyResolver direct_proxy_resolver_;
   ChromeBrowserProxyResolver chrome_proxy_resolver_;
+
+  // OpenSSLWrapper used for checking certificates.
+  OpenSSLWrapper openssl_wrapper_;
 
   // Originally, both of these flags are false. Once UpdateBootFlags is called,
   // |update_boot_flags_running_| is set to true. As soon as UpdateBootFlags

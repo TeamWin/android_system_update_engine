@@ -29,6 +29,7 @@
 #include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
+#include "update_engine/system_state.h"
 
 using base::TimeDelta;
 using brillo::MessageLoop;
@@ -43,6 +44,21 @@ namespace chromeos_update_engine {
 namespace {
 const int kNoNetworkRetrySeconds = 10;
 }  // namespace
+
+LibcurlHttpFetcher::LibcurlHttpFetcher(
+    ProxyResolver* proxy_resolver,
+    SystemState* system_state,
+    std::unique_ptr<CertificateChecker> certificate_checker)
+    : HttpFetcher(proxy_resolver),
+      hardware_(system_state->hardware()),
+      certificate_checker_(std::move(certificate_checker)) {
+  // Dev users want a longer timeout (180 seconds) because they may
+  // be waiting on the dev server to build an image.
+  if (!hardware_->IsOfficialBuild())
+    low_speed_time_seconds_ = kDownloadDevModeLowSpeedTimeSeconds;
+  if (!hardware_->IsOOBEComplete(nullptr))
+    max_retry_count_ = kDownloadMaxRetryCountOobeNotComplete;
+}
 
 LibcurlHttpFetcher::~LibcurlHttpFetcher() {
   LOG_IF(ERROR, transfer_in_progress_)
@@ -181,7 +197,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
 
   // Lock down the appropriate curl options for HTTP or HTTPS depending on
   // the url.
-  if (GetSystemState()->hardware()->IsOfficialBuild()) {
+  if (hardware_->IsOfficialBuild()) {
     if (base::StartsWithASCII(url_, "http://", false))
       SetCurlOptionsForHttp();
     else
@@ -222,9 +238,9 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttps() {
            CURLE_OK);
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_CIPHER_LIST, "HIGH:!ADH"),
            CURLE_OK);
-  if (check_certificate_ != CertificateChecker::kNone) {
+  if (certificate_checker_ != nullptr) {
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_CTX_DATA,
-                              &check_certificate_),
+                              certificate_checker_.get()),
              CURLE_OK);
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_CTX_FUNCTION,
                               CertificateChecker::ProcessSSLContext),

@@ -90,10 +90,6 @@ int UpdateEngineDaemon::OnInit() {
   UpdateAttempter* update_attempter = real_system_state_->update_attempter();
   CHECK(update_attempter);
 
-  // Sets static members for the certificate checker.
-  CertificateChecker::set_system_state(real_system_state_.get());
-  CertificateChecker::set_openssl_wrapper(&openssl_wrapper_);
-
   // Create the DBus service.
   dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state_.get(), bus_));
   update_attempter->set_dbus_adaptor(dbus_adaptor_.get());

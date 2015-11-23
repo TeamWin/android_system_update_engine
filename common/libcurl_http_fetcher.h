@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_COMMON_LIBCURL_HTTP_FETCHER_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -32,7 +33,6 @@
 #include "update_engine/common/http_fetcher.h"
 #include "update_engine/system_state.h"
 
-
 // This is a concrete implementation of HttpFetcher that uses libcurl to do the
 // http work.
 
@@ -41,15 +41,10 @@ namespace chromeos_update_engine {
 class LibcurlHttpFetcher : public HttpFetcher {
  public:
   LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
-                     SystemState* system_state)
-      : HttpFetcher(proxy_resolver, system_state) {
-    // Dev users want a longer timeout (180 seconds) because they may
-    // be waiting on the dev server to build an image.
-    if (!system_state->hardware()->IsOfficialBuild())
-      low_speed_time_seconds_ = kDownloadDevModeLowSpeedTimeSeconds;
-    if (!system_state_->hardware()->IsOOBEComplete(nullptr))
-      max_retry_count_ = kDownloadMaxRetryCountOobeNotComplete;
-  }
+                     SystemState* system_state,
+                     std::unique_ptr<CertificateChecker> certificate_checker);
+  LibcurlHttpFetcher(ProxyResolver* proxy_resolver, SystemState* system_state)
+      : LibcurlHttpFetcher(proxy_resolver, system_state, nullptr) {}
 
   // Cleans up all internal state. Does not notify delegate
   ~LibcurlHttpFetcher() override;
@@ -88,11 +83,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
   void set_no_network_max_retries(int retries) {
     no_network_max_retries_ = retries;
-  }
-
-  void set_check_certificate(
-      CertificateChecker::ServerToCheck check_certificate) {
-    check_certificate_ = check_certificate;
   }
 
   size_t GetBytesDownloaded() override {
@@ -180,6 +170,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // written to |out_type|).
   bool GetProxyType(const std::string& proxy, curl_proxytype* out_type);
 
+  // Hardware interface used to query dev-mode and official build settings.
+  HardwareInterface* hardware_;
+
   // Handles for the libcurl library
   CURLM* curl_multi_handle_{nullptr};
   CURL* curl_handle_{nullptr};
@@ -238,11 +231,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // if we get a terminate request, queue it until we can handle it.
   bool terminate_requested_{false};
 
-  // Represents which server certificate to be checked against this
-  // connection's certificate. If no certificate check needs to be performed,
-  // this should be kNone.
-  CertificateChecker::ServerToCheck check_certificate_{
-      CertificateChecker::kNone};
+  // The CertificateChecker used to check this connection's certificate. If no
+  // certificate check needs to be performed, this should be empty.
+  std::unique_ptr<CertificateChecker> certificate_checker_;
 
   int low_speed_limit_bps_{kDownloadLowSpeedLimitBps};
   int low_speed_time_seconds_{kDownloadLowSpeedTimeSeconds};

@@ -140,7 +140,6 @@ ue_libpayload_consumer_exported_static_libraries := \
 ue_libpayload_consumer_exported_shared_libraries := \
     libcrypto \
     libcurl \
-    libmetrics \
     libshill-client \
     libssl \
     libexpat \

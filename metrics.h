@@ -19,6 +19,7 @@
 
 #include <base/time/time.h>
 
+#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/error_code.h"
 
@@ -302,6 +303,15 @@ void ReportSuccessfulUpdateMetrics(
     base::TimeDelta total_duration,
     int reboot_count,
     int url_switch_count);
+
+// Helper function to report the after the completion of a SSL certificate
+// check. One of the following metrics is reported:
+//
+//  |kMetricCertificateCheckUpdateCheck|
+//  |kMetricCertificateCheckDownload|
+void ReportCertificateCheckMetrics(SystemState* system_state,
+                                   ServerToCheck server_to_check,
+                                   CertificateCheckResult result);
 
 }  // namespace metrics
 

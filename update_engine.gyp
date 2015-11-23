@@ -128,7 +128,6 @@
           'libcurl',
           'libdebugd-client',
           'libsession_manager-client',
-          'libmetrics-<(libbase_ver)',
           'libpower_manager-client',
           'libupdate_engine-client',
           'libshill-client',

@@ -33,10 +33,6 @@ const char kStatefulPartition[] = "/mnt/stateful_partition";
 const char kPrefsAttemptInProgress[] = "attempt-in-progress";
 const char kPrefsBackoffExpiryTime[] = "backoff-expiry-time";
 const char kPrefsBootId[] = "boot-id";
-const char kPrefsCertificateReportToSendDownload[] =
-    "certificate-report-to-send-download";
-const char kPrefsCertificateReportToSendUpdate[] =
-    "certificate-report-to-send-update";
 const char kPrefsCurrentBytesDownloaded[] = "current-bytes-downloaded";
 const char kPrefsCurrentResponseSignature[] = "current-response-signature";
 const char kPrefsCurrentUrlFailureCount[] = "current-url-failure-count";

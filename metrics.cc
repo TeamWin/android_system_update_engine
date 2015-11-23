@@ -101,6 +101,12 @@ const char kMetricSuccessfulUpdateUrlSwitchCount[] =
 // UpdateEngine.Rollback.* metric.
 const char kMetricRollbackResult[] = "UpdateEngine.Rollback.Result";
 
+// UpdateEngine.CertificateCheck.* metrics.
+const char kMetricCertificateCheckUpdateCheck[] =
+    "UpdateEngine.CertificateCheck.UpdateCheck";
+const char kMetricCertificateCheckDownload[] =
+    "UpdateEngine.CertificateCheck.Download";
+
 // UpdateEngine.* metrics.
 const char kMetricFailedUpdateCount[] = "UpdateEngine.FailedUpdateCount";
 const char kMetricInstallDateProvisioningSource[] =
@@ -492,6 +498,25 @@ void ReportRollbackMetrics(SystemState *system_state,
       metric,
       value,
       static_cast<int>(metrics::RollbackResult::kNumConstants));
+}
+
+void ReportCertificateCheckMetrics(SystemState* system_state,
+                                   ServerToCheck server_to_check,
+                                   CertificateCheckResult result) {
+  string metric;
+  switch (server_to_check) {
+    case ServerToCheck::kUpdate:
+      metric = kMetricCertificateCheckUpdateCheck;
+      break;
+    case ServerToCheck::kDownload:
+      metric = kMetricCertificateCheckDownload;
+      break;
+  }
+  LOG(INFO) << "Uploading " << static_cast<int>(result) << " for metric "
+            << metric;
+  system_state->metrics_lib()->SendEnumToUMA(
+      metric, static_cast<int>(result),
+      static_cast<int>(CertificateCheckResult::kNumConstants));
 }
 
 }  // namespace metrics

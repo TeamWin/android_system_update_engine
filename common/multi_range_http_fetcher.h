@@ -46,8 +46,7 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
  public:
   // Takes ownership of the passed in fetcher.
   explicit MultiRangeHttpFetcher(HttpFetcher* base_fetcher)
-      : HttpFetcher(base_fetcher->proxy_resolver(),
-                    base_fetcher->GetSystemState()),
+      : HttpFetcher(base_fetcher->proxy_resolver()),
         base_fetcher_(base_fetcher),
         base_fetcher_active_(false),
         pending_transfer_ended_(false),

@@ -28,6 +28,7 @@
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 #include <brillo/bind_lambda.h>
+#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
@@ -42,6 +43,7 @@
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/fake_system_state.h"
 #include "update_engine/metrics.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_payload_state.h"
@@ -317,7 +319,7 @@ bool OmahaRequestActionTest::TestUpdateCheck(
     fake_system_state_.set_request_params(request_params);
   OmahaRequestAction action(&fake_system_state_,
                             nullptr,
-                            fetcher,
+                            brillo::make_unique_ptr(fetcher),
                             ping_only);
   OmahaRequestActionTestProcessorDelegate delegate;
   delegate.expected_code_ = expected_code;
@@ -374,7 +376,10 @@ void TestEvent(OmahaRequestParams params,
                                                  nullptr);
   FakeSystemState fake_system_state;
   fake_system_state.set_request_params(&params);
-  OmahaRequestAction action(&fake_system_state, event, fetcher, false);
+  OmahaRequestAction action(&fake_system_state,
+                            event,
+                            brillo::make_unique_ptr(fetcher),
+                            false);
   OmahaRequestActionTestProcessorDelegate delegate;
   ActionProcessor processor;
   processor.set_delegate(&delegate);
@@ -839,9 +844,10 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   OmahaRequestParams params = request_params_;
   fake_system_state_.set_request_params(&params);
   OmahaRequestAction action(&fake_system_state_, nullptr,
-                            new MockHttpFetcher(http_response.data(),
-                                                http_response.size(),
-                                                nullptr),
+                            brillo::make_unique_ptr(
+                                new MockHttpFetcher(http_response.data(),
+                                                    http_response.size(),
+                                                    nullptr)),
                             false);
   OmahaRequestActionTestProcessorDelegate delegate;
   ActionProcessor processor;
@@ -1008,9 +1014,10 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
 
   string http_response("doesn't matter");
   OmahaRequestAction action(&fake_system_state_, nullptr,
-                            new MockHttpFetcher(http_response.data(),
-                                                http_response.size(),
-                                                nullptr),
+                            brillo::make_unique_ptr(
+                                new MockHttpFetcher(http_response.data(),
+                                                    http_response.size(),
+                                                    nullptr)),
                             false);
   TerminateEarlyTestProcessorDelegate delegate;
   ActionProcessor processor;
@@ -1221,9 +1228,10 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
   OmahaRequestAction update_check_action(
       &fake_system_state_,
       nullptr,
-      new MockHttpFetcher(http_response.data(),
-                          http_response.size(),
-                          nullptr),
+      brillo::make_unique_ptr(
+          new MockHttpFetcher(http_response.data(),
+                              http_response.size(),
+                              nullptr)),
       false);
   EXPECT_FALSE(update_check_action.IsEvent());
 
@@ -1232,9 +1240,10 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
   OmahaRequestAction event_action(
       &fake_system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-      new MockHttpFetcher(http_response.data(),
-                          http_response.size(),
-                          nullptr),
+      brillo::make_unique_ptr(
+          new MockHttpFetcher(http_response.data(),
+                              http_response.size(),
+                              nullptr)),
       false);
   EXPECT_TRUE(event_action.IsEvent());
 }

@@ -25,12 +25,15 @@
 #include <string>
 #include <vector>
 
+#include <gtest/gtest_prod.h>  // for FRIEND_TEST
+
 #include <brillo/secure_blob.h>
 #include <curl/curl.h>
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/http_fetcher.h"
 #include "update_engine/omaha_response.h"
+#include "update_engine/system_state.h"
 
 // The Omaha Request action makes a request to Omaha and can output
 // the response on the output ActionPipe.
@@ -143,7 +146,7 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // OmahaRequestAction(..., nullptr, new WhateverHttpFetcher);
   OmahaRequestAction(SystemState* system_state,
                      OmahaEvent* event,
-                     HttpFetcher* http_fetcher,
+                     std::unique_ptr<HttpFetcher> http_fetcher,
                      bool ping_only);
   ~OmahaRequestAction() override;
   typedef ActionTraits<OmahaRequestAction>::InputObjectType InputObjectType;

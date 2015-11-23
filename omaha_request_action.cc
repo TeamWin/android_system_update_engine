@@ -494,13 +494,14 @@ string XmlEncodeWithDefault(const string& input, const string& default_value) {
   return default_value;
 }
 
-OmahaRequestAction::OmahaRequestAction(SystemState* system_state,
-                                       OmahaEvent* event,
-                                       HttpFetcher* http_fetcher,
-                                       bool ping_only)
+OmahaRequestAction::OmahaRequestAction(
+    SystemState* system_state,
+    OmahaEvent* event,
+    std::unique_ptr<HttpFetcher> http_fetcher,
+    bool ping_only)
     : system_state_(system_state),
       event_(event),
-      http_fetcher_(http_fetcher),
+      http_fetcher_(std::move(http_fetcher)),
       ping_only_(ping_only),
       ping_active_days_(0),
       ping_roll_call_days_(0) {
