@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include <base/bind.h>
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/message_loop/message_loop.h>
@@ -31,6 +32,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
+#include <brillo/bind_lambda.h>
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
@@ -46,7 +48,6 @@
 #include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/fake_system_state.h"
 #include "update_engine/proxy_resolver.h"
 
 using brillo::MessageLoop;
@@ -214,12 +215,12 @@ class AnyHttpFetcherTest {
   virtual HttpServer* CreateServer() = 0;
 
   FakeHardware* fake_hardware() {
-    return fake_system_state_.fake_hardware();
+    return &fake_hardware_;
   }
 
  protected:
   DirectProxyResolver proxy_resolver_;
-  FakeSystemState fake_system_state_;
+  FakeHardware fake_hardware_;
 };
 
 class MockHttpFetcherTest : public AnyHttpFetcherTest {
@@ -264,11 +265,11 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
     proxy_resolver_.set_num_proxies(num_proxies);
     LibcurlHttpFetcher *ret = new
         LibcurlHttpFetcher(reinterpret_cast<ProxyResolver*>(&proxy_resolver_),
-                           &fake_system_state_);
+                           &fake_hardware_);
     // Speed up test execution.
     ret->set_idle_seconds(1);
     ret->set_retry_seconds(1);
-    fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+    fake_hardware_.SetIsOfficialBuild(false);
     return ret;
   }
 
@@ -313,13 +314,13 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
         reinterpret_cast<ProxyResolver*>(&proxy_resolver_);
     MultiRangeHttpFetcher *ret =
         new MultiRangeHttpFetcher(
-            new LibcurlHttpFetcher(resolver, &fake_system_state_));
+            new LibcurlHttpFetcher(resolver, &fake_hardware_));
     ret->ClearRanges();
     ret->AddRange(0);
     // Speed up test execution.
     ret->set_idle_seconds(1);
     ret->set_retry_seconds(1);
-    fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
+    fake_hardware_.SetIsOfficialBuild(false);
     return ret;
   }
 

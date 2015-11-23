@@ -581,7 +581,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   update_check_checker->SetObserver(this);
   std::unique_ptr<LibcurlHttpFetcher> update_check_fetcher(
       new LibcurlHttpFetcher(GetProxyResolver(),
-                             system_state_,
+                             system_state_->hardware(),
                              std::move(update_check_checker)));
   // Try harder to connect to the network, esp when not interactive.
   // See comment in libcurl_http_fetcher.cc.
@@ -601,16 +601,17 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaRequestAction(system_state_,
                              new OmahaEvent(
                                  OmahaEvent::kTypeUpdateDownloadStarted),
-                             brillo::make_unique_ptr(
-                                new LibcurlHttpFetcher(GetProxyResolver(),
-                                                       system_state_)),
+                             brillo::make_unique_ptr(new LibcurlHttpFetcher(
+                                 GetProxyResolver(),
+                                 system_state_->hardware())),
                              false));
   std::unique_ptr<CertificateChecker> download_checker(
       new CertificateChecker(prefs_, &openssl_wrapper_,
                              ServerToCheck::kDownload));
   download_checker->SetObserver(this);
   LibcurlHttpFetcher* download_fetcher =
-      new LibcurlHttpFetcher(GetProxyResolver(), system_state_,
+      new LibcurlHttpFetcher(GetProxyResolver(),
+                             system_state_->hardware(),
                              std::move(download_checker));
   shared_ptr<DownloadAction> download_action(
       new DownloadAction(prefs_,
@@ -618,23 +619,24 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                          new MultiRangeHttpFetcher(
                              download_fetcher)));  // passes ownership
   shared_ptr<OmahaRequestAction> download_finished_action(
-      new OmahaRequestAction(system_state_,
-                             new OmahaEvent(
-                                 OmahaEvent::kTypeUpdateDownloadFinished),
-                             brillo::make_unique_ptr(
-                                new LibcurlHttpFetcher(GetProxyResolver(),
-                                                       system_state_)),
-                             false));
+      new OmahaRequestAction(
+          system_state_,
+          new OmahaEvent(OmahaEvent::kTypeUpdateDownloadFinished),
+          brillo::make_unique_ptr(
+              new LibcurlHttpFetcher(GetProxyResolver(),
+                                     system_state_->hardware())),
+          false));
   shared_ptr<FilesystemVerifierAction> dst_filesystem_verifier_action(
       new FilesystemVerifierAction(system_state_->boot_control(),
                                    VerifierMode::kVerifyTargetHash));
   shared_ptr<OmahaRequestAction> update_complete_action(
-      new OmahaRequestAction(system_state_,
-                             new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-                             brillo::make_unique_ptr(
-                                new LibcurlHttpFetcher(GetProxyResolver(),
-                                                       system_state_)),
-                             false));
+      new OmahaRequestAction(
+          system_state_,
+          new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
+          brillo::make_unique_ptr(
+              new LibcurlHttpFetcher(GetProxyResolver(),
+                                     system_state_->hardware())),
+          false));
 
   download_action->set_delegate(this);
   response_handler_action_ = response_handler_action;
@@ -703,7 +705,8 @@ bool UpdateAttempter::Rollback(bool powerwash) {
   install_plan.target_slot = GetRollbackSlot();
   install_plan.source_slot = system_state_->boot_control()->GetCurrentSlot();
 
-  TEST_AND_RETURN_FALSE(install_plan.LoadPartitionsFromSlots(system_state_));
+  TEST_AND_RETURN_FALSE(
+      install_plan.LoadPartitionsFromSlots(system_state_->boot_control()));
   install_plan.powerwash_required = powerwash;
 
   LOG(INFO) << "Using this install plan:";
@@ -1268,7 +1271,8 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
       new OmahaRequestAction(system_state_,
                              error_event_.release(),  // Pass ownership.
                              brillo::make_unique_ptr(new LibcurlHttpFetcher(
-                                 GetProxyResolver(), system_state_)),
+                                 GetProxyResolver(),
+                                 system_state_->hardware())),
                              false));
   actions_.push_back(shared_ptr<AbstractAction>(error_event_action));
   processor_->EnqueueAction(error_event_action.get());
@@ -1376,7 +1380,7 @@ void UpdateAttempter::PingOmaha() {
         nullptr,
         brillo::make_unique_ptr(new LibcurlHttpFetcher(
             GetProxyResolver(),
-            system_state_)),
+            system_state_->hardware())),
         true));
     actions_.push_back(shared_ptr<OmahaRequestAction>(ping_action));
     processor_->set_delegate(nullptr);

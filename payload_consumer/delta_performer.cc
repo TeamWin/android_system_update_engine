@@ -803,7 +803,7 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     install_plan_->partitions.push_back(install_part);
   }
 
-  if (!install_plan_->LoadPartitionsFromSlots(system_state_)) {
+  if (!install_plan_->LoadPartitionsFromSlots(system_state_->boot_control())) {
     LOG(ERROR) << "Unable to determine all the partition devices.";
     *error = ErrorCode::kInstallDeviceOpenError;
     return false;

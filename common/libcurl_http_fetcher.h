@@ -31,7 +31,6 @@
 #include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/http_fetcher.h"
-#include "update_engine/system_state.h"
 
 // This is a concrete implementation of HttpFetcher that uses libcurl to do the
 // http work.
@@ -41,10 +40,11 @@ namespace chromeos_update_engine {
 class LibcurlHttpFetcher : public HttpFetcher {
  public:
   LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
-                     SystemState* system_state,
+                     HardwareInterface* hardware,
                      std::unique_ptr<CertificateChecker> certificate_checker);
-  LibcurlHttpFetcher(ProxyResolver* proxy_resolver, SystemState* system_state)
-      : LibcurlHttpFetcher(proxy_resolver, system_state, nullptr) {}
+  LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
+                     HardwareInterface* hardware)
+      : LibcurlHttpFetcher(proxy_resolver, hardware, nullptr) {}
 
   // Cleans up all internal state. Does not notify delegate
   ~LibcurlHttpFetcher() override;

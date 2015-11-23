@@ -89,18 +89,18 @@ void InstallPlan::Dump() const {
                 powerwash_required);
 }
 
-bool InstallPlan::LoadPartitionsFromSlots(SystemState* system_state) {
+bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
   bool result = true;
   for (Partition& partition : partitions) {
     if (source_slot != BootControlInterface::kInvalidSlot) {
-      result = system_state->boot_control()->GetPartitionDevice(
+      result = boot_control->GetPartitionDevice(
           partition.name, source_slot, &partition.source_path) && result;
     } else {
       partition.source_path.clear();
     }
 
     if (target_slot != BootControlInterface::kInvalidSlot) {
-      result = system_state->boot_control()->GetPartitionDevice(
+      result = boot_control->GetPartitionDevice(
           partition.name, target_slot, &partition.target_path) && result;
     } else {
       partition.target_path.clear();

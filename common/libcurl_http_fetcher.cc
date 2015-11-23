@@ -29,7 +29,6 @@
 #include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
-#include "update_engine/system_state.h"
 
 using base::TimeDelta;
 using brillo::MessageLoop;
@@ -47,11 +46,11 @@ const int kNoNetworkRetrySeconds = 10;
 
 LibcurlHttpFetcher::LibcurlHttpFetcher(
     ProxyResolver* proxy_resolver,
-    SystemState* system_state,
+    HardwareInterface* hardware,
     std::unique_ptr<CertificateChecker> certificate_checker)
-    : HttpFetcher(proxy_resolver),
-      hardware_(system_state->hardware()),
-      certificate_checker_(std::move(certificate_checker)) {
+  : HttpFetcher(proxy_resolver),
+    hardware_(hardware),
+    certificate_checker_(std::move(certificate_checker)) {
   // Dev users want a longer timeout (180 seconds) because they may
   // be waiting on the dev server to build an image.
   if (!hardware_->IsOfficialBuild())

@@ -25,7 +25,6 @@
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/system_state.h"
 
 // InstallPlan is a simple struct that contains relevant info for many
 // parts of the update system about the install that should happen.
@@ -52,7 +51,7 @@ struct InstallPlan {
   // Load the |source_path| and |target_path| of all |partitions| based on the
   // |source_slot| and |target_slot| if available. Returns whether it succeeded
   // to load all the partitions for the valid slots.
-  bool LoadPartitionsFromSlots(SystemState* system_state);
+  bool LoadPartitionsFromSlots(BootControlInterface* boot_control);
 
   bool is_resume{false};
   bool is_full_update{false};
