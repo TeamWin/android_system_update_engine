@@ -314,6 +314,8 @@ endif  # BRILLO_USE_DBUS == 1
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine
 LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_REQUIRED_MODULES := \
+    bspatch
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
