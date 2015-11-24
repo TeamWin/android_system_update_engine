@@ -1,4 +1,4 @@
 service update_engine /system/bin/update_engine --logtostderr --foreground
     class late_start
     user root
-    group root system dbus inet
+    group root system wakelock dbus inet
