@@ -288,7 +288,8 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
   EXPECT_EQ(ErrorCode::kFilesystemVerifierError,
             GetErrorCodeForAction(&filesystem_verifier_action,
                                   ErrorCode::kError));
-  PostinstallRunnerAction postinstall_runner_action(&fake_system_state);
+  PostinstallRunnerAction postinstall_runner_action(
+      fake_system_state.fake_boot_control());
   EXPECT_EQ(ErrorCode::kPostinstallRunnerError,
             GetErrorCodeForAction(&postinstall_runner_action,
                                   ErrorCode::kError));

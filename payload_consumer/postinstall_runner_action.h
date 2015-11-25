@@ -21,17 +21,18 @@
 
 #include "update_engine/common/action.h"
 #include "update_engine/payload_consumer/install_plan.h"
-#include "update_engine/system_state.h"
 
 // The Postinstall Runner Action is responsible for running the postinstall
 // script of a successfully downloaded update.
 
 namespace chromeos_update_engine {
 
+class BootControlInterface;
+
 class PostinstallRunnerAction : public InstallPlanAction {
  public:
-  explicit PostinstallRunnerAction(SystemState* system_state)
-      : PostinstallRunnerAction(system_state, nullptr) {}
+  explicit PostinstallRunnerAction(BootControlInterface* boot_control)
+      : PostinstallRunnerAction(boot_control, nullptr) {}
 
   void PerformAction();
 
@@ -46,9 +47,9 @@ class PostinstallRunnerAction : public InstallPlanAction {
   friend class PostinstallRunnerActionTest;
 
   // Special constructor used for testing purposes.
-  PostinstallRunnerAction(SystemState* system_state,
+  PostinstallRunnerAction(BootControlInterface* boot_control,
                           const char* powerwash_marker_file)
-      : system_state_(system_state),
+      : boot_control_(boot_control),
         powerwash_marker_file_(powerwash_marker_file) {}
 
   void PerformPartitionPostinstall();
@@ -57,7 +58,8 @@ class PostinstallRunnerAction : public InstallPlanAction {
   void CompletePartitionPostinstall(int return_code,
                                     const std::string& output);
 
-  //
+  // Complete the Action with the passed |error_code| and mark the new slot as
+  // ready. Called when the post-install script was run for all the partitions.
   void CompletePostinstall(ErrorCode error_code);
 
   InstallPlan install_plan_;
@@ -67,8 +69,8 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // InstallPlan.
   size_t current_partition_{0};
 
-  // The main SystemState singleton.
-  SystemState* system_state_;
+  // The BootControlInerface used to mark the new slot as ready.
+  BootControlInterface* boot_control_;
 
   // True if Powerwash Marker was created before invoking post-install script.
   // False otherwise. Used for cleaning up if post-install fails.

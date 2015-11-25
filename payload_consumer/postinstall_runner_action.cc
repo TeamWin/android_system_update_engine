@@ -25,6 +25,7 @@
 #include <base/files/file_util.h>
 
 #include "update_engine/common/action_processor.h"
+#include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 
@@ -159,8 +160,7 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
   // We only attempt to mark the new slot as active if all the postinstall
   // steps succeeded.
   if (error_code == ErrorCode::kSuccess &&
-      !system_state_->boot_control()->SetActiveBootSlot(
-          install_plan_.target_slot)) {
+      !boot_control_->SetActiveBootSlot(install_plan_.target_slot)) {
     error_code = ErrorCode::kPostinstallRunnerError;
   }
 

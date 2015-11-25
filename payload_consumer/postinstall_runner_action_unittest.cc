@@ -34,9 +34,9 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/fake_system_state.h"
 
 using brillo::MessageLoop;
 using chromeos_update_engine::test_utils::System;
@@ -66,7 +66,7 @@ class PostinstallRunnerActionTest : public ::testing::Test {
   brillo::BaseMessageLoop loop_{&base_loop_};
   brillo::AsynchronousSignalHandler async_signal_handler_;
   Subprocess subprocess_;
-  FakeSystemState fake_system_state_;
+  FakeBootControl fake_boot_control_;
 };
 
 class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
@@ -196,7 +196,7 @@ void PostinstallRunnerActionTest::DoTest(
   install_plan.download_url = "http://devserver:8080/update";
   install_plan.powerwash_required = powerwash_required;
   feeder_action.set_obj(install_plan);
-  PostinstallRunnerAction runner_action(&fake_system_state_,
+  PostinstallRunnerAction runner_action(&fake_boot_control_,
                                         powerwash_marker_file.c_str());
   BondActions(&feeder_action, &runner_action);
   ObjectCollectorAction<InstallPlan> collector_action;
@@ -252,7 +252,7 @@ void PostinstallRunnerActionTest::DoTest(
 // Death tests don't seem to be working on Hardy
 TEST_F(PostinstallRunnerActionTest, DISABLED_RunAsRootDeathTest) {
   ASSERT_EQ(0, getuid());
-  PostinstallRunnerAction runner_action(&fake_system_state_);
+  PostinstallRunnerAction runner_action(&fake_boot_control_);
   ASSERT_DEATH({ runner_action.TerminateProcessing(); },
                "postinstall_runner_action.h:.*] Check failed");
 }
