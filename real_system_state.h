@@ -28,6 +28,7 @@
 #include <session_manager/dbus-proxies.h>
 
 #include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/clock.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"
@@ -88,7 +89,7 @@ class RealSystemState : public SystemState {
   }
 
   inline UpdateAttempter* update_attempter() override {
-    return &update_attempter_;
+    return update_attempter_.get();
   }
 
   inline OmahaRequestParams* request_params() override {
@@ -145,8 +146,12 @@ class RealSystemState : public SystemState {
   // states.
   PayloadState payload_state_;
 
+  // OpenSSLWrapper and CertificateChecker used for checking SSL certificates.
+  OpenSSLWrapper openssl_wrapper_;
+  std::unique_ptr<CertificateChecker> certificate_checker_;
+
   // Pointer to the update attempter object.
-  UpdateAttempter update_attempter_{this, &libcros_proxy_, &debugd_proxy_};
+  std::unique_ptr<UpdateAttempter> update_attempter_;
 
   // Common parameters for all Omaha requests.
   OmahaRequestParams request_params_{this};

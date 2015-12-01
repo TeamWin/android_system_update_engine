@@ -40,11 +40,7 @@ namespace chromeos_update_engine {
 class LibcurlHttpFetcher : public HttpFetcher {
  public:
   LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
-                     HardwareInterface* hardware,
-                     std::unique_ptr<CertificateChecker> certificate_checker);
-  LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
-                     HardwareInterface* hardware)
-      : LibcurlHttpFetcher(proxy_resolver, hardware, nullptr) {}
+                     HardwareInterface* hardware);
 
   // Cleans up all internal state. Does not notify delegate
   ~LibcurlHttpFetcher() override;
@@ -83,6 +79,10 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
   void set_no_network_max_retries(int retries) {
     no_network_max_retries_ = retries;
+  }
+
+  void set_server_to_check(ServerToCheck server_to_check) {
+    server_to_check_ = server_to_check;
   }
 
   size_t GetBytesDownloaded() override {
@@ -231,9 +231,10 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // if we get a terminate request, queue it until we can handle it.
   bool terminate_requested_{false};
 
-  // The CertificateChecker used to check this connection's certificate. If no
-  // certificate check needs to be performed, this should be empty.
-  std::unique_ptr<CertificateChecker> certificate_checker_;
+  // The ServerToCheck used when checking this connection's certificate. If no
+  // certificate check needs to be performed, this should be set to
+  // ServerToCheck::kNone.
+  ServerToCheck server_to_check_{ServerToCheck::kNone};
 
   int low_speed_limit_bps_{kDownloadLowSpeedLimitBps};
   int low_speed_time_seconds_{kDownloadLowSpeedTimeSeconds};

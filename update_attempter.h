@@ -60,6 +60,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   static const int kMaxDeltaUpdateFailures;
 
   UpdateAttempter(SystemState* system_state,
+                  CertificateChecker* cert_checker,
                   LibCrosProxy* libcros_proxy,
                   org::chromium::debugdProxyInterface* debugd_proxy);
   ~UpdateAttempter() override;
@@ -393,6 +394,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // carved out separately to mock out easily in unit tests.
   SystemState* system_state_;
 
+  // Pointer to the certificate checker instance to use.
+  CertificateChecker* cert_checker_;
+
   // If non-null, this UpdateAttempter will send status updates over this
   // dbus service.
   UpdateEngineAdaptor* dbus_adaptor_ = nullptr;
@@ -445,9 +449,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Our two proxy resolvers
   DirectProxyResolver direct_proxy_resolver_;
   ChromeBrowserProxyResolver chrome_proxy_resolver_;
-
-  // OpenSSLWrapper used for checking certificates.
-  OpenSSLWrapper openssl_wrapper_;
 
   // Originally, both of these flags are false. Once UpdateBootFlags is called,
   // |update_boot_flags_running_| is set to true. As soon as UpdateBootFlags

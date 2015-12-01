@@ -83,7 +83,7 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
   UpdateAttempterUnderTest(SystemState* system_state,
                            LibCrosProxy* libcros_proxy,
                            org::chromium::debugdProxyInterface* debugd_proxy)
-      : UpdateAttempter(system_state, libcros_proxy, debugd_proxy) {}
+      : UpdateAttempter(system_state, nullptr, libcros_proxy, debugd_proxy) {}
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
@@ -117,11 +117,15 @@ class UpdateAttempterTest : public ::testing::Test {
             new NiceMock<UpdateEngineLibcrosProxyResolvedInterfaceProxyMock>()),
         libcros_proxy_(
             brillo::make_unique_ptr(service_interface_mock_),
-            brillo::make_unique_ptr(ue_proxy_resolved_interface_mock_)) {
+            brillo::make_unique_ptr(ue_proxy_resolved_interface_mock_)),
+        certificate_checker_(fake_system_state_.mock_prefs(),
+                             &openssl_wrapper_) {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
     fake_system_state_.set_update_attempter(&attempter_);
     loop_.SetAsCurrent();
+
+    certificate_checker_.Init();
 
     // Finish initializing the attempter.
     attempter_.Init();
@@ -199,6 +203,8 @@ class UpdateAttempterTest : public ::testing::Test {
   UpdateEngineLibcrosProxyResolvedInterfaceProxyMock*
       ue_proxy_resolved_interface_mock_;
   LibCrosProxy libcros_proxy_;
+  OpenSSLWrapper openssl_wrapper_;
+  CertificateChecker certificate_checker_;
   UpdateAttempterUnderTest attempter_{&fake_system_state_,
                                       &libcros_proxy_,
                                       &debugd_proxy_mock_};

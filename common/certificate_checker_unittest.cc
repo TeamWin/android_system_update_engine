@@ -50,6 +50,7 @@ class CertificateCheckerTest : public testing::Test {
                                    cert_key_prefix_.c_str(),
                                    static_cast<int>(server_to_check_),
                                    depth_);
+    cert_checker.Init();
     cert_checker.SetObserver(&observer_);
   }
 
@@ -70,7 +71,7 @@ class CertificateCheckerTest : public testing::Test {
   string cert_key_;
 
   testing::StrictMock<MockCertificateCheckObserver> observer_;
-  CertificateChecker cert_checker{&prefs_, &openssl_wrapper_, server_to_check_};
+  CertificateChecker cert_checker{&prefs_, &openssl_wrapper_};
 };
 
 // check certificate change, new
@@ -86,7 +87,8 @@ TEST_F(CertificateCheckerTest, NewCertificate) {
   EXPECT_CALL(observer_,
               CertificateChecked(server_to_check_,
                                  CertificateCheckResult::kValid));
-  ASSERT_TRUE(cert_checker.CheckCertificateChange(1, nullptr));
+  ASSERT_TRUE(
+      cert_checker.CheckCertificateChange(1, nullptr, server_to_check_));
 }
 
 // check certificate change, unchanged
@@ -103,7 +105,8 @@ TEST_F(CertificateCheckerTest, SameCertificate) {
   EXPECT_CALL(observer_,
               CertificateChecked(server_to_check_,
                                  CertificateCheckResult::kValid));
-  ASSERT_TRUE(cert_checker.CheckCertificateChange(1, nullptr));
+  ASSERT_TRUE(
+      cert_checker.CheckCertificateChange(1, nullptr, server_to_check_));
 }
 
 // check certificate change, changed
@@ -120,7 +123,8 @@ TEST_F(CertificateCheckerTest, ChangedCertificate) {
               CertificateChecked(server_to_check_,
                                  CertificateCheckResult::kValidChanged));
   EXPECT_CALL(prefs_, SetString(cert_key_, digest_hex_)).WillOnce(Return(true));
-  ASSERT_TRUE(cert_checker.CheckCertificateChange(1, nullptr));
+  ASSERT_TRUE(
+      cert_checker.CheckCertificateChange(1, nullptr, server_to_check_));
 }
 
 // check certificate change, failed
@@ -129,7 +133,8 @@ TEST_F(CertificateCheckerTest, FailedCertificate) {
                                             CertificateCheckResult::kFailed));
   EXPECT_CALL(prefs_, GetString(_, _)).Times(0);
   EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(_, _, _, _)).Times(0);
-  ASSERT_FALSE(cert_checker.CheckCertificateChange(0, nullptr));
+  ASSERT_FALSE(
+      cert_checker.CheckCertificateChange(0, nullptr, server_to_check_));
 }
 
 }  // namespace chromeos_update_engine

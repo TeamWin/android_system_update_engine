@@ -18,12 +18,10 @@
 
 #include <string>
 
-#include <base/lazy_instance.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <base/threading/thread_local.h>
 #include <curl/curl.h>
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
@@ -35,13 +33,6 @@
 using std::string;
 
 namespace chromeos_update_engine {
-
-namespace {
-// A lazily created thread local storage for passing the current certificate
-// checker to the openssl callback.
-base::LazyInstance<base::ThreadLocalPointer<CertificateChecker>>::Leaky
-    lazy_tls_ptr;
-}  // namespace
 
 bool OpenSSLWrapper::GetCertificateDigest(X509_STORE_CTX* x509_ctx,
                                           int* out_depth,
@@ -63,53 +54,92 @@ bool OpenSSLWrapper::GetCertificateDigest(X509_STORE_CTX* x509_ctx,
   return success;
 }
 
+// static
+CertificateChecker* CertificateChecker::cert_checker_singleton_ = nullptr;
+
 CertificateChecker::CertificateChecker(PrefsInterface* prefs,
-                                       OpenSSLWrapper* openssl_wrapper,
-                                       ServerToCheck server_to_check)
-    : prefs_(prefs),
-      openssl_wrapper_(openssl_wrapper),
-      server_to_check_(server_to_check) {
+                                       OpenSSLWrapper* openssl_wrapper)
+    : prefs_(prefs), openssl_wrapper_(openssl_wrapper) {
+}
+
+CertificateChecker::~CertificateChecker() {
+  if (cert_checker_singleton_ == this)
+    cert_checker_singleton_ = nullptr;
+}
+
+void CertificateChecker::Init() {
+  CHECK(cert_checker_singleton_ == nullptr);
+  cert_checker_singleton_ = this;
 }
 
 // static
 CURLcode CertificateChecker::ProcessSSLContext(CURL* curl_handle,
                                                SSL_CTX* ssl_ctx,
                                                void* ptr) {
-  CertificateChecker* cert_checker = reinterpret_cast<CertificateChecker*>(ptr);
+  ServerToCheck* server_to_check = reinterpret_cast<ServerToCheck*>(ptr);
+
+  if (!cert_checker_singleton_) {
+    DLOG(WARNING) << "No CertificateChecker singleton initialized.";
+    return CURLE_FAILED_INIT;
+  }
 
   // From here we set the SSL_CTX to another callback, from the openssl library,
   // which will be called after each server certificate is validated. However,
   // since openssl does not allow us to pass our own data pointer to the
-  // callback, the certificate check will have to be done statically. To pass
-  // the pointer to this instance, we use a thread-safe pointer in lazy_tls_ptr
-  // during the calls and clear them after it.
-  CHECK(cert_checker != nullptr);
-  lazy_tls_ptr.Pointer()->Set(cert_checker);
-  SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, VerifySSLCallback);
-  // Sanity check: We should not re-enter this method during certificate
-  // checking.
-  CHECK(lazy_tls_ptr.Pointer()->Get() == cert_checker);
-  lazy_tls_ptr.Pointer()->Set(nullptr);
+  // callback, the certificate check will have to be done statically. Since we
+  // need to know which update server we are using in order to check the
+  // certificate, we hardcode Chrome OS's two known update servers here, and
+  // define a different static callback for each. Since this code should only
+  // run in official builds, this should not be a problem. However, if an update
+  // server different from the ones listed here is used, the check will not
+  // take place.
+  int (*verify_callback)(int, X509_STORE_CTX*);
+  switch (*server_to_check) {
+    case ServerToCheck::kDownload:
+      verify_callback = &CertificateChecker::VerifySSLCallbackDownload;
+      break;
+    case ServerToCheck::kUpdate:
+      verify_callback = &CertificateChecker::VerifySSLCallbackUpdate;
+      break;
+    case ServerToCheck::kNone:
+      verify_callback = nullptr;
+      break;
+  }
 
+  SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, verify_callback);
   return CURLE_OK;
 }
 
 // static
+int CertificateChecker::VerifySSLCallbackDownload(int preverify_ok,
+                                                  X509_STORE_CTX* x509_ctx) {
+  return VerifySSLCallback(preverify_ok, x509_ctx, ServerToCheck::kDownload);
+}
+
+// static
+int CertificateChecker::VerifySSLCallbackUpdate(int preverify_ok,
+                                                X509_STORE_CTX* x509_ctx) {
+  return VerifySSLCallback(preverify_ok, x509_ctx, ServerToCheck::kUpdate);
+}
+
+// static
 int CertificateChecker::VerifySSLCallback(int preverify_ok,
-                                          X509_STORE_CTX* x509_ctx) {
-  CertificateChecker* cert_checker = lazy_tls_ptr.Pointer()->Get();
-  CHECK(cert_checker != nullptr);
-  return cert_checker->CheckCertificateChange(preverify_ok, x509_ctx) ? 1 : 0;
+                                          X509_STORE_CTX* x509_ctx,
+                                          ServerToCheck server_to_check) {
+  CHECK(cert_checker_singleton_ != nullptr);
+  return cert_checker_singleton_->CheckCertificateChange(
+      preverify_ok, x509_ctx, server_to_check) ? 1 : 0;
 }
 
 bool CertificateChecker::CheckCertificateChange(int preverify_ok,
-                                                X509_STORE_CTX* x509_ctx) {
+                                                X509_STORE_CTX* x509_ctx,
+                                                ServerToCheck server_to_check) {
   TEST_AND_RETURN_FALSE(prefs_ != nullptr);
 
   // If pre-verification failed, we are not interested in the current
   // certificate. We store a report to UMA and just propagate the fail result.
   if (!preverify_ok) {
-    NotifyCertificateChecked(CertificateCheckResult::kFailed);
+    NotifyCertificateChecked(server_to_check, CertificateCheckResult::kFailed);
     return false;
   }
 
@@ -123,7 +153,7 @@ bool CertificateChecker::CheckCertificateChange(int preverify_ok,
                                               digest)) {
     LOG(WARNING) << "Failed to generate digest of X509 certificate "
                  << "from update server.";
-    NotifyCertificateChecked(CertificateCheckResult::kValid);
+    NotifyCertificateChecked(server_to_check, CertificateCheckResult::kValid);
     return true;
   }
 
@@ -133,7 +163,7 @@ bool CertificateChecker::CheckCertificateChange(int preverify_ok,
 
   string storage_key =
       base::StringPrintf("%s-%d-%d", kPrefsUpdateServerCertificate,
-                         static_cast<int>(server_to_check_), depth);
+                         static_cast<int>(server_to_check), depth);
   string stored_digest;
   // If there's no stored certificate, we just store the current one and return.
   if (!prefs_->GetString(storage_key, &stored_digest)) {
@@ -141,7 +171,7 @@ bool CertificateChecker::CheckCertificateChange(int preverify_ok,
       LOG(WARNING) << "Failed to store server certificate on storage key "
                    << storage_key;
     }
-    NotifyCertificateChecked(CertificateCheckResult::kValid);
+    NotifyCertificateChecked(server_to_check, CertificateCheckResult::kValid);
     return true;
   }
 
@@ -152,19 +182,23 @@ bool CertificateChecker::CheckCertificateChange(int preverify_ok,
       LOG(WARNING) << "Failed to store server certificate on storage key "
                    << storage_key;
     }
-    NotifyCertificateChecked(CertificateCheckResult::kValidChanged);
+    LOG(INFO) << "Certificate changed from " << stored_digest << " to "
+              << digest_string << ".";
+    NotifyCertificateChecked(server_to_check,
+                             CertificateCheckResult::kValidChanged);
     return true;
   }
 
-  NotifyCertificateChecked(CertificateCheckResult::kValid);
+  NotifyCertificateChecked(server_to_check, CertificateCheckResult::kValid);
   // Since we don't perform actual SSL verification, we return success.
   return true;
 }
 
 void CertificateChecker::NotifyCertificateChecked(
+    ServerToCheck server_to_check,
     CertificateCheckResult result) {
   if (observer_)
-    observer_->CertificateChecked(server_to_check_, result);
+    observer_->CertificateChecked(server_to_check, result);
 }
 
 }  // namespace chromeos_update_engine

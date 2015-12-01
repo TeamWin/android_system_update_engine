@@ -511,6 +511,8 @@ void ReportCertificateCheckMetrics(SystemState* system_state,
     case ServerToCheck::kDownload:
       metric = kMetricCertificateCheckDownload;
       break;
+    case ServerToCheck::kNone:
+      return;
   }
   LOG(INFO) << "Uploading " << static_cast<int>(result) << " for metric "
             << metric;

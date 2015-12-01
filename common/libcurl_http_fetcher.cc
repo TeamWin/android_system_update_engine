@@ -44,13 +44,9 @@ namespace {
 const int kNoNetworkRetrySeconds = 10;
 }  // namespace
 
-LibcurlHttpFetcher::LibcurlHttpFetcher(
-    ProxyResolver* proxy_resolver,
-    HardwareInterface* hardware,
-    std::unique_ptr<CertificateChecker> certificate_checker)
-  : HttpFetcher(proxy_resolver),
-    hardware_(hardware),
-    certificate_checker_(std::move(certificate_checker)) {
+LibcurlHttpFetcher::LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
+                                       HardwareInterface* hardware)
+    : HttpFetcher(proxy_resolver), hardware_(hardware) {
   // Dev users want a longer timeout (180 seconds) because they may
   // be waiting on the dev server to build an image.
   if (!hardware_->IsOfficialBuild())
@@ -237,10 +233,10 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttps() {
            CURLE_OK);
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_CIPHER_LIST, "HIGH:!ADH"),
            CURLE_OK);
-  if (certificate_checker_ != nullptr) {
-    CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_CTX_DATA,
-                              certificate_checker_.get()),
-             CURLE_OK);
+  if (server_to_check_ != ServerToCheck::kNone) {
+    CHECK_EQ(
+        curl_easy_setopt(curl_handle_, CURLOPT_SSL_CTX_DATA, &server_to_check_),
+        CURLE_OK);
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_CTX_FUNCTION,
                               CertificateChecker::ProcessSSLContext),
              CURLE_OK);

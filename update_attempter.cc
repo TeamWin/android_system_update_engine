@@ -119,15 +119,20 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
 
 UpdateAttempter::UpdateAttempter(
     SystemState* system_state,
+    CertificateChecker* cert_checker,
     LibCrosProxy* libcros_proxy,
     org::chromium::debugdProxyInterface* debugd_proxy)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
+      cert_checker_(cert_checker),
       chrome_proxy_resolver_(libcros_proxy),
       debugd_proxy_(debugd_proxy) {
 }
 
 UpdateAttempter::~UpdateAttempter() {
+  // CertificateChecker might not be initialized in unittests.
+  if (cert_checker_)
+    cert_checker_->SetObserver(nullptr);
   CleanupCpuSharesManagement();
   // Release ourselves as the ActionProcessor's delegate to prevent
   // re-scheduling the updates due to the processing stopped.
@@ -140,6 +145,9 @@ void UpdateAttempter::Init() {
   // which requires them all to be constructed prior to it being used.
   prefs_ = system_state_->prefs();
   omaha_request_params_ = system_state_->request_params();
+
+  if (cert_checker_)
+    cert_checker_->SetObserver(this);
 
   // In case of update_engine restart without a reboot we need to restore the
   // reboot needed state.
@@ -578,14 +586,9 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   processor_->set_delegate(this);
 
   // Actions:
-  std::unique_ptr<CertificateChecker> update_check_checker(
-      new CertificateChecker(prefs_, &openssl_wrapper_,
-                             ServerToCheck::kUpdate));
-  update_check_checker->SetObserver(this);
   std::unique_ptr<LibcurlHttpFetcher> update_check_fetcher(
-      new LibcurlHttpFetcher(GetProxyResolver(),
-                             system_state_->hardware(),
-                             std::move(update_check_checker)));
+      new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware()));
+  update_check_fetcher->set_server_to_check(ServerToCheck::kUpdate);
   // Try harder to connect to the network, esp when not interactive.
   // See comment in libcurl_http_fetcher.cc.
   update_check_fetcher->set_no_network_max_retries(interactive ? 1 : 3);
@@ -608,14 +611,10 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                                  GetProxyResolver(),
                                  system_state_->hardware())),
                              false));
-  std::unique_ptr<CertificateChecker> download_checker(
-      new CertificateChecker(prefs_, &openssl_wrapper_,
-                             ServerToCheck::kDownload));
-  download_checker->SetObserver(this);
+
   LibcurlHttpFetcher* download_fetcher =
-      new LibcurlHttpFetcher(GetProxyResolver(),
-                             system_state_->hardware(),
-                             std::move(download_checker));
+      new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
+  download_fetcher->set_server_to_check(ServerToCheck::kDownload);
   shared_ptr<DownloadAction> download_action(
       new DownloadAction(prefs_,
                          system_state_,

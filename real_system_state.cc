@@ -111,6 +111,16 @@ bool RealSystemState::Initialize() {
                     "features might not work properly.";
   }
 
+  certificate_checker_.reset(
+      new CertificateChecker(prefs_.get(), &openssl_wrapper_));
+  certificate_checker_->Init();
+
+  // Initialize the UpdateAttempter before the UpdateManager.
+  update_attempter_.reset(
+      new UpdateAttempter(this, certificate_checker_.get(), &libcros_proxy_,
+                          &debugd_proxy_));
+  update_attempter_->Init();
+
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(
@@ -133,9 +143,6 @@ bool RealSystemState::Initialize() {
     LOG(ERROR) << "Failed to initialize the payload state object.";
     return false;
   }
-
-  // Initialize the update attempter.
-  update_attempter_.Init();
 
   // All is well. Initialization successful.
   return true;
