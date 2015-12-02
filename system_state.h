@@ -17,7 +17,11 @@
 #ifndef UPDATE_ENGINE_SYSTEM_STATE_H_
 #define UPDATE_ENGINE_SYSTEM_STATE_H_
 
-#include <power_manager/dbus-proxies.h>
+namespace org {
+namespace chromium {
+class PowerManagerProxyInterface;
+}  // namespace chromium
+}  // namespace org
 
 class MetricsLibraryInterface;
 

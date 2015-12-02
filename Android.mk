@@ -118,21 +118,11 @@ include $(BUILD_STATIC_LIBRARY)
 
 endif  # BRILLO_USE_DBUS == 1
 
-
-#TODO(deymo): Re-enable this library once the dbus dependencies are removed from
-# the code.
-ifeq ($(BRILLO_USE_DBUS),1)
-
 # libpayload_consumer (type: static_library)
 # ========================================================
 # The payload application component and common dependencies.
-ue_libpayload_consumer_exported_c_includes := \
-    $(LOCAL_PATH)/include \
-    external/cros/system_api/dbus
 ue_libpayload_consumer_exported_static_libraries := \
     update_metadata-protos \
-    update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies \
     libxz \
     libbz \
     libfs_mgr \
@@ -140,10 +130,7 @@ ue_libpayload_consumer_exported_static_libraries := \
 ue_libpayload_consumer_exported_shared_libraries := \
     libcrypto \
     libcurl \
-    libshill-client \
     libssl \
-    libexpat \
-    libbrillo-policy \
     libhardware \
     libcutils \
     $(ue_update_metadata_protos_exported_shared_libraries)
@@ -154,18 +141,14 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
-LOCAL_EXPORT_C_INCLUDE_DIRS := $(ue_libpayload_consumer_exported_c_includes)
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
     $(ue_common_c_includes) \
-    $(ue_libpayload_consumer_exported_c_includes) \
     external/e2fsprogs/lib
 LOCAL_STATIC_LIBRARIES := \
     update_metadata-protos \
-    update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
@@ -205,8 +188,6 @@ LOCAL_SRC_FILES := \
     payload_consumer/xz_extent_writer.cc
 include $(BUILD_STATIC_LIBRARY)
 
-endif  # BRILLO_USE_DBUS == 1
-
 ifeq ($(BRILLO_USE_DBUS),1)
 
 # libupdate_engine (type: static_library)
@@ -215,26 +196,21 @@ ifeq ($(BRILLO_USE_DBUS),1)
 # with Omaha and expose a DBus daemon.
 ue_libupdate_engine_exported_c_includes := \
     $(LOCAL_PATH)/include \
-    external/cros/system_api/dbus \
-    $(ue_libpayload_consumer_exported_c_includes)
+    external/cros/system_api/dbus
 ue_libupdate_engine_exported_static_libraries := \
     libpayload_consumer \
     update_metadata-protos \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
     update_engine_client-dbus-proxies \
-    libxz \
     libbz \
     libfs_mgr \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libupdate_engine_exported_shared_libraries := \
     libdbus \
-    libcrypto \
-    libcurl \
     libmetrics \
     libshill-client \
-    libssl \
     libexpat \
     libbrillo-policy \
     libhardware \
@@ -254,8 +230,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
     $(ue_common_c_includes) \
-    $(ue_libupdate_engine_exported_c_includes) \
-    $(ue_libpayload_consumer_exported_c_includes)
+    $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
@@ -382,24 +357,18 @@ include $(BUILD_EXECUTABLE)
 
 endif  # BRILLO_USE_DBUS == 1
 
-#TODO(deymo): Re-enable this library once the dbus dependencies are removed from
-# the code.
-ifeq ($(BRILLO_USE_DBUS),1)
-
 # libpayload_generator (type: static_library)
 # ========================================================
 # server-side code. This is used for delta_generator and unittests but not
 # for any client code.
-ue_libpayload_generator_exported_c_includes := \
-    $(ue_libupdate_engine_exported_c_includes)
 ue_libpayload_generator_exported_static_libraries := \
-    libupdate_engine \
+    libpayload_consumer \
     update_metadata-protos \
-    $(ue_libupdate_engine_exported_static_libraries) \
+    $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_generator_exported_shared_libraries := \
     libext2fs \
-    $(ue_libupdate_engine_exported_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 
 include $(CLEAR_VARS)
@@ -408,22 +377,19 @@ LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
-LOCAL_EXPORT_C_INCLUDE_DIRS := $(ue_libpayload_generator_exported_c_includes)
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
-LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
-    $(ue_libupdate_engine_exported_c_includes)
+LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
-    libupdate_engine \
+    libpayload_consumer \
     update_metadata-protos \
-    $(ue_libupdate_engine_exported_static_libraries) \
+    $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     $(ue_libpayload_generator_exported_shared_libraries) \
-    $(ue_libupdate_engine_exported_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     payload_generator/ab_generator.cc \
@@ -461,24 +427,19 @@ LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
-LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
-    $(ue_libupdate_engine_exported_c_includes) \
-    $(ue_libpayload_generator_exported_c_includes)
+LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
-    libupdate_engine \
+    libpayload_consumer \
     libpayload_generator \
-    $(ue_libupdate_engine_exported_static_libraries) \
+    $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_libpayload_generator_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    $(ue_libupdate_engine_exported_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_libpayload_generator_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     payload_generator/generate_delta_main.cc
 include $(BUILD_EXECUTABLE)
-
-endif  # BRILLO_USE_DBUS == 1
 
 ifeq ($(BRILLO_USE_DBUS),1)
 

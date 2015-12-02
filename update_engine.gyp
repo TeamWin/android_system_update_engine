@@ -46,6 +46,7 @@
     'defines': [
       '_FILE_OFFSET_BITS=64',
       '_POSIX_C_SOURCE=199309L',
+      'USE_DBUS=<(USE_dbus)',
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
       'USE_MTD=<(USE_mtd)',
       'USE_POWER_MANAGEMENT=<(USE_power_management)',
@@ -118,7 +119,6 @@
       'type': 'static_library',
       'dependencies': [
         'update_metadata-protos',
-        'update_engine-other-dbus-proxies',
       ],
       #TODO(deymo): Remove unused dependencies once we stop including files
       # from the root directory.
@@ -126,13 +126,7 @@
         'exported_deps': [
           'libcrypto',
           'libcurl',
-          'libdebugd-client',
-          'libsession_manager-client',
-          'libpower_manager-client',
-          'libupdate_engine-client',
-          'libshill-client',
           'libssl',
-          'expat',
           'xz-embedded',
         ],
         'deps': ['<@(exported_deps)'],
@@ -152,7 +146,6 @@
         },
         'libraries': [
           '-lbz2',
-          '-lpolicy-<(libbase_ver)',
           '-lrootdev',
           '-lrt',
           '-lvboot_host',
@@ -217,17 +210,13 @@
       'variables': {
         'exported_deps': [
           'dbus-1',
-          'libcrypto',
-          'libcurl',
           'libdebugd-client',
           'libsession_manager-client',
           'libmetrics-<(libbase_ver)',
           'libpower_manager-client',
           'libupdate_engine-client',
           'libshill-client',
-          'libssl',
           'expat',
-          'xz-embedded',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -318,7 +307,7 @@
       'target_name': 'libpayload_generator',
       'type': 'static_library',
       'dependencies': [
-        'libupdate_engine',
+        'libpayload_consumer',
         'update_metadata-protos',
       ],
       'variables': {
@@ -370,7 +359,7 @@
       'target_name': 'delta_generator',
       'type': 'executable',
       'dependencies': [
-        'libupdate_engine',
+        'libpayload_consumer',
         'libpayload_generator',
       ],
       'link_settings': {
