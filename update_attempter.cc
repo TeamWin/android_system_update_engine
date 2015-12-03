@@ -1057,7 +1057,13 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
   }
 }
 
-void UpdateAttempter::BytesReceived(uint64_t bytes_received, uint64_t total) {
+void UpdateAttempter::BytesReceived(uint64_t bytes_progressed,
+                                    uint64_t bytes_received,
+                                    uint64_t total) {
+  // The PayloadState keeps track of how many bytes were actually downloaded
+  // from a given URL for the URL skipping logic.
+  system_state_->payload_state()->DownloadProgress(bytes_progressed);
+
   double progress = static_cast<double>(bytes_received) /
       static_cast<double>(total);
   // Self throttle based on progress. Also send notifications if
@@ -1070,6 +1076,10 @@ void UpdateAttempter::BytesReceived(uint64_t bytes_received, uint64_t total) {
     download_progress_ = progress;
     SetStatusAndNotify(UpdateStatus::DOWNLOADING);
   }
+}
+
+void UpdateAttempter::DownloadComplete() {
+  system_state_->payload_state()->DownloadComplete();
 }
 
 bool UpdateAttempter::ResetStatus() {

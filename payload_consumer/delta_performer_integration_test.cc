@@ -31,11 +31,12 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/mock_prefs.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/fake_system_state.h"
+#include "update_engine/payload_consumer/mock_download_action.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
@@ -88,9 +89,10 @@ struct DeltaState {
   // The in-memory copy of delta file.
   brillo::Blob delta;
 
-  // The mock system state object with which we initialize the
-  // delta performer.
-  FakeSystemState fake_system_state;
+  // Mock and fake instances used by the delta performer.
+  FakeBootControl fake_boot_control_;
+  FakeHardware fake_hardware_;
+  MockDownloadActionDelegate mock_delegate_;
 };
 
 enum SignatureTest {
@@ -595,8 +597,6 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                                            nullptr));
     LOG(INFO) << "Metadata size: " << state->metadata_size;
 
-
-
     if (signature_test == kSignatureNone) {
       EXPECT_FALSE(manifest.has_signatures_offset());
       EXPECT_FALSE(manifest.has_signatures_size());
@@ -707,6 +707,9 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
         .WillOnce(Return(true));
   }
 
+  EXPECT_CALL(state->mock_delegate_, ShouldCancel(_))
+      .WillRepeatedly(Return(false));
+
   // Update the A image in place.
   InstallPlan* install_plan = &state->install_plan;
   install_plan->hash_checks_mandatory = hash_checks_mandatory;
@@ -731,7 +734,9 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   EXPECT_FALSE(install_plan->metadata_signature.empty());
 
   *performer = new DeltaPerformer(&prefs,
-                                  &state->fake_system_state,
+                                  &state->fake_boot_control_,
+                                  &state->fake_hardware_,
+                                  &state->mock_delegate_,
                                   install_plan);
   EXPECT_TRUE(utils::FileExists(kUnittestPublicKeyPath));
   (*performer)->set_public_key_path(kUnittestPublicKeyPath);
@@ -761,13 +766,13 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
     target_kernel = state->old_kernel;
   }
 
-  state->fake_system_state.fake_boot_control()->SetPartitionDevice(
+  state->fake_boot_control_.SetPartitionDevice(
       kLegacyPartitionNameRoot, install_plan->source_slot, state->a_img);
-  state->fake_system_state.fake_boot_control()->SetPartitionDevice(
+  state->fake_boot_control_.SetPartitionDevice(
       kLegacyPartitionNameKernel, install_plan->source_slot, state->old_kernel);
-  state->fake_system_state.fake_boot_control()->SetPartitionDevice(
+  state->fake_boot_control_.SetPartitionDevice(
       kLegacyPartitionNameRoot, install_plan->target_slot, target_root);
-  state->fake_system_state.fake_boot_control()->SetPartitionDevice(
+  state->fake_boot_control_.SetPartitionDevice(
       kLegacyPartitionNameKernel, install_plan->target_slot, target_kernel);
 
   ErrorCode expected_error, actual_error;
@@ -837,8 +842,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
   }
 
   int expected_times = (expected_result == ErrorCode::kSuccess) ? 1 : 0;
-  EXPECT_CALL(*(state->fake_system_state.mock_payload_state()),
-              DownloadComplete()).Times(expected_times);
+  EXPECT_CALL(state->mock_delegate_, DownloadComplete()).Times(expected_times);
 
   LOG(INFO) << "Verifying payload for expected result "
             << expected_result;

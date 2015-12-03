@@ -151,8 +151,16 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // UPDATED_NEED_REBOOT. Returns true on sucess, false otherwise.
   bool RebootIfNeeded();
 
-  // DownloadActionDelegate method.
-  void BytesReceived(uint64_t bytes_received, uint64_t total) override;
+  // DownloadActionDelegate methods:
+  void BytesReceived(uint64_t bytes_progressed,
+                     uint64_t bytes_received,
+                     uint64_t total) override;
+
+  // Returns that the update should be canceled when the download channel was
+  // changed.
+  bool ShouldCancel(ErrorCode* cancel_reason) override;
+
+  void DownloadComplete() override;
 
   // Broadcasts the current status over D-Bus.
   void BroadcastStatus();
@@ -160,12 +168,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
   uint32_t GetErrorCodeFlags();
-
-  // Returns true if we should cancel the current download attempt based on the
-  // current state of the system, in which case |cancel_reason| indicates the
-  // reason for the cancellation.  False otherwise, in which case
-  // |cancel_reason| is untouched.
-  bool ShouldCancel(ErrorCode* cancel_reason);
 
   // Called at update_engine startup to do various house-keeping.
   void UpdateEngineStarted();

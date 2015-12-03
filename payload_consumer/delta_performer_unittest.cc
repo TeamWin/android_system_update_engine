@@ -26,15 +26,17 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <gmock/gmock.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/fake_system_state.h"
+#include "update_engine/payload_consumer/mock_download_action.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/extent_ranges.h"
@@ -48,6 +50,7 @@ using std::string;
 using std::vector;
 using test_utils::System;
 using test_utils::kRandomString;
+using testing::_;
 
 extern const char* kUnittestPrivateKeyPath;
 extern const char* kUnittestPublicKeyPath;
@@ -87,6 +90,8 @@ class DeltaPerformerTest : public ::testing::Test {
   void SetUp() override {
     install_plan_.source_slot = 0;
     install_plan_.target_slot = 1;
+    EXPECT_CALL(mock_delegate_, ShouldCancel(_))
+        .WillRepeatedly(testing::Return(false));
   }
 
   // Test helper placed where it can easily be friended from DeltaPerformer.
@@ -175,13 +180,13 @@ class DeltaPerformerTest : public ::testing::Test {
 
     // We installed the operations only in the rootfs partition, but the
     // delta performer needs to access all the partitions.
-    fake_system_state_.fake_boot_control()->SetPartitionDevice(
+    fake_boot_control_.SetPartitionDevice(
         kLegacyPartitionNameRoot, install_plan_.target_slot, new_part);
-    fake_system_state_.fake_boot_control()->SetPartitionDevice(
+    fake_boot_control_.SetPartitionDevice(
         kLegacyPartitionNameRoot, install_plan_.source_slot, source_path);
-    fake_system_state_.fake_boot_control()->SetPartitionDevice(
+    fake_boot_control_.SetPartitionDevice(
         kLegacyPartitionNameKernel, install_plan_.target_slot, "/dev/null");
-    fake_system_state_.fake_boot_control()->SetPartitionDevice(
+    fake_boot_control_.SetPartitionDevice(
         kLegacyPartitionNameKernel, install_plan_.source_slot, "/dev/null");
 
     EXPECT_EQ(expect_success,
@@ -302,8 +307,11 @@ class DeltaPerformerTest : public ::testing::Test {
   }
   FakePrefs prefs_;
   InstallPlan install_plan_;
-  FakeSystemState fake_system_state_;
-  DeltaPerformer performer_{&prefs_, &fake_system_state_, &install_plan_};
+  FakeBootControl fake_boot_control_;
+  FakeHardware fake_hardware_;
+  MockDownloadActionDelegate mock_delegate_;
+  DeltaPerformer performer_{
+      &prefs_, &fake_boot_control_, &fake_hardware_, &mock_delegate_, &install_plan_};
 };
 
 TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
@@ -323,6 +331,31 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
       kChromeOSMajorPayloadVersion, kFullPayloadMinorVersion);
 
   EXPECT_EQ(expected_data, ApplyPayload(payload_data, "/dev/null", true));
+}
+
+TEST_F(DeltaPerformerTest, ShouldCancelTest) {
+  install_plan_.is_full_update = true;
+  brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
+                                            std::end(kRandomString));
+  expected_data.resize(4096);  // block size
+  vector<AnnotatedOperation> aops;
+  AnnotatedOperation aop;
+  *(aop.op.add_dst_extents()) = ExtentForRange(0, 1);
+  aop.op.set_data_offset(0);
+  aop.op.set_data_length(expected_data.size());
+  aop.op.set_type(InstallOperation::REPLACE);
+  aops.push_back(aop);
+
+  brillo::Blob payload_data = GeneratePayload(expected_data, aops, false,
+      kChromeOSMajorPayloadVersion, kFullPayloadMinorVersion);
+
+  testing::Mock::VerifyAndClearExpectations(&mock_delegate_);
+  EXPECT_CALL(mock_delegate_, ShouldCancel(_))
+      .WillOnce(
+          testing::DoAll(testing::SetArgumentPointee<0>(ErrorCode::kError),
+                         testing::Return(true)));
+
+  ApplyPayload(payload_data, "/dev/null", false);
 }
 
 TEST_F(DeltaPerformerTest, ReplaceOperationTest) {
@@ -620,17 +653,6 @@ TEST_F(DeltaPerformerTest, BadDeltaMagicTest) {
   EXPECT_LT(performer_.Close(), 0);
 }
 
-TEST_F(DeltaPerformerTest, WriteUpdatesPayloadState) {
-  EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
-              DownloadProgress(4)).Times(1);
-  EXPECT_CALL(*(fake_system_state_.mock_payload_state()),
-              DownloadProgress(8)).Times(1);
-
-  EXPECT_TRUE(performer_.Write("junk", 4));
-  EXPECT_FALSE(performer_.Write("morejunk", 8));
-  EXPECT_LT(performer_.Close(), 0);
-}
-
 TEST_F(DeltaPerformerTest, MissingMandatoryMetadataSizeTest) {
   DoMetadataSizeTest(0, 75456, true);
 }
@@ -694,8 +716,6 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   //  a. it's not an official build; and
   //  b. there is no key in the root filesystem.
 
-  FakeHardware* fake_hardware = fake_system_state_.fake_hardware();
-
   string temp_dir;
   EXPECT_TRUE(utils::MakeTempDirectory("PublicKeyFromResponseTests.XXXXXX",
                                        &temp_dir));
@@ -704,46 +724,46 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   EXPECT_EQ(0, System(base::StringPrintf("touch %s", existing_file.c_str())));
 
   // Non-official build, non-existing public-key, key in response -> true
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = non_existing_file;
   install_plan_.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
   EXPECT_TRUE(performer_.GetPublicKeyFromResponse(&key_path));
   EXPECT_FALSE(key_path.empty());
   EXPECT_EQ(unlink(key_path.value().c_str()), 0);
   // Same with official build -> false
-  fake_hardware->SetIsOfficialBuild(true);
+  fake_hardware_.SetIsOfficialBuild(true);
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, existing public-key, key in response -> false
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = existing_file;
   install_plan_.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
-  fake_hardware->SetIsOfficialBuild(true);
+  fake_hardware_.SetIsOfficialBuild(true);
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, non-existing public-key, no key in response -> false
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = non_existing_file;
   install_plan_.public_key_rsa = "";
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
-  fake_hardware->SetIsOfficialBuild(true);
+  fake_hardware_.SetIsOfficialBuild(true);
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, existing public-key, no key in response -> false
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = existing_file;
   install_plan_.public_key_rsa = "";
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
-  fake_hardware->SetIsOfficialBuild(true);
+  fake_hardware_.SetIsOfficialBuild(true);
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
 
   // Non-official build, non-existing public-key, key in response
   // but invalid base64 -> false
-  fake_hardware->SetIsOfficialBuild(false);
+  fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = non_existing_file;
   install_plan_.public_key_rsa = "not-valid-base64";
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));

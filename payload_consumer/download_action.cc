@@ -182,7 +182,9 @@ void DownloadAction::PerformAction() {
     LOG(INFO) << "Using writer for test.";
   } else {
     delta_performer_.reset(new DeltaPerformer(prefs_,
-                                              system_state_,
+                                              system_state_->boot_control(),
+                                              system_state_->hardware(),
+                                              delegate_,
                                               &install_plan_));
     writer_ = delta_performer_.get();
   }
@@ -254,8 +256,10 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
   }
 
   bytes_received_ += length;
-  if (delegate_ && download_active_)
-    delegate_->BytesReceived(bytes_received_, install_plan_.payload_size);
+  if (delegate_ && download_active_) {
+    delegate_->BytesReceived(
+        length, bytes_received_, install_plan_.payload_size);
+  }
   if (writer_ && !writer_->Write(bytes, length, &code_)) {
     LOG(ERROR) << "Error " << code_ << " in DeltaPerformer's Write method when "
                << "processing the received payload -- Terminating processing";

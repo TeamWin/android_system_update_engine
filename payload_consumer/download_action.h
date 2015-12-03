@@ -43,9 +43,23 @@ class DownloadActionDelegate {
   virtual ~DownloadActionDelegate() = default;
 
   // Called periodically after bytes are received. This method will be invoked
-  // only if the DownloadAction is running. |bytes_received| is the number of
-  // bytes downloaded thus far. |total| is the number of bytes expected.
-  virtual void BytesReceived(uint64_t bytes_received, uint64_t total) = 0;
+  // only if the DownloadAction is running. |bytes_progressed| is the number of
+  // bytes downloaded since the last call of this method, |bytes_received|
+  // the number of bytes downloaded thus far and |total| is the number of bytes
+  // expected.
+  virtual void BytesReceived(uint64_t bytes_progressed,
+                             uint64_t bytes_received,
+                             uint64_t total) = 0;
+
+  // Returns whether the download should be canceled, in which case the
+  // |cancel_reason| error should be set to the reason why the download was
+  // canceled.
+  virtual bool ShouldCancel(ErrorCode* cancel_reason) = 0;
+
+  // Called once the complete payload has been downloaded. Note that any errors
+  // while applying or downloading the partial payload will result in this
+  // method not being called.
+  virtual void DownloadComplete() = 0;
 };
 
 class PrefsInterface;

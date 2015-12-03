@@ -36,19 +36,18 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/prefs_interface.h"
+#include "update_engine/common/subprocess.h"
+#include "update_engine/common/terminator.h"
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
+#include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/extent_writer.h"
 #if USE_MTD
 #include "update_engine/payload_consumer/mtd_file_descriptor.h"
 #endif
-#include "update_engine/common/prefs_interface.h"
-#include "update_engine/common/subprocess.h"
-#include "update_engine/common/terminator.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_consumer/xz_extent_writer.h"
-#include "update_engine/payload_state_interface.h"
-#include "update_engine/update_attempter.h"
 
 using google::protobuf::RepeatedPtrField;
 using std::min;
@@ -533,7 +532,6 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
   *error = ErrorCode::kSuccess;
 
   const char* c_bytes = reinterpret_cast<const char*>(bytes);
-  system_state_->payload_state()->DownloadProgress(count);
 
   // Update the total byte downloaded count and the progress logs.
   total_bytes_received_ += count;
@@ -601,7 +599,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     // Check if we should cancel the current attempt for any reason.
     // In this case, *error will have already been populated with the reason
     // why we're canceling.
-    if (system_state_->update_attempter()->ShouldCancel(error))
+    if (download_delegate_ && download_delegate_->ShouldCancel(error))
       return false;
 
     // We know there are more operations to perform because we didn't reach the
@@ -803,7 +801,7 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     install_plan_->partitions.push_back(install_part);
   }
 
-  if (!install_plan_->LoadPartitionsFromSlots(system_state_->boot_control())) {
+  if (!install_plan_->LoadPartitionsFromSlots(boot_control_)) {
     LOG(ERROR) << "Unable to determine all the partition devices.";
     *error = ErrorCode::kInstallDeviceOpenError;
     return false;
@@ -1256,7 +1254,7 @@ bool DeltaPerformer::ExtractSignatureMessage() {
 }
 
 bool DeltaPerformer::GetPublicKeyFromResponse(base::FilePath *out_tmp_key) {
-  if (system_state_->hardware()->IsOfficialBuild() ||
+  if (hardware_->IsOfficialBuild() ||
       utils::FileExists(public_key_path_.c_str()) ||
       install_plan_->public_key_rsa.empty())
     return false;
@@ -1547,8 +1545,10 @@ ErrorCode DeltaPerformer::VerifyPayload(
   // the one whose size matches the size mentioned in Omaha response. If any
   // errors happen after this, it's likely a problem with the payload itself or
   // the state of the system and not a problem with the URL or network.  So,
-  // indicate that to the payload state so that AU can backoff appropriately.
-  system_state_->payload_state()->DownloadComplete();
+  // indicate that to the download delegate so that AU can backoff
+  // appropriately.
+  if (download_delegate_)
+    download_delegate_->DownloadComplete();
 
   return ErrorCode::kSuccess;
 }

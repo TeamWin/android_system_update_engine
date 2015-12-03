@@ -32,11 +32,13 @@
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/file_writer.h"
 #include "update_engine/payload_consumer/install_plan.h"
-#include "update_engine/system_state.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
 
+class DownloadActionDelegate;
+class BootControlInterface;
+class HardwareInterface;
 class PrefsInterface;
 
 // This class performs the actions in a delta update synchronously. The delta
@@ -73,10 +75,14 @@ class DeltaPerformer : public FileWriter {
   static const unsigned kProgressOperationsWeight;
 
   DeltaPerformer(PrefsInterface* prefs,
-                 SystemState* system_state,
+                 BootControlInterface* boot_control,
+                 HardwareInterface* hardware,
+                 DownloadActionDelegate* download_delegate,
                  InstallPlan* install_plan)
       : prefs_(prefs),
-        system_state_(system_state),
+        boot_control_(boot_control),
+        hardware_(hardware),
+        download_delegate_(download_delegate),
         install_plan_(install_plan) {}
 
   // FileWriter's Write implementation where caller doesn't care about
@@ -288,8 +294,13 @@ class DeltaPerformer : public FileWriter {
   // Update Engine preference store.
   PrefsInterface* prefs_;
 
-  // Global context of the system.
-  SystemState* system_state_;
+  // BootControl and Hardware interface references.
+  BootControlInterface* boot_control_;
+  HardwareInterface* hardware_;
+
+  // The DownloadActionDelegate instance monitoring the DownloadAction, or a
+  // nullptr if not used.
+  DownloadActionDelegate* download_delegate_;
 
   // Install Plan based on Omaha Response.
   InstallPlan* install_plan_;

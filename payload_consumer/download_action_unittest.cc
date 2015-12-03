@@ -41,6 +41,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/fake_p2p_manager_configuration.h"
 #include "update_engine/fake_system_state.h"
+#include "update_engine/payload_consumer/mock_download_action.h"
 #include "update_engine/update_manager/fake_update_manager.h"
 
 namespace chromeos_update_engine {
@@ -60,10 +61,6 @@ using testing::_;
 class DownloadActionTest : public ::testing::Test { };
 
 namespace {
-class DownloadActionDelegateMock : public DownloadActionDelegate {
- public:
-  MOCK_METHOD2(BytesReceived, void(uint64_t bytes_received, uint64_t total));
-};
 
 class DownloadActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
@@ -172,14 +169,14 @@ void TestWithData(const brillo::Blob& data,
   DownloadAction download_action(&prefs, &fake_system_state, http_fetcher);
   download_action.SetTestFileWriter(&writer);
   BondActions(&feeder_action, &download_action);
-  DownloadActionDelegateMock download_delegate;
+  MockDownloadActionDelegate download_delegate;
   if (use_download_delegate) {
     InSequence s;
     download_action.set_delegate(&download_delegate);
     if (data.size() > kMockHttpFetcherChunkSize)
       EXPECT_CALL(download_delegate,
-                  BytesReceived(1 + kMockHttpFetcherChunkSize, _));
-    EXPECT_CALL(download_delegate, BytesReceived(_, _)).Times(AtLeast(1));
+                  BytesReceived(_, 1 + kMockHttpFetcherChunkSize, _));
+    EXPECT_CALL(download_delegate, BytesReceived(_, _, _)).Times(AtLeast(1));
   }
   ErrorCode expected_code = ErrorCode::kSuccess;
   if (fail_write > 0)
@@ -286,10 +283,10 @@ void TestTerminateEarly(bool use_download_delegate) {
                                                        data.size(),
                                                        nullptr));
     download_action.SetTestFileWriter(&writer);
-    DownloadActionDelegateMock download_delegate;
+    MockDownloadActionDelegate download_delegate;
     if (use_download_delegate) {
       download_action.set_delegate(&download_delegate);
-      EXPECT_CALL(download_delegate, BytesReceived(_, _)).Times(0);
+      EXPECT_CALL(download_delegate, BytesReceived(_, _, _)).Times(0);
     }
     TerminateEarlyTestProcessorDelegate delegate;
     ActionProcessor processor;
