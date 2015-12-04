@@ -30,13 +30,10 @@ ActionProcessor::ActionProcessor()
     : current_action_(nullptr), delegate_(nullptr) {}
 
 ActionProcessor::~ActionProcessor() {
-  if (IsRunning()) {
+  if (IsRunning())
     StopProcessing();
-  }
-  for (std::deque<AbstractAction*>::iterator it = actions_.begin();
-       it != actions_.end(); ++it) {
-    (*it)->SetProcessor(nullptr);
-  }
+  for (auto action : actions_)
+    action->SetProcessor(nullptr);
 }
 
 void ActionProcessor::EnqueueAction(AbstractAction* action) {

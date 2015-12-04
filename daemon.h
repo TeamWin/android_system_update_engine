@@ -31,6 +31,7 @@ namespace chromeos_update_engine {
 class UpdateEngineDaemon : public brillo::DBusDaemon {
  public:
   UpdateEngineDaemon() = default;
+  ~UpdateEngineDaemon();
 
  protected:
   int OnInit() override;
@@ -46,8 +47,10 @@ class UpdateEngineDaemon : public brillo::DBusDaemon {
   // the main() function.
   Subprocess subprocess_;
 
-  std::unique_ptr<RealSystemState> real_system_state_;
   std::unique_ptr<UpdateEngineAdaptor> dbus_adaptor_;
+
+  // The RealSystemState uses the previous classes so it should be defined last.
+  std::unique_ptr<RealSystemState> real_system_state_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateEngineDaemon);
 };

@@ -54,6 +54,14 @@ bool WaitForDBusSystem(dbus::Bus* bus, base::TimeDelta timeout) {
 }
 }  // namespace
 
+UpdateEngineDaemon::~UpdateEngineDaemon() {
+  UpdateAttempter* update_attempter = real_system_state_->update_attempter();
+  // Prevent any DBus communication from UpdateAttempter when shutting down the
+  // daemon.
+  if (update_attempter)
+    update_attempter->set_dbus_adaptor(nullptr);
+}
+
 int UpdateEngineDaemon::OnInit() {
   // Register the |subprocess_| singleton with this Daemon as the signal
   // handler.

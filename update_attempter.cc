@@ -129,6 +129,9 @@ UpdateAttempter::UpdateAttempter(
 
 UpdateAttempter::~UpdateAttempter() {
   CleanupCpuSharesManagement();
+  // Release ourselves as the ActionProcessor's delegate to prevent
+  // re-scheduling the updates due to the processing stopped.
+  processor_->set_delegate(nullptr);
 }
 
 void UpdateAttempter::Init() {
