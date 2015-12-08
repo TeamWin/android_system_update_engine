@@ -56,13 +56,6 @@ ue_common_shared_libraries := \
     libchrome
 
 ifeq ($(BRILLO_USE_DBUS),1)
-ue_common_shared_libraries += \
-    libbrillo-dbus \
-    libchrome-dbus
-endif  # BRILLO_USE_DBUS == 1
-
-
-ifeq ($(BRILLO_USE_DBUS),1)
 
 # update_engine_client-dbus-proxies (from generate-dbus-proxies.gypi)
 # ========================================================
@@ -85,13 +78,25 @@ ue_update_metadata_protos_exported_static_libraries := \
 ue_update_metadata_protos_exported_shared_libraries := \
     libprotobuf-cpp-lite-rtti
 
+ue_update_metadata_protos_src_files := \
+    update_metadata.proto
+
+# Build for the host.
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_metadata-protos
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 generated_sources_dir := $(call local-generated-sources-dir)
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(generated_sources_dir)/proto/system
-LOCAL_SRC_FILES := \
-    update_metadata.proto
+LOCAL_SRC_FILES := $(ue_update_metadata_protos_src_files)
+include $(BUILD_HOST_STATIC_LIBRARY)
+
+# Build for the target.
+include $(CLEAR_VARS)
+LOCAL_MODULE := update_metadata-protos
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+generated_sources_dir := $(call local-generated-sources-dir)
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(generated_sources_dir)/proto/system
+LOCAL_SRC_FILES := $(ue_update_metadata_protos_src_files)
 include $(BUILD_STATIC_LIBRARY)
 
 ifeq ($(BRILLO_USE_DBUS),1)
@@ -123,36 +128,16 @@ endif  # BRILLO_USE_DBUS == 1
 # The payload application component and common dependencies.
 ue_libpayload_consumer_exported_static_libraries := \
     update_metadata-protos \
-    libxz \
+    libxz-host \
     libbz \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
-    libcrypto \
-    libcurl \
-    libssl \
+    libcrypto-host \
+    libcurl-host \
+    libssl-host \
     $(ue_update_metadata_protos_exported_shared_libraries)
 
-include $(CLEAR_VARS)
-LOCAL_MODULE := libpayload_consumer
-LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
-LOCAL_CLANG := true
-LOCAL_CFLAGS := $(ue_common_cflags)
-LOCAL_CPPFLAGS := $(ue_common_cppflags)
-LOCAL_LDFLAGS := $(ue_common_ldflags)
-LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
-    external/e2fsprogs/lib
-LOCAL_STATIC_LIBRARIES := \
-    update_metadata-protos \
-    $(ue_libpayload_consumer_exported_static_libraries) \
-    $(ue_update_metadata_protos_exported_static_libraries)
-LOCAL_SHARED_LIBRARIES := \
-    $(ue_common_shared_libraries) \
-    $(ue_libpayload_consumer_exported_shared_libraries) \
-    $(ue_update_metadata_protos_exported_shared_libraries)
-LOCAL_SRC_FILES := \
+ue_libpayload_consumer_src_files := \
     common/action_processor.cc \
     common/boot_control_stub.cc \
     common/certificate_checker.cc \
@@ -181,6 +166,55 @@ LOCAL_SRC_FILES := \
     payload_consumer/payload_verifier.cc \
     payload_consumer/postinstall_runner_action.cc \
     payload_consumer/xz_extent_writer.cc
+
+ifeq ($(HOST_OS),linux)
+# Build for the host.
+include $(CLEAR_VARS)
+LOCAL_MODULE := libpayload_consumer
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    external/e2fsprogs/lib
+LOCAL_STATIC_LIBRARIES := \
+    update_metadata-protos \
+    $(ue_libpayload_consumer_exported_static_libraries) \
+    $(ue_update_metadata_protos_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
+    $(ue_update_metadata_protos_exported_shared_libraries)
+LOCAL_SRC_FILES := $(ue_libpayload_consumer_src_files)
+include $(BUILD_HOST_STATIC_LIBRARY)
+endif  # HOST_OS == linux
+
+# Build for the target.
+include $(CLEAR_VARS)
+LOCAL_MODULE := libpayload_consumer
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    external/e2fsprogs/lib
+LOCAL_STATIC_LIBRARIES := \
+    update_metadata-protos \
+    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
+    $(ue_update_metadata_protos_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
+    $(ue_update_metadata_protos_exported_shared_libraries)
+LOCAL_SRC_FILES := $(ue_libpayload_consumer_src_files)
 include $(BUILD_STATIC_LIBRARY)
 
 ifeq ($(BRILLO_USE_DBUS),1)
@@ -204,6 +238,8 @@ ue_libupdate_engine_exported_static_libraries := \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libupdate_engine_exported_shared_libraries := \
     libdbus \
+    libbrillo-dbus \
+    libchrome-dbus \
     libmetrics \
     libshill-client \
     libexpat \
@@ -232,13 +268,13 @@ LOCAL_STATIC_LIBRARIES := \
     update_engine-dbus-adaptor \
     update_engine-dbus-libcros-client \
     update_engine_client-dbus-proxies \
-    $(ue_libupdate_engine_exported_static_libraries) \
-    $(ue_libpayload_consumer_exported_static_libraries) \
+    $(ue_libupdate_engine_exported_static_libraries:-host=) \
+    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    $(ue_libupdate_engine_exported_shared_libraries) \
-    $(ue_libpayload_consumer_exported_shared_libraries) \
+    $(ue_libupdate_engine_exported_shared_libraries:-host=) \
+    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     boot_control_android.cc \
@@ -302,12 +338,12 @@ LOCAL_C_INCLUDES += \
     $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libupdate_engine \
-    $(ue_libupdate_engine_exported_static_libraries)
+    $(ue_libupdate_engine_exported_static_libraries:-host=)
 
 LOCAL_RTTI_FLAG := -frtti
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    $(ue_libupdate_engine_exported_shared_libraries)
+    $(ue_libupdate_engine_exported_shared_libraries:-host=)
 LOCAL_SRC_FILES := \
     main.cc
 
@@ -347,7 +383,11 @@ LOCAL_C_INCLUDES := \
     $(ue_common_c_includes) \
     $(LOCAL_PATH)/include
 LOCAL_STATIC_LIBRARIES := update_engine_client-dbus-proxies
-LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    libdbus \
+    libbrillo-dbus \
+    libchrome-dbus
 LOCAL_SRC_FILES := \
     update_engine_client.cc
 include $(BUILD_EXECUTABLE)
@@ -364,31 +404,11 @@ ue_libpayload_generator_exported_static_libraries := \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_generator_exported_shared_libraries := \
-    libext2fs \
+    libext2fs-host \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 
-include $(CLEAR_VARS)
-LOCAL_MODULE := libpayload_generator
-LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
-LOCAL_CLANG := true
-LOCAL_CFLAGS := $(ue_common_cflags)
-LOCAL_CPPFLAGS := $(ue_common_cppflags)
-LOCAL_LDFLAGS := $(ue_common_ldflags)
-LOCAL_C_INCLUDES := $(ue_common_c_includes)
-LOCAL_STATIC_LIBRARIES := \
-    libpayload_consumer \
-    update_metadata-protos \
-    $(ue_libpayload_consumer_exported_static_libraries) \
-    $(ue_update_metadata_protos_exported_static_libraries)
-LOCAL_SHARED_LIBRARIES := \
-    $(ue_common_shared_libraries) \
-    $(ue_libpayload_generator_exported_shared_libraries) \
-    $(ue_libpayload_consumer_exported_shared_libraries) \
-    $(ue_update_metadata_protos_exported_shared_libraries)
-LOCAL_SRC_FILES := \
+ue_libpayload_generator_src_files := \
     payload_generator/ab_generator.cc \
     payload_generator/annotated_operation.cc \
     payload_generator/blob_file_writer.cc \
@@ -410,11 +430,65 @@ LOCAL_SRC_FILES := \
     payload_generator/raw_filesystem.cc \
     payload_generator/tarjan.cc \
     payload_generator/topological_sort.cc
+
+ifeq ($(HOST_OS),linux)
+# Build for the host.
+include $(CLEAR_VARS)
+LOCAL_MODULE := libpayload_generator
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := $(ue_common_c_includes)
+LOCAL_STATIC_LIBRARIES := \
+    libpayload_consumer \
+    update_metadata-protos \
+    $(ue_libpayload_consumer_exported_static_libraries) \
+    $(ue_update_metadata_protos_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libpayload_generator_exported_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
+    $(ue_update_metadata_protos_exported_shared_libraries)
+LOCAL_SRC_FILES := $(ue_libpayload_generator_src_files)
+include $(BUILD_HOST_STATIC_LIBRARY)
+endif  # HOST_OS == linux
+
+# Build for the target.
+include $(CLEAR_VARS)
+LOCAL_MODULE := libpayload_generator
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := $(ue_common_c_includes)
+LOCAL_STATIC_LIBRARIES := \
+    libpayload_consumer \
+    update_metadata-protos \
+    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
+    $(ue_update_metadata_protos_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libpayload_generator_exported_shared_libraries:-host=) \
+    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
+    $(ue_update_metadata_protos_exported_shared_libraries)
+LOCAL_SRC_FILES := $(ue_libpayload_generator_src_files)
 include $(BUILD_STATIC_LIBRARY)
 
 # delta_generator (type: executable)
 # ========================================================
 # server-side delta generator.
+ue_delta_generator_src_files := \
+    payload_generator/generate_delta_main.cc
+
+ifeq ($(HOST_OS),linux)
+# Build for the host.
 include $(CLEAR_VARS)
 LOCAL_MODULE := delta_generator
 LOCAL_MODULE_CLASS := EXECUTABLES
@@ -434,8 +508,31 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_libpayload_generator_exported_shared_libraries)
-LOCAL_SRC_FILES := \
-    payload_generator/generate_delta_main.cc
+LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
+include $(BUILD_HOST_EXECUTABLE)
+endif  # HOST_OS == linux
+
+# Build for the target.
+include $(CLEAR_VARS)
+LOCAL_MODULE := delta_generator
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_RTTI_FLAG := -frtti
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := $(ue_common_c_includes)
+LOCAL_STATIC_LIBRARIES := \
+    libpayload_consumer \
+    libpayload_generator \
+    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
+    $(ue_libpayload_generator_exported_static_libraries:-host=)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
+    $(ue_libpayload_generator_exported_shared_libraries:-host=)
+LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
 include $(BUILD_EXECUTABLE)
 
 ifeq ($(BRILLO_USE_DBUS),1)

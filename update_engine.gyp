@@ -292,6 +292,7 @@
       'variables': {
         'exported_deps': [
           'libupdate_engine-client',
+          'dbus-1',
         ],
         'deps': ['<@(exported_deps)'],
       },

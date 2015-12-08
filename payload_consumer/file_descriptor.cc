@@ -69,6 +69,11 @@ bool EintrSafeFileDescriptor::BlkIoctl(int request,
                                        uint64_t start,
                                        uint64_t length,
                                        int* result) {
+  // If the ioctl BLKZEROOUT is not defined, just fail to perform any of these
+  // operations.
+#ifndef BLKZEROOUT
+  return false;
+#else  // defined(BLKZEROOUT)
   DCHECK(request == BLKDISCARD || request == BLKZEROOUT ||
          request == BLKSECDISCARD);
   // On some devices, the BLKDISCARD will actually read back as zeros, instead
@@ -99,6 +104,7 @@ bool EintrSafeFileDescriptor::BlkIoctl(int request,
     return false;
   }
   return true;
+#endif  // defined(BLKZEROOUT)
 }
 
 bool EintrSafeFileDescriptor::Close() {

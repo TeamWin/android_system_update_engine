@@ -882,10 +882,15 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
   TEST_AND_RETURN_FALSE(!operation.has_data_offset());
   TEST_AND_RETURN_FALSE(!operation.has_data_length());
 
+#ifdef BLKZEROOUT
+  bool attempt_ioctl = true;
   int request =
       (operation.type() == InstallOperation::ZERO ? BLKZEROOUT : BLKDISCARD);
+#else  // !defined(BLKZEROOUT)
+  bool attempt_ioctl = false;
+  int request = 0;
+#endif  // !defined(BLKZEROOUT)
 
-  bool attempt_ioctl = true;
   brillo::Blob zeros;
   for (int i = 0; i < operation.dst_extents_size(); i++) {
     Extent extent = operation.dst_extents(i);
