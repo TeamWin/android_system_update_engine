@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/common/boot_control_chromeos.h"
+#include "update_engine/boot_control_chromeos.h"
 
 #include <string>
 

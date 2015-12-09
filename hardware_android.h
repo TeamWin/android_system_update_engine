@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_COMMON_HARDWARE_ANDROID_H_
-#define UPDATE_ENGINE_COMMON_HARDWARE_ANDROID_H_
+#ifndef UPDATE_ENGINE_HARDWARE_ANDROID_H_
+#define UPDATE_ENGINE_HARDWARE_ANDROID_H_
 
 #include <string>
 
@@ -50,4 +50,4 @@ class HardwareAndroid final : public HardwareInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_COMMON_HARDWARE_ANDROID_H_
+#endif  // UPDATE_ENGINE_HARDWARE_ANDROID_H_

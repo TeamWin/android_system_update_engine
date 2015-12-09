@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/common/hardware_android.h"
+#include "update_engine/hardware_android.h"
 
 #include <base/files/file_util.h>
 #include <brillo/make_unique_ptr.h>

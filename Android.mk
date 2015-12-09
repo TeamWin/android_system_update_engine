@@ -125,14 +125,11 @@ ue_libpayload_consumer_exported_static_libraries := \
     update_metadata-protos \
     libxz \
     libbz \
-    libfs_mgr \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
     libcrypto \
     libcurl \
     libssl \
-    libhardware \
-    libcutils \
     $(ue_update_metadata_protos_exported_shared_libraries)
 
 include $(CLEAR_VARS)
@@ -157,12 +154,10 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     common/action_processor.cc \
-    common/boot_control_android.cc \
     common/boot_control_stub.cc \
     common/certificate_checker.cc \
     common/clock.cc \
     common/constants.cc \
-    common/hardware_android.cc \
     common/hash_calculator.cc \
     common/http_common.cc \
     common/http_fetcher.cc \
@@ -246,10 +241,12 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
+    boot_control_android.cc \
     chrome_browser_proxy_resolver.cc \
     connection_manager.cc \
     daemon.cc \
     dbus_service.cc \
+    hardware_android.cc \
     image_properties_android.cc \
     libcros_proxy.cc \
     metrics.cc \

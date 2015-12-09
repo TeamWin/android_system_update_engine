@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/common/hardware_chromeos.h"
+#include "update_engine/hardware_chromeos.h"
 
 #include <base/files/file_util.h>
 #include <base/logging.h>

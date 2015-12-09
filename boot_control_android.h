@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_COMMON_BOOT_CONTROL_ANDROID_H_
-#define UPDATE_ENGINE_COMMON_BOOT_CONTROL_ANDROID_H_
+#ifndef UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_
+#define UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_
 
 #include <string>
 
@@ -58,4 +58,4 @@ class BootControlAndroid : public BootControlInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_COMMON_BOOT_CONTROL_ANDROID_H_
+#endif  // UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_

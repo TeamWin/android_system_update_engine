@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_COMMON_HARDWARE_CHROMEOS_H_
-#define UPDATE_ENGINE_COMMON_HARDWARE_CHROMEOS_H_
+#ifndef UPDATE_ENGINE_HARDWARE_CHROMEOS_H_
+#define UPDATE_ENGINE_HARDWARE_CHROMEOS_H_
 
 #include <string>
 #include <vector>
@@ -51,4 +51,4 @@ class HardwareChromeOS final : public HardwareInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_COMMON_HARDWARE_CHROMEOS_H_
+#endif  // UPDATE_ENGINE_HARDWARE_CHROMEOS_H_

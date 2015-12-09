@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_COMMON_BOOT_CONTROL_CHROMEOS_H_
-#define UPDATE_ENGINE_COMMON_BOOT_CONTROL_CHROMEOS_H_
+#ifndef UPDATE_ENGINE_BOOT_CONTROL_CHROMEOS_H_
+#define UPDATE_ENGINE_BOOT_CONTROL_CHROMEOS_H_
 
 #include <string>
 
@@ -82,4 +82,4 @@ class BootControlChromeOS : public BootControlInterface {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_COMMON_BOOT_CONTROL_CHROMEOS_H_
+#endif  // UPDATE_ENGINE_BOOT_CONTROL_CHROMEOS_H_

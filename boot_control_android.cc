@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/common/boot_control_android.h"
+#include "update_engine/boot_control_android.h"
 
 #include <base/bind.h>
 #include <base/files/file_util.h>
