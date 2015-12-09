@@ -169,28 +169,23 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   install_plan.target_slot = 1;
   InstallPlan::Partition part;
   part.name = "part";
-  switch (verifier_mode) {
-    case VerifierMode::kVerifyTargetHash:
-      part.target_size = kLoopFileSize - (hash_fail ? 1 : 0);
-      part.target_path = a_dev;
-      fake_boot_control_.SetPartitionDevice(
-          part.name, install_plan.target_slot, a_dev);
-      if (!HashCalculator::RawHashOfData(a_loop_data, &part.target_hash)) {
-        ADD_FAILURE();
-        success = false;
-      }
-      break;
-    case VerifierMode::kComputeSourceHash:
-    case VerifierMode::kVerifySourceHash:
-      part.source_size = kLoopFileSize;
-      part.source_path = a_dev;
-      fake_boot_control_.SetPartitionDevice(
-          part.name, install_plan.source_slot, a_dev);
-      if (!HashCalculator::RawHashOfData(a_loop_data, &part.source_hash)) {
-        ADD_FAILURE();
-        success = false;
-      }
-      break;
+  if (verifier_mode == VerifierMode::kVerifyTargetHash) {
+    part.target_size = kLoopFileSize - (hash_fail ? 1 : 0);
+    part.target_path = a_dev;
+    fake_boot_control_.SetPartitionDevice(
+        part.name, install_plan.target_slot, a_dev);
+    if (!HashCalculator::RawHashOfData(a_loop_data, &part.target_hash)) {
+      ADD_FAILURE();
+      success = false;
+    }
+  }
+  part.source_size = kLoopFileSize;
+  part.source_path = a_dev;
+  fake_boot_control_.SetPartitionDevice(
+      part.name, install_plan.source_slot, a_dev);
+  if (!HashCalculator::RawHashOfData(a_loop_data, &part.source_hash)) {
+    ADD_FAILURE();
+    success = false;
   }
   install_plan.partitions = {part};
 
@@ -338,9 +333,12 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootTerminateEarlyTest) {
   while (loop_.RunOnce(false)) {}
 }
 
+// Disabled as we switched to minor version 3, so this test is obsolete, will be
+// deleted when we delete the corresponding code in PerformAction().
 // Test that the rootfs and kernel size used for hashing in delta payloads for
 // major version 1 is properly read.
-TEST_F(FilesystemVerifierActionTest, RunAsRootDetermineLegacySizeTest) {
+TEST_F(FilesystemVerifierActionTest,
+       DISABLED_RunAsRootDetermineLegacySizeTest) {
   string img;
   EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, nullptr));
   ScopedPathUnlinker img_unlinker(img);
