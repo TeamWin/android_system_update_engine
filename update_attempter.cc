@@ -155,6 +155,8 @@ void UpdateAttempter::Init() {
     status_ = UpdateStatus::UPDATED_NEED_REBOOT;
   else
     status_ = UpdateStatus::IDLE;
+
+  chrome_proxy_resolver_.Init();
 }
 
 void UpdateAttempter::ScheduleUpdates() {
@@ -256,7 +258,6 @@ void UpdateAttempter::Update(const string& app_version,
   if (forced_update_pending_callback_.get())
     forced_update_pending_callback_->Run(false, false);
 
-  chrome_proxy_resolver_.Init();
   fake_update_success_ = false;
   if (status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
     // Although we have applied an update, we still want to ping Omaha
