@@ -268,7 +268,7 @@ TEST_F(UpdateAttempterTest, ConstructWithUpdatedMarkerTest) {
   EXPECT_TRUE(utils::GetBootId(&boot_id));
   fake_prefs.SetString(kPrefsUpdateCompletedOnBootId, boot_id);
   fake_system_state_.set_prefs(&fake_prefs);
-  UpdateAttempterUnderTest attempter(&fake_system_state_, nullptr,
+  UpdateAttempterUnderTest attempter(&fake_system_state_, &libcros_proxy_,
                                      &debugd_proxy_mock_);
   attempter.Init();
   EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter.status());
@@ -936,7 +936,7 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
 
 TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
   UpdateAttempterUnderTest attempter{&fake_system_state_,
-                                     nullptr,  // libcros_proxy
+                                     &libcros_proxy_,
                                      &debugd_proxy_mock_};
   FakeClock fake_clock;
   fake_clock.SetBootTime(Time::FromTimeT(42));
