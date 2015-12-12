@@ -429,11 +429,11 @@
           ],
           'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'sources': [
+            'boot_control_chromeos_unittest.cc',
             'chrome_browser_proxy_resolver_unittest.cc',
             'common/action_pipe_unittest.cc',
             'common/action_processor_unittest.cc',
             'common/action_unittest.cc',
-            'common/boot_control_chromeos_unittest.cc',
             'common/certificate_checker_unittest.cc',
             'common/fake_prefs.cc',
             'common/hash_calculator_unittest.cc',
