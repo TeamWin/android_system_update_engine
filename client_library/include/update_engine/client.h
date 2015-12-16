@@ -66,6 +66,9 @@ class UpdateEngineClient {
                          std::string* out_new_version,
                          int64_t* out_new_size) = 0;
 
+  // Resets the status of the Update Engine
+  virtual bool ResetStatus() = 0;
+
   // Changes the current channel of the device to the target channel.
   virtual bool SetTargetChannel(const std::string& target_channel) = 0;
 

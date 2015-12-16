@@ -44,6 +44,8 @@ class UpdateEngineClientImpl : public UpdateEngineClient {
                  std::string* out_new_version,
                  int64_t* out_new_size) override;
 
+  bool ResetStatus() override;
+
   bool SetTargetChannel(const std::string& target_channel) override;
 
   bool GetTargetChannel(std::string* out_channel) override;

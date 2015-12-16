@@ -285,10 +285,32 @@
         'main.cc',
       ],
     },
+    # update_engine client library.
+    {
+      'target_name': 'libupdate_engine_client',
+      'type': 'static_library',
+      'variables': {
+        'deps': [
+          'dbus-1',
+          'libupdate_engine-client',
+        ],
+      },
+      'sources': [
+        'client_library/client.cc',
+        'client_library/client_impl.cc',
+        'update_status_utils.cc',
+      ],
+      'include_dirs': [
+        'client_library/include',
+      ],
+    },
     # update_engine console client.
     {
       'target_name': 'update_engine_client',
       'type': 'executable',
+      'dependencies': [
+        'libupdate_engine_client',
+      ],
       'variables': {
         'exported_deps': [
           'libupdate_engine-client',

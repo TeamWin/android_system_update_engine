@@ -18,6 +18,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <memory>
 #include <string>
 
 #include <base/bind.h>
@@ -27,10 +28,12 @@
 #include <brillo/daemons/dbus_daemon.h>
 #include <brillo/flag_helper.h>
 #include <dbus/bus.h>
+#include <update_engine/client.h>
 #include <update_engine/dbus-constants.h>
 #include <update_engine/dbus-proxies.h>
 
 using std::string;
+using std::unique_ptr;
 using update_engine::kAttemptUpdateFlagNonInteractive;
 using update_engine::kUpdateEngineServiceName;
 
@@ -42,7 +45,10 @@ const int kContinueRunning = -1;
 
 class UpdateEngineClient : public brillo::DBusDaemon {
  public:
-  UpdateEngineClient(int argc, char** argv) : argc_(argc), argv_(argv) {}
+  UpdateEngineClient(int argc, char** argv) : argc_(argc), argv_(argv) {
+    client_ = update_engine::UpdateEngineClient::CreateInstance();
+  }
+
   ~UpdateEngineClient() override = default;
 
  protected:
@@ -90,8 +96,6 @@ class UpdateEngineClient : public brillo::DBusDaemon {
   // signals.
   // The daemon should continue running for this to work.
   void WatchForUpdates();
-
-  void ResetStatus();
 
   // Show the status of the update engine in stdout.
   // Blocking call. Exits the program with error 1 in case of an error.
@@ -171,6 +175,9 @@ class UpdateEngineClient : public brillo::DBusDaemon {
   int argc_;
   char** argv_;
 
+  // Library-based client
+  unique_ptr<update_engine::UpdateEngineClient> client_;
+
   // Tell whether the UpdateEngine service is available after startup.
   bool service_is_available_{false};
 
@@ -238,11 +245,6 @@ void UpdateEngineClient::WatchForUpdates() {
                  base::Unretained(this)),
       base::Bind(&UpdateEngineClient::OnStatusUpdateSignalRegistration,
                  base::Unretained(this)));
-}
-
-void UpdateEngineClient::ResetStatus() {
-  bool ret = proxy_->ResetStatus(nullptr);
-  CHECK(ret) << "ResetStatus() failed.";
 }
 
 void UpdateEngineClient::ShowStatus() {
@@ -483,10 +485,16 @@ int UpdateEngineClient::ProcessFlags() {
   // Update the status if requested.
   if (FLAGS_reset_status) {
     LOG(INFO) << "Setting Update Engine status to idle ...";
-    ResetStatus();
-    LOG(INFO) << "ResetStatus succeeded; to undo partition table changes run:\n"
-                 "(D=$(rootdev -d) P=$(rootdev -s); cgpt p -i$(($(echo ${P#$D} "
-                 "| sed 's/^[^0-9]*//')-1)) $D;)";
+
+    if (client_->ResetStatus()) {
+      LOG(INFO) << "ResetStatus succeeded; to undo partition table changes "
+                   "run:\n"
+                   "(D=$(rootdev -d) P=$(rootdev -s); cgpt p -i$(($(echo "
+                   "${P#$D} | sed 's/^[^0-9]*//')-1)) $D;)";
+    } else {
+      LOG(ERROR) << "ResetStatus failed";
+      return 1;
+    }
   }
 
   // Changes the current update over cellular network setting.

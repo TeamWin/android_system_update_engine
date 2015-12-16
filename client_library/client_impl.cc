@@ -66,6 +66,10 @@ bool UpdateEngineClientImpl::GetStatus(int64_t* out_last_checked_time,
   return StringToUpdateStatus(status_as_string, out_update_status);
 }
 
+bool UpdateEngineClientImpl::ResetStatus() {
+  return proxy_->ResetStatus(nullptr);
+}
+
 bool UpdateEngineClientImpl::SetTargetChannel(const string& in_target_channel) {
   return proxy_->SetChannel(
       in_target_channel,

@@ -387,7 +387,8 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     libdbus \
     libbrillo-dbus \
-    libchrome-dbus
+    libchrome-dbus \
+    libupdate_engine_client
 LOCAL_SRC_FILES := \
     update_engine_client.cc
 include $(BUILD_EXECUTABLE)
