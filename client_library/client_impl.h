@@ -46,7 +46,8 @@ class UpdateEngineClientImpl : public UpdateEngineClient {
 
   bool ResetStatus() override;
 
-  bool SetTargetChannel(const std::string& target_channel) override;
+  bool SetTargetChannel(const std::string& target_channel,
+                        bool allow_powerwash) override;
 
   bool GetTargetChannel(std::string* out_channel) override;
 

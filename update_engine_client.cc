@@ -28,14 +28,18 @@
 #include <brillo/daemons/dbus_daemon.h>
 #include <brillo/flag_helper.h>
 #include <dbus/bus.h>
-#include <update_engine/client.h>
-#include <update_engine/dbus-constants.h>
-#include <update_engine/dbus-proxies.h>
+
+#include "update_engine/client.h"
+#include "update_engine/update_status.h"
+#include "update_engine/dbus-constants.h"
+#include "update_engine/dbus-proxies.h"
+#include "update_status_utils.h"
 
 using std::string;
 using std::unique_ptr;
 using update_engine::kAttemptUpdateFlagNonInteractive;
 using update_engine::kUpdateEngineServiceName;
+using chromeos_update_engine::UpdateStatusToString;
 
 namespace {
 
@@ -99,27 +103,18 @@ class UpdateEngineClient : public brillo::DBusDaemon {
 
   // Show the status of the update engine in stdout.
   // Blocking call. Exits the program with error 1 in case of an error.
-  void ShowStatus();
+  bool ShowStatus();
 
-  // Return the current operation status, such as UPDATE_STATUS_IDLE.
-  // Blocking call. Exits the program with error 1 in case of an error.
-  string GetCurrentOperation();
+  // Return whether we need to reboot. 0 if reboot is needed, 1 if an error
+  // occurred, 2 if no reboot is needed.
+  int GetNeedReboot();
 
   void Rollback(bool rollback);
   string GetRollbackPartition();
-  void CheckForUpdates(const string& app_version,
-                       const string& omaha_url,
-                       bool interactive);
 
   // Reboot the device if a reboot is needed.
   // Blocking call. Ignores failures.
   void RebootIfNeeded();
-
-  // Getter and setter for the target channel. If |get_current_channel| is true,
-  // the current channel instead of the target channel will be returned.
-  // Blocking call. Exits the program with error 1 in case of an error.
-  void SetTargetChannel(const string& target_channel, bool allow_powerwash);
-  string GetChannel(bool get_current_channel);
 
   // Getter and setter for the updates over cellular connections.
   // Blocking call. Exits the program with error 1 in case of an error.
@@ -143,10 +138,6 @@ class UpdateEngineClient : public brillo::DBusDaemon {
 
   // Blocking call. Exits the program with error 1 in case of an error.
   void ShowPrevVersion();
-
-  // Returns whether the current status is such that a reboot is needed.
-  // Blocking call. Exits the program with error 1 in case of an error.
-  bool GetIsRebootNeeded();
 
   // Blocks until a reboot is needed. If the reboot is needed, exits the program
   // with 0. Otherwise it exits the program with 1 if an error occurs before
@@ -247,38 +238,46 @@ void UpdateEngineClient::WatchForUpdates() {
                  base::Unretained(this)));
 }
 
-void UpdateEngineClient::ShowStatus() {
+bool UpdateEngineClient::ShowStatus() {
   int64_t last_checked_time = 0;
   double progress = 0.0;
-  string current_op;
+  update_engine::UpdateStatus current_op;
   string new_version;
   int64_t new_size = 0;
 
-  bool ret = proxy_->GetStatus(
-      &last_checked_time, &progress, &current_op, &new_version, &new_size,
-      nullptr);
-  CHECK(ret) << "GetStatus() failed";
+  if (!client_->GetStatus(
+      &last_checked_time, &progress, &current_op, &new_version, &new_size)) {
+    return false;
+  }
+
   printf("LAST_CHECKED_TIME=%" PRIi64 "\nPROGRESS=%f\nCURRENT_OP=%s\n"
          "NEW_VERSION=%s\nNEW_SIZE=%" PRIi64 "\n",
          last_checked_time,
          progress,
-         current_op.c_str(),
+         UpdateStatusToString(current_op),
          new_version.c_str(),
          new_size);
+
+  return true;
 }
 
-string UpdateEngineClient::GetCurrentOperation() {
+int UpdateEngineClient::GetNeedReboot() {
   int64_t last_checked_time = 0;
   double progress = 0.0;
-  string current_op;
+  update_engine::UpdateStatus current_op;
   string new_version;
   int64_t new_size = 0;
 
-  bool ret = proxy_->GetStatus(
-      &last_checked_time, &progress, &current_op, &new_version, &new_size,
-      nullptr);
-  CHECK(ret) << "GetStatus() failed";
-  return current_op;
+  if (!client_->GetStatus(
+      &last_checked_time, &progress, &current_op, &new_version, &new_size)) {
+    return 1;
+  }
+
+  if (current_op == update_engine::UpdateStatus::UPDATED_NEED_REBOOT) {
+    return 0;
+  }
+
+  return 2;
 }
 
 void UpdateEngineClient::Rollback(bool rollback) {
@@ -293,15 +292,6 @@ string UpdateEngineClient::GetRollbackPartition() {
   return rollback_partition;
 }
 
-void UpdateEngineClient::CheckForUpdates(const string& app_version,
-                                         const string& omaha_url,
-                                         bool interactive) {
-  int32_t flags = interactive ? 0 : kAttemptUpdateFlagNonInteractive;
-  bool ret = proxy_->AttemptUpdateWithFlags(app_version, omaha_url, flags,
-                                            nullptr);
-  CHECK(ret) << "Error checking for update.";
-}
-
 void UpdateEngineClient::RebootIfNeeded() {
   bool ret = proxy_->RebootIfNeeded(nullptr);
   if (!ret) {
@@ -310,20 +300,6 @@ void UpdateEngineClient::RebootIfNeeded() {
     // result.
     LOG(INFO) << "RebootIfNeeded() failure ignored.";
   }
-}
-
-void UpdateEngineClient::SetTargetChannel(const string& target_channel,
-                                          bool allow_powerwash) {
-  bool ret = proxy_->SetChannel(target_channel, allow_powerwash, nullptr);
-  CHECK(ret) << "Error setting the channel.";
-  LOG(INFO) << "Channel permanently set to: " << target_channel;
-}
-
-string UpdateEngineClient::GetChannel(bool get_current_channel) {
-  string channel;
-  bool ret = proxy_->GetChannel(get_current_channel, &channel, nullptr);
-  CHECK(ret) << "Error getting the channel.";
-  return channel;
 }
 
 void UpdateEngineClient::SetUpdateOverCellularPermission(bool allowed) {
@@ -385,10 +361,6 @@ void UpdateEngineClient::ShowPrevVersion() {
   }
 }
 
-bool UpdateEngineClient::GetIsRebootNeeded() {
-  return GetCurrentOperation() == update_engine::kUpdateStatusUpdatedNeedReboot;
-}
-
 void UpdateEngineClient::OnRebootNeededCheck(
     int64_t /* last_checked_time */,
     double /* progress */,
@@ -405,8 +377,17 @@ void UpdateEngineClient::OnRebootNeededCheckRegistration(
     const string& interface,
     const string& signal_name,
     bool success) {
-  if (GetIsRebootNeeded())
+  int got = GetNeedReboot();
+
+  if (got == 1) {
+    LOG(ERROR) << "Could not query the current operation.";
+    exit(1);
+  }
+
+  if (got == 0) {
     exit(0);
+  }
+
   if (!success) {
     LOG(ERROR) << "Couldn't connect to the " << signal_name << " signal.";
     exit(1);
@@ -421,7 +402,14 @@ void UpdateEngineClient::WaitForRebootNeeded() {
                  base::Unretained(this)),
       base::Bind(&UpdateEngineClient::OnStatusUpdateSignalRegistration,
                  base::Unretained(this)));
-  if (GetIsRebootNeeded())
+  int got = GetNeedReboot();
+
+  if (got == 1) {
+    LOG(ERROR) << "Could not query the current operation.";
+    exit(1);
+  }
+
+  if (got == 0)
     exit(0);
 }
 
@@ -556,15 +544,32 @@ int UpdateEngineClient::ProcessFlags() {
   }
 
   // First, update the target channel if requested.
-  if (!FLAGS_channel.empty())
-    SetTargetChannel(FLAGS_channel, FLAGS_powerwash);
+  if (!FLAGS_channel.empty()) {
+    if (!client_->SetTargetChannel(FLAGS_channel, FLAGS_powerwash)) {
+      LOG(ERROR) << "Error setting the channel.";
+      return 1;
+    }
+
+    LOG(INFO) << "Channel permanently set to: " << FLAGS_channel;
+  }
 
   // Show the current and target channels if requested.
   if (FLAGS_show_channel) {
-    string current_channel = GetChannel(true);
+    string current_channel;
+    string target_channel;
+
+    if (!client_->GetChannel(&current_channel)) {
+      LOG(ERROR) << "Error getting the current channel.";
+      return 1;
+    }
+
+    if (!client_->GetTargetChannel(&target_channel)) {
+      LOG(ERROR) << "Error getting the target channel.";
+      return 1;
+    }
+
     LOG(INFO) << "Current Channel: " << current_channel;
 
-    string target_channel = GetChannel(false);
     if (!target_channel.empty())
       LOG(INFO) << "Target Channel (pending update): " << target_channel;
   }
@@ -594,7 +599,11 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(INFO) << "Forcing an update by setting app_version to ForcedUpdate.";
     }
     LOG(INFO) << "Initiating update check and install.";
-    CheckForUpdates(app_version, FLAGS_omaha_url, FLAGS_interactive);
+    if (!client_->AttemptUpdate(app_version, FLAGS_omaha_url,
+                                FLAGS_interactive)) {
+      LOG(ERROR) << "Error checking for update.";
+      return 1;
+    }
   }
 
   // These final options are all mutually exclusive with one another.
@@ -610,7 +619,10 @@ int UpdateEngineClient::ProcessFlags() {
 
   if (FLAGS_status) {
     LOG(INFO) << "Querying Update Engine status...";
-    ShowStatus();
+    if (!ShowStatus()) {
+      LOG(ERROR) << "Failed to query status";
+      return 1;
+    }
     return 0;
   }
 
@@ -637,12 +649,13 @@ int UpdateEngineClient::ProcessFlags() {
   }
 
   if (FLAGS_is_reboot_needed) {
-    // In case of error GetIsRebootNeeded() will exit with 1.
-    if (GetIsRebootNeeded()) {
-      return 0;
-    } else {
-      return 2;
+    int ret = GetNeedReboot();
+
+    if (ret == 1) {
+      LOG(ERROR) << "Could not query the current operation.";
     }
+
+    return ret;
   }
 
   if (FLAGS_block_until_reboot_is_needed) {

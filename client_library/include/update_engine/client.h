@@ -70,7 +70,8 @@ class UpdateEngineClient {
   virtual bool ResetStatus() = 0;
 
   // Changes the current channel of the device to the target channel.
-  virtual bool SetTargetChannel(const std::string& target_channel) = 0;
+  virtual bool SetTargetChannel(const std::string& target_channel,
+                                bool allow_powerwash) = 0;
 
   // Get the channel the device will switch to on reboot.
   virtual bool GetTargetChannel(std::string* out_channel) = 0;

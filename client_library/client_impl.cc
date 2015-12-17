@@ -70,10 +70,11 @@ bool UpdateEngineClientImpl::ResetStatus() {
   return proxy_->ResetStatus(nullptr);
 }
 
-bool UpdateEngineClientImpl::SetTargetChannel(const string& in_target_channel) {
+bool UpdateEngineClientImpl::SetTargetChannel(const string& in_target_channel,
+                                              bool allow_powerwash) {
   return proxy_->SetChannel(
       in_target_channel,
-      true,
+      allow_powerwash,
       nullptr);
 }
 
