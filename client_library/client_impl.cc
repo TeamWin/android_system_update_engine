@@ -66,6 +66,44 @@ bool UpdateEngineClientImpl::GetStatus(int64_t* out_last_checked_time,
   return StringToUpdateStatus(status_as_string, out_update_status);
 }
 
+bool UpdateEngineClientImpl::SetUpdateOverCellularPermission(bool allowed) {
+  return proxy_->SetUpdateOverCellularPermission(allowed, nullptr);
+}
+
+bool UpdateEngineClientImpl::GetUpdateOverCellularPermission(bool *allowed) {
+  return proxy_->GetUpdateOverCellularPermission(allowed, nullptr);
+}
+
+bool UpdateEngineClientImpl::SetP2PUpdatePermission(bool enabled) {
+  return proxy_->SetP2PUpdatePermission(enabled, nullptr);
+}
+
+bool UpdateEngineClientImpl::GetP2PUpdatePermission(bool* enabled) {
+  return proxy_->GetP2PUpdatePermission(enabled, nullptr);
+}
+
+bool UpdateEngineClientImpl::Rollback(bool powerwash) {
+  return proxy_->AttemptRollback(powerwash, nullptr);
+}
+
+bool UpdateEngineClientImpl::GetRollbackPartition(string* rollback_partition) {
+  return proxy_->GetRollbackPartition(rollback_partition, nullptr);
+}
+
+bool UpdateEngineClientImpl::GetPrevVersion(string* prev_version) {
+  return proxy_->GetPrevVersion(prev_version, nullptr);
+}
+
+void UpdateEngineClientImpl::RebootIfNeeded() {
+  bool ret = proxy_->RebootIfNeeded(nullptr);
+  if (!ret) {
+    // Reboot error code doesn't necessarily mean that a reboot
+    // failed. For example, D-Bus may be shutdown before we receive the
+    // result.
+    LOG(INFO) << "RebootIfNeeded() failure ignored.";
+  }
+}
+
 bool UpdateEngineClientImpl::ResetStatus() {
   return proxy_->ResetStatus(nullptr);
 }

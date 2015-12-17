@@ -44,6 +44,20 @@ class UpdateEngineClientImpl : public UpdateEngineClient {
                  std::string* out_new_version,
                  int64_t* out_new_size) override;
 
+  bool SetUpdateOverCellularPermission(bool allowed) override;
+  bool GetUpdateOverCellularPermission(bool* allowed) override;
+
+  bool SetP2PUpdatePermission(bool enabled) override;
+  bool GetP2PUpdatePermission(bool* enabled) override;
+
+  bool Rollback(bool powerwash) override;
+
+  bool GetRollbackPartition(std::string* rollback_partition) override;
+
+  void RebootIfNeeded() override;
+
+  bool GetPrevVersion(std::string* prev_version);
+
   bool ResetStatus() override;
 
   bool SetTargetChannel(const std::string& target_channel,

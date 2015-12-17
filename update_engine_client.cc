@@ -102,29 +102,11 @@ class UpdateEngineClient : public brillo::DBusDaemon {
   void WatchForUpdates();
 
   // Show the status of the update engine in stdout.
-  // Blocking call. Exits the program with error 1 in case of an error.
   bool ShowStatus();
 
   // Return whether we need to reboot. 0 if reboot is needed, 1 if an error
   // occurred, 2 if no reboot is needed.
   int GetNeedReboot();
-
-  void Rollback(bool rollback);
-  string GetRollbackPartition();
-
-  // Reboot the device if a reboot is needed.
-  // Blocking call. Ignores failures.
-  void RebootIfNeeded();
-
-  // Getter and setter for the updates over cellular connections.
-  // Blocking call. Exits the program with error 1 in case of an error.
-  void SetUpdateOverCellularPermission(bool allowed);
-  bool GetUpdateOverCellularPermission();
-
-  // Getter and setter for the updates from P2P permission.
-  // Blocking call. Exits the program with error 1 in case of an error.
-  void SetP2PUpdatePermission(bool enabled);
-  bool GetP2PUpdatePermission();
 
   // This is similar to watching for updates but rather than registering
   // a signal watch, actively poll the daemon just in case it stops
@@ -135,9 +117,6 @@ class UpdateEngineClient : public brillo::DBusDaemon {
                              const string& current_operation,
                              const string& new_version,
                              int64_t new_size);
-
-  // Blocking call. Exits the program with error 1 in case of an error.
-  void ShowPrevVersion();
 
   // Blocks until a reboot is needed. If the reboot is needed, exits the program
   // with 0. Otherwise it exits the program with 1 if an error occurs before
@@ -280,52 +259,6 @@ int UpdateEngineClient::GetNeedReboot() {
   return 2;
 }
 
-void UpdateEngineClient::Rollback(bool rollback) {
-  bool ret = proxy_->AttemptRollback(rollback, nullptr);
-  CHECK(ret) << "Rollback request failed.";
-}
-
-string UpdateEngineClient::GetRollbackPartition() {
-  string rollback_partition;
-  bool ret = proxy_->GetRollbackPartition(&rollback_partition, nullptr);
-  CHECK(ret) << "Error while querying rollback partition availabilty.";
-  return rollback_partition;
-}
-
-void UpdateEngineClient::RebootIfNeeded() {
-  bool ret = proxy_->RebootIfNeeded(nullptr);
-  if (!ret) {
-    // Reboot error code doesn't necessarily mean that a reboot
-    // failed. For example, D-Bus may be shutdown before we receive the
-    // result.
-    LOG(INFO) << "RebootIfNeeded() failure ignored.";
-  }
-}
-
-void UpdateEngineClient::SetUpdateOverCellularPermission(bool allowed) {
-  bool ret = proxy_->SetUpdateOverCellularPermission(allowed, nullptr);
-  CHECK(ret) << "Error setting the update over cellular setting.";
-}
-
-bool UpdateEngineClient::GetUpdateOverCellularPermission() {
-  bool allowed;
-  bool ret = proxy_->GetUpdateOverCellularPermission(&allowed, nullptr);
-  CHECK(ret) << "Error getting the update over cellular setting.";
-  return allowed;
-}
-
-void UpdateEngineClient::SetP2PUpdatePermission(bool enabled) {
-  bool ret = proxy_->SetP2PUpdatePermission(enabled, nullptr);
-  CHECK(ret) << "Error setting the peer-to-peer update setting.";
-}
-
-bool UpdateEngineClient::GetP2PUpdatePermission() {
-  bool enabled;
-  bool ret = proxy_->GetP2PUpdatePermission(&enabled, nullptr);
-  CHECK(ret) << "Error getting the peer-to-peer update setting.";
-  return enabled;
-}
-
 void UpdateEngineClient::OnUpdateCompleteCheck(
     int64_t /* last_checked_time */,
     double /* progress */,
@@ -348,17 +281,6 @@ void UpdateEngineClient::WaitForUpdateComplete() {
                  base::Unretained(this)),
       base::Bind(&UpdateEngineClient::OnStatusUpdateSignalRegistration,
                  base::Unretained(this)));
-}
-
-void UpdateEngineClient::ShowPrevVersion() {
-  string prev_version = nullptr;
-
-  bool ret = proxy_->GetPrevVersion(&prev_version, nullptr);;
-  if (!ret) {
-    LOG(ERROR) << "Error getting previous version.";
-  } else {
-    LOG(INFO) << "Previous version = " << prev_version;
-  }
 }
 
 void UpdateEngineClient::OnRebootNeededCheck(
@@ -492,13 +414,22 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(ERROR) << "Unknown option: \"" << FLAGS_update_over_cellular
                  << "\". Please specify \"yes\" or \"no\".";
     } else {
-      SetUpdateOverCellularPermission(allowed);
+      if(!client_->SetUpdateOverCellularPermission(allowed)) {
+        LOG(ERROR) << "Error setting the update over cellular setting.";
+        return 1;
+      }
     }
   }
 
   // Show the current update over cellular network setting.
   if (FLAGS_show_update_over_cellular) {
-    bool allowed = GetUpdateOverCellularPermission();
+    bool allowed;
+
+    if (!client_->GetUpdateOverCellularPermission(&allowed)) {
+      LOG(ERROR) << "Error getting the update over cellular setting.";
+      return 1;
+    }
+
     LOG(INFO) << "Current update over cellular network setting: "
               << (allowed ? "ENABLED" : "DISABLED");
   }
@@ -515,13 +446,22 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(ERROR) << "Unknown option: \"" << FLAGS_p2p_update
                  << "\". Please specify \"yes\" or \"no\".";
     } else {
-      SetP2PUpdatePermission(enabled);
+      if (!client_->SetP2PUpdatePermission(enabled)) {
+        LOG(ERROR) << "Error setting the peer-to-peer update setting.";
+        return 1;
+      }
     }
   }
 
   // Show the rollback availability.
   if (FLAGS_can_rollback) {
-    string rollback_partition = GetRollbackPartition();
+    string rollback_partition;
+
+    if (!client_->GetRollbackPartition(&rollback_partition)) {
+      LOG(ERROR) << "Error while querying rollback partition availabilty.";
+      return 1;
+    }
+
     bool can_rollback = true;
     if (rollback_partition.empty()) {
       rollback_partition = "UNAVAILABLE";
@@ -538,7 +478,13 @@ int UpdateEngineClient::ProcessFlags() {
 
   // Show the current P2P enabled setting.
   if (FLAGS_show_p2p_update) {
-    bool enabled = GetP2PUpdatePermission();
+    bool enabled;
+
+    if (!client_->GetP2PUpdatePermission(&enabled)) {
+      LOG(ERROR) << "Error getting the peer-to-peer update setting.";
+      return 1;
+    }
+
     LOG(INFO) << "Current update using P2P setting: "
               << (enabled ? "ENABLED" : "DISABLED");
   }
@@ -587,7 +533,10 @@ int UpdateEngineClient::ProcessFlags() {
 
   if (FLAGS_rollback) {
     LOG(INFO) << "Requesting rollback.";
-    Rollback(FLAGS_powerwash);
+    if (!client_->Rollback(FLAGS_powerwash)) {
+      LOG(ERROR) << "Rollback request failed.";
+      return 1;
+    }
   }
 
   // Initiate an update check, if necessary.
@@ -640,12 +589,18 @@ int UpdateEngineClient::ProcessFlags() {
 
   if (FLAGS_reboot) {
     LOG(INFO) << "Requesting a reboot...";
-    RebootIfNeeded();
+    client_->RebootIfNeeded();
     return 0;
   }
 
   if (FLAGS_prev_version) {
-    ShowPrevVersion();
+    string prev_version;
+
+    if (!client_->GetPrevVersion(&prev_version)) {
+      LOG(ERROR) << "Error getting previous version.";
+    } else {
+      LOG(INFO) << "Previous version = " << prev_version;
+    }
   }
 
   if (FLAGS_is_reboot_needed) {
