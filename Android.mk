@@ -85,6 +85,7 @@ ue_update_metadata_protos_src_files := \
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_metadata-protos
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+LOCAL_IS_HOST_MODULE := true
 generated_sources_dir := $(call local-generated-sources-dir)
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(generated_sources_dir)/proto/system
 LOCAL_SRC_FILES := $(ue_update_metadata_protos_src_files)
