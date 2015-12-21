@@ -76,7 +76,7 @@ endif  # BRILLO_USE_DBUS == 1
 ue_update_metadata_protos_exported_static_libraries := \
     update_metadata-protos
 ue_update_metadata_protos_exported_shared_libraries := \
-    libprotobuf-cpp-lite-rtti
+    libprotobuf-cpp-lite
 
 ue_update_metadata_protos_src_files := \
     update_metadata.proto
@@ -174,7 +174,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_consumer
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
@@ -199,7 +198,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_consumer
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
@@ -254,7 +252,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(ue_libupdate_engine_exported_c_includes)
 LOCAL_CFLAGS := $(ue_common_cflags)
@@ -341,7 +338,6 @@ LOCAL_STATIC_LIBRARIES := \
     libupdate_engine \
     $(ue_libupdate_engine_exported_static_libraries:-host=)
 
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     $(ue_libupdate_engine_exported_shared_libraries:-host=)
@@ -375,7 +371,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine_client
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
@@ -439,7 +434,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_generator
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
@@ -464,7 +458,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_generator
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
@@ -495,7 +488,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := delta_generator
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
@@ -519,7 +511,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := delta_generator
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
@@ -543,7 +534,6 @@ ifeq ($(BRILLO_USE_DBUS),1)
 # ========================================================
 include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine_client
-LOCAL_RTTI_FLAG := -frtti
 LOCAL_CFLAGS := \
     -Wall \
     -Werror \
