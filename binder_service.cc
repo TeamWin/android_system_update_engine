@@ -18,19 +18,23 @@
 
 using android::OK;
 using android::String16;
-using android::os::IUpdateEnginePayloadApplicationCallback;
+using android::os::IUpdateEngineCallback;
 using android::sp;
 using android::binder::Status;
 using std::vector;
 
 namespace chromeos_update_engine {
 
+Status BinderService::bind(
+    const sp<IUpdateEngineCallback>& callback,
+    bool* return_value) {
+  *return_value = true;
+  return Status::ok();
+}
+
 Status BinderService::applyPayload(
     const String16& url,
-    const vector<String16>& header_kv_pairs,
-    const sp<IUpdateEnginePayloadApplicationCallback>& callback,
-    int32_t* return_value) {
-  *return_value = 0;
+    const vector<String16>& header_kv_pairs) {
   return Status::ok();
 }
 

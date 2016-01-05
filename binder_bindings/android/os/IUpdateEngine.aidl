@@ -16,12 +16,12 @@
 
 package android.os;
 
-import android.os.IUpdateEnginePayloadApplicationCallback;
+import android.os.IUpdateEngineCallback;
 
 interface IUpdateEngine {
-  int applyPayload(String url,
-                   in String[] headerKeyValuePairs,
-                   IUpdateEnginePayloadApplicationCallback callback);
+  void applyPayload(String url,
+                    in String[] headerKeyValuePairs);
+  boolean bind(IUpdateEngineCallback callback);
   void suspend();
   void resume();
   void cancel();

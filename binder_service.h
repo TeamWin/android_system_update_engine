@@ -24,7 +24,7 @@
 #include <utils/StrongPointer.h>
 
 #include "android/os/BnUpdateEngine.h"
-#include "android/os/IUpdateEnginePayloadApplicationCallback.h"
+#include "android/os/IUpdateEngineCallback.h"
 
 namespace chromeos_update_engine {
 
@@ -35,10 +35,11 @@ class BinderService : public android::os::BnUpdateEngine {
 
   android::binder::Status applyPayload(
       const android::String16& url,
-      const std::vector<android::String16>& header_kv_pairs,
-      const android::sp<android::os::IUpdateEnginePayloadApplicationCallback>&
-          callback,
-      int32_t* return_value) override;
+      const std::vector<android::String16>& header_kv_pairs) override;
+
+  android::binder::Status bind(
+      const android::sp<android::os::IUpdateEngineCallback>& callback,
+      bool* return_value) override;
 
   android::binder::Status suspend() override;
 
