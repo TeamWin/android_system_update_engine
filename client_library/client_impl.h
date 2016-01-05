@@ -56,7 +56,7 @@ class UpdateEngineClientImpl : public UpdateEngineClient {
 
   void RebootIfNeeded() override;
 
-  bool GetPrevVersion(std::string* prev_version);
+  bool GetPrevVersion(std::string* prev_version) override;
 
   bool ResetStatus() override;
 
