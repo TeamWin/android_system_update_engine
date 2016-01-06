@@ -21,12 +21,14 @@ BRILLO_USE_DBUS ?= 1
 BRILLO_USE_HWID_OVERRIDE ?= 0
 BRILLO_USE_MTD ?= 0
 BRILLO_USE_POWER_MANAGEMENT ?= 0
+BRILLO_USE_WEAVE ?= 0
 
 ue_common_cflags := \
     -DUSE_DBUS=$(BRILLO_USE_DBUS) \
     -DUSE_HWID_OVERRIDE=$(BRILLO_USE_HWID_OVERRIDE) \
     -DUSE_MTD=$(BRILLO_USE_MTD) \
     -DUSE_POWER_MANAGEMENT=$(BRILLO_USE_POWER_MANAGEMENT) \
+    -DUSE_WEAVE=$(BRILLO_USE_WEAVE) \
     -D_FILE_OFFSET_BITS=64 \
     -D_POSIX_C_SOURCE=199309L \
     -Wa,--noexecstack \
@@ -247,6 +249,10 @@ ue_libupdate_engine_exported_shared_libraries := \
     libcutils \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
+ifeq ($(BRILLO_USE_WEAVE),1)
+ue_libupdate_engine_exported_shared_libraries += \
+    libweaved
+endif  # BRILLO_USE_WEAVE == 1
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine
@@ -308,7 +314,12 @@ LOCAL_SRC_FILES := \
     update_manager/real_updater_provider.cc \
     update_manager/state_factory.cc \
     update_manager/update_manager.cc \
-    update_status_utils.cc
+    update_status_utils.cc \
+    weave_service_factory.cc
+ifeq ($(BRILLO_USE_WEAVE),1)
+LOCAL_SRC_FILES += \
+    weave_service.cc
+endif  # BRILLO_USE_WEAVE == 1
 include $(BUILD_STATIC_LIBRARY)
 
 endif  # BRILLO_USE_DBUS == 1
@@ -322,6 +333,9 @@ LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_REQUIRED_MODULES := \
     bspatch \
     cacerts_google
+ifeq ($(BRILLO_USE_WEAVE),1)
+LOCAL_REQUIRED_MODULES += updater.json
+endif  # BRILLO_USE_WEAVE == 1
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
@@ -560,6 +574,15 @@ LOCAL_SRC_FILES := \
 include $(BUILD_SHARED_LIBRARY)
 
 endif  # BRILLO_USE_DBUS == 1
+
+# Weave schema files
+# ========================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := updater.json
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/weaved/traits
+LOCAL_SRC_FILES := weaved/traits/$(LOCAL_MODULE)
+include $(BUILD_PREBUILT)
 
 # Update payload signing public key.
 # ========================================================

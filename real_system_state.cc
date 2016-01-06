@@ -16,6 +16,8 @@
 
 #include "update_engine/real_system_state.h"
 
+#include <string>
+
 #include <base/files/file_util.h>
 #include <base/time/time.h>
 #include <brillo/make_unique_ptr.h>
@@ -26,11 +28,13 @@
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/update_manager/state_factory.h"
+#include "update_engine/weave_service_factory.h"
 
 namespace chromeos_update_engine {
 
 RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
-    : debugd_proxy_(bus),
+    : bus_(bus),
+      debugd_proxy_(bus),
       power_manager_proxy_(bus),
       session_manager_proxy_(bus),
       shill_proxy_(bus),
@@ -120,6 +124,8 @@ bool RealSystemState::Initialize() {
       new UpdateAttempter(this, certificate_checker_.get(), &libcros_proxy_,
                           &debugd_proxy_));
   update_attempter_->Init();
+
+  weave_service_ = ConstructWeaveService(bus_, update_attempter_.get());
 
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =

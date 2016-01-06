@@ -41,6 +41,7 @@
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
+#include "update_engine/weave_service_interface.h"
 
 class MetricsLibraryInterface;
 
@@ -54,7 +55,8 @@ class UpdateEngineAdaptor;
 
 class UpdateAttempter : public ActionProcessorDelegate,
                         public DownloadActionDelegate,
-                        public CertificateChecker::Observer {
+                        public CertificateChecker::Observer,
+                        public WeaveServiceInterface::DelegateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
   static const int kMaxDeltaUpdateFailures;
@@ -92,6 +94,16 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
                        ErrorCode code) override;
+
+  // WeaveServiceInterface::DelegateInterface overrides.
+  bool OnCheckForUpdates(brillo::ErrorPtr* error) override;
+  bool OnTrackChannel(const std::string& channel,
+                      brillo::ErrorPtr* error) override;
+  bool GetWeaveState(int64_t* last_checked_time,
+                     double* progress,
+                     UpdateStatus* update_status,
+                     std::string* current_channel,
+                     std::string* tracking_channel) override;
 
   // Resets the current state to UPDATE_STATUS_IDLE.
   // Used by update_engine_client for restarting a new update without
