@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 
+#include "update_engine/status_update_handler.h"
 #include "update_engine/update_status.h"
 
 namespace update_engine {
@@ -99,6 +100,13 @@ class UpdateEngineClient {
 
   // Get the channel the device is currently on.
   virtual bool GetChannel(std::string* out_channel) = 0;
+
+  // Handle status updates. The handler must exist until the client is
+  // destroyed. Its IPCError method will be called if the handler could
+  // not be registered. Otherwise its HandleStatusUpdate method will be called
+  // every time update_engine's status changes. Will always report the status
+  // on registration to prevent race conditions.
+  virtual void RegisterStatusUpdateHandler(StatusUpdateHandler* handler) = 0;
 
  protected:
   // Use CreateInstance().
