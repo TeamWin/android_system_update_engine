@@ -23,16 +23,15 @@
 namespace chromeos_update_engine {
 
 std::unique_ptr<WeaveServiceInterface> ConstructWeaveService(
-    const scoped_refptr<dbus::Bus>& bus,
     WeaveServiceInterface::DelegateInterface* delegate) {
   std::unique_ptr<WeaveServiceInterface> result;
-  if (!delegate || !bus.get())
+  if (!delegate)
     return result;
 
 #if USE_WEAVE
   WeaveService* weave_service = new WeaveService();
   result.reset(weave_service);
-  if (!weave_service->Init(bus, delegate))
+  if (!weave_service->Init(delegate))
     result.reset();
 #endif
   return result;

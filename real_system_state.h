@@ -115,9 +115,6 @@ class RealSystemState : public SystemState {
   inline bool system_rebooted() override { return system_rebooted_; }
 
  private:
-  // Reference to the DBus bus.
-  scoped_refptr<dbus::Bus> bus_;
-
   // Real DBus proxies using the DBus connection.
   org::chromium::debugdProxy debugd_proxy_;
   org::chromium::PowerManagerProxy power_manager_proxy_;

@@ -33,8 +33,7 @@
 namespace chromeos_update_engine {
 
 RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
-    : bus_(bus),
-      debugd_proxy_(bus),
+    : debugd_proxy_(bus),
       power_manager_proxy_(bus),
       session_manager_proxy_(bus),
       shill_proxy_(bus),
@@ -125,7 +124,7 @@ bool RealSystemState::Initialize() {
                           &debugd_proxy_));
   update_attempter_->Init();
 
-  weave_service_ = ConstructWeaveService(bus_, update_attempter_.get());
+  weave_service_ = ConstructWeaveService(update_attempter_.get());
 
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =

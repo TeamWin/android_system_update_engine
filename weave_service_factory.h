@@ -20,7 +20,6 @@
 #include <memory>
 
 #include <base/memory/ref_counted.h>
-#include <dbus/bus.h>
 
 #include "update_engine/weave_service_interface.h"
 
@@ -29,7 +28,6 @@ namespace chromeos_update_engine {
 // Create a new WeaveServiceInterface instance. In case of error or when weaved
 // is disabled, returns an empty pointer.
 std::unique_ptr<WeaveServiceInterface> ConstructWeaveService(
-    const scoped_refptr<dbus::Bus>& bus,
     WeaveServiceInterface::DelegateInterface* delegate);
 
 }  // namespace chromeos_update_engine
