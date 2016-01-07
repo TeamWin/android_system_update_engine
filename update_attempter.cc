@@ -1098,7 +1098,7 @@ bool UpdateAttempter::OnTrackChannel(const string& channel,
     brillo::Error::AddTo(error,
                          FROM_HERE,
                          brillo::errors::dbus::kDomain,
-                         "_set_target_error",
+                         "set_target_error",
                          error_message);
     return false;
   }

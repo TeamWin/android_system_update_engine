@@ -101,7 +101,7 @@ void WeaveService::UpdateWeaveState() {
 void WeaveService::OnCheckForUpdates(std::unique_ptr<weaved::Command> command) {
   brillo::ErrorPtr error;
   if (!delegate_->OnCheckForUpdates(&error)) {
-    command->Abort(error->GetCode(), error->GetMessage(), nullptr);
+    command->AbortWithCustomError(error.get(), nullptr);
     return;
   }
   command->Complete({}, nullptr);
@@ -111,7 +111,7 @@ void WeaveService::OnTrackChannel(std::unique_ptr<weaved::Command> command) {
   string channel = command->GetParameter<string>("channel");
   brillo::ErrorPtr error;
   if (!delegate_->OnTrackChannel(channel, &error)) {
-    command->Abort(error->GetCode(), error->GetMessage(), nullptr);
+    command->AbortWithCustomError(error.get(), nullptr);
     return;
   }
   command->Complete({}, nullptr);
