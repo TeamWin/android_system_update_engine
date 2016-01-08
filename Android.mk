@@ -594,3 +594,18 @@ LOCAL_MODULE_STEM := update-payload-key.pub.pem
 LOCAL_SRC_FILES := update_payload_key/brillo-update-payload-key.pub.pem
 LOCAL_BUILT_MODULE_STEM := update_payload_key/brillo-update-payload-key.pub.pem
 include $(BUILD_PREBUILT)
+
+# Brillo update payload generation script
+# ========================================================
+ifeq ($(HOST_OS),linux)
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES := scripts/brillo_update_payload
+LOCAL_MODULE := brillo_update_payload
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_IS_HOST_MODULE := true
+LOCAL_MODULE_TAGS := optional
+LOCAL_REQUIRED_MODULES := \
+    delta_generator \
+    shflags
+include $(BUILD_PREBUILT)
+endif  # HOST_OS == linux
