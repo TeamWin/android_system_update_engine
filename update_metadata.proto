@@ -162,6 +162,9 @@ message InstallOperation {
     ZERO = 6;  // Write zeros in the destination.
     DISCARD = 7;  // Discard the destination blocks, reading as undefined.
     REPLACE_XZ = 8; // Replace destination extents w/ attached xz data.
+
+    // On minor version 4 or newer, these operations are supported:
+    IMGDIFF = 9; // The data is in imgdiff format.
   }
   required Type type = 1;
   // The offset into the delta file (after the protobuf)

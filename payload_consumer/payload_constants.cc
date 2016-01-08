@@ -52,6 +52,8 @@ const char* InstallOperationTypeName(InstallOperation_Type op_type) {
       return "DISCARD";
     case InstallOperation::REPLACE_XZ:
       return "REPLACE_XZ";
+    case InstallOperation::IMGDIFF:
+      return "IMGDIFF";
   }
   return "<unknown_op>";
 }
