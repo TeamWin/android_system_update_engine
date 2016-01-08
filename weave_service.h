@@ -19,9 +19,9 @@
 
 #include <memory>
 
-#include <dbus/bus.h>
+#include <base/memory/weak_ptr.h>
 #include <libweaved/command.h>
-#include <libweaved/device.h>
+#include <libweaved/service.h>
 
 #include "update_engine/weave_service_interface.h"
 
@@ -32,20 +32,23 @@ class WeaveService : public WeaveServiceInterface {
   WeaveService() = default;
   ~WeaveService() override = default;
 
-  bool Init(scoped_refptr<dbus::Bus> bus, DelegateInterface* delegate);
+  bool Init(DelegateInterface* delegate);
 
   // WeaveServiceInterface override.
   void UpdateWeaveState() override;
 
  private:
+  void OnWeaveServiceConnected(const std::weak_ptr<weaved::Service>& service);
+
   // Weave command handlers. These are called from the message loop whenever a
   // command is received and dispatch the synchronous call to the |delegate_|.
-  void OnCheckForUpdates(const std::weak_ptr<weaved::Command>& cmd);
-  void OnTrackChannel(const std::weak_ptr<weaved::Command>& cmd);
+  void OnCheckForUpdates(std::unique_ptr<weaved::Command> cmd);
+  void OnTrackChannel(std::unique_ptr<weaved::Command> cmd);
 
   WeaveServiceInterface::DelegateInterface* delegate_{nullptr};
 
-  std::unique_ptr<weaved::Device> device_;
+  std::unique_ptr<weaved::Service::Subscription> weave_service_subscription_;
+  std::weak_ptr<weaved::Service> weave_service_;
 };
 
 }  // namespace chromeos_update_engine

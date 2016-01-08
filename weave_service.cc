@@ -20,8 +20,8 @@
 #include <string>
 
 #include <base/bind.h>
-#include <base/values.h>
 #include <brillo/errors/error.h>
+#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/update_status_utils.h"
 
@@ -35,26 +35,37 @@ const char kWeaveComponent[] = "updater";
 
 namespace chromeos_update_engine {
 
-bool WeaveService::Init(scoped_refptr<dbus::Bus> bus,
-                        DelegateInterface* delegate) {
+bool WeaveService::Init(DelegateInterface* delegate) {
   delegate_ = delegate;
-  device_ = weaved::Device::CreateInstance(
-      bus, base::Bind(&WeaveService::UpdateWeaveState, base::Unretained(this)));
-  device_->AddComponent(kWeaveComponent, {"_updater"});
-  device_->AddCommandHandler(
-      kWeaveComponent,
-      "_updater.checkForUpdates",
-      base::Bind(&WeaveService::OnCheckForUpdates, base::Unretained(this)));
-  device_->AddCommandHandler(
-      kWeaveComponent,
-      "_updater.trackChannel",
-      base::Bind(&WeaveService::OnTrackChannel, base::Unretained(this)));
-
+  weave_service_subscription_ = weaved::Service::Connect(
+      brillo::MessageLoop::current(),
+      base::Bind(&WeaveService::OnWeaveServiceConnected,
+                 base::Unretained(this)));
   return true;
 }
 
+void WeaveService::OnWeaveServiceConnected(
+    const std::weak_ptr<weaved::Service>& service) {
+  weave_service_ = service;
+  auto weave_service = weave_service_.lock();
+  if (!weave_service)
+    return;
+
+  weave_service->AddComponent(kWeaveComponent, {"_updater"}, nullptr);
+  weave_service->AddCommandHandler(
+      kWeaveComponent,
+      "_updater.checkForUpdates",
+      base::Bind(&WeaveService::OnCheckForUpdates, base::Unretained(this)));
+  weave_service->AddCommandHandler(
+      kWeaveComponent,
+      "_updater.trackChannel",
+      base::Bind(&WeaveService::OnTrackChannel, base::Unretained(this)));
+  UpdateWeaveState();
+}
+
 void WeaveService::UpdateWeaveState() {
-  if (!device_ || !delegate_)
+  auto weave_service = weave_service_.lock();
+  if (!weave_service || !delegate_)
     return;
 
   int64_t last_checked_time;
@@ -83,17 +94,12 @@ void WeaveService::UpdateWeaveState() {
        static_cast<double>(last_checked_time)},
   };
 
-  if (!device_->SetStateProperties(kWeaveComponent, state, nullptr)) {
+  if (!weave_service->SetStateProperties(kWeaveComponent, state, nullptr)) {
     LOG(ERROR) << "Failed to update _updater state.";
   }
 }
 
-void WeaveService::OnCheckForUpdates(
-    const std::weak_ptr<weaved::Command>& cmd) {
-  auto command = cmd.lock();
-  if (!command)
-    return;
-
+void WeaveService::OnCheckForUpdates(std::unique_ptr<weaved::Command> command) {
   brillo::ErrorPtr error;
   if (!delegate_->OnCheckForUpdates(&error)) {
     command->Abort(error->GetCode(), error->GetMessage(), nullptr);
@@ -102,11 +108,7 @@ void WeaveService::OnCheckForUpdates(
   command->Complete({}, nullptr);
 }
 
-void WeaveService::OnTrackChannel(const std::weak_ptr<weaved::Command>& cmd) {
-  auto command = cmd.lock();
-  if (!command)
-    return;
-
+void WeaveService::OnTrackChannel(std::unique_ptr<weaved::Command> command) {
   string channel = command->GetParameter<string>("channel");
   brillo::ErrorPtr error;
   if (!delegate_->OnTrackChannel(channel, &error)) {

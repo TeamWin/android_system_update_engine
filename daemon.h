@@ -20,6 +20,9 @@
 #include <memory>
 #include <string>
 
+#if USE_WEAVE
+#include <brillo/binder_watcher.h>
+#endif  // USE_WEAVE
 #include <brillo/daemons/dbus_daemon.h>
 
 #include "update_engine/common/subprocess.h"
@@ -46,6 +49,10 @@ class UpdateEngineDaemon : public brillo::DBusDaemon {
   // current thread, so we need to initialize it from this class instead of
   // the main() function.
   Subprocess subprocess_;
+
+#if USE_WEAVE
+  brillo::BinderWatcher binder_watcher_;
+#endif  // USE_WEAVE
 
   std::unique_ptr<UpdateEngineAdaptor> dbus_adaptor_;
 

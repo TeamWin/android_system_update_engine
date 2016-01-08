@@ -21,6 +21,9 @@
 #include <base/bind.h>
 #include <base/location.h>
 #include <base/time/time.h>
+#if USE_WEAVE
+#include <binderwrapper/binder_wrapper.h>
+#endif  // USE_WEAVE
 #include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/common/clock.h"
@@ -73,6 +76,11 @@ int UpdateEngineDaemon::OnInit() {
   int exit_code = Daemon::OnInit();
   if (exit_code != EX_OK)
     return exit_code;
+
+#if USE_WEAVE
+  android::BinderWrapper::Create();
+  binder_watcher_.Init();
+#endif  // USE_WEAVE
 
   dbus::Bus::Options options;
   options.bus_type = dbus::Bus::SYSTEM;

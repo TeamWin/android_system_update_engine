@@ -251,6 +251,8 @@ ue_libupdate_engine_exported_shared_libraries := \
     $(ue_update_metadata_protos_exported_shared_libraries)
 ifeq ($(BRILLO_USE_WEAVE),1)
 ue_libupdate_engine_exported_shared_libraries += \
+    libbinderwrapper \
+    libbrillo-binder \
     libweaved
 endif  # BRILLO_USE_WEAVE == 1
 
