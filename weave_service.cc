@@ -30,6 +30,7 @@ using std::string;
 namespace {
 
 const char kWeaveComponent[] = "updater";
+const char kWeaveTrait[] = "_updater";
 
 }  // namespace
 
@@ -51,14 +52,12 @@ void WeaveService::OnWeaveServiceConnected(
   if (!weave_service)
     return;
 
-  weave_service->AddComponent(kWeaveComponent, {"_updater"}, nullptr);
+  weave_service->AddComponent(kWeaveComponent, {kWeaveTrait}, nullptr);
   weave_service->AddCommandHandler(
-      kWeaveComponent,
-      "_updater.checkForUpdates",
+      kWeaveComponent, kWeaveTrait, "checkForUpdates",
       base::Bind(&WeaveService::OnCheckForUpdates, base::Unretained(this)));
   weave_service->AddCommandHandler(
-      kWeaveComponent,
-      "_updater.trackChannel",
+      kWeaveComponent, kWeaveTrait, "trackChannel",
       base::Bind(&WeaveService::OnTrackChannel, base::Unretained(this)));
   UpdateWeaveState();
 }
