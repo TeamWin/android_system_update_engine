@@ -67,8 +67,22 @@ class UpdateEngineClientImpl : public UpdateEngineClient {
 
   bool GetChannel(std::string* out_channel) override;
 
+  void RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
+
  private:
   std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;
+
+  void StatusUpdateHandlerRegistered(StatusUpdateHandler* handler,
+                                     const std::string& interface,
+                                     const std::string& signal_name,
+                                     bool success);
+
+  void RunStatusUpdateHandler(StatusUpdateHandler* handler,
+                              int64_t last_checked_time,
+                              double progress,
+                              const std::string& current_operation,
+                              const std::string& new_version,
+                              int64_t new_size);
 
   DISALLOW_COPY_AND_ASSIGN(UpdateEngineClientImpl);
 };  // class UpdateEngineClientImpl

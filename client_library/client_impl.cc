@@ -40,10 +40,8 @@ bool UpdateEngineClientImpl::AttemptUpdate(const string& in_app_version,
                                            const string& in_omaha_url,
                                            bool at_user_request) {
   return proxy_->AttemptUpdateWithFlags(
-      in_app_version,
-      in_omaha_url,
-      (at_user_request) ? 0 : kAttemptUpdateFlagNonInteractive,
-      nullptr);
+      in_app_version, in_omaha_url,
+      (at_user_request) ? 0 : kAttemptUpdateFlagNonInteractive, nullptr);
 }
 
 bool UpdateEngineClientImpl::GetStatus(int64_t* out_last_checked_time,
@@ -52,13 +50,9 @@ bool UpdateEngineClientImpl::GetStatus(int64_t* out_last_checked_time,
                                        string* out_new_version,
                                        int64_t* out_new_size) {
   string status_as_string;
-  const bool success = proxy_->GetStatus(
-      out_last_checked_time,
-      out_progress,
-      &status_as_string,
-      out_new_version,
-      out_new_size,
-      nullptr);
+  const bool success =
+      proxy_->GetStatus(out_last_checked_time, out_progress, &status_as_string,
+                        out_new_version, out_new_size, nullptr);
   if (!success) {
     return false;
   }
@@ -70,7 +64,7 @@ bool UpdateEngineClientImpl::SetUpdateOverCellularPermission(bool allowed) {
   return proxy_->SetUpdateOverCellularPermission(allowed, nullptr);
 }
 
-bool UpdateEngineClientImpl::GetUpdateOverCellularPermission(bool *allowed) {
+bool UpdateEngineClientImpl::GetUpdateOverCellularPermission(bool* allowed) {
   return proxy_->GetUpdateOverCellularPermission(allowed, nullptr);
 }
 
@@ -108,26 +102,63 @@ bool UpdateEngineClientImpl::ResetStatus() {
   return proxy_->ResetStatus(nullptr);
 }
 
+void UpdateEngineClientImpl::StatusUpdateHandlerRegistered(
+    StatusUpdateHandler* handler, const std::string& interface,
+    const std::string& signal_name, bool success) {
+  if (!success) {
+    handler->IPCError("Could not connect to" + signal_name);
+    return;
+  }
+
+  int64_t last_checked_time;
+  double progress;
+  UpdateStatus update_status;
+  string new_version;
+  int64_t new_size;
+
+  if (GetStatus(&last_checked_time, &progress, &update_status, &new_version,
+                &new_size)) {
+    handler->HandleStatusUpdate(last_checked_time, progress, update_status,
+                                new_version, new_size);
+    return;
+  }
+
+  handler->IPCError("Could not query current status");
+}
+
+void UpdateEngineClientImpl::RunStatusUpdateHandler(
+    StatusUpdateHandler* h, int64_t last_checked_time, double progress,
+    const std::string& current_operation, const std::string& new_version,
+    int64_t new_size) {
+  UpdateStatus status;
+  StringToUpdateStatus(current_operation, &status);
+
+  h->HandleStatusUpdate(last_checked_time, progress, status, new_version,
+                        new_size);
+}
+
+void UpdateEngineClientImpl::RegisterStatusUpdateHandler(
+    StatusUpdateHandler* handler) {
+  proxy_->RegisterStatusUpdateSignalHandler(
+      base::Bind(&UpdateEngineClientImpl::RunStatusUpdateHandler,
+                 base::Unretained(this), base::Unretained(handler)),
+      base::Bind(&UpdateEngineClientImpl::StatusUpdateHandlerRegistered,
+                 base::Unretained(this), base::Unretained(handler)));
+}
+
 bool UpdateEngineClientImpl::SetTargetChannel(const string& in_target_channel,
                                               bool allow_powerwash) {
-  return proxy_->SetChannel(
-      in_target_channel,
-      allow_powerwash,
-      nullptr);
+  return proxy_->SetChannel(in_target_channel, allow_powerwash, nullptr);
 }
 
 bool UpdateEngineClientImpl::GetTargetChannel(string* out_channel) {
-  return proxy_->GetChannel(
-      false,  // Get the target channel.
-      out_channel,
-      nullptr);
+  return proxy_->GetChannel(false,  // Get the target channel.
+                            out_channel, nullptr);
 }
 
 bool UpdateEngineClientImpl::GetChannel(string* out_channel) {
-  return proxy_->GetChannel(
-      true,  // Get the current channel.
-      out_channel,
-      nullptr);
+  return proxy_->GetChannel(true,  // Get the current channel.
+                            out_channel, nullptr);
 }
 
 }  // namespace internal

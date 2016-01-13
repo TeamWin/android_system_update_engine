@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <base/bind.h>
 #include <base/command_line.h>
@@ -30,15 +31,18 @@
 #include <dbus/bus.h>
 
 #include "update_engine/client.h"
-#include "update_engine/update_status.h"
 #include "update_engine/dbus-constants.h"
 #include "update_engine/dbus-proxies.h"
+#include "update_engine/status_update_handler.h"
+#include "update_engine/update_status.h"
 #include "update_status_utils.h"
 
 using std::string;
 using std::unique_ptr;
+using std::vector;
 using update_engine::kAttemptUpdateFlagNonInteractive;
 using update_engine::kUpdateEngineServiceName;
+using update_engine::UpdateStatus;
 using chromeos_update_engine::UpdateStatusToString;
 
 namespace {
@@ -58,18 +62,14 @@ class UpdateEngineClient : public brillo::DBusDaemon {
  protected:
   int OnInit() override {
     int ret = DBusDaemon::OnInit();
-    if (ret != EX_OK)
-      return ret;
-    if (!InitProxy())
-      return 1;
+    if (ret != EX_OK) return ret;
+    if (!InitProxy()) return 1;
     // Wait for the UpdateEngine to be available or timeout.
-    proxy_->GetObjectProxy()->WaitForServiceToBeAvailable(
-        base::Bind(&UpdateEngineClient::OnServiceAvailable,
-                   base::Unretained(this)));
+    proxy_->GetObjectProxy()->WaitForServiceToBeAvailable(base::Bind(
+        &UpdateEngineClient::OnServiceAvailable, base::Unretained(this)));
     base::MessageLoop::current()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&UpdateEngineClient::OnServiceAvailableTimeout,
-                   base::Unretained(this)),
+        FROM_HERE, base::Bind(&UpdateEngineClient::OnServiceAvailableTimeout,
+                              base::Unretained(this)),
         base::TimeDelta::FromSeconds(10));
     return EX_OK;
   }
@@ -84,55 +84,12 @@ class UpdateEngineClient : public brillo::DBusDaemon {
   // after a timeout.
   void OnServiceAvailableTimeout();
 
-
-  // Callback called when a StatusUpdate signal is received.
-  void OnStatusUpdateSignal(int64_t last_checked_time,
-                            double progress,
-                            const string& current_operation,
-                            const string& new_version,
-                            int64_t new_size);
-  // Callback called when the OnStatusUpdateSignal() handler is registered.
-  void OnStatusUpdateSignalRegistration(const string& interface,
-                                        const string& signal_name,
-                                        bool success);
-
-  // Registers a callback that prints on stderr the received StatusUpdate
-  // signals.
-  // The daemon should continue running for this to work.
-  void WatchForUpdates();
-
   // Show the status of the update engine in stdout.
   bool ShowStatus();
 
   // Return whether we need to reboot. 0 if reboot is needed, 1 if an error
   // occurred, 2 if no reboot is needed.
   int GetNeedReboot();
-
-  // This is similar to watching for updates but rather than registering
-  // a signal watch, actively poll the daemon just in case it stops
-  // sending notifications.
-  void WaitForUpdateComplete();
-  void OnUpdateCompleteCheck(int64_t last_checked_time,
-                             double progress,
-                             const string& current_operation,
-                             const string& new_version,
-                             int64_t new_size);
-
-  // Blocks until a reboot is needed. If the reboot is needed, exits the program
-  // with 0. Otherwise it exits the program with 1 if an error occurs before
-  // the reboot is needed.
-  void WaitForRebootNeeded();
-  void OnRebootNeededCheck(int64_t last_checked_time,
-                           double progress,
-                           const string& current_operation,
-                           const string& new_version,
-                           int64_t new_size);
-  // Callback called when the OnRebootNeededCheck() handler is registered. This
-  // is useful to check at this point if the reboot is needed, without loosing
-  // any StatusUpdate signals and avoiding the race condition.
-  void OnRebootNeededCheckRegistration(const string& interface,
-                                       const string& signal_name,
-                                       bool success);
 
   // Main method that parses and triggers all the actions based on the passed
   // flags.
@@ -147,6 +104,9 @@ class UpdateEngineClient : public brillo::DBusDaemon {
 
   // Library-based client
   unique_ptr<update_engine::UpdateEngineClient> client_;
+
+  // Pointers to handlers for cleanup
+  vector<unique_ptr<update_engine::StatusUpdateHandler>> handlers_;
 
   // Tell whether the UpdateEngine service is available after startup.
   bool service_is_available_{false};
@@ -171,8 +131,7 @@ void UpdateEngineClient::OnServiceAvailable(bool service_is_available) {
     QuitWithExitCode(-1);
   }
   int ret = ProcessFlags();
-  if (ret != kContinueRunning)
-    QuitWithExitCode(ret);
+  if (ret != kContinueRunning) QuitWithExitCode(ret);
 }
 
 void UpdateEngineClient::OnServiceAvailableTimeout() {
@@ -183,59 +142,57 @@ void UpdateEngineClient::OnServiceAvailableTimeout() {
   }
 }
 
-void UpdateEngineClient::OnStatusUpdateSignal(
-    int64_t last_checked_time,
-    double progress,
-    const string& current_operation,
-    const string& new_version,
-    int64_t new_size) {
+class ExitingStatusUpdateHandler : public update_engine::StatusUpdateHandler {
+ public:
+  ~ExitingStatusUpdateHandler() override = default;
+
+  void IPCError(const string& error) override;
+};
+
+void ExitingStatusUpdateHandler::IPCError(const string& error) {
+  LOG(ERROR) << error;
+  exit(1);
+}
+
+class WatchingStatusUpdateHandler : public ExitingStatusUpdateHandler {
+ public:
+  ~WatchingStatusUpdateHandler() override = default;
+
+  void HandleStatusUpdate(int64_t last_checked_time, double progress,
+                          UpdateStatus current_operation,
+                          const std::string& new_version,
+                          int64_t new_size) override;
+};
+
+void WatchingStatusUpdateHandler::HandleStatusUpdate(
+    int64_t last_checked_time, double progress, UpdateStatus current_operation,
+    const string& new_version, int64_t new_size) {
   LOG(INFO) << "Got status update:";
   LOG(INFO) << "  last_checked_time: " << last_checked_time;
   LOG(INFO) << "  progress: " << progress;
-  LOG(INFO) << "  current_operation: " << current_operation;
+  LOG(INFO) << "  current_operation: "
+            << UpdateStatusToString(current_operation);
   LOG(INFO) << "  new_version: " << new_version;
   LOG(INFO) << "  new_size: " << new_size;
-}
-
-void UpdateEngineClient::OnStatusUpdateSignalRegistration(
-    const string& interface,
-    const string& signal_name,
-    bool success) {
-  VLOG(1) << "OnStatusUpdateSignalRegistration(" << interface << ", "
-          << signal_name << ", " << success << ");";
-  if (!success) {
-    LOG(ERROR) << "Couldn't connect to the " << signal_name << " signal.";
-    exit(1);
-  }
-}
-
-void UpdateEngineClient::WatchForUpdates() {
-  proxy_->RegisterStatusUpdateSignalHandler(
-      base::Bind(&UpdateEngineClient::OnStatusUpdateSignal,
-                 base::Unretained(this)),
-      base::Bind(&UpdateEngineClient::OnStatusUpdateSignalRegistration,
-                 base::Unretained(this)));
 }
 
 bool UpdateEngineClient::ShowStatus() {
   int64_t last_checked_time = 0;
   double progress = 0.0;
-  update_engine::UpdateStatus current_op;
+  UpdateStatus current_op;
   string new_version;
   int64_t new_size = 0;
 
-  if (!client_->GetStatus(
-      &last_checked_time, &progress, &current_op, &new_version, &new_size)) {
+  if (!client_->GetStatus(&last_checked_time, &progress, &current_op,
+                          &new_version, &new_size)) {
     return false;
   }
 
-  printf("LAST_CHECKED_TIME=%" PRIi64 "\nPROGRESS=%f\nCURRENT_OP=%s\n"
+  printf("LAST_CHECKED_TIME=%" PRIi64
+         "\nPROGRESS=%f\nCURRENT_OP=%s\n"
          "NEW_VERSION=%s\nNEW_SIZE=%" PRIi64 "\n",
-         last_checked_time,
-         progress,
-         UpdateStatusToString(current_op),
-         new_version.c_str(),
-         new_size);
+         last_checked_time, progress, UpdateStatusToString(current_op),
+         new_version.c_str(), new_size);
 
   return true;
 }
@@ -243,96 +200,51 @@ bool UpdateEngineClient::ShowStatus() {
 int UpdateEngineClient::GetNeedReboot() {
   int64_t last_checked_time = 0;
   double progress = 0.0;
-  update_engine::UpdateStatus current_op;
+  UpdateStatus current_op;
   string new_version;
   int64_t new_size = 0;
 
-  if (!client_->GetStatus(
-      &last_checked_time, &progress, &current_op, &new_version, &new_size)) {
+  if (!client_->GetStatus(&last_checked_time, &progress, &current_op,
+                          &new_version, &new_size)) {
     return 1;
   }
 
-  if (current_op == update_engine::UpdateStatus::UPDATED_NEED_REBOOT) {
+  if (current_op == UpdateStatus::UPDATED_NEED_REBOOT) {
     return 0;
   }
 
   return 2;
 }
 
-void UpdateEngineClient::OnUpdateCompleteCheck(
-    int64_t /* last_checked_time */,
-    double /* progress */,
-    const string& current_operation,
-    const string& /* new_version */,
-    int64_t /* new_size */) {
-  if (current_operation == update_engine::kUpdateStatusIdle) {
-    LOG(ERROR) << "Update failed, current operations is " << current_operation;
+class UpdateWaitHandler : public ExitingStatusUpdateHandler {
+ public:
+  UpdateWaitHandler(bool exit_on_error) : exit_on_error_(exit_on_error) {}
+
+  ~UpdateWaitHandler() override = default;
+
+  void HandleStatusUpdate(int64_t last_checked_time, double progress,
+                          UpdateStatus current_operation,
+                          const std::string& new_version,
+                          int64_t new_size) override;
+
+ private:
+  bool exit_on_error_;
+};
+
+void UpdateWaitHandler::HandleStatusUpdate(int64_t /* last_checked_time */,
+                                           double /* progress */,
+                                           UpdateStatus current_operation,
+                                           const string& /* new_version */,
+                                           int64_t /* new_size */) {
+  if (exit_on_error_ && current_operation == UpdateStatus::IDLE) {
+    LOG(ERROR) << "Update failed, current operations is "
+               << UpdateStatusToString(current_operation);
     exit(1);
   }
-  if (current_operation == update_engine::kUpdateStatusUpdatedNeedReboot) {
+  if (current_operation == UpdateStatus::UPDATED_NEED_REBOOT) {
     LOG(INFO) << "Update succeeded -- reboot needed.";
     exit(0);
   }
-}
-
-void UpdateEngineClient::WaitForUpdateComplete() {
-  proxy_->RegisterStatusUpdateSignalHandler(
-      base::Bind(&UpdateEngineClient::OnUpdateCompleteCheck,
-                 base::Unretained(this)),
-      base::Bind(&UpdateEngineClient::OnStatusUpdateSignalRegistration,
-                 base::Unretained(this)));
-}
-
-void UpdateEngineClient::OnRebootNeededCheck(
-    int64_t /* last_checked_time */,
-    double /* progress */,
-    const string& current_operation,
-    const string& /* new_version */,
-    int64_t /* new_size */) {
-  if (current_operation == update_engine::kUpdateStatusUpdatedNeedReboot) {
-    LOG(INFO) << "Reboot needed.";
-    exit(0);
-  }
-}
-
-void UpdateEngineClient::OnRebootNeededCheckRegistration(
-    const string& interface,
-    const string& signal_name,
-    bool success) {
-  int got = GetNeedReboot();
-
-  if (got == 1) {
-    LOG(ERROR) << "Could not query the current operation.";
-    exit(1);
-  }
-
-  if (got == 0) {
-    exit(0);
-  }
-
-  if (!success) {
-    LOG(ERROR) << "Couldn't connect to the " << signal_name << " signal.";
-    exit(1);
-  }
-}
-
-// Blocks until a reboot is needed. Returns true if waiting succeeded,
-// false if an error occurred.
-void UpdateEngineClient::WaitForRebootNeeded() {
-  proxy_->RegisterStatusUpdateSignalHandler(
-      base::Bind(&UpdateEngineClient::OnUpdateCompleteCheck,
-                 base::Unretained(this)),
-      base::Bind(&UpdateEngineClient::OnStatusUpdateSignalRegistration,
-                 base::Unretained(this)));
-  int got = GetNeedReboot();
-
-  if (got == 1) {
-    LOG(ERROR) << "Could not query the current operation.";
-    exit(1);
-  }
-
-  if (got == 0)
-    exit(0);
 }
 
 int UpdateEngineClient::ProcessFlags() {
@@ -342,25 +254,30 @@ int UpdateEngineClient::ProcessFlags() {
                 "target channel is more stable than the current channel unless "
                 "--nopowerwash is specified.");
   DEFINE_bool(check_for_update, false, "Initiate check for updates.");
-  DEFINE_bool(follow, false, "Wait for any update operations to complete."
+  DEFINE_bool(follow, false,
+              "Wait for any update operations to complete."
               "Exit status is 0 if the update succeeded, and 1 otherwise.");
   DEFINE_bool(interactive, true, "Mark the update request as interactive.");
   DEFINE_string(omaha_url, "", "The URL of the Omaha update server.");
   DEFINE_string(p2p_update, "",
                 "Enables (\"yes\") or disables (\"no\") the peer-to-peer update"
                 " sharing.");
-  DEFINE_bool(powerwash, true, "When performing rollback or channel change, "
+  DEFINE_bool(powerwash, true,
+              "When performing rollback or channel change, "
               "do a powerwash or allow it respectively.");
   DEFINE_bool(reboot, false, "Initiate a reboot if needed.");
-  DEFINE_bool(is_reboot_needed, false, "Exit status 0 if reboot is needed, "
+  DEFINE_bool(is_reboot_needed, false,
+              "Exit status 0 if reboot is needed, "
               "2 if reboot is not needed or 1 if an error occurred.");
-  DEFINE_bool(block_until_reboot_is_needed, false, "Blocks until reboot is "
+  DEFINE_bool(block_until_reboot_is_needed, false,
+              "Blocks until reboot is "
               "needed. Returns non-zero exit status if an error occurred.");
   DEFINE_bool(reset_status, false, "Sets the status in update_engine to idle.");
   DEFINE_bool(rollback, false,
               "Perform a rollback to the previous partition. The device will "
               "be powerwashed unless --nopowerwash is specified.");
-  DEFINE_bool(can_rollback, false, "Shows whether rollback partition "
+  DEFINE_bool(can_rollback, false,
+              "Shows whether rollback partition "
               "is available.");
   DEFINE_bool(show_channel, false, "Show the current and target channels.");
   DEFINE_bool(show_p2p_update, false,
@@ -368,7 +285,8 @@ int UpdateEngineClient::ProcessFlags() {
   DEFINE_bool(show_update_over_cellular, false,
               "Show the current setting for updates over cellular networks.");
   DEFINE_bool(status, false, "Print the status to stdout.");
-  DEFINE_bool(update, false, "Forces an update and waits for it to complete. "
+  DEFINE_bool(update, false,
+              "Forces an update and waits for it to complete. "
               "Implies --follow.");
   DEFINE_string(update_over_cellular, "",
                 "Enables (\"yes\") or disables (\"no\") the updates over "
@@ -414,7 +332,7 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(ERROR) << "Unknown option: \"" << FLAGS_update_over_cellular
                  << "\". Please specify \"yes\" or \"no\".";
     } else {
-      if(!client_->SetUpdateOverCellularPermission(allowed)) {
+      if (!client_->SetUpdateOverCellularPermission(allowed)) {
         LOG(ERROR) << "Error setting the update over cellular setting.";
         return 1;
       }
@@ -521,9 +439,9 @@ int UpdateEngineClient::ProcessFlags() {
   }
 
   bool do_update_request = FLAGS_check_for_update | FLAGS_update |
-      !FLAGS_app_version.empty() | !FLAGS_omaha_url.empty();
-  if (FLAGS_update)
-    FLAGS_follow = true;
+                           !FLAGS_app_version.empty() |
+                           !FLAGS_omaha_url.empty();
+  if (FLAGS_update) FLAGS_follow = true;
 
   if (do_update_request && FLAGS_rollback) {
     LOG(ERROR) << "Incompatible flags specified with rollback."
@@ -556,9 +474,9 @@ int UpdateEngineClient::ProcessFlags() {
   }
 
   // These final options are all mutually exclusive with one another.
-  if (FLAGS_follow + FLAGS_watch_for_updates + FLAGS_reboot +
-      FLAGS_status + FLAGS_is_reboot_needed +
-      FLAGS_block_until_reboot_is_needed > 1) {
+  if (FLAGS_follow + FLAGS_watch_for_updates + FLAGS_reboot + FLAGS_status +
+          FLAGS_is_reboot_needed + FLAGS_block_until_reboot_is_needed >
+      1) {
     LOG(ERROR) << "Multiple exclusive options selected. "
                << "Select only one of --follow, --watch_for_updates, --reboot, "
                << "--is_reboot_needed, --block_until_reboot_is_needed, "
@@ -577,13 +495,17 @@ int UpdateEngineClient::ProcessFlags() {
 
   if (FLAGS_follow) {
     LOG(INFO) << "Waiting for update to complete.";
-    WaitForUpdateComplete();
+    auto handler = new UpdateWaitHandler(true);
+    handlers_.emplace_back(handler);
+    client_->RegisterStatusUpdateHandler(handler);
     return kContinueRunning;
   }
 
   if (FLAGS_watch_for_updates) {
     LOG(INFO) << "Watching for status updates.";
-    WatchForUpdates();
+    auto handler = new WatchingStatusUpdateHandler();
+    handlers_.emplace_back(handler);
+    client_->RegisterStatusUpdateHandler(handler);
     return kContinueRunning;
   }
 
@@ -614,7 +536,9 @@ int UpdateEngineClient::ProcessFlags() {
   }
 
   if (FLAGS_block_until_reboot_is_needed) {
-    WaitForRebootNeeded();
+    auto handler = new UpdateWaitHandler(false);
+    handlers_.emplace_back(handler);
+    client_->RegisterStatusUpdateHandler(handler);
     return kContinueRunning;
   }
 
