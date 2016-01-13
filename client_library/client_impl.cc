@@ -16,24 +16,30 @@
 
 #include "update_engine/client_library/client_impl.h"
 
+#include <base/message_loop/message_loop.h>
+
 #include <dbus/bus.h>
 #include <update_engine/dbus-constants.h>
 
 #include "update_engine/update_status_utils.h"
 
 using chromeos_update_engine::StringToUpdateStatus;
+using std::string;
 using dbus::Bus;
 using org::chromium::UpdateEngineInterfaceProxy;
-using std::string;
 
 namespace update_engine {
 namespace internal {
 
-UpdateEngineClientImpl::UpdateEngineClientImpl() {
+bool UpdateEngineClientImpl::Init() {
   Bus::Options options;
   options.bus_type = Bus::SYSTEM;
   scoped_refptr<Bus> bus{new Bus{options}};
+
+  if (!bus->Connect()) return false;
+
   proxy_.reset(new UpdateEngineInterfaceProxy{bus});
+  return true;
 }
 
 bool UpdateEngineClientImpl::AttemptUpdate(const string& in_app_version,
@@ -48,7 +54,7 @@ bool UpdateEngineClientImpl::GetStatus(int64_t* out_last_checked_time,
                                        double* out_progress,
                                        UpdateStatus* out_update_status,
                                        string* out_new_version,
-                                       int64_t* out_new_size) {
+                                       int64_t* out_new_size) const {
   string status_as_string;
   const bool success =
       proxy_->GetStatus(out_last_checked_time, out_progress, &status_as_string,
@@ -64,7 +70,7 @@ bool UpdateEngineClientImpl::SetUpdateOverCellularPermission(bool allowed) {
   return proxy_->SetUpdateOverCellularPermission(allowed, nullptr);
 }
 
-bool UpdateEngineClientImpl::GetUpdateOverCellularPermission(bool* allowed) {
+bool UpdateEngineClientImpl::GetUpdateOverCellularPermission(bool* allowed) const {
   return proxy_->GetUpdateOverCellularPermission(allowed, nullptr);
 }
 
@@ -72,7 +78,7 @@ bool UpdateEngineClientImpl::SetP2PUpdatePermission(bool enabled) {
   return proxy_->SetP2PUpdatePermission(enabled, nullptr);
 }
 
-bool UpdateEngineClientImpl::GetP2PUpdatePermission(bool* enabled) {
+bool UpdateEngineClientImpl::GetP2PUpdatePermission(bool* enabled) const {
   return proxy_->GetP2PUpdatePermission(enabled, nullptr);
 }
 
@@ -80,11 +86,11 @@ bool UpdateEngineClientImpl::Rollback(bool powerwash) {
   return proxy_->AttemptRollback(powerwash, nullptr);
 }
 
-bool UpdateEngineClientImpl::GetRollbackPartition(string* rollback_partition) {
+bool UpdateEngineClientImpl::GetRollbackPartition(string* rollback_partition) const {
   return proxy_->GetRollbackPartition(rollback_partition, nullptr);
 }
 
-bool UpdateEngineClientImpl::GetPrevVersion(string* prev_version) {
+bool UpdateEngineClientImpl::GetPrevVersion(string* prev_version) const {
   return proxy_->GetPrevVersion(prev_version, nullptr);
 }
 
@@ -104,7 +110,7 @@ bool UpdateEngineClientImpl::ResetStatus() {
 
 void UpdateEngineClientImpl::StatusUpdateHandlerRegistered(
     StatusUpdateHandler* handler, const std::string& interface,
-    const std::string& signal_name, bool success) {
+    const std::string& signal_name, bool success) const {
   if (!success) {
     handler->IPCError("Could not connect to" + signal_name);
     return;
@@ -139,6 +145,11 @@ void UpdateEngineClientImpl::RunStatusUpdateHandler(
 
 void UpdateEngineClientImpl::RegisterStatusUpdateHandler(
     StatusUpdateHandler* handler) {
+  if (!base::MessageLoopForIO::current()) {
+    LOG(FATAL) << "Cannot get UpdateEngineClient outside of message loop.";
+    return;
+  }
+
   proxy_->RegisterStatusUpdateSignalHandler(
       base::Bind(&UpdateEngineClientImpl::RunStatusUpdateHandler,
                  base::Unretained(this), base::Unretained(handler)),
@@ -151,12 +162,12 @@ bool UpdateEngineClientImpl::SetTargetChannel(const string& in_target_channel,
   return proxy_->SetChannel(in_target_channel, allow_powerwash, nullptr);
 }
 
-bool UpdateEngineClientImpl::GetTargetChannel(string* out_channel) {
+bool UpdateEngineClientImpl::GetTargetChannel(string* out_channel) const {
   return proxy_->GetChannel(false,  // Get the target channel.
                             out_channel, nullptr);
 }
 
-bool UpdateEngineClientImpl::GetChannel(string* out_channel) {
+bool UpdateEngineClientImpl::GetChannel(string* out_channel) const {
   return proxy_->GetChannel(true,  // Get the current channel.
                             out_channel, nullptr);
 }

@@ -31,7 +31,9 @@ namespace internal {
 
 class UpdateEngineClientImpl : public UpdateEngineClient {
  public:
-  UpdateEngineClientImpl();
+  explicit UpdateEngineClientImpl() = default;
+  bool Init();
+
   virtual ~UpdateEngineClientImpl() = default;
 
   bool AttemptUpdate(const std::string& app_version,
@@ -42,30 +44,30 @@ class UpdateEngineClientImpl : public UpdateEngineClient {
                  double* out_progress,
                  UpdateStatus* out_update_status,
                  std::string* out_new_version,
-                 int64_t* out_new_size) override;
+                 int64_t* out_new_size) const override;
 
   bool SetUpdateOverCellularPermission(bool allowed) override;
-  bool GetUpdateOverCellularPermission(bool* allowed) override;
+  bool GetUpdateOverCellularPermission(bool* allowed) const override;
 
   bool SetP2PUpdatePermission(bool enabled) override;
-  bool GetP2PUpdatePermission(bool* enabled) override;
+  bool GetP2PUpdatePermission(bool* enabled) const override;
 
   bool Rollback(bool powerwash) override;
 
-  bool GetRollbackPartition(std::string* rollback_partition) override;
+  bool GetRollbackPartition(std::string* rollback_partition) const override;
 
   void RebootIfNeeded() override;
 
-  bool GetPrevVersion(std::string* prev_version) override;
+  bool GetPrevVersion(std::string* prev_version) const override;
 
   bool ResetStatus() override;
 
   bool SetTargetChannel(const std::string& target_channel,
                         bool allow_powerwash) override;
 
-  bool GetTargetChannel(std::string* out_channel) override;
+  bool GetTargetChannel(std::string* out_channel) const override;
 
-  bool GetChannel(std::string* out_channel) override;
+  bool GetChannel(std::string* out_channel) const override;
 
   void RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
 
@@ -75,7 +77,7 @@ class UpdateEngineClientImpl : public UpdateEngineClient {
   void StatusUpdateHandlerRegistered(StatusUpdateHandler* handler,
                                      const std::string& interface,
                                      const std::string& signal_name,
-                                     bool success);
+                                     bool success) const;
 
   void RunStatusUpdateHandler(StatusUpdateHandler* handler,
                               int64_t last_checked_time,

@@ -65,28 +65,28 @@ class UpdateEngineClient {
                          double* out_progress,
                          UpdateStatus* out_update_status,
                          std::string* out_new_version,
-                         int64_t* out_new_size) = 0;
+                         int64_t* out_new_size) const = 0;
 
   // Getter and setter for the updates over cellular connections.
   virtual bool SetUpdateOverCellularPermission(bool allowed) = 0;
-  virtual bool GetUpdateOverCellularPermission(bool* allowed) = 0;
+  virtual bool GetUpdateOverCellularPermission(bool* allowed) const = 0;
 
   // Getter and setter for the updates from P2P permission.
   virtual bool SetP2PUpdatePermission(bool enabled) = 0;
-  virtual bool GetP2PUpdatePermission(bool* enabled) = 0;
+  virtual bool GetP2PUpdatePermission(bool* enabled) const = 0;
 
   // Attempt a rollback. Set 'powerwash' to reset the device while rolling
   // back.
   virtual bool Rollback(bool powerwash) = 0;
 
   // Get the rollback partition if available. Gives empty string if not.
-  virtual bool GetRollbackPartition(std::string* rollback_partition) = 0;
+  virtual bool GetRollbackPartition(std::string* rollback_partition) const = 0;
 
   // Reboot the system if needed.
   virtual void RebootIfNeeded() = 0;
 
   // Get the previous version
-  virtual bool GetPrevVersion(std::string* prev_version) = 0;
+  virtual bool GetPrevVersion(std::string* prev_version) const = 0;
 
   // Resets the status of the Update Engine
   virtual bool ResetStatus() = 0;
@@ -96,10 +96,10 @@ class UpdateEngineClient {
                                 bool allow_powerwash) = 0;
 
   // Get the channel the device will switch to on reboot.
-  virtual bool GetTargetChannel(std::string* out_channel) = 0;
+  virtual bool GetTargetChannel(std::string* out_channel) const = 0;
 
   // Get the channel the device is currently on.
-  virtual bool GetChannel(std::string* out_channel) = 0;
+  virtual bool GetChannel(std::string* out_channel) const = 0;
 
   // Handle status updates. The handler must exist until the client is
   // destroyed. Its IPCError method will be called if the handler could

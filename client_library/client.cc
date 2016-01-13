@@ -25,7 +25,14 @@ using std::unique_ptr;
 namespace update_engine {
 
 std::unique_ptr<UpdateEngineClient> UpdateEngineClient::CreateInstance() {
-  return unique_ptr<UpdateEngineClient>{new internal::UpdateEngineClientImpl{}};
+  auto update_engine_client_impl = new internal::UpdateEngineClientImpl{};
+  auto ret = unique_ptr<UpdateEngineClient>{update_engine_client_impl};
+
+  if (!update_engine_client_impl->Init()) {
+      ret.reset();
+  }
+
+  return ret;
 }
 
 }  // namespace update_engine

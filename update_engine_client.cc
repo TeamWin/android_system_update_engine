@@ -26,13 +26,10 @@
 #include <base/command_line.h>
 #include <base/logging.h>
 #include <base/macros.h>
-#include <brillo/daemons/dbus_daemon.h>
+#include <brillo/daemons/daemon.h>
 #include <brillo/flag_helper.h>
-#include <dbus/bus.h>
 
 #include "update_engine/client.h"
-#include "update_engine/dbus-constants.h"
-#include "update_engine/dbus-proxies.h"
 #include "update_engine/status_update_handler.h"
 #include "update_engine/update_status.h"
 #include "update_status_utils.h"
@@ -40,8 +37,6 @@
 using std::string;
 using std::unique_ptr;
 using std::vector;
-using update_engine::kAttemptUpdateFlagNonInteractive;
-using update_engine::kUpdateEngineServiceName;
 using update_engine::UpdateStatus;
 using chromeos_update_engine::UpdateStatusToString;
 
@@ -51,38 +46,32 @@ namespace {
 // initialization.
 const int kContinueRunning = -1;
 
-class UpdateEngineClient : public brillo::DBusDaemon {
+class UpdateEngineClient : public brillo::Daemon {
  public:
   UpdateEngineClient(int argc, char** argv) : argc_(argc), argv_(argv) {
-    client_ = update_engine::UpdateEngineClient::CreateInstance();
   }
 
   ~UpdateEngineClient() override = default;
 
  protected:
   int OnInit() override {
-    int ret = DBusDaemon::OnInit();
+    int ret = Daemon::OnInit();
     if (ret != EX_OK) return ret;
-    if (!InitProxy()) return 1;
-    // Wait for the UpdateEngine to be available or timeout.
-    proxy_->GetObjectProxy()->WaitForServiceToBeAvailable(base::Bind(
-        &UpdateEngineClient::OnServiceAvailable, base::Unretained(this)));
-    base::MessageLoop::current()->PostDelayedTask(
-        FROM_HERE, base::Bind(&UpdateEngineClient::OnServiceAvailableTimeout,
-                              base::Unretained(this)),
-        base::TimeDelta::FromSeconds(10));
+
+    client_ = update_engine::UpdateEngineClient::CreateInstance();
+
+    if (!client_) {
+      LOG(ERROR) << "UpdateEngineService not available.";
+      return 1;
+    }
+
+    ret = ProcessFlags();
+    if (ret != kContinueRunning) QuitWithExitCode(ret);
+
     return EX_OK;
   }
 
  private:
-  bool InitProxy();
-
-  // Callback called when the UpdateEngine service becomes available.
-  void OnServiceAvailable(bool service_is_available);
-
-  // Callback called when the UpdateEngine service doesn't become available
-  // after a timeout.
-  void OnServiceAvailableTimeout();
 
   // Show the status of the update engine in stdout.
   bool ShowStatus();
@@ -94,9 +83,6 @@ class UpdateEngineClient : public brillo::DBusDaemon {
   // Main method that parses and triggers all the actions based on the passed
   // flags.
   int ProcessFlags();
-
-  // DBus Proxy to the update_engine daemon object used for all the calls.
-  std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;
 
   // Copy of argc and argv passed to main().
   int argc_;
@@ -113,34 +99,6 @@ class UpdateEngineClient : public brillo::DBusDaemon {
 
   DISALLOW_COPY_AND_ASSIGN(UpdateEngineClient);
 };
-
-bool UpdateEngineClient::InitProxy() {
-  proxy_.reset(new org::chromium::UpdateEngineInterfaceProxy(bus_));
-
-  if (!proxy_->GetObjectProxy()) {
-    LOG(ERROR) << "Error getting dbus proxy for " << kUpdateEngineServiceName;
-    return false;
-  }
-  return true;
-}
-
-void UpdateEngineClient::OnServiceAvailable(bool service_is_available) {
-  service_is_available_ = service_is_available;
-  if (!service_is_available) {
-    LOG(ERROR) << "UpdateEngineService not available.";
-    QuitWithExitCode(-1);
-  }
-  int ret = ProcessFlags();
-  if (ret != kContinueRunning) QuitWithExitCode(ret);
-}
-
-void UpdateEngineClient::OnServiceAvailableTimeout() {
-  if (!service_is_available_) {
-    LOG(ERROR) << "Waiting for UpdateEngineService timeout. Is update_engine "
-                  "daemon running?";
-    QuitWithExitCode(-1);
-  }
-}
 
 class ExitingStatusUpdateHandler : public update_engine::StatusUpdateHandler {
  public:
