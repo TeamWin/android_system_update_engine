@@ -405,6 +405,9 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                                  &error_message)) {
       LOG(ERROR) << "Setting the channel failed: " << error_message;
     }
+    // Update the weave state because updated the target channel.
+    if (system_state_->weave_service())
+      system_state_->weave_service()->UpdateWeaveState();
 
     // Since this is the beginning of a new attempt, update the download
     // channel. The download channel won't be updated until the next attempt,
@@ -1102,6 +1105,9 @@ bool UpdateAttempter::OnTrackChannel(const string& channel,
                          error_message);
     return false;
   }
+  // Update the weave state because updated the target channel.
+  if (system_state_->weave_service())
+    system_state_->weave_service()->UpdateWeaveState();
   return true;
 }
 
