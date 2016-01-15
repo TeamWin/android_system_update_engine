@@ -47,6 +47,7 @@
     'defines': [
       '_FILE_OFFSET_BITS=64',
       '_POSIX_C_SOURCE=199309L',
+      'USE_BINDER=0',
       'USE_DBUS=<(USE_dbus)',
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
       'USE_MTD=<(USE_mtd)',
@@ -242,6 +243,7 @@
       'sources': [
         'boot_control_chromeos.cc',
         'chrome_browser_proxy_resolver.cc',
+        'common_service.cc',
         'connection_manager.cc',
         'daemon.cc',
         'dbus_service.cc',
@@ -312,7 +314,7 @@
       },
       'sources': [
         'client_library/client.cc',
-        'client_library/client_impl.cc',
+        'client_library/client_dbus.cc',
         'update_status_utils.cc',
       ],
       'include_dirs': [
@@ -483,8 +485,8 @@
             'common/terminator_unittest.cc',
             'common/test_utils.cc',
             'common/utils_unittest.cc',
+            'common_service_unittest.cc',
             'connection_manager_unittest.cc',
-            'dbus_service_unittest.cc',
             'fake_shill_proxy.cc',
             'fake_system_state.cc',
             'metrics_utils_unittest.cc',

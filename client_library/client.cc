@@ -18,14 +18,22 @@
 
 #include <memory>
 
-#include "update_engine/client_library/client_impl.h"
+#if USE_BINDER
+#include "update_engine/client_library/client_binder.h"
+#else  // !USE_BINDER
+#include "update_engine/client_library/client_dbus.h"
+#endif  // USE_BINDER
 
 using std::unique_ptr;
 
 namespace update_engine {
 
-std::unique_ptr<UpdateEngineClient> UpdateEngineClient::CreateInstance() {
-  auto update_engine_client_impl = new internal::UpdateEngineClientImpl{};
+unique_ptr<UpdateEngineClient> UpdateEngineClient::CreateInstance() {
+#if USE_BINDER
+  auto update_engine_client_impl = new internal::BinderUpdateEngineClient{};
+#else  // !USE_BINDER
+  auto update_engine_client_impl = new internal::DBusUpdateEngineClient{};
+#endif  // USE_BINDER
   auto ret = unique_ptr<UpdateEngineClient>{update_engine_client_impl};
 
   if (!update_engine_client_impl->Init()) {

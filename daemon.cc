@@ -21,9 +21,9 @@
 #include <base/bind.h>
 #include <base/location.h>
 #include <base/time/time.h>
-#if USE_WEAVE
+#if USE_WEAVE || USE_BINDER
 #include <binderwrapper/binder_wrapper.h>
-#endif  // USE_WEAVE
+#endif  // USE_WEAVE || USE_BINDER
 #include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/update_attempter.h"
@@ -45,10 +45,10 @@ int UpdateEngineDaemon::OnInit() {
   if (exit_code != EX_OK)
     return exit_code;
 
-#if USE_WEAVE
+#if USE_WEAVE || USE_BINDER
   android::BinderWrapper::Create();
   binder_watcher_.Init();
-#endif  // USE_WEAVE
+#endif  // USE_WEAVE || USE_BINDER
 
   // We wait for the D-Bus connection for up two minutes to avoid re-spawning
   // the daemon too fast causing thrashing if dbus-daemon is not running.
@@ -70,6 +70,18 @@ int UpdateEngineDaemon::OnInit() {
       << "Failed to initialize system state.";
   UpdateAttempter* update_attempter = real_system_state_->update_attempter();
   CHECK(update_attempter);
+
+#if USE_BINDER
+  // Create the Binder Service
+  service_ = new BinderUpdateEngineService{real_system_state_.get()};
+  auto binder_wrapper = android::BinderWrapper::Get();
+  sleep(10);
+  if (!binder_wrapper->RegisterService("android.brillo.UpdateEngineService",
+                                       service_)) {
+    LOG(ERROR) << "Failed to register binder service.";
+  }
+
+#endif  // USE_BINDER
 
   // Create the DBus service.
   dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state_.get(), bus));

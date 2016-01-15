@@ -17,6 +17,7 @@
 LOCAL_PATH := $(my-dir)
 
 # Default values for the USE flags. Override these USE flags from your product.
+BRILLO_USE_BINDER ?= 1
 BRILLO_USE_DBUS ?= 1
 BRILLO_USE_HWID_OVERRIDE ?= 0
 BRILLO_USE_MTD ?= 0
@@ -24,6 +25,7 @@ BRILLO_USE_POWER_MANAGEMENT ?= 0
 BRILLO_USE_WEAVE ?= 0
 
 ue_common_cflags := \
+    -DUSE_BINDER=$(BRILLO_USE_BINDER) \
     -DUSE_DBUS=$(BRILLO_USE_DBUS) \
     -DUSE_HWID_OVERRIDE=$(BRILLO_USE_HWID_OVERRIDE) \
     -DUSE_MTD=$(BRILLO_USE_MTD) \
@@ -287,6 +289,7 @@ LOCAL_SRC_FILES := \
     chrome_browser_proxy_resolver.cc \
     connection_manager.cc \
     daemon.cc \
+    common_service.cc \
     dbus_service.cc \
     hardware_android.cc \
     image_properties_android.cc \
@@ -322,6 +325,21 @@ ifeq ($(BRILLO_USE_WEAVE),1)
 LOCAL_SRC_FILES += \
     weave_service.cc
 endif  # BRILLO_USE_WEAVE == 1
+
+ifeq ($(BRILLO_USE_BINDER),1)
+LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
+
+LOCAL_SRC_FILES += \
+    binder_bindings/android/brillo/IUpdateEngine.aidl \
+    binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
+    binder_service.cc \
+    parcelable_update_engine_status.cc
+
+LOCAL_SHARED_LIBRARIES += \
+    libbinder \
+    libutils
+endif  # BRILLO_USE_BINDER == 1
+
 include $(BUILD_STATIC_LIBRARY)
 
 endif  # BRILLO_USE_DBUS == 1
@@ -371,9 +389,16 @@ LOCAL_SRC_FILES := \
     binder_bindings/android/os/IUpdateEngine.aidl \
     binder_bindings/android/os/IUpdateEngineCallback.aidl \
     binder_main.cc \
-    binder_service.cc
+    binder_service_android.cc
 
 endif  # defined(BRILLO)
+
+ifeq ($(BRILLO_USE_BINDER),1)
+LOCAL_SHARED_LIBRARIES += \
+    libbinder \
+    libutils
+endif  # BRILLO_USE_BINDER == 1
+
 
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)
@@ -553,7 +578,8 @@ LOCAL_MODULE := libupdate_engine_client
 LOCAL_CFLAGS := \
     -Wall \
     -Werror \
-    -Wno-unused-parameter
+    -Wno-unused-parameter \
+    -DUSE_BINDER=$(BRILLO_USE_BINDER)
 LOCAL_CLANG := true
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_C_INCLUDES := \
@@ -571,8 +597,22 @@ LOCAL_STATIC_LIBRARIES := \
     update_engine_client-dbus-proxies
 LOCAL_SRC_FILES := \
     client_library/client.cc \
-    client_library/client_impl.cc \
     update_status_utils.cc
+
+ifeq ($(BRILLO_USE_BINDER),1)
+LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
+LOCAL_SRC_FILES += \
+    client_library/client_binder.cc \
+    parcelable_update_engine_status.cc \
+    binder_bindings/android/brillo/IUpdateEngine.aidl \
+    binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl
+LOCAL_SHARED_LIBRARIES += \
+    libbinder \
+    libutils
+else  # BRILLO_USE_BINDER != 1
+LOCAL_SRC_FILES += client_library/client_dbus.cc
+endif  # BRILLO_USE_BINDER == 1
+
 include $(BUILD_SHARED_LIBRARY)
 
 endif  # BRILLO_USE_DBUS == 1

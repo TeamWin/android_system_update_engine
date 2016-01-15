@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/dbus_service.h"
+#include "update_engine/common_service.h"
 
 #include <gtest/gtest.h>
 #include <string>
@@ -22,16 +22,13 @@
 #include <brillo/errors/error.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
-#include <update_engine/dbus-constants.h>
 
 #include "update_engine/fake_system_state.h"
 
-using brillo::errors::dbus::kDomain;
 using std::string;
 using testing::Return;
 using testing::SetArgumentPointee;
 using testing::_;
-using update_engine::kUpdateEngineServiceErrorFailed;
 
 namespace chromeos_update_engine {
 
@@ -39,7 +36,7 @@ class UpdateEngineServiceTest : public ::testing::Test {
  protected:
   UpdateEngineServiceTest()
       : mock_update_attempter_(fake_system_state_.mock_update_attempter()),
-        dbus_service_(&fake_system_state_) {}
+        common_service_(&fake_system_state_) {}
 
   void SetUp() override {
     fake_system_state_.set_device_policy(nullptr);
@@ -53,24 +50,16 @@ class UpdateEngineServiceTest : public ::testing::Test {
   MockUpdateAttempter* mock_update_attempter_;
 
   brillo::ErrorPtr error_;
-  UpdateEngineService dbus_service_;
+  UpdateEngineService common_service_;
 };
 
 TEST_F(UpdateEngineServiceTest, AttemptUpdate) {
-  // Simple test to ensure that the default is an interactive check.
-  EXPECT_CALL(*mock_update_attempter_,
-              CheckForUpdate("app_ver", "url", true /* interactive */));
-  EXPECT_TRUE(dbus_service_.AttemptUpdate(&error_, "app_ver", "url"));
-  EXPECT_EQ(nullptr, error_);
-}
-
-TEST_F(UpdateEngineServiceTest, AttemptUpdateWithFlags) {
   EXPECT_CALL(*mock_update_attempter_, CheckForUpdate(
       "app_ver", "url", false /* interactive */));
   // The update is non-interactive when we pass the non-interactive flag.
-  EXPECT_TRUE(dbus_service_.AttemptUpdateWithFlags(
+  EXPECT_TRUE(common_service_.AttemptUpdate(
       &error_, "app_ver", "url",
-      update_engine::kAttemptUpdateFlagNonInteractive));
+      UpdateEngineService::kAttemptUpdateFlagNonInteractive));
   EXPECT_EQ(nullptr, error_);
 }
 
@@ -82,7 +71,7 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithNoPolicy) {
   EXPECT_CALL(*fake_system_state_.mock_request_params(),
               SetTargetChannel("stable-channel", true, _))
       .WillOnce(Return(true));
-  EXPECT_TRUE(dbus_service_.SetChannel(&error_, "stable-channel", true));
+  EXPECT_TRUE(common_service_.SetChannel(&error_, "stable-channel", true));
   ASSERT_EQ(nullptr, error_);
 }
 
@@ -96,7 +85,7 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithDelegatedPolicy) {
               SetTargetChannel("beta-channel", true, _))
       .WillOnce(Return(true));
 
-  EXPECT_TRUE(dbus_service_.SetChannel(&error_, "beta-channel", true));
+  EXPECT_TRUE(common_service_.SetChannel(&error_, "beta-channel", true));
   ASSERT_EQ(nullptr, error_);
 }
 
@@ -107,21 +96,22 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithInvalidChannel) {
   EXPECT_CALL(*fake_system_state_.mock_request_params(),
               SetTargetChannel("foo-channel", true, _)).WillOnce(Return(false));
 
-  EXPECT_FALSE(dbus_service_.SetChannel(&error_, "foo-channel", true));
+  EXPECT_FALSE(common_service_.SetChannel(&error_, "foo-channel", true));
   ASSERT_NE(nullptr, error_);
-  EXPECT_TRUE(error_->HasError(kDomain, kUpdateEngineServiceErrorFailed));
+  EXPECT_TRUE(error_->HasError(UpdateEngineService::kErrorDomain,
+                               UpdateEngineService::kErrorFailed));
 }
 
 TEST_F(UpdateEngineServiceTest, GetChannel) {
   fake_system_state_.mock_request_params()->set_current_channel("current");
   fake_system_state_.mock_request_params()->set_target_channel("target");
   string channel;
-  EXPECT_TRUE(dbus_service_.GetChannel(
+  EXPECT_TRUE(common_service_.GetChannel(
       &error_, true /* get_current_channel */, &channel));
   EXPECT_EQ(nullptr, error_);
   EXPECT_EQ("current", channel);
 
-  EXPECT_TRUE(dbus_service_.GetChannel(
+  EXPECT_TRUE(common_service_.GetChannel(
       &error_, false /* get_current_channel */, &channel));
   EXPECT_EQ(nullptr, error_);
   EXPECT_EQ("target", channel);
@@ -129,15 +119,16 @@ TEST_F(UpdateEngineServiceTest, GetChannel) {
 
 TEST_F(UpdateEngineServiceTest, ResetStatusSucceeds) {
   EXPECT_CALL(*mock_update_attempter_, ResetStatus()).WillOnce(Return(true));
-  EXPECT_TRUE(dbus_service_.ResetStatus(&error_));
+  EXPECT_TRUE(common_service_.ResetStatus(&error_));
   EXPECT_EQ(nullptr, error_);
 }
 
 TEST_F(UpdateEngineServiceTest, ResetStatusFails) {
   EXPECT_CALL(*mock_update_attempter_, ResetStatus()).WillOnce(Return(false));
-  EXPECT_FALSE(dbus_service_.ResetStatus(&error_));
+  EXPECT_FALSE(common_service_.ResetStatus(&error_));
   ASSERT_NE(nullptr, error_);
-  EXPECT_TRUE(error_->HasError(kDomain, kUpdateEngineServiceErrorFailed));
+  EXPECT_TRUE(error_->HasError(UpdateEngineService::kErrorDomain,
+                               UpdateEngineService::kErrorFailed));
 }
 
 }  // namespace chromeos_update_engine
