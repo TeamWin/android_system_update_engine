@@ -143,6 +143,8 @@ ue_libpayload_consumer_exported_static_libraries := \
     update_metadata-protos \
     libxz-host \
     libbz \
+    libimgpatch \
+    libz \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
     libcrypto-host \

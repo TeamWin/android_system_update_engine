@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include <applypatch/imgpatch.h>
 #include <base/files/file_util.h>
 #include <base/format_macros.h>
 #include <base/strings/string_util.h>
@@ -677,6 +678,9 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
       case InstallOperation::SOURCE_BSDIFF:
         op_result = PerformSourceBsdiffOperation(op);
         break;
+      case InstallOperation::IMGDIFF:
+        op_result = PerformImgdiffOperation(op);
+        break;
       default:
        op_result = false;
     }
@@ -1229,6 +1233,57 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
       Subprocess::SynchronousExecFlags(cmd, Subprocess::kSearchPath,
                                        &return_code, nullptr));
   TEST_AND_RETURN_FALSE(return_code == 0);
+  return true;
+}
+
+bool DeltaPerformer::PerformImgdiffOperation(
+    const InstallOperation& operation) {
+  // Since we delete data off the beginning of the buffer as we use it,
+  // the data we need should be exactly at the beginning of the buffer.
+  TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
+  TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
+
+  uint64_t src_blocks = GetBlockCount(operation.src_extents());
+  brillo::Blob src_data(src_blocks * block_size_);
+
+  ssize_t bytes_read = 0;
+  for (const Extent& extent : operation.src_extents()) {
+    ssize_t bytes_read_this_iteration = 0;
+    ssize_t bytes_to_read = extent.num_blocks() * block_size_;
+    TEST_AND_RETURN_FALSE(utils::PReadAll(source_fd_,
+                                          &src_data[bytes_read],
+                                          bytes_to_read,
+                                          extent.start_block() * block_size_,
+                                          &bytes_read_this_iteration));
+    TEST_AND_RETURN_FALSE(bytes_read_this_iteration == bytes_to_read);
+    bytes_read += bytes_read_this_iteration;
+  }
+
+  if (operation.has_src_sha256_hash()) {
+    brillo::Blob src_hash;
+    TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfData(src_data, &src_hash));
+    TEST_AND_RETURN_FALSE(ValidateSourceHash(src_hash, operation));
+  }
+
+  vector<Extent> target_extents(operation.dst_extents().begin(),
+                                operation.dst_extents().end());
+  DirectExtentWriter writer;
+  TEST_AND_RETURN_FALSE(writer.Init(target_fd_, target_extents, block_size_));
+  TEST_AND_RETURN_FALSE(
+      ApplyImagePatch(src_data.data(),
+                      src_data.size(),
+                      buffer_.data(),
+                      operation.data_length(),
+                      [](const unsigned char* data, ssize_t len, void* token) {
+                        return reinterpret_cast<ExtentWriter*>(token)
+                                       ->Write(data, len)
+                                   ? len
+                                   : 0;
+                      },
+                      &writer) == 0);
+  TEST_AND_RETURN_FALSE(writer.End());
+
+  DiscardBuffer(true, buffer_.size());
   return true;
 }
 
