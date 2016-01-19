@@ -45,6 +45,9 @@
 #                            specified file
 #  Note that the number of signature sizes and payload signatures have to match.
 
+# Exit codes:
+EX_UNSUPPORTED_DELTA=100
+
 warn() {
   echo "brillo_update_payload: warning: $*" >&2
 }
@@ -335,6 +338,13 @@ using payload minor version 2"
       "PAYLOAD_MINOR_VERSION" 2)
     FORCE_MAJOR_VERSION=$(read_option_uint "${ue_config}" \
       "PAYLOAD_MAJOR_VERSION" 2)
+
+    # Brillo support for deltas started with minor version 3.
+    if [[ "${FORCE_MINOR_VERSION}" -le 2 ]]; then
+      warn "No delta support from minor version ${FORCE_MINOR_VERSION}. \
+Disabling deltas for this source version."
+      exit ${EX_UNSUPPORTED_DELTA}
+    fi
   else
     # Target image
     local postinstall_config=$(create_tempfile "postinstall_config.XXXXXX")
