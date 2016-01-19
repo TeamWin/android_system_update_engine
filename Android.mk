@@ -369,7 +369,7 @@ LOCAL_SHARED_LIBRARIES := \
     libutils
 LOCAL_SRC_FILES := \
     binder_bindings/android/os/IUpdateEngine.aidl \
-    binder_bindings/android/os/IUpdateEnginePayloadApplicationCallback.aidl \
+    binder_bindings/android/os/IUpdateEngineCallback.aidl \
     binder_main.cc \
     binder_service.cc
 
