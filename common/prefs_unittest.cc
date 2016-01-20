@@ -143,17 +143,19 @@ TEST_F(PrefsTest, GetInt64BadValue) {
 }
 
 TEST_F(PrefsTest, GetInt64Max) {
-  ASSERT_TRUE(SetValue(kKey, base::StringPrintf("%" PRIi64, kint64max)));
+  ASSERT_TRUE(SetValue(kKey, base::StringPrintf(
+      "%" PRIi64, std::numeric_limits<uint64_t>::max())));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
-  EXPECT_EQ(kint64max, value);
+  EXPECT_EQ(std::numeric_limits<uint64_t>::max(), value);
 }
 
 TEST_F(PrefsTest, GetInt64Min) {
-  ASSERT_TRUE(SetValue(kKey, base::StringPrintf("%" PRIi64, kint64min)));
+  ASSERT_TRUE(SetValue(kKey, base::StringPrintf(
+        "%" PRIi64, std::numeric_limits<uint64_t>::min())));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
-  EXPECT_EQ(kint64min, value);
+  EXPECT_EQ(std::numeric_limits<uint64_t>::min(), value);
 }
 
 TEST_F(PrefsTest, GetInt64Negative) {
@@ -182,17 +184,19 @@ TEST_F(PrefsTest, SetInt64BadKey) {
 }
 
 TEST_F(PrefsTest, SetInt64Max) {
-  EXPECT_TRUE(prefs_.SetInt64(kKey, kint64max));
+  EXPECT_TRUE(prefs_.SetInt64(kKey, std::numeric_limits<int64_t>::max()));
   string value;
   EXPECT_TRUE(base::ReadFileToString(prefs_dir_.Append(kKey), &value));
-  EXPECT_EQ(base::StringPrintf("%" PRIi64, kint64max), value);
+  EXPECT_EQ(base::StringPrintf("%" PRIi64, std::numeric_limits<int64_t>::max()),
+            value);
 }
 
 TEST_F(PrefsTest, SetInt64Min) {
-  EXPECT_TRUE(prefs_.SetInt64(kKey, kint64min));
+  EXPECT_TRUE(prefs_.SetInt64(kKey, std::numeric_limits<int64_t>::min()));
   string value;
   EXPECT_TRUE(base::ReadFileToString(prefs_dir_.Append(kKey), &value));
-  EXPECT_EQ(base::StringPrintf("%" PRIi64, kint64min), value);
+  EXPECT_EQ(base::StringPrintf("%" PRIi64, std::numeric_limits<int64_t>::min()),
+            value);
 }
 
 TEST_F(PrefsTest, GetBooleanFalse) {

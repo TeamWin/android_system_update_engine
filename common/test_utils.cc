@@ -142,7 +142,8 @@ bool BindToUnusedLoopDevice(const string& filename, string* lo_dev_name_p) {
   // Bind to an unused loopback device, sanity check the device name.
   lo_dev_name_p->clear();
   if (!(utils::ReadPipe("losetup --show -f " + filename, lo_dev_name_p) &&
-        base::StartsWithASCII(*lo_dev_name_p, "/dev/loop", true))) {
+        base::StartsWith(*lo_dev_name_p, "/dev/loop",
+                         base::CompareCase::SENSITIVE))) {
     ADD_FAILURE();
     return false;
   }

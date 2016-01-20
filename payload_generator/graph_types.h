@@ -83,7 +83,7 @@ typedef std::vector<Vertex> Graph;
 typedef std::pair<Vertex::Index, Vertex::Index> Edge;
 
 const uint64_t kTempBlockStart = 1ULL << 60;
-COMPILE_ASSERT(kTempBlockStart != 0, kTempBlockStart_invalid);
+static_assert(kTempBlockStart != 0, "kTempBlockStart invalid");
 
 }  // namespace chromeos_update_engine
 

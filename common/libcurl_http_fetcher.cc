@@ -63,21 +63,21 @@ LibcurlHttpFetcher::~LibcurlHttpFetcher() {
 
 bool LibcurlHttpFetcher::GetProxyType(const string& proxy,
                                       curl_proxytype* out_type) {
-  if (base::StartsWithASCII(proxy, "socks5://", true) ||
-      base::StartsWithASCII(proxy, "socks://", true)) {
+  if (base::StartsWith(proxy, "socks5://", base::CompareCase::SENSITIVE) ||
+      base::StartsWith(proxy, "socks://", base::CompareCase::SENSITIVE)) {
     *out_type = CURLPROXY_SOCKS5_HOSTNAME;
     return true;
   }
-  if (base::StartsWithASCII(proxy, "socks4://", true)) {
+  if (base::StartsWith(proxy, "socks4://", base::CompareCase::SENSITIVE)) {
     *out_type = CURLPROXY_SOCKS4A;
     return true;
   }
-  if (base::StartsWithASCII(proxy, "http://", true) ||
-      base::StartsWithASCII(proxy, "https://", true)) {
+  if (base::StartsWith(proxy, "http://", base::CompareCase::SENSITIVE) ||
+      base::StartsWith(proxy, "https://", base::CompareCase::SENSITIVE)) {
     *out_type = CURLPROXY_HTTP;
     return true;
   }
-  if (base::StartsWithASCII(proxy, kNoProxy, true)) {
+  if (base::StartsWith(proxy, kNoProxy, base::CompareCase::SENSITIVE)) {
     // known failure case. don't log.
     return false;
   }
@@ -193,7 +193,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
   // Lock down the appropriate curl options for HTTP or HTTPS depending on
   // the url.
   if (hardware_->IsOfficialBuild()) {
-    if (base::StartsWithASCII(url_, "http://", false))
+    if (base::StartsWith(url_, "http://", base::CompareCase::INSENSITIVE_ASCII))
       SetCurlOptionsForHttp();
     else
       SetCurlOptionsForHttps();

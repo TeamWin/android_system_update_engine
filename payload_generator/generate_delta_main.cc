@@ -56,9 +56,9 @@ namespace {
 void ParseSignatureSizes(const string& signature_sizes_flag,
                          vector<int>* signature_sizes) {
   signature_sizes->clear();
-  vector<string> split_strings;
-
-  base::SplitString(signature_sizes_flag, ':', &split_strings);
+  vector<string> split_strings =
+      base::SplitString(signature_sizes_flag, ":", base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
   for (const string& str : split_strings) {
     int size = 0;
     bool parsing_successful = base::StringToInt(str, &size);
@@ -128,8 +128,9 @@ void CalculateHashForSigning(const vector<int> &sizes,
 
 void SignatureFileFlagToBlobs(const string& signature_file_flag,
                               vector<brillo::Blob>* signatures) {
-  vector<string> signature_files;
-  base::SplitString(signature_file_flag, ':', &signature_files);
+  vector<string> signature_files =
+      base::SplitString(signature_file_flag, ":", base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
   for (const string& signature_file : signature_files) {
     brillo::Blob signature;
     CHECK(utils::ReadFile(signature_file, &signature));
@@ -378,7 +379,9 @@ int Main(int argc, char** argv) {
   PayloadGenerationConfig payload_config;
   vector<string> partition_names, old_partitions, new_partitions;
 
-  base::SplitString(FLAGS_partition_names, ':', &partition_names);
+  partition_names =
+      base::SplitString(FLAGS_partition_names, ":", base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
   CHECK(!partition_names.empty());
   if (FLAGS_major_version == kChromeOSMajorPayloadVersion ||
       FLAGS_new_partitions.empty()) {
@@ -395,7 +398,9 @@ int Main(int argc, char** argv) {
     LOG_IF(FATAL, !FLAGS_new_image.empty() || !FLAGS_new_kernel.empty())
         << "--new_image and --new_kernel are deprecated, please use "
         << "--new_partitions for all partitions.";
-    base::SplitString(FLAGS_new_partitions, ':', &new_partitions);
+    new_partitions =
+        base::SplitString(FLAGS_new_partitions, ":", base::TRIM_WHITESPACE,
+                          base::SPLIT_WANT_ALL);
     CHECK(partition_names.size() == new_partitions.size());
 
     payload_config.is_delta = !FLAGS_old_partitions.empty();
@@ -421,7 +426,9 @@ int Main(int argc, char** argv) {
 
   if (payload_config.is_delta) {
     if (!FLAGS_old_partitions.empty()) {
-      base::SplitString(FLAGS_old_partitions, ':', &old_partitions);
+      old_partitions =
+          base::SplitString(FLAGS_old_partitions, ":", base::TRIM_WHITESPACE,
+                            base::SPLIT_WANT_ALL);
       CHECK(old_partitions.size() == new_partitions.size());
     } else {
       old_partitions = {FLAGS_old_image, FLAGS_old_kernel};

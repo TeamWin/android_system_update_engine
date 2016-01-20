@@ -162,13 +162,12 @@ deque<string> ChromeBrowserProxyResolver::ParseProxyString(
     // Start by finding the first space (if any).
     string::iterator space;
     for (space = token.begin(); space != token.end(); ++space) {
-      if (IsAsciiWhitespace(*space)) {
+      if (base::IsAsciiWhitespace(*space)) {
         break;
       }
     }
 
-    string scheme = string(token.begin(), space);
-    base::StringToLowerASCII(&scheme);
+    string scheme = base::ToLowerASCII(string(token.begin(), space));
     // Chrome uses "socks" to mean socks4 and "proxy" to mean http.
     if (scheme == "socks")
       scheme += "4";

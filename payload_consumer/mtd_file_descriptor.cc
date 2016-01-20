@@ -168,8 +168,8 @@ bool MtdFileDescriptor::Close() {
 bool UbiFileDescriptor::IsUbi(const char* path) {
   base::FilePath device_node(path);
   base::FilePath ubi_name(device_node.BaseName());
-  TEST_AND_RETURN_FALSE(
-      base::StartsWithASCII(ubi_name.MaybeAsASCII(), "ubi", true));
+  TEST_AND_RETURN_FALSE(base::StartsWith(ubi_name.MaybeAsASCII(), "ubi",
+                                         base::CompareCase::SENSITIVE));
 
   return static_cast<bool>(GetUbiVolumeInfo(path));
 }

@@ -1073,8 +1073,8 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   fake_prefs_.SetString(kPrefsOmahaCohort, "evil\nstring");
   fake_prefs_.SetString(kPrefsOmahaCohortHint, "evil&string\\");
   fake_prefs_.SetString(kPrefsOmahaCohortName,
-                        JoinString(vector<string>(100, "My spoon is too big."),
-                                   ' '));
+                        base::JoinString(
+                            vector<string>(100, "My spoon is too big."), " "));
   OmahaResponse response;
   ASSERT_FALSE(
       TestUpdateCheck(&params,

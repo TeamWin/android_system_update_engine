@@ -497,7 +497,7 @@ TEST_F(DeltaPerformerTest, SourceHashMismatchTest) {
 
 TEST_F(DeltaPerformerTest, ExtentsToByteStringTest) {
   uint64_t test[] = {1, 1, 4, 2, 0, 1};
-  COMPILE_ASSERT(arraysize(test) % 2 == 0, array_size_uneven);
+  static_assert(arraysize(test) % 2 == 0, "Array size uneven");
   const uint64_t block_size = 4096;
   const uint64_t file_length = 4 * block_size - 13;
 

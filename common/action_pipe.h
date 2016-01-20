@@ -89,10 +89,10 @@ class ActionPipe {
 // Utility function
 template<typename FromAction, typename ToAction>
 void BondActions(FromAction* from, ToAction* to) {
-  // TODO(adlr): find something like this that the compiler accepts:
-  // COMPILE_ASSERT(typeof(typename FromAction::OutputObjectType) ==
-  //                typeof(typename ToAction::InputObjectType),
-  //     FromAction_OutputObjectType_doesnt_match_ToAction_InputObjectType);
+  static_assert(
+      std::is_same<typename FromAction::OutputObjectType,
+                   typename ToAction::InputObjectType>::value,
+      "FromAction::OutputObjectType doesn't match ToAction::InputObjectType");
   ActionPipe<typename FromAction::OutputObjectType>::Bond(from, to);
 }
 
