@@ -28,10 +28,10 @@
 
 namespace chromeos_update_engine {
 
-class BinderService : public android::os::BnUpdateEngine {
+class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine {
  public:
-  BinderService() = default;
-  virtual ~BinderService() = default;
+  BinderUpdateEngineAndroidService() = default;
+  ~BinderUpdateEngineAndroidService() override = default;
 
   android::binder::Status applyPayload(
       const android::String16& url,
@@ -46,7 +46,7 @@ class BinderService : public android::os::BnUpdateEngine {
   android::binder::Status resume() override;
 
   android::binder::Status cancel() override;
-};  // class BinderService
+};
 
 }  // namespace chromeos_update_engine
 

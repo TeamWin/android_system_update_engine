@@ -24,15 +24,16 @@
 #if USE_WEAVE || USE_BINDER
 #include <binderwrapper/binder_wrapper.h>
 #endif  // USE_WEAVE || USE_BINDER
-#include <brillo/message_loops/message_loop.h>
 
+#if defined(__BRILLO__) || defined(__CHROMEOS__)
 #include "update_engine/update_attempter.h"
+#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
 
-using brillo::MessageLoop;
-
+#if USE_DBUS
 namespace {
 const int kDBusSystemMaxWaitSeconds = 2 * 60;
 }  // namespace
+#endif // USE_DBUS
 
 namespace chromeos_update_engine {
 
@@ -50,6 +51,7 @@ int UpdateEngineDaemon::OnInit() {
   binder_watcher_.Init();
 #endif  // USE_WEAVE || USE_BINDER
 
+#if USE_DBUS
   // We wait for the D-Bus connection for up two minutes to avoid re-spawning
   // the daemon too fast causing thrashing if dbus-daemon is not running.
   scoped_refptr<dbus::Bus> bus = dbus_connection_.ConnectWithTimeout(
@@ -63,26 +65,34 @@ int UpdateEngineDaemon::OnInit() {
   }
 
   CHECK(bus->SetUpAsyncOperations());
+#endif // USE_DBUS
 
+#if defined(__BRILLO__) || defined(__CHROMEOS__)
   // Initialize update engine global state but continue if something fails.
   real_system_state_.reset(new RealSystemState(bus));
   LOG_IF(ERROR, !real_system_state_->Initialize())
       << "Failed to initialize system state.";
   UpdateAttempter* update_attempter = real_system_state_->update_attempter();
   CHECK(update_attempter);
+#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+  //TODO(deymo): Initialize non-Brillo state.
+#endif // defined(__BRILLO__) || defined(__CHROMEOS__)
 
 #if USE_BINDER
-  // Create the Binder Service
+  // Create the Binder Service.
+#if defined(__BRILLO__) || defined(__CHROMEOS__)
   service_ = new BinderUpdateEngineService{real_system_state_.get()};
+#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+  service_ = new BinderUpdateEngineAndroidService{};
+#endif // defined(__BRILLO__) || defined(__CHROMEOS__)
   auto binder_wrapper = android::BinderWrapper::Get();
-  sleep(10);
   if (!binder_wrapper->RegisterService("android.brillo.UpdateEngineService",
                                        service_)) {
     LOG(ERROR) << "Failed to register binder service.";
   }
-
 #endif  // USE_BINDER
 
+#if USE_DBUS
   // Create the DBus service.
   dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state_.get(), bus));
   update_attempter->set_dbus_adaptor(dbus_adaptor_.get());
@@ -90,9 +100,17 @@ int UpdateEngineDaemon::OnInit() {
   dbus_adaptor_->RegisterAsync(base::Bind(&UpdateEngineDaemon::OnDBusRegistered,
                                           base::Unretained(this)));
   LOG(INFO) << "Waiting for DBus object to be registered.";
+#else  // !USE_DBUS
+#if defined(__BRILLO__) || defined(__CHROMEOS__)
+  real_system_state_->StartUpdater();
+#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+  // TODO(deymo): Start non-Brillo service.
+#endif // defined(__BRILLO__) || defined(__CHROMEOS__)
+#endif // USE_DBUS
   return EX_OK;
 }
 
+#if USE_DBUS
 void UpdateEngineDaemon::OnDBusRegistered(bool succeeded) {
   if (!succeeded) {
     LOG(ERROR) << "Registering the UpdateEngineAdaptor";
@@ -109,30 +127,8 @@ void UpdateEngineDaemon::OnDBusRegistered(bool succeeded) {
     QuitWithExitCode(1);
     return;
   }
-
-  // Initiate update checks.
-  UpdateAttempter* update_attempter = real_system_state_->update_attempter();
-  update_attempter->ScheduleUpdates();
-
-  // Update boot flags after 45 seconds.
-  MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&UpdateAttempter::UpdateBootFlags,
-                 base::Unretained(update_attempter)),
-      base::TimeDelta::FromSeconds(45));
-
-  // Broadcast the update engine status on startup to ensure consistent system
-  // state on crashes.
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-      &UpdateAttempter::BroadcastStatus,
-      base::Unretained(update_attempter)));
-
-  // Run the UpdateEngineStarted() method on |update_attempter|.
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-      &UpdateAttempter::UpdateEngineStarted,
-      base::Unretained(update_attempter)));
-
-  LOG(INFO) << "Finished initialization. Now running the loop.";
+  real_system_state_->StartUpdater();
 }
+#endif  // USE_DBUS
 
 }  // namespace chromeos_update_engine
