@@ -851,7 +851,7 @@ bool UpdateAttempter::RebootDirectly() {
   command.push_back("/sbin/shutdown");
   command.push_back("-r");
   command.push_back("now");
-  LOG(INFO) << "Running \"" << JoinString(command, ' ') << "\"";
+  LOG(INFO) << "Running \"" << base::JoinString(command, " ") << "\"";
   int rc = 0;
   Subprocess::SynchronousExec(command, &rc, nullptr);
   return rc == 0;

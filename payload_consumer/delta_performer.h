@@ -357,7 +357,7 @@ class DeltaPerformer : public FileWriter {
   uint64_t buffer_offset_{0};
 
   // Last |buffer_offset_| value updated as part of the progress update.
-  uint64_t last_updated_buffer_offset_{kuint64max};
+  uint64_t last_updated_buffer_offset_{std::numeric_limits<uint64_t>::max()};
 
   // The block size (parsed from the manifest).
   uint32_t block_size_{0};

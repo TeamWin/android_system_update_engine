@@ -89,8 +89,9 @@ const char kBootIdPath[] = "/proc/sys/kernel/random/boot_id";
 // Return true if |disk_name| is an MTD or a UBI device. Note that this test is
 // simply based on the name of the device.
 bool IsMtdDeviceName(const string& disk_name) {
-  return base::StartsWithASCII(disk_name, "/dev/ubi", true) ||
-         base::StartsWithASCII(disk_name, "/dev/mtd", true);
+  return base::StartsWith(disk_name, "/dev/ubi",
+                          base::CompareCase::SENSITIVE) ||
+         base::StartsWith(disk_name, "/dev/mtd", base::CompareCase::SENSITIVE);
 }
 
 // Return the device name for the corresponding partition on a NAND device.
@@ -133,8 +134,9 @@ string MakeNandPartitionNameForMount(int partition_num) {
 // base::GetTempDir() and prepends it to |path|. On success stores the full
 // temporary path in |template_path| and returns true.
 bool GetTempName(const string& path, base::FilePath* template_path) {
-  if (path[0] == '/' || base::StartsWithASCII(path, "./", true) ||
-      base::StartsWithASCII(path, "../", true)) {
+  if (path[0] == '/' ||
+      base::StartsWith(path, "./", base::CompareCase::SENSITIVE) ||
+      base::StartsWith(path, "../", base::CompareCase::SENSITIVE)) {
     *template_path = base::FilePath(path);
     return true;
   }
@@ -432,7 +434,8 @@ void HexDumpArray(const uint8_t* const arr, const size_t length) {
 bool SplitPartitionName(const string& partition_name,
                         string* out_disk_name,
                         int* out_partition_num) {
-  if (!base::StartsWithASCII(partition_name, "/dev/", true)) {
+  if (!base::StartsWith(partition_name, "/dev/",
+                        base::CompareCase::SENSITIVE)) {
     LOG(ERROR) << "Invalid partition device name: " << partition_name;
     return false;
   }
@@ -486,7 +489,7 @@ string MakePartitionName(const string& disk_name, int partition_num) {
     return string();
   }
 
-  if (!base::StartsWithASCII(disk_name, "/dev/", true)) {
+  if (!base::StartsWith(disk_name, "/dev/", base::CompareCase::SENSITIVE)) {
     LOG(ERROR) << "Invalid disk name: " << disk_name;
     return string();
   }

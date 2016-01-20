@@ -289,7 +289,7 @@ int BootControlChromeOS::GetPartitionNumber(
   // To help compatibility between different we accept both lowercase and
   // uppercase names in the ChromeOS or Brillo standard names.
   // See http://www.chromium.org/chromium-os/chromiumos-design-docs/disk-format
-  string partition_lower = base::StringToLowerASCII(partition_name);
+  string partition_lower = base::ToLowerASCII(partition_name);
   int base_part_num = 2 + 2 * slot;
   if (partition_lower == kChromeOSPartitionNameKernel ||
       partition_lower == kAndroidPartitionNameKernel)

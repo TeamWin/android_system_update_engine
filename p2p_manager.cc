@@ -339,9 +339,12 @@ bool P2PManagerImpl::PerformHousekeeping() {
   base::FileEnumerator dir(p2p_dir, false, base::FileEnumerator::FILES);
   // Go through all files and collect their mtime.
   for (FilePath name = dir.Next(); !name.empty(); name = dir.Next()) {
-    if (!(base::EndsWith(name.value(), ext_visible, true) ||
-          base::EndsWith(name.value(), ext_non_visible, true)))
+    if (!(base::EndsWith(name.value(), ext_visible,
+                         base::CompareCase::SENSITIVE) ||
+          base::EndsWith(name.value(), ext_non_visible,
+                         base::CompareCase::SENSITIVE))) {
       continue;
+    }
 
     Time time = dir.GetInfo().GetLastModifiedTime();
 
@@ -673,9 +676,12 @@ int P2PManagerImpl::CountSharedFiles() {
 
   base::FileEnumerator dir(p2p_dir, false, base::FileEnumerator::FILES);
   for (FilePath name = dir.Next(); !name.empty(); name = dir.Next()) {
-    if (base::EndsWith(name.value(), ext_visible, true) ||
-        base::EndsWith(name.value(), ext_non_visible, true))
+    if (base::EndsWith(name.value(), ext_visible,
+                       base::CompareCase::SENSITIVE) ||
+        base::EndsWith(name.value(), ext_non_visible,
+                       base::CompareCase::SENSITIVE)) {
       num_files += 1;
+    }
   }
 
   return num_files;

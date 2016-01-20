@@ -91,7 +91,7 @@ bool ParseRequest(int fd, HttpRequest* request) {
       exit(RC_ERR_READ);
     }
     headers.append(buf, r);
-  } while (!base::EndsWith(headers, EOL EOL, true));
+  } while (!base::EndsWith(headers, EOL EOL, base::CompareCase::SENSITIVE));
 
   LOG(INFO) << "got headers:\n--8<------8<------8<------8<----\n"
             << headers
@@ -103,8 +103,9 @@ bool ParseRequest(int fd, HttpRequest* request) {
       headers.substr(0, headers.length() - strlen(EOL EOL)), EOL, &lines);
 
   // Decode URL line.
-  vector<string> terms;
-  base::SplitStringAlongWhitespace(lines[0], &terms);
+  vector<string> terms = base::SplitString(lines[0], base::kWhitespaceASCII,
+                                           base::KEEP_WHITESPACE,
+                                           base::SPLIT_WANT_NONEMPTY);
   CHECK_EQ(terms.size(), static_cast<vector<string>::size_type>(3));
   CHECK_EQ(terms[0], "GET");
   request->url = terms[1];
@@ -113,14 +114,14 @@ bool ParseRequest(int fd, HttpRequest* request) {
   // Decode remaining lines.
   size_t i;
   for (i = 1; i < lines.size(); i++) {
-    vector<string> terms;
-    base::SplitStringAlongWhitespace(lines[i], &terms);
+    terms = base::SplitString(lines[i], base::kWhitespaceASCII,
+                              base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
     if (terms[0] == "Range:") {
       CHECK_EQ(terms.size(), static_cast<vector<string>::size_type>(2));
       string &range = terms[1];
       LOG(INFO) << "range attribute: " << range;
-      CHECK(base::StartsWithASCII(range, "bytes=", true) &&
+      CHECK(base::StartsWith(range, "bytes=", base::CompareCase::SENSITIVE) &&
             range.find('-') != string::npos);
       request->start_offset = atoll(range.c_str() + strlen("bytes="));
       // Decode end offset and increment it by one (so it is non-inclusive).
@@ -478,8 +479,9 @@ class UrlTerms {
     CHECK_GT(url.size(), static_cast<size_t>(0));
     CHECK_EQ(url[0], '/');
 
-    // Split it into terms delimited by slashes, omitting the preceeding slash.
-    base::SplitStringDontTrim(url.substr(1), '/', &terms);
+    // Split it into terms delimited by slashes, omitting the preceding slash.
+    terms = base::SplitString(url.substr(1), "/", base::KEEP_WHITESPACE,
+                              base::SPLIT_WANT_ALL);
 
     // Ensure expected length.
     CHECK_EQ(terms.size(), num_terms);
@@ -510,10 +512,11 @@ void HandleConnection(int fd) {
   LOG(INFO) << "pid(" << getpid() <<  "): handling url " << url;
   if (url == "/quitquitquit") {
     HandleQuit(fd);
-  } else if (base::StartsWithASCII(url, "/download/", true)) {
+  } else if (base::StartsWith(url, "/download/", 
+                              base::CompareCase::SENSITIVE)) {
     const UrlTerms terms(url, 2);
     HandleGet(fd, request, terms.GetSizeT(1));
-  } else if (base::StartsWithASCII(url, "/flaky/", true)) {
+  } else if (base::StartsWith(url, "/flaky/", base::CompareCase::SENSITIVE)) {
     const UrlTerms terms(url, 5);
     HandleGet(fd, request, terms.GetSizeT(1), terms.GetSizeT(2),
               terms.GetInt(3), terms.GetInt(4));
@@ -521,7 +524,8 @@ void HandleConnection(int fd) {
     HandleRedirect(fd, request);
   } else if (url == "/error") {
     HandleError(fd, request);
-  } else if (base::StartsWithASCII(url, "/error-if-offset/", true)) {
+  } else if (base::StartsWith(url, "/error-if-offset/",
+                              base::CompareCase::SENSITIVE)) {
     const UrlTerms terms(url, 3);
     HandleErrorIfOffset(fd, request, terms.GetSizeT(1), terms.GetInt(2));
   } else if (url == "/hang") {

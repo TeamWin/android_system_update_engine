@@ -78,7 +78,7 @@ struct OmahaResponse {
   // aka "Pacific Time".)
   int install_date_days = -1;
 };
-COMPILE_ASSERT(sizeof(off_t) == 8, off_t_not_64bit);
+static_assert(sizeof(off_t) == 8, "off_t not 64 bit");
 
 }  // namespace chromeos_update_engine
 

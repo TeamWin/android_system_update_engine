@@ -171,8 +171,8 @@ void DeltaPerformer::UpdateOverallProgress(bool force_log,
                                            const char* message_prefix) {
   // Compute our download and overall progress.
   unsigned new_overall_progress = 0;
-  COMPILE_ASSERT(kProgressDownloadWeight + kProgressOperationsWeight == 100,
-                 progress_weight_dont_add_up);
+  static_assert(kProgressDownloadWeight + kProgressOperationsWeight == 100,
+                "Progress weights don't add up");
   // Only consider download progress if its total size is known; otherwise
   // adjust the operations weight to compensate for the absence of download
   // progress. Also, make sure to cap the download portion at
@@ -409,8 +409,8 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     }
 
     // Extract the payload version from the metadata.
-    COMPILE_ASSERT(sizeof(major_payload_version_) == kDeltaVersionSize,
-                   major_payload_version_size_mismatch);
+    static_assert(sizeof(major_payload_version_) == kDeltaVersionSize,
+                  "Major payload version size mismatch");
     memcpy(&major_payload_version_,
            &payload[kDeltaVersionOffset],
            kDeltaVersionSize);
@@ -435,8 +435,8 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
       return kMetadataParseInsufficientData;
 
     // Next, parse the manifest size.
-    COMPILE_ASSERT(sizeof(manifest_size_) == kDeltaManifestSizeSize,
-                   manifest_size_size_mismatch);
+    static_assert(sizeof(manifest_size_) == kDeltaManifestSizeSize,
+                  "manifest_size size mismatch");
     memcpy(&manifest_size_,
            &payload[kDeltaManifestSizeOffset],
            kDeltaManifestSizeSize);
@@ -444,9 +444,9 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
 
     if (GetMajorVersion() == kBrilloMajorPayloadVersion) {
       // Parse the metadata signature size.
-      COMPILE_ASSERT(sizeof(metadata_signature_size_) ==
-                     kDeltaMetadataSignatureSizeSize,
-                     metadata_signature_size_size_mismatch);
+      static_assert(sizeof(metadata_signature_size_) ==
+                    kDeltaMetadataSignatureSizeSize,
+                    "metadata_signature_size size mismatch");
       uint64_t metadata_signature_size_offset;
       if (!GetMetadataSignatureSizeOffset(&metadata_signature_size_offset)) {
         *error = ErrorCode::kError;

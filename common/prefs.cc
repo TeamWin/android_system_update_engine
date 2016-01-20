@@ -133,7 +133,7 @@ bool Prefs::GetFileNameForKey(const string& key,
   TEST_AND_RETURN_FALSE(!key.empty());
   for (size_t i = 0; i < key.size(); ++i) {
     char c = key.at(i);
-    TEST_AND_RETURN_FALSE(IsAsciiAlpha(c) || IsAsciiDigit(c) ||
+    TEST_AND_RETURN_FALSE(base::IsAsciiAlpha(c) || base::IsAsciiDigit(c) ||
                           c == '_' || c == '-');
   }
   *filename = prefs_dir_.Append(key);
