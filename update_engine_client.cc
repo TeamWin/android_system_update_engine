@@ -34,11 +34,11 @@
 #include "update_engine/update_status.h"
 #include "update_status_utils.h"
 
+using chromeos_update_engine::UpdateStatusToString;
 using std::string;
 using std::unique_ptr;
 using std::vector;
 using update_engine::UpdateStatus;
-using chromeos_update_engine::UpdateStatusToString;
 
 namespace {
 
@@ -65,14 +65,16 @@ class UpdateEngineClient : public brillo::Daemon {
       return 1;
     }
 
-    ret = ProcessFlags();
-    if (ret != kContinueRunning) QuitWithExitCode(ret);
-
+    // We can't call QuitWithExitCode from OnInit(), so we delay the execution
+    // of the ProcessFlags method after the Daemon initialization is done.
+    base::MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(&UpdateEngineClient::ProcessFlagsAndExit,
+                   base::Unretained(this)));
     return EX_OK;
   }
 
  private:
-
   // Show the status of the update engine in stdout.
   bool ShowStatus();
 
@@ -81,8 +83,12 @@ class UpdateEngineClient : public brillo::Daemon {
   int GetNeedReboot();
 
   // Main method that parses and triggers all the actions based on the passed
-  // flags.
+  // flags. Returns the exit code of the program of kContinueRunning if it
+  // should not exit.
   int ProcessFlags();
+
+  // Processes the flags and exits the program accordingly.
+  void ProcessFlagsAndExit();
 
   // Copy of argc and argv passed to main().
   int argc_;
@@ -116,9 +122,10 @@ class WatchingStatusUpdateHandler : public ExitingStatusUpdateHandler {
  public:
   ~WatchingStatusUpdateHandler() override = default;
 
-  void HandleStatusUpdate(int64_t last_checked_time, double progress,
+  void HandleStatusUpdate(int64_t last_checked_time,
+                          double progress,
                           UpdateStatus current_operation,
-                          const std::string& new_version,
+                          const string& new_version,
                           int64_t new_size) override;
 };
 
@@ -176,13 +183,15 @@ int UpdateEngineClient::GetNeedReboot() {
 
 class UpdateWaitHandler : public ExitingStatusUpdateHandler {
  public:
-  UpdateWaitHandler(bool exit_on_error) : exit_on_error_(exit_on_error) {}
+  explicit UpdateWaitHandler(bool exit_on_error)
+      : exit_on_error_(exit_on_error) {}
 
   ~UpdateWaitHandler() override = default;
 
-  void HandleStatusUpdate(int64_t last_checked_time, double progress,
+  void HandleStatusUpdate(int64_t last_checked_time,
+                          double progress,
                           UpdateStatus current_operation,
-                          const std::string& new_version,
+                          const string& new_version,
                           int64_t new_size) override;
 
  private:
@@ -259,7 +268,7 @@ int UpdateEngineClient::ProcessFlags() {
   brillo::FlagHelper::Init(argc_, argv_, "Chromium OS Update Engine Client");
 
   // Ensure there are no positional arguments.
-  const std::vector<string> positional_args =
+  const vector<string> positional_args =
       base::CommandLine::ForCurrentProcess()->GetArgs();
   if (!positional_args.empty()) {
     LOG(ERROR) << "Found a positional argument '" << positional_args.front()
@@ -501,6 +510,12 @@ int UpdateEngineClient::ProcessFlags() {
   }
 
   return 0;
+}
+
+void UpdateEngineClient::ProcessFlagsAndExit() {
+  int ret = ProcessFlags();
+  if (ret != kContinueRunning)
+    QuitWithExitCode(ret);
 }
 
 }  // namespace
