@@ -24,26 +24,28 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
-Status BinderService::bind(const sp<IUpdateEngineCallback>& callback,
-                           bool* return_value) {
+Status BinderUpdateEngineAndroidService::bind(
+    const sp<IUpdateEngineCallback>& callback,
+    bool* return_value) {
   *return_value = true;
   return Status::ok();
 }
 
-Status BinderService::applyPayload(const String16& url,
-                                   const vector<String16>& header_kv_pairs) {
+Status BinderUpdateEngineAndroidService::applyPayload(
+    const String16& url,
+    const vector<String16>& header_kv_pairs) {
   return Status::ok();
 }
 
-Status BinderService::suspend() {
+Status BinderUpdateEngineAndroidService::suspend() {
   return Status::ok();
 }
 
-Status BinderService::resume() {
+Status BinderUpdateEngineAndroidService::resume() {
   return Status::ok();
 }
 
-Status BinderService::cancel() {
+Status BinderUpdateEngineAndroidService::cancel() {
   return Status::ok();
 }
 

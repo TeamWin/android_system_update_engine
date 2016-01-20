@@ -24,14 +24,24 @@
 #include <brillo/binder_watcher.h>
 #endif  // USE_WEAVE || USE_BINDER
 #include <brillo/daemons/daemon.h>
+#if USE_DBUS
 #include <brillo/dbus/dbus_connection.h>
+#endif  // USE_DBUS
 
 #if USE_BINDER
+#ifdef __BRILLO__
 #include "update_engine/binder_service.h"
+#else  // !defined(__BRILLO__)
+#include "update_engine/binder_service_android.h"
+#endif  // defined(__BRILLO__)
 #endif  // USE_BINDER
 #include "update_engine/common/subprocess.h"
+#if USE_DBUS
 #include "update_engine/dbus_service.h"
+#endif  // USE_DBUS
+#ifdef __BRILLO__
 #include "update_engine/real_system_state.h"
+#endif  // defined(__BRILLO__)
 
 namespace chromeos_update_engine {
 
@@ -43,6 +53,7 @@ class UpdateEngineDaemon : public brillo::Daemon {
   int OnInit() override;
 
  private:
+#if USE_DBUS
   // Run from the main loop when the |dbus_adaptor_| object is registered. At
   // this point we can request ownership of the DBus service name and continue
   // initialization.
@@ -51,6 +62,7 @@ class UpdateEngineDaemon : public brillo::Daemon {
   // Main D-Bus connection and service adaptor.
   brillo::DBusConnection dbus_connection_;
   std::unique_ptr<UpdateEngineAdaptor> dbus_adaptor_;
+#endif  // USE_DBUS
 
   // The Subprocess singleton class requires a brillo::MessageLoop in the
   // current thread, so we need to initialize it from this class instead of
@@ -62,11 +74,19 @@ class UpdateEngineDaemon : public brillo::Daemon {
 #endif  // USE_WEAVE || USE_BINDER
 
 #if USE_BINDER
+#ifdef __BRILLO__
   android::sp<BinderUpdateEngineService> service_;
+#else  // !defined(__BRILLO__)
+  android::sp<BinderUpdateEngineAndroidService> service_;
+#endif  // defined(__BRILLO__)
 #endif  // USE_BINDER
 
+#ifdef __BRILLO__
   // The RealSystemState uses the previous classes so it should be defined last.
   std::unique_ptr<RealSystemState> real_system_state_;
+#else  // !defined(__BRILLO__)
+  //TODO(deymo): Define non-Brillo state.
+#endif  // defined(__BRILLO__)
 
   DISALLOW_COPY_AND_ASSIGN(UpdateEngineDaemon);
 };
