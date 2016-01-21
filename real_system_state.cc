@@ -40,6 +40,13 @@ RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
       libcros_proxy_(bus) {
 }
 
+RealSystemState::~RealSystemState() {
+  // Prevent any DBus communication from UpdateAttempter when shutting down the
+  // daemon.
+  if (update_attempter_)
+    update_attempter_->set_dbus_adaptor(nullptr);
+}
+
 bool RealSystemState::Initialize() {
   metrics_lib_.Init();
 

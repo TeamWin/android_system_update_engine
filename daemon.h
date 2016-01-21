@@ -35,7 +35,6 @@ namespace chromeos_update_engine {
 class UpdateEngineDaemon : public brillo::Daemon {
  public:
   UpdateEngineDaemon() = default;
-  ~UpdateEngineDaemon();
 
  protected:
   int OnInit() override;
