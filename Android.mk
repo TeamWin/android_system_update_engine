@@ -16,21 +16,25 @@
 
 LOCAL_PATH := $(my-dir)
 
-# Default values for the USE flags. Override these USE flags from your product.
-BRILLO_USE_BINDER ?= 1
-BRILLO_USE_DBUS ?= 1
-BRILLO_USE_HWID_OVERRIDE ?= 0
-BRILLO_USE_MTD ?= 0
-BRILLO_USE_POWER_MANAGEMENT ?= 0
-BRILLO_USE_WEAVE ?= 0
+# Default values for the USE flags. Override these USE flags from your product
+# by setting BRILLO_USE_* values. Note that we define local variables like
+# local_use_* to prevent leaking our default setting for other packages.
+local_use_binder := $(if $(BRILLO_USE_BINDER),$(BRILLO_USE_BINDER),1)
+local_use_dbus := $(if $(BRILLO_USE_DBUS),$(BRILLO_USE_DBUS),1)
+local_use_hwid_override := \
+    $(if $(BRILLO_USE_HWID_OVERRIDE),$(BRILLO_USE_HWID_OVERRIDE),0)
+local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
+local_use_power_management := \
+    $(if $(BRILLO_USE_POWER_MANAGEMENT),$(BRILLO_USE_POWER_MANAGEMENT),0)
+local_use_weave := $(if $(BRILLO_USE_WEAVE),$(BRILLO_USE_WEAVE),0)
 
 ue_common_cflags := \
-    -DUSE_BINDER=$(BRILLO_USE_BINDER) \
-    -DUSE_DBUS=$(BRILLO_USE_DBUS) \
-    -DUSE_HWID_OVERRIDE=$(BRILLO_USE_HWID_OVERRIDE) \
-    -DUSE_MTD=$(BRILLO_USE_MTD) \
-    -DUSE_POWER_MANAGEMENT=$(BRILLO_USE_POWER_MANAGEMENT) \
-    -DUSE_WEAVE=$(BRILLO_USE_WEAVE) \
+    -DUSE_BINDER=$(local_use_binder) \
+    -DUSE_DBUS=$(local_use_dbus) \
+    -DUSE_HWID_OVERRIDE=$(local_use_hwid_override) \
+    -DUSE_MTD=$(local_use_mtd) \
+    -DUSE_POWER_MANAGEMENT=$(local_use_power_management) \
+    -DUSE_WEAVE=$(local_use_weave) \
     -D_FILE_OFFSET_BITS=64 \
     -D_POSIX_C_SOURCE=199309L \
     -Wa,--noexecstack \
@@ -59,7 +63,7 @@ ue_common_shared_libraries := \
     libbrillo-stream \
     libchrome
 
-ifeq ($(BRILLO_USE_DBUS),1)
+ifeq ($(local_use_dbus),1)
 
 # update_engine_client-dbus-proxies (from generate-dbus-proxies.gypi)
 # ========================================================
@@ -72,7 +76,7 @@ LOCAL_SRC_FILES := \
 LOCAL_DBUS_PROXY_PREFIX := update_engine
 include $(BUILD_STATIC_LIBRARY)
 
-endif  # BRILLO_USE_DBUS == 1
+endif  # local_use_dbus == 1
 
 # update_metadata-protos (type: static_library)
 # ========================================================
@@ -104,7 +108,7 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := $(generated_sources_dir)/proto/system
 LOCAL_SRC_FILES := $(ue_update_metadata_protos_src_files)
 include $(BUILD_STATIC_LIBRARY)
 
-ifeq ($(BRILLO_USE_DBUS),1)
+ifeq ($(local_use_dbus),1)
 
 # update_engine-dbus-adaptor (from generate-dbus-adaptors.gypi)
 # ========================================================
@@ -126,7 +130,7 @@ LOCAL_SRC_FILES := \
 LOCAL_DBUS_PROXY_PREFIX := libcros
 include $(BUILD_STATIC_LIBRARY)
 
-endif  # BRILLO_USE_DBUS == 1
+endif  # local_use_dbus == 1
 
 # libpayload_consumer (type: static_library)
 # ========================================================
@@ -220,7 +224,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := $(ue_libpayload_consumer_src_files)
 include $(BUILD_STATIC_LIBRARY)
 
-ifeq ($(BRILLO_USE_DBUS),1)
+ifeq ($(local_use_dbus),1)
 
 # libupdate_engine (type: static_library)
 # ========================================================
@@ -251,12 +255,10 @@ ue_libupdate_engine_exported_shared_libraries := \
     libcutils \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
-ifeq ($(BRILLO_USE_WEAVE),1)
+ifeq ($(local_use_weave),1)
 ue_libupdate_engine_exported_shared_libraries += \
-    libbinderwrapper \
-    libbrillo-binder \
     libweaved
-endif  # BRILLO_USE_WEAVE == 1
+endif  # local_use_weave == 1
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine
@@ -287,9 +289,9 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := \
     boot_control_android.cc \
     chrome_browser_proxy_resolver.cc \
+    common_service.cc \
     connection_manager.cc \
     daemon.cc \
-    common_service.cc \
     dbus_service.cc \
     hardware_android.cc \
     image_properties_android.cc \
@@ -321,12 +323,12 @@ LOCAL_SRC_FILES := \
     update_manager/update_manager.cc \
     update_status_utils.cc \
     weave_service_factory.cc
-ifeq ($(BRILLO_USE_WEAVE),1)
+ifeq ($(local_use_weave),1)
 LOCAL_SRC_FILES += \
     weave_service.cc
-endif  # BRILLO_USE_WEAVE == 1
+endif  # local_use_weave == 1
 
-ifeq ($(BRILLO_USE_BINDER),1)
+ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
 
 LOCAL_SRC_FILES += \
@@ -338,11 +340,11 @@ LOCAL_SRC_FILES += \
 LOCAL_SHARED_LIBRARIES += \
     libbinder \
     libutils
-endif  # BRILLO_USE_BINDER == 1
+endif  # local_use_binder == 1
 
 include $(BUILD_STATIC_LIBRARY)
 
-endif  # BRILLO_USE_DBUS == 1
+endif  # local_use_dbus == 1
 
 # update_engine (type: executable)
 # ========================================================
@@ -353,9 +355,9 @@ LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_REQUIRED_MODULES := \
     bspatch \
     cacerts_google
-ifeq ($(BRILLO_USE_WEAVE),1)
+ifeq ($(local_use_weave),1)
 LOCAL_REQUIRED_MODULES += updater.json
-endif  # BRILLO_USE_WEAVE == 1
+endif  # local_use_weave == 1
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
@@ -371,7 +373,6 @@ LOCAL_C_INCLUDES += \
 LOCAL_STATIC_LIBRARIES := \
     libupdate_engine \
     $(ue_libupdate_engine_exported_static_libraries:-host=)
-
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
     $(ue_libupdate_engine_exported_shared_libraries:-host=)
@@ -393,17 +394,16 @@ LOCAL_SRC_FILES := \
 
 endif  # defined(BRILLO)
 
-ifeq ($(BRILLO_USE_BINDER),1)
+ifeq ($(local_use_binder),1)
 LOCAL_SHARED_LIBRARIES += \
     libbinder \
     libutils
-endif  # BRILLO_USE_BINDER == 1
-
+endif  # local_use_binder == 1
 
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)
 
-ifeq ($(BRILLO_USE_DBUS),1)
+ifeq ($(local_use_dbus),1)
 
 # update_engine_client (type: executable)
 # ========================================================
@@ -430,7 +430,7 @@ LOCAL_SRC_FILES := \
     update_engine_client.cc
 include $(BUILD_EXECUTABLE)
 
-endif  # BRILLO_USE_DBUS == 1
+endif  # local_use_dbus == 1
 
 # libpayload_generator (type: static_library)
 # ========================================================
@@ -569,7 +569,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
 include $(BUILD_EXECUTABLE)
 
-ifeq ($(BRILLO_USE_DBUS),1)
+ifeq ($(local_use_dbus),1)
 
 # libupdate_engine_client
 # ========================================================
@@ -579,7 +579,7 @@ LOCAL_CFLAGS := \
     -Wall \
     -Werror \
     -Wno-unused-parameter \
-    -DUSE_BINDER=$(BRILLO_USE_BINDER)
+    -DUSE_BINDER=$(local_use_binder)
 LOCAL_CLANG := true
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_C_INCLUDES := \
@@ -599,7 +599,7 @@ LOCAL_SRC_FILES := \
     client_library/client.cc \
     update_status_utils.cc
 
-ifeq ($(BRILLO_USE_BINDER),1)
+ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \
     client_library/client_binder.cc \
@@ -609,13 +609,13 @@ LOCAL_SRC_FILES += \
 LOCAL_SHARED_LIBRARIES += \
     libbinder \
     libutils
-else  # BRILLO_USE_BINDER != 1
+else  # local_use_binder != 1
 LOCAL_SRC_FILES += client_library/client_dbus.cc
-endif  # BRILLO_USE_BINDER == 1
+endif  # local_use_binder == 1
 
 include $(BUILD_SHARED_LIBRARY)
 
-endif  # BRILLO_USE_DBUS == 1
+endif  # local_use_dbus == 1
 
 # Weave schema files
 # ========================================================
