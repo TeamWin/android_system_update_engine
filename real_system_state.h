@@ -49,6 +49,7 @@ class RealSystemState : public SystemState {
   // Constructs all system objects that do not require separate initialization;
   // see Initialize() below for the remaining ones.
   explicit RealSystemState(const scoped_refptr<dbus::Bus>& bus);
+  ~RealSystemState() override;
 
   // Initializes and sets systems objects that require an initialization
   // separately from construction. Returns |true| on success.
