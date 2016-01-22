@@ -20,7 +20,7 @@ LOCAL_PATH := $(my-dir)
 # by setting BRILLO_USE_* values. Note that we define local variables like
 # local_use_* to prevent leaking our default setting for other packages.
 local_use_binder := $(if $(BRILLO_USE_BINDER),$(BRILLO_USE_BINDER),1)
-local_use_dbus := $(if $(BRILLO_USE_DBUS),$(BRILLO_USE_DBUS),1)
+local_use_dbus := $(if $(BRILLO_USE_DBUS),$(BRILLO_USE_DBUS),0)
 local_use_hwid_override := \
     $(if $(BRILLO_USE_HWID_OVERRIDE),$(BRILLO_USE_HWID_OVERRIDE),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
@@ -259,6 +259,12 @@ ifeq ($(local_use_weave),1)
 ue_libupdate_engine_exported_shared_libraries += \
     libweaved
 endif  # local_use_weave == 1
+ifeq ($(local_use_binder),1)
+ue_libupdate_engine_exported_shared_libraries += \
+    libbinder \
+    libbrillo-binder \
+    libutils
+endif  # local_use_binder == 1
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine
@@ -330,16 +336,11 @@ endif  # local_use_weave == 1
 
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
-
 LOCAL_SRC_FILES += \
     binder_bindings/android/brillo/IUpdateEngine.aidl \
     binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
     binder_service.cc \
     parcelable_update_engine_status.cc
-
-LOCAL_SHARED_LIBRARIES += \
-    libbinder \
-    libutils
 endif  # local_use_binder == 1
 
 include $(BUILD_STATIC_LIBRARY)
@@ -365,38 +366,40 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
     $(ue_common_c_includes)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries)
+LOCAL_SRC_FILES := \
+    main.cc
 
 ifdef BRILLO
-
 LOCAL_C_INCLUDES += \
     $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libupdate_engine \
     $(ue_libupdate_engine_exported_static_libraries:-host=)
-LOCAL_SHARED_LIBRARIES := \
-    $(ue_common_shared_libraries) \
+LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_exported_shared_libraries:-host=)
-LOCAL_SRC_FILES := \
-    main.cc
-
 else  # !defined(BRILLO)
-
 LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
-LOCAL_SHARED_LIBRARIES := \
+LOCAL_STATIC_LIBRARIES := \
+    libpayload_consumer \
+    $(ue_libpayload_consumer_exported_static_libraries:-host=)
+LOCAL_SHARED_LIBRARIES += \
+    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
     libbinder \
-    liblog \
+    libbrillo-binder \
     libutils
-LOCAL_SRC_FILES := \
+LOCAL_SRC_FILES += \
     binder_bindings/android/os/IUpdateEngine.aidl \
     binder_bindings/android/os/IUpdateEngineCallback.aidl \
-    binder_main.cc \
-    binder_service_android.cc
-
+    binder_service_android.cc \
+    daemon.cc
 endif  # defined(BRILLO)
 
 ifeq ($(local_use_binder),1)
 LOCAL_SHARED_LIBRARIES += \
     libbinder \
+    libbinderwrapper \
     libutils
 endif  # local_use_binder == 1
 
