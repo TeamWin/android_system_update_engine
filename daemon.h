@@ -23,7 +23,8 @@
 #if USE_WEAVE
 #include <brillo/binder_watcher.h>
 #endif  // USE_WEAVE
-#include <brillo/daemons/dbus_daemon.h>
+#include <brillo/daemons/daemon.h>
+#include <brillo/dbus/dbus_connection.h>
 
 #include "update_engine/common/subprocess.h"
 #include "update_engine/dbus_service.h"
@@ -31,7 +32,7 @@
 
 namespace chromeos_update_engine {
 
-class UpdateEngineDaemon : public brillo::DBusDaemon {
+class UpdateEngineDaemon : public brillo::Daemon {
  public:
   UpdateEngineDaemon() = default;
   ~UpdateEngineDaemon();
@@ -45,6 +46,10 @@ class UpdateEngineDaemon : public brillo::DBusDaemon {
   // initialization.
   void OnDBusRegistered(bool succeeded);
 
+  // Main D-Bus connection and service adaptor.
+  brillo::DBusConnection dbus_connection_;
+  std::unique_ptr<UpdateEngineAdaptor> dbus_adaptor_;
+
   // The Subprocess singleton class requires a brillo::MessageLoop in the
   // current thread, so we need to initialize it from this class instead of
   // the main() function.
@@ -53,8 +58,6 @@ class UpdateEngineDaemon : public brillo::DBusDaemon {
 #if USE_WEAVE
   brillo::BinderWatcher binder_watcher_;
 #endif  // USE_WEAVE
-
-  std::unique_ptr<UpdateEngineAdaptor> dbus_adaptor_;
 
   // The RealSystemState uses the previous classes so it should be defined last.
   std::unique_ptr<RealSystemState> real_system_state_;

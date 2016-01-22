@@ -26,7 +26,6 @@
 #endif  // USE_WEAVE
 #include <brillo/message_loops/message_loop.h>
 
-#include "update_engine/common/clock.h"
 #include "update_engine/update_attempter.h"
 
 using brillo::MessageLoop;
@@ -36,26 +35,6 @@ const int kDBusSystemMaxWaitSeconds = 2 * 60;
 }  // namespace
 
 namespace chromeos_update_engine {
-
-namespace {
-// Wait for passed |bus| DBus to be connected by attempting to connect it up to
-// |timeout| time. Returns whether the Connect() eventually succeeded.
-bool WaitForDBusSystem(dbus::Bus* bus, base::TimeDelta timeout) {
-  Clock clock;
-  base::Time deadline = clock.GetMonotonicTime() + timeout;
-
-  while (clock.GetMonotonicTime() < deadline) {
-    if (bus->Connect())
-      return true;
-    LOG(WARNING) << "Failed to get system bus, waiting.";
-    // Wait 1 second.
-    sleep(1);
-  }
-  LOG(ERROR) << "Failed to get system bus after " << timeout.InSeconds()
-             << " seconds.";
-  return false;
-}
-}  // namespace
 
 UpdateEngineDaemon::~UpdateEngineDaemon() {
   UpdateAttempter* update_attempter = real_system_state_->update_attempter();
@@ -70,9 +49,6 @@ int UpdateEngineDaemon::OnInit() {
   // handler.
   subprocess_.Init(this);
 
-  // We use Daemon::OnInit() and not DBusDaemon::OnInit() to gracefully wait for
-  // the D-Bus connection for up two minutes to avoid re-spawning the daemon
-  // too fast causing thrashing if dbus-daemon is not running.
   int exit_code = Daemon::OnInit();
   if (exit_code != EX_OK)
     return exit_code;
@@ -82,32 +58,29 @@ int UpdateEngineDaemon::OnInit() {
   binder_watcher_.Init();
 #endif  // USE_WEAVE
 
-  dbus::Bus::Options options;
-  options.bus_type = dbus::Bus::SYSTEM;
-  bus_ = new dbus::Bus(options);
+  // We wait for the D-Bus connection for up two minutes to avoid re-spawning
+  // the daemon too fast causing thrashing if dbus-daemon is not running.
+  scoped_refptr<dbus::Bus> bus = dbus_connection_.ConnectWithTimeout(
+      base::TimeDelta::FromSeconds(kDBusSystemMaxWaitSeconds));
 
-  // Wait for DBus to be ready and exit if it doesn't become available after
-  // the timeout.
-  if (!WaitForDBusSystem(
-          bus_.get(),
-          base::TimeDelta::FromSeconds(kDBusSystemMaxWaitSeconds))) {
+  if (!bus) {
     // TODO(deymo): Make it possible to run update_engine even if dbus-daemon
     // is not running or constantly crashing.
     LOG(ERROR) << "Failed to initialize DBus, aborting.";
     return 1;
   }
 
-  CHECK(bus_->SetUpAsyncOperations());
+  CHECK(bus->SetUpAsyncOperations());
 
   // Initialize update engine global state but continue if something fails.
-  real_system_state_.reset(new RealSystemState(bus_));
+  real_system_state_.reset(new RealSystemState(bus));
   LOG_IF(ERROR, !real_system_state_->Initialize())
       << "Failed to initialize system state.";
   UpdateAttempter* update_attempter = real_system_state_->update_attempter();
   CHECK(update_attempter);
 
   // Create the DBus service.
-  dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state_.get(), bus_));
+  dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state_.get(), bus));
   update_attempter->set_dbus_adaptor(dbus_adaptor_.get());
 
   dbus_adaptor_->RegisterAsync(base::Bind(&UpdateEngineDaemon::OnDBusRegistered,
