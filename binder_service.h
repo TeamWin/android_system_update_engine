@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2015 The Android Open Source Project
+// Copyright (C) 2016 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,35 +17,60 @@
 #ifndef UPDATE_ENGINE_BINDER_SERVICE_H_
 #define UPDATE_ENGINE_BINDER_SERVICE_H_
 
-#include <vector>
-
 #include <utils/Errors.h>
-#include <utils/String16.h>
-#include <utils/StrongPointer.h>
 
-#include "android/os/BnUpdateEngine.h"
-#include "android/os/IUpdateEngineCallback.h"
+#include "update_engine/common_service.h"
+#include "update_engine/parcelable_update_engine_status.h"
+
+#include "android/brillo/BnUpdateEngine.h"
+#include "android/brillo/IUpdateEngineStatusCallback.h"
 
 namespace chromeos_update_engine {
 
-class BinderService : public android::os::BnUpdateEngine {
+class BinderUpdateEngineService : public android::brillo::BnUpdateEngine {
  public:
-  BinderService() = default;
-  virtual ~BinderService() = default;
+  BinderUpdateEngineService(SystemState* system_state)
+      : common_(new UpdateEngineService(system_state)) {}
+  virtual ~BinderUpdateEngineService() = default;
 
-  android::binder::Status applyPayload(
-      const android::String16& url,
-      const std::vector<android::String16>& header_kv_pairs) override;
+  // android::brillo::BnUpdateEngine overrides.
+  android::binder::Status AttemptUpdate(const android::String16& app_version,
+                                        const android::String16& omaha_url,
+                                        int flags) override;
+  android::binder::Status AttemptRollback(bool powerwash) override;
+  android::binder::Status CanRollback(bool* out_can_rollback) override;
+  android::binder::Status ResetStatus() override;
+  android::binder::Status GetStatus(
+      android::brillo::ParcelableUpdateEngineStatus* status);
+  android::binder::Status RebootIfNeeded() override;
+  android::binder::Status SetChannel(const android::String16& target_channel,
+                                     bool powerwash) override;
+  android::binder::Status GetChannel(bool get_current_channel,
+                                     android::String16* out_channel) override;
+  android::binder::Status SetP2PUpdatePermission(bool enabled) override;
+  android::binder::Status GetP2PUpdatePermission(
+      bool* out_p2p_permission) override;
+  android::binder::Status SetUpdateOverCellularPermission(
+      bool enabled) override;
+  android::binder::Status GetUpdateOverCellularPermission(
+      bool* out_cellular_permission) override;
+  android::binder::Status GetDurationSinceUpdate(
+      int64_t* out_duration) override;
+  android::binder::Status GetPrevVersion(
+      android::String16* out_prev_version) override;
+  android::binder::Status GetRollbackPartition(
+      android::String16* out_rollback_partition) override;
+  android::binder::Status RegisterStatusCallback(
+      const android::sp<android::brillo::IUpdateEngineStatusCallback>& callback)
+      override;
 
-  android::binder::Status bind(
-      const android::sp<android::os::IUpdateEngineCallback>& callback,
-      bool* return_value) override;
+ private:
+  template<typename... Parameters, typename... Arguments>
+  android::binder::Status CallCommonHandler(
+      bool (UpdateEngineService::*Handler)(brillo::ErrorPtr*, Parameters...),
+      Arguments... arguments);
 
-  android::binder::Status suspend() override;
-
-  android::binder::Status resume() override;
-
-  android::binder::Status cancel() override;
+  std::unique_ptr<UpdateEngineService> common_;
 };  // class BinderService
 
 }  // namespace chromeos_update_engine

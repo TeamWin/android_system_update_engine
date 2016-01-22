@@ -22,7 +22,7 @@
 #include <utils/Looper.h>
 #include <utils/StrongPointer.h>
 
-#include "update_engine/binder_service.h"
+#include "update_engine/binder_service_android.h"
 
 // Log to logcat as update_engine.
 #undef LOG_TAG

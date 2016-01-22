@@ -20,12 +20,15 @@
 #include <memory>
 #include <string>
 
-#if USE_WEAVE
+#if USE_WEAVE || USE_BINDER
 #include <brillo/binder_watcher.h>
-#endif  // USE_WEAVE
+#endif  // USE_WEAVE || USE_BINDER
 #include <brillo/daemons/daemon.h>
 #include <brillo/dbus/dbus_connection.h>
 
+#if USE_BINDER
+#include "update_engine/binder_service.h"
+#endif  // USE_BINDER
 #include "update_engine/common/subprocess.h"
 #include "update_engine/dbus_service.h"
 #include "update_engine/real_system_state.h"
@@ -54,9 +57,13 @@ class UpdateEngineDaemon : public brillo::Daemon {
   // the main() function.
   Subprocess subprocess_;
 
-#if USE_WEAVE
+#if USE_WEAVE || USE_BINDER
   brillo::BinderWatcher binder_watcher_;
-#endif  // USE_WEAVE
+#endif  // USE_WEAVE || USE_BINDER
+
+#if USE_BINDER
+  android::sp<BinderUpdateEngineService> service_;
+#endif  // USE_BINDER
 
   // The RealSystemState uses the previous classes so it should be defined last.
   std::unique_ptr<RealSystemState> real_system_state_;

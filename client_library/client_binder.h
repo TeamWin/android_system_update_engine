@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2015 The Android Open Source Project
+// Copyright (C) 2016 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,27 +14,29 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_CLIENT_LIBRARY_CLIENT_IMPL_H_
-#define UPDATE_ENGINE_CLIENT_LIBRARY_CLIENT_IMPL_H_
+#ifndef UPDATE_ENGINE_CLIENT_LIBRARY_CLIENT_BINDER_H_
+#define UPDATE_ENGINE_CLIENT_LIBRARY_CLIENT_BINDER_H_
 
 #include <cstdint>
 #include <memory>
 #include <string>
 
 #include <base/macros.h>
+#include <utils/StrongPointer.h>
+
+#include "android/brillo/IUpdateEngine.h"
 
 #include "update_engine/client_library/include/update_engine/client.h"
-#include "update_engine/dbus-proxies.h"
 
 namespace update_engine {
 namespace internal {
 
-class UpdateEngineClientImpl : public UpdateEngineClient {
+class BinderUpdateEngineClient : public UpdateEngineClient {
  public:
-  explicit UpdateEngineClientImpl() = default;
+  BinderUpdateEngineClient() = default;
   bool Init();
 
-  virtual ~UpdateEngineClientImpl() = default;
+  virtual ~BinderUpdateEngineClient() = default;
 
   bool AttemptUpdate(const std::string& app_version,
                      const std::string& omaha_url,
@@ -72,24 +74,12 @@ class UpdateEngineClientImpl : public UpdateEngineClient {
   void RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
 
  private:
-  std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;
+  android::sp<android::brillo::IUpdateEngine> service_;
 
-  void StatusUpdateHandlerRegistered(StatusUpdateHandler* handler,
-                                     const std::string& interface,
-                                     const std::string& signal_name,
-                                     bool success) const;
-
-  void RunStatusUpdateHandler(StatusUpdateHandler* handler,
-                              int64_t last_checked_time,
-                              double progress,
-                              const std::string& current_operation,
-                              const std::string& new_version,
-                              int64_t new_size);
-
-  DISALLOW_COPY_AND_ASSIGN(UpdateEngineClientImpl);
-};  // class UpdateEngineClientImpl
+  DISALLOW_COPY_AND_ASSIGN(BinderUpdateEngineClient);
+};  // class BinderUpdateEngineClient
 
 }  // namespace internal
 }  // namespace update_engine
 
-#endif  // UPDATE_ENGINE_CLIENT_LIBRARY_CLIENT_IMPL_H_
+#endif  // UPDATE_ENGINE_CLIENT_LIBRARY_CLIENT_BINDER_H_
