@@ -25,9 +25,9 @@
 #include <binderwrapper/binder_wrapper.h>
 #endif  // USE_WEAVE || USE_BINDER
 
-#ifdef __BRILLO__
+#if defined(__BRILLO__) || defined(USE_DBUS)
 #include "update_engine/update_attempter.h"
-#endif  // __BRILLO__
+#endif  // __BRILLO__ || USE_DBUS
 
 #if USE_DBUS
 namespace {
@@ -67,7 +67,7 @@ int UpdateEngineDaemon::OnInit() {
   CHECK(bus->SetUpAsyncOperations());
 #endif // USE_DBUS
 
-#ifdef __BRILLO__
+#if defined(__BRILLO__) || defined(USE_DBUS)
   // Initialize update engine global state but continue if something fails.
   real_system_state_.reset(new RealSystemState(bus));
   LOG_IF(ERROR, !real_system_state_->Initialize())
