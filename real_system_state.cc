@@ -18,12 +18,9 @@
 
 #include <string>
 
-#include <base/bind.h>
 #include <base/files/file_util.h>
-#include <base/location.h>
 #include <base/time/time.h>
 #include <brillo/make_unique_ptr.h>
-#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
@@ -32,8 +29,6 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/update_manager/state_factory.h"
 #include "update_engine/weave_service_factory.h"
-
-using brillo::MessageLoop;
 
 namespace chromeos_update_engine {
 
@@ -163,29 +158,6 @@ bool RealSystemState::Initialize() {
 
   // All is well. Initialization successful.
   return true;
-}
-
-void RealSystemState::StartUpdater() {
-  // Initiate update checks.
-  update_attempter_->ScheduleUpdates();
-
-  // Update boot flags after 45 seconds.
-  MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&UpdateAttempter::UpdateBootFlags,
-                 base::Unretained(update_attempter_.get())),
-      base::TimeDelta::FromSeconds(45));
-
-  // Broadcast the update engine status on startup to ensure consistent system
-  // state on crashes.
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-      &UpdateAttempter::BroadcastStatus,
-      base::Unretained(update_attempter_.get())));
-
-  // Run the UpdateEngineStarted() method on |update_attempter|.
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-      &UpdateAttempter::UpdateEngineStarted,
-      base::Unretained(update_attempter_.get())));
 }
 
 }  // namespace chromeos_update_engine
