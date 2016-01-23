@@ -39,7 +39,7 @@
 #if USE_DBUS
 #include "update_engine/dbus_service.h"
 #endif  // USE_DBUS
-#ifdef __BRILLO__
+#if defined(__BRILLO__) || defined(USE_DBUS)
 #include "update_engine/real_system_state.h"
 #endif  // defined(__BRILLO__)
 
@@ -81,7 +81,7 @@ class UpdateEngineDaemon : public brillo::Daemon {
 #endif  // defined(__BRILLO__)
 #endif  // USE_BINDER
 
-#ifdef __BRILLO__
+#if defined(__BRILLO__) || defined(USE_DBUS)
   // The RealSystemState uses the previous classes so it should be defined last.
   std::unique_ptr<RealSystemState> real_system_state_;
 #else  // !defined(__BRILLO__)
