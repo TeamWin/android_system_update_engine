@@ -569,6 +569,8 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
 include $(BUILD_EXECUTABLE)
 
+ifeq ($(local_use_dbus),1)
+
 # libupdate_engine_client
 # ========================================================
 include $(CLEAR_VARS)
@@ -577,11 +579,9 @@ LOCAL_CFLAGS := \
     -Wall \
     -Werror \
     -Wno-unused-parameter \
-    -DUSE_DBUS=$(local_use_dbus) \
     -DUSE_BINDER=$(local_use_binder)
 LOCAL_CLANG := true
 LOCAL_CPP_EXTENSION := .cc
-# TODO(deymo): Remove "external/cros/system_api/dbus" when dbus is not used.
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/client_library/include \
     external/cros/system_api/dbus \
@@ -590,34 +590,32 @@ LOCAL_C_INCLUDES := \
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/client_library/include
 LOCAL_SHARED_LIBRARIES := \
     libchrome \
-    libbrillo
+    libchrome-dbus \
+    libbrillo \
+    libbrillo-dbus
+LOCAL_STATIC_LIBRARIES := \
+    update_engine_client-dbus-proxies
 LOCAL_SRC_FILES := \
     client_library/client.cc \
     update_status_utils.cc
 
-# We can only compile support for one IPC mechanism. If both "binder" and "dbus"
-# are defined, we prefer binder.
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
+LOCAL_SRC_FILES += \
+    client_library/client_binder.cc \
+    parcelable_update_engine_status.cc \
+    binder_bindings/android/brillo/IUpdateEngine.aidl \
+    binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl
 LOCAL_SHARED_LIBRARIES += \
     libbinder \
     libutils
-LOCAL_SRC_FILES += \
-    binder_bindings/android/brillo/IUpdateEngine.aidl \
-    binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
-    client_library/client_binder.cc \
-    parcelable_update_engine_status.cc
 else  # local_use_binder != 1
-LOCAL_STATIC_LIBRARIES := \
-    update_engine_client-dbus-proxies
-LOCAL_SHARED_LIBRARIES += \
-    libchrome-dbus \
-    libbrillo-dbus
-LOCAL_SRC_FILES += \
-    client_library/client_dbus.cc
+LOCAL_SRC_FILES += client_library/client_dbus.cc
 endif  # local_use_binder == 1
 
 include $(BUILD_SHARED_LIBRARY)
+
+endif  # local_use_dbus == 1
 
 # Weave schema files
 # ========================================================
