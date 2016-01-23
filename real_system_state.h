@@ -55,10 +55,6 @@ class RealSystemState : public SystemState {
   // separately from construction. Returns |true| on success.
   bool Initialize();
 
-  // Start the periodic update attempts. Must be called at the beginning of the
-  // program to start the periodic update check process.
-  void StartUpdater();
-
   inline void set_device_policy(
       const policy::DevicePolicy* device_policy) override {
     device_policy_ = device_policy;
