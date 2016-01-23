@@ -257,6 +257,8 @@ ue_libupdate_engine_exported_shared_libraries := \
     $(ue_update_metadata_protos_exported_shared_libraries)
 ifeq ($(local_use_weave),1)
 ue_libupdate_engine_exported_shared_libraries += \
+    libbinderwrapper \
+    libbrillo-binder \
     libweaved
 endif  # local_use_weave == 1
 
