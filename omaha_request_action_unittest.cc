@@ -292,6 +292,10 @@ class OutputObjectCollectorAction : public Action<OutputObjectCollectorAction> {
     return "OutputObjectCollectorAction";
   }
   string Type() const { return StaticType(); }
+  using InputObjectType =
+      ActionTraits<OutputObjectCollectorAction>::InputObjectType;
+  using OutputObjectType =
+      ActionTraits<OutputObjectCollectorAction>::OutputObjectType;
   bool has_input_object_;
   OmahaResponse omaha_response_;
 };
