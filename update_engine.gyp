@@ -46,6 +46,7 @@
       '-Wl,--gc-sections',
     ],
     'defines': [
+      '__CHROMEOS__',
       '_FILE_OFFSET_BITS=64',
       '_POSIX_C_SOURCE=199309L',
       'USE_BINDER=<(USE_binder)',
