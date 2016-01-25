@@ -255,6 +255,14 @@ ue_libupdate_engine_exported_shared_libraries := \
     libcutils \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
+ifeq ($(local_use_binder),1)
+ue_libupdate_engine_exported_shared_libraries += \
+    libbinder \
+    libbinderwrapper \
+    libbrillo-binder \
+    libutils
+endif  # local_use_binder == 1
+
 ifeq ($(local_use_weave),1)
 ue_libupdate_engine_exported_shared_libraries += \
     libbinderwrapper \
@@ -338,10 +346,6 @@ LOCAL_SRC_FILES += \
     binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
     binder_service.cc \
     parcelable_update_engine_status.cc
-
-LOCAL_SHARED_LIBRARIES += \
-    libbinder \
-    libutils
 endif  # local_use_binder == 1
 
 include $(BUILD_STATIC_LIBRARY)
