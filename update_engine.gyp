@@ -330,13 +330,6 @@
       'dependencies': [
         'libupdate_engine_client',
       ],
-      'variables': {
-        'exported_deps': [
-          'libupdate_engine-client',
-          'dbus-1',
-        ],
-        'deps': ['<@(exported_deps)'],
-      },
       'sources': [
         'update_engine_client.cc',
       ],
