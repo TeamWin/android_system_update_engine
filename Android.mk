@@ -426,9 +426,7 @@ LOCAL_C_INCLUDES := \
 LOCAL_STATIC_LIBRARIES := update_engine_client-dbus-proxies
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    libdbus \
-    libbrillo-dbus \
-    libchrome-dbus \
+    libutils \
     libupdate_engine_client
 LOCAL_SRC_FILES := \
     update_engine_client.cc
@@ -605,6 +603,7 @@ ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
 LOCAL_SHARED_LIBRARIES += \
     libbinder \
+    libbrillo-binder \
     libutils
 LOCAL_SRC_FILES += \
     binder_bindings/android/brillo/IUpdateEngine.aidl \

@@ -159,20 +159,20 @@ void DBusUpdateEngineClient::RunStatusUpdateHandler(
       last_checked_time, progress, status, new_version, new_size);
 }
 
-void DBusUpdateEngineClient::RegisterStatusUpdateHandler(
+bool DBusUpdateEngineClient::RegisterStatusUpdateHandler(
     StatusUpdateHandler* handler) {
   if (!base::MessageLoopForIO::current()) {
     LOG(FATAL) << "Cannot get UpdateEngineClient outside of message loop.";
-    return;
+    return false;
   }
 
   proxy_->RegisterStatusUpdateSignalHandler(
       base::Bind(&DBusUpdateEngineClient::RunStatusUpdateHandler,
-                 base::Unretained(this),
-                 base::Unretained(handler)),
+                 base::Unretained(this), base::Unretained(handler)),
       base::Bind(&DBusUpdateEngineClient::StatusUpdateHandlerRegistered,
-                 base::Unretained(this),
-                 base::Unretained(handler)));
+                 base::Unretained(this), base::Unretained(handler)));
+
+  return true;
 }
 
 bool DBusUpdateEngineClient::SetTargetChannel(const string& in_target_channel,

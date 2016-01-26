@@ -16,6 +16,10 @@
 
 #include "update_engine/binder_service.h"
 
+#include <base/bind.h>
+
+#include <binderwrapper/binder_wrapper.h>
+
 #include <utils/String16.h>
 #include <utils/StrongPointer.h>
 
@@ -166,7 +170,43 @@ Status BinderUpdateEngineService::GetRollbackPartition(
 
 Status BinderUpdateEngineService::RegisterStatusCallback(
     const sp<IUpdateEngineStatusCallback>& callback) {
+  callbacks_.emplace_back(callback);
+
+  auto binder_wrapper = android::BinderWrapper::Get();
+
+  binder_wrapper->RegisterForDeathNotifications(
+      IUpdateEngineStatusCallback::asBinder(callback),
+      base::Bind(&BinderUpdateEngineService::UnregisterStatusCallback,
+                 base::Unretained(this), base::Unretained(callback.get())));
+
   return Status::ok();
+}
+
+void BinderUpdateEngineService::UnregisterStatusCallback(
+    IUpdateEngineStatusCallback* callback) {
+  auto it = callbacks_.begin();
+
+  for (; it != callbacks_.end() && it->get() != callback; it++)
+    ;
+
+  if (it == callbacks_.end()) {
+    LOG(ERROR) << "Got death notification for unknown callback.";
+    return;
+  }
+
+  LOG(INFO) << "Erasing orphan callback";
+  callbacks_.erase(it);
+}
+
+void BinderUpdateEngineService::SendStatusUpdate(
+    int64_t in_last_checked_time, double in_progress,
+    const std::string& in_current_operation, const std::string& in_new_version,
+    int64_t in_new_size) {
+  for (auto& callback : callbacks_) {
+    callback->HandleStatusUpdate(in_last_checked_time, in_progress,
+                                 String16{in_current_operation.c_str()},
+                                 String16{in_new_version.c_str()}, in_new_size);
+  }
 }
 
 }  // namespace chromeos_update_engine

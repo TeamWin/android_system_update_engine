@@ -69,7 +69,7 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
 
   bool GetChannel(std::string* out_channel) const override;
 
-  void RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
+  bool RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
 
  private:
   std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;

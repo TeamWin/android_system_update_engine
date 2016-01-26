@@ -19,7 +19,6 @@
 #include <binder/IServiceManager.h>
 
 #include <base/message_loop/message_loop.h>
-#include <utils/String16.h>
 #include <utils/String8.h>
 
 #include "update_engine/parcelable_update_engine_status.h"
@@ -29,6 +28,7 @@ using android::OK;
 using android::String16;
 using android::String8;
 using android::brillo::ParcelableUpdateEngineStatus;
+using android::binder::Status;
 using android::getService;
 using chromeos_update_engine::StringToUpdateStatus;
 using std::string;
@@ -37,6 +37,8 @@ namespace update_engine {
 namespace internal {
 
 bool BinderUpdateEngineClient::Init() {
+  if (!binder_watcher_.Init()) return false;
+
   return getService(String16{"android.brillo.UpdateEngineService"},
       &service_) == OK;
 }
@@ -123,8 +125,36 @@ bool BinderUpdateEngineClient::ResetStatus() {
   return service_->ResetStatus().isOk();
 }
 
-void BinderUpdateEngineClient::RegisterStatusUpdateHandler(
+Status BinderUpdateEngineClient::StatusUpdateCallback::HandleStatusUpdate(
+    int64_t last_checked_time,
+    double progress,
+    const String16& current_operation,
+    const String16& new_version,
+    int64_t new_size) {
+  UpdateStatus update_status;
+
+  StringToUpdateStatus(String8{current_operation}.string(), &update_status);
+
+  for (auto& handler : client_->handlers_) {
+    handler->HandleStatusUpdate(last_checked_time, progress, update_status,
+                                String8{new_version}.string(), new_size);
+  }
+
+  return Status::ok();
+}
+
+bool BinderUpdateEngineClient::RegisterStatusUpdateHandler(
     StatusUpdateHandler* handler) {
+  if (!status_callback_.get()) {
+    status_callback_ =
+        new BinderUpdateEngineClient::StatusUpdateCallback(this);
+    if (!service_->RegisterStatusCallback(status_callback_).isOk()) {
+      return false;
+    }
+  }
+
+  handlers_.push_back(handler);
+  return true;
 }
 
 bool BinderUpdateEngineClient::SetTargetChannel(const string& in_target_channel,

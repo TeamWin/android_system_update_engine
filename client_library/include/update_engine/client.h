@@ -106,7 +106,7 @@ class UpdateEngineClient {
   // not be registered. Otherwise its HandleStatusUpdate method will be called
   // every time update_engine's status changes. Will always report the status
   // on registration to prevent race conditions.
-  virtual void RegisterStatusUpdateHandler(StatusUpdateHandler* handler) = 0;
+  virtual bool RegisterStatusUpdateHandler(StatusUpdateHandler* handler) = 0;
 
  protected:
   // Use CreateInstance().
