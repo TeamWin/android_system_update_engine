@@ -262,19 +262,12 @@ ue_libupdate_engine_exported_shared_libraries += \
     libbrillo-binder \
     libutils
 endif  # local_use_binder == 1
-
 ifeq ($(local_use_weave),1)
 ue_libupdate_engine_exported_shared_libraries += \
     libbinderwrapper \
     libbrillo-binder \
     libweaved
 endif  # local_use_weave == 1
-ifeq ($(local_use_binder),1)
-ue_libupdate_engine_exported_shared_libraries += \
-    libbinder \
-    libbrillo-binder \
-    libutils
-endif  # local_use_binder == 1
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine
@@ -339,11 +332,6 @@ LOCAL_SRC_FILES := \
     update_manager/update_manager.cc \
     update_status_utils.cc \
     weave_service_factory.cc
-ifeq ($(local_use_weave),1)
-LOCAL_SRC_FILES += \
-    weave_service.cc
-endif  # local_use_weave == 1
-
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \
@@ -352,7 +340,10 @@ LOCAL_SRC_FILES += \
     binder_service.cc \
     parcelable_update_engine_status.cc
 endif  # local_use_binder == 1
-
+ifeq ($(local_use_weave),1)
+LOCAL_SRC_FILES += \
+    weave_service.cc
+endif  # local_use_weave == 1
 include $(BUILD_STATIC_LIBRARY)
 
 endif  # local_use_dbus == 1
