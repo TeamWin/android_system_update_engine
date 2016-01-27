@@ -1217,6 +1217,13 @@ void UpdateAttempter::BroadcastStatus() {
   if (system_state_->weave_service())
     system_state_->weave_service()->UpdateWeaveState();
 
+#if USE_BINDER
+  if (binder_service_)
+    binder_service_->SendStatusUpdate(last_checked_time_, download_progress_,
+                                      UpdateStatusToString(status_),
+                                      new_version_.c_str(), new_payload_size_);
+#endif  // USE_BINDER
+
   if (!dbus_adaptor_)
     return;
   last_notify_time_ = TimeTicks::Now();

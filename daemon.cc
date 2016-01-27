@@ -90,6 +90,10 @@ int UpdateEngineDaemon::OnInit() {
                                        service_)) {
     LOG(ERROR) << "Failed to register binder service.";
   }
+
+#if defined(__BRILLO__) || defined(__CHROMEOS__)
+  update_attempter->set_binder_service(service_.get());
+#endif // defined(__BRILLO__) || defined(__CHROMEOS__)
 #endif  // USE_BINDER
 
 #if USE_DBUS

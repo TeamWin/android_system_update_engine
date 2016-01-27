@@ -19,6 +19,10 @@
 
 #include <utils/Errors.h>
 
+#include <vector>
+
+#include <utils/RefBase.h>
+
 #include "update_engine/common_service.h"
 #include "update_engine/parcelable_update_engine_status.h"
 
@@ -32,6 +36,10 @@ class BinderUpdateEngineService : public android::brillo::BnUpdateEngine {
   BinderUpdateEngineService(SystemState* system_state)
       : common_(new UpdateEngineService(system_state)) {}
   virtual ~BinderUpdateEngineService() = default;
+
+  void SendStatusUpdate(int64_t in_last_checked_time, double in_progress,
+                        const std::string& in_current_operation,
+                        const std::string& in_new_version, int64_t in_new_size);
 
   // android::brillo::BnUpdateEngine overrides.
   android::binder::Status AttemptUpdate(const android::String16& app_version,
@@ -65,12 +73,20 @@ class BinderUpdateEngineService : public android::brillo::BnUpdateEngine {
       override;
 
  private:
+  // Generic function for dispatching to the common service.
   template<typename... Parameters, typename... Arguments>
   android::binder::Status CallCommonHandler(
       bool (UpdateEngineService::*Handler)(brillo::ErrorPtr*, Parameters...),
       Arguments... arguments);
 
+  // To be used as a death notification handler only.
+  void UnregisterStatusCallback(
+      android::brillo::IUpdateEngineStatusCallback* callback);
+
   std::unique_ptr<UpdateEngineService> common_;
+
+  std::vector<android::sp<android::brillo::IUpdateEngineStatusCallback>>
+      callbacks_;
 };  // class BinderService
 
 }  // namespace chromeos_update_engine

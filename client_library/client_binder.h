@@ -20,11 +20,17 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <base/macros.h>
 #include <utils/StrongPointer.h>
+#include <utils/String16.h>
+
+#include <brillo/binder_watcher.h>
 
 #include "android/brillo/IUpdateEngine.h"
+#include "android/brillo/BnUpdateEngineStatusCallback.h"
+
 
 #include "update_engine/client_library/include/update_engine/client.h"
 
@@ -71,10 +77,29 @@ class BinderUpdateEngineClient : public UpdateEngineClient {
 
   bool GetChannel(std::string* out_channel) const override;
 
-  void RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
+  bool RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
 
  private:
+  class StatusUpdateCallback :
+      public android::brillo::BnUpdateEngineStatusCallback {
+   public:
+    StatusUpdateCallback(BinderUpdateEngineClient* client) : client_(client) {}
+
+    android::binder::Status HandleStatusUpdate(
+        int64_t last_checked_time,
+        double progress,
+        const android::String16& current_operation,
+        const android::String16& new_version,
+        int64_t new_size) override;
+
+   private:
+    BinderUpdateEngineClient* client_;
+  };
+
   android::sp<android::brillo::IUpdateEngine> service_;
+  android::sp<android::brillo::IUpdateEngineStatusCallback> status_callback_;
+  std::vector<update_engine::StatusUpdateHandler*> handlers_;
+  brillo::BinderWatcher binder_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(BinderUpdateEngineClient);
 };  // class BinderUpdateEngineClient

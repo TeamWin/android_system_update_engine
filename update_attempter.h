@@ -28,6 +28,10 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#if USE_BINDER
+#include "update_engine/binder_service.h"
+#endif  // USE_BINDER
+
 #include "debugd/dbus-proxies.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/client_library/include/update_engine/update_status.h"
@@ -137,6 +141,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void set_dbus_adaptor(UpdateEngineAdaptor* dbus_adaptor) {
     dbus_adaptor_ = dbus_adaptor;
   }
+
+#if USE_BINDER
+  void set_binder_service(BinderUpdateEngineService* service) {
+    binder_service_ = service;
+  }
+#endif
 
   // This is the internal entry point for going through an
   // update. If the current status is idle invokes Update.
@@ -414,6 +424,12 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // If non-null, this UpdateAttempter will send status updates over this
   // dbus service.
   UpdateEngineAdaptor* dbus_adaptor_ = nullptr;
+
+#if USE_BINDER
+  // If non-null, this UpdateAttempter will send status updates over this
+  // binder interface.
+  BinderUpdateEngineService* binder_service_ = nullptr;
+#endif  // USE_BINDER
 
   // Pointer to the OmahaResponseHandlerAction in the actions_ vector.
   std::shared_ptr<OmahaResponseHandlerAction> response_handler_action_;
