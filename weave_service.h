@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_WEAVE_SERVICE_H_
 
 #include <memory>
+#include <string>
 
 #include <base/memory/weak_ptr.h>
 #include <libweaved/command.h>
@@ -34,10 +35,18 @@ class WeaveService : public WeaveServiceInterface {
 
   bool Init(DelegateInterface* delegate);
 
-  // WeaveServiceInterface override.
-  void UpdateWeaveState() override;
+  // ServiceObserverInterface overrides.
+  void SendStatusUpdate(int64_t last_checked_time,
+                        double progress,
+                        update_engine::UpdateStatus status,
+                        const std::string& new_version,
+                        int64_t new_size) override;
+  void SendChannelChangeUpdate(const std::string& tracking_channel) override;
 
  private:
+  // Force a weave update.
+  void UpdateWeaveState();
+
   void OnWeaveServiceConnected(const std::weak_ptr<weaved::Service>& service);
 
   // Weave command handlers. These are called from the message loop whenever a

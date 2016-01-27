@@ -224,7 +224,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := $(ue_libpayload_consumer_src_files)
 include $(BUILD_STATIC_LIBRARY)
 
-ifeq ($(local_use_dbus),1)
+ifdef BRILLO
 
 # libupdate_engine (type: static_library)
 # ========================================================
@@ -337,7 +337,7 @@ LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \
     binder_bindings/android/brillo/IUpdateEngine.aidl \
     binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
-    binder_service.cc \
+    binder_service_brillo.cc \
     parcelable_update_engine_status.cc
 endif  # local_use_binder == 1
 ifeq ($(local_use_weave),1)
@@ -346,7 +346,50 @@ LOCAL_SRC_FILES += \
 endif  # local_use_weave == 1
 include $(BUILD_STATIC_LIBRARY)
 
-endif  # local_use_dbus == 1
+else  # !defined(BRILLO)
+
+ifneq ($(local_use_binder),1)
+$(error USE_BINDER is disabled but is required in non-Brillo devices.)
+endif  # local_use_binder == 1
+
+# libupdate_engine_android (type: static_library)
+# ========================================================
+# The main daemon static_library used in Android (non-Brillo). This only has a
+# loop to apply payloads provided by the upper layer via a Binder interface.
+ue_libupdate_engine_android_exported_static_libraries := \
+    libpayload_consumer \
+    $(ue_libpayload_consumer_exported_static_libraries)
+ue_libupdate_engine_android_exported_shared_libraries := \
+    $(ue_libpayload_consumer_exported_shared_libraries) \
+    libbinder \
+    libbinderwrapper \
+    libbrillo-binder \
+    libutils
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libupdate_engine_android
+LOCAL_MODULE_CLASS := STATIC_LIBRARIES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES :=  $(ue_common_c_includes)
+LOCAL_STATIC_LIBRARIES := \
+    $(ue_libupdate_engine_android_exported_static_libraries:-host=)
+LOCAL_SHARED_LIBRARIES += \
+    $(ue_common_shared_libraries) \
+    $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
+LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
+LOCAL_SRC_FILES += \
+    binder_bindings/android/os/IUpdateEngine.aidl \
+    binder_bindings/android/os/IUpdateEngineCallback.aidl \
+    binder_service_android.cc \
+    daemon.cc \
+    daemon_state_android.cc
+include $(BUILD_STATIC_LIBRARY)
+
+endif  # !defined(BRILLO)
 
 # update_engine (type: executable)
 # ========================================================
@@ -381,28 +424,12 @@ LOCAL_STATIC_LIBRARIES := \
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_exported_shared_libraries:-host=)
 else  # !defined(BRILLO)
-LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
 LOCAL_STATIC_LIBRARIES := \
-    libpayload_consumer \
-    $(ue_libpayload_consumer_exported_static_libraries:-host=)
+    libupdate_engine_android \
+    $(ue_libupdate_engine_android_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES += \
-    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
-    libbinder \
-    libbrillo-binder \
-    libutils
-LOCAL_SRC_FILES += \
-    binder_bindings/android/os/IUpdateEngine.aidl \
-    binder_bindings/android/os/IUpdateEngineCallback.aidl \
-    binder_service_android.cc \
-    daemon.cc
-endif  # defined(BRILLO)
-
-ifeq ($(local_use_binder),1)
-LOCAL_SHARED_LIBRARIES += \
-    libbinder \
-    libbinderwrapper \
-    libutils
-endif  # local_use_binder == 1
+    $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
+endif  # !defined(BRILLO)
 
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)

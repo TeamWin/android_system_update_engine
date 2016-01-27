@@ -33,6 +33,7 @@
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/connection_manager.h"
+#include "update_engine/daemon_state_interface.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
 #include "update_engine/shill_proxy.h"
@@ -44,7 +45,7 @@ namespace chromeos_update_engine {
 
 // A real implementation of the SystemStateInterface which is
 // used by the actual product code.
-class RealSystemState : public SystemState {
+class RealSystemState : public SystemState, public DaemonStateInterface {
  public:
   // Constructs all system objects that do not require separate initialization;
   // see Initialize() below for the remaining ones.
@@ -55,10 +56,15 @@ class RealSystemState : public SystemState {
   // separately from construction. Returns |true| on success.
   bool Initialize();
 
+  // DaemonStateInterface overrides.
   // Start the periodic update attempts. Must be called at the beginning of the
   // program to start the periodic update check process.
-  void StartUpdater();
+  bool StartUpdater() override;
 
+  void AddObserver(ServiceObserverInterface* observer) override;
+  void RemoveObserver(ServiceObserverInterface* observer) override;
+
+  // SystemState overrides.
   inline void set_device_policy(
       const policy::DevicePolicy* device_policy) override {
     device_policy_ = device_policy;

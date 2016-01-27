@@ -49,7 +49,7 @@ RealSystemState::~RealSystemState() {
   // Prevent any DBus communication from UpdateAttempter when shutting down the
   // daemon.
   if (update_attempter_)
-    update_attempter_->set_dbus_adaptor(nullptr);
+    update_attempter_->ClearObservers();
 }
 
 bool RealSystemState::Initialize() {
@@ -137,6 +137,8 @@ bool RealSystemState::Initialize() {
   update_attempter_->Init();
 
   weave_service_ = ConstructWeaveService(update_attempter_.get());
+  if (weave_service_)
+    update_attempter_->AddObserver(weave_service_.get());
 
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
@@ -165,7 +167,7 @@ bool RealSystemState::Initialize() {
   return true;
 }
 
-void RealSystemState::StartUpdater() {
+bool RealSystemState::StartUpdater() {
   // Initiate update checks.
   update_attempter_->ScheduleUpdates();
 
@@ -186,6 +188,17 @@ void RealSystemState::StartUpdater() {
   MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
       &UpdateAttempter::UpdateEngineStarted,
       base::Unretained(update_attempter_.get())));
+  return true;
+}
+
+void RealSystemState::AddObserver(ServiceObserverInterface* observer) {
+  CHECK(update_attempter_.get());
+  update_attempter_->AddObserver(observer);
+}
+
+void RealSystemState::RemoveObserver(ServiceObserverInterface* observer) {
+  CHECK(update_attempter_.get());
+  update_attempter_->RemoveObserver(observer);
 }
 
 }  // namespace chromeos_update_engine

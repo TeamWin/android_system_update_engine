@@ -15,13 +15,15 @@
 //
 
 #include "update_engine/dbus_service.h"
+
 #include "update_engine/dbus-constants.h"
+#include "update_engine/update_status_utils.h"
 
 namespace chromeos_update_engine {
 
 using brillo::ErrorPtr;
-using std::string;
 using chromeos_update_engine::UpdateEngineService;
+using std::string;
 
 DBusUpdateEngineService::DBusUpdateEngineService(SystemState* system_state)
     : common_(new UpdateEngineService{system_state}) {
@@ -148,6 +150,16 @@ void UpdateEngineAdaptor::RegisterAsync(
 bool UpdateEngineAdaptor::RequestOwnership() {
   return bus_->RequestOwnershipAndBlock(update_engine::kUpdateEngineServiceName,
                                         dbus::Bus::REQUIRE_PRIMARY);
+}
+
+void UpdateEngineAdaptor::SendStatusUpdate(int64_t last_checked_time,
+                                           double progress,
+                                           update_engine::UpdateStatus status,
+                                           const string& new_version,
+                                           int64_t new_size) {
+  const string str_status = UpdateStatusToString(status);
+  SendStatusUpdateSignal(
+      last_checked_time, progress, str_status, new_version, new_size);
 }
 
 }  // namespace chromeos_update_engine

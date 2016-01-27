@@ -20,6 +20,7 @@
 #include <time.h>
 
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,10 +28,6 @@
 #include <base/bind.h>
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
-
-#if USE_BINDER
-#include "update_engine/binder_service.h"
-#endif  // USE_BINDER
 
 #include "debugd/dbus-proxies.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
@@ -42,6 +39,7 @@
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/proxy_resolver.h"
+#include "update_engine/service_observer_interface.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
@@ -138,16 +136,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   int http_response_code() const { return http_response_code_; }
   void set_http_response_code(int code) { http_response_code_ = code; }
 
-  void set_dbus_adaptor(UpdateEngineAdaptor* dbus_adaptor) {
-    dbus_adaptor_ = dbus_adaptor;
-  }
-
-#if USE_BINDER
-  void set_binder_service(BinderUpdateEngineService* service) {
-    binder_service_ = service;
-  }
-#endif
-
   // This is the internal entry point for going through an
   // update. If the current status is idle invokes Update.
   // This is called by the DBus implementation.
@@ -184,8 +172,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   void DownloadComplete() override;
 
-  // Broadcasts the current status over D-Bus.
+  // Broadcasts the current status to all observers.
   void BroadcastStatus();
+
+  // Broadcasts the current tracking channel to all observers.
+  void BroadcastChannel();
 
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
@@ -238,6 +229,17 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // conditions it's useful to allow updating from anywhere (e.g. to allow
   // 'cros flash' to function properly).
   virtual bool IsAnyUpdateSourceAllowed();
+
+  // Add and remove a service observer.
+  void AddObserver(ServiceObserverInterface* observer) {
+    service_observers_.insert(observer);
+  }
+  void RemoveObserver(ServiceObserverInterface* observer) {
+    service_observers_.erase(observer);
+  }
+
+  // Remove all the observers.
+  void ClearObservers() { service_observers_.clear(); }
 
  private:
   // Update server URL for automated lab test.
@@ -421,15 +423,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Pointer to the certificate checker instance to use.
   CertificateChecker* cert_checker_;
 
-  // If non-null, this UpdateAttempter will send status updates over this
-  // dbus service.
-  UpdateEngineAdaptor* dbus_adaptor_ = nullptr;
-
-#if USE_BINDER
-  // If non-null, this UpdateAttempter will send status updates over this
-  // binder interface.
-  BinderUpdateEngineService* binder_service_ = nullptr;
-#endif  // USE_BINDER
+  // The list of services observing changes in the updater.
+  std::set<ServiceObserverInterface*> service_observers_;
 
   // Pointer to the OmahaResponseHandlerAction in the actions_ vector.
   std::shared_ptr<OmahaResponseHandlerAction> response_handler_action_;

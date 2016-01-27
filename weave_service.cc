@@ -62,6 +62,20 @@ void WeaveService::OnWeaveServiceConnected(
   UpdateWeaveState();
 }
 
+void WeaveService::SendStatusUpdate(int64_t /* last_checked_time */,
+                                    double /* progress */,
+                                    update_engine::UpdateStatus /* status */,
+                                    const string& /* new_version */,
+                                    int64_t /* new_size */) {
+  // We query the Weave
+  UpdateWeaveState();
+}
+
+void WeaveService::SendChannelChangeUpdate(
+    const string& /* tracking_channel */) {
+  UpdateWeaveState();
+}
+
 void WeaveService::UpdateWeaveState() {
   auto weave_service = weave_service_.lock();
   if (!weave_service || !delegate_)

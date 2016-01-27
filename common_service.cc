@@ -172,8 +172,7 @@ bool UpdateEngineService::SetChannel(ErrorPtr* error,
     return false;
   }
   // Update the weave state because updated the target channel.
-  if (system_state_->weave_service())
-    system_state_->weave_service()->UpdateWeaveState();
+  system_state_->update_attempter()->BroadcastChannel();
   return true;
 }
 

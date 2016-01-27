@@ -22,6 +22,7 @@
 #include <brillo/errors/error.h>
 
 #include "update_engine/client_library/include/update_engine/update_status.h"
+#include "update_engine/service_observer_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -30,7 +31,7 @@ namespace chromeos_update_engine {
 // registration with weaved and the connection, the actual work to handle the
 // commands is implemented by the DelegateInterface, which will be called from
 // this class.
-class WeaveServiceInterface {
+class WeaveServiceInterface : public ServiceObserverInterface {
  public:
   // The delegate class that actually handles the command execution from
   class DelegateInterface {
@@ -51,9 +52,6 @@ class WeaveServiceInterface {
   };
 
   virtual ~WeaveServiceInterface() = default;
-
-  // Force a weave state update.
-  virtual void UpdateWeaveState() = 0;
 
  protected:
   WeaveServiceInterface() = default;

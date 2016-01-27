@@ -25,14 +25,32 @@
 
 #include "android/os/BnUpdateEngine.h"
 #include "android/os/IUpdateEngineCallback.h"
+#include "update_engine/daemon_state_android.h"
+#include "update_engine/service_observer_interface.h"
 
 namespace chromeos_update_engine {
 
-class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine {
+class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
+                                         public ServiceObserverInterface {
  public:
-  BinderUpdateEngineAndroidService() = default;
+  BinderUpdateEngineAndroidService(DaemonStateAndroid* daemon_state);
   ~BinderUpdateEngineAndroidService() override = default;
 
+  const char* ServiceName() const {
+    return "android.os.UpdateEngineService";
+  }
+
+  // ServiceObserverInterface overrides.
+  void SendStatusUpdate(int64_t last_checked_time,
+                        double progress,
+                        update_engine::UpdateStatus status,
+                        const std::string& new_version,
+                        int64_t new_size) override;
+
+  // Channel tracking changes are ignored.
+  void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
+
+  // android::os::BnUpdateEngine overrides.
   android::binder::Status applyPayload(
       const android::String16& url,
       const std::vector<android::String16>& header_kv_pairs) override;
