@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_BINDER_SERVICE_H_
-#define UPDATE_ENGINE_BINDER_SERVICE_H_
+#ifndef UPDATE_ENGINE_BINDER_SERVICE_BRILLO_H_
+#define UPDATE_ENGINE_BINDER_SERVICE_BRILLO_H_
 
 #include <utils/Errors.h>
 
@@ -25,21 +25,32 @@
 
 #include "update_engine/common_service.h"
 #include "update_engine/parcelable_update_engine_status.h"
+#include "update_engine/service_observer_interface.h"
 
 #include "android/brillo/BnUpdateEngine.h"
 #include "android/brillo/IUpdateEngineStatusCallback.h"
 
 namespace chromeos_update_engine {
 
-class BinderUpdateEngineService : public android::brillo::BnUpdateEngine {
+class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
+                                        public ServiceObserverInterface {
  public:
-  BinderUpdateEngineService(SystemState* system_state)
+  BinderUpdateEngineBrilloService(SystemState* system_state)
       : common_(new UpdateEngineService(system_state)) {}
-  virtual ~BinderUpdateEngineService() = default;
+  virtual ~BinderUpdateEngineBrilloService() = default;
 
-  void SendStatusUpdate(int64_t in_last_checked_time, double in_progress,
-                        const std::string& in_current_operation,
-                        const std::string& in_new_version, int64_t in_new_size);
+  const char* ServiceName() const {
+    return "android.brillo.UpdateEngineService";
+  }
+
+  // ServiceObserverInterface overrides.
+  void SendStatusUpdate(int64_t last_checked_time,
+                        double progress,
+                        update_engine::UpdateStatus status,
+                        const std::string& new_version,
+                        int64_t new_size) override;
+  // Channel tracking changes are ignored.
+  void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
 
   // android::brillo::BnUpdateEngine overrides.
   android::binder::Status AttemptUpdate(const android::String16& app_version,
@@ -74,7 +85,7 @@ class BinderUpdateEngineService : public android::brillo::BnUpdateEngine {
 
  private:
   // Generic function for dispatching to the common service.
-  template<typename... Parameters, typename... Arguments>
+  template <typename... Parameters, typename... Arguments>
   android::binder::Status CallCommonHandler(
       bool (UpdateEngineService::*Handler)(brillo::ErrorPtr*, Parameters...),
       Arguments... arguments);
@@ -87,8 +98,8 @@ class BinderUpdateEngineService : public android::brillo::BnUpdateEngine {
 
   std::vector<android::sp<android::brillo::IUpdateEngineStatusCallback>>
       callbacks_;
-};  // class BinderService
+};
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_BINDER_SERVICE_H_
+#endif  // UPDATE_ENGINE_BINDER_SERVICE_BRILLO_H_

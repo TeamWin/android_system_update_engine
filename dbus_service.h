@@ -25,6 +25,7 @@
 #include <brillo/errors/error.h>
 
 #include "update_engine/common_service.h"
+#include "update_engine/service_observer_interface.h"
 #include "update_engine/update_attempter.h"
 
 #include "dbus_bindings/org.chromium.UpdateEngineInterface.h"
@@ -135,7 +136,8 @@ class DBusUpdateEngineService
 // The UpdateEngineAdaptor class runs the UpdateEngineInterface in the fixed
 // object path, without an ObjectManager notifying the interfaces, since it is
 // all static and clients don't expect it to be implemented.
-class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor {
+class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor,
+                            public ServiceObserverInterface {
  public:
   UpdateEngineAdaptor(SystemState* system_state,
                       const scoped_refptr<dbus::Bus>& bus);
@@ -149,6 +151,16 @@ class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor {
   // Takes ownership of the well-known DBus name and returns whether it
   // succeeded.
   bool RequestOwnership();
+
+  // ServiceObserverInterface overrides.
+  void SendStatusUpdate(int64_t last_checked_time,
+                        double progress,
+                        update_engine::UpdateStatus status,
+                        const std::string& new_version,
+                        int64_t new_size) override;
+
+  // Channel tracking changes are ignored.
+  void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
 
  private:
   scoped_refptr<dbus::Bus> bus_;

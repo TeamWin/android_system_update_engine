@@ -24,6 +24,20 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
+BinderUpdateEngineAndroidService::BinderUpdateEngineAndroidService(
+    DaemonStateAndroid* /* daemon_state */) {
+  // TODO(deymo): Hook this interface calls to the daemon_state.
+}
+
+void BinderUpdateEngineAndroidService::SendStatusUpdate(
+    int64_t last_checked_time,
+    double progress,
+    update_engine::UpdateStatus status,
+    const std::string& new_version,
+    int64_t new_size) {
+  // TODO(deymo): Notify registered callers.
+}
+
 Status BinderUpdateEngineAndroidService::bind(
     const sp<IUpdateEngineCallback>& callback,
     bool* return_value) {

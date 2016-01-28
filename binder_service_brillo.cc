@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/binder_service.h"
+#include "update_engine/binder_service_brillo.h"
 
 #include <base/bind.h>
 
@@ -22,6 +22,8 @@
 
 #include <utils/String16.h>
 #include <utils/StrongPointer.h>
+
+#include "update_engine/update_status_utils.h"
 
 using android::String16;
 using android::String8;
@@ -45,47 +47,47 @@ Status ToStatus(ErrorPtr* error) {
 }
 }  // namespace
 
-template<typename... Parameters, typename... Arguments>
-Status BinderUpdateEngineService::CallCommonHandler(
+template <typename... Parameters, typename... Arguments>
+Status BinderUpdateEngineBrilloService::CallCommonHandler(
     bool (UpdateEngineService::*Handler)(ErrorPtr*, Parameters...),
     Arguments... arguments) {
   ErrorPtr error;
-  if (((common_.get())->*Handler)(&error, arguments...)) return Status::ok();
+  if (((common_.get())->*Handler)(&error, arguments...))
+    return Status::ok();
   return ToStatus(&error);
 }
 
-Status BinderUpdateEngineService::AttemptUpdate(const String16& app_version,
-                                                const String16& omaha_url,
-                                                int flags) {
-  return CallCommonHandler(
-      &UpdateEngineService::AttemptUpdate, NormalString(app_version),
-      NormalString(omaha_url), flags);
+Status BinderUpdateEngineBrilloService::AttemptUpdate(
+    const String16& app_version, const String16& omaha_url, int flags) {
+  return CallCommonHandler(&UpdateEngineService::AttemptUpdate,
+                           NormalString(app_version),
+                           NormalString(omaha_url),
+                           flags);
 }
 
-Status BinderUpdateEngineService::AttemptRollback(bool powerwash) {
+Status BinderUpdateEngineBrilloService::AttemptRollback(bool powerwash) {
   return CallCommonHandler(&UpdateEngineService::AttemptRollback, powerwash);
 }
 
-Status BinderUpdateEngineService::CanRollback(bool* out_can_rollback) {
-  return CallCommonHandler(&UpdateEngineService::CanRollback,
-                           out_can_rollback);
+Status BinderUpdateEngineBrilloService::CanRollback(bool* out_can_rollback) {
+  return CallCommonHandler(&UpdateEngineService::CanRollback, out_can_rollback);
 }
 
-Status BinderUpdateEngineService::ResetStatus() {
+Status BinderUpdateEngineBrilloService::ResetStatus() {
   return CallCommonHandler(&UpdateEngineService::ResetStatus);
 }
 
-Status BinderUpdateEngineService::GetStatus(
+Status BinderUpdateEngineBrilloService::GetStatus(
     ParcelableUpdateEngineStatus* status) {
   string current_op;
   string new_version;
 
   auto ret = CallCommonHandler(&UpdateEngineService::GetStatus,
-                      &status->last_checked_time_,
-                      &status->progress_,
-                      &current_op,
-                      &new_version,
-                      &status->new_size_);
+                               &status->last_checked_time_,
+                               &status->progress_,
+                               &current_op,
+                               &new_version,
+                               &status->new_size_);
 
   if (ret.isOk()) {
     status->current_operation_ = String16{current_op.c_str()};
@@ -95,67 +97,68 @@ Status BinderUpdateEngineService::GetStatus(
   return ret;
 }
 
-Status BinderUpdateEngineService::RebootIfNeeded() {
+Status BinderUpdateEngineBrilloService::RebootIfNeeded() {
   return CallCommonHandler(&UpdateEngineService::RebootIfNeeded);
 }
 
-Status BinderUpdateEngineService::SetChannel(const String16& target_channel,
-                                             bool powerwash) {
+Status BinderUpdateEngineBrilloService::SetChannel(
+    const String16& target_channel, bool powerwash) {
   return CallCommonHandler(&UpdateEngineService::SetChannel,
-                           NormalString(target_channel), powerwash);
+                           NormalString(target_channel),
+                           powerwash);
 }
 
-Status BinderUpdateEngineService::GetChannel(bool get_current_channel,
-                                             String16* out_channel) {
+Status BinderUpdateEngineBrilloService::GetChannel(bool get_current_channel,
+                                                   String16* out_channel) {
   string channel_string;
-  auto ret = CallCommonHandler(&UpdateEngineService::GetChannel,
-                               get_current_channel,
-                               &channel_string);
+  auto ret = CallCommonHandler(
+      &UpdateEngineService::GetChannel, get_current_channel, &channel_string);
 
   *out_channel = String16(channel_string.c_str());
   return ret;
 }
 
-Status BinderUpdateEngineService::SetP2PUpdatePermission(bool enabled) {
+Status BinderUpdateEngineBrilloService::SetP2PUpdatePermission(bool enabled) {
   return CallCommonHandler(&UpdateEngineService::SetP2PUpdatePermission,
                            enabled);
 }
 
-Status BinderUpdateEngineService::GetP2PUpdatePermission(
+Status BinderUpdateEngineBrilloService::GetP2PUpdatePermission(
     bool* out_p2p_permission) {
   return CallCommonHandler(&UpdateEngineService::GetP2PUpdatePermission,
                            out_p2p_permission);
 }
 
-Status BinderUpdateEngineService::SetUpdateOverCellularPermission(
+Status BinderUpdateEngineBrilloService::SetUpdateOverCellularPermission(
     bool enabled) {
   return CallCommonHandler(
       &UpdateEngineService::SetUpdateOverCellularPermission, enabled);
 }
 
-Status BinderUpdateEngineService::GetUpdateOverCellularPermission(
+Status BinderUpdateEngineBrilloService::GetUpdateOverCellularPermission(
     bool* out_cellular_permission) {
   return CallCommonHandler(
       &UpdateEngineService::GetUpdateOverCellularPermission,
       out_cellular_permission);
 }
 
-Status BinderUpdateEngineService::GetDurationSinceUpdate(
+Status BinderUpdateEngineBrilloService::GetDurationSinceUpdate(
     int64_t* out_duration) {
   return CallCommonHandler(&UpdateEngineService::GetDurationSinceUpdate,
                            out_duration);
 }
 
-Status BinderUpdateEngineService::GetPrevVersion(String16* out_prev_version) {
+Status BinderUpdateEngineBrilloService::GetPrevVersion(
+    String16* out_prev_version) {
   string version_string;
-  auto ret = CallCommonHandler(&UpdateEngineService::GetPrevVersion,
-                               &version_string);
+  auto ret =
+      CallCommonHandler(&UpdateEngineService::GetPrevVersion, &version_string);
 
   *out_prev_version = String16(version_string.c_str());
   return ret;
 }
 
-Status BinderUpdateEngineService::GetRollbackPartition(
+Status BinderUpdateEngineBrilloService::GetRollbackPartition(
     String16* out_rollback_partition) {
   string partition_string;
   auto ret = CallCommonHandler(&UpdateEngineService::GetRollbackPartition,
@@ -168,7 +171,7 @@ Status BinderUpdateEngineService::GetRollbackPartition(
   return ret;
 }
 
-Status BinderUpdateEngineService::RegisterStatusCallback(
+Status BinderUpdateEngineBrilloService::RegisterStatusCallback(
     const sp<IUpdateEngineStatusCallback>& callback) {
   callbacks_.emplace_back(callback);
 
@@ -176,13 +179,14 @@ Status BinderUpdateEngineService::RegisterStatusCallback(
 
   binder_wrapper->RegisterForDeathNotifications(
       IUpdateEngineStatusCallback::asBinder(callback),
-      base::Bind(&BinderUpdateEngineService::UnregisterStatusCallback,
-                 base::Unretained(this), base::Unretained(callback.get())));
+      base::Bind(&BinderUpdateEngineBrilloService::UnregisterStatusCallback,
+                 base::Unretained(this),
+                 base::Unretained(callback.get())));
 
   return Status::ok();
 }
 
-void BinderUpdateEngineService::UnregisterStatusCallback(
+void BinderUpdateEngineBrilloService::UnregisterStatusCallback(
     IUpdateEngineStatusCallback* callback) {
   auto it = callbacks_.begin();
 
@@ -198,14 +202,19 @@ void BinderUpdateEngineService::UnregisterStatusCallback(
   callbacks_.erase(it);
 }
 
-void BinderUpdateEngineService::SendStatusUpdate(
-    int64_t in_last_checked_time, double in_progress,
-    const std::string& in_current_operation, const std::string& in_new_version,
-    int64_t in_new_size) {
+void BinderUpdateEngineBrilloService::SendStatusUpdate(
+    int64_t last_checked_time,
+    double progress,
+    update_engine::UpdateStatus status,
+    const string& new_version,
+    int64_t new_size) {
+  const string str_status = UpdateStatusToString(status);
   for (auto& callback : callbacks_) {
-    callback->HandleStatusUpdate(in_last_checked_time, in_progress,
-                                 String16{in_current_operation.c_str()},
-                                 String16{in_new_version.c_str()}, in_new_size);
+    callback->HandleStatusUpdate(last_checked_time,
+                                 progress,
+                                 String16{str_status.c_str()},
+                                 String16{new_version.c_str()},
+                                 new_size);
   }
 }
 

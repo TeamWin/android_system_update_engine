@@ -405,9 +405,8 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                                  &error_message)) {
       LOG(ERROR) << "Setting the channel failed: " << error_message;
     }
-    // Update the weave state because updated the target channel.
-    if (system_state_->weave_service())
-      system_state_->weave_service()->UpdateWeaveState();
+    // Notify observers the target channel change.
+    BroadcastChannel();
 
     // Since this is the beginning of a new attempt, update the download
     // channel. The download channel won't be updated until the next attempt,
@@ -1105,9 +1104,8 @@ bool UpdateAttempter::OnTrackChannel(const string& channel,
                          error_message);
     return false;
   }
-  // Update the weave state because updated the target channel.
-  if (system_state_->weave_service())
-    system_state_->weave_service()->UpdateWeaveState();
+  // Notify observers the target channel change.
+  BroadcastChannel();
   return true;
 }
 
@@ -1214,25 +1212,21 @@ void UpdateAttempter::CompleteUpdateBootFlags(bool successful) {
 }
 
 void UpdateAttempter::BroadcastStatus() {
-  if (system_state_->weave_service())
-    system_state_->weave_service()->UpdateWeaveState();
-
-#if USE_BINDER
-  if (binder_service_)
-    binder_service_->SendStatusUpdate(last_checked_time_, download_progress_,
-                                      UpdateStatusToString(status_),
-                                      new_version_.c_str(), new_payload_size_);
-#endif  // USE_BINDER
-
-  if (!dbus_adaptor_)
-    return;
+  for (const auto& observer : service_observers_) {
+    observer->SendStatusUpdate(last_checked_time_,
+                               download_progress_,
+                               status_,
+                               new_version_,
+                               new_payload_size_);
+  }
   last_notify_time_ = TimeTicks::Now();
-  dbus_adaptor_->SendStatusUpdateSignal(
-      last_checked_time_,
-      download_progress_,
-      UpdateStatusToString(status_),
-      new_version_.c_str(),
-      new_payload_size_);
+}
+
+void UpdateAttempter::BroadcastChannel() {
+  for (const auto& observer : service_observers_) {
+    observer->SendChannelChangeUpdate(
+        system_state_->request_params()->target_channel());
+  }
 }
 
 uint32_t UpdateAttempter::GetErrorCodeFlags()  {

@@ -26,14 +26,16 @@
 #endif  // USE_WEAVE || USE_BINDER
 
 #if defined(__BRILLO__) || defined(__CHROMEOS__)
-#include "update_engine/update_attempter.h"
+#include "update_engine/real_system_state.h"
+#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+#include "update_engine/daemon_state_android.h"
 #endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
 
 #if USE_DBUS
 namespace {
 const int kDBusSystemMaxWaitSeconds = 2 * 60;
 }  // namespace
-#endif // USE_DBUS
+#endif  // USE_DBUS
 
 namespace chromeos_update_engine {
 
@@ -65,52 +67,51 @@ int UpdateEngineDaemon::OnInit() {
   }
 
   CHECK(bus->SetUpAsyncOperations());
-#endif // USE_DBUS
+#endif  // USE_DBUS
 
 #if defined(__BRILLO__) || defined(__CHROMEOS__)
   // Initialize update engine global state but continue if something fails.
-  real_system_state_.reset(new RealSystemState(bus));
-  LOG_IF(ERROR, !real_system_state_->Initialize())
+  // TODO(deymo): Move the daemon_state_ initialization to a factory method
+  // avoiding the explicit re-usage of the |bus| instance, shared between
+  // D-Bus service and D-Bus client calls.
+  RealSystemState* real_system_state = new RealSystemState(bus);
+  daemon_state_.reset(real_system_state);
+  LOG_IF(ERROR, !real_system_state->Initialize())
       << "Failed to initialize system state.";
-  UpdateAttempter* update_attempter = real_system_state_->update_attempter();
-  CHECK(update_attempter);
 #else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
-  //TODO(deymo): Initialize non-Brillo state.
-#endif // defined(__BRILLO__) || defined(__CHROMEOS__)
+  DaemonStateAndroid* daemon_state_android = new DaemonStateAndroid();
+  daemon_state_.reset(daemon_state_android);
+  LOG_IF(ERROR, !daemon_state_android->Initialize())
+      << "Failed to initialize system state.";
+#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
 
 #if USE_BINDER
   // Create the Binder Service.
 #if defined(__BRILLO__) || defined(__CHROMEOS__)
-  service_ = new BinderUpdateEngineService{real_system_state_.get()};
+  binder_service_ = new BinderUpdateEngineBrilloService{real_system_state};
 #else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
-  service_ = new BinderUpdateEngineAndroidService{};
-#endif // defined(__BRILLO__) || defined(__CHROMEOS__)
+  binder_service_ = new BinderUpdateEngineAndroidService{daemon_state_android};
+#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
   auto binder_wrapper = android::BinderWrapper::Get();
-  if (!binder_wrapper->RegisterService("android.brillo.UpdateEngineService",
-                                       service_)) {
+  if (!binder_wrapper->RegisterService(binder_service_->ServiceName(),
+                                       binder_service_)) {
     LOG(ERROR) << "Failed to register binder service.";
   }
 
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
-  update_attempter->set_binder_service(service_.get());
-#endif // defined(__BRILLO__) || defined(__CHROMEOS__)
+  daemon_state_->AddObserver(binder_service_.get());
 #endif  // USE_BINDER
 
 #if USE_DBUS
   // Create the DBus service.
-  dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state_.get(), bus));
-  update_attempter->set_dbus_adaptor(dbus_adaptor_.get());
+  dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state, bus));
+  daemon_state_->AddObserver(dbus_adaptor_.get());
 
   dbus_adaptor_->RegisterAsync(base::Bind(&UpdateEngineDaemon::OnDBusRegistered,
                                           base::Unretained(this)));
   LOG(INFO) << "Waiting for DBus object to be registered.";
 #else  // !USE_DBUS
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
-  real_system_state_->StartUpdater();
-#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
-  // TODO(deymo): Start non-Brillo service.
-#endif // defined(__BRILLO__) || defined(__CHROMEOS__)
-#endif // USE_DBUS
+  daemon_state_->StartUpdater();
+#endif  // USE_DBUS
   return EX_OK;
 }
 
@@ -131,7 +132,7 @@ void UpdateEngineDaemon::OnDBusRegistered(bool succeeded) {
     QuitWithExitCode(1);
     return;
   }
-  real_system_state_->StartUpdater();
+  daemon_state_->StartUpdater();
 }
 #endif  // USE_DBUS
 
