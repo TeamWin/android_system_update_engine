@@ -420,13 +420,9 @@ LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
-LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
-    $(LOCAL_PATH)/include
-LOCAL_STATIC_LIBRARIES := update_engine_client-dbus-proxies
+LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    libutils \
     libupdate_engine_client
 LOCAL_SRC_FILES := \
     update_engine_client.cc
