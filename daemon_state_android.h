@@ -17,11 +17,17 @@
 #ifndef UPDATE_ENGINE_DAEMON_STATE_ANDROID_H_
 #define UPDATE_ENGINE_DAEMON_STATE_ANDROID_H_
 
+#include <memory>
 #include <set>
 
+#include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/certificate_checker.h"
+#include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/prefs_interface.h"
 #include "update_engine/daemon_state_interface.h"
 #include "update_engine/service_delegate_android_interface.h"
 #include "update_engine/service_observer_interface.h"
+#include "update_engine/update_attempter_android.h"
 
 namespace chromeos_update_engine {
 
@@ -46,6 +52,18 @@ class DaemonStateAndroid : public DaemonStateInterface {
 
  protected:
   std::set<ServiceObserverInterface*> service_observers_;
+
+  // Interface for the boot control functions.
+  std::unique_ptr<BootControlInterface> boot_control_;
+
+  // Interface for the hardware functions.
+  std::unique_ptr<HardwareInterface> hardware_;
+
+  // Interface for persisted store.
+  std::unique_ptr<PrefsInterface> prefs_;
+
+  // The main class handling the updates.
+  std::unique_ptr<UpdateAttempterAndroid> update_attempter_;
 };
 
 }  // namespace chromeos_update_engine

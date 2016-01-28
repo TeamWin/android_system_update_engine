@@ -359,12 +359,15 @@ endif  # local_use_binder == 1
 # loop to apply payloads provided by the upper layer via a Binder interface.
 ue_libupdate_engine_android_exported_static_libraries := \
     libpayload_consumer \
+    libfs_mgr \
     $(ue_libpayload_consumer_exported_static_libraries)
 ue_libupdate_engine_android_exported_shared_libraries := \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     libbinder \
     libbinderwrapper \
     libbrillo-binder \
+    libcutils \
+    libhardware \
     libutils
 
 include $(CLEAR_VARS)
@@ -386,8 +389,12 @@ LOCAL_SRC_FILES += \
     binder_bindings/android/os/IUpdateEngine.aidl \
     binder_bindings/android/os/IUpdateEngineCallback.aidl \
     binder_service_android.cc \
+    boot_control_android.cc \
     daemon.cc \
-    daemon_state_android.cc
+    daemon_state_android.cc \
+    hardware_android.cc \
+    proxy_resolver.cc \
+    update_attempter_android.cc
 include $(BUILD_STATIC_LIBRARY)
 
 endif  # !defined(BRILLO)
