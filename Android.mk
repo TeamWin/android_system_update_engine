@@ -407,8 +407,6 @@ endif  # local_use_binder == 1
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)
 
-ifeq ($(local_use_dbus),1)
-
 # update_engine_client (type: executable)
 # ========================================================
 # update_engine console client.
@@ -421,14 +419,29 @@ LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
-LOCAL_SHARED_LIBRARIES := \
-    $(ue_common_shared_libraries) \
+LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
+ifdef BRILLO
+LOCAL_SHARED_LIBRARIES += \
     libupdate_engine_client
 LOCAL_SRC_FILES := \
     update_engine_client.cc
+else  # !defined(BRILLO)
+#TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
+# out of the DBus interface.
+LOCAL_C_INCLUDES += \
+    external/cros/system_api/dbus
+LOCAL_SHARED_LIBRARIES += \
+    libbinder \
+    libbrillo-binder \
+    libutils
+LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
+LOCAL_SRC_FILES := \
+    binder_bindings/android/os/IUpdateEngine.aidl \
+    binder_bindings/android/os/IUpdateEngineCallback.aidl \
+    update_engine_client_android.cc \
+    update_status_utils.cc
+endif  # !defined(BRILLO)
 include $(BUILD_EXECUTABLE)
-
-endif  # local_use_dbus == 1
 
 # libpayload_generator (type: static_library)
 # ========================================================

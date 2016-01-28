@@ -32,7 +32,7 @@
 #include "update_engine/client.h"
 #include "update_engine/status_update_handler.h"
 #include "update_engine/update_status.h"
-#include "update_status_utils.h"
+#include "update_engine/update_status_utils.h"
 
 using chromeos_update_engine::UpdateStatusToString;
 using std::string;
