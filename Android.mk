@@ -633,6 +633,7 @@ include $(BUILD_PREBUILT)
 
 # Update payload signing public key.
 # ========================================================
+ifdef BRILLO
 include $(CLEAR_VARS)
 LOCAL_MODULE := brillo-update-payload-key
 LOCAL_MODULE_CLASS := ETC
@@ -641,6 +642,7 @@ LOCAL_MODULE_STEM := update-payload-key.pub.pem
 LOCAL_SRC_FILES := update_payload_key/brillo-update-payload-key.pub.pem
 LOCAL_BUILT_MODULE_STEM := update_payload_key/brillo-update-payload-key.pub.pem
 include $(BUILD_PREBUILT)
+endif  # BRILLO
 
 # Brillo update payload generation script
 # ========================================================
