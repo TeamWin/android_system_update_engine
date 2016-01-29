@@ -138,7 +138,7 @@ int UpdateEngineClientAndroid::OnInit() {
 
   bool keep_running = false;
 
-  brillo::InitLog(brillo::kLogToSyslog);
+  brillo::InitLog(brillo::kLogToStderr);
   android::status_t status = android::getService(
       android::String16("android.os.UpdateEngineService"), &service_);
   if (status != android::OK) {
