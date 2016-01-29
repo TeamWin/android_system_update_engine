@@ -47,6 +47,8 @@ Status BinderUpdateEngineAndroidService::bind(
 
 Status BinderUpdateEngineAndroidService::applyPayload(
     const String16& url,
+    int64_t payload_offset,
+    int64_t payload_size,
     const vector<String16>& header_kv_pairs) {
   return Status::ok();
 }

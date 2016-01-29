@@ -110,9 +110,16 @@ int UpdateEngineClientAndroid::OnInit() {
   DEFINE_string(payload,
                 "http://127.0.0.1:8080/payload",
                 "The URI to the update payload to use.");
+  DEFINE_int64(offset, 0,
+               "The offset in the payload where the CrAU update starts. "
+               "Used when --update is passed.");
+  DEFINE_int64(size, 0,
+               "The size of the CrAU part of the payload. If 0 is passed, it "
+               "will be autodetected. Used when --update is passed.");
   DEFINE_string(headers,
                 "",
-                "A list of key-value pairs, one element of the list per line.");
+                "A list of key-value pairs, one element of the list per line. "
+                "Used when --update is passed.");
 
   DEFINE_bool(suspend, false, "Suspend an ongoing update and exit.");
   DEFINE_bool(resume, false, "Resume a suspended update.");
@@ -187,6 +194,8 @@ int UpdateEngineClientAndroid::OnInit() {
     }
     Status status = service_->applyPayload(
         android::String16{FLAGS_payload.data(), FLAGS_payload.size()},
+        FLAGS_offset,
+        FLAGS_size,
         and_headers);
     if (!status.isOk())
       return ExitWhenIdle(status);

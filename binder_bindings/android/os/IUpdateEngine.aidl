@@ -20,6 +20,8 @@ import android.os.IUpdateEngineCallback;
 
 interface IUpdateEngine {
   void applyPayload(String url,
+                    in long payload_offset,
+                    in long payload_size,
                     in String[] headerKeyValuePairs);
   boolean bind(IUpdateEngineCallback callback);
   void suspend();
