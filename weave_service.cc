@@ -98,14 +98,13 @@ void WeaveService::UpdateWeaveState() {
   // changes.
   progress = std::floor(progress * 100.) / 100.;
 
-  brillo::VariantDictionary state{
-      {"_updater.currentChannel", current_channel},
-      {"_updater.trackingChannel", tracking_channel},
-      {"_updater.status", UpdateStatusToWeaveStatus(update_status)},
-      {"_updater.progress", progress},
-      {"_updater.lastUpdateCheckTimestamp",
-       static_cast<double>(last_checked_time)},
-  };
+  base::DictionaryValue state;
+  state.SetString("_updater.currentChannel", current_channel);
+  state.SetString("_updater.trackingChannel", tracking_channel);
+  state.SetString("_updater.status", UpdateStatusToWeaveStatus(update_status));
+  state.SetDouble("_updater.progress", progress);
+  state.SetDouble("_updater.lastUpdateCheckTimestamp",
+                  static_cast<double>(last_checked_time));
 
   if (!weave_service->SetStateProperties(kWeaveComponent, state, nullptr)) {
     LOG(ERROR) << "Failed to update _updater state.";
