@@ -17,6 +17,7 @@
 package android.brillo;
 
 interface IUpdateEngineStatusCallback {
+  oneway
   void HandleStatusUpdate(in long last_checked_time, in double progress,
       in String current_operation, in String new_version, in long new_size);
 }
