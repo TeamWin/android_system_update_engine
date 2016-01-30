@@ -102,11 +102,15 @@ class UpdateEngineClient {
   virtual bool GetChannel(std::string* out_channel) const = 0;
 
   // Handle status updates. The handler must exist until the client is
-  // destroyed. Its IPCError method will be called if the handler could
-  // not be registered. Otherwise its HandleStatusUpdate method will be called
-  // every time update_engine's status changes. Will always report the status
-  // on registration to prevent race conditions.
+  // destroyed or UnregisterStatusUpdateHandler is called for it. Its IPCError
+  // method will be called if the handler could not be registered. Otherwise
+  // its HandleStatusUpdate method will be called every time update_engine's
+  // status changes. Will always report the status on registration to prevent
+  // race conditions.
   virtual bool RegisterStatusUpdateHandler(StatusUpdateHandler* handler) = 0;
+
+  // Unregister a status update handler
+  virtual bool UnregisterStatusUpdateHandler(StatusUpdateHandler* handler) = 0;
 
  protected:
   // Use CreateInstance().

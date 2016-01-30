@@ -154,7 +154,36 @@ bool BinderUpdateEngineClient::RegisterStatusUpdateHandler(
   }
 
   handlers_.push_back(handler);
+
+  int64_t last_checked_time;
+  double progress;
+  UpdateStatus update_status;
+  string new_version;
+  int64_t new_size;
+
+  if (!GetStatus(&last_checked_time, &progress, &update_status,
+                 &new_version, &new_size)) {
+    handler->IPCError("Could not get status from binder service");
+  }
+
+  handler->HandleStatusUpdate(last_checked_time, progress, update_status,
+                              new_version, new_size);
+
   return true;
+}
+
+bool BinderUpdateEngineClient::UnregisterStatusUpdateHandler(
+    StatusUpdateHandler* handler) {
+  auto it = handlers_.begin();
+
+  for (; *it != handler && it != handlers_.end(); it++);
+
+  if (it != handlers_.end()) {
+    handlers_.erase(it);
+    return true;
+  }
+
+  return false;
 }
 
 bool BinderUpdateEngineClient::SetTargetChannel(const string& in_target_channel,
