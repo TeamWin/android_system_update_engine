@@ -21,6 +21,7 @@
 #include <base/message_loop/message_loop.h>
 #include <utils/String8.h>
 
+#include "update_engine/common_service.h"
 #include "update_engine/parcelable_update_engine_status.h"
 #include "update_engine/update_status_utils.h"
 
@@ -31,6 +32,7 @@ using android::brillo::ParcelableUpdateEngineStatus;
 using android::binder::Status;
 using android::getService;
 using chromeos_update_engine::StringToUpdateStatus;
+using chromeos_update_engine::UpdateEngineService;
 using std::string;
 
 namespace update_engine {
@@ -47,8 +49,9 @@ bool BinderUpdateEngineClient::AttemptUpdate(const string& in_app_version,
                                              const string& in_omaha_url,
                                              bool at_user_request) {
   return service_->AttemptUpdate(String16{in_app_version.c_str()},
-                                 String16{in_omaha_url.c_str()},
-                                 at_user_request ? 1 : 0).isOk();
+      String16{in_omaha_url.c_str()},
+      at_user_request ? 0 :
+          UpdateEngineService::kAttemptUpdateFlagNonInteractive).isOk();
 }
 
 bool BinderUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
