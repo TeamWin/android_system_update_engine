@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <base/macros.h>
 
@@ -70,21 +71,30 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
   bool GetChannel(std::string* out_channel) const override;
 
   bool RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
+  bool UnregisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
 
  private:
   std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;
+  std::vector<update_engine::StatusUpdateHandler*> handlers_;
 
-  void StatusUpdateHandlerRegistered(StatusUpdateHandler* handler,
-                                     const std::string& interface,
-                                     const std::string& signal_name,
-                                     bool success) const;
+  void DBusStatusHandlersRegistered(StatusUpdateHandler* handler,
+                                    const std::string& interface,
+                                    const std::string& signal_name,
+                                    bool success) const;
 
-  void RunStatusUpdateHandler(StatusUpdateHandler* handler,
-                              int64_t last_checked_time,
-                              double progress,
-                              const std::string& current_operation,
-                              const std::string& new_version,
-                              int64_t new_size);
+  // Send an initial event to new StatusUpdateHandlers. If the handler argument
+  // is not nullptr, only that handler receives the event. Otherwise all
+  // registered handlers receive the event.
+  void StatusUpdateHandlersRegistered(StatusUpdateHandler* handler) const;
+
+  void RunStatusUpdateHandlers(int64_t last_checked_time,
+                               double progress,
+                               const std::string& current_operation,
+                               const std::string& new_version,
+                               int64_t new_size);
+
+  std::vector<update_engine::StatusUpdateHandler*> handlers_;
+  bool dbus_handler_registered_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(DBusUpdateEngineClient);
 };  // class DBusUpdateEngineClient

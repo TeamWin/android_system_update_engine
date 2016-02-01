@@ -116,37 +116,44 @@ bool DBusUpdateEngineClient::ResetStatus() {
   return proxy_->ResetStatus(nullptr);
 }
 
-void DBusUpdateEngineClient::StatusUpdateHandlerRegistered(
-    StatusUpdateHandler* handler,
+void DBusUpdateEngineClient::DBusStatusHandlerRegistered(
     const string& interface,
     const string& signal_name,
     bool success) const {
   if (!success) {
-    handler->IPCError("Could not connect to" + signal_name);
-    return;
+    for (auto handler : handlers_) {
+      handler->IPCError("Could not connect to" + signal_name +
+                        " on " + interface);
+    }
+  } else {
+    StatusUpdateHandlersRegistered(nullptr);
   }
+}
 
+void DBusUpdateEngineClient::StatusUpdateHandlersRegistered(
+    StatusUpdateHandler* handler) const {
   int64_t last_checked_time;
   double progress;
   UpdateStatus update_status;
   string new_version;
   int64_t new_size;
 
-  if (GetStatus(&last_checked_time,
-                &progress,
-                &update_status,
-                &new_version,
-                &new_size)) {
-    handler->HandleStatusUpdate(
-        last_checked_time, progress, update_status, new_version, new_size);
+  if (!GetStatus(&last_checked_time,
+                 &progress,
+                 &update_status,
+                 &new_version,
+                 &new_size)) {
+    handler->IPCError("Could not query current status");
     return;
   }
 
-  handler->IPCError("Could not query current status");
+  for (auto h : handler ? {handler} : handlers_) {
+    h->HandleStatusUpdate(
+        last_checked_time, progress, update_status, new_version, new_size);
+  }
 }
 
-void DBusUpdateEngineClient::RunStatusUpdateHandler(
-    StatusUpdateHandler* h,
+void DBusUpdateEngineClient::RunStatusUpdateHandlers(
     int64_t last_checked_time,
     double progress,
     const string& current_operation,
@@ -155,8 +162,24 @@ void DBusUpdateEngineClient::RunStatusUpdateHandler(
   UpdateStatus status;
   StringToUpdateStatus(current_operation, &status);
 
-  h->HandleStatusUpdate(
-      last_checked_time, progress, status, new_version, new_size);
+  for (auto handler : handlers_) {
+    handler->HandleStatusUpdate(
+        last_checked_time, progress, status, new_version, new_size);
+  }
+}
+
+bool DBusUpdateEngineClient::UnregisterStatusUpdateHandler(
+    StatusUpdateHandler* handler) {
+  auto it = handlers_.begin();
+
+  for (; *it != handler && it != handlers_.end(); it++);
+
+  if (it != handlers_.end()) {
+    handlers_.erase(it);
+    return true;
+  }
+
+  return false;
 }
 
 bool DBusUpdateEngineClient::RegisterStatusUpdateHandler(
@@ -166,11 +189,20 @@ bool DBusUpdateEngineClient::RegisterStatusUpdateHandler(
     return false;
   }
 
+  handlers_.push_back(handler);
+
+  if (dbus_handler_registered_) {
+    StatusUpdateHandlersRegistered(handler);
+    return true;
+  }
+
   proxy_->RegisterStatusUpdateSignalHandler(
-      base::Bind(&DBusUpdateEngineClient::RunStatusUpdateHandler,
-                 base::Unretained(this), base::Unretained(handler)),
-      base::Bind(&DBusUpdateEngineClient::StatusUpdateHandlerRegistered,
-                 base::Unretained(this), base::Unretained(handler)));
+      base::Bind(&DBusUpdateEngineClient::RunStatusUpdateHandlers,
+                 base::Unretained(this)),
+      base::Bind(&DBusUpdateEngineClient::StatusUpdateHandlersRegistered,
+                 base::Unretained(this), base::Unretained(nullptr)));
+
+  dbus_handler_registered_ = true;
 
   return true;
 }

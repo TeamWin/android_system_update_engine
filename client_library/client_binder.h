@@ -78,6 +78,7 @@ class BinderUpdateEngineClient : public UpdateEngineClient {
   bool GetChannel(std::string* out_channel) const override;
 
   bool RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
+  bool UnregisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
 
  private:
   class StatusUpdateCallback :
