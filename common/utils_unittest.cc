@@ -180,28 +180,6 @@ TEST(UtilsTest, MakePartitionNameForMountTest) {
             utils::MakePartitionNameForMount("/dev/ubiblock1"));
 }
 
-namespace {
-// Compares cpu shares and returns an integer that is less
-// than, equal to or greater than 0 if |shares_lhs| is,
-// respectively, lower than, same as or higher than |shares_rhs|.
-int CompareCpuShares(utils::CpuShares shares_lhs,
-                     utils::CpuShares shares_rhs) {
-  return static_cast<int>(shares_lhs) - static_cast<int>(shares_rhs);
-}
-}  // namespace
-
-// Tests the CPU shares enum is in the order we expect it.
-TEST(UtilsTest, CompareCpuSharesTest) {
-  EXPECT_LT(CompareCpuShares(utils::kCpuSharesLow,
-                             utils::kCpuSharesNormal), 0);
-  EXPECT_GT(CompareCpuShares(utils::kCpuSharesNormal,
-                             utils::kCpuSharesLow), 0);
-  EXPECT_EQ(CompareCpuShares(utils::kCpuSharesNormal,
-                             utils::kCpuSharesNormal), 0);
-  EXPECT_GT(CompareCpuShares(utils::kCpuSharesHigh,
-                             utils::kCpuSharesNormal), 0);
-}
-
 TEST(UtilsTest, FuzzIntTest) {
   static const unsigned int kRanges[] = { 0, 1, 2, 20 };
   for (unsigned int range : kRanges) {
