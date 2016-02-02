@@ -157,10 +157,6 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
 
 namespace utils {
 
-// Cgroup container is created in update-engine's upstart script located at
-// /etc/init/update-engine.conf.
-static const char kCGroupDir[] = "/sys/fs/cgroup/cpu/update-engine";
-
 string ParseECVersion(string input_line) {
   base::TrimWhitespaceASCII(input_line, base::TRIM_ALL, &input_line);
 
@@ -883,20 +879,6 @@ void ScheduleCrashReporterUpload() {
   brillo::MessageLoop::current()->PostTask(
       FROM_HERE,
       base::Bind(&TriggerCrashReporterUpload));
-}
-
-bool SetCpuShares(CpuShares shares) {
-  string string_shares = base::IntToString(static_cast<int>(shares));
-  string cpu_shares_file = string(utils::kCGroupDir) + "/cpu.shares";
-  LOG(INFO) << "Setting cgroup cpu shares to  " << string_shares;
-  if (utils::WriteFile(cpu_shares_file.c_str(), string_shares.c_str(),
-                       string_shares.size())) {
-    return true;
-  } else {
-    LOG(ERROR) << "Failed to change cgroup cpu shares to "<< string_shares
-               << " using " << cpu_shares_file;
-    return false;
-  }
 }
 
 int FuzzInt(int value, unsigned int range) {

@@ -152,6 +152,7 @@ ue_libpayload_consumer_src_files := \
     common/certificate_checker.cc \
     common/clock.cc \
     common/constants.cc \
+    common/cpu_limiter.cc \
     common/hash_calculator.cc \
     common/http_common.cc \
     common/http_fetcher.cc \

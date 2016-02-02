@@ -133,7 +133,6 @@ UpdateAttempter::~UpdateAttempter() {
   // CertificateChecker might not be initialized in unittests.
   if (cert_checker_)
     cert_checker_->SetObserver(nullptr);
-  CleanupCpuSharesManagement();
   // Release ourselves as the ActionProcessor's delegate to prevent
   // re-scheduling the updates due to the processing stopped.
   processor_->set_delegate(nullptr);
@@ -910,7 +909,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   actions_.clear();
 
   // Reset cpu shares back to normal.
-  CleanupCpuSharesManagement();
+  cpu_limiter_.StopLimiter();
 
   if (status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     LOG(INFO) << "Error event sent.";
@@ -987,7 +986,7 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
 void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
   // Reset cpu shares back to normal.
-  CleanupCpuSharesManagement();
+  cpu_limiter_.StopLimiter();
   download_progress_ = 0.0;
   SetStatusAndNotify(UpdateStatus::IDLE);
   ScheduleUpdates();
@@ -1053,7 +1052,7 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     new_version_ = plan.version;
     new_payload_size_ = plan.payload_size;
     SetupDownload();
-    SetupCpuSharesManagement();
+    cpu_limiter_.StartLimiter();
     SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
   } else if (type == DownloadAction::StaticType()) {
     SetStatusAndNotify(UpdateStatus::FINALIZING);
@@ -1340,52 +1339,12 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
   return true;
 }
 
-void UpdateAttempter::SetCpuShares(utils::CpuShares shares) {
-  if (shares_ == shares) {
-    return;
-  }
-  if (utils::SetCpuShares(shares)) {
-    shares_ = shares;
-    LOG(INFO) << "CPU shares = " << shares_;
-  }
-}
-
-void UpdateAttempter::SetupCpuSharesManagement() {
-  if (manage_shares_id_ != MessageLoop::kTaskIdNull) {
-    LOG(ERROR) << "Cpu shares timeout source hasn't been destroyed.";
-    CleanupCpuSharesManagement();
-  }
-  const int kCpuSharesTimeout = 2 * 60 * 60;  // 2 hours
-  manage_shares_id_ = MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      Bind(&UpdateAttempter::ManageCpuSharesCallback, base::Unretained(this)),
-      TimeDelta::FromSeconds(kCpuSharesTimeout));
-  SetCpuShares(utils::kCpuSharesLow);
-}
-
-void UpdateAttempter::CleanupCpuSharesManagement() {
-  if (manage_shares_id_ != MessageLoop::kTaskIdNull) {
-    // The UpdateAttempter is instantiated by default by the FakeSystemState,
-    // even when it is not used. We check the manage_shares_id_ before calling
-    // the MessageLoop::current() since the unit test using a FakeSystemState
-    // may have not define a MessageLoop for the current thread.
-    MessageLoop::current()->CancelTask(manage_shares_id_);
-    manage_shares_id_ = MessageLoop::kTaskIdNull;
-  }
-  SetCpuShares(utils::kCpuSharesNormal);
-}
-
 void UpdateAttempter::ScheduleProcessingStart() {
   LOG(INFO) << "Scheduling an action processor start.";
   start_action_processor_ = false;
   MessageLoop::current()->PostTask(
       FROM_HERE,
       Bind([this] { this->processor_->StartProcessing(); }));
-}
-
-void UpdateAttempter::ManageCpuSharesCallback() {
-  SetCpuShares(utils::kCpuSharesNormal);
-  manage_shares_id_ = MessageLoop::kTaskIdNull;
 }
 
 void UpdateAttempter::DisableDeltaUpdateIfNeeded() {

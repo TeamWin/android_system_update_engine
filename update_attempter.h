@@ -34,6 +34,7 @@
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/certificate_checker.h"
+#include "update_engine/common/cpu_limiter.h"
 #include "update_engine/libcros_proxy.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
@@ -292,22 +293,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // otherwise.
   bool ScheduleErrorEventAction();
 
-  // Sets the cpu shares to |shares| and updates |shares_| if the new
-  // |shares| is different than the current |shares_|, otherwise simply
-  // returns.
-  void SetCpuShares(utils::CpuShares shares);
-
-  // Sets the cpu shares to low and sets up timeout events to increase it.
-  void SetupCpuSharesManagement();
-
-  // Resets the cpu shares to normal and destroys any scheduled timeout
-  // sources.
-  void CleanupCpuSharesManagement();
-
-  // The cpu shares timeout source callback sets the current cpu shares to
-  // normal.
-  void ManageCpuSharesCallback();
-
   // Schedules an event loop callback to start the action processor. This is
   // scheduled asynchronously to unblock the event loop.
   void ScheduleProcessingStart();
@@ -446,12 +431,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // HTTP server response code from the last HTTP request action.
   int http_response_code_ = 0;
 
-  // Current cpu shares.
-  utils::CpuShares shares_ = utils::kCpuSharesNormal;
-
-  // The cpu shares management timeout task id.
-  brillo::MessageLoop::TaskId manage_shares_id_{
-      brillo::MessageLoop::kTaskIdNull};
+  // CPU limiter during the update.
+  CPULimiter cpu_limiter_;
 
   // For status:
   UpdateStatus status_{UpdateStatus::IDLE};

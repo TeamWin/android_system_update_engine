@@ -277,19 +277,6 @@ bool VectorIndexOf(const std::vector<T>& vect, const T& value,
   }
 }
 
-// Cgroups cpu shares constants. 1024 is the default shares a standard process
-// gets and 2 is the minimum value. We set High as a value that gives the
-// update-engine 2x the cpu share of a standard process.
-enum CpuShares {
-  kCpuSharesHigh = 2048,
-  kCpuSharesNormal = 1024,
-  kCpuSharesLow = 2,
-};
-
-// Sets the current process shares to |shares|. Returns true on
-// success, false otherwise.
-bool SetCpuShares(CpuShares shares);
-
 // Converts seconds into human readable notation including days, hours, minutes
 // and seconds. For example, 185 will yield 3m5s, 4300 will yield 1h11m40s, and
 // 360000 will yield 4d4h0m0s.  Zero padding not applied. Seconds are always
