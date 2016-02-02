@@ -74,11 +74,7 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
   bool UnregisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
 
  private:
-  std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;
-  std::vector<update_engine::StatusUpdateHandler*> handlers_;
-
-  void DBusStatusHandlersRegistered(StatusUpdateHandler* handler,
-                                    const std::string& interface,
+  void DBusStatusHandlersRegistered(const std::string& interface,
                                     const std::string& signal_name,
                                     bool success) const;
 
@@ -93,8 +89,9 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
                                const std::string& new_version,
                                int64_t new_size);
 
+  std::unique_ptr<org::chromium::UpdateEngineInterfaceProxy> proxy_;
   std::vector<update_engine::StatusUpdateHandler*> handlers_;
-  bool dbus_handler_registered_ = false;
+  bool dbus_handler_registered_{false};
 
   DISALLOW_COPY_AND_ASSIGN(DBusUpdateEngineClient);
 };  // class DBusUpdateEngineClient

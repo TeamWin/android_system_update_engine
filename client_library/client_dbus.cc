@@ -116,7 +116,7 @@ bool DBusUpdateEngineClient::ResetStatus() {
   return proxy_->ResetStatus(nullptr);
 }
 
-void DBusUpdateEngineClient::DBusStatusHandlerRegistered(
+void DBusUpdateEngineClient::DBusStatusHandlersRegistered(
     const string& interface,
     const string& signal_name,
     bool success) const {
@@ -147,7 +147,8 @@ void DBusUpdateEngineClient::StatusUpdateHandlersRegistered(
     return;
   }
 
-  for (auto h : handler ? {handler} : handlers_) {
+  std::vector<update_engine::StatusUpdateHandler*> just_handler = {handler};
+  for (auto h : handler ? just_handler : handlers_) {
     h->HandleStatusUpdate(
         last_checked_time, progress, update_status, new_version, new_size);
   }
@@ -199,8 +200,8 @@ bool DBusUpdateEngineClient::RegisterStatusUpdateHandler(
   proxy_->RegisterStatusUpdateSignalHandler(
       base::Bind(&DBusUpdateEngineClient::RunStatusUpdateHandlers,
                  base::Unretained(this)),
-      base::Bind(&DBusUpdateEngineClient::StatusUpdateHandlersRegistered,
-                 base::Unretained(this), base::Unretained(nullptr)));
+      base::Bind(&DBusUpdateEngineClient::DBusStatusHandlersRegistered,
+                 base::Unretained(this)));
 
   dbus_handler_registered_ = true;
 
