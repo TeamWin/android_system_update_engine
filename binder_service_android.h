@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 
+#include <string>
 #include <vector>
 
 #include <utils/Errors.h>
@@ -27,7 +28,7 @@
 
 #include "android/os/BnUpdateEngine.h"
 #include "android/os/IUpdateEngineCallback.h"
-#include "update_engine/daemon_state_android.h"
+#include "update_engine/service_delegate_android_interface.h"
 #include "update_engine/service_observer_interface.h"
 
 namespace chromeos_update_engine {
@@ -35,7 +36,8 @@ namespace chromeos_update_engine {
 class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
                                          public ServiceObserverInterface {
  public:
-  BinderUpdateEngineAndroidService(DaemonStateAndroid* daemon_state);
+  BinderUpdateEngineAndroidService(
+      ServiceDelegateAndroidInterface* service_delegate);
   ~BinderUpdateEngineAndroidService() override = default;
 
   const char* ServiceName() const {
@@ -48,6 +50,7 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
                         update_engine::UpdateStatus status,
                         const std::string& new_version,
                         int64_t new_size) override;
+  void SendPayloadApplicationComplete(ErrorCode error_code) override;
 
   // Channel tracking changes are ignored.
   void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
@@ -58,16 +61,22 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
       int64_t payload_offset,
       int64_t payload_size,
       const std::vector<android::String16>& header_kv_pairs) override;
-
   android::binder::Status bind(
       const android::sp<android::os::IUpdateEngineCallback>& callback,
       bool* return_value) override;
-
   android::binder::Status suspend() override;
-
   android::binder::Status resume() override;
-
   android::binder::Status cancel() override;
+
+ private:
+  // Remove the passed |callback| from the list of registered callbacks. Called
+  // whenever the callback object is destroyed.
+  void UnbindCallback(android::os::IUpdateEngineCallback* callback);
+
+  // List of currently bound callbacks.
+  std::vector<android::sp<android::os::IUpdateEngineCallback>> callbacks_;
+
+  ServiceDelegateAndroidInterface* service_delegate_;
 };
 
 }  // namespace chromeos_update_engine

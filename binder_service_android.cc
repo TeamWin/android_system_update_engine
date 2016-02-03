@@ -16,53 +16,116 @@
 
 #include "update_engine/binder_service_android.h"
 
-using android::String16;
+#include <base/bind.h>
+#include <base/logging.h>
+#include <binderwrapper/binder_wrapper.h>
+#include <brillo/errors/error.h>
+#include <utils/String8.h>
+
 using android::binder::Status;
 using android::os::IUpdateEngineCallback;
-using android::sp;
-using std::vector;
+
+namespace {
+Status ErrorPtrToStatus(const brillo::ErrorPtr& error) {
+  return Status::fromServiceSpecificError(
+      1, android::String8{error->GetMessage().c_str()});
+}
+}  // namespace
 
 namespace chromeos_update_engine {
 
 BinderUpdateEngineAndroidService::BinderUpdateEngineAndroidService(
-    DaemonStateAndroid* /* daemon_state */) {
-  // TODO(deymo): Hook this interface calls to the daemon_state.
+    ServiceDelegateAndroidInterface* service_delegate)
+    : service_delegate_(service_delegate) {
 }
 
 void BinderUpdateEngineAndroidService::SendStatusUpdate(
-    int64_t last_checked_time,
+    int64_t /* last_checked_time */,
     double progress,
     update_engine::UpdateStatus status,
-    const std::string& new_version,
-    int64_t new_size) {
-  // TODO(deymo): Notify registered callers.
+    const std::string& /* new_version  */,
+    int64_t /* new_size */) {
+  for (auto& callback : callbacks_) {
+    callback->onStatusUpdate(static_cast<int>(status), progress);
+  }
+}
+
+void BinderUpdateEngineAndroidService::SendPayloadApplicationComplete(
+    ErrorCode error_code) {
+  for (auto& callback : callbacks_) {
+    callback->onPayloadApplicationComplete(static_cast<int>(error_code));
+  }
 }
 
 Status BinderUpdateEngineAndroidService::bind(
-    const sp<IUpdateEngineCallback>& callback,
-    bool* return_value) {
+    const android::sp<IUpdateEngineCallback>& callback, bool* return_value) {
+  callbacks_.emplace_back(callback);
+
+  auto binder_wrapper = android::BinderWrapper::Get();
+  binder_wrapper->RegisterForDeathNotifications(
+      IUpdateEngineCallback::asBinder(callback),
+      base::Bind(&BinderUpdateEngineAndroidService::UnbindCallback,
+                 base::Unretained(this),
+                 base::Unretained(callback.get())));
+
   *return_value = true;
   return Status::ok();
 }
 
 Status BinderUpdateEngineAndroidService::applyPayload(
-    const String16& url,
+    const android::String16& url,
     int64_t payload_offset,
     int64_t payload_size,
-    const vector<String16>& header_kv_pairs) {
+    const std::vector<android::String16>& header_kv_pairs) {
+  const std::string payload_url{android::String8{url}.string()};
+  std::vector<std::string> str_headers;
+  str_headers.reserve(header_kv_pairs.size());
+  for (const auto& header : header_kv_pairs) {
+    str_headers.emplace_back(android::String8{header}.string());
+  }
+
+  brillo::ErrorPtr error;
+  if (!service_delegate_->ApplyPayload(
+          payload_url, payload_offset, payload_size, str_headers, &error)) {
+    return ErrorPtrToStatus(error);
+  }
   return Status::ok();
 }
 
 Status BinderUpdateEngineAndroidService::suspend() {
+  brillo::ErrorPtr error;
+  if (!service_delegate_->SuspendUpdate(&error))
+    return ErrorPtrToStatus(error);
   return Status::ok();
 }
 
 Status BinderUpdateEngineAndroidService::resume() {
+  brillo::ErrorPtr error;
+  if (!service_delegate_->ResumeUpdate(&error))
+    return ErrorPtrToStatus(error);
   return Status::ok();
 }
 
 Status BinderUpdateEngineAndroidService::cancel() {
+  brillo::ErrorPtr error;
+  if (!service_delegate_->CancelUpdate(&error))
+    return ErrorPtrToStatus(error);
   return Status::ok();
+}
+
+void BinderUpdateEngineAndroidService::UnbindCallback(
+    IUpdateEngineCallback* callback) {
+  auto it =
+      std::find_if(callbacks_.begin(),
+                   callbacks_.end(),
+                   [&callback](const android::sp<IUpdateEngineCallback>& elem) {
+                     return elem.get() == callback;
+                   });
+  if (it == callbacks_.end()) {
+    LOG(ERROR) << "Got death notification for unknown callback.";
+    return;
+  }
+  callbacks_.erase(it);
 }
 
 }  // namespace chromeos_update_engine

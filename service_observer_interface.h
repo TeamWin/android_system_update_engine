@@ -21,6 +21,7 @@
 #include <string>
 
 #include "update_engine/client_library/include/update_engine/update_status.h"
+#include "update_engine/common/error_code.h"
 
 namespace chromeos_update_engine {
 
@@ -35,6 +36,9 @@ class ServiceObserverInterface {
                                 update_engine::UpdateStatus status,
                                 const std::string& new_version,
                                 int64_t new_size) = 0;
+
+  // Called whenever an update attempt is completed.
+  virtual void SendPayloadApplicationComplete(ErrorCode error_code) = 0;
 
   // Called whenever the channel we are tracking changes.
   virtual void SendChannelChangeUpdate(const std::string& tracking_channel) = 0;

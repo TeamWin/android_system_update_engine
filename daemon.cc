@@ -90,7 +90,8 @@ int UpdateEngineDaemon::OnInit() {
 #if defined(__BRILLO__) || defined(__CHROMEOS__)
   binder_service_ = new BinderUpdateEngineBrilloService{real_system_state};
 #else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
-  binder_service_ = new BinderUpdateEngineAndroidService{daemon_state_android};
+  binder_service_ = new BinderUpdateEngineAndroidService{
+      daemon_state_android->service_delegate()};
 #endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
   auto binder_wrapper = android::BinderWrapper::Get();
   if (!binder_wrapper->RegisterService(binder_service_->ServiceName(),

@@ -19,6 +19,7 @@
 
 #include <utils/Errors.h>
 
+#include <string>
 #include <vector>
 
 #include <utils/RefBase.h>
@@ -35,7 +36,7 @@ namespace chromeos_update_engine {
 class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
                                         public ServiceObserverInterface {
  public:
-  BinderUpdateEngineBrilloService(SystemState* system_state)
+  explicit BinderUpdateEngineBrilloService(SystemState* system_state)
       : common_(new UpdateEngineService(system_state)) {}
   virtual ~BinderUpdateEngineBrilloService() = default;
 
@@ -49,6 +50,7 @@ class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
                         update_engine::UpdateStatus status,
                         const std::string& new_version,
                         int64_t new_size) override;
+  void SendPayloadApplicationComplete(ErrorCode error_code) override {}
   // Channel tracking changes are ignored.
   void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
 

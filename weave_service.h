@@ -42,6 +42,7 @@ class WeaveService : public WeaveServiceInterface {
                         const std::string& new_version,
                         int64_t new_size) override;
   void SendChannelChangeUpdate(const std::string& tracking_channel) override;
+  void SendPayloadApplicationComplete(ErrorCode error_code) override {}
 
  private:
   // Force a weave update.
