@@ -134,9 +134,9 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   base::FilePath misc_device = base::FilePath(record->blk_device);
   fs_mgr_free_fstab(fstab);
 
-  if (misc_device.BaseName() != base::FilePath("misc")) {
+  if (!utils::IsSymlink(misc_device.value().c_str())) {
     LOG(ERROR) << "Device file " << misc_device.value() << " for /misc "
-               << "is not in the expected format.";
+               << "is not a symlink.";
     return false;
   }
 
