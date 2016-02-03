@@ -340,6 +340,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kUpdateCanceledByChannelChange:
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
+    case ErrorCode::kUserCanceled:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 
@@ -608,6 +609,7 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
     case metrics::AttemptResult::kVerificationFailed:
     case metrics::AttemptResult::kPostInstallFailed:
     case metrics::AttemptResult::kAbnormalTermination:
+    case metrics::AttemptResult::kUpdateCanceled:
     case metrics::AttemptResult::kNumConstants:
     case metrics::AttemptResult::kUnset:
       break;
