@@ -147,6 +147,9 @@ class UpdateAttempterAndroid : public ServiceDelegateAndroidInterface,
   UpdateStatus status_{UpdateStatus::IDLE};
   double download_progress_{0.0};
 
+  // The offset in the payload file where the CrAU part starts.
+  int64_t base_offset_{0};
+
   // Only direct proxy supported.
   DirectProxyResolver proxy_resolver_;
 

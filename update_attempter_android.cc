@@ -115,6 +115,7 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.download_url = payload_url;
   install_plan_.version = "";
   install_plan_.payload_size = payload_size;
+  base_offset_ = payload_offset;
   // TODO(deymo): Retrieve the payload_hash from the properties.
   install_plan_.payload_hash = "";
   install_plan_.metadata_size = 0;
@@ -349,19 +350,27 @@ void UpdateAttempterAndroid::SetupDownload() {
     // Resuming an update so fetch the update manifest metadata first.
     int64_t manifest_metadata_size = 0;
     prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size);
-    fetcher->AddRange(0, manifest_metadata_size);
+    fetcher->AddRange(base_offset_, manifest_metadata_size);
     // If there're remaining unprocessed data blobs, fetch them. Be careful not
     // to request data beyond the end of the payload to avoid 416 HTTP response
     // error codes.
     int64_t next_data_offset = 0;
     prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
     uint64_t resume_offset = manifest_metadata_size + next_data_offset;
-    if (!install_plan_.payload_size ||
-        resume_offset < install_plan_.payload_size) {
-      fetcher->AddRange(resume_offset);
+    if (!install_plan_.payload_size) {
+      fetcher->AddRange(base_offset_ + resume_offset);
+    } else if (resume_offset < install_plan_.payload_size) {
+      fetcher->AddRange(base_offset_ + resume_offset,
+                        install_plan_.payload_size - resume_offset);
     }
   } else {
-    fetcher->AddRange(0);
+    if (install_plan_.payload_size) {
+      fetcher->AddRange(base_offset_, install_plan_.payload_size);
+    } else {
+      // If no payload size is passed we assume we read until the end of the
+      // stream.
+      fetcher->AddRange(base_offset_);
+    }
   }
 }
 
