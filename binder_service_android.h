@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_BINDER_SERVICE_ANDROID_H_
 #define UPDATE_ENGINE_BINDER_SERVICE_ANDROID_H_
 
+#include <stdint.h>
+
 #include <vector>
 
 #include <utils/Errors.h>
@@ -53,6 +55,8 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
   // android::os::BnUpdateEngine overrides.
   android::binder::Status applyPayload(
       const android::String16& url,
+      int64_t payload_offset,
+      int64_t payload_size,
       const std::vector<android::String16>& header_kv_pairs) override;
 
   android::binder::Status bind(
