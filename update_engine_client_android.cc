@@ -26,6 +26,7 @@
 #include <base/logging.h>
 #include <base/strings/string_split.h>
 #include <binder/IServiceManager.h>
+#include <binderwrapper/binder_wrapper.h>
 #include <brillo/binder_watcher.h>
 #include <brillo/daemons/daemon.h>
 #include <brillo/flag_helper.h>
@@ -37,8 +38,8 @@
 #include "android/os/BnUpdateEngineCallback.h"
 #include "android/os/IUpdateEngine.h"
 #include "update_engine/client_library/include/update_engine/update_status.h"
-#include "update_engine/update_status_utils.h"
 #include "update_engine/common/error_code.h"
+#include "update_engine/update_status_utils.h"
 
 using android::binder::Status;
 
@@ -68,6 +69,9 @@ class UpdateEngineClientAndroid : public brillo::Daemon {
   };
 
   int OnInit() override;
+
+  // Called whenever the UpdateEngine daemon dies.
+  void UpdateEngineServiceDied();
 
   // Copy of argc and argv passed to main().
   int argc_;
@@ -137,13 +141,18 @@ int UpdateEngineClientAndroid::OnInit() {
   }
 
   bool keep_running = false;
-
   brillo::InitLog(brillo::kLogToStderr);
+
+  // Initialize a binder watcher early in the process before any interaction
+  // with the binder driver.
+  binder_watcher_.Init();
+
   android::status_t status = android::getService(
       android::String16("android.os.UpdateEngineService"), &service_);
   if (status != android::OK) {
     LOG(ERROR) << "Failed to get IUpdateEngine binder from service manager: "
                << Status::fromStatusT(status).toString8();
+    return ExitWhenIdle(1);
   }
 
   if (FLAGS_suspend) {
@@ -186,8 +195,14 @@ int UpdateEngineClientAndroid::OnInit() {
   if (!keep_running)
     return ExitWhenIdle(EX_OK);
 
-  // Initialize a binder watcher.
-  binder_watcher_.Init();
+  // When following updates status changes, exit if the update_engine daemon
+  // dies.
+  android::BinderWrapper::Create();
+  android::BinderWrapper::Get()->RegisterForDeathNotifications(
+      android::os::IUpdateEngine::asBinder(service_),
+      base::Bind(&UpdateEngineClientAndroid::UpdateEngineServiceDied,
+                 base::Unretained(this)));
+
   return EX_OK;
 }
 
@@ -204,6 +219,11 @@ int UpdateEngineClientAndroid::ExitWhenIdle(int return_code) {
   if (!brillo::MessageLoop::current()->PostTask(delayed_exit))
     return 1;
   return EX_OK;
+}
+
+void UpdateEngineClientAndroid::UpdateEngineServiceDied() {
+  LOG(ERROR) << "UpdateEngineService died.";
+  QuitWithExitCode(1);
 }
 
 }  // namespace internal

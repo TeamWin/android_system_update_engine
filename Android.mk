@@ -460,6 +460,7 @@ LOCAL_C_INCLUDES += \
     external/cros/system_api/dbus
 LOCAL_SHARED_LIBRARIES += \
     libbinder \
+    libbinderwrapper \
     libbrillo-binder \
     libutils
 LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
