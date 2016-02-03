@@ -166,7 +166,11 @@ void TestWithData(const brillo::Blob& data,
                                                       data.size(),
                                                       nullptr);
   // takes ownership of passed in HttpFetcher
-  DownloadAction download_action(&prefs, &fake_system_state, http_fetcher);
+  DownloadAction download_action(&prefs,
+                                 fake_system_state.boot_control(),
+                                 fake_system_state.hardware(),
+                                 &fake_system_state,
+                                 http_fetcher);
   download_action.SetTestFileWriter(&writer);
   BondActions(&feeder_action, &download_action);
   MockDownloadActionDelegate download_delegate;
@@ -278,10 +282,12 @@ void TestTerminateEarly(bool use_download_delegate) {
     feeder_action.set_obj(install_plan);
     FakeSystemState fake_system_state_;
     MockPrefs prefs;
-    DownloadAction download_action(&prefs, &fake_system_state_,
-                                   new MockHttpFetcher(data.data(),
-                                                       data.size(),
-                                                       nullptr));
+    DownloadAction download_action(
+        &prefs,
+        fake_system_state_.boot_control(),
+        fake_system_state_.hardware(),
+        &fake_system_state_,
+        new MockHttpFetcher(data.data(), data.size(), nullptr));
     download_action.SetTestFileWriter(&writer);
     MockDownloadActionDelegate download_delegate;
     if (use_download_delegate) {
@@ -381,7 +387,10 @@ TEST(DownloadActionTest, PassObjectOutTest) {
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
   FakeSystemState fake_system_state_;
-  DownloadAction download_action(&prefs, &fake_system_state_,
+  DownloadAction download_action(&prefs,
+                                 fake_system_state_.boot_control(),
+                                 fake_system_state_.hardware(),
+                                 &fake_system_state_,
                                  new MockHttpFetcher("x", 1, nullptr));
   download_action.SetTestFileWriter(&writer);
 
@@ -469,7 +478,10 @@ class P2PDownloadActionTest : public testing::Test {
                                         data_.length(),
                                         nullptr);
     // Note that DownloadAction takes ownership of the passed in HttpFetcher.
-    download_action_.reset(new DownloadAction(&prefs, &fake_system_state_,
+    download_action_.reset(new DownloadAction(&prefs,
+                                              fake_system_state_.boot_control(),
+                                              fake_system_state_.hardware(),
+                                              &fake_system_state_,
                                               http_fetcher_));
     download_action_->SetTestFileWriter(&writer);
     BondActions(&feeder_action, download_action_.get());
