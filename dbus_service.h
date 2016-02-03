@@ -159,6 +159,8 @@ class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor,
                         const std::string& new_version,
                         int64_t new_size) override;
 
+  void SendPayloadApplicationComplete(ErrorCode error_code) override {}
+
   // Channel tracking changes are ignored.
   void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
 

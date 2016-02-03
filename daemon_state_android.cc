@@ -35,4 +35,9 @@ void DaemonStateAndroid::RemoveObserver(ServiceObserverInterface* observer) {
   service_observers_.erase(observer);
 }
 
+ServiceDelegateAndroidInterface* DaemonStateAndroid::service_delegate() {
+  // TODO(deymo): Implement a service delegate and return it here.
+  return nullptr;
+}
+
 }  // namespace chromeos_update_engine

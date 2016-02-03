@@ -20,6 +20,7 @@
 #include <set>
 
 #include "update_engine/daemon_state_interface.h"
+#include "update_engine/service_delegate_android_interface.h"
 #include "update_engine/service_observer_interface.h"
 
 namespace chromeos_update_engine {
@@ -27,6 +28,7 @@ namespace chromeos_update_engine {
 class DaemonStateAndroid : public DaemonStateInterface {
  public:
   DaemonStateAndroid() = default;
+  ~DaemonStateAndroid() override = default;
 
   bool Initialize();
 
@@ -34,6 +36,13 @@ class DaemonStateAndroid : public DaemonStateInterface {
   bool StartUpdater() override;
   void AddObserver(ServiceObserverInterface* observer) override;
   void RemoveObserver(ServiceObserverInterface* observer) override;
+
+  const std::set<ServiceObserverInterface*>& service_observers() {
+    return service_observers_;
+  }
+
+  // Return a pointer to the service delegate.
+  ServiceDelegateAndroidInterface* service_delegate();
 
  protected:
   std::set<ServiceObserverInterface*> service_observers_;
