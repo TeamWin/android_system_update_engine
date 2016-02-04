@@ -129,6 +129,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kUpdateCanceledByChannelChange:
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
+    case ErrorCode::kUserCanceled:
       LOG(INFO) << "Not changing URL index or failure count due to error "
                 << chromeos_update_engine::utils::CodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
@@ -137,7 +138,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kSuccess:                            // success code
     case ErrorCode::kUmaReportedMax:                     // not an error code
     case ErrorCode::kOmahaRequestHTTPResponseBase:       // aggregated already
-    case ErrorCode::kDevModeFlag:                       // not an error code
+    case ErrorCode::kDevModeFlag:                        // not an error code
     case ErrorCode::kResumedFlag:                        // not an error code
     case ErrorCode::kTestImageFlag:                      // not an error code
     case ErrorCode::kTestOmahaUrlFlag:                   // not an error code

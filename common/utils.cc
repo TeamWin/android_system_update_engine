@@ -1110,6 +1110,8 @@ string CodeToString(ErrorCode code) {
       return "ErrorCode::kOmahaRequestXMLHasEntityDecl";
     case ErrorCode::kFilesystemVerifierError:
       return "ErrorCode::kFilesystemVerifierError";
+    case ErrorCode::kUserCanceled:
+      return "ErrorCode::kUserCanceled";
     // Don't add a default case to let the compiler warn about newly added
     // error codes which should be added here.
   }

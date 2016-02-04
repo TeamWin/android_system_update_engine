@@ -85,6 +85,9 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kPostinstallFirmwareRONotUpdatable:
       return metrics::AttemptResult::kPostInstallFailed;
 
+    case ErrorCode::kUserCanceled:
+      return metrics::AttemptResult::kUpdateCanceled;
+
     // We should never get these errors in the update-attempt stage so
     // return internal error if this happens.
     case ErrorCode::kError:
@@ -201,6 +204,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kUnsupportedMinorPayloadVersion:
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
+    case ErrorCode::kUserCanceled:
       break;
 
     // Special flags. These can't happen (we mask them out above) but

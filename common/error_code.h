@@ -71,6 +71,7 @@ enum class ErrorCode : int {
   kUnsupportedMinorPayloadVersion = 45,
   kOmahaRequestXMLHasEntityDecl = 46,
   kFilesystemVerifierError = 47,
+  kUserCanceled = 48,
 
   // VERY IMPORTANT! When adding new error codes:
   //
@@ -122,8 +123,8 @@ enum class ErrorCode : int {
   // Mask that indicates bit positions that are used to indicate special flags
   // that are embedded in the error code to provide additional context about
   // the system in which the error was encountered.
-  kSpecialFlags = (kDevModeFlag | kResumedFlag | kTestImageFlag |
-                   kTestOmahaUrlFlag)
+  kSpecialFlags =
+      (kDevModeFlag | kResumedFlag | kTestImageFlag | kTestOmahaUrlFlag)
 };
 
 inline std::ostream& operator<<(std::ostream& os, ErrorCode val) {

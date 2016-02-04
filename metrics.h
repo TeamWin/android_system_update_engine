@@ -149,6 +149,7 @@ enum class AttemptResult {
   kVerificationFailed,          // Root or Kernel partition verification failed.
   kPostInstallFailed,           // The postinstall step failed.
   kAbnormalTermination,         // The attempt ended abnormally.
+  kUpdateCanceled,              // Update canceled by the user.
 
   kNumConstants,
 
