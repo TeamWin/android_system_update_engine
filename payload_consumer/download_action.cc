@@ -39,9 +39,13 @@ using std::vector;
 namespace chromeos_update_engine {
 
 DownloadAction::DownloadAction(PrefsInterface* prefs,
+                               BootControlInterface* boot_control,
+                               HardwareInterface* hardware,
                                SystemState* system_state,
                                HttpFetcher* http_fetcher)
     : prefs_(prefs),
+      boot_control_(boot_control),
+      hardware_(hardware),
       system_state_(system_state),
       http_fetcher_(http_fetcher),
       writer_(nullptr),
@@ -49,7 +53,8 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
       delegate_(nullptr),
       bytes_received_(0),
       p2p_sharing_fd_(-1),
-      p2p_visible_(true) {}
+      p2p_visible_(true) {
+}
 
 DownloadAction::~DownloadAction() {}
 
@@ -171,8 +176,7 @@ void DownloadAction::PerformAction() {
   install_plan_.Dump();
 
   LOG(INFO) << "Marking new slot as unbootable";
-  if (!system_state_->boot_control()->MarkSlotUnbootable(
-          install_plan_.target_slot)) {
+  if (!boot_control_->MarkSlotUnbootable(install_plan_.target_slot)) {
     LOG(WARNING) << "Unable to mark new slot "
                  << BootControlInterface::SlotName(install_plan_.target_slot)
                  << ". Proceeding with the update anyway.";
@@ -181,14 +185,11 @@ void DownloadAction::PerformAction() {
   if (writer_) {
     LOG(INFO) << "Using writer for test.";
   } else {
-    delta_performer_.reset(new DeltaPerformer(prefs_,
-                                              system_state_->boot_control(),
-                                              system_state_->hardware(),
-                                              delegate_,
-                                              &install_plan_));
+    delta_performer_.reset(new DeltaPerformer(
+        prefs_, boot_control_, hardware_, delegate_, &install_plan_));
     writer_ = delta_performer_.get();
   }
-  download_active_= true;
+  download_active_ = true;
 
   if (system_state_ != nullptr) {
     const PayloadStateInterface* payload_state = system_state_->payload_state();
@@ -236,7 +237,7 @@ void DownloadAction::TerminateProcessing() {
     writer_->Close();
     writer_ = nullptr;
   }
-  download_active_= false;
+  download_active_ = false;
   CloseP2PSharingFd(false);  // Keep p2p file.
   // Terminates the transfer. The action is terminated, if necessary, when the
   // TransferTerminated callback is received.
@@ -275,8 +276,8 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
 
   // Call p2p_manager_->FileMakeVisible() when we've successfully
   // verified the manifest!
-  if (!p2p_visible_ &&
-      delta_performer_.get() && delta_performer_->IsManifestValid()) {
+  if (!p2p_visible_ && system_state_ && delta_performer_.get() &&
+      delta_performer_->IsManifestValid()) {
     LOG(INFO) << "Manifest has been validated. Making p2p file visible.";
     system_state_->p2p_manager()->FileMakeVisible(p2p_file_id_);
     p2p_visible_ = true;
@@ -288,7 +289,7 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
     LOG_IF(WARNING, writer_->Close() != 0) << "Error closing the writer.";
     writer_ = nullptr;
   }
-  download_active_= false;
+  download_active_ = false;
   ErrorCode code =
       successful ? ErrorCode::kSuccess : ErrorCode::kDownloadTransferError;
   if (code == ErrorCode::kSuccess && delta_performer_.get()) {

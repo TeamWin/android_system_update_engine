@@ -27,6 +27,7 @@
 #include <curl/curl.h>
 
 #include "update_engine/common/action.h"
+#include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/http_fetcher.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/install_plan.h"
@@ -69,8 +70,11 @@ class DownloadAction : public InstallPlanAction,
  public:
   // Takes ownership of the passed in HttpFetcher. Useful for testing.
   // A good calling pattern is:
-  // DownloadAction(prefs, system_state, new WhateverHttpFetcher);
+  // DownloadAction(prefs, boot_contol, hardware, system_state,
+  //                new WhateverHttpFetcher);
   DownloadAction(PrefsInterface* prefs,
+                 BootControlInterface* boot_control,
+                 HardwareInterface* hardware,
                  SystemState* system_state,
                  HttpFetcher* http_fetcher);
   ~DownloadAction() override;
@@ -128,8 +132,10 @@ class DownloadAction : public InstallPlanAction,
   // The InstallPlan passed in
   InstallPlan install_plan_;
 
-  // Update Engine preference store.
+  // SystemState required pointers.
   PrefsInterface* prefs_;
+  BootControlInterface* boot_control_;
+  HardwareInterface* hardware_;
 
   // Global context for the system.
   SystemState* system_state_;
