@@ -230,6 +230,19 @@ void ApplyDelta(const string& in_file,
   LOG(INFO) << "Done applying delta.";
 }
 
+int ExtractProperties(const string& payload_path, const string& props_file) {
+  brillo::KeyValueStore properties;
+  TEST_AND_RETURN_FALSE(
+      PayloadSigner::ExtractPayloadProperties(payload_path, &properties));
+  if (props_file == "-") {
+    printf("%s", properties.SaveToString().c_str());
+  } else {
+    properties.Save(base::FilePath(props_file));
+    LOG(INFO) << "Generated properties file at " << props_file;
+  }
+  return true;
+}
+
 int Main(int argc, char** argv) {
   DEFINE_string(old_image, "", "Path to the old rootfs");
   DEFINE_string(new_image, "", "Path to the new rootfs");
@@ -293,6 +306,9 @@ int Main(int argc, char** argv) {
   DEFINE_int32(minor_version, -1,
                "The minor version of the payload being generated "
                "(-1 means autodetect).");
+  DEFINE_string(properties_file, "",
+                "If passed, dumps the payload properties of the payload passed "
+                "in --in_file and exits.");
 
   DEFINE_string(old_channel, "",
                 "The channel for the old image. 'dev-channel', 'npo-channel', "
@@ -367,6 +383,9 @@ int Main(int argc, char** argv) {
         << "--public_key_version is deprecated and ignored.";
     VerifySignedPayload(FLAGS_in_file, FLAGS_public_key);
     return 0;
+  }
+  if (!FLAGS_properties_file.empty()) {
+    return ExtractProperties(FLAGS_in_file, FLAGS_properties_file) ? 0 : 1;
   }
   if (!FLAGS_in_file.empty()) {
     ApplyDelta(FLAGS_in_file, FLAGS_old_kernel, FLAGS_old_image,

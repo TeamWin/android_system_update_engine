@@ -131,12 +131,16 @@ class PayloadSignerTest : public ::testing::Test {
     uint64_t metadata_size;
     EXPECT_TRUE(
         payload.WritePayload(payload_path, "/dev/null", "", &metadata_size));
-    brillo::Blob payload_blob;
+    brillo::Blob payload_metadata_blob;
     DeltaArchiveManifest manifest;
     uint64_t load_metadata_size, load_major_version;
-    EXPECT_TRUE(PayloadSigner::LoadPayload(payload_path, &payload_blob,
-        &manifest, &load_major_version, &load_metadata_size, nullptr));
-    EXPECT_EQ(utils::FileSize(payload_path), payload_blob.size());
+    EXPECT_TRUE(PayloadSigner::LoadPayloadMetadata(payload_path,
+                                                   &payload_metadata_blob,
+                                                   &manifest,
+                                                   &load_major_version,
+                                                   &load_metadata_size,
+                                                   nullptr));
+    EXPECT_EQ(metadata_size, payload_metadata_blob.size());
     EXPECT_EQ(config.major_version, load_major_version);
     EXPECT_EQ(metadata_size, load_metadata_size);
   }

@@ -589,13 +589,14 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   // Check the metadata.
   {
     DeltaArchiveManifest manifest;
-    EXPECT_TRUE(PayloadSigner::LoadPayload(state->delta_path,
-                                           &state->delta,
-                                           &manifest,
-                                           nullptr,
-                                           &state->metadata_size,
-                                           nullptr));
+    EXPECT_TRUE(PayloadSigner::LoadPayloadMetadata(state->delta_path,
+                                                   nullptr,
+                                                   &manifest,
+                                                   nullptr,
+                                                   &state->metadata_size,
+                                                   nullptr));
     LOG(INFO) << "Metadata size: " << state->metadata_size;
+    EXPECT_TRUE(utils::ReadFile(state->delta_path, &state->delta));
 
     if (signature_test == kSignatureNone) {
       EXPECT_FALSE(manifest.has_signatures_offset());

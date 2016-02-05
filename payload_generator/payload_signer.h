@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <base/macros.h>
+#include <brillo/key_value_store.h>
 #include <brillo/secure_blob.h>
 
 #include "update_engine/update_metadata.pb.h"
@@ -32,18 +33,19 @@ namespace chromeos_update_engine {
 
 class PayloadSigner {
  public:
-  // Reads the payload from the given |payload_path| into the |out_payload|
-  // vector. It also parses the manifest protobuf in the payload and returns it
-  // in |out_manifest| if not null, along with the major version of the payload
-  // in |out_major_version| if not null, the size of the entire metadata in
-  // |out_metadata_size| and the size of metadata signature in
-  // |out_metadata_signature_size| if not null.
-  static bool LoadPayload(const std::string& payload_path,
-                          brillo::Blob* out_payload,
-                          DeltaArchiveManifest* out_manifest,
-                          uint64_t* out_major_version,
-                          uint64_t* out_metadata_size,
-                          uint32_t* out_metadata_signature_size);
+  // Reads the payload metadata from the given |payload_path| into the
+  // |out_payload_metadata| vector if not null. It also parses the manifest
+  // protobuf in the payload and returns it in |out_manifest| if not null, along
+  // with the major version of the payload in |out_major_version| if not null,
+  // the size of the entire metadata in |out_metadata_size| and the size of
+  // metadata signature in |out_metadata_signature_size| if not null. Returns
+  // whether a valid payload metadata was found and parsed.
+  static bool LoadPayloadMetadata(const std::string& payload_path,
+                                  brillo::Blob* out_payload_metadata,
+                                  DeltaArchiveManifest* out_manifest,
+                                  uint64_t* out_major_version,
+                                  uint64_t* out_metadata_size,
+                                  uint32_t* out_metadata_signature_size);
 
   // Returns true if the payload in |payload_path| is signed and its hash can be
   // verified using the public key in |public_key_path| with the signature
@@ -131,6 +133,9 @@ class PayloadSigner {
                                    size_t metadata_size,
                                    const std::string& private_key_path,
                                    std::string* out_signature);
+
+  static bool ExtractPayloadProperties(const std::string& payload_path,
+                                       brillo::KeyValueStore* properties);
 
  private:
   // This should never be constructed

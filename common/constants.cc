@@ -87,4 +87,9 @@ const char kPrefsUpdateTimestampStart[] = "update-timestamp-start";
 const char kPrefsUrlSwitchCount[] = "url-switch-count";
 const char kPrefsWallClockWaitPeriod[] = "wall-clock-wait-period";
 
+const char kPayloadPropertyFileSize[] = "FILE_SIZE";
+const char kPayloadPropertyFileHash[] = "FILE_HASH";
+const char kPayloadPropertyMetadataSize[] = "METADATA_SIZE";
+const char kPayloadPropertyMetadataHash[] = "METADATA_HASH";
+
 }  // namespace chromeos_update_engine

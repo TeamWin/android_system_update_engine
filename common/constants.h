@@ -88,6 +88,12 @@ extern const char kPrefsUpdateTimestampStart[];
 extern const char kPrefsUrlSwitchCount[];
 extern const char kPrefsWallClockWaitPeriod[];
 
+// Keys used when storing and loading payload properties.
+extern const char kPayloadPropertyFileSize[];
+extern const char kPayloadPropertyFileHash[];
+extern const char kPayloadPropertyMetadataSize[];
+extern const char kPayloadPropertyMetadataHash[];
+
 // A download source is any combination of protocol and server (that's of
 // interest to us when looking at UMA metrics) using which we may download
 // the payload.

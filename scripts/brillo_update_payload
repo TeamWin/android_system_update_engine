@@ -11,6 +11,7 @@
 #  generate    generate an unsigned payload
 #  hash        generate a payload or metadata hash
 #  sign        generate a signed payload
+#  properties  generate a properties file from a payload
 #
 #  Generate command arguments:
 #  --payload             generated unsigned payload output file
@@ -44,6 +45,12 @@
 #                            the signed payload metadata in bytes to the
 #                            specified file
 #  Note that the number of signature sizes and payload signatures have to match.
+#
+#  Properties command arguments:
+#  --payload                 the input signed or unsigned payload
+#  --properties_file         the output path where to write the properties, or
+#                            '-' for stdout.
+
 
 # Exit codes:
 EX_UNSUPPORTED_DELTA=100
@@ -77,6 +84,7 @@ HELP_GENERATE="generate: Generate an unsigned update payload."
 HELP_HASH="hash: Generate the hashes of the unsigned payload and metadata used \
 for signing."
 HELP_SIGN="sign: Insert the signatures into the unsigned payload."
+HELP_PROPERTIES="properties: Extract payload properties to a file."
 
 usage() {
   echo "Supported commands:"
@@ -84,13 +92,14 @@ usage() {
   echo "${HELP_GENERATE}"
   echo "${HELP_HASH}"
   echo "${HELP_SIGN}"
+  echo "${HELP_PROPERTIES}"
   echo
   echo "Use: \"$0 <command> --help\" for more options."
 }
 
 # Check that a command is specified.
 if [[ $# -lt 1 ]]; then
-  echo "Please specify a command [generate|hash|sign]"
+  echo "Please specify a command [generate|hash|sign|properties]"
   exit 1
 fi
 
@@ -109,6 +118,10 @@ case "${COMMAND}" in
 
   sign)
     FLAGS_HELP="${HELP_SIGN}"
+    ;;
+
+  properties)
+    FLAGS_HELP="${HELP_PROPERTIES}"
     ;;
   *)
     echo "Unrecognized command: \"${COMMAND}\"" >&2
@@ -154,6 +167,14 @@ payload_signature1:payload_signature2[:...]"
   DEFINE_string metadata_size_file "" \
     "Optional: Path to output metadata size."
 fi
+if [[ "${COMMAND}" == "properties" ]]; then
+  DEFINE_string payload "" \
+    "Path to the input signed or unsigned payload file."
+  DEFINE_string properties_file "-" \
+    "Path to output the extracted property files. If '-' is passed stdout will \
+be used."
+fi
+
 DEFINE_string work_dir "/tmp" "Where to dump temporary files."
 
 # Parse command line flag arguments
@@ -525,6 +546,20 @@ cmd_sign() {
   echo "Done signing payload."
 }
 
+validate_properties() {
+  [[ -n "${FLAGS_payload}" ]] ||
+    die "Error: you must specify the payload file with --payload FILENAME"
+
+  [[ -n "${FLAGS_properties_file}" ]] ||
+    die "Error: you must specify a non empty --properties_file FILENAME"
+}
+
+cmd_properties() {
+  "${GENERATOR}" \
+      -in_file="${FLAGS_payload}" \
+      -properties_file="${FLAGS_properties_file}"
+}
+
 # Sanity check that the real generator exists:
 GENERATOR="$(which delta_generator)"
 [[ -x "${GENERATOR}" ]] || die "can't find delta_generator"
@@ -539,4 +574,7 @@ case "$COMMAND" in
   sign) validate_sign
         cmd_sign
         ;;
+  properties) validate_properties
+              cmd_properties
+              ;;
 esac
