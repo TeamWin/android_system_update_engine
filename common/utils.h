@@ -299,10 +299,6 @@ std::string FormatTimeDelta(base::TimeDelta delta);
 // it'll return the same value again.
 ErrorCode GetBaseErrorCode(ErrorCode code);
 
-// Returns a string representation of the ErrorCodes (either the base
-// error codes or the bit flags) for logging purposes.
-std::string CodeToString(ErrorCode code);
-
 // Creates the powerwash marker file with the appropriate commands in it.  Uses
 // |file_path| as the path to the marker file if non-null, otherwise uses the
 // global default. Returns true if successfully created.  False otherwise.

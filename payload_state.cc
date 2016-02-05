@@ -27,6 +27,7 @@
 
 #include "update_engine/common/clock.h"
 #include "update_engine/common/constants.h"
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/utils.h"
@@ -242,7 +243,7 @@ void PayloadState::UpdateSucceeded() {
 void PayloadState::UpdateFailed(ErrorCode error) {
   ErrorCode base_error = utils::GetBaseErrorCode(error);
   LOG(INFO) << "Updating payload state for error code: " << base_error
-            << " (" << utils::CodeToString(base_error) << ")";
+            << " (" << utils::ErrorCodeToString(base_error) << ")";
 
   if (candidate_urls_.size() == 0) {
     // This means we got this error even before we got a valid Omaha response

@@ -25,6 +25,7 @@
 #include <base/time/time.h>
 
 #include "update_engine/common/error_code.h"
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/update_manager/device_policy_provider.h"
 #include "update_engine/update_manager/policy_utils.h"
@@ -76,7 +77,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kUnsupportedMajorPayloadVersion:
     case ErrorCode::kUnsupportedMinorPayloadVersion:
       LOG(INFO) << "Advancing download URL due to error "
-                << chromeos_update_engine::utils::CodeToString(err_code)
+                << chromeos_update_engine::utils::ErrorCodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
       return true;
 
@@ -94,7 +95,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kDownloadStateInitializationError:
     case ErrorCode::kOmahaErrorInHTTPResponse:  // Aggregate for HTTP errors.
       LOG(INFO) << "Incrementing URL failure count due to error "
-                << chromeos_update_engine::utils::CodeToString(err_code)
+                << chromeos_update_engine::utils::ErrorCodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
       *url_num_error_p += 1;
       return false;
@@ -131,7 +132,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
       LOG(INFO) << "Not changing URL index or failure count due to error "
-                << chromeos_update_engine::utils::CodeToString(err_code)
+                << chromeos_update_engine::utils::ErrorCodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
       return false;
 
@@ -147,7 +148,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
       // can let the compiler warn about new error codes that are added to
       // action_processor.h but not added here.
       LOG(WARNING) << "Unexpected error "
-                   << chromeos_update_engine::utils::CodeToString(err_code)
+                   << chromeos_update_engine::utils::ErrorCodeToString(err_code)
                    << " (" << static_cast<int>(err_code) << ")";
     // Note: Not adding a default here so as to let the compiler warn us of
     // any new enums that were added in the .h but not listed in this switch.

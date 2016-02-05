@@ -39,6 +39,7 @@
 #include "android/os/IUpdateEngine.h"
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/error_code.h"
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/update_status_utils.h"
 
 using android::binder::Status;
@@ -57,8 +58,7 @@ class UpdateEngineClientAndroid : public brillo::Daemon {
  private:
   class UECallback : public android::os::BnUpdateEngineCallback {
    public:
-    UECallback(UpdateEngineClientAndroid* client) : client_(client) {
-    }
+    explicit UECallback(UpdateEngineClientAndroid* client) : client_(client) {}
 
     // android::os::BnUpdateEngineCallback overrides.
     Status onStatusUpdate(int status_code, float progress) override;
@@ -95,8 +95,8 @@ Status UpdateEngineClientAndroid::UECallback::onStatusUpdate(
 Status UpdateEngineClientAndroid::UECallback::onPayloadApplicationComplete(
     int error_code) {
   ErrorCode code = static_cast<ErrorCode>(error_code);
-  // TODO(deymo): Print the ErrorCode as a string.
-  LOG(INFO) << "onPayloadApplicationComplete(" << error_code << ")";
+  LOG(INFO) << "onPayloadApplicationComplete(" << utils::ErrorCodeToString(code)
+            << " (" << error_code << "))";
   client_->ExitWhenIdle(code == ErrorCode::kSuccess ? EX_OK : 1);
   return Status::ok();
 }

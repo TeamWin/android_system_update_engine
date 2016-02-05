@@ -153,6 +153,7 @@ ue_libpayload_consumer_src_files := \
     common/clock.cc \
     common/constants.cc \
     common/cpu_limiter.cc \
+    common/error_code_utils.cc \
     common/hash_calculator.cc \
     common/http_common.cc \
     common/http_fetcher.cc \
@@ -474,6 +475,7 @@ LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES := \
     binder_bindings/android/os/IUpdateEngine.aidl \
     binder_bindings/android/os/IUpdateEngineCallback.aidl \
+    common/error_code_utils.cc \
     update_engine_client_android.cc \
     update_status_utils.cc
 endif  # !defined(BRILLO)

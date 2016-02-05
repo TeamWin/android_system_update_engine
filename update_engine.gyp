@@ -161,6 +161,7 @@
         'common/clock.cc',
         'common/constants.cc',
         'common/cpu_limiter.cc',
+        'common/error_code_utils.cc',
         'common/hash_calculator.cc',
         'common/http_common.cc',
         'common/http_fetcher.cc',
