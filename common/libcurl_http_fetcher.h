@@ -165,6 +165,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // Sets the curl options for HTTPS URL.
   void SetCurlOptionsForHttps();
 
+  // Sets the curl options for file URI.
+  void SetCurlOptionsForFile();
+
   // Convert a proxy URL into a curl proxy type, if applicable. Returns true iff
   // conversion was successful, false otherwise (in which case nothing is
   // written to |out_type|).

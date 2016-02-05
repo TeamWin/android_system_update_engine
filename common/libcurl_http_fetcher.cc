@@ -63,21 +63,26 @@ LibcurlHttpFetcher::~LibcurlHttpFetcher() {
 
 bool LibcurlHttpFetcher::GetProxyType(const string& proxy,
                                       curl_proxytype* out_type) {
-  if (base::StartsWith(proxy, "socks5://", base::CompareCase::SENSITIVE) ||
-      base::StartsWith(proxy, "socks://", base::CompareCase::SENSITIVE)) {
+  if (base::StartsWith(
+          proxy, "socks5://", base::CompareCase::INSENSITIVE_ASCII) ||
+      base::StartsWith(
+          proxy, "socks://", base::CompareCase::INSENSITIVE_ASCII)) {
     *out_type = CURLPROXY_SOCKS5_HOSTNAME;
     return true;
   }
-  if (base::StartsWith(proxy, "socks4://", base::CompareCase::SENSITIVE)) {
+  if (base::StartsWith(
+          proxy, "socks4://", base::CompareCase::INSENSITIVE_ASCII)) {
     *out_type = CURLPROXY_SOCKS4A;
     return true;
   }
-  if (base::StartsWith(proxy, "http://", base::CompareCase::SENSITIVE) ||
-      base::StartsWith(proxy, "https://", base::CompareCase::SENSITIVE)) {
+  if (base::StartsWith(
+          proxy, "http://", base::CompareCase::INSENSITIVE_ASCII) ||
+      base::StartsWith(
+          proxy, "https://", base::CompareCase::INSENSITIVE_ASCII)) {
     *out_type = CURLPROXY_HTTP;
     return true;
   }
-  if (base::StartsWith(proxy, kNoProxy, base::CompareCase::SENSITIVE)) {
+  if (base::StartsWith(proxy, kNoProxy, base::CompareCase::INSENSITIVE_ASCII)) {
     // known failure case. don't log.
     return false;
   }
@@ -193,10 +198,22 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
   // Lock down the appropriate curl options for HTTP or HTTPS depending on
   // the url.
   if (hardware_->IsOfficialBuild()) {
-    if (base::StartsWith(url_, "http://", base::CompareCase::INSENSITIVE_ASCII))
+    if (base::StartsWith(
+            url_, "http://", base::CompareCase::INSENSITIVE_ASCII)) {
       SetCurlOptionsForHttp();
-    else
+    } else if (base::StartsWith(
+                   url_, "https://", base::CompareCase::INSENSITIVE_ASCII)) {
       SetCurlOptionsForHttps();
+#if !defined(__CHROMEOS__) && !defined(__BRILLO__)
+    } else if (base::StartsWith(
+                   url_, "file://", base::CompareCase::INSENSITIVE_ASCII)) {
+      SetCurlOptionsForFile();
+#endif
+    } else {
+      LOG(ERROR) << "Received invalid URI: " << url_;
+      // Lock down to no protocol supported for the transfer.
+      CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_PROTOCOLS, 0), CURLE_OK);
+    }
   } else {
     LOG(INFO) << "Not setting http(s) curl options because we are "
               << "running a dev/test image";
@@ -243,6 +260,15 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttps() {
   }
 }
 
+// Lock down only the protocol in case of a local file.
+void LibcurlHttpFetcher::SetCurlOptionsForFile() {
+  LOG(INFO) << "Setting up curl options for FILE";
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_PROTOCOLS, CURLPROTO_FILE),
+           CURLE_OK);
+  CHECK_EQ(
+      curl_easy_setopt(curl_handle_, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_FILE),
+      CURLE_OK);
+}
 
 // Begins the transfer, which must not have already been started.
 void LibcurlHttpFetcher::BeginTransfer(const string& url) {
@@ -577,9 +603,12 @@ void LibcurlHttpFetcher::CleanUp() {
 
 void LibcurlHttpFetcher::GetHttpResponseCode() {
   long http_response_code = 0;  // NOLINT(runtime/int) - curl needs long.
-  if (curl_easy_getinfo(curl_handle_,
-                        CURLINFO_RESPONSE_CODE,
-                        &http_response_code) == CURLE_OK) {
+  if (base::StartsWith(url_, "file://", base::CompareCase::INSENSITIVE_ASCII)) {
+    // Fake out a valid response code for file:// URLs.
+    http_response_code_ = 299;
+  } else if (curl_easy_getinfo(curl_handle_,
+                               CURLINFO_RESPONSE_CODE,
+                               &http_response_code) == CURLE_OK) {
     http_response_code_ = static_cast<int>(http_response_code);
   }
 }
