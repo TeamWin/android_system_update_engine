@@ -334,7 +334,8 @@
       ],
       'sources': [
         'update_engine_client.cc',
-      ],
+        'common/error_code_utils.cc',
+     ],
     },
     # server-side code. This is used for delta_generator and unittests but not
     # for any client code.

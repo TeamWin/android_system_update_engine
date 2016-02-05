@@ -132,6 +132,11 @@ bool DBusUpdateEngineService::GetRollbackPartition(
   return common_->GetRollbackPartition(error, out_rollback_partition_name);
 }
 
+bool DBusUpdateEngineService::GetLastAttemptError(
+    ErrorPtr* error, int32_t* out_last_attempt_error){
+ return common_->GetLastAttemptError(error, out_last_attempt_error);
+}
+
 UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state,
                                          const scoped_refptr<dbus::Bus>& bus)
     : org::chromium::UpdateEngineInterfaceAdaptor(&dbus_service_),

@@ -215,5 +215,16 @@ bool BinderUpdateEngineClient::GetChannel(string* out_channel) const {
   return true;
 }
 
+bool BinderUpdateEngineClient::GetLastAttemptError(
+    int32_t* last_attempt_error) const {
+  int out_as_int;
+
+  if (!service_->GetLastAttemptError(&out_as_int).isOk())
+    return false;
+
+  *last_attempt_error = out_as_int;
+  return true;
+}
+
 }  // namespace internal
 }  // namespace update_engine

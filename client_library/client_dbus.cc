@@ -225,5 +225,10 @@ bool DBusUpdateEngineClient::GetChannel(string* out_channel) const {
                             nullptr);
 }
 
+bool DBusUpdateEngineClient::GetLastAttemptError(
+    int32_t* last_attempt_error) const {
+  return proxy_->GetLastAttemptError(last_attempt_error, nullptr);
+}
+
 }  // namespace internal
 }  // namespace update_engine
