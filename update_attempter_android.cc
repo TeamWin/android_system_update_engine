@@ -17,12 +17,15 @@
 #include "update_engine/update_attempter_android.h"
 
 #include <algorithm>
+#include <map>
 #include <utility>
 
 #include <base/bind.h>
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
 #include <brillo/bind_lambda.h>
 #include <brillo/message_loops/message_loop.h>
+#include <brillo/strings/string_utils.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/libcurl_http_fetcher.h"
@@ -104,21 +107,42 @@ bool UpdateAttempterAndroid::ApplyPayload(
   }
   DCHECK(status_ == UpdateStatus::IDLE);
 
-  // Unique identifier for the payload.
-  // TODO(deymo): Set this the payload unique id using a value passed in the
-  // |key_value_pair_headers| list to allow resuming updates.
-  string payload_id = "";
+  std::map<string, string> headers;
+  for (const string& key_value_pair : key_value_pair_headers) {
+    string key;
+    string value;
+    if (!brillo::string_utils::SplitAtFirst(
+            key_value_pair, "=", &key, &value, false)) {
+      return LogAndSetError(
+          error, FROM_HERE, "Passed invalid header: " + key_value_pair);
+    }
+    if (!headers.emplace(key, value).second)
+      return LogAndSetError(error, FROM_HERE, "Passed repeated key: " + key);
+  }
+
+  // Unique identifier for the payload. An empty string means that the payload
+  // can't be resumed.
+  string payload_id = (headers[kPayloadPropertyFileHash] +
+                       headers[kPayloadPropertyMetadataHash]);
 
   // Setup the InstallPlan based on the request.
   install_plan_ = InstallPlan();
 
   install_plan_.download_url = payload_url;
   install_plan_.version = "";
-  install_plan_.payload_size = payload_size;
   base_offset_ = payload_offset;
-  // TODO(deymo): Retrieve the payload_hash from the properties.
-  install_plan_.payload_hash = "";
-  install_plan_.metadata_size = 0;
+  install_plan_.payload_size = payload_size;
+  if (!install_plan_.payload_size) {
+    if (!base::StringToUint64(headers[kPayloadPropertyFileSize],
+                              &install_plan_.payload_size)) {
+      install_plan_.payload_size = 0;
+    }
+  }
+  install_plan_.payload_hash = headers[kPayloadPropertyFileHash];
+  if (!base::StringToUint64(headers[kPayloadPropertyMetadataSize],
+                            &install_plan_.metadata_size)) {
+    install_plan_.metadata_size = 0;
+  }
   install_plan_.metadata_signature = "";
   // The |public_key_rsa| key would override the public key stored on disk.
   install_plan_.public_key_rsa = "";
