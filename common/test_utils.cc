@@ -35,6 +35,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/file_writer.h"
 
@@ -47,6 +48,10 @@ namespace chromeos_update_engine {
 
 void PrintTo(const Extent& extent, ::std::ostream* os) {
   *os << "(" << extent.start_block() << ", " << extent.num_blocks() << ")";
+}
+
+void PrintTo(const ErrorCode& error_code, ::std::ostream* os) {
+  *os << utils::ErrorCodeToString(error_code);
 }
 
 namespace test_utils {

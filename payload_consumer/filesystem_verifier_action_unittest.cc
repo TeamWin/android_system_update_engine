@@ -285,14 +285,7 @@ TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
   processor.set_delegate(&delegate);
 
   ObjectFeederAction<InstallPlan> feeder_action;
-  InstallPlan install_plan(false,
-                           false,
-                           "",
-                           0,
-                           "",
-                           0,
-                           "",
-                           "");
+  InstallPlan install_plan;
   InstallPlan::Partition part;
   part.name = "nope";
   part.source_path = "/no/such/file";

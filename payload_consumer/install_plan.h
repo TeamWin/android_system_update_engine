@@ -30,17 +30,15 @@
 // parts of the update system about the install that should happen.
 namespace chromeos_update_engine {
 
-struct InstallPlan {
-  InstallPlan(bool is_resume,
-              bool is_full_update,
-              const std::string& url,
-              uint64_t payload_size,
-              const std::string& payload_hash,
-              uint64_t metadata_size,
-              const std::string& metadata_signature,
-              const std::string& public_key_rsa);
+enum class InstallPayloadType {
+  kUnknown,
+  kFull,
+  kDelta,
+};
 
-  // Default constructor.
+std::string InstallPayloadTypeToString(InstallPayloadType type);
+
+struct InstallPlan {
   InstallPlan() = default;
 
   bool operator==(const InstallPlan& that) const;
@@ -54,7 +52,7 @@ struct InstallPlan {
   bool LoadPartitionsFromSlots(BootControlInterface* boot_control);
 
   bool is_resume{false};
-  bool is_full_update{false};
+  InstallPayloadType payload_type{InstallPayloadType::kUnknown};
   std::string download_url;  // url to download from
   std::string version;       // version we are installing.
 

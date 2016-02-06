@@ -97,10 +97,9 @@ class DeltaPerformerTest : public ::testing::Test {
   // Test helper placed where it can easily be friended from DeltaPerformer.
   void RunManifestValidation(const DeltaArchiveManifest& manifest,
                              uint64_t major_version,
-                             bool full_payload,
+                             InstallPayloadType payload_type,
                              ErrorCode expected) {
-    // The install plan is for Full or Delta.
-    install_plan_.is_full_update = full_payload;
+    install_plan_.payload_type = payload_type;
 
     // The Manifest we are validating.
     performer_.manifest_.CopyFrom(manifest);
@@ -137,6 +136,12 @@ class DeltaPerformerTest : public ::testing::Test {
     EXPECT_TRUE(payload.Init(config));
 
     PartitionConfig old_part(kLegacyPartitionNameRoot);
+    if (minor_version != kFullPayloadMinorVersion) {
+      // When generating a delta payload we need to include the old partition
+      // information to mark it as a delta payload.
+      old_part.path = "/dev/null";
+      old_part.size = 0;
+    }
     PartitionConfig new_part(kLegacyPartitionNameRoot);
     new_part.path = "/dev/zero";
     new_part.size = 1234;
@@ -323,7 +328,7 @@ class DeltaPerformerTest : public ::testing::Test {
 };
 
 TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
-  install_plan_.is_full_update = true;
+  install_plan_.payload_type = InstallPayloadType::kFull;
   brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
                                             std::end(kRandomString));
   expected_data.resize(4096);  // block size
@@ -342,7 +347,7 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
 }
 
 TEST_F(DeltaPerformerTest, ShouldCancelTest) {
-  install_plan_.is_full_update = true;
+  install_plan_.payload_type = InstallPayloadType::kFull;
   brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
                                             std::end(kRandomString));
   expected_data.resize(4096);  // block size
@@ -522,7 +527,9 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullGoodTest) {
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(kFullPayloadMinorVersion);
 
-  RunManifestValidation(manifest, kChromeOSMajorPayloadVersion, true,
+  RunManifestValidation(manifest,
+                        kChromeOSMajorPayloadVersion,
+                        InstallPayloadType::kFull,
                         ErrorCode::kSuccess);
 }
 
@@ -535,7 +542,9 @@ TEST_F(DeltaPerformerTest, ValidateManifestDeltaGoodTest) {
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
 
-  RunManifestValidation(manifest, kChromeOSMajorPayloadVersion, false,
+  RunManifestValidation(manifest,
+                        kChromeOSMajorPayloadVersion,
+                        InstallPayloadType::kDelta,
                         ErrorCode::kSuccess);
 }
 
@@ -543,16 +552,23 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullUnsetMinorVersion) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
 
-  RunManifestValidation(manifest, DeltaPerformer::kSupportedMajorPayloadVersion,
-                        true, ErrorCode::kSuccess);
+  RunManifestValidation(manifest,
+                        DeltaPerformer::kSupportedMajorPayloadVersion,
+                        InstallPayloadType::kFull,
+                        ErrorCode::kSuccess);
 }
 
 TEST_F(DeltaPerformerTest, ValidateManifestDeltaUnsetMinorVersion) {
   // The Manifest we are validating.
   DeltaArchiveManifest manifest;
+  // Add an empty old_rootfs_info() to trick the DeltaPerformer into think that
+  // this is a delta payload manifest with a missing minor version.
+  manifest.mutable_old_rootfs_info();
 
-  RunManifestValidation(manifest, DeltaPerformer::kSupportedMajorPayloadVersion,
-                        false, ErrorCode::kUnsupportedMinorPayloadVersion);
+  RunManifestValidation(manifest,
+                        DeltaPerformer::kSupportedMajorPayloadVersion,
+                        InstallPayloadType::kDelta,
+                        ErrorCode::kUnsupportedMinorPayloadVersion);
 }
 
 TEST_F(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
@@ -563,7 +579,9 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullOldKernelTest) {
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
 
-  RunManifestValidation(manifest, kChromeOSMajorPayloadVersion, true,
+  RunManifestValidation(manifest,
+                        kChromeOSMajorPayloadVersion,
+                        InstallPayloadType::kFull,
                         ErrorCode::kPayloadMismatchedType);
 }
 
@@ -575,7 +593,9 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullOldRootfsTest) {
   manifest.mutable_new_rootfs_info();
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
 
-  RunManifestValidation(manifest, kChromeOSMajorPayloadVersion, true,
+  RunManifestValidation(manifest,
+                        kChromeOSMajorPayloadVersion,
+                        InstallPayloadType::kFull,
                         ErrorCode::kPayloadMismatchedType);
 }
 
@@ -587,7 +607,9 @@ TEST_F(DeltaPerformerTest, ValidateManifestFullPartitionUpdateTest) {
   partition->mutable_new_partition_info();
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion);
 
-  RunManifestValidation(manifest, kBrilloMajorPayloadVersion, true,
+  RunManifestValidation(manifest,
+                        kBrilloMajorPayloadVersion,
+                        InstallPayloadType::kFull,
                         ErrorCode::kPayloadMismatchedType);
 }
 
@@ -598,9 +620,13 @@ TEST_F(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
   // Generate a bad version number.
   manifest.set_minor_version(DeltaPerformer::kSupportedMinorPayloadVersion +
                              10000);
+  // Mark the manifest as a delta payload by setting old_rootfs_info.
+  manifest.mutable_old_rootfs_info();
 
-  RunManifestValidation(manifest, DeltaPerformer::kSupportedMajorPayloadVersion,
-                        false, ErrorCode::kUnsupportedMinorPayloadVersion);
+  RunManifestValidation(manifest,
+                        DeltaPerformer::kSupportedMajorPayloadVersion,
+                        InstallPayloadType::kDelta,
+                        ErrorCode::kUnsupportedMinorPayloadVersion);
 }
 
 TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {

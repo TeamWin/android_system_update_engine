@@ -44,6 +44,7 @@ namespace chromeos_update_engine {
 // PrintTo() functions are used by gtest to log these objects. These PrintTo()
 // functions must be defined in the same namespace as the first argument.
 void PrintTo(const Extent& extent, ::std::ostream* os);
+void PrintTo(const ErrorCode& error_code, ::std::ostream* os);
 
 namespace test_utils {
 
