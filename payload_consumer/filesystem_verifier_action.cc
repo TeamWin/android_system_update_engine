@@ -59,7 +59,8 @@ void FilesystemVerifierAction::PerformAction() {
 
   // For delta updates (major version 1) we need to populate the source
   // partition hash if not pre-populated.
-  if (!install_plan_.is_full_update && install_plan_.partitions.empty() &&
+  if (install_plan_.payload_type == InstallPayloadType::kDelta &&
+      install_plan_.partitions.empty() &&
       verifier_mode_ == VerifierMode::kComputeSourceHash &&
       DeltaPerformer::kSupportedMinorPayloadVersion <
           kOpSrcHashMinorPayloadVersion) {

@@ -291,7 +291,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
 
   const PartitionUpdate& partition = partitions_[current_partition_];
   // Open source fds if we have a delta payload with minor version >= 2.
-  if (!install_plan_->is_full_update &&
+  if (install_plan_->payload_type == InstallPayloadType::kDelta &&
       GetMinorVersion() != kInPlaceMinorPayloadVersion) {
     source_path_ = install_plan_->partitions[current_partition_].source_path;
     int err;
@@ -374,9 +374,9 @@ uint32_t DeltaPerformer::GetMinorVersion() const {
   if (manifest_.has_minor_version()) {
     return manifest_.minor_version();
   } else {
-    return (install_plan_->is_full_update ?
-            kFullPayloadMinorVersion :
-            kSupportedMinorPayloadVersion);
+    return install_plan_->payload_type == InstallPayloadType::kDelta
+               ? kSupportedMinorPayloadVersion
+               : kFullPayloadMinorVersion;
   }
 }
 
@@ -1362,29 +1362,34 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
 ErrorCode DeltaPerformer::ValidateManifest() {
   // Perform assorted checks to sanity check the manifest, make sure it
   // matches data from other sources, and that it is a supported version.
-  //
-  // TODO(garnold) in general, the presence of an old partition hash should be
-  // the sole indicator for a delta update, as we would generally like update
-  // payloads to be self contained and not assume an Omaha response to tell us
-  // that. However, since this requires some massive reengineering of the update
-  // flow (making filesystem copying happen conditionally only *after*
-  // downloading and parsing of the update manifest) we'll put it off for now.
-  // See chromium-os:7597 for further discussion.
-  if (install_plan_->is_full_update) {
-    if (manifest_.has_old_kernel_info() || manifest_.has_old_rootfs_info()) {
-      LOG(ERROR) << "Purported full payload contains old partition "
-                    "hash(es), aborting update";
-      return ErrorCode::kPayloadMismatchedType;
-    }
 
-    for (const PartitionUpdate& partition : manifest_.partitions()) {
-      if (partition.has_old_partition_info()) {
-        LOG(ERROR) << "Purported full payload contains old partition "
-                      "hash(es), aborting update";
-        return ErrorCode::kPayloadMismatchedType;
-      }
-    }
+  bool has_old_fields =
+      (manifest_.has_old_kernel_info() || manifest_.has_old_rootfs_info());
+  for (const PartitionUpdate& partition : manifest_.partitions()) {
+    has_old_fields = has_old_fields || partition.has_old_partition_info();
+  }
 
+  // The presence of an old partition hash is the sole indicator for a delta
+  // update.
+  InstallPayloadType actual_payload_type =
+      has_old_fields ? InstallPayloadType::kDelta : InstallPayloadType::kFull;
+
+  if (install_plan_->payload_type == InstallPayloadType::kUnknown) {
+    LOG(INFO) << "Detected a '"
+              << InstallPayloadTypeToString(actual_payload_type)
+              << "' payload.";
+    install_plan_->payload_type = actual_payload_type;
+  } else if (install_plan_->payload_type != actual_payload_type) {
+    LOG(ERROR) << "InstallPlan expected a '"
+               << InstallPayloadTypeToString(install_plan_->payload_type)
+               << "' payload but the downloaded manifest contains a '"
+               << InstallPayloadTypeToString(actual_payload_type)
+               << "' payload.";
+    return ErrorCode::kPayloadMismatchedType;
+  }
+
+  // Check that the minor version is compatible.
+  if (actual_payload_type == InstallPayloadType::kFull) {
     if (manifest_.minor_version() != kFullPayloadMinorVersion) {
       LOG(ERROR) << "Manifest contains minor version "
                  << manifest_.minor_version()

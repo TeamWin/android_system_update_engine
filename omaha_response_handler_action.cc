@@ -104,7 +104,9 @@ void OmahaResponseHandlerAction::PerformAction() {
         kPrefsUpdateCheckResponseHash, response.hash))
         << "Unable to save the update check response hash.";
   }
-  install_plan_.is_full_update = !response.is_delta_payload;
+  install_plan_.payload_type = response.is_delta_payload
+                                   ? InstallPayloadType::kDelta
+                                   : InstallPayloadType::kFull;
 
   install_plan_.source_slot = system_state_->boot_control()->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;

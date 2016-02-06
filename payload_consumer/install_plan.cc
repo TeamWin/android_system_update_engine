@@ -27,29 +27,21 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-InstallPlan::InstallPlan(bool is_resume,
-                         bool is_full_update,
-                         const string& url,
-                         uint64_t payload_size,
-                         const string& payload_hash,
-                         uint64_t metadata_size,
-                         const string& metadata_signature,
-                         const string& public_key_rsa)
-    : is_resume(is_resume),
-      is_full_update(is_full_update),
-      download_url(url),
-      payload_size(payload_size),
-      payload_hash(payload_hash),
-      metadata_size(metadata_size),
-      metadata_signature(metadata_signature),
-      hash_checks_mandatory(false),
-      powerwash_required(false),
-      public_key_rsa(public_key_rsa) {}
-
+string InstallPayloadTypeToString(InstallPayloadType type) {
+  switch (type) {
+    case InstallPayloadType::kUnknown:
+      return "unknown";
+    case InstallPayloadType::kFull:
+      return "full";
+    case InstallPayloadType::kDelta:
+      return "delta";
+  }
+  return "invalid type";
+}
 
 bool InstallPlan::operator==(const InstallPlan& that) const {
   return ((is_resume == that.is_resume) &&
-          (is_full_update == that.is_full_update) &&
+          (payload_type == that.payload_type) &&
           (download_url == that.download_url) &&
           (payload_size == that.payload_size) &&
           (payload_hash == that.payload_hash) &&
@@ -74,7 +66,7 @@ void InstallPlan::Dump() const {
 
   LOG(INFO) << "InstallPlan: "
             << (is_resume ? "resume" : "new_update")
-            << ", payload type: " << (is_full_update ? "full" : "delta")
+            << ", payload type: " << InstallPayloadTypeToString(payload_type)
             << ", source_slot: " << BootControlInterface::SlotName(source_slot)
             << ", target_slot: " << BootControlInterface::SlotName(target_slot)
             << ", url: " << download_url
@@ -85,8 +77,7 @@ void InstallPlan::Dump() const {
             << partitions_str
             << ", hash_checks_mandatory: " << utils::ToString(
                 hash_checks_mandatory)
-            << ", powerwash_required: " << utils::ToString(
-                powerwash_required);
+            << ", powerwash_required: " << utils::ToString(powerwash_required);
 }
 
 bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
