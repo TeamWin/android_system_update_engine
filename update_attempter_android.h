@@ -63,6 +63,7 @@ class UpdateAttempterAndroid : public ServiceDelegateAndroidInterface,
   bool SuspendUpdate(brillo::ErrorPtr* error) override;
   bool ResumeUpdate(brillo::ErrorPtr* error) override;
   bool CancelUpdate(brillo::ErrorPtr* error) override;
+  bool ResetStatus(brillo::ErrorPtr* error) override;
 
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor,

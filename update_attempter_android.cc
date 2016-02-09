@@ -35,6 +35,7 @@
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
+#include "update_engine/update_status_utils.h"
 
 using base::Bind;
 using base::TimeDelta;
@@ -197,6 +198,44 @@ bool UpdateAttempterAndroid::CancelUpdate(brillo::ErrorPtr* error) {
 
   // TODO(deymo): Implement cancel.
   return LogAndSetError(error, FROM_HERE, "Cancel not implemented");
+}
+
+bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
+  LOG(INFO) << "Attempting to reset state from "
+            << UpdateStatusToString(status_) << " to UpdateStatus::IDLE";
+
+  switch (status_) {
+    case UpdateStatus::IDLE:
+      return true;
+
+    case UpdateStatus::UPDATED_NEED_REBOOT:  {
+      // Remove the reboot marker so that if the machine is rebooted
+      // after resetting to idle state, it doesn't go back to
+      // UpdateStatus::UPDATED_NEED_REBOOT state.
+      bool ret_value = prefs_->Delete(kPrefsUpdateCompletedOnBootId);
+
+      // Update the boot flags so the current slot has higher priority.
+      if (!boot_control_->SetActiveBootSlot(boot_control_->GetCurrentSlot()))
+        ret_value = false;
+
+      if (!ret_value) {
+        return LogAndSetError(
+            error,
+            FROM_HERE,
+            "Failed to reset the status to ");
+      }
+
+      SetStatusAndNotify(UpdateStatus::IDLE);
+      LOG(INFO) << "Reset status successful";
+      return true;
+    }
+
+    default:
+      return LogAndSetError(
+          error,
+          FROM_HERE,
+          "Reset not allowed in this state. Cancel the ongoing update first");
+  }
 }
 
 void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,

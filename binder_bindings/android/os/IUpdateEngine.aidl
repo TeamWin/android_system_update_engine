@@ -27,4 +27,5 @@ interface IUpdateEngine {
   void suspend();
   void resume();
   void cancel();
+  void resetStatus();
 }

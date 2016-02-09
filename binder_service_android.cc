@@ -121,6 +121,13 @@ Status BinderUpdateEngineAndroidService::cancel() {
   return Status::ok();
 }
 
+Status BinderUpdateEngineAndroidService::resetStatus() {
+  brillo::ErrorPtr error;
+  if (!service_delegate_->ResetStatus(&error))
+    return ErrorPtrToStatus(error);
+  return Status::ok();
+}
+
 void BinderUpdateEngineAndroidService::UnbindCallback(
     IUpdateEngineCallback* callback) {
   auto it =
