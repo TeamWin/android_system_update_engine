@@ -124,6 +124,7 @@ int UpdateEngineClientAndroid::OnInit() {
   DEFINE_bool(suspend, false, "Suspend an ongoing update and exit.");
   DEFINE_bool(resume, false, "Resume a suspended update.");
   DEFINE_bool(cancel, false, "Cancel the ongoing update and exit.");
+  DEFINE_bool(reset_status, false, "Reset an already applied update and exit.");
   DEFINE_bool(follow,
               false,
               "Follow status update changes until a final state is reached. "
@@ -172,6 +173,10 @@ int UpdateEngineClientAndroid::OnInit() {
 
   if (FLAGS_cancel) {
     return ExitWhenIdle(service_->cancel());
+  }
+
+  if (FLAGS_reset_status) {
+    return ExitWhenIdle(service_->resetStatus());
   }
 
   if (FLAGS_follow) {

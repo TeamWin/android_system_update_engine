@@ -67,6 +67,7 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
   android::binder::Status suspend() override;
   android::binder::Status resume() override;
   android::binder::Status cancel() override;
+  android::binder::Status resetStatus() override;
 
  private:
   // Remove the passed |callback| from the list of registered callbacks. Called
