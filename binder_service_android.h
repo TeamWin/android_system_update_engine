@@ -76,6 +76,11 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
   // List of currently bound callbacks.
   std::vector<android::sp<android::os::IUpdateEngineCallback>> callbacks_;
 
+  // Cached copy of the last status update sent. Used to send an initial
+  // notification when bind() is called from the client.
+  int last_status_{-1};
+  double last_progress_{0.0};
+
   ServiceDelegateAndroidInterface* service_delegate_;
 };
 
