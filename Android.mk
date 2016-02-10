@@ -380,6 +380,10 @@ LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES :=  $(ue_common_c_includes)
+#TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
+# out of the DBus interface.
+LOCAL_C_INCLUDES += \
+    external/cros/system_api/dbus
 LOCAL_STATIC_LIBRARIES := \
     $(ue_libupdate_engine_android_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES += \
@@ -395,7 +399,8 @@ LOCAL_SRC_FILES += \
     daemon_state_android.cc \
     hardware_android.cc \
     proxy_resolver.cc \
-    update_attempter_android.cc
+    update_attempter_android.cc \
+    update_status_utils.cc
 include $(BUILD_STATIC_LIBRARY)
 
 endif  # !defined(BRILLO)

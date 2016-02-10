@@ -64,6 +64,12 @@ class ServiceDelegateAndroidInterface {
   // sets |error| accordingly.
   virtual bool CancelUpdate(brillo::ErrorPtr* error) = 0;
 
+  // Reset the already applied update back to an idle state. This method can
+  // only be called when no update attempt is going on, and it will reset the
+  // status back to idle, deleting the currently applied update if any. In case
+  // of error, returns false and sets |error| accordingly.
+  virtual bool ResetStatus(brillo::ErrorPtr* error) = 0;
+
  protected:
   ServiceDelegateAndroidInterface() = default;
 };
