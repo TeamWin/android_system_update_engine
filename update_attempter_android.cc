@@ -159,8 +159,8 @@ bool UpdateAttempterAndroid::ApplyPayload(
       LOG(WARNING) << "Unable to save the update check response hash.";
     }
   }
-  // The |is_full_update| is not used anymore since minor_version 3.
-  install_plan_.is_full_update = true;
+  // The |payload_type| is not used anymore since minor_version 3.
+  install_plan_.payload_type = InstallPayloadType::kUnknown;
 
   install_plan_.source_slot = boot_control_->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;

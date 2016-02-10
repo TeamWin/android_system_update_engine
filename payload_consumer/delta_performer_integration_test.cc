@@ -715,7 +715,9 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   InstallPlan* install_plan = &state->install_plan;
   install_plan->hash_checks_mandatory = hash_checks_mandatory;
   install_plan->metadata_size = state->metadata_size;
-  install_plan->is_full_update = full_kernel && full_rootfs;
+  install_plan->payload_type = (full_kernel && full_rootfs)
+                                   ? InstallPayloadType::kFull
+                                   : InstallPayloadType::kDelta;
   install_plan->source_slot = 0;
   install_plan->target_slot = 1;
 

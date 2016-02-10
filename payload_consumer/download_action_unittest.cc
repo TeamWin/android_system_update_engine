@@ -143,14 +143,10 @@ void TestWithData(const brillo::Blob& data,
   // We pull off the first byte from data and seek past it.
   string hash = HashCalculator::HashOfBytes(&data[1], data.size() - 1);
   uint64_t size = data.size();
-  InstallPlan install_plan(false,
-                           false,
-                           "",
-                           size,
-                           hash,
-                           0,
-                           "",
-                           "");
+  InstallPlan install_plan;
+  install_plan.payload_type = InstallPayloadType::kDelta;
+  install_plan.payload_size = size;
+  install_plan.payload_hash = hash;
   install_plan.source_slot = 0;
   install_plan.target_slot = 1;
   // We mark both slots as bootable. Only the target slot should be unbootable
@@ -278,7 +274,7 @@ void TestTerminateEarly(bool use_download_delegate) {
 
     // takes ownership of passed in HttpFetcher
     ObjectFeederAction<InstallPlan> feeder_action;
-    InstallPlan install_plan(false, false, "", 0, "", 0, "", "");
+    InstallPlan install_plan;
     feeder_action.set_obj(install_plan);
     FakeSystemState fake_system_state_;
     MockPrefs prefs;
@@ -375,14 +371,9 @@ TEST(DownloadActionTest, PassObjectOutTest) {
   EXPECT_EQ(0, writer.Open("/dev/null", O_WRONLY | O_CREAT, 0));
 
   // takes ownership of passed in HttpFetcher
-  InstallPlan install_plan(false,
-                           false,
-                           "",
-                           1,
-                           HashCalculator::HashOfString("x"),
-                           0,
-                           "",
-                           "");
+  InstallPlan install_plan;
+  install_plan.payload_size = 1;
+  install_plan.payload_hash = HashCalculator::HashOfString("x");
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
@@ -463,14 +454,9 @@ class P2PDownloadActionTest : public testing::Test {
     EXPECT_EQ(0, writer.Open(output_temp_file.GetPath().c_str(),
                              O_WRONLY | O_CREAT,
                              0));
-    InstallPlan install_plan(false,
-                             false,
-                             "",
-                             data_.length(),
-                             "1234hash",
-                             0,
-                             "",
-                             "");
+    InstallPlan install_plan;
+    install_plan.payload_size = data_.length();
+    install_plan.payload_hash = "1234hash";
     ObjectFeederAction<InstallPlan> feeder_action;
     feeder_action.set_obj(install_plan);
     MockPrefs prefs;
