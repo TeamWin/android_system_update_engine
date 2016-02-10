@@ -53,6 +53,7 @@ bool ABGenerator::GenerateOperations(
       hard_chunk_blocks,
       soft_chunk_blocks,
       blob_file,
+      config.imgdiff_allowed,
       true));  // src_ops_allowed
   LOG(INFO) << "done reading " << new_part.name;
 
@@ -74,7 +75,7 @@ bool ABGenerator::GenerateOperations(
                                         new_part.path,
                                         blob_file));
 
-  if (config.minor_version == kOpSrcHashMinorPayloadVersion)
+  if (config.minor_version >= kOpSrcHashMinorPayloadVersion)
     TEST_AND_RETURN_FALSE(AddSourceHash(aops, old_part.path));
 
   return true;

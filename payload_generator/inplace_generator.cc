@@ -572,6 +572,7 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
         (*graph)[cut.old_dst].aop.name,
         -1,  // chunk_blocks, forces to have a single operation.
         blob_file,
+        false,
         false));  // src_ops_allowed
     TEST_AND_RETURN_FALSE(new_aop.size() == 1);
     TEST_AND_RETURN_FALSE(AddInstallOpToGraph(
@@ -807,6 +808,7 @@ bool InplaceGenerator::GenerateOperations(
                                    hard_chunk_blocks,
                                    soft_chunk_blocks,
                                    blob_file,
+                                   false,    // imgdiff_allowed
                                    false));  // src_ops_allowed
   LOG(INFO) << "Done reading " << new_part.name;
 
