@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_EXTENT_UTILS_H_
 #define UPDATE_ENGINE_PAYLOAD_GENERATOR_EXTENT_UTILS_H_
 
+#include <string>
 #include <vector>
 
 #include "update_engine/payload_consumer/payload_constants.h"
@@ -75,6 +76,9 @@ void StoreExtents(const std::vector<Extent>& extents,
 // Stores all extents in |extents| into |out_vector|.
 void ExtentsToVector(const google::protobuf::RepeatedPtrField<Extent>& extents,
                      std::vector<Extent>* out_vector);
+
+// Returns a string representing all extents in |extents|.
+std::string ExtentsToString(const std::vector<Extent>& extents);
 
 // Takes a pointer to extents |extents| and extents |extents_to_add|, and
 // merges them by adding |extents_to_add| to |extents| and normalizing.

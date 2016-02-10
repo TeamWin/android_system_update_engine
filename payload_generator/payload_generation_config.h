@@ -125,6 +125,9 @@ struct PayloadGenerationConfig {
   // Wheter the requested payload is a delta payload.
   bool is_delta = false;
 
+  // Wheter the IMGDIFF operation is allowed.
+  bool imgdiff_allowed = false;
+
   // The major_version of the requested payload.
   uint64_t major_version;
 

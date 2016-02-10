@@ -40,6 +40,7 @@ namespace chromeos_update_engine {
 namespace {
 
 const char* const kBsdiffPath = "bsdiff";
+const char* const kImgdiffPath = "imgdiff";
 
 // The maximum destination size allowed for bsdiff. In general, bsdiff should
 // work for arbitrary big files, but the payload generation and payload
@@ -146,6 +147,15 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
   return removed_bytes;
 }
 
+// Returns true if the given blob |data| contains gzip header magic.
+bool ContainsGZip(const brillo::Blob& data) {
+  const uint8_t kGZipMagic[] = {0x1f, 0x8b, 0x08, 0x00};
+  return std::search(data.begin(),
+                     data.end(),
+                     std::begin(kGZipMagic),
+                     std::end(kGZipMagic)) != data.end();
+}
+
 }  // namespace
 
 namespace diff_utils {
@@ -157,6 +167,7 @@ bool DeltaReadPartition(
     ssize_t hard_chunk_blocks,
     size_t soft_chunk_blocks,
     BlobFileWriter* blob_file,
+    bool imgdiff_allowed,
     bool src_ops_allowed) {
   ExtentRanges old_visited_blocks;
   ExtentRanges new_visited_blocks;
@@ -228,6 +239,7 @@ bool DeltaReadPartition(
         new_file.name,  // operation name
         hard_chunk_blocks,
         blob_file,
+        imgdiff_allowed,
         src_ops_allowed));
   }
   // Process all the blocks not included in any file. We provided all the unused
@@ -259,6 +271,7 @@ bool DeltaReadPartition(
       "<non-file-data>",  // operation name
       soft_chunk_blocks,
       blob_file,
+      imgdiff_allowed,
       src_ops_allowed));
 
   return true;
@@ -356,6 +369,7 @@ bool DeltaMovedAndZeroBlocks(
         "<zeros>",
         chunk_blocks,
         blob_file,
+        false,  // imgdiff_allowed
         src_ops_allowed));
   }
   LOG(INFO) << "Produced " << (aops->size() - num_ops) << " operations for "
@@ -416,6 +430,7 @@ bool DeltaReadFile(
     const string& name,
     ssize_t chunk_blocks,
     BlobFileWriter* blob_file,
+    bool imgdiff_allowed,
     bool src_ops_allowed) {
   brillo::Blob data;
   InstallOperation operation;
@@ -432,6 +447,7 @@ bool DeltaReadFile(
   if (static_cast<uint64_t>(chunk_blocks) * kBlockSize >
       kMaxBsdiffDestinationSize) {
     bsdiff_allowed = false;
+    imgdiff_allowed = false;
   }
 
   if (!bsdiff_allowed) {
@@ -456,6 +472,7 @@ bool DeltaReadFile(
                                             old_extents_chunk,
                                             new_extents_chunk,
                                             bsdiff_allowed,
+                                            imgdiff_allowed,
                                             &data,
                                             &operation,
                                             src_ops_allowed));
@@ -498,6 +515,7 @@ bool ReadExtentsToDiff(const string& old_part,
                        const vector<Extent>& old_extents,
                        const vector<Extent>& new_extents,
                        bool bsdiff_allowed,
+                       bool imgdiff_allowed,
                        brillo::Blob* out_data,
                        InstallOperation* out_op,
                        bool src_ops_allowed) {
@@ -540,6 +558,7 @@ bool ReadExtentsToDiff(const string& old_part,
   brillo::Blob old_data;
   brillo::Blob empty_blob;
   brillo::Blob bsdiff_delta;
+  brillo::Blob imgdiff_delta;
   if (blocks_to_read > 0) {
     // Read old data.
     TEST_AND_RETURN_FALSE(
@@ -553,32 +572,51 @@ bool ReadExtentsToDiff(const string& old_part,
         operation.set_type(InstallOperation::MOVE);
       }
       data_blob = &empty_blob;
-    } else if (bsdiff_allowed) {
+    } else if (bsdiff_allowed || imgdiff_allowed) {
       // If the source file is considered bsdiff safe (no bsdiff bugs
       // triggered), see if BSDIFF encoding is smaller.
       base::FilePath old_chunk;
       TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&old_chunk));
       ScopedPathUnlinker old_unlinker(old_chunk.value());
-      TEST_AND_RETURN_FALSE(
-          utils::WriteFile(old_chunk.value().c_str(),
-                           old_data.data(), old_data.size()));
+      TEST_AND_RETURN_FALSE(utils::WriteFile(
+          old_chunk.value().c_str(), old_data.data(), old_data.size()));
       base::FilePath new_chunk;
       TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&new_chunk));
       ScopedPathUnlinker new_unlinker(new_chunk.value());
-      TEST_AND_RETURN_FALSE(
-          utils::WriteFile(new_chunk.value().c_str(),
-                           new_data.data(), new_data.size()));
+      TEST_AND_RETURN_FALSE(utils::WriteFile(
+          new_chunk.value().c_str(), new_data.data(), new_data.size()));
 
-      TEST_AND_RETURN_FALSE(
-          BsdiffFiles(old_chunk.value(), new_chunk.value(), &bsdiff_delta));
-      CHECK_GT(bsdiff_delta.size(), static_cast<brillo::Blob::size_type>(0));
-      if (bsdiff_delta.size() < data_blob->size()) {
-        if (src_ops_allowed) {
-          operation.set_type(InstallOperation::SOURCE_BSDIFF);
-        } else {
-          operation.set_type(InstallOperation::BSDIFF);
+      if (bsdiff_allowed) {
+        TEST_AND_RETURN_FALSE(DiffFiles(
+            kBsdiffPath, old_chunk.value(), new_chunk.value(), &bsdiff_delta));
+        CHECK_GT(bsdiff_delta.size(), static_cast<brillo::Blob::size_type>(0));
+        if (bsdiff_delta.size() < data_blob->size()) {
+          if (src_ops_allowed) {
+            operation.set_type(InstallOperation::SOURCE_BSDIFF);
+          } else {
+            operation.set_type(InstallOperation::BSDIFF);
+          }
+          data_blob = &bsdiff_delta;
         }
-        data_blob = &bsdiff_delta;
+      }
+      if (imgdiff_allowed && ContainsGZip(old_data) && ContainsGZip(new_data)) {
+        // Imgdiff might fail in some cases, only use the result if it succeed,
+        // otherwise print the extents to analyze.
+        if (DiffFiles(kImgdiffPath,
+                      old_chunk.value(),
+                      new_chunk.value(),
+                      &imgdiff_delta) &&
+            imgdiff_delta.size() > 0) {
+          if (imgdiff_delta.size() < data_blob->size()) {
+            operation.set_type(InstallOperation::IMGDIFF);
+            data_blob = &imgdiff_delta;
+          }
+        } else {
+          LOG(ERROR) << "Imgdiff failed with source extents: "
+                     << ExtentsToString(src_extents)
+                     << ", destination extents: "
+                     << ExtentsToString(dst_extents);
+        }
       }
     }
   }
@@ -610,11 +648,12 @@ bool ReadExtentsToDiff(const string& old_part,
   return true;
 }
 
-// Runs the bsdiff tool on two files and returns the resulting delta in
-// 'out'. Returns true on success.
-bool BsdiffFiles(const string& old_file,
-                 const string& new_file,
-                 brillo::Blob* out) {
+// Runs the bsdiff or imgdiff tool in |diff_path| on two files and returns the
+// resulting delta in |out|. Returns true on success.
+bool DiffFiles(const string& diff_path,
+               const string& old_file,
+               const string& new_file,
+               brillo::Blob* out) {
   const string kPatchFile = "delta.patchXXXXXX";
   string patch_file_path;
 
@@ -622,15 +661,19 @@ bool BsdiffFiles(const string& old_file,
       utils::MakeTempFile(kPatchFile, &patch_file_path, nullptr));
 
   vector<string> cmd;
-  cmd.push_back(kBsdiffPath);
+  cmd.push_back(diff_path);
   cmd.push_back(old_file);
   cmd.push_back(new_file);
   cmd.push_back(patch_file_path);
 
   int rc = 1;
   brillo::Blob patch_file;
-  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &rc, nullptr));
-  TEST_AND_RETURN_FALSE(rc == 0);
+  string stdout;
+  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &rc, &stdout));
+  if (rc != 0) {
+    LOG(ERROR) << diff_path << " returned " << rc << std::endl << stdout;
+    return false;
+  }
   TEST_AND_RETURN_FALSE(utils::ReadFile(patch_file_path, out));
   unlink(patch_file_path.c_str());
   return true;
