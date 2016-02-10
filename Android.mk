@@ -465,7 +465,8 @@ ifdef BRILLO
 LOCAL_SHARED_LIBRARIES += \
     libupdate_engine_client
 LOCAL_SRC_FILES := \
-    update_engine_client.cc
+    update_engine_client.cc \
+    common/error_code_utils.cc
 else  # !defined(BRILLO)
 #TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
 # out of the DBus interface.

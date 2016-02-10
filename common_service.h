@@ -127,6 +127,10 @@ class UpdateEngineService {
   bool GetRollbackPartition(brillo::ErrorPtr* error,
                             std::string* out_rollback_partition_name);
 
+  // Returns the last UpdateAttempt error.
+  bool GetLastAttemptError(brillo::ErrorPtr* error,
+                           int32_t* out_last_attempt_error);
+
  private:
   SystemState* system_state_;
 };

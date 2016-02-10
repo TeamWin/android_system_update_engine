@@ -129,6 +129,10 @@ class DBusUpdateEngineService
   bool GetRollbackPartition(brillo::ErrorPtr* error,
                             std::string* out_rollback_partition_name) override;
 
+  // Returns the last UpdateAttempt error. If not updated yet, default success
+  // ErrorCode will be returned.
+  bool GetLastAttemptError(brillo::ErrorPtr* error,
+                           int32_t* out_last_attempt_error) override;
  private:
   std::unique_ptr<UpdateEngineService> common_;
 };

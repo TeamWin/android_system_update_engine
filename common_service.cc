@@ -35,6 +35,7 @@
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/update_attempter.h"
+#include "update_engine/payload_state_interface.h"
 
 using base::StringPrintf;
 using brillo::ErrorPtr;
@@ -318,4 +319,10 @@ bool UpdateEngineService::GetRollbackPartition(
   return true;
 }
 
+bool UpdateEngineService::GetLastAttemptError(ErrorPtr* /* error */,
+                                              int32_t* out_last_attempt_error) {
+  ErrorCode error_code = system_state_->payload_state()->GetAttemptErrorCode();
+  *out_last_attempt_error = static_cast<int>(error_code);
+  return true;
+}
 }  // namespace chromeos_update_engine
