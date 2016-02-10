@@ -61,7 +61,6 @@ bool DaemonStateAndroid::Initialize() {
   // Initialize the UpdateAttempter before the UpdateManager.
   update_attempter_.reset(new UpdateAttempterAndroid(
       this, prefs_.get(), boot_control_.get(), hardware_.get()));
-  update_attempter_->Init();
 
   return true;
 }
@@ -69,6 +68,7 @@ bool DaemonStateAndroid::Initialize() {
 bool DaemonStateAndroid::StartUpdater() {
   // The DaemonState in Android is a passive daemon. It will only start applying
   // an update when instructed to do so from the exposed binder API.
+  update_attempter_->Init();
   return true;
 }
 
