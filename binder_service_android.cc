@@ -45,8 +45,10 @@ void BinderUpdateEngineAndroidService::SendStatusUpdate(
     update_engine::UpdateStatus status,
     const std::string& /* new_version  */,
     int64_t /* new_size */) {
+  last_status_ = static_cast<int>(status);
+  last_progress_ = progress;
   for (auto& callback : callbacks_) {
-    callback->onStatusUpdate(static_cast<int>(status), progress);
+    callback->onStatusUpdate(last_status_, last_progress_);
   }
 }
 
@@ -67,6 +69,12 @@ Status BinderUpdateEngineAndroidService::bind(
       base::Bind(&BinderUpdateEngineAndroidService::UnbindCallback,
                  base::Unretained(this),
                  base::Unretained(callback.get())));
+
+  // Send an status update on connection (except when no update sent so far),
+  // since the status update is oneway and we don't need to wait for the
+  // response.
+  if (last_status_ != -1)
+    callback->onStatusUpdate(last_status_, last_progress_);
 
   *return_value = true;
   return Status::ok();

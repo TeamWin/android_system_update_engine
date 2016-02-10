@@ -86,9 +86,9 @@ void UpdateAttempterAndroid::Init() {
   // In case of update_engine restart without a reboot we need to restore the
   // reboot needed state.
   if (UpdateCompletedOnThisBoot())
-    status_ = UpdateStatus::UPDATED_NEED_REBOOT;
+    SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
   else
-    status_ = UpdateStatus::IDLE;
+    SetStatusAndNotify(UpdateStatus::IDLE);
 }
 
 bool UpdateAttempterAndroid::ApplyPayload(
