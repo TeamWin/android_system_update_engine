@@ -86,7 +86,7 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
   EXPECT_EQ(new_part_chunks, aops.size());
   for (off_t i = 0; i < new_part_chunks; ++i) {
     EXPECT_EQ(1, aops[i].op.dst_extents_size());
-    EXPECT_EQ(i * config_.hard_chunk_size / config_.block_size,
+    EXPECT_EQ(static_cast<uint64_t>(i * config_.hard_chunk_size / config_.block_size),
               aops[i].op.dst_extents(0).start_block()) << "i = " << i;
     EXPECT_EQ(config_.hard_chunk_size / config_.block_size,
               aops[i].op.dst_extents(0).num_blocks());
@@ -112,7 +112,7 @@ TEST_F(FullUpdateGeneratorTest, ChunkSizeTooBig) {
                                             blob_file_.get(),
                                             &aops));
   // new_part has one chunk and a half.
-  EXPECT_EQ(2, aops.size());
+  EXPECT_EQ(2U, aops.size());
   EXPECT_EQ(config_.hard_chunk_size / config_.block_size,
             BlocksInExtents(aops[0].op.dst_extents()));
   EXPECT_EQ((new_part.size() - config_.hard_chunk_size) / config_.block_size,
@@ -134,7 +134,7 @@ TEST_F(FullUpdateGeneratorTest, ImageSizeTooSmall) {
                                             &aops));
 
   // new_part has less than one chunk.
-  EXPECT_EQ(1, aops.size());
+  EXPECT_EQ(1U, aops.size());
   EXPECT_EQ(new_part.size() / config_.block_size,
             BlocksInExtents(aops[0].op.dst_extents()));
 }

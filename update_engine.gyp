@@ -450,8 +450,8 @@
         {
           'target_name': 'test_http_server',
           'type': 'executable',
-          'dependencies': ['libupdate_engine'],
           'sources': [
+            'common/http_common.cc',
             'test_http_server.cc',
           ],
         },

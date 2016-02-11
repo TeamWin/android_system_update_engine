@@ -34,43 +34,43 @@ class ExtentUtilsTest : public ::testing::Test {};
 TEST(ExtentUtilsTest, AppendSparseToExtentsTest) {
   vector<Extent> extents;
 
-  EXPECT_EQ(0, extents.size());
+  EXPECT_EQ(0U, extents.size());
   AppendBlockToExtents(&extents, kSparseHole);
-  EXPECT_EQ(1, extents.size());
+  EXPECT_EQ(1U, extents.size());
   AppendBlockToExtents(&extents, 0);
-  EXPECT_EQ(2, extents.size());
+  EXPECT_EQ(2U, extents.size());
   AppendBlockToExtents(&extents, kSparseHole);
   AppendBlockToExtents(&extents, kSparseHole);
 
-  ASSERT_EQ(3, extents.size());
+  ASSERT_EQ(3U, extents.size());
   EXPECT_EQ(kSparseHole, extents[0].start_block());
-  EXPECT_EQ(1, extents[0].num_blocks());
-  EXPECT_EQ(0, extents[1].start_block());
-  EXPECT_EQ(1, extents[1].num_blocks());
+  EXPECT_EQ(1U, extents[0].num_blocks());
+  EXPECT_EQ(0U, extents[1].start_block());
+  EXPECT_EQ(1U, extents[1].num_blocks());
   EXPECT_EQ(kSparseHole, extents[2].start_block());
-  EXPECT_EQ(2, extents[2].num_blocks());
+  EXPECT_EQ(2U, extents[2].num_blocks());
 }
 
 TEST(ExtentUtilsTest, BlocksInExtentsTest) {
   {
     vector<Extent> extents;
-    EXPECT_EQ(0, BlocksInExtents(extents));
+    EXPECT_EQ(0U, BlocksInExtents(extents));
     extents.push_back(ExtentForRange(0, 1));
-    EXPECT_EQ(1, BlocksInExtents(extents));
+    EXPECT_EQ(1U, BlocksInExtents(extents));
     extents.push_back(ExtentForRange(23, 55));
-    EXPECT_EQ(56, BlocksInExtents(extents));
+    EXPECT_EQ(56U, BlocksInExtents(extents));
     extents.push_back(ExtentForRange(1, 2));
-    EXPECT_EQ(58, BlocksInExtents(extents));
+    EXPECT_EQ(58U, BlocksInExtents(extents));
   }
   {
     google::protobuf::RepeatedPtrField<Extent> extents;
-    EXPECT_EQ(0, BlocksInExtents(extents));
+    EXPECT_EQ(0U, BlocksInExtents(extents));
     *extents.Add() = ExtentForRange(0, 1);
-    EXPECT_EQ(1, BlocksInExtents(extents));
+    EXPECT_EQ(1U, BlocksInExtents(extents));
     *extents.Add() = ExtentForRange(23, 55);
-    EXPECT_EQ(56, BlocksInExtents(extents));
+    EXPECT_EQ(56U, BlocksInExtents(extents));
     *extents.Add() = ExtentForRange(1, 2);
-    EXPECT_EQ(58, BlocksInExtents(extents));
+    EXPECT_EQ(58U, BlocksInExtents(extents));
   }
 }
 
@@ -96,11 +96,11 @@ TEST(ExtentUtilsTest, NormalizeExtentsSimpleList) {
   // Make sure it works when there's just one extent.
   vector<Extent> extents;
   NormalizeExtents(&extents);
-  EXPECT_EQ(0, extents.size());
+  EXPECT_EQ(0U, extents.size());
 
   extents = { ExtentForRange(0, 3) };
   NormalizeExtents(&extents);
-  EXPECT_EQ(1, extents.size());
+  EXPECT_EQ(1U, extents.size());
   EXPECT_EQ(ExtentForRange(0, 3), extents[0]);
 }
 
@@ -114,7 +114,7 @@ TEST(ExtentUtilsTest, NormalizeExtentsTest) {
       ExtentForRange(14, 2)
   };
   NormalizeExtents(&extents);
-  EXPECT_EQ(3, extents.size());
+  EXPECT_EQ(3U, extents.size());
   EXPECT_EQ(ExtentForRange(0, 6), extents[0]);
   EXPECT_EQ(ExtentForRange(8, 4), extents[1]);
   EXPECT_EQ(ExtentForRange(13, 3), extents[2]);

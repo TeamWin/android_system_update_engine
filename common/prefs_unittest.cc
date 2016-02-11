@@ -144,18 +144,18 @@ TEST_F(PrefsTest, GetInt64BadValue) {
 
 TEST_F(PrefsTest, GetInt64Max) {
   ASSERT_TRUE(SetValue(kKey, base::StringPrintf(
-      "%" PRIi64, std::numeric_limits<uint64_t>::max())));
+      "%" PRIi64, std::numeric_limits<int64_t>::max())));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
-  EXPECT_EQ(std::numeric_limits<uint64_t>::max(), value);
+  EXPECT_EQ(std::numeric_limits<int64_t>::max(), value);
 }
 
 TEST_F(PrefsTest, GetInt64Min) {
   ASSERT_TRUE(SetValue(kKey, base::StringPrintf(
-        "%" PRIi64, std::numeric_limits<uint64_t>::min())));
+        "%" PRIi64, std::numeric_limits<int64_t>::min())));
   int64_t value;
   EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
-  EXPECT_EQ(std::numeric_limits<uint64_t>::min(), value);
+  EXPECT_EQ(std::numeric_limits<int64_t>::min(), value);
 }
 
 TEST_F(PrefsTest, GetInt64Negative) {

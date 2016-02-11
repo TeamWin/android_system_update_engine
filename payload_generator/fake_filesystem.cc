@@ -44,7 +44,7 @@ void FakeFilesystem::AddFile(const std::string& filename,
   file.name = filename;
   file.extents = extents;
   for (const Extent& extent : extents) {
-    EXPECT_LE(0, extent.start_block());
+    EXPECT_LE(0U, extent.start_block());
     EXPECT_LE(extent.start_block() + extent.num_blocks(), block_count_);
   }
   files_.push_back(file);

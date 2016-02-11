@@ -91,7 +91,7 @@ TEST(CycleBreakerTest, SimpleTest) {
               utils::SetContainsKey(broken_edges, make_pair(n_e, n_c)));
   EXPECT_TRUE(utils::SetContainsKey(broken_edges, make_pair(n_g, n_h)) ||
               utils::SetContainsKey(broken_edges, make_pair(n_h, n_g)));
-  EXPECT_EQ(3, broken_edges.size());
+  EXPECT_EQ(3U, broken_edges.size());
 }
 
 namespace {
@@ -127,7 +127,7 @@ uint64_t weight) {
 // the algorithm to cut cycles (t) instead, since they are closer to the
 // root, and that can massively speed up cycle cutting.
 TEST(CycleBreakerTest, AggressiveCutTest) {
-  int counter = 0;
+  size_t counter = 0;
 
   const int kNodesPerGroup = 4;
   const int kGroups = 33;
@@ -176,7 +176,7 @@ TEST(CycleBreakerTest, AggressiveCutTest) {
 }
 
 TEST(CycleBreakerTest, WeightTest) {
-  int counter = 0;
+  size_t counter = 0;
   const Vertex::Index n_a = counter++;
   const Vertex::Index n_b = counter++;
   const Vertex::Index n_c = counter++;
@@ -225,7 +225,7 @@ TEST(CycleBreakerTest, WeightTest) {
 }
 
 TEST(CycleBreakerTest, UnblockGraphTest) {
-  int counter = 0;
+  size_t counter = 0;
   const Vertex::Index n_a = counter++;
   const Vertex::Index n_b = counter++;
   const Vertex::Index n_c = counter++;
@@ -253,7 +253,7 @@ TEST(CycleBreakerTest, UnblockGraphTest) {
 }
 
 TEST(CycleBreakerTest, SkipOpsTest) {
-  int counter = 0;
+  size_t counter = 0;
   const Vertex::Index n_a = counter++;
   const Vertex::Index n_b = counter++;
   const Vertex::Index n_c = counter++;
@@ -272,7 +272,7 @@ TEST(CycleBreakerTest, SkipOpsTest) {
   set<Edge> broken_edges;
   breaker.BreakCycles(graph, &broken_edges);
 
-  EXPECT_EQ(2, breaker.skipped_ops());
+  EXPECT_EQ(2U, breaker.skipped_ops());
 }
 
 }  // namespace chromeos_update_engine

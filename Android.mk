@@ -682,6 +682,138 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
 include $(BUILD_EXECUTABLE)
 
+# TODO(deymo): Enable the unittest binaries in non-Brillo builds once the DBus
+# dependencies are removed or placed behind the USE_DBUS flag.
+ifdef BRILLO
+
+# test_http_server (type: executable)
+# ========================================================
+# Test HTTP Server.
+include $(CLEAR_VARS)
+LOCAL_MODULE := test_http_server
+ifdef BRILLO
+  LOCAL_MODULE_TAGS := eng
+endif
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := $(ue_common_c_includes)
+LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
+LOCAL_SRC_FILES := \
+    common/http_common.cc \
+    test_http_server.cc
+include $(BUILD_NATIVE_TEST)
+
+# update_engine_unittests (type: executable)
+# ========================================================
+# Main unittest file.
+include $(CLEAR_VARS)
+LOCAL_MODULE := update_engine_unittests
+ifdef BRILLO
+  LOCAL_MODULE_TAGS := eng
+endif
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    $(ue_libupdate_engine_exported_c_includes)
+LOCAL_STATIC_LIBRARIES := \
+    libupdate_engine \
+    libpayload_generator \
+    libbrillo-test-helpers \
+    libgmock \
+    libgtest \
+    libchrome_test_helpers \
+    $(ue_libupdate_engine_exported_static_libraries:-host=) \
+    $(ue_libpayload_generator_exported_static_libraries:-host=)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libupdate_engine_exported_shared_libraries:-host=) \
+    $(ue_libpayload_generator_exported_shared_libraries:-host=)
+LOCAL_SRC_FILES := \
+    common/action_pipe_unittest.cc \
+    common/action_processor_unittest.cc \
+    common/action_unittest.cc \
+    common/certificate_checker_unittest.cc \
+    common/cpu_limiter_unittest.cc \
+    common/fake_prefs.cc \
+    common/hash_calculator_unittest.cc \
+    common/http_fetcher_unittest.cc \
+    common/hwid_override_unittest.cc \
+    common/mock_http_fetcher.cc \
+    common/prefs_unittest.cc \
+    common/subprocess_unittest.cc \
+    common/terminator_unittest.cc \
+    common/test_utils.cc \
+    common/utils_unittest.cc \
+    common_service_unittest.cc \
+    connection_manager_unittest.cc \
+    fake_shill_proxy.cc \
+    fake_system_state.cc \
+    metrics_utils_unittest.cc \
+    omaha_request_action_unittest.cc \
+    omaha_request_params_unittest.cc \
+    omaha_response_handler_action_unittest.cc \
+    p2p_manager_unittest.cc \
+    payload_consumer/bzip_extent_writer_unittest.cc \
+    payload_consumer/delta_performer_integration_test.cc \
+    payload_consumer/delta_performer_unittest.cc \
+    payload_consumer/download_action_unittest.cc \
+    payload_consumer/extent_writer_unittest.cc \
+    payload_consumer/file_writer_unittest.cc \
+    payload_consumer/filesystem_verifier_action_unittest.cc \
+    payload_consumer/postinstall_runner_action_unittest.cc \
+    payload_consumer/xz_extent_writer_unittest.cc \
+    payload_generator/ab_generator_unittest.cc \
+    payload_generator/blob_file_writer_unittest.cc \
+    payload_generator/block_mapping_unittest.cc \
+    payload_generator/cycle_breaker_unittest.cc \
+    payload_generator/delta_diff_utils_unittest.cc \
+    payload_generator/ext2_filesystem_unittest.cc \
+    payload_generator/extent_ranges_unittest.cc \
+    payload_generator/extent_utils_unittest.cc \
+    payload_generator/fake_filesystem.cc \
+    payload_generator/full_update_generator_unittest.cc \
+    payload_generator/graph_utils_unittest.cc \
+    payload_generator/inplace_generator_unittest.cc \
+    payload_generator/payload_file_unittest.cc \
+    payload_generator/payload_generation_config_unittest.cc \
+    payload_generator/payload_signer_unittest.cc \
+    payload_generator/tarjan_unittest.cc \
+    payload_generator/topological_sort_unittest.cc \
+    payload_generator/zip_unittest.cc \
+    payload_state_unittest.cc \
+    update_attempter_unittest.cc \
+    update_manager/boxed_value_unittest.cc \
+    update_manager/chromeos_policy_unittest.cc \
+    update_manager/evaluation_context_unittest.cc \
+    update_manager/generic_variables_unittest.cc \
+    update_manager/prng_unittest.cc \
+    update_manager/real_config_provider_unittest.cc \
+    update_manager/real_device_policy_provider_unittest.cc \
+    update_manager/real_random_provider_unittest.cc \
+    update_manager/real_shill_provider_unittest.cc \
+    update_manager/real_system_provider_unittest.cc \
+    update_manager/real_time_provider_unittest.cc \
+    update_manager/real_updater_provider_unittest.cc \
+    update_manager/umtest_utils.cc \
+    update_manager/update_manager_unittest.cc \
+    update_manager/variable_unittest.cc \
+    testrunner.cc
+ifeq ($(local_use_libcros),1)
+LOCAL_SRC_FILES += \
+    chrome_browser_proxy_resolver_unittest.cc
+endif  # local_use_libcros == 1
+include $(BUILD_NATIVE_TEST)
+endif  # BRILLO
+
 # Weave schema files
 # ========================================================
 include $(CLEAR_VARS)

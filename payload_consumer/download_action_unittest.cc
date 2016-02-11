@@ -532,8 +532,10 @@ TEST_F(P2PDownloadActionTest, IsWrittenTo) {
   // Check the p2p file and its content matches what was sent.
   string file_id = download_action_->p2p_file_id();
   EXPECT_NE("", file_id);
-  EXPECT_EQ(data_.length(), p2p_manager_->FileGetSize(file_id));
-  EXPECT_EQ(data_.length(), p2p_manager_->FileGetExpectedSize(file_id));
+  EXPECT_EQ(static_cast<int>(data_.length()),
+            p2p_manager_->FileGetSize(file_id));
+  EXPECT_EQ(static_cast<int>(data_.length()),
+            p2p_manager_->FileGetExpectedSize(file_id));
   string p2p_file_contents;
   EXPECT_TRUE(ReadFileToString(p2p_manager_->FileGetPath(file_id),
                                &p2p_file_contents));
@@ -580,8 +582,10 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
   // DownloadAction should convey the same file_id and the file should
   // have the expected size.
   EXPECT_EQ(download_action_->p2p_file_id(), file_id);
-  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), data_.length());
-  EXPECT_EQ(p2p_manager_->FileGetExpectedSize(file_id), data_.length());
+  EXPECT_EQ(static_cast<ssize_t>(data_.length()),
+            p2p_manager_->FileGetSize(file_id));
+  EXPECT_EQ(static_cast<ssize_t>(data_.length()),
+            p2p_manager_->FileGetExpectedSize(file_id));
   string p2p_file_contents;
   // Check that the first 1000 bytes wasn't touched and that we
   // appended the remaining as appropriate.
@@ -611,14 +615,14 @@ TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
                       1000), 1000);
 
   // Check that the file is there.
-  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), 1000);
-  EXPECT_EQ(p2p_manager_->CountSharedFiles(), 1);
+  EXPECT_EQ(1000, p2p_manager_->FileGetSize(file_id));
+  EXPECT_EQ(1, p2p_manager_->CountSharedFiles());
 
   StartDownload(false);  // use_p2p_to_share
 
   // DownloadAction should have deleted the p2p file. Check that it's gone.
-  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), -1);
-  EXPECT_EQ(p2p_manager_->CountSharedFiles(), 0);
+  EXPECT_EQ(-1, p2p_manager_->FileGetSize(file_id));
+  EXPECT_EQ(0, p2p_manager_->CountSharedFiles());
 }
 
 }  // namespace chromeos_update_engine

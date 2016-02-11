@@ -16,6 +16,7 @@
 
 #include "update_engine/payload_consumer/delta_performer.h"
 
+#include <endian.h>
 #include <inttypes.h>
 
 #include <string>
@@ -649,7 +650,7 @@ TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   EXPECT_EQ(kBrilloMajorPayloadVersion, performer_.GetMajorVersion());
   uint64_t manifest_offset;
   EXPECT_TRUE(performer_.GetManifestOffset(&manifest_offset));
-  EXPECT_EQ(24, manifest_offset);  // 4 + 8 + 8 + 4
+  EXPECT_EQ(24U, manifest_offset);  // 4 + 8 + 8 + 4
   EXPECT_EQ(manifest_offset + manifest_size, performer_.GetMetadataSize());
   EXPECT_EQ(metadata_signature_size, performer_.metadata_signature_size_);
 }

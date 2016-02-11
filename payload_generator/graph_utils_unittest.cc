@@ -39,21 +39,21 @@ TEST(GraphUtilsTest, SimpleTest) {
 
   vector<Extent>& extents = graph[0].out_edges[1].extents;
 
-  EXPECT_EQ(0, extents.size());
+  EXPECT_EQ(0U, extents.size());
   AppendBlockToExtents(&extents, 0);
-  EXPECT_EQ(1, extents.size());
+  EXPECT_EQ(1U, extents.size());
   AppendBlockToExtents(&extents, 1);
   AppendBlockToExtents(&extents, 2);
-  EXPECT_EQ(1, extents.size());
+  EXPECT_EQ(1U, extents.size());
   AppendBlockToExtents(&extents, 4);
 
-  EXPECT_EQ(2, extents.size());
-  EXPECT_EQ(0, extents[0].start_block());
-  EXPECT_EQ(3, extents[0].num_blocks());
-  EXPECT_EQ(4, extents[1].start_block());
-  EXPECT_EQ(1, extents[1].num_blocks());
+  EXPECT_EQ(2U, extents.size());
+  EXPECT_EQ(0U, extents[0].start_block());
+  EXPECT_EQ(3U, extents[0].num_blocks());
+  EXPECT_EQ(4U, extents[1].start_block());
+  EXPECT_EQ(1U, extents[1].num_blocks());
 
-  EXPECT_EQ(4, graph_utils::EdgeWeight(graph, make_pair(0, 1)));
+  EXPECT_EQ(4U, graph_utils::EdgeWeight(graph, make_pair(0, 1)));
 }
 
 
@@ -61,35 +61,35 @@ TEST(GraphUtilsTest, DepsTest) {
   Graph graph(3);
 
   graph_utils::AddReadBeforeDep(&graph[0], 1, 3);
-  EXPECT_EQ(1, graph[0].out_edges.size());
+  EXPECT_EQ(1U, graph[0].out_edges.size());
   {
     Extent& extent = graph[0].out_edges[1].extents[0];
-    EXPECT_EQ(3, extent.start_block());
-    EXPECT_EQ(1, extent.num_blocks());
+    EXPECT_EQ(3U, extent.start_block());
+    EXPECT_EQ(1U, extent.num_blocks());
   }
   graph_utils::AddReadBeforeDep(&graph[0], 1, 4);
-  EXPECT_EQ(1, graph[0].out_edges.size());
+  EXPECT_EQ(1U, graph[0].out_edges.size());
   {
     Extent& extent = graph[0].out_edges[1].extents[0];
-    EXPECT_EQ(3, extent.start_block());
-    EXPECT_EQ(2, extent.num_blocks());
+    EXPECT_EQ(3U, extent.start_block());
+    EXPECT_EQ(2U, extent.num_blocks());
   }
   graph_utils::AddReadBeforeDepExtents(&graph[2], 1,
     vector<Extent>(1, ExtentForRange(5, 2)));
-  EXPECT_EQ(1, graph[2].out_edges.size());
+  EXPECT_EQ(1U, graph[2].out_edges.size());
   {
     Extent& extent = graph[2].out_edges[1].extents[0];
-    EXPECT_EQ(5, extent.start_block());
-    EXPECT_EQ(2, extent.num_blocks());
+    EXPECT_EQ(5U, extent.start_block());
+    EXPECT_EQ(2U, extent.num_blocks());
   }
   // Change most recent edge from read-before to write-before
   graph[2].out_edges[1].write_extents.swap(graph[2].out_edges[1].extents);
   graph_utils::DropWriteBeforeDeps(&graph[2].out_edges);
-  EXPECT_EQ(0, graph[2].out_edges.size());
+  EXPECT_EQ(0U, graph[2].out_edges.size());
 
-  EXPECT_EQ(1, graph[0].out_edges.size());
+  EXPECT_EQ(1U, graph[0].out_edges.size());
   graph_utils::DropIncomingEdgesTo(&graph, 1);
-  EXPECT_EQ(0, graph[0].out_edges.size());
+  EXPECT_EQ(0U, graph[0].out_edges.size());
 }
 
 }  // namespace chromeos_update_engine

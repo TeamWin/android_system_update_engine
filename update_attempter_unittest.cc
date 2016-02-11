@@ -254,7 +254,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_EQ(500, attempter_.http_response_code());
   EXPECT_EQ(UpdateStatus::IDLE, attempter_.status());
-  EXPECT_EQ(234, attempter_.server_dictated_poll_interval_);
+  EXPECT_EQ(234U, attempter_.server_dictated_poll_interval_);
   ASSERT_TRUE(attempter_.error_event_.get() == nullptr);
 }
 
@@ -429,9 +429,10 @@ void UpdateAttempterTest::UpdateTestVerify() {
   }
   EXPECT_EQ(attempter_.response_handler_action_.get(),
             attempter_.actions_[1].get());
-  DownloadAction* download_action =
-      dynamic_cast<DownloadAction*>(attempter_.actions_[4].get());
-  ASSERT_NE(nullptr, download_action);
+  AbstractAction* action_4 = attempter_.actions_[4].get();
+  ASSERT_NE(nullptr, action_4);
+  ASSERT_EQ(DownloadAction::StaticType(), action_4->Type());
+  DownloadAction* download_action = static_cast<DownloadAction*>(action_4);
   EXPECT_EQ(&attempter_, download_action->delegate());
   EXPECT_EQ(UpdateStatus::CHECKING_FOR_UPDATE, attempter_.status());
   loop_.BreakLoop();
@@ -501,10 +502,13 @@ void UpdateAttempterTest::RollbackTestVerify() {
     EXPECT_EQ(kRollbackActionTypes[i], attempter_.actions_[i]->Type());
   }
   EXPECT_EQ(UpdateStatus::ATTEMPTING_ROLLBACK, attempter_.status());
+  AbstractAction* action_0 = attempter_.actions_[0].get();
+  ASSERT_NE(nullptr, action_0);
+  ASSERT_EQ(InstallPlanAction::StaticType(), action_0->Type());
   InstallPlanAction* install_plan_action =
-        dynamic_cast<InstallPlanAction*>(attempter_.actions_[0].get());
+      static_cast<InstallPlanAction*>(action_0);
   InstallPlan* install_plan = install_plan_action->install_plan();
-  EXPECT_EQ(0, install_plan->partitions.size());
+  EXPECT_EQ(0U, install_plan->partitions.size());
   EXPECT_EQ(install_plan->powerwash_required, true);
   loop_.BreakLoop();
 }

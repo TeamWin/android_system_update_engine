@@ -74,7 +74,7 @@ TYPED_TEST(ZipTest, SimpleTest) {
   brillo::Blob out;
   EXPECT_TRUE(this->ZipCompressString(in, &out));
   EXPECT_LT(out.size(), in.size());
-  EXPECT_GT(out.size(), 0);
+  EXPECT_GT(out.size(), 0U);
   brillo::Blob decompressed;
   EXPECT_TRUE(this->ZipDecompress(out, &decompressed));
   EXPECT_EQ(in.size(), decompressed.size());
@@ -105,10 +105,10 @@ TYPED_TEST(ZipTest, EmptyInputsTest) {
   string in;
   brillo::Blob out;
   EXPECT_TRUE(this->ZipDecompressString(in, &out));
-  EXPECT_EQ(0, out.size());
+  EXPECT_EQ(0U, out.size());
 
   EXPECT_TRUE(this->ZipCompressString(in, &out));
-  EXPECT_EQ(0, out.size());
+  EXPECT_EQ(0U, out.size());
 }
 
 }  // namespace chromeos_update_engine
