@@ -125,7 +125,9 @@ UpdateAttempter::UpdateAttempter(
     : processor_(new ActionProcessor()),
       system_state_(system_state),
       cert_checker_(cert_checker),
+#if USE_LIBCROS
       chrome_proxy_resolver_(libcros_proxy),
+#endif  // USE_LIBCROS
       debugd_proxy_(debugd_proxy) {
 }
 
@@ -155,7 +157,9 @@ void UpdateAttempter::Init() {
   else
     status_ = UpdateStatus::IDLE;
 
+#if USE_LIBCROS
   chrome_proxy_resolver_.Init();
+#endif  // USE_LIBCROS
 }
 
 void UpdateAttempter::ScheduleUpdates() {
