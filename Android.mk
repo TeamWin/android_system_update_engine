@@ -448,6 +448,57 @@ endif  # !defined(BRILLO)
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)
 
+# libupdate_engine_client (type: shared_library)
+# ========================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := libupdate_engine_client
+LOCAL_CFLAGS := \
+    -Wall \
+    -Werror \
+    -Wno-unused-parameter \
+    -DUSE_DBUS=$(local_use_dbus) \
+    -DUSE_BINDER=$(local_use_binder)
+LOCAL_CLANG := true
+LOCAL_CPP_EXTENSION := .cc
+# TODO(deymo): Remove "external/cros/system_api/dbus" when dbus is not used.
+LOCAL_C_INCLUDES := \
+    $(LOCAL_PATH)/client_library/include \
+    external/cros/system_api/dbus \
+    system \
+    external/gtest/include
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/client_library/include
+LOCAL_SHARED_LIBRARIES := \
+    libchrome \
+    libbrillo
+LOCAL_SRC_FILES := \
+    client_library/client.cc \
+    update_status_utils.cc
+
+# We can only compile support for one IPC mechanism. If both "binder" and "dbus"
+# are defined, we prefer binder.
+ifeq ($(local_use_binder),1)
+LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
+LOCAL_SHARED_LIBRARIES += \
+    libbinder \
+    libbrillo-binder \
+    libutils
+LOCAL_SRC_FILES += \
+    binder_bindings/android/brillo/IUpdateEngine.aidl \
+    binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
+    client_library/client_binder.cc \
+    parcelable_update_engine_status.cc
+else  # local_use_binder != 1
+LOCAL_STATIC_LIBRARIES := \
+    update_engine_client-dbus-proxies
+LOCAL_SHARED_LIBRARIES += \
+    libchrome-dbus \
+    libbrillo-dbus
+LOCAL_SRC_FILES += \
+    client_library/client_dbus.cc
+endif  # local_use_binder == 1
+
+include $(BUILD_SHARED_LIBRARY)
+
 # update_engine_client (type: executable)
 # ========================================================
 # update_engine console client.
@@ -623,57 +674,6 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_libpayload_generator_exported_shared_libraries:-host=)
 LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
 include $(BUILD_EXECUTABLE)
-
-# libupdate_engine_client
-# ========================================================
-include $(CLEAR_VARS)
-LOCAL_MODULE := libupdate_engine_client
-LOCAL_CFLAGS := \
-    -Wall \
-    -Werror \
-    -Wno-unused-parameter \
-    -DUSE_DBUS=$(local_use_dbus) \
-    -DUSE_BINDER=$(local_use_binder)
-LOCAL_CLANG := true
-LOCAL_CPP_EXTENSION := .cc
-# TODO(deymo): Remove "external/cros/system_api/dbus" when dbus is not used.
-LOCAL_C_INCLUDES := \
-    $(LOCAL_PATH)/client_library/include \
-    external/cros/system_api/dbus \
-    system \
-    external/gtest/include
-LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/client_library/include
-LOCAL_SHARED_LIBRARIES := \
-    libchrome \
-    libbrillo
-LOCAL_SRC_FILES := \
-    client_library/client.cc \
-    update_status_utils.cc
-
-# We can only compile support for one IPC mechanism. If both "binder" and "dbus"
-# are defined, we prefer binder.
-ifeq ($(local_use_binder),1)
-LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
-LOCAL_SHARED_LIBRARIES += \
-    libbinder \
-    libbrillo-binder \
-    libutils
-LOCAL_SRC_FILES += \
-    binder_bindings/android/brillo/IUpdateEngine.aidl \
-    binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
-    client_library/client_binder.cc \
-    parcelable_update_engine_status.cc
-else  # local_use_binder != 1
-LOCAL_STATIC_LIBRARIES := \
-    update_engine_client-dbus-proxies
-LOCAL_SHARED_LIBRARIES += \
-    libchrome-dbus \
-    libbrillo-dbus
-LOCAL_SRC_FILES += \
-    client_library/client_dbus.cc
-endif  # local_use_binder == 1
-
-include $(BUILD_SHARED_LIBRARY)
 
 # Weave schema files
 # ========================================================
