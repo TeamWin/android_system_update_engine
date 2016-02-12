@@ -333,8 +333,8 @@
         'libupdate_engine_client',
       ],
       'sources': [
-        'update_engine_client.cc',
         'common/error_code_utils.cc',
+        'update_engine_client.cc',
      ],
     },
     # server-side code. This is used for delta_generator and unittests but not
