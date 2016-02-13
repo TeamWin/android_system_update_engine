@@ -306,9 +306,13 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void MarkDeltaUpdateFailure();
 
   ProxyResolver* GetProxyResolver() {
+#if USE_LIBCROS
     return obeying_proxies_ ?
         reinterpret_cast<ProxyResolver*>(&chrome_proxy_resolver_) :
         reinterpret_cast<ProxyResolver*>(&direct_proxy_resolver_);
+#else
+    return &direct_proxy_resolver_;
+#endif  // USE_LIBCROS
   }
 
   // Sends a ping to Omaha.
@@ -454,7 +458,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Our two proxy resolvers
   DirectProxyResolver direct_proxy_resolver_;
+#if USE_LIBCROS
   ChromeBrowserProxyResolver chrome_proxy_resolver_;
+#endif  // USE_LIBCROS
 
   // Originally, both of these flags are false. Once UpdateBootFlags is called,
   // |update_boot_flags_running_| is set to true. As soon as UpdateBootFlags

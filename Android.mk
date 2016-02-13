@@ -23,6 +23,9 @@ local_use_binder := $(if $(BRILLO_USE_BINDER),$(BRILLO_USE_BINDER),1)
 local_use_dbus := $(if $(BRILLO_USE_DBUS),$(BRILLO_USE_DBUS),0)
 local_use_hwid_override := \
     $(if $(BRILLO_USE_HWID_OVERRIDE),$(BRILLO_USE_HWID_OVERRIDE),0)
+# "libcros" gates the LibCrosService exposed by the Chrome OS' chrome browser to
+# the system layer.
+local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
 local_use_power_management := \
     $(if $(BRILLO_USE_POWER_MANAGEMENT),$(BRILLO_USE_POWER_MANAGEMENT),0)
@@ -32,6 +35,7 @@ ue_common_cflags := \
     -DUSE_BINDER=$(local_use_binder) \
     -DUSE_DBUS=$(local_use_dbus) \
     -DUSE_HWID_OVERRIDE=$(local_use_hwid_override) \
+    -DUSE_LIBCROS=$(local_use_libcros) \
     -DUSE_MTD=$(local_use_mtd) \
     -DUSE_POWER_MANAGEMENT=$(local_use_power_management) \
     -DUSE_WEAVE=$(local_use_weave) \
@@ -299,7 +303,6 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     boot_control_android.cc \
-    chrome_browser_proxy_resolver.cc \
     common_service.cc \
     connection_manager.cc \
     daemon.cc \
@@ -346,6 +349,10 @@ ifeq ($(local_use_weave),1)
 LOCAL_SRC_FILES += \
     weave_service.cc
 endif  # local_use_weave == 1
+ifeq ($(local_use_libcros),1)
+LOCAL_SRC_FILES += \
+    chrome_browser_proxy_resolver.cc
+endif  # local_use_libcros == 1
 include $(BUILD_STATIC_LIBRARY)
 
 else  # !defined(BRILLO)
