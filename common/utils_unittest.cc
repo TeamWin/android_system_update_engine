@@ -280,10 +280,10 @@ namespace {
 void GetFileFormatTester(const string& expected,
                          const vector<uint8_t>& contents) {
   test_utils::ScopedTempFile file;
-  ASSERT_TRUE(utils::WriteFile(file.GetPath().c_str(),
+  ASSERT_TRUE(utils::WriteFile(file.path().c_str(),
                                reinterpret_cast<const char*>(contents.data()),
                                contents.size()));
-  EXPECT_EQ(expected, utils::GetFileFormat(file.GetPath()));
+  EXPECT_EQ(expected, utils::GetFileFormat(file.path()));
 }
 }  // namespace
 
