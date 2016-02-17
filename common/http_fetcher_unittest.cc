@@ -923,7 +923,7 @@ void MultiTest(HttpFetcher* fetcher_in,
                const string& url,
                const vector<pair<off_t, off_t>>& ranges,
                const string& expected_prefix,
-               off_t expected_size,
+               size_t expected_size,
                HttpResponseCode expected_response_code) {
   MultiHttpFetcherTestDelegate delegate(expected_response_code);
   delegate.fetcher_.reset(fetcher_in);

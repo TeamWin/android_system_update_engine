@@ -543,10 +543,12 @@ static void GenerateDeltaFile(bool full_kernel,
   // Extend the "partitions" holding the file system a bit.
   EXPECT_EQ(0, HANDLE_EINTR(truncate(state->a_img.c_str(),
                                      state->image_size + 1024 * 1024)));
-  EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->a_img));
+  EXPECT_EQ(static_cast<off_t>(state->image_size + 1024 * 1024),
+            utils::FileSize(state->a_img));
   EXPECT_EQ(0, HANDLE_EINTR(truncate(state->b_img.c_str(),
                                      state->image_size + 1024 * 1024)));
-  EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->b_img));
+  EXPECT_EQ(static_cast<off_t>(state->image_size + 1024 * 1024),
+            utils::FileSize(state->b_img));
 
   if (signature_test == kSignatureGeneratedPlaceholder ||
       signature_test == kSignatureGeneratedPlaceholderMismatch) {
@@ -745,7 +747,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   (*performer)->set_public_key_path(kUnittestPublicKeyPath);
   DeltaPerformerIntegrationTest::SetSupportedVersion(*performer, minor_version);
 
-  EXPECT_EQ(state->image_size,
+  EXPECT_EQ(static_cast<off_t>(state->image_size),
             HashCalculator::RawHashOfFile(
                 state->a_img,
                 state->image_size,
@@ -892,7 +894,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
 
   EXPECT_EQ(state->image_size, partitions[0].target_size);
   brillo::Blob expected_new_rootfs_hash;
-  EXPECT_EQ(state->image_size,
+  EXPECT_EQ(static_cast<off_t>(state->image_size),
             HashCalculator::RawHashOfFile(state->b_img,
                                           state->image_size,
                                           &expected_new_rootfs_hash));

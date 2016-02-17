@@ -313,7 +313,8 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
     expected_blob = expected_data;
   }
   ASSERT_EQ(expected_blob.size(), new_op.data_length());
-  ASSERT_EQ(blob_data.size() + expected_blob.size(), data_file_size);
+  ASSERT_EQ(blob_data.size() + expected_blob.size(),
+            static_cast<size_t>(data_file_size));
   brillo::Blob new_op_blob(new_op.data_length());
   ssize_t bytes_read;
   ASSERT_TRUE(utils::PReadAll(data_fd,

@@ -413,7 +413,8 @@ TEST(UtilsTest, DecodeAndStoreBase64String) {
   string contents;
   EXPECT_TRUE(utils::ReadFile(path.value(), &contents));
   EXPECT_EQ(contents, expected_contents);
-  EXPECT_EQ(utils::FileSize(path.value()), expected_contents.size());
+  EXPECT_EQ(static_cast<off_t>(expected_contents.size()),
+            utils::FileSize(path.value()));
 }
 
 TEST(UtilsTest, ConvertToOmahaInstallDate) {
