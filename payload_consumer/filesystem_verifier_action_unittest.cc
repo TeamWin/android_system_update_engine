@@ -120,7 +120,7 @@ void StartProcessorInRunLoop(ActionProcessor* processor,
 // failures and whether or not they are due to the test setup or an inherent
 // issue with the chroot environment, library versions we use, etc.
 TEST_F(FilesystemVerifierActionTest, DISABLED_RunAsRootSimpleTest) {
-  ASSERT_EQ(0, getuid());
+  ASSERT_EQ(0U, getuid());
   bool test = DoTest(false, false, VerifierMode::kComputeSourceHash);
   EXPECT_TRUE(test);
   if (!test)
@@ -309,18 +309,18 @@ TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
 }
 
 TEST_F(FilesystemVerifierActionTest, RunAsRootVerifyHashTest) {
-  ASSERT_EQ(0, getuid());
+  ASSERT_EQ(0U, getuid());
   EXPECT_TRUE(DoTest(false, false, VerifierMode::kVerifyTargetHash));
   EXPECT_TRUE(DoTest(false, false, VerifierMode::kComputeSourceHash));
 }
 
 TEST_F(FilesystemVerifierActionTest, RunAsRootVerifyHashFailTest) {
-  ASSERT_EQ(0, getuid());
+  ASSERT_EQ(0U, getuid());
   EXPECT_TRUE(DoTest(false, true, VerifierMode::kVerifyTargetHash));
 }
 
 TEST_F(FilesystemVerifierActionTest, RunAsRootTerminateEarlyTest) {
-  ASSERT_EQ(0, getuid());
+  ASSERT_EQ(0U, getuid());
   EXPECT_TRUE(DoTest(true, false, VerifierMode::kVerifyTargetHash));
   // TerminateEarlyTest may leak some null callbacks from the Stream class.
   while (loop_.RunOnce(false)) {}
@@ -366,13 +366,13 @@ TEST_F(FilesystemVerifierActionTest,
   loop_.Run();
   install_plan = collector_action.object();
 
-  ASSERT_EQ(2, install_plan.partitions.size());
+  ASSERT_EQ(2U, install_plan.partitions.size());
   // When computing the size of the rootfs on legacy delta updates we use the
   // size of the filesystem, but when updating the kernel we use the whole
   // partition.
-  EXPECT_EQ(10 * 1024 * 1024, install_plan.partitions[0].source_size);
+  EXPECT_EQ(10U << 20, install_plan.partitions[0].source_size);
   EXPECT_EQ(kLegacyPartitionNameRoot, install_plan.partitions[0].name);
-  EXPECT_EQ(20 * 1024 * 1024, install_plan.partitions[1].source_size);
+  EXPECT_EQ(20U << 20, install_plan.partitions[1].source_size);
   EXPECT_EQ(kLegacyPartitionNameKernel, install_plan.partitions[1].name);
 }
 

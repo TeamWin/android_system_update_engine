@@ -650,7 +650,7 @@ TYPED_TEST(HttpFetcherTest, FlakyTest) {
     this->loop_.Run();
 
     // verify the data we get back
-    ASSERT_EQ(kBigLength, delegate.data.size());
+    ASSERT_EQ(kBigLength, static_cast<int>(delegate.data.size()));
     for (int i = 0; i < kBigLength; i += 10) {
       // Assert so that we don't flood the screen w/ EXPECT errors on failure.
       ASSERT_EQ(delegate.data.substr(i, 10), "abcdefghij");
@@ -831,7 +831,7 @@ void RedirectTest(const HttpServer* server,
   MessageLoop::current()->Run();
   if (expected_successful) {
     // verify the data we get back
-    ASSERT_EQ(kMediumLength, delegate.data.size());
+    ASSERT_EQ(static_cast<size_t>(kMediumLength), delegate.data.size());
     for (int i = 0; i < kMediumLength; i += 10) {
       // Assert so that we don't flood the screen w/ EXPECT errors on failure.
       ASSERT_EQ(delegate.data.substr(i, 10), "abcdefghij");
@@ -929,7 +929,7 @@ void MultiTest(HttpFetcher* fetcher_in,
   delegate.fetcher_.reset(fetcher_in);
 
   MultiRangeHttpFetcher* multi_fetcher =
-      dynamic_cast<MultiRangeHttpFetcher*>(fetcher_in);
+      static_cast<MultiRangeHttpFetcher*>(fetcher_in);
   ASSERT_TRUE(multi_fetcher);
   multi_fetcher->ClearRanges();
   for (vector<pair<off_t, off_t>>::const_iterator it = ranges.begin(),

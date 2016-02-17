@@ -20,8 +20,6 @@
 #ifndef UPDATE_ENGINE_COMMON_HTTP_COMMON_H_
 #define UPDATE_ENGINE_COMMON_HTTP_COMMON_H_
 
-#include <cstdlib>
-
 namespace chromeos_update_engine {
 
 // Enumeration type for HTTP response codes.

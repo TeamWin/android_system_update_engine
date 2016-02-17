@@ -48,7 +48,7 @@ TEST_F(HwidOverrideTest, ReadGood) {
   keyval += ("=" + expected_hwid);
   ASSERT_EQ(base::WriteFile(tempdir_.path().Append("etc/lsb-release"),
                             keyval.c_str(), keyval.length()),
-            keyval.length());
+            static_cast<int>(keyval.length()));
   EXPECT_EQ(expected_hwid, HwidOverride::Read(tempdir_.path()));
 }
 
@@ -56,7 +56,7 @@ TEST_F(HwidOverrideTest, ReadNothing) {
   std::string keyval("SOMETHING_ELSE=UNINTERESTING");
   ASSERT_EQ(base::WriteFile(tempdir_.path().Append("etc/lsb-release"),
                             keyval.c_str(), keyval.length()),
-            keyval.length());
+            static_cast<int>(keyval.length()));
   EXPECT_EQ(std::string(), HwidOverride::Read(tempdir_.path()));
 }
 

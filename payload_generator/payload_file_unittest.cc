@@ -80,15 +80,15 @@ TEST_F(PayloadFileTest, ReorderBlobsTest) {
   // Kernel blobs should appear at the end.
   EXPECT_EQ("bcdakernel", new_data);
 
-  EXPECT_EQ(2, part0_aops.size());
-  EXPECT_EQ(0, part0_aops[0].op.data_offset());
-  EXPECT_EQ(3, part0_aops[0].op.data_length());
-  EXPECT_EQ(3, part0_aops[1].op.data_offset());
-  EXPECT_EQ(1, part0_aops[1].op.data_length());
+  EXPECT_EQ(2U, part0_aops.size());
+  EXPECT_EQ(0U, part0_aops[0].op.data_offset());
+  EXPECT_EQ(3U, part0_aops[0].op.data_length());
+  EXPECT_EQ(3U, part0_aops[1].op.data_offset());
+  EXPECT_EQ(1U, part0_aops[1].op.data_length());
 
-  EXPECT_EQ(1, part1_aops.size());
-  EXPECT_EQ(4, part1_aops[0].op.data_offset());
-  EXPECT_EQ(6, part1_aops[0].op.data_length());
+  EXPECT_EQ(1U, part1_aops.size());
+  EXPECT_EQ(4U, part1_aops[0].op.data_offset());
+  EXPECT_EQ(6U, part1_aops[0].op.data_length());
 }
 
 }  // namespace chromeos_update_engine

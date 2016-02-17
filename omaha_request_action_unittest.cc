@@ -1524,7 +1524,7 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
                       metrics::DownloadErrorCode::kUnset,
                       nullptr,
                       &post_data));
-  EXPECT_EQ(post_data.size(), 0);
+  EXPECT_EQ(0U, post_data.size());
 }
 
 TEST_F(OmahaRequestActionTest, BackInTimePingTest) {

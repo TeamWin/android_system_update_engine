@@ -253,9 +253,9 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestDelaysEvaluation) {
 
   umut_->AsyncPolicyRequest(callback, &Policy::UpdateCheckAllowed);
   // The callback should wait until we run the main loop for it to be executed.
-  EXPECT_EQ(0, calls.size());
+  EXPECT_EQ(0U, calls.size());
   MessageLoopRunMaxIterations(MessageLoop::current(), 100);
-  EXPECT_EQ(1, calls.size());
+  EXPECT_EQ(1U, calls.size());
 }
 
 TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimeoutDoesNotFire) {
@@ -273,14 +273,14 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimeoutDoesNotFire) {
   // to the default.
   MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_EQ(1, num_called);
-  ASSERT_EQ(1, calls.size());
+  ASSERT_EQ(1U, calls.size());
   EXPECT_EQ(EvalStatus::kSucceeded, calls[0].first);
   // Wait for the timeout to expire, run the main loop again, ensure that
   // nothing happened.
   test_clock_.Advance(TimeDelta::FromSeconds(2));
   MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_EQ(1, num_called);
-  EXPECT_EQ(1, calls.size());
+  EXPECT_EQ(1U, calls.size());
 }
 
 TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
@@ -301,7 +301,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
   // was not invoked.
   MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_EQ(1, num_called);
-  EXPECT_EQ(0, calls.size());
+  EXPECT_EQ(0U, calls.size());
   // Wait for the expiration timeout to expire, run the main loop again,
   // ensure that reevaluation occurred but callback was not invoked (i.e.
   // default policy was not consulted).
@@ -310,7 +310,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
                                TimeDelta::FromSeconds(2));
   MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_EQ(2, num_called);
-  EXPECT_EQ(0, calls.size());
+  EXPECT_EQ(0U, calls.size());
   // Wait for reevaluation due to delay to happen, ensure that it occurs and
   // that the callback is invoked.
   test_clock_.Advance(TimeDelta::FromSeconds(2));
@@ -318,7 +318,7 @@ TEST_F(UmUpdateManagerTest, AsyncPolicyRequestTimesOut) {
                                TimeDelta::FromSeconds(2));
   MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_EQ(3, num_called);
-  ASSERT_EQ(1, calls.size());
+  ASSERT_EQ(1U, calls.size());
   EXPECT_EQ(EvalStatus::kSucceeded, calls[0].first);
 }
 

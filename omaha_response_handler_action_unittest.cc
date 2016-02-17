@@ -154,14 +154,15 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
     EXPECT_EQ(in.hash, install_plan.payload_hash);
-    EXPECT_EQ(1, install_plan.target_slot);
+    EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
     EXPECT_EQ("20101020", deadline);
     struct stat deadline_stat;
     EXPECT_EQ(0, stat(test_deadline_file.c_str(), &deadline_stat));
-    EXPECT_EQ(S_IFREG | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-              deadline_stat.st_mode);
+    EXPECT_EQ(
+        static_cast<mode_t>(S_IFREG | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH),
+        deadline_stat.st_mode);
     EXPECT_EQ(in.version, install_plan.version);
   }
   {
@@ -179,7 +180,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
     EXPECT_EQ(in.hash, install_plan.payload_hash);
-    EXPECT_EQ(0, install_plan.target_slot);
+    EXPECT_EQ(0U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline) &&
                 deadline.empty());
@@ -200,7 +201,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
     EXPECT_EQ(in.hash, install_plan.payload_hash);
-    EXPECT_EQ(1, install_plan.target_slot);
+    EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
     EXPECT_EQ("some-deadline", deadline);

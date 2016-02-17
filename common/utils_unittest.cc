@@ -181,11 +181,11 @@ TEST(UtilsTest, MakePartitionNameForMountTest) {
 }
 
 TEST(UtilsTest, FuzzIntTest) {
-  static const unsigned int kRanges[] = { 0, 1, 2, 20 };
-  for (unsigned int range : kRanges) {
+  static const uint32_t kRanges[] = { 0, 1, 2, 20 };
+  for (uint32_t range : kRanges) {
     const int kValue = 50;
     for (int tries = 0; tries < 100; ++tries) {
-      int value = utils::FuzzInt(kValue, range);
+      uint32_t value = utils::FuzzInt(kValue, range);
       EXPECT_GE(value, kValue - range / 2);
       EXPECT_LE(value, kValue + range - range / 2);
     }
@@ -493,7 +493,7 @@ TEST(UtilsTest, GetMinorVersion) {
 
   EXPECT_TRUE(store.LoadFromString("PAYLOAD_MINOR_VERSION=123\n"));
   EXPECT_TRUE(utils::GetMinorVersion(store, &minor_version));
-  EXPECT_EQ(minor_version, 123);
+  EXPECT_EQ(123U, minor_version);
 }
 
 static bool BoolMacroTestHelper() {

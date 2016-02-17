@@ -99,13 +99,13 @@ TEST_F(UmBaseVariableTest, RepeatedObserverTest) {
   DefaultVariable<int> var("var", kVariableModeAsync);
   BaseVariableObserver observer;
   var.AddObserver(&observer);
-  EXPECT_EQ(var.observer_list_.size(), 1);
+  EXPECT_EQ(1U, var.observer_list_.size());
   var.AddObserver(&observer);
-  EXPECT_EQ(var.observer_list_.size(), 1);
+  EXPECT_EQ(1U, var.observer_list_.size());
   var.RemoveObserver(&observer);
-  EXPECT_EQ(var.observer_list_.size(), 0);
+  EXPECT_EQ(0U, var.observer_list_.size());
   var.RemoveObserver(&observer);
-  EXPECT_EQ(var.observer_list_.size(), 0);
+  EXPECT_EQ(0U, var.observer_list_.size());
 }
 
 TEST_F(UmBaseVariableTest, NotifyValueChangedTest) {
@@ -114,10 +114,10 @@ TEST_F(UmBaseVariableTest, NotifyValueChangedTest) {
   var.AddObserver(&observer1);
   // Simulate a value change on the variable's implementation.
   var.NotifyValueChanged();
-  ASSERT_EQ(0, observer1.calls_.size());
+  ASSERT_EQ(0U, observer1.calls_.size());
   MessageLoopRunMaxIterations(MessageLoop::current(), 100);
 
-  ASSERT_EQ(1, observer1.calls_.size());
+  ASSERT_EQ(1U, observer1.calls_.size());
   // Check that the observer is called with the right argument.
   EXPECT_EQ(&var, observer1.calls_[0]);
 
@@ -127,8 +127,8 @@ TEST_F(UmBaseVariableTest, NotifyValueChangedTest) {
   MessageLoopRunMaxIterations(MessageLoop::current(), 100);
 
   // Check that all the observers are called.
-  EXPECT_EQ(2, observer1.calls_.size());
-  EXPECT_EQ(1, observer2.calls_.size());
+  EXPECT_EQ(2U, observer1.calls_.size());
+  EXPECT_EQ(1U, observer2.calls_.size());
 
   var.RemoveObserver(&observer1);
   var.RemoveObserver(&observer2);

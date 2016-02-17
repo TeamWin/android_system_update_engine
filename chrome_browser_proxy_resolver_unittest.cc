@@ -109,14 +109,14 @@ void ChromeBrowserProxyResolverTest::SendReplySignal(
 namespace {
 void CheckResponseResolved(const deque<string>& proxies,
                            void* /* pirv_data */) {
-  EXPECT_EQ(2, proxies.size());
+  EXPECT_EQ(2U, proxies.size());
   EXPECT_EQ("socks5://192.168.52.83:5555", proxies[0]);
   EXPECT_EQ(kNoProxy, proxies[1]);
   MessageLoop::current()->BreakLoop();
 }
 
 void CheckResponseNoReply(const deque<string>& proxies, void* /* pirv_data */) {
-  EXPECT_EQ(1, proxies.size());
+  EXPECT_EQ(1U, proxies.size());
   EXPECT_EQ(kNoProxy, proxies[0]);
   MessageLoop::current()->BreakLoop();
 }

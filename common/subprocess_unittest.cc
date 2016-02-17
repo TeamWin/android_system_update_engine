@@ -179,7 +179,7 @@ void StartAndCancelInRunLoop(bool* spawned) {
   cmd.push_back("./test_http_server");
   cmd.push_back(temp_file_name);
   uint32_t tag = Subprocess::Get().Exec(cmd, base::Bind(&CallbackBad));
-  EXPECT_NE(0, tag);
+  EXPECT_NE(0U, tag);
   *spawned = true;
   printf("test http server spawned\n");
   // Wait for server to be up and running

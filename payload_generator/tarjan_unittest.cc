@@ -65,7 +65,7 @@ TEST(TarjanAlgorithmTest, SimpleTest) {
     vector<Vertex::Index> vertex_indexes;
     tarjan.Execute(i, &graph, &vertex_indexes);
 
-    EXPECT_EQ(5, vertex_indexes.size());
+    EXPECT_EQ(5U, vertex_indexes.size());
     EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_a));
     EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_b));
     EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_c));
@@ -77,7 +77,7 @@ TEST(TarjanAlgorithmTest, SimpleTest) {
     vector<Vertex::Index> vertex_indexes;
     tarjan.Execute(n_f, &graph, &vertex_indexes);
 
-    EXPECT_EQ(1, vertex_indexes.size());
+    EXPECT_EQ(1U, vertex_indexes.size());
     EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_f));
   }
 
@@ -85,7 +85,7 @@ TEST(TarjanAlgorithmTest, SimpleTest) {
     vector<Vertex::Index> vertex_indexes;
     tarjan.Execute(i, &graph, &vertex_indexes);
 
-    EXPECT_EQ(2, vertex_indexes.size());
+    EXPECT_EQ(2U, vertex_indexes.size());
     EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_g));
     EXPECT_TRUE(utils::VectorContainsValue(vertex_indexes, n_h));
   }

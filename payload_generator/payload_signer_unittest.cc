@@ -103,7 +103,7 @@ void SignSampleData(brillo::Blob* out_signature_blob,
                          std::begin(kDataToSign) + strlen(kDataToSign));
   uint64_t length = 0;
   EXPECT_TRUE(PayloadSigner::SignatureBlobLength(private_keys, &length));
-  EXPECT_GT(length, 0);
+  EXPECT_GT(length, 0U);
   brillo::Blob hash_blob;
   EXPECT_TRUE(HashCalculator::RawHashOfBytes(data_blob.data(),
                                              data_blob.size(),
@@ -170,7 +170,7 @@ TEST_F(PayloadSignerTest, SignSimpleTextTest) {
                                         signature_blob.size()));
   EXPECT_EQ(1, signatures.signatures_size());
   const Signatures_Signature& signature = signatures.signatures(0);
-  EXPECT_EQ(1, signature.version());
+  EXPECT_EQ(1U, signature.version());
   const string sig_data = signature.data();
   ASSERT_EQ(arraysize(kDataSignature), sig_data.size());
   for (size_t i = 0; i < arraysize(kDataSignature); i++) {

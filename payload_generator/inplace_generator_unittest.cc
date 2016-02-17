@@ -153,20 +153,20 @@ TEST_F(InplaceGeneratorTest, SubstituteBlocksTest) {
   InplaceGenerator::SubstituteBlocks(&vertex, remove_blocks, replace_blocks);
 
   EXPECT_EQ(7, op.src_extents_size());
-  EXPECT_EQ(11, op.src_extents(0).start_block());
-  EXPECT_EQ(1, op.src_extents(0).num_blocks());
-  EXPECT_EQ(13, op.src_extents(1).start_block());
-  EXPECT_EQ(1, op.src_extents(1).num_blocks());
-  EXPECT_EQ(6, op.src_extents(2).start_block());
-  EXPECT_EQ(1, op.src_extents(2).num_blocks());
+  EXPECT_EQ(11U, op.src_extents(0).start_block());
+  EXPECT_EQ(1U, op.src_extents(0).num_blocks());
+  EXPECT_EQ(13U, op.src_extents(1).start_block());
+  EXPECT_EQ(1U, op.src_extents(1).num_blocks());
+  EXPECT_EQ(6U, op.src_extents(2).start_block());
+  EXPECT_EQ(1U, op.src_extents(2).num_blocks());
   EXPECT_EQ(kSparseHole, op.src_extents(3).start_block());
-  EXPECT_EQ(4, op.src_extents(3).num_blocks());
-  EXPECT_EQ(10, op.src_extents(4).start_block());
-  EXPECT_EQ(1, op.src_extents(4).num_blocks());
-  EXPECT_EQ(14, op.src_extents(5).start_block());
-  EXPECT_EQ(1, op.src_extents(5).num_blocks());
-  EXPECT_EQ(8, op.src_extents(6).start_block());
-  EXPECT_EQ(2, op.src_extents(6).num_blocks());
+  EXPECT_EQ(4U, op.src_extents(3).num_blocks());
+  EXPECT_EQ(10U, op.src_extents(4).start_block());
+  EXPECT_EQ(1U, op.src_extents(4).num_blocks());
+  EXPECT_EQ(14U, op.src_extents(5).start_block());
+  EXPECT_EQ(1U, op.src_extents(5).num_blocks());
+  EXPECT_EQ(8U, op.src_extents(6).start_block());
+  EXPECT_EQ(2U, op.src_extents(6).num_blocks());
 }
 
 TEST_F(InplaceGeneratorTest, CutEdgesTest) {
@@ -229,58 +229,58 @@ TEST_F(InplaceGeneratorTest, CutEdgesTest) {
   set<Edge> cut_edges;
   cycle_breaker.BreakCycles(graph, &cut_edges);
 
-  EXPECT_EQ(1, cut_edges.size());
+  EXPECT_EQ(1U, cut_edges.size());
   EXPECT_TRUE(cut_edges.end() != cut_edges.find(
       std::pair<Vertex::Index, Vertex::Index>(1, 0)));
 
   vector<CutEdgeVertexes> cuts;
   EXPECT_TRUE(InplaceGenerator::CutEdges(&graph, cut_edges, &cuts));
 
-  EXPECT_EQ(3, graph.size());
+  EXPECT_EQ(3U, graph.size());
 
   // Check new node in graph:
   EXPECT_EQ(InstallOperation::MOVE, graph.back().aop.op.type());
   EXPECT_EQ(2, graph.back().aop.op.src_extents_size());
   EXPECT_EQ(1, graph.back().aop.op.dst_extents_size());
   EXPECT_EQ(kTempBlockStart, graph.back().aop.op.dst_extents(0).start_block());
-  EXPECT_EQ(2, graph.back().aop.op.dst_extents(0).num_blocks());
+  EXPECT_EQ(2U, graph.back().aop.op.dst_extents(0).num_blocks());
   EXPECT_TRUE(graph.back().out_edges.empty());
 
   // Check that old node reads from new blocks
   EXPECT_EQ(2, graph[0].aop.op.src_extents_size());
   EXPECT_EQ(kTempBlockStart, graph[0].aop.op.src_extents(0).start_block());
-  EXPECT_EQ(2, graph[0].aop.op.src_extents(0).num_blocks());
-  EXPECT_EQ(7, graph[0].aop.op.src_extents(1).start_block());
-  EXPECT_EQ(1, graph[0].aop.op.src_extents(1).num_blocks());
+  EXPECT_EQ(2U, graph[0].aop.op.src_extents(0).num_blocks());
+  EXPECT_EQ(7U, graph[0].aop.op.src_extents(1).start_block());
+  EXPECT_EQ(1U, graph[0].aop.op.src_extents(1).num_blocks());
 
   // And that the old dst extents haven't changed
   EXPECT_EQ(2, graph[0].aop.op.dst_extents_size());
-  EXPECT_EQ(1, graph[0].aop.op.dst_extents(0).start_block());
-  EXPECT_EQ(2, graph[0].aop.op.dst_extents(0).num_blocks());
-  EXPECT_EQ(4, graph[0].aop.op.dst_extents(1).start_block());
-  EXPECT_EQ(1, graph[0].aop.op.dst_extents(1).num_blocks());
+  EXPECT_EQ(1U, graph[0].aop.op.dst_extents(0).start_block());
+  EXPECT_EQ(2U, graph[0].aop.op.dst_extents(0).num_blocks());
+  EXPECT_EQ(4U, graph[0].aop.op.dst_extents(1).start_block());
+  EXPECT_EQ(1U, graph[0].aop.op.dst_extents(1).num_blocks());
 
   // Ensure it only depends on the next node and the new temp node
-  EXPECT_EQ(2, graph[0].out_edges.size());
+  EXPECT_EQ(2U, graph[0].out_edges.size());
   EXPECT_TRUE(graph[0].out_edges.end() != graph[0].out_edges.find(1));
   EXPECT_TRUE(graph[0].out_edges.end() != graph[0].out_edges.find(graph.size() -
                                                                   1));
 
   // Check second node has unchanged extents
   EXPECT_EQ(2, graph[1].aop.op.src_extents_size());
-  EXPECT_EQ(1, graph[1].aop.op.src_extents(0).start_block());
-  EXPECT_EQ(2, graph[1].aop.op.src_extents(0).num_blocks());
-  EXPECT_EQ(4, graph[1].aop.op.src_extents(1).start_block());
-  EXPECT_EQ(1, graph[1].aop.op.src_extents(1).num_blocks());
+  EXPECT_EQ(1U, graph[1].aop.op.src_extents(0).start_block());
+  EXPECT_EQ(2U, graph[1].aop.op.src_extents(0).num_blocks());
+  EXPECT_EQ(4U, graph[1].aop.op.src_extents(1).start_block());
+  EXPECT_EQ(1U, graph[1].aop.op.src_extents(1).num_blocks());
 
   EXPECT_EQ(2, graph[1].aop.op.dst_extents_size());
-  EXPECT_EQ(3, graph[1].aop.op.dst_extents(0).start_block());
-  EXPECT_EQ(1, graph[1].aop.op.dst_extents(0).num_blocks());
-  EXPECT_EQ(5, graph[1].aop.op.dst_extents(1).start_block());
-  EXPECT_EQ(2, graph[1].aop.op.dst_extents(1).num_blocks());
+  EXPECT_EQ(3U, graph[1].aop.op.dst_extents(0).start_block());
+  EXPECT_EQ(1U, graph[1].aop.op.dst_extents(0).num_blocks());
+  EXPECT_EQ(5U, graph[1].aop.op.dst_extents(1).start_block());
+  EXPECT_EQ(2U, graph[1].aop.op.dst_extents(1).num_blocks());
 
   // Ensure it only depends on the next node
-  EXPECT_EQ(1, graph[1].out_edges.size());
+  EXPECT_EQ(1U, graph[1].out_edges.size());
   EXPECT_TRUE(graph[1].out_edges.end() != graph[1].out_edges.find(2));
 }
 
@@ -384,8 +384,8 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksReuseTest) {
   EXPECT_FALSE(graph[6].valid);
   EXPECT_FALSE(graph[7].valid);
   EXPECT_EQ(1, graph[1].aop.op.src_extents_size());
-  EXPECT_EQ(2, graph[1].aop.op.src_extents(0).start_block());
-  EXPECT_EQ(1, graph[1].aop.op.src_extents(0).num_blocks());
+  EXPECT_EQ(2U, graph[1].aop.op.src_extents(0).start_block());
+  EXPECT_EQ(1U, graph[1].aop.op.src_extents(0).num_blocks());
   EXPECT_EQ(InstallOperation::REPLACE_BZ, graph[5].aop.op.type());
 }
 
@@ -547,7 +547,7 @@ TEST_F(InplaceGeneratorTest, AssignTempBlocksTest) {
             InstallOperation::MOVE);
   expected_graph[10].out_edges[4] = EdgeWithReadDep(VectOfExt(60, 9));
 
-  EXPECT_EQ(12, graph.size());
+  EXPECT_EQ(12U, graph.size());
   EXPECT_FALSE(graph.back().valid);
   for (Graph::size_type i = 0; i < graph.size() - 1; i++) {
     EXPECT_TRUE(graph[i].out_edges == expected_graph[i].out_edges);
@@ -563,11 +563,11 @@ TEST_F(InplaceGeneratorTest, CreateScratchNodeTest) {
   Vertex vertex;
   InplaceGenerator::CreateScratchNode(12, 34, &vertex);
   EXPECT_EQ(InstallOperation::REPLACE_BZ, vertex.aop.op.type());
-  EXPECT_EQ(0, vertex.aop.op.data_offset());
-  EXPECT_EQ(0, vertex.aop.op.data_length());
+  EXPECT_EQ(0U, vertex.aop.op.data_offset());
+  EXPECT_EQ(0U, vertex.aop.op.data_length());
   EXPECT_EQ(1, vertex.aop.op.dst_extents_size());
-  EXPECT_EQ(12, vertex.aop.op.dst_extents(0).start_block());
-  EXPECT_EQ(34, vertex.aop.op.dst_extents(0).num_blocks());
+  EXPECT_EQ(12U, vertex.aop.op.dst_extents(0).start_block());
+  EXPECT_EQ(34U, vertex.aop.op.dst_extents(0).num_blocks());
 }
 
 TEST_F(InplaceGeneratorTest, ApplyMapTest) {
@@ -635,16 +635,18 @@ TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesAvoidMoveToZero) {
       if (aop.op.type() != InstallOperation::MOVE)
         continue;
       for (const Extent& extent : aop.op.src_extents()) {
-        EXPECT_NE(0, extent.start_block()) << "On src extents for aop: " << aop;
+        EXPECT_NE(0U, extent.start_block())
+            << "On src extents for aop: " << aop;
       }
       for (const Extent& extent : aop.op.dst_extents()) {
-        EXPECT_NE(0, extent.start_block()) << "On dst extents for aop: " << aop;
+        EXPECT_NE(0U, extent.start_block())
+            << "On dst extents for aop: " << aop;
       }
     }
 
     // If there's extra space in the partition, it should not use a new full
     // operation for it.
-    EXPECT_EQ(part_blocks == num_blocks ? 2 : 1, full_ops);
+    EXPECT_EQ(part_blocks == num_blocks ? 2U : 1U, full_ops);
 
     if (HasNonfatalFailure()) {
       LOG(INFO) << "Result operation list:";
