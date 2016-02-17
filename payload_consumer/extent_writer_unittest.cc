@@ -86,7 +86,8 @@ TEST_F(ExtentWriterTest, SimpleTest) {
   EXPECT_TRUE(direct_writer.Write(bytes.data(), bytes.size()));
   EXPECT_TRUE(direct_writer.End());
 
-  EXPECT_EQ(kBlockSize + bytes.size(), utils::FileSize(path_));
+  EXPECT_EQ(static_cast<off_t>(kBlockSize + bytes.size()),
+            utils::FileSize(path_));
 
   brillo::Blob result_file;
   EXPECT_TRUE(utils::ReadFile(path_, &result_file));
@@ -153,7 +154,7 @@ void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
   }
   EXPECT_TRUE(direct_writer.End());
 
-  EXPECT_EQ(data.size(), utils::FileSize(path_));
+  EXPECT_EQ(static_cast<off_t>(data.size()), utils::FileSize(path_));
 
   brillo::Blob result_file;
   EXPECT_TRUE(utils::ReadFile(path_, &result_file));
@@ -202,7 +203,7 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
   ASSERT_TRUE(zero_pad_writer.Write(data.data(), bytes_to_write));
   EXPECT_TRUE(zero_pad_writer.End());
 
-  EXPECT_EQ(data.size(), utils::FileSize(path_));
+  EXPECT_EQ(static_cast<off_t>(data.size()), utils::FileSize(path_));
 
   brillo::Blob result_file;
   EXPECT_TRUE(utils::ReadFile(path_, &result_file));
@@ -251,7 +252,7 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   EXPECT_TRUE(direct_writer.End());
 
   // check file size, then data inside
-  ASSERT_EQ(2 * kBlockSize, utils::FileSize(path_));
+  ASSERT_EQ(static_cast<off_t>(2 * kBlockSize), utils::FileSize(path_));
 
   brillo::Blob resultant_data;
   EXPECT_TRUE(utils::ReadFile(path_, &resultant_data));
