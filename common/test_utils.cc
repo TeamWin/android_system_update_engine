@@ -260,7 +260,7 @@ ScopedLoopMounter::ScopedLoopMounter(const string& file_path,
   string loop_dev;
   loop_binder_.reset(new ScopedLoopbackDeviceBinder(file_path, &loop_dev));
 
-  EXPECT_TRUE(utils::MountFilesystem(loop_dev, *mnt_path, flags));
+  EXPECT_TRUE(utils::MountFilesystem(loop_dev, *mnt_path, flags, ""));
   unmounter_.reset(new ScopedFilesystemUnmounter(*mnt_path));
 }
 

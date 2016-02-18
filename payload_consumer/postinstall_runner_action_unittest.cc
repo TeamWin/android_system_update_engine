@@ -191,6 +191,7 @@ void PostinstallRunnerActionTest::DoTest(
   part.name = "part";
   part.target_path = dev;
   part.run_postinstall = true;
+  part.postinstall_path = kPostinstallDefaultScript;
   InstallPlan install_plan;
   install_plan.partitions = {part};
   install_plan.download_url = "http://devserver:8080/update";
@@ -215,7 +216,7 @@ void PostinstallRunnerActionTest::DoTest(
   EXPECT_TRUE(delegate.code_set_);
   EXPECT_EQ(should_succeed, delegate.code_ == ErrorCode::kSuccess);
   if (should_succeed)
-    EXPECT_TRUE(install_plan == collector_action.object());
+    EXPECT_EQ(install_plan, collector_action.object());
 
   const base::FilePath kPowerwashMarkerPath(powerwash_marker_file);
   string actual_cmd;
