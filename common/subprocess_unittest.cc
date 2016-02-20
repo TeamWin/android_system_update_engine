@@ -17,11 +17,7 @@
 #include "update_engine/common/subprocess.h"
 
 #include <fcntl.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
 #include <poll.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -30,6 +26,7 @@
 #include <vector>
 
 #include <base/bind.h>
+#include <base/files/scoped_temp_dir.h>
 #include <base/location.h>
 #include <base/message_loop/message_loop.h>
 #include <base/strings/string_util.h>
@@ -50,6 +47,18 @@ using brillo::MessageLoop;
 using std::string;
 using std::vector;
 
+namespace {
+
+#ifdef __ANDROID__
+#define kBinPath "/system/bin"
+#define kUsrBinPath "/system/bin"
+#else
+#define kBinPath "/bin"
+#define kUsrBinPath "/usr/bin"
+#endif  // __ANDROID__
+
+}  // namespace
+
 namespace chromeos_update_engine {
 
 class SubprocessTest : public ::testing::Test {
@@ -67,8 +76,6 @@ class SubprocessTest : public ::testing::Test {
 };
 
 namespace {
-
-int local_server_port = 0;
 
 void ExpectedResults(int expected_return_code, const string& expected_output,
                      int return_code, const string& output) {
@@ -102,28 +109,29 @@ TEST_F(SubprocessTest, InactiveInstancesDontChangeTheSingleton) {
 }
 
 TEST_F(SubprocessTest, SimpleTest) {
-  EXPECT_TRUE(subprocess_.Exec({"/bin/false"},
+  EXPECT_TRUE(subprocess_.Exec({kBinPath "/false"},
                                base::Bind(&ExpectedResults, 1, "")));
   loop_.Run();
 }
 
 TEST_F(SubprocessTest, EchoTest) {
   EXPECT_TRUE(subprocess_.Exec(
-      {"/bin/sh", "-c", "echo this is stdout; echo this is stderr >&2"},
+      {kBinPath "/sh", "-c", "echo this is stdout; echo this is stderr >&2"},
       base::Bind(&ExpectedResults, 0, "this is stdout\nthis is stderr\n")));
   loop_.Run();
 }
 
 TEST_F(SubprocessTest, StderrNotIncludedInOutputTest) {
   EXPECT_TRUE(subprocess_.ExecFlags(
-      {"/bin/sh", "-c", "echo on stdout; echo on stderr >&2"},
+      {kBinPath "/sh", "-c", "echo on stdout; echo on stderr >&2"},
       0,
       base::Bind(&ExpectedResults, 0, "on stdout\n")));
   loop_.Run();
 }
 
 TEST_F(SubprocessTest, EnvVarsAreFiltered) {
-  EXPECT_TRUE(subprocess_.Exec({"/usr/bin/env"}, base::Bind(&ExpectedEnvVars)));
+  EXPECT_TRUE(
+      subprocess_.Exec({kUsrBinPath "/env"}, base::Bind(&ExpectedEnvVars)));
   loop_.Run();
 }
 
@@ -136,9 +144,9 @@ TEST_F(SubprocessTest, SynchronousTrueSearchsOnPath) {
 
 TEST_F(SubprocessTest, SynchronousEchoTest) {
   vector<string> cmd = {
-    "/bin/sh",
-    "-c",
-    "echo -n stdout-here; echo -n stderr-there > /dev/stderr"};
+      kBinPath "/sh",
+      "-c",
+      "echo -n stdout-here; echo -n stderr-there >&2"};
   int rc = -1;
   string stdout;
   ASSERT_TRUE(Subprocess::SynchronousExec(cmd, &rc, &stdout));
@@ -149,8 +157,7 @@ TEST_F(SubprocessTest, SynchronousEchoTest) {
 TEST_F(SubprocessTest, SynchronousEchoNoOutputTest) {
   int rc = -1;
   ASSERT_TRUE(Subprocess::SynchronousExec(
-      {"/bin/sh", "-c", "echo test"},
-      &rc, nullptr));
+      {kBinPath "/sh", "-c", "echo test"}, &rc, nullptr));
   EXPECT_EQ(0, rc);
 }
 
@@ -158,106 +165,55 @@ namespace {
 void CallbackBad(int return_code, const string& output) {
   ADD_FAILURE() << "should never be called.";
 }
-
-// TODO(garnold) this test method uses test_http_server as a representative for
-// interactive processes that can be spawned/terminated at will. This causes us
-// to go through hoops when spawning this process (e.g. obtaining the port
-// number it uses so we can control it with wget). It would have been much
-// preferred to use something else and thus simplify both test_http_server
-// (doesn't have to be able to communicate through a temp file) and the test
-// code below; for example, it sounds like a brain dead sleep loop with proper
-// signal handlers could be used instead.
-void StartAndCancelInRunLoop(bool* spawned) {
-  // Create a temp file for test_http_server to communicate its port number.
-  char temp_file_name[] = "/tmp/subprocess_unittest-test_http_server-XXXXXX";
-  int temp_fd = mkstemp(temp_file_name);
-  CHECK_GE(temp_fd, 0);
-  int temp_flags = fcntl(temp_fd, F_GETFL, 0) | O_NONBLOCK;
-  CHECK_EQ(fcntl(temp_fd, F_SETFL, temp_flags), 0);
-
-  vector<string> cmd;
-  cmd.push_back("./test_http_server");
-  cmd.push_back(temp_file_name);
-  uint32_t tag = Subprocess::Get().Exec(cmd, base::Bind(&CallbackBad));
-  EXPECT_NE(0U, tag);
-  *spawned = true;
-  printf("test http server spawned\n");
-  // Wait for server to be up and running
-  TimeDelta total_wait_time;
-  const TimeDelta kSleepTime = TimeDelta::FromMilliseconds(100);
-  const TimeDelta kMaxWaitTime = TimeDelta::FromSeconds(3);
-  local_server_port = 0;
-  static const char* kServerListeningMsgPrefix = "listening on port ";
-  while (total_wait_time.InMicroseconds() < kMaxWaitTime.InMicroseconds()) {
-    char line[80];
-    int line_len = read(temp_fd, line, sizeof(line) - 1);
-    if (line_len > 0) {
-      line[line_len] = '\0';
-      CHECK_EQ(strstr(line, kServerListeningMsgPrefix), line);
-      const char* listening_port_str =
-          line + strlen(kServerListeningMsgPrefix);
-      char* end_ptr;
-      long raw_port = strtol(listening_port_str,  // NOLINT(runtime/int)
-                             &end_ptr, 10);
-      CHECK(!*end_ptr || *end_ptr == '\n');
-      local_server_port = static_cast<in_port_t>(raw_port);
-      break;
-    } else if (line_len < 0 && errno != EAGAIN) {
-      LOG(INFO) << "error reading from " << temp_file_name << ": "
-                << strerror(errno);
-      break;
-    }
-    usleep(kSleepTime.InMicroseconds());
-    total_wait_time += kSleepTime;
-  }
-  close(temp_fd);
-  remove(temp_file_name);
-  CHECK_GT(local_server_port, 0);
-  LOG(INFO) << "server listening on port " << local_server_port;
-  Subprocess::Get().KillExec(tag);
-}
-
-void ExitWhenDone(bool* spawned) {
-  if (*spawned && !Subprocess::Get().SubprocessInFlight()) {
-    // tear down the sub process
-    printf("tear down time\n");
-    int status = test_utils::System(
-        base::StringPrintf("wget -O /dev/null http://127.0.0.1:%d/quitquitquit",
-                           local_server_port));
-    EXPECT_NE(-1, status) << "system() failed";
-    EXPECT_TRUE(WIFEXITED(status))
-        << "command failed to run or died abnormally";
-    MessageLoop::current()->BreakLoop();
-  } else {
-    // Re-run this callback again in 10 ms.
-    MessageLoop::current()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&ExitWhenDone, spawned),
-        TimeDelta::FromMilliseconds(10));
-  }
-}
-
 }  // namespace
 
+// Test that you can cancel a program that's already running.
 TEST_F(SubprocessTest, CancelTest) {
-  bool spawned = false;
-  loop_.PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&StartAndCancelInRunLoop, &spawned),
-      TimeDelta::FromMilliseconds(100));
-  loop_.PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&ExitWhenDone, &spawned),
-      TimeDelta::FromMilliseconds(10));
-  loop_.Run();
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
+  string fifo_path = tempdir.path().Append("fifo").value();
+  EXPECT_EQ(0, mkfifo(fifo_path.c_str(), 0666));
+
+  // Start a process, make sure it is running and try to cancel it. We write
+  // two bytes to the fifo, the first one marks that the program is running and
+  // the second one marks that the process waited for a timeout and was not
+  // killed. We should read the first byte but not the second one.
+  vector<string> cmd = {
+      kBinPath "/sh",
+      "-c",
+      base::StringPrintf(
+          "echo -n  X >\"%s\"; sleep 60; echo -n  Y >\"%s\"; exit 1",
+          fifo_path.c_str(),
+          fifo_path.c_str())};
+  uint32_t tag = Subprocess::Get().Exec(cmd, base::Bind(&CallbackBad));
+  EXPECT_NE(0U, tag);
+
+  int fifo_fd = HANDLE_EINTR(open(fifo_path.c_str(), O_RDONLY));
+  EXPECT_GE(fifo_fd, 0);
+
+  loop_.WatchFileDescriptor(FROM_HERE,
+                            fifo_fd,
+                            MessageLoop::WatchMode::kWatchRead,
+                            false,
+                            base::Bind([fifo_fd, tag] {
+                              char c;
+                              EXPECT_EQ(1, HANDLE_EINTR(read(fifo_fd, &c, 1)));
+                              EXPECT_EQ('X', c);
+                              LOG(INFO) << "Killing tag " << tag;
+                              Subprocess::Get().KillExec(tag);
+                            }));
+
   // This test would leak a callback that runs when the child process exits
   // unless we wait for it to run.
   brillo::MessageLoopRunUntil(
       &loop_,
-      TimeDelta::FromSeconds(10),
-      base::Bind([] {
-        return Subprocess::Get().subprocess_records_.empty();
-      }));
+      TimeDelta::FromSeconds(120),
+      base::Bind([] { return Subprocess::Get().subprocess_records_.empty(); }));
+  EXPECT_TRUE(Subprocess::Get().subprocess_records_.empty());
+  // Check that there isn't anything else to read from the pipe.
+  char c;
+  EXPECT_EQ(0, HANDLE_EINTR(read(fifo_fd, &c, 1)));
+  IGNORE_EINTR(close(fifo_fd));
 }
 
 }  // namespace chromeos_update_engine
