@@ -686,6 +686,34 @@ include $(BUILD_EXECUTABLE)
 # dependencies are removed or placed behind the USE_DBUS flag.
 ifdef BRILLO
 
+# Sample images for unittests.
+# ========================================================
+# Generate a prebuilt module that installs a sample image from the compressed
+# sample_images.tar.bz2 file used by the unittests.
+#
+# $(1): The filename in the sample_images.tar.bz2
+define ue-unittest-sample-image
+    $(eval include $(CLEAR_VARS)) \
+    $(eval LOCAL_MODULE := ue_unittest_$(1)) \
+    $(eval LOCAL_MODULE_CLASS := EXECUTABLES) \
+    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
+    $(eval LOCAL_MODULE_PATH := \
+        $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests/gen) \
+    $(eval LOCAL_MODULE_STEM := $(1)) \
+    $(eval my_gen := $(call local-intermediates-dir)/gen/$(1)) \
+    $(eval $(my_gen) : PRIVATE_CUSTOM_TOOL = \
+        tar -jxf $$< -C $$(dir $$@) $$(notdir $$@)) \
+    $(eval $(my_gen) : $(LOCAL_PATH)/sample_images/sample_images.tar.bz2 ; \
+        $$(transform-generated-source)) \
+    $(eval LOCAL_PREBUILT_MODULE_FILE := $(my_gen)) \
+    $(eval include $(BUILD_PREBUILT))
+endef
+
+$(call ue-unittest-sample-image,disk_ext2_1k.img)
+$(call ue-unittest-sample-image,disk_ext2_4k.img)
+$(call ue-unittest-sample-image,disk_ext2_4k_empty.img)
+$(call ue-unittest-sample-image,disk_ext2_ue_settings.img)
+
 # test_http_server (type: executable)
 # ========================================================
 # Test HTTP Server.
@@ -715,6 +743,11 @@ LOCAL_MODULE := update_engine_unittests
 ifdef BRILLO
   LOCAL_MODULE_TAGS := eng
 endif
+LOCAL_REQUIRED_MODULES := \
+    ue_unittest_disk_ext2_1k.img \
+    ue_unittest_disk_ext2_4k.img \
+    ue_unittest_disk_ext2_4k_empty.img \
+    ue_unittest_disk_ext2_ue_settings.img
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true

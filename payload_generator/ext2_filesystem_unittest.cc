@@ -34,7 +34,6 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/extent_utils.h"
 
-using chromeos_update_engine::test_utils::System;
 using std::map;
 using std::set;
 using std::string;
@@ -59,24 +58,13 @@ void ExpectBlocksInRange(const vector<Extent>& extents, uint64_t total_blocks) {
 
 }  // namespace
 
-
-class Ext2FilesystemTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    ASSERT_TRUE(utils::MakeTempFile("Ext2FilesystemTest-XXXXXX",
-                                    &fs_filename_, nullptr));
-    ASSERT_EQ(0, truncate(fs_filename_.c_str(), kDefaultFilesystemSize));
-  }
-
-  void TearDown() override {
-    unlink(fs_filename_.c_str());
-  }
-
-  string fs_filename_;
-};
+class Ext2FilesystemTest : public ::testing::Test {};
 
 TEST_F(Ext2FilesystemTest, InvalidFilesystem) {
-  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(fs_filename_);
+  test_utils::ScopedTempFile fs_filename_{"Ext2FilesystemTest-XXXXXX"};
+  ASSERT_EQ(0, truncate(fs_filename_.path().c_str(), kDefaultFilesystemSize));
+  unique_ptr<Ext2Filesystem> fs =
+      Ext2Filesystem::CreateFromFile(fs_filename_.path());
   ASSERT_EQ(nullptr, fs.get());
 
   fs = Ext2Filesystem::CreateFromFile("/path/to/invalid/file");
@@ -84,10 +72,9 @@ TEST_F(Ext2FilesystemTest, InvalidFilesystem) {
 }
 
 TEST_F(Ext2FilesystemTest, EmptyFilesystem) {
-  EXPECT_EQ(0, System(base::StringPrintf(
-      "/sbin/mkfs.ext2 -q -b %" PRIuS " -F %s",
-      kDefaultFilesystemBlockSize, fs_filename_.c_str())));
-  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(fs_filename_);
+  base::FilePath path =
+      test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_4k_empty.img");
+  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
 
   ASSERT_NE(nullptr, fs.get());
   EXPECT_EQ(kDefaultFilesystemBlockCount, fs->GetBlockCount());
@@ -194,6 +181,7 @@ TEST_F(Ext2FilesystemTest, LoadSettingsFailsTest) {
   base::FilePath path = test_utils::GetBuildArtifactsPath().Append(
       "gen/disk_ext2_1k.img");
   unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
+  ASSERT_NE(nullptr, fs.get());
 
   brillo::KeyValueStore store;
   // disk_ext2_1k.img doesn't have the /etc/update_engine.conf file.
@@ -204,6 +192,7 @@ TEST_F(Ext2FilesystemTest, LoadSettingsWorksTest) {
   base::FilePath path = test_utils::GetBuildArtifactsPath().Append(
       "gen/disk_ext2_ue_settings.img");
   unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
+  ASSERT_NE(nullptr, fs.get());
 
   brillo::KeyValueStore store;
   EXPECT_TRUE(fs->LoadSettings(&store));
