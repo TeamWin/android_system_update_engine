@@ -135,9 +135,8 @@ void TestWithData(const brillo::Blob& data,
   // TODO(adlr): see if we need a different file for build bots
   ScopedTempFile output_temp_file;
   TestDirectFileWriter writer;
-  EXPECT_EQ(0, writer.Open(output_temp_file.GetPath().c_str(),
-                           O_WRONLY | O_CREAT,
-                           0));
+  EXPECT_EQ(
+      0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
   writer.set_fail_write(fail_write);
 
   // We pull off the first byte from data and seek past it.
@@ -183,7 +182,7 @@ void TestWithData(const brillo::Blob& data,
     expected_code = ErrorCode::kDownloadWriteError;
   DownloadActionTestProcessorDelegate delegate(expected_code);
   delegate.expected_data_ = brillo::Blob(data.begin() + 1, data.end());
-  delegate.path_ = output_temp_file.GetPath();
+  delegate.path_ = output_temp_file.path();
   ActionProcessor processor;
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&feeder_action);
@@ -268,9 +267,7 @@ void TestTerminateEarly(bool use_download_delegate) {
   ScopedTempFile temp_file;
   {
     DirectFileWriter writer;
-    EXPECT_EQ(0, writer.Open(temp_file.GetPath().c_str(),
-                             O_WRONLY | O_CREAT,
-                             0));
+    EXPECT_EQ(0, writer.Open(temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
 
     // takes ownership of passed in HttpFetcher
     ObjectFeederAction<InstallPlan> feeder_action;
@@ -304,7 +301,7 @@ void TestTerminateEarly(bool use_download_delegate) {
   }
 
   // 1 or 0 chunks should have come through
-  const off_t resulting_file_size(utils::FileSize(temp_file.GetPath()));
+  const off_t resulting_file_size(utils::FileSize(temp_file.path()));
   EXPECT_GE(resulting_file_size, 0);
   if (resulting_file_size != 0)
     EXPECT_EQ(kMockHttpFetcherChunkSize,
@@ -452,9 +449,8 @@ class P2PDownloadActionTest : public testing::Test {
 
     ScopedTempFile output_temp_file;
     TestDirectFileWriter writer;
-    EXPECT_EQ(0, writer.Open(output_temp_file.GetPath().c_str(),
-                             O_WRONLY | O_CREAT,
-                             0));
+    EXPECT_EQ(
+        0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
     InstallPlan install_plan;
     install_plan.payload_size = data_.length();
     install_plan.payload_hash = "1234hash";
@@ -475,7 +471,7 @@ class P2PDownloadActionTest : public testing::Test {
     DownloadActionTestProcessorDelegate delegate(ErrorCode::kSuccess);
     delegate.expected_data_ = brillo::Blob(data_.begin() + start_at_offset_,
                                            data_.end());
-    delegate.path_ = output_temp_file.GetPath();
+    delegate.path_ = output_temp_file.path();
     processor_.set_delegate(&delegate);
     processor_.EnqueueAction(&feeder_action);
     processor_.EnqueueAction(download_action_.get());
