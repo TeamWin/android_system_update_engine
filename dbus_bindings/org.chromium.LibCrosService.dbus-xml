@@ -9,6 +9,9 @@
       <arg name="signal_name" type="s" direction="in" />
       <annotation name="org.chromium.DBus.Method.Kind" value="simple" />
     </method>
+    <method name="GetKioskAppRequiredPlatformVersion">
+      <arg name="required_platform_version" type="s" direction="out" />
+    </method>
   </interface>
   <interface name="org.chromium.UpdateEngineLibcrosProxyResolvedInterface">
     <signal name="ProxyResolved">

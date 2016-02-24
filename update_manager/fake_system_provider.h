@@ -43,6 +43,10 @@ class FakeSystemProvider : public SystemProvider {
     return &var_num_slots_;
   }
 
+  FakeVariable<std::string>* var_kiosk_required_platform_version() override {
+    return &var_kiosk_required_platform_version_;
+  }
+
  private:
   FakeVariable<bool> var_is_normal_boot_mode_{  // NOLINT(whitespace/braces)
     "is_normal_boot_mode", kVariableModeConst};
@@ -51,6 +55,8 @@ class FakeSystemProvider : public SystemProvider {
   FakeVariable<bool> var_is_oobe_complete_{  // NOLINT(whitespace/braces)
     "is_oobe_complete", kVariableModePoll};
   FakeVariable<unsigned int> var_num_slots_{"num_slots", kVariableModePoll};
+  FakeVariable<std::string> var_kiosk_required_platform_version_{
+      "kiosk_required_platform_version", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeSystemProvider);
 };

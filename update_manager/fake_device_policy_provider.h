@@ -71,6 +71,10 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_au_p2p_enabled_;
   }
 
+  FakeVariable<bool>* var_allow_kiosk_app_control_chrome_version() override {
+    return &var_allow_kiosk_app_control_chrome_version_;
+  }
+
  private:
   FakeVariable<bool> var_device_policy_is_loaded_{
       "policy_is_loaded", kVariableModePoll};
@@ -91,6 +95,8 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
   FakeVariable<bool> var_http_downloads_enabled_{
       "http_downloads_enabled", kVariableModePoll};
   FakeVariable<bool> var_au_p2p_enabled_{"au_p2p_enabled", kVariableModePoll};
+  FakeVariable<bool> var_allow_kiosk_app_control_chrome_version_{
+      "allow_kiosk_app_control_chrome_version", kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeDevicePolicyProvider);
 };

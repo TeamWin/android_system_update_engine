@@ -19,33 +19,56 @@
 #include <memory>
 
 #include <base/time/time.h>
+#include <brillo/make_unique_ptr.h>
 #include <gtest/gtest.h>
 
+#include "libcros/dbus-proxies.h"
+#include "libcros/dbus-proxy-mocks.h"
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
+#include "update_engine/libcros_proxy.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
+using org::chromium::LibCrosServiceInterfaceProxyMock;
 using std::unique_ptr;
+using testing::_;
+using testing::DoAll;
+using testing::Return;
+using testing::SetArgPointee;
 
 namespace chromeos_update_manager {
 
 class UmRealSystemProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    provider_.reset(
-        new RealSystemProvider(&fake_hardware_, &fake_boot_control_));
+    service_interface_mock_ = new LibCrosServiceInterfaceProxyMock();
+    libcros_proxy_.reset(new chromeos_update_engine::LibCrosProxy(
+        brillo::make_unique_ptr(service_interface_mock_),
+        unique_ptr<
+            org::chromium::
+                UpdateEngineLibcrosProxyResolvedInterfaceProxyInterface>()));
+
+    provider_.reset(new RealSystemProvider(&fake_hardware_, &fake_boot_control_,
+                                           libcros_proxy_.get()));
     EXPECT_TRUE(provider_->Init());
   }
 
   chromeos_update_engine::FakeHardware fake_hardware_;
   chromeos_update_engine::FakeBootControl fake_boot_control_;
   unique_ptr<RealSystemProvider> provider_;
+
+  // Local pointers to the mocks. The instances are owned by the
+  // |libcros_proxy_|.
+  LibCrosServiceInterfaceProxyMock* service_interface_mock_;
+
+  unique_ptr<chromeos_update_engine::LibCrosProxy> libcros_proxy_;
 };
 
 TEST_F(UmRealSystemProviderTest, InitTest) {
   EXPECT_NE(nullptr, provider_->var_is_normal_boot_mode());
   EXPECT_NE(nullptr, provider_->var_is_official_build());
   EXPECT_NE(nullptr, provider_->var_is_oobe_complete());
+  EXPECT_NE(nullptr, provider_->var_kiosk_required_platform_version());
 }
 
 TEST_F(UmRealSystemProviderTest, IsOOBECompleteTrue) {
@@ -56,6 +79,27 @@ TEST_F(UmRealSystemProviderTest, IsOOBECompleteTrue) {
 TEST_F(UmRealSystemProviderTest, IsOOBECompleteFalse) {
   fake_hardware_.UnsetIsOOBEComplete();
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_is_oobe_complete());
+}
+
+TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
+  const std::string kRequiredPlatformVersion("1234.0.0");
+  EXPECT_CALL(*service_interface_mock_,
+              GetKioskAppRequiredPlatformVersion(_, _, _))
+      .WillOnce(
+          DoAll(SetArgPointee<0>(kRequiredPlatformVersion), Return(true)));
+
+  UmTestUtils::ExpectVariableHasValue(
+      kRequiredPlatformVersion,
+      provider_->var_kiosk_required_platform_version());
+}
+
+TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersionFailure) {
+  EXPECT_CALL(*service_interface_mock_,
+              GetKioskAppRequiredPlatformVersion(_, _, _))
+      .WillOnce(Return(false));
+
+  UmTestUtils::ExpectVariableHasValue(
+      std::string(), provider_->var_kiosk_required_platform_version());
 }
 
 }  // namespace chromeos_update_manager

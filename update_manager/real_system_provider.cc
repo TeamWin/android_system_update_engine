@@ -29,6 +29,7 @@
 #include <base/time/time.h>
 
 #include "update_engine/common/utils.h"
+#include "update_engine/libcros_proxy.h"
 #include "update_engine/update_manager/generic_variables.h"
 
 using std::string;
@@ -54,7 +55,28 @@ bool RealSystemProvider::Init() {
       new ConstCopyVariable<unsigned int>(
           "num_slots", boot_control_->GetNumSlots()));
 
+  var_kiosk_required_platform_version_.reset(new CallCopyVariable<std::string>(
+      "kiosk_required_platform_version",
+      base::TimeDelta::FromHours(5),  // Same as Chrome's CWS poll.
+      base::Bind(&RealSystemProvider::GetKioskAppRequiredPlatformVersion,
+                 base::Unretained(this))));
+
   return true;
+}
+
+std::string RealSystemProvider::GetKioskAppRequiredPlatformVersion() {
+  std::string required_platform_version;
+
+#if USE_LIBCROS
+  brillo::ErrorPtr error;
+  if (!libcros_proxy_->service_interface_proxy()
+           ->GetKioskAppRequiredPlatformVersion(&required_platform_version,
+                                                &error)) {
+    LOG(WARNING) << "Failed to get kiosk required platform version";
+  }
+#endif
+
+  return required_platform_version;
 }
 
 }  // namespace chromeos_update_manager
