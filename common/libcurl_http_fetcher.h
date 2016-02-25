@@ -132,9 +132,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // Calls into curl_multi_perform to let libcurl do its work. Returns after
   // curl_multi_perform is finished, which may actually be after more than
   // one call to curl_multi_perform. This method will set up the message
-  // loop with sources for future work that libcurl will do.
+  // loop with sources for future work that libcurl will do, if any, or complete
+  // the transfer and finish the action if no work left to do.
   // This method will not block.
-  // Returns true if we should resume immediately after this call.
   void CurlPerformOnce();
 
   // Sets up message loop sources as needed by libcurl. This is generally
@@ -192,6 +192,16 @@ class LibcurlHttpFetcher : public HttpFetcher {
   brillo::MessageLoop::TaskId timeout_id_{brillo::MessageLoop::kTaskIdNull};
 
   bool transfer_in_progress_{false};
+  bool transfer_paused_{false};
+
+  // Whether it should ignore transfer failures for the purpose of retrying the
+  // connection.
+  bool ignore_failure_{false};
+
+  // Whether we should restart the transfer once Unpause() is called. This can
+  // be caused because either the connection dropped while pause or the proxy
+  // was resolved and we never started the transfer in the first place.
+  bool restart_transfer_on_unpause_{false};
 
   // The transfer size. -1 if not known.
   off_t transfer_size_{0};

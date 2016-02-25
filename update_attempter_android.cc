@@ -173,6 +173,7 @@ bool UpdateAttempterAndroid::ApplyPayload(
   SetupDownload();
   cpu_limiter_.StartLimiter();
   SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
+  ongoing_update_ = true;
 
   // Just in case we didn't update boot flags yet, make sure they're updated
   // before any update processing starts. This will start the update process.
@@ -181,23 +182,24 @@ bool UpdateAttempterAndroid::ApplyPayload(
 }
 
 bool UpdateAttempterAndroid::SuspendUpdate(brillo::ErrorPtr* error) {
-  // TODO(deymo): Implement suspend/resume.
-  return LogAndSetError(error, FROM_HERE, "Suspend/resume not implemented");
+  if (!ongoing_update_)
+    return LogAndSetError(error, FROM_HERE, "No ongoing update to suspend.");
+  processor_->SuspendProcessing();
+  return true;
 }
 
 bool UpdateAttempterAndroid::ResumeUpdate(brillo::ErrorPtr* error) {
-  // TODO(deymo): Implement suspend/resume.
-  return LogAndSetError(error, FROM_HERE, "Suspend/resume not implemented");
+  if (!ongoing_update_)
+    return LogAndSetError(error, FROM_HERE, "No ongoing update to resume.");
+  processor_->ResumeProcessing();
+  return true;
 }
 
 bool UpdateAttempterAndroid::CancelUpdate(brillo::ErrorPtr* error) {
-  if (status_ == UpdateStatus::IDLE ||
-      status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
+  if (!ongoing_update_)
     return LogAndSetError(error, FROM_HERE, "No ongoing update to cancel.");
-  }
-
-  // TODO(deymo): Implement cancel.
-  return LogAndSetError(error, FROM_HERE, "Cancel not implemented");
+  processor_->StopProcessing();
+  return true;
 }
 
 bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
