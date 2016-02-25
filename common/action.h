@@ -124,6 +124,15 @@ class AbstractAction {
   // Only the ActionProcessor should call this.
   virtual void TerminateProcessing() {}
 
+  // Called on asynchronous actions if the processing is suspended and resumed,
+  // respectively. These methods are called by the ActionProcessor and should
+  // not be explicitly called.
+  // The action may still call ActionCompleted() once the action is completed
+  // while the processing is suspended, for example if suspend/resume is not
+  // implemented for the given action.
+  virtual void SuspendAction() {}
+  virtual void ResumeAction() {}
+
   // These methods are useful for debugging. TODO(adlr): consider using
   // std::type_info for this?
   // Type() returns a string of the Action type. I.e., for DownloadAction,

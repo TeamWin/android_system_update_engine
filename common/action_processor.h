@@ -20,6 +20,7 @@
 #include <deque>
 
 #include <base/macros.h>
+#include <brillo/errors/error.h>
 
 #include "update_engine/common/error_code.h"
 
@@ -40,7 +41,7 @@ class ActionProcessorDelegate;
 
 class ActionProcessor {
  public:
-  ActionProcessor();
+  ActionProcessor() = default;
 
   virtual ~ActionProcessor();
 
@@ -54,8 +55,20 @@ class ActionProcessor {
   // will be lost and must be re-enqueued if this Processor is to use it.
   void StopProcessing();
 
-  // Returns true iff an Action is currently processing.
-  bool IsRunning() const { return nullptr != current_action_; }
+  // Suspend the processing. If an Action is running, it will have the
+  // SuspendProcessing() called on it, and it should suspend operations until
+  // ResumeProcessing() is called on this class to continue. While suspended,
+  // no new actions will be started. Calling SuspendProcessing while the
+  // processing is suspended or not running this method performs no action.
+  void SuspendProcessing();
+
+  // Resume the suspended processing. If the ActionProcessor is not suspended
+  // or not running on the first place this method performs no action.
+  void ResumeProcessing();
+
+  // Returns true iff the processing was started but not yet completed nor
+  // stopped.
+  bool IsRunning() const { return current_action_ != nullptr || suspended_; }
 
   // Adds another Action to the end of the queue.
   virtual void EnqueueAction(AbstractAction* action);
@@ -75,15 +88,29 @@ class ActionProcessor {
   void ActionComplete(AbstractAction* actionptr, ErrorCode code);
 
  private:
+  // Continue processing actions (if any) after the last action terminated with
+  // the passed error code. If there are no more actions to process, the
+  // processing will terminate.
+  void StartNextActionOrFinish(ErrorCode code);
+
   // Actions that have not yet begun processing, in the order in which
   // they'll be processed.
   std::deque<AbstractAction*> actions_;
 
   // A pointer to the currently processing Action, if any.
-  AbstractAction* current_action_;
+  AbstractAction* current_action_{nullptr};
+
+  // The ErrorCode reported by an action that was suspended but finished while
+  // being suspended. This error code is stored here to be reported back to the
+  // delegate once the processor is resumed.
+  ErrorCode suspended_error_code_{ErrorCode::kSuccess};
+
+  // Whether the action processor is or should be suspended.
+  bool suspended_{false};
 
   // A pointer to the delegate, or null if none.
-  ActionProcessorDelegate *delegate_;
+  ActionProcessorDelegate* delegate_{nullptr};
+
   DISALLOW_COPY_AND_ASSIGN(ActionProcessor);
 };
 
