@@ -16,6 +16,8 @@
 
 #include "update_engine/payload_consumer/extent_writer.h"
 
+#include <fcntl.h>
+
 #include <algorithm>
 #include <string>
 #include <vector>

@@ -16,6 +16,8 @@
 
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
 
+#include <fcntl.h>
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -82,8 +84,8 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
 
 TEST_F(BzipExtentWriterTest, ChunkedTest) {
   // Generated with:
-  //   yes "ABC" | head -c 819200 | bzip2 -9 | \
-  //   hexdump -v -e '"      " 11/1 "0x%02x, " "\n"'
+  //   yes "ABC" | head -c 819200 | bzip2 -9 |
+  //     hexdump -v -e '"      " 11/1 "0x%02x, " "\n"'
   static const uint8_t kCompressedData[] = {
       0x42, 0x5a, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0xbe,
       0x1c, 0xda, 0xee, 0x03, 0x1f, 0xff, 0xc4, 0x00, 0x00, 0x10, 0x38,
