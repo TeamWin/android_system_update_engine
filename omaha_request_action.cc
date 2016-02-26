@@ -1074,18 +1074,23 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
   // safe-guards). See http://crbug.com/297170 for an example)
   size_t minimum_size = 0;
   int64_t manifest_metadata_size = 0;
+  int64_t manifest_signature_size = 0;
   int64_t next_data_offset = 0;
   int64_t next_data_length = 0;
   if (system_state_ &&
       system_state_->prefs()->GetInt64(kPrefsManifestMetadataSize,
                                        &manifest_metadata_size) &&
       manifest_metadata_size != -1 &&
+      system_state_->prefs()->GetInt64(kPrefsManifestSignatureSize,
+                                       &manifest_signature_size) &&
+      manifest_signature_size != -1 &&
       system_state_->prefs()->GetInt64(kPrefsUpdateStateNextDataOffset,
                                        &next_data_offset) &&
       next_data_offset != -1 &&
       system_state_->prefs()->GetInt64(kPrefsUpdateStateNextDataLength,
                                        &next_data_length)) {
-    minimum_size = manifest_metadata_size + next_data_offset + next_data_length;
+    minimum_size = manifest_metadata_size + manifest_signature_size +
+                   next_data_offset + next_data_length;
   }
 
   string file_id = utils::CalculateP2PFileId(response.hash, response.size);

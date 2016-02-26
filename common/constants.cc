@@ -45,6 +45,7 @@ const char kPrefsInstallDateDays[] = "install-date-days";
 const char kPrefsLastActivePingDay[] = "last-active-ping-day";
 const char kPrefsLastRollCallPingDay[] = "last-roll-call-ping-day";
 const char kPrefsManifestMetadataSize[] = "manifest-metadata-size";
+const char kPrefsManifestSignatureSize[] = "manifest-signature-size";
 const char kPrefsMetricsAttemptLastReportingTime[] =
     "metrics-attempt-last-reporting-time";
 const char kPrefsMetricsCheckLastReportingTime[] =
