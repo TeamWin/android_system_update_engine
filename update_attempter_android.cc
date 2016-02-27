@@ -412,14 +412,18 @@ void UpdateAttempterAndroid::SetupDownload() {
   if (install_plan_.is_resume) {
     // Resuming an update so fetch the update manifest metadata first.
     int64_t manifest_metadata_size = 0;
+    int64_t manifest_signature_size = 0;
     prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size);
-    fetcher->AddRange(base_offset_, manifest_metadata_size);
+    prefs_->GetInt64(kPrefsManifestSignatureSize, &manifest_signature_size);
+    fetcher->AddRange(base_offset_,
+                      manifest_metadata_size + manifest_signature_size);
     // If there're remaining unprocessed data blobs, fetch them. Be careful not
     // to request data beyond the end of the payload to avoid 416 HTTP response
     // error codes.
     int64_t next_data_offset = 0;
     prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
-    uint64_t resume_offset = manifest_metadata_size + next_data_offset;
+    uint64_t resume_offset =
+        manifest_metadata_size + manifest_signature_size + next_data_offset;
     if (!install_plan_.payload_size) {
       fetcher->AddRange(base_offset_ + resume_offset);
     } else if (resume_offset < install_plan_.payload_size) {
