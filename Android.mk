@@ -743,6 +743,15 @@ $(call ue-unittest-sample-image,disk_ext2_4k.img)
 $(call ue-unittest-sample-image,disk_ext2_4k_empty.img)
 $(call ue-unittest-sample-image,disk_ext2_unittest.img)
 
+# Zlib Fingerprint
+# ========================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := zlib_fingerprint
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
+LOCAL_PREBUILT_MODULE_FILE := $(TARGET_OUT_COMMON_GEN)/zlib_fingerprint
+include $(BUILD_PREBUILT)
+
 # test_http_server (type: executable)
 # ========================================================
 # Test HTTP Server.
@@ -781,7 +790,8 @@ LOCAL_REQUIRED_MODULES := \
     ue_unittest_key.pem \
     ue_unittest_key.pub.pem \
     ue_unittest_key2.pem \
-    ue_unittest_key2.pub.pem
+    ue_unittest_key2.pub.pem \
+    zlib_fingerprint
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
