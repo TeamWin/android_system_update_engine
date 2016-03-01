@@ -309,6 +309,9 @@ int Main(int argc, char** argv) {
   DEFINE_string(properties_file, "",
                 "If passed, dumps the payload properties of the payload passed "
                 "in --in_file and exits.");
+  DEFINE_string(zlib_fingerprint, "",
+                "The fingerprint of zlib in the source image in hash string "
+                "format, used to check imgdiff compatibility.");
 
   DEFINE_string(old_channel, "",
                 "The channel for the old image. 'dev-channel', 'npo-channel', "
@@ -535,9 +538,13 @@ int Main(int argc, char** argv) {
     LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
   }
 
-  if (payload_config.minor_version >= kImgdiffMinorPayloadVersion) {
-    // TODO(senj): Check if the zlib version in source and target are the same.
-    payload_config.imgdiff_allowed = true;
+  if (payload_config.minor_version >= kImgdiffMinorPayloadVersion &&
+      !FLAGS_zlib_fingerprint.empty()) {
+    if (utils::IsZlibCompatible(FLAGS_zlib_fingerprint)) {
+      payload_config.imgdiff_allowed = true;
+    } else {
+      LOG(INFO) << "IMGDIFF operation disabled due to fingerprint mismatch.";
+    }
   }
 
   if (payload_config.is_delta) {
