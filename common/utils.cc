@@ -613,9 +613,14 @@ bool MakeTempDirectory(const string& base_dirname_template,
 
 bool MountFilesystem(const string& device,
                      const string& mountpoint,
-                     unsigned long mountflags) {  // NOLINT(runtime/int)
-  // TODO(sosa): Remove "ext3" once crbug.com/208022 is resolved.
-  const vector<const char*> fstypes{"ext2", "ext3", "ext4", "squashfs"};
+                     unsigned long mountflags,  // NOLINT(runtime/int)
+                     const string& type) {
+  vector<const char*> fstypes;
+  if (type.empty()) {
+    fstypes = {"ext2", "ext3", "ext4", "squashfs"};
+  } else {
+    fstypes = {type.c_str()};
+  }
   for (const char* fstype : fstypes) {
     int rc = mount(device.c_str(), mountpoint.c_str(), fstype, mountflags,
                    nullptr);
@@ -625,7 +630,9 @@ bool MountFilesystem(const string& device,
     PLOG(WARNING) << "Unable to mount destination device " << device
                   << " on " << mountpoint << " as " << fstype;
   }
-  LOG(ERROR) << "Unable to mount " << device << " with any supported type";
+  if (!type.empty()) {
+    LOG(ERROR) << "Unable to mount " << device << " with any supported type";
+  }
   return false;
 }
 

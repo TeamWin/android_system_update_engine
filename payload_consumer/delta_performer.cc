@@ -790,6 +790,12 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     install_part.name = partition.partition_name();
     install_part.run_postinstall =
         partition.has_run_postinstall() && partition.run_postinstall();
+    if (install_part.run_postinstall) {
+      install_part.postinstall_path =
+          (partition.has_postinstall_path() ? partition.postinstall_path()
+                                            : kPostinstallDefaultScript);
+      install_part.filesystem_type = partition.filesystem_type();
+    }
 
     if (partition.has_old_partition_info()) {
       const PartitionInfo& info = partition.old_partition_info();

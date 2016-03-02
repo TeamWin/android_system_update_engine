@@ -171,10 +171,13 @@ std::string MakePartitionName(const std::string& disk_name,
 std::string MakePartitionNameForMount(const std::string& part_name);
 
 // Synchronously mount or unmount a filesystem. Return true on success.
-// When mounting, it will attempt to mount the the device as "ext3", "ext2" and
-// "squashfs", with the passed |flags| options.
-bool MountFilesystem(const std::string& device, const std::string& mountpoint,
-                     unsigned long flags);  // NOLINT(runtime/int)
+// When mounting, it will attempt to mount the device as the passed filesystem
+// type |type|, with the passed |flags| options. If |type| is empty, "ext2",
+// "ext3", "ext4" and "squashfs" will be tried.
+bool MountFilesystem(const std::string& device,
+                     const std::string& mountpoint,
+                     unsigned long flags,  // NOLINT(runtime/int)
+                     const std::string& type);
 bool UnmountFilesystem(const std::string& mountpoint);
 
 // Returns the block count and the block byte size of the file system on
