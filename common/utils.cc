@@ -614,7 +614,8 @@ bool MakeTempDirectory(const string& base_dirname_template,
 bool MountFilesystem(const string& device,
                      const string& mountpoint,
                      unsigned long mountflags,  // NOLINT(runtime/int)
-                     const string& type) {
+                     const string& type,
+                     const string& fs_mount_options) {
   vector<const char*> fstypes;
   if (type.empty()) {
     fstypes = {"ext2", "ext3", "ext4", "squashfs"};
@@ -623,7 +624,7 @@ bool MountFilesystem(const string& device,
   }
   for (const char* fstype : fstypes) {
     int rc = mount(device.c_str(), mountpoint.c_str(), fstype, mountflags,
-                   nullptr);
+                   fs_mount_options.c_str());
     if (rc == 0)
       return true;
 
