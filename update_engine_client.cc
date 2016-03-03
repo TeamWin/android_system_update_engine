@@ -29,15 +29,16 @@
 #include <brillo/daemons/daemon.h>
 #include <brillo/flag_helper.h>
 
+#include "update_engine/client.h"
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/error_code_utils.h"
-#include "update_engine/client.h"
 #include "update_engine/status_update_handler.h"
 #include "update_engine/update_status.h"
 #include "update_engine/update_status_utils.h"
 
-using chromeos_update_engine::UpdateStatusToString;
 using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::UpdateStatusToString;
+using chromeos_update_engine::utils::ErrorCodeToString;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -186,8 +187,9 @@ int UpdateEngineClient::GetNeedReboot() {
 
 class UpdateWaitHandler : public ExitingStatusUpdateHandler {
  public:
-  explicit UpdateWaitHandler(bool exit_on_error)
-      : exit_on_error_(exit_on_error) {}
+  explicit UpdateWaitHandler(bool exit_on_error,
+                             update_engine::UpdateEngineClient* client)
+      : exit_on_error_(exit_on_error), client_(client) {}
 
   ~UpdateWaitHandler() override = default;
 
@@ -199,6 +201,7 @@ class UpdateWaitHandler : public ExitingStatusUpdateHandler {
 
  private:
   bool exit_on_error_;
+  update_engine::UpdateEngineClient* client_;
 };
 
 void UpdateWaitHandler::HandleStatusUpdate(int64_t /* last_checked_time */,
@@ -207,8 +210,15 @@ void UpdateWaitHandler::HandleStatusUpdate(int64_t /* last_checked_time */,
                                            const string& /* new_version */,
                                            int64_t /* new_size */) {
   if (exit_on_error_ && current_operation == UpdateStatus::IDLE) {
-    LOG(ERROR) << "Update failed, current operations is "
-               << UpdateStatusToString(current_operation);
+    int last_attempt_error;
+    ErrorCode code = ErrorCode::kSuccess;
+    if (client_ && client_->GetLastAttemptError(&last_attempt_error))
+      code = static_cast<ErrorCode>(last_attempt_error);
+
+    LOG(ERROR) << "Update failed, current operation is "
+               << UpdateStatusToString(current_operation)
+               << ", last error code is " << ErrorCodeToString(code) << "("
+               << last_attempt_error << ")";
     exit(1);
   }
   if (current_operation == UpdateStatus::UPDATED_NEED_REBOOT) {
@@ -466,7 +476,7 @@ int UpdateEngineClient::ProcessFlags() {
 
   if (FLAGS_follow) {
     LOG(INFO) << "Waiting for update to complete.";
-    auto handler = new UpdateWaitHandler(true);
+    auto handler = new UpdateWaitHandler(true, client_.get());
     handlers_.emplace_back(handler);
     client_->RegisterStatusUpdateHandler(handler);
     return kContinueRunning;
@@ -507,7 +517,7 @@ int UpdateEngineClient::ProcessFlags() {
   }
 
   if (FLAGS_block_until_reboot_is_needed) {
-    auto handler = new UpdateWaitHandler(false);
+    auto handler = new UpdateWaitHandler(false, nullptr);
     handlers_.emplace_back(handler);
     client_->RegisterStatusUpdateHandler(handler);
     return kContinueRunning;
@@ -519,12 +529,13 @@ int UpdateEngineClient::ProcessFlags() {
       LOG(ERROR) << "Error getting last attempt error.";
     } else {
       ErrorCode code = static_cast<ErrorCode>(last_attempt_error);
-      string error_msg = chromeos_update_engine::utils::ErrorCodeToString(code);
-      printf("ERROR_CODE=%i\n"
-             "ERROR_MESSAGE=%s\n",
-             last_attempt_error, error_msg.c_str());
+      printf(
+          "ERROR_CODE=%i\n"
+          "ERROR_MESSAGE=%s\n",
+          last_attempt_error,
+          ErrorCodeToString(code).c_str());
     }
- }
+  }
 
   return 0;
 }
