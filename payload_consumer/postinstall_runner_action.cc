@@ -23,9 +23,11 @@
 #include <base/bind.h>
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
+#include <base/strings/string_util.h>
 
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/platform_constants.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 
@@ -33,16 +35,6 @@ namespace chromeos_update_engine {
 
 using std::string;
 using std::vector;
-
-namespace {
-// The absolute path to the post install command.
-const char kPostinstallScript[] = "/postinst";
-
-// Path to the binary file used by kPostinstallScript. Used to get and log the
-// file format of the binary to debug issues when the ELF format on the update
-// doesn't match the one on the current system. This path is not executed.
-const char kDebugPostinstallBinaryPath[] = "/usr/bin/cros_installer";
-}
 
 void PostinstallRunnerAction::PerformAction() {
   CHECK(HasInputObject());
@@ -60,6 +52,11 @@ void PostinstallRunnerAction::PerformAction() {
 }
 
 void PostinstallRunnerAction::PerformPartitionPostinstall() {
+  if (install_plan_.download_url.empty()) {
+    LOG(INFO) << "Skipping post-install during rollback";
+    return CompletePostinstall(ErrorCode::kSuccess);
+  }
+
   // Skip all the partitions that don't have a post-install step.
   while (current_partition_ < install_plan_.partitions.size() &&
          !install_plan_.partitions[current_partition_].run_postinstall) {
@@ -83,38 +80,45 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   // Perform post-install for the current_partition_ partition. At this point we
   // need to call CompletePartitionPostinstall to complete the operation and
   // cleanup.
+#ifdef __ANDROID__
+  fs_mount_dir_ = "/postinstall";
+#else   // __ANDROID__
   TEST_AND_RETURN(
-      utils::MakeTempDirectory("au_postint_mount.XXXXXX", &temp_rootfs_dir_));
+      utils::MakeTempDirectory("au_postint_mount.XXXXXX", &fs_mount_dir_));
+#endif  // __ANDROID__
 
-  if (!utils::MountFilesystem(mountable_device, temp_rootfs_dir_, MS_RDONLY)) {
+  string abs_path = base::FilePath(fs_mount_dir_)
+                        .AppendASCII(partition.postinstall_path)
+                        .value();
+  if (!base::StartsWith(
+          abs_path, fs_mount_dir_, base::CompareCase::SENSITIVE)) {
+    LOG(ERROR) << "Invalid relative postinstall path: "
+               << partition.postinstall_path;
+    return CompletePostinstall(ErrorCode::kPostinstallRunnerError);
+  }
+
+  if (!utils::MountFilesystem(mountable_device,
+                              fs_mount_dir_,
+                              MS_RDONLY,
+                              partition.filesystem_type,
+                              constants::kPostinstallMountOptions)) {
     return CompletePartitionPostinstall(
         1, "Error mounting the device " + mountable_device);
   }
 
-  LOG(INFO) << "Performing postinst (" << kPostinstallScript
-            << ") installed on device " << partition.target_path
+  LOG(INFO) << "Performing postinst (" << partition.postinstall_path << " at "
+            << abs_path << ") installed on device " << partition.target_path
             << " and mountable device " << mountable_device;
 
   // Logs the file format of the postinstall script we are about to run. This
   // will help debug when the postinstall script doesn't match the architecture
   // of our build.
-  LOG(INFO) << "Format file for new " <<  kPostinstallScript << " is: "
-            << utils::GetFileFormat(temp_rootfs_dir_ + kPostinstallScript);
-  LOG(INFO) << "Format file for new " <<  kDebugPostinstallBinaryPath << " is: "
-            << utils::GetFileFormat(
-                temp_rootfs_dir_ + kDebugPostinstallBinaryPath);
+  LOG(INFO) << "Format file for new " << partition.postinstall_path
+            << " is: " << utils::GetFileFormat(abs_path);
 
   // Runs the postinstall script asynchronously to free up the main loop while
   // it's running.
-  vector<string> command;
-  if (!install_plan_.download_url.empty()) {
-    command.push_back(temp_rootfs_dir_ + kPostinstallScript);
-  } else {
-    // TODO(sosa): crbug.com/366207.
-    // If we're doing a rollback, just run our own postinstall.
-    command.push_back(kPostinstallScript);
-  }
-  command.push_back(partition.target_path);
+  vector<string> command = {abs_path, partition.target_path};
   if (!Subprocess::Get().Exec(
           command,
           base::Bind(
@@ -127,11 +131,13 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
 void PostinstallRunnerAction::CompletePartitionPostinstall(
     int return_code,
     const string& output) {
-  utils::UnmountFilesystem(temp_rootfs_dir_);
-  if (!base::DeleteFile(base::FilePath(temp_rootfs_dir_), false)) {
-    PLOG(WARNING) << "Not removing mountpoint " << temp_rootfs_dir_;
+  utils::UnmountFilesystem(fs_mount_dir_);
+#ifndef ANDROID
+  if (!base::DeleteFile(base::FilePath(fs_mount_dir_), false)) {
+    PLOG(WARNING) << "Not removing temporary mountpoint " << fs_mount_dir_;
   }
-  temp_rootfs_dir_.clear();
+#endif  // !ANDROID
+  fs_mount_dir_.clear();
 
   if (return_code != 0) {
     LOG(ERROR) << "Postinst command failed with code: " << return_code;

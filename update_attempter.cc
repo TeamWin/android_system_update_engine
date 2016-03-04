@@ -125,7 +125,9 @@ UpdateAttempter::UpdateAttempter(
     : processor_(new ActionProcessor()),
       system_state_(system_state),
       cert_checker_(cert_checker),
+#if USE_LIBCROS
       chrome_proxy_resolver_(libcros_proxy),
+#endif  // USE_LIBCROS
       debugd_proxy_(debugd_proxy) {
 }
 
@@ -155,7 +157,9 @@ void UpdateAttempter::Init() {
   else
     status_ = UpdateStatus::IDLE;
 
+#if USE_LIBCROS
   chrome_proxy_resolver_.Init();
+#endif  // USE_LIBCROS
 }
 
 void UpdateAttempter::ScheduleUpdates() {
@@ -1376,14 +1380,17 @@ void UpdateAttempter::SetupDownload() {
   if (response_handler_action_->install_plan().is_resume) {
     // Resuming an update so fetch the update manifest metadata first.
     int64_t manifest_metadata_size = 0;
+    int64_t manifest_signature_size = 0;
     prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size);
-    fetcher->AddRange(0, manifest_metadata_size);
+    prefs_->GetInt64(kPrefsManifestSignatureSize, &manifest_signature_size);
+    fetcher->AddRange(0, manifest_metadata_size + manifest_signature_size);
     // If there're remaining unprocessed data blobs, fetch them. Be careful not
     // to request data beyond the end of the payload to avoid 416 HTTP response
     // error codes.
     int64_t next_data_offset = 0;
     prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
-    uint64_t resume_offset = manifest_metadata_size + next_data_offset;
+    uint64_t resume_offset =
+        manifest_metadata_size + manifest_signature_size + next_data_offset;
     if (resume_offset < response_handler_action_->install_plan().payload_size) {
       fetcher->AddRange(resume_offset);
     }

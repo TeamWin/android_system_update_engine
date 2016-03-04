@@ -135,9 +135,8 @@ void TestWithData(const brillo::Blob& data,
   // TODO(adlr): see if we need a different file for build bots
   ScopedTempFile output_temp_file;
   TestDirectFileWriter writer;
-  EXPECT_EQ(0, writer.Open(output_temp_file.GetPath().c_str(),
-                           O_WRONLY | O_CREAT,
-                           0));
+  EXPECT_EQ(
+      0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
   writer.set_fail_write(fail_write);
 
   // We pull off the first byte from data and seek past it.
@@ -183,7 +182,7 @@ void TestWithData(const brillo::Blob& data,
     expected_code = ErrorCode::kDownloadWriteError;
   DownloadActionTestProcessorDelegate delegate(expected_code);
   delegate.expected_data_ = brillo::Blob(data.begin() + 1, data.end());
-  delegate.path_ = output_temp_file.GetPath();
+  delegate.path_ = output_temp_file.path();
   ActionProcessor processor;
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&feeder_action);
@@ -268,9 +267,7 @@ void TestTerminateEarly(bool use_download_delegate) {
   ScopedTempFile temp_file;
   {
     DirectFileWriter writer;
-    EXPECT_EQ(0, writer.Open(temp_file.GetPath().c_str(),
-                             O_WRONLY | O_CREAT,
-                             0));
+    EXPECT_EQ(0, writer.Open(temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
 
     // takes ownership of passed in HttpFetcher
     ObjectFeederAction<InstallPlan> feeder_action;
@@ -304,10 +301,11 @@ void TestTerminateEarly(bool use_download_delegate) {
   }
 
   // 1 or 0 chunks should have come through
-  const off_t resulting_file_size(utils::FileSize(temp_file.GetPath()));
+  const off_t resulting_file_size(utils::FileSize(temp_file.path()));
   EXPECT_GE(resulting_file_size, 0);
   if (resulting_file_size != 0)
-    EXPECT_EQ(kMockHttpFetcherChunkSize, resulting_file_size);
+    EXPECT_EQ(kMockHttpFetcherChunkSize,
+              static_cast<size_t>(resulting_file_size));
 }
 
 }  // namespace
@@ -451,9 +449,8 @@ class P2PDownloadActionTest : public testing::Test {
 
     ScopedTempFile output_temp_file;
     TestDirectFileWriter writer;
-    EXPECT_EQ(0, writer.Open(output_temp_file.GetPath().c_str(),
-                             O_WRONLY | O_CREAT,
-                             0));
+    EXPECT_EQ(
+        0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
     InstallPlan install_plan;
     install_plan.payload_size = data_.length();
     install_plan.payload_hash = "1234hash";
@@ -474,7 +471,7 @@ class P2PDownloadActionTest : public testing::Test {
     DownloadActionTestProcessorDelegate delegate(ErrorCode::kSuccess);
     delegate.expected_data_ = brillo::Blob(data_.begin() + start_at_offset_,
                                            data_.end());
-    delegate.path_ = output_temp_file.GetPath();
+    delegate.path_ = output_temp_file.path();
     processor_.set_delegate(&delegate);
     processor_.EnqueueAction(&feeder_action);
     processor_.EnqueueAction(download_action_.get());
@@ -532,8 +529,10 @@ TEST_F(P2PDownloadActionTest, IsWrittenTo) {
   // Check the p2p file and its content matches what was sent.
   string file_id = download_action_->p2p_file_id();
   EXPECT_NE("", file_id);
-  EXPECT_EQ(data_.length(), p2p_manager_->FileGetSize(file_id));
-  EXPECT_EQ(data_.length(), p2p_manager_->FileGetExpectedSize(file_id));
+  EXPECT_EQ(static_cast<int>(data_.length()),
+            p2p_manager_->FileGetSize(file_id));
+  EXPECT_EQ(static_cast<int>(data_.length()),
+            p2p_manager_->FileGetExpectedSize(file_id));
   string p2p_file_contents;
   EXPECT_TRUE(ReadFileToString(p2p_manager_->FileGetPath(file_id),
                                &p2p_file_contents));
@@ -580,8 +579,10 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
   // DownloadAction should convey the same file_id and the file should
   // have the expected size.
   EXPECT_EQ(download_action_->p2p_file_id(), file_id);
-  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), data_.length());
-  EXPECT_EQ(p2p_manager_->FileGetExpectedSize(file_id), data_.length());
+  EXPECT_EQ(static_cast<ssize_t>(data_.length()),
+            p2p_manager_->FileGetSize(file_id));
+  EXPECT_EQ(static_cast<ssize_t>(data_.length()),
+            p2p_manager_->FileGetExpectedSize(file_id));
   string p2p_file_contents;
   // Check that the first 1000 bytes wasn't touched and that we
   // appended the remaining as appropriate.
@@ -611,14 +612,14 @@ TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
                       1000), 1000);
 
   // Check that the file is there.
-  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), 1000);
-  EXPECT_EQ(p2p_manager_->CountSharedFiles(), 1);
+  EXPECT_EQ(1000, p2p_manager_->FileGetSize(file_id));
+  EXPECT_EQ(1, p2p_manager_->CountSharedFiles());
 
   StartDownload(false);  // use_p2p_to_share
 
   // DownloadAction should have deleted the p2p file. Check that it's gone.
-  EXPECT_EQ(p2p_manager_->FileGetSize(file_id), -1);
-  EXPECT_EQ(p2p_manager_->CountSharedFiles(), 0);
+  EXPECT_EQ(-1, p2p_manager_->FileGetSize(file_id));
+  EXPECT_EQ(0, p2p_manager_->CountSharedFiles());
 }
 
 }  // namespace chromeos_update_engine

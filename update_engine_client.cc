@@ -29,12 +29,15 @@
 #include <brillo/daemons/daemon.h>
 #include <brillo/flag_helper.h>
 
+#include "update_engine/common/error_code.h"
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/client.h"
 #include "update_engine/status_update_handler.h"
 #include "update_engine/update_status.h"
 #include "update_engine/update_status_utils.h"
 
 using chromeos_update_engine::UpdateStatusToString;
+using chromeos_update_engine::ErrorCode;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -262,6 +265,7 @@ int UpdateEngineClient::ProcessFlags() {
               "Listen for status updates and print them to the screen.");
   DEFINE_bool(prev_version, false,
               "Show the previous OS version used before the update reboot.");
+  DEFINE_bool(last_attempt_error, false, "Show the last attempt error.");
 
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
@@ -508,6 +512,19 @@ int UpdateEngineClient::ProcessFlags() {
     client_->RegisterStatusUpdateHandler(handler);
     return kContinueRunning;
   }
+
+  if (FLAGS_last_attempt_error) {
+    int last_attempt_error;
+    if (!client_->GetLastAttemptError(&last_attempt_error)) {
+      LOG(ERROR) << "Error getting last attempt error.";
+    } else {
+      ErrorCode code = static_cast<ErrorCode>(last_attempt_error);
+      string error_msg = chromeos_update_engine::utils::ErrorCodeToString(code);
+      printf("ERROR_CODE=%i\n"
+             "ERROR_MESSAGE=%s\n",
+             last_attempt_error, error_msg.c_str());
+    }
+ }
 
   return 0;
 }

@@ -63,7 +63,9 @@ class PostinstallRunnerAction : public InstallPlanAction {
   void CompletePostinstall(ErrorCode error_code);
 
   InstallPlan install_plan_;
-  std::string temp_rootfs_dir_;
+
+  // The path where the filesystem will be mounted during post-install.
+  std::string fs_mount_dir_;
 
   // The partition being processed on the list of partitions specified in the
   // InstallPlan.

@@ -173,6 +173,7 @@ bool UpdateAttempterAndroid::ApplyPayload(
   SetupDownload();
   cpu_limiter_.StartLimiter();
   SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
+  ongoing_update_ = true;
 
   // Just in case we didn't update boot flags yet, make sure they're updated
   // before any update processing starts. This will start the update process.
@@ -181,23 +182,24 @@ bool UpdateAttempterAndroid::ApplyPayload(
 }
 
 bool UpdateAttempterAndroid::SuspendUpdate(brillo::ErrorPtr* error) {
-  // TODO(deymo): Implement suspend/resume.
-  return LogAndSetError(error, FROM_HERE, "Suspend/resume not implemented");
+  if (!ongoing_update_)
+    return LogAndSetError(error, FROM_HERE, "No ongoing update to suspend.");
+  processor_->SuspendProcessing();
+  return true;
 }
 
 bool UpdateAttempterAndroid::ResumeUpdate(brillo::ErrorPtr* error) {
-  // TODO(deymo): Implement suspend/resume.
-  return LogAndSetError(error, FROM_HERE, "Suspend/resume not implemented");
+  if (!ongoing_update_)
+    return LogAndSetError(error, FROM_HERE, "No ongoing update to resume.");
+  processor_->ResumeProcessing();
+  return true;
 }
 
 bool UpdateAttempterAndroid::CancelUpdate(brillo::ErrorPtr* error) {
-  if (status_ == UpdateStatus::IDLE ||
-      status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
+  if (!ongoing_update_)
     return LogAndSetError(error, FROM_HERE, "No ongoing update to cancel.");
-  }
-
-  // TODO(deymo): Implement cancel.
-  return LogAndSetError(error, FROM_HERE, "Cancel not implemented");
+  processor_->StopProcessing();
+  return true;
 }
 
 bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
@@ -412,14 +414,18 @@ void UpdateAttempterAndroid::SetupDownload() {
   if (install_plan_.is_resume) {
     // Resuming an update so fetch the update manifest metadata first.
     int64_t manifest_metadata_size = 0;
+    int64_t manifest_signature_size = 0;
     prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size);
-    fetcher->AddRange(base_offset_, manifest_metadata_size);
+    prefs_->GetInt64(kPrefsManifestSignatureSize, &manifest_signature_size);
+    fetcher->AddRange(base_offset_,
+                      manifest_metadata_size + manifest_signature_size);
     // If there're remaining unprocessed data blobs, fetch them. Be careful not
     // to request data beyond the end of the payload to avoid 416 HTTP response
     // error codes.
     int64_t next_data_offset = 0;
     prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
-    uint64_t resume_offset = manifest_metadata_size + next_data_offset;
+    uint64_t resume_offset =
+        manifest_metadata_size + manifest_signature_size + next_data_offset;
     if (!install_plan_.payload_size) {
       fetcher->AddRange(base_offset_ + resume_offset);
     } else if (resume_offset < install_plan_.payload_size) {

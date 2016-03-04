@@ -156,6 +156,8 @@ generate_fs() {
     default)
       add_files_default "${mntdir}" "${block_size}"
       ;;
+    empty)
+      ;;
   esac
 
   cleanup "${mntdir}"
@@ -176,6 +178,7 @@ main() {
   # Add more sample images here.
   generate_image disk_ext2_1k default 16777216 1024
   generate_image disk_ext2_4k default 16777216 4096
+  generate_image disk_ext2_4k_empty empty $((1024 * 4096)) 4096
   generate_image disk_ext2_ue_settings ue_settings 16777216 4096
 
   # Generate the tarball and delete temporary images.

@@ -90,8 +90,11 @@ struct InstallPlan {
     uint64_t target_size{0};
     brillo::Blob target_hash;
 
-    // Whether we should run the postinstall script from this partition.
+    // Whether we should run the postinstall script from this partition and the
+    // postinstall parameters.
     bool run_postinstall{false};
+    std::string postinstall_path;
+    std::string filesystem_type;
   };
   std::vector<Partition> partitions;
 

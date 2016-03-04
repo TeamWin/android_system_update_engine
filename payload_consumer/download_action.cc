@@ -232,6 +232,14 @@ void DownloadAction::PerformAction() {
   http_fetcher_->BeginTransfer(install_plan_.download_url);
 }
 
+void DownloadAction::SuspendAction() {
+  http_fetcher_->Pause();
+}
+
+void DownloadAction::ResumeAction() {
+  http_fetcher_->Unpause();
+}
+
 void DownloadAction::TerminateProcessing() {
   if (writer_) {
     writer_->Close();

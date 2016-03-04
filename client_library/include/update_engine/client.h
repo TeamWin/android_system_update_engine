@@ -112,6 +112,9 @@ class UpdateEngineClient {
   // Unregister a status update handler
   virtual bool UnregisterStatusUpdateHandler(StatusUpdateHandler* handler) = 0;
 
+  // Get the last UpdateAttempt error code.
+  virtual bool GetLastAttemptError(int32_t* last_attempt_error) const = 0;
+
  protected:
   // Use CreateInstance().
   UpdateEngineClient() = default;

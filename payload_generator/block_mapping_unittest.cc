@@ -97,7 +97,7 @@ TEST_F(BlockMappingTest, BlocksAreNotKeptInMemory) {
       EXPECT_FALSE(ublock.block_data.empty());
       // The block was loaded from disk only 4 times, and after that the counter
       // is not updated anymore.
-      EXPECT_EQ(4, ublock.times_read);
+      EXPECT_EQ(4U, ublock.times_read);
     }
   }
 }

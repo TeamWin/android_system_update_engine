@@ -62,6 +62,7 @@ PayloadState::PayloadState()
       url_switch_count_(0),
       attempt_num_bytes_downloaded_(0),
       attempt_connection_type_(metrics::ConnectionType::kUnknown),
+      attempt_error_code_(ErrorCode::kSuccess),
       attempt_type_(AttemptType::kUpdate) {
   for (int i = 0; i <= kNumDownloadSources; i++)
     total_bytes_downloaded_[i] = current_bytes_downloaded_[i] = 0;
@@ -232,6 +233,7 @@ void PayloadState::UpdateSucceeded() {
                                      metrics::RollbackResult::kSuccess);
       break;
   }
+  attempt_error_code_ = ErrorCode::kSuccess;
 
   // Reset the number of responses seen since it counts from the last
   // successful update, e.g. now.
@@ -264,6 +266,8 @@ void PayloadState::UpdateFailed(ErrorCode error) {
                                      metrics::RollbackResult::kFailed);
       break;
   }
+
+  attempt_error_code_ = base_error;
 
   switch (base_error) {
     // Errors which are good indicators of a problem with a particular URL or

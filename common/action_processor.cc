@@ -21,13 +21,11 @@
 #include <base/logging.h>
 
 #include "update_engine/common/action.h"
+#include "update_engine/common/error_code_utils.h"
 
 using std::string;
 
 namespace chromeos_update_engine {
-
-ActionProcessor::ActionProcessor()
-    : current_action_(nullptr), delegate_(nullptr) {}
 
 ActionProcessor::~ActionProcessor() {
   if (IsRunning())
@@ -45,8 +43,7 @@ void ActionProcessor::StartProcessing() {
   CHECK(!IsRunning());
   if (!actions_.empty()) {
     current_action_ = actions_.front();
-    LOG(INFO) << "ActionProcessor::StartProcessing: "
-              << current_action_->Type();
+    LOG(INFO) << "ActionProcessor: starting " << current_action_->Type();
     actions_.pop_front();
     current_action_->PerformAction();
   }
@@ -54,15 +51,57 @@ void ActionProcessor::StartProcessing() {
 
 void ActionProcessor::StopProcessing() {
   CHECK(IsRunning());
-  CHECK(current_action_);
-  current_action_->TerminateProcessing();
-  CHECK(current_action_);
-  current_action_->SetProcessor(nullptr);
-  LOG(INFO) << "ActionProcessor::StopProcessing: aborted "
-            << current_action_->Type();
+  if (current_action_) {
+    current_action_->TerminateProcessing();
+    current_action_->SetProcessor(nullptr);
+  }
+  LOG(INFO) << "ActionProcessor: aborted "
+            << (current_action_ ? current_action_->Type() : "")
+            << (suspended_ ? " while suspended" : "");
   current_action_ = nullptr;
+  suspended_ = false;
+  // Delete all the actions before calling the delegate.
+  for (auto action : actions_)
+    action->SetProcessor(nullptr);
+  actions_.clear();
   if (delegate_)
     delegate_->ProcessingStopped(this);
+}
+
+void ActionProcessor::SuspendProcessing() {
+  // No current_action_ when not suspended means that the action processor was
+  // never started or already finished.
+  if (suspended_ || !current_action_) {
+    LOG(WARNING) << "Called SuspendProcessing while not processing.";
+    return;
+  }
+  suspended_ = true;
+
+  // If there's a current action we should notify it that it should suspend, but
+  // the action can ignore that and terminate at any point.
+  LOG(INFO) << "ActionProcessor: suspending " << current_action_->Type();
+  current_action_->SuspendAction();
+}
+
+void ActionProcessor::ResumeProcessing() {
+  if (!suspended_) {
+    LOG(WARNING) << "Called ResumeProcessing while not suspended.";
+    return;
+  }
+  suspended_ = false;
+  if (current_action_) {
+    // The current_action_ did not call ActionComplete while suspended, so we
+    // should notify it of the resume operation.
+    LOG(INFO) << "ActionProcessor: resuming " << current_action_->Type();
+    current_action_->ResumeAction();
+  } else {
+    // The last action called ActionComplete while suspended, so there is
+    // already a log message with the type of the finished action. We simply
+    // state that we are resuming processing and the next function will log the
+    // start of the next action or processing completion.
+    LOG(INFO) << "ActionProcessor: resuming processing";
+    StartNextActionOrFinish(suspended_error_code_);
+  }
 }
 
 void ActionProcessor::ActionComplete(AbstractAction* actionptr,
@@ -74,17 +113,26 @@ void ActionProcessor::ActionComplete(AbstractAction* actionptr,
   current_action_->ActionCompleted(code);
   current_action_->SetProcessor(nullptr);
   current_action_ = nullptr;
-  if (actions_.empty()) {
-    LOG(INFO) << "ActionProcessor::ActionComplete: finished last action of"
-                 " type " << old_type;
-  } else if (code != ErrorCode::kSuccess) {
-    LOG(INFO) << "ActionProcessor::ActionComplete: " << old_type
-              << " action failed. Aborting processing.";
+  LOG(INFO) << "ActionProcessor: finished "
+            << (actions_.empty() ? "last action " : "") << old_type
+            << (suspended_ ? " while suspended" : "")
+            << " with code " << utils::ErrorCodeToString(code);
+  if (!actions_.empty() && code != ErrorCode::kSuccess) {
+    LOG(INFO) << "ActionProcessor: Aborting processing due to failure.";
     actions_.clear();
   }
+  if (suspended_) {
+    // If an action finished while suspended we don't start the next action (or
+    // terminate the processing) until the processor is resumed. This condition
+    // will be flagged by a nullptr current_action_ while suspended_ is true.
+    suspended_error_code_ = code;
+    return;
+  }
+  StartNextActionOrFinish(code);
+}
+
+void ActionProcessor::StartNextActionOrFinish(ErrorCode code) {
   if (actions_.empty()) {
-    LOG(INFO) << "ActionProcessor::ActionComplete: finished last action of"
-                 " type " << old_type;
     if (delegate_) {
       delegate_->ProcessingDone(this, code);
     }
@@ -92,8 +140,7 @@ void ActionProcessor::ActionComplete(AbstractAction* actionptr,
   }
   current_action_ = actions_.front();
   actions_.pop_front();
-  LOG(INFO) << "ActionProcessor::ActionComplete: finished " << old_type
-            << ", starting " << current_action_->Type();
+  LOG(INFO) << "ActionProcessor: starting " << current_action_->Type();
   current_action_->PerformAction();
 }
 

@@ -186,6 +186,12 @@ Status BinderUpdateEngineBrilloService::RegisterStatusCallback(
   return Status::ok();
 }
 
+Status BinderUpdateEngineBrilloService::GetLastAttemptError(
+    int* out_last_attempt_error) {
+  return CallCommonHandler(&UpdateEngineService::GetLastAttemptError,
+                           out_last_attempt_error);
+}
+
 void BinderUpdateEngineBrilloService::UnregisterStatusCallback(
     IUpdateEngineStatusCallback* callback) {
   auto it = callbacks_.begin();

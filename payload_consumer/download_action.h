@@ -68,6 +68,9 @@ class PrefsInterface;
 class DownloadAction : public InstallPlanAction,
                        public HttpFetcherDelegate {
  public:
+  // Debugging/logging
+  static std::string StaticType() { return "DownloadAction"; }
+
   // Takes ownership of the passed in HttpFetcher. Useful for testing.
   // A good calling pattern is:
   // DownloadAction(prefs, boot_contol, hardware, system_state,
@@ -78,8 +81,13 @@ class DownloadAction : public InstallPlanAction,
                  SystemState* system_state,
                  HttpFetcher* http_fetcher);
   ~DownloadAction() override;
+
+  // InstallPlanAction overrides.
   void PerformAction() override;
+  void SuspendAction() override;
+  void ResumeAction() override;
   void TerminateProcessing() override;
+  std::string Type() const override { return StaticType(); }
 
   // Testing
   void SetTestFileWriter(FileWriter* writer) {
@@ -87,10 +95,6 @@ class DownloadAction : public InstallPlanAction,
   }
 
   int GetHTTPResponseCode() { return http_fetcher_->http_response_code(); }
-
-  // Debugging/logging
-  static std::string StaticType() { return "DownloadAction"; }
-  std::string Type() const override { return StaticType(); }
 
   // HttpFetcherDelegate methods (see http_fetcher.h)
   void ReceivedBytes(HttpFetcher* fetcher,

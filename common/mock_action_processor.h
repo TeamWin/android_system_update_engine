@@ -14,10 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_MOCK_ACTION_H_
-#define UPDATE_ENGINE_MOCK_ACTION_H_
-
-#include <string>
+#ifndef UPDATE_ENGINE_COMMON_MOCK_ACTION_PROCESSOR_H_
+#define UPDATE_ENGINE_COMMON_MOCK_ACTION_PROCESSOR_H_
 
 #include <gmock/gmock.h>
 
@@ -25,21 +23,12 @@
 
 namespace chromeos_update_engine {
 
-class MockAction;
-
-template<>
-class ActionTraits<MockAction> {
+class MockActionProcessor : public ActionProcessor {
  public:
-  typedef NoneType OutputObjectType;
-  typedef NoneType InputObjectType;
-};
-
-class MockAction : public Action<MockAction> {
- public:
-  MOCK_METHOD0(PerformAction, void());
-  MOCK_CONST_METHOD0(Type, std::string());
+  MOCK_METHOD0(StartProcessing, void());
+  MOCK_METHOD1(EnqueueAction, void(AbstractAction* action));
 };
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_MOCK_ACTION_H_
+#endif  // UPDATE_ENGINE_COMMON_MOCK_ACTION_PROCESSOR_H_

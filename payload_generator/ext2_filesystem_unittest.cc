@@ -34,7 +34,6 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/extent_utils.h"
 
-using chromeos_update_engine::test_utils::System;
 using std::map;
 using std::set;
 using std::string;
@@ -52,31 +51,20 @@ size_t kDefaultFilesystemBlockSize = 4096;
 // Checks that all the blocks in |extents| are in the range [0, total_blocks).
 void ExpectBlocksInRange(const vector<Extent>& extents, uint64_t total_blocks) {
   for (const Extent& extent : extents) {
-    EXPECT_LE(0, extent.start_block());
+    EXPECT_LE(0U, extent.start_block());
     EXPECT_LE(extent.start_block() + extent.num_blocks(), total_blocks);
   }
 }
 
 }  // namespace
 
-
-class Ext2FilesystemTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    ASSERT_TRUE(utils::MakeTempFile("Ext2FilesystemTest-XXXXXX",
-                                    &fs_filename_, nullptr));
-    ASSERT_EQ(0, truncate(fs_filename_.c_str(), kDefaultFilesystemSize));
-  }
-
-  void TearDown() override {
-    unlink(fs_filename_.c_str());
-  }
-
-  string fs_filename_;
-};
+class Ext2FilesystemTest : public ::testing::Test {};
 
 TEST_F(Ext2FilesystemTest, InvalidFilesystem) {
-  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(fs_filename_);
+  test_utils::ScopedTempFile fs_filename_{"Ext2FilesystemTest-XXXXXX"};
+  ASSERT_EQ(0, truncate(fs_filename_.path().c_str(), kDefaultFilesystemSize));
+  unique_ptr<Ext2Filesystem> fs =
+      Ext2Filesystem::CreateFromFile(fs_filename_.path());
   ASSERT_EQ(nullptr, fs.get());
 
   fs = Ext2Filesystem::CreateFromFile("/path/to/invalid/file");
@@ -84,10 +72,9 @@ TEST_F(Ext2FilesystemTest, InvalidFilesystem) {
 }
 
 TEST_F(Ext2FilesystemTest, EmptyFilesystem) {
-  EXPECT_EQ(0, System(base::StringPrintf(
-      "/sbin/mkfs.ext2 -q -b %" PRIuS " -F %s",
-      kDefaultFilesystemBlockSize, fs_filename_.c_str())));
-  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(fs_filename_);
+  base::FilePath path =
+      test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_4k_empty.img");
+  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
 
   ASSERT_NE(nullptr, fs.get());
   EXPECT_EQ(kDefaultFilesystemBlockCount, fs->GetBlockCount());
@@ -103,7 +90,7 @@ TEST_F(Ext2FilesystemTest, EmptyFilesystem) {
     map_files[file.name] = file;
     ExpectBlocksInRange(file.extents, fs->GetBlockCount());
   }
-  EXPECT_EQ(2, map_files["/"].file_stat.st_ino);
+  EXPECT_EQ(2U, map_files["/"].file_stat.st_ino);
   EXPECT_FALSE(map_files["<free-space>"].extents.empty());
 }
 
@@ -169,7 +156,7 @@ TEST_F(Ext2FilesystemTest, ParseGeneratedImages) {
 
     // Small symlinks don't actually have data blocks.
     EXPECT_TRUE(map_files["/link-short_symlink"].extents.empty());
-    EXPECT_EQ(1, BlocksInExtents(map_files["/link-long_symlink"].extents));
+    EXPECT_EQ(1U, BlocksInExtents(map_files["/link-long_symlink"].extents));
 
     // Hard-links report the same list of blocks.
     EXPECT_EQ(map_files["/link-hard-regular-16k"].extents,
@@ -179,13 +166,14 @@ TEST_F(Ext2FilesystemTest, ParseGeneratedImages) {
     // The number of blocks in these files doesn't depend on the
     // block size.
     EXPECT_TRUE(map_files["/empty-file"].extents.empty());
-    EXPECT_EQ(1, BlocksInExtents(map_files["/regular-small"].extents));
-    EXPECT_EQ(1, BlocksInExtents(map_files["/regular-with_net_cap"].extents));
+    EXPECT_EQ(1U, BlocksInExtents(map_files["/regular-small"].extents));
+    EXPECT_EQ(1U, BlocksInExtents(map_files["/regular-with_net_cap"].extents));
     EXPECT_TRUE(map_files["/sparse_empty-10k"].extents.empty());
     EXPECT_TRUE(map_files["/sparse_empty-2blocks"].extents.empty());
-    EXPECT_EQ(1, BlocksInExtents(map_files["/sparse-16k-last_block"].extents));
-    EXPECT_EQ(1, BlocksInExtents(map_files["/sparse-16k-first_block"].extents));
-    EXPECT_EQ(2, BlocksInExtents(map_files["/sparse-16k-holes"].extents));
+    EXPECT_EQ(1U, BlocksInExtents(map_files["/sparse-16k-last_block"].extents));
+    EXPECT_EQ(1U,
+              BlocksInExtents(map_files["/sparse-16k-first_block"].extents));
+    EXPECT_EQ(2U, BlocksInExtents(map_files["/sparse-16k-holes"].extents));
   }
 }
 
@@ -193,6 +181,7 @@ TEST_F(Ext2FilesystemTest, LoadSettingsFailsTest) {
   base::FilePath path = test_utils::GetBuildArtifactsPath().Append(
       "gen/disk_ext2_1k.img");
   unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
+  ASSERT_NE(nullptr, fs.get());
 
   brillo::KeyValueStore store;
   // disk_ext2_1k.img doesn't have the /etc/update_engine.conf file.
@@ -203,6 +192,7 @@ TEST_F(Ext2FilesystemTest, LoadSettingsWorksTest) {
   base::FilePath path = test_utils::GetBuildArtifactsPath().Append(
       "gen/disk_ext2_ue_settings.img");
   unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
+  ASSERT_NE(nullptr, fs.get());
 
   brillo::KeyValueStore store;
   EXPECT_TRUE(fs->LoadSettings(&store));

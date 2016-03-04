@@ -139,8 +139,8 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
                                   "Disable Payload Backoff = 0\n";
   EXPECT_EQ(expected_response_sign, stored_response_sign);
   EXPECT_EQ("", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
   EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 }
 
@@ -191,8 +191,8 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
                                   "Disable Payload Backoff = 0\n";
   EXPECT_EQ(expected_response_sign, stored_response_sign);
   EXPECT_EQ("https://single.url.test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
   EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 }
 
@@ -242,8 +242,8 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
                                   "Disable Payload Backoff = 0\n";
   EXPECT_EQ(expected_response_sign, stored_response_sign);
   EXPECT_EQ("http://multiple.url.test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
   EXPECT_EQ(1, payload_state.GetNumResponsesSeen());
 }
 
@@ -298,7 +298,7 @@ TEST(PayloadStateTest, CanAdvanceUrlIndexCorrectly) {
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
 
   // Verify that we switched URLs three times
-  EXPECT_EQ(3, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(3U, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, NewResponseResetsPayloadState) {
@@ -321,7 +321,7 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
   ErrorCode error = ErrorCode::kDownloadMetadataSignatureMismatch;
   payload_state.UpdateFailed(error);
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(1U, payload_state.GetUrlSwitchCount());
 
   // Now, slightly change the response and set it again.
   SetupPayloadStateWith2Urls("Hash8225", true, &payload_state, &response);
@@ -330,7 +330,7 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
   // Fake an error again.
   payload_state.UpdateFailed(error);
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(1U, payload_state.GetUrlSwitchCount());
 
   // Return a third different response.
   SetupPayloadStateWith2Urls("Hash9999", true, &payload_state, &response);
@@ -338,15 +338,15 @@ TEST(PayloadStateTest, NewResponseResetsPayloadState) {
 
   // Make sure the url index was reset to 0 because of the new response.
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
-  EXPECT_EQ(0,
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U,
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(0,
+  EXPECT_EQ(0U,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(0, payload_state.GetCurrentBytesDownloaded(
-                 kDownloadSourceHttpsServer));
-  EXPECT_EQ(0,
+  EXPECT_EQ(
+      0U, payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpsServer));
+  EXPECT_EQ(0U,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 }
 
@@ -412,24 +412,24 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(1U, payload_state.GetUrlSwitchCount());
 
   // This should advance the failure count only.
   payload_state.UpdateFailed(ErrorCode::kDownloadTransferError);
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(1, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(1U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(1U, payload_state.GetUrlSwitchCount());
 
   // This should advance the failure count only.
   payload_state.UpdateFailed(ErrorCode::kDownloadTransferError);
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(2, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(2U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(1U, payload_state.GetUrlSwitchCount());
 
   // This should advance the URL index as we've reached the
   // max failure count and reset the failure count for the new URL index.
@@ -439,8 +439,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(2, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(2U, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // This should advance the URL index.
@@ -448,8 +448,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(3, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(3U, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // This should advance the URL index and payload attempt number due to
@@ -458,8 +458,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(2, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(2, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(4, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(4U, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // This HTTP error code should only increase the failure count.
@@ -468,8 +468,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(2, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(2, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(1, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(4, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(1U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(4U, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // And that failure count should be reset when we download some bytes
@@ -478,8 +478,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(2, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(2, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(4, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(4U, payload_state.GetUrlSwitchCount());
   EXPECT_TRUE(payload_state.ShouldBackoffDownload());
 
   // Now, slightly change the response and set it again.
@@ -490,8 +490,8 @@ TEST(PayloadStateTest, AllCountersGetUpdatedProperlyOnErrorCodesAndEvents) {
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
   EXPECT_FALSE(payload_state.ShouldBackoffDownload());
 }
 
@@ -532,8 +532,8 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulFullDownload) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
@@ -572,8 +572,8 @@ TEST(PayloadStateTest, PayloadAttemptNumberIncreasesOnSuccessfulDeltaDownload) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
@@ -592,8 +592,8 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_EQ(1, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(1, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(1, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(1U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(1U, payload_state.GetUrlSwitchCount());
 
   // Now, simulate a corrupted url index on persisted store which gets
   // loaded when update_engine restarts. Using a different prefs object
@@ -625,8 +625,8 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_EQ(0, payload_state.GetPayloadAttemptNumber());
   EXPECT_EQ(0, payload_state.GetFullPayloadAttemptNumber());
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
-  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
 }
 
 TEST(PayloadStateTest, NoBackoffInteractiveChecks) {
@@ -780,8 +780,8 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   response.disable_payload_backoff = true;
   PayloadState payload_state;
   FakeSystemState fake_system_state;
-  int https_total = 0;
-  int http_total = 0;
+  uint64_t https_total = 0;
+  uint64_t http_total = 0;
 
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   SetupPayloadStateWith2Urls("Hash3286", true, &payload_state, &response);
@@ -789,7 +789,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
 
   // Simulate a previous attempt with in order to set an initial non-zero value
   // for the total bytes downloaded for HTTP.
-  int prev_chunk = 323456789;
+  uint64_t prev_chunk = 323456789;
   http_total += prev_chunk;
   payload_state.DownloadProgress(prev_chunk);
 
@@ -805,7 +805,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   EXPECT_EQ(2, payload_state.GetNumResponsesSeen());
 
   // First, simulate successful download of a few bytes over HTTP.
-  int first_chunk = 5000000;
+  uint64_t first_chunk = 5000000;
   http_total += first_chunk;
   payload_state.DownloadProgress(first_chunk);
   // Test that first all progress is made on HTTP and none on HTTPS.
@@ -813,7 +813,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(http_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(0, payload_state.GetCurrentBytesDownloaded(
+  EXPECT_EQ(0U, payload_state.GetCurrentBytesDownloaded(
                  kDownloadSourceHttpsServer));
   EXPECT_EQ(https_total,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
@@ -823,7 +823,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   payload_state.UpdateFailed(error);
 
   // Test that no new progress is made on HTTP and new progress is on HTTPS.
-  int second_chunk = 23456789;
+  uint64_t second_chunk = 23456789;
   https_total += second_chunk;
   payload_state.DownloadProgress(second_chunk);
   EXPECT_EQ(first_chunk,
@@ -837,8 +837,8 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
 
   // Simulate error to go back to http.
   payload_state.UpdateFailed(error);
-  int third_chunk = 32345678;
-  int http_chunk = first_chunk + third_chunk;
+  uint64_t third_chunk = 32345678;
+  uint64_t http_chunk = first_chunk + third_chunk;
   http_total += third_chunk;
   payload_state.DownloadProgress(third_chunk);
 
@@ -856,7 +856,7 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   // then do 42MB worth of progress
   payload_state.UpdateFailed(error);
   payload_state.SetUsingP2PForDownloading(true);
-  int p2p_total = 42 * 1000 * 1000;
+  uint64_t p2p_total = 42 * 1000 * 1000;
   payload_state.DownloadProgress(p2p_total);
 
   EXPECT_EQ(p2p_total,
@@ -886,13 +886,13 @@ TEST(PayloadStateTest, BytesDownloadedMetricsGetAddedToCorrectSources) {
   payload_state.UpdateSucceeded();
 
   // Make sure the metrics are reset after a successful update.
-  EXPECT_EQ(0,
+  EXPECT_EQ(0U,
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(0,
+  EXPECT_EQ(0U,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(0, payload_state.GetCurrentBytesDownloaded(
+  EXPECT_EQ(0U, payload_state.GetCurrentBytesDownloaded(
                  kDownloadSourceHttpsServer));
-  EXPECT_EQ(0,
+  EXPECT_EQ(0U,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
   EXPECT_EQ(0, payload_state.GetNumResponsesSeen());
 }
@@ -906,7 +906,7 @@ TEST(PayloadStateTest, DownloadSourcesUsedIsCorrect) {
   SetupPayloadStateWith2Urls("Hash3286", true, &payload_state, &response);
 
   // Simulate progress in order to mark HTTP as one of the sources used.
-  int num_bytes = 42 * 1000 * 1000;
+  uint64_t num_bytes = 42 * 1000 * 1000;
   payload_state.DownloadProgress(num_bytes);
 
   // Check that this was done via HTTP.
@@ -936,20 +936,20 @@ TEST(PayloadStateTest, RestartingUpdateResetsMetrics) {
   // Set the first response.
   SetupPayloadStateWith2Urls("Hash5823", true, &payload_state, &response);
 
-  int num_bytes = 10000;
+  uint64_t num_bytes = 10000;
   payload_state.DownloadProgress(num_bytes);
   EXPECT_EQ(num_bytes,
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(num_bytes,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
-  EXPECT_EQ(0, payload_state.GetCurrentBytesDownloaded(
+  EXPECT_EQ(0U, payload_state.GetCurrentBytesDownloaded(
                  kDownloadSourceHttpsServer));
-  EXPECT_EQ(0,
+  EXPECT_EQ(0U,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpsServer));
 
   payload_state.UpdateRestarted();
   // Make sure the current bytes downloaded is reset, but not the total bytes.
-  EXPECT_EQ(0,
+  EXPECT_EQ(0U,
             payload_state.GetCurrentBytesDownloaded(kDownloadSourceHttpServer));
   EXPECT_EQ(num_bytes,
             payload_state.GetTotalBytesDownloaded(kDownloadSourceHttpServer));
@@ -966,21 +966,21 @@ TEST(PayloadStateTest, NumRebootsIncrementsCorrectly) {
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
 
   payload_state.UpdateRestarted();
-  EXPECT_EQ(0, payload_state.GetNumReboots());
+  EXPECT_EQ(0U, payload_state.GetNumReboots());
 
   fake_system_state.set_system_rebooted(true);
   payload_state.UpdateResumed();
   // Num reboots should be incremented because system rebooted detected.
-  EXPECT_EQ(1, payload_state.GetNumReboots());
+  EXPECT_EQ(1U, payload_state.GetNumReboots());
 
   fake_system_state.set_system_rebooted(false);
   payload_state.UpdateResumed();
   // Num reboots should now be 1 as reboot was not detected.
-  EXPECT_EQ(1, payload_state.GetNumReboots());
+  EXPECT_EQ(1U, payload_state.GetNumReboots());
 
   // Restart the update again to verify we set the num of reboots back to 0.
   payload_state.UpdateRestarted();
-  EXPECT_EQ(0, payload_state.GetNumReboots());
+  EXPECT_EQ(0U, payload_state.GetNumReboots());
 }
 
 TEST(PayloadStateTest, RollbackVersion) {
@@ -1267,7 +1267,7 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
 
   // Check that we still skip the HTTP URL and use only the HTTPS url.
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlSwitchCount());
 
   // Now, slightly change the response and set it again.
   SetupPayloadStateWith2Urls("Hash2399", false, &payload_state, &response);
@@ -1290,14 +1290,14 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
 
   // Check that we use the HTTP URL now and the failure count is reset.
   EXPECT_EQ("http://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
 
   // Fake a failure and see if we're moving over to the HTTPS url and update
   // the URL switch count properly.
   payload_state.UpdateFailed(error);
   EXPECT_EQ("https://test", payload_state.GetCurrentUrl());
-  EXPECT_EQ(1, payload_state.GetUrlSwitchCount());
-  EXPECT_EQ(0, payload_state.GetUrlFailureCount());
+  EXPECT_EQ(1U, payload_state.GetUrlSwitchCount());
+  EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
 }
 
 TEST(PayloadStateTest, PayloadTypeMetricWhenTypeIsDelta) {

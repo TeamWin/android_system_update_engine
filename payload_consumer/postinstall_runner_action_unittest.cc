@@ -121,8 +121,8 @@ void PostinstallRunnerActionTest::DoTest(
     bool do_losetup,
     int err_code,
     bool powerwash_required) {
-  ASSERT_EQ(0, getuid()) << "Run me as root. Ideally don't run other tests "
-                         << "as root, tho.";
+  ASSERT_EQ(0U, getuid()) << "Run me as root. Ideally don't run other tests "
+                          << "as root, tho.";
   // True if the post-install action is expected to succeed.
   bool should_succeed = do_losetup && !err_code;
 
@@ -191,6 +191,7 @@ void PostinstallRunnerActionTest::DoTest(
   part.name = "part";
   part.target_path = dev;
   part.run_postinstall = true;
+  part.postinstall_path = kPostinstallDefaultScript;
   InstallPlan install_plan;
   install_plan.partitions = {part};
   install_plan.download_url = "http://devserver:8080/update";
@@ -215,7 +216,7 @@ void PostinstallRunnerActionTest::DoTest(
   EXPECT_TRUE(delegate.code_set_);
   EXPECT_EQ(should_succeed, delegate.code_ == ErrorCode::kSuccess);
   if (should_succeed)
-    EXPECT_TRUE(install_plan == collector_action.object());
+    EXPECT_EQ(install_plan, collector_action.object());
 
   const base::FilePath kPowerwashMarkerPath(powerwash_marker_file);
   string actual_cmd;
@@ -251,7 +252,7 @@ void PostinstallRunnerActionTest::DoTest(
 
 // Death tests don't seem to be working on Hardy
 TEST_F(PostinstallRunnerActionTest, DISABLED_RunAsRootDeathTest) {
-  ASSERT_EQ(0, getuid());
+  ASSERT_EQ(0U, getuid());
   PostinstallRunnerAction runner_action(&fake_boot_control_);
   ASSERT_DEATH({ runner_action.TerminateProcessing(); },
                "postinstall_runner_action.h:.*] Check failed");

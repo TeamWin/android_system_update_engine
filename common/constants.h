@@ -32,6 +32,9 @@ extern const char kPowerwashSafePrefsSubDirectory[];
 // The location where we store the AU preferences (state etc).
 extern const char kPrefsSubDirectory[];
 
+// Path to the post install command, relative to the partition.
+extern const char kPostinstallDefaultScript[];
+
 // Path to the stateful partition on the root filesystem.
 extern const char kStatefulPartition[];
 
@@ -50,6 +53,7 @@ extern const char kPrefsInstallDateDays[];
 extern const char kPrefsLastActivePingDay[];
 extern const char kPrefsLastRollCallPingDay[];
 extern const char kPrefsManifestMetadataSize[];
+extern const char kPrefsManifestSignatureSize[];
 extern const char kPrefsMetricsAttemptLastReportingTime[];
 extern const char kPrefsMetricsCheckLastReportingTime[];
 extern const char kPrefsNumReboots[];

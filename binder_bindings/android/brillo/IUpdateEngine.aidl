@@ -36,4 +36,5 @@ interface IUpdateEngine {
   String GetPrevVersion();
   String GetRollbackPartition();
   void RegisterStatusCallback(in IUpdateEngineStatusCallback callback);
+  int GetLastAttemptError();
 }

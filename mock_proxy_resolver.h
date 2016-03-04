@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2010 The Android Open Source Project
+// Copyright (C) 2016 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,21 +14,25 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_MOCK_ACTION_PROCESSOR_H_
-#define UPDATE_ENGINE_MOCK_ACTION_PROCESSOR_H_
+#ifndef UPDATE_ENGINE_MOCK_PROXY_RESOLVER_H_
+#define UPDATE_ENGINE_MOCK_PROXY_RESOLVER_H_
+
+#include <string>
 
 #include <gmock/gmock.h>
 
-#include "update_engine/common/action.h"
+#include "update_engine/proxy_resolver.h"
 
 namespace chromeos_update_engine {
 
-class MockActionProcessor : public ActionProcessor {
+class MockProxyResolver : public ProxyResolver {
  public:
-  MOCK_METHOD0(StartProcessing, void());
-  MOCK_METHOD1(EnqueueAction, void(AbstractAction* action));
+  MOCK_METHOD3(GetProxiesForUrl,
+               bool(const std::string& url,
+                    ProxiesResolvedFn callback,
+                    void* data));
 };
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_MOCK_ACTION_PROCESSOR_H_
+#endif  // UPDATE_ENGINE_MOCK_PROXY_RESOLVER_H_

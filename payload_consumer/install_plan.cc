@@ -59,9 +59,13 @@ bool InstallPlan::operator!=(const InstallPlan& that) const {
 void InstallPlan::Dump() const {
   string partitions_str;
   for (const auto& partition : partitions) {
-    partitions_str += base::StringPrintf(
-        ", part: %s (source_size: %" PRIu64 ", target_size %" PRIu64 ")",
-        partition.name.c_str(), partition.source_size, partition.target_size);
+    partitions_str +=
+        base::StringPrintf(", part: %s (source_size: %" PRIu64
+                           ", target_size %" PRIu64 ", postinst:%s)",
+                           partition.name.c_str(),
+                           partition.source_size,
+                           partition.target_size,
+                           utils::ToString(partition.run_postinstall).c_str());
   }
 
   LOG(INFO) << "InstallPlan: "
@@ -109,7 +113,9 @@ bool InstallPlan::Partition::operator==(
           target_path == that.target_path &&
           target_size == that.target_size &&
           target_hash == that.target_hash &&
-          run_postinstall == that.run_postinstall);
+          run_postinstall == that.run_postinstall &&
+          postinstall_path == that.postinstall_path &&
+          filesystem_type == that.filesystem_type);
 }
 
 }  // namespace chromeos_update_engine

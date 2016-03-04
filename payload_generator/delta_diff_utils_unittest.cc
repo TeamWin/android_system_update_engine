@@ -17,6 +17,7 @@
 #include "update_engine/payload_generator/delta_diff_utils.h"
 
 #include <algorithm>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -193,7 +194,7 @@ TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
   EXPECT_EQ(kBlockSize, op.dst_length());
   EXPECT_EQ(BlocksInExtents(op.src_extents()),
             BlocksInExtents(op.dst_extents()));
-  EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
+  EXPECT_EQ(1U, BlocksInExtents(op.dst_extents()));
 }
 
 TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
@@ -263,7 +264,7 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
   EXPECT_EQ(num_blocks * kBlockSize, op.src_length());
   EXPECT_EQ(num_blocks * kBlockSize, op.dst_length());
 
-  EXPECT_EQ(old_extents.size(), op.src_extents_size());
+  EXPECT_EQ(old_extents.size(), static_cast<size_t>(op.src_extents_size()));
   for (int i = 0; i < op.src_extents_size(); i++) {
     EXPECT_EQ(old_extents[i].start_block(), op.src_extents(i).start_block())
         << "i == " << i;
@@ -271,7 +272,7 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
         << "i == " << i;
   }
 
-  EXPECT_EQ(new_extents.size(), op.dst_extents_size());
+  EXPECT_EQ(new_extents.size(), static_cast<size_t>(op.dst_extents_size()));
   for (int i = 0; i < op.dst_extents_size(); i++) {
     EXPECT_EQ(new_extents[i].start_block(), op.dst_extents(i).start_block())
         << "i == " << i;
@@ -318,7 +319,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
   EXPECT_EQ(kBlockSize, op.dst_length());
   EXPECT_EQ(BlocksInExtents(op.src_extents()),
             BlocksInExtents(op.dst_extents()));
-  EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
+  EXPECT_EQ(1U, BlocksInExtents(op.dst_extents()));
 }
 
 TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedTest) {
@@ -432,7 +433,7 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
     EXPECT_FALSE(op.has_src_length());
     EXPECT_EQ(1, op.dst_extents_size());
     EXPECT_EQ(data_to_test.size(), op.dst_length());
-    EXPECT_EQ(1, BlocksInExtents(op.dst_extents()));
+    EXPECT_EQ(1U, BlocksInExtents(op.dst_extents()));
   }
 }
 
@@ -552,8 +553,8 @@ TEST_F(DeltaDiffUtilsTest, NoZeroedOrUniqueBlocksDetected) {
   EXPECT_TRUE(RunDeltaMovedAndZeroBlocks(-1,  // chunk_blocks
                                          false));  // src_ops_allowed
 
-  EXPECT_EQ(0, old_visited_blocks_.blocks());
-  EXPECT_EQ(0, new_visited_blocks_.blocks());
+  EXPECT_EQ(0U, old_visited_blocks_.blocks());
+  EXPECT_EQ(0U, new_visited_blocks_.blocks());
   EXPECT_EQ(0, blob_size_);
   EXPECT_TRUE(aops_.empty());
 }
@@ -662,7 +663,7 @@ TEST_F(DeltaDiffUtilsTest, IdenticalBlocksAreCopiedInOder) {
   // source extents should cover only the first copy of the source file since
   // we prefer to re-read files (maybe cached) instead of continue reading the
   // rest of the partition.
-  EXPECT_EQ(1, aops_.size());
+  EXPECT_EQ(1U, aops_.size());
   const AnnotatedOperation& aop = aops_[0];
   EXPECT_EQ(InstallOperation::SOURCE_COPY, aop.op.type());
   EXPECT_EQ(5, aop.op.src_extents_size());
@@ -759,7 +760,7 @@ TEST_F(DeltaDiffUtilsTest, ShuffledBlocksAreTracked) {
   EXPECT_EQ(permutation.size(), new_visited_blocks_.blocks());
 
   // There should be only one SOURCE_COPY, with a complicate list of extents.
-  EXPECT_EQ(1, aops_.size());
+  EXPECT_EQ(1U, aops_.size());
   const AnnotatedOperation& aop = aops_[0];
   EXPECT_EQ(InstallOperation::SOURCE_COPY, aop.op.type());
   vector<Extent> aop_src_extents;

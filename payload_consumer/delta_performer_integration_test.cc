@@ -58,7 +58,7 @@ extern const char* kUnittestPublicKeyPath;
 extern const char* kUnittestPrivateKey2Path;
 extern const char* kUnittestPublicKey2Path;
 
-static const int kDefaultKernelSize = 4096;  // Something small for a test
+static const uint32_t kDefaultKernelSize = 4096;  // Something small for a test
 static const uint8_t kNewData[] = {'T', 'h', 'i', 's', ' ', 'i', 's', ' ',
                                    'n', 'e', 'w', ' ', 'd', 'a', 't', 'a', '.'};
 
@@ -124,7 +124,7 @@ class DeltaPerformerIntegrationTest : public ::testing::Test {
 
 static void CompareFilesByBlock(const string& a_file, const string& b_file,
                                 size_t image_size) {
-  EXPECT_EQ(0, image_size % kBlockSize);
+  EXPECT_EQ(0U, image_size % kBlockSize);
 
   brillo::Blob a_data, b_data;
   EXPECT_TRUE(utils::ReadFile(a_file, &a_data)) << "file failed: " << a_file;
@@ -133,7 +133,7 @@ static void CompareFilesByBlock(const string& a_file, const string& b_file,
   EXPECT_GE(a_data.size(), image_size);
   EXPECT_GE(b_data.size(), image_size);
   for (size_t i = 0; i < image_size; i += kBlockSize) {
-    EXPECT_EQ(0, i % kBlockSize);
+    EXPECT_EQ(0U, i % kBlockSize);
     brillo::Blob a_sub(&a_data[i], &a_data[i + kBlockSize]);
     brillo::Blob b_sub(&b_data[i], &b_data[i + kBlockSize]);
     EXPECT_TRUE(a_sub == b_sub) << "Block " << (i/kBlockSize) << " differs";
@@ -350,7 +350,7 @@ static void GenerateDeltaFile(bool full_kernel,
                                  hardtocompress.size()));
 
     brillo::Blob zeros(16 * 1024, 0);
-    EXPECT_EQ(zeros.size(),
+    EXPECT_EQ(static_cast<int>(zeros.size()),
               base::WriteFile(base::FilePath(base::StringPrintf(
                                   "%s/move-to-sparse", a_mnt.c_str())),
                               reinterpret_cast<const char*>(zeros.data()),
@@ -416,7 +416,7 @@ static void GenerateDeltaFile(bool full_kernel,
                         16 * 1024));
 
     brillo::Blob zeros(16 * 1024, 0);
-    EXPECT_EQ(zeros.size(),
+    EXPECT_EQ(static_cast<int>(zeros.size()),
               base::WriteFile(base::FilePath(base::StringPrintf(
                                   "%s/move-from-sparse", b_mnt.c_str())),
                               reinterpret_cast<const char*>(zeros.data()),
@@ -543,10 +543,12 @@ static void GenerateDeltaFile(bool full_kernel,
   // Extend the "partitions" holding the file system a bit.
   EXPECT_EQ(0, HANDLE_EINTR(truncate(state->a_img.c_str(),
                                      state->image_size + 1024 * 1024)));
-  EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->a_img));
+  EXPECT_EQ(static_cast<off_t>(state->image_size + 1024 * 1024),
+            utils::FileSize(state->a_img));
   EXPECT_EQ(0, HANDLE_EINTR(truncate(state->b_img.c_str(),
                                      state->image_size + 1024 * 1024)));
-  EXPECT_EQ(state->image_size + 1024 * 1024, utils::FileSize(state->b_img));
+  EXPECT_EQ(static_cast<off_t>(state->image_size + 1024 * 1024),
+            utils::FileSize(state->b_img));
 
   if (signature_test == kSignatureGeneratedPlaceholder ||
       signature_test == kSignatureGeneratedPlaceholderMismatch) {
@@ -614,7 +616,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       else
         EXPECT_EQ(1, sigs_message.signatures_size());
       const Signatures_Signature& signature = sigs_message.signatures(0);
-      EXPECT_EQ(1, signature.version());
+      EXPECT_EQ(1U, signature.version());
 
       uint64_t expected_sig_data_length = 0;
       vector<string> key_paths{kUnittestPrivateKeyPath};
@@ -691,6 +693,8 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   MockPrefs prefs;
   EXPECT_CALL(prefs, SetInt64(kPrefsManifestMetadataSize,
                               state->metadata_size)).WillOnce(Return(true));
+  EXPECT_CALL(prefs, SetInt64(kPrefsManifestSignatureSize, 0))
+      .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsUpdateStateNextOperation, _))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(prefs, GetInt64(kPrefsUpdateStateNextOperation, _))
@@ -745,7 +749,7 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   (*performer)->set_public_key_path(kUnittestPublicKeyPath);
   DeltaPerformerIntegrationTest::SetSupportedVersion(*performer, minor_version);
 
-  EXPECT_EQ(state->image_size,
+  EXPECT_EQ(static_cast<off_t>(state->image_size),
             HashCalculator::RawHashOfFile(
                 state->a_img,
                 state->image_size,
@@ -880,7 +884,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
                          updated_kernel_partition.begin()));
 
   const auto& partitions = state->install_plan.partitions;
-  EXPECT_EQ(2, partitions.size());
+  EXPECT_EQ(2U, partitions.size());
   EXPECT_EQ(kLegacyPartitionNameRoot, partitions[0].name);
   EXPECT_EQ(kLegacyPartitionNameKernel, partitions[1].name);
 
@@ -892,7 +896,7 @@ void VerifyPayloadResult(DeltaPerformer* performer,
 
   EXPECT_EQ(state->image_size, partitions[0].target_size);
   brillo::Blob expected_new_rootfs_hash;
-  EXPECT_EQ(state->image_size,
+  EXPECT_EQ(static_cast<off_t>(state->image_size),
             HashCalculator::RawHashOfFile(state->b_img,
                                           state->image_size,
                                           &expected_new_rootfs_hash));

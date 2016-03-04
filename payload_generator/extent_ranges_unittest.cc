@@ -250,7 +250,7 @@ TEST(ExtentRangesTest, GetExtentsForBlockCountTest) {
   ranges.SubtractExtents(vector<Extent>(1, ExtentForRange(20, 10)));
   *rep_field.Mutable(0) = ExtentForRange(50, 10);
   ranges.SubtractRepeatedExtents(rep_field);
-  EXPECT_EQ(40, ranges.blocks());
+  EXPECT_EQ(40U, ranges.blocks());
 
   for (int i = 0; i < 2; i++) {
     vector<Extent> expected(2);

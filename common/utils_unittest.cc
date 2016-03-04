@@ -181,11 +181,11 @@ TEST(UtilsTest, MakePartitionNameForMountTest) {
 }
 
 TEST(UtilsTest, FuzzIntTest) {
-  static const unsigned int kRanges[] = { 0, 1, 2, 20 };
-  for (unsigned int range : kRanges) {
+  static const uint32_t kRanges[] = { 0, 1, 2, 20 };
+  for (uint32_t range : kRanges) {
     const int kValue = 50;
     for (int tries = 0; tries < 100; ++tries) {
-      int value = utils::FuzzInt(kValue, range);
+      uint32_t value = utils::FuzzInt(kValue, range);
       EXPECT_GE(value, kValue - range / 2);
       EXPECT_LE(value, kValue + range - range / 2);
     }
@@ -280,10 +280,10 @@ namespace {
 void GetFileFormatTester(const string& expected,
                          const vector<uint8_t>& contents) {
   test_utils::ScopedTempFile file;
-  ASSERT_TRUE(utils::WriteFile(file.GetPath().c_str(),
+  ASSERT_TRUE(utils::WriteFile(file.path().c_str(),
                                reinterpret_cast<const char*>(contents.data()),
                                contents.size()));
-  EXPECT_EQ(expected, utils::GetFileFormat(file.GetPath()));
+  EXPECT_EQ(expected, utils::GetFileFormat(file.path()));
 }
 }  // namespace
 
@@ -413,7 +413,8 @@ TEST(UtilsTest, DecodeAndStoreBase64String) {
   string contents;
   EXPECT_TRUE(utils::ReadFile(path.value(), &contents));
   EXPECT_EQ(contents, expected_contents);
-  EXPECT_EQ(utils::FileSize(path.value()), expected_contents.size());
+  EXPECT_EQ(static_cast<off_t>(expected_contents.size()),
+            utils::FileSize(path.value()));
 }
 
 TEST(UtilsTest, ConvertToOmahaInstallDate) {
@@ -493,7 +494,7 @@ TEST(UtilsTest, GetMinorVersion) {
 
   EXPECT_TRUE(store.LoadFromString("PAYLOAD_MINOR_VERSION=123\n"));
   EXPECT_TRUE(utils::GetMinorVersion(store, &minor_version));
-  EXPECT_EQ(minor_version, 123);
+  EXPECT_EQ(123U, minor_version);
 }
 
 static bool BoolMacroTestHelper() {

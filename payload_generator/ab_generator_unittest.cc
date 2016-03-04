@@ -21,6 +21,7 @@
 #include <sys/types.h>
 
 #include <string>
+#include <random>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -128,7 +129,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   InstallOperation_Type expected_type =
       compressible ? InstallOperation::REPLACE_BZ : InstallOperation::REPLACE;
 
-  ASSERT_EQ(2, result_ops.size());
+  ASSERT_EQ(2U, result_ops.size());
 
   EXPECT_EQ("SplitTestOp:0", result_ops[0].name);
   InstallOperation first_op = result_ops[0].op;
@@ -156,7 +157,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
                               first_op.data_length(),
                               first_op.data_offset(),
                               &bytes_read));
-  ASSERT_EQ(bytes_read, first_op.data_length());
+  ASSERT_EQ(bytes_read, static_cast<ssize_t>(first_op.data_length()));
   EXPECT_EQ(first_expected_blob, first_data_blob);
 
   EXPECT_EQ("SplitTestOp:1", result_ops[1].name);
@@ -184,7 +185,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
                               second_op.data_length(),
                               second_op.data_offset(),
                               &bytes_read));
-  ASSERT_EQ(bytes_read, second_op.data_length());
+  ASSERT_EQ(bytes_read, static_cast<ssize_t>(second_op.data_length()));
   EXPECT_EQ(second_expected_blob, second_data_blob);
 
   // Check relative layout of data blobs.
@@ -193,7 +194,7 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   EXPECT_EQ(second_op.data_offset() + second_op.data_length(), data_file_size);
   // If we split a REPLACE into multiple ones, ensure reuse of preexisting blob.
   if (!compressible && orig_type == InstallOperation::REPLACE) {
-    EXPECT_EQ(0, first_op.data_offset());
+    EXPECT_EQ(0U, first_op.data_offset());
   }
 }
 
@@ -293,7 +294,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   // Check the result.
   InstallOperation_Type expected_op_type =
       compressible ? InstallOperation::REPLACE_BZ : InstallOperation::REPLACE;
-  EXPECT_EQ(1, aops.size());
+  EXPECT_EQ(1U, aops.size());
   InstallOperation new_op = aops[0].op;
   EXPECT_EQ(expected_op_type, new_op.type());
   EXPECT_FALSE(new_op.has_src_length());
@@ -312,7 +313,8 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
     expected_blob = expected_data;
   }
   ASSERT_EQ(expected_blob.size(), new_op.data_length());
-  ASSERT_EQ(blob_data.size() + expected_blob.size(), data_file_size);
+  ASSERT_EQ(blob_data.size() + expected_blob.size(),
+            static_cast<size_t>(data_file_size));
   brillo::Blob new_op_blob(new_op.data_length());
   ssize_t bytes_read;
   ASSERT_TRUE(utils::PReadAll(data_fd,
@@ -320,7 +322,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
                               new_op.data_length(),
                               new_op.data_offset(),
                               &bytes_read));
-  ASSERT_EQ(new_op.data_length(), bytes_read);
+  ASSERT_EQ(static_cast<ssize_t>(new_op.data_length()), bytes_read);
   EXPECT_EQ(expected_blob, new_op_blob);
 }
 
@@ -343,47 +345,47 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
   aop.name = "SplitSourceCopyTestOp";
   vector<AnnotatedOperation> result_ops;
   EXPECT_TRUE(ABGenerator::SplitSourceCopy(aop, &result_ops));
-  EXPECT_EQ(result_ops.size(), 3);
+  EXPECT_EQ(3U, result_ops.size());
 
   EXPECT_EQ("SplitSourceCopyTestOp:0", result_ops[0].name);
   InstallOperation first_op = result_ops[0].op;
   EXPECT_EQ(InstallOperation::SOURCE_COPY, first_op.type());
   EXPECT_EQ(kBlockSize * 2, first_op.src_length());
   EXPECT_EQ(1, first_op.src_extents().size());
-  EXPECT_EQ(2, first_op.src_extents(0).start_block());
-  EXPECT_EQ(2, first_op.src_extents(0).num_blocks());
+  EXPECT_EQ(2U, first_op.src_extents(0).start_block());
+  EXPECT_EQ(2U, first_op.src_extents(0).num_blocks());
   EXPECT_EQ(kBlockSize * 2, first_op.dst_length());
   EXPECT_EQ(1, first_op.dst_extents().size());
-  EXPECT_EQ(10, first_op.dst_extents(0).start_block());
-  EXPECT_EQ(2, first_op.dst_extents(0).num_blocks());
+  EXPECT_EQ(10U, first_op.dst_extents(0).start_block());
+  EXPECT_EQ(2U, first_op.dst_extents(0).num_blocks());
 
   EXPECT_EQ("SplitSourceCopyTestOp:1", result_ops[1].name);
   InstallOperation second_op = result_ops[1].op;
   EXPECT_EQ(InstallOperation::SOURCE_COPY, second_op.type());
   EXPECT_EQ(kBlockSize * 3, second_op.src_length());
   EXPECT_EQ(3, second_op.src_extents().size());
-  EXPECT_EQ(4, second_op.src_extents(0).start_block());
-  EXPECT_EQ(1, second_op.src_extents(0).num_blocks());
-  EXPECT_EQ(6, second_op.src_extents(1).start_block());
-  EXPECT_EQ(1, second_op.src_extents(1).num_blocks());
-  EXPECT_EQ(8, second_op.src_extents(2).start_block());
-  EXPECT_EQ(1, second_op.src_extents(2).num_blocks());
+  EXPECT_EQ(4U, second_op.src_extents(0).start_block());
+  EXPECT_EQ(1U, second_op.src_extents(0).num_blocks());
+  EXPECT_EQ(6U, second_op.src_extents(1).start_block());
+  EXPECT_EQ(1U, second_op.src_extents(1).num_blocks());
+  EXPECT_EQ(8U, second_op.src_extents(2).start_block());
+  EXPECT_EQ(1U, second_op.src_extents(2).num_blocks());
   EXPECT_EQ(kBlockSize * 3, second_op.dst_length());
   EXPECT_EQ(1, second_op.dst_extents().size());
-  EXPECT_EQ(14, second_op.dst_extents(0).start_block());
-  EXPECT_EQ(3, second_op.dst_extents(0).num_blocks());
+  EXPECT_EQ(14U, second_op.dst_extents(0).start_block());
+  EXPECT_EQ(3U, second_op.dst_extents(0).num_blocks());
 
   EXPECT_EQ("SplitSourceCopyTestOp:2", result_ops[2].name);
   InstallOperation third_op = result_ops[2].op;
   EXPECT_EQ(InstallOperation::SOURCE_COPY, third_op.type());
   EXPECT_EQ(kBlockSize * 3, third_op.src_length());
   EXPECT_EQ(1, third_op.src_extents().size());
-  EXPECT_EQ(9, third_op.src_extents(0).start_block());
-  EXPECT_EQ(3, third_op.src_extents(0).num_blocks());
+  EXPECT_EQ(9U, third_op.src_extents(0).start_block());
+  EXPECT_EQ(3U, third_op.src_extents(0).num_blocks());
   EXPECT_EQ(kBlockSize * 3, third_op.dst_length());
   EXPECT_EQ(1, third_op.dst_extents().size());
-  EXPECT_EQ(18, third_op.dst_extents(0).start_block());
-  EXPECT_EQ(3, third_op.dst_extents(0).num_blocks());
+  EXPECT_EQ(18U, third_op.dst_extents(0).start_block());
+  EXPECT_EQ(3U, third_op.dst_extents(0).num_blocks());
 }
 
 TEST_F(ABGeneratorTest, SplitReplaceTest) {
@@ -429,7 +431,7 @@ TEST_F(ABGeneratorTest, SortOperationsByDestinationTest) {
   aops.push_back(third_aop);
 
   ABGenerator::SortOperationsByDestination(&aops);
-  EXPECT_EQ(aops.size(), 3);
+  EXPECT_EQ(3U, aops.size());
   EXPECT_EQ(third_aop.name, aops[0].name);
   EXPECT_EQ(first_aop.name, aops[1].name);
   EXPECT_EQ(second_aop.name, aops[2].name);
@@ -475,7 +477,7 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   BlobFileWriter blob_file(0, nullptr);
   EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 5, "", &blob_file));
 
-  EXPECT_EQ(aops.size(), 1);
+  EXPECT_EQ(1U, aops.size());
   InstallOperation first_result_op = aops[0].op;
   EXPECT_EQ(InstallOperation::SOURCE_COPY, first_result_op.type());
   EXPECT_EQ(kBlockSize * 5, first_result_op.src_length());
@@ -548,7 +550,7 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 4, "", &blob_file));
 
   // No operations were merged, the number of ops is the same.
-  EXPECT_EQ(aops.size(), 4);
+  EXPECT_EQ(4U, aops.size());
 }
 
 TEST_F(ABGeneratorTest, AddSourceHashTest) {

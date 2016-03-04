@@ -17,9 +17,6 @@
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
 
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <string>
@@ -38,28 +35,23 @@ using std::vector;
 namespace chromeos_update_engine {
 
 namespace {
-const char kPathTemplate[] = "./BzipExtentWriterTest-file.XXXXXX";
 const uint32_t kBlockSize = 4096;
 }
 
 class BzipExtentWriterTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    memcpy(path_, kPathTemplate, sizeof(kPathTemplate));
     fd_.reset(new EintrSafeFileDescriptor);
-    int fd = mkstemp(path_);
-    ASSERT_TRUE(fd_->Open(path_, O_RDWR, 0600));
-    close(fd);
+    ASSERT_TRUE(fd_->Open(temp_file_.path().c_str(), O_RDWR, 0600));
   }
   void TearDown() override {
     fd_->Close();
-    unlink(path_);
   }
   void WriteAlignedExtents(size_t chunk_size, size_t first_chunk_size);
   void TestZeroPad(bool aligned_size);
 
   FileDescriptorPtr fd_;
-  char path_[sizeof(kPathTemplate)];
+  test_utils::ScopedTempFile temp_file_{"BzipExtentWriterTest-file.XXXXXX"};
 };
 
 TEST_F(BzipExtentWriterTest, SimpleTest) {
@@ -85,38 +77,36 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
   EXPECT_TRUE(bzip_writer.End());
 
   brillo::Blob buf;
-  EXPECT_TRUE(utils::ReadFile(path_, &buf));
+  EXPECT_TRUE(utils::ReadFile(temp_file_.path(), &buf));
   EXPECT_EQ(strlen(test_uncompressed), buf.size());
   EXPECT_EQ(string(buf.begin(), buf.end()), string(test_uncompressed));
 }
 
 TEST_F(BzipExtentWriterTest, ChunkedTest) {
-  const brillo::Blob::size_type kDecompressedLength = 2048 * 1024;  // 2 MiB
-  string decompressed_path;
-  ASSERT_TRUE(utils::MakeTempFile("BzipExtentWriterTest-decompressed-XXXXXX",
-                                  &decompressed_path, nullptr));
-  string compressed_path;
-  ASSERT_TRUE(utils::MakeTempFile("BzipExtentWriterTest-compressed-XXXXXX",
-                                  &compressed_path, nullptr));
+  // Generated with:
+  //   yes "ABC" | head -c 819200 | bzip2 -9 |
+  //     hexdump -v -e '"      " 11/1 "0x%02x, " "\n"'
+  static const uint8_t kCompressedData[] = {
+      0x42, 0x5a, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26, 0x53, 0x59, 0xbe,
+      0x1c, 0xda, 0xee, 0x03, 0x1f, 0xff, 0xc4, 0x00, 0x00, 0x10, 0x38,
+      0x00, 0x20, 0x00, 0x50, 0x66, 0x9a, 0x05, 0x28, 0x38, 0x00, 0x11,
+      0x60, 0x00, 0x22, 0xd0, 0x00, 0x45, 0xc0, 0x00, 0x8b, 0xc5, 0xdc,
+      0x91, 0x4e, 0x14, 0x24, 0x2f, 0x87, 0x36, 0xbb, 0x80};
+  brillo::Blob compressed_data(std::begin(kCompressedData),
+                               std::end(kCompressedData));
+
+  const brillo::Blob::size_type kDecompressedLength = 800 * 1024;  // 800 KiB
   const size_t kChunkSize = 3;
+
+  brillo::Blob decompressed_data(kDecompressedLength);
+  for (size_t i = 0; i < decompressed_data.size(); ++i)
+    decompressed_data[i] = static_cast<uint8_t>("ABC\n"[i % 4]);
 
   vector<Extent> extents;
   Extent extent;
   extent.set_start_block(0);
-  extent.set_num_blocks(kDecompressedLength / kBlockSize + 1);
+  extent.set_num_blocks((kDecompressedLength + kBlockSize - 1) / kBlockSize);
   extents.push_back(extent);
-
-  brillo::Blob decompressed_data(kDecompressedLength);
-  test_utils::FillWithData(&decompressed_data);
-
-  EXPECT_TRUE(test_utils::WriteFileVector(
-      decompressed_path, decompressed_data));
-
-  EXPECT_EQ(0, test_utils::System(
-      string("cat ") + decompressed_path + "|bzip2>" + compressed_path));
-
-  brillo::Blob compressed_data;
-  EXPECT_TRUE(utils::ReadFile(compressed_path, &compressed_data));
 
   BzipExtentWriter bzip_writer(
       brillo::make_unique_ptr(new DirectExtentWriter()));
@@ -134,12 +124,9 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   test_utils::ExpectVectorsEq(original_compressed_data, compressed_data);
 
   brillo::Blob output;
-  EXPECT_TRUE(utils::ReadFile(path_, &output));
+  EXPECT_TRUE(utils::ReadFile(temp_file_.path(), &output));
   EXPECT_EQ(kDecompressedLength, output.size());
   test_utils::ExpectVectorsEq(decompressed_data, output);
-
-  unlink(decompressed_path.c_str());
-  unlink(compressed_path.c_str());
 }
 
 }  // namespace chromeos_update_engine

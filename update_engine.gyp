@@ -26,6 +26,7 @@
       'USE_binder%': '0',
       'USE_dbus%': '1',
       'USE_hwid_override%': '0',
+      'USE_libcros%': '1',
       'USE_mtd%': '0',
       'USE_power_management%': '0',
       'USE_buffet%': '0',
@@ -52,6 +53,7 @@
       'USE_BINDER=<(USE_binder)',
       'USE_DBUS=<(USE_dbus)',
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
+      'USE_LIBCROS=<(USE_libcros)',
       'USE_MTD=<(USE_mtd)',
       'USE_POWER_MANAGEMENT=<(USE_power_management)',
       'USE_WEAVE=<(USE_buffet)',
@@ -246,7 +248,6 @@
       },
       'sources': [
         'boot_control_chromeos.cc',
-        'chrome_browser_proxy_resolver.cc',
         'common_service.cc',
         'connection_manager.cc',
         'daemon.cc',
@@ -293,6 +294,14 @@
             ],
           },
         }],
+        ['USE_libcros == 1', {
+          'dependencies': [
+            'update_engine-other-dbus-proxies',
+          ],
+          'sources': [
+            'chrome_browser_proxy_resolver.cc',
+          ],
+        }],
       ],
     },
     # update_engine daemon.
@@ -333,8 +342,9 @@
         'libupdate_engine_client',
       ],
       'sources': [
+        'common/error_code_utils.cc',
         'update_engine_client.cc',
-      ],
+     ],
     },
     # server-side code. This is used for delta_generator and unittests but not
     # for any client code.
@@ -440,8 +450,8 @@
         {
           'target_name': 'test_http_server',
           'type': 'executable',
-          'dependencies': ['libupdate_engine'],
           'sources': [
+            'common/http_common.cc',
             'test_http_server.cc',
           ],
         },
@@ -467,7 +477,6 @@
           'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'sources': [
             'boot_control_chromeos_unittest.cc',
-            'chrome_browser_proxy_resolver_unittest.cc',
             'common/action_pipe_unittest.cc',
             'common/action_processor_unittest.cc',
             'common/action_unittest.cc',
@@ -538,6 +547,13 @@
             'update_manager/variable_unittest.cc',
             # Main entry point for runnning tests.
             'testrunner.cc',
+          ],
+          'conditions': [
+            ['USE_libcros == 1', {
+              'sources': [
+                'chrome_browser_proxy_resolver_unittest.cc',
+              ],
+            }],
           ],
         },
       ],

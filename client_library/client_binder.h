@@ -80,6 +80,8 @@ class BinderUpdateEngineClient : public UpdateEngineClient {
   bool RegisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
   bool UnregisterStatusUpdateHandler(StatusUpdateHandler* handler) override;
 
+  bool GetLastAttemptError(int32_t* last_attempt_error) const override;
+
  private:
   class StatusUpdateCallback :
       public android::brillo::BnUpdateEngineStatusCallback {

@@ -18,6 +18,8 @@
 
 #include "update_engine/common/http_common.h"
 
+#include <cstdlib>
+
 #include <base/macros.h>
 
 namespace chromeos_update_engine {

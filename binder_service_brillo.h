@@ -84,6 +84,8 @@ class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
   android::binder::Status RegisterStatusCallback(
       const android::sp<android::brillo::IUpdateEngineStatusCallback>& callback)
       override;
+  android::binder::Status GetLastAttemptError(
+      int* out_last_attempt_error) override;
 
  private:
   // Generic function for dispatching to the common service.

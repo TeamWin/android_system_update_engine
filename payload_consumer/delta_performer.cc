@@ -578,6 +578,9 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     LOG_IF(WARNING, !prefs_->SetInt64(kPrefsManifestMetadataSize,
                                       metadata_size_))
         << "Unable to save the manifest metadata size.";
+    LOG_IF(WARNING, !prefs_->SetInt64(kPrefsManifestSignatureSize,
+                                      metadata_signature_size_))
+        << "Unable to save the manifest signature size.";
 
     if (!PrimeUpdateState()) {
       *error = ErrorCode::kDownloadStateInitializationError;
@@ -686,8 +689,10 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
   }
 
   // In major version 2, we don't add dummy operation to the payload.
+  // If we already extracted the signature we should skip this step.
   if (major_payload_version_ == kBrilloMajorPayloadVersion &&
-      manifest_.has_signatures_offset() && manifest_.has_signatures_size()) {
+      manifest_.has_signatures_offset() && manifest_.has_signatures_size() &&
+      signatures_message_data_.empty()) {
     if (manifest_.signatures_offset() != buffer_offset_) {
       LOG(ERROR) << "Payload signatures offset points to blob offset "
                  << manifest_.signatures_offset()
@@ -706,6 +711,10 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
       return false;
     }
     DiscardBuffer(true, 0);
+    // Since we extracted the SignatureMessage we need to advance the
+    // checkpoint, otherwise we would reload the signature and try to extract
+    // it again.
+    CheckpointUpdateProgress();
   }
 
   return true;
@@ -781,6 +790,12 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     install_part.name = partition.partition_name();
     install_part.run_postinstall =
         partition.has_run_postinstall() && partition.run_postinstall();
+    if (install_part.run_postinstall) {
+      install_part.postinstall_path =
+          (partition.has_postinstall_path() ? partition.postinstall_path()
+                                            : kPostinstallDefaultScript);
+      install_part.filesystem_type = partition.filesystem_type();
+    }
 
     if (partition.has_old_partition_info()) {
       const PartitionInfo& info = partition.old_partition_info();
@@ -1666,8 +1681,10 @@ bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
     return false;
 
   int64_t resumed_update_failures;
-  if (!(prefs->GetInt64(kPrefsResumedUpdateFailures, &resumed_update_failures)
-        && resumed_update_failures > kMaxResumedUpdateFailures))
+  // Note that storing this value is optional, but if it is there it should not
+  // be more than the limit.
+  if (prefs->GetInt64(kPrefsResumedUpdateFailures, &resumed_update_failures) &&
+      resumed_update_failures > kMaxResumedUpdateFailures)
     return false;
 
   // Sanity check the rest.
@@ -1686,6 +1703,12 @@ bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
         manifest_metadata_size > 0))
     return false;
 
+  int64_t manifest_signature_size = 0;
+  if (!(prefs->GetInt64(kPrefsManifestSignatureSize,
+                        &manifest_signature_size) &&
+        manifest_signature_size >= 0))
+    return false;
+
   return true;
 }
 
@@ -1700,6 +1723,7 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
     prefs->SetString(kPrefsUpdateStateSignedSHA256Context, "");
     prefs->SetString(kPrefsUpdateStateSignatureBlob, "");
     prefs->SetInt64(kPrefsManifestMetadataSize, -1);
+    prefs->SetInt64(kPrefsManifestSignatureSize, -1);
     prefs->SetInt64(kPrefsResumedUpdateFailures, 0);
   }
   return true;
@@ -1785,6 +1809,12 @@ bool DeltaPerformer::PrimeUpdateState() {
                                          &manifest_metadata_size) &&
                         manifest_metadata_size > 0);
   metadata_size_ = manifest_metadata_size;
+
+  int64_t manifest_signature_size = 0;
+  TEST_AND_RETURN_FALSE(
+      prefs_->GetInt64(kPrefsManifestSignatureSize, &manifest_signature_size) &&
+      manifest_signature_size >= 0);
+  metadata_signature_size_ = manifest_signature_size;
 
   // Advance the download progress to reflect what doesn't need to be
   // re-downloaded.

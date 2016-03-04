@@ -23,6 +23,9 @@ local_use_binder := $(if $(BRILLO_USE_BINDER),$(BRILLO_USE_BINDER),1)
 local_use_dbus := $(if $(BRILLO_USE_DBUS),$(BRILLO_USE_DBUS),0)
 local_use_hwid_override := \
     $(if $(BRILLO_USE_HWID_OVERRIDE),$(BRILLO_USE_HWID_OVERRIDE),0)
+# "libcros" gates the LibCrosService exposed by the Chrome OS' chrome browser to
+# the system layer.
+local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
 local_use_power_management := \
     $(if $(BRILLO_USE_POWER_MANAGEMENT),$(BRILLO_USE_POWER_MANAGEMENT),0)
@@ -32,6 +35,7 @@ ue_common_cflags := \
     -DUSE_BINDER=$(local_use_binder) \
     -DUSE_DBUS=$(local_use_dbus) \
     -DUSE_HWID_OVERRIDE=$(local_use_hwid_override) \
+    -DUSE_LIBCROS=$(local_use_libcros) \
     -DUSE_MTD=$(local_use_mtd) \
     -DUSE_POWER_MANAGEMENT=$(local_use_power_management) \
     -DUSE_WEAVE=$(local_use_weave) \
@@ -299,7 +303,6 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     boot_control_android.cc \
-    chrome_browser_proxy_resolver.cc \
     common_service.cc \
     connection_manager.cc \
     daemon.cc \
@@ -346,6 +349,10 @@ ifeq ($(local_use_weave),1)
 LOCAL_SRC_FILES += \
     weave_service.cc
 endif  # local_use_weave == 1
+ifeq ($(local_use_libcros),1)
+LOCAL_SRC_FILES += \
+    chrome_browser_proxy_resolver.cc
+endif  # local_use_libcros == 1
 include $(BUILD_STATIC_LIBRARY)
 
 else  # !defined(BRILLO)
@@ -448,6 +455,57 @@ endif  # !defined(BRILLO)
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)
 
+# libupdate_engine_client (type: shared_library)
+# ========================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := libupdate_engine_client
+LOCAL_CFLAGS := \
+    -Wall \
+    -Werror \
+    -Wno-unused-parameter \
+    -DUSE_DBUS=$(local_use_dbus) \
+    -DUSE_BINDER=$(local_use_binder)
+LOCAL_CLANG := true
+LOCAL_CPP_EXTENSION := .cc
+# TODO(deymo): Remove "external/cros/system_api/dbus" when dbus is not used.
+LOCAL_C_INCLUDES := \
+    $(LOCAL_PATH)/client_library/include \
+    external/cros/system_api/dbus \
+    system \
+    external/gtest/include
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/client_library/include
+LOCAL_SHARED_LIBRARIES := \
+    libchrome \
+    libbrillo
+LOCAL_SRC_FILES := \
+    client_library/client.cc \
+    update_status_utils.cc
+
+# We can only compile support for one IPC mechanism. If both "binder" and "dbus"
+# are defined, we prefer binder.
+ifeq ($(local_use_binder),1)
+LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
+LOCAL_SHARED_LIBRARIES += \
+    libbinder \
+    libbrillo-binder \
+    libutils
+LOCAL_SRC_FILES += \
+    binder_bindings/android/brillo/IUpdateEngine.aidl \
+    binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
+    client_library/client_binder.cc \
+    parcelable_update_engine_status.cc
+else  # local_use_binder != 1
+LOCAL_STATIC_LIBRARIES := \
+    update_engine_client-dbus-proxies
+LOCAL_SHARED_LIBRARIES += \
+    libchrome-dbus \
+    libbrillo-dbus
+LOCAL_SRC_FILES += \
+    client_library/client_dbus.cc
+endif  # local_use_binder == 1
+
+include $(BUILD_SHARED_LIBRARY)
+
 # update_engine_client (type: executable)
 # ========================================================
 # update_engine console client.
@@ -465,7 +523,8 @@ ifdef BRILLO
 LOCAL_SHARED_LIBRARIES += \
     libupdate_engine_client
 LOCAL_SRC_FILES := \
-    update_engine_client.cc
+    update_engine_client.cc \
+    common/error_code_utils.cc
 else  # !defined(BRILLO)
 #TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
 # out of the DBus interface.
@@ -623,56 +682,171 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
 include $(BUILD_EXECUTABLE)
 
-# libupdate_engine_client
+# TODO(deymo): Enable the unittest binaries in non-Brillo builds once the DBus
+# dependencies are removed or placed behind the USE_DBUS flag.
+ifdef BRILLO
+
+# Sample images for unittests.
 # ========================================================
+# Generate a prebuilt module that installs a sample image from the compressed
+# sample_images.tar.bz2 file used by the unittests.
+#
+# $(1): The filename in the sample_images.tar.bz2
+define ue-unittest-sample-image
+    $(eval include $(CLEAR_VARS)) \
+    $(eval LOCAL_MODULE := ue_unittest_$(1)) \
+    $(eval LOCAL_MODULE_CLASS := EXECUTABLES) \
+    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
+    $(eval LOCAL_MODULE_PATH := \
+        $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests/gen) \
+    $(eval LOCAL_MODULE_STEM := $(1)) \
+    $(eval my_gen := $(call local-intermediates-dir)/gen/$(1)) \
+    $(eval $(my_gen) : PRIVATE_CUSTOM_TOOL = \
+        tar -jxf $$< -C $$(dir $$@) $$(notdir $$@) && touch $$@) \
+    $(eval $(my_gen) : $(LOCAL_PATH)/sample_images/sample_images.tar.bz2 ; \
+        $$(transform-generated-source)) \
+    $(eval LOCAL_PREBUILT_MODULE_FILE := $(my_gen)) \
+    $(eval include $(BUILD_PREBUILT))
+endef
+
+$(call ue-unittest-sample-image,disk_ext2_1k.img)
+$(call ue-unittest-sample-image,disk_ext2_4k.img)
+$(call ue-unittest-sample-image,disk_ext2_4k_empty.img)
+$(call ue-unittest-sample-image,disk_ext2_ue_settings.img)
+
+# test_http_server (type: executable)
+# ========================================================
+# Test HTTP Server.
 include $(CLEAR_VARS)
-LOCAL_MODULE := libupdate_engine_client
-LOCAL_CFLAGS := \
-    -Wall \
-    -Werror \
-    -Wno-unused-parameter \
-    -DUSE_DBUS=$(local_use_dbus) \
-    -DUSE_BINDER=$(local_use_binder)
-LOCAL_CLANG := true
+LOCAL_MODULE := test_http_server
+ifdef BRILLO
+  LOCAL_MODULE_TAGS := eng
+endif
+LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
+LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-# TODO(deymo): Remove "external/cros/system_api/dbus" when dbus is not used.
-LOCAL_C_INCLUDES := \
-    $(LOCAL_PATH)/client_library/include \
-    external/cros/system_api/dbus \
-    system \
-    external/gtest/include
-LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/client_library/include
-LOCAL_SHARED_LIBRARIES := \
-    libchrome \
-    libbrillo
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := $(ue_common_c_includes)
+LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
 LOCAL_SRC_FILES := \
-    client_library/client.cc \
-    update_status_utils.cc
+    common/http_common.cc \
+    test_http_server.cc
+include $(BUILD_EXECUTABLE)
 
-# We can only compile support for one IPC mechanism. If both "binder" and "dbus"
-# are defined, we prefer binder.
-ifeq ($(local_use_binder),1)
-LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
-LOCAL_SHARED_LIBRARIES += \
-    libbinder \
-    libbrillo-binder \
-    libutils
-LOCAL_SRC_FILES += \
-    binder_bindings/android/brillo/IUpdateEngine.aidl \
-    binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
-    client_library/client_binder.cc \
-    parcelable_update_engine_status.cc
-else  # local_use_binder != 1
+# update_engine_unittests (type: executable)
+# ========================================================
+# Main unittest file.
+include $(CLEAR_VARS)
+LOCAL_MODULE := update_engine_unittests
+ifdef BRILLO
+  LOCAL_MODULE_TAGS := eng
+endif
+LOCAL_REQUIRED_MODULES := \
+    ue_unittest_disk_ext2_1k.img \
+    ue_unittest_disk_ext2_4k.img \
+    ue_unittest_disk_ext2_4k_empty.img \
+    ue_unittest_disk_ext2_ue_settings.img
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES := \
-    update_engine_client-dbus-proxies
-LOCAL_SHARED_LIBRARIES += \
-    libchrome-dbus \
-    libbrillo-dbus
+    libupdate_engine \
+    libpayload_generator \
+    libbrillo-test-helpers \
+    libgmock \
+    libgtest \
+    libchrome_test_helpers \
+    $(ue_libupdate_engine_exported_static_libraries:-host=) \
+    $(ue_libpayload_generator_exported_static_libraries:-host=)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    $(ue_libupdate_engine_exported_shared_libraries:-host=) \
+    $(ue_libpayload_generator_exported_shared_libraries:-host=)
+LOCAL_SRC_FILES := \
+    common/action_pipe_unittest.cc \
+    common/action_processor_unittest.cc \
+    common/action_unittest.cc \
+    common/certificate_checker_unittest.cc \
+    common/cpu_limiter_unittest.cc \
+    common/fake_prefs.cc \
+    common/hash_calculator_unittest.cc \
+    common/http_fetcher_unittest.cc \
+    common/hwid_override_unittest.cc \
+    common/mock_http_fetcher.cc \
+    common/prefs_unittest.cc \
+    common/subprocess_unittest.cc \
+    common/terminator_unittest.cc \
+    common/test_utils.cc \
+    common/utils_unittest.cc \
+    common_service_unittest.cc \
+    connection_manager_unittest.cc \
+    fake_shill_proxy.cc \
+    fake_system_state.cc \
+    metrics_utils_unittest.cc \
+    omaha_request_action_unittest.cc \
+    omaha_request_params_unittest.cc \
+    omaha_response_handler_action_unittest.cc \
+    p2p_manager_unittest.cc \
+    payload_consumer/bzip_extent_writer_unittest.cc \
+    payload_consumer/delta_performer_integration_test.cc \
+    payload_consumer/delta_performer_unittest.cc \
+    payload_consumer/download_action_unittest.cc \
+    payload_consumer/extent_writer_unittest.cc \
+    payload_consumer/file_writer_unittest.cc \
+    payload_consumer/filesystem_verifier_action_unittest.cc \
+    payload_consumer/postinstall_runner_action_unittest.cc \
+    payload_consumer/xz_extent_writer_unittest.cc \
+    payload_generator/ab_generator_unittest.cc \
+    payload_generator/blob_file_writer_unittest.cc \
+    payload_generator/block_mapping_unittest.cc \
+    payload_generator/cycle_breaker_unittest.cc \
+    payload_generator/delta_diff_utils_unittest.cc \
+    payload_generator/ext2_filesystem_unittest.cc \
+    payload_generator/extent_ranges_unittest.cc \
+    payload_generator/extent_utils_unittest.cc \
+    payload_generator/fake_filesystem.cc \
+    payload_generator/full_update_generator_unittest.cc \
+    payload_generator/graph_utils_unittest.cc \
+    payload_generator/inplace_generator_unittest.cc \
+    payload_generator/payload_file_unittest.cc \
+    payload_generator/payload_generation_config_unittest.cc \
+    payload_generator/payload_signer_unittest.cc \
+    payload_generator/tarjan_unittest.cc \
+    payload_generator/topological_sort_unittest.cc \
+    payload_generator/zip_unittest.cc \
+    payload_state_unittest.cc \
+    update_attempter_unittest.cc \
+    update_manager/boxed_value_unittest.cc \
+    update_manager/chromeos_policy_unittest.cc \
+    update_manager/evaluation_context_unittest.cc \
+    update_manager/generic_variables_unittest.cc \
+    update_manager/prng_unittest.cc \
+    update_manager/real_config_provider_unittest.cc \
+    update_manager/real_device_policy_provider_unittest.cc \
+    update_manager/real_random_provider_unittest.cc \
+    update_manager/real_shill_provider_unittest.cc \
+    update_manager/real_system_provider_unittest.cc \
+    update_manager/real_time_provider_unittest.cc \
+    update_manager/real_updater_provider_unittest.cc \
+    update_manager/umtest_utils.cc \
+    update_manager/update_manager_unittest.cc \
+    update_manager/variable_unittest.cc \
+    testrunner.cc
+ifeq ($(local_use_libcros),1)
 LOCAL_SRC_FILES += \
-    client_library/client_dbus.cc
-endif  # local_use_binder == 1
-
-include $(BUILD_SHARED_LIBRARY)
+    chrome_browser_proxy_resolver_unittest.cc
+endif  # local_use_libcros == 1
+include $(BUILD_NATIVE_TEST)
+endif  # BRILLO
 
 # Weave schema files
 # ========================================================
