@@ -32,7 +32,7 @@ const char kOmahaResponseDeadlineFile[] =
     "/tmp/update-check-response-deadline";
 // This directory is wiped during powerwash.
 const char kNonVolatileDirectory[] = "/var/lib/update_engine";
-const char kPostinstallMountOptions[] = nullptr;
+const char kPostinstallMountOptions[] = "";
 
 }  // namespace constants
 }  // namespace chromeos_update_engine
