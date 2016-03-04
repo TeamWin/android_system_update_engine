@@ -51,8 +51,9 @@ class ActionProcessor {
   virtual void StartProcessing();
 
   // Aborts processing. If an Action is running, it will have
-  // TerminateProcessing() called on it. The Action that was running
-  // will be lost and must be re-enqueued if this Processor is to use it.
+  // TerminateProcessing() called on it. The Action that was running and all the
+  // remaining actions will be lost and must be re-enqueued if this Processor is
+  // to use it.
   void StopProcessing();
 
   // Suspend the processing. If an Action is running, it will have the
@@ -63,7 +64,7 @@ class ActionProcessor {
   void SuspendProcessing();
 
   // Resume the suspended processing. If the ActionProcessor is not suspended
-  // or not running on the first place this method performs no action.
+  // or not running in the first place this method performs no action.
   void ResumeProcessing();
 
   // Returns true iff the processing was started but not yet completed nor

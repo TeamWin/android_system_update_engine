@@ -99,6 +99,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
 
   curl_handle_ = curl_easy_init();
   CHECK(curl_handle_);
+  ignore_failure_ = false;
 
   CHECK(HasProxy());
   bool is_direct = (GetCurrentProxy() == kNoProxy);
@@ -291,6 +292,12 @@ void LibcurlHttpFetcher::ProxiesResolved() {
   http_response_code_ = 0;
   terminate_requested_ = false;
   sent_byte_ = false;
+
+  // If we are paused, we delay these two operations until Unpause is called.
+  if (transfer_paused_) {
+    restart_transfer_on_unpause_ = true;
+    return;
+  }
   ResumeTransfer(url_);
   CurlPerformOnce();
 }
@@ -325,96 +332,110 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
       return;
     }
   }
-  if (0 == running_handles) {
-    GetHttpResponseCode();
-    if (http_response_code_) {
-      LOG(INFO) << "HTTP response code: " << http_response_code_;
-      no_network_retry_count_ = 0;
+
+  // If the transfer completes while paused, we should ignore the failure once
+  // the fetcher is unpaused.
+  if (running_handles == 0 && transfer_paused_ && !ignore_failure_) {
+    LOG(INFO) << "Connection closed while paused, ignoring failure.";
+    ignore_failure_ = true;
+  }
+
+  if (running_handles != 0 || transfer_paused_) {
+    // There's either more work to do or we are paused, so we just keep the
+    // file descriptors to watch up to date and exit, until we are done with the
+    // work and we are not paused.
+    SetupMessageLoopSources();
+    return;
+  }
+
+  // At this point, the transfer was completed in some way (error, connection
+  // closed or download finished).
+
+  GetHttpResponseCode();
+  if (http_response_code_) {
+    LOG(INFO) << "HTTP response code: " << http_response_code_;
+    no_network_retry_count_ = 0;
+  } else {
+    LOG(ERROR) << "Unable to get http response code.";
+  }
+
+  // we're done!
+  CleanUp();
+
+  // TODO(petkov): This temporary code tries to deal with the case where the
+  // update engine performs an update check while the network is not ready
+  // (e.g., right after resume). Longer term, we should check if the network
+  // is online/offline and return an appropriate error code.
+  if (!sent_byte_ &&
+      http_response_code_ == 0 &&
+      no_network_retry_count_ < no_network_max_retries_) {
+    no_network_retry_count_++;
+    MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
+                   base::Unretained(this)),
+        TimeDelta::FromSeconds(kNoNetworkRetrySeconds));
+    LOG(INFO) << "No HTTP response, retry " << no_network_retry_count_;
+  } else if ((!sent_byte_ && !IsHttpResponseSuccess()) ||
+             IsHttpResponseError()) {
+    // The transfer completed w/ error and we didn't get any bytes.
+    // If we have another proxy to try, try that.
+    //
+    // TODO(garnold) in fact there are two separate cases here: one case is an
+    // other-than-success return code (including no return code) and no
+    // received bytes, which is necessary due to the way callbacks are
+    // currently processing error conditions;  the second is an explicit HTTP
+    // error code, where some data may have been received (as in the case of a
+    // semi-successful multi-chunk fetch).  This is a confusing behavior and
+    // should be unified into a complete, coherent interface.
+    LOG(INFO) << "Transfer resulted in an error (" << http_response_code_
+              << "), " << bytes_downloaded_ << " bytes downloaded";
+
+    PopProxy();  // Delete the proxy we just gave up on.
+
+    if (HasProxy()) {
+      // We have another proxy. Retry immediately.
+      LOG(INFO) << "Retrying with next proxy setting";
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
+                     base::Unretained(this)));
     } else {
-      LOG(ERROR) << "Unable to get http response code.";
+      // Out of proxies. Give up.
+      LOG(INFO) << "No further proxies, indicating transfer complete";
+      if (delegate_)
+        delegate_->TransferComplete(this, false);  // signal fail
     }
+  } else if ((transfer_size_ >= 0) && (bytes_downloaded_ < transfer_size_)) {
+    if (!ignore_failure_)
+      retry_count_++;
+    LOG(INFO) << "Transfer interrupted after downloading "
+              << bytes_downloaded_ << " of " << transfer_size_ << " bytes. "
+              << transfer_size_ - bytes_downloaded_ << " bytes remaining "
+              << "after " << retry_count_ << " attempt(s)";
 
-    // we're done!
-    CleanUp();
-
-    // TODO(petkov): This temporary code tries to deal with the case where the
-    // update engine performs an update check while the network is not ready
-    // (e.g., right after resume). Longer term, we should check if the network
-    // is online/offline and return an appropriate error code.
-    if (!sent_byte_ &&
-        http_response_code_ == 0 &&
-        no_network_retry_count_ < no_network_max_retries_) {
-      no_network_retry_count_++;
+    if (retry_count_ > max_retry_count_) {
+      LOG(INFO) << "Reached max attempts (" << retry_count_ << ")";
+      if (delegate_)
+        delegate_->TransferComplete(this, false);  // signal fail
+    } else {
+      // Need to restart transfer
+      LOG(INFO) << "Restarting transfer to download the remaining bytes";
       MessageLoop::current()->PostDelayedTask(
           FROM_HERE,
           base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
                      base::Unretained(this)),
-          TimeDelta::FromSeconds(kNoNetworkRetrySeconds));
-      LOG(INFO) << "No HTTP response, retry " << no_network_retry_count_;
-      return;
-    }
-
-    if ((!sent_byte_ && !IsHttpResponseSuccess()) || IsHttpResponseError()) {
-      // The transfer completed w/ error and we didn't get any bytes.
-      // If we have another proxy to try, try that.
-      //
-      // TODO(garnold) in fact there are two separate cases here: one case is an
-      // other-than-success return code (including no return code) and no
-      // received bytes, which is necessary due to the way callbacks are
-      // currently processing error conditions;  the second is an explicit HTTP
-      // error code, where some data may have been received (as in the case of a
-      // semi-successful multi-chunk fetch).  This is a confusing behavior and
-      // should be unified into a complete, coherent interface.
-      LOG(INFO) << "Transfer resulted in an error (" << http_response_code_
-                << "), " << bytes_downloaded_ << " bytes downloaded";
-
-      PopProxy();  // Delete the proxy we just gave up on.
-
-      if (HasProxy()) {
-        // We have another proxy. Retry immediately.
-        LOG(INFO) << "Retrying with next proxy setting";
-        MessageLoop::current()->PostTask(
-            FROM_HERE,
-            base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
-                       base::Unretained(this)));
-      } else {
-        // Out of proxies. Give up.
-        LOG(INFO) << "No further proxies, indicating transfer complete";
-        if (delegate_)
-          delegate_->TransferComplete(this, false);  // signal fail
-      }
-    } else if ((transfer_size_ >= 0) && (bytes_downloaded_ < transfer_size_)) {
-      retry_count_++;
-      LOG(INFO) << "Transfer interrupted after downloading "
-                << bytes_downloaded_ << " of " << transfer_size_ << " bytes. "
-                << transfer_size_ - bytes_downloaded_ << " bytes remaining "
-                << "after " << retry_count_ << " attempt(s)";
-
-      if (retry_count_ > max_retry_count_) {
-        LOG(INFO) << "Reached max attempts (" << retry_count_ << ")";
-        if (delegate_)
-          delegate_->TransferComplete(this, false);  // signal fail
-      } else {
-        // Need to restart transfer
-        LOG(INFO) << "Restarting transfer to download the remaining bytes";
-        MessageLoop::current()->PostDelayedTask(
-            FROM_HERE,
-            base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
-                       base::Unretained(this)),
-            TimeDelta::FromSeconds(retry_seconds_));
-      }
-    } else {
-      LOG(INFO) << "Transfer completed (" << http_response_code_
-                << "), " << bytes_downloaded_ << " bytes downloaded";
-      if (delegate_) {
-        bool success = IsHttpResponseSuccess();
-        delegate_->TransferComplete(this, success);
-      }
+          TimeDelta::FromSeconds(retry_seconds_));
     }
   } else {
-    // set up callback
-    SetupMessageLoopSources();
+    LOG(INFO) << "Transfer completed (" << http_response_code_
+              << "), " << bytes_downloaded_ << " bytes downloaded";
+    if (delegate_) {
+      bool success = IsHttpResponseSuccess();
+      delegate_->TransferComplete(this, success);
+    }
   }
+  ignore_failure_ = false;
 }
 
 size_t LibcurlHttpFetcher::LibcurlWrite(void *ptr, size_t size, size_t nmemb) {
@@ -449,15 +470,43 @@ size_t LibcurlHttpFetcher::LibcurlWrite(void *ptr, size_t size, size_t nmemb) {
 }
 
 void LibcurlHttpFetcher::Pause() {
+  if (transfer_paused_) {
+    LOG(ERROR) << "Fetcher already paused.";
+    return;
+  }
+  transfer_paused_ = true;
+  if (!transfer_in_progress_) {
+    // If pause before we started a connection, we don't need to notify curl
+    // about that, we will simply not start the connection later.
+    return;
+  }
   CHECK(curl_handle_);
-  CHECK(transfer_in_progress_);
   CHECK_EQ(curl_easy_pause(curl_handle_, CURLPAUSE_ALL), CURLE_OK);
 }
 
 void LibcurlHttpFetcher::Unpause() {
+  if (!transfer_paused_) {
+    LOG(ERROR) << "Resume attempted when fetcher not paused.";
+    return;
+  }
+  transfer_paused_ = false;
+  if (restart_transfer_on_unpause_) {
+    restart_transfer_on_unpause_ = false;
+    ResumeTransfer(url_);
+    CurlPerformOnce();
+    return;
+  }
+  if (!transfer_in_progress_) {
+    // If resumed before starting the connection, there's no need to notify
+    // anybody. We will simply start the connection once it is time.
+    return;
+  }
   CHECK(curl_handle_);
-  CHECK(transfer_in_progress_);
   CHECK_EQ(curl_easy_pause(curl_handle_, CURLPAUSE_CONT), CURLE_OK);
+  // Since the transfer is in progress, we need to dispatch a CurlPerformOnce()
+  // now to let the connection continue, otherwise it would be called by the
+  // TimeoutCallback but with a delay.
+  CurlPerformOnce();
 }
 
 // This method sets up callbacks with the MessageLoop.
@@ -537,7 +586,7 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
 
   // Set up a timeout callback for libcurl.
   if (timeout_id_ == MessageLoop::kTaskIdNull) {
-    LOG(INFO) << "Setting up timeout source: " << idle_seconds_ << " seconds.";
+    VLOG(1) << "Setting up timeout source: " << idle_seconds_ << " seconds.";
     timeout_id_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&LibcurlHttpFetcher::TimeoutCallback,
@@ -547,6 +596,10 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
 }
 
 void LibcurlHttpFetcher::RetryTimeoutCallback() {
+  if (transfer_paused_) {
+    restart_transfer_on_unpause_ = true;
+    return;
+  }
   ResumeTransfer(url_);
   CurlPerformOnce();
 }
@@ -599,6 +652,8 @@ void LibcurlHttpFetcher::CleanUp() {
     curl_multi_handle_ = nullptr;
   }
   transfer_in_progress_ = false;
+  transfer_paused_ = false;
+  restart_transfer_on_unpause_ = false;
 }
 
 void LibcurlHttpFetcher::GetHttpResponseCode() {

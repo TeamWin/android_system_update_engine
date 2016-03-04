@@ -60,6 +60,10 @@ void ActionProcessor::StopProcessing() {
             << (suspended_ ? " while suspended" : "");
   current_action_ = nullptr;
   suspended_ = false;
+  // Delete all the actions before calling the delegate.
+  for (auto action : actions_)
+    action->SetProcessor(nullptr);
+  actions_.clear();
   if (delegate_)
     delegate_->ProcessingStopped(this);
 }
