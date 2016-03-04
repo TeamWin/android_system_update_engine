@@ -44,7 +44,7 @@ class HttpFetcher {
   // |proxy_resolver| is the resolver that will be consulted for proxy
   // settings. It may be null, in which case direct connections will
   // be used. Does not take ownership of the resolver.
-  HttpFetcher(ProxyResolver* proxy_resolver)
+  explicit HttpFetcher(ProxyResolver* proxy_resolver)
       : post_data_set_(false),
         http_response_code_(0),
         delegate_(nullptr),
@@ -94,6 +94,12 @@ class HttpFetcher {
   // Aborts the transfer. The transfer may not abort right away -- delegate's
   // TransferTerminated() will be called when the transfer is actually done.
   virtual void TerminateTransfer() = 0;
+
+  // Add or update a custom header to be sent with every request. If the same
+  // |header_name| is passed twice, the second |header_value| would override the
+  // previous value.
+  virtual void SetHeader(const std::string& header_name,
+                         const std::string& header_value) = 0;
 
   // If data is coming in too quickly, you can call Pause() to pause the
   // transfer. The delegate will not have ReceivedBytes() called while
