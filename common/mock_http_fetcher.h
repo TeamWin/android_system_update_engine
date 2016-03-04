@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_COMMON_MOCK_HTTP_FETCHER_H_
 #define UPDATE_ENGINE_COMMON_MOCK_HTTP_FETCHER_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -87,6 +88,9 @@ class MockHttpFetcher : public HttpFetcher {
   // The transfer cannot be resumed.
   void TerminateTransfer() override;
 
+  void SetHeader(const std::string& header_name,
+                 const std::string& header_value) override;
+
   // Suspend the mock transfer.
   void Pause() override;
 
@@ -124,6 +128,9 @@ class MockHttpFetcher : public HttpFetcher {
 
   // The number of bytes we've sent so far
   size_t sent_size_;
+
+  // The extra headers set.
+  std::map<std::string, std::string> extra_headers_;
 
   // The TaskId of the timeout callback. After each chunk of data sent, we
   // time out for 0s just to make sure that run loop services other clients.

@@ -72,13 +72,12 @@ enum {
 };
 
 struct HttpRequest {
-  HttpRequest()
-      : start_offset(0), end_offset(0), return_code(kHttpResponseOk) {}
+  string raw_headers;
   string host;
   string url;
-  off_t start_offset;
-  off_t end_offset;  // non-inclusive, zero indicates unspecified.
-  HttpResponseCode return_code;
+  off_t start_offset{0};
+  off_t end_offset{0};  // non-inclusive, zero indicates unspecified.
+  HttpResponseCode return_code{kHttpResponseOk};
 };
 
 bool ParseRequest(int fd, HttpRequest* request) {
@@ -96,6 +95,7 @@ bool ParseRequest(int fd, HttpRequest* request) {
   LOG(INFO) << "got headers:\n--8<------8<------8<------8<----\n"
             << headers
             << "\n--8<------8<------8<------8<----";
+  request->raw_headers = headers;
 
   // Break header into lines.
   vector<string> lines;
@@ -452,6 +452,13 @@ ssize_t HandleErrorIfOffset(int fd, const HttpRequest& request,
   }
 }
 
+// Returns a valid response echoing in the body of the response all the headers
+// sent by the client.
+void HandleEchoHeaders(int fd, const HttpRequest& request) {
+  WriteHeaders(fd, 0, request.raw_headers.size(), kHttpResponseOk);
+  WriteString(fd, request.raw_headers);
+}
+
 void HandleHang(int fd) {
   LOG(INFO) << "Hanging until the other side of the connection is closed.";
   char c;
@@ -512,8 +519,8 @@ void HandleConnection(int fd) {
   LOG(INFO) << "pid(" << getpid() <<  "): handling url " << url;
   if (url == "/quitquitquit") {
     HandleQuit(fd);
-  } else if (base::StartsWith(url, "/download/", 
-                              base::CompareCase::SENSITIVE)) {
+  } else if (base::StartsWith(
+                 url, "/download/", base::CompareCase::SENSITIVE)) {
     const UrlTerms terms(url, 2);
     HandleGet(fd, request, terms.GetSizeT(1));
   } else if (base::StartsWith(url, "/flaky/", base::CompareCase::SENSITIVE)) {
@@ -528,6 +535,8 @@ void HandleConnection(int fd) {
                               base::CompareCase::SENSITIVE)) {
     const UrlTerms terms(url, 3);
     HandleErrorIfOffset(fd, request, terms.GetSizeT(1), terms.GetInt(2));
+  } else if (url == "/echo-headers") {
+    HandleEchoHeaders(fd, request);
   } else if (url == "/hang") {
     HandleHang(fd);
   } else {

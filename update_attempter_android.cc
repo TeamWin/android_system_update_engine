@@ -171,6 +171,13 @@ bool UpdateAttempterAndroid::ApplyPayload(
 
   BuildUpdateActions();
   SetupDownload();
+  // Setup extra headers.
+  HttpFetcher* fetcher = download_action_->http_fetcher();
+  if (!headers[kPayloadPropertyAuthorization].empty())
+    fetcher->SetHeader("Authorization", headers[kPayloadPropertyAuthorization]);
+  if (!headers[kPayloadPropertyUserAgent].empty())
+    fetcher->SetHeader("User-Agent", headers[kPayloadPropertyUserAgent]);
+
   cpu_limiter_.StartLimiter();
   SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
 

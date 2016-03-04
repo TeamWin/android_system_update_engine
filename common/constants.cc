@@ -91,5 +91,7 @@ const char kPayloadPropertyFileSize[] = "FILE_SIZE";
 const char kPayloadPropertyFileHash[] = "FILE_HASH";
 const char kPayloadPropertyMetadataSize[] = "METADATA_SIZE";
 const char kPayloadPropertyMetadataHash[] = "METADATA_HASH";
+const char kPayloadPropertyAuthorization[] = "AUTHORIZATION";
+const char kPayloadPropertyUserAgent[] = "USER_AGENT";
 
 }  // namespace chromeos_update_engine

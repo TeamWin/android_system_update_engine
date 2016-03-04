@@ -377,12 +377,12 @@ TYPED_TEST_CASE(HttpFetcherTest, HttpFetcherTestTypes);
 namespace {
 class HttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
-  HttpFetcherTestDelegate() :
-      is_expect_error_(false), times_transfer_complete_called_(0),
-      times_transfer_terminated_called_(0), times_received_bytes_called_(0) {}
+  HttpFetcherTestDelegate() = default;
 
   void ReceivedBytes(HttpFetcher* /* fetcher */,
-                     const void* /* bytes */, size_t /* length */) override {
+                     const void* bytes,
+                     size_t length) override {
+    data.append(reinterpret_cast<const char*>(bytes), length);
     // Update counters
     times_received_bytes_called_++;
   }
@@ -404,12 +404,15 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
   }
 
   // Are we expecting an error response? (default: no)
-  bool is_expect_error_;
+  bool is_expect_error_{false};
 
   // Counters for callback invocations.
-  int times_transfer_complete_called_;
-  int times_transfer_terminated_called_;
-  int times_received_bytes_called_;
+  int times_transfer_complete_called_{0};
+  int times_transfer_terminated_called_{0};
+  int times_received_bytes_called_{0};
+
+  // The received data bytes.
+  string data;
 };
 
 
@@ -478,6 +481,41 @@ TYPED_TEST(HttpFetcherTest, ErrorTest) {
   // was signaled.
   CHECK_EQ(delegate.times_transfer_complete_called_, 1);
   CHECK_EQ(delegate.times_transfer_terminated_called_, 0);
+}
+
+TYPED_TEST(HttpFetcherTest, ExtraHeadersInRequestTest) {
+  if (this->test_.IsMock())
+    return;
+
+  HttpFetcherTestDelegate delegate;
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
+  fetcher->SetHeader("User-Agent", "MyTest");
+  fetcher->SetHeader("user-agent", "Override that header");
+  fetcher->SetHeader("Authorization", "Basic user:passwd");
+
+  // Invalid headers.
+  fetcher->SetHeader("X-Foo", "Invalid\nHeader\nIgnored");
+  fetcher->SetHeader("X-Bar: ", "I do not know how to parse");
+
+  // Hide Accept header normally added by default.
+  fetcher->SetHeader("Accept", "");
+
+  PythonHttpServer server;
+  int port = server.GetPort();
+  ASSERT_TRUE(server.started_);
+
+  StartTransfer(fetcher.get(), LocalServerUrlForPath(port, "/echo-headers"));
+  this->loop_.Run();
+
+  EXPECT_NE(string::npos,
+            delegate.data.find("user-agent: Override that header\r\n"));
+  EXPECT_NE(string::npos,
+            delegate.data.find("Authorization: Basic user:passwd\r\n"));
+
+  EXPECT_EQ(string::npos, delegate.data.find("\nAccept:"));
+  EXPECT_EQ(string::npos, delegate.data.find("X-Foo: Invalid"));
+  EXPECT_EQ(string::npos, delegate.data.find("X-Bar: I do not"));
 }
 
 namespace {
