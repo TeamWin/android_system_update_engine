@@ -722,6 +722,7 @@ LOCAL_MODULE := test_http_server
 ifdef BRILLO
   LOCAL_MODULE_TAGS := eng
 endif
+LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
@@ -733,7 +734,7 @@ LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
 LOCAL_SRC_FILES := \
     common/http_common.cc \
     test_http_server.cc
-include $(BUILD_NATIVE_TEST)
+include $(BUILD_EXECUTABLE)
 
 # update_engine_unittests (type: executable)
 # ========================================================
