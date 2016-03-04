@@ -177,7 +177,8 @@ std::string MakePartitionNameForMount(const std::string& part_name);
 bool MountFilesystem(const std::string& device,
                      const std::string& mountpoint,
                      unsigned long flags,  // NOLINT(runtime/int)
-                     const std::string& type);
+                     const std::string& type,
+                     const std::string& fs_mount_options);
 bool UnmountFilesystem(const std::string& mountpoint);
 
 // Returns the block count and the block byte size of the file system on

@@ -27,6 +27,7 @@
 
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/platform_constants.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 
@@ -99,7 +100,8 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   if (!utils::MountFilesystem(mountable_device,
                               fs_mount_dir_,
                               MS_RDONLY,
-                              partition.filesystem_type)) {
+                              partition.filesystem_type,
+                              constants::kPostinstallMountOptions)) {
     return CompletePartitionPostinstall(
         1, "Error mounting the device " + mountable_device);
   }
