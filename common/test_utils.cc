@@ -18,8 +18,12 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <linux/loop.h>
+#include <linux/major.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/xattr.h>
@@ -137,27 +141,76 @@ bool WriteFileString(const string& path, const string& data) {
   return utils::WriteFile(path.c_str(), data.data(), data.size());
 }
 
-// Binds provided |filename| to an unused loopback device, whose name is written
-// to the string pointed to by |lo_dev_name_p|. Returns true on success, false
-// otherwise (along with corresponding test failures), in which case the content
-// of |lo_dev_name_p| is unknown.
-bool BindToUnusedLoopDevice(const string& filename, string* lo_dev_name_p) {
-  CHECK(lo_dev_name_p);
+bool BindToUnusedLoopDevice(const string& filename,
+                            bool writable,
+                            string* out_lo_dev_name) {
+  CHECK(out_lo_dev_name);
+  // Get the next available loop-device.
+  int control_fd =
+      HANDLE_EINTR(open("/dev/loop-control", O_RDWR | O_LARGEFILE));
+  TEST_AND_RETURN_FALSE_ERRNO(control_fd >= 0);
+  int loop_number = ioctl(control_fd, LOOP_CTL_GET_FREE);
+  IGNORE_EINTR(close(control_fd));
+  *out_lo_dev_name = StringPrintf("/dev/loop%d", loop_number);
 
-  // Bind to an unused loopback device, sanity check the device name.
-  lo_dev_name_p->clear();
-  if (!(utils::ReadPipe("losetup --show -f " + filename, lo_dev_name_p) &&
-        base::StartsWith(*lo_dev_name_p, "/dev/loop",
-                         base::CompareCase::SENSITIVE))) {
-    ADD_FAILURE();
+  // Double check that the loop exists and is free.
+  int loop_device_fd =
+      HANDLE_EINTR(open(out_lo_dev_name->c_str(), O_RDWR | O_LARGEFILE));
+  if (loop_device_fd == -1 && errno == ENOENT) {
+    // Workaround the case when the loop device doesn't exist.
+    TEST_AND_RETURN_FALSE_ERRNO(mknod(out_lo_dev_name->c_str(),
+                                      S_IFBLK | 0660,
+                                      makedev(LOOP_MAJOR, loop_number)) == 0);
+    loop_device_fd =
+        HANDLE_EINTR(open(out_lo_dev_name->c_str(), O_RDWR | O_LARGEFILE));
+  }
+  TEST_AND_RETURN_FALSE_ERRNO(loop_device_fd != -1);
+  ScopedFdCloser loop_device_fd_closer(&loop_device_fd);
+
+  struct loop_info64 device_info;
+  if (ioctl(loop_device_fd, LOOP_GET_STATUS64, &device_info) != -1 ||
+      errno != ENXIO) {
+    PLOG(ERROR) << "Loop device " << out_lo_dev_name->c_str()
+                << " already in use";
     return false;
   }
 
-  // Strip anything from the first newline char.
-  size_t newline_pos = lo_dev_name_p->find('\n');
-  if (newline_pos != string::npos)
-    lo_dev_name_p->erase(newline_pos);
+  // Open our data file and assign it to the loop device.
+  int data_fd = open(filename.c_str(),
+                     (writable ? O_RDWR : O_RDONLY) | O_LARGEFILE | O_CLOEXEC);
+  TEST_AND_RETURN_FALSE_ERRNO(data_fd >= 0);
+  ScopedFdCloser data_fd_closer(&data_fd);
+  TEST_AND_RETURN_FALSE_ERRNO(ioctl(loop_device_fd, LOOP_SET_FD, data_fd) == 0);
 
+  memset(&device_info, 0, sizeof(device_info));
+  device_info.lo_offset = 0;
+  device_info.lo_sizelimit = 0;  // 0 means whole file.
+  device_info.lo_flags = (writable ? 0 : LO_FLAGS_READ_ONLY);
+  device_info.lo_number = loop_number;
+  strncpy(reinterpret_cast<char*>(device_info.lo_file_name),
+          base::FilePath(filename).BaseName().value().c_str(),
+          LO_NAME_SIZE - 1);
+  device_info.lo_file_name[LO_NAME_SIZE - 1] = '\0';
+  TEST_AND_RETURN_FALSE_ERRNO(
+      ioctl(loop_device_fd, LOOP_SET_STATUS64, &device_info) == 0);
+  return true;
+}
+
+bool UnbindLoopDevice(const string& lo_dev_name) {
+  int loop_device_fd =
+      HANDLE_EINTR(open(lo_dev_name.c_str(), O_RDWR | O_LARGEFILE));
+  if (loop_device_fd == -1 && errno == ENOENT)
+    return true;
+  TEST_AND_RETURN_FALSE_ERRNO(loop_device_fd != -1);
+  ScopedFdCloser loop_device_fd_closer(&loop_device_fd);
+
+  struct loop_info64 device_info;
+  // Check if the device is bound before trying to unbind it.
+  int get_stat_err = ioctl(loop_device_fd, LOOP_GET_STATUS64, &device_info);
+  if (get_stat_err == -1 && errno == ENXIO)
+    return true;
+
+  TEST_AND_RETURN_FALSE_ERRNO(ioctl(loop_device_fd, LOOP_CLR_FD) == 0);
   return true;
 }
 
@@ -258,7 +311,8 @@ ScopedLoopMounter::ScopedLoopMounter(const string& file_path,
   dir_remover_.reset(new ScopedDirRemover(*mnt_path));
 
   string loop_dev;
-  loop_binder_.reset(new ScopedLoopbackDeviceBinder(file_path, &loop_dev));
+  loop_binder_.reset(
+      new ScopedLoopbackDeviceBinder(file_path, true, &loop_dev));
 
   EXPECT_TRUE(utils::MountFilesystem(loop_dev, *mnt_path, flags, "", nullptr));
   unmounter_.reset(new ScopedFilesystemUnmounter(*mnt_path));
