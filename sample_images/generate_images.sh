@@ -184,7 +184,7 @@ main() {
   # Generate the tarball and delete temporary images.
   echo "Packing tar file sample_images.tar.bz2"
   tar -jcf "${OUTPUT_DIR}/sample_images.tar.bz2" -C "${OUTPUT_DIR}" \
-    "${IMAGES[@]}"
+    --sparse "${IMAGES[@]}"
   cd "${OUTPUT_DIR}"
   rm "${IMAGES[@]}"
 }
