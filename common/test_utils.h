@@ -57,8 +57,15 @@ extern const uint8_t kRandomString[300];
 bool WriteFileVector(const std::string& path, const brillo::Blob& data);
 bool WriteFileString(const std::string& path, const std::string& data);
 
-bool BindToUnusedLoopDevice(const std::string &filename,
-                            std::string* lo_dev_name_ptr);
+// Binds provided |filename| to an unused loopback device, whose name is written
+// to the string pointed to by |out_lo_dev_name|. The new loop device will be
+// read-only unless |writable| is set to true. Returns true on success, false
+// otherwise (along with corresponding test failures), in which case the content
+// of |out_lo_dev_name| is unknown.
+bool BindToUnusedLoopDevice(const std::string& filename,
+                            bool writable,
+                            std::string* out_lo_dev_name);
+bool UnbindLoopDevice(const std::string& lo_dev_name);
 
 // Returns true iff a == b
 bool ExpectVectorsEq(const brillo::Blob& a, const brillo::Blob& b);
@@ -120,8 +127,10 @@ class ScopedFilesystemUnmounter {
 
 class ScopedLoopbackDeviceBinder {
  public:
-  ScopedLoopbackDeviceBinder(const std::string& file, std::string* dev) {
-    is_bound_ = BindToUnusedLoopDevice(file, &dev_);
+  ScopedLoopbackDeviceBinder(const std::string& file,
+                             bool writable,
+                             std::string* dev) {
+    is_bound_ = BindToUnusedLoopDevice(file, writable, &dev_);
     EXPECT_TRUE(is_bound_);
 
     if (is_bound_ && dev)
@@ -133,15 +142,8 @@ class ScopedLoopbackDeviceBinder {
       return;
 
     for (int retry = 0; retry < 5; retry++) {
-      std::vector<std::string> args;
-      args.push_back("/sbin/losetup");
-      args.push_back("-d");
-      args.push_back(dev_);
-      int return_code = 0;
-      EXPECT_TRUE(Subprocess::SynchronousExec(args, &return_code, nullptr));
-      if (return_code == 0) {
+      if (UnbindLoopDevice(dev_))
         return;
-      }
       sleep(1);
     }
     ADD_FAILURE();

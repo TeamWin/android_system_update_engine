@@ -87,9 +87,16 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
       utils::MakeTempDirectory("au_postint_mount.XXXXXX", &fs_mount_dir_));
 #endif  // __ANDROID__
 
-  string abs_path = base::FilePath(fs_mount_dir_)
-                        .AppendASCII(partition.postinstall_path)
-                        .value();
+  base::FilePath postinstall_path(partition.postinstall_path);
+  if (postinstall_path.IsAbsolute()) {
+    LOG(ERROR) << "Invalid absolute path passed to postinstall, use a relative"
+                  "path instead: "
+               << partition.postinstall_path;
+    return CompletePostinstall(ErrorCode::kPostinstallRunnerError);
+  }
+
+  string abs_path =
+      base::FilePath(fs_mount_dir_).Append(postinstall_path).value();
   if (!base::StartsWith(
           abs_path, fs_mount_dir_, base::CompareCase::SENSITIVE)) {
     LOG(ERROR) << "Invalid relative postinstall path: "
@@ -171,6 +178,7 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
   }
 
   ScopedActionCompleter completer(processor_, this);
+  completer.set_code(error_code);
 
   if (error_code != ErrorCode::kSuccess) {
     LOG(ERROR) << "Postinstall action failed.";
@@ -186,8 +194,6 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
   if (HasOutputPipe()) {
     SetOutputObject(install_plan_);
   }
-
-  completer.set_code(ErrorCode::kSuccess);
 }
 
 }  // namespace chromeos_update_engine

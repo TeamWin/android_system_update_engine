@@ -124,6 +124,49 @@ GOOGLE_RELEASE=6946.63.0
 EOF
 }
 
+add_files_postinstall() {
+  local mntdir="$1"
+
+  sudo mkdir -p "${mntdir}"/bin >/dev/null
+
+  # A postinstall bash program.
+  sudo tee "${mntdir}"/bin/postinst_example >/dev/null <<EOF
+#!/etc/../bin/sh
+echo "I'm a postinstall program and I know how to write to stdout"
+echo "My call was $@"
+exit 0
+EOF
+
+  # A symlink to another program. This should also work.
+  sudo ln -s "postinst_example" "${mntdir}"/bin/postinst_link
+
+  sudo tee "${mntdir}"/bin/postinst_fail3 >/dev/null <<EOF
+#!/etc/../bin/sh
+exit 3
+EOF
+
+  sudo tee "${mntdir}"/bin/postinst_fail1 >/dev/null <<EOF
+#!/etc/../bin/sh
+exit 1
+EOF
+
+  # A postinstall bash program.
+  sudo tee "${mntdir}"/bin/self_check_context >/dev/null <<EOF
+#!/etc/../bin/sh
+echo "This is my context:"
+ls -lZ "\$0" | grep -F ' u:object_r:postinstall_file:s0 ' || exit 5
+exit 0
+EOF
+
+  sudo tee "${mntdir}"/postinst >/dev/null <<EOF
+#!/etc/../bin/sh
+echo "postinst"
+exit 0
+EOF
+
+  sudo chmod +x "${mntdir}"/postinst "${mntdir}"/bin/*
+}
+
 # generate_fs <filename> <kind> <size> [block_size] [block_groups]
 generate_fs() {
   local filename="$1"
@@ -152,6 +195,7 @@ generate_fs() {
   case "${kind}" in
     ue_settings)
       add_files_ue_settings "${mntdir}" "${block_size}"
+      add_files_postinstall "${mntdir}" "${block_size}"
       ;;
     default)
       add_files_default "${mntdir}" "${block_size}"
@@ -179,7 +223,7 @@ main() {
   generate_image disk_ext2_1k default 16777216 1024
   generate_image disk_ext2_4k default 16777216 4096
   generate_image disk_ext2_4k_empty empty $((1024 * 4096)) 4096
-  generate_image disk_ext2_ue_settings ue_settings 16777216 4096
+  generate_image disk_ext2_ue_settings ue_settings $((1024 * 4096)) 4096
 
   # Generate the tarball and delete temporary images.
   echo "Packing tar file sample_images.tar.bz2"

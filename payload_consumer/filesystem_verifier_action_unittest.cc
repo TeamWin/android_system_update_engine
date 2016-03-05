@@ -153,7 +153,8 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
 
   // Attach loop devices to the files
   string a_dev;
-  test_utils::ScopedLoopbackDeviceBinder a_dev_releaser(a_loop_file, &a_dev);
+  test_utils::ScopedLoopbackDeviceBinder a_dev_releaser(
+      a_loop_file, false, &a_dev);
   if (!(a_dev_releaser.is_bound())) {
     ADD_FAILURE();
     return false;
