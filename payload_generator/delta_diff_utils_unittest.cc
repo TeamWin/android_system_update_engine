@@ -179,6 +179,7 @@ TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
       old_extents,
       new_extents,
       true,  // bsdiff_allowed
+      true,  // imgdiff_allowed
       &data,
       &op,
       false));  // src_ops_allowed
@@ -239,6 +240,7 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
       old_extents,
       new_extents,
       true,  // bsdiff_allowed
+      true,  // imgdiff_allowed
       &data,
       &op,
       false));  // src_ops_allowed
@@ -303,6 +305,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
       old_extents,
       new_extents,
       true,  // bsdiff_allowed
+      true,  // imgdiff_allowed
       &data,
       &op,
       false));  // src_ops_allowed
@@ -345,6 +348,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedTest) {
       old_extents,
       new_extents,
       false,  // bsdiff_allowed
+      false,  // imgdiff_allowed
       &data,
       &op,
       false));  // src_ops_allowed
@@ -376,6 +380,7 @@ TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedMoveTest) {
       old_extents,
       new_extents,
       false,  // bsdiff_allowed
+      false,  // imgdiff_allowed
       &data,
       &op,
       false));  // src_ops_allowed
@@ -418,6 +423,7 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
         old_extents,
         new_extents,
         true,  // bsdiff_allowed
+        true,  // imgdiff_allowed
         &data,
         &op,
         false));  // src_ops_allowed
@@ -459,6 +465,7 @@ TEST_F(DeltaDiffUtilsTest, SourceCopyTest) {
       old_extents,
       new_extents,
       true,  // bsdiff_allowed
+      true,  // imgdiff_allowed
       &data,
       &op,
       true));  // src_ops_allowed
@@ -492,6 +499,7 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
       old_extents,
       new_extents,
       true,  // bsdiff_allowed
+      true,  // imgdiff_allowed
       &data,
       &op,
       true));  // src_ops_allowed

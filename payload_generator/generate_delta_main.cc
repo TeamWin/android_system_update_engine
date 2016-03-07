@@ -535,6 +535,11 @@ int Main(int argc, char** argv) {
     LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
   }
 
+  if (payload_config.minor_version >= kImgdiffMinorPayloadVersion) {
+    // TODO(senj): Check if the zlib version in source and target are the same.
+    payload_config.imgdiff_allowed = true;
+  }
+
   if (payload_config.is_delta) {
     LOG(INFO) << "Generating delta update";
   } else {

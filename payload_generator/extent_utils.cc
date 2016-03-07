@@ -16,12 +16,15 @@
 
 #include "update_engine/payload_generator/extent_utils.h"
 
+#include <inttypes.h>
+
 #include <string>
 #include <utility>
 #include <vector>
 
 #include <base/logging.h>
 #include <base/macros.h>
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/annotated_operation.h"
@@ -91,6 +94,14 @@ void ExtentsToVector(const google::protobuf::RepeatedPtrField<Extent>& extents,
   for (int i = 0; i < extents.size(); i++) {
     out_vector->push_back(extents.Get(i));
   }
+}
+
+string ExtentsToString(const vector<Extent>& extents) {
+  string ext_str;
+  for (const Extent& e : extents)
+    ext_str += base::StringPrintf(
+        "[%" PRIu64 ", %" PRIu64 "] ", e.start_block(), e.num_blocks());
+  return ext_str;
 }
 
 void NormalizeExtents(vector<Extent>* extents) {

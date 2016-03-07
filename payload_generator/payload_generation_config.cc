@@ -126,7 +126,11 @@ bool PayloadGenerationConfig::Validate() const {
     // Check for the supported minor_version values.
     TEST_AND_RETURN_FALSE(minor_version == kInPlaceMinorPayloadVersion ||
                           minor_version == kSourceMinorPayloadVersion ||
-                          minor_version == kOpSrcHashMinorPayloadVersion);
+                          minor_version == kOpSrcHashMinorPayloadVersion ||
+                          minor_version == kImgdiffMinorPayloadVersion);
+
+    if (imgdiff_allowed)
+      TEST_AND_RETURN_FALSE(minor_version >= kImgdiffMinorPayloadVersion);
 
     // If new_image_info is present, old_image_info must be present.
     TEST_AND_RETURN_FALSE(source.ImageInfoIsEmpty() ==
