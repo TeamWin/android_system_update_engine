@@ -246,6 +246,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
   ErrorCode base_error = utils::GetBaseErrorCode(error);
   LOG(INFO) << "Updating payload state for error code: " << base_error
             << " (" << utils::ErrorCodeToString(base_error) << ")";
+  attempt_error_code_ = base_error;
 
   if (candidate_urls_.size() == 0) {
     // This means we got this error even before we got a valid Omaha response
@@ -267,7 +268,6 @@ void PayloadState::UpdateFailed(ErrorCode error) {
       break;
   }
 
-  attempt_error_code_ = base_error;
 
   switch (base_error) {
     // Errors which are good indicators of a problem with a particular URL or
