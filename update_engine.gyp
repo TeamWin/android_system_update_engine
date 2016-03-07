@@ -133,6 +133,7 @@
         'exported_deps': [
           'libcrypto',
           'libcurl',
+          'libimgpatch',
           'libssl',
           'xz-embedded',
         ],
