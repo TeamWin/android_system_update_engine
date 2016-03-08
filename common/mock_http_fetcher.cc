@@ -20,6 +20,7 @@
 
 #include <base/bind.h>
 #include <base/logging.h>
+#include <base/strings/string_util.h>
 #include <base/time/time.h>
 #include <gtest/gtest.h>
 
@@ -115,6 +116,11 @@ void MockHttpFetcher::TerminateTransfer() {
   MessageLoop::current()->CancelTask(timeout_id_);
   timeout_id_ = MessageLoop::kTaskIdNull;
   delegate_->TransferTerminated(this);
+}
+
+void MockHttpFetcher::SetHeader(const std::string& header_name,
+                                const std::string& header_value) {
+  extra_headers_[base::ToLowerASCII(header_name)] = header_value;
 }
 
 void MockHttpFetcher::Pause() {

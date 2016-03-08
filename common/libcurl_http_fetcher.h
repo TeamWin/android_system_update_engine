@@ -57,6 +57,10 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // cannot be resumed.
   void TerminateTransfer() override;
 
+  // Pass the headers to libcurl.
+  void SetHeader(const std::string& header_name,
+                 const std::string& header_value) override;
+
   // Suspend the transfer by calling curl_easy_pause(CURLPAUSE_ALL).
   void Pause() override;
 
@@ -180,6 +184,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   CURLM* curl_multi_handle_{nullptr};
   CURL* curl_handle_{nullptr};
   struct curl_slist* curl_http_headers_{nullptr};
+
+  // The extra headers that will be sent on each request.
+  std::map<std::string, std::string> extra_headers_;
 
   // Lists of all read(0)/write(1) file descriptors that we're waiting on from
   // the message loop. libcurl may open/close descriptors and switch their

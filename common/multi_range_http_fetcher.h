@@ -80,6 +80,11 @@ class MultiRangeHttpFetcher : public HttpFetcher, public HttpFetcherDelegate {
   // State change: Downloading -> Pending transfer ended
   void TerminateTransfer() override;
 
+  void SetHeader(const std::string& header_name,
+                 const std::string& header_value) override {
+    base_fetcher_->SetHeader(header_name, header_value);
+  }
+
   void Pause() override { base_fetcher_->Pause(); }
 
   void Unpause() override { base_fetcher_->Unpause(); }

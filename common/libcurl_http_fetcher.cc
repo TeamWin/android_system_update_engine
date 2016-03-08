@@ -129,24 +129,32 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
     CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_POSTFIELDSIZE,
                               post_data_.size()),
              CURLE_OK);
+  }
 
+  // Setup extra HTTP headers.
+  if (curl_http_headers_) {
+    curl_slist_free_all(curl_http_headers_);
+    curl_http_headers_ = nullptr;
+  }
+  for (const auto& header : extra_headers_) {
+    // curl_slist_append() copies the string.
+    curl_http_headers_ =
+        curl_slist_append(curl_http_headers_, header.second.c_str());
+  }
+  if (post_data_set_) {
     // Set the Content-Type HTTP header, if one was specifically set.
-    CHECK(!curl_http_headers_);
     if (post_content_type_ != kHttpContentTypeUnspecified) {
-      const string content_type_attr =
-        base::StringPrintf("Content-Type: %s",
-                           GetHttpContentTypeString(post_content_type_));
-      curl_http_headers_ = curl_slist_append(nullptr,
-                                             content_type_attr.c_str());
-      CHECK(curl_http_headers_);
-      CHECK_EQ(
-          curl_easy_setopt(curl_handle_, CURLOPT_HTTPHEADER,
-                           curl_http_headers_),
-          CURLE_OK);
+      const string content_type_attr = base::StringPrintf(
+          "Content-Type: %s", GetHttpContentTypeString(post_content_type_));
+      curl_http_headers_ =
+          curl_slist_append(curl_http_headers_, content_type_attr.c_str());
     } else {
       LOG(WARNING) << "no content type set, using libcurl default";
     }
   }
+  CHECK_EQ(
+      curl_easy_setopt(curl_handle_, CURLOPT_HTTPHEADER, curl_http_headers_),
+      CURLE_OK);
 
   if (bytes_downloaded_ > 0 || download_length_) {
     // Resume from where we left off.
@@ -316,6 +324,17 @@ void LibcurlHttpFetcher::TerminateTransfer() {
   } else {
     ForceTransferTermination();
   }
+}
+
+void LibcurlHttpFetcher::SetHeader(const string& header_name,
+                                   const string& header_value) {
+  string header_line = header_name + ": " + header_value;
+  // Avoid the space if no data on the right side of the semicolon.
+  if (header_value.empty())
+    header_line = header_name + ":";
+  TEST_AND_RETURN(header_line.find('\n') == string::npos);
+  TEST_AND_RETURN(header_name.find(':') == string::npos);
+  extra_headers_[base::ToLowerASCII(header_name)] = header_line;
 }
 
 void LibcurlHttpFetcher::CurlPerformOnce() {
