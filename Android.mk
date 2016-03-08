@@ -702,13 +702,10 @@ define ue-unittest-sample-image
     $(eval LOCAL_MODULE_PATH := \
         $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests/gen) \
     $(eval LOCAL_MODULE_STEM := $(1)) \
-    $(eval my_gen := $(call local-intermediates-dir)/gen/$(1)) \
-    $(eval $(my_gen) : PRIVATE_CUSTOM_TOOL = \
-        tar -jxf $$< -C $$(dir $$@) $$(notdir $$@) && touch $$@) \
-    $(eval $(my_gen) : $(LOCAL_PATH)/sample_images/sample_images.tar.bz2 ; \
-        $$(transform-generated-source)) \
-    $(eval LOCAL_PREBUILT_MODULE_FILE := $(my_gen)) \
-    $(eval include $(BUILD_PREBUILT))
+    $(eval include $(BUILD_SYSTEM)/base_rules.mk) \
+    $(eval $(LOCAL_BUILT_MODULE) : \
+        $(LOCAL_PATH)/sample_images/sample_images.tar.bz2 ; \
+        tar -jxf $$< -C $$(dir $$@) $$(notdir $$@) && touch $$@)
 endef
 
 $(call ue-unittest-sample-image,disk_ext2_1k.img)
