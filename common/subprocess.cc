@@ -207,7 +207,12 @@ void Subprocess::KillExec(pid_t pid) {
   if (pid_record == subprocess_records_.end())
     return;
   pid_record->second->callback.Reset();
-  kill(pid, SIGTERM);
+  if (kill(pid, SIGTERM) != 0) {
+    PLOG(WARNING) << "Error sending SIGTERM to " << pid;
+  }
+  // Release the pid now so we don't try to kill it if Subprocess is destroyed
+  // before the corresponding ChildExitedCallback() is called.
+  pid_record->second->proc.Release();
 }
 
 bool Subprocess::SynchronousExec(const vector<string>& cmd,

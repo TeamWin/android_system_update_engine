@@ -34,10 +34,11 @@ class PostinstallRunnerAction : public InstallPlanAction {
   explicit PostinstallRunnerAction(BootControlInterface* boot_control)
       : PostinstallRunnerAction(boot_control, nullptr) {}
 
+  // InstallPlanAction overrides.
   void PerformAction() override;
-
-  // Note that there's no support for terminating this action currently.
-  void TerminateProcessing()  override { CHECK(false); }
+  void SuspendAction() override;
+  void ResumeAction() override;
+  void TerminateProcessing() override;
 
   // Debugging/logging
   static std::string StaticType() { return "PostinstallRunnerAction"; }
@@ -53,6 +54,9 @@ class PostinstallRunnerAction : public InstallPlanAction {
         powerwash_marker_file_(powerwash_marker_file) {}
 
   void PerformPartitionPostinstall();
+
+  // Unmount and remove the mountpoint directory if needed.
+  void CleanupMount();
 
   // Subprocess::Exec callback.
   void CompletePartitionPostinstall(int return_code,
@@ -81,6 +85,9 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // Non-null value will cause post-install to override the default marker
   // file name; used for testing.
   const char* powerwash_marker_file_;
+
+  // Postinstall command currently running, or 0 if no program running.
+  pid_t current_command_{0};
 
   DISALLOW_COPY_AND_ASSIGN(PostinstallRunnerAction);
 };

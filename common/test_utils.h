@@ -90,6 +90,9 @@ inline int Chdir(const std::string& path) {
   return chdir(path.c_str());
 }
 
+// Reads a symlink from disk. Returns empty string on failure.
+std::string Readlink(const std::string& path);
+
 // Checks if xattr is supported in the directory specified by
 // |dir_path| which must be writable. Returns true if the feature is
 // supported, false if not or if an error occurred.
