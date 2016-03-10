@@ -150,6 +150,22 @@ EOF
 exit 1
 EOF
 
+  # A program that succeeds if it is suspended during the first 5 minutes.
+  sudo tee "${mntdir}"/bin/postinst_suspend >/dev/null <<EOF
+#!/etc/../bin/sh
+trap "{ echo Got a SIGCONT; exit 0; }" CONT
+# Signal that we are ready to receive the signal by redirecting our stdin to
+# /dev/zero, the test can detect that.
+exec </dev/zero
+# Allow the signal handler to run every 100 ms.
+i=3000
+while [ \$i -ge 0 ]; do
+  sleep 0.1
+  i=\$((i-1))
+done
+exit 1
+EOF
+
   # A postinstall bash program.
   sudo tee "${mntdir}"/bin/self_check_context >/dev/null <<EOF
 #!/etc/../bin/sh
@@ -193,7 +209,7 @@ generate_fs() {
   sudo mount "${filename}" "${mntdir}" -o loop
 
   case "${kind}" in
-    ue_settings)
+    unittest)
       add_files_ue_settings "${mntdir}" "${block_size}"
       add_files_postinstall "${mntdir}" "${block_size}"
       ;;
@@ -223,7 +239,7 @@ main() {
   generate_image disk_ext2_1k default 16777216 1024
   generate_image disk_ext2_4k default 16777216 4096
   generate_image disk_ext2_4k_empty empty $((1024 * 4096)) 4096
-  generate_image disk_ext2_ue_settings ue_settings $((1024 * 4096)) 4096
+  generate_image disk_ext2_unittest unittest $((1024 * 4096)) 4096
 
   # Generate the tarball and delete temporary images.
   echo "Packing tar file sample_images.tar.bz2"

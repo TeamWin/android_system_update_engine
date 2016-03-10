@@ -709,7 +709,7 @@ endef
 $(call ue-unittest-sample-image,disk_ext2_1k.img)
 $(call ue-unittest-sample-image,disk_ext2_4k.img)
 $(call ue-unittest-sample-image,disk_ext2_4k_empty.img)
-$(call ue-unittest-sample-image,disk_ext2_ue_settings.img)
+$(call ue-unittest-sample-image,disk_ext2_unittest.img)
 
 # test_http_server (type: executable)
 # ========================================================
@@ -745,7 +745,7 @@ LOCAL_REQUIRED_MODULES := \
     ue_unittest_disk_ext2_1k.img \
     ue_unittest_disk_ext2_4k.img \
     ue_unittest_disk_ext2_4k_empty.img \
-    ue_unittest_disk_ext2_ue_settings.img
+    ue_unittest_disk_ext2_unittest.img
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true

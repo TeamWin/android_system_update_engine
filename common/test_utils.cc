@@ -103,6 +103,15 @@ const uint8_t kRandomString[] = {
   0xbe, 0x9f, 0xa3, 0x5d,
 };
 
+string Readlink(const string& path) {
+  vector<char> buf(PATH_MAX + 1);
+  ssize_t r = readlink(path.c_str(), buf.data(), buf.size());
+  if (r < 0)
+    return "";
+  CHECK_LT(r, static_cast<ssize_t>(buf.size()));
+  return string(buf.begin(), buf.begin() + r);
+}
+
 bool IsXAttrSupported(const base::FilePath& dir_path) {
   char *path = strdup(dir_path.Append("xattr_test_XXXXXX").value().c_str());
 

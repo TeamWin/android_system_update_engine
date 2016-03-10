@@ -16,13 +16,15 @@
 
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/mount.h>
+#include <sys/types.h>
 #include <vector>
 
-#include <base/bind.h>
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
+#include <base/logging.h>
 #include <base/strings/string_util.h>
 
 #include "update_engine/common/action_processor.h"
@@ -126,25 +128,31 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   // Runs the postinstall script asynchronously to free up the main loop while
   // it's running.
   vector<string> command = {abs_path, partition.target_path};
-  if (!Subprocess::Get().Exec(
-          command,
-          base::Bind(
-              &PostinstallRunnerAction::CompletePartitionPostinstall,
-              base::Unretained(this)))) {
+  current_command_ = Subprocess::Get().Exec(
+      command,
+      base::Bind(&PostinstallRunnerAction::CompletePartitionPostinstall,
+                 base::Unretained(this)));
+  // Subprocess::Exec should never return a negative process id.
+  CHECK_GE(current_command_, 0);
+
+  if (!current_command_)
     CompletePartitionPostinstall(1, "Postinstall didn't launch");
-  }
 }
 
-void PostinstallRunnerAction::CompletePartitionPostinstall(
-    int return_code,
-    const string& output) {
+void PostinstallRunnerAction::CleanupMount() {
   utils::UnmountFilesystem(fs_mount_dir_);
-#ifndef ANDROID
+#ifndef __ANDROID__
   if (!base::DeleteFile(base::FilePath(fs_mount_dir_), false)) {
     PLOG(WARNING) << "Not removing temporary mountpoint " << fs_mount_dir_;
   }
-#endif  // !ANDROID
+#endif  // !__ANDROID__
   fs_mount_dir_.clear();
+}
+
+void PostinstallRunnerAction::CompletePartitionPostinstall(
+    int return_code, const string& output) {
+  current_command_ = 0;
+  CleanupMount();
 
   if (return_code != 0) {
     LOG(ERROR) << "Postinst command failed with code: " << return_code;
@@ -194,6 +202,32 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
   if (HasOutputPipe()) {
     SetOutputObject(install_plan_);
   }
+}
+
+void PostinstallRunnerAction::SuspendAction() {
+  if (!current_command_)
+    return;
+  if (kill(current_command_, SIGSTOP) != 0) {
+    PLOG(ERROR) << "Couldn't pause child process " << current_command_;
+  }
+}
+
+void PostinstallRunnerAction::ResumeAction() {
+  if (!current_command_)
+    return;
+  if (kill(current_command_, SIGCONT) != 0) {
+    PLOG(ERROR) << "Couldn't resume child process " << current_command_;
+  }
+}
+
+void PostinstallRunnerAction::TerminateProcessing() {
+  if (!current_command_)
+    return;
+  // Calling KillExec() will discard the callback we registered and therefore
+  // the unretained reference to this object.
+  Subprocess::Get().KillExec(current_command_);
+  current_command_ = 0;
+  CleanupMount();
 }
 
 }  // namespace chromeos_update_engine
