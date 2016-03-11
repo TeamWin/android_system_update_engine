@@ -187,6 +187,9 @@ set -e
 declare -A SRC_PARTITIONS
 declare -A DST_PARTITIONS
 
+# List of partition names in order.
+declare -a PARTITIONS_ORDER
+
 # A list of temporary files to remove during cleanup.
 CLEANUP_FILES=()
 
@@ -251,11 +254,12 @@ trap cleanup_on_error INT TERM ERR
 trap cleanup_on_exit EXIT
 
 
-# extract_image <image> <partitions_array>
+# extract_image <image> <partitions_array> [partitions_order]
 #
 # Detect the format of the |image| file and extract its updatable partitions
 # into new temporary files. Add the list of partition names and its files to the
-# associative array passed in |partitions_array|.
+# associative array passed in |partitions_array|. If |partitions_order| is
+# passed, set it to list of partition names in order.
 extract_image() {
   local image="$1"
 
@@ -280,12 +284,13 @@ extract_image() {
   die "Couldn't detect the image format of ${image}"
 }
 
-# extract_image_cros <image.bin> <partitions_array>
+# extract_image_cros <image.bin> <partitions_array> [partitions_order]
 #
 # Extract Chromium OS recovery images into new temporary files.
 extract_image_cros() {
   local image="$1"
   local partitions_array="$2"
+  local partitions_order="${3:-}"
 
   local kernel root
   kernel=$(create_tempfile "kernel.bin.XXXXXX")
@@ -308,6 +313,10 @@ extract_image_cros() {
   eval ${partitions_array}[boot]=\""${kernel}"\"
   eval ${partitions_array}[system]=\""${root}"\"
 
+  if [[ -n "${partitions_order}" ]]; then
+    eval "${partitions_order}=( \"system\" \"boot\" )"
+  fi
+
   local part varname
   for part in boot system; do
     varname="${partitions_array}[${part}]"
@@ -316,13 +325,14 @@ extract_image_cros() {
   done
 }
 
-# extract_image_brillo <target_files.zip> <partitions_array>
+# extract_image_brillo <target_files.zip> <partitions_array> [partitions_order]
 #
 # Extract the A/B updated partitions from a Brillo target_files zip file into
 # new temporary files.
 extract_image_brillo() {
   local image="$1"
   local partitions_array="$2"
+  local partitions_order="${3:-}"
 
   local partitions=( "boot" "system" )
   local ab_partitions_list
@@ -340,6 +350,10 @@ extract_image_brillo() {
     warn "No ab_partitions.txt found. Using default."
   fi
   echo "List of A/B partitions: ${partitions[@]}"
+
+  if [[ -n "${partitions_order}" ]]; then
+    eval "${partitions_order}=(${partitions[@]})"
+  fi
 
   # All Brillo updaters support major version 2.
   FORCE_MAJOR_VERSION="2"
@@ -426,7 +440,7 @@ cmd_generate() {
 
   echo "Extracting images for ${payload_type} update."
 
-  extract_image "${FLAGS_target_image}" DST_PARTITIONS
+  extract_image "${FLAGS_target_image}" DST_PARTITIONS PARTITIONS_ORDER
   if [[ "${payload_type}" == "delta" ]]; then
     extract_image "${FLAGS_source_image}" SRC_PARTITIONS
   fi
@@ -436,7 +450,7 @@ cmd_generate() {
   GENERATOR_ARGS=( -out_file="${FLAGS_payload}" )
 
   local part old_partitions="" new_partitions="" partition_names=""
-  for part in "${!DST_PARTITIONS[@]}"; do
+  for part in "${PARTITIONS_ORDER[@]}"; do
     if [[ -n "${partition_names}" ]]; then
       partition_names+=":"
       new_partitions+=":"
