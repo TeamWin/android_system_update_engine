@@ -34,14 +34,14 @@ class PostinstallRunnerAction : public InstallPlanAction {
   explicit PostinstallRunnerAction(BootControlInterface* boot_control)
       : PostinstallRunnerAction(boot_control, nullptr) {}
 
-  void PerformAction();
+  void PerformAction() override;
 
   // Note that there's no support for terminating this action currently.
-  void TerminateProcessing() { CHECK(false); }
+  void TerminateProcessing()  override { CHECK(false); }
 
   // Debugging/logging
   static std::string StaticType() { return "PostinstallRunnerAction"; }
-  std::string Type() const { return StaticType(); }
+  std::string Type() const override { return StaticType(); }
 
  private:
   friend class PostinstallRunnerActionTest;
