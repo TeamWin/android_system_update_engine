@@ -189,8 +189,8 @@ TEST_F(Ext2FilesystemTest, LoadSettingsFailsTest) {
 }
 
 TEST_F(Ext2FilesystemTest, LoadSettingsWorksTest) {
-  base::FilePath path = test_utils::GetBuildArtifactsPath().Append(
-      "gen/disk_ext2_ue_settings.img");
+  base::FilePath path =
+      test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_unittest.img");
   unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
   ASSERT_NE(nullptr, fs.get());
 
