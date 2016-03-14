@@ -25,6 +25,7 @@
 #include <brillo/data_encoding.h>
 #include <brillo/streams/file_stream.h>
 #include <brillo/streams/stream.h>
+#include <openssl/err.h>
 #include <openssl/pem.h>
 
 #include "update_engine/common/hash_calculator.h"
@@ -346,34 +347,35 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
                              const string& private_key_path,
                              brillo::Blob* out_signature) {
   LOG(INFO) << "Signing hash with private key: " << private_key_path;
-  string sig_path;
-  TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile("signature.XXXXXX", &sig_path, nullptr));
-  ScopedPathUnlinker sig_path_unlinker(sig_path);
-
-  string hash_path;
-  TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile("hash.XXXXXX", &hash_path, nullptr));
-  ScopedPathUnlinker hash_path_unlinker(hash_path);
   // We expect unpadded SHA256 hash coming in
   TEST_AND_RETURN_FALSE(hash.size() == 32);
   brillo::Blob padded_hash(hash);
   PayloadVerifier::PadRSA2048SHA256Hash(&padded_hash);
-  TEST_AND_RETURN_FALSE(utils::WriteFile(hash_path.c_str(),
-                                         padded_hash.data(),
-                                         padded_hash.size()));
 
-  // This runs on the server, so it's okay to copy out and call openssl
-  // executable rather than properly use the library.
-  vector<string> cmd = {"openssl", "rsautl", "-raw", "-sign", "-inkey",
-                        private_key_path, "-in", hash_path, "-out", sig_path};
-  int return_code = 0;
-  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &return_code,
-                                                    nullptr));
-  TEST_AND_RETURN_FALSE(return_code == 0);
+  // The code below executes the equivalent of:
+  //
+  // openssl rsautl -raw -sign -inkey |private_key_path|
+  //   -in |padded_hash| -out |out_signature|
 
-  brillo::Blob signature;
-  TEST_AND_RETURN_FALSE(utils::ReadFile(sig_path, &signature));
+  FILE* fprikey = fopen(private_key_path.c_str(), "rb");
+  TEST_AND_RETURN_FALSE(fprikey != nullptr);
+  RSA* rsa = PEM_read_RSAPrivateKey(fprikey, nullptr, nullptr, nullptr);
+  fclose(fprikey);
+  TEST_AND_RETURN_FALSE(rsa != nullptr);
+  brillo::Blob signature(RSA_size(rsa));
+  ssize_t signature_size = RSA_private_encrypt(padded_hash.size(),
+                                               padded_hash.data(),
+                                               signature.data(),
+                                               rsa,
+                                               RSA_NO_PADDING);
+  RSA_free(rsa);
+  if (signature_size < 0) {
+    LOG(ERROR) << "Signing hash failed: "
+               << ERR_error_string(ERR_get_error(), nullptr);
+    return false;
+  }
+  TEST_AND_RETURN_FALSE(static_cast<size_t>(signature_size) ==
+                        signature.size());
   out_signature->swap(signature);
   return true;
 }

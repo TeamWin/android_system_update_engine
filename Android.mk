@@ -688,6 +688,38 @@ include $(BUILD_EXECUTABLE)
 # dependencies are removed or placed behind the USE_DBUS flag.
 ifdef BRILLO
 
+# Private and public keys for unittests.
+# ========================================================
+# Generate a module that installs a prebuilt private key and a module that
+# installs a public key generated from the private key.
+#
+# $(1): The path to the private key in pem format.
+define ue-unittest-keys
+    $(eval include $(CLEAR_VARS)) \
+    $(eval LOCAL_MODULE := ue_$(1).pem) \
+    $(eval LOCAL_MODULE_CLASS := ETC) \
+    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
+    $(eval LOCAL_SRC_FILES := $(1).pem) \
+    $(eval LOCAL_MODULE_PATH := \
+        $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests) \
+    $(eval LOCAL_MODULE_STEM := $(1).pem) \
+    $(eval include $(BUILD_PREBUILT)) \
+    \
+    $(eval include $(CLEAR_VARS)) \
+    $(eval LOCAL_MODULE := ue_$(1).pub.pem) \
+    $(eval LOCAL_MODULE_CLASS := ETC) \
+    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
+    $(eval LOCAL_MODULE_PATH := \
+        $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests) \
+    $(eval LOCAL_MODULE_STEM := $(1).pub.pem) \
+    $(eval include $(BUILD_SYSTEM)/base_rules.mk) \
+    $(eval $(LOCAL_BUILT_MODULE) : $(LOCAL_PATH)/$(1).pem ; \
+        openssl rsa -in $$< -pubout -out $$@)
+endef
+
+$(call ue-unittest-keys,unittest_key)
+$(call ue-unittest-keys,unittest_key2)
+
 # Sample images for unittests.
 # ========================================================
 # Generate a prebuilt module that installs a sample image from the compressed
@@ -747,7 +779,11 @@ LOCAL_REQUIRED_MODULES := \
     ue_unittest_disk_ext2_1k.img \
     ue_unittest_disk_ext2_4k.img \
     ue_unittest_disk_ext2_4k_empty.img \
-    ue_unittest_disk_ext2_unittest.img
+    ue_unittest_disk_ext2_unittest.img \
+    ue_unittest_key.pem \
+    ue_unittest_key.pub.pem \
+    ue_unittest_key2.pem \
+    ue_unittest_key2.pub.pem
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
