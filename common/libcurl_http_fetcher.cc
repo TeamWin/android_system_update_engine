@@ -424,6 +424,7 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
       LOG(INFO) << "No further proxies, indicating transfer complete";
       if (delegate_)
         delegate_->TransferComplete(this, false);  // signal fail
+      return;
     }
   } else if ((transfer_size_ >= 0) && (bytes_downloaded_ < transfer_size_)) {
     if (!ignore_failure_)
@@ -437,15 +438,15 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
       LOG(INFO) << "Reached max attempts (" << retry_count_ << ")";
       if (delegate_)
         delegate_->TransferComplete(this, false);  // signal fail
-    } else {
-      // Need to restart transfer
-      LOG(INFO) << "Restarting transfer to download the remaining bytes";
-      MessageLoop::current()->PostDelayedTask(
-          FROM_HERE,
-          base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
-                     base::Unretained(this)),
-          TimeDelta::FromSeconds(retry_seconds_));
+      return;
     }
+    // Need to restart transfer
+    LOG(INFO) << "Restarting transfer to download the remaining bytes";
+    MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
+                   base::Unretained(this)),
+        TimeDelta::FromSeconds(retry_seconds_));
   } else {
     LOG(INFO) << "Transfer completed (" << http_response_code_
               << "), " << bytes_downloaded_ << " bytes downloaded";
@@ -453,7 +454,11 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
       bool success = IsHttpResponseSuccess();
       delegate_->TransferComplete(this, success);
     }
+    return;
   }
+  // If we reach this point is because TransferComplete() was not called in any
+  // of the previous branches. The delegate is allowed to destroy the object
+  // once TransferComplete is called so this would be illegal.
   ignore_failure_ = false;
 }
 
