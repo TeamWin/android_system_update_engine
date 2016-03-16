@@ -56,7 +56,9 @@ using testing::_;
 extern const char* kUnittestPrivateKeyPath;
 extern const char* kUnittestPublicKeyPath;
 
-static const char* kBogusMetadataSignature1 =
+namespace {
+
+const char kBogusMetadataSignature1[] =
     "awSFIUdUZz2VWFiR+ku0Pj00V7bPQPQFYQSXjEXr3vaw3TE4xHV5CraY3/YrZpBv"
     "J5z4dSBskoeuaO1TNC/S6E05t+yt36tE4Fh79tMnJ/z9fogBDXWgXLEUyG78IEQr"
     "YH6/eBsQGT2RJtBgXIXbZ9W+5G9KmGDoPOoiaeNsDuqHiBc/58OFsrxskH8E6vMS"
@@ -64,7 +66,13 @@ static const char* kBogusMetadataSignature1 =
     "fjoTeLYZpt+WN65Vu7jJ0cQN8e1y+2yka5112wpRf/LLtPgiAjEZnsoYpLUd7CoV"
     "pLRtClp97kN2+tXGNBQqkA==";
 
-namespace {
+#ifdef __ANDROID__
+const char kZlibFingerprintPath[] =
+    "/data/nativetest/update_engine_unittests/zlib_fingerprint";
+#else
+const char kZlibFingerprintPath[] = "/etc/zlib_fingerprint";
+#endif  // __ANDROID__
+
 // Different options that determine what we should fill into the
 // install_plan.metadata_signature to simulate the contents received in the
 // Omaha response.
@@ -891,6 +899,16 @@ TEST_F(DeltaPerformerTest, ConfVersionsMatch) {
   EXPECT_TRUE(store.GetString("PAYLOAD_MAJOR_VERSION", &major_version_str));
   EXPECT_TRUE(base::StringToUint64(major_version_str, &major_version));
   EXPECT_EQ(DeltaPerformer::kSupportedMajorPayloadVersion, major_version);
+}
+
+// Test that we recognize our own zlib compressor implementation as supported.
+// All other equivalent implementations should be added to
+// kCompatibleZlibFingerprint.
+TEST_F(DeltaPerformerTest, ZlibFingerprintMatch) {
+  string fingerprint;
+  EXPECT_TRUE(base::ReadFileToString(base::FilePath(kZlibFingerprintPath),
+                                     &fingerprint));
+  EXPECT_TRUE(utils::IsZlibCompatible(fingerprint));
 }
 
 }  // namespace chromeos_update_engine
