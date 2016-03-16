@@ -60,8 +60,6 @@ void PrintTo(const ErrorCode& error_code, ::std::ostream* os) {
 
 namespace test_utils {
 
-const char* const kMountPathTemplate = "UpdateEngineTests_mnt-XXXXXX";
-
 const uint8_t kRandomString[] = {
   0xf2, 0xb7, 0x55, 0x92, 0xea, 0xa6, 0xc9, 0x57,
   0xe0, 0xf8, 0xeb, 0x34, 0x93, 0xd9, 0xc4, 0x8f,
@@ -242,74 +240,6 @@ void FillWithData(brillo::Blob* buffer) {
     b = kRandomString[input_counter];
     input_counter++;
     input_counter %= sizeof(kRandomString);
-  }
-}
-
-void CreateEmptyExtImageAtPath(const string& path,
-                               size_t size,
-                               int block_size) {
-  EXPECT_EQ(0, System(StringPrintf("dd if=/dev/zero of=%s"
-                                   " seek=%" PRIuS " bs=1 count=1 status=none",
-                                   path.c_str(), size)));
-  EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -q -b %d -F %s",
-                                   block_size, path.c_str())));
-}
-
-void CreateExtImageAtPath(const string& path, vector<string>* out_paths) {
-  // create 10MiB sparse file, mounted at a unique location.
-  string mount_path;
-  CHECK(utils::MakeTempDirectory(kMountPathTemplate, &mount_path));
-  ScopedDirRemover mount_path_unlinker(mount_path);
-
-  EXPECT_EQ(0, System(StringPrintf("dd if=/dev/zero of=%s"
-                                   " seek=10485759 bs=1 count=1 status=none",
-                                   path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("mkfs.ext3 -q -b 4096 -F %s",
-                                   path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("mount -o loop %s %s", path.c_str(),
-                                   mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("echo hi > %s/hi", mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("echo hello > %s/hello",
-                                   mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("mkdir %s/some_dir", mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("mkdir %s/some_dir/empty_dir",
-                                   mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("mkdir %s/some_dir/mnt",
-                                   mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("echo T > %s/some_dir/test",
-                                   mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("mkfifo %s/some_dir/fifo",
-                                   mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("mknod %s/cdev c 2 3", mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("ln -s /some/target %s/sym",
-                                   mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("ln %s/some_dir/test %s/testlink",
-                                   mount_path.c_str(), mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("echo T > %s/srchardlink0",
-                                   mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("ln %s/srchardlink0 %s/srchardlink1",
-                                   mount_path.c_str(), mount_path.c_str())));
-  EXPECT_EQ(0, System(StringPrintf("ln -s bogus %s/boguslink",
-                                   mount_path.c_str())));
-  EXPECT_TRUE(utils::UnmountFilesystem(mount_path.c_str()));
-
-  if (out_paths) {
-    out_paths->clear();
-    out_paths->push_back("");
-    out_paths->push_back("/hi");
-    out_paths->push_back("/boguslink");
-    out_paths->push_back("/hello");
-    out_paths->push_back("/some_dir");
-    out_paths->push_back("/some_dir/empty_dir");
-    out_paths->push_back("/some_dir/mnt");
-    out_paths->push_back("/some_dir/test");
-    out_paths->push_back("/some_dir/fifo");
-    out_paths->push_back("/cdev");
-    out_paths->push_back("/testlink");
-    out_paths->push_back("/sym");
-    out_paths->push_back("/srchardlink0");
-    out_paths->push_back("/srchardlink1");
-    out_paths->push_back("/lost+found");
   }
 }
 

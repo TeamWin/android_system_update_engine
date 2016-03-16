@@ -100,16 +100,6 @@ bool IsXAttrSupported(const base::FilePath& dir_path);
 
 void FillWithData(brillo::Blob* buffer);
 
-// Creates an empty ext image.
-void CreateEmptyExtImageAtPath(const std::string& path,
-                               size_t size,
-                               int block_size);
-
-// Creates an ext image with some files in it. The paths creates are
-// returned in out_paths.
-void CreateExtImageAtPath(const std::string& path,
-                          std::vector<std::string>* out_paths);
-
 // Class to unmount FS when object goes out of scope
 class ScopedFilesystemUnmounter {
  public:

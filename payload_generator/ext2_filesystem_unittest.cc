@@ -126,12 +126,14 @@ TEST_F(Ext2FilesystemTest, ParseGeneratedImages) {
     // be included in the list.
     set<string> kExpectedFiles = {
         "/",
+        "/cdev",
         "/dir1",
         "/dir1/file",
         "/dir1/dir2",
         "/dir1/dir2/file",
         "/dir1/dir2/dir1",
         "/empty-file",
+        "/fifo",
         "/link-hard-regular-16k",
         "/link-long_symlink",
         "/link-short_symlink",

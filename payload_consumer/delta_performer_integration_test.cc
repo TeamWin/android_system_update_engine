@@ -156,6 +156,14 @@ static bool WriteSparseFile(const string& path, off_t size) {
   return true;
 }
 
+static bool WriteByteAtOffset(const string& path, off_t offset) {
+  int fd = open(path.c_str(), O_CREAT | O_WRONLY, 0644);
+  TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);
+  ScopedFdCloser fd_closer(&fd);
+  EXPECT_TRUE(utils::PWriteAll(fd, "\0", 1, offset));
+  return true;
+}
+
 static size_t GetSignatureSize(const string& private_key_path) {
   const brillo::Blob data(1, 'x');
   brillo::Blob hash;
@@ -310,7 +318,10 @@ static void GenerateDeltaFile(bool full_kernel,
   // in-place on A, we apply it to a new image, result_img.
   EXPECT_TRUE(
       utils::MakeTempFile("result_img.XXXXXX", &state->result_img, nullptr));
-  test_utils::CreateExtImageAtPath(state->a_img, nullptr);
+
+  EXPECT_TRUE(base::CopyFile(
+      test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_4k.img"),
+      base::FilePath(state->a_img)));
 
   state->image_size = utils::FileSize(state->a_img);
 
@@ -360,10 +371,8 @@ static void GenerateDeltaFile(bool full_kernel,
         WriteSparseFile(base::StringPrintf("%s/move-from-sparse",
                                            a_mnt.c_str()), 16 * 1024));
 
-    EXPECT_EQ(0,
-              System(base::StringPrintf("dd if=/dev/zero of=%s/move-semi-sparse"
-                                        " bs=1 seek=4096 count=1 status=none",
-                                        a_mnt.c_str()).c_str()));
+    EXPECT_TRUE(WriteByteAtOffset(
+        base::StringPrintf("%s/move-semi-sparse", a_mnt.c_str()), 4096));
 
     // Write 1 MiB of 0xff to try to catch the case where writing a bsdiff
     // patch fails to zero out the final block.
@@ -389,57 +398,47 @@ static void GenerateDeltaFile(bool full_kernel,
                 utils::FileSize(state->result_img));
     }
 
-    test_utils::CreateExtImageAtPath(state->b_img, nullptr);
+    EXPECT_TRUE(base::CopyFile(
+        test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_4k.img"),
+        base::FilePath(state->b_img)));
 
     // Make some changes to the B image.
     string b_mnt;
     ScopedLoopMounter b_mounter(state->b_img, &b_mnt, 0);
+    base::FilePath mnt_path(b_mnt);
 
-    EXPECT_EQ(0, System(base::StringPrintf("cp %s/hello %s/hello2",
-                                           b_mnt.c_str(),
-                                           b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, System(base::StringPrintf("rm %s/hello",
-                                           b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, System(base::StringPrintf("mv %s/hello2 %s/hello",
-                                           b_mnt.c_str(),
-                                           b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, System(base::StringPrintf("echo foo > %s/foo",
-                                           b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, System(base::StringPrintf("touch %s/emptyfile",
-                                           b_mnt.c_str()).c_str()));
-    EXPECT_TRUE(WriteSparseFile(base::StringPrintf("%s/fullsparse",
-                                                   b_mnt.c_str()),
-                                                   1024 * 1024));
+    EXPECT_TRUE(base::CopyFile(mnt_path.Append("regular-small"),
+                               mnt_path.Append("regular-small2")));
+    EXPECT_TRUE(base::DeleteFile(mnt_path.Append("regular-small"), false));
+    EXPECT_TRUE(base::Move(mnt_path.Append("regular-small2"),
+                           mnt_path.Append("regular-small")));
+    EXPECT_TRUE(
+        test_utils::WriteFileString(mnt_path.Append("foo").value(), "foo"));
+    EXPECT_EQ(0, base::WriteFile(mnt_path.Append("emptyfile"), "", 0));
 
     EXPECT_TRUE(
-        WriteSparseFile(base::StringPrintf("%s/move-to-sparse", b_mnt.c_str()),
-                        16 * 1024));
+        WriteSparseFile(mnt_path.Append("fullsparse").value(), 1024 * 1024));
+    EXPECT_TRUE(
+        WriteSparseFile(mnt_path.Append("move-to-sparse").value(), 16 * 1024));
 
     brillo::Blob zeros(16 * 1024, 0);
     EXPECT_EQ(static_cast<int>(zeros.size()),
-              base::WriteFile(base::FilePath(base::StringPrintf(
-                                  "%s/move-from-sparse", b_mnt.c_str())),
+              base::WriteFile(mnt_path.Append("move-from-sparse"),
                               reinterpret_cast<const char*>(zeros.data()),
                               zeros.size()));
 
-    EXPECT_EQ(0, System(base::StringPrintf("dd if=/dev/zero "
-                                           "of=%s/move-semi-sparse "
-                                           "bs=1 seek=4096 count=1 status=none",
-                                           b_mnt.c_str()).c_str()));
+    EXPECT_TRUE(
+        WriteByteAtOffset(mnt_path.Append("move-semi-sparse").value(), 4096));
+    EXPECT_TRUE(WriteByteAtOffset(mnt_path.Append("partsparse").value(), 4096));
 
-    EXPECT_EQ(0, System(base::StringPrintf("dd if=/dev/zero "
-                                           "of=%s/partsparse bs=1 "
-                                           "seek=4096 count=1 status=none",
-                                           b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, System(base::StringPrintf("cp %s/srchardlink0 %s/tmp && "
-                                           "mv %s/tmp %s/srchardlink1",
-                                           b_mnt.c_str(),
-                                           b_mnt.c_str(),
-                                           b_mnt.c_str(),
-                                           b_mnt.c_str()).c_str()));
-    EXPECT_EQ(0, System(
-        base::StringPrintf("rm %s/boguslink && echo foobar > %s/boguslink",
-                           b_mnt.c_str(), b_mnt.c_str()).c_str()));
+    EXPECT_TRUE(
+        base::CopyFile(mnt_path.Append("regular-16k"), mnt_path.Append("tmp")));
+    EXPECT_TRUE(base::Move(mnt_path.Append("tmp"),
+                           mnt_path.Append("link-hard-regular-16k")));
+
+    EXPECT_TRUE(base::DeleteFile(mnt_path.Append("link-short_symlink"), false));
+    EXPECT_TRUE(test_utils::WriteFileString(
+        mnt_path.Append("link-short_symlink").value(), "foobar"));
 
     brillo::Blob hardtocompress;
     while (hardtocompress.size() < 3 * kBlockSize) {
