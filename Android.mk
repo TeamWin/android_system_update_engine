@@ -195,8 +195,7 @@ LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
-    external/e2fsprogs/lib
+    $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     update_metadata-protos \
     $(ue_libpayload_consumer_exported_static_libraries) \
@@ -219,8 +218,7 @@ LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
-    $(ue_common_c_includes) \
-    external/e2fsprogs/lib
+    $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     update_metadata-protos \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \

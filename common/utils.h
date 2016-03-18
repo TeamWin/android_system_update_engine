@@ -181,44 +181,6 @@ bool MountFilesystem(const std::string& device,
                      const std::string& fs_mount_options);
 bool UnmountFilesystem(const std::string& mountpoint);
 
-// Returns the block count and the block byte size of the file system on
-// |device| (which may be a real device or a path to a filesystem image) or on
-// an opened file descriptor |fd|. The actual file-system size is |block_count|
-// * |block_size| bytes. Returns true on success, false otherwise.
-bool GetFilesystemSize(const std::string& device,
-                       int* out_block_count,
-                       int* out_block_size);
-bool GetFilesystemSizeFromFD(int fd,
-                             int* out_block_count,
-                             int* out_block_size);
-
-// Determines the block count and block size of the ext3 fs. At least 2048 bytes
-// are required to parse the first superblock. Returns whether the buffer
-// contains a valid ext3 filesystem and the values were parsed.
-bool GetExt3Size(const uint8_t* buffer, size_t buffer_size,
-                 int* out_block_count,
-                 int* out_block_size);
-
-// Determines the block count and block size of the squashfs v4 fs. At least 96
-// bytes are required to parse the header of the filesystem. Since squashfs
-// doesn't define a physical block size, a value of 4096 is used for the block
-// size, which is the default padding when creating the filesystem.
-// Returns whether the buffer contains a valid squashfs v4 header and the size
-// was parsed. Only little endian squashfs is supported.
-bool GetSquashfs4Size(const uint8_t* buffer, size_t buffer_size,
-                      int* out_block_count,
-                      int* out_block_size);
-
-// Returns whether the filesystem is an ext[234] filesystem. In case of failure,
-// such as if the file |device| doesn't exists or can't be read, it returns
-// false.
-bool IsExtFilesystem(const std::string& device);
-
-// Returns whether the filesystem is a squashfs filesystem. In case of failure,
-// such as if the file |device| doesn't exists or can't be read, it returns
-// false.
-bool IsSquashfsFilesystem(const std::string& device);
-
 // Returns a human-readable string with the file format based on magic constants
 // on the header of the file.
 std::string GetFileFormat(const std::string& path);

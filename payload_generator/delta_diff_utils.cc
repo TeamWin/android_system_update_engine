@@ -16,6 +16,9 @@
 
 #include "update_engine/payload_generator/delta_diff_utils.h"
 
+#include <endian.h>
+#include <ext2fs/ext2fs.h>
+
 #include <algorithm>
 #include <map>
 
@@ -715,6 +718,70 @@ bool CompareAopsByDestination(AnnotatedOperation first_aop,
   uint32_t first_dst_start = first_aop.op.dst_extents(0).start_block();
   uint32_t second_dst_start = second_aop.op.dst_extents(0).start_block();
   return first_dst_start < second_dst_start;
+}
+
+bool IsExtFilesystem(const string& device) {
+  brillo::Blob header;
+  // See include/linux/ext2_fs.h for more details on the structure. We obtain
+  // ext2 constants from ext2fs/ext2fs.h header but we don't link with the
+  // library.
+  if (!utils::ReadFileChunk(
+          device, 0, SUPERBLOCK_OFFSET + SUPERBLOCK_SIZE, &header) ||
+      header.size() < SUPERBLOCK_OFFSET + SUPERBLOCK_SIZE)
+    return false;
+
+  const uint8_t* superblock = header.data() + SUPERBLOCK_OFFSET;
+
+  // ext3_fs.h: ext3_super_block.s_blocks_count
+  uint32_t block_count =
+      *reinterpret_cast<const uint32_t*>(superblock + 1 * sizeof(int32_t));
+
+  // ext3_fs.h: ext3_super_block.s_log_block_size
+  uint32_t log_block_size =
+      *reinterpret_cast<const uint32_t*>(superblock + 6 * sizeof(int32_t));
+
+  // ext3_fs.h: ext3_super_block.s_magic
+  uint16_t magic =
+      *reinterpret_cast<const uint16_t*>(superblock + 14 * sizeof(int32_t));
+
+  block_count = le32toh(block_count);
+  log_block_size = le32toh(log_block_size) + EXT2_MIN_BLOCK_LOG_SIZE;
+  magic = le16toh(magic);
+
+  if (magic != EXT2_SUPER_MAGIC)
+    return false;
+
+  // Sanity check the parameters.
+  TEST_AND_RETURN_FALSE(log_block_size >= EXT2_MIN_BLOCK_LOG_SIZE &&
+                        log_block_size <= EXT2_MAX_BLOCK_LOG_SIZE);
+  TEST_AND_RETURN_FALSE(block_count > 0);
+  return true;
+}
+
+bool IsSquashfs4Filesystem(const string& device) {
+  brillo::Blob header;
+  // See fs/squashfs/squashfs_fs.h for format details. We only support
+  // Squashfs 4.x little endian.
+
+  // The first 96 is enough to read the squashfs superblock.
+  const ssize_t kSquashfsSuperBlockSize = 96;
+  if (!utils::ReadFileChunk(device, 0, kSquashfsSuperBlockSize, &header) ||
+      header.size() < kSquashfsSuperBlockSize)
+    return false;
+
+  // Check magic, squashfs_fs.h: SQUASHFS_MAGIC
+  if (memcmp(header.data(), "hsqs", 4) != 0)
+    return false;  // Only little endian is supported.
+
+  // squashfs_fs.h: struct squashfs_super_block.s_major
+  uint16_t s_major = *reinterpret_cast<const uint16_t*>(
+      header.data() + 5 * sizeof(uint32_t) + 4 * sizeof(uint16_t));
+
+  if (s_major != 4) {
+    LOG(ERROR) << "Found unsupported squashfs major version " << s_major;
+    return false;
+  }
+  return true;
 }
 
 }  // namespace diff_utils

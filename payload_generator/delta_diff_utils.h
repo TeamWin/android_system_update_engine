@@ -132,6 +132,16 @@ bool InitializePartitionInfo(const PartitionConfig& partition,
 bool CompareAopsByDestination(AnnotatedOperation first_aop,
                               AnnotatedOperation second_aop);
 
+// Returns whether the filesystem is an ext[234] filesystem. In case of failure,
+// such as if the file |device| doesn't exists or can't be read, it returns
+// false.
+bool IsExtFilesystem(const std::string& device);
+
+// Returns whether the filesystem is a squashfs4 filesystem. In case of failure,
+// such as if the file |device| doesn't exists or can't be read, it returns
+// false.
+bool IsSquashfs4Filesystem(const std::string& device);
+
 }  // namespace diff_utils
 
 }  // namespace chromeos_update_engine
