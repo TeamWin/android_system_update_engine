@@ -117,9 +117,7 @@ class PythonHttpServer : public HttpServer {
 
     // Spawn the server process.
     unique_ptr<brillo::Process> http_server(new brillo::ProcessImpl());
-    base::FilePath test_server_path =
-        test_utils::GetBuildArtifactsPath().Append("test_http_server");
-    http_server->AddArg(test_server_path.value());
+    http_server->AddArg(test_utils::GetBuildArtifactsPath("test_http_server"));
     http_server->RedirectUsingPipe(STDOUT_FILENO, false);
 
     if (!http_server->Start()) {

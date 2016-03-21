@@ -819,12 +819,10 @@ TEST_F(DeltaDiffUtilsTest, ShuffledBlocksAreTracked) {
 }
 
 TEST_F(DeltaDiffUtilsTest, IsExtFilesystemTest) {
-  EXPECT_TRUE(diff_utils::IsExtFilesystem(test_utils::GetBuildArtifactsPath()
-                                              .Append("gen/disk_ext2_1k.img")
-                                              .value()));
-  EXPECT_TRUE(diff_utils::IsExtFilesystem(test_utils::GetBuildArtifactsPath()
-                                              .Append("gen/disk_ext2_4k.img")
-                                              .value()));
+  EXPECT_TRUE(diff_utils::IsExtFilesystem(
+      test_utils::GetBuildArtifactsPath("gen/disk_ext2_1k.img")));
+  EXPECT_TRUE(diff_utils::IsExtFilesystem(
+      test_utils::GetBuildArtifactsPath("gen/disk_ext2_4k.img")));
 }
 
 TEST_F(DeltaDiffUtilsTest, IsSquashfs4FilesystemTest) {

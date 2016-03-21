@@ -263,5 +263,9 @@ base::FilePath GetBuildArtifactsPath() {
   return exe_path.DirName();
 }
 
+string GetBuildArtifactsPath(const string& relative_path) {
+  return GetBuildArtifactsPath().Append(relative_path).value();
+}
+
 }  // namespace test_utils
 }  // namespace chromeos_update_engine

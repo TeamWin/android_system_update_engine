@@ -23,12 +23,14 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/hash_calculator.h"
+#include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_generator/payload_file.h"
 #include "update_engine/update_metadata.pb.h"
 
+using chromeos_update_engine::test_utils::GetBuildArtifactsPath;
 using std::string;
 using std::vector;
 
@@ -162,7 +164,8 @@ TEST_F(PayloadSignerTest, LoadPayloadV2Test) {
 
 TEST_F(PayloadSignerTest, SignSimpleTextTest) {
   brillo::Blob signature_blob;
-  SignSampleData(&signature_blob, {kUnittestPrivateKeyPath});
+  SignSampleData(&signature_blob,
+                 {GetBuildArtifactsPath(kUnittestPrivateKeyPath)});
 
   // Check the signature itself
   Signatures signatures;
@@ -181,28 +184,34 @@ TEST_F(PayloadSignerTest, SignSimpleTextTest) {
 TEST_F(PayloadSignerTest, VerifyAllSignatureTest) {
   brillo::Blob signature_blob;
   SignSampleData(&signature_blob,
-                 {kUnittestPrivateKeyPath, kUnittestPrivateKey2Path});
+                 {GetBuildArtifactsPath(kUnittestPrivateKeyPath),
+                  GetBuildArtifactsPath(kUnittestPrivateKey2Path)});
 
   // Either public key should pass the verification.
-  EXPECT_TRUE(PayloadVerifier::VerifySignature(signature_blob,
-                                               kUnittestPublicKeyPath,
-                                               padded_hash_data_));
-  EXPECT_TRUE(PayloadVerifier::VerifySignature(signature_blob,
-                                               kUnittestPublicKey2Path,
-                                               padded_hash_data_));
+  EXPECT_TRUE(PayloadVerifier::VerifySignature(
+      signature_blob,
+      GetBuildArtifactsPath(kUnittestPublicKeyPath),
+      padded_hash_data_));
+  EXPECT_TRUE(PayloadVerifier::VerifySignature(
+      signature_blob,
+      GetBuildArtifactsPath(kUnittestPublicKey2Path),
+      padded_hash_data_));
 }
 
 TEST_F(PayloadSignerTest, VerifySignatureTest) {
   brillo::Blob signature_blob;
-  SignSampleData(&signature_blob, {kUnittestPrivateKeyPath});
+  SignSampleData(&signature_blob,
+                 {GetBuildArtifactsPath(kUnittestPrivateKeyPath)});
 
-  EXPECT_TRUE(PayloadVerifier::VerifySignature(signature_blob,
-                                               kUnittestPublicKeyPath,
-                                               padded_hash_data_));
+  EXPECT_TRUE(PayloadVerifier::VerifySignature(
+      signature_blob,
+      GetBuildArtifactsPath(kUnittestPublicKeyPath),
+      padded_hash_data_));
   // Passing the invalid key should fail the verification.
-  EXPECT_FALSE(PayloadVerifier::VerifySignature(signature_blob,
-                                                kUnittestPublicKey2Path,
-                                                padded_hash_data_));
+  EXPECT_FALSE(PayloadVerifier::VerifySignature(
+      signature_blob,
+      GetBuildArtifactsPath(kUnittestPublicKey2Path),
+      padded_hash_data_));
 }
 
 TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
@@ -221,8 +230,11 @@ TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
   brillo::Blob unsigned_payload_hash, unsigned_metadata_hash;
   EXPECT_TRUE(PayloadSigner::HashPayloadForSigning(
       payload_path, sizes, &unsigned_payload_hash, &unsigned_metadata_hash));
-  EXPECT_TRUE(payload.WritePayload(
-      payload_path, "/dev/null", kUnittestPrivateKeyPath, &metadata_size));
+  EXPECT_TRUE(
+      payload.WritePayload(payload_path,
+                           "/dev/null",
+                           GetBuildArtifactsPath(kUnittestPrivateKeyPath),
+                           &metadata_size));
   brillo::Blob signed_payload_hash, signed_metadata_hash;
   EXPECT_TRUE(PayloadSigner::HashPayloadForSigning(
       payload_path, sizes, &signed_payload_hash, &signed_metadata_hash));
@@ -240,10 +252,13 @@ TEST_F(PayloadSignerTest, VerifySignedPayloadTest) {
   PayloadFile payload;
   EXPECT_TRUE(payload.Init(config));
   uint64_t metadata_size;
-  EXPECT_TRUE(payload.WritePayload(
-      payload_path, "/dev/null", kUnittestPrivateKeyPath, &metadata_size));
-  EXPECT_TRUE(PayloadSigner::VerifySignedPayload(payload_path,
-                                                 kUnittestPublicKeyPath));
+  EXPECT_TRUE(
+      payload.WritePayload(payload_path,
+                           "/dev/null",
+                           GetBuildArtifactsPath(kUnittestPrivateKeyPath),
+                           &metadata_size));
+  EXPECT_TRUE(PayloadSigner::VerifySignedPayload(
+      payload_path, GetBuildArtifactsPath(kUnittestPublicKeyPath)));
 }
 
 }  // namespace chromeos_update_engine

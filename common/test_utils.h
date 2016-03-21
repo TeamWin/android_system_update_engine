@@ -190,6 +190,8 @@ class ScopedLoopMounter {
 // Returns the path where the build artifacts are stored. This is the directory
 // where the unittest executable is being run from.
 base::FilePath GetBuildArtifactsPath();
+// Returns the path of the build artifact specified in |relative_path|.
+std::string GetBuildArtifactsPath(const std::string& relative_path);
 
 }  // namespace test_utils
 
