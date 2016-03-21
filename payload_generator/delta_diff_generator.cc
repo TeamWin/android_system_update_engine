@@ -90,9 +90,9 @@ bool GenerateUpdatePayloadFile(
       // We don't efficiently support deltas on squashfs. For now, we will
       // produce full operations in that case.
       if (!old_part.path.empty() &&
-          !utils::IsSquashfsFilesystem(new_part.path)) {
+          !diff_utils::IsSquashfs4Filesystem(new_part.path)) {
         // Delta update.
-        if (utils::IsExtFilesystem(new_part.path)) {
+        if (diff_utils::IsExtFilesystem(new_part.path)) {
           LOG_IF(WARNING, old_part.size != new_part.size)
               << "Old and new filesystems have different size.";
           // TODO(deymo): Our tools only support growing the filesystem size
