@@ -57,42 +57,6 @@ void FilesystemVerifierAction::PerformAction() {
   }
   install_plan_ = GetInputObject();
 
-  // For delta updates (major version 1) we need to populate the source
-  // partition hash if not pre-populated.
-  if (install_plan_.payload_type == InstallPayloadType::kDelta &&
-      install_plan_.partitions.empty() &&
-      verifier_mode_ == VerifierMode::kComputeSourceHash &&
-      DeltaPerformer::kSupportedMinorPayloadVersion <
-          kOpSrcHashMinorPayloadVersion) {
-    LOG(INFO) << "Using legacy partition names.";
-    InstallPlan::Partition part;
-    string part_path;
-
-    part.name = kLegacyPartitionNameRoot;
-    if (!boot_control_->GetPartitionDevice(
-        part.name, install_plan_.source_slot, &part_path))
-      return;
-    int block_count = 0, block_size = 0;
-    if (utils::GetFilesystemSize(part_path, &block_count, &block_size)) {
-      part.source_size = static_cast<int64_t>(block_count) * block_size;
-      LOG(INFO) << "Partition " << part.name << " size: " << part.source_size
-                << " bytes (" << block_count << "x" << block_size << ").";
-    }
-    install_plan_.partitions.push_back(part);
-
-    part.name = kLegacyPartitionNameKernel;
-    if (!boot_control_->GetPartitionDevice(
-        part.name, install_plan_.source_slot, &part_path))
-      return;
-    off_t kernel_part_size = utils::FileSize(part_path);
-    if (kernel_part_size < 0)
-      return;
-    LOG(INFO) << "Partition " << part.name << " size: " << kernel_part_size
-              << " bytes.";
-    part.source_size = kernel_part_size;
-    install_plan_.partitions.push_back(part);
-  }
-
   if (install_plan_.partitions.empty()) {
     LOG(INFO) << "No partitions to verify.";
     if (HasOutputPipe())
