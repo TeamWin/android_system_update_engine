@@ -87,6 +87,12 @@ add_files_default() {
   echo "foo" | sudo tee "${mntdir}"/dir1/dir2/file >/dev/null
   echo "bar" | sudo tee "${mntdir}"/dir1/file >/dev/null
 
+  # FIFO
+  sudo mkfifo "${mntdir}"/fifo
+
+  # character special file
+  sudo mknod "${mntdir}"/cdev c 2 3
+
   # removed: removed files that should not be listed.
   echo "We will remove this file so it's contents will be somewhere in the " \
     "empty space data but it won't be all zeros." |
@@ -236,8 +242,8 @@ generate_image() {
 
 main() {
   # Add more sample images here.
-  generate_image disk_ext2_1k default 16777216 1024
-  generate_image disk_ext2_4k default 16777216 4096
+  generate_image disk_ext2_1k default $((1024 * 1024)) 1024
+  generate_image disk_ext2_4k default $((1024 * 4096)) 4096
   generate_image disk_ext2_4k_empty empty $((1024 * 4096)) 4096
   generate_image disk_ext2_unittest unittest $((1024 * 4096)) 4096
 

@@ -17,6 +17,7 @@
 #include "update_engine/common/utils.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -192,21 +193,26 @@ TEST(UtilsTest, FuzzIntTest) {
   }
 }
 
-TEST(UtilsTest, RunAsRootGetFilesystemSizeTest) {
+TEST(UtilsTest, GetFilesystemSizeTest) {
   string img;
   EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &img, nullptr));
   ScopedPathUnlinker img_unlinker(img);
-  test_utils::CreateExtImageAtPath(img, nullptr);
-  // Extend the "partition" holding the file system from 10MiB to 20MiB.
-  EXPECT_EQ(0, test_utils::System(base::StringPrintf(
-      "dd if=/dev/zero of=%s seek=20971519 bs=1 count=1 status=none",
-      img.c_str())));
-  EXPECT_EQ(20 * 1024 * 1024, utils::FileSize(img));
+  EXPECT_TRUE(base::CopyFile(
+      test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_4k.img"),
+      base::FilePath(img)));
+  {
+    // Extend the "partition" holding the file system from 4MiB to 10MiB.
+    int fd = HANDLE_EINTR(open(img.c_str(), O_WRONLY));
+    ASSERT_GT(fd, 0);
+    ScopedFdCloser fd_closer(&fd);
+    EXPECT_TRUE(utils::PWriteAll(fd, "\0", 1, 10 * 1024 * 1024 - 1));
+  }
+  EXPECT_EQ(10 * 1024 * 1024, utils::FileSize(img));
   int block_count = 0;
   int block_size = 0;
   EXPECT_TRUE(utils::GetFilesystemSize(img, &block_count, &block_size));
   EXPECT_EQ(4096, block_size);
-  EXPECT_EQ(10 * 1024 * 1024 / 4096, block_count);
+  EXPECT_EQ(4 * 1024 * 1024 / 4096, block_count);
 }
 
 // Squashfs example filesystem, generated with:
