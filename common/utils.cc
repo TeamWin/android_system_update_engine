@@ -30,7 +30,6 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -51,7 +50,6 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/data_encoding.h>
-#include <brillo/message_loops/message_loop.h>
 
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
@@ -730,28 +728,6 @@ string GetFileFormat(const string& path) {
     return result;
 
   return "data";
-}
-
-namespace {
-// Do the actual trigger. We do it as a main-loop callback to (try to) get a
-// consistent stack trace.
-void TriggerCrashReporterUpload() {
-  pid_t pid = fork();
-  CHECK_GE(pid, 0) << "fork failed";  // fork() failed. Something is very wrong.
-  if (pid == 0) {
-    // We are the child. Crash.
-    abort();  // never returns
-  }
-  // We are the parent. Wait for child to terminate.
-  pid_t result = waitpid(pid, nullptr, 0);
-  LOG_IF(ERROR, result < 0) << "waitpid() failed";
-}
-}  // namespace
-
-void ScheduleCrashReporterUpload() {
-  brillo::MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&TriggerCrashReporterUpload));
 }
 
 int FuzzInt(int value, unsigned int range) {

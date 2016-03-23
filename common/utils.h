@@ -198,10 +198,6 @@ std::string ToString(DownloadSource source);
 // Returns a string representation of the given enum.
 std::string ToString(PayloadType payload_type);
 
-// Schedules a Main Loop callback to trigger the crash reporter to perform an
-// upload as if this process had crashed.
-void ScheduleCrashReporterUpload();
-
 // Fuzzes an integer |value| randomly in the range:
 // [value - range / 2, value + range - range / 2]
 int FuzzInt(int value, unsigned int range);

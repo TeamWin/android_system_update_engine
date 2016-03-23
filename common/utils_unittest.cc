@@ -25,13 +25,10 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
-#include <brillo/message_loops/fake_message_loop.h>
-#include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
 
-using brillo::FakeMessageLoop;
 using std::string;
 using std::vector;
 
@@ -234,17 +231,6 @@ TEST(UtilsTest, GetFileFormatTest) {
                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                       0x02, 0x00, 0x3e, 0x00, 0x01, 0x00, 0x00, 0x00,
                       0xb0, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00});
-}
-
-TEST(UtilsTest, ScheduleCrashReporterUploadTest) {
-  // Not much to test. At least this tests for memory leaks, crashes,
-  // log errors.
-  FakeMessageLoop loop(nullptr);
-  loop.SetAsCurrent();
-  utils::ScheduleCrashReporterUpload();
-  // Test that we scheduled one callback from the crash reporter.
-  EXPECT_EQ(1, brillo::MessageLoopRunMaxIterations(&loop, 100));
-  EXPECT_FALSE(loop.PendingTasks());
 }
 
 TEST(UtilsTest, FormatTimeDeltaTest) {
