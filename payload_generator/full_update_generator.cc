@@ -32,6 +32,7 @@
 
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/bzip.h"
+#include "update_engine/payload_generator/xz.h"
 
 using std::vector;
 
@@ -47,13 +48,18 @@ const size_t kDefaultFullChunkSize = 1024 * 1024;  // 1 MiB
 class ChunkProcessor : public base::DelegateSimpleThread::Delegate {
  public:
   // Read a chunk of |size| bytes from |fd| starting at offset |offset|.
-  ChunkProcessor(int fd, off_t offset, size_t size,
-                 BlobFileWriter* blob_file, AnnotatedOperation* aop)
-    : fd_(fd),
-      offset_(offset),
-      size_(size),
-      blob_file_(blob_file),
-      aop_(aop) {}
+  ChunkProcessor(const PayloadVersion& version,
+                 int fd,
+                 off_t offset,
+                 size_t size,
+                 BlobFileWriter* blob_file,
+                 AnnotatedOperation* aop)
+      : version_(version),
+        fd_(fd),
+        offset_(offset),
+        size_(size),
+        blob_file_(blob_file),
+        aop_(aop) {}
   // We use a default move constructor since all the data members are POD types.
   ChunkProcessor(ChunkProcessor&&) = default;
   ~ChunkProcessor() override = default;
@@ -69,6 +75,7 @@ class ChunkProcessor : public base::DelegateSimpleThread::Delegate {
   bool ProcessChunk();
 
   // Work parameters.
+  const PayloadVersion& version_;
   int fd_;
   off_t offset_;
   size_t size_;
@@ -95,9 +102,17 @@ bool ChunkProcessor::ProcessChunk() {
                                         offset_,
                                         &bytes_read));
   TEST_AND_RETURN_FALSE(bytes_read == static_cast<ssize_t>(size_));
-  TEST_AND_RETURN_FALSE(BzipCompress(buffer_in_, &op_blob));
 
+  TEST_AND_RETURN_FALSE(BzipCompress(buffer_in_, &op_blob));
   InstallOperation_Type op_type = InstallOperation::REPLACE_BZ;
+
+  if (version_.OperationAllowed(InstallOperation::REPLACE_XZ)) {
+    brillo::Blob xz_blob;
+    if (XzCompress(buffer_in_, &xz_blob) && xz_blob.size() < op_blob.size()) {
+      op_blob = std::move(xz_blob);
+      op_type = InstallOperation::REPLACE_XZ;
+    }
+  }
 
   if (op_blob.size() >= buffer_in_.size()) {
     // A REPLACE is cheaper than a REPLACE_BZ in this case.
@@ -173,6 +188,7 @@ bool FullUpdateGenerator::GenerateOperations(
     dst_extent->set_num_blocks(num_blocks);
 
     chunk_processors.emplace_back(
+        config.version,
         in_fd,
         static_cast<off_t>(start_block) * config.block_size,
         num_blocks * config.block_size,
