@@ -59,10 +59,9 @@ bool WriteUint64AsBigEndian(FileWriter* writer, const uint64_t value) {
 }  // namespace
 
 bool PayloadFile::Init(const PayloadGenerationConfig& config) {
-  major_version_ = config.major_version;
-  TEST_AND_RETURN_FALSE(major_version_ == kChromeOSMajorPayloadVersion ||
-                        major_version_ == kBrilloMajorPayloadVersion);
-  manifest_.set_minor_version(config.minor_version);
+  TEST_AND_RETURN_FALSE(config.version.Validate());
+  major_version_ = config.version.major;
+  manifest_.set_minor_version(config.version.minor);
 
   if (!config.source.ImageInfoIsEmpty())
     *(manifest_.mutable_old_image_info()) = config.source.image_info;
@@ -288,7 +287,7 @@ bool PayloadFile::ReorderDataBlobs(
   ScopedFileWriterCloser writer_closer(&writer);
   uint64_t out_file_size = 0;
 
-  for (auto& part: part_vec_) {
+  for (auto& part : part_vec_) {
     for (AnnotatedOperation& aop : part.aops) {
       if (!aop.op.has_data_offset())
         continue;

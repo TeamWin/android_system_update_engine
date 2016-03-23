@@ -516,36 +516,35 @@ int Main(int argc, char** argv) {
       CHECK(part.OpenFilesystem());
   }
 
-  payload_config.major_version = FLAGS_major_version;
+  payload_config.version.major = FLAGS_major_version;
   LOG(INFO) << "Using provided major_version=" << FLAGS_major_version;
 
   if (FLAGS_minor_version == -1) {
     // Autodetect minor_version by looking at the update_engine.conf in the old
     // image.
     if (payload_config.is_delta) {
-      payload_config.minor_version = kInPlaceMinorPayloadVersion;
+      payload_config.version.minor = kInPlaceMinorPayloadVersion;
       brillo::KeyValueStore store;
       uint32_t minor_version;
       for (const PartitionConfig& part : payload_config.source.partitions) {
         if (part.fs_interface && part.fs_interface->LoadSettings(&store) &&
             utils::GetMinorVersion(store, &minor_version)) {
-          payload_config.minor_version = minor_version;
+          payload_config.version.minor = minor_version;
           break;
         }
       }
     } else {
-      payload_config.minor_version = kFullPayloadMinorVersion;
+      payload_config.version.minor = kFullPayloadMinorVersion;
     }
-    LOG(INFO) << "Auto-detected minor_version=" << payload_config.minor_version;
+    LOG(INFO) << "Auto-detected minor_version=" << payload_config.version.minor;
   } else {
-    payload_config.minor_version = FLAGS_minor_version;
+    payload_config.version.minor = FLAGS_minor_version;
     LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
   }
 
-  if (payload_config.minor_version >= kImgdiffMinorPayloadVersion &&
-      !FLAGS_zlib_fingerprint.empty()) {
+  if (!FLAGS_zlib_fingerprint.empty()) {
     if (utils::IsZlibCompatible(FLAGS_zlib_fingerprint)) {
-      payload_config.imgdiff_allowed = true;
+      payload_config.version.imgdiff_allowed = true;
     } else {
       LOG(INFO) << "IMGDIFF operation disabled due to fingerprint mismatch.";
     }

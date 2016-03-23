@@ -500,8 +500,8 @@ static void GenerateDeltaFile(bool full_kernel,
     payload_config.is_delta = !full_rootfs;
     payload_config.hard_chunk_size = chunk_size;
     payload_config.rootfs_partition_size = kRootFSPartitionSize;
-    payload_config.major_version = kChromeOSMajorPayloadVersion;
-    payload_config.minor_version = minor_version;
+    payload_config.version.major = kChromeOSMajorPayloadVersion;
+    payload_config.version.minor = minor_version;
     if (!full_rootfs) {
       payload_config.source.partitions.emplace_back(kLegacyPartitionNameRoot);
       payload_config.source.partitions.emplace_back(kLegacyPartitionNameKernel);
