@@ -831,10 +831,8 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
 
 bool DeltaPerformer::CanPerformInstallOperation(
     const chromeos_update_engine::InstallOperation& operation) {
-  // Move and source_copy operations don't require any data blob, so they can
-  // always be performed.
-  if (operation.type() == InstallOperation::MOVE ||
-      operation.type() == InstallOperation::SOURCE_COPY)
+  // If we don't have a data blob we can apply it right away.
+  if (!operation.has_data_offset() && !operation.has_data_length())
     return true;
 
   // See if we have the entire data blob in the buffer
