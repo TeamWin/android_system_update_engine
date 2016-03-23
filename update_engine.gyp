@@ -397,6 +397,7 @@
         'payload_generator/raw_filesystem.cc',
         'payload_generator/tarjan.cc',
         'payload_generator/topological_sort.cc',
+        'payload_generator/xz_chromeos.cc',
       ],
     },
     # server-side delta generator.

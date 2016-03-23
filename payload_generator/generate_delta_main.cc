@@ -39,6 +39,7 @@
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/payload_generator/payload_signer.h"
+#include "update_engine/payload_generator/xz.h"
 #include "update_engine/update_metadata.pb.h"
 
 // This file contains a simple program that takes an old path, a new path,
@@ -366,6 +367,9 @@ int Main(int argc, char** argv) {
   log_settings.delete_old   = logging::APPEND_TO_OLD_LOG_FILE;
 
   logging::InitLogging(log_settings);
+
+  // Initialize the Xz compressor.
+  XzCompressInit();
 
   vector<int> signature_sizes;
   ParseSignatureSizes(FLAGS_signature_size, &signature_sizes);
