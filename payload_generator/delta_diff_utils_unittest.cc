@@ -125,21 +125,22 @@ class DeltaDiffUtilsTest : public ::testing::Test {
   }
 
   // Helper function to call DeltaMovedAndZeroBlocks() using this class' data
-  // members. This simply avoid repeating all the arguments that never change.
+  // members. This simply avoids repeating all the arguments that never change.
   bool RunDeltaMovedAndZeroBlocks(ssize_t chunk_blocks,
-                                  bool src_ops_allowed) {
+                                  uint32_t minor_version) {
     BlobFileWriter blob_file(blob_fd_, &blob_size_);
-    return diff_utils::DeltaMovedAndZeroBlocks(
-        &aops_,
-        old_part_.path,
-        new_part_.path,
-        old_part_.size / block_size_,
-        new_part_.size / block_size_,
-        chunk_blocks,
-        src_ops_allowed,
-        &blob_file,
-        &old_visited_blocks_,
-        &new_visited_blocks_);
+    PayloadVersion version(kChromeOSMajorPayloadVersion, minor_version);
+    version.imgdiff_allowed = true;  // Assume no fingerprint mismatch.
+    return diff_utils::DeltaMovedAndZeroBlocks(&aops_,
+                                               old_part_.path,
+                                               new_part_.path,
+                                               old_part_.size / block_size_,
+                                               new_part_.size / block_size_,
+                                               chunk_blocks,
+                                               version,
+                                               &blob_file,
+                                               &old_visited_blocks_,
+                                               &new_visited_blocks_);
   }
 
   // Old and new temporary partitions used in the tests. These are initialized
@@ -178,11 +179,9 @@ TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
       new_part_.path,
       old_extents,
       new_extents,
-      true,  // bsdiff_allowed
-      true,  // imgdiff_allowed
+      PayloadVersion(kChromeOSMajorPayloadVersion, kInPlaceMinorPayloadVersion),
       &data,
-      &op,
-      false));  // src_ops_allowed
+      &op));
   EXPECT_TRUE(data.empty());
 
   EXPECT_TRUE(op.has_type());
@@ -239,11 +238,9 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
       new_part_.path,
       old_extents,
       new_extents,
-      true,  // bsdiff_allowed
-      true,  // imgdiff_allowed
+      PayloadVersion(kChromeOSMajorPayloadVersion, kInPlaceMinorPayloadVersion),
       &data,
-      &op,
-      false));  // src_ops_allowed
+      &op));
 
   EXPECT_TRUE(data.empty());
 
@@ -304,11 +301,9 @@ TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
       new_part_.path,
       old_extents,
       new_extents,
-      true,  // bsdiff_allowed
-      true,  // imgdiff_allowed
+      PayloadVersion(kChromeOSMajorPayloadVersion, kInPlaceMinorPayloadVersion),
       &data,
-      &op,
-      false));  // src_ops_allowed
+      &op));
 
   EXPECT_FALSE(data.empty());
 
@@ -323,74 +318,6 @@ TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
   EXPECT_EQ(BlocksInExtents(op.src_extents()),
             BlocksInExtents(op.dst_extents()));
   EXPECT_EQ(1U, BlocksInExtents(op.dst_extents()));
-}
-
-TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedTest) {
-  // Same setup as the previous test, but this time BSDIFF operations are not
-  // allowed.
-  brillo::Blob data_blob(kBlockSize);
-  test_utils::FillWithData(&data_blob);
-
-  // The old file is on a different block than the new one.
-  vector<Extent> old_extents = { ExtentForRange(1, 1) };
-  vector<Extent> new_extents = { ExtentForRange(2, 1) };
-
-  EXPECT_TRUE(WriteExtents(old_part_.path, old_extents, kBlockSize, data_blob));
-  // Modify one byte in the new file.
-  data_blob[0]++;
-  EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
-
-  brillo::Blob data;
-  InstallOperation op;
-  EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
-      old_part_.path,
-      new_part_.path,
-      old_extents,
-      new_extents,
-      false,  // bsdiff_allowed
-      false,  // imgdiff_allowed
-      &data,
-      &op,
-      false));  // src_ops_allowed
-
-  EXPECT_FALSE(data.empty());
-
-  // The point of this test is that we don't use BSDIFF the way the above
-  // did. The rest of the details are to be caught in other tests.
-  EXPECT_TRUE(op.has_type());
-  EXPECT_NE(InstallOperation::BSDIFF, op.type());
-}
-
-TEST_F(DeltaDiffUtilsTest, BsdiffNotAllowedMoveTest) {
-  brillo::Blob data_blob(kBlockSize);
-  test_utils::FillWithData(&data_blob);
-
-  // The old file is on a different block than the new one.
-  vector<Extent> old_extents = { ExtentForRange(1, 1) };
-  vector<Extent> new_extents = { ExtentForRange(2, 1) };
-
-  EXPECT_TRUE(WriteExtents(old_part_.path, old_extents, kBlockSize, data_blob));
-  EXPECT_TRUE(WriteExtents(new_part_.path, new_extents, kBlockSize, data_blob));
-
-  brillo::Blob data;
-  InstallOperation op;
-  EXPECT_TRUE(diff_utils::ReadExtentsToDiff(
-      old_part_.path,
-      new_part_.path,
-      old_extents,
-      new_extents,
-      false,  // bsdiff_allowed
-      false,  // imgdiff_allowed
-      &data,
-      &op,
-      false));  // src_ops_allowed
-
-  EXPECT_TRUE(data.empty());
-
-  // The point of this test is that we can still use a MOVE for a file
-  // that is blacklisted.
-  EXPECT_TRUE(op.has_type());
-  EXPECT_EQ(InstallOperation::MOVE, op.type());
 }
 
 TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
@@ -422,11 +349,10 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
         new_part_.path,
         old_extents,
         new_extents,
-        true,  // bsdiff_allowed
-        true,  // imgdiff_allowed
+        PayloadVersion(kChromeOSMajorPayloadVersion,
+                       kInPlaceMinorPayloadVersion),
         &data,
-        &op,
-        false));  // src_ops_allowed
+        &op));
     EXPECT_FALSE(data.empty());
 
     EXPECT_TRUE(op.has_type());
@@ -464,11 +390,9 @@ TEST_F(DeltaDiffUtilsTest, SourceCopyTest) {
       new_part_.path,
       old_extents,
       new_extents,
-      true,  // bsdiff_allowed
-      true,  // imgdiff_allowed
+      PayloadVersion(kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion),
       &data,
-      &op,
-      true));  // src_ops_allowed
+      &op));
   EXPECT_TRUE(data.empty());
 
   EXPECT_TRUE(op.has_type());
@@ -498,11 +422,9 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
       new_part_.path,
       old_extents,
       new_extents,
-      true,  // bsdiff_allowed
-      true,  // imgdiff_allowed
+      PayloadVersion(kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion),
       &data,
-      &op,
-      true));  // src_ops_allowed
+      &op));
 
   EXPECT_FALSE(data.empty());
   EXPECT_TRUE(op.has_type());
@@ -559,7 +481,7 @@ TEST_F(DeltaDiffUtilsTest, NoZeroedOrUniqueBlocksDetected) {
   InitializePartitionWithUniqueBlocks(new_part_, block_size_, 42);
 
   EXPECT_TRUE(RunDeltaMovedAndZeroBlocks(-1,  // chunk_blocks
-                                         false));  // src_ops_allowed
+                                         kInPlaceMinorPayloadVersion));
 
   EXPECT_EQ(0U, old_visited_blocks_.blocks());
   EXPECT_EQ(0U, new_visited_blocks_.blocks());
@@ -582,7 +504,7 @@ TEST_F(DeltaDiffUtilsTest, IdenticalPartitionsDontMove) {
   // Most of the blocks rest in the same place, but there's no need for MOVE
   // operations on those blocks.
   EXPECT_TRUE(RunDeltaMovedAndZeroBlocks(-1,  // chunk_blocks
-                                         false));  // src_ops_allowed
+                                         kInPlaceMinorPayloadVersion));
 
   EXPECT_EQ(kDefaultBlockCount, old_visited_blocks_.blocks());
   EXPECT_EQ(kDefaultBlockCount, new_visited_blocks_.blocks());
@@ -612,7 +534,7 @@ TEST_F(DeltaDiffUtilsTest, IdenticalBlocksAreCopiedFromSource) {
                            brillo::Blob(5 * kBlockSize, 'a')));
 
   EXPECT_TRUE(RunDeltaMovedAndZeroBlocks(10,  // chunk_blocks
-                                         true));  // src_ops_allowed
+                                         kSourceMinorPayloadVersion));
 
   ExtentRanges expected_ranges;
   expected_ranges.AddExtent(ExtentForRange(0, 50));
@@ -665,7 +587,7 @@ TEST_F(DeltaDiffUtilsTest, IdenticalBlocksAreCopiedInOder) {
   EXPECT_TRUE(test_utils::WriteFileVector(new_part_.path, partition_data));
 
   EXPECT_TRUE(RunDeltaMovedAndZeroBlocks(-1,  // chunk_blocks
-                                         true));  // src_ops_allowed
+                                         kSourceMinorPayloadVersion));
 
   // There should be only one SOURCE_COPY, for the whole partition and the
   // source extents should cover only the first copy of the source file since
@@ -707,7 +629,7 @@ TEST_F(DeltaDiffUtilsTest, ZeroBlocksUseReplaceBz) {
   EXPECT_TRUE(WriteExtents(old_part_.path, old_zeros, block_size_, zeros_data));
 
   EXPECT_TRUE(RunDeltaMovedAndZeroBlocks(5,  // chunk_blocks
-                                         false));  // src_ops_allowed
+                                         kInPlaceMinorPayloadVersion));
 
   // Zeroed blocks from old_visited_blocks_ were copied over, so me actually
   // use them regardless of the trivial MOVE operation not being emitted.
@@ -762,7 +684,7 @@ TEST_F(DeltaDiffUtilsTest, ShuffledBlocksAreTracked) {
                            new_contents));
 
   EXPECT_TRUE(RunDeltaMovedAndZeroBlocks(-1,  // chunk_blocks
-                                         true));  // src_ops_allowed
+                                         kSourceMinorPayloadVersion));
 
   EXPECT_EQ(permutation.size(), old_visited_blocks_.blocks());
   EXPECT_EQ(permutation.size(), new_visited_blocks_.blocks());

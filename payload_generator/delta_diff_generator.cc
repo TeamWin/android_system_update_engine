@@ -55,6 +55,11 @@ bool GenerateUpdatePayloadFile(
     const string& output_path,
     const string& private_key_path,
     uint64_t* metadata_size) {
+  if (!config.version.Validate()) {
+    LOG(ERROR) << "Unsupported major.minor version: " << config.version.major
+               << "." << config.version.minor;
+    return false;
+  }
 
   // Create empty payload file object.
   PayloadFile payload;
@@ -101,18 +106,12 @@ bool GenerateUpdatePayloadFile(
           LOG_IF(FATAL, old_part.size > new_part.size)
               << "Shirking the filesystem size is not supported at the moment.";
         }
-        if (config.minor_version == kInPlaceMinorPayloadVersion) {
+        if (config.version.minor == kInPlaceMinorPayloadVersion) {
           LOG(INFO) << "Using generator InplaceGenerator().";
           strategy.reset(new InplaceGenerator());
-        } else if (config.minor_version == kSourceMinorPayloadVersion ||
-                   config.minor_version == kOpSrcHashMinorPayloadVersion ||
-                   config.minor_version == kImgdiffMinorPayloadVersion) {
+        } else {
           LOG(INFO) << "Using generator ABGenerator().";
           strategy.reset(new ABGenerator());
-        } else {
-          LOG(ERROR) << "Unsupported minor version given for delta payload: "
-                     << config.minor_version;
-          return false;
         }
       } else {
         LOG(INFO) << "Using generator FullUpdateGenerator().";

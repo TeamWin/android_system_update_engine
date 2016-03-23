@@ -138,8 +138,8 @@ class DeltaPerformerTest : public ::testing::Test {
                                  blob_data.size()));
 
     PayloadGenerationConfig config;
-    config.major_version = major_version;
-    config.minor_version = minor_version;
+    config.version.major = major_version;
+    config.version.minor = minor_version;
 
     PayloadFile payload;
     EXPECT_TRUE(payload.Init(config));
