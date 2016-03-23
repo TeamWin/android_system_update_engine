@@ -34,6 +34,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/extent_utils.h"
 
+using chromeos_update_engine::test_utils::GetBuildArtifactsPath;
 using std::map;
 using std::set;
 using std::string;
@@ -72,9 +73,8 @@ TEST_F(Ext2FilesystemTest, InvalidFilesystem) {
 }
 
 TEST_F(Ext2FilesystemTest, EmptyFilesystem) {
-  base::FilePath path =
-      test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_4k_empty.img");
-  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
+  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(
+      GetBuildArtifactsPath("gen/disk_ext2_4k_empty.img"));
 
   ASSERT_NE(nullptr, fs.get());
   EXPECT_EQ(kDefaultFilesystemBlockCount, fs->GetBlockCount());
@@ -101,7 +101,7 @@ TEST_F(Ext2FilesystemTest, ParseGeneratedImages) {
   const vector<string> kGeneratedImages = {
       "disk_ext2_1k.img",
       "disk_ext2_4k.img" };
-  base::FilePath build_path = test_utils::GetBuildArtifactsPath().Append("gen");
+  base::FilePath build_path = GetBuildArtifactsPath().Append("gen");
   for (const string& fs_name : kGeneratedImages) {
     LOG(INFO) << "Testing " << fs_name;
     unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(
@@ -180,9 +180,8 @@ TEST_F(Ext2FilesystemTest, ParseGeneratedImages) {
 }
 
 TEST_F(Ext2FilesystemTest, LoadSettingsFailsTest) {
-  base::FilePath path = test_utils::GetBuildArtifactsPath().Append(
-      "gen/disk_ext2_1k.img");
-  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
+  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(
+      GetBuildArtifactsPath("gen/disk_ext2_1k.img"));
   ASSERT_NE(nullptr, fs.get());
 
   brillo::KeyValueStore store;
@@ -191,9 +190,8 @@ TEST_F(Ext2FilesystemTest, LoadSettingsFailsTest) {
 }
 
 TEST_F(Ext2FilesystemTest, LoadSettingsWorksTest) {
-  base::FilePath path =
-      test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_unittest.img");
-  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(path.value());
+  unique_ptr<Ext2Filesystem> fs = Ext2Filesystem::CreateFromFile(
+      GetBuildArtifactsPath("gen/disk_ext2_unittest.img"));
   ASSERT_NE(nullptr, fs.get());
 
   brillo::KeyValueStore store;

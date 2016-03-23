@@ -49,6 +49,7 @@ namespace chromeos_update_engine {
 
 using std::string;
 using std::vector;
+using test_utils::GetBuildArtifactsPath;
 using test_utils::System;
 using test_utils::kRandomString;
 using testing::_;
@@ -220,9 +221,10 @@ class DeltaPerformerTest : public ::testing::Test {
     string payload_path;
     EXPECT_TRUE(utils::MakeTempFile("Payload-XXXXXX", &payload_path, nullptr));
     ScopedPathUnlinker payload_unlinker(payload_path);
-    EXPECT_TRUE(payload.WritePayload(payload_path, blob_path,
-        sign_payload ? kUnittestPrivateKeyPath : "",
-        &install_plan_.metadata_size));
+    string private_key =
+        sign_payload ? GetBuildArtifactsPath(kUnittestPrivateKeyPath) : "";
+    EXPECT_TRUE(payload.WritePayload(
+        payload_path, blob_path, private_key, &install_plan_.metadata_size));
 
     brillo::Blob payload_data;
     EXPECT_TRUE(utils::ReadFile(payload_path, &payload_data));
@@ -311,7 +313,6 @@ class DeltaPerformerTest : public ::testing::Test {
   void DoMetadataSignatureTest(MetadataSignatureTest metadata_signature_test,
                                bool sign_payload,
                                bool hash_checks_mandatory) {
-
     // Loads the payload and parses the manifest.
     brillo::Blob payload = GeneratePayload(brillo::Blob(),
         vector<AnnotatedOperation>(), sign_payload,
@@ -346,7 +347,7 @@ class DeltaPerformerTest : public ::testing::Test {
         ASSERT_TRUE(PayloadSigner::GetMetadataSignature(
             payload.data(),
             install_plan_.metadata_size,
-            kUnittestPrivateKeyPath,
+            GetBuildArtifactsPath(kUnittestPrivateKeyPath),
             &install_plan_.metadata_signature));
         EXPECT_FALSE(install_plan_.metadata_signature.empty());
         expected_result = DeltaPerformer::kMetadataParseSuccess;
@@ -362,8 +363,9 @@ class DeltaPerformerTest : public ::testing::Test {
 
     // Use the public key corresponding to the private key used above to
     // sign the metadata.
-    EXPECT_TRUE(utils::FileExists(kUnittestPublicKeyPath));
-    performer_.set_public_key_path(kUnittestPublicKeyPath);
+    string public_key_path = GetBuildArtifactsPath(kUnittestPublicKeyPath);
+    EXPECT_TRUE(utils::FileExists(public_key_path.c_str()));
+    performer_.set_public_key_path(public_key_path);
 
     // Init actual_error with an invalid value so that we make sure
     // ParsePayloadMetadata properly populates it in all cases.
@@ -753,10 +755,10 @@ TEST_F(DeltaPerformerTest, BrilloVerifyMetadataSignatureTest) {
   performer_.major_payload_version_ = kBrilloMajorPayloadVersion;
   performer_.metadata_size_ = install_plan_.metadata_size;
   uint64_t signature_length;
-  EXPECT_TRUE(PayloadSigner::SignatureBlobLength({kUnittestPrivateKeyPath},
-                                                 &signature_length));
+  EXPECT_TRUE(PayloadSigner::SignatureBlobLength(
+      {GetBuildArtifactsPath(kUnittestPrivateKeyPath)}, &signature_length));
   performer_.metadata_signature_size_ = signature_length;
-  performer_.set_public_key_path(kUnittestPublicKeyPath);
+  performer_.set_public_key_path(GetBuildArtifactsPath(kUnittestPublicKeyPath));
   EXPECT_EQ(ErrorCode::kSuccess,
             performer_.ValidateMetadataSignature(payload_data));
 }
