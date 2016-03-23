@@ -391,10 +391,7 @@ void TestEvent(OmahaRequestParams params,
 
   loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
   loop.Run();
-
-  // This test should schedule a callback to notify the crash reporter if
-  // the passed event is an error.
-  EXPECT_EQ(event->result == OmahaEvent::kResultError, loop.PendingTasks());
+  EXPECT_FALSE(loop.PendingTasks());
 
   if (out_post_data)
     *out_post_data = fetcher->post_data();
