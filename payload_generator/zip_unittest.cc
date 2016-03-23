@@ -20,10 +20,15 @@
 #include <string>
 #include <vector>
 
+#include <brillo/make_unique_ptr.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
+#include "update_engine/payload_consumer/bzip_extent_writer.h"
+#include "update_engine/payload_consumer/extent_writer.h"
+#include "update_engine/payload_consumer/xz_extent_writer.h"
 #include "update_engine/payload_generator/bzip.h"
+#include "update_engine/payload_generator/xz.h"
 
 using chromeos_update_engine::test_utils::kRandomString;
 using std::string;
@@ -31,13 +36,55 @@ using std::vector;
 
 namespace chromeos_update_engine {
 
+namespace {
+
+// ExtentWriter class that writes to memory, used to test the decompression
+// step with the corresponding extent writer.
+class MemoryExtentWriter : public ExtentWriter {
+ public:
+  // Creates the ExtentWriter that will write all the bytes to the passed |data|
+  // blob.
+  explicit MemoryExtentWriter(brillo::Blob* data) : data_(data) {
+    data_->clear();
+  }
+  ~MemoryExtentWriter() override = default;
+
+  bool Init(FileDescriptorPtr fd,
+            const vector<Extent>& extents,
+            uint32_t block_size) override {
+    return true;
+  }
+  bool Write(const void* bytes, size_t count) override {
+    data_->reserve(data_->size() + count);
+    data_->insert(data_->end(),
+                  static_cast<const uint8_t*>(bytes),
+                  static_cast<const uint8_t*>(bytes) + count);
+    return true;
+  }
+  bool EndImpl() override { return true; }
+
+ private:
+  brillo::Blob* data_;
+};
+
+template <typename W>
+bool DecompressWithWriter(const brillo::Blob& in, brillo::Blob* out) {
+  std::unique_ptr<ExtentWriter> writer(
+      new W(brillo::make_unique_ptr(new MemoryExtentWriter(out))));
+  // Init() parameters are ignored by the testing MemoryExtentWriter.
+  TEST_AND_RETURN_FALSE(writer->Init(nullptr, {}, 1));
+  TEST_AND_RETURN_FALSE(writer->Write(in.data(), in.size()));
+  TEST_AND_RETURN_FALSE(writer->End());
+  return true;
+}
+
+}  // namespace
+
 template <typename T>
 class ZipTest : public ::testing::Test {
  public:
-  bool ZipDecompress(const brillo::Blob& in, brillo::Blob* out) const = 0;
   bool ZipCompress(const brillo::Blob& in, brillo::Blob* out) const = 0;
-  bool ZipCompressString(const string& str, brillo::Blob* out) const = 0;
-  bool ZipDecompressString(const string& str, brillo::Blob* out) const = 0;
+  bool ZipDecompress(const brillo::Blob& in, brillo::Blob* out) const = 0;
 };
 
 class BzipTest {};
@@ -45,34 +92,47 @@ class BzipTest {};
 template <>
 class ZipTest<BzipTest> : public ::testing::Test {
  public:
-  bool ZipDecompress(const brillo::Blob& in, brillo::Blob* out) const {
-    return BzipDecompress(in, out);
-  }
   bool ZipCompress(const brillo::Blob& in, brillo::Blob* out) const {
     return BzipCompress(in, out);
   }
-  bool ZipCompressString(const string& str, brillo::Blob* out) const {
-    return BzipCompressString(str, out);
-  }
-  bool ZipDecompressString(const string& str, brillo::Blob* out) const {
-    return BzipDecompressString(str, out);
+  bool ZipDecompress(const brillo::Blob& in, brillo::Blob* out) const {
+    return DecompressWithWriter<BzipExtentWriter>(in, out);
   }
 };
 
+class XzTest {};
+
+template <>
+class ZipTest<XzTest> : public ::testing::Test {
+ public:
+  bool ZipCompress(const brillo::Blob& in, brillo::Blob* out) const {
+    return XzCompress(in, out);
+  }
+  bool ZipDecompress(const brillo::Blob& in, brillo::Blob* out) const {
+    return DecompressWithWriter<XzExtentWriter>(in, out);
+  }
+};
+
+#ifdef __ANDROID__
+typedef ::testing::Types<BzipTest, XzTest> ZipTestTypes;
+#else
+// Chrome OS implementation of Xz compressor just returns false.
 typedef ::testing::Types<BzipTest> ZipTestTypes;
+#endif  // __ANDROID__
+
 TYPED_TEST_CASE(ZipTest, ZipTestTypes);
 
-
-
 TYPED_TEST(ZipTest, SimpleTest) {
-  string in("this should compress well xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+  string in_str(
+      "this should compress well xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+  brillo::Blob in(in_str.begin(), in_str.end());
   brillo::Blob out;
-  EXPECT_TRUE(this->ZipCompressString(in, &out));
+  EXPECT_TRUE(this->ZipCompress(in, &out));
   EXPECT_LT(out.size(), in.size());
   EXPECT_GT(out.size(), 0U);
   brillo::Blob decompressed;
@@ -82,32 +142,29 @@ TYPED_TEST(ZipTest, SimpleTest) {
 }
 
 TYPED_TEST(ZipTest, PoorCompressionTest) {
-  string in(reinterpret_cast<const char*>(kRandomString),
-            sizeof(kRandomString));
+  brillo::Blob in(std::begin(kRandomString), std::end(kRandomString));
   brillo::Blob out;
-  EXPECT_TRUE(this->ZipCompressString(in, &out));
+  EXPECT_TRUE(this->ZipCompress(in, &out));
   EXPECT_GT(out.size(), in.size());
-  string out_string(out.begin(), out.end());
   brillo::Blob decompressed;
-  EXPECT_TRUE(this->ZipDecompressString(out_string, &decompressed));
+  EXPECT_TRUE(this->ZipDecompress(out, &decompressed));
   EXPECT_EQ(in.size(), decompressed.size());
-  EXPECT_TRUE(!memcmp(in.data(), decompressed.data(), in.size()));
+  EXPECT_EQ(in, decompressed);
 }
 
 TYPED_TEST(ZipTest, MalformedZipTest) {
-  string in(reinterpret_cast<const char*>(kRandomString),
-            sizeof(kRandomString));
+  brillo::Blob in(std::begin(kRandomString), std::end(kRandomString));
   brillo::Blob out;
-  EXPECT_FALSE(this->ZipDecompressString(in, &out));
+  EXPECT_FALSE(this->ZipDecompress(in, &out));
 }
 
 TYPED_TEST(ZipTest, EmptyInputsTest) {
-  string in;
+  brillo::Blob in;
   brillo::Blob out;
-  EXPECT_TRUE(this->ZipDecompressString(in, &out));
+  EXPECT_TRUE(this->ZipDecompress(in, &out));
   EXPECT_EQ(0U, out.size());
 
-  EXPECT_TRUE(this->ZipCompressString(in, &out));
+  EXPECT_TRUE(this->ZipCompress(in, &out));
   EXPECT_EQ(0U, out.size());
 }
 

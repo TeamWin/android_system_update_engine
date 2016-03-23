@@ -552,6 +552,7 @@ include $(BUILD_EXECUTABLE)
 ue_libpayload_generator_exported_static_libraries := \
     libpayload_consumer \
     update_metadata-protos \
+    liblzma \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_generator_exported_shared_libraries := \
@@ -580,7 +581,8 @@ ue_libpayload_generator_src_files := \
     payload_generator/payload_signer.cc \
     payload_generator/raw_filesystem.cc \
     payload_generator/tarjan.cc \
-    payload_generator/topological_sort.cc
+    payload_generator/topological_sort.cc \
+    payload_generator/xz_android.cc
 
 ifeq ($(HOST_OS),linux)
 # Build for the host.
@@ -596,6 +598,7 @@ LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
+    liblzma \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
@@ -620,6 +623,7 @@ LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
+    liblzma \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \

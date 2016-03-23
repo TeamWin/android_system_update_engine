@@ -24,12 +24,16 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/terminator.h"
+#include "update_engine/payload_generator/xz.h"
 
 int main(int argc, char **argv) {
   LOG(INFO) << "started";
   base::AtExitManager exit_manager;
   // xz-embedded requires to initialize its CRC-32 table once on startup.
   xz_crc32_init();
+  // The LZMA SDK-based Xz compressor used in the payload generation requires
+  // this one-time initialization.
+  chromeos_update_engine::XzCompressInit();
   // TODO(garnold) temporarily cause the unittest binary to exit with status
   // code 2 upon catching a SIGTERM. This will help diagnose why the unittest
   // binary is perceived as failing by the buildbot.  We should revert it to use

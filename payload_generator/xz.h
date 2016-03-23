@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2010 The Android Open Source Project
+// Copyright (C) 2016 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,21 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_BZIP_H_
-#define UPDATE_ENGINE_PAYLOAD_GENERATOR_BZIP_H_
+#ifndef UPDATE_ENGINE_PAYLOAD_GENERATOR_XZ_H_
+#define UPDATE_ENGINE_PAYLOAD_GENERATOR_XZ_H_
 
 #include <brillo/secure_blob.h>
 
 namespace chromeos_update_engine {
 
-// Compresses the input buffer |in| into |out| with bzip2.
-bool BzipCompress(const brillo::Blob& in, brillo::Blob* out);
+// Initialize the xz compression unit. Call once before any call to
+// XzCompress().
+void XzCompressInit();
+
+// Compresses the input buffer |in| into |out| with xz. The compressed stream
+// will be the equivalent of running xz -9 --check=none
+bool XzCompress(const brillo::Blob& in, brillo::Blob* out);
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_PAYLOAD_GENERATOR_BZIP_H_
+#endif  // UPDATE_ENGINE_PAYLOAD_GENERATOR_XZ_H_
