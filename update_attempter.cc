@@ -610,9 +610,6 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                              false));
   shared_ptr<OmahaResponseHandlerAction> response_handler_action(
       new OmahaResponseHandlerAction(system_state_));
-  shared_ptr<FilesystemVerifierAction> src_filesystem_verifier_action(
-      new FilesystemVerifierAction(system_state_->boot_control(),
-                                   VerifierMode::kComputeSourceHash));
 
   shared_ptr<OmahaRequestAction> download_started_action(
       new OmahaRequestAction(system_state_,
@@ -640,9 +637,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
               new LibcurlHttpFetcher(GetProxyResolver(),
                                      system_state_->hardware())),
           false));
-  shared_ptr<FilesystemVerifierAction> dst_filesystem_verifier_action(
-      new FilesystemVerifierAction(system_state_->boot_control(),
-                                   VerifierMode::kVerifyTargetHash));
+  shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
+      new FilesystemVerifierAction(system_state_->boot_control()));
   shared_ptr<OmahaRequestAction> update_complete_action(
       new OmahaRequestAction(
           system_state_,
@@ -658,25 +654,20 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
 
   actions_.push_back(shared_ptr<AbstractAction>(update_check_action));
   actions_.push_back(shared_ptr<AbstractAction>(response_handler_action));
-  actions_.push_back(shared_ptr<AbstractAction>(
-      src_filesystem_verifier_action));
   actions_.push_back(shared_ptr<AbstractAction>(download_started_action));
   actions_.push_back(shared_ptr<AbstractAction>(download_action));
   actions_.push_back(shared_ptr<AbstractAction>(download_finished_action));
-  actions_.push_back(shared_ptr<AbstractAction>(
-      dst_filesystem_verifier_action));
+  actions_.push_back(shared_ptr<AbstractAction>(filesystem_verifier_action));
 
   // Bond them together. We have to use the leaf-types when calling
   // BondActions().
   BondActions(update_check_action.get(),
               response_handler_action.get());
   BondActions(response_handler_action.get(),
-              src_filesystem_verifier_action.get());
-  BondActions(src_filesystem_verifier_action.get(),
               download_action.get());
   BondActions(download_action.get(),
-              dst_filesystem_verifier_action.get());
-  BuildPostInstallActions(dst_filesystem_verifier_action.get());
+              filesystem_verifier_action.get());
+  BuildPostInstallActions(filesystem_verifier_action.get());
 
   actions_.push_back(shared_ptr<AbstractAction>(update_complete_action));
 

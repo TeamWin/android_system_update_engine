@@ -67,15 +67,11 @@ struct InstallPlan {
 
   // The vector below is used for partition verification. The flow is:
   //
-  // 1. FilesystemVerifierAction computes and fills in the source partition
-  // hash based on the guessed source size for delta major version 1 updates.
+  // 1. DownloadAction fills in the expected source and target partition sizes
+  // and hashes based on the manifest.
   //
-  // 2. DownloadAction verifies the source partition sizes and hashes against
-  // the expected values transmitted in the update manifest. It fills in the
-  // expected target partition sizes and hashes based on the manifest.
-  //
-  // 3. FilesystemVerifierAction computes and verifies the applied partition
-  // sizes and hashes against the expected values in target_partition_hashes.
+  // 2. FilesystemVerifierAction computes and verifies the partition sizes and
+  // hashes against the expected values.
   struct Partition {
     bool operator==(const Partition& that) const;
 

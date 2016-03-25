@@ -217,12 +217,6 @@ class DeltaPerformer : public FileWriter {
   // Update overall progress metrics, log as necessary.
   void UpdateOverallProgress(bool force_log, const char* message_prefix);
 
-  // Verifies that the expected source partition hashes (if present) match the
-  // hashes for the current partitions. Returns true if there are no expected
-  // hashes in the payload (e.g., if it's a new-style full update) or if the
-  // hashes match; returns false otherwise.
-  bool VerifySourcePartitions();
-
   // Returns true if enough of the delta file has been passed via Write()
   // to be able to perform a given install operation.
   bool CanPerformInstallOperation(const InstallOperation& operation);

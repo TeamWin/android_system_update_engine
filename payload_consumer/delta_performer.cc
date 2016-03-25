@@ -775,17 +775,6 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     partitions_.push_back(std::move(kern_part));
   }
 
-  // TODO(deymo): Remove this block of code once we switched to optional
-  // source partition verification. This list of partitions in the InstallPlan
-  // is initialized with the expected hashes in the payload major version 1,
-  // so we need to check those now if already set. See b/23182225.
-  if (!install_plan_->partitions.empty()) {
-    if (!VerifySourcePartitions()) {
-      *error = ErrorCode::kDownloadStateInitializationError;
-      return false;
-    }
-  }
-
   // Fill in the InstallPlan::partitions based on the partitions from the
   // payload.
   install_plan_->partitions.clear();
@@ -1629,80 +1618,6 @@ ErrorCode DeltaPerformer::VerifyPayload(
     download_delegate_->DownloadComplete();
 
   return ErrorCode::kSuccess;
-}
-
-namespace {
-void LogVerifyError(const string& type,
-                    const string& device,
-                    uint64_t size,
-                    const string& local_hash,
-                    const string& expected_hash) {
-  LOG(ERROR) << "This is a server-side error due to "
-             << "mismatched delta update image!";
-  LOG(ERROR) << "The delta I've been given contains a " << type << " delta "
-             << "update that must be applied over a " << type << " with "
-             << "a specific checksum, but the " << type << " we're starting "
-             << "with doesn't have that checksum! This means that "
-             << "the delta I've been given doesn't match my existing "
-             << "system. The " << type << " partition I have has hash: "
-             << local_hash << " but the update expected me to have "
-             << expected_hash << " .";
-  LOG(INFO) << "To get the checksum of the " << type << " partition run this"
-               "command: dd if=" << device << " bs=1M count=" << size
-            << " iflag=count_bytes 2>/dev/null | openssl dgst -sha256 -binary "
-               "| openssl base64";
-  LOG(INFO) << "To get the checksum of partitions in a bin file, "
-            << "run: .../src/scripts/sha256_partitions.sh .../file.bin";
-}
-
-string StringForHashBytes(const void* bytes, size_t size) {
-  return brillo::data_encoding::Base64Encode(bytes, size);
-}
-}  // namespace
-
-bool DeltaPerformer::VerifySourcePartitions() {
-  LOG(INFO) << "Verifying source partitions.";
-  CHECK(manifest_valid_);
-  CHECK(install_plan_);
-  if (install_plan_->partitions.size() != partitions_.size()) {
-    DLOG(ERROR) << "The list of partitions in the InstallPlan doesn't match the "
-                   "list received in the payload. The InstallPlan has "
-                << install_plan_->partitions.size()
-                << " partitions while the payload has " << partitions_.size()
-                << " partitions.";
-    return false;
-  }
-  for (size_t i = 0; i < partitions_.size(); ++i) {
-    if (partitions_[i].partition_name() != install_plan_->partitions[i].name) {
-      DLOG(ERROR) << "The InstallPlan's partition " << i << " is \""
-                  << install_plan_->partitions[i].name
-                  << "\" but the payload expects it to be \""
-                  << partitions_[i].partition_name()
-                  << "\". This is an error in the DeltaPerformer setup.";
-      return false;
-    }
-    if (!partitions_[i].has_old_partition_info())
-      continue;
-    const PartitionInfo& info = partitions_[i].old_partition_info();
-    const InstallPlan::Partition& plan_part = install_plan_->partitions[i];
-    bool valid =
-        !plan_part.source_hash.empty() &&
-        plan_part.source_hash.size() == info.hash().size() &&
-        memcmp(plan_part.source_hash.data(),
-               info.hash().data(),
-               plan_part.source_hash.size()) == 0;
-    if (!valid) {
-      LogVerifyError(partitions_[i].partition_name(),
-                     plan_part.source_path,
-                     info.hash().size(),
-                     StringForHashBytes(plan_part.source_hash.data(),
-                                        plan_part.source_hash.size()),
-                     StringForHashBytes(info.hash().data(),
-                                        info.hash().size()));
-      return false;
-    }
-  }
-  return true;
 }
 
 void DeltaPerformer::DiscardBuffer(bool do_advance_offset,
