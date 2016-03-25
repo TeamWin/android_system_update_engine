@@ -29,6 +29,7 @@
 #include <base/strings/stringprintf.h>
 #include <google/protobuf/repeated_field.h>
 #include <gtest/gtest.h>
+#include <openssl/pem.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/fake_boot_control.h"
@@ -223,8 +224,20 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
   // Generates a new private key that will not match the public key.
   if (signature_test == kSignatureGeneratedShellBadKey) {
     LOG(INFO) << "Generating a mismatched private key.";
-    ASSERT_EQ(0, System(base::StringPrintf(
-        "openssl genrsa -out %s 2048", private_key_path.c_str())));
+    // The code below executes the equivalent of:
+    // openssl genrsa -out <private_key_path> 2048
+    RSA* rsa = RSA_new();
+    BIGNUM* e = BN_new();
+    EXPECT_EQ(1, BN_set_word(e, RSA_F4));
+    EXPECT_EQ(1, RSA_generate_key_ex(rsa, 2048, e, nullptr));
+    BN_free(e);
+    FILE* fprikey = fopen(private_key_path.c_str(), "w");
+    EXPECT_NE(nullptr, fprikey);
+    EXPECT_EQ(1,
+              PEM_write_RSAPrivateKey(
+                  fprikey, rsa, nullptr, nullptr, 0, nullptr, nullptr));
+    fclose(fprikey);
+    RSA_free(rsa);
   }
   int signature_size = GetSignatureSize(private_key_path);
   string hash_file;
@@ -245,32 +258,24 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
                 signature_size_string.c_str(),
                 hash_file.c_str())));
 
-  // Pad the hash
-  brillo::Blob hash;
+  // Sign the hash
+  brillo::Blob hash, signature;
   ASSERT_TRUE(utils::ReadFile(hash_file, &hash));
-  ASSERT_TRUE(PayloadVerifier::PadRSA2048SHA256Hash(&hash));
-  ASSERT_TRUE(test_utils::WriteFileVector(hash_file, hash));
+  ASSERT_TRUE(PayloadSigner::SignHash(hash, private_key_path, &signature));
 
   string sig_file;
   ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file, nullptr));
   ScopedPathUnlinker sig_unlinker(sig_file);
-  ASSERT_EQ(0,
-            System(base::StringPrintf(
-                "openssl rsautl -raw -sign -inkey %s -in %s -out %s",
-                private_key_path.c_str(),
-                hash_file.c_str(),
-                sig_file.c_str())));
+  ASSERT_TRUE(test_utils::WriteFileVector(sig_file, signature));
+
   string sig_file2;
   ASSERT_TRUE(utils::MakeTempFile("signature.XXXXXX", &sig_file2, nullptr));
   ScopedPathUnlinker sig2_unlinker(sig_file2);
   if (signature_test == kSignatureGeneratedShellRotateCl1 ||
       signature_test == kSignatureGeneratedShellRotateCl2) {
-    ASSERT_EQ(0,
-              System(base::StringPrintf(
-                  "openssl rsautl -raw -sign -inkey %s -in %s -out %s",
-                  GetBuildArtifactsPath(kUnittestPrivateKey2Path).c_str(),
-                  hash_file.c_str(),
-                  sig_file2.c_str())));
+    ASSERT_TRUE(PayloadSigner::SignHash(
+        hash, GetBuildArtifactsPath(kUnittestPrivateKey2Path), &signature));
+    ASSERT_TRUE(test_utils::WriteFileVector(sig_file2, signature));
     // Append second sig file to first path
     sig_file += ":" + sig_file2;
   }
