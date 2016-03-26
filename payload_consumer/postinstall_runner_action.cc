@@ -134,6 +134,18 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
     return CompletePostinstall(ErrorCode::kPostinstallRunnerError);
   }
 
+#ifdef __ANDROID__
+  // In Chromium OS, the postinstall step is allowed to write to the block
+  // device on the target image, so we don't mark it as read-only and should
+  // be read-write since we just wrote to it during the update.
+
+  // Mark the block device as read-only before mounting for post-install.
+  if (!utils::SetBlockDeviceReadOnly(mountable_device, true)) {
+    return CompletePartitionPostinstall(
+        1, "Error marking the device " + mountable_device + " read only.");
+  }
+#endif  // __ANDROID__
+
   if (!utils::MountFilesystem(mountable_device,
                               fs_mount_dir_,
                               MS_RDONLY,
