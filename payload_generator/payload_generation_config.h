@@ -107,6 +107,34 @@ struct ImageConfig {
   std::vector<PartitionConfig> partitions;
 };
 
+struct PayloadVersion {
+  PayloadVersion() : PayloadVersion(0, 0) {}
+  PayloadVersion(uint64_t major_version, uint32_t minor_version);
+
+  // Returns whether the PayloadVersion is valid.
+  bool Validate() const;
+
+  // Return whether the passed |operation| is allowed by this payload.
+  bool OperationAllowed(InstallOperation_Type operation) const;
+
+  // Whether this payload version is a delta payload.
+  bool IsDelta() const;
+
+  // Tells whether the update is done in-place, that is, whether the operations
+  // read and write from the same partition.
+  bool InplaceUpdate() const;
+
+  // The major version of the payload.
+  uint64_t major;
+
+  // The minor version of the payload.
+  uint32_t minor;
+
+  // Wheter the IMGDIFF operation is allowed based on the available compressor
+  // in the delta_generator and the one supported by the target.
+  bool imgdiff_allowed = false;
+};
+
 // The PayloadGenerationConfig struct encapsulates all the configuration to
 // build the requested payload. This includes information about the old and new
 // image as well as the restrictions applied to the payload (like minor-version
@@ -125,14 +153,8 @@ struct PayloadGenerationConfig {
   // Wheter the requested payload is a delta payload.
   bool is_delta = false;
 
-  // Wheter the IMGDIFF operation is allowed.
-  bool imgdiff_allowed = false;
-
-  // The major_version of the requested payload.
-  uint64_t major_version;
-
-  // The minor_version of the requested payload.
-  uint32_t minor_version;
+  // The major/minor version of the payload.
+  PayloadVersion version;
 
   // The size of the rootfs partition, that not necessarily is the same as the
   // filesystem in either source or target version, since there is some space

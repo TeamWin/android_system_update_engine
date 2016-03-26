@@ -47,6 +47,10 @@ using Block = InplaceGenerator::Block;
 
 namespace {
 
+// The only PayloadVersion supported by this implementation.
+const PayloadVersion kInPlacePayloadVersion{kChromeOSMajorPayloadVersion,
+                                            kInPlaceMinorPayloadVersion};
+
 // This class allocates non-existent temp blocks, starting from
 // kTempBlockStart. Other code is responsible for converting these
 // temp blocks into real blocks, as the client can't read or write to
@@ -571,9 +575,8 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
         new_extents,
         (*graph)[cut.old_dst].aop.name,
         -1,  // chunk_blocks, forces to have a single operation.
-        blob_file,
-        false,
-        false));  // src_ops_allowed
+        kInPlacePayloadVersion,
+        blob_file));
     TEST_AND_RETURN_FALSE(new_aop.size() == 1);
     TEST_AND_RETURN_FALSE(AddInstallOpToGraph(
       graph, cut.old_dst, nullptr, new_aop.front().op, new_aop.front().name));
@@ -792,6 +795,8 @@ bool InplaceGenerator::GenerateOperations(
     BlobFileWriter* blob_file,
     vector<AnnotatedOperation>* aops) {
   TEST_AND_RETURN_FALSE(old_part.name == new_part.name);
+  TEST_AND_RETURN_FALSE(config.version.major == kInPlacePayloadVersion.major);
+  TEST_AND_RETURN_FALSE(config.version.minor == kInPlacePayloadVersion.minor);
 
   ssize_t hard_chunk_blocks = (config.hard_chunk_size == -1 ? -1 :
                                config.hard_chunk_size / config.block_size);
@@ -801,15 +806,13 @@ bool InplaceGenerator::GenerateOperations(
     partition_size = config.rootfs_partition_size;
 
   LOG(INFO) << "Delta compressing " << new_part.name << " partition...";
-  TEST_AND_RETURN_FALSE(
-    diff_utils::DeltaReadPartition(aops,
-                                   old_part,
-                                   new_part,
-                                   hard_chunk_blocks,
-                                   soft_chunk_blocks,
-                                   blob_file,
-                                   false,    // imgdiff_allowed
-                                   false));  // src_ops_allowed
+  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadPartition(aops,
+                                                       old_part,
+                                                       new_part,
+                                                       hard_chunk_blocks,
+                                                       soft_chunk_blocks,
+                                                       config.version,
+                                                       blob_file));
   LOG(INFO) << "Done reading " << new_part.name;
 
   TEST_AND_RETURN_FALSE(

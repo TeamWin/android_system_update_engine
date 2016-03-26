@@ -46,15 +46,13 @@ bool ABGenerator::GenerateOperations(
   size_t soft_chunk_blocks = config.soft_chunk_size / config.block_size;
 
   aops->clear();
-  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadPartition(
-      aops,
-      old_part,
-      new_part,
-      hard_chunk_blocks,
-      soft_chunk_blocks,
-      blob_file,
-      config.imgdiff_allowed,
-      true));  // src_ops_allowed
+  TEST_AND_RETURN_FALSE(diff_utils::DeltaReadPartition(aops,
+                                                       old_part,
+                                                       new_part,
+                                                       hard_chunk_blocks,
+                                                       soft_chunk_blocks,
+                                                       config.version,
+                                                       blob_file));
   LOG(INFO) << "done reading " << new_part.name;
 
   TEST_AND_RETURN_FALSE(FragmentOperations(aops,
@@ -75,7 +73,7 @@ bool ABGenerator::GenerateOperations(
                                         new_part.path,
                                         blob_file));
 
-  if (config.minor_version >= kOpSrcHashMinorPayloadVersion)
+  if (config.version.minor >= kOpSrcHashMinorPayloadVersion)
     TEST_AND_RETURN_FALSE(AddSourceHash(aops, old_part.path));
 
   return true;

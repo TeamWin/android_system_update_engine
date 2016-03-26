@@ -46,9 +46,8 @@ bool DeltaReadPartition(std::vector<AnnotatedOperation>* aops,
                         const PartitionConfig& new_part,
                         ssize_t hard_chunk_blocks,
                         size_t soft_chunk_blocks,
-                        BlobFileWriter* blob_file,
-                        bool imgdiff_allowed,
-                        bool src_ops_allowed);
+                        const PayloadVersion& version,
+                        BlobFileWriter* blob_file);
 
 // Create operations in |aops| for identical blocks that moved around in the old
 // and new partition and also handle zeroed blocks. The old and new partition
@@ -66,7 +65,7 @@ bool DeltaMovedAndZeroBlocks(std::vector<AnnotatedOperation>* aops,
                              size_t old_num_blocks,
                              size_t new_num_blocks,
                              ssize_t chunk_blocks,
-                             bool src_ops_allowed,
+                             const PayloadVersion& version,
                              BlobFileWriter* blob_file,
                              ExtentRanges* old_visited_blocks,
                              ExtentRanges* new_visited_blocks);
@@ -85,29 +84,24 @@ bool DeltaReadFile(std::vector<AnnotatedOperation>* aops,
                    const std::vector<Extent>& new_extents,
                    const std::string& name,
                    ssize_t chunk_blocks,
-                   BlobFileWriter* blob_file,
-                   bool imgdiff_allowed,
-                   bool src_ops_allowed);
+                   const PayloadVersion& version,
+                   BlobFileWriter* blob_file);
 
 // Reads the blocks |old_extents| from |old_part| (if it exists) and the
 // |new_extents| from |new_part| and determines the smallest way to encode
 // this |new_extents| for the diff. It stores necessary data in |out_data| and
 // fills in |out_op|. If there's no change in old and new files, it creates a
-// MOVE operation. If there is a change, the smallest of REPLACE, REPLACE_BZ,
-// BSDIFF (if |bsdiff_allowed|) or IMGDIFF (if |imgdiff_allowed|) wins.
-// |new_extents| must not be empty.
-// If |src_ops_allowed| is true, it will emit SOURCE_COPY and SOURCE_BSDIFF
-// operations instead of MOVE and BSDIFF, respectively.
-// Returns true on success.
+// MOVE or SOURCE_COPY operation. If there is a change, the smallest of the
+// operations allowed in the given |version| (REPLACE, REPLACE_BZ, BSDIFF,
+// SOURCE_BSDIFF or IMGDIFF) wins.
+// |new_extents| must not be empty. Returns true on success.
 bool ReadExtentsToDiff(const std::string& old_part,
                        const std::string& new_part,
                        const std::vector<Extent>& old_extents,
                        const std::vector<Extent>& new_extents,
-                       bool bsdiff_allowed,
-                       bool imgdiff_allowed,
+                       const PayloadVersion& version,
                        brillo::Blob* out_data,
-                       InstallOperation* out_op,
-                       bool src_ops_allowed);
+                       InstallOperation* out_op);
 
 // Runs the bsdiff or imgdiff tool in |diff_path| on two files and returns the
 // resulting delta in |out|. Returns true on success.

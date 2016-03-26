@@ -107,7 +107,67 @@ bool ImageConfig::ImageInfoIsEmpty() const {
     && image_info.build_version().empty();
 }
 
+PayloadVersion::PayloadVersion(uint64_t major_version, uint32_t minor_version) {
+  major = major_version;
+  minor = minor_version;
+}
+
+bool PayloadVersion::Validate() const {
+  TEST_AND_RETURN_FALSE(major == kChromeOSMajorPayloadVersion ||
+                        major == kBrilloMajorPayloadVersion);
+  TEST_AND_RETURN_FALSE(minor == kFullPayloadMinorVersion ||
+                        minor == kInPlaceMinorPayloadVersion ||
+                        minor == kSourceMinorPayloadVersion ||
+                        minor == kOpSrcHashMinorPayloadVersion ||
+                        minor == kImgdiffMinorPayloadVersion);
+  return true;
+}
+
+bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
+  switch (operation) {
+    // Full operations:
+    case InstallOperation::REPLACE:
+    case InstallOperation::REPLACE_BZ:
+      // These operations were included in the original payload format.
+      return true;
+
+    case InstallOperation::ZERO:
+    case InstallOperation::DISCARD:
+    case InstallOperation::REPLACE_XZ:
+      // These operations are included in the major version used in Brillo, but
+      // can also be used with minor version 3 or newer.
+      return major == kBrilloMajorPayloadVersion ||
+             minor >= kOpSrcHashMinorPayloadVersion;
+
+    // Delta operations:
+    case InstallOperation::MOVE:
+    case InstallOperation::BSDIFF:
+      // MOVE and BSDIFF were replaced by SOURCE_COPY and SOURCE_BSDIFF and
+      // should not be used in newer delta versions, since the idempotent checks
+      // were removed.
+      return minor == kInPlaceMinorPayloadVersion;
+
+    case InstallOperation::SOURCE_COPY:
+    case InstallOperation::SOURCE_BSDIFF:
+      return minor >= kSourceMinorPayloadVersion;
+
+    case InstallOperation::IMGDIFF:
+      return minor >= kImgdiffMinorPayloadVersion && imgdiff_allowed;
+  }
+  return false;
+}
+
+bool PayloadVersion::IsDelta() const {
+  return minor != kFullPayloadMinorVersion;
+}
+
+bool PayloadVersion::InplaceUpdate() const {
+  return minor == kInPlaceMinorPayloadVersion;
+}
+
 bool PayloadGenerationConfig::Validate() const {
+  TEST_AND_RETURN_FALSE(version.Validate());
+  TEST_AND_RETURN_FALSE(version.IsDelta() == is_delta);
   if (is_delta) {
     for (const PartitionConfig& part : source.partitions) {
       if (!part.path.empty()) {
@@ -118,32 +178,22 @@ bool PayloadGenerationConfig::Validate() const {
       TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());
     }
 
-    // Check for the supported minor_version values.
-    TEST_AND_RETURN_FALSE(minor_version == kInPlaceMinorPayloadVersion ||
-                          minor_version == kSourceMinorPayloadVersion ||
-                          minor_version == kOpSrcHashMinorPayloadVersion ||
-                          minor_version == kImgdiffMinorPayloadVersion);
-
-    if (imgdiff_allowed)
-      TEST_AND_RETURN_FALSE(minor_version >= kImgdiffMinorPayloadVersion);
-
     // If new_image_info is present, old_image_info must be present.
     TEST_AND_RETURN_FALSE(source.ImageInfoIsEmpty() ==
                           target.ImageInfoIsEmpty());
   } else {
     // All the "source" image fields must be empty for full payloads.
     TEST_AND_RETURN_FALSE(source.ValidateIsEmpty());
-    TEST_AND_RETURN_FALSE(minor_version == kFullPayloadMinorVersion);
   }
 
   // In all cases, the target image must exists.
   for (const PartitionConfig& part : target.partitions) {
     TEST_AND_RETURN_FALSE(part.ValidateExists());
     TEST_AND_RETURN_FALSE(part.size % block_size == 0);
-    if (minor_version == kInPlaceMinorPayloadVersion &&
+    if (version.minor == kInPlaceMinorPayloadVersion &&
         part.name == kLegacyPartitionNameRoot)
       TEST_AND_RETURN_FALSE(rootfs_partition_size >= part.size);
-    if (major_version == kChromeOSMajorPayloadVersion)
+    if (version.major == kChromeOSMajorPayloadVersion)
       TEST_AND_RETURN_FALSE(part.postinstall.IsEmpty());
   }
 

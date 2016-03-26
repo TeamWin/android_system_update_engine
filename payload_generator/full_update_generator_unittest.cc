@@ -35,7 +35,7 @@ class FullUpdateGeneratorTest : public ::testing::Test {
  protected:
   void SetUp() override {
     config_.is_delta = false;
-    config_.minor_version = kFullPayloadMinorVersion;
+    config_.version.minor = kFullPayloadMinorVersion;
     config_.hard_chunk_size = 128 * 1024;
     config_.block_size = 4096;
 
@@ -86,8 +86,10 @@ TEST_F(FullUpdateGeneratorTest, RunTest) {
   EXPECT_EQ(new_part_chunks, static_cast<int64_t>(aops.size()));
   for (off_t i = 0; i < new_part_chunks; ++i) {
     EXPECT_EQ(1, aops[i].op.dst_extents_size());
-    EXPECT_EQ(static_cast<uint64_t>(i * config_.hard_chunk_size / config_.block_size),
-              aops[i].op.dst_extents(0).start_block()) << "i = " << i;
+    EXPECT_EQ(
+        static_cast<uint64_t>(i * config_.hard_chunk_size / config_.block_size),
+        aops[i].op.dst_extents(0).start_block())
+        << "i = " << i;
     EXPECT_EQ(config_.hard_chunk_size / config_.block_size,
               aops[i].op.dst_extents(0).num_blocks());
     if (aops[i].op.type() != InstallOperation::REPLACE) {

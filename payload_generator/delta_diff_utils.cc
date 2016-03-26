@@ -52,6 +52,11 @@ const char* const kImgdiffPath = "imgdiff";
 // Chrome binary in ASan builders.
 const uint64_t kMaxBsdiffDestinationSize = 200 * 1024 * 1024;  // bytes
 
+// The maximum destination size allowed for imgdiff. In general, imgdiff should
+// work for arbitrary big files, but the payload application is quite memory
+// intensive, so we limit these operations to 50 MiB.
+const uint64_t kMaxImgdiffDestinationSize = 50 * 1024 * 1024;  // bytes
+
 // Process a range of blocks from |range_start| to |range_end| in the extent at
 // position |*idx_p| of |extents|. If |do_remove| is true, this range will be
 // removed, which may cause the extent to be trimmed, split or removed entirely.
@@ -163,15 +168,13 @@ bool ContainsGZip(const brillo::Blob& data) {
 
 namespace diff_utils {
 
-bool DeltaReadPartition(
-    vector<AnnotatedOperation>* aops,
-    const PartitionConfig& old_part,
-    const PartitionConfig& new_part,
-    ssize_t hard_chunk_blocks,
-    size_t soft_chunk_blocks,
-    BlobFileWriter* blob_file,
-    bool imgdiff_allowed,
-    bool src_ops_allowed) {
+bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
+                        const PartitionConfig& old_part,
+                        const PartitionConfig& new_part,
+                        ssize_t hard_chunk_blocks,
+                        size_t soft_chunk_blocks,
+                        const PayloadVersion& version,
+                        BlobFileWriter* blob_file) {
   ExtentRanges old_visited_blocks;
   ExtentRanges new_visited_blocks;
 
@@ -182,7 +185,7 @@ bool DeltaReadPartition(
       old_part.fs_interface ? old_part.fs_interface->GetBlockCount() : 0,
       new_part.fs_interface->GetBlockCount(),
       soft_chunk_blocks,
-      src_ops_allowed,
+      version,
       blob_file,
       &old_visited_blocks,
       &new_visited_blocks));
@@ -233,17 +236,15 @@ bool DeltaReadPartition(
         old_files_map[new_file.name], old_visited_blocks);
     old_visited_blocks.AddExtents(old_file_extents);
 
-    TEST_AND_RETURN_FALSE(DeltaReadFile(
-        aops,
-        old_part.path,
-        new_part.path,
-        old_file_extents,
-        new_file_extents,
-        new_file.name,  // operation name
-        hard_chunk_blocks,
-        blob_file,
-        imgdiff_allowed,
-        src_ops_allowed));
+    TEST_AND_RETURN_FALSE(DeltaReadFile(aops,
+                                        old_part.path,
+                                        new_part.path,
+                                        old_file_extents,
+                                        new_file_extents,
+                                        new_file.name,  // operation name
+                                        hard_chunk_blocks,
+                                        version,
+                                        blob_file));
   }
   // Process all the blocks not included in any file. We provided all the unused
   // blocks in the old partition as available data.
@@ -265,32 +266,29 @@ bool DeltaReadPartition(
   // We use the soft_chunk_blocks limit for the <non-file-data> as we don't
   // really know the structure of this data and we should not expect it to have
   // redundancy between partitions.
-  TEST_AND_RETURN_FALSE(DeltaReadFile(
-      aops,
-      old_part.path,
-      new_part.path,
-      old_unvisited,
-      new_unvisited,
-      "<non-file-data>",  // operation name
-      soft_chunk_blocks,
-      blob_file,
-      imgdiff_allowed,
-      src_ops_allowed));
+  TEST_AND_RETURN_FALSE(DeltaReadFile(aops,
+                                      old_part.path,
+                                      new_part.path,
+                                      old_unvisited,
+                                      new_unvisited,
+                                      "<non-file-data>",  // operation name
+                                      soft_chunk_blocks,
+                                      version,
+                                      blob_file));
 
   return true;
 }
 
-bool DeltaMovedAndZeroBlocks(
-    vector<AnnotatedOperation>* aops,
-    const string& old_part,
-    const string& new_part,
-    size_t old_num_blocks,
-    size_t new_num_blocks,
-    ssize_t chunk_blocks,
-    bool src_ops_allowed,
-    BlobFileWriter* blob_file,
-    ExtentRanges* old_visited_blocks,
-    ExtentRanges* new_visited_blocks) {
+bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
+                             const string& old_part,
+                             const string& new_part,
+                             size_t old_num_blocks,
+                             size_t new_num_blocks,
+                             ssize_t chunk_blocks,
+                             const PayloadVersion& version,
+                             BlobFileWriter* blob_file,
+                             ExtentRanges* old_visited_blocks,
+                             ExtentRanges* new_visited_blocks) {
   vector<BlockMapping::BlockId> old_block_ids;
   vector<BlockMapping::BlockId> new_block_ids;
   TEST_AND_RETURN_FALSE(MapPartitionBlocks(old_part,
@@ -301,9 +299,10 @@ bool DeltaMovedAndZeroBlocks(
                                            &old_block_ids,
                                            &new_block_ids));
 
-  // For minor-version=1, we map all the blocks that didn't move, regardless of
-  // the contents since they are already copied and no operation is required.
-  if (!src_ops_allowed) {
+  // If the update is inplace, we map all the blocks that didn't move,
+  // regardless of the contents since they are already copied and no operation
+  // is required.
+  if (version.InplaceUpdate()) {
     uint64_t num_blocks = std::min(old_num_blocks, new_num_blocks);
     for (uint64_t block = 0; block < num_blocks; block++) {
       if (old_block_ids[block] == new_block_ids[block] &&
@@ -354,26 +353,25 @@ bool DeltaMovedAndZeroBlocks(
                          old_blocks_map_it->second.back());
     AppendBlockToExtents(&new_identical_blocks, block);
     // We can't reuse source blocks in minor version 1 because the cycle
-    // breaking algorithm doesn't support that.
-    if (!src_ops_allowed)
+    // breaking algorithm used in the in-place update doesn't support that.
+    if (version.InplaceUpdate())
       old_blocks_map_it->second.pop_back();
   }
 
   // Produce operations for the zero blocks split per output extent.
+  // TODO(deymo): Produce ZERO operations instead of calling DeltaReadFile().
   size_t num_ops = aops->size();
   new_visited_blocks->AddExtents(new_zeros);
   for (Extent extent : new_zeros) {
-    TEST_AND_RETURN_FALSE(DeltaReadFile(
-        aops,
-        "",
-        new_part,
-        vector<Extent>(),  // old_extents
-        vector<Extent>{extent},  // new_extents
-        "<zeros>",
-        chunk_blocks,
-        blob_file,
-        false,  // imgdiff_allowed
-        src_ops_allowed));
+    TEST_AND_RETURN_FALSE(DeltaReadFile(aops,
+                                        "",
+                                        new_part,
+                                        vector<Extent>(),        // old_extents
+                                        vector<Extent>{extent},  // new_extents
+                                        "<zeros>",
+                                        chunk_blocks,
+                                        version,
+                                        blob_file));
   }
   LOG(INFO) << "Produced " << (aops->size() - num_ops) << " operations for "
             << BlocksInExtents(new_zeros) << " zeroed blocks";
@@ -393,8 +391,9 @@ bool DeltaMovedAndZeroBlocks(
       aops->emplace_back();
       AnnotatedOperation* aop = &aops->back();
       aop->name = "<identical-blocks>";
-      aop->op.set_type(src_ops_allowed ? InstallOperation::SOURCE_COPY
-                                       : InstallOperation::MOVE);
+      aop->op.set_type(version.OperationAllowed(InstallOperation::SOURCE_COPY)
+                           ? InstallOperation::SOURCE_COPY
+                           : InstallOperation::MOVE);
 
       uint64_t chunk_num_blocks =
         std::min(extent.num_blocks() - op_block_offset,
@@ -424,38 +423,21 @@ bool DeltaMovedAndZeroBlocks(
   return true;
 }
 
-bool DeltaReadFile(
-    vector<AnnotatedOperation>* aops,
-    const string& old_part,
-    const string& new_part,
-    const vector<Extent>& old_extents,
-    const vector<Extent>& new_extents,
-    const string& name,
-    ssize_t chunk_blocks,
-    BlobFileWriter* blob_file,
-    bool imgdiff_allowed,
-    bool src_ops_allowed) {
+bool DeltaReadFile(vector<AnnotatedOperation>* aops,
+                   const string& old_part,
+                   const string& new_part,
+                   const vector<Extent>& old_extents,
+                   const vector<Extent>& new_extents,
+                   const string& name,
+                   ssize_t chunk_blocks,
+                   const PayloadVersion& version,
+                   BlobFileWriter* blob_file) {
   brillo::Blob data;
   InstallOperation operation;
 
   uint64_t total_blocks = BlocksInExtents(new_extents);
   if (chunk_blocks == -1)
     chunk_blocks = total_blocks;
-
-  // If bsdiff breaks again, blacklist the problem file by using:
-  //   bsdiff_allowed = (name != "/foo/bar")
-  //
-  // TODO(dgarrett): chromium-os:15274 connect this test to the command line.
-  bool bsdiff_allowed = true;
-  if (static_cast<uint64_t>(chunk_blocks) * kBlockSize >
-      kMaxBsdiffDestinationSize) {
-    bsdiff_allowed = false;
-    imgdiff_allowed = false;
-  }
-
-  if (!bsdiff_allowed) {
-    LOG(INFO) << "bsdiff blacklisting: " << name;
-  }
 
   for (uint64_t block_offset = 0; block_offset < total_blocks;
       block_offset += chunk_blocks) {
@@ -474,11 +456,9 @@ bool DeltaReadFile(
                                             new_part,
                                             old_extents_chunk,
                                             new_extents_chunk,
-                                            bsdiff_allowed,
-                                            imgdiff_allowed,
+                                            version,
                                             &data,
-                                            &operation,
-                                            src_ops_allowed));
+                                            &operation));
 
     // Check if the operation writes nothing.
     if (operation.dst_extents_size() == 0) {
@@ -517,11 +497,9 @@ bool ReadExtentsToDiff(const string& old_part,
                        const string& new_part,
                        const vector<Extent>& old_extents,
                        const vector<Extent>& new_extents,
-                       bool bsdiff_allowed,
-                       bool imgdiff_allowed,
+                       const PayloadVersion& version,
                        brillo::Blob* out_data,
-                       InstallOperation* out_op,
-                       bool src_ops_allowed) {
+                       InstallOperation* out_op) {
   InstallOperation operation;
   // Data blob that will be written to delta file.
   const brillo::Blob* data_blob = nullptr;
@@ -529,6 +507,25 @@ bool ReadExtentsToDiff(const string& old_part,
   // We read blocks from old_extents and write blocks to new_extents.
   uint64_t blocks_to_read = BlocksInExtents(old_extents);
   uint64_t blocks_to_write = BlocksInExtents(new_extents);
+
+  // Disable bsdiff and imgdiff when the data is too big.
+  bool bsdiff_allowed =
+      version.OperationAllowed(InstallOperation::SOURCE_BSDIFF) ||
+      version.OperationAllowed(InstallOperation::BSDIFF);
+  if (bsdiff_allowed &&
+      blocks_to_read * kBlockSize > kMaxBsdiffDestinationSize) {
+    LOG(INFO) << "bsdiff blacklisted, data too big: "
+              << blocks_to_read * kBlockSize << " bytes";
+    bsdiff_allowed = false;
+  }
+
+  bool imgdiff_allowed = version.OperationAllowed(InstallOperation::IMGDIFF);
+  if (imgdiff_allowed &&
+      blocks_to_read * kBlockSize > kMaxImgdiffDestinationSize) {
+    LOG(INFO) << "imgdiff blacklisted, data too big: "
+              << blocks_to_read * kBlockSize << " bytes";
+    imgdiff_allowed = false;
+  }
 
   // Make copies of the extents so we can modify them.
   vector<Extent> src_extents = old_extents;
@@ -569,11 +566,9 @@ bool ReadExtentsToDiff(const string& old_part,
                            kBlockSize * blocks_to_read, kBlockSize));
     if (old_data == new_data) {
       // No change in data.
-      if (src_ops_allowed) {
-        operation.set_type(InstallOperation::SOURCE_COPY);
-      } else {
-        operation.set_type(InstallOperation::MOVE);
-      }
+      operation.set_type(version.OperationAllowed(InstallOperation::SOURCE_COPY)
+                             ? InstallOperation::SOURCE_COPY
+                             : InstallOperation::MOVE);
       data_blob = &empty_blob;
     } else if (bsdiff_allowed || imgdiff_allowed) {
       // If the source file is considered bsdiff safe (no bsdiff bugs
@@ -594,11 +589,10 @@ bool ReadExtentsToDiff(const string& old_part,
             kBsdiffPath, old_chunk.value(), new_chunk.value(), &bsdiff_delta));
         CHECK_GT(bsdiff_delta.size(), static_cast<brillo::Blob::size_type>(0));
         if (bsdiff_delta.size() < data_blob->size()) {
-          if (src_ops_allowed) {
-            operation.set_type(InstallOperation::SOURCE_BSDIFF);
-          } else {
-            operation.set_type(InstallOperation::BSDIFF);
-          }
+          operation.set_type(
+              version.OperationAllowed(InstallOperation::SOURCE_BSDIFF)
+                  ? InstallOperation::SOURCE_BSDIFF
+                  : InstallOperation::BSDIFF);
           data_blob = &bsdiff_delta;
         }
       }

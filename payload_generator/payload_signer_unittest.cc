@@ -143,7 +143,7 @@ class PayloadSignerTest : public ::testing::Test {
                                                    &load_metadata_size,
                                                    nullptr));
     EXPECT_EQ(metadata_size, payload_metadata_blob.size());
-    EXPECT_EQ(config.major_version, load_major_version);
+    EXPECT_EQ(config.version.major, load_major_version);
     EXPECT_EQ(metadata_size, load_metadata_size);
   }
 
@@ -152,13 +152,13 @@ class PayloadSignerTest : public ::testing::Test {
 
 TEST_F(PayloadSignerTest, LoadPayloadV1Test) {
   PayloadGenerationConfig config;
-  config.major_version = kChromeOSMajorPayloadVersion;
+  config.version.major = kChromeOSMajorPayloadVersion;
   DoWriteAndLoadPayloadTest(config);
 }
 
 TEST_F(PayloadSignerTest, LoadPayloadV2Test) {
   PayloadGenerationConfig config;
-  config.major_version = kBrilloMajorPayloadVersion;
+  config.version.major = kBrilloMajorPayloadVersion;
   DoWriteAndLoadPayloadTest(config);
 }
 
@@ -220,7 +220,7 @@ TEST_F(PayloadSignerTest, SkipMetadataSignatureTest) {
   ScopedPathUnlinker payload_path_unlinker(payload_path);
 
   PayloadGenerationConfig config;
-  config.major_version = kBrilloMajorPayloadVersion;
+  config.version.major = kBrilloMajorPayloadVersion;
   PayloadFile payload;
   EXPECT_TRUE(payload.Init(config));
   uint64_t metadata_size;
@@ -248,7 +248,7 @@ TEST_F(PayloadSignerTest, VerifySignedPayloadTest) {
   ScopedPathUnlinker payload_path_unlinker(payload_path);
 
   PayloadGenerationConfig config;
-  config.major_version = kBrilloMajorPayloadVersion;
+  config.version.major = kBrilloMajorPayloadVersion;
   PayloadFile payload;
   EXPECT_TRUE(payload.Init(config));
   uint64_t metadata_size;
