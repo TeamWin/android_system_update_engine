@@ -131,13 +131,18 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
       // These operations were included in the original payload format.
       return true;
 
-    case InstallOperation::ZERO:
-    case InstallOperation::DISCARD:
     case InstallOperation::REPLACE_XZ:
       // These operations are included in the major version used in Brillo, but
       // can also be used with minor version 3 or newer.
       return major == kBrilloMajorPayloadVersion ||
              minor >= kOpSrcHashMinorPayloadVersion;
+
+    case InstallOperation::ZERO:
+    case InstallOperation::DISCARD:
+      // The implementation of these operations had a bug in earlier versions
+      // that prevents them from being used in any payload. We will enable
+      // them for delta payloads for now.
+      return minor >= kImgdiffMinorPayloadVersion;
 
     // Delta operations:
     case InstallOperation::MOVE:

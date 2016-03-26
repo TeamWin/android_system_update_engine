@@ -103,6 +103,16 @@ bool ChunkProcessor::ProcessChunk() {
                                         &bytes_read));
   TEST_AND_RETURN_FALSE(bytes_read == static_cast<ssize_t>(size_));
 
+  if (version_.OperationAllowed(InstallOperation::ZERO) &&
+      std::all_of(buffer_in_.begin(),
+                  buffer_in_.end(),
+                  [](uint8_t x) {return x == 0;})) {
+    // The read buffer is all zeros, so produce a ZERO operation. No need to
+    // check other types of operations in this case.
+    aop_->op.set_type(InstallOperation::ZERO);
+    return true;
+  }
+
   TEST_AND_RETURN_FALSE(BzipCompress(buffer_in_, &op_blob));
   InstallOperation_Type op_type = InstallOperation::REPLACE_BZ;
 
