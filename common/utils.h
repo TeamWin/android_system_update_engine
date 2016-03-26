@@ -178,6 +178,10 @@ std::string MakePartitionName(const std::string& disk_name,
 // /dev/sda3. Return empty string on error.
 std::string MakePartitionNameForMount(const std::string& part_name);
 
+// Set the read-only attribute on the block device |device| to the value passed
+// in |read_only|. Return whether the operation succeeded.
+bool SetBlockDeviceReadOnly(const std::string& device, bool read_only);
+
 // Synchronously mount or unmount a filesystem. Return true on success.
 // When mounting, it will attempt to mount the device as the passed filesystem
 // type |type|, with the passed |flags| options. If |type| is empty, "ext2",

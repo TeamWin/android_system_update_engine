@@ -641,6 +641,30 @@ bool MakeTempDirectory(const string& base_dirname_template,
   return true;
 }
 
+bool SetBlockDeviceReadOnly(const string& device, bool read_only) {
+  int fd = HANDLE_EINTR(open(device.c_str(), O_RDONLY | O_CLOEXEC));
+  if (fd < 0) {
+    PLOG(ERROR) << "Opening block device " << device;
+    return false;
+  }
+  ScopedFdCloser fd_closer(&fd);
+  // We take no action if not needed.
+  int read_only_flag;
+  int expected_flag = read_only ? 1 : 0;
+  int rc = ioctl(fd, BLKROGET, &read_only_flag);
+  // In case of failure reading the setting we will try to set it anyway.
+  if (rc == 0 && read_only_flag == expected_flag)
+    return true;
+
+  rc = ioctl(fd, BLKROSET, &expected_flag);
+  if (rc != 0) {
+    PLOG(ERROR) << "Marking block device " << device << " as read_only="
+                << expected_flag;
+    return false;
+  }
+  return true;
+}
+
 bool MountFilesystem(const string& device,
                      const string& mountpoint,
                      unsigned long mountflags,  // NOLINT(runtime/int)

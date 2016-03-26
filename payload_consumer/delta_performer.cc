@@ -109,6 +109,10 @@ FileDescriptorPtr CreateFileDescriptor(const char* path) {
 // Opens path for read/write. On success returns an open FileDescriptor
 // and sets *err to 0. On failure, sets *err to errno and returns nullptr.
 FileDescriptorPtr OpenFile(const char* path, int mode, int* err) {
+  // Try to mark the block device read-only based on the mode. Ignore any
+  // failure since this won't work when passing regular files.
+  utils::SetBlockDeviceReadOnly(path, (mode & O_ACCMODE) == O_RDONLY);
+
   FileDescriptorPtr fd = CreateFileDescriptor(path);
 #if USE_MTD
   // On NAND devices, we can either read, or write, but not both. So here we
