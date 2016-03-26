@@ -881,14 +881,12 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
               << (params.is_interactive ? "interactive" : "periodic")
               << " update.";
 
-    string app_version, omaha_url;
-    if (params.is_interactive) {
-      app_version = forced_app_version_;
-      omaha_url = forced_omaha_url_;
-    }
-
-    Update(app_version, omaha_url, params.target_channel,
+    Update(forced_app_version_, forced_omaha_url_, params.target_channel,
            params.target_version_prefix, false, params.is_interactive);
+    // Always clear the forced app_version and omaha_url after an update attempt
+    // so the next update uses the defaults.
+    forced_app_version_.clear();
+    forced_omaha_url_.clear();
   } else {
     LOG(WARNING)
         << "Update check scheduling failed (possibly timed out); retrying.";
