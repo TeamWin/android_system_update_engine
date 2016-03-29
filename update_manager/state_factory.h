@@ -23,6 +23,10 @@
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/state.h"
 
+namespace chromeos_update_engine {
+class LibCrosProxy;
+}
+
 namespace chromeos_update_manager {
 
 // Creates and initializes a new UpdateManager State instance containing real
@@ -34,6 +38,7 @@ State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
     chromeos_update_engine::ShillProxy* shill_proxy,
     org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy,
+    chromeos_update_engine::LibCrosProxy* libcros_proxy,
     chromeos_update_engine::SystemState* system_state);
 
 }  // namespace chromeos_update_manager

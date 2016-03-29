@@ -24,15 +24,21 @@
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/update_manager/system_provider.h"
 
+namespace chromeos_update_engine {
+class LibCrosProxy;
+}
+
 namespace chromeos_update_manager {
 
 // SystemProvider concrete implementation.
 class RealSystemProvider : public SystemProvider {
  public:
-  explicit RealSystemProvider(
-      chromeos_update_engine::HardwareInterface* hardware,
-      chromeos_update_engine::BootControlInterface* boot_control)
-      : hardware_(hardware), boot_control_(boot_control) {}
+  RealSystemProvider(chromeos_update_engine::HardwareInterface* hardware,
+                     chromeos_update_engine::BootControlInterface* boot_control,
+                     chromeos_update_engine::LibCrosProxy* libcros_proxy)
+      : hardware_(hardware),
+        boot_control_(boot_control),
+        libcros_proxy_(libcros_proxy) {}
 
   // Initializes the provider and returns whether it succeeded.
   bool Init();
@@ -53,14 +59,22 @@ class RealSystemProvider : public SystemProvider {
     return var_num_slots_.get();
   }
 
+  Variable<std::string>* var_kiosk_required_platform_version() override {
+    return var_kiosk_required_platform_version_.get();
+  }
+
  private:
+  std::string GetKioskAppRequiredPlatformVersion();
+
   std::unique_ptr<Variable<bool>> var_is_normal_boot_mode_;
   std::unique_ptr<Variable<bool>> var_is_official_build_;
   std::unique_ptr<Variable<bool>> var_is_oobe_complete_;
   std::unique_ptr<Variable<unsigned int>> var_num_slots_;
+  std::unique_ptr<Variable<std::string>> var_kiosk_required_platform_version_;
 
-  chromeos_update_engine::HardwareInterface* hardware_;
-  chromeos_update_engine::BootControlInterface* boot_control_;
+  chromeos_update_engine::HardwareInterface* const hardware_;
+  chromeos_update_engine::BootControlInterface* const boot_control_;
+  chromeos_update_engine::LibCrosProxy* const libcros_proxy_;
 
   DISALLOW_COPY_AND_ASSIGN(RealSystemProvider);
 };

@@ -143,7 +143,8 @@ bool RealSystemState::Initialize() {
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(
-          &policy_provider_, &shill_proxy_, &session_manager_proxy_, this);
+          &policy_provider_, &shill_proxy_, &session_manager_proxy_,
+          &libcros_proxy_, this);
   if (!um_state) {
     LOG(ERROR) << "Failed to initialize the Update Manager.";
     return false;
