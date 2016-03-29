@@ -42,6 +42,10 @@ class SystemProvider : public Provider {
   // Returns a variable that tells the number of slots in the system.
   virtual Variable<unsigned int>* var_num_slots() = 0;
 
+  // Returns the required platform version of the configured auto launch
+  // with zero delay kiosk app if any.
+  virtual Variable<std::string>* var_kiosk_required_platform_version() = 0;
+
  protected:
   SystemProvider() {}
 

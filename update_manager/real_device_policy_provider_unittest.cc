@@ -158,6 +158,8 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_owner());
   UmTestUtils::ExpectVariableNotSet(provider_->var_http_downloads_enabled());
   UmTestUtils::ExpectVariableNotSet(provider_->var_au_p2p_enabled());
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_allow_kiosk_app_control_chrome_version());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
@@ -173,6 +175,8 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
       .WillOnce(DoAll(SetArgPointee<0>(string("mychannel")), Return(true)));
   EXPECT_CALL(mock_device_policy_, GetAllowedConnectionTypesForUpdate(_))
       .WillOnce(Return(false));
+  EXPECT_CALL(mock_device_policy_, GetAllowKioskAppControlChromeVersion(_))
+      .WillOnce(DoAll(SetArgPointee<0>(true), Return(true)));
 
   provider_->RefreshDevicePolicy();
 
@@ -184,6 +188,8 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
                                       provider_->var_release_channel());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_allowed_connection_types_for_update());
+  UmTestUtils::ExpectVariableHasValue(
+      true, provider_->var_allow_kiosk_app_control_chrome_version());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {

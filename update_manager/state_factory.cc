@@ -21,6 +21,7 @@
 #include <base/logging.h>
 
 #include "update_engine/common/clock_interface.h"
+#include "update_engine/libcros_proxy.h"
 #include "update_engine/update_manager/real_config_provider.h"
 #include "update_engine/update_manager/real_device_policy_provider.h"
 #include "update_engine/update_manager/real_random_provider.h"
@@ -38,6 +39,7 @@ State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
     chromeos_update_engine::ShillProxy* shill_proxy,
     org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy,
+    chromeos_update_engine::LibCrosProxy* libcros_proxy,
     chromeos_update_engine::SystemState* system_state) {
   chromeos_update_engine::ClockInterface* const clock = system_state->clock();
   unique_ptr<RealConfigProvider> config_provider(
@@ -49,7 +51,8 @@ State* DefaultStateFactory(
       new RealShillProvider(shill_proxy, clock));
   unique_ptr<RealSystemProvider> system_provider(
       new RealSystemProvider(system_state->hardware(),
-                             system_state->boot_control()));
+                             system_state->boot_control(),
+                             libcros_proxy));
   unique_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
   unique_ptr<RealUpdaterProvider> updater_provider(
       new RealUpdaterProvider(system_state));

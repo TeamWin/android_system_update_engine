@@ -63,6 +63,8 @@ class DevicePolicyProvider : public Provider {
 
   virtual Variable<bool>* var_au_p2p_enabled() = 0;
 
+  virtual Variable<bool>* var_allow_kiosk_app_control_chrome_version() = 0;
+
  protected:
   DevicePolicyProvider() {}
 
