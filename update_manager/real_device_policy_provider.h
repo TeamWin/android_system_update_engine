@@ -84,6 +84,10 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_au_p2p_enabled_;
   }
 
+  Variable<bool>* var_allow_kiosk_app_control_chrome_version() override {
+    return &var_allow_kiosk_app_control_chrome_version_;
+  }
+
  private:
   FRIEND_TEST(UmRealDevicePolicyProviderTest, RefreshScheduledTest);
   FRIEND_TEST(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded);
@@ -157,6 +161,8 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<std::string> var_owner_{"owner"};
   AsyncCopyVariable<bool> var_http_downloads_enabled_{"http_downloads_enabled"};
   AsyncCopyVariable<bool> var_au_p2p_enabled_{"au_p2p_enabled"};
+  AsyncCopyVariable<bool> var_allow_kiosk_app_control_chrome_version_{
+      "allow_kiosk_app_control_chrome_version"};
 
   DISALLOW_COPY_AND_ASSIGN(RealDevicePolicyProvider);
 };

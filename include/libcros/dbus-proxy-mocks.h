@@ -37,6 +37,14 @@ class LibCrosServiceInterfaceProxyMock : public LibCrosServiceInterfaceProxyInte
                     const base::Callback<void()>& /*success_callback*/,
                     const base::Callback<void(brillo::Error*)>& /*error_callback*/,
                     int /*timeout_ms*/));
+  MOCK_METHOD3(GetKioskAppRequiredPlatformVersion,
+               bool(std::string* /*out_required_platform_version*/,
+                    brillo::ErrorPtr* /*error*/,
+                    int /*timeout_ms*/));
+  MOCK_METHOD3(GetKioskAppRequiredPlatformVersionAsync,
+               void(const base::Callback<void(const std::string& /*required_platform_version*/)>& /*success_callback*/,
+                    const base::Callback<void(brillo::Error*)>& /*error_callback*/,
+                    int /*timeout_ms*/));
   MOCK_CONST_METHOD0(GetObjectPath, const dbus::ObjectPath&());
 
  private:
