@@ -125,6 +125,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kOmahaResponseInvalid:
     case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
     case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+    case ErrorCode::kNonCriticalUpdateInOOBE:
     case ErrorCode::kOmahaUpdateDeferredForBackoff:
     case ErrorCode::kPostinstallPowerwashError:
     case ErrorCode::kUpdateCanceledByChannelChange:
