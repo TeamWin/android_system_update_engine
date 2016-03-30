@@ -64,15 +64,26 @@ class Subprocess {
   void Init(brillo::AsynchronousSignalHandlerInterface* async_signal_handler);
 
   // Launches a process in the background and calls the passed |callback| when
-  // the process exits.
+  // the process exits. The file descriptors specified in |output_pipes| will
+  // be available in the child as the writer end of a pipe. Use GetPipeFd() to
+  // know the reader end in the parent. Only stdin, stdout, stderr and the file
+  // descriptors in |output_pipes| will be open in the child.
   // Returns the process id of the new launched process or 0 in case of failure.
   pid_t Exec(const std::vector<std::string>& cmd, const ExecCallback& callback);
   pid_t ExecFlags(const std::vector<std::string>& cmd,
                   uint32_t flags,
+                  const std::vector<int>& output_pipes,
                   const ExecCallback& callback);
 
   // Kills the running process with SIGTERM and ignores the callback.
-  void KillExec(pid_t tag);
+  void KillExec(pid_t pid);
+
+  // Return the parent end of the pipe mapped onto |fd| in the child |pid|. This
+  // file descriptor is available until the callback for the child |pid|
+  // returns. After that the file descriptor will be closed. The passed |fd|
+  // must be one of the file descriptors passed to ExecFlags() in
+  // |output_pipes|, otherwise returns -1.
+  int GetPipeFd(pid_t pid, int fd) const;
 
   // Executes a command synchronously. Returns true on success. If |stdout| is
   // non-null, the process output is stored in it, otherwise the output is

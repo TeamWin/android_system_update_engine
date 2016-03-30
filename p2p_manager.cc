@@ -396,7 +396,7 @@ class LookupData {
 
     // We expect to run just "p2p-client" and find it in the path.
     child_pid_ = Subprocess::Get().ExecFlags(
-        cmd, Subprocess::kSearchPath,
+        cmd, Subprocess::kSearchPath, {},
         Bind(&LookupData::OnLookupDone, base::Unretained(this)));
 
     if (!child_pid_) {
