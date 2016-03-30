@@ -99,7 +99,10 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kDownloadInvalidMetadataSignature:
     case ErrorCode::kOmahaResponseInvalid:
     case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
+    // TODO(deymo): The next two items belong in their own category; they
+    // should not be counted as internal errors. b/27112092
     case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+    case ErrorCode::kNonCriticalUpdateInOOBE:
     case ErrorCode::kOmahaErrorInHTTPResponse:
     case ErrorCode::kDownloadMetadataSignatureMissingError:
     case ErrorCode::kOmahaUpdateDeferredForBackoff:
@@ -193,6 +196,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kOmahaResponseInvalid:
     case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
     case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+    case ErrorCode::kNonCriticalUpdateInOOBE:
     case ErrorCode::kOmahaErrorInHTTPResponse:
     case ErrorCode::kDownloadOperationHashMissingError:
     case ErrorCode::kDownloadMetadataSignatureMissingError:
