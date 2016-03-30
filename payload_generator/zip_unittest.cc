@@ -72,10 +72,11 @@ bool DecompressWithWriter(const brillo::Blob& in, brillo::Blob* out) {
   std::unique_ptr<ExtentWriter> writer(
       new W(brillo::make_unique_ptr(new MemoryExtentWriter(out))));
   // Init() parameters are ignored by the testing MemoryExtentWriter.
-  TEST_AND_RETURN_FALSE(writer->Init(nullptr, {}, 1));
-  TEST_AND_RETURN_FALSE(writer->Write(in.data(), in.size()));
-  TEST_AND_RETURN_FALSE(writer->End());
-  return true;
+  bool ok = writer->Init(nullptr, {}, 1);
+  ok = writer->Write(in.data(), in.size()) && ok;
+  // Call End() even if the Write failed.
+  ok = writer->End() && ok;
+  return ok;
 }
 
 }  // namespace
