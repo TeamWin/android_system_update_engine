@@ -756,6 +756,16 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
 LOCAL_PREBUILT_MODULE_FILE := $(TARGET_OUT_COMMON_GEN)/zlib_fingerprint
 include $(BUILD_PREBUILT)
 
+# update_engine.conf
+# ========================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := ue_unittest_update_engine.conf
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
+LOCAL_MODULE_STEM := update_engine.conf
+LOCAL_SRC_FILES := update_engine.conf
+include $(BUILD_PREBUILT)
+
 # test_http_server (type: executable)
 # ========================================================
 # Test HTTP Server.
@@ -795,6 +805,7 @@ LOCAL_REQUIRED_MODULES := \
     ue_unittest_key.pub.pem \
     ue_unittest_key2.pem \
     ue_unittest_key2.pub.pem \
+    ue_unittest_update_engine.conf \
     zlib_fingerprint
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
