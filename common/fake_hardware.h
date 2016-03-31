@@ -37,7 +37,8 @@ class FakeHardware : public HardwareInterface {
   FakeHardware()
       : is_official_build_(true),
         is_normal_boot_mode_(true),
-        is_oobe_complete_(false),
+        is_oobe_complete_(true),
+        oobe_timestamp_(base::Time::FromTimeT(1169280000)), // Jan 20, 2007
         hardware_class_("Fake HWID BLAH-1234"),
         firmware_version_("Fake Firmware v1.0.1"),
         ec_version_("Fake EC v1.0a"),

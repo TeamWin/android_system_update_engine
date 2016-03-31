@@ -340,6 +340,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kOmahaResponseInvalid:
     case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
     case ErrorCode::kOmahaUpdateDeferredPerPolicy:
+    case ErrorCode::kNonCriticalUpdateInOOBE:
     case ErrorCode::kOmahaUpdateDeferredForBackoff:
     case ErrorCode::kPostinstallPowerwashError:
     case ErrorCode::kUpdateCanceledByChannelChange:
