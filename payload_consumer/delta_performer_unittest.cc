@@ -892,7 +892,7 @@ TEST_F(DeltaPerformerTest, ConfVersionsMatch) {
   // image match the supported delta versions in the update engine.
   uint32_t minor_version;
   brillo::KeyValueStore store;
-  EXPECT_TRUE(store.Load(base::FilePath("update_engine.conf")));
+  EXPECT_TRUE(store.Load(GetBuildArtifactsPath().Append("update_engine.conf")));
   EXPECT_TRUE(utils::GetMinorVersion(store, &minor_version));
   EXPECT_EQ(DeltaPerformer::kSupportedMinorPayloadVersion, minor_version);
 
