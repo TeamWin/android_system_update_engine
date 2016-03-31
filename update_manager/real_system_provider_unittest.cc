@@ -81,6 +81,7 @@ TEST_F(UmRealSystemProviderTest, IsOOBECompleteFalse) {
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_is_oobe_complete());
 }
 
+#if USE_LIBCROS
 TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
   const std::string kRequiredPlatformVersion("1234.0.0");
   EXPECT_CALL(*service_interface_mock_,
@@ -101,5 +102,6 @@ TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersionFailure) {
   UmTestUtils::ExpectVariableHasValue(
       std::string(), provider_->var_kiosk_required_platform_version());
 }
+#endif
 
 }  // namespace chromeos_update_manager
