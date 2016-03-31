@@ -142,6 +142,8 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kFilesystemVerifierError";
     case ErrorCode::kUserCanceled:
       return "ErrorCode::kUserCanceled";
+    case ErrorCode::kNonCriticalUpdateInOOBE:
+      return "ErrorCode::kNonCriticalUpdateInOOBE";
     // Don't add a default case to let the compiler warn about newly added
     // error codes which should be added here.
   }

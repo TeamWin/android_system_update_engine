@@ -1024,6 +1024,14 @@ void OmahaRequestAction::CompleteProcessing() {
   OmahaResponse& output_object = const_cast<OmahaResponse&>(GetOutputObject());
   PayloadStateInterface* payload_state = system_state_->payload_state();
 
+  if (!system_state_->hardware()->IsOOBEComplete(nullptr) &&
+      output_object.deadline.empty()) {
+    output_object.update_exists = false;
+    LOG(INFO) << "Ignoring non-critical Omaha updates until OOBE is done.";
+    completer.set_code(ErrorCode::kNonCriticalUpdateInOOBE);
+    return;
+  }
+
   if (ShouldDeferDownload(&output_object)) {
     output_object.update_exists = false;
     LOG(INFO) << "Ignoring Omaha updates as updates are deferred by policy.";

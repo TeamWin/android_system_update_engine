@@ -516,6 +516,40 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
   EXPECT_FALSE(response.update_exists);
 }
 
+// Verify that update checks called during OOBE will only try to download
+// an update if the response includes a non-empty deadline field.
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
+  OmahaResponse response;
+
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  ASSERT_FALSE(
+      TestUpdateCheck(nullptr,  // request_params
+                      fake_update_response_.GetUpdateResponse(),
+                      -1,
+                      false,  // ping_only
+                      ErrorCode::kNonCriticalUpdateInOOBE,
+                      metrics::CheckResult::kUnset,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
+                      &response,
+                      nullptr));
+  EXPECT_FALSE(response.update_exists);
+
+  fake_update_response_.deadline = "20101020";
+  ASSERT_TRUE(
+      TestUpdateCheck(nullptr,  // request_params
+                      fake_update_response_.GetUpdateResponse(),
+                      -1,
+                      false,  // ping_only
+                      ErrorCode::kSuccess,
+                      metrics::CheckResult::kUpdateAvailable,
+                      metrics::CheckReaction::kUpdating,
+                      metrics::DownloadErrorCode::kUnset,
+                      &response,
+                      nullptr));
+  EXPECT_TRUE(response.update_exists);
+}
+
 TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   OmahaResponse response;
   OmahaRequestParams params = request_params_;
@@ -2086,6 +2120,13 @@ bool OmahaRequestActionTest::InstallDateParseHelper(const string &elapsed_days,
 TEST_F(OmahaRequestActionTest, ParseInstallDateFromResponse) {
   OmahaResponse response;
 
+  // Simulate a successful update check that happens during OOBE.  The
+  // deadline in the response is needed to force the update attempt to
+  // occur; responses without a deadline seen during OOBE will normally
+  // return ErrorCode::kNonCriticalUpdateInOOBE.
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
+  fake_update_response_.deadline = "20101020";
+
   // Check that we parse elapsed_days in the Omaha Response correctly.
   // and that the kPrefsInstallDateDays value is written to.
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsInstallDateDays));
@@ -2123,6 +2164,7 @@ TEST_F(OmahaRequestActionTest, ParseInstallDateFromResponse) {
 // If there is no prefs and OOBE is not complete, we should not
 // report anything to Omaha.
 TEST_F(OmahaRequestActionTest, GetInstallDateWhenNoPrefsNorOOBE) {
+  fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
   EXPECT_EQ(OmahaRequestAction::GetInstallDate(&fake_system_state_), -1);
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsInstallDateDays));
 }
