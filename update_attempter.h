@@ -39,6 +39,7 @@
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/payload_consumer/download_action.h"
+#include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/proxy_resolver.h"
 #include "update_engine/service_observer_interface.h"
 #include "update_engine/system_state.h"
@@ -59,7 +60,8 @@ class UpdateEngineAdaptor;
 class UpdateAttempter : public ActionProcessorDelegate,
                         public DownloadActionDelegate,
                         public CertificateChecker::Observer,
-                        public WeaveServiceInterface::DelegateInterface {
+                        public WeaveServiceInterface::DelegateInterface,
+                        public PostinstallRunnerAction::DelegateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
   static const int kMaxDeltaUpdateFailures;
@@ -107,6 +109,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
                      UpdateStatus* update_status,
                      std::string* current_channel,
                      std::string* tracking_channel) override;
+
+  // PostinstallRunnerAction::DelegateInterface
+  void ProgressUpdate(double progress) override;
 
   // Resets the current state to UPDATE_STATUS_IDLE.
   // Used by update_engine_client for restarting a new update without

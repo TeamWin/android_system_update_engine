@@ -189,6 +189,35 @@ bool WriteFile(const char* path, const void* data, int data_len) {
   return true;
 }
 
+bool ReadAll(
+    int fd, void* buf, size_t count, size_t* out_bytes_read, bool* eof) {
+  char* c_buf = static_cast<char*>(buf);
+  size_t bytes_read = 0;
+  *eof = false;
+  while (bytes_read < count) {
+    ssize_t rc = HANDLE_EINTR(read(fd, c_buf + bytes_read, count - bytes_read));
+    if (rc < 0) {
+      // EAGAIN and EWOULDBLOCK are normal return values when there's no more
+      // input and we are in non-blocking mode.
+      if (errno != EWOULDBLOCK && errno != EAGAIN) {
+        PLOG(ERROR) << "Error reading fd " << fd;
+        *out_bytes_read = bytes_read;
+        return false;
+      }
+      break;
+    } else if (rc == 0) {
+      // A value of 0 means that we reached EOF and there is nothing else to
+      // read from this fd.
+      *eof = true;
+      break;
+    } else {
+      bytes_read += rc;
+    }
+  }
+  *out_bytes_read = bytes_read;
+  return true;
+}
+
 bool WriteAll(int fd, const void* buf, size_t count) {
   const char* c_buf = static_cast<const char*>(buf);
   ssize_t bytes_written = 0;

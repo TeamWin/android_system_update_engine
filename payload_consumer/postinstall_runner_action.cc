@@ -16,15 +16,17 @@
 
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 
+#include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/mount.h>
 #include <sys/types.h>
-#include <vector>
+#include <unistd.h>
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
+#include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 
 #include "update_engine/common/action_processor.h"
@@ -33,8 +35,19 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 
+namespace {
+
+// The file descriptor number from the postinstall program's perspective where
+// it can report status updates. This can be any number greater than 2 (stderr),
+// but must be kept in sync with the "bin/postinst_progress" defined in the
+// sample_images.sh file.
+const int kPostinstallStatusFd = 3;
+
+}  // namespace
+
 namespace chromeos_update_engine {
 
+using brillo::MessageLoop;
 using std::string;
 using std::vector;
 
@@ -49,6 +62,19 @@ void PostinstallRunnerAction::PerformAction() {
       return CompletePostinstall(ErrorCode::kPostinstallPowerwashError);
     }
   }
+
+  // Initialize all the partition weights.
+  partition_weight_.resize(install_plan_.partitions.size());
+  total_weight_ = 0;
+  for (size_t i = 0; i < install_plan_.partitions.size(); ++i) {
+    // TODO(deymo): This code sets the weight to all the postinstall commands,
+    // but we could remember how long they took in the past and use those
+    // values.
+    partition_weight_[i] = install_plan_.partitions[i].run_postinstall;
+    total_weight_ += partition_weight_[i];
+  }
+  accumulated_weight_ = 0;
+  ReportProgress(0);
 
   PerformPartitionPostinstall();
 }
@@ -127,19 +153,104 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
 
   // Runs the postinstall script asynchronously to free up the main loop while
   // it's running.
-  vector<string> command = {abs_path, partition.target_path};
-  current_command_ = Subprocess::Get().Exec(
+  vector<string> command = {abs_path};
+#ifdef __ANDROID__
+  // In Brillo and Android, we pass the slot number and status fd.
+  command.push_back(std::to_string(install_plan_.target_slot));
+  command.push_back(std::to_string(kPostinstallStatusFd));
+#else
+  // Chrome OS postinstall expects the target rootfs as the first parameter.
+  command.push_back(partition.target_path);
+#endif  // __ANDROID__
+
+  current_command_ = Subprocess::Get().ExecFlags(
       command,
+      Subprocess::kRedirectStderrToStdout,
+      {kPostinstallStatusFd},
       base::Bind(&PostinstallRunnerAction::CompletePartitionPostinstall,
                  base::Unretained(this)));
   // Subprocess::Exec should never return a negative process id.
   CHECK_GE(current_command_, 0);
 
-  if (!current_command_)
+  if (!current_command_) {
     CompletePartitionPostinstall(1, "Postinstall didn't launch");
+    return;
+  }
+
+  // Monitor the status file descriptor.
+  progress_fd_ =
+      Subprocess::Get().GetPipeFd(current_command_, kPostinstallStatusFd);
+  int fd_flags = fcntl(progress_fd_, F_GETFL, 0) | O_NONBLOCK;
+  if (HANDLE_EINTR(fcntl(progress_fd_, F_SETFL, fd_flags)) < 0) {
+    PLOG(ERROR) << "Unable to set non-blocking I/O mode on fd " << progress_fd_;
+  }
+
+  progress_task_ = MessageLoop::current()->WatchFileDescriptor(
+      FROM_HERE,
+      progress_fd_,
+      MessageLoop::WatchMode::kWatchRead,
+      true,
+      base::Bind(&PostinstallRunnerAction::OnProgressFdReady,
+                 base::Unretained(this)));
 }
 
-void PostinstallRunnerAction::CleanupMount() {
+void PostinstallRunnerAction::OnProgressFdReady() {
+  char buf[1024];
+  size_t bytes_read;
+  do {
+    bytes_read = 0;
+    bool eof;
+    bool ok =
+        utils::ReadAll(progress_fd_, buf, arraysize(buf), &bytes_read, &eof);
+    progress_buffer_.append(buf, bytes_read);
+    // Process every line.
+    vector<string> lines = base::SplitString(
+        progress_buffer_, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+    if (!lines.empty()) {
+      progress_buffer_ = lines.back();
+      lines.pop_back();
+      for (const auto& line : lines) {
+        ProcessProgressLine(line);
+      }
+    }
+    if (!ok || eof) {
+      // There was either an error or an EOF condition, so we are done watching
+      // the file descriptor.
+      MessageLoop::current()->CancelTask(progress_task_);
+      progress_task_ = MessageLoop::kTaskIdNull;
+      return;
+    }
+  } while (bytes_read);
+}
+
+bool PostinstallRunnerAction::ProcessProgressLine(const string& line) {
+  double frac = 0;
+  if (sscanf(line.c_str(), "global_progress %lf", &frac) == 1) {
+    ReportProgress(frac);
+    return true;
+  }
+
+  return false;
+}
+
+void PostinstallRunnerAction::ReportProgress(double frac) {
+  if (!delegate_)
+    return;
+  if (current_partition_ >= partition_weight_.size()) {
+    delegate_->ProgressUpdate(1.);
+    return;
+  }
+  if (!isfinite(frac) || frac < 0)
+    frac = 0;
+  if (frac > 1)
+    frac = 1;
+  double postinst_action_progress =
+      (accumulated_weight_ + partition_weight_[current_partition_] * frac) /
+      total_weight_;
+  delegate_->ProgressUpdate(postinst_action_progress);
+}
+
+void PostinstallRunnerAction::Cleanup() {
   utils::UnmountFilesystem(fs_mount_dir_);
 #ifndef __ANDROID__
   if (!base::DeleteFile(base::FilePath(fs_mount_dir_), false)) {
@@ -147,12 +258,19 @@ void PostinstallRunnerAction::CleanupMount() {
   }
 #endif  // !__ANDROID__
   fs_mount_dir_.clear();
+
+  progress_fd_ = -1;
+  if (progress_task_ != MessageLoop::kTaskIdNull) {
+    MessageLoop::current()->CancelTask(progress_task_);
+    progress_task_ = MessageLoop::kTaskIdNull;
+  }
+  progress_buffer_.clear();
 }
 
 void PostinstallRunnerAction::CompletePartitionPostinstall(
     int return_code, const string& output) {
   current_command_ = 0;
-  CleanupMount();
+  Cleanup();
 
   if (return_code != 0) {
     LOG(ERROR) << "Postinst command failed with code: " << return_code;
@@ -173,7 +291,10 @@ void PostinstallRunnerAction::CompletePartitionPostinstall(
     }
     return CompletePostinstall(error_code);
   }
+  accumulated_weight_ += partition_weight_[current_partition_];
   current_partition_++;
+  ReportProgress(0);
+
   PerformPartitionPostinstall();
 }
 
@@ -227,7 +348,7 @@ void PostinstallRunnerAction::TerminateProcessing() {
   // the unretained reference to this object.
   Subprocess::Get().KillExec(current_command_);
   current_command_ = 0;
-  CleanupMount();
+  Cleanup();
 }
 
 }  // namespace chromeos_update_engine

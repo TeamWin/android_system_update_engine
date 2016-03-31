@@ -88,6 +88,10 @@ const int UpdateAttempter::kMaxDeltaUpdateFailures = 3;
 namespace {
 const int kMaxConsecutiveObeyProxyRequests = 20;
 
+// Minimum threshold to broadcast an status update in progress and time.
+const double kBroadcastThresholdProgress = 0.01;  // 1%
+const int kBroadcastThresholdSeconds = 10;
+
 // By default autest bypasses scattering. If we want to test scattering,
 // use kScheduledAUTestURLRequest. The URL used is same in both cases, but
 // different params are passed to CheckForUpdate().
@@ -582,6 +586,7 @@ void UpdateAttempter::BuildPostInstallActions(
     InstallPlanAction* previous_action) {
   shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
       new PostinstallRunnerAction(system_state_->boot_control()));
+  postinstall_runner_action->set_delegate(this);
   actions_.push_back(shared_ptr<AbstractAction>(postinstall_runner_action));
   BondActions(previous_action,
               postinstall_runner_action.get());
@@ -1071,17 +1076,14 @@ void UpdateAttempter::BytesReceived(uint64_t bytes_progressed,
   // from a given URL for the URL skipping logic.
   system_state_->payload_state()->DownloadProgress(bytes_progressed);
 
-  double progress = static_cast<double>(bytes_received) /
-      static_cast<double>(total);
-  // Self throttle based on progress. Also send notifications if
-  // progress is too slow.
-  const double kDeltaPercent = 0.01;  // 1%
-  if (status_ != UpdateStatus::DOWNLOADING ||
-      bytes_received == total ||
-      progress - download_progress_ >= kDeltaPercent ||
-      TimeTicks::Now() - last_notify_time_ >= TimeDelta::FromSeconds(10)) {
+  double progress = 0;
+  if (total)
+    progress = static_cast<double>(bytes_received) / static_cast<double>(total);
+  if (status_ != UpdateStatus::DOWNLOADING || bytes_received == total) {
     download_progress_ = progress;
     SetStatusAndNotify(UpdateStatus::DOWNLOADING);
+  } else {
+    ProgressUpdate(progress);
   }
 }
 
@@ -1125,6 +1127,18 @@ bool UpdateAttempter::GetWeaveState(int64_t* last_checked_time,
   *current_channel = rp->current_channel();
   *tracking_channel = rp->target_channel();
   return true;
+}
+
+void UpdateAttempter::ProgressUpdate(double progress) {
+  // Self throttle based on progress. Also send notifications if progress is
+  // too slow.
+  if (progress == 1.0 ||
+      progress - download_progress_ >= kBroadcastThresholdProgress ||
+      TimeTicks::Now() - last_notify_time_ >=
+          TimeDelta::FromSeconds(kBroadcastThresholdSeconds)) {
+    download_progress_ = progress;
+    BroadcastStatus();
+  }
 }
 
 bool UpdateAttempter::ResetStatus() {

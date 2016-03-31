@@ -32,6 +32,7 @@
 #include <brillo/bind_lambda.h>
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
@@ -72,6 +73,12 @@ class PostinstActionProcessorDelegate : public ActionProcessorDelegate {
   bool code_set_{false};
   bool processing_done_called_{false};
   bool processing_stopped_called_{false};
+};
+
+class MockPostinstallRunnerActionDelegate
+    : public PostinstallRunnerAction::DelegateInterface {
+ public:
+  MOCK_METHOD1(ProgressUpdate, void(double progress));
 };
 
 class PostinstallRunnerActionTest : public ::testing::Test {
@@ -161,7 +168,10 @@ class PostinstallRunnerActionTest : public ::testing::Test {
   string postinstall_image_;
 
   FakeBootControl fake_boot_control_;
-  PostinstActionProcessorDelegate delegate_;
+  PostinstActionProcessorDelegate processor_delegate_;
+
+  // The PostinstallRunnerAction delegate receiving the progress updates.
+  PostinstallRunnerAction::DelegateInterface* setup_action_delegate_{nullptr};
 
   // A pointer to the posinstall_runner action and the processor.
   PostinstallRunnerAction* postinstall_action_{nullptr};
@@ -188,13 +198,14 @@ void PostinstallRunnerActionTest::RunPosinstallAction(
   PostinstallRunnerAction runner_action(&fake_boot_control_,
                                         powerwash_marker_file_.c_str());
   postinstall_action_ = &runner_action;
+  runner_action.set_delegate(setup_action_delegate_);
   BondActions(&feeder_action, &runner_action);
   ObjectCollectorAction<InstallPlan> collector_action;
   BondActions(&runner_action, &collector_action);
   processor.EnqueueAction(&feeder_action);
   processor.EnqueueAction(&runner_action);
   processor.EnqueueAction(&collector_action);
-  processor.set_delegate(&delegate_);
+  processor.set_delegate(&processor_delegate_);
 
   loop_.PostTask(FROM_HERE,
                  base::Bind([&processor] { processor.StartProcessing(); }));
@@ -202,12 +213,34 @@ void PostinstallRunnerActionTest::RunPosinstallAction(
   ASSERT_FALSE(processor.IsRunning());
   postinstall_action_ = nullptr;
   processor_ = nullptr;
-  EXPECT_TRUE(delegate_.processing_stopped_called_ ||
-              delegate_.processing_done_called_);
-  if (delegate_.processing_done_called_) {
+  EXPECT_TRUE(processor_delegate_.processing_stopped_called_ ||
+              processor_delegate_.processing_done_called_);
+  if (processor_delegate_.processing_done_called_) {
     // Sanity check that the code was set when the processor finishes.
-    EXPECT_TRUE(delegate_.code_set_);
+    EXPECT_TRUE(processor_delegate_.code_set_);
   }
+}
+
+TEST_F(PostinstallRunnerActionTest, ProcessProgressLineTest) {
+  PostinstallRunnerAction action(&fake_boot_control_,
+                                 powerwash_marker_file_.c_str());
+  testing::StrictMock<MockPostinstallRunnerActionDelegate> mock_delegate_;
+  action.set_delegate(&mock_delegate_);
+
+  action.current_partition_ = 1;
+  action.partition_weight_ = {1, 2, 5};
+  action.accumulated_weight_ = 1;
+  action.total_weight_ = 8;
+
+  // 50% of the second actions is 2/8 = 0.25 of the total.
+  EXPECT_CALL(mock_delegate_, ProgressUpdate(0.25));
+  action.ProcessProgressLine("global_progress 0.5");
+  testing::Mock::VerifyAndClearExpectations(&mock_delegate_);
+
+  // None of these should trigger a progress update.
+  action.ProcessProgressLine("foo_bar");
+  action.ProcessProgressLine("global_progress");
+  action.ProcessProgressLine("global_progress ");
 }
 
 // Test that postinstall succeeds in the simple case of running the default
@@ -215,8 +248,8 @@ void PostinstallRunnerActionTest::RunPosinstallAction(
 TEST_F(PostinstallRunnerActionTest, RunAsRootSimpleTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   RunPosinstallAction(loop.dev(), kPostinstallDefaultScript, false);
-  EXPECT_EQ(ErrorCode::kSuccess, delegate_.code_);
-  EXPECT_TRUE(delegate_.processing_done_called_);
+  EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
+  EXPECT_TRUE(processor_delegate_.processing_done_called_);
 
   // Since powerwash_required was false, this should not trigger a powerwash.
   EXPECT_FALSE(utils::FileExists(powerwash_marker_file_.c_str()));
@@ -225,14 +258,14 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootSimpleTest) {
 TEST_F(PostinstallRunnerActionTest, RunAsRootRunSymlinkFileTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   RunPosinstallAction(loop.dev(), "bin/postinst_link", false);
-  EXPECT_EQ(ErrorCode::kSuccess, delegate_.code_);
+  EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootPowerwashRequiredTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   // Run a simple postinstall program but requiring a powerwash.
   RunPosinstallAction(loop.dev(), "bin/postinst_example", true);
-  EXPECT_EQ(ErrorCode::kSuccess, delegate_.code_);
+  EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 
   // Check that the powerwash marker file was set.
   string actual_cmd;
@@ -245,7 +278,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootPowerwashRequiredTest) {
 // fail.
 TEST_F(PostinstallRunnerActionTest, RunAsRootCantMountTest) {
   RunPosinstallAction("/dev/null", kPostinstallDefaultScript, false);
-  EXPECT_EQ(ErrorCode::kPostinstallRunnerError, delegate_.code_);
+  EXPECT_EQ(ErrorCode::kPostinstallRunnerError, processor_delegate_.code_);
 
   // In case of failure, Postinstall should not signal a powerwash even if it
   // was requested.
@@ -257,7 +290,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootCantMountTest) {
 TEST_F(PostinstallRunnerActionTest, RunAsRootErrScriptTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   RunPosinstallAction(loop.dev(), "bin/postinst_fail1", false);
-  EXPECT_EQ(ErrorCode::kPostinstallRunnerError, delegate_.code_);
+  EXPECT_EQ(ErrorCode::kPostinstallRunnerError, processor_delegate_.code_);
 }
 
 // The exit code 3 and 4 are a specials cases that would be reported back to
@@ -265,14 +298,15 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootErrScriptTest) {
 TEST_F(PostinstallRunnerActionTest, RunAsRootFirmwareBErrScriptTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   RunPosinstallAction(loop.dev(), "bin/postinst_fail3", false);
-  EXPECT_EQ(ErrorCode::kPostinstallBootedFromFirmwareB, delegate_.code_);
+  EXPECT_EQ(ErrorCode::kPostinstallBootedFromFirmwareB,
+            processor_delegate_.code_);
 }
 
 // Check that you can't specify an absolute path.
 TEST_F(PostinstallRunnerActionTest, RunAsRootAbsolutePathNotAllowedTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   RunPosinstallAction(loop.dev(), "/etc/../bin/sh", false);
-  EXPECT_EQ(ErrorCode::kPostinstallRunnerError, delegate_.code_);
+  EXPECT_EQ(ErrorCode::kPostinstallRunnerError, processor_delegate_.code_);
 }
 
 #ifdef __ANDROID__
@@ -281,7 +315,7 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootAbsolutePathNotAllowedTest) {
 TEST_F(PostinstallRunnerActionTest, RunAsRootCheckFileContextsTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   RunPosinstallAction(loop.dev(), "bin/self_check_context", false);
-  EXPECT_EQ(ErrorCode::kSuccess, delegate_.code_);
+  EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 }
 #endif  // __ANDROID__
 
@@ -295,8 +329,8 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootSuspendResumeActionTest) {
                             base::Unretained(this)));
   RunPosinstallAction(loop.dev(), "bin/postinst_suspend", false);
   // postinst_suspend returns 0 only if it was suspended at some point.
-  EXPECT_EQ(ErrorCode::kSuccess, delegate_.code_);
-  EXPECT_TRUE(delegate_.processing_done_called_);
+  EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
+  EXPECT_TRUE(processor_delegate_.processing_done_called_);
 }
 
 // Test that we can cancel a postinstall action while it is running.
@@ -308,8 +342,28 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootCancelPostinstallActionTest) {
   RunPosinstallAction(loop.dev(), "bin/postinst_suspend", false);
   // When canceling the action, the action never finished and therefore we had
   // a ProcessingStopped call instead.
-  EXPECT_FALSE(delegate_.code_set_);
-  EXPECT_TRUE(delegate_.processing_stopped_called_);
+  EXPECT_FALSE(processor_delegate_.code_set_);
+  EXPECT_TRUE(processor_delegate_.processing_stopped_called_);
+}
+
+// Test that we parse and process the progress reports from the progress
+// file descriptor.
+TEST_F(PostinstallRunnerActionTest, RunAsRootProgressUpdatesTest) {
+  testing::StrictMock<MockPostinstallRunnerActionDelegate> mock_delegate_;
+  testing::InSequence s;
+  EXPECT_CALL(mock_delegate_, ProgressUpdate(0));
+
+  // The postinst_progress program will call with 0.25, 0.5 and 1.
+  EXPECT_CALL(mock_delegate_, ProgressUpdate(0.25));
+  EXPECT_CALL(mock_delegate_, ProgressUpdate(0.5));
+  EXPECT_CALL(mock_delegate_, ProgressUpdate(1.));
+
+  EXPECT_CALL(mock_delegate_, ProgressUpdate(1.));
+
+  ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
+  setup_action_delegate_ = &mock_delegate_;
+  RunPosinstallAction(loop.dev(), "bin/postinst_progress", false);
+  EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 }
 
 }  // namespace chromeos_update_engine

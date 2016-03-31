@@ -32,6 +32,7 @@
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/payload_consumer/download_action.h"
+#include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/service_delegate_android_interface.h"
 #include "update_engine/service_observer_interface.h"
 
@@ -39,9 +40,11 @@ namespace chromeos_update_engine {
 
 class DaemonStateAndroid;
 
-class UpdateAttempterAndroid : public ServiceDelegateAndroidInterface,
-                               public ActionProcessorDelegate,
-                               public DownloadActionDelegate {
+class UpdateAttempterAndroid
+    : public ServiceDelegateAndroidInterface,
+      public ActionProcessorDelegate,
+      public DownloadActionDelegate,
+      public PostinstallRunnerAction::DelegateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
 
@@ -79,6 +82,9 @@ class UpdateAttempterAndroid : public ServiceDelegateAndroidInterface,
                      uint64_t total) override;
   bool ShouldCancel(ErrorCode* cancel_reason) override;
   void DownloadComplete() override;
+
+  // PostinstallRunnerAction::DelegateInterface
+  void ProgressUpdate(double progress) override;
 
  private:
   // Asynchronously marks the current slot as successful if needed. If already

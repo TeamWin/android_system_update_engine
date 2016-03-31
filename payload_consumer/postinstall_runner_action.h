@@ -18,6 +18,10 @@
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_POSTINSTALL_RUNNER_ACTION_H_
 
 #include <string>
+#include <vector>
+
+#include <brillo/message_loops/message_loop.h>
+#include <gtest/gtest_prod.h>
 
 #include "update_engine/common/action.h"
 #include "update_engine/payload_consumer/install_plan.h"
@@ -40,12 +44,24 @@ class PostinstallRunnerAction : public InstallPlanAction {
   void ResumeAction() override;
   void TerminateProcessing() override;
 
+  class DelegateInterface {
+   public:
+    virtual ~DelegateInterface() = default;
+
+    // Called whenever there is an overall progress update from the postinstall
+    // programs.
+    virtual void ProgressUpdate(double progress) = 0;
+  };
+
+  void set_delegate(DelegateInterface* delegate) { delegate_ = delegate; }
+
   // Debugging/logging
   static std::string StaticType() { return "PostinstallRunnerAction"; }
   std::string Type() const override { return StaticType(); }
 
  private:
   friend class PostinstallRunnerActionTest;
+  FRIEND_TEST(PostinstallRunnerActionTest, ProcessProgressLineTest);
 
   // Special constructor used for testing purposes.
   PostinstallRunnerAction(BootControlInterface* boot_control,
@@ -55,8 +71,25 @@ class PostinstallRunnerAction : public InstallPlanAction {
 
   void PerformPartitionPostinstall();
 
-  // Unmount and remove the mountpoint directory if needed.
-  void CleanupMount();
+  // Called whenever the |progress_fd_| has data available to read.
+  void OnProgressFdReady();
+
+  // Updates the action progress according to the |line| passed from the
+  // postinstall program. Valid lines are:
+  //     global_progress <frac>
+  //         <frac> should be between 0.0 and 1.0; sets the progress to the
+  //         <frac> value.
+  bool ProcessProgressLine(const std::string& line);
+
+  // Report the progress to the delegate given that the postinstall operation
+  // for |current_partition_| has a current progress of |frac|, a value between
+  // 0 and 1 for that step.
+  void ReportProgress(double frac);
+
+  // Cleanup the setup made when running postinstall for a given partition.
+  // Unmount and remove the mountpoint directory if needed and cleanup the
+  // status file descriptor and message loop task watching for it.
+  void Cleanup();
 
   // Subprocess::Exec callback.
   void CompletePartitionPostinstall(int return_code,
@@ -75,6 +108,22 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // InstallPlan.
   size_t current_partition_{0};
 
+  // A non-negative value representing the estimated weight of each partition
+  // passed in the install plan. The weight is used to predict the overall
+  // progress from the individual progress of each partition and should
+  // correspond to the time it takes to run it.
+  std::vector<double> partition_weight_;
+
+  // The sum of all the weights in |partition_weight_|.
+  double total_weight_{0};
+
+  // The sum of all the weights in |partition_weight_| up to but not including
+  // the |current_partition_|.
+  double accumulated_weight_{0};
+
+  // The delegate used to notify of progress updates, if any.
+  DelegateInterface* delegate_{nullptr};
+
   // The BootControlInerface used to mark the new slot as ready.
   BootControlInterface* boot_control_;
 
@@ -88,6 +137,14 @@ class PostinstallRunnerAction : public InstallPlanAction {
 
   // Postinstall command currently running, or 0 if no program running.
   pid_t current_command_{0};
+
+  // The parent progress file descriptor used to watch for progress reports from
+  // the postinstall program and the task watching for them.
+  int progress_fd_{-1};
+  brillo::MessageLoop::TaskId progress_task_{brillo::MessageLoop::kTaskIdNull};
+
+  // A buffer of a partial read line from the progress file descriptor.
+  std::string progress_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(PostinstallRunnerAction);
 };
