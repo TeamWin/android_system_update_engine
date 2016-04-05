@@ -32,9 +32,6 @@
 #include <base/strings/stringprintf.h>
 #include <brillo/process.h>
 #include <brillo/secure_blob.h>
-#ifdef __ANDROID__
-#include <selinux/selinux.h>
-#endif  // __ANDROID__
 
 #include "update_engine/common/utils.h"
 
@@ -47,9 +44,7 @@ namespace chromeos_update_engine {
 
 namespace {
 
-bool SetupChild(const std::map<string, string>& env,
-                uint32_t flags,
-                const char* se_domain) {
+bool SetupChild(const std::map<string, string>& env, uint32_t flags) {
   // Setup the environment variables.
   clearenv();
   for (const auto& key_value : env) {
@@ -68,15 +63,6 @@ bool SetupChild(const std::map<string, string>& env,
     return false;
   IGNORE_EINTR(close(fd));
 
-#ifdef __ANDROID__
-  // setexeccon(3) accepts a nullptr to indicate the default context policy.
-  if (setexeccon(se_domain) < 0) {
-    PLOG(ERROR) << "Error setting the SELinux domain to "
-                << (se_domain ? se_domain : "<nullptr>");
-    return false;
-  }
-#endif  // __ANDROID__
-
   return true;
 }
 
@@ -88,7 +74,6 @@ bool SetupChild(const std::map<string, string>& env,
 bool LaunchProcess(const vector<string>& cmd,
                    uint32_t flags,
                    const vector<int>& output_pipes,
-                   const char* se_domain,
                    brillo::Process* proc) {
   for (const string& arg : cmd)
     proc->AddArg(arg);
@@ -107,7 +92,7 @@ bool LaunchProcess(const vector<string>& cmd,
   }
   proc->SetCloseUnusedFileDescriptors(true);
   proc->RedirectUsingPipe(STDOUT_FILENO, false);
-  proc->SetPreExecCallback(base::Bind(&SetupChild, env, flags, se_domain));
+  proc->SetPreExecCallback(base::Bind(&SetupChild, env, flags));
 
   return proc->Start();
 }
@@ -185,17 +170,16 @@ void Subprocess::ChildExitedCallback(const siginfo_t& info) {
 
 pid_t Subprocess::Exec(const vector<string>& cmd,
                        const ExecCallback& callback) {
-  return ExecFlags(cmd, kRedirectStderrToStdout, {}, nullptr, callback);
+  return ExecFlags(cmd, kRedirectStderrToStdout, {}, callback);
 }
 
 pid_t Subprocess::ExecFlags(const vector<string>& cmd,
                             uint32_t flags,
                             const vector<int>& output_pipes,
-                            const char* se_domain,
                             const ExecCallback& callback) {
   unique_ptr<SubprocessRecord> record(new SubprocessRecord(callback));
 
-  if (!LaunchProcess(cmd, flags, output_pipes, se_domain, &record->proc)) {
+  if (!LaunchProcess(cmd, flags, output_pipes, &record->proc)) {
     LOG(ERROR) << "Failed to launch subprocess";
     return 0;
   }
@@ -264,7 +248,7 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
   // It doesn't make sense to redirect some pipes in the synchronous case
   // because we won't be reading on our end, so we don't expose the output_pipes
   // in this case.
-  if (!LaunchProcess(cmd, flags, {}, nullptr, &proc)) {
+  if (!LaunchProcess(cmd, flags, {}, &proc)) {
     LOG(ERROR) << "Failed to launch subprocess";
     return false;
   }
