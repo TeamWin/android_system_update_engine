@@ -37,6 +37,7 @@
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
 #include <brillo/strings/string_utils.h>
+#include <brillo/unittest_utils.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
@@ -95,6 +96,27 @@ void ExpectedEnvVars(int return_code, const string& output) {
   MessageLoop::current()->BreakLoop();
 }
 
+void ExpectedDataOnPipe(const Subprocess* subprocess,
+                        pid_t* pid,
+                        int child_fd,
+                        const string& child_fd_data,
+                        int expected_return_code,
+                        int return_code,
+                        const string& /* output */) {
+  EXPECT_EQ(expected_return_code, return_code);
+
+  // Verify that we can read the data from our end of |child_fd|.
+  int fd = subprocess->GetPipeFd(*pid, child_fd);
+  EXPECT_NE(-1, fd);
+  vector<char> buf(child_fd_data.size() + 1);
+  EXPECT_EQ(static_cast<ssize_t>(child_fd_data.size()),
+            HANDLE_EINTR(read(fd, buf.data(), buf.size())));
+  EXPECT_EQ(child_fd_data,
+            string(buf.begin(), buf.begin() + child_fd_data.size()));
+
+  MessageLoop::current()->BreakLoop();
+}
+
 }  // namespace
 
 TEST_F(SubprocessTest, IsASingleton) {
@@ -125,7 +147,37 @@ TEST_F(SubprocessTest, StderrNotIncludedInOutputTest) {
   EXPECT_TRUE(subprocess_.ExecFlags(
       {kBinPath "/sh", "-c", "echo on stdout; echo on stderr >&2"},
       0,
+      {},
       base::Bind(&ExpectedResults, 0, "on stdout\n")));
+  loop_.Run();
+}
+
+TEST_F(SubprocessTest, PipeRedirectFdTest) {
+  pid_t pid;
+  pid = subprocess_.ExecFlags(
+      {kBinPath "/sh", "-c", "echo on pipe >&3"},
+      0,
+      {3},
+      base::Bind(&ExpectedDataOnPipe, &subprocess_, &pid, 3, "on pipe\n", 0));
+  EXPECT_NE(0, pid);
+
+  // Wrong file descriptor values should return -1.
+  EXPECT_EQ(-1, subprocess_.GetPipeFd(pid, 123));
+  loop_.Run();
+  // Calling GetPipeFd() after the callback runs is invalid.
+  EXPECT_EQ(-1, subprocess_.GetPipeFd(pid, 3));
+}
+
+// Test that a pipe file descriptor open in the parent is not open in the child.
+TEST_F(SubprocessTest, PipeClosedWhenNotRedirectedTest) {
+  brillo::ScopedPipe pipe;
+  const vector<string> cmd = {kBinPath "/sh", "-c",
+     base::StringPrintf("echo on pipe >/proc/self/fd/%d", pipe.writer)};
+  EXPECT_TRUE(subprocess_.ExecFlags(
+      cmd,
+      0,
+      {},
+      base::Bind(&ExpectedResults, 1, "")));
   loop_.Run();
 }
 
