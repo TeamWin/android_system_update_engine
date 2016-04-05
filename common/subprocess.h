@@ -73,6 +73,7 @@ class Subprocess {
   pid_t ExecFlags(const std::vector<std::string>& cmd,
                   uint32_t flags,
                   const std::vector<int>& output_pipes,
+                  const char* se_domain,
                   const ExecCallback& callback);
 
   // Kills the running process with SIGTERM and ignores the callback.
