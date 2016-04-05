@@ -71,6 +71,7 @@ bool SetupChild(const std::map<string, string>& env, uint32_t flags) {
 // Process.
 bool LaunchProcess(const vector<string>& cmd,
                    uint32_t flags,
+                   const vector<int>& output_pipes,
                    brillo::Process* proc) {
   for (const string& arg : cmd)
     proc->AddArg(arg);
@@ -84,6 +85,10 @@ bool LaunchProcess(const vector<string>& cmd,
       env.emplace(key, value);
   }
 
+  for (const int fd : output_pipes) {
+    proc->RedirectUsingPipe(fd, false);
+  }
+  proc->SetCloseUnusedFileDescriptors(true);
   proc->RedirectUsingPipe(STDOUT_FILENO, false);
   proc->SetPreExecCallback(base::Bind(&SetupChild, env, flags));
 
@@ -143,10 +148,6 @@ void Subprocess::ChildExitedCallback(const siginfo_t& info) {
   MessageLoop::current()->CancelTask(record->stdout_task_id);
   record->stdout_task_id = MessageLoop::kTaskIdNull;
 
-  // Release and close all the pipes now.
-  record->proc.Release();
-  record->proc.Reset(0);
-
   // Don't print any log if the subprocess exited with exit code 0.
   if (info.si_code != CLD_EXITED) {
     LOG(INFO) << "Subprocess terminated with si_code " << info.si_code;
@@ -160,20 +161,28 @@ void Subprocess::ChildExitedCallback(const siginfo_t& info) {
   if (!record->callback.is_null()) {
     record->callback.Run(info.si_status, record->stdout);
   }
+  // Release and close all the pipes after calling the callback so our
+  // redirected pipes are still alive. Releasing the process first makes
+  // Reset(0) not attempt to kill the process, which is already a zombie at this
+  // point.
+  record->proc.Release();
+  record->proc.Reset(0);
+
   subprocess_records_.erase(pid_record);
 }
 
 pid_t Subprocess::Exec(const vector<string>& cmd,
                        const ExecCallback& callback) {
-  return ExecFlags(cmd, kRedirectStderrToStdout, callback);
+  return ExecFlags(cmd, kRedirectStderrToStdout, {}, callback);
 }
 
 pid_t Subprocess::ExecFlags(const vector<string>& cmd,
                             uint32_t flags,
+                            const vector<int>& output_pipes,
                             const ExecCallback& callback) {
   unique_ptr<SubprocessRecord> record(new SubprocessRecord(callback));
 
-  if (!LaunchProcess(cmd, flags, &record->proc)) {
+  if (!LaunchProcess(cmd, flags, output_pipes, &record->proc)) {
     LOG(ERROR) << "Failed to launch subprocess";
     return 0;
   }
@@ -215,6 +224,13 @@ void Subprocess::KillExec(pid_t pid) {
   pid_record->second->proc.Release();
 }
 
+int Subprocess::GetPipeFd(pid_t pid, int fd) const {
+  auto pid_record = subprocess_records_.find(pid);
+  if (pid_record == subprocess_records_.end())
+    return -1;
+  return pid_record->second->proc.GetPipe(fd);
+}
+
 bool Subprocess::SynchronousExec(const vector<string>& cmd,
                                  int* return_code,
                                  string* stdout) {
@@ -232,7 +248,10 @@ bool Subprocess::SynchronousExecFlags(const vector<string>& cmd,
                                       int* return_code,
                                       string* stdout) {
   brillo::ProcessImpl proc;
-  if (!LaunchProcess(cmd, flags, &proc)) {
+  // It doesn't make sense to redirect some pipes in the synchronous case
+  // because we won't be reading on our end, so we don't expose the output_pipes
+  // in this case.
+  if (!LaunchProcess(cmd, flags, {}, &proc)) {
     LOG(ERROR) << "Failed to launch subprocess";
     return false;
   }
