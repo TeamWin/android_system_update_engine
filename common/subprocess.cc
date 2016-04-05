@@ -33,6 +33,8 @@
 #include <brillo/process.h>
 #include <brillo/secure_blob.h>
 
+#include "update_engine/common/utils.h"
+
 using brillo::MessageLoop;
 using std::string;
 using std::unique_ptr;
@@ -114,26 +116,21 @@ Subprocess::~Subprocess() {
 
 void Subprocess::OnStdoutReady(SubprocessRecord* record) {
   char buf[1024];
-  ssize_t rc = 0;
+  size_t bytes_read;
   do {
-    rc = HANDLE_EINTR(read(record->stdout_fd, buf, arraysize(buf)));
-    if (rc < 0) {
-      // EAGAIN and EWOULDBLOCK are normal return values when there's no more
-      // input as we are in non-blocking mode.
-      if (errno != EWOULDBLOCK && errno != EAGAIN) {
-        PLOG(ERROR) << "Error reading fd " << record->stdout_fd;
-        MessageLoop::current()->CancelTask(record->stdout_task_id);
-        record->stdout_task_id = MessageLoop::kTaskIdNull;
-      }
-    } else if (rc == 0) {
-      // A value of 0 means that the child closed its end of the pipe and there
-      // is nothing else to read from stdout.
+    bytes_read = 0;
+    bool eof;
+    bool ok = utils::ReadAll(
+        record->stdout_fd, buf, arraysize(buf), &bytes_read, &eof);
+    record->stdout.append(buf, bytes_read);
+    if (!ok || eof) {
+      // There was either an error or an EOF condition, so we are done watching
+      // the file descriptor.
       MessageLoop::current()->CancelTask(record->stdout_task_id);
       record->stdout_task_id = MessageLoop::kTaskIdNull;
-    } else {
-      record->stdout.append(buf, rc);
+      return;
     }
-  } while (rc > 0);
+  } while (bytes_read);
 }
 
 void Subprocess::ChildExitedCallback(const siginfo_t& info) {

@@ -172,6 +172,17 @@ done
 exit 1
 EOF
 
+  # A program that reports back progress.
+  sudo tee "${mntdir}"/bin/postinst_progress >/dev/null <<EOF
+#!/etc/../bin/sh
+# These values have exact representation in IEEE 754 so we avoid rounding
+# errors.
+echo global_progress 0.25 >&3
+echo global_progress 0.5 >&3
+echo global_progress 1.0 >&3
+exit 0
+EOF
+
   # A postinstall bash program.
   sudo tee "${mntdir}"/bin/self_check_context >/dev/null <<EOF
 #!/etc/../bin/sh
