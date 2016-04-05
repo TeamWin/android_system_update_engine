@@ -638,7 +638,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                                      system_state_->hardware())),
           false));
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
-      new FilesystemVerifierAction(system_state_->boot_control()));
+      new FilesystemVerifierAction());
   shared_ptr<OmahaRequestAction> update_complete_action(
       new OmahaRequestAction(
           system_state_,

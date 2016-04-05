@@ -400,7 +400,7 @@ void UpdateAttempterAndroid::BuildUpdateActions() {
       nullptr,                                        // system_state, not used.
       new MultiRangeHttpFetcher(download_fetcher)));  // passes ownership
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
-      new FilesystemVerifierAction(boot_control_));
+      new FilesystemVerifierAction());
 
   shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
       new PostinstallRunnerAction(boot_control_));

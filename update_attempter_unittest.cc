@@ -285,8 +285,7 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
   EXPECT_EQ(ErrorCode::kOmahaResponseHandlerError,
             GetErrorCodeForAction(&omaha_response_handler_action,
                                   ErrorCode::kError));
-  FilesystemVerifierAction filesystem_verifier_action(
-      fake_system_state_.boot_control());
+  FilesystemVerifierAction filesystem_verifier_action;
   EXPECT_EQ(ErrorCode::kFilesystemVerifierError,
             GetErrorCodeForAction(&filesystem_verifier_action,
                                   ErrorCode::kError));
