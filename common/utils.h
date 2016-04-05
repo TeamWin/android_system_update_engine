@@ -75,6 +75,14 @@ bool PWriteAll(FileDescriptorPtr fd,
                size_t count,
                off_t offset);
 
+// Calls read() repeatedly until |count| bytes are read or EOF or EWOULDBLOCK
+// is reached. Returns whether all read() calls succeeded (including EWOULDBLOCK
+// as a success case), sets |eof| to whether the eof was reached and sets
+// |out_bytes_read| to the actual number of bytes read regardless of the return
+// value.
+bool ReadAll(
+    int fd, void* buf, size_t count, size_t* out_bytes_read, bool* eof);
+
 // Calls pread() repeatedly until count bytes are read, or EOF is reached.
 // Returns number of bytes read in *bytes_read. Returns true on success.
 bool PReadAll(int fd, void* buf, size_t count, off_t offset,
