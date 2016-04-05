@@ -148,7 +148,6 @@ TEST_F(SubprocessTest, StderrNotIncludedInOutputTest) {
       {kBinPath "/sh", "-c", "echo on stdout; echo on stderr >&2"},
       0,
       {},
-      nullptr,
       base::Bind(&ExpectedResults, 0, "on stdout\n")));
   loop_.Run();
 }
@@ -159,7 +158,6 @@ TEST_F(SubprocessTest, PipeRedirectFdTest) {
       {kBinPath "/sh", "-c", "echo on pipe >&3"},
       0,
       {3},
-      nullptr,
       base::Bind(&ExpectedDataOnPipe, &subprocess_, &pid, 3, "on pipe\n", 0));
   EXPECT_NE(0, pid);
 
@@ -176,7 +174,10 @@ TEST_F(SubprocessTest, PipeClosedWhenNotRedirectedTest) {
   const vector<string> cmd = {kBinPath "/sh", "-c",
      base::StringPrintf("echo on pipe >/proc/self/fd/%d", pipe.writer)};
   EXPECT_TRUE(subprocess_.ExecFlags(
-      cmd, 0, {}, nullptr, base::Bind(&ExpectedResults, 1, "")));
+      cmd,
+      0,
+      {},
+      base::Bind(&ExpectedResults, 1, "")));
   loop_.Run();
 }
 
