@@ -43,9 +43,6 @@ namespace {
 // sample_images.sh file.
 const int kPostinstallStatusFd = 3;
 
-// The SELinux domain where the postinstall program runs.
-const char* kPostinstallDomain = "postinstall";
-
 }  // namespace
 
 namespace chromeos_update_engine {
@@ -170,7 +167,6 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
       command,
       Subprocess::kRedirectStderrToStdout,
       {kPostinstallStatusFd},
-      kPostinstallDomain,
       base::Bind(&PostinstallRunnerAction::CompletePartitionPostinstall,
                  base::Unretained(this)));
   // Subprocess::Exec should never return a negative process id.
