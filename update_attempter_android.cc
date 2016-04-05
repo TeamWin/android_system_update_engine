@@ -48,6 +48,10 @@ namespace chromeos_update_engine {
 
 namespace {
 
+// Minimum threshold to broadcast an status update in progress and time.
+const double kBroadcastThresholdProgress = 0.01;  // 1%
+const int kBroadcastThresholdSeconds = 10;
+
 const char* const kErrorDomain = "update_engine";
 // TODO(deymo): Convert the different errors to a numeric value to report them
 // back on the service error.
@@ -275,7 +279,7 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
   // action succeeded.
   const string type = action->Type();
   if (type == DownloadAction::StaticType()) {
-    download_progress_ = 0.0;
+    download_progress_ = 0;
   }
   if (code != ErrorCode::kSuccess) {
     // If an action failed, the ActionProcessor will cancel the whole thing.
@@ -289,17 +293,14 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
 void UpdateAttempterAndroid::BytesReceived(uint64_t bytes_progressed,
                                            uint64_t bytes_received,
                                            uint64_t total) {
-  double progress = 0.;
+  double progress = 0;
   if (total)
     progress = static_cast<double>(bytes_received) / static_cast<double>(total);
-  // Self throttle based on progress. Also send notifications if
-  // progress is too slow.
-  const double kDeltaPercent = 0.01;  // 1%
-  if (status_ != UpdateStatus::DOWNLOADING || bytes_received == total ||
-      progress - download_progress_ >= kDeltaPercent ||
-      TimeTicks::Now() - last_notify_time_ >= TimeDelta::FromSeconds(10)) {
+  if (status_ != UpdateStatus::DOWNLOADING || bytes_received == total) {
     download_progress_ = progress;
     SetStatusAndNotify(UpdateStatus::DOWNLOADING);
+  } else {
+    ProgressUpdate(progress);
   }
 }
 
@@ -311,6 +312,18 @@ bool UpdateAttempterAndroid::ShouldCancel(ErrorCode* cancel_reason) {
 
 void UpdateAttempterAndroid::DownloadComplete() {
   // Nothing needs to be done when the download completes.
+}
+
+void UpdateAttempterAndroid::ProgressUpdate(double progress) {
+  // Self throttle based on progress. Also send notifications if progress is
+  // too slow.
+  if (progress == 1.0 ||
+      progress - download_progress_ >= kBroadcastThresholdProgress ||
+      TimeTicks::Now() - last_notify_time_ >=
+          TimeDelta::FromSeconds(kBroadcastThresholdSeconds)) {
+    download_progress_ = progress;
+    SetStatusAndNotify(status_);
+  }
 }
 
 void UpdateAttempterAndroid::UpdateBootFlags() {
@@ -348,7 +361,7 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
 
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
-  download_progress_ = 0.0;
+  download_progress_ = 0;
   actions_.clear();
   UpdateStatus new_status =
       (error_code == ErrorCode::kSuccess ? UpdateStatus::UPDATED_NEED_REBOOT
