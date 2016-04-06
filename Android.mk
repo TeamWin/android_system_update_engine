@@ -666,7 +666,9 @@ endif  # HOST_OS == linux
 
 # Build for the target.
 include $(CLEAR_VARS)
-LOCAL_MODULE := delta_generator
+LOCAL_MODULE := ue_unittest_delta_generator
+LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
+LOCAL_MODULE_STEM := delta_generator
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
@@ -797,6 +799,7 @@ ifdef BRILLO
   LOCAL_MODULE_TAGS := eng
 endif
 LOCAL_REQUIRED_MODULES := \
+    ue_unittest_delta_generator \
     ue_unittest_disk_ext2_1k.img \
     ue_unittest_disk_ext2_4k.img \
     ue_unittest_disk_ext2_4k_empty.img \
