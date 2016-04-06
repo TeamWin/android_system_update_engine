@@ -56,9 +56,7 @@ class FilesystemVerifierActionTest : public ::testing::Test {
   }
 
   // Returns true iff test has completed successfully.
-  bool DoTest(bool terminate_early,
-              bool hash_fail,
-              VerifierMode verifier_mode);
+  bool DoTest(bool terminate_early, bool hash_fail);
 
   brillo::FakeMessageLoop loop_{nullptr};
   FakeBootControl fake_boot_control_;
@@ -115,23 +113,8 @@ void StartProcessorInRunLoop(ActionProcessor* processor,
   }
 }
 
-// TODO(garnold) Temporarily disabling this test, see chromium-os:31082 for
-// details; still trying to track down the root cause for these rare write
-// failures and whether or not they are due to the test setup or an inherent
-// issue with the chroot environment, library versions we use, etc.
-TEST_F(FilesystemVerifierActionTest, DISABLED_RunAsRootSimpleTest) {
-  ASSERT_EQ(0U, getuid());
-  bool test = DoTest(false, false, VerifierMode::kComputeSourceHash);
-  EXPECT_TRUE(test);
-  if (!test)
-    return;
-  test = DoTest(false, false, VerifierMode::kVerifyTargetHash);
-  EXPECT_TRUE(test);
-}
-
 bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
-                                          bool hash_fail,
-                                          VerifierMode verifier_mode) {
+                                          bool hash_fail) {
   string a_loop_file;
 
   if (!(utils::MakeTempFile("a_loop_file.XXXXXX", &a_loop_file, nullptr))) {
@@ -170,15 +153,13 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   install_plan.target_slot = 1;
   InstallPlan::Partition part;
   part.name = "part";
-  if (verifier_mode == VerifierMode::kVerifyTargetHash) {
-    part.target_size = kLoopFileSize - (hash_fail ? 1 : 0);
-    part.target_path = a_dev;
-    fake_boot_control_.SetPartitionDevice(
-        part.name, install_plan.target_slot, a_dev);
-    if (!HashCalculator::RawHashOfData(a_loop_data, &part.target_hash)) {
-      ADD_FAILURE();
-      success = false;
-    }
+  part.target_size = kLoopFileSize - (hash_fail ? 1 : 0);
+  part.target_path = a_dev;
+  fake_boot_control_.SetPartitionDevice(
+      part.name, install_plan.target_slot, a_dev);
+  if (!HashCalculator::RawHashOfData(a_loop_data, &part.target_hash)) {
+    ADD_FAILURE();
+    success = false;
   }
   part.source_size = kLoopFileSize;
   part.source_path = a_dev;
@@ -193,7 +174,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   ActionProcessor processor;
 
   ObjectFeederAction<InstallPlan> feeder_action;
-  FilesystemVerifierAction copier_action(&fake_boot_control_, verifier_mode);
+  FilesystemVerifierAction copier_action(&fake_boot_control_);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&feeder_action, &copier_action);
@@ -265,8 +246,7 @@ TEST_F(FilesystemVerifierActionTest, MissingInputObjectTest) {
 
   processor.set_delegate(&delegate);
 
-  FilesystemVerifierAction copier_action(&fake_boot_control_,
-                                         VerifierMode::kVerifyTargetHash);
+  FilesystemVerifierAction copier_action(&fake_boot_control_);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&copier_action, &collector_action);
@@ -294,8 +274,7 @@ TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
   install_plan.partitions = {part};
 
   feeder_action.set_obj(install_plan);
-  FilesystemVerifierAction verifier_action(&fake_boot_control_,
-                                           VerifierMode::kVerifyTargetHash);
+  FilesystemVerifierAction verifier_action(&fake_boot_control_);
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&verifier_action, &collector_action);
@@ -311,18 +290,17 @@ TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
 
 TEST_F(FilesystemVerifierActionTest, RunAsRootVerifyHashTest) {
   ASSERT_EQ(0U, getuid());
-  EXPECT_TRUE(DoTest(false, false, VerifierMode::kVerifyTargetHash));
-  EXPECT_TRUE(DoTest(false, false, VerifierMode::kComputeSourceHash));
+  EXPECT_TRUE(DoTest(false, false));
 }
 
 TEST_F(FilesystemVerifierActionTest, RunAsRootVerifyHashFailTest) {
   ASSERT_EQ(0U, getuid());
-  EXPECT_TRUE(DoTest(false, true, VerifierMode::kVerifyTargetHash));
+  EXPECT_TRUE(DoTest(false, true));
 }
 
 TEST_F(FilesystemVerifierActionTest, RunAsRootTerminateEarlyTest) {
   ASSERT_EQ(0U, getuid());
-  EXPECT_TRUE(DoTest(true, false, VerifierMode::kVerifyTargetHash));
+  EXPECT_TRUE(DoTest(true, false));
   // TerminateEarlyTest may leak some null callbacks from the Stream class.
   while (loop_.RunOnce(false)) {}
 }

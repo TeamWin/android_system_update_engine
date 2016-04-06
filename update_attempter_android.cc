@@ -399,9 +399,8 @@ void UpdateAttempterAndroid::BuildUpdateActions() {
       hardware_,
       nullptr,                                        // system_state, not used.
       new MultiRangeHttpFetcher(download_fetcher)));  // passes ownership
-  shared_ptr<FilesystemVerifierAction> dst_filesystem_verifier_action(
-      new FilesystemVerifierAction(boot_control_,
-                                   VerifierMode::kVerifyTargetHash));
+  shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
+      new FilesystemVerifierAction(boot_control_));
 
   shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
       new PostinstallRunnerAction(boot_control_));
@@ -411,15 +410,14 @@ void UpdateAttempterAndroid::BuildUpdateActions() {
 
   actions_.push_back(shared_ptr<AbstractAction>(install_plan_action));
   actions_.push_back(shared_ptr<AbstractAction>(download_action));
-  actions_.push_back(
-      shared_ptr<AbstractAction>(dst_filesystem_verifier_action));
+  actions_.push_back(shared_ptr<AbstractAction>(filesystem_verifier_action));
   actions_.push_back(shared_ptr<AbstractAction>(postinstall_runner_action));
 
   // Bond them together. We have to use the leaf-types when calling
   // BondActions().
   BondActions(install_plan_action.get(), download_action.get());
-  BondActions(download_action.get(), dst_filesystem_verifier_action.get());
-  BondActions(dst_filesystem_verifier_action.get(),
+  BondActions(download_action.get(), filesystem_verifier_action.get());
+  BondActions(filesystem_verifier_action.get(),
               postinstall_runner_action.get());
 
   // Enqueue the actions.

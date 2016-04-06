@@ -26,6 +26,7 @@
 #include <string>
 
 #include <base/bind.h>
+#include <brillo/data_encoding.h>
 #include <brillo/streams/file_stream.h>
 
 #include "update_engine/common/boot_control_interface.h"
@@ -39,13 +40,15 @@ namespace chromeos_update_engine {
 
 namespace {
 const off_t kReadFileBufferSize = 128 * 1024;
+
+string StringForHashBytes(const brillo::Blob& hash) {
+  return brillo::data_encoding::Base64Encode(hash.data(), hash.size());
+}
 }  // namespace
 
 FilesystemVerifierAction::FilesystemVerifierAction(
-    const BootControlInterface* boot_control,
-    VerifierMode verifier_mode)
-    : verifier_mode_(verifier_mode),
-      boot_control_(boot_control) {}
+    const BootControlInterface* boot_control)
+    : boot_control_(boot_control) {}
 
 void FilesystemVerifierAction::PerformAction() {
   // Will tell the ActionProcessor we've failed if we return.
@@ -92,27 +95,31 @@ void FilesystemVerifierAction::Cleanup(ErrorCode code) {
 
 void FilesystemVerifierAction::StartPartitionHashing() {
   if (partition_index_ == install_plan_.partitions.size()) {
-    // We never called this action with kVerifySourceHash directly, if we are in
-    // this mode, it means the target partition verification has failed, so we
-    // should set the error code to reflect the error in target.
-    if (verifier_mode_ == VerifierMode::kVerifySourceHash)
-      Cleanup(ErrorCode::kNewRootfsVerificationError);
-    else
-      Cleanup(ErrorCode::kSuccess);
+    switch (verifier_step_) {
+      case VerifierStep::kVerifySourceHash:
+        // The action will skip kVerifySourceHash step if target partition hash
+        // matches, if we are in this step, it means target hash does not match,
+        // and now that the source hash matches, we should set the error code to
+        // reflect the error in target partition.
+        Cleanup(ErrorCode::kNewRootfsVerificationError);
+        break;
+      case VerifierStep::kVerifyTargetHash:
+        Cleanup(ErrorCode::kSuccess);
+        break;
+    }
     return;
   }
   InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
 
   string part_path;
-  switch (verifier_mode_) {
-    case VerifierMode::kComputeSourceHash:
-    case VerifierMode::kVerifySourceHash:
+  switch (verifier_step_) {
+    case VerifierStep::kVerifySourceHash:
       boot_control_->GetPartitionDevice(
           partition.name, install_plan_.source_slot, &part_path);
       remaining_size_ = partition.source_size;
       break;
-    case VerifierMode::kVerifyTargetHash:
+    case VerifierStep::kVerifyTargetHash:
       boot_control_->GetPartitionDevice(
           partition.name, install_plan_.target_slot, &part_path);
       remaining_size_ = partition.target_size;
@@ -211,32 +218,45 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
       install_plan_.partitions[partition_index_];
   LOG(INFO) << "Hash of " << partition.name << ": " << hasher_->hash();
 
-  switch (verifier_mode_) {
-    case VerifierMode::kComputeSourceHash:
-      partition.source_hash = hasher_->raw_hash();
-      partition_index_++;
-      break;
-    case VerifierMode::kVerifyTargetHash:
+  switch (verifier_step_) {
+    case VerifierStep::kVerifyTargetHash:
       if (partition.target_hash != hasher_->raw_hash()) {
         LOG(ERROR) << "New '" << partition.name
                    << "' partition verification failed.";
-        if (DeltaPerformer::kSupportedMinorPayloadVersion <
-            kOpSrcHashMinorPayloadVersion)
-          return Cleanup(ErrorCode::kNewRootfsVerificationError);
-        // If we support per-operation source hash, then we skipped source
-        // filesystem verification, now that the target partition does not
-        // match, we need to switch to kVerifySourceHash mode to check if it's
-        // because the source partition does not match either.
-        verifier_mode_ = VerifierMode::kVerifySourceHash;
+        // If we have not verified source partition yet, now that the target
+        // partition does not match, we need to switch to kVerifySourceHash step
+        // to check if it's because the source partition does not match either.
+        verifier_step_ = VerifierStep::kVerifySourceHash;
         partition_index_ = 0;
       } else {
         partition_index_++;
       }
       break;
-    case VerifierMode::kVerifySourceHash:
+    case VerifierStep::kVerifySourceHash:
       if (partition.source_hash != hasher_->raw_hash()) {
         LOG(ERROR) << "Old '" << partition.name
                    << "' partition verification failed.";
+        LOG(ERROR) << "This is a server-side error due to mismatched delta"
+                   << " update image!";
+        LOG(ERROR) << "The delta I've been given contains a " << partition.name
+                   << " delta update that must be applied over a "
+                   << partition.name << " with a specific checksum, but the "
+                   << partition.name
+                   << " we're starting with doesn't have that checksum! This"
+                      " means that the delta I've been given doesn't match my"
+                      " existing system. The "
+                   << partition.name << " partition I have has hash: "
+                   << StringForHashBytes(hasher_->raw_hash())
+                   << " but the update expected me to have "
+                   << StringForHashBytes(partition.source_hash) << " .";
+        LOG(INFO) << "To get the checksum of the " << partition.name
+                  << " partition run this command: dd if="
+                  << partition.source_path
+                  << " bs=1M count=" << partition.source_size
+                  << " iflag=count_bytes 2>/dev/null | openssl dgst -sha256 "
+                     "-binary | openssl base64";
+        LOG(INFO) << "To get the checksum of partitions in a bin file, "
+                  << "run: .../src/scripts/sha256_partitions.sh .../file.bin";
         return Cleanup(ErrorCode::kDownloadStateInitializationError);
       }
       partition_index_++;
