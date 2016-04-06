@@ -36,12 +36,12 @@ void OutputExtents(std::ostream* os,
 }
 }  // namespace
 
-bool AnnotatedOperation::SetOperationBlob(brillo::Blob* blob,
+bool AnnotatedOperation::SetOperationBlob(const brillo::Blob& blob,
                                           BlobFileWriter* blob_file) {
-  off_t data_offset = blob_file->StoreBlob(*blob);
+  off_t data_offset = blob_file->StoreBlob(blob);
   TEST_AND_RETURN_FALSE(data_offset != -1);
   op.set_data_offset(data_offset);
-  op.set_data_length(blob->size());
+  op.set_data_length(blob.size());
   return true;
 }
 

@@ -31,8 +31,7 @@
 #include <brillo/secure_blob.h>
 
 #include "update_engine/common/utils.h"
-#include "update_engine/payload_generator/bzip.h"
-#include "update_engine/payload_generator/xz.h"
+#include "update_engine/payload_generator/delta_diff_utils.h"
 
 using std::vector;
 
@@ -103,35 +102,14 @@ bool ChunkProcessor::ProcessChunk() {
                                         &bytes_read));
   TEST_AND_RETURN_FALSE(bytes_read == static_cast<ssize_t>(size_));
 
-  if (version_.OperationAllowed(InstallOperation::ZERO) &&
-      std::all_of(buffer_in_.begin(),
-                  buffer_in_.end(),
-                  [](uint8_t x) {return x == 0;})) {
-    // The read buffer is all zeros, so produce a ZERO operation. No need to
-    // check other types of operations in this case.
-    aop_->op.set_type(InstallOperation::ZERO);
-    return true;
-  }
+  InstallOperation_Type op_type;
+  TEST_AND_RETURN_FALSE(diff_utils::GenerateBestFullOperation(
+      buffer_in_, version_, &op_blob, &op_type));
 
-  TEST_AND_RETURN_FALSE(BzipCompress(buffer_in_, &op_blob));
-  InstallOperation_Type op_type = InstallOperation::REPLACE_BZ;
-
-  if (version_.OperationAllowed(InstallOperation::REPLACE_XZ)) {
-    brillo::Blob xz_blob;
-    if (XzCompress(buffer_in_, &xz_blob) && xz_blob.size() < op_blob.size()) {
-      op_blob = std::move(xz_blob);
-      op_type = InstallOperation::REPLACE_XZ;
-    }
-  }
-
-  if (op_blob.size() >= buffer_in_.size()) {
-    // A REPLACE is cheaper than a REPLACE_BZ in this case.
-    op_blob = std::move(buffer_in_);
-    op_type = InstallOperation::REPLACE;
-  }
-
-  TEST_AND_RETURN_FALSE(aop_->SetOperationBlob(&op_blob, blob_file_));
   aop_->op.set_type(op_type);
+  if (!op_blob.empty()) {
+    TEST_AND_RETURN_FALSE(aop_->SetOperationBlob(op_blob, blob_file_));
+  }
   return true;
 }
 
