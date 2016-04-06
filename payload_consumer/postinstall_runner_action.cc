@@ -23,6 +23,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <cmath>
+
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
@@ -240,7 +242,7 @@ void PostinstallRunnerAction::ReportProgress(double frac) {
     delegate_->ProgressUpdate(1.);
     return;
   }
-  if (!isfinite(frac) || frac < 0)
+  if (!std::isfinite(frac) || frac < 0)
     frac = 0;
   if (frac > 1)
     frac = 1;
