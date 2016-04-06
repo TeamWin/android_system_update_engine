@@ -664,7 +664,6 @@ bool DiffFiles(const string& diff_path,
   cmd.push_back(patch_file_path);
 
   int rc = 1;
-  brillo::Blob patch_file;
   string stdout;
   TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &rc, &stdout));
   if (rc != 0) {
