@@ -46,10 +46,6 @@ string StringForHashBytes(const brillo::Blob& hash) {
 }
 }  // namespace
 
-FilesystemVerifierAction::FilesystemVerifierAction(
-    const BootControlInterface* boot_control)
-    : boot_control_(boot_control) {}
-
 void FilesystemVerifierAction::PerformAction() {
   // Will tell the ActionProcessor we've failed if we return.
   ScopedActionCompleter abort_action_completer(processor_, this);
@@ -115,13 +111,11 @@ void FilesystemVerifierAction::StartPartitionHashing() {
   string part_path;
   switch (verifier_step_) {
     case VerifierStep::kVerifySourceHash:
-      boot_control_->GetPartitionDevice(
-          partition.name, install_plan_.source_slot, &part_path);
+      part_path = partition.source_path;
       remaining_size_ = partition.source_size;
       break;
     case VerifierStep::kVerifyTargetHash:
-      boot_control_->GetPartitionDevice(
-          partition.name, install_plan_.target_slot, &part_path);
+      part_path = partition.target_path;
       remaining_size_ = partition.target_size;
       break;
   }

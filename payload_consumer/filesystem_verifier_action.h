@@ -24,7 +24,6 @@
 #include <vector>
 
 #include <brillo/streams/stream.h>
-#include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/common/action.h"
 #include "update_engine/common/hash_calculator.h"
@@ -50,7 +49,7 @@ enum class VerifierStep {
 
 class FilesystemVerifierAction : public InstallPlanAction {
  public:
-  explicit FilesystemVerifierAction(const BootControlInterface* boot_control);
+  FilesystemVerifierAction() = default;
 
   void PerformAction() override;
   void TerminateProcessing() override;
@@ -66,10 +65,6 @@ class FilesystemVerifierAction : public InstallPlanAction {
   std::string Type() const override { return StaticType(); }
 
  private:
-  friend class FilesystemVerifierActionTest;
-  FRIEND_TEST(FilesystemVerifierActionTest,
-              RunAsRootDetermineFilesystemSizeTest);
-
   // Starts the hashing of the current partition. If there aren't any partitions
   // remaining to be hashed, it finishes the action.
   void StartPartitionHashing();
@@ -93,9 +88,6 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   // The type of the partition that we are verifying.
   VerifierStep verifier_step_ = VerifierStep::kVerifyTargetHash;
-
-  // The BootControlInterface used to get the partitions based on the slots.
-  const BootControlInterface* const boot_control_;
 
   // The index in the install_plan_.partitions vector of the partition currently
   // being hashed.
