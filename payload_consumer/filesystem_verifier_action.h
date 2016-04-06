@@ -30,28 +30,27 @@
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/payload_consumer/install_plan.h"
 
-// This action will hash all the partitions of a single slot involved in the
-// update (either source or target slot). The hashes are then either stored in
-// the InstallPlan (for source partitions) or verified against it (for target
-// partitions).
+// This action will hash all the partitions of the target slot involved in the
+// update. The hashes are then verified against the ones in the InstallPlan.
+// If the target hash does not match, the action will fail. In case of failure,
+// the error code will depend on whether the source slot hashes are provided and
+// match.
 
 namespace chromeos_update_engine {
 
-// The mode we are running the FilesystemVerifier on. On kComputeSourceHash mode
-// it computes the source_hash of all the partitions in the InstallPlan, based
-// on the already populated source_size values. On kVerifyTargetHash it computes
-// the hash on the target partitions based on the already populated size and
-// verifies it matches the one in the target_hash in the InstallPlan.
-enum class VerifierMode {
-  kComputeSourceHash,
+// The step FilesystemVerifier is on. On kVerifyTargetHash it computes the hash
+// on the target partitions based on the already populated size and verifies it
+// matches the one in the target_hash in the InstallPlan.
+// If the hash matches, then we skip the kVerifySourceHash step, otherwise we
+// need to check if the source is the root cause of the mismatch.
+enum class VerifierStep {
   kVerifyTargetHash,
   kVerifySourceHash,
 };
 
 class FilesystemVerifierAction : public InstallPlanAction {
  public:
-  FilesystemVerifierAction(const BootControlInterface* boot_control,
-                           VerifierMode verifier_mode);
+  explicit FilesystemVerifierAction(const BootControlInterface* boot_control);
 
   void PerformAction() override;
   void TerminateProcessing() override;
@@ -72,7 +71,7 @@ class FilesystemVerifierAction : public InstallPlanAction {
               RunAsRootDetermineFilesystemSizeTest);
 
   // Starts the hashing of the current partition. If there aren't any partitions
-  // remaining to be hashed, if finishes the action.
+  // remaining to be hashed, it finishes the action.
   void StartPartitionHashing();
 
   // Schedules the asynchronous read of the filesystem.
@@ -93,7 +92,7 @@ class FilesystemVerifierAction : public InstallPlanAction {
   void Cleanup(ErrorCode code);
 
   // The type of the partition that we are verifying.
-  VerifierMode verifier_mode_;
+  VerifierStep verifier_step_ = VerifierStep::kVerifyTargetHash;
 
   // The BootControlInterface used to get the partitions based on the slots.
   const BootControlInterface* const boot_control_;
