@@ -790,6 +790,21 @@ LOCAL_SRC_FILES := \
     test_http_server.cc
 include $(BUILD_EXECUTABLE)
 
+# bsdiff (type: executable)
+# ========================================================
+# We need bsdiff in the update_engine_unittests directory, so we build it here.
+include $(CLEAR_VARS)
+LOCAL_MODULE := ue_unittest_bsdiff
+LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
+LOCAL_MODULE_STEM := bsdiff
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_SRC_FILES := ../../external/bsdiff/bsdiff_main.cc
+LOCAL_CFLAGS := $(bsdiff_common_cflags)
+LOCAL_STATIC_LIBRARIES := \
+    libbsdiff \
+    $(bsdiff_static_libs)
+include $(BUILD_EXECUTABLE)
+
 # update_engine_unittests (type: executable)
 # ========================================================
 # Main unittest file.
@@ -799,6 +814,7 @@ ifdef BRILLO
   LOCAL_MODULE_TAGS := eng
 endif
 LOCAL_REQUIRED_MODULES := \
+    ue_unittest_bsdiff \
     ue_unittest_delta_generator \
     ue_unittest_disk_ext2_1k.img \
     ue_unittest_disk_ext2_4k.img \
