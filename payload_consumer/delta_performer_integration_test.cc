@@ -250,10 +250,11 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
                                                signature_size, signature_size);
   else
     signature_size_string = base::StringPrintf("%d", signature_size);
+  string delta_generator_path = GetBuildArtifactsPath("delta_generator");
   ASSERT_EQ(0,
             System(base::StringPrintf(
-                "./delta_generator -in_file=%s -signature_size=%s "
-                "-out_hash_file=%s",
+                "%s -in_file=%s -signature_size=%s -out_hash_file=%s",
+                delta_generator_path.c_str(),
                 payload_path.c_str(),
                 signature_size_string.c_str(),
                 hash_file.c_str())));
@@ -282,13 +283,14 @@ static void SignGeneratedShellPayload(SignatureTest signature_test,
 
   ASSERT_EQ(0,
             System(base::StringPrintf(
-                "./delta_generator -in_file=%s -signature_file=%s "
-                "-out_file=%s",
+                "%s -in_file=%s -signature_file=%s -out_file=%s",
+                delta_generator_path.c_str(),
                 payload_path.c_str(),
                 sig_file.c_str(),
                 payload_path.c_str())));
   int verify_result = System(base::StringPrintf(
-      "./delta_generator -in_file=%s -public_key=%s -public_key_version=%d",
+      "%s -in_file=%s -public_key=%s -public_key_version=%d",
+      delta_generator_path.c_str(),
       payload_path.c_str(),
       (signature_test == kSignatureGeneratedShellRotateCl2
            ? GetBuildArtifactsPath(kUnittestPublicKey2Path)
