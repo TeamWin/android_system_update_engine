@@ -286,7 +286,7 @@ TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
             GetErrorCodeForAction(&omaha_response_handler_action,
                                   ErrorCode::kError));
   FilesystemVerifierAction filesystem_verifier_action(
-      fake_system_state_.boot_control(), VerifierMode::kVerifyTargetHash);
+      fake_system_state_.boot_control());
   EXPECT_EQ(ErrorCode::kFilesystemVerifierError,
             GetErrorCodeForAction(&filesystem_verifier_action,
                                   ErrorCode::kError));
@@ -377,7 +377,6 @@ namespace {
 const string kUpdateActionTypes[] = {  // NOLINT(runtime/string)
   OmahaRequestAction::StaticType(),
   OmahaResponseHandlerAction::StaticType(),
-  FilesystemVerifierAction::StaticType(),
   OmahaRequestAction::StaticType(),
   DownloadAction::StaticType(),
   OmahaRequestAction::StaticType(),
@@ -429,10 +428,10 @@ void UpdateAttempterTest::UpdateTestVerify() {
   }
   EXPECT_EQ(attempter_.response_handler_action_.get(),
             attempter_.actions_[1].get());
-  AbstractAction* action_4 = attempter_.actions_[4].get();
-  ASSERT_NE(nullptr, action_4);
-  ASSERT_EQ(DownloadAction::StaticType(), action_4->Type());
-  DownloadAction* download_action = static_cast<DownloadAction*>(action_4);
+  AbstractAction* action_3 = attempter_.actions_[3].get();
+  ASSERT_NE(nullptr, action_3);
+  ASSERT_EQ(DownloadAction::StaticType(), action_3->Type());
+  DownloadAction* download_action = static_cast<DownloadAction*>(action_3);
   EXPECT_EQ(&attempter_, download_action->delegate());
   EXPECT_EQ(UpdateStatus::CHECKING_FOR_UPDATE, attempter_.status());
   loop_.BreakLoop();
