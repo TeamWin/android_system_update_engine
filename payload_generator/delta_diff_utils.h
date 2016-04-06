@@ -110,6 +110,18 @@ bool DiffFiles(const std::string& diff_path,
                const std::string& new_file,
                brillo::Blob* out);
 
+// Generates the best allowed full operation to produce |new_data|. The allowed
+// operations are based on |payload_version|. The operation blob will be stored
+// in |out_blob| and the resulting operation type in |out_type|. Returns whether
+// a valid full operation was generated.
+bool GenerateBestFullOperation(const brillo::Blob& new_data,
+                               const PayloadVersion& version,
+                               brillo::Blob* out_blob,
+                               InstallOperation_Type* out_type);
+
+// Returns whether op_type is one of the REPLACE full operations.
+bool IsAReplaceOperation(InstallOperation_Type op_type);
+
 // Returns true if |op| is a no-op operation that doesn't do any useful work
 // (e.g., a move operation that copies blocks onto themselves).
 bool IsNoopOperation(const InstallOperation& op);

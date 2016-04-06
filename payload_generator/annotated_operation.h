@@ -35,10 +35,10 @@ struct AnnotatedOperation {
   // The InstallOperation, as defined by the protobuf.
   InstallOperation op;
 
-  // Writes |blob| to the end of |data_fd|, and updates |data_file_size| to
-  // match the new size of |data_fd|. It sets the data_offset and data_length
-  // in AnnotatedOperation to match the offset and size of |blob| in |data_fd|.
-  bool SetOperationBlob(brillo::Blob* blob, BlobFileWriter* blob_file);
+  // Writes |blob| to the end of |blob_file|. It sets the data_offset and
+  // data_length in AnnotatedOperation to match the offset and size of |blob|
+  // in |blob_file|.
+  bool SetOperationBlob(const brillo::Blob& blob, BlobFileWriter* blob_file);
 };
 
 // For logging purposes.
