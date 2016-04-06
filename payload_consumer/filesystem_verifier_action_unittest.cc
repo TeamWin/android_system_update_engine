@@ -32,7 +32,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
@@ -59,7 +58,6 @@ class FilesystemVerifierActionTest : public ::testing::Test {
   bool DoTest(bool terminate_early, bool hash_fail);
 
   brillo::FakeMessageLoop loop_{nullptr};
-  FakeBootControl fake_boot_control_;
 };
 
 class FilesystemVerifierActionTestDelegate : public ActionProcessorDelegate {
@@ -155,16 +153,12 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   part.name = "part";
   part.target_size = kLoopFileSize - (hash_fail ? 1 : 0);
   part.target_path = a_dev;
-  fake_boot_control_.SetPartitionDevice(
-      part.name, install_plan.target_slot, a_dev);
   if (!HashCalculator::RawHashOfData(a_loop_data, &part.target_hash)) {
     ADD_FAILURE();
     success = false;
   }
   part.source_size = kLoopFileSize;
   part.source_path = a_dev;
-  fake_boot_control_.SetPartitionDevice(
-      part.name, install_plan.source_slot, a_dev);
   if (!HashCalculator::RawHashOfData(a_loop_data, &part.source_hash)) {
     ADD_FAILURE();
     success = false;
@@ -174,7 +168,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   ActionProcessor processor;
 
   ObjectFeederAction<InstallPlan> feeder_action;
-  FilesystemVerifierAction copier_action(&fake_boot_control_);
+  FilesystemVerifierAction copier_action;
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&feeder_action, &copier_action);
@@ -246,7 +240,7 @@ TEST_F(FilesystemVerifierActionTest, MissingInputObjectTest) {
 
   processor.set_delegate(&delegate);
 
-  FilesystemVerifierAction copier_action(&fake_boot_control_);
+  FilesystemVerifierAction copier_action;
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&copier_action, &collector_action);
@@ -274,7 +268,7 @@ TEST_F(FilesystemVerifierActionTest, NonExistentDriveTest) {
   install_plan.partitions = {part};
 
   feeder_action.set_obj(install_plan);
-  FilesystemVerifierAction verifier_action(&fake_boot_control_);
+  FilesystemVerifierAction verifier_action;
   ObjectCollectorAction<InstallPlan> collector_action;
 
   BondActions(&verifier_action, &collector_action);
