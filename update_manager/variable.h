@@ -114,6 +114,13 @@ class BaseVariable {
   BaseVariable(const std::string& name, base::TimeDelta poll_interval)
       : BaseVariable(name, kVariableModePoll, poll_interval) {}
 
+  // Reset the poll interval on a polling variable to the given one.
+  void SetPollInterval(base::TimeDelta poll_interval) {
+    DCHECK_EQ(kVariableModePoll, mode_) << "Can't set the poll_interval on a "
+                                        << mode_ << " variable";
+    poll_interval_ = poll_interval;
+  }
+
   // Calls ValueChanged on all the observers.
   void NotifyValueChanged() {
     // Fire all the observer methods from the main loop as single call. In order
@@ -166,7 +173,7 @@ class BaseVariable {
 
   // The variable's polling interval for VariableModePoll variable and 0 for
   // other modes.
-  const base::TimeDelta poll_interval_;
+  base::TimeDelta poll_interval_;
 
   // The list of value changes observers.
   std::list<BaseVariable::ObserverInterface*> observer_list_;

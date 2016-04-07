@@ -236,8 +236,13 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
       // Get the required platform version from Chrome.
       const string* kiosk_required_platform_version_p =
           ec->GetValue(system_provider->var_kiosk_required_platform_version());
-      if (kiosk_required_platform_version_p)
-        result->target_version_prefix = *kiosk_required_platform_version_p;
+      if (!kiosk_required_platform_version_p) {
+        LOG(INFO) << "Kiosk app required platform version is not fetched, "
+                     "blocking update checks";
+        return EvalStatus::kAskMeAgainLater;
+      }
+
+      result->target_version_prefix = *kiosk_required_platform_version_p;
       LOG(INFO) << "Allow kiosk app to control Chrome version policy is set,"
                 << ", target version is "
                 << (kiosk_required_platform_version_p

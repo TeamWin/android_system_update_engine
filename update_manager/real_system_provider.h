@@ -64,7 +64,8 @@ class RealSystemProvider : public SystemProvider {
   }
 
  private:
-  std::string GetKioskAppRequiredPlatformVersion();
+  bool GetKioskAppRequiredPlatformVersion(
+      std::string* required_platform_version);
 
   std::unique_ptr<Variable<bool>> var_is_normal_boot_mode_;
   std::unique_ptr<Variable<bool>> var_is_official_build_;

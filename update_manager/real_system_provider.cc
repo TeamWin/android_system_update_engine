@@ -16,25 +16,80 @@
 
 #include "update_engine/update_manager/real_system_provider.h"
 
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-#include <string>
-#include <vector>
-
+#include <base/bind.h>
+#include <base/callback.h>
 #include <base/logging.h>
-#include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/libcros_proxy.h"
 #include "update_engine/update_manager/generic_variables.h"
+#include "update_engine/update_manager/variable.h"
 
 using std::string;
 
 namespace chromeos_update_manager {
+
+namespace {
+
+// The RetryPollVariable variable is a polling variable that allows the function
+// returning the value to fail a few times and shortens the polling rate when
+// that happens.
+template <typename T>
+class RetryPollVariable : public Variable<T> {
+ public:
+  RetryPollVariable(const string& name,
+                    const base::TimeDelta poll_interval,
+                    base::Callback<bool(T* res)> func)
+      : Variable<T>(name, poll_interval),
+        func_(func),
+        base_interval_(poll_interval) {
+    DCHECK_LT(kRetryIntervalSeconds, base_interval_.InSeconds());
+  }
+
+ protected:
+  // Variable override.
+  const T* GetValue(base::TimeDelta /* timeout */,
+                    string* /* errmsg */) override {
+    std::unique_ptr<T> result(new T());
+    if (!func_.Run(result.get())) {
+      if (failed_attempts_ >= kMaxRetry) {
+        // Give up on the retries, set back the desired polling interval and
+        // return the default.
+        this->SetPollInterval(base_interval_);
+        return result.release();
+      }
+      this->SetPollInterval(
+          base::TimeDelta::FromSeconds(kRetryIntervalSeconds));
+      failed_attempts_++;
+      return nullptr;
+    }
+    failed_attempts_ = 0;
+    this->SetPollInterval(base_interval_);
+    return result.release();
+  }
+
+ private:
+  // The function to be called, stored as a base::Callback.
+  base::Callback<bool(T*)> func_;
+
+  // The desired polling interval when |func_| works and returns true.
+  base::TimeDelta base_interval_;
+
+  // The number of consecutive failed attempts made.
+  int failed_attempts_ = 0;
+
+  // The maximum number of consecutive failures before returning the default
+  // constructor value for T instead of failure.
+  static const int kMaxRetry = 5;
+
+  // The polling interval to be used whenever GetValue() returns an error.
+  static const int kRetryIntervalSeconds = 5 * 60;
+
+  DISALLOW_COPY_AND_ASSIGN(RetryPollVariable);
+};
+
+}  // namespace
 
 bool RealSystemProvider::Init() {
   var_is_normal_boot_mode_.reset(
@@ -55,7 +110,7 @@ bool RealSystemProvider::Init() {
       new ConstCopyVariable<unsigned int>(
           "num_slots", boot_control_->GetNumSlots()));
 
-  var_kiosk_required_platform_version_.reset(new CallCopyVariable<std::string>(
+  var_kiosk_required_platform_version_.reset(new RetryPollVariable<string>(
       "kiosk_required_platform_version",
       base::TimeDelta::FromHours(5),  // Same as Chrome's CWS poll.
       base::Bind(&RealSystemProvider::GetKioskAppRequiredPlatformVersion,
@@ -64,19 +119,20 @@ bool RealSystemProvider::Init() {
   return true;
 }
 
-std::string RealSystemProvider::GetKioskAppRequiredPlatformVersion() {
-  std::string required_platform_version;
-
+bool RealSystemProvider::GetKioskAppRequiredPlatformVersion(
+    string* required_platform_version) {
 #if USE_LIBCROS
   brillo::ErrorPtr error;
   if (!libcros_proxy_->service_interface_proxy()
-           ->GetKioskAppRequiredPlatformVersion(&required_platform_version,
+           ->GetKioskAppRequiredPlatformVersion(required_platform_version,
                                                 &error)) {
     LOG(WARNING) << "Failed to get kiosk required platform version";
+    required_platform_version->clear();
+    return false;
   }
 #endif
 
-  return required_platform_version;
+  return true;
 }
 
 }  // namespace chromeos_update_manager
