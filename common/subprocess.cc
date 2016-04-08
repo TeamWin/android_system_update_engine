@@ -204,7 +204,7 @@ pid_t Subprocess::ExecFlags(const vector<string>& cmd,
       true,
       base::Bind(&Subprocess::OnStdoutReady, record.get()));
 
-  subprocess_records_[pid].reset(record.release());
+  subprocess_records_[pid] = std::move(record);
   return pid;
 }
 

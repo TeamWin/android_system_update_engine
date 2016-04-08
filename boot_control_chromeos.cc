@@ -81,7 +81,7 @@ std::unique_ptr<BootControlInterface> CreateBootControl() {
   if (!boot_control_chromeos->Init()) {
     LOG(ERROR) << "Ignoring BootControlChromeOS failure. We won't run updates.";
   }
-  return brillo::make_unique_ptr(boot_control_chromeos.release());
+  return std::move(boot_control_chromeos);
 }
 
 }  // namespace boot_control
