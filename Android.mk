@@ -644,6 +644,9 @@ ifeq ($(HOST_OS),linux)
 # Build for the host.
 include $(CLEAR_VARS)
 LOCAL_MODULE := delta_generator
+LOCAL_REQUIRED_MODULES := \
+    bsdiff \
+    imgdiff
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
