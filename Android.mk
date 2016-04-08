@@ -808,6 +808,26 @@ LOCAL_STATIC_LIBRARIES := \
     $(bsdiff_static_libs)
 include $(BUILD_EXECUTABLE)
 
+# test_subprocess (type: executable)
+# ========================================================
+# Test helper subprocess program.
+include $(CLEAR_VARS)
+LOCAL_MODULE := test_subprocess
+ifdef BRILLO
+  LOCAL_MODULE_TAGS := eng
+endif
+LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := $(ue_common_c_includes)
+LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
+LOCAL_SRC_FILES := test_subprocess.cc
+include $(BUILD_EXECUTABLE)
+
 # update_engine_unittests (type: executable)
 # ========================================================
 # Main unittest file.
@@ -817,6 +837,8 @@ ifdef BRILLO
   LOCAL_MODULE_TAGS := eng
 endif
 LOCAL_REQUIRED_MODULES := \
+    test_http_server \
+    test_subprocess \
     ue_unittest_bsdiff \
     ue_unittest_delta_generator \
     ue_unittest_disk_ext2_1k.img \
