@@ -92,7 +92,7 @@ unique_ptr<Closure> EvaluationContext::RemoveObserversAndTimeout() {
   MessageLoop::current()->CancelTask(timeout_event_);
   timeout_event_ = MessageLoop::kTaskIdNull;
 
-  return unique_ptr<Closure>(callback_.release());
+  return std::move(callback_);
 }
 
 TimeDelta EvaluationContext::RemainingTime(Time monotonic_deadline) const {

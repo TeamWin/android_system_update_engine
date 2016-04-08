@@ -60,7 +60,7 @@ std::unique_ptr<BootControlInterface> CreateBootControl() {
   if (!boot_control->Init()) {
     return nullptr;
   }
-  return brillo::make_unique_ptr(boot_control.release());
+  return std::move(boot_control);
 }
 
 }  // namespace boot_control
