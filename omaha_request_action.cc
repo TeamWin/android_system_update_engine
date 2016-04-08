@@ -1025,7 +1025,8 @@ void OmahaRequestAction::CompleteProcessing() {
   PayloadStateInterface* payload_state = system_state_->payload_state();
 
   if (!system_state_->hardware()->IsOOBEComplete(nullptr) &&
-      output_object.deadline.empty()) {
+      output_object.deadline.empty() &&
+      params_->app_version() != "ForcedUpdate") {
     output_object.update_exists = false;
     LOG(INFO) << "Ignoring non-critical Omaha updates until OOBE is done.";
     completer.set_code(ErrorCode::kNonCriticalUpdateInOOBE);
