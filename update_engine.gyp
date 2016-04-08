@@ -457,6 +457,14 @@
             'test_http_server.cc',
           ],
         },
+        # Test subprocess helper.
+        {
+          'target_name': 'test_subprocess',
+          'type': 'executable',
+          'sources': [
+            'test_subprocess.cc',
+          ],
+        },
         # Main unittest file.
         {
           'target_name': 'update_engine_unittests',

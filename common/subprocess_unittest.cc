@@ -171,13 +171,15 @@ TEST_F(SubprocessTest, PipeRedirectFdTest) {
 // Test that a pipe file descriptor open in the parent is not open in the child.
 TEST_F(SubprocessTest, PipeClosedWhenNotRedirectedTest) {
   brillo::ScopedPipe pipe;
-  const vector<string> cmd = {kBinPath "/sh", "-c",
-     base::StringPrintf("echo on pipe >/proc/self/fd/%d", pipe.writer)};
+
+  // test_subprocess will return with the errno of fstat, which should be EBADF
+  // if the passed file descriptor is closed in the child.
+  const vector<string> cmd = {
+      test_utils::GetBuildArtifactsPath("test_subprocess"),
+      "fstat",
+      std::to_string(pipe.writer)};
   EXPECT_TRUE(subprocess_.ExecFlags(
-      cmd,
-      0,
-      {},
-      base::Bind(&ExpectedResults, 1, "")));
+      cmd, 0, {}, base::Bind(&ExpectedResults, EBADF, "")));
   loop_.Run();
 }
 
