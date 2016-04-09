@@ -20,8 +20,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <string>
 #include <random>
+#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -122,8 +122,10 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
 
   // Split the operation.
   vector<AnnotatedOperation> result_ops;
-  ASSERT_TRUE(ABGenerator::SplitReplaceOrReplaceBz(
-          aop, &result_ops, part_path, &blob_file));
+  PayloadVersion version(kChromeOSMajorPayloadVersion,
+                         kSourceMinorPayloadVersion);
+  ASSERT_TRUE(ABGenerator::SplitAReplaceOp(
+      version, aop, part_path, &result_ops, &blob_file));
 
   // Check the result.
   InstallOperation_Type expected_type =
@@ -288,8 +290,10 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   BlobFileWriter blob_file(data_fd, &data_file_size);
 
   // Merge the operations.
-  EXPECT_TRUE(ABGenerator::MergeOperations(
-      &aops, 5, part_path, &blob_file));
+  PayloadVersion version(kChromeOSMajorPayloadVersion,
+                         kSourceMinorPayloadVersion);
+  EXPECT_TRUE(
+      ABGenerator::MergeOperations(&aops, version, 5, part_path, &blob_file));
 
   // Check the result.
   InstallOperation_Type expected_op_type =
@@ -475,7 +479,9 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   aops.push_back(third_aop);
 
   BlobFileWriter blob_file(0, nullptr);
-  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 5, "", &blob_file));
+  PayloadVersion version(kChromeOSMajorPayloadVersion,
+                         kSourceMinorPayloadVersion);
+  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, version, 5, "", &blob_file));
 
   EXPECT_EQ(1U, aops.size());
   InstallOperation first_result_op = aops[0].op;
@@ -512,9 +518,8 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   // Test to make sure we don't merge operations that shouldn't be merged.
   vector<AnnotatedOperation> aops;
   InstallOperation first_op;
-  first_op.set_type(InstallOperation::REPLACE_BZ);
+  first_op.set_type(InstallOperation::ZERO);
   *(first_op.add_dst_extents()) = ExtentForRange(0, 1);
-  first_op.set_data_length(kBlockSize);
   AnnotatedOperation first_aop;
   first_aop.op = first_op;
   aops.push_back(first_aop);
@@ -547,7 +552,9 @@ TEST_F(ABGeneratorTest, NoMergeOperationsTest) {
   aops.push_back(fourth_aop);
 
   BlobFileWriter blob_file(0, nullptr);
-  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, 4, "", &blob_file));
+  PayloadVersion version(kChromeOSMajorPayloadVersion,
+                         kSourceMinorPayloadVersion);
+  EXPECT_TRUE(ABGenerator::MergeOperations(&aops, version, 4, "", &blob_file));
 
   // No operations were merged, the number of ops is the same.
   EXPECT_EQ(4U, aops.size());
