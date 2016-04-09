@@ -28,6 +28,7 @@
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 
+using chromeos_update_engine::diff_utils::IsAReplaceOperation;
 using std::string;
 using std::vector;
 
@@ -55,9 +56,8 @@ bool ABGenerator::GenerateOperations(
                                                        blob_file));
   LOG(INFO) << "done reading " << new_part.name;
 
-  TEST_AND_RETURN_FALSE(FragmentOperations(aops,
-                                           new_part.path,
-                                           blob_file));
+  TEST_AND_RETURN_FALSE(
+      FragmentOperations(config.version, aops, new_part.path, blob_file));
   SortOperationsByDestination(aops);
 
   // Use the soft_chunk_size when merging operations to prevent merging all
@@ -68,10 +68,8 @@ bool ABGenerator::GenerateOperations(
     merge_chunk_blocks = hard_chunk_blocks;
   }
 
-  TEST_AND_RETURN_FALSE(MergeOperations(aops,
-                                        merge_chunk_blocks,
-                                        new_part.path,
-                                        blob_file));
+  TEST_AND_RETURN_FALSE(MergeOperations(
+      aops, config.version, merge_chunk_blocks, new_part.path, blob_file));
 
   if (config.version.minor >= kOpSrcHashMinorPayloadVersion)
     TEST_AND_RETURN_FALSE(AddSourceHash(aops, old_part.path));
@@ -84,24 +82,22 @@ void ABGenerator::SortOperationsByDestination(
   sort(aops->begin(), aops->end(), diff_utils::CompareAopsByDestination);
 }
 
-bool ABGenerator::FragmentOperations(
-    vector<AnnotatedOperation>* aops,
-    const string& target_part_path,
-    BlobFileWriter* blob_file) {
+bool ABGenerator::FragmentOperations(const PayloadVersion& version,
+                                     vector<AnnotatedOperation>* aops,
+                                     const string& target_part_path,
+                                     BlobFileWriter* blob_file) {
   vector<AnnotatedOperation> fragmented_aops;
   for (const AnnotatedOperation& aop : *aops) {
     if (aop.op.type() == InstallOperation::SOURCE_COPY) {
       TEST_AND_RETURN_FALSE(SplitSourceCopy(aop, &fragmented_aops));
-    } else if ((aop.op.type() == InstallOperation::REPLACE) ||
-               (aop.op.type() == InstallOperation::REPLACE_BZ)) {
-      TEST_AND_RETURN_FALSE(SplitReplaceOrReplaceBz(aop, &fragmented_aops,
-                                                    target_part_path,
-                                                    blob_file));
+    } else if (IsAReplaceOperation(aop.op.type())) {
+      TEST_AND_RETURN_FALSE(SplitAReplaceOp(
+          version, aop, target_part_path, &fragmented_aops, blob_file));
     } else {
       fragmented_aops.push_back(aop);
     }
   }
-  *aops = fragmented_aops;
+  *aops = std::move(fragmented_aops);
   return true;
 }
 
@@ -158,15 +154,14 @@ bool ABGenerator::SplitSourceCopy(
   return true;
 }
 
-bool ABGenerator::SplitReplaceOrReplaceBz(
-    const AnnotatedOperation& original_aop,
-    vector<AnnotatedOperation>* result_aops,
-    const string& target_part_path,
-    BlobFileWriter* blob_file) {
+bool ABGenerator::SplitAReplaceOp(const PayloadVersion& version,
+                                  const AnnotatedOperation& original_aop,
+                                  const string& target_part_path,
+                                  vector<AnnotatedOperation>* result_aops,
+                                  BlobFileWriter* blob_file) {
   InstallOperation original_op = original_aop.op;
+  TEST_AND_RETURN_FALSE(IsAReplaceOperation(original_op.type()));
   const bool is_replace = original_op.type() == InstallOperation::REPLACE;
-  TEST_AND_RETURN_FALSE(is_replace ||
-                        original_op.type() == InstallOperation::REPLACE_BZ);
 
   uint32_t data_offset = original_op.data_offset();
   for (int i = 0; i < original_op.dst_extents_size(); i++) {
@@ -187,8 +182,8 @@ bool ABGenerator::SplitReplaceOrReplaceBz(
     AnnotatedOperation new_aop;
     new_aop.op = new_op;
     new_aop.name = base::StringPrintf("%s:%d", original_aop.name.c_str(), i);
-    TEST_AND_RETURN_FALSE(AddDataAndSetType(&new_aop, target_part_path,
-                                            blob_file));
+    TEST_AND_RETURN_FALSE(
+        AddDataAndSetType(&new_aop, version, target_part_path, blob_file));
 
     result_aops->push_back(new_aop);
   }
@@ -196,6 +191,7 @@ bool ABGenerator::SplitReplaceOrReplaceBz(
 }
 
 bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
+                                  const PayloadVersion& version,
                                   size_t chunk_blocks,
                                   const string& target_part_path,
                                   BlobFileWriter* blob_file) {
@@ -206,6 +202,7 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
       continue;
     }
     AnnotatedOperation& last_aop = new_aops.back();
+    bool last_is_a_replace = IsAReplaceOperation(last_aop.op.type());
 
     if (last_aop.op.dst_extents_size() <= 0 ||
         curr_aop.op.dst_extents_size() <= 0) {
@@ -220,11 +217,11 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
     uint32_t combined_block_count =
         last_aop.op.dst_extents(last_dst_idx).num_blocks() +
         curr_aop.op.dst_extents(0).num_blocks();
-    bool good_op_type = curr_aop.op.type() == InstallOperation::SOURCE_COPY ||
-                        curr_aop.op.type() == InstallOperation::REPLACE ||
-                        curr_aop.op.type() == InstallOperation::REPLACE_BZ;
-    if (good_op_type &&
-        last_aop.op.type() == curr_aop.op.type() &&
+    bool is_a_replace = IsAReplaceOperation(curr_aop.op.type());
+
+    bool is_delta_op = curr_aop.op.type() == InstallOperation::SOURCE_COPY;
+    if (((is_delta_op && (last_aop.op.type() == curr_aop.op.type())) ||
+         (is_a_replace && last_is_a_replace)) &&
         last_end_block == curr_start_block &&
         combined_block_count <= chunk_blocks) {
       // If the operations have the same type (which is a type that we can
@@ -235,34 +232,34 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
                                          last_aop.name.c_str(),
                                          curr_aop.name.c_str());
 
-      ExtendExtents(last_aop.op.mutable_src_extents(),
-                    curr_aop.op.src_extents());
-      if (curr_aop.op.src_length() > 0)
-        last_aop.op.set_src_length(last_aop.op.src_length() +
-                                   curr_aop.op.src_length());
+      if (is_delta_op) {
+        ExtendExtents(last_aop.op.mutable_src_extents(),
+                      curr_aop.op.src_extents());
+        if (curr_aop.op.src_length() > 0)
+          last_aop.op.set_src_length(last_aop.op.src_length() +
+                                     curr_aop.op.src_length());
+      }
       ExtendExtents(last_aop.op.mutable_dst_extents(),
                     curr_aop.op.dst_extents());
       if (curr_aop.op.dst_length() > 0)
         last_aop.op.set_dst_length(last_aop.op.dst_length() +
                                    curr_aop.op.dst_length());
       // Set the data length to zero so we know to add the blob later.
-      if (curr_aop.op.type() == InstallOperation::REPLACE ||
-          curr_aop.op.type() == InstallOperation::REPLACE_BZ) {
+      if (is_a_replace)
         last_aop.op.set_data_length(0);
-      }
     } else {
       // Otherwise just include the extent as is.
       new_aops.push_back(curr_aop);
     }
   }
 
-  // Set the blobs for REPLACE/REPLACE_BZ operations that have been merged.
+  // Set the blobs for REPLACE/REPLACE_BZ/REPLACE_XZ operations that have been
+  // merged.
   for (AnnotatedOperation& curr_aop : new_aops) {
     if (curr_aop.op.data_length() == 0 &&
-        (curr_aop.op.type() == InstallOperation::REPLACE ||
-         curr_aop.op.type() == InstallOperation::REPLACE_BZ)) {
-      TEST_AND_RETURN_FALSE(AddDataAndSetType(&curr_aop, target_part_path,
-                                              blob_file));
+        IsAReplaceOperation(curr_aop.op.type())) {
+      TEST_AND_RETURN_FALSE(
+          AddDataAndSetType(&curr_aop, version, target_part_path, blob_file));
     }
   }
 
@@ -271,10 +268,10 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
 }
 
 bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
+                                    const PayloadVersion& version,
                                     const string& target_part_path,
                                     BlobFileWriter* blob_file) {
-  TEST_AND_RETURN_FALSE(aop->op.type() == InstallOperation::REPLACE ||
-                        aop->op.type() == InstallOperation::REPLACE_BZ);
+  TEST_AND_RETURN_FALSE(IsAReplaceOperation(aop->op.type()));
 
   brillo::Blob data(aop->op.dst_length());
   vector<Extent> dst_extents;
@@ -285,25 +282,16 @@ bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
                                            data.size(),
                                            kBlockSize));
 
-  brillo::Blob data_bz;
-  TEST_AND_RETURN_FALSE(BzipCompress(data, &data_bz));
-  CHECK(!data_bz.empty());
+  brillo::Blob blob;
+  InstallOperation_Type op_type;
+  TEST_AND_RETURN_FALSE(
+      diff_utils::GenerateBestFullOperation(data, version, &blob, &op_type));
 
-  brillo::Blob* data_p = nullptr;
-  InstallOperation_Type new_op_type;
-  if (data_bz.size() < data.size()) {
-    new_op_type = InstallOperation::REPLACE_BZ;
-    data_p = &data_bz;
-  } else {
-    new_op_type = InstallOperation::REPLACE;
-    data_p = &data;
-  }
-
-  // If the operation doesn't point to a data blob, then we add it.
-  if (aop->op.type() != new_op_type ||
-      aop->op.data_length() != data_p->size()) {
-    aop->op.set_type(new_op_type);
-    aop->SetOperationBlob(data_p, blob_file);
+  // If the operation doesn't point to a data blob or points to a data blob of
+  // a different type then we add it.
+  if (aop->op.type() != op_type || aop->op.data_length() != blob.size()) {
+    aop->op.set_type(op_type);
+    aop->SetOperationBlob(blob, blob_file);
   }
 
   return true;

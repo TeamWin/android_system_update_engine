@@ -34,6 +34,7 @@
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
+#include "update_engine/payload_generator/xz.h"
 
 using std::map;
 using std::string;
@@ -484,11 +485,65 @@ bool DeltaReadFile(vector<AnnotatedOperation>* aops,
     // Write the data
     if (operation.type() != InstallOperation::MOVE &&
         operation.type() != InstallOperation::SOURCE_COPY) {
-      TEST_AND_RETURN_FALSE(aop.SetOperationBlob(&data, blob_file));
+      TEST_AND_RETURN_FALSE(aop.SetOperationBlob(data, blob_file));
     } else {
       TEST_AND_RETURN_FALSE(blob_file->StoreBlob(data) != -1);
     }
     aops->emplace_back(aop);
+  }
+  return true;
+}
+
+bool GenerateBestFullOperation(const brillo::Blob& new_data,
+                               const PayloadVersion& version,
+                               brillo::Blob* out_blob,
+                               InstallOperation_Type* out_type) {
+  if (new_data.empty())
+    return false;
+
+  if (version.OperationAllowed(InstallOperation::ZERO) &&
+      std::all_of(
+          new_data.begin(), new_data.end(), [](uint8_t x) { return x == 0; })) {
+    // The read buffer is all zeros, so produce a ZERO operation. No need to
+    // check other types of operations in this case.
+    *out_blob = brillo::Blob();
+    *out_type = InstallOperation::ZERO;
+    return true;
+  }
+
+  bool out_blob_set = false;
+
+  // Try compressing |new_data| with xz first.
+  if (version.OperationAllowed(InstallOperation::REPLACE_XZ)) {
+    brillo::Blob new_data_xz;
+    if (XzCompress(new_data, &new_data_xz) && !new_data_xz.empty()) {
+      *out_type = InstallOperation::REPLACE_XZ;
+      *out_blob = std::move(new_data_xz);
+      out_blob_set = true;
+    }
+  }
+
+  // Try compressing it with bzip2.
+  if (version.OperationAllowed(InstallOperation::REPLACE_BZ)) {
+    brillo::Blob new_data_bz;
+    // TODO(deymo): Implement some heuristic to determine if it is worth trying
+    // to compress the blob with bzip2 if we already have a good REPLACE_XZ.
+    if (BzipCompress(new_data, &new_data_bz) && !new_data_bz.empty() &&
+        (!out_blob_set || out_blob->size() > new_data_bz.size())) {
+      // A REPLACE_BZ is better or nothing else was set.
+      *out_type = InstallOperation::REPLACE_BZ;
+      *out_blob = std::move(new_data_bz);
+      out_blob_set = true;
+    }
+  }
+
+  // If nothing else worked or it was badly compressed we try a REPLACE.
+  if (!out_blob_set || out_blob->size() >= new_data.size()) {
+    *out_type = InstallOperation::REPLACE;
+    // This needs to make a copy of the data in the case bzip or xz didn't
+    // compress well, which is not the common case so the performance hit is
+    // low.
+    *out_blob = new_data;
   }
   return true;
 }
@@ -501,8 +556,6 @@ bool ReadExtentsToDiff(const string& old_part,
                        brillo::Blob* out_data,
                        InstallOperation* out_op) {
   InstallOperation operation;
-  // Data blob that will be written to delta file.
-  const brillo::Blob* data_blob = nullptr;
 
   // We read blocks from old_extents and write blocks to new_extents.
   uint64_t blocks_to_read = BlocksInExtents(old_extents);
@@ -540,25 +593,17 @@ bool ReadExtentsToDiff(const string& old_part,
                                            kBlockSize));
   TEST_AND_RETURN_FALSE(!new_data.empty());
 
+  // Data blob that will be written to delta file.
+  brillo::Blob data_blob;
 
-  // Using a REPLACE is always an option.
-  operation.set_type(InstallOperation::REPLACE);
-  data_blob = &new_data;
-
-  // Try compressing it with bzip2.
-  brillo::Blob new_data_bz;
-  TEST_AND_RETURN_FALSE(BzipCompress(new_data, &new_data_bz));
-  CHECK(!new_data_bz.empty());
-  if (new_data_bz.size() < data_blob->size()) {
-    // A REPLACE_BZ is better.
-    operation.set_type(InstallOperation::REPLACE_BZ);
-    data_blob = &new_data_bz;
-  }
+  // Try generating a full operation for the given new data, regardless of the
+  // old_data.
+  InstallOperation_Type op_type;
+  TEST_AND_RETURN_FALSE(
+      GenerateBestFullOperation(new_data, version, &data_blob, &op_type));
+  operation.set_type(op_type);
 
   brillo::Blob old_data;
-  brillo::Blob empty_blob;
-  brillo::Blob bsdiff_delta;
-  brillo::Blob imgdiff_delta;
   if (blocks_to_read > 0) {
     // Read old data.
     TEST_AND_RETURN_FALSE(
@@ -569,7 +614,7 @@ bool ReadExtentsToDiff(const string& old_part,
       operation.set_type(version.OperationAllowed(InstallOperation::SOURCE_COPY)
                              ? InstallOperation::SOURCE_COPY
                              : InstallOperation::MOVE);
-      data_blob = &empty_blob;
+      data_blob = brillo::Blob();
     } else if (bsdiff_allowed || imgdiff_allowed) {
       // If the source file is considered bsdiff safe (no bsdiff bugs
       // triggered), see if BSDIFF encoding is smaller.
@@ -585,18 +630,20 @@ bool ReadExtentsToDiff(const string& old_part,
           new_chunk.value().c_str(), new_data.data(), new_data.size()));
 
       if (bsdiff_allowed) {
+        brillo::Blob bsdiff_delta;
         TEST_AND_RETURN_FALSE(DiffFiles(
             kBsdiffPath, old_chunk.value(), new_chunk.value(), &bsdiff_delta));
         CHECK_GT(bsdiff_delta.size(), static_cast<brillo::Blob::size_type>(0));
-        if (bsdiff_delta.size() < data_blob->size()) {
+        if (bsdiff_delta.size() < data_blob.size()) {
           operation.set_type(
               version.OperationAllowed(InstallOperation::SOURCE_BSDIFF)
                   ? InstallOperation::SOURCE_BSDIFF
                   : InstallOperation::BSDIFF);
-          data_blob = &bsdiff_delta;
+          data_blob = std::move(bsdiff_delta);
         }
       }
       if (imgdiff_allowed && ContainsGZip(old_data) && ContainsGZip(new_data)) {
+        brillo::Blob imgdiff_delta;
         // Imgdiff might fail in some cases, only use the result if it succeed,
         // otherwise print the extents to analyze.
         if (DiffFiles(kImgdiffPath,
@@ -604,9 +651,9 @@ bool ReadExtentsToDiff(const string& old_part,
                       new_chunk.value(),
                       &imgdiff_delta) &&
             imgdiff_delta.size() > 0) {
-          if (imgdiff_delta.size() < data_blob->size()) {
+          if (imgdiff_delta.size() < data_blob.size()) {
             operation.set_type(InstallOperation::IMGDIFF);
-            data_blob = &imgdiff_delta;
+            data_blob = std::move(imgdiff_delta);
           }
         } else {
           LOG(ERROR) << "Imgdiff failed with source extents: "
@@ -633,13 +680,12 @@ bool ReadExtentsToDiff(const string& old_part,
   StoreExtents(dst_extents, operation.mutable_dst_extents());
 
   // Replace operations should not have source extents.
-  if (operation.type() == InstallOperation::REPLACE ||
-      operation.type() == InstallOperation::REPLACE_BZ) {
+  if (IsAReplaceOperation(operation.type())) {
     operation.clear_src_extents();
     operation.clear_src_length();
   }
 
-  *out_data = std::move(*data_blob);
+  *out_data = std::move(data_blob);
   *out_op = operation;
 
   return true;
@@ -673,6 +719,12 @@ bool DiffFiles(const string& diff_path,
   TEST_AND_RETURN_FALSE(utils::ReadFile(patch_file_path, out));
   unlink(patch_file_path.c_str());
   return true;
+}
+
+bool IsAReplaceOperation(InstallOperation_Type op_type) {
+  return (op_type == InstallOperation::REPLACE ||
+          op_type == InstallOperation::REPLACE_BZ ||
+          op_type == InstallOperation::REPLACE_XZ);
 }
 
 // Returns true if |op| is a no-op operation that doesn't do any useful work
