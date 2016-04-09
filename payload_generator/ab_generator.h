@@ -62,7 +62,8 @@ class ABGenerator : public OperationsGenerator {
   // The |target_part_path| is the filename of the new image, where the
   // destination extents refer to. The blobs of the operations in |aops| should
   // reference |blob_file|. |blob_file| are updated if needed.
-  static bool FragmentOperations(std::vector<AnnotatedOperation>* aops,
+  static bool FragmentOperations(const PayloadVersion& version,
+                                 std::vector<AnnotatedOperation>* aops,
                                  const std::string& target_part_path,
                                  BlobFileWriter* blob_file);
 
@@ -84,25 +85,27 @@ class ABGenerator : public OperationsGenerator {
   static bool SplitSourceCopy(const AnnotatedOperation& original_aop,
                               std::vector<AnnotatedOperation>* result_aops);
 
-  // Takes a REPLACE/REPLACE_BZ operation |aop|, and adds one operation for each
-  // dst extent in |aop| to |ops|. The new operations added to |ops| will have
-  // only one dst extent each, and may be either a REPLACE or REPLACE_BZ
-  // depending on whether compression is advantageous.
-  static bool SplitReplaceOrReplaceBz(
-      const AnnotatedOperation& original_aop,
-      std::vector<AnnotatedOperation>* result_aops,
-      const std::string& target_part,
-      BlobFileWriter* blob_file);
+  // Takes a REPLACE, REPLACE_BZ or REPLACE_XZ operation |aop|, and adds one
+  // operation for each dst extent in |aop| to |ops|. The new operations added
+  // to |ops| will have only one dst extent each, and may be of a different
+  // type depending on whether compression is advantageous.
+  static bool SplitAReplaceOp(const PayloadVersion& version,
+                              const AnnotatedOperation& original_aop,
+                              const std::string& target_part,
+                              std::vector<AnnotatedOperation>* result_aops,
+                              BlobFileWriter* blob_file);
 
   // Takes a sorted (by first destination extent) vector of operations |aops|
-  // and merges SOURCE_COPY, REPLACE, and REPLACE_BZ operations in that vector.
+  // and merges SOURCE_COPY, REPLACE, REPLACE_BZ and REPLACE_XZ, operations in
+  // that vector.
   // It will merge two operations if:
-  //   - They are of the same type.
-  //   - They are contiguous.
+  //   - They are both REPLACE_*, or they are both SOURCE_COPY,
+  //   - Their destination blocks are contiguous.
   //   - Their combined blocks do not exceed |chunk_blocks| blocks.
   // Note that unlike other methods, you can't pass a negative number in
   // |chunk_blocks|.
   static bool MergeOperations(std::vector<AnnotatedOperation>* aops,
+                              const PayloadVersion& version,
                               size_t chunk_blocks,
                               const std::string& target_part,
                               BlobFileWriter* blob_file);
@@ -113,14 +116,15 @@ class ABGenerator : public OperationsGenerator {
                             const std::string& source_part_path);
 
  private:
-  // Adds the data payload for a REPLACE/REPLACE_BZ operation |aop| by reading
-  // its output extents from |target_part_path| and appending a corresponding
-  // data blob to |data_fd|. The blob will be compressed if this is smaller than
-  // the uncompressed form, and the operation type will be set accordingly.
-  // |*blob_file| will be updated as well. If the operation happens to have
-  // the right type and already points to a data blob, nothing is written.
-  // Caller should only set type and data blob if it's valid.
+  // Adds the data payload for a REPLACE/REPLACE_BZ/REPLACE_XZ operation |aop|
+  // by reading its output extents from |target_part_path| and appending a
+  // corresponding data blob to |blob_file|. The blob will be compressed if this
+  // is smaller than the uncompressed form, and the operation type will be set
+  // accordingly. |*blob_file| will be updated as well. If the operation happens
+  // to have the right type and already points to a data blob, nothing is
+  // written. Caller should only set type and data blob if it's valid.
   static bool AddDataAndSetType(AnnotatedOperation* aop,
+                                const PayloadVersion& version,
                                 const std::string& target_part_path,
                                 BlobFileWriter* blob_file);
 
