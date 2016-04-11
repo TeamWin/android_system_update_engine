@@ -802,10 +802,17 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
 LOCAL_MODULE_STEM := bsdiff
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_SRC_FILES := ../../external/bsdiff/bsdiff_main.cc
-LOCAL_CFLAGS := $(bsdiff_common_cflags)
+LOCAL_CFLAGS := \
+    -D_FILE_OFFSET_BITS=64 \
+    -Wall \
+    -Werror \
+    -Wextra \
+    -Wno-unused-parameter
 LOCAL_STATIC_LIBRARIES := \
     libbsdiff \
-    $(bsdiff_static_libs)
+    libbz \
+    libdivsufsort64 \
+    libdivsufsort
 include $(BUILD_EXECUTABLE)
 
 # test_subprocess (type: executable)
