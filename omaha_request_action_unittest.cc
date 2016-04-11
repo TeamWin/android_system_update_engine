@@ -23,6 +23,7 @@
 
 #include <base/bind.h>
 #include <base/files/file_util.h>
+#include <base/files/scoped_temp_dir.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -42,7 +43,6 @@
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/test_utils.h"
-#include "update_engine/common/utils.h"
 #include "update_engine/fake_system_state.h"
 #include "update_engine/metrics.h"
 #include "update_engine/mock_connection_manager.h"
@@ -1805,30 +1805,17 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
 
 TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   // Create a uniquely named test directory.
-  string test_dir;
-  ASSERT_TRUE(utils::MakeTempDirectory(
-          "omaha_request_action-test-XXXXXX", &test_dir));
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
-  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
-                      kStatefulPartition + "/etc"));
   brillo::Blob post_data;
-  NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
-  ASSERT_TRUE(WriteFileString(
-      test_dir + "/etc/lsb-release",
-      "CHROMEOS_RELEASE_APPID={11111111-1111-1111-1111-111111111111}\n"
-      "CHROMEOS_BOARD_APPID={22222222-2222-2222-2222-222222222222}\n"
-      "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
-  ASSERT_TRUE(WriteFileString(
-      test_dir + kStatefulPartition + "/etc/lsb-release",
-      "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"
-      "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
-  OmahaRequestParams params = request_params_;
-  params.set_root(test_dir);
-  params.Init("1.2.3.4", "", 0);
-  EXPECT_EQ("canary-channel", params.current_channel());
-  EXPECT_EQ("stable-channel", params.target_channel());
+  OmahaRequestParams params(&fake_system_state_);
+  params.set_root(tempdir.path().value());
+  params.set_app_id("{22222222-2222-2222-2222-222222222222}");
+  params.set_app_version("1.2.3.4");
+  params.set_current_channel("canary-channel");
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.UpdateDownloadChannel();
   EXPECT_TRUE(params.to_more_stable_channel());
   EXPECT_TRUE(params.is_powerwash_allowed());
   ASSERT_FALSE(TestUpdateCheck(&params,
@@ -1847,35 +1834,21 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
       "appid=\"{22222222-2222-2222-2222-222222222222}\" "
       "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
       "track=\"stable-channel\" from_track=\"canary-channel\" "));
-
-  ASSERT_TRUE(base::DeleteFile(base::FilePath(test_dir), true));
 }
 
 TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   // Create a uniquely named test directory.
-  string test_dir;
-  ASSERT_TRUE(utils::MakeTempDirectory(
-          "omaha_request_action-test-XXXXXX", &test_dir));
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
-  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
-  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
-                      kStatefulPartition + "/etc"));
   brillo::Blob post_data;
-  NiceMock<MockPrefs> prefs;
-  fake_system_state_.set_prefs(&prefs);
-  ASSERT_TRUE(WriteFileString(
-      test_dir + "/etc/lsb-release",
-      "CHROMEOS_RELEASE_APPID={11111111-1111-1111-1111-111111111111}\n"
-      "CHROMEOS_BOARD_APPID={22222222-2222-2222-2222-222222222222}\n"
-      "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
-  ASSERT_TRUE(WriteFileString(
-      test_dir + kStatefulPartition + "/etc/lsb-release",
-      "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
-  OmahaRequestParams params = request_params_;
-  params.set_root(test_dir);
-  params.Init("5.6.7.8", "", 0);
-  EXPECT_EQ("stable-channel", params.current_channel());
-  EXPECT_EQ("canary-channel", params.target_channel());
+  OmahaRequestParams params(&fake_system_state_);
+  params.set_root(tempdir.path().value());
+  params.set_app_id("{11111111-1111-1111-1111-111111111111}");
+  params.set_app_version("5.6.7.8");
+  params.set_current_channel("stable-channel");
+  EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
+  params.UpdateDownloadChannel();
   EXPECT_FALSE(params.to_more_stable_channel());
   EXPECT_FALSE(params.is_powerwash_allowed());
   ASSERT_FALSE(TestUpdateCheck(&params,

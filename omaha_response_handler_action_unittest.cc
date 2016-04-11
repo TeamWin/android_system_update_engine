@@ -19,6 +19,7 @@
 #include <string>
 
 #include <base/files/file_util.h>
+#include <base/files/scoped_temp_dir.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
@@ -33,6 +34,7 @@ using chromeos_update_engine::test_utils::System;
 using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
 using testing::Return;
+using testing::_;
 
 namespace chromeos_update_engine {
 
@@ -327,27 +329,22 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   in.size = 15;
 
   // Create a uniquely named test directory.
-  string test_dir;
-  ASSERT_TRUE(utils::MakeTempDirectory(
-          "omaha_response_handler_action-test-XXXXXX", &test_dir));
-
-  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
-  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
-                      kStatefulPartition + "/etc"));
-  ASSERT_TRUE(WriteFileString(
-      test_dir + "/etc/lsb-release",
-      "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
-  ASSERT_TRUE(WriteFileString(
-      test_dir + kStatefulPartition + "/etc/lsb-release",
-      "CHROMEOS_IS_POWERWASH_ALLOWED=true\n"
-      "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
   OmahaRequestParams params(&fake_system_state_);
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
-  params.set_root(test_dir);
-  params.Init("1.2.3.4", "", 0);
-  EXPECT_EQ("canary-channel", params.current_channel());
-  EXPECT_EQ("stable-channel", params.target_channel());
+  params.set_root(tempdir.path().value());
+  params.set_current_channel("canary-channel");
+  // The ImageProperties in Android uses prefs to store MutableImageProperties.
+#ifdef __ANDROID__
+  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetString(_, "stable-channel"))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, true))
+      .WillOnce(Return(true));
+#endif  // __ANDROID__
+  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.UpdateDownloadChannel();
   EXPECT_TRUE(params.to_more_stable_channel());
   EXPECT_TRUE(params.is_powerwash_allowed());
 
@@ -355,8 +352,6 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_TRUE(install_plan.powerwash_required);
-
-  ASSERT_TRUE(base::DeleteFile(base::FilePath(test_dir), true));
 }
 
 TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
@@ -369,27 +364,22 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   in.size = 15;
 
   // Create a uniquely named test directory.
-  string test_dir;
-  ASSERT_TRUE(utils::MakeTempDirectory(
-          "omaha_response_handler_action-test-XXXXXX", &test_dir));
-
-  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir + "/etc"));
-  ASSERT_EQ(0, System(string("mkdir -p ") + test_dir +
-                      kStatefulPartition + "/etc"));
-  ASSERT_TRUE(WriteFileString(
-      test_dir + "/etc/lsb-release",
-      "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
-  ASSERT_TRUE(WriteFileString(
-      test_dir + kStatefulPartition + "/etc/lsb-release",
-      "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
+  base::ScopedTempDir tempdir;
+  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
 
   OmahaRequestParams params(&fake_system_state_);
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
-  params.set_root(test_dir);
-  params.Init("5.6.7.8", "", 0);
-  EXPECT_EQ("stable-channel", params.current_channel());
-  params.SetTargetChannel("canary-channel", false, nullptr);
-  EXPECT_EQ("canary-channel", params.target_channel());
+  params.set_root(tempdir.path().value());
+  params.set_current_channel("stable-channel");
+  // The ImageProperties in Android uses prefs to store MutableImageProperties.
+#ifdef __ANDROID__
+  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetString(_, "canary-channel"))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, false))
+      .WillOnce(Return(true));
+#endif  // __ANDROID__
+  EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
+  params.UpdateDownloadChannel();
   EXPECT_FALSE(params.to_more_stable_channel());
   EXPECT_FALSE(params.is_powerwash_allowed());
 
@@ -397,8 +387,6 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_FALSE(install_plan.powerwash_required);
-
-  ASSERT_TRUE(base::DeleteFile(base::FilePath(test_dir), true));
 }
 
 TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
