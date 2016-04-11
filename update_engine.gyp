@@ -506,6 +506,7 @@
             'connection_manager_unittest.cc',
             'fake_shill_proxy.cc',
             'fake_system_state.cc',
+            'image_properties_chromeos_unittest.cc',
             'metrics_utils_unittest.cc',
             'omaha_request_action_unittest.cc',
             'omaha_request_params_unittest.cc',
