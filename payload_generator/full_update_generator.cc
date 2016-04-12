@@ -107,9 +107,7 @@ bool ChunkProcessor::ProcessChunk() {
       buffer_in_, version_, &op_blob, &op_type));
 
   aop_->op.set_type(op_type);
-  if (!op_blob.empty()) {
-    TEST_AND_RETURN_FALSE(aop_->SetOperationBlob(op_blob, blob_file_));
-  }
+  TEST_AND_RETURN_FALSE(aop_->SetOperationBlob(op_blob, blob_file_));
   return true;
 }
 
