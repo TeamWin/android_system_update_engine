@@ -483,12 +483,7 @@ bool DeltaReadFile(vector<AnnotatedOperation>* aops,
     aop.op = operation;
 
     // Write the data
-    if (operation.type() != InstallOperation::MOVE &&
-        operation.type() != InstallOperation::SOURCE_COPY) {
-      TEST_AND_RETURN_FALSE(aop.SetOperationBlob(data, blob_file));
-    } else {
-      TEST_AND_RETURN_FALSE(blob_file->StoreBlob(data) != -1);
-    }
+    TEST_AND_RETURN_FALSE(aop.SetOperationBlob(data, blob_file));
     aops->emplace_back(aop);
   }
   return true;
