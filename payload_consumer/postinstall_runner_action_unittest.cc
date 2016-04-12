@@ -95,8 +95,6 @@ class PostinstallRunnerActionTest : public ::testing::Test {
     // stored in the "disk_ext2_unittest.img" image.
     postinstall_image_ =
         test_utils::GetBuildArtifactsPath("gen/disk_ext2_unittest.img");
-
-    ASSERT_EQ(0U, getuid()) << "Run these tests as root.";
   }
 
   void TearDown() override {
