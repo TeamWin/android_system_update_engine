@@ -259,7 +259,6 @@ class LibcurlHttpFetcher : public HttpFetcher {
   int low_speed_limit_bps_{kDownloadLowSpeedLimitBps};
   int low_speed_time_seconds_{kDownloadLowSpeedTimeSeconds};
   int connect_timeout_seconds_{kDownloadConnectTimeoutSeconds};
-  int num_max_retries_;
 
   DISALLOW_COPY_AND_ASSIGN(LibcurlHttpFetcher);
 };

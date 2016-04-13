@@ -74,7 +74,7 @@ class RealSystemProvider : public SystemProvider {
 
   chromeos_update_engine::HardwareInterface* const hardware_;
   chromeos_update_engine::BootControlInterface* const boot_control_;
-  chromeos_update_engine::LibCrosProxy* const libcros_proxy_;
+  chromeos_update_engine::LibCrosProxy* const libcros_proxy_ ALLOW_UNUSED_TYPE;
 
   DISALLOW_COPY_AND_ASSIGN(RealSystemProvider);
 };
