@@ -104,9 +104,6 @@ class UpdateEngineClient : public brillo::Daemon {
   // Pointers to handlers for cleanup
   vector<unique_ptr<update_engine::StatusUpdateHandler>> handlers_;
 
-  // Tell whether the UpdateEngine service is available after startup.
-  bool service_is_available_{false};
-
   DISALLOW_COPY_AND_ASSIGN(UpdateEngineClient);
 };
 
