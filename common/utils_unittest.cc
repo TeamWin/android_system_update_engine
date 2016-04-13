@@ -25,6 +25,7 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
+#include <base/files/scoped_temp_dir.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
@@ -80,17 +81,16 @@ TEST(UtilsTest, ErrnoNumberAsStringTest) {
 }
 
 TEST(UtilsTest, IsSymlinkTest) {
-  string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("symlink-test.XXXXXX", &temp_dir));
-  string temp_file = temp_dir + "/temp-file";
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  string temp_file = temp_dir.path().Append("temp-file").value();
   EXPECT_TRUE(utils::WriteFile(temp_file.c_str(), "", 0));
-  string temp_symlink = temp_dir + "/temp-symlink";
+  string temp_symlink = temp_dir.path().Append("temp-symlink").value();
   EXPECT_EQ(0, symlink(temp_file.c_str(), temp_symlink.c_str()));
-  EXPECT_FALSE(utils::IsSymlink(temp_dir.c_str()));
+  EXPECT_FALSE(utils::IsSymlink(temp_dir.path().value().c_str()));
   EXPECT_FALSE(utils::IsSymlink(temp_file.c_str()));
   EXPECT_TRUE(utils::IsSymlink(temp_symlink.c_str()));
   EXPECT_FALSE(utils::IsSymlink("/non/existent/path"));
-  EXPECT_TRUE(base::DeleteFile(base::FilePath(temp_dir), true));
 }
 
 TEST(UtilsTest, SplitPartitionNameTest) {

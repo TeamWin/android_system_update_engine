@@ -21,6 +21,7 @@
 #include <string>
 
 #include <base/files/file_util.h>
+#include <base/files/scoped_temp_dir.h>
 #include <base/macros.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -41,12 +42,9 @@ namespace chromeos_update_engine {
 class PrefsTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    ASSERT_TRUE(base::CreateNewTempDirectory("auprefs", &prefs_dir_));
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    prefs_dir_ = temp_dir_.path();
     ASSERT_TRUE(prefs_.Init(prefs_dir_));
-  }
-
-  void TearDown() override {
-    base::DeleteFile(prefs_dir_, true);  // recursive
   }
 
   bool SetValue(const string& key, const string& value) {
@@ -54,6 +52,7 @@ class PrefsTest : public ::testing::Test {
                            value.length()) == static_cast<int>(value.length());
   }
 
+  base::ScopedTempDir temp_dir_;
   base::FilePath prefs_dir_;
   Prefs prefs_;
 };

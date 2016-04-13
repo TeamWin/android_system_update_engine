@@ -30,6 +30,7 @@
 
 #include <base/callback.h>
 #include <base/files/file_path.h>
+#include <base/files/scoped_temp_dir.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/action.h"
@@ -182,7 +183,7 @@ class ScopedLoopMounter {
   //   ScopedFilesystemUnmounter (the file system must be unmounted first)
   //   ScopedLoopbackDeviceBinder (then the loop device can be deleted)
   //   ScopedDirRemover (then the mount point can be deleted)
-  std::unique_ptr<ScopedDirRemover> dir_remover_;
+  base::ScopedTempDir temp_dir_;
   std::unique_ptr<ScopedLoopbackDeviceBinder> loop_binder_;
   std::unique_ptr<ScopedFilesystemUnmounter> unmounter_;
 };

@@ -113,8 +113,9 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
 #ifdef __ANDROID__
   fs_mount_dir_ = "/postinstall";
 #else   // __ANDROID__
-  TEST_AND_RETURN(
-      utils::MakeTempDirectory("au_postint_mount.XXXXXX", &fs_mount_dir_));
+  base::FilePath temp_dir;
+  TEST_AND_RETURN(base::CreateNewTempDirectory("au_postint_mount", &temp_dir));
+  fs_mount_dir_ = temp_dir.value();
 #endif  // __ANDROID__
 
   base::FilePath postinstall_path(partition.postinstall_path);
