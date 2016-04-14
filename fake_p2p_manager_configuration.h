@@ -17,17 +17,14 @@
 #ifndef UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
 #define UPDATE_ENGINE_FAKE_P2P_MANAGER_CONFIGURATION_H_
 
-#include "update_engine/common/test_utils.h"
-#include "update_engine/common/utils.h"
 #include "update_engine/p2p_manager.h"
 
 #include <string>
 #include <vector>
 
-#include <base/files/file_util.h>
-#include <base/logging.h>
-#include <base/strings/string_number_conversions.h>
+#include <base/files/scoped_temp_dir.h>
 #include <base/strings/string_util.h>
+#include <gtest/gtest.h>
 
 namespace chromeos_update_engine {
 
@@ -36,19 +33,12 @@ namespace chromeos_update_engine {
 class FakeP2PManagerConfiguration : public P2PManager::Configuration {
  public:
   FakeP2PManagerConfiguration() {
-    EXPECT_TRUE(utils::MakeTempDirectory("p2p-tc.XXXXXX", &p2p_dir_));
-  }
-
-  ~FakeP2PManagerConfiguration() {
-    if (p2p_dir_.size() > 0 &&
-        !base::DeleteFile(base::FilePath(p2p_dir_), true)) {
-      PLOG(ERROR) << "Unable to unlink files and directory in " << p2p_dir_;
-    }
+    EXPECT_TRUE(p2p_dir_.CreateUniqueTempDir());
   }
 
   // P2PManager::Configuration override
   base::FilePath GetP2PDir() override {
-    return base::FilePath(p2p_dir_);
+    return p2p_dir_.path();
   }
 
   // P2PManager::Configuration override
@@ -95,7 +85,7 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
 
  private:
   // The temporary directory used for p2p.
-  std::string p2p_dir_;
+  base::ScopedTempDir p2p_dir_;
 
   // Argument vector for starting p2p.
   std::vector<std::string> initctl_start_args_{"initctl", "start", "p2p"};

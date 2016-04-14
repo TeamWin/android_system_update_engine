@@ -24,6 +24,7 @@
 
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
+#include <base/files/scoped_temp_dir.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -832,11 +833,10 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   //  a. it's not an official build; and
   //  b. there is no key in the root filesystem.
 
-  string temp_dir;
-  EXPECT_TRUE(utils::MakeTempDirectory("PublicKeyFromResponseTests.XXXXXX",
-                                       &temp_dir));
-  string non_existing_file = temp_dir + "/non-existing";
-  string existing_file = temp_dir + "/existing";
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  string non_existing_file = temp_dir.path().Append("non-existing").value();
+  string existing_file = temp_dir.path().Append("existing").value();
   EXPECT_EQ(0, System(base::StringPrintf("touch %s", existing_file.c_str())));
 
   // Non-official build, non-existing public-key, key in response -> true
@@ -883,8 +883,6 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   performer_.public_key_path_ = non_existing_file;
   install_plan_.public_key_rsa = "not-valid-base64";
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
-
-  EXPECT_TRUE(base::DeleteFile(base::FilePath(temp_dir), true));
 }
 
 TEST_F(DeltaPerformerTest, ConfVersionsMatch) {
