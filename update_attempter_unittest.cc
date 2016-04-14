@@ -131,8 +131,6 @@ class UpdateAttempterTest : public ::testing::Test {
   }
 
   void SetUp() override {
-    CHECK(utils::MakeTempDirectory("UpdateAttempterTest-XXXXXX", &test_dir_));
-
     EXPECT_NE(nullptr, attempter_.system_state_);
     EXPECT_EQ(0, attempter_.http_response_code_);
     EXPECT_EQ(UpdateStatus::IDLE, attempter_.status_);
@@ -159,10 +157,6 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_CALL(*fake_system_state_.mock_payload_state(),
                 GetUsingP2PForDownloading())
         .WillRepeatedly(ReturnPointee(&actual_using_p2p_for_sharing_));
-  }
-
-  void TearDown() override {
-    base::DeleteFile(base::FilePath(test_dir_), true);
   }
 
  public:
@@ -208,8 +202,6 @@ class UpdateAttempterTest : public ::testing::Test {
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
   NiceMock<MockConnectionManager> mock_connection_manager;
-
-  string test_dir_;
 
   bool actual_using_p2p_for_downloading_;
   bool actual_using_p2p_for_sharing_;

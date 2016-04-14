@@ -246,8 +246,8 @@ void FillWithData(brillo::Blob* buffer) {
 ScopedLoopMounter::ScopedLoopMounter(const string& file_path,
                                      string* mnt_path,
                                      unsigned long flags) {  // NOLINT - long
-  EXPECT_TRUE(utils::MakeTempDirectory("mnt.XXXXXX", mnt_path));
-  dir_remover_.reset(new ScopedDirRemover(*mnt_path));
+  EXPECT_TRUE(temp_dir_.CreateUniqueTempDir());
+  *mnt_path = temp_dir_.path().value();
 
   string loop_dev;
   loop_binder_.reset(
