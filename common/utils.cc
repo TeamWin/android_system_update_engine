@@ -622,22 +622,6 @@ bool MakeTempFile(const string& base_filename_template,
   return true;
 }
 
-bool MakeTempDirectory(const string& base_dirname_template,
-                       string* dirname) {
-  base::FilePath dirname_template;
-  TEST_AND_RETURN_FALSE(GetTempName(base_dirname_template, &dirname_template));
-  DCHECK(dirname);
-  vector<char> buf(dirname_template.value().size() + 1);
-  memcpy(buf.data(), dirname_template.value().data(),
-         dirname_template.value().size());
-  buf[dirname_template.value().size()] = '\0';
-
-  char* return_code = mkdtemp(buf.data());
-  TEST_AND_RETURN_FALSE_ERRNO(return_code != nullptr);
-  *dirname = buf.data();
-  return true;
-}
-
 bool SetBlockDeviceReadOnly(const string& device, bool read_only) {
   int fd = HANDLE_EINTR(open(device.c_str(), O_RDONLY | O_CLOEXEC));
   if (fd < 0) {

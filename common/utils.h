@@ -142,14 +142,6 @@ bool MakeTempFile(const std::string& base_filename_template,
                   std::string* filename,
                   int* fd);
 
-// If |base_dirname_template| is neither absolute (starts with "/") nor
-// explicitly relative to the current working directory (starts with "./" or
-// "../"), then it is prepended the system's temporary directory. On success,
-// stores the name of the new temporary directory in |dirname|. The template
-// must end with "XXXXXX". Returns true on success.
-bool MakeTempDirectory(const std::string& base_dirname_template,
-                       std::string* dirname);
-
 // Splits the partition device name into the block device name and partition
 // number. For example, "/dev/sda3" will be split into {"/dev/sda", 3} and
 // "/dev/mmcblk0p2" into {"/dev/mmcblk0", 2}
@@ -364,27 +356,6 @@ class ScopedPathUnlinker {
   const std::string path_;
   bool should_remove_;
   DISALLOW_COPY_AND_ASSIGN(ScopedPathUnlinker);
-};
-
-// Utility class to delete an empty directory when it goes out of scope.
-class ScopedDirRemover {
- public:
-  explicit ScopedDirRemover(const std::string& path)
-      : path_(path),
-        should_remove_(true) {}
-  ~ScopedDirRemover() {
-    if (should_remove_ && (rmdir(path_.c_str()) < 0)) {
-      PLOG(ERROR) << "Unable to remove dir " << path_;
-    }
-  }
-  void set_should_remove(bool should_remove) { should_remove_ = should_remove; }
-
- protected:
-  const std::string path_;
-
- private:
-  bool should_remove_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedDirRemover);
 };
 
 // A little object to call ActionComplete on the ActionProcessor when
