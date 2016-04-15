@@ -516,19 +516,39 @@ TEST_F(UmChromeOSPolicyTest, UpdateCheckAllowedKioskPinWithNoRequiredVersion) {
   SetUpdateCheckAllowed(true);
 
   // AU disabled, allow kiosk to pin but there is no kiosk required platform
-  // version (due to Chrome crash or app does not provide the info). Update to
-  // latest in such case.
+  // version (i.e. app does not provide the info). Update to latest in such
+  // case.
   fake_state_.device_policy_provider()->var_update_disabled()->reset(
       new bool(true));
   fake_state_.device_policy_provider()
       ->var_allow_kiosk_app_control_chrome_version()
       ->reset(new bool(true));
+  fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
+      new string());
 
   UpdateCheckParams result;
   ExpectPolicyStatus(EvalStatus::kSucceeded,
                      &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
+  EXPECT_TRUE(result.target_version_prefix.empty());
   EXPECT_FALSE(result.is_interactive);
+}
+
+TEST_F(UmChromeOSPolicyTest,
+       UpdateCheckAllowedKioskPinWithFailedGetRequiredVersionCall) {
+  // AU disabled, allow kiosk to pin but D-Bus call to get required platform
+  // version failed. Defer update check in this case.
+  fake_state_.device_policy_provider()->var_update_disabled()->reset(
+      new bool(true));
+  fake_state_.device_policy_provider()
+      ->var_allow_kiosk_app_control_chrome_version()
+      ->reset(new bool(true));
+  fake_state_.system_provider()->var_kiosk_required_platform_version()->reset(
+      nullptr);
+
+  UpdateCheckParams result;
+  ExpectPolicyStatus(EvalStatus::kAskMeAgainLater,
+                     &Policy::UpdateCheckAllowed, &result);
 }
 
 TEST_F(UmChromeOSPolicyTest, UpdateCanStartFailsCheckAllowedError) {
