@@ -36,6 +36,10 @@ using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
 
+namespace {
+const char kRequiredPlatformVersion[] ="1234.0.0";
+}  // namespace
+
 namespace chromeos_update_manager {
 
 class UmRealSystemProviderTest : public ::testing::Test {
@@ -47,6 +51,10 @@ class UmRealSystemProviderTest : public ::testing::Test {
         unique_ptr<
             org::chromium::
                 UpdateEngineLibcrosProxyResolvedInterfaceProxyInterface>()));
+    ON_CALL(*service_interface_mock_,
+            GetKioskAppRequiredPlatformVersion(_, _, _))
+        .WillByDefault(
+            DoAll(SetArgPointee<0>(kRequiredPlatformVersion), Return(true)));
 
     provider_.reset(new RealSystemProvider(&fake_hardware_, &fake_boot_control_,
                                            libcros_proxy_.get()));
@@ -83,14 +91,8 @@ TEST_F(UmRealSystemProviderTest, IsOOBECompleteFalse) {
 
 #if USE_LIBCROS
 TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
-  const std::string kRequiredPlatformVersion("1234.0.0");
-  EXPECT_CALL(*service_interface_mock_,
-              GetKioskAppRequiredPlatformVersion(_, _, _))
-      .WillOnce(
-          DoAll(SetArgPointee<0>(kRequiredPlatformVersion), Return(true)));
-
   UmTestUtils::ExpectVariableHasValue(
-      kRequiredPlatformVersion,
+      std::string(kRequiredPlatformVersion),
       provider_->var_kiosk_required_platform_version());
 }
 
@@ -99,6 +101,29 @@ TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersionFailure) {
               GetKioskAppRequiredPlatformVersion(_, _, _))
       .WillOnce(Return(false));
 
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_kiosk_required_platform_version());
+}
+
+TEST_F(UmRealSystemProviderTest,
+       KioskRequiredPlatformVersionRecoveryFromFailure) {
+  EXPECT_CALL(*service_interface_mock_,
+              GetKioskAppRequiredPlatformVersion(_, _, _))
+      .WillOnce(Return(false));
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_kiosk_required_platform_version());
+  testing::Mock::VerifyAndClearExpectations(service_interface_mock_);
+
+  EXPECT_CALL(*service_interface_mock_,
+              GetKioskAppRequiredPlatformVersion(_, _, _))
+      .WillOnce(
+          DoAll(SetArgPointee<0>(kRequiredPlatformVersion), Return(true)));
+  UmTestUtils::ExpectVariableHasValue(
+      std::string(kRequiredPlatformVersion),
+      provider_->var_kiosk_required_platform_version());
+}
+#else
+TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
   UmTestUtils::ExpectVariableHasValue(
       std::string(), provider_->var_kiosk_required_platform_version());
 }
