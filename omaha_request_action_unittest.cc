@@ -51,8 +51,6 @@
 
 using base::Time;
 using base::TimeDelta;
-using chromeos_update_engine::test_utils::System;
-using chromeos_update_engine::test_utils::WriteFileString;
 using std::string;
 using std::vector;
 using testing::AllOf;
@@ -355,9 +353,7 @@ bool OmahaRequestActionTest::TestUpdateCheck(
              ? 0 : 1);
 
   loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
-  LOG(INFO) << "loop.PendingTasks() = " << loop.PendingTasks();
   loop.Run();
-  LOG(INFO) << "loop.PendingTasks() = " << loop.PendingTasks();
   EXPECT_FALSE(loop.PendingTasks());
   if (collector_action.has_input_object_ && out_response)
     *out_response = collector_action.omaha_response_;
@@ -1674,6 +1670,32 @@ TEST_F(OmahaRequestActionTest, BadElapsedSecondsTest) {
                       metrics::DownloadErrorCode::kUnset,
                       nullptr,
                       nullptr));
+}
+
+TEST_F(OmahaRequestActionTest, ParseUpdateCheckAttributesTest) {
+  // Test that the "eol" flags is only parsed from the "_eol" attribute and not
+  // the "eol" attribute.
+  ASSERT_TRUE(
+      TestUpdateCheck(nullptr,  // request_params
+                      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+                      "protocol=\"3.0\"><app appid=\"foo\" status=\"ok\">"
+                      "<ping status=\"ok\"/><updatecheck status=\"noupdate\" "
+                      "_eol=\"security-only\" eol=\"eol\" _foo=\"bar\"/>"
+                      "</app></response>",
+                      -1,
+                      false,  // ping_only
+                      ErrorCode::kSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
+                      nullptr,
+                      nullptr));
+  string eol_pref;
+  EXPECT_TRUE(
+      fake_system_state_.prefs()->GetString(kPrefsOmahaEolStatus, &eol_pref));
+  // Note that the eol="eol" attribute should be ignored and the _eol should be
+  // used instead.
+  EXPECT_EQ("security-only", eol_pref);
 }
 
 TEST_F(OmahaRequestActionTest, NoUniqueIDTest) {

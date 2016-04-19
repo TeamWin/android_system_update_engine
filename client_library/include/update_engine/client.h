@@ -115,6 +115,9 @@ class UpdateEngineClient {
   // Get the last UpdateAttempt error code.
   virtual bool GetLastAttemptError(int32_t* last_attempt_error) const = 0;
 
+  // Get the current end-of-life status code. See EolStatus enum for details.
+  virtual bool GetEolStatus(int32_t* eol_status) const = 0;
+
  protected:
   // Use CreateInstance().
   UpdateEngineClient() = default;

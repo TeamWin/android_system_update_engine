@@ -75,6 +75,8 @@ class DBusUpdateEngineClient : public UpdateEngineClient {
 
   bool GetLastAttemptError(int32_t* last_attempt_error) const override;
 
+  bool GetEolStatus(int32_t* eol_status) const override;
+
  private:
   void DBusStatusHandlersRegistered(const std::string& interface,
                                     const std::string& signal_name,

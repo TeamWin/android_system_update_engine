@@ -133,6 +133,10 @@ class DBusUpdateEngineService
   // ErrorCode will be returned.
   bool GetLastAttemptError(brillo::ErrorPtr* error,
                            int32_t* out_last_attempt_error) override;
+
+  // Returns the current end-of-life status of the device in |out_eol_status|.
+  bool GetEolStatus(brillo::ErrorPtr* error, int32_t* out_eol_status) override;
+
  private:
   std::unique_ptr<UpdateEngineService> common_;
 };

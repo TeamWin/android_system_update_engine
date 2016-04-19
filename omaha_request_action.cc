@@ -77,6 +77,9 @@ static const char* kTagPublicKeyRsa = "PublicKeyRsa";
 
 static const char* kOmahaUpdaterVersion = "0.1.0.0";
 
+// updatecheck attributes (without the underscore prefix).
+static const char* kEolAttr = "eol";
+
 namespace {
 
 // Returns an XML ping element attribute assignment with attribute
@@ -339,6 +342,7 @@ struct OmahaParserData {
   bool app_cohortname_set = false;
   string updatecheck_status;
   string updatecheck_poll_interval;
+  map<string, string> updatecheck_attrs;
   string daystart_elapsed_days;
   string daystart_elapsed_seconds;
   vector<string> url_codebase;
@@ -386,6 +390,12 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
     // There is only supposed to be a single <updatecheck> element.
     data->updatecheck_status = attrs["status"];
     data->updatecheck_poll_interval = attrs["PollInterval"];
+    // Omaha sends arbitrary key-value pairs as extra attributes starting with
+    // an underscore.
+    for (const auto& attr : attrs) {
+      if (!attr.first.empty() && attr.first[0] == '_')
+        data->updatecheck_attrs[attr.first.substr(1)] = attr.second;
+    }
   } else if (data->current_path == "/response/daystart") {
     // Get the install-date.
     data->daystart_elapsed_days = attrs["elapsed_days"];
@@ -747,6 +757,9 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
     PersistCohortData(kPrefsOmahaCohortHint, parser_data->app_cohorthint);
   if (parser_data->app_cohortname_set)
     PersistCohortData(kPrefsOmahaCohortName, parser_data->app_cohortname);
+
+  // Parse the updatecheck attributes.
+  PersistEolStatus(parser_data->updatecheck_attrs);
 
   if (!ParseStatus(parser_data, output_object, completer))
     return false;
@@ -1380,6 +1393,17 @@ bool OmahaRequestAction::PersistCohortData(
   } else if (!new_value.empty()) {
     LOG(INFO) << "Storing new setting " << prefs_key << " as " << new_value;
     return system_state_->prefs()->SetString(prefs_key, new_value);
+  }
+  return true;
+}
+
+bool OmahaRequestAction::PersistEolStatus(const map<string, string>& attrs) {
+  auto eol_attr = attrs.find(kEolAttr);
+  if (eol_attr != attrs.end()) {
+    return system_state_->prefs()->SetString(kPrefsOmahaEolStatus,
+                                             eol_attr->second);
+  } else if (system_state_->prefs()->Exists(kPrefsOmahaEolStatus)) {
+    return system_state_->prefs()->Delete(kPrefsOmahaEolStatus);
   }
   return true;
 }

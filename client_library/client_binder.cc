@@ -28,8 +28,8 @@
 using android::OK;
 using android::String16;
 using android::String8;
-using android::brillo::ParcelableUpdateEngineStatus;
 using android::binder::Status;
+using android::brillo::ParcelableUpdateEngineStatus;
 using android::getService;
 using chromeos_update_engine::StringToUpdateStatus;
 using chromeos_update_engine::UpdateEngineService;
@@ -177,10 +177,7 @@ bool BinderUpdateEngineClient::RegisterStatusUpdateHandler(
 
 bool BinderUpdateEngineClient::UnregisterStatusUpdateHandler(
     StatusUpdateHandler* handler) {
-  auto it = handlers_.begin();
-
-  for (; *it != handler && it != handlers_.end(); it++);
-
+  auto it = std::find(handlers_.begin(), handlers_.end(), handler);
   if (it != handlers_.end()) {
     handlers_.erase(it);
     return true;
@@ -223,6 +220,16 @@ bool BinderUpdateEngineClient::GetLastAttemptError(
     return false;
 
   *last_attempt_error = out_as_int;
+  return true;
+}
+
+bool BinderUpdateEngineClient::GetEolStatus(int32_t* eol_status) const {
+  int out_as_int;
+
+  if (!service_->GetEolStatus(&out_as_int).isOk())
+    return false;
+
+  *eol_status = out_as_int;
   return true;
 }
 

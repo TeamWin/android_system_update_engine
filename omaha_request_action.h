@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -218,6 +219,10 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   // value was not set in the XML, since that would delete the stored value.
   bool PersistCohortData(const std::string& prefs_key,
                          const std::string& new_value);
+
+  // Parse and persist the end-of-life status flag sent back in the updatecheck
+  // tag attributes. The flag will be validated and stored in the Prefs.
+  bool PersistEolStatus(const std::map<std::string, std::string>& attrs);
 
   // If this is an update check request, initializes
   // |ping_active_days_| and |ping_roll_call_days_| to values that may
