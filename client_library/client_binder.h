@@ -23,14 +23,13 @@
 #include <vector>
 
 #include <base/macros.h>
-#include <utils/StrongPointer.h>
 #include <utils/String16.h>
+#include <utils/StrongPointer.h>
 
 #include <brillo/binder_watcher.h>
 
-#include "android/brillo/IUpdateEngine.h"
 #include "android/brillo/BnUpdateEngineStatusCallback.h"
-
+#include "android/brillo/IUpdateEngine.h"
 
 #include "update_engine/client_library/include/update_engine/client.h"
 
@@ -82,11 +81,14 @@ class BinderUpdateEngineClient : public UpdateEngineClient {
 
   bool GetLastAttemptError(int32_t* last_attempt_error) const override;
 
+  bool GetEolStatus(int32_t* eol_status) const override;
+
  private:
   class StatusUpdateCallback :
       public android::brillo::BnUpdateEngineStatusCallback {
    public:
-    StatusUpdateCallback(BinderUpdateEngineClient* client) : client_(client) {}
+    explicit StatusUpdateCallback(BinderUpdateEngineClient* client)
+        : client_(client) {}
 
     android::binder::Status HandleStatusUpdate(
         int64_t last_checked_time,

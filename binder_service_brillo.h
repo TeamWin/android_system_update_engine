@@ -86,6 +86,7 @@ class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
       override;
   android::binder::Status GetLastAttemptError(
       int* out_last_attempt_error) override;
+  android::binder::Status GetEolStatus(int* out_eol_status) override;
 
  private:
   // Generic function for dispatching to the common service.

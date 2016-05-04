@@ -171,10 +171,7 @@ void DBusUpdateEngineClient::RunStatusUpdateHandlers(
 
 bool DBusUpdateEngineClient::UnregisterStatusUpdateHandler(
     StatusUpdateHandler* handler) {
-  auto it = handlers_.begin();
-
-  for (; *it != handler && it != handlers_.end(); it++);
-
+  auto it = std::find(handlers_.begin(), handlers_.end(), handler);
   if (it != handlers_.end()) {
     handlers_.erase(it);
     return true;
@@ -228,6 +225,10 @@ bool DBusUpdateEngineClient::GetChannel(string* out_channel) const {
 bool DBusUpdateEngineClient::GetLastAttemptError(
     int32_t* last_attempt_error) const {
   return proxy_->GetLastAttemptError(last_attempt_error, nullptr);
+}
+
+bool DBusUpdateEngineClient::GetEolStatus(int32_t* eol_status) const {
+  return proxy_->GetEolStatus(eol_status, nullptr);
 }
 
 }  // namespace internal
