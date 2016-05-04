@@ -32,10 +32,12 @@
 #include "update_engine/client.h"
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/error_code_utils.h"
+#include "update_engine/omaha_utils.h"
 #include "update_engine/status_update_handler.h"
 #include "update_engine/update_status.h"
 #include "update_engine/update_status_utils.h"
 
+using chromeos_update_engine::EolStatus;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::UpdateStatusToString;
 using chromeos_update_engine::utils::ErrorCodeToString;
@@ -273,6 +275,7 @@ int UpdateEngineClient::ProcessFlags() {
   DEFINE_bool(prev_version, false,
               "Show the previous OS version used before the update reboot.");
   DEFINE_bool(last_attempt_error, false, "Show the last attempt error.");
+  DEFINE_bool(eol_status, false, "Show the current end-of-life status.");
 
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
@@ -531,6 +534,16 @@ int UpdateEngineClient::ProcessFlags() {
           "ERROR_MESSAGE=%s\n",
           last_attempt_error,
           ErrorCodeToString(code).c_str());
+    }
+  }
+
+  if (FLAGS_eol_status) {
+    int eol_status;
+    if (!client_->GetEolStatus(&eol_status)) {
+      LOG(ERROR) << "Error getting the end-of-life status.";
+    } else {
+      EolStatus eol_status_code = static_cast<EolStatus>(eol_status);
+      printf("EOL_STATUS=%s\n", EolStatusToString(eol_status_code));
     }
   }
 
