@@ -261,6 +261,7 @@
         'omaha_request_action.cc',
         'omaha_request_params.cc',
         'omaha_response_handler_action.cc',
+        'omaha_utils.cc',
         'p2p_manager.cc',
         'payload_state.cc',
         'proxy_resolver.cc',
@@ -344,6 +345,7 @@
       ],
       'sources': [
         'common/error_code_utils.cc',
+        'omaha_utils.cc',
         'update_engine_client.cc',
      ],
     },
@@ -511,6 +513,7 @@
             'omaha_request_action_unittest.cc',
             'omaha_request_params_unittest.cc',
             'omaha_response_handler_action_unittest.cc',
+            'omaha_utils_unittest.cc',
             'p2p_manager_unittest.cc',
             'payload_consumer/bzip_extent_writer_unittest.cc',
             'payload_consumer/delta_performer_integration_test.cc',

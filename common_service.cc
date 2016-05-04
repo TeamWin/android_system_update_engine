@@ -33,9 +33,10 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/connection_manager_interface.h"
 #include "update_engine/omaha_request_params.h"
+#include "update_engine/omaha_utils.h"
 #include "update_engine/p2p_manager.h"
-#include "update_engine/update_attempter.h"
 #include "update_engine/payload_state_interface.h"
+#include "update_engine/update_attempter.h"
 
 using base::StringPrintf;
 using brillo::ErrorPtr;
@@ -325,4 +326,21 @@ bool UpdateEngineService::GetLastAttemptError(ErrorPtr* /* error */,
   *out_last_attempt_error = static_cast<int>(error_code);
   return true;
 }
+
+bool UpdateEngineService::GetEolStatus(ErrorPtr* error,
+                                       int32_t* out_eol_status) {
+  PrefsInterface* prefs = system_state_->prefs();
+
+  string str_eol_status;
+  if (prefs->Exists(kPrefsOmahaEolStatus) &&
+      !prefs->GetString(kPrefsOmahaEolStatus, &str_eol_status)) {
+    LogAndSetError(error, FROM_HERE, "Error getting the end-of-life status.");
+    return false;
+  }
+
+  // StringToEolStatus will return kSupported for invalid values.
+  *out_eol_status = static_cast<int32_t>(StringToEolStatus(str_eol_status));
+  return true;
+}
+
 }  // namespace chromeos_update_engine
