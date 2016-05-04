@@ -192,12 +192,15 @@ Status BinderUpdateEngineBrilloService::GetLastAttemptError(
                            out_last_attempt_error);
 }
 
+Status BinderUpdateEngineBrilloService::GetEolStatus(int* out_eol_status) {
+  return CallCommonHandler(&UpdateEngineService::GetEolStatus, out_eol_status);
+}
+
 void BinderUpdateEngineBrilloService::UnregisterStatusCallback(
     IUpdateEngineStatusCallback* callback) {
   auto it = callbacks_.begin();
-
-  for (; it != callbacks_.end() && it->get() != callback; it++)
-    ;
+  while (it != callbacks_.end() && it->get() != callback)
+    it++;
 
   if (it == callbacks_.end()) {
     LOG(ERROR) << "Got death notification for unknown callback.";

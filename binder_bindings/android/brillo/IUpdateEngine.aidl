@@ -37,4 +37,5 @@ interface IUpdateEngine {
   String GetRollbackPartition();
   void RegisterStatusCallback(in IUpdateEngineStatusCallback callback);
   int GetLastAttemptError();
+  int GetEolStatus();
 }

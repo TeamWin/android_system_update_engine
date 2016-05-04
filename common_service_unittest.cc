@@ -23,7 +23,9 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
+#include "update_engine/common/fake_prefs.h"
 #include "update_engine/fake_system_state.h"
+#include "update_engine/omaha_utils.h"
 
 using std::string;
 using testing::Return;
@@ -129,6 +131,21 @@ TEST_F(UpdateEngineServiceTest, ResetStatusFails) {
   ASSERT_NE(nullptr, error_);
   EXPECT_TRUE(error_->HasError(UpdateEngineService::kErrorDomain,
                                UpdateEngineService::kErrorFailed));
+}
+
+TEST_F(UpdateEngineServiceTest, GetEolStatusTest) {
+  FakePrefs fake_prefs;
+  fake_system_state_.set_prefs(&fake_prefs);
+  // The default value should be "supported".
+  int32_t eol_status = static_cast<int32_t>(EolStatus::kEol);
+  EXPECT_TRUE(common_service_.GetEolStatus(&error_, &eol_status));
+  EXPECT_EQ(nullptr, error_);
+  EXPECT_EQ(EolStatus::kSupported, static_cast<EolStatus>(eol_status));
+
+  fake_prefs.SetString(kPrefsOmahaEolStatus, "security-only");
+  EXPECT_TRUE(common_service_.GetEolStatus(&error_, &eol_status));
+  EXPECT_EQ(nullptr, error_);
+  EXPECT_EQ(EolStatus::kSecurityOnly, static_cast<EolStatus>(eol_status));
 }
 
 }  // namespace chromeos_update_engine

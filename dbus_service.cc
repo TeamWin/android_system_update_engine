@@ -133,8 +133,13 @@ bool DBusUpdateEngineService::GetRollbackPartition(
 }
 
 bool DBusUpdateEngineService::GetLastAttemptError(
-    ErrorPtr* error, int32_t* out_last_attempt_error){
- return common_->GetLastAttemptError(error, out_last_attempt_error);
+    ErrorPtr* error, int32_t* out_last_attempt_error) {
+  return common_->GetLastAttemptError(error, out_last_attempt_error);
+}
+
+bool DBusUpdateEngineService::GetEolStatus(ErrorPtr* error,
+                                           int32_t* out_eol_status) {
+  return common_->GetEolStatus(error, out_eol_status);
 }
 
 UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state,
