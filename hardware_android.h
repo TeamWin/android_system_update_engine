@@ -36,6 +36,7 @@ class HardwareAndroid final : public HardwareInterface {
   // HardwareInterface methods.
   bool IsOfficialBuild() const override;
   bool IsNormalBootMode() const override;
+  bool IsOOBEEnabled() const override;
   bool IsOOBEComplete(base::Time* out_time_of_oobe) const override;
   std::string GetHardwareClass() const override;
   std::string GetFirmwareVersion() const override;
