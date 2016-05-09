@@ -479,8 +479,10 @@ void UpdateAttempter::CalculateScatteringParams(bool interactive) {
     LOG(INFO) << "Scattering disabled since scatter factor is set to 0";
   } else if (interactive) {
     LOG(INFO) << "Scattering disabled as this is an interactive update check";
-  } else if (!system_state_->hardware()->IsOOBEComplete(nullptr)) {
-    LOG(INFO) << "Scattering disabled since OOBE is not complete yet";
+  } else if (system_state_->hardware()->IsOOBEEnabled() &&
+             !system_state_->hardware()->IsOOBEComplete(nullptr)) {
+    LOG(INFO) << "Scattering disabled since OOBE is enabled but not complete "
+                 "yet";
   } else {
     is_scatter_enabled = true;
     LOG(INFO) << "Scattering is enabled";

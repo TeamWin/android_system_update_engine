@@ -18,7 +18,6 @@
 #define UPDATE_ENGINE_UPDATE_MANAGER_REAL_CONFIG_PROVIDER_H_
 
 #include <memory>
-#include <string>
 
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/update_manager/config_provider.h"
@@ -41,21 +40,9 @@ class RealConfigProvider : public ConfigProvider {
   }
 
  private:
-  friend class UmRealConfigProviderTest;
-
-  // Used for testing. Sets the root prefix, which is by default "". Call this
-  // method before calling Init() in order to mock out the place where the files
-  // are being read from.
-  void SetRootPrefix(const std::string& prefix) {
-    root_prefix_ = prefix;
-  }
-
   std::unique_ptr<ConstCopyVariable<bool>> var_is_oobe_enabled_;
 
   chromeos_update_engine::HardwareInterface* hardware_;
-
-  // Prefix to prepend to the file paths. Useful for testing.
-  std::string root_prefix_;
 
   DISALLOW_COPY_AND_ASSIGN(RealConfigProvider);
 };

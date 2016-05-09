@@ -51,7 +51,7 @@ LibcurlHttpFetcher::LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
   // be waiting on the dev server to build an image.
   if (!hardware_->IsOfficialBuild())
     low_speed_time_seconds_ = kDownloadDevModeLowSpeedTimeSeconds;
-  if (!hardware_->IsOOBEComplete(nullptr))
+  if (hardware_->IsOOBEEnabled() && !hardware_->IsOOBEComplete(nullptr))
     max_retry_count_ = kDownloadMaxRetryCountOobeNotComplete;
 }
 
