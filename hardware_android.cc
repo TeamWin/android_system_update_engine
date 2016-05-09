@@ -68,8 +68,13 @@ bool HardwareAndroid::IsNormalBootMode() const {
   return property_get_bool("ro.debuggable", 0) != 1;
 }
 
+bool HardwareAndroid::IsOOBEEnabled() const {
+  // No OOBE flow blocking updates for Android-based boards.
+  return false;
+}
+
 bool HardwareAndroid::IsOOBEComplete(base::Time* out_time_of_oobe) const {
-  LOG(WARNING) << "STUB: Assuming OOBE is complete.";
+  LOG(WARNING) << "OOBE is not enabled but IsOOBEComplete() called.";
   if (out_time_of_oobe)
     *out_time_of_oobe = base::Time();
   return true;

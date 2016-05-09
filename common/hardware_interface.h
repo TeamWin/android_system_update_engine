@@ -44,6 +44,11 @@ class HardwareInterface {
   // features.
   virtual bool IsNormalBootMode() const = 0;
 
+  // Returns whether the device has an OOBE flow that the user must go through
+  // before getting non-critical updates. Use IsOOBEComplete() to determine if
+  // that flow is complete.
+  virtual bool IsOOBEEnabled() const = 0;
+
   // Returns true if the OOBE process has been completed and EULA accepted,
   // False otherwise. If True is returned, and |out_time_of_oobe| isn't null,
   // the time-stamp of when OOBE happened is stored at |out_time_of_oobe|.
