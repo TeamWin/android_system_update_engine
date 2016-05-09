@@ -942,7 +942,6 @@ LOCAL_SRC_FILES := \
     update_manager/evaluation_context_unittest.cc \
     update_manager/generic_variables_unittest.cc \
     update_manager/prng_unittest.cc \
-    update_manager/real_config_provider_unittest.cc \
     update_manager/real_device_policy_provider_unittest.cc \
     update_manager/real_random_provider_unittest.cc \
     update_manager/real_shill_provider_unittest.cc \

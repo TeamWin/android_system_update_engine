@@ -531,6 +531,22 @@ TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
                       nullptr));
   EXPECT_FALSE(response.update_exists);
 
+  // The IsOOBEComplete() value is ignored when the OOBE flow is not enabled.
+  fake_system_state_.fake_hardware()->SetIsOOBEEnabled(false);
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  fake_system_state_.fake_hardware()->SetIsOOBEEnabled(true);
+
+  // The payload is applied when a deadline was set in the response.
   fake_update_response_.deadline = "20101020";
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
