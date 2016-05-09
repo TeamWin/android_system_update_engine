@@ -605,9 +605,10 @@ int OmahaRequestAction::GetInstallDate(SystemState* system_state) {
   // inspecting the timestamp of when OOBE happened.
 
   Time time_of_oobe;
-  if (!system_state->hardware()->IsOOBEComplete(&time_of_oobe)) {
+  if (!system_state->hardware()->IsOOBEEnabled() ||
+      !system_state->hardware()->IsOOBEComplete(&time_of_oobe)) {
     LOG(INFO) << "Not generating Omaha InstallData as we have "
-              << "no prefs file and OOBE is not complete.";
+              << "no prefs file and OOBE is not complete or not enabled.";
     return -1;
   }
 
@@ -1037,7 +1038,8 @@ void OmahaRequestAction::CompleteProcessing() {
   OmahaResponse& output_object = const_cast<OmahaResponse&>(GetOutputObject());
   PayloadStateInterface* payload_state = system_state_->payload_state();
 
-  if (!system_state_->hardware()->IsOOBEComplete(nullptr) &&
+  if (system_state_->hardware()->IsOOBEEnabled() &&
+      !system_state_->hardware()->IsOOBEComplete(nullptr) &&
       output_object.deadline.empty() &&
       params_->app_version() != "ForcedUpdate") {
     output_object.update_exists = false;

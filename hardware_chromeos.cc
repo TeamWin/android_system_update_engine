@@ -16,10 +16,12 @@
 
 #include "update_engine/hardware_chromeos.h"
 
+#include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
+#include <brillo/key_value_store.h>
 #include <brillo/make_unique_ptr.h>
 #include <vboot/crossystem.h>
 
@@ -27,6 +29,7 @@ extern "C" {
 #include "vboot/vboot_host.h"
 }
 
+#include "update_engine/common/constants.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/hwid_override.h"
 #include "update_engine/common/platform_constants.h"
@@ -50,6 +53,12 @@ const char kPowerwashSafeDirectory[] =
 // a powerwash is performed.
 const char kPowerwashCountMarker[] = "powerwash_count";
 
+// UpdateManager config path.
+const char* kConfigFilePath = "/etc/update_manager.conf";
+
+// UpdateManager config options:
+const char* kConfigOptsIsOOBEEnabled = "is_oobe_enabled";
+
 }  // namespace
 
 namespace chromeos_update_engine {
@@ -58,10 +67,16 @@ namespace hardware {
 
 // Factory defined in hardware.h.
 std::unique_ptr<HardwareInterface> CreateHardware() {
-  return brillo::make_unique_ptr(new HardwareChromeOS());
+  std::unique_ptr<HardwareChromeOS> hardware(new HardwareChromeOS());
+  hardware->Init();
+  return std::move(hardware);
 }
 
 }  // namespace hardware
+
+void HardwareChromeOS::Init() {
+  LoadConfig("" /* root_prefix */, IsNormalBootMode());
+}
 
 bool HardwareChromeOS::IsOfficialBuild() const {
   return VbGetSystemPropertyInt("debug_build") == 0;
@@ -72,7 +87,14 @@ bool HardwareChromeOS::IsNormalBootMode() const {
   return !dev_mode;
 }
 
+bool HardwareChromeOS::IsOOBEEnabled() const {
+  return is_oobe_enabled_;
+}
+
 bool HardwareChromeOS::IsOOBEComplete(base::Time* out_time_of_oobe) const {
+  if (!is_oobe_enabled_) {
+    LOG(WARNING) << "OOBE is not enabled but IsOOBEComplete() was called";
+  }
   struct stat statbuf;
   if (stat(kOOBECompletedMarker, &statbuf) != 0) {
     if (errno != ENOENT) {
@@ -148,6 +170,24 @@ bool HardwareChromeOS::GetNonVolatileDirectory(base::FilePath* path) const {
 bool HardwareChromeOS::GetPowerwashSafeDirectory(base::FilePath* path) const {
   *path = base::FilePath(kPowerwashSafeDirectory);
   return true;
+}
+
+void HardwareChromeOS::LoadConfig(const string& root_prefix, bool normal_mode) {
+  brillo::KeyValueStore store;
+
+  if (normal_mode) {
+    store.Load(base::FilePath(root_prefix + kConfigFilePath));
+  } else {
+    if (store.Load(base::FilePath(root_prefix + kStatefulPartition +
+                                  kConfigFilePath))) {
+      LOG(INFO) << "UpdateManager Config loaded from stateful partition.";
+    } else {
+      store.Load(base::FilePath(root_prefix + kConfigFilePath));
+    }
+  }
+
+  if (!store.GetBoolean(kConfigOptsIsOOBEEnabled, &is_oobe_enabled_))
+    is_oobe_enabled_ = true;  // Default value.
 }
 
 }  // namespace chromeos_update_engine
