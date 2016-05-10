@@ -31,7 +31,6 @@ const char kLegacyPartitionNameKernel[] = "boot";
 const char kLegacyPartitionNameRoot[] = "system";
 
 const char kDeltaMagic[4] = {'C', 'r', 'A', 'U'};
-const char kBspatchPath[] = "bspatch";
 
 // The zlib in Android and Chrome OS are currently compatible with each other,
 // so they are sharing the same array, but if in the future they are no longer
