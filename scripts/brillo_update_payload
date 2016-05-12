@@ -422,12 +422,19 @@ Disabling deltas for this source version."
       part_file="${temp_raw}"
     fi
 
-    # delta_generator only supports images multiple of 4 KiB, so we pad with
-    # zeros if needed.
+    # delta_generator only supports images multiple of 4 KiB. For target images
+    # we pad the data with zeros if needed, but for source images we truncate
+    # down the data since the last block of the old image could be padded on
+    # disk with unknown data.
     filesize=$(stat -c%s "${part_file}")
     if [[ $(( filesize % 4096 )) -ne 0 ]]; then
-      echo "Rounding up partition ${part}.img to multiple of 4 KiB."
-      : $(( filesize = (filesize + 4095) & -4096 ))
+      if [[ "${partitions_array}" == "SRC_PARTITIONS" ]]; then
+        echo "Rounding DOWN partition ${part}.img to a multiple of 4 KiB."
+        : $(( filesize = filesize & -4096 ))
+      else
+        echo "Rounding UP partition ${part}.img to a multiple of 4 KiB."
+        : $(( filesize = (filesize + 4095) & -4096 ))
+      fi
       truncate --size="${filesize}" "${part_file}"
     fi
 
