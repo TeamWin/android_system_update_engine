@@ -78,6 +78,10 @@ class FileDescriptor {
   // may set errno accordingly.
   virtual off64_t Seek(off64_t offset, int whence) = 0;
 
+  // Return the size of the block device in bytes, or 0 if the device is not a
+  // block device or an error occurred.
+  virtual uint64_t BlockDevSize() = 0;
+
   // Runs a ioctl() on the file descriptor if supported. Returns whether
   // the operation is supported. The |request| can be one of BLKDISCARD,
   // BLKZEROOUT and BLKSECDISCARD to discard, write zeros or securely discard
@@ -119,6 +123,7 @@ class EintrSafeFileDescriptor : public FileDescriptor {
   ssize_t Read(void* buf, size_t count) override;
   ssize_t Write(const void* buf, size_t count) override;
   off64_t Seek(off64_t offset, int whence) override;
+  uint64_t BlockDevSize() override;
   bool BlkIoctl(int request,
                 uint64_t start,
                 uint64_t length,
