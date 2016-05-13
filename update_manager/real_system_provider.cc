@@ -32,6 +32,13 @@ namespace chromeos_update_manager {
 
 namespace {
 
+// The maximum number of consecutive failures before returning the default
+// constructor value for T instead of failure.
+const int kRetryPollVariableMaxRetry = 5;
+
+// The polling interval to be used whenever GetValue() returns an error.
+const int kRetryPollVariableRetryIntervalSeconds = 5 * 60;
+
 // The RetryPollVariable variable is a polling variable that allows the function
 // returning the value to fail a few times and shortens the polling rate when
 // that happens.
@@ -44,7 +51,8 @@ class RetryPollVariable : public Variable<T> {
       : Variable<T>(name, poll_interval),
         func_(func),
         base_interval_(poll_interval) {
-    DCHECK_LT(kRetryIntervalSeconds, base_interval_.InSeconds());
+    DCHECK_LT(kRetryPollVariableRetryIntervalSeconds,
+              base_interval_.InSeconds());
   }
 
  protected:
@@ -53,14 +61,14 @@ class RetryPollVariable : public Variable<T> {
                     string* /* errmsg */) override {
     std::unique_ptr<T> result(new T());
     if (!func_.Run(result.get())) {
-      if (failed_attempts_ >= kMaxRetry) {
+      if (failed_attempts_ >= kRetryPollVariableMaxRetry) {
         // Give up on the retries, set back the desired polling interval and
         // return the default.
         this->SetPollInterval(base_interval_);
         return result.release();
       }
       this->SetPollInterval(
-          base::TimeDelta::FromSeconds(kRetryIntervalSeconds));
+          base::TimeDelta::FromSeconds(kRetryPollVariableRetryIntervalSeconds));
       failed_attempts_++;
       return nullptr;
     }
@@ -78,13 +86,6 @@ class RetryPollVariable : public Variable<T> {
 
   // The number of consecutive failed attempts made.
   int failed_attempts_ = 0;
-
-  // The maximum number of consecutive failures before returning the default
-  // constructor value for T instead of failure.
-  static const int kMaxRetry = 5;
-
-  // The polling interval to be used whenever GetValue() returns an error.
-  static const int kRetryIntervalSeconds = 5 * 60;
 
   DISALLOW_COPY_AND_ASSIGN(RetryPollVariable);
 };
