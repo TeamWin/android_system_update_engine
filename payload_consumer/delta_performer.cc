@@ -129,6 +129,35 @@ FileDescriptorPtr OpenFile(const char* path, int mode, int* err) {
   *err = 0;
   return fd;
 }
+
+// Discard the tail of the block device referenced by |fd|, from the offset
+// |data_size| until the end of the block device. Returns whether the data was
+// discarded.
+bool DiscardPartitionTail(FileDescriptorPtr fd, uint64_t data_size) {
+  uint64_t part_size = fd->BlockDevSize();
+  if (!part_size || part_size <= data_size)
+    return false;
+
+  const vector<int> requests = {
+      BLKSECDISCARD,
+      BLKDISCARD,
+#ifdef BLKZEROOUT
+      BLKZEROOUT,
+#endif
+  };
+  for (int request : requests) {
+    int error = 0;
+    if (fd->BlkIoctl(request, data_size, part_size - data_size, &error) &&
+        error == 0) {
+      return true;
+    }
+    LOG(WARNING) << "Error discarding the last "
+                 << (part_size - data_size) / 1024 << " KiB using ioctl("
+                 << request << ")";
+  }
+  return false;
+}
+
 }  // namespace
 
 
@@ -319,6 +348,15 @@ bool DeltaPerformer::OpenCurrentPartition() {
                << ", file " << target_path_;
     return false;
   }
+
+  LOG(INFO) << "Applying " << partition.operations().size()
+            << " operations to partition \"" << partition.partition_name()
+            << "\"";
+
+  // Discard the end of the partition, but ignore failures.
+  DiscardPartitionTail(
+      target_fd_, install_plan_->partitions[current_partition_].target_size);
+
   return true;
 }
 
