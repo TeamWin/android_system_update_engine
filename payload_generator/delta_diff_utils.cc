@@ -320,6 +320,13 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
   for (uint64_t block = old_num_blocks; block-- > 0; ) {
     if (old_block_ids[block] != 0 && !old_visited_blocks->ContainsBlock(block))
       old_blocks_map[old_block_ids[block]].push_back(block);
+
+    // Mark all zeroed blocks in the old image as "used" since it doesn't make
+    // any sense to spend I/O to read zeros from the source partition and more
+    // importantly, these could sometimes be blocks discarded in the SSD which
+    // would read non-zero values.
+    if (old_block_ids[block] == 0)
+      old_visited_blocks->AddBlock(block);
   }
 
   // The collection of blocks in the new partition with just zeros. This is a
