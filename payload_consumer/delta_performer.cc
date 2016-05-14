@@ -249,8 +249,13 @@ bool DeltaPerformer::HandleOpResult(bool op_result, const char* op_type_name,
   if (op_result)
     return true;
 
+  size_t partition_first_op_num =
+      current_partition_ ? acc_num_operations_[current_partition_ - 1] : 0;
   LOG(ERROR) << "Failed to perform " << op_type_name << " operation "
-             << next_operation_num_;
+             << next_operation_num_ << ", which is the operation "
+             << next_operation_num_ - partition_first_op_num
+             << " in partition \""
+             << partitions_[current_partition_].partition_name() << "\"";
   *error = ErrorCode::kDownloadOperationExecutionError;
   return false;
 }
