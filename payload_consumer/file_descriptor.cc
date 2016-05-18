@@ -24,6 +24,8 @@
 
 #include <base/posix/eintr_wrapper.h>
 
+#include "update_engine/common/utils.h"
+
 namespace chromeos_update_engine {
 
 bool EintrSafeFileDescriptor::Open(const char* path, int flags, mode_t mode) {
@@ -63,6 +65,20 @@ ssize_t EintrSafeFileDescriptor::Write(const void* buf, size_t count) {
 off64_t EintrSafeFileDescriptor::Seek(off64_t offset, int whence) {
   CHECK_GE(fd_, 0);
   return lseek64(fd_, offset, whence);
+}
+
+uint64_t EintrSafeFileDescriptor::BlockDevSize() {
+  if (fd_ < 0)
+    return 0;
+  struct stat stbuf;
+  if (fstat(fd_, &stbuf) < 0) {
+    PLOG(ERROR) << "Error stat-ing fd " << fd_;
+    return 0;
+  }
+  if (!S_ISBLK(stbuf.st_mode))
+    return 0;
+  off_t block_size = utils::BlockDevSize(fd_);
+  return block_size < 0 ? 0 : block_size;
 }
 
 bool EintrSafeFileDescriptor::BlkIoctl(int request,
