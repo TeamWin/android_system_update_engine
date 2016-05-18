@@ -40,6 +40,7 @@ class MtdFileDescriptor : public EintrSafeFileDescriptor {
   ssize_t Read(void* buf, size_t count) override;
   ssize_t Write(const void* buf, size_t count) override;
   off64_t Seek(off64_t offset, int whence) override;
+  uint64_t BlockDevSize() override { return 0; }
   bool BlkIoctl(int request,
                 uint64_t start,
                 uint64_t length,
@@ -75,6 +76,7 @@ class UbiFileDescriptor : public EintrSafeFileDescriptor {
   ssize_t Read(void* buf, size_t count) override;
   ssize_t Write(const void* buf, size_t count) override;
   off64_t Seek(off64_t offset, int whence) override;
+  uint64_t BlockDevSize() override { return 0; }
   bool BlkIoctl(int request,
                 uint64_t start,
                 uint64_t length,
