@@ -273,9 +273,8 @@ bool UpdateEngineService::GetUpdateOverCellularPermission(ErrorPtr* /* error */,
   // Return the current setting based on the same logic used while checking for
   // updates. A log message could be printed as the result of this test.
   LOG(INFO) << "Checking if updates over cellular networks are allowed:";
-  *out_allowed = cm->IsUpdateAllowedOver(
-      chromeos_update_engine::NetworkConnectionType::kCellular,
-      chromeos_update_engine::NetworkTethering::kUnknown);
+  *out_allowed = cm->IsUpdateAllowedOver(ConnectionType::kCellular,
+                                         ConnectionTethering::kUnknown);
   return true;
 }
 

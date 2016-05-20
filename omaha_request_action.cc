@@ -40,7 +40,7 @@
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/metrics.h"
 #include "update_engine/metrics_utils.h"
 #include "update_engine/omaha_request_params.h"
@@ -1501,8 +1501,8 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(
 }
 
 bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection() const {
-  NetworkConnectionType type;
-  NetworkTethering tethering;
+  ConnectionType type;
+  ConnectionTethering tethering;
   ConnectionManagerInterface* connection_manager =
       system_state_->connection_manager();
   if (!connection_manager->GetConnectionProperties(&type, &tethering)) {
@@ -1512,7 +1512,7 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection() const {
   }
   bool is_allowed = connection_manager->IsUpdateAllowedOver(type, tethering);
   LOG(INFO) << "We are connected via "
-            << ConnectionManager::StringForConnectionType(type)
+            << connection_utils::StringForConnectionType(type)
             << ", Updates allowed: " << (is_allowed ? "Yes" : "No");
   return is_allowed;
 }
