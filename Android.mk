@@ -27,6 +27,7 @@ local_use_hwid_override := \
 # the system layer.
 local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
+local_use_omaha := $(if $(BRILLO_USE_OMAHA),$(BRILLO_USE_OMAHA),0)
 local_use_power_management := \
     $(if $(BRILLO_USE_POWER_MANAGEMENT),$(BRILLO_USE_POWER_MANAGEMENT),0)
 local_use_weave := $(if $(BRILLO_USE_WEAVE),$(BRILLO_USE_WEAVE),0)
@@ -37,6 +38,7 @@ ue_common_cflags := \
     -DUSE_HWID_OVERRIDE=$(local_use_hwid_override) \
     -DUSE_LIBCROS=$(local_use_libcros) \
     -DUSE_MTD=$(local_use_mtd) \
+    -DUSE_OMAHA=$(local_use_omaha) \
     -DUSE_POWER_MANAGEMENT=$(local_use_power_management) \
     -DUSE_WEAVE=$(local_use_weave) \
     -D_FILE_OFFSET_BITS=64 \
@@ -230,7 +232,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := $(ue_libpayload_consumer_src_files)
 include $(BUILD_STATIC_LIBRARY)
 
-ifdef BRILLO
+ifeq ($(local_use_omaha),1)
 
 # libupdate_engine (type: static_library)
 # ========================================================
@@ -356,7 +358,7 @@ LOCAL_SRC_FILES += \
 endif  # local_use_libcros == 1
 include $(BUILD_STATIC_LIBRARY)
 
-else  # !defined(BRILLO)
+else  # local_use_omaha == 1
 
 ifneq ($(local_use_binder),1)
 $(error USE_BINDER is disabled but is required in non-Brillo devices.)
@@ -411,7 +413,7 @@ LOCAL_SRC_FILES += \
     update_status_utils.cc
 include $(BUILD_STATIC_LIBRARY)
 
-endif  # !defined(BRILLO)
+endif  # local_use_omaha == 1
 
 # update_engine (type: executable)
 # ========================================================
@@ -437,7 +439,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := \
     main.cc
 
-ifdef BRILLO
+ifeq ($(local_use_omaha),1)
 LOCAL_C_INCLUDES += \
     $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES := \
@@ -445,13 +447,13 @@ LOCAL_STATIC_LIBRARIES := \
     $(ue_libupdate_engine_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_exported_shared_libraries:-host=)
-else  # !defined(BRILLO)
+else  # local_use_omaha == 1
 LOCAL_STATIC_LIBRARIES := \
     libupdate_engine_android \
     $(ue_libupdate_engine_android_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
-endif  # !defined(BRILLO)
+endif  # local_use_omaha == 1
 
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)
@@ -520,14 +522,14 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
-ifdef BRILLO
+ifeq ($(local_use_omaha),1)
 LOCAL_SHARED_LIBRARIES += \
     libupdate_engine_client
 LOCAL_SRC_FILES := \
     update_engine_client.cc \
     common/error_code_utils.cc \
     omaha_utils.cc
-else  # !defined(BRILLO)
+else  # local_use_omaha == 1
 #TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
 # out of the DBus interface.
 LOCAL_C_INCLUDES += \
@@ -544,7 +546,7 @@ LOCAL_SRC_FILES := \
     common/error_code_utils.cc \
     update_engine_client_android.cc \
     update_status_utils.cc
-endif  # !defined(BRILLO)
+endif  # local_use_omaha == 1
 include $(BUILD_EXECUTABLE)
 
 # libpayload_generator (type: static_library)
