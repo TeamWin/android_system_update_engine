@@ -91,18 +91,7 @@ void FilesystemVerifierAction::Cleanup(ErrorCode code) {
 
 void FilesystemVerifierAction::StartPartitionHashing() {
   if (partition_index_ == install_plan_.partitions.size()) {
-    switch (verifier_step_) {
-      case VerifierStep::kVerifySourceHash:
-        // The action will skip kVerifySourceHash step if target partition hash
-        // matches, if we are in this step, it means target hash does not match,
-        // and now that the source hash matches, we should set the error code to
-        // reflect the error in target partition.
-        Cleanup(ErrorCode::kNewRootfsVerificationError);
-        break;
-      case VerifierStep::kVerifyTargetHash:
-        Cleanup(ErrorCode::kSuccess);
-        break;
-    }
+    Cleanup(ErrorCode::kSuccess);
     return;
   }
   InstallPlan::Partition& partition =
@@ -224,7 +213,6 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
         // switch to kVerifySourceHash step to check if it's because the source
         // partition does not match either.
         verifier_step_ = VerifierStep::kVerifySourceHash;
-        partition_index_ = 0;
       } else {
         partition_index_++;
       }
@@ -256,8 +244,13 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
                   << "run: .../src/scripts/sha256_partitions.sh .../file.bin";
         return Cleanup(ErrorCode::kDownloadStateInitializationError);
       }
-      partition_index_++;
-      break;
+      // The action will skip kVerifySourceHash step if target partition hash
+      // matches, if we are in this step, it means target hash does not match,
+      // and now that the source partition hash matches, we should set the error
+      // code to reflect the error in target partition.
+      // We only need to verify the source partition which the target hash does
+      // not match, the rest of the partitions don't matter.
+      return Cleanup(ErrorCode::kNewRootfsVerificationError);
   }
   // Start hashing the next partition, if any.
   hasher_.reset();
