@@ -174,7 +174,7 @@ class ScopedTempFile {
     unlinker_.reset(new ScopedPathUnlinker(path_));
   }
 
-  const std::string& path() { return path_; }
+  const std::string& path() const { return path_; }
 
  private:
   std::string path_;

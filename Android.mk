@@ -161,6 +161,7 @@ ue_libpayload_consumer_src_files := \
     common/hash_calculator.cc \
     common/http_common.cc \
     common/http_fetcher.cc \
+    common/file_fetcher.cc \
     common/hwid_override.cc \
     common/libcurl_http_fetcher.cc \
     common/multi_range_http_fetcher.cc \
@@ -830,6 +831,7 @@ LOCAL_SRC_FILES := \
     common/certificate_checker_unittest.cc \
     common/cpu_limiter_unittest.cc \
     common/fake_prefs.cc \
+    common/file_fetcher_unittest.cc \
     common/hash_calculator_unittest.cc \
     common/http_fetcher_unittest.cc \
     common/hwid_override_unittest.cc \

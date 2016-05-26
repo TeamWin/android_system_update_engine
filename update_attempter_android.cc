@@ -28,6 +28,7 @@
 #include <brillo/strings/string_utils.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/file_fetcher.h"
 #include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/utils.h"
@@ -177,7 +178,7 @@ bool UpdateAttempterAndroid::ApplyPayload(
   LOG(INFO) << "Using this install plan:";
   install_plan_.Dump();
 
-  BuildUpdateActions();
+  BuildUpdateActions(payload_url);
   SetupDownload();
   // Setup extra headers.
   HttpFetcher* fetcher = download_action_->http_fetcher();
@@ -386,7 +387,7 @@ void UpdateAttempterAndroid::SetStatusAndNotify(UpdateStatus status) {
   last_notify_time_ = TimeTicks::Now();
 }
 
-void UpdateAttempterAndroid::BuildUpdateActions() {
+void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
   CHECK(!processor_->IsRunning());
   processor_->set_delegate(this);
 
@@ -394,9 +395,16 @@ void UpdateAttempterAndroid::BuildUpdateActions() {
   shared_ptr<InstallPlanAction> install_plan_action(
       new InstallPlanAction(install_plan_));
 
-  LibcurlHttpFetcher* download_fetcher =
-      new LibcurlHttpFetcher(&proxy_resolver_, hardware_);
-  download_fetcher->set_server_to_check(ServerToCheck::kDownload);
+  HttpFetcher* download_fetcher = nullptr;
+  if (FileFetcher::SupportedUrl(url)) {
+    DLOG(INFO) << "Using FileFetcher for file URL.";
+    download_fetcher = new FileFetcher();
+  } else {
+    LibcurlHttpFetcher* libcurl_fetcher =
+        new LibcurlHttpFetcher(&proxy_resolver_, hardware_);
+    libcurl_fetcher->set_server_to_check(ServerToCheck::kDownload);
+    download_fetcher = libcurl_fetcher;
+  }
   shared_ptr<DownloadAction> download_action(new DownloadAction(
       prefs_,
       boot_control_,

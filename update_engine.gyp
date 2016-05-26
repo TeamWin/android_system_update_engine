@@ -484,6 +484,7 @@
             'common/certificate_checker_unittest.cc',
             'common/cpu_limiter_unittest.cc',
             'common/fake_prefs.cc',
+            'common/file_fetcher.cc',  # Only required for tests.
             'common/hash_calculator_unittest.cc',
             'common/http_fetcher_unittest.cc',
             'common/hwid_override_unittest.cc',

@@ -42,6 +42,7 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/fake_hardware.h"
+#include "update_engine/common/file_fetcher.h"
 #include "update_engine/common/http_common.h"
 #include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/mock_http_fetcher.h"
@@ -219,6 +220,7 @@ class AnyHttpFetcherTest {
 
   virtual bool IsMock() const = 0;
   virtual bool IsMulti() const = 0;
+  virtual bool IsHttpSupported() const = 0;
 
   virtual void IgnoreServerAborting(HttpServer* server) const {}
 
@@ -251,6 +253,7 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
 
   bool IsMock() const override { return true; }
   bool IsMulti() const override { return false; }
+  bool IsHttpSupported() const override { return true; }
 
   HttpServer* CreateServer() override {
     return new NullHttpServer;
@@ -291,6 +294,7 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
 
   bool IsMock() const override { return false; }
   bool IsMulti() const override { return false; }
+  bool IsHttpSupported() const override { return true; }
 
   void IgnoreServerAborting(HttpServer* server) const override {
     // Nothing to do.
@@ -326,6 +330,42 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
   bool IsMulti() const override { return true; }
 };
 
+class FileFetcherTest : public AnyHttpFetcherTest {
+ public:
+  // Necessary to unhide the definition in the base class.
+  using AnyHttpFetcherTest::NewLargeFetcher;
+  HttpFetcher* NewLargeFetcher(ProxyResolver* /* proxy_resolver */) override {
+    return new FileFetcher();
+  }
+
+  // Necessary to unhide the definition in the base class.
+  using AnyHttpFetcherTest::NewSmallFetcher;
+  HttpFetcher* NewSmallFetcher(ProxyResolver* proxy_resolver) override {
+    return NewLargeFetcher(proxy_resolver);
+  }
+
+  string BigUrl(in_port_t port) const override {
+    return "file://" + temp_file_.path();
+  }
+  string SmallUrl(in_port_t port) const override {
+    test_utils::WriteFileString(temp_file_.path(), "small contents");
+    return "file://" + temp_file_.path();
+  }
+  string ErrorUrl(in_port_t port) const override {
+    return "file:///path/to/non-existing-file";
+  }
+
+  bool IsMock() const override { return false; }
+  bool IsMulti() const override { return false; }
+  bool IsHttpSupported() const override { return false; }
+
+  void IgnoreServerAborting(HttpServer* server) const override {}
+
+  HttpServer* CreateServer() override { return new NullHttpServer; }
+
+ private:
+  test_utils::ScopedTempFile temp_file_{"ue_file_fetcher.XXXXXX"};
+};
 
 //
 // Infrastructure for type tests of HTTP fetcher.
@@ -363,7 +403,9 @@ class HttpFetcherTest : public ::testing::Test {
 // Test case types list.
 typedef ::testing::Types<LibcurlHttpFetcherTest,
                          MockHttpFetcherTest,
-                         MultiRangeHttpFetcherTest> HttpFetcherTestTypes;
+                         MultiRangeHttpFetcherTest,
+                         FileFetcherTest>
+    HttpFetcherTestTypes;
 TYPED_TEST_CASE(HttpFetcherTest, HttpFetcherTestTypes);
 
 
@@ -394,6 +436,7 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
   void TransferTerminated(HttpFetcher* fetcher) override {
     ADD_FAILURE();
     times_transfer_terminated_called_++;
+    MessageLoop::current()->BreakLoop();
   }
 
   // Are we expecting an error response? (default: no)
@@ -477,7 +520,7 @@ TYPED_TEST(HttpFetcherTest, ErrorTest) {
 }
 
 TYPED_TEST(HttpFetcherTest, ExtraHeadersInRequestTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
 
   HttpFetcherTestDelegate delegate;
@@ -498,7 +541,11 @@ TYPED_TEST(HttpFetcherTest, ExtraHeadersInRequestTest) {
   int port = server.GetPort();
   ASSERT_TRUE(server.started_);
 
-  StartTransfer(fetcher.get(), LocalServerUrlForPath(port, "/echo-headers"));
+  this->loop_.PostTask(
+      FROM_HERE,
+      base::Bind(StartTransfer,
+                 fetcher.get(),
+                 LocalServerUrlForPath(port, "/echo-headers")));
   this->loop_.Run();
 
   EXPECT_NE(string::npos,
@@ -571,7 +618,7 @@ TYPED_TEST(HttpFetcherTest, PauseTest) {
 // This test will pause the fetcher while the download is not yet started
 // because it is waiting for the proxy to be resolved.
 TYPED_TEST(HttpFetcherTest, PauseWhileResolvingProxyTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
   MockProxyResolver mock_resolver;
   unique_ptr<HttpFetcher> fetcher(this->test_.NewLargeFetcher(&mock_resolver));
@@ -684,7 +731,7 @@ class FlakyHttpFetcherTestDelegate : public HttpFetcherDelegate {
 }  // namespace
 
 TYPED_TEST(HttpFetcherTest, FlakyTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
   {
     FlakyHttpFetcherTestDelegate delegate;
@@ -897,7 +944,7 @@ void RedirectTest(const HttpServer* server,
 }  // namespace
 
 TYPED_TEST(HttpFetcherTest, SimpleRedirectTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
 
   unique_ptr<HttpServer> server(this->test_.CreateServer());
@@ -912,7 +959,7 @@ TYPED_TEST(HttpFetcherTest, SimpleRedirectTest) {
 }
 
 TYPED_TEST(HttpFetcherTest, MaxRedirectTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
 
   unique_ptr<HttpServer> server(this->test_.CreateServer());
@@ -928,7 +975,7 @@ TYPED_TEST(HttpFetcherTest, MaxRedirectTest) {
 }
 
 TYPED_TEST(HttpFetcherTest, BeyondMaxRedirectTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
 
   unique_ptr<HttpServer> server(this->test_.CreateServer());
