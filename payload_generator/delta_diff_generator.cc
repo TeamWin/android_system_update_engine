@@ -97,15 +97,6 @@ bool GenerateUpdatePayloadFile(
       if (!old_part.path.empty() &&
           !utils::IsSquashfsFilesystem(new_part.path)) {
         // Delta update.
-        if (utils::IsExtFilesystem(new_part.path)) {
-          LOG_IF(WARNING, old_part.size != new_part.size)
-              << "Old and new filesystems have different size.";
-          // TODO(deymo): Our tools only support growing the filesystem size
-          // during an update. Remove this check when that's fixed.
-          // crbug.com/192136
-          LOG_IF(FATAL, old_part.size > new_part.size)
-              << "Shirking the filesystem size is not supported at the moment.";
-        }
         if (config.version.minor == kInPlaceMinorPayloadVersion) {
           LOG(INFO) << "Using generator InplaceGenerator().";
           strategy.reset(new InplaceGenerator());
