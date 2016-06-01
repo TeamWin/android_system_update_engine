@@ -76,7 +76,7 @@ bool CPULimiter::SetCpuShares(CpuShares shares) {
     return false;
   }
   shares_ = shares;
-  LOG(INFO) << "CPU shares = " << shares_;
+  LOG(INFO) << "CPU shares = " << static_cast<int>(shares_);
   return true;
 }
 
