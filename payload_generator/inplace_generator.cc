@@ -677,17 +677,13 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
 
   enum BlockField { READER = 0, WRITER, BLOCK_FIELD_COUNT };
   for (int field = READER; field < BLOCK_FIELD_COUNT; field++) {
-    const int extents_size =
-        (field == READER) ? operation.src_extents_size() :
-        operation.dst_extents_size();
     const char* past_participle = (field == READER) ? "read" : "written";
     const google::protobuf::RepeatedPtrField<Extent>& extents =
         (field == READER) ? operation.src_extents() : operation.dst_extents();
     Vertex::Index Block::*access_type = (field == READER) ?
         &Block::reader : &Block::writer;
 
-    for (int i = 0; i < extents_size; i++) {
-      const Extent& extent = extents.Get(i);
+    for (const Extent& extent : extents) {
       for (uint64_t block = extent.start_block();
            block < (extent.start_block() + extent.num_blocks()); block++) {
         if ((*blocks)[block].*access_type != Vertex::kInvalidIndex) {
@@ -738,6 +734,7 @@ void InplaceGenerator::ApplyMap(vector<uint64_t>* collection,
 }
 
 bool InplaceGenerator::ResolveReadAfterWriteDependencies(
+    const PartitionConfig& old_part,
     const PartitionConfig& new_part,
     uint64_t partition_size,
     size_t block_size,
@@ -746,7 +743,7 @@ bool InplaceGenerator::ResolveReadAfterWriteDependencies(
   // Convert the operations to the graph.
   Graph graph;
   CheckGraph(graph);
-  vector<Block> blocks(new_part.size / block_size);
+  vector<Block> blocks(std::max(old_part.size, new_part.size) / block_size);
   for (const auto& aop : *aops) {
     AddInstallOpToGraph(
         &graph, Vertex::kInvalidIndex, &blocks, aop.op, aop.name);
@@ -815,12 +812,8 @@ bool InplaceGenerator::GenerateOperations(
                                                        blob_file));
   LOG(INFO) << "Done reading " << new_part.name;
 
-  TEST_AND_RETURN_FALSE(
-    ResolveReadAfterWriteDependencies(new_part,
-                                      partition_size,
-                                      config.block_size,
-                                      blob_file,
-                                      aops));
+  TEST_AND_RETURN_FALSE(ResolveReadAfterWriteDependencies(
+      old_part, new_part, partition_size, config.block_size, blob_file, aops));
   LOG(INFO) << "Done reordering " << new_part.name;
   return true;
 }
