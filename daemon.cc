@@ -25,11 +25,11 @@
 #include <binderwrapper/binder_wrapper.h>
 #endif  // USE_WEAVE || USE_BINDER
 
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
+#if USE_OMAHA
 #include "update_engine/real_system_state.h"
-#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+#else  // !USE_OMAHA
 #include "update_engine/daemon_state_android.h"
-#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
+#endif  // USE_OMAHA
 
 #if USE_DBUS
 namespace {
@@ -69,7 +69,7 @@ int UpdateEngineDaemon::OnInit() {
   CHECK(bus->SetUpAsyncOperations());
 #endif  // USE_DBUS
 
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
+#if USE_OMAHA
   // Initialize update engine global state but continue if something fails.
   // TODO(deymo): Move the daemon_state_ initialization to a factory method
   // avoiding the explicit re-usage of the |bus| instance, shared between
@@ -78,21 +78,21 @@ int UpdateEngineDaemon::OnInit() {
   daemon_state_.reset(real_system_state);
   LOG_IF(ERROR, !real_system_state->Initialize())
       << "Failed to initialize system state.";
-#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+#else  // !USE_OMAHA
   DaemonStateAndroid* daemon_state_android = new DaemonStateAndroid();
   daemon_state_.reset(daemon_state_android);
   LOG_IF(ERROR, !daemon_state_android->Initialize())
       << "Failed to initialize system state.";
-#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
+#endif  // USE_OMAHA
 
 #if USE_BINDER
   // Create the Binder Service.
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
+#if USE_OMAHA
   binder_service_ = new BinderUpdateEngineBrilloService{real_system_state};
-#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+#else  // !USE_OMAHA
   binder_service_ = new BinderUpdateEngineAndroidService{
       daemon_state_android->service_delegate()};
-#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
+#endif  // USE_OMAHA
   auto binder_wrapper = android::BinderWrapper::Get();
   if (!binder_wrapper->RegisterService(binder_service_->ServiceName(),
                                        binder_service_)) {

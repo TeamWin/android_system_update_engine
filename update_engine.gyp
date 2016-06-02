@@ -55,6 +55,7 @@
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
       'USE_LIBCROS=<(USE_libcros)',
       'USE_MTD=<(USE_mtd)',
+      'USE_OMAHA=1',
       'USE_POWER_MANAGEMENT=<(USE_power_management)',
       'USE_WEAVE=<(USE_buffet)',
     ],
