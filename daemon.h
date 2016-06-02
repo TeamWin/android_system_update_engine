@@ -29,11 +29,11 @@
 #endif  // USE_DBUS
 
 #if USE_BINDER
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
+#if USE_OMAHA
 #include "update_engine/binder_service_brillo.h"
-#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+#else  // !USE_OMAHA
 #include "update_engine/binder_service_android.h"
-#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
+#endif  // USE_OMAHA
 #endif  // USE_BINDER
 #include "update_engine/common/subprocess.h"
 #include "update_engine/daemon_state_interface.h"
@@ -72,11 +72,11 @@ class UpdateEngineDaemon : public brillo::Daemon {
 #endif  // USE_WEAVE || USE_BINDER
 
 #if USE_BINDER
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
+#if USE_OMAHA
   android::sp<BinderUpdateEngineBrilloService> binder_service_;
-#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+#else  // !USE_OMAHA
   android::sp<BinderUpdateEngineAndroidService> binder_service_;
-#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
+#endif  // USE_OMAHA
 #endif  // USE_BINDER
 
   // The daemon state with all the required daemon classes for the configured
