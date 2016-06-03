@@ -21,6 +21,7 @@
 // update engine's connection_manager.  We need to make sure to deprecate use of
 // connection manager when the time comes.
 
+#include <memory>
 #include <string>
 
 #include <base/time/time.h>
@@ -78,9 +79,8 @@ class RealShillProvider : public ShillProvider {
   // The current default service path, if connected. "/" means not connected.
   dbus::ObjectPath default_service_path_{"uninitialized"};
 
-  // The mockable interface to access the shill DBus proxies, owned by the
-  // caller.
-  chromeos_update_engine::ShillProxyInterface* shill_proxy_;
+  // The mockable interface to access the shill DBus proxies.
+  std::unique_ptr<chromeos_update_engine::ShillProxyInterface> shill_proxy_;
 
   // A clock abstraction (mockable).
   chromeos_update_engine::ClockInterface* const clock_;
