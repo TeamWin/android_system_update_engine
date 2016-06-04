@@ -17,6 +17,7 @@
 #include "update_engine/dbus_service.h"
 
 #include "update_engine/dbus-constants.h"
+#include "update_engine/dbus_connection.h"
 #include "update_engine/update_status_utils.h"
 
 namespace chromeos_update_engine {
@@ -142,14 +143,13 @@ bool DBusUpdateEngineService::GetEolStatus(ErrorPtr* error,
   return common_->GetEolStatus(error, out_eol_status);
 }
 
-UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state,
-                                         const scoped_refptr<dbus::Bus>& bus)
+UpdateEngineAdaptor::UpdateEngineAdaptor(SystemState* system_state)
     : org::chromium::UpdateEngineInterfaceAdaptor(&dbus_service_),
-    bus_(bus),
-    dbus_service_(system_state),
-    dbus_object_(nullptr,
-                 bus,
-                 dbus::ObjectPath(update_engine::kUpdateEngineServicePath)) {}
+      bus_(DBusConnection::Get()->GetDBus()),
+      dbus_service_(system_state),
+      dbus_object_(nullptr,
+                   bus_,
+                   dbus::ObjectPath(update_engine::kUpdateEngineServicePath)) {}
 
 void UpdateEngineAdaptor::RegisterAsync(
     const base::Callback<void(bool)>& completion_callback) {

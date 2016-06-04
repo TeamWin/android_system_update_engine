@@ -16,6 +16,8 @@
 
 #include "update_engine/shill_proxy.h"
 
+#include "update_engine/dbus_connection.h"
+
 using org::chromium::flimflam::ManagerProxy;
 using org::chromium::flimflam::ManagerProxyInterface;
 using org::chromium::flimflam::ServiceProxy;
@@ -23,9 +25,8 @@ using org::chromium::flimflam::ServiceProxyInterface;
 
 namespace chromeos_update_engine {
 
-ShillProxy::ShillProxy(const scoped_refptr<dbus::Bus>& bus) : bus_(bus) {}
-
 bool ShillProxy::Init() {
+  bus_ = DBusConnection::Get()->GetDBus();
   manager_proxy_.reset(new ManagerProxy(bus_));
   return true;
 }
