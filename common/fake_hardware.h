@@ -62,6 +62,18 @@ class FakeHardware : public HardwareInterface {
 
   int GetPowerwashCount() const override { return powerwash_count_; }
 
+  bool SchedulePowerwash() override {
+    powerwash_scheduled_ = true;
+    return true;
+  }
+
+  bool CancelPowerwash() override {
+    powerwash_scheduled_ = false;
+    return true;
+  }
+
+  bool IsPowerwashScheduled() { return powerwash_scheduled_; }
+
   bool GetNonVolatileDirectory(base::FilePath* path) const override {
     return false;
   }
@@ -115,6 +127,7 @@ class FakeHardware : public HardwareInterface {
   std::string firmware_version_;
   std::string ec_version_;
   int powerwash_count_;
+  bool powerwash_scheduled_{false};
 
   DISALLOW_COPY_AND_ASSIGN(FakeHardware);
 };

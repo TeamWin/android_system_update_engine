@@ -42,6 +42,8 @@ class HardwareChromeOS final : public HardwareInterface {
   std::string GetFirmwareVersion() const override;
   std::string GetECVersion() const override;
   int GetPowerwashCount() const override;
+  bool SchedulePowerwash() override;
+  bool CancelPowerwash() override;
   bool GetNonVolatileDirectory(base::FilePath* path) const override;
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override;
 

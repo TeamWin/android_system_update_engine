@@ -168,7 +168,11 @@ bool UpdateAttempterAndroid::ApplyPayload(
 
   install_plan_.source_slot = boot_control_->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
-  install_plan_.powerwash_required = false;
+
+  int data_wipe = 0;
+  install_plan_.powerwash_required =
+      base::StringToInt(headers[kPayloadPropertyPowerwash], &data_wipe) &&
+      data_wipe != 0;
 
   LOG(INFO) << "Using this install plan:";
   install_plan_.Dump();
@@ -404,7 +408,7 @@ void UpdateAttempterAndroid::BuildUpdateActions() {
                                    VerifierMode::kVerifyTargetHash));
 
   shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
-      new PostinstallRunnerAction(boot_control_));
+      new PostinstallRunnerAction(boot_control_, hardware_));
 
   download_action->set_delegate(this);
   download_action_ = download_action;

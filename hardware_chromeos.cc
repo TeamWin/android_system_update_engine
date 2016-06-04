@@ -50,6 +50,12 @@ const char kPowerwashSafeDirectory[] =
 // a powerwash is performed.
 const char kPowerwashCountMarker[] = "powerwash_count";
 
+// UpdateManager config path.
+const char* kConfigFilePath = "/etc/update_manager.conf";
+
+// UpdateManager config options:
+const char* kConfigOptsIsOOBEEnabled = "is_oobe_enabled";
+
 }  // namespace
 
 namespace chromeos_update_engine {
@@ -138,6 +144,32 @@ int HardwareChromeOS::GetPowerwashCount() const {
   if (!base::StringToInt(contents, &powerwash_count))
     return -1;
   return powerwash_count;
+}
+
+bool HardwareChromeOS::SchedulePowerwash() {
+  bool result = utils::WriteFile(
+      kPowerwashMarkerFile, kPowerwashCommand, strlen(kPowerwashCommand));
+  if (result) {
+    LOG(INFO) << "Created " << marker_file << " to powerwash on next reboot";
+  } else {
+    PLOG(ERROR) << "Error in creating powerwash marker file: " << marker_file;
+  }
+
+  return result;
+}
+
+bool HardwareChromeOS::CancelPowerwash() {
+  bool result = base::DeleteFile(base::FilePath(kPowerwashMarkerFile), false);
+
+  if (result) {
+    LOG(INFO) << "Successfully deleted the powerwash marker file : "
+              << marker_file;
+  } else {
+    PLOG(ERROR) << "Could not delete the powerwash marker file : "
+                << marker_file;
+  }
+
+  return result;
 }
 
 bool HardwareChromeOS::GetNonVolatileDirectory(base::FilePath* path) const {

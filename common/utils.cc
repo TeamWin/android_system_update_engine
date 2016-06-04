@@ -1055,35 +1055,6 @@ ErrorCode GetBaseErrorCode(ErrorCode code) {
   return base_code;
 }
 
-bool CreatePowerwashMarkerFile(const char* file_path) {
-  const char* marker_file = file_path ? file_path : kPowerwashMarkerFile;
-  bool result = utils::WriteFile(marker_file,
-                                 kPowerwashCommand,
-                                 strlen(kPowerwashCommand));
-  if (result) {
-    LOG(INFO) << "Created " << marker_file << " to powerwash on next reboot";
-  } else {
-    PLOG(ERROR) << "Error in creating powerwash marker file: " << marker_file;
-  }
-
-  return result;
-}
-
-bool DeletePowerwashMarkerFile(const char* file_path) {
-  const char* marker_file = file_path ? file_path : kPowerwashMarkerFile;
-  const base::FilePath kPowerwashMarkerPath(marker_file);
-  bool result = base::DeleteFile(kPowerwashMarkerPath, false);
-
-  if (result)
-    LOG(INFO) << "Successfully deleted the powerwash marker file : "
-              << marker_file;
-  else
-    PLOG(ERROR) << "Could not delete the powerwash marker file : "
-                << marker_file;
-
-  return result;
-}
-
 Time TimeFromStructTimespec(struct timespec *ts) {
   int64_t us = static_cast<int64_t>(ts->tv_sec) * Time::kMicrosecondsPerSecond +
       static_cast<int64_t>(ts->tv_nsec) / Time::kNanosecondsPerMicrosecond;

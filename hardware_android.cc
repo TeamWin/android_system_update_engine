@@ -16,16 +16,70 @@
 
 #include "update_engine/hardware_android.h"
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include <algorithm>
+
+#include <bootloader.h>
+
 #include <base/files/file_util.h>
 #include <brillo/make_unique_ptr.h>
 #include <cutils/properties.h>
 
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/platform_constants.h"
+#include "update_engine/common/utils.h"
+#include "update_engine/utils_android.h"
 
 using std::string;
 
 namespace chromeos_update_engine {
+
+namespace {
+
+// The powerwash arguments passed to recovery. Arguments are separated by \n.
+const char kAndroidRecoveryPowerwashCommand[] =
+    "recovery\n"
+    "--wipe_data\n"
+    "--reason=wipe_data_from_ota\n";
+
+// Write a recovery command line |message| to the BCB. The arguments to recovery
+// must be separated by '\n'. An empty string will erase the BCB.
+bool WriteBootloaderRecoveryMessage(const string& message) {
+  base::FilePath misc_device;
+  if (!utils::DeviceForMountPoint("/misc", &misc_device))
+    return false;
+
+  // Setup a bootloader_message with just the command and recovery fields set.
+  bootloader_message boot = {};
+  if (!message.empty()) {
+    strncpy(boot.command, "boot-recovery", sizeof(boot.command) - 1);
+    memcpy(boot.recovery,
+           message.data(),
+           std::min(message.size(), sizeof(boot.recovery) - 1));
+  }
+
+  int fd =
+      HANDLE_EINTR(open(misc_device.value().c_str(), O_WRONLY | O_SYNC, 0600));
+  if (fd < 0) {
+    PLOG(ERROR) << "Opening misc";
+    return false;
+  }
+  ScopedFdCloser fd_closer(&fd);
+  // We only re-write the first part of the bootloader_message, up to and
+  // including the recovery message.
+  size_t boot_size =
+      offsetof(bootloader_message, recovery) + sizeof(boot.recovery);
+  if (!utils::WriteAll(fd, &boot, boot_size)) {
+    PLOG(ERROR) << "Writing recovery command to misc";
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
 
 namespace hardware {
 
@@ -93,6 +147,15 @@ string HardwareAndroid::GetECVersion() const {
 int HardwareAndroid::GetPowerwashCount() const {
   LOG(WARNING) << "STUB: Assuming no factory reset was performed.";
   return 0;
+}
+
+bool HardwareAndroid::SchedulePowerwash() {
+  LOG(INFO) << "Scheduling a powerwash to BCB.";
+  return WriteBootloaderRecoveryMessage(kAndroidRecoveryPowerwashCommand);
+}
+
+bool HardwareAndroid::CancelPowerwash() {
+  return WriteBootloaderRecoveryMessage("");
 }
 
 bool HardwareAndroid::GetNonVolatileDirectory(base::FilePath* path) const {

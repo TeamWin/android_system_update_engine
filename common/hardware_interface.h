@@ -65,6 +65,13 @@ class HardwareInterface {
   // recovery don't have this value set.
   virtual int GetPowerwashCount() const = 0;
 
+  // Signals that a powerwash (stateful partition wipe) should be performed
+  // after reboot.
+  virtual bool SchedulePowerwash() = 0;
+
+  // Cancel the powerwash operation scheduled to be performed on next boot.
+  virtual bool CancelPowerwash() = 0;
+
   // Store in |path| the path to a non-volatile directory (persisted across
   // reboots) available for this daemon. In case of an error, such as no
   // directory available, returns false.

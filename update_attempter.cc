@@ -585,7 +585,8 @@ void UpdateAttempter::GenerateNewWaitingPeriod() {
 void UpdateAttempter::BuildPostInstallActions(
     InstallPlanAction* previous_action) {
   shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
-      new PostinstallRunnerAction(system_state_->boot_control()));
+      new PostinstallRunnerAction(system_state_->boot_control(),
+                                  system_state_->hardware()));
   postinstall_runner_action->set_delegate(this);
   actions_.push_back(shared_ptr<AbstractAction>(postinstall_runner_action));
   BondActions(previous_action,
