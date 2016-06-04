@@ -265,16 +265,6 @@ std::string FormatTimeDelta(base::TimeDelta delta);
 // it'll return the same value again.
 ErrorCode GetBaseErrorCode(ErrorCode code);
 
-// Creates the powerwash marker file with the appropriate commands in it.  Uses
-// |file_path| as the path to the marker file if non-null, otherwise uses the
-// global default. Returns true if successfully created.  False otherwise.
-bool CreatePowerwashMarkerFile(const char* file_path);
-
-// Deletes the marker file used to trigger Powerwash using clobber-state.  Uses
-// |file_path| as the path to the marker file if non-null, otherwise uses the
-// global default. Returns true if successfully deleted. False otherwise.
-bool DeletePowerwashMarkerFile(const char* file_path);
-
 // Decodes the data in |base64_encoded| and stores it in a temporary
 // file. Returns false if the given data is empty, not well-formed
 // base64 or if an error occurred. If true is returned, the decoded

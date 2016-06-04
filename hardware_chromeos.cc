@@ -53,6 +53,14 @@ const char kPowerwashSafeDirectory[] =
 // a powerwash is performed.
 const char kPowerwashCountMarker[] = "powerwash_count";
 
+// The name of the marker file used to trigger powerwash when post-install
+// completes successfully so that the device is powerwashed on next reboot.
+const char kPowerwashMarkerFile[] =
+    "/mnt/stateful_partition/factory_install_reset";
+
+// The contents of the powerwash marker file.
+const char kPowerwashCommand[] = "safe fast keepimg reason=update_engine\n";
+
 // UpdateManager config path.
 const char* kConfigFilePath = "/etc/update_manager.conf";
 
@@ -160,6 +168,32 @@ int HardwareChromeOS::GetPowerwashCount() const {
   if (!base::StringToInt(contents, &powerwash_count))
     return -1;
   return powerwash_count;
+}
+
+bool HardwareChromeOS::SchedulePowerwash() {
+  bool result = utils::WriteFile(
+      kPowerwashMarkerFile, kPowerwashCommand, strlen(kPowerwashCommand));
+  if (result) {
+    LOG(INFO) << "Created " << marker_file << " to powerwash on next reboot";
+  } else {
+    PLOG(ERROR) << "Error in creating powerwash marker file: " << marker_file;
+  }
+
+  return result;
+}
+
+bool HardwareChromeOS::CancelPowerwash() {
+  bool result = base::DeleteFile(base::FilePath(kPowerwashMarkerFile), false);
+
+  if (result) {
+    LOG(INFO) << "Successfully deleted the powerwash marker file : "
+              << marker_file;
+  } else {
+    PLOG(ERROR) << "Could not delete the powerwash marker file : "
+                << marker_file;
+  }
+
+  return result;
 }
 
 bool HardwareChromeOS::GetNonVolatileDirectory(base::FilePath* path) const {
