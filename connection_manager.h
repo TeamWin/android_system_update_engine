@@ -34,10 +34,6 @@ class SystemState;
 // TODO(deymo): Remove this class and use ShillProvider from the UpdateManager.
 class ConnectionManager : public ConnectionManagerInterface {
  public:
-  // Returns the string representation corresponding to the given
-  // connection type.
-  static const char* StringForConnectionType(NetworkConnectionType type);
-
   // Constructs a new ConnectionManager object initialized with the
   // given system state.
   ConnectionManager(ShillProxyInterface* shill_proxy,
@@ -45,10 +41,10 @@ class ConnectionManager : public ConnectionManagerInterface {
   ~ConnectionManager() override = default;
 
   // ConnectionManagerInterface overrides.
-  bool GetConnectionProperties(NetworkConnectionType* out_type,
-                               NetworkTethering* out_tethering) override;
-  bool IsUpdateAllowedOver(NetworkConnectionType type,
-                           NetworkTethering tethering) const override;
+  bool GetConnectionProperties(ConnectionType* out_type,
+                               ConnectionTethering* out_tethering) override;
+  bool IsUpdateAllowedOver(ConnectionType type,
+                           ConnectionTethering tethering) const override;
 
  private:
   // Returns (via out_path) the default network path, or empty string if
@@ -56,8 +52,8 @@ class ConnectionManager : public ConnectionManagerInterface {
   bool GetDefaultServicePath(dbus::ObjectPath* out_path);
 
   bool GetServicePathProperties(const dbus::ObjectPath& path,
-                                NetworkConnectionType* out_type,
-                                NetworkTethering* out_tethering);
+                                ConnectionType* out_type,
+                                ConnectionTethering* out_tethering);
 
   // The mockable interface to access the shill DBus proxies.
   ShillProxyInterface* shill_proxy_;

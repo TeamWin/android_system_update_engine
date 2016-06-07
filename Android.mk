@@ -307,6 +307,7 @@ LOCAL_SRC_FILES := \
     boot_control_android.cc \
     common_service.cc \
     connection_manager.cc \
+    connection_utils.cc \
     daemon.cc \
     dbus_service.cc \
     hardware_android.cc \

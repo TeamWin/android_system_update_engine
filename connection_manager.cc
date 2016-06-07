@@ -27,6 +27,7 @@
 
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/connection_utils.h"
 #include "update_engine/system_state.h"
 
 using org::chromium::flimflam::ManagerProxyInterface;
@@ -36,48 +37,17 @@ using std::string;
 
 namespace chromeos_update_engine {
 
-namespace {
-
-NetworkConnectionType ParseConnectionType(const string& type_str) {
-  if (type_str == shill::kTypeEthernet) {
-    return NetworkConnectionType::kEthernet;
-  } else if (type_str == shill::kTypeWifi) {
-    return NetworkConnectionType::kWifi;
-  } else if (type_str == shill::kTypeWimax) {
-    return NetworkConnectionType::kWimax;
-  } else if (type_str == shill::kTypeBluetooth) {
-    return NetworkConnectionType::kBluetooth;
-  } else if (type_str == shill::kTypeCellular) {
-    return NetworkConnectionType::kCellular;
-  }
-  return NetworkConnectionType::kUnknown;
-}
-
-NetworkTethering ParseTethering(const string& tethering_str) {
-  if (tethering_str == shill::kTetheringNotDetectedState) {
-    return NetworkTethering::kNotDetected;
-  } else if (tethering_str == shill::kTetheringSuspectedState) {
-    return NetworkTethering::kSuspected;
-  } else if (tethering_str == shill::kTetheringConfirmedState) {
-    return NetworkTethering::kConfirmed;
-  }
-  LOG(WARNING) << "Unknown Tethering value: " << tethering_str;
-  return NetworkTethering::kUnknown;
-}
-
-}  // namespace
-
 ConnectionManager::ConnectionManager(ShillProxyInterface* shill_proxy,
                                      SystemState* system_state)
     : shill_proxy_(shill_proxy), system_state_(system_state) {}
 
-bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type,
-                                            NetworkTethering tethering) const {
+bool ConnectionManager::IsUpdateAllowedOver(
+    ConnectionType type, ConnectionTethering tethering) const {
   switch (type) {
-    case NetworkConnectionType::kBluetooth:
+    case ConnectionType::kBluetooth:
       return false;
 
-    case NetworkConnectionType::kCellular: {
+    case ConnectionType::kCellular: {
       set<string> allowed_types;
       const policy::DevicePolicy* device_policy =
           system_state_->device_policy();
@@ -130,40 +100,19 @@ bool ConnectionManager::IsUpdateAllowedOver(NetworkConnectionType type,
     }
 
     default:
-      if (tethering == NetworkTethering::kConfirmed) {
+      if (tethering == ConnectionTethering::kConfirmed) {
         // Treat this connection as if it is a cellular connection.
         LOG(INFO) << "Current connection is confirmed tethered, using Cellular "
                      "setting.";
-        return IsUpdateAllowedOver(NetworkConnectionType::kCellular,
-                                   NetworkTethering::kUnknown);
+        return IsUpdateAllowedOver(ConnectionType::kCellular,
+                                   ConnectionTethering::kUnknown);
       }
       return true;
   }
 }
 
-// static
-const char* ConnectionManager::StringForConnectionType(
-    NetworkConnectionType type) {
-  switch (type) {
-    case NetworkConnectionType::kEthernet:
-      return shill::kTypeEthernet;
-    case NetworkConnectionType::kWifi:
-      return shill::kTypeWifi;
-    case NetworkConnectionType::kWimax:
-      return shill::kTypeWimax;
-    case NetworkConnectionType::kBluetooth:
-      return shill::kTypeBluetooth;
-    case NetworkConnectionType::kCellular:
-      return shill::kTypeCellular;
-    case NetworkConnectionType::kUnknown:
-      return "Unknown";
-  }
-  return "Unknown";
-}
-
 bool ConnectionManager::GetConnectionProperties(
-    NetworkConnectionType* out_type,
-    NetworkTethering* out_tethering) {
+    ConnectionType* out_type, ConnectionTethering* out_tethering) {
   dbus::ObjectPath default_service_path;
   TEST_AND_RETURN_FALSE(GetDefaultServicePath(&default_service_path));
   if (!default_service_path.IsValid())
@@ -195,8 +144,8 @@ bool ConnectionManager::GetDefaultServicePath(dbus::ObjectPath* out_path) {
 
 bool ConnectionManager::GetServicePathProperties(
     const dbus::ObjectPath& path,
-    NetworkConnectionType* out_type,
-    NetworkTethering* out_tethering) {
+    ConnectionType* out_type,
+    ConnectionTethering* out_tethering) {
   // We create and dispose the ServiceProxyInterface on every request.
   std::unique_ptr<ServiceProxyInterface> service =
       shill_proxy_->GetServiceForPath(path);
@@ -209,18 +158,19 @@ bool ConnectionManager::GetServicePathProperties(
   const auto& prop_tethering = properties.find(shill::kTetheringProperty);
   if (prop_tethering == properties.end()) {
     // Set to Unknown if not present.
-    *out_tethering = NetworkTethering::kUnknown;
+    *out_tethering = ConnectionTethering::kUnknown;
   } else {
     // If the property doesn't contain a string value, the empty string will
     // become kUnknown.
-    *out_tethering = ParseTethering(prop_tethering->second.TryGet<string>());
+    *out_tethering = connection_utils::ParseConnectionTethering(
+        prop_tethering->second.TryGet<string>());
   }
 
   // Populate the out_type property.
   const auto& prop_type = properties.find(shill::kTypeProperty);
   if (prop_type == properties.end()) {
     // Set to Unknown if not present.
-    *out_type = NetworkConnectionType::kUnknown;
+    *out_type = ConnectionType::kUnknown;
     return false;
   }
 
@@ -232,12 +182,13 @@ bool ConnectionManager::GetServicePathProperties(
       LOG(ERROR) << "No PhysicalTechnology property found for a VPN"
                     " connection (service: "
                  << path.value() << "). Returning default kUnknown value.";
-      *out_type = NetworkConnectionType::kUnknown;
+      *out_type = ConnectionType::kUnknown;
     } else {
-      *out_type = ParseConnectionType(prop_physical->second.TryGet<string>());
+      *out_type = connection_utils::ParseConnectionType(
+          prop_physical->second.TryGet<string>());
     }
   } else {
-    *out_type = ParseConnectionType(type_str);
+    *out_type = connection_utils::ParseConnectionType(type_str);
   }
   return true;
 }

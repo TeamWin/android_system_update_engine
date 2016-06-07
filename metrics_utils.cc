@@ -228,31 +228,31 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
   return metrics::DownloadErrorCode::kInputMalformed;
 }
 
-metrics::ConnectionType GetConnectionType(NetworkConnectionType type,
-                                          NetworkTethering tethering) {
+metrics::ConnectionType GetConnectionType(ConnectionType type,
+                                          ConnectionTethering tethering) {
   switch (type) {
-    case NetworkConnectionType::kUnknown:
+    case ConnectionType::kUnknown:
       return metrics::ConnectionType::kUnknown;
 
-    case NetworkConnectionType::kEthernet:
-      if (tethering == NetworkTethering::kConfirmed)
+    case ConnectionType::kEthernet:
+      if (tethering == ConnectionTethering::kConfirmed)
         return metrics::ConnectionType::kTetheredEthernet;
       else
         return metrics::ConnectionType::kEthernet;
 
-    case NetworkConnectionType::kWifi:
-      if (tethering == NetworkTethering::kConfirmed)
+    case ConnectionType::kWifi:
+      if (tethering == ConnectionTethering::kConfirmed)
         return metrics::ConnectionType::kTetheredWifi;
       else
         return metrics::ConnectionType::kWifi;
 
-    case NetworkConnectionType::kWimax:
+    case ConnectionType::kWimax:
       return metrics::ConnectionType::kWimax;
 
-    case NetworkConnectionType::kBluetooth:
+    case ConnectionType::kBluetooth:
       return metrics::ConnectionType::kBluetooth;
 
-    case NetworkConnectionType::kCellular:
+    case ConnectionType::kCellular:
       return metrics::ConnectionType::kCellular;
   }
 
