@@ -17,7 +17,7 @@
 #ifndef UPDATE_ENGINE_METRICS_UTILS_H_
 #define UPDATE_ENGINE_METRICS_UTILS_H_
 
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_utils.h"
 #include "update_engine/metrics.h"
 
 namespace chromeos_update_engine {
@@ -39,8 +39,8 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code);
 metrics::AttemptResult GetAttemptResult(ErrorCode code);
 
 // Calculates the internet connection type given |type| and |tethering|.
-metrics::ConnectionType GetConnectionType(NetworkConnectionType type,
-                                          NetworkTethering tethering);
+metrics::ConnectionType GetConnectionType(ConnectionType type,
+                                          ConnectionTethering tethering);
 
 // This function returns the duration on the wallclock since the last
 // time it was called for the same |state_variable_key| value.

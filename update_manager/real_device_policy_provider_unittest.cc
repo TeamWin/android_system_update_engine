@@ -34,6 +34,7 @@
 
 using base::TimeDelta;
 using brillo::MessageLoop;
+using chromeos_update_engine::ConnectionType;
 using chromeos_update_engine::dbus_test_utils::MockSignalHandler;
 using std::set;
 using std::string;

@@ -467,11 +467,11 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(NetworkConnectionType::kEthernet),
-                SetArgumentPointee<1>(NetworkTethering::kUnknown),
+          DoAll(SetArgumentPointee<0>(ConnectionType::kEthernet),
+                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
-  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kEthernet, _))
-    .WillRepeatedly(Return(false));
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kEthernet, _))
+      .WillRepeatedly(Return(false));
 
   ASSERT_FALSE(
       TestUpdateCheck(nullptr,  // request_params

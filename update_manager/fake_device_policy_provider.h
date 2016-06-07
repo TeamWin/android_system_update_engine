@@ -54,7 +54,7 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_scatter_factor_;
   }
 
-  FakeVariable<std::set<ConnectionType>>*
+  FakeVariable<std::set<chromeos_update_engine::ConnectionType>>*
       var_allowed_connection_types_for_update() override {
     return &var_allowed_connection_types_for_update_;
   }
@@ -88,7 +88,7 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
       "target_version_prefix", kVariableModePoll};
   FakeVariable<base::TimeDelta> var_scatter_factor_{
       "scatter_factor", kVariableModePoll};
-  FakeVariable<std::set<ConnectionType>>
+  FakeVariable<std::set<chromeos_update_engine::ConnectionType>>
       var_allowed_connection_types_for_update_{
           "allowed_connection_types_for_update", kVariableModePoll};
   FakeVariable<std::string> var_owner_{"owner", kVariableModePoll};

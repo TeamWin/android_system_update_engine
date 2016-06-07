@@ -252,6 +252,7 @@
         'boot_control_chromeos.cc',
         'common_service.cc',
         'connection_manager.cc',
+        'connection_utils.cc',
         'daemon.cc',
         'dbus_service.cc',
         'hardware_chromeos.cc',
