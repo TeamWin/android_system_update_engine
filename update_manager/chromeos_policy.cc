@@ -33,6 +33,8 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ConnectionTethering;
+using chromeos_update_engine::ConnectionType;
 using chromeos_update_engine::ErrorCode;
 using std::get;
 using std::max;

@@ -67,7 +67,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_scatter_factor_;
   }
 
-  Variable<std::set<ConnectionType>>*
+  Variable<std::set<chromeos_update_engine::ConnectionType>>*
       var_allowed_connection_types_for_update() override {
     return &var_allowed_connection_types_for_update_;
   }
@@ -130,7 +130,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   // Wrapper for DevicePolicy::GetAllowedConnectionTypesForUpdate() that
   // converts the result to a set of ConnectionType elements instead of strings.
   bool ConvertAllowedConnectionTypesForUpdate(
-      std::set<ConnectionType>* allowed_types) const;
+      std::set<chromeos_update_engine::ConnectionType>* allowed_types) const;
 
   // Used for fetching information about the device policy.
   policy::PolicyProvider* policy_provider_;
@@ -155,7 +155,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<std::string> var_target_version_prefix_{
       "target_version_prefix"};
   AsyncCopyVariable<base::TimeDelta> var_scatter_factor_{"scatter_factor"};
-  AsyncCopyVariable<std::set<ConnectionType>>
+  AsyncCopyVariable<std::set<chromeos_update_engine::ConnectionType>>
       var_allowed_connection_types_for_update_{
           "allowed_connection_types_for_update"};
   AsyncCopyVariable<std::string> var_owner_{"owner"};

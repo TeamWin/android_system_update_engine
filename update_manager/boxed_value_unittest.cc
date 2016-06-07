@@ -31,6 +31,8 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ConnectionTethering;
+using chromeos_update_engine::ConnectionType;
 using std::list;
 using std::map;
 using std::set;

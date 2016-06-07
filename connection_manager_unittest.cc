@@ -34,6 +34,7 @@
 #include "update_engine/fake_shill_proxy.h"
 #include "update_engine/fake_system_state.h"
 
+using chromeos_update_engine::connection_utils::StringForConnectionType;
 using org::chromium::flimflam::ManagerProxyMock;
 using org::chromium::flimflam::ServiceProxyMock;
 using std::set;
@@ -70,10 +71,10 @@ class ConnectionManagerTest : public ::testing::Test {
   void TestWithServiceType(
       const char* service_type,
       const char* physical_technology,
-      NetworkConnectionType expected_type);
+      ConnectionType expected_type);
   void TestWithServiceTethering(
       const char* service_tethering,
-      NetworkTethering expected_tethering);
+      ConnectionTethering expected_tethering);
 
   brillo::FakeMessageLoop loop_{nullptr};
   FakeSystemState fake_system_state_;
@@ -136,15 +137,15 @@ void ConnectionManagerTest::SetServiceReply(const string& service_path,
 void ConnectionManagerTest::TestWithServiceType(
     const char* service_type,
     const char* physical_technology,
-    NetworkConnectionType expected_type) {
+    ConnectionType expected_type) {
   SetManagerReply("/service/guest/network", true);
   SetServiceReply("/service/guest/network",
                   service_type,
                   physical_technology,
                   shill::kTetheringNotDetectedState);
 
-  NetworkConnectionType type;
-  NetworkTethering tethering;
+  ConnectionType type;
+  ConnectionTethering tethering;
   EXPECT_TRUE(cmut_.GetConnectionProperties(&type, &tethering));
   EXPECT_EQ(expected_type, type);
   testing::Mock::VerifyAndClearExpectations(
@@ -153,13 +154,13 @@ void ConnectionManagerTest::TestWithServiceType(
 
 void ConnectionManagerTest::TestWithServiceTethering(
     const char* service_tethering,
-    NetworkTethering expected_tethering) {
+    ConnectionTethering expected_tethering) {
   SetManagerReply("/service/guest/network", true);
   SetServiceReply(
       "/service/guest/network", shill::kTypeWifi, nullptr, service_tethering);
 
-  NetworkConnectionType type;
-  NetworkTethering tethering;
+  ConnectionType type;
+  ConnectionTethering tethering;
   EXPECT_TRUE(cmut_.GetConnectionProperties(&type, &tethering));
   EXPECT_EQ(expected_tethering, tethering);
   testing::Mock::VerifyAndClearExpectations(
@@ -167,63 +168,57 @@ void ConnectionManagerTest::TestWithServiceTethering(
 }
 
 TEST_F(ConnectionManagerTest, SimpleTest) {
-  TestWithServiceType(shill::kTypeEthernet, nullptr,
-                      NetworkConnectionType::kEthernet);
-  TestWithServiceType(shill::kTypeWifi, nullptr,
-                      NetworkConnectionType::kWifi);
-  TestWithServiceType(shill::kTypeWimax, nullptr,
-                      NetworkConnectionType::kWimax);
-  TestWithServiceType(shill::kTypeBluetooth, nullptr,
-                      NetworkConnectionType::kBluetooth);
-  TestWithServiceType(shill::kTypeCellular, nullptr,
-                      NetworkConnectionType::kCellular);
+  TestWithServiceType(shill::kTypeEthernet, nullptr, ConnectionType::kEthernet);
+  TestWithServiceType(shill::kTypeWifi, nullptr, ConnectionType::kWifi);
+  TestWithServiceType(shill::kTypeWimax, nullptr, ConnectionType::kWimax);
+  TestWithServiceType(
+      shill::kTypeBluetooth, nullptr, ConnectionType::kBluetooth);
+  TestWithServiceType(shill::kTypeCellular, nullptr, ConnectionType::kCellular);
 }
 
 TEST_F(ConnectionManagerTest, PhysicalTechnologyTest) {
-  TestWithServiceType(shill::kTypeVPN, nullptr,
-                      NetworkConnectionType::kUnknown);
-  TestWithServiceType(shill::kTypeVPN, shill::kTypeVPN,
-                      NetworkConnectionType::kUnknown);
-  TestWithServiceType(shill::kTypeVPN, shill::kTypeWifi,
-                      NetworkConnectionType::kWifi);
-  TestWithServiceType(shill::kTypeVPN, shill::kTypeWimax,
-                      NetworkConnectionType::kWimax);
+  TestWithServiceType(shill::kTypeVPN, nullptr, ConnectionType::kUnknown);
+  TestWithServiceType(
+      shill::kTypeVPN, shill::kTypeVPN, ConnectionType::kUnknown);
+  TestWithServiceType(shill::kTypeVPN, shill::kTypeWifi, ConnectionType::kWifi);
+  TestWithServiceType(
+      shill::kTypeVPN, shill::kTypeWimax, ConnectionType::kWimax);
 }
 
 TEST_F(ConnectionManagerTest, TetheringTest) {
   TestWithServiceTethering(shill::kTetheringConfirmedState,
-                           NetworkTethering::kConfirmed);
+                           ConnectionTethering::kConfirmed);
   TestWithServiceTethering(shill::kTetheringNotDetectedState,
-                           NetworkTethering::kNotDetected);
+                           ConnectionTethering::kNotDetected);
   TestWithServiceTethering(shill::kTetheringSuspectedState,
-                           NetworkTethering::kSuspected);
+                           ConnectionTethering::kSuspected);
   TestWithServiceTethering("I'm not a valid property value =)",
-                           NetworkTethering::kUnknown);
+                           ConnectionTethering::kUnknown);
 }
 
 TEST_F(ConnectionManagerTest, UnknownTest) {
-  TestWithServiceType("foo", nullptr, NetworkConnectionType::kUnknown);
+  TestWithServiceType("foo", nullptr, ConnectionType::kUnknown);
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverEthernetTest) {
   // Updates over Ethernet are allowed even if there's no policy.
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
-                                        NetworkTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kEthernet,
+                                        ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverWifiTest) {
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
-                                        NetworkTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
+                                        ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOverWimaxTest) {
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWimax,
-                                        NetworkTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWimax,
+                                        ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOverBluetoothTest) {
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kBluetooth,
-                                         NetworkTethering::kUnknown));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kBluetooth,
+                                         ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
@@ -233,15 +228,14 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOnlyOver3GPerPolicyTest) {
 
   // This test tests cellular (3G) being the only connection type being allowed.
   set<string> allowed_set;
-  allowed_set.insert(
-      cmut_.StringForConnectionType(NetworkConnectionType::kCellular));
+  allowed_set.insert(StringForConnectionType(ConnectionType::kCellular));
 
   EXPECT_CALL(allow_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(1)
       .WillOnce(DoAll(SetArgPointee<0>(allowed_set), Return(true)));
 
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
-                                        NetworkTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                        ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
@@ -253,48 +247,46 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
   // 3G one among them. Only Cellular is currently enforced by the policy
   // setting, the others are ignored (see Bluetooth for example).
   set<string> allowed_set;
-  allowed_set.insert(
-      cmut_.StringForConnectionType(NetworkConnectionType::kCellular));
-  allowed_set.insert(
-      cmut_.StringForConnectionType(NetworkConnectionType::kBluetooth));
+  allowed_set.insert(StringForConnectionType(ConnectionType::kCellular));
+  allowed_set.insert(StringForConnectionType(ConnectionType::kBluetooth));
 
   EXPECT_CALL(allow_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(3)
       .WillRepeatedly(DoAll(SetArgPointee<0>(allowed_set), Return(true)));
 
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
-                                        NetworkTethering::kUnknown));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
-                                        NetworkTethering::kNotDetected));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
-                                        NetworkTethering::kUnknown));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
-                                        NetworkTethering::kUnknown));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWimax,
-                                        NetworkTethering::kUnknown));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kBluetooth,
-                                         NetworkTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kEthernet,
+                                        ConnectionTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kEthernet,
+                                        ConnectionTethering::kNotDetected));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                        ConnectionTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
+                                        ConnectionTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWimax,
+                                        ConnectionTethering::kUnknown));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kBluetooth,
+                                         ConnectionTethering::kUnknown));
 
   // Tethered networks are treated in the same way as Cellular networks and
   // thus allowed.
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
-                                        NetworkTethering::kConfirmed));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
-                                        NetworkTethering::kConfirmed));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kEthernet,
+                                        ConnectionTethering::kConfirmed));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
+                                        ConnectionTethering::kConfirmed));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOverCellularByDefaultTest) {
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
-                                         NetworkTethering::kUnknown));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                         ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOverTetheredNetworkByDefaultTest) {
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
-                                         NetworkTethering::kConfirmed));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kEthernet,
-                                         NetworkTethering::kConfirmed));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kWifi,
-                                        NetworkTethering::kSuspected));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
+                                         ConnectionTethering::kConfirmed));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kEthernet,
+                                         ConnectionTethering::kConfirmed));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
+                                        ConnectionTethering::kSuspected));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
@@ -305,19 +297,16 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
   // Test that updates for 3G are blocked while updates are allowed
   // over several other types.
   set<string> allowed_set;
-  allowed_set.insert(
-      cmut_.StringForConnectionType(NetworkConnectionType::kEthernet));
-  allowed_set.insert(
-      cmut_.StringForConnectionType(NetworkConnectionType::kWifi));
-  allowed_set.insert(
-      cmut_.StringForConnectionType(NetworkConnectionType::kWimax));
+  allowed_set.insert(StringForConnectionType(ConnectionType::kEthernet));
+  allowed_set.insert(StringForConnectionType(ConnectionType::kWifi));
+  allowed_set.insert(StringForConnectionType(ConnectionType::kWimax));
 
   EXPECT_CALL(block_3g_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(1)
       .WillOnce(DoAll(SetArgPointee<0>(allowed_set), Return(true)));
 
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
-                                         NetworkTethering::kUnknown));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                         ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
@@ -326,8 +315,7 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
   fake_system_state_.set_device_policy(&allow_3g_policy);
 
   set<string> allowed_set;
-  allowed_set.insert(
-      cmut_.StringForConnectionType(NetworkConnectionType::kCellular));
+  allowed_set.insert(StringForConnectionType(ConnectionType::kCellular));
 
   // Return false for GetAllowedConnectionTypesForUpdate and see
   // that updates are still blocked for 3G despite the value being in
@@ -336,8 +324,8 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
       .Times(1)
       .WillOnce(DoAll(SetArgPointee<0>(allowed_set), Return(false)));
 
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
-                                         NetworkTethering::kUnknown));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                         ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
@@ -355,8 +343,8 @@ TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
   EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
       .Times(1)
       .WillOnce(Return(false));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
-                                         NetworkTethering::kUnknown));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                         ConnectionTethering::kUnknown));
 
   // Allow per user pref.
   EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
@@ -365,8 +353,8 @@ TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
   EXPECT_CALL(*prefs, GetBoolean(kPrefsUpdateOverCellularPermission, _))
       .Times(1)
       .WillOnce(DoAll(SetArgPointee<1>(true), Return(true)));
-  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
-                                        NetworkTethering::kUnknown));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                        ConnectionTethering::kUnknown));
 
   // Block per user pref.
   EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
@@ -375,34 +363,31 @@ TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
   EXPECT_CALL(*prefs, GetBoolean(kPrefsUpdateOverCellularPermission, _))
       .Times(1)
       .WillOnce(DoAll(SetArgPointee<1>(false), Return(true)));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(NetworkConnectionType::kCellular,
-                                         NetworkTethering::kUnknown));
+  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                         ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, StringForConnectionTypeTest) {
   EXPECT_STREQ(shill::kTypeEthernet,
-               cmut_.StringForConnectionType(NetworkConnectionType::kEthernet));
+               StringForConnectionType(ConnectionType::kEthernet));
   EXPECT_STREQ(shill::kTypeWifi,
-               cmut_.StringForConnectionType(NetworkConnectionType::kWifi));
+               StringForConnectionType(ConnectionType::kWifi));
   EXPECT_STREQ(shill::kTypeWimax,
-               cmut_.StringForConnectionType(NetworkConnectionType::kWimax));
+               StringForConnectionType(ConnectionType::kWimax));
   EXPECT_STREQ(shill::kTypeBluetooth,
-               cmut_.StringForConnectionType(
-                   NetworkConnectionType::kBluetooth));
+               StringForConnectionType(ConnectionType::kBluetooth));
   EXPECT_STREQ(shill::kTypeCellular,
-               cmut_.StringForConnectionType(NetworkConnectionType::kCellular));
+               StringForConnectionType(ConnectionType::kCellular));
+  EXPECT_STREQ("Unknown", StringForConnectionType(ConnectionType::kUnknown));
   EXPECT_STREQ("Unknown",
-               cmut_.StringForConnectionType(NetworkConnectionType::kUnknown));
-  EXPECT_STREQ("Unknown",
-               cmut_.StringForConnectionType(
-                   static_cast<NetworkConnectionType>(999999)));
+               StringForConnectionType(static_cast<ConnectionType>(999999)));
 }
 
 TEST_F(ConnectionManagerTest, MalformedServiceList) {
   SetManagerReply("/service/guest/network", false);
 
-  NetworkConnectionType type;
-  NetworkTethering tethering;
+  ConnectionType type;
+  ConnectionTethering tethering;
   EXPECT_FALSE(cmut_.GetConnectionProperties(&type, &tethering));
 }
 
