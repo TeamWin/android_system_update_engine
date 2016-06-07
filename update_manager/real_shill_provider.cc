@@ -24,38 +24,12 @@
 #include <shill/dbus-constants.h>
 #include <shill/dbus-proxies.h>
 
+using chromeos_update_engine::connection_utils::ParseConnectionType;
 using org::chromium::flimflam::ManagerProxyInterface;
 using org::chromium::flimflam::ServiceProxyInterface;
 using std::string;
 
 namespace chromeos_update_manager {
-
-ConnectionType RealShillProvider::ParseConnectionType(const string& type_str) {
-  if (type_str == shill::kTypeEthernet) {
-    return ConnectionType::kEthernet;
-  } else if (type_str == shill::kTypeWifi) {
-    return ConnectionType::kWifi;
-  } else if (type_str == shill::kTypeWimax) {
-    return ConnectionType::kWimax;
-  } else if (type_str == shill::kTypeBluetooth) {
-    return ConnectionType::kBluetooth;
-  } else if (type_str == shill::kTypeCellular) {
-    return ConnectionType::kCellular;
-  }
-  return ConnectionType::kUnknown;
-}
-
-ConnectionTethering RealShillProvider::ParseConnectionTethering(
-    const string& tethering_str) {
-  if (tethering_str == shill::kTetheringNotDetectedState) {
-    return ConnectionTethering::kNotDetected;
-  } else if (tethering_str == shill::kTetheringSuspectedState) {
-    return ConnectionTethering::kSuspected;
-  } else if (tethering_str == shill::kTetheringConfirmedState) {
-    return ConnectionTethering::kConfirmed;
-  }
-  return ConnectionTethering::kUnknown;
-}
 
 bool RealShillProvider::Init() {
   ManagerProxyInterface* manager_proxy = shill_proxy_->GetManagerProxy();
@@ -157,7 +131,8 @@ bool RealShillProvider::ProcessDefaultService(
     // If the property doesn't contain a string value, the empty string will
     // become kUnknown.
     var_conn_tethering_.SetValue(
-        ParseConnectionTethering(prop_tethering->second.TryGet<string>()));
+        chromeos_update_engine::connection_utils::ParseConnectionTethering(
+            prop_tethering->second.TryGet<string>()));
   }
 
   // Get the connection type.
@@ -175,7 +150,8 @@ bool RealShillProvider::ProcessDefaultService(
         LOG(ERROR) << "No PhysicalTechnology property found for a VPN"
                    << " connection (service: " << default_service_path_.value()
                    << "). Using default kUnknown value.";
-        var_conn_type_.SetValue(ConnectionType::kUnknown);
+        var_conn_type_.SetValue(
+            chromeos_update_engine::ConnectionType::kUnknown);
       } else {
         var_conn_type_.SetValue(
             ParseConnectionType(prop_physical->second.TryGet<string>()));

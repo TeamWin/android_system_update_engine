@@ -19,26 +19,11 @@
 
 #include <base/time/time.h>
 
+#include "update_engine/connection_utils.h"
 #include "update_engine/update_manager/provider.h"
 #include "update_engine/update_manager/variable.h"
 
 namespace chromeos_update_manager {
-
-enum class ConnectionType {
-  kEthernet,
-  kWifi,
-  kWimax,
-  kBluetooth,
-  kCellular,
-  kUnknown
-};
-
-enum class ConnectionTethering {
-  kNotDetected,
-  kSuspected,
-  kConfirmed,
-  kUnknown,
-};
 
 // Provider for networking related information.
 class ShillProvider : public Provider {
@@ -50,11 +35,12 @@ class ShillProvider : public Provider {
 
   // A variable returning the current network connection type. Unknown if not
   // connected.
-  virtual Variable<ConnectionType>* var_conn_type() = 0;
+  virtual Variable<chromeos_update_engine::ConnectionType>* var_conn_type() = 0;
 
   // A variable returning the tethering mode of a network connection. Unknown if
   // not connected.
-  virtual Variable<ConnectionTethering>* var_conn_tethering() = 0;
+  virtual Variable<chromeos_update_engine::ConnectionTethering>*
+      var_conn_tethering() = 0;
 
   // A variable returning the time when network connection last changed.
   // Initialized to current time.
