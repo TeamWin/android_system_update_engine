@@ -37,8 +37,6 @@
 #include <debugd/dbus-constants.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
-#include <power_manager/dbus-constants.h>
-#include <power_manager/dbus-proxies.h>
 #include <update_engine/dbus-constants.h>
 
 #include "update_engine/common/boot_control_interface.h"
@@ -62,6 +60,7 @@
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/payload_state_interface.h"
+#include "update_engine/power_manager_interface.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
@@ -818,7 +817,7 @@ bool UpdateAttempter::RebootIfNeeded() {
     return false;
   }
 
-  if (USE_POWER_MANAGEMENT && RequestPowerManagerReboot())
+  if (system_state_->power_manager()->RequestReboot())
     return true;
 
   return RebootDirectly();
@@ -832,20 +831,6 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
 
   int64_t value = system_state_->clock()->GetBootTime().ToInternalValue();
   prefs_->SetInt64(kPrefsUpdateCompletedBootTime, value);
-}
-
-bool UpdateAttempter::RequestPowerManagerReboot() {
-  org::chromium::PowerManagerProxyInterface* power_manager_proxy =
-      system_state_->power_manager_proxy();
-  if (!power_manager_proxy) {
-    LOG(WARNING) << "No PowerManager proxy defined, skipping reboot.";
-    return false;
-  }
-  LOG(INFO) << "Calling " << power_manager::kPowerManagerInterface << "."
-            << power_manager::kRequestRestartMethod;
-  brillo::ErrorPtr error;
-  return power_manager_proxy->RequestRestart(
-      power_manager::REQUEST_RESTART_FOR_UPDATE, &error);
 }
 
 bool UpdateAttempter::RebootDirectly() {

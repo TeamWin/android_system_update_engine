@@ -24,7 +24,6 @@
 #include <debugd/dbus-proxies.h>
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
-#include <power_manager/dbus-proxies.h>
 #include <session_manager/dbus-proxies.h>
 
 #include "update_engine/common/boot_control_interface.h"
@@ -37,6 +36,7 @@
 #include "update_engine/dbus_connection.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
+#include "update_engine/power_manager_interface.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/update_manager/update_manager.h"
 #include "update_engine/weave_service_interface.h"
@@ -120,9 +120,8 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
     return update_manager_.get();
   }
 
-  inline org::chromium::PowerManagerProxyInterface* power_manager_proxy()
-      override {
-    return &power_manager_proxy_;
+  inline PowerManagerInterface* power_manager() override {
+    return power_manager_.get();
   }
 
   inline bool system_rebooted() override { return system_rebooted_; }
@@ -130,9 +129,11 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
  private:
   // Real DBus proxies using the DBus connection.
   org::chromium::debugdProxy debugd_proxy_;
-  org::chromium::PowerManagerProxy power_manager_proxy_;
   org::chromium::SessionManagerInterfaceProxy session_manager_proxy_;
   LibCrosProxy libcros_proxy_;
+
+  // Interface for the power manager.
+  std::unique_ptr<PowerManagerInterface> power_manager_;
 
   // Interface for the clock.
   std::unique_ptr<BootControlInterface> boot_control_;

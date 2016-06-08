@@ -17,12 +17,6 @@
 #ifndef UPDATE_ENGINE_SYSTEM_STATE_H_
 #define UPDATE_ENGINE_SYSTEM_STATE_H_
 
-namespace org {
-namespace chromium {
-class PowerManagerProxyInterface;
-}  // namespace chromium
-}  // namespace org
-
 class MetricsLibraryInterface;
 
 namespace chromeos_update_manager {
@@ -49,6 +43,7 @@ class HardwareInterface;
 class OmahaRequestParams;
 class P2PManager;
 class PayloadStateInterface;
+class PowerManagerInterface;
 class PrefsInterface;
 class UpdateAttempter;
 class WeaveServiceInterface;
@@ -112,8 +107,8 @@ class SystemState {
   // Returns a pointer to the UpdateManager singleton.
   virtual chromeos_update_manager::UpdateManager* update_manager() = 0;
 
-  // DBus proxies. Mocked during test.
-  virtual org::chromium::PowerManagerProxyInterface* power_manager_proxy() = 0;
+  // Gets the power manager object. Mocked during test.
+  virtual PowerManagerInterface* power_manager() = 0;
 
   // If true, this is the first instance of the update engine since the system
   // restarted. Important for tracking whether you are running instance of the

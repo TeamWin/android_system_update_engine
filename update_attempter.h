@@ -381,10 +381,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // |update_completed_marker_| is empty.
   void WriteUpdateCompletedMarker();
 
-  // Sends a D-Bus message to the Chrome OS power manager asking it to reboot
-  // the system. Returns true on success.
-  bool RequestPowerManagerReboot();
-
   // Reboots the system directly by calling /sbin/shutdown. Returns true on
   // success.
   bool RebootDirectly();
