@@ -288,7 +288,8 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
     $(ue_common_c_includes) \
-    $(ue_libupdate_engine_exported_c_includes)
+    $(ue_libupdate_engine_exported_c_includes) \
+    bootable/recovery
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
@@ -340,6 +341,7 @@ LOCAL_SRC_FILES := \
     update_manager/state_factory.cc \
     update_manager/update_manager.cc \
     update_status_utils.cc \
+    utils_android.cc \
     weave_service_factory.cc
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
@@ -390,7 +392,9 @@ LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
-LOCAL_C_INCLUDES :=  $(ue_common_c_includes)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    bootable/recovery
 #TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
 # out of the DBus interface.
 LOCAL_C_INCLUDES += \
@@ -411,7 +415,8 @@ LOCAL_SRC_FILES += \
     hardware_android.cc \
     proxy_resolver.cc \
     update_attempter_android.cc \
-    update_status_utils.cc
+    update_status_utils.cc \
+    utils_android.cc
 include $(BUILD_STATIC_LIBRARY)
 
 endif  # local_use_omaha == 1
