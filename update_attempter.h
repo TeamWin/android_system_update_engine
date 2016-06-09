@@ -68,8 +68,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   UpdateAttempter(SystemState* system_state,
                   CertificateChecker* cert_checker,
-                  LibCrosProxy* libcros_proxy,
-                  org::chromium::debugdProxyInterface* debugd_proxy);
+                  LibCrosProxy* libcros_proxy);
   ~UpdateAttempter() override;
 
   // Further initialization to be done post construction.
@@ -507,7 +506,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   std::string forced_app_version_;
   std::string forced_omaha_url_;
 
-  org::chromium::debugdProxyInterface* debugd_proxy_;
+  std::unique_ptr<org::chromium::debugdProxyInterface> debugd_proxy_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };
