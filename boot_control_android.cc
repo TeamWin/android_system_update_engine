@@ -22,33 +22,11 @@
 #include <base/strings/string_util.h>
 #include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
-#include <cutils/properties.h>
-#include <fs_mgr.h>
 
 #include "update_engine/common/utils.h"
+#include "update_engine/utils_android.h"
 
 using std::string;
-
-namespace {
-
-// Open the appropriate fstab file and fallback to /fstab.device if
-// that's what's being used.
-static struct fstab* OpenFSTab() {
-  char propbuf[PROPERTY_VALUE_MAX];
-  struct fstab* fstab;
-
-  property_get("ro.hardware", propbuf, "");
-  string fstab_name = string("/fstab.") + propbuf;
-  fstab = fs_mgr_read_fstab(fstab_name.c_str());
-  if (fstab != nullptr)
-    return fstab;
-
-  fstab = fs_mgr_read_fstab("/fstab.device");
-  return fstab;
-}
-
-}  // namespace
-
 
 namespace chromeos_update_engine {
 
@@ -97,9 +75,6 @@ BootControlInterface::Slot BootControlAndroid::GetCurrentSlot() const {
 bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
                                             Slot slot,
                                             string* device) const {
-  struct fstab* fstab;
-  struct fstab_rec* record;
-
   // We can't use fs_mgr to look up |partition_name| because fstab
   // doesn't list every slot partition (it uses the slotselect option
   // to mask the suffix).
@@ -119,20 +94,9 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   // of misc and then finding an entry in /dev matching the sysfs
   // entry.
 
-  fstab = OpenFSTab();
-  if (fstab == nullptr) {
-    LOG(ERROR) << "Error opening fstab file.";
+  base::FilePath misc_device;
+  if (!utils::DeviceForMountPoint("/misc", &misc_device))
     return false;
-  }
-  record = fs_mgr_get_entry_for_mount_point(fstab, "/misc");
-  if (record == nullptr) {
-    LOG(ERROR) << "Error finding /misc entry in fstab file.";
-    fs_mgr_free_fstab(fstab);
-    return false;
-  }
-
-  base::FilePath misc_device = base::FilePath(record->blk_device);
-  fs_mgr_free_fstab(fstab);
 
   if (!utils::IsSymlink(misc_device.value().c_str())) {
     LOG(ERROR) << "Device file " << misc_device.value() << " for /misc "
