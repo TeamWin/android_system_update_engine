@@ -174,9 +174,11 @@ bool HardwareChromeOS::SchedulePowerwash() {
   bool result = utils::WriteFile(
       kPowerwashMarkerFile, kPowerwashCommand, strlen(kPowerwashCommand));
   if (result) {
-    LOG(INFO) << "Created " << marker_file << " to powerwash on next reboot";
+    LOG(INFO) << "Created " << kPowerwashMarkerFile
+              << " to powerwash on next reboot";
   } else {
-    PLOG(ERROR) << "Error in creating powerwash marker file: " << marker_file;
+    PLOG(ERROR) << "Error in creating powerwash marker file: "
+                << kPowerwashMarkerFile;
   }
 
   return result;
@@ -187,10 +189,10 @@ bool HardwareChromeOS::CancelPowerwash() {
 
   if (result) {
     LOG(INFO) << "Successfully deleted the powerwash marker file : "
-              << marker_file;
+              << kPowerwashMarkerFile;
   } else {
     PLOG(ERROR) << "Could not delete the powerwash marker file : "
-                << marker_file;
+                << kPowerwashMarkerFile;
   }
 
   return result;
