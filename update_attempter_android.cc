@@ -411,6 +411,7 @@ void UpdateAttempterAndroid::BuildUpdateActions() {
 
   download_action->set_delegate(this);
   download_action_ = download_action;
+  postinstall_runner_action->set_delegate(this);
 
   actions_.push_back(shared_ptr<AbstractAction>(install_plan_action));
   actions_.push_back(shared_ptr<AbstractAction>(download_action));
