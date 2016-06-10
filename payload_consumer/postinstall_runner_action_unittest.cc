@@ -217,15 +217,23 @@ TEST_F(PostinstallRunnerActionTest, ProcessProgressLineTest) {
   action.accumulated_weight_ = 1;
   action.total_weight_ = 8;
 
-  // 50% of the second actions is 2/8 = 0.25 of the total.
+  // 50% of the second action is 2/8 = 0.25 of the total.
   EXPECT_CALL(mock_delegate_, ProgressUpdate(0.25));
   action.ProcessProgressLine("global_progress 0.5");
+  testing::Mock::VerifyAndClearExpectations(&mock_delegate_);
+
+  // 1.5 should be read as 100%, to catch rounding error cases like 1.000001.
+  // 100% of the second is 3/8 of the total.
+  EXPECT_CALL(mock_delegate_, ProgressUpdate(0.375));
+  action.ProcessProgressLine("global_progress 1.5");
   testing::Mock::VerifyAndClearExpectations(&mock_delegate_);
 
   // None of these should trigger a progress update.
   action.ProcessProgressLine("foo_bar");
   action.ProcessProgressLine("global_progress");
   action.ProcessProgressLine("global_progress ");
+  action.ProcessProgressLine("global_progress NaN");
+  action.ProcessProgressLine("global_progress Exception in ... :)");
 }
 
 // Test that postinstall succeeds in the simple case of running the default
