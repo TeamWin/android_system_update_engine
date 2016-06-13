@@ -34,6 +34,7 @@
 #include "update_engine/common/prefs.h"
 #include "update_engine/connection_manager.h"
 #include "update_engine/daemon_state_interface.h"
+#include "update_engine/dbus_connection.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
 #include "update_engine/shill_proxy.h"
@@ -49,7 +50,9 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
  public:
   // Constructs all system objects that do not require separate initialization;
   // see Initialize() below for the remaining ones.
+  // TODO(senj): Remove this constructor once all proxies get DBus themselves.
   explicit RealSystemState(const scoped_refptr<dbus::Bus>& bus);
+  RealSystemState() : RealSystemState(DBusConnection::Get()->GetDBus()){};
   ~RealSystemState() override;
 
   // Initializes and sets systems objects that require an initialization

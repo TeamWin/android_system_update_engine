@@ -16,6 +16,8 @@
 
 #include "update_engine/libcros_proxy.h"
 
+#include "update_engine/dbus_connection.h"
+
 using org::chromium::LibCrosServiceInterfaceProxy;
 using org::chromium::LibCrosServiceInterfaceProxyInterface;
 using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxy;
@@ -36,13 +38,13 @@ LibCrosProxy::LibCrosProxy(
       ue_proxy_resolved_interface_(std::move(ue_proxy_resolved_interface)) {
 }
 
-LibCrosProxy::LibCrosProxy(const scoped_refptr<dbus::Bus>& bus)
-    : service_interface_proxy_(
-          new LibCrosServiceInterfaceProxy(bus, kLibCrosServiceName)),
-      ue_proxy_resolved_interface_(
-          new UpdateEngineLibcrosProxyResolvedInterfaceProxy(
-              bus,
-              kLibCrosServiceName)) {
+LibCrosProxy::LibCrosProxy() {
+  const scoped_refptr<dbus::Bus>& bus = DBusConnection::Get()->GetDBus();
+  service_interface_proxy_.reset(
+      new LibCrosServiceInterfaceProxy(bus, kLibCrosServiceName));
+  ue_proxy_resolved_interface_.reset(
+      new UpdateEngineLibcrosProxyResolvedInterfaceProxy(bus,
+                                                         kLibCrosServiceName));
 }
 
 LibCrosServiceInterfaceProxyInterface* LibCrosProxy::service_interface_proxy() {
