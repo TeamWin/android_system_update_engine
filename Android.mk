@@ -241,25 +241,29 @@ ue_libupdate_engine_exported_c_includes := \
 ue_libupdate_engine_exported_static_libraries := \
     libpayload_consumer \
     update_metadata-protos \
-    update_engine-dbus-adaptor \
-    update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies \
     libbz \
     libfs_mgr \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libupdate_engine_exported_shared_libraries := \
-    libdbus \
-    libbrillo-dbus \
-    libchrome-dbus \
     libmetrics \
-    libshill-client \
     libexpat \
     libbrillo-policy \
     libhardware \
     libcutils \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
+ifeq ($(local_use_dbus),1)
+ue_libupdate_engine_exported_static_libraries += \
+    update_engine-dbus-adaptor \
+    update_engine-dbus-libcros-client \
+    update_engine_client-dbus-proxies
+ue_libupdate_engine_exported_shared_libraries += \
+    libdbus \
+    libbrillo-dbus \
+    libchrome-dbus \
+    libshill-client
+endif  # local_use_dbus == 1
 ifeq ($(local_use_binder),1)
 ue_libupdate_engine_exported_shared_libraries += \
     libbinder \
@@ -290,9 +294,6 @@ LOCAL_C_INCLUDES := \
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
-    update_engine-dbus-adaptor \
-    update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies \
     $(ue_libupdate_engine_exported_static_libraries:-host=) \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_update_metadata_protos_exported_static_libraries)
@@ -306,11 +307,8 @@ LOCAL_SRC_FILES := \
     common_service.cc \
     connection_utils.cc \
     daemon.cc \
-    dbus_connection.cc \
-    dbus_service.cc \
     hardware_android.cc \
     image_properties_android.cc \
-    libcros_proxy.cc \
     metrics.cc \
     metrics_utils.cc \
     omaha_request_action.cc \
@@ -331,7 +329,6 @@ LOCAL_SRC_FILES := \
     update_manager/real_config_provider.cc \
     update_manager/real_device_policy_provider.cc \
     update_manager/real_random_provider.cc \
-    update_manager/real_shill_provider.cc \
     update_manager/real_system_provider.cc \
     update_manager/real_time_provider.cc \
     update_manager/real_updater_provider.cc \
@@ -343,7 +340,11 @@ LOCAL_SRC_FILES := \
 ifeq ($(local_use_dbus),1)
 LOCAL_SRC_FILES += \
     connection_manager.cc \
-    shill_proxy.cc
+    dbus_connection.cc \
+    dbus_service.cc \
+    libcros_proxy.cc \
+    shill_proxy.cc \
+    update_manager/real_shill_provider.cc
 else   # local_use_dbus == 1
 LOCAL_SRC_FILES += \
     connection_manager_android.cc
@@ -911,8 +912,6 @@ LOCAL_SRC_FILES := \
     common/test_utils.cc \
     common/utils_unittest.cc \
     common_service_unittest.cc \
-    connection_manager_unittest.cc \
-    fake_shill_proxy.cc \
     fake_system_state.cc \
     metrics_utils_unittest.cc \
     omaha_request_action_unittest.cc \
@@ -956,7 +955,6 @@ LOCAL_SRC_FILES := \
     update_manager/prng_unittest.cc \
     update_manager/real_device_policy_provider_unittest.cc \
     update_manager/real_random_provider_unittest.cc \
-    update_manager/real_shill_provider_unittest.cc \
     update_manager/real_system_provider_unittest.cc \
     update_manager/real_time_provider_unittest.cc \
     update_manager/real_updater_provider_unittest.cc \
@@ -964,6 +962,12 @@ LOCAL_SRC_FILES := \
     update_manager/update_manager_unittest.cc \
     update_manager/variable_unittest.cc \
     testrunner.cc
+ifeq ($(local_use_dbus),1)
+LOCAL_SRC_FILES += \
+    connection_manager_unittest.cc \
+    fake_shill_proxy.cc \
+    update_manager/real_shill_provider_unittest.cc
+endif  # local_use_dbus == 1
 ifeq ($(local_use_libcros),1)
 LOCAL_SRC_FILES += \
     chrome_browser_proxy_resolver_unittest.cc

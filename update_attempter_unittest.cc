@@ -27,15 +27,20 @@
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
+#if USE_DBUS
 #include <debugd/dbus-constants.h>
 #include <debugd/dbus-proxies.h>
 #include <debugd/dbus-proxy-mocks.h>
+#endif // USE_DBUS
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
+#if USE_LIBCROS
 #include "libcros/dbus-proxies.h"
 #include "libcros/dbus-proxy-mocks.h"
+#include "update_engine/libcros_proxy.h"
+#endif // USE_LIBCROS
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_action.h"
@@ -56,8 +61,10 @@
 
 using base::Time;
 using base::TimeDelta;
+#if USE_LIBCROS
 using org::chromium::LibCrosServiceInterfaceProxyMock;
 using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxyMock;
+#endif // USE_LIBCROS
 using std::string;
 using std::unique_ptr;
 using testing::DoAll;
@@ -110,13 +117,18 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 class UpdateAttempterTest : public ::testing::Test {
  protected:
   UpdateAttempterTest()
-      : debugd_proxy_mock_(new org::chromium::debugdProxyMock()),
+      :
+#if USE_DBUS
+        debugd_proxy_mock_(new org::chromium::debugdProxyMock()),
+#endif  // USE_DBUS
+#if USE_LIBCROS
         service_interface_mock_(new LibCrosServiceInterfaceProxyMock()),
         ue_proxy_resolved_interface_mock_(
             new NiceMock<UpdateEngineLibcrosProxyResolvedInterfaceProxyMock>()),
         libcros_proxy_(
             brillo::make_unique_ptr(service_interface_mock_),
             brillo::make_unique_ptr(ue_proxy_resolved_interface_mock_)),
+#endif  // USE_LIBCROS
         certificate_checker_(fake_system_state_.mock_prefs(),
                              &openssl_wrapper_) {
     // Override system state members.
@@ -126,8 +138,10 @@ class UpdateAttempterTest : public ::testing::Test {
 
     certificate_checker_.Init();
 
-    // Finish initializing the attempter.
+// Finish initializing the attempter.
+#if USE_DBUS
     attempter_.debugd_proxy_.reset(debugd_proxy_mock_);
+#endif  // USE_DBUS
     attempter_.Init();
   }
 
@@ -189,14 +203,20 @@ class UpdateAttempterTest : public ::testing::Test {
   brillo::BaseMessageLoop loop_{&base_loop_};
 
   FakeSystemState fake_system_state_;
+#if USE_DBUS
   org::chromium::debugdProxyMock* debugd_proxy_mock_;
+#endif  // USE_DBUS
+#if USE_LIBCROS
   LibCrosServiceInterfaceProxyMock* service_interface_mock_;
   UpdateEngineLibcrosProxyResolvedInterfaceProxyMock*
       ue_proxy_resolved_interface_mock_;
   LibCrosProxy libcros_proxy_;
+  UpdateAttempterUnderTest attempter_{&fake_system_state_, &libcros_proxy_};
+#else
+  UpdateAttempterUnderTest attempter_{&fake_system_state_, nullptr};
+#endif  // USE_LIBCROS
   OpenSSLWrapper openssl_wrapper_;
   CertificateChecker certificate_checker_;
-  UpdateAttempterUnderTest attempter_{&fake_system_state_, &libcros_proxy_};
 
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
@@ -943,6 +963,7 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedUnofficial) {
   EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
+#if USE_DBUS
 TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedOfficialDevmode) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
@@ -950,30 +971,37 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedOfficialDevmode) {
       .WillRepeatedly(DoAll(SetArgumentPointee<0>(0), Return(true)));
   EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
 }
+#endif  // USE_DBUS
 
 TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
   // debugd should not be queried in this case.
+#if USE_DBUS
   EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _)).Times(0);
+#endif  // USE_DBUS
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
 TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdDisabled) {
-  using debugd::DEV_FEATURES_DISABLED;
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
+#if USE_DBUS
+  using debugd::DEV_FEATURES_DISABLED;
   EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _))
       .WillRepeatedly(
           DoAll(SetArgumentPointee<0>(DEV_FEATURES_DISABLED), Return(true)));
+#endif  // USE_DBUS
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
 TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdFailure) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
+#if USE_DBUS
   EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _))
       .WillRepeatedly(Return(false));
+#endif  // USE_DBUS
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
