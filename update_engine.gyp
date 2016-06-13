@@ -254,6 +254,7 @@
         'connection_manager.cc',
         'connection_utils.cc',
         'daemon.cc',
+        'dbus_connection.cc',
         'dbus_service.cc',
         'hardware_chromeos.cc',
         'image_properties_chromeos.cc',

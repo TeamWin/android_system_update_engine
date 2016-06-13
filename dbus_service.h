@@ -147,8 +147,7 @@ class DBusUpdateEngineService
 class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor,
                             public ServiceObserverInterface {
  public:
-  UpdateEngineAdaptor(SystemState* system_state,
-                      const scoped_refptr<dbus::Bus>& bus);
+  UpdateEngineAdaptor(SystemState* system_state);
   ~UpdateEngineAdaptor() = default;
 
   // Register the DBus object with the update engine service asynchronously.
