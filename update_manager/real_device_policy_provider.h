@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_REAL_DEVICE_POLICY_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_REAL_DEVICE_POLICY_PROVIDER_H_
 
+#include <memory>
 #include <set>
 #include <string>
 
@@ -33,11 +34,12 @@ namespace chromeos_update_manager {
 // DevicePolicyProvider concrete implementation.
 class RealDevicePolicyProvider : public DevicePolicyProvider {
  public:
-  RealDevicePolicyProvider(org::chromium::SessionManagerInterfaceProxyInterface*
-                               session_manager_proxy,
-                           policy::PolicyProvider* policy_provider)
+  RealDevicePolicyProvider(
+      std::unique_ptr<org::chromium::SessionManagerInterfaceProxyInterface>
+          session_manager_proxy,
+      policy::PolicyProvider* policy_provider)
       : policy_provider_(policy_provider),
-        session_manager_proxy_(session_manager_proxy) {}
+        session_manager_proxy_(std::move(session_manager_proxy)) {}
   ~RealDevicePolicyProvider();
 
   // Initializes the provider and returns whether it succeeded.
@@ -139,9 +141,9 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   brillo::MessageLoop::TaskId scheduled_refresh_{
       brillo::MessageLoop::kTaskIdNull};
 
-  // The DBus (mockable) session manager proxy, owned by the caller.
-  org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy_{
-      nullptr};
+  // The DBus (mockable) session manager proxy.
+  std::unique_ptr<org::chromium::SessionManagerInterfaceProxyInterface>
+      session_manager_proxy_;
 
   // Variable exposing whether the policy is loaded.
   AsyncCopyVariable<bool> var_device_policy_is_loaded_{
