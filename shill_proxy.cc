@@ -25,11 +25,9 @@ using org::chromium::flimflam::ServiceProxyInterface;
 
 namespace chromeos_update_engine {
 
-bool ShillProxy::Init() {
-  bus_ = DBusConnection::Get()->GetDBus();
-  manager_proxy_.reset(new ManagerProxy(bus_));
-  return true;
-}
+ShillProxy::ShillProxy()
+    : bus_(DBusConnection::Get()->GetDBus()),
+      manager_proxy_(new ManagerProxy(bus_)) {}
 
 ManagerProxyInterface* ShillProxy::GetManagerProxy() {
   return manager_proxy_.get();
