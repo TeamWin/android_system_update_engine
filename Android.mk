@@ -310,6 +310,7 @@ LOCAL_SRC_FILES := \
     connection_manager.cc \
     connection_utils.cc \
     daemon.cc \
+    dbus_connection.cc \
     dbus_service.cc \
     hardware_android.cc \
     image_properties_android.cc \

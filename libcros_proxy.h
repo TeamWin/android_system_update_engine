@@ -30,7 +30,7 @@ namespace chromeos_update_engine {
 // is a thin class to just hold the generated proxies (real or mocked ones).
 class LibCrosProxy final {
  public:
-  explicit LibCrosProxy(const scoped_refptr<dbus::Bus>& bus);
+  LibCrosProxy();
   LibCrosProxy(
       std::unique_ptr<org::chromium::LibCrosServiceInterfaceProxyInterface>
           service_interface_proxy,
