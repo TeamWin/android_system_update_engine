@@ -307,7 +307,6 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := \
     boot_control_android.cc \
     common_service.cc \
-    connection_manager.cc \
     connection_utils.cc \
     daemon.cc \
     dbus_connection.cc \
@@ -325,7 +324,6 @@ LOCAL_SRC_FILES := \
     payload_state.cc \
     proxy_resolver.cc \
     real_system_state.cc \
-    shill_proxy.cc \
     update_attempter.cc \
     update_manager/boxed_value.cc \
     update_manager/chromeos_policy.cc \
@@ -344,6 +342,14 @@ LOCAL_SRC_FILES := \
     update_status_utils.cc \
     utils_android.cc \
     weave_service_factory.cc
+ifeq ($(local_use_dbus),1)
+LOCAL_SRC_FILES += \
+    connection_manager.cc \
+    shill_proxy.cc
+else   # local_use_dbus == 1
+LOCAL_SRC_FILES += \
+    connection_manager_android.cc
+endif  # local_use_dbus == 1
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \

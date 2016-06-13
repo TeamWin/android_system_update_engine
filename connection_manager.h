@@ -27,8 +27,6 @@
 
 namespace chromeos_update_engine {
 
-class SystemState;
-
 // This class implements the concrete class that talks with the connection
 // manager (shill) over DBus.
 // TODO(deymo): Remove this class and use ShillProvider from the UpdateManager.
@@ -56,7 +54,7 @@ class ConnectionManager : public ConnectionManagerInterface {
                                 ConnectionTethering* out_tethering);
 
   // The mockable interface to access the shill DBus proxies.
-  ShillProxyInterface* shill_proxy_;
+  std::unique_ptr<ShillProxyInterface> shill_proxy_;
 
   // The global context for update_engine.
   SystemState* system_state_;
