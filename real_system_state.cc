@@ -39,7 +39,6 @@ namespace chromeos_update_engine {
 
 RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
     : debugd_proxy_(bus),
-      power_manager_proxy_(bus),
       session_manager_proxy_(bus) {}
 
 RealSystemState::~RealSystemState() {
@@ -71,6 +70,12 @@ bool RealSystemState::Initialize() {
   connection_manager_ = connection_manager::CreateConnectionManager(this);
   if (!connection_manager_) {
     LOG(ERROR) << "Error intializing the ConnectionManagerInterface.";
+    return false;
+  }
+
+  power_manager_ = power_manager::CreatePowerManager();
+  if (!power_manager_) {
+    LOG(ERROR) << "Error intializing the PowerManagerInterface.";
     return false;
   }
 
