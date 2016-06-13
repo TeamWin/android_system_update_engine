@@ -56,7 +56,6 @@
       'USE_LIBCROS=<(USE_libcros)',
       'USE_MTD=<(USE_mtd)',
       'USE_OMAHA=1',
-      'USE_POWER_MANAGEMENT=<(USE_power_management)',
       'USE_WEAVE=<(USE_buffet)',
     ],
     'include_dirs': [
@@ -267,6 +266,7 @@
         'omaha_utils.cc',
         'p2p_manager.cc',
         'payload_state.cc',
+        'power_manager_chromeos.cc',
         'proxy_resolver.cc',
         'real_system_state.cc',
         'shill_proxy.cc',

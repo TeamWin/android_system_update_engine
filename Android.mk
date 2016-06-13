@@ -28,8 +28,6 @@ local_use_hwid_override := \
 local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
 local_use_omaha := $(if $(BRILLO_USE_OMAHA),$(BRILLO_USE_OMAHA),0)
-local_use_power_management := \
-    $(if $(BRILLO_USE_POWER_MANAGEMENT),$(BRILLO_USE_POWER_MANAGEMENT),0)
 local_use_weave := $(if $(BRILLO_USE_WEAVE),$(BRILLO_USE_WEAVE),0)
 
 ue_common_cflags := \
@@ -39,7 +37,6 @@ ue_common_cflags := \
     -DUSE_LIBCROS=$(local_use_libcros) \
     -DUSE_MTD=$(local_use_mtd) \
     -DUSE_OMAHA=$(local_use_omaha) \
-    -DUSE_POWER_MANAGEMENT=$(local_use_power_management) \
     -DUSE_WEAVE=$(local_use_weave) \
     -D_FILE_OFFSET_BITS=64 \
     -D_POSIX_C_SOURCE=199309L \
@@ -322,6 +319,7 @@ LOCAL_SRC_FILES := \
     omaha_utils.cc \
     p2p_manager.cc \
     payload_state.cc \
+    power_manager_android.cc \
     proxy_resolver.cc \
     real_system_state.cc \
     update_attempter.cc \
