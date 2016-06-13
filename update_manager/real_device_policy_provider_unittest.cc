@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
@@ -52,8 +53,11 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
-    provider_.reset(new RealDevicePolicyProvider(&session_manager_proxy_mock_,
-                                                 &mock_policy_provider_));
+    auto session_manager_proxy_mock =
+        new org::chromium::SessionManagerInterfaceProxyMock();
+    provider_.reset(new RealDevicePolicyProvider(
+        brillo::make_unique_ptr(session_manager_proxy_mock),
+        &mock_policy_provider_));
     // By default, we have a device policy loaded. Tests can call
     // SetUpNonExistentDevicePolicy() to override this.
     SetUpExistentDevicePolicy();
@@ -61,7 +65,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
     // Setup the session manager_proxy such that it will accept the signal
     // handler and store it in the |property_change_complete_| once registered.
     MOCK_SIGNAL_HANDLER_EXPECT_SIGNAL_HANDLER(property_change_complete_,
-                                              session_manager_proxy_mock_,
+                                              *session_manager_proxy_mock,
                                               PropertyChangeComplete);
   }
 
@@ -90,7 +94,6 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
   }
 
   brillo::FakeMessageLoop loop_{nullptr};
-  org::chromium::SessionManagerInterfaceProxyMock session_manager_proxy_mock_;
   testing::NiceMock<policy::MockDevicePolicy> mock_device_policy_;
   testing::NiceMock<policy::MockPolicyProvider> mock_policy_provider_;
   unique_ptr<RealDevicePolicyProvider> provider_;

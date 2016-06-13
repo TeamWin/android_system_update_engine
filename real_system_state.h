@@ -24,7 +24,6 @@
 #include <debugd/dbus-proxies.h>
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
-#include <session_manager/dbus-proxies.h>
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/certificate_checker.h"
@@ -129,7 +128,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
  private:
   // Real DBus proxies using the DBus connection.
   org::chromium::debugdProxy debugd_proxy_;
-  org::chromium::SessionManagerInterfaceProxy session_manager_proxy_;
   LibCrosProxy libcros_proxy_;
 
   // Interface for the power manager.
