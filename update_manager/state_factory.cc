@@ -19,8 +19,11 @@
 #include <memory>
 
 #include <base/logging.h>
+#include <brillo/make_unique_ptr.h>
+#include <session_manager/dbus-proxies.h>
 
 #include "update_engine/common/clock_interface.h"
+#include "update_engine/dbus_connection.h"
 #include "update_engine/libcros_proxy.h"
 #include "update_engine/shill_proxy.h"
 #include "update_engine/update_manager/real_config_provider.h"
@@ -38,14 +41,18 @@ namespace chromeos_update_manager {
 
 State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
-    org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy,
     chromeos_update_engine::LibCrosProxy* libcros_proxy,
     chromeos_update_engine::SystemState* system_state) {
   chromeos_update_engine::ClockInterface* const clock = system_state->clock();
   unique_ptr<RealConfigProvider> config_provider(
       new RealConfigProvider(system_state->hardware()));
+  scoped_refptr<dbus::Bus> bus =
+      chromeos_update_engine::DBusConnection::Get()->GetDBus();
   unique_ptr<RealDevicePolicyProvider> device_policy_provider(
-      new RealDevicePolicyProvider(session_manager_proxy, policy_provider));
+      new RealDevicePolicyProvider(
+          brillo::make_unique_ptr(
+              new org::chromium::SessionManagerInterfaceProxy(bus)),
+          policy_provider));
   unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   unique_ptr<RealShillProvider> shill_provider(
       new RealShillProvider(new chromeos_update_engine::ShillProxy(), clock));
