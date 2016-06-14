@@ -17,11 +17,15 @@
 #ifndef UPDATE_ENGINE_CONNECTION_MANAGER_INTERFACE_H_
 #define UPDATE_ENGINE_CONNECTION_MANAGER_INTERFACE_H_
 
+#include <memory>
+
 #include <base/macros.h>
 
 #include "update_engine/connection_utils.h"
 
 namespace chromeos_update_engine {
+
+class SystemState;
 
 // This class exposes a generic interface to the connection manager
 // (e.g FlimFlam, Shill, etc.) to consolidate all connection-related
@@ -48,6 +52,12 @@ class ConnectionManagerInterface {
  private:
   DISALLOW_COPY_AND_ASSIGN(ConnectionManagerInterface);
 };
+
+namespace connection_manager {
+// Factory function which creates a ConnectionManager.
+std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager(
+    SystemState* system_state);
+}
 
 }  // namespace chromeos_update_engine
 

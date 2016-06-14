@@ -28,6 +28,7 @@
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/connection_utils.h"
+#include "update_engine/shill_proxy.h"
 #include "update_engine/system_state.h"
 
 using org::chromium::flimflam::ManagerProxyInterface;
@@ -36,6 +37,14 @@ using std::set;
 using std::string;
 
 namespace chromeos_update_engine {
+
+namespace connection_manager {
+std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager(
+    SystemState* system_state) {
+  return std::unique_ptr<ConnectionManagerInterface>(
+      new ConnectionManager(new ShillProxy(), system_state));
+}
+}
 
 ConnectionManager::ConnectionManager(ShillProxyInterface* shill_proxy,
                                      SystemState* system_state)

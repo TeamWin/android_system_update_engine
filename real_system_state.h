@@ -32,12 +32,11 @@
 #include "update_engine/common/clock.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/daemon_state_interface.h"
 #include "update_engine/dbus_connection.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
-#include "update_engine/shill_proxy.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/update_manager/update_manager.h"
 #include "update_engine/weave_service_interface.h"
@@ -84,7 +83,7 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   inline ClockInterface* clock() override { return &clock_; }
 
   inline ConnectionManagerInterface* connection_manager() override {
-    return &connection_manager_;
+    return connection_manager_.get();
   }
 
   inline HardwareInterface* hardware() override { return hardware_.get(); }
@@ -133,7 +132,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   org::chromium::debugdProxy debugd_proxy_;
   org::chromium::PowerManagerProxy power_manager_proxy_;
   org::chromium::SessionManagerInterfaceProxy session_manager_proxy_;
-  ShillProxy shill_proxy_;
   LibCrosProxy libcros_proxy_;
 
   // Interface for the clock.
@@ -147,7 +145,7 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 
   // The connection manager object that makes download decisions depending on
   // the current type of connection.
-  ConnectionManager connection_manager_{&shill_proxy_, this};
+  std::unique_ptr<ConnectionManagerInterface> connection_manager_;
 
   // Interface for the hardware functions.
   std::unique_ptr<HardwareInterface> hardware_;

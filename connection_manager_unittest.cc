@@ -47,6 +47,8 @@ namespace chromeos_update_engine {
 
 class ConnectionManagerTest : public ::testing::Test {
  public:
+  ConnectionManagerTest() : fake_shill_proxy_(new FakeShillProxy()) {}
+
   void SetUp() override {
     loop_.SetAsCurrent();
     fake_system_state_.set_connection_manager(&cmut_);
@@ -78,15 +80,15 @@ class ConnectionManagerTest : public ::testing::Test {
 
   brillo::FakeMessageLoop loop_{nullptr};
   FakeSystemState fake_system_state_;
-  FakeShillProxy fake_shill_proxy_;
+  FakeShillProxy* fake_shill_proxy_;
 
   // ConnectionManager under test.
-  ConnectionManager cmut_{&fake_shill_proxy_, &fake_system_state_};
+  ConnectionManager cmut_{fake_shill_proxy_, &fake_system_state_};
 };
 
 void ConnectionManagerTest::SetManagerReply(const char* default_service,
                                             bool reply_succeeds) {
-  ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_.GetManagerProxy();
+  ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_->GetManagerProxy();
   if (!reply_succeeds) {
     EXPECT_CALL(*manager_proxy_mock, GetProperties(_, _, _))
         .WillOnce(Return(false));
@@ -130,8 +132,8 @@ void ConnectionManagerTest::SetServiceReply(const string& service_path,
   EXPECT_CALL(*service_proxy_mock.get(), GetProperties(_, _, _))
       .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
 
-  fake_shill_proxy_.SetServiceForPath(dbus::ObjectPath(service_path),
-                                      std::move(service_proxy_mock));
+  fake_shill_proxy_->SetServiceForPath(dbus::ObjectPath(service_path),
+                                       std::move(service_proxy_mock));
 }
 
 void ConnectionManagerTest::TestWithServiceType(
@@ -149,7 +151,7 @@ void ConnectionManagerTest::TestWithServiceType(
   EXPECT_TRUE(cmut_.GetConnectionProperties(&type, &tethering));
   EXPECT_EQ(expected_type, type);
   testing::Mock::VerifyAndClearExpectations(
-      fake_shill_proxy_.GetManagerProxy());
+      fake_shill_proxy_->GetManagerProxy());
 }
 
 void ConnectionManagerTest::TestWithServiceTethering(
@@ -164,7 +166,7 @@ void ConnectionManagerTest::TestWithServiceTethering(
   EXPECT_TRUE(cmut_.GetConnectionProperties(&type, &tethering));
   EXPECT_EQ(expected_tethering, tethering);
   testing::Mock::VerifyAndClearExpectations(
-      fake_shill_proxy_.GetManagerProxy());
+      fake_shill_proxy_->GetManagerProxy());
 }
 
 TEST_F(ConnectionManagerTest, SimpleTest) {

@@ -22,6 +22,7 @@
 
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/libcros_proxy.h"
+#include "update_engine/shill_proxy.h"
 #include "update_engine/update_manager/real_config_provider.h"
 #include "update_engine/update_manager/real_device_policy_provider.h"
 #include "update_engine/update_manager/real_random_provider.h"
@@ -37,7 +38,6 @@ namespace chromeos_update_manager {
 
 State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
-    chromeos_update_engine::ShillProxy* shill_proxy,
     org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy,
     chromeos_update_engine::LibCrosProxy* libcros_proxy,
     chromeos_update_engine::SystemState* system_state) {
@@ -48,11 +48,9 @@ State* DefaultStateFactory(
       new RealDevicePolicyProvider(session_manager_proxy, policy_provider));
   unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   unique_ptr<RealShillProvider> shill_provider(
-      new RealShillProvider(shill_proxy, clock));
-  unique_ptr<RealSystemProvider> system_provider(
-      new RealSystemProvider(system_state->hardware(),
-                             system_state->boot_control(),
-                             libcros_proxy));
+      new RealShillProvider(new chromeos_update_engine::ShillProxy(), clock));
+  unique_ptr<RealSystemProvider> system_provider(new RealSystemProvider(
+      system_state->hardware(), system_state->boot_control(), libcros_proxy));
   unique_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
   unique_ptr<RealUpdaterProvider> updater_provider(
       new RealUpdaterProvider(system_state));
