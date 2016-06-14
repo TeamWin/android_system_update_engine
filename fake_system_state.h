@@ -20,8 +20,6 @@
 #include <base/logging.h>
 #include <gmock/gmock.h>
 #include <policy/mock_device_policy.h>
-#include <power_manager/dbus-proxies.h>
-#include <power_manager/dbus-proxy-mocks.h>
 
 #include "metrics/metrics_library_mock.h"
 #include "update_engine/common/fake_boot_control.h"
@@ -32,6 +30,7 @@
 #include "update_engine/mock_omaha_request_params.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
+#include "update_engine/mock_power_manager.h"
 #include "update_engine/mock_update_attempter.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/fake_update_manager.h"
@@ -97,9 +96,8 @@ class FakeSystemState : public SystemState {
     return update_manager_;
   }
 
-  inline org::chromium::PowerManagerProxyInterface* power_manager_proxy()
-      override {
-    return power_manager_proxy_;
+  inline PowerManagerInterface* power_manager() override {
+    return power_manager_;
   }
 
   inline bool system_rebooted() override { return fake_system_rebooted_; }
@@ -245,7 +243,7 @@ class FakeSystemState : public SystemState {
   testing::NiceMock<MockOmahaRequestParams> mock_request_params_;
   testing::NiceMock<MockP2PManager> mock_p2p_manager_;
   chromeos_update_manager::FakeUpdateManager fake_update_manager_;
-  org::chromium::PowerManagerProxyMock mock_power_manager_;
+  testing::NiceMock<MockPowerManager> mock_power_manager_;
 
   // Pointers to objects that client code can override. They are initialized to
   // the default implementations above.
@@ -261,8 +259,7 @@ class FakeSystemState : public SystemState {
   OmahaRequestParams* request_params_;
   P2PManager* p2p_manager_;
   chromeos_update_manager::UpdateManager* update_manager_;
-  org::chromium::PowerManagerProxyInterface* power_manager_proxy_{
-      &mock_power_manager_};
+  PowerManagerInterface* power_manager_{&mock_power_manager_};
 
   // Other object pointers (not preinitialized).
   const policy::DevicePolicy* device_policy_;
