@@ -24,9 +24,6 @@
 #include <brillo/binder_watcher.h>
 #endif  // USE_WEAVE || USE_BINDER
 #include <brillo/daemons/daemon.h>
-#if USE_DBUS
-#include <brillo/dbus/dbus_connection.h>
-#endif  // USE_DBUS
 
 #if USE_BINDER
 #if USE_OMAHA
@@ -57,8 +54,7 @@ class UpdateEngineDaemon : public brillo::Daemon {
   // initialization.
   void OnDBusRegistered(bool succeeded);
 
-  // Main D-Bus connection and service adaptor.
-  brillo::DBusConnection dbus_connection_;
+  // Main D-Bus service adaptor.
   std::unique_ptr<UpdateEngineAdaptor> dbus_adaptor_;
 #endif  // USE_DBUS
 

@@ -40,10 +40,7 @@ namespace chromeos_update_engine {
 RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
     : debugd_proxy_(bus),
       power_manager_proxy_(bus),
-      session_manager_proxy_(bus),
-      shill_proxy_(bus),
-      libcros_proxy_(bus) {
-}
+      session_manager_proxy_(bus) {}
 
 RealSystemState::~RealSystemState() {
   // Prevent any DBus communication from UpdateAttempter when shutting down the
