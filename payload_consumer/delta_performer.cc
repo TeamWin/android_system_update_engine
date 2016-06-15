@@ -140,22 +140,26 @@ bool DiscardPartitionTail(FileDescriptorPtr fd, uint64_t data_size) {
   if (!part_size || part_size <= data_size)
     return false;
 
-  const vector<int> requests = {
-      BLKSECDISCARD,
-      BLKDISCARD,
+  struct blkioctl_request {
+    int number;
+    const char* name;
+  };
+  const vector<blkioctl_request> blkioctl_requests = {
+      {BLKSECDISCARD, "BLKSECDISCARD"},
+      {BLKDISCARD, "BLKDISCARD"},
 #ifdef BLKZEROOUT
-      BLKZEROOUT,
+      {BLKZEROOUT, "BLKZEROOUT"},
 #endif
   };
-  for (int request : requests) {
+  for (const auto& req : blkioctl_requests) {
     int error = 0;
-    if (fd->BlkIoctl(request, data_size, part_size - data_size, &error) &&
+    if (fd->BlkIoctl(req.number, data_size, part_size - data_size, &error) &&
         error == 0) {
       return true;
     }
     LOG(WARNING) << "Error discarding the last "
                  << (part_size - data_size) / 1024 << " KiB using ioctl("
-                 << request << ")";
+                 << req.name << ")";
   }
   return false;
 }
