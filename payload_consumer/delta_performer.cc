@@ -285,7 +285,8 @@ bool DeltaPerformer::HandleOpResult(bool op_result, const char* op_type_name,
              << next_operation_num_ - partition_first_op_num
              << " in partition \""
              << partitions_[current_partition_].partition_name() << "\"";
-  *error = ErrorCode::kDownloadOperationExecutionError;
+  if (*error == ErrorCode::kSuccess)
+    *error = ErrorCode::kDownloadOperationExecutionError;
   return false;
 }
 
@@ -720,10 +721,10 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
         op_result = PerformBsdiffOperation(op);
         break;
       case InstallOperation::SOURCE_COPY:
-        op_result = PerformSourceCopyOperation(op);
+        op_result = PerformSourceCopyOperation(op, error);
         break;
       case InstallOperation::SOURCE_BSDIFF:
-        op_result = PerformSourceBsdiffOperation(op);
+        op_result = PerformSourceBsdiffOperation(op, error);
         break;
       default:
        op_result = false;
@@ -1048,9 +1049,10 @@ uint64_t GetBlockCount(const RepeatedPtrField<Extent>& extents) {
 }
 
 // Compare |calculated_hash| with source hash in |operation|, return false and
-// dump hash if don't match.
+// dump hash and set |error| if don't match.
 bool ValidateSourceHash(const brillo::Blob& calculated_hash,
-                        const InstallOperation& operation) {
+                        const InstallOperation& operation,
+                        ErrorCode* error) {
   brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
                                     operation.src_sha256_hash().end());
   if (calculated_hash != expected_source_hash) {
@@ -1073,6 +1075,8 @@ bool ValidateSourceHash(const brillo::Blob& calculated_hash,
     }
     LOG(ERROR) << "Operation source (offset:size) in blocks: "
                << base::JoinString(source_extents, ",");
+
+    *error = ErrorCode::kDownloadStateInitializationError;
     return false;
   }
   return true;
@@ -1081,7 +1085,7 @@ bool ValidateSourceHash(const brillo::Blob& calculated_hash,
 }  // namespace
 
 bool DeltaPerformer::PerformSourceCopyOperation(
-    const InstallOperation& operation) {
+    const InstallOperation& operation, ErrorCode* error) {
   if (operation.has_src_length())
     TEST_AND_RETURN_FALSE(operation.src_length() % block_size_ == 0);
   if (operation.has_dst_length())
@@ -1134,7 +1138,7 @@ bool DeltaPerformer::PerformSourceCopyOperation(
   if (operation.has_src_sha256_hash()) {
     TEST_AND_RETURN_FALSE(source_hasher.Finalize());
     TEST_AND_RETURN_FALSE(
-        ValidateSourceHash(source_hasher.raw_hash(), operation));
+        ValidateSourceHash(source_hasher.raw_hash(), operation, error));
   }
 
   DCHECK_EQ(bytes_read, static_cast<ssize_t>(blocks_to_read * block_size_));
@@ -1222,7 +1226,7 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
 }
 
 bool DeltaPerformer::PerformSourceBsdiffOperation(
-    const InstallOperation& operation) {
+    const InstallOperation& operation, ErrorCode* error) {
   // Since we delete data off the beginning of the buffer as we use it,
   // the data we need should be exactly at the beginning of the buffer.
   TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
@@ -1252,7 +1256,7 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
     }
     TEST_AND_RETURN_FALSE(source_hasher.Finalize());
     TEST_AND_RETURN_FALSE(
-        ValidateSourceHash(source_hasher.raw_hash(), operation));
+        ValidateSourceHash(source_hasher.raw_hash(), operation, error));
   }
 
   string input_positions;
