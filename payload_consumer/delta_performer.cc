@@ -29,6 +29,7 @@
 #include <applypatch/imgpatch.h>
 #include <base/files/file_util.h>
 #include <base/format_macros.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/data_encoding.h>
@@ -1046,10 +1047,25 @@ bool ValidateSourceHash(const brillo::Blob& calculated_hash,
   brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
                                     operation.src_sha256_hash().end());
   if (calculated_hash != expected_source_hash) {
-    LOG(ERROR) << "Hash verification failed. Expected hash = ";
-    utils::HexDumpVector(expected_source_hash);
-    LOG(ERROR) << "Calculated hash = ";
-    utils::HexDumpVector(calculated_hash);
+    LOG(ERROR) << "The hash of the source data on disk for this operation "
+               << "doesn't match the expected value. This could mean that the "
+               << "delta update payload was targeted for another version, or "
+               << "that the source partition was modified after it was "
+               << "installed, for example, by mounting a filesystem.";
+    LOG(ERROR) << "Expected:   sha256|hex = "
+               << base::HexEncode(expected_source_hash.data(),
+                                  expected_source_hash.size());
+    LOG(ERROR) << "Calculated: sha256|hex = "
+               << base::HexEncode(calculated_hash.data(),
+                                  calculated_hash.size());
+
+    vector<string> source_extents;
+    for (const Extent& ext : operation.src_extents()) {
+      source_extents.push_back(base::StringPrintf(
+          "%" PRIu64 ":%" PRIu64, ext.start_block(), ext.num_blocks()));
+    }
+    LOG(ERROR) << "Operation source (offset:size) in blocks: "
+               << base::JoinString(source_extents, ",");
     return false;
   }
   return true;
