@@ -873,7 +873,6 @@ LOCAL_REQUIRED_MODULES := \
     ue_unittest_key2.pub.pem \
     ue_unittest_update_engine.conf \
     zlib_fingerprint
-LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
