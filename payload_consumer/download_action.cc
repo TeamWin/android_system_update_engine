@@ -27,6 +27,7 @@
 
 #include "update_engine/common/action_pipe.h"
 #include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
@@ -270,7 +271,8 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
         length, bytes_received_, install_plan_.payload_size);
   }
   if (writer_ && !writer_->Write(bytes, length, &code_)) {
-    LOG(ERROR) << "Error " << code_ << " in DeltaPerformer's Write method when "
+    LOG(ERROR) << "Error " << utils::ErrorCodeToString(code_) << " (" << code_
+               << ") in DeltaPerformer's Write method when "
                << "processing the received payload -- Terminating processing";
     // Delete p2p file, if applicable.
     if (!p2p_file_id_.empty())
