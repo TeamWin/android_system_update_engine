@@ -50,7 +50,7 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/dbus_service.h"
+#include "update_engine/dbus_connection.h"
 #include "update_engine/metrics.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
@@ -120,18 +120,17 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
   return code;
 }
 
-UpdateAttempter::UpdateAttempter(
-    SystemState* system_state,
-    CertificateChecker* cert_checker,
-    LibCrosProxy* libcros_proxy,
-    org::chromium::debugdProxyInterface* debugd_proxy)
+UpdateAttempter::UpdateAttempter(SystemState* system_state,
+                                 CertificateChecker* cert_checker,
+                                 LibCrosProxy* libcros_proxy)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
-      cert_checker_(cert_checker),
 #if USE_LIBCROS
-      chrome_proxy_resolver_(libcros_proxy),
+      cert_checker_(cert_checker),
+      chrome_proxy_resolver_(libcros_proxy) {
+#else
+      cert_checker_(cert_checker) {
 #endif  // USE_LIBCROS
-      debugd_proxy_(debugd_proxy) {
 }
 
 UpdateAttempter::~UpdateAttempter() {
@@ -163,6 +162,11 @@ void UpdateAttempter::Init() {
 #if USE_LIBCROS
   chrome_proxy_resolver_.Init();
 #endif  // USE_LIBCROS
+
+  // unittest can set this to a mock before calling Init().
+  if (!debugd_proxy_)
+    debugd_proxy_.reset(
+        new org::chromium::debugdProxy(DBusConnection::Get()->GetDBus()));
 }
 
 void UpdateAttempter::ScheduleUpdates() {

@@ -21,7 +21,6 @@
 
 #include <memory>
 
-#include <debugd/dbus-proxies.h>
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 
@@ -32,7 +31,6 @@
 #include "update_engine/common/prefs.h"
 #include "update_engine/connection_manager_interface.h"
 #include "update_engine/daemon_state_interface.h"
-#include "update_engine/dbus_connection.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
 #include "update_engine/power_manager_interface.h"
@@ -48,9 +46,7 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
  public:
   // Constructs all system objects that do not require separate initialization;
   // see Initialize() below for the remaining ones.
-  // TODO(senj): Remove this constructor once all proxies get DBus themselves.
-  explicit RealSystemState(const scoped_refptr<dbus::Bus>& bus);
-  RealSystemState() : RealSystemState(DBusConnection::Get()->GetDBus()){};
+  RealSystemState() = default;
   ~RealSystemState() override;
 
   // Initializes and sets systems objects that require an initialization
@@ -127,7 +123,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 
  private:
   // Real DBus proxies using the DBus connection.
-  org::chromium::debugdProxy debugd_proxy_;
   LibCrosProxy libcros_proxy_;
 
   // Interface for the power manager.
