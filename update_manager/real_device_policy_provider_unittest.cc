@@ -26,17 +26,23 @@
 #include <gtest/gtest.h>
 #include <policy/mock_device_policy.h>
 #include <policy/mock_libpolicy.h>
+#if USE_DBUS
 #include <session_manager/dbus-proxies.h>
 #include <session_manager/dbus-proxy-mocks.h>
+#endif  // USE_DBUS
 
 #include "update_engine/common/test_utils.h"
+#if USE_DBUS
 #include "update_engine/dbus_test_utils.h"
+#endif  // USE_DBUS
 #include "update_engine/update_manager/umtest_utils.h"
 
 using base::TimeDelta;
 using brillo::MessageLoop;
 using chromeos_update_engine::ConnectionType;
+#if USE_DBUS
 using chromeos_update_engine::dbus_test_utils::MockSignalHandler;
+#endif  // USE_DBUS
 using std::set;
 using std::string;
 using std::unique_ptr;
@@ -53,20 +59,26 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
+#if USE_DBUS
     auto session_manager_proxy_mock =
         new org::chromium::SessionManagerInterfaceProxyMock();
     provider_.reset(new RealDevicePolicyProvider(
         brillo::make_unique_ptr(session_manager_proxy_mock),
         &mock_policy_provider_));
+#else
+    provider_.reset(new RealDevicePolicyProvider(&mock_policy_provider_));
+#endif  // USE_DBUS
     // By default, we have a device policy loaded. Tests can call
     // SetUpNonExistentDevicePolicy() to override this.
     SetUpExistentDevicePolicy();
 
+#if USE_DBUS
     // Setup the session manager_proxy such that it will accept the signal
     // handler and store it in the |property_change_complete_| once registered.
     MOCK_SIGNAL_HANDLER_EXPECT_SIGNAL_HANDLER(property_change_complete_,
                                               *session_manager_proxy_mock,
                                               PropertyChangeComplete);
+#endif  // USE_DBUS
   }
 
   void TearDown() override {
@@ -98,8 +110,10 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
   testing::NiceMock<policy::MockPolicyProvider> mock_policy_provider_;
   unique_ptr<RealDevicePolicyProvider> provider_;
 
+#if USE_DBUS
   // The registered signal handler for the signal.
   MockSignalHandler<void(const string&)> property_change_complete_;
+#endif  // USE_DBUS
 };
 
 TEST_F(UmRealDevicePolicyProviderTest, RefreshScheduledTest) {
@@ -115,21 +129,29 @@ TEST_F(UmRealDevicePolicyProviderTest, FirstReload) {
   EXPECT_CALL(mock_policy_provider_, Reload());
   EXPECT_TRUE(provider_->Init());
   Mock::VerifyAndClearExpectations(&mock_policy_provider_);
-
+  // We won't be notified that signal is connected without DBus.
+#if USE_DBUS
   EXPECT_CALL(mock_policy_provider_, Reload());
+#endif  // USE_DBUS
   loop_.RunOnce(false);
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded) {
   // Checks that the policy is reloaded by RefreshDevicePolicy().
   SetUpNonExistentDevicePolicy();
+  // We won't be notified that signal is connected without DBus.
+#if USE_DBUS
   EXPECT_CALL(mock_policy_provider_, Reload()).Times(3);
+#else
+  EXPECT_CALL(mock_policy_provider_, Reload()).Times(2);
+#endif  // USE_DBUS
   EXPECT_TRUE(provider_->Init());
   loop_.RunOnce(false);
   // Force the policy refresh.
   provider_->RefreshDevicePolicy();
 }
 
+#if USE_DBUS
 TEST_F(UmRealDevicePolicyProviderTest, SessionManagerSignalForcesReload) {
   // Checks that a signal from the SessionManager forces a reload.
   SetUpNonExistentDevicePolicy();
@@ -142,6 +164,7 @@ TEST_F(UmRealDevicePolicyProviderTest, SessionManagerSignalForcesReload) {
   ASSERT_TRUE(property_change_complete_.IsHandlerRegistered());
   property_change_complete_.signal_callback().Run("success");
 }
+#endif  // USE_DBUS
 
 TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   SetUpNonExistentDevicePolicy();
@@ -199,7 +222,11 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
 TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {
   SetUpExistentDevicePolicy();
   EXPECT_CALL(mock_device_policy_, GetScatterFactorInSeconds(_))
+#if USE_DBUS
       .Times(2)
+#else
+      .Times(1)
+#endif  // USE_DBUS
       .WillRepeatedly(DoAll(SetArgPointee<0>(1234), Return(true)));
   EXPECT_TRUE(provider_->Init());
   loop_.RunOnce(false);
@@ -211,7 +238,11 @@ TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {
 TEST_F(UmRealDevicePolicyProviderTest, NegativeScatterFactorIgnored) {
   SetUpExistentDevicePolicy();
   EXPECT_CALL(mock_device_policy_, GetScatterFactorInSeconds(_))
+#if USE_DBUS
       .Times(2)
+#else
+      .Times(1)
+#endif  // USE_DBUS
       .WillRepeatedly(DoAll(SetArgPointee<0>(-1), Return(true)));
   EXPECT_TRUE(provider_->Init());
   loop_.RunOnce(false);
@@ -222,7 +253,11 @@ TEST_F(UmRealDevicePolicyProviderTest, NegativeScatterFactorIgnored) {
 TEST_F(UmRealDevicePolicyProviderTest, AllowedTypesConverted) {
   SetUpExistentDevicePolicy();
   EXPECT_CALL(mock_device_policy_, GetAllowedConnectionTypesForUpdate(_))
+#if USE_DBUS
       .Times(2)
+#else
+      .Times(1)
+#endif  // USE_DBUS
       .WillRepeatedly(DoAll(
           SetArgPointee<0>(set<string>{"bluetooth", "wifi", "not-a-type"}),
           Return(true)));

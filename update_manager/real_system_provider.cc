@@ -22,7 +22,9 @@
 #include <base/time/time.h>
 
 #include "update_engine/common/utils.h"
+#if USE_LIBCROS
 #include "update_engine/libcros_proxy.h"
+#endif
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/variable.h"
 

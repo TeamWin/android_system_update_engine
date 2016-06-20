@@ -20,20 +20,24 @@
 
 #include <base/logging.h>
 #include <brillo/make_unique_ptr.h>
+#if USE_DBUS
 #include <session_manager/dbus-proxies.h>
+#endif  // USE_DBUS
 
 #include "update_engine/common/clock_interface.h"
-#include "update_engine/dbus_connection.h"
-#include "update_engine/libcros_proxy.h"
-#include "update_engine/shill_proxy.h"
+#include "update_engine/update_manager/fake_shill_provider.h"
 #include "update_engine/update_manager/real_config_provider.h"
 #include "update_engine/update_manager/real_device_policy_provider.h"
 #include "update_engine/update_manager/real_random_provider.h"
-#include "update_engine/update_manager/real_shill_provider.h"
 #include "update_engine/update_manager/real_state.h"
 #include "update_engine/update_manager/real_system_provider.h"
 #include "update_engine/update_manager/real_time_provider.h"
 #include "update_engine/update_manager/real_updater_provider.h"
+#if USE_DBUS
+#include "update_engine/dbus_connection.h"
+#include "update_engine/shill_proxy.h"
+#include "update_engine/update_manager/real_shill_provider.h"
+#endif  // USE_DBUS
 
 using std::unique_ptr;
 
@@ -46,6 +50,7 @@ State* DefaultStateFactory(
   chromeos_update_engine::ClockInterface* const clock = system_state->clock();
   unique_ptr<RealConfigProvider> config_provider(
       new RealConfigProvider(system_state->hardware()));
+#if USE_DBUS
   scoped_refptr<dbus::Bus> bus =
       chromeos_update_engine::DBusConnection::Get()->GetDBus();
   unique_ptr<RealDevicePolicyProvider> device_policy_provider(
@@ -53,9 +58,14 @@ State* DefaultStateFactory(
           brillo::make_unique_ptr(
               new org::chromium::SessionManagerInterfaceProxy(bus)),
           policy_provider));
-  unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   unique_ptr<RealShillProvider> shill_provider(
       new RealShillProvider(new chromeos_update_engine::ShillProxy(), clock));
+#else
+  unique_ptr<RealDevicePolicyProvider> device_policy_provider(
+      new RealDevicePolicyProvider(policy_provider));
+  unique_ptr<FakeShillProvider> shill_provider(new FakeShillProvider());
+#endif  // USE_DBUS
+  unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   unique_ptr<RealSystemProvider> system_provider(new RealSystemProvider(
       system_state->hardware(), system_state->boot_control(), libcros_proxy));
   unique_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
@@ -65,7 +75,9 @@ State* DefaultStateFactory(
   if (!(config_provider->Init() &&
         device_policy_provider->Init() &&
         random_provider->Init() &&
+#if USE_DBUS
         shill_provider->Init() &&
+#endif  // USE_DBUS
         system_provider->Init() &&
         time_provider->Init() &&
         updater_provider->Init())) {

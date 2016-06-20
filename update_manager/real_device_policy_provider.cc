@@ -52,6 +52,7 @@ bool RealDevicePolicyProvider::Init() {
   // On Init() we try to get the device policy and keep updating it.
   RefreshDevicePolicyAndReschedule();
 
+#if USE_DBUS
   // We also listen for signals from the session manager to force a device
   // policy refresh.
   session_manager_proxy_->RegisterPropertyChangeCompleteSignalHandler(
@@ -59,6 +60,7 @@ bool RealDevicePolicyProvider::Init() {
                  base::Unretained(this)),
       base::Bind(&RealDevicePolicyProvider::OnSignalConnected,
                  base::Unretained(this)));
+#endif  // USE_DBUS
   return true;
 }
 
