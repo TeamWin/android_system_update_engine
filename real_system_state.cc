@@ -37,9 +37,6 @@ using brillo::MessageLoop;
 
 namespace chromeos_update_engine {
 
-RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
-    : debugd_proxy_(bus) {}
-
 RealSystemState::~RealSystemState() {
   // Prevent any DBus communication from UpdateAttempter when shutting down the
   // daemon.
@@ -134,8 +131,7 @@ bool RealSystemState::Initialize() {
 
   // Initialize the UpdateAttempter before the UpdateManager.
   update_attempter_.reset(
-      new UpdateAttempter(this, certificate_checker_.get(), &libcros_proxy_,
-                          &debugd_proxy_));
+      new UpdateAttempter(this, certificate_checker_.get(), &libcros_proxy_));
   update_attempter_->Init();
 
   weave_service_ = ConstructWeaveService(update_attempter_.get());
