@@ -129,9 +129,15 @@ bool RealSystemState::Initialize() {
       new CertificateChecker(prefs_.get(), &openssl_wrapper_));
   certificate_checker_->Init();
 
+#if USE_LIBCROS
+  LibCrosProxy* libcros_proxy = &libcros_proxy_;
+#else
+  LibCrosProxy* libcros_proxy = nullptr;
+#endif  // USE_LIBCROS
+
   // Initialize the UpdateAttempter before the UpdateManager.
   update_attempter_.reset(
-      new UpdateAttempter(this, certificate_checker_.get(), &libcros_proxy_));
+      new UpdateAttempter(this, certificate_checker_.get(), libcros_proxy));
   update_attempter_->Init();
 
   weave_service_ = ConstructWeaveService(update_attempter_.get());
@@ -141,7 +147,7 @@ bool RealSystemState::Initialize() {
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =
       chromeos_update_manager::DefaultStateFactory(
-          &policy_provider_, &libcros_proxy_, this);
+          &policy_provider_, libcros_proxy, this);
   if (!um_state) {
     LOG(ERROR) << "Failed to initialize the Update Manager.";
     return false;

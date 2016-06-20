@@ -122,8 +122,10 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   inline bool system_rebooted() override { return system_rebooted_; }
 
  private:
-  // Real DBus proxies using the DBus connection.
+#if USE_LIBCROS
+  // LibCros proxy using the DBus connection.
   LibCrosProxy libcros_proxy_;
+#endif  // USE_LIBCROS
 
   // Interface for the power manager.
   std::unique_ptr<PowerManagerInterface> power_manager_;

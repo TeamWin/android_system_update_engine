@@ -24,7 +24,9 @@
 #include <brillo/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 #include <policy/libpolicy.h>
+#if USE_DBUS
 #include <session_manager/dbus-proxies.h>
+#endif  // USE_DBUS
 
 #include "update_engine/update_manager/device_policy_provider.h"
 #include "update_engine/update_manager/generic_variables.h"
@@ -34,12 +36,16 @@ namespace chromeos_update_manager {
 // DevicePolicyProvider concrete implementation.
 class RealDevicePolicyProvider : public DevicePolicyProvider {
  public:
+#if USE_DBUS
   RealDevicePolicyProvider(
       std::unique_ptr<org::chromium::SessionManagerInterfaceProxyInterface>
           session_manager_proxy,
       policy::PolicyProvider* policy_provider)
       : policy_provider_(policy_provider),
         session_manager_proxy_(std::move(session_manager_proxy)) {}
+#endif  // USE_DBUS
+  explicit RealDevicePolicyProvider(policy::PolicyProvider* policy_provider)
+      : policy_provider_(policy_provider) {}
   ~RealDevicePolicyProvider();
 
   // Initializes the provider and returns whether it succeeded.
@@ -141,9 +147,11 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   brillo::MessageLoop::TaskId scheduled_refresh_{
       brillo::MessageLoop::kTaskIdNull};
 
+#if USE_DBUS
   // The DBus (mockable) session manager proxy.
   std::unique_ptr<org::chromium::SessionManagerInterfaceProxyInterface>
       session_manager_proxy_;
+#endif  // USE_DBUS
 
   // Variable exposing whether the policy is loaded.
   AsyncCopyVariable<bool> var_device_policy_is_loaded_{
