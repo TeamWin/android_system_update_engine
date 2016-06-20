@@ -80,9 +80,8 @@ namespace chromeos_update_engine {
 class UpdateAttempterUnderTest : public UpdateAttempter {
  public:
   UpdateAttempterUnderTest(SystemState* system_state,
-                           LibCrosProxy* libcros_proxy,
-                           org::chromium::debugdProxyInterface* debugd_proxy)
-      : UpdateAttempter(system_state, nullptr, libcros_proxy, debugd_proxy) {}
+                           LibCrosProxy* libcros_proxy)
+      : UpdateAttempter(system_state, nullptr, libcros_proxy) {}
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
@@ -111,7 +110,8 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 class UpdateAttempterTest : public ::testing::Test {
  protected:
   UpdateAttempterTest()
-      : service_interface_mock_(new LibCrosServiceInterfaceProxyMock()),
+      : debugd_proxy_mock_(new org::chromium::debugdProxyMock()),
+        service_interface_mock_(new LibCrosServiceInterfaceProxyMock()),
         ue_proxy_resolved_interface_mock_(
             new NiceMock<UpdateEngineLibcrosProxyResolvedInterfaceProxyMock>()),
         libcros_proxy_(
@@ -127,6 +127,7 @@ class UpdateAttempterTest : public ::testing::Test {
     certificate_checker_.Init();
 
     // Finish initializing the attempter.
+    attempter_.debugd_proxy_.reset(debugd_proxy_mock_);
     attempter_.Init();
   }
 
@@ -188,16 +189,14 @@ class UpdateAttempterTest : public ::testing::Test {
   brillo::BaseMessageLoop loop_{&base_loop_};
 
   FakeSystemState fake_system_state_;
-  org::chromium::debugdProxyMock debugd_proxy_mock_;
+  org::chromium::debugdProxyMock* debugd_proxy_mock_;
   LibCrosServiceInterfaceProxyMock* service_interface_mock_;
   UpdateEngineLibcrosProxyResolvedInterfaceProxyMock*
       ue_proxy_resolved_interface_mock_;
   LibCrosProxy libcros_proxy_;
   OpenSSLWrapper openssl_wrapper_;
   CertificateChecker certificate_checker_;
-  UpdateAttempterUnderTest attempter_{&fake_system_state_,
-                                      &libcros_proxy_,
-                                      &debugd_proxy_mock_};
+  UpdateAttempterUnderTest attempter_{&fake_system_state_, &libcros_proxy_};
 
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockPrefs>* prefs_;  // Shortcut to fake_system_state_->mock_prefs().
@@ -256,10 +255,8 @@ TEST_F(UpdateAttempterTest, ConstructWithUpdatedMarkerTest) {
   EXPECT_TRUE(utils::GetBootId(&boot_id));
   fake_prefs.SetString(kPrefsUpdateCompletedOnBootId, boot_id);
   fake_system_state_.set_prefs(&fake_prefs);
-  UpdateAttempterUnderTest attempter(&fake_system_state_, &libcros_proxy_,
-                                     &debugd_proxy_mock_);
-  attempter.Init();
-  EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter.status());
+  attempter_.Init();
+  EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter_.status());
 }
 
 TEST_F(UpdateAttempterTest, GetErrorCodeForActionTest) {
@@ -925,22 +922,19 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
 }
 
 TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
-  UpdateAttempterUnderTest attempter{&fake_system_state_,
-                                     &libcros_proxy_,
-                                     &debugd_proxy_mock_};
   FakeClock fake_clock;
   fake_clock.SetBootTime(Time::FromTimeT(42));
   fake_system_state_.set_clock(&fake_clock);
   FakePrefs fake_prefs;
   fake_system_state_.set_prefs(&fake_prefs);
-  attempter.Init();
+  attempter_.Init();
 
   Time boot_time;
-  EXPECT_FALSE(attempter.GetBootTimeAtUpdate(&boot_time));
+  EXPECT_FALSE(attempter_.GetBootTimeAtUpdate(&boot_time));
 
-  attempter.WriteUpdateCompletedMarker();
+  attempter_.WriteUpdateCompletedMarker();
 
-  EXPECT_TRUE(attempter.GetBootTimeAtUpdate(&boot_time));
+  EXPECT_TRUE(attempter_.GetBootTimeAtUpdate(&boot_time));
   EXPECT_EQ(boot_time.ToTimeT(), 42);
 }
 
@@ -952,7 +946,7 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedUnofficial) {
 TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedOfficialDevmode) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
-  EXPECT_CALL(debugd_proxy_mock_, QueryDevFeatures(_, _, _))
+  EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _))
       .WillRepeatedly(DoAll(SetArgumentPointee<0>(0), Return(true)));
   EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
 }
@@ -961,7 +955,7 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
   // debugd should not be queried in this case.
-  EXPECT_CALL(debugd_proxy_mock_, QueryDevFeatures(_, _, _)).Times(0);
+  EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _)).Times(0);
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
@@ -969,7 +963,7 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdDisabled) {
   using debugd::DEV_FEATURES_DISABLED;
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
-  EXPECT_CALL(debugd_proxy_mock_, QueryDevFeatures(_, _, _))
+  EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _))
       .WillRepeatedly(
           DoAll(SetArgumentPointee<0>(DEV_FEATURES_DISABLED), Return(true)));
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
@@ -978,7 +972,7 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdDisabled) {
 TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdFailure) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
-  EXPECT_CALL(debugd_proxy_mock_, QueryDevFeatures(_, _, _))
+  EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _))
       .WillRepeatedly(Return(false));
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
