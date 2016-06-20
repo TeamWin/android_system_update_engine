@@ -27,11 +27,6 @@
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
-#if USE_DBUS
-#include <debugd/dbus-constants.h>
-#include <debugd/dbus-proxies.h>
-#include <debugd/dbus-proxy-mocks.h>
-#endif // USE_DBUS
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
@@ -118,9 +113,6 @@ class UpdateAttempterTest : public ::testing::Test {
  protected:
   UpdateAttempterTest()
       :
-#if USE_DBUS
-        debugd_proxy_mock_(new org::chromium::debugdProxyMock()),
-#endif  // USE_DBUS
 #if USE_LIBCROS
         service_interface_mock_(new LibCrosServiceInterfaceProxyMock()),
         ue_proxy_resolved_interface_mock_(
@@ -138,10 +130,7 @@ class UpdateAttempterTest : public ::testing::Test {
 
     certificate_checker_.Init();
 
-// Finish initializing the attempter.
-#if USE_DBUS
-    attempter_.debugd_proxy_.reset(debugd_proxy_mock_);
-#endif  // USE_DBUS
+    // Finish initializing the attempter.
     attempter_.Init();
   }
 
@@ -203,9 +192,6 @@ class UpdateAttempterTest : public ::testing::Test {
   brillo::BaseMessageLoop loop_{&base_loop_};
 
   FakeSystemState fake_system_state_;
-#if USE_DBUS
-  org::chromium::debugdProxyMock* debugd_proxy_mock_;
-#endif  // USE_DBUS
 #if USE_LIBCROS
   LibCrosServiceInterfaceProxyMock* service_interface_mock_;
   UpdateEngineLibcrosProxyResolvedInterfaceProxyMock*
@@ -963,58 +949,28 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedUnofficial) {
   EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
-#if USE_DBUS
 TEST_F(UpdateAttempterTest, AnyUpdateSourceAllowedOfficialDevmode) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
-  EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _))
-      .WillRepeatedly(DoAll(SetArgumentPointee<0>(0), Return(true)));
+  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(true);
   EXPECT_TRUE(attempter_.IsAnyUpdateSourceAllowed());
 }
-#endif  // USE_DBUS
 
 TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
-  // debugd should not be queried in this case.
-#if USE_DBUS
-  EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _)).Times(0);
-#endif  // USE_DBUS
-  EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
-}
-
-TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdDisabled) {
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
-#if USE_DBUS
-  using debugd::DEV_FEATURES_DISABLED;
-  EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _))
-      .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(DEV_FEATURES_DISABLED), Return(true)));
-#endif  // USE_DBUS
-  EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
-}
-
-TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedDebugdFailure) {
-  fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetIsNormalBootMode(false);
-#if USE_DBUS
-  EXPECT_CALL(*debugd_proxy_mock_, QueryDevFeatures(_, _, _))
-      .WillRepeatedly(Return(false));
-#endif  // USE_DBUS
+  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
   EXPECT_FALSE(attempter_.IsAnyUpdateSourceAllowed());
 }
 
 TEST_F(UpdateAttempterTest, CheckForUpdateAUTest) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
+  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
   attempter_.CheckForUpdate("", "autest", true);
   EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
 }
 
 TEST_F(UpdateAttempterTest, CheckForUpdateScheduledAUTest) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
-  fake_system_state_.fake_hardware()->SetIsNormalBootMode(true);
+  fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
   attempter_.CheckForUpdate("", "autest-scheduled", true);
   EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
 }
