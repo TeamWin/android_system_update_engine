@@ -50,7 +50,9 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
+#if USE_DBUS
 #include "update_engine/dbus_connection.h"
+#endif // USE_DBUS
 #include "update_engine/metrics.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
@@ -163,10 +165,12 @@ void UpdateAttempter::Init() {
   chrome_proxy_resolver_.Init();
 #endif  // USE_LIBCROS
 
+#if USE_DBUS
   // unittest can set this to a mock before calling Init().
   if (!debugd_proxy_)
     debugd_proxy_.reset(
         new org::chromium::debugdProxy(DBusConnection::Get()->GetDBus()));
+#endif // USE_DBUS
 }
 
 void UpdateAttempter::ScheduleUpdates() {
@@ -1086,7 +1090,11 @@ bool UpdateAttempter::OnTrackChannel(const string& channel,
           channel, false /* powerwash_allowed */, &error_message)) {
     brillo::Error::AddTo(error,
                          FROM_HERE,
+#if USE_DBUS
                          brillo::errors::dbus::kDomain,
+#else
+                         "dbus",
+#endif  // USE_DBUS
                          "set_target_error",
                          error_message);
     return false;
@@ -1591,6 +1599,7 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
     return false;
   }
 
+#if USE_DBUS
   // Official images in devmode are allowed a custom update source iff the
   // debugd dev tools are enabled.
   if (!debugd_proxy_)
@@ -1605,6 +1614,7 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
     LOG(INFO) << "Debugd dev tools enabled; allowing any update source.";
     return true;
   }
+#endif // USE_DBUS
   LOG(INFO) << "Debugd dev tools disabled; disallowing custom update sources.";
   return false;
 }

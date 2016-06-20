@@ -29,13 +29,16 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#if USE_DBUS
 #include "debugd/dbus-proxies.h"
+#endif // USE_DBUS
+#if USE_LIBCROS
 #include "update_engine/chrome_browser_proxy_resolver.h"
+#endif  // USE_LIBCROS
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/cpu_limiter.h"
-#include "update_engine/libcros_proxy.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/payload_consumer/download_action.h"
@@ -55,6 +58,7 @@ class PolicyProvider;
 
 namespace chromeos_update_engine {
 
+class LibCrosProxy;
 class UpdateEngineAdaptor;
 
 class UpdateAttempter : public ActionProcessorDelegate,
@@ -506,7 +510,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   std::string forced_app_version_;
   std::string forced_omaha_url_;
 
+#if USE_DBUS
   std::unique_ptr<org::chromium::debugdProxyInterface> debugd_proxy_;
+#endif // USE_DBUS
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };
