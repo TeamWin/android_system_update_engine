@@ -36,6 +36,9 @@ class MockHardware : public HardwareInterface {
     ON_CALL(*this, IsNormalBootMode())
       .WillByDefault(testing::Invoke(&fake_,
             &FakeHardware::IsNormalBootMode));
+    ON_CALL(*this, AreDevFeaturesEnabled())
+      .WillByDefault(testing::Invoke(&fake_,
+            &FakeHardware::AreDevFeaturesEnabled));
     ON_CALL(*this, IsOOBEEnabled())
       .WillByDefault(testing::Invoke(&fake_,
             &FakeHardware::IsOOBEEnabled));

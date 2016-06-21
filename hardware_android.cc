@@ -122,6 +122,10 @@ bool HardwareAndroid::IsNormalBootMode() const {
   return property_get_bool("ro.debuggable", 0) != 1;
 }
 
+bool HardwareAndroid::AreDevFeaturesEnabled() const {
+  return !IsNormalBootMode();
+}
+
 bool HardwareAndroid::IsOOBEEnabled() const {
   // No OOBE flow blocking updates for Android-based boards.
   return false;
