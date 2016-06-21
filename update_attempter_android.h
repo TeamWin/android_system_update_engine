@@ -108,8 +108,8 @@ class UpdateAttempterAndroid
   void SetStatusAndNotify(UpdateStatus status);
 
   // Helper method to construct the sequence of actions to be performed for
-  // applying an update.
-  void BuildUpdateActions();
+  // applying an update from the given |url|.
+  void BuildUpdateActions(const std::string& url);
 
   // Sets up the download parameters based on the update requested on the
   // |install_plan_|.
