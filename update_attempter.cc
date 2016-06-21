@@ -32,9 +32,9 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/bind_lambda.h>
+#include <brillo/errors/error_codes.h>
 #include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
-#include <debugd/dbus-constants.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
 #include <update_engine/dbus-constants.h>
@@ -50,9 +50,6 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
-#if USE_DBUS
-#include "update_engine/dbus_connection.h"
-#endif // USE_DBUS
 #include "update_engine/metrics.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
@@ -164,13 +161,6 @@ void UpdateAttempter::Init() {
 #if USE_LIBCROS
   chrome_proxy_resolver_.Init();
 #endif  // USE_LIBCROS
-
-#if USE_DBUS
-  // unittest can set this to a mock before calling Init().
-  if (!debugd_proxy_)
-    debugd_proxy_.reset(
-        new org::chromium::debugdProxy(DBusConnection::Get()->GetDBus()));
-#endif // USE_DBUS
 }
 
 void UpdateAttempter::ScheduleUpdates() {
@@ -1090,11 +1080,7 @@ bool UpdateAttempter::OnTrackChannel(const string& channel,
           channel, false /* powerwash_allowed */, &error_message)) {
     brillo::Error::AddTo(error,
                          FROM_HERE,
-#if USE_DBUS
                          brillo::errors::dbus::kDomain,
-#else
-                         "dbus",
-#endif  // USE_DBUS
                          "set_target_error",
                          error_message);
     return false;
@@ -1592,30 +1578,13 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
     return true;
   }
 
-  // Even though the debugd tools are also gated on devmode, checking here can
-  // save us a D-Bus call so it's worth doing explicitly.
-  if (system_state_->hardware()->IsNormalBootMode()) {
-    LOG(INFO) << "Not in devmode; disallowing custom update sources.";
-    return false;
-  }
-
-#if USE_DBUS
-  // Official images in devmode are allowed a custom update source iff the
-  // debugd dev tools are enabled.
-  if (!debugd_proxy_)
-    return false;
-  int32_t dev_features = debugd::DEV_FEATURES_DISABLED;
-  brillo::ErrorPtr error;
-  bool success = debugd_proxy_->QueryDevFeatures(&dev_features, &error);
-
-  // Some boards may not include debugd so it's expected that this may fail,
-  // in which case we default to disallowing custom update sources.
-  if (success && !(dev_features & debugd::DEV_FEATURES_DISABLED)) {
-    LOG(INFO) << "Debugd dev tools enabled; allowing any update source.";
+  if (system_state_->hardware()->AreDevFeaturesEnabled()) {
+    LOG(INFO) << "Developer features enabled; allowing custom update sources.";
     return true;
   }
-#endif // USE_DBUS
-  LOG(INFO) << "Debugd dev tools disabled; disallowing custom update sources.";
+
+  LOG(INFO)
+      << "Developer features disabled; disallowing custom update sources.";
   return false;
 }
 
