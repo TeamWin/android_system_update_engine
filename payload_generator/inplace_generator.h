@@ -212,6 +212,7 @@ class InplaceGenerator : public OperationsGenerator {
   // On success, stores the new operations in |aops| in the right order and
   // returns true.
   static bool ResolveReadAfterWriteDependencies(
+      const PartitionConfig& old_part,
       const PartitionConfig& new_part,
       uint64_t partition_size,
       size_t block_size,
