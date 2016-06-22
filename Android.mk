@@ -159,10 +159,10 @@ ue_libpayload_consumer_src_files := \
     common/constants.cc \
     common/cpu_limiter.cc \
     common/error_code_utils.cc \
+    common/file_fetcher.cc \
     common/hash_calculator.cc \
     common/http_common.cc \
     common/http_fetcher.cc \
-    common/file_fetcher.cc \
     common/hwid_override.cc \
     common/libcurl_http_fetcher.cc \
     common/multi_range_http_fetcher.cc \
