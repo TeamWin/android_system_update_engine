@@ -41,6 +41,10 @@ class FakeHardware : public HardwareInterface {
 
   bool IsNormalBootMode() const override { return is_normal_boot_mode_; }
 
+  bool AreDevFeaturesEnabled() const override {
+    return are_dev_features_enabled_;
+  }
+
   bool IsOOBEEnabled() const override { return is_oobe_enabled_; }
 
   bool IsOOBEComplete(base::Time* out_time_of_oobe) const override {
@@ -86,6 +90,10 @@ class FakeHardware : public HardwareInterface {
     is_normal_boot_mode_ = is_normal_boot_mode;
   }
 
+  void SetAreDevFeaturesEnabled(bool are_dev_features_enabled) {
+    are_dev_features_enabled_ = are_dev_features_enabled;
+  }
+
   // Sets the SetIsOOBEEnabled to |is_oobe_enabled|.
   void SetIsOOBEEnabled(bool is_oobe_enabled) {
     is_oobe_enabled_ = is_oobe_enabled;
@@ -120,6 +128,7 @@ class FakeHardware : public HardwareInterface {
  private:
   bool is_official_build_{true};
   bool is_normal_boot_mode_{true};
+  bool are_dev_features_enabled_{false};
   bool is_oobe_enabled_{true};
   bool is_oobe_complete_{true};
   base::Time oobe_timestamp_{base::Time::FromTimeT(1169280000)}; // Jan 20, 2007

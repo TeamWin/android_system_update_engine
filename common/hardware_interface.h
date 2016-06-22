@@ -44,6 +44,9 @@ class HardwareInterface {
   // features.
   virtual bool IsNormalBootMode() const = 0;
 
+  // Returns whether the developer features are enabled.
+  virtual bool AreDevFeaturesEnabled() const = 0;
+
   // Returns whether the device has an OOBE flow that the user must go through
   // before getting non-critical updates. Use IsOOBEComplete() to determine if
   // that flow is complete.

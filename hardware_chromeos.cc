@@ -23,6 +23,7 @@
 #include <base/strings/string_util.h>
 #include <brillo/key_value_store.h>
 #include <brillo/make_unique_ptr.h>
+#include <debugd/dbus-constants.h>
 #include <vboot/crossystem.h>
 
 extern "C" {
@@ -35,6 +36,7 @@ extern "C" {
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/dbus_connection.h"
 
 using std::string;
 using std::vector;
@@ -84,6 +86,8 @@ std::unique_ptr<HardwareInterface> CreateHardware() {
 
 void HardwareChromeOS::Init() {
   LoadConfig("" /* root_prefix */, IsNormalBootMode());
+  debugd_proxy_.reset(
+      new org::chromium::debugdProxy(DBusConnection::Get()->GetDBus()));
 }
 
 bool HardwareChromeOS::IsOfficialBuild() const {
@@ -93,6 +97,24 @@ bool HardwareChromeOS::IsOfficialBuild() const {
 bool HardwareChromeOS::IsNormalBootMode() const {
   bool dev_mode = VbGetSystemPropertyInt("devsw_boot") != 0;
   return !dev_mode;
+}
+
+bool HardwareChromeOS::AreDevFeaturesEnabled() const {
+  // Even though the debugd tools are also gated on devmode, checking here can
+  // save us a D-Bus call so it's worth doing explicitly.
+  if (IsNormalBootMode())
+    return false;
+
+  int32_t dev_features = debugd::DEV_FEATURES_DISABLED;
+  brillo::ErrorPtr error;
+  // Some boards may not include debugd so it's expected that this may fail,
+  // in which case we treat it as disabled.
+  if (debugd_proxy_ && debugd_proxy_->QueryDevFeatures(&dev_features, &error) &&
+      !(dev_features & debugd::DEV_FEATURES_DISABLED)) {
+    LOG(INFO) << "Debugd dev tools enabled.";
+    return true;
+  }
+  return false;
 }
 
 bool HardwareChromeOS::IsOOBEEnabled() const {
