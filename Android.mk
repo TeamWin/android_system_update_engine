@@ -708,10 +708,6 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := $(ue_delta_generator_src_files)
 include $(BUILD_EXECUTABLE)
 
-# TODO(deymo): Enable the unittest binaries in non-Brillo builds once the DBus
-# dependencies are removed or placed behind the USE_DBUS flag.
-ifdef BRILLO
-
 # Private and public keys for unittests.
 # ========================================================
 # Generate a module that installs a prebuilt private key and a module that
@@ -884,17 +880,14 @@ LOCAL_C_INCLUDES := \
     $(ue_common_c_includes) \
     $(ue_libupdate_engine_exported_c_includes)
 LOCAL_STATIC_LIBRARIES := \
-    libupdate_engine \
     libpayload_generator \
     libbrillo-test-helpers \
     libgmock \
     libgtest \
     libchrome_test_helpers \
-    $(ue_libupdate_engine_exported_static_libraries:-host=) \
     $(ue_libpayload_generator_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
-    $(ue_libupdate_engine_exported_shared_libraries:-host=) \
     $(ue_libpayload_generator_exported_shared_libraries:-host=)
 LOCAL_SRC_FILES := \
     common/action_pipe_unittest.cc \
@@ -913,18 +906,9 @@ LOCAL_SRC_FILES := \
     common/terminator_unittest.cc \
     common/test_utils.cc \
     common/utils_unittest.cc \
-    common_service_unittest.cc \
-    fake_system_state.cc \
-    metrics_utils_unittest.cc \
-    omaha_request_action_unittest.cc \
-    omaha_request_params_unittest.cc \
-    omaha_response_handler_action_unittest.cc \
-    omaha_utils_unittest.cc \
-    p2p_manager_unittest.cc \
     payload_consumer/bzip_extent_writer_unittest.cc \
     payload_consumer/delta_performer_integration_test.cc \
     payload_consumer/delta_performer_unittest.cc \
-    payload_consumer/download_action_unittest.cc \
     payload_consumer/extent_writer_unittest.cc \
     payload_consumer/file_writer_unittest.cc \
     payload_consumer/filesystem_verifier_action_unittest.cc \
@@ -948,6 +932,25 @@ LOCAL_SRC_FILES := \
     payload_generator/tarjan_unittest.cc \
     payload_generator/topological_sort_unittest.cc \
     payload_generator/zip_unittest.cc \
+    testrunner.cc
+ifeq ($(local_use_omaha),1)
+LOCAL_C_INCLUDES += \
+    $(ue_libupdate_engine_exported_c_includes)
+LOCAL_STATIC_LIBRARIES += \
+    libupdate_engine \
+    $(ue_libupdate_engine_exported_static_libraries:-host=)
+LOCAL_SHARED_LIBRARIES += \
+    $(ue_libupdate_engine_exported_shared_libraries:-host=)
+LOCAL_SRC_FILES += \
+    common_service_unittest.cc \
+    fake_system_state.cc \
+    metrics_utils_unittest.cc \
+    omaha_request_action_unittest.cc \
+    omaha_request_params_unittest.cc \
+    omaha_response_handler_action_unittest.cc \
+    omaha_utils_unittest.cc \
+    p2p_manager_unittest.cc \
+    payload_consumer/download_action_unittest.cc \
     payload_state_unittest.cc \
     update_attempter_unittest.cc \
     update_manager/boxed_value_unittest.cc \
@@ -962,8 +965,14 @@ LOCAL_SRC_FILES := \
     update_manager/real_updater_provider_unittest.cc \
     update_manager/umtest_utils.cc \
     update_manager/update_manager_unittest.cc \
-    update_manager/variable_unittest.cc \
-    testrunner.cc
+    update_manager/variable_unittest.cc
+else  # local_use_omaha == 1
+LOCAL_STATIC_LIBRARIES += \
+    libupdate_engine_android \
+    $(ue_libupdate_engine_android_exported_static_libraries:-host=)
+LOCAL_SHARED_LIBRARIES += \
+    $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
+endif  # local_use_omaha == 1
 ifeq ($(local_use_dbus),1)
 LOCAL_SRC_FILES += \
     connection_manager_unittest.cc \
@@ -975,7 +984,6 @@ LOCAL_SRC_FILES += \
     chrome_browser_proxy_resolver_unittest.cc
 endif  # local_use_libcros == 1
 include $(BUILD_NATIVE_TEST)
-endif  # BRILLO
 
 # Weave schema files
 # ========================================================
