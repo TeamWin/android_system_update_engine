@@ -58,6 +58,11 @@ bool DaemonStateAndroid::Initialize() {
     return false;
   }
 
+  // The CertificateChecker singleton is used by the update attempter.
+  certificate_checker_.reset(
+      new CertificateChecker(prefs_.get(), &openssl_wrapper_));
+  certificate_checker_->Init();
+
   // Initialize the UpdateAttempter before the UpdateManager.
   update_attempter_.reset(new UpdateAttempterAndroid(
       this, prefs_.get(), boot_control_.get(), hardware_.get()));
