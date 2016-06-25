@@ -249,6 +249,8 @@ void LibcurlHttpFetcher::SetCurlOptionsForHttps() {
   LOG(INFO) << "Setting up curl options for HTTPS";
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_VERIFYPEER, 1),
            CURLE_OK);
+  CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_SSL_VERIFYHOST, 2),
+           CURLE_OK);
   CHECK_EQ(curl_easy_setopt(curl_handle_, CURLOPT_CAPATH,
                             constants::kCACertificatesPath),
            CURLE_OK);
