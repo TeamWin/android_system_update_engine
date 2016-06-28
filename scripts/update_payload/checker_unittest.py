@@ -768,24 +768,24 @@ class PayloadCheckerTest(mox.MoxTestBase):
         payload_checker._CheckMoveOperation,
         op, None, 134, 134, 'foo')
 
-  def testCheckBsdiff(self):
-    """Tests _CheckMoveOperation()."""
+  def testCheckAnyDiff(self):
+    """Tests _CheckAnyDiffOperation()."""
     payload_checker = checker.PayloadChecker(self.MockPayload())
 
     # Pass.
     self.assertIsNone(
-        payload_checker._CheckBsdiffOperation(10000, 3, 'foo'))
+        payload_checker._CheckAnyDiffOperation(10000, 3, 'foo'))
 
     # Fail, missing data blob.
     self.assertRaises(
         update_payload.PayloadError,
-        payload_checker._CheckBsdiffOperation,
+        payload_checker._CheckAnyDiffOperation,
         None, 3, 'foo')
 
     # Fail, too big of a diff blob (unjustified).
     self.assertRaises(
         update_payload.PayloadError,
-        payload_checker._CheckBsdiffOperation,
+        payload_checker._CheckAnyDiffOperation,
         10000, 2, 'foo')
 
   def testCheckSourceCopyOperation_Pass(self):
@@ -1081,7 +1081,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
         (minor_version == 0 and payload_type == checker._TYPE_FULL) or
         (minor_version == 1 and payload_type == checker._TYPE_DELTA) or
         (minor_version == 2 and payload_type == checker._TYPE_DELTA) or
-        (minor_version == 3 and payload_type == checker._TYPE_DELTA))
+        (minor_version == 3 and payload_type == checker._TYPE_DELTA) or
+        (minor_version == 4 and payload_type == checker._TYPE_DELTA))
     args = (report,)
 
     if should_succeed:
@@ -1304,7 +1305,7 @@ def AddAllParametricTests():
 
   # Add all _CheckManifestMinorVersion() test cases.
   AddParametricTests('CheckManifestMinorVersion',
-                     {'minor_version': (None, 0, 1, 2, 3, 555),
+                     {'minor_version': (None, 0, 1, 2, 3, 4, 555),
                       'payload_type': (checker._TYPE_FULL,
                                        checker._TYPE_DELTA)})
 
