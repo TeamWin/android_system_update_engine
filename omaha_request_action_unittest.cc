@@ -458,6 +458,31 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortName));
 }
 
+TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
+  const string http_response = "<?xml invalid response";
+  request_params_.set_interactive(true);
+
+  brillo::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
+
+  MockHttpFetcher* fetcher =
+      new MockHttpFetcher(http_response.data(), http_response.size(), nullptr);
+  OmahaRequestAction action(
+      &fake_system_state_, nullptr, brillo::make_unique_ptr(fetcher), false);
+  ActionProcessor processor;
+  processor.EnqueueAction(&action);
+
+  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.Run();
+  EXPECT_FALSE(loop.PendingTasks());
+
+  // Check that the headers were set in the fetcher during the action. Note that
+  // we set this request as "interactive".
+  EXPECT_EQ("fg", fetcher->GetHeader("X-GoogleUpdate-Interactivity"));
+  EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-GoogleUpdate-AppId"));
+  EXPECT_NE("", fetcher->GetHeader("X-GoogleUpdate-Updater"));
+}
+
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   OmahaResponse response;
   // Set up a connection manager that doesn't allow a valid update over
