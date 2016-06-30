@@ -123,6 +123,13 @@ void MockHttpFetcher::SetHeader(const std::string& header_name,
   extra_headers_[base::ToLowerASCII(header_name)] = header_value;
 }
 
+std::string MockHttpFetcher::GetHeader(const std::string& header_name) const {
+  const auto it = extra_headers_.find(base::ToLowerASCII(header_name));
+  if (it == extra_headers_.end())
+    return "";
+  return it->second;
+}
+
 void MockHttpFetcher::Pause() {
   CHECK(!paused_);
   paused_ = true;
