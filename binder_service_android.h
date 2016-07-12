@@ -36,7 +36,7 @@ namespace chromeos_update_engine {
 class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
                                          public ServiceObserverInterface {
  public:
-  BinderUpdateEngineAndroidService(
+  explicit BinderUpdateEngineAndroidService(
       ServiceDelegateAndroidInterface* service_delegate);
   ~BinderUpdateEngineAndroidService() override = default;
 
