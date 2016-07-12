@@ -1224,7 +1224,7 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
      return kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
     }
   } else {
-    update_first_seen_at = Time::Now();
+    update_first_seen_at = system_state_->clock()->GetWallclockTime();
     update_first_seen_at_int = update_first_seen_at.ToInternalValue();
     if (system_state_->prefs()->SetInt64(kPrefsUpdateFirstSeenAt,
                                          update_first_seen_at_int)) {
@@ -1241,9 +1241,10 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
     }
   }
 
-  TimeDelta elapsed_time = Time::Now() - update_first_seen_at;
-  TimeDelta max_scatter_period = TimeDelta::FromDays(
-      output_object->max_days_to_scatter);
+  TimeDelta elapsed_time =
+      system_state_->clock()->GetWallclockTime() - update_first_seen_at;
+  TimeDelta max_scatter_period =
+      TimeDelta::FromDays(output_object->max_days_to_scatter);
 
   LOG(INFO) << "Waiting Period = "
             << utils::FormatSecs(params_->waiting_period().InSeconds())

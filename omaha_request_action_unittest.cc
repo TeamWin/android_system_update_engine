@@ -1800,36 +1800,37 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   params.set_waiting_period(TimeDelta().FromDays(1));
   params.set_update_check_count_wait_enabled(false);
 
-  ASSERT_FALSE(TestUpdateCheck(
-                      &params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaUpdateDeferredPerPolicy,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kDeferring,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  Time arbitrary_date;
+  Time::FromString("6/4/1989", &arbitrary_date);
+  fake_system_state_.fake_clock()->SetWallclockTime(arbitrary_date);
+  ASSERT_FALSE(TestUpdateCheck(&params,
+                               fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateDeferredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kDeferring,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
 
   int64_t timestamp = 0;
   ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
-  ASSERT_GT(timestamp, 0);
+  EXPECT_EQ(arbitrary_date.ToInternalValue(), timestamp);
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
   params.set_interactive(true);
-  ASSERT_TRUE(
-      TestUpdateCheck(&params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -1840,23 +1841,22 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   params.set_waiting_period(TimeDelta().FromDays(1));
   params.set_update_check_count_wait_enabled(false);
 
-  // Set the timestamp to a very old value such that it exceeds the
-  // waiting period set above.
-  Time t1;
+  Time t1, t2;
   Time::FromString("1/1/2012", &t1);
-  ASSERT_TRUE(fake_prefs_.SetInt64(
-      kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
-  ASSERT_TRUE(TestUpdateCheck(
-                      &params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  Time::FromString("1/3/2012", &t2);
+  ASSERT_TRUE(
+      fake_prefs_.SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
+  fake_system_state_.fake_clock()->SetWallclockTime(t2);
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
 
   EXPECT_TRUE(response.update_exists);
 
