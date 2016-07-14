@@ -445,10 +445,10 @@ Disabling deltas for this source version."
 
 validate_generate() {
   [[ -n "${FLAGS_payload}" ]] ||
-    die "Error: you must specify an output filename with --payload FILENAME"
+    die "You must specify an output filename with --payload FILENAME"
 
   [[ -n "${FLAGS_target_image}" ]] ||
-    die "Error: you must specify a target image with --target_image FILENAME"
+    die "You must specify a target image with --target_image FILENAME"
 }
 
 cmd_generate() {
@@ -521,17 +521,17 @@ cmd_generate() {
 
 validate_hash() {
   [[ -n "${FLAGS_signature_size}" ]] ||
-    die "Error: you must specify signature size with --signature_size SIZES"
+    die "You must specify signature size with --signature_size SIZES"
 
   [[ -n "${FLAGS_unsigned_payload}" ]] ||
-    die "Error: you must specify the input unsigned payload with \
+    die "You must specify the input unsigned payload with \
 --unsigned_payload FILENAME"
 
   [[ -n "${FLAGS_payload_hash_file}" ]] ||
-    die "Error: you must specify --payload_hash_file FILENAME"
+    die "You must specify --payload_hash_file FILENAME"
 
   [[ -n "${FLAGS_metadata_hash_file}" ]] ||
-    die "Error: you must specify --metadata_hash_file FILENAME"
+    die "You must specify --metadata_hash_file FILENAME"
 }
 
 cmd_hash() {
@@ -546,22 +546,21 @@ cmd_hash() {
 
 validate_sign() {
   [[ -n "${FLAGS_signature_size}" ]] ||
-    die "Error: you must specify signature size with --signature_size SIZES"
+    die "You must specify signature size with --signature_size SIZES"
 
   [[ -n "${FLAGS_unsigned_payload}" ]] ||
-    die "Error: you must specify the input unsigned payload with \
+    die "You must specify the input unsigned payload with \
 --unsigned_payload FILENAME"
 
   [[ -n "${FLAGS_payload}" ]] ||
-    die "Error: you must specify the output signed payload with \
---payload FILENAME"
+    die "You must specify the output signed payload with --payload FILENAME"
 
   [[ -n "${FLAGS_payload_signature_file}" ]] ||
-    die "Error: you must specify the payload signature file with \
+    die "You must specify the payload signature file with \
 --payload_signature_file SIGNATURES"
 
   [[ -n "${FLAGS_metadata_signature_file}" ]] ||
-    die "Error: you must specify the metadata signature file with \
+    die "You must specify the metadata signature file with \
 --metadata_signature_file SIGNATURES"
 }
 
@@ -584,10 +583,10 @@ cmd_sign() {
 
 validate_properties() {
   [[ -n "${FLAGS_payload}" ]] ||
-    die "Error: you must specify the payload file with --payload FILENAME"
+    die "You must specify the payload file with --payload FILENAME"
 
   [[ -n "${FLAGS_properties_file}" ]] ||
-    die "Error: you must specify a non empty --properties_file FILENAME"
+    die "You must specify a non empty --properties_file FILENAME"
 }
 
 cmd_properties() {
