@@ -249,13 +249,13 @@ TEST_F(SubprocessTest, CancelTest) {
                             fifo_fd,
                             MessageLoop::WatchMode::kWatchRead,
                             false,
-                            base::Bind([fifo_fd, tag] {
+                            base::Bind([](int fifo_fd, uint32_t tag) {
                               char c;
                               EXPECT_EQ(1, HANDLE_EINTR(read(fifo_fd, &c, 1)));
                               EXPECT_EQ('X', c);
                               LOG(INFO) << "Killing tag " << tag;
                               Subprocess::Get().KillExec(tag);
-                            }));
+                            }, fifo_fd, tag));
 
   // This test would leak a callback that runs when the child process exits
   // unless we wait for it to run.

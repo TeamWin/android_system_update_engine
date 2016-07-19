@@ -193,8 +193,11 @@ void PostinstallRunnerActionTest::RunPosinstallAction(
   processor.EnqueueAction(&collector_action);
   processor.set_delegate(&processor_delegate_);
 
-  loop_.PostTask(FROM_HERE,
-                 base::Bind([&processor] { processor.StartProcessing(); }));
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind(
+          [](ActionProcessor* processor) { processor->StartProcessing(); },
+          base::Unretained(&processor)));
   loop_.Run();
   ASSERT_FALSE(processor.IsRunning());
   postinstall_action_ = nullptr;
