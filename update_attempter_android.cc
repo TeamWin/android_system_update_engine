@@ -260,14 +260,31 @@ void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
                                             ErrorCode code) {
   LOG(INFO) << "Processing Done.";
 
-  if (code == ErrorCode::kSuccess) {
-    // Update succeeded.
-    WriteUpdateCompletedMarker();
-    prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
-    DeltaPerformer::ResetUpdateProgress(prefs_, false);
+  switch (code) {
+    case ErrorCode::kSuccess:
+      // Update succeeded.
+      WriteUpdateCompletedMarker();
+      prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
+      DeltaPerformer::ResetUpdateProgress(prefs_, false);
 
-    LOG(INFO) << "Update successfully applied, waiting to reboot.";
-  }
+      LOG(INFO) << "Update successfully applied, waiting to reboot.";
+      break;
+
+    case ErrorCode::kFilesystemCopierError:
+    case ErrorCode::kNewRootfsVerificationError:
+    case ErrorCode::kNewKernelVerificationError:
+    case ErrorCode::kFilesystemVerifierError:
+    case ErrorCode::kDownloadStateInitializationError:
+      // Reset the ongoing update for these errors so it starts from the
+      // beginning next time.
+      DeltaPerformer::ResetUpdateProgress(prefs_, false);
+      LOG(INFO) << "Resetting update progress.";
+      break;
+
+    default:
+      // Ignore all other error codes.
+      break;
+ }
 
   TerminateUpdateAndNotify(code);
 }
