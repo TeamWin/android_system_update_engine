@@ -14,13 +14,13 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_COMMON_MOCK_CERTIFICATE_CHECKER_H_
-#define UPDATE_ENGINE_COMMON_MOCK_CERTIFICATE_CHECKER_H_
+#ifndef UPDATE_ENGINE_MOCK_CERTIFICATE_CHECKER_H_
+#define UPDATE_ENGINE_MOCK_CERTIFICATE_CHECKER_H_
 
 #include <gmock/gmock.h>
 #include <openssl/ssl.h>
 
-#include "update_engine/common/certificate_checker.h"
+#include "update_engine/certificate_checker.h"
 
 namespace chromeos_update_engine {
 
@@ -35,4 +35,4 @@ class MockOpenSSLWrapper : public OpenSSLWrapper {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_COMMON_MOCK_CERTIFICATE_CHECKER_H_
+#endif  // UPDATE_ENGINE_MOCK_CERTIFICATE_CHECKER_H_

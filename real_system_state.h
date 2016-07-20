@@ -25,8 +25,8 @@
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 
+#include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/clock.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"

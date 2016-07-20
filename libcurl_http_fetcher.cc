@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/common/libcurl_http_fetcher.h"
+#include "update_engine/libcurl_http_fetcher.h"
 
 #include <algorithm>
 #include <string>
@@ -26,7 +26,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 
-#include "update_engine/common/certificate_checker.h"
+#include "update_engine/certificate_checker.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
 
