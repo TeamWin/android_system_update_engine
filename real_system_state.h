@@ -20,6 +20,7 @@
 #include "update_engine/system_state.h"
 
 #include <memory>
+#include <set>
 
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
@@ -60,6 +61,10 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 
   void AddObserver(ServiceObserverInterface* observer) override;
   void RemoveObserver(ServiceObserverInterface* observer) override;
+  const std::set<ServiceObserverInterface*>& service_observers() override {
+    CHECK(update_attempter_.get());
+    return update_attempter_->service_observers();
+  }
 
   // SystemState overrides.
   inline void set_device_policy(
