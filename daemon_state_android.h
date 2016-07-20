@@ -43,7 +43,7 @@ class DaemonStateAndroid : public DaemonStateInterface {
   void AddObserver(ServiceObserverInterface* observer) override;
   void RemoveObserver(ServiceObserverInterface* observer) override;
 
-  const std::set<ServiceObserverInterface*>& service_observers() {
+  const std::set<ServiceObserverInterface*>& service_observers() override {
     return service_observers_;
   }
 
