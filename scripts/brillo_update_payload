@@ -222,6 +222,18 @@ read_option_uint() {
   echo "${default_value}"
 }
 
+# truncate_file <file_path> <file_size>
+#
+# Truncate the given |file_path| to |file_size| using perl.
+# The truncate binary might not be available.
+truncate_file() {
+  local file_path="$1"
+  local file_size="$2"
+  perl -e "open(FILE, \"+<\", \$ARGV[0]); \
+           truncate(FILE, ${file_size}); \
+           close(FILE);" "${file_path}"
+}
+
 # Create a temporary file in the work_dir with an optional pattern name.
 # Prints the name of the newly created file.
 create_tempfile() {
@@ -435,7 +447,7 @@ Disabling deltas for this source version."
         echo "Rounding UP partition ${part}.img to a multiple of 4 KiB."
         : $(( filesize = (filesize + 4095) & -4096 ))
       fi
-      truncate --size="${filesize}" "${part_file}"
+      truncate_file "${part_file}" "${filesize}"
     fi
 
     eval "${partitions_array}[\"${part}\"]=\"${part_file}\""
