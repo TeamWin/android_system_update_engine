@@ -62,7 +62,6 @@ ue_common_c_includes := \
     system
 ue_common_shared_libraries := \
     libbrillo \
-    libbrillo-http \
     libbrillo-stream \
     libchrome
 
