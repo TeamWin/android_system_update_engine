@@ -33,6 +33,7 @@
 #include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/daemon_state_android.h"
+#include "update_engine/network_selector.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
@@ -80,6 +81,7 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
       boot_control_(boot_control),
       hardware_(hardware),
       processor_(new ActionProcessor()) {
+  network_selector_ = network::CreateNetworkSelector();
 }
 
 UpdateAttempterAndroid::~UpdateAttempterAndroid() {
@@ -174,6 +176,20 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.powerwash_required =
       base::StringToInt(headers[kPayloadPropertyPowerwash], &data_wipe) &&
       data_wipe != 0;
+
+  NetworkId network_id = kDefaultNetworkId;
+  if (!headers[kPayloadPropertyNetworkId].empty()) {
+    if (!base::StringToUint64(headers[kPayloadPropertyNetworkId],
+                              &network_id)) {
+      return LogAndSetError(
+          error,
+          FROM_HERE,
+          "Invalid network_id: " + headers[kPayloadPropertyNetworkId]);
+    }
+    if (!network_selector_->SetProcessNetwork(network_id)) {
+      LOG(WARNING) << "Unable to set network_id, continuing with the update.";
+    }
+  }
 
   LOG(INFO) << "Using this install plan:";
   install_plan_.Dump();

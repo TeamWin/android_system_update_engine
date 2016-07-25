@@ -374,6 +374,7 @@ ue_libupdate_engine_android_exported_static_libraries := \
     $(ue_libpayload_consumer_exported_static_libraries)
 ue_libupdate_engine_android_exported_shared_libraries := \
     $(ue_libpayload_consumer_exported_shared_libraries) \
+    libandroid \
     libbinder \
     libbinderwrapper \
     libbrillo-binder \
@@ -410,6 +411,7 @@ LOCAL_SRC_FILES += \
     daemon.cc \
     daemon_state_android.cc \
     hardware_android.cc \
+    network_selector_android.cc \
     proxy_resolver.cc \
     update_attempter_android.cc \
     update_status_utils.cc \

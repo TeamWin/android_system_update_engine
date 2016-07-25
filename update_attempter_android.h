@@ -31,6 +31,7 @@
 #include "update_engine/common/cpu_limiter.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs_interface.h"
+#include "update_engine/network_selector_interface.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/service_delegate_android_interface.h"
@@ -162,6 +163,9 @@ class UpdateAttempterAndroid
 
   // CPU limiter during the update.
   CPULimiter cpu_limiter_;
+
+  // Helper class to select the network to use during the update.
+  std::unique_ptr<NetworkSelectorInterface> network_selector_;
 
   // Whether we have marked the current slot as good. This step is required
   // before applying an update to the other slot.
