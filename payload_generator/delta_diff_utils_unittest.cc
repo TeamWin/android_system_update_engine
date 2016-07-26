@@ -93,8 +93,9 @@ bool WriteExtents(const string& part_path,
       break;
     TEST_AND_RETURN_FALSE(
         fseek(fp.get(), extent.start_block() * block_size, SEEK_SET) == 0);
-    uint64_t to_write = std::min(extent.num_blocks() * block_size,
-                                 data.size() - offset);
+    uint64_t to_write =
+        std::min(static_cast<uint64_t>(extent.num_blocks()) * block_size,
+                 static_cast<uint64_t>(data.size()) - offset);
     TEST_AND_RETURN_FALSE(
         fwrite(data.data() + offset, 1, to_write, fp.get()) == to_write);
     offset += extent.num_blocks() * block_size;

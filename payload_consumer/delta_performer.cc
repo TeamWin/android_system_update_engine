@@ -1067,8 +1067,10 @@ bool ValidateSourceHash(const brillo::Blob& calculated_hash,
 
     vector<string> source_extents;
     for (const Extent& ext : operation.src_extents()) {
-      source_extents.push_back(base::StringPrintf(
-          "%" PRIu64 ":%" PRIu64, ext.start_block(), ext.num_blocks()));
+      source_extents.push_back(
+          base::StringPrintf("%" PRIu64 ":%" PRIu64,
+                             static_cast<uint64_t>(ext.start_block()),
+                             static_cast<uint64_t>(ext.num_blocks())));
     }
     LOG(ERROR) << "Operation source (offset:size) in blocks: "
                << base::JoinString(source_extents, ",");
@@ -1152,8 +1154,9 @@ bool DeltaPerformer::ExtentsToBsdiffPositionsString(
   for (int i = 0; i < extents.size(); i++) {
     Extent extent = extents.Get(i);
     int64_t start = extent.start_block() * block_size;
-    uint64_t this_length = min(full_length - length,
-                               extent.num_blocks() * block_size);
+    uint64_t this_length =
+        min(full_length - length,
+            static_cast<uint64_t>(extent.num_blocks()) * block_size);
     ret += base::StringPrintf("%" PRIi64 ":%" PRIu64 ",", start, this_length);
     length += this_length;
   }
@@ -1239,8 +1242,8 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
     brillo::Blob buf(kMaxBlocksToRead * block_size_);
     for (const Extent& extent : operation.src_extents()) {
       for (uint64_t i = 0; i < extent.num_blocks(); i += kMaxBlocksToRead) {
-        uint64_t blocks_to_read =
-            min(kMaxBlocksToRead, extent.num_blocks() - i);
+        uint64_t blocks_to_read = min(
+            kMaxBlocksToRead, static_cast<uint64_t>(extent.num_blocks()) - i);
         ssize_t bytes_to_read = blocks_to_read * block_size_;
         ssize_t bytes_read_this_iteration = 0;
         TEST_AND_RETURN_FALSE(

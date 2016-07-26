@@ -404,8 +404,8 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
                            : InstallOperation::MOVE);
 
       uint64_t chunk_num_blocks =
-        std::min(extent.num_blocks() - op_block_offset,
-                 static_cast<uint64_t>(chunk_blocks));
+          std::min(static_cast<uint64_t>(extent.num_blocks()) - op_block_offset,
+                   static_cast<uint64_t>(chunk_blocks));
 
       // The current operation represents the move/copy operation for the
       // sublist starting at |used_blocks| of length |chunk_num_blocks| where
