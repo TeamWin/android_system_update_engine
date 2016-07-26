@@ -99,8 +99,9 @@ void ExtentsToVector(const google::protobuf::RepeatedPtrField<Extent>& extents,
 string ExtentsToString(const vector<Extent>& extents) {
   string ext_str;
   for (const Extent& e : extents)
-    ext_str += base::StringPrintf(
-        "[%" PRIu64 ", %" PRIu64 "] ", e.start_block(), e.num_blocks());
+    ext_str += base::StringPrintf("[%" PRIu64 ", %" PRIu64 "] ",
+                                  static_cast<uint64_t>(e.start_block()),
+                                  static_cast<uint64_t>(e.num_blocks()));
   return ext_str;
 }
 
