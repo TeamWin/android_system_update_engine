@@ -213,7 +213,10 @@ class UpdateAttempterTest : public ::testing::Test {
 };
 
 void UpdateAttempterTest::ScheduleQuitMainLoop() {
-  loop_.PostTask(FROM_HERE, base::Bind([this] { this->loop_.BreakLoop(); }));
+  loop_.PostTask(
+      FROM_HERE,
+      base::Bind([](brillo::BaseMessageLoop* loop) { loop->BreakLoop(); },
+                 base::Unretained(&loop_)));
 }
 
 TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {

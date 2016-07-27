@@ -352,7 +352,9 @@ bool OmahaRequestActionTest::TestUpdateCheck(
       .Times(expected_download_error_code == metrics::DownloadErrorCode::kUnset
              ? 0 : 1);
 
-  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.PostTask(base::Bind(
+      [](ActionProcessor* processor) { processor->StartProcessing(); },
+      base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
   if (collector_action.has_input_object_ && out_response)
@@ -385,7 +387,9 @@ void TestEvent(OmahaRequestParams params,
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&action);
 
-  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.PostTask(base::Bind(
+      [](ActionProcessor* processor) { processor->StartProcessing(); },
+      base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
 
@@ -472,7 +476,9 @@ TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
   ActionProcessor processor;
   processor.EnqueueAction(&action);
 
-  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.PostTask(base::Bind(
+      [](ActionProcessor* processor) { processor->StartProcessing(); },
+      base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
 
@@ -926,7 +932,9 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&action);
 
-  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.PostTask(base::Bind(
+      [](ActionProcessor* processor) { processor->StartProcessing(); },
+      base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
   EXPECT_FALSE(processor.IsRunning());
