@@ -1338,7 +1338,8 @@ void UpdateAttempter::ScheduleProcessingStart() {
   start_action_processor_ = false;
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      Bind([this] { this->processor_->StartProcessing(); }));
+      Bind([](ActionProcessor* processor) { processor->StartProcessing(); },
+           base::Unretained(processor_.get())));
 }
 
 void UpdateAttempter::DisableDeltaUpdateIfNeeded() {

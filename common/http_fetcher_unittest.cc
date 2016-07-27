@@ -847,7 +847,8 @@ TYPED_TEST(HttpFetcherTest, NoResponseTest) {
   // Check that no other callback runs in the next two seconds. That would
   // indicate a leaked callback.
   bool timeout = false;
-  auto callback = base::Bind([&timeout]{ timeout = true;});
+  auto callback = base::Bind([](bool* timeout) { *timeout = true; },
+                             base::Unretained(&timeout));
   this->loop_.PostDelayedTask(FROM_HERE, callback,
                               base::TimeDelta::FromSeconds(2));
   EXPECT_TRUE(this->loop_.RunOnce(true));

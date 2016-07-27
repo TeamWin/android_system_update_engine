@@ -372,7 +372,9 @@ void UpdateAttempterAndroid::CompleteUpdateBootFlags(bool successful) {
 void UpdateAttempterAndroid::ScheduleProcessingStart() {
   LOG(INFO) << "Scheduling an action processor start.";
   brillo::MessageLoop::current()->PostTask(
-      FROM_HERE, Bind([this] { this->processor_->StartProcessing(); }));
+      FROM_HERE,
+      Bind([](ActionProcessor* processor) { processor->StartProcessing(); },
+           base::Unretained(processor_.get())));
 }
 
 void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
