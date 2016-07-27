@@ -395,8 +395,11 @@ TEST(DownloadActionTest, PassObjectOutTest) {
   processor.EnqueueAction(&download_action);
   processor.EnqueueAction(&test_action);
 
-  loop.PostTask(FROM_HERE,
-                base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.PostTask(
+      FROM_HERE,
+      base::Bind(
+          [](ActionProcessor* processor) { processor->StartProcessing(); },
+          base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
 
