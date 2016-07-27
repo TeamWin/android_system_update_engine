@@ -110,7 +110,7 @@ bool ABGenerator::SplitSourceCopy(
   int curr_src_ext_index = 0;
   Extent curr_src_ext = original_op.src_extents(curr_src_ext_index);
   for (int i = 0; i < original_op.dst_extents_size(); i++) {
-    Extent dst_ext = original_op.dst_extents(i);
+    const Extent& dst_ext = original_op.dst_extents(i);
     // The new operation which will have only one dst extent.
     InstallOperation new_op;
     uint64_t blocks_left = dst_ext.num_blocks();
@@ -165,7 +165,7 @@ bool ABGenerator::SplitAReplaceOp(const PayloadVersion& version,
 
   uint32_t data_offset = original_op.data_offset();
   for (int i = 0; i < original_op.dst_extents_size(); i++) {
-    Extent dst_ext = original_op.dst_extents(i);
+    const Extent& dst_ext = original_op.dst_extents(i);
     // Make a new operation with only one dst extent.
     InstallOperation new_op;
     *(new_op.add_dst_extents()) = dst_ext;

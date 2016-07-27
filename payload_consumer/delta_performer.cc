@@ -135,7 +135,7 @@ FileDescriptorPtr OpenFile(const char* path, int mode, int* err) {
 // Discard the tail of the block device referenced by |fd|, from the offset
 // |data_size| until the end of the block device. Returns whether the data was
 // discarded.
-bool DiscardPartitionTail(FileDescriptorPtr fd, uint64_t data_size) {
+bool DiscardPartitionTail(const FileDescriptorPtr& fd, uint64_t data_size) {
   uint64_t part_size = fd->BlockDevSize();
   if (!part_size || part_size <= data_size)
     return false;
@@ -951,8 +951,7 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
 #endif  // !defined(BLKZEROOUT)
 
   brillo::Blob zeros;
-  for (int i = 0; i < operation.dst_extents_size(); i++) {
-    Extent extent = operation.dst_extents(i);
+  for (const Extent& extent : operation.dst_extents()) {
     const uint64_t start = extent.start_block() * block_size_;
     const uint64_t length = extent.num_blocks() * block_size_;
     if (attempt_ioctl) {
@@ -1030,7 +1029,7 @@ namespace {
 // each block in |extents|. For example, [(3, 2), (8, 1)] would give [3, 4, 8].
 void ExtentsToBlocks(const RepeatedPtrField<Extent>& extents,
                      vector<uint64_t>* blocks) {
-  for (Extent ext : extents) {
+  for (const Extent& ext : extents) {
     for (uint64_t j = 0; j < ext.num_blocks(); j++)
       blocks->push_back(ext.start_block() + j);
   }
@@ -1039,7 +1038,7 @@ void ExtentsToBlocks(const RepeatedPtrField<Extent>& extents,
 // Takes |extents| and returns the number of blocks in those extents.
 uint64_t GetBlockCount(const RepeatedPtrField<Extent>& extents) {
   uint64_t sum = 0;
-  for (Extent ext : extents) {
+  for (const Extent& ext : extents) {
     sum += ext.num_blocks();
   }
   return sum;
@@ -1151,8 +1150,7 @@ bool DeltaPerformer::ExtentsToBsdiffPositionsString(
     string* positions_string) {
   string ret;
   uint64_t length = 0;
-  for (int i = 0; i < extents.size(); i++) {
-    Extent extent = extents.Get(i);
+  for (const Extent& extent : extents) {
     int64_t start = extent.start_block() * block_size;
     uint64_t this_length =
         min(full_length - length,
@@ -1709,7 +1707,7 @@ void DeltaPerformer::DiscardBuffer(bool do_advance_offset,
 }
 
 bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
-                                     string update_check_response_hash) {
+                                     const string& update_check_response_hash) {
   int64_t next_operation = kUpdateStateOperationInvalid;
   if (!(prefs->GetInt64(kPrefsUpdateStateNextOperation, &next_operation) &&
         next_operation != kUpdateStateOperationInvalid &&

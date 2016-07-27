@@ -88,7 +88,7 @@ void ExpectedResults(int expected_return_code, const string& expected_output,
 void ExpectedEnvVars(int return_code, const string& output) {
   EXPECT_EQ(0, return_code);
   const std::set<string> allowed_envs = {"LD_LIBRARY_PATH", "PATH"};
-  for (string key_value : brillo::string_utils::Split(output, "\n")) {
+  for (const string& key_value : brillo::string_utils::Split(output, "\n")) {
     auto key_value_pair = brillo::string_utils::SplitAtFirst(
         key_value, "=", true);
     EXPECT_NE(allowed_envs.end(), allowed_envs.find(key_value_pair.first));

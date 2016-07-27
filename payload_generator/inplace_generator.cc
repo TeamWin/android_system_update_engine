@@ -704,7 +704,7 @@ bool InplaceGenerator::AddInstallOpToBlocksVector(
 bool InplaceGenerator::AddInstallOpToGraph(Graph* graph,
                                            Vertex::Index existing_vertex,
                                            vector<Block>* blocks,
-                                           const InstallOperation operation,
+                                           const InstallOperation& operation,
                                            const string& op_name) {
   Vertex::Index vertex = existing_vertex;
   if (vertex == Vertex::kInvalidIndex) {
