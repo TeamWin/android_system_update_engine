@@ -193,7 +193,7 @@ class InplaceGenerator : public OperationsGenerator {
   static bool AddInstallOpToGraph(Graph* graph,
                                   Vertex::Index existing_vertex,
                                   std::vector<Block>* blocks,
-                                  const InstallOperation operation,
+                                  const InstallOperation& operation,
                                   const std::string& op_name);
 
   // Apply the transformation stored in |the_map| to the |collection| vector
