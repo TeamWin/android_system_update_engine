@@ -69,8 +69,8 @@ bool WriteFile(const char* path, const void* data, int data_len);
 bool WriteAll(int fd, const void* buf, size_t count);
 bool PWriteAll(int fd, const void* buf, size_t count, off_t offset);
 
-bool WriteAll(FileDescriptorPtr fd, const void* buf, size_t count);
-bool PWriteAll(FileDescriptorPtr fd,
+bool WriteAll(const FileDescriptorPtr& fd, const void* buf, size_t count);
+bool PWriteAll(const FileDescriptorPtr& fd,
                const void* buf,
                size_t count,
                off_t offset);
@@ -88,7 +88,7 @@ bool ReadAll(
 bool PReadAll(int fd, void* buf, size_t count, off_t offset,
               ssize_t* out_bytes_read);
 
-bool PReadAll(FileDescriptorPtr fd, void* buf, size_t count, off_t offset,
+bool PReadAll(const FileDescriptorPtr& fd, void* buf, size_t count, off_t offset,
               ssize_t* out_bytes_read);
 
 // Opens |path| for reading and appends its entire content to the container

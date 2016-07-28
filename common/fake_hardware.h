@@ -109,15 +109,15 @@ class FakeHardware : public HardwareInterface {
     is_oobe_complete_ = false;
   }
 
-  void SetHardwareClass(std::string hardware_class) {
+  void SetHardwareClass(const std::string& hardware_class) {
     hardware_class_ = hardware_class;
   }
 
-  void SetFirmwareVersion(std::string firmware_version) {
+  void SetFirmwareVersion(const std::string& firmware_version) {
     firmware_version_ = firmware_version;
   }
 
-  void SetECVersion(std::string ec_version) {
+  void SetECVersion(const std::string& ec_version) {
     ec_version_ = ec_version;
   }
 

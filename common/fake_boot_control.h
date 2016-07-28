@@ -85,9 +85,9 @@ class FakeBootControl : public BootControlInterface {
     current_slot_ = slot;
   }
 
-  void SetPartitionDevice(const std::string partition_name,
+  void SetPartitionDevice(const std::string& partition_name,
                           BootControlInterface::Slot slot,
-                          const std::string device) {
+                          const std::string& device) {
     DCHECK(slot < num_slots_);
     devices_[slot][partition_name] = device;
   }
