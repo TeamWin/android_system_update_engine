@@ -370,7 +370,7 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
   // TODO(deymo): Produce ZERO operations instead of calling DeltaReadFile().
   size_t num_ops = aops->size();
   new_visited_blocks->AddExtents(new_zeros);
-  for (Extent extent : new_zeros) {
+  for (const Extent& extent : new_zeros) {
     TEST_AND_RETURN_FALSE(DeltaReadFile(aops,
                                         "",
                                         new_part,
@@ -391,7 +391,7 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
   uint64_t used_blocks = 0;
   old_visited_blocks->AddExtents(old_identical_blocks);
   new_visited_blocks->AddExtents(new_identical_blocks);
-  for (Extent extent : new_identical_blocks) {
+  for (const Extent& extent : new_identical_blocks) {
     // We split the operation at the extent boundary or when bigger than
     // chunk_blocks.
     for (uint64_t op_block_offset = 0; op_block_offset < extent.num_blocks();

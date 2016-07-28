@@ -43,7 +43,7 @@ class FakeFilesystem : public FilesystemInterface {
   // Fake methods.
 
   // Add a file to the list of fake files.
-  void AddFile(const std::string& filename, const std::vector<Extent> extents);
+  void AddFile(const std::string& filename, const std::vector<Extent>& extents);
 
   // Sets the PAYLOAD_MINOR_VERSION key stored by LoadSettings(). Use a negative
   // value to produce an error in LoadSettings().
