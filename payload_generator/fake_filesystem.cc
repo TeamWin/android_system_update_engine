@@ -39,7 +39,7 @@ bool FakeFilesystem::GetFiles(std::vector<File>* files) const {
 }
 
 void FakeFilesystem::AddFile(const std::string& filename,
-                             const std::vector<Extent> extents) {
+                             const std::vector<Extent>& extents) {
   File file;
   file.name = filename;
   file.extents = extents;

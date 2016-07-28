@@ -246,7 +246,7 @@ bool PWriteAll(int fd, const void* buf, size_t count, off_t offset) {
   return true;
 }
 
-bool WriteAll(FileDescriptorPtr fd, const void* buf, size_t count) {
+bool WriteAll(const FileDescriptorPtr& fd, const void* buf, size_t count) {
   const char* c_buf = static_cast<const char*>(buf);
   ssize_t bytes_written = 0;
   while (bytes_written < static_cast<ssize_t>(count)) {
@@ -257,7 +257,7 @@ bool WriteAll(FileDescriptorPtr fd, const void* buf, size_t count) {
   return true;
 }
 
-bool PWriteAll(FileDescriptorPtr fd,
+bool PWriteAll(const FileDescriptorPtr& fd,
                const void* buf,
                size_t count,
                off_t offset) {
@@ -283,7 +283,7 @@ bool PReadAll(int fd, void* buf, size_t count, off_t offset,
   return true;
 }
 
-bool PReadAll(FileDescriptorPtr fd, void* buf, size_t count, off_t offset,
+bool PReadAll(const FileDescriptorPtr& fd, void* buf, size_t count, off_t offset,
               ssize_t* out_bytes_read) {
   TEST_AND_RETURN_FALSE_ERRNO(fd->Seek(offset, SEEK_SET) !=
                               static_cast<off_t>(-1));

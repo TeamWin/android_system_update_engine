@@ -140,7 +140,7 @@ class DeltaPerformer : public FileWriter {
   // Returns true if a previous update attempt can be continued based on the
   // persistent preferences and the new update check response hash.
   static bool CanResumeUpdate(PrefsInterface* prefs,
-                              std::string update_check_response_hash);
+                              const std::string& update_check_response_hash);
 
   // Resets the persistent update progress state to indicate that an update
   // can't be resumed. Performs a quick update-in-progress reset if |quick| is
