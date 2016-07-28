@@ -93,5 +93,6 @@ const char kPayloadPropertyMetadataHash[] = "METADATA_HASH";
 const char kPayloadPropertyAuthorization[] = "AUTHORIZATION";
 const char kPayloadPropertyUserAgent[] = "USER_AGENT";
 const char kPayloadPropertyPowerwash[] = "POWERWASH";
+const char kPayloadPropertyNetworkId[] = "NETWORK_ID";
 
 }  // namespace chromeos_update_engine
