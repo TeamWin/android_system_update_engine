@@ -20,6 +20,7 @@
 #include "update_engine/service_observer_interface.h"
 
 #include <memory>
+#include <set>
 
 namespace chromeos_update_engine {
 
@@ -35,6 +36,9 @@ class DaemonStateInterface {
   // whenever there's a new status to update.
   virtual void AddObserver(ServiceObserverInterface* observer) = 0;
   virtual void RemoveObserver(ServiceObserverInterface* observer) = 0;
+
+  // Return the set of current observers.
+  virtual const std::set<ServiceObserverInterface*>& service_observers() = 0;
 
  protected:
   DaemonStateInterface() = default;
