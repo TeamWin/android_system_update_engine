@@ -472,6 +472,53 @@ endif  # local_use_omaha == 1
 LOCAL_INIT_RC := update_engine.rc
 include $(BUILD_EXECUTABLE)
 
+# update_engine_sideload (type: executable)
+# ========================================================
+# A static binary equivalent to update_engine daemon that installs an update
+# from a local file directly instead of running in the background.
+include $(CLEAR_VARS)
+LOCAL_MODULE := update_engine_sideload
+# TODO(deymo): Make this binary a static binary and move it to recovery.
+# LOCAL_FORCE_STATIC_EXECUTABLE := true
+# LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_REQUIRED_MODULES := \
+    bspatch
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_CLANG := true
+LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CPPFLAGS := $(ue_common_cppflags)
+LOCAL_LDFLAGS := $(ue_common_ldflags)
+LOCAL_C_INCLUDES := \
+    $(ue_common_c_includes) \
+    bootable/recovery
+#TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
+# out of the DBus interface.
+LOCAL_C_INCLUDES += \
+    external/cros/system_api/dbus
+LOCAL_SRC_FILES := \
+    boot_control_android.cc \
+    hardware_android.cc \
+    network_selector_stub.cc \
+    proxy_resolver.cc \
+    sideload_main.cc \
+    update_attempter_android.cc \
+    update_status_utils.cc \
+    utils_android.cc
+LOCAL_STATIC_LIBRARIES := \
+    libfs_mgr \
+    libpayload_consumer \
+    update_metadata-protos \
+    $(ue_libpayload_consumer_exported_static_libraries:-host=) \
+    $(ue_update_metadata_protos_exported_static_libraries)
+LOCAL_SHARED_LIBRARIES := \
+    $(ue_common_shared_libraries) \
+    libhardware \
+    libcutils \
+    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
+    $(ue_update_metadata_protos_exported_shared_libraries)
+include $(BUILD_EXECUTABLE)
+
 # libupdate_engine_client (type: shared_library)
 # ========================================================
 include $(CLEAR_VARS)
