@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/common/certificate_checker.h"
+#include "update_engine/certificate_checker.h"
 
 #include <string>
 
@@ -24,8 +24,8 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
-#include "update_engine/common/mock_certificate_checker.h"
 #include "update_engine/common/mock_prefs.h"
+#include "update_engine/mock_certificate_checker.h"
 
 using ::testing::DoAll;
 using ::testing::Return;
