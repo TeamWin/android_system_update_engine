@@ -93,6 +93,7 @@ extern const char kPayloadPropertyMetadataHash[];
 extern const char kPayloadPropertyAuthorization[];
 extern const char kPayloadPropertyUserAgent[];
 extern const char kPayloadPropertyPowerwash[];
+extern const char kPayloadPropertyNetworkId[];
 
 // A download source is any combination of protocol and server (that's of
 // interest to us when looking at UMA metrics) using which we may download
