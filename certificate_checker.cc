@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include "update_engine/common/certificate_checker.h"
+#include "update_engine/certificate_checker.h"
 
 #include <string>
 
