@@ -25,7 +25,6 @@
 #include <brillo/secure_blob.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/utils.h"
 
 using std::string;
