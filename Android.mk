@@ -512,19 +512,11 @@ LOCAL_STATIC_LIBRARIES := \
 LOCAL_STATIC_LIBRARIES += \
     $(ue_common_shared_libraries) \
     libcutils \
-    $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
+    libcrypto_static \
     $(ue_update_metadata_protos_exported_shared_libraries) \
     libevent \
     libmodpb64 \
-    libgtest_prod
-# libchrome requires these extra LDFLAGS which are not propagated through the
-# build system.
-LOCAL_LDFLAGS += \
-    -Wl,-wrap,calloc \
-    -Wl,-wrap,free \
-    -Wl,-wrap,malloc \
-    -Wl,-wrap,memalign \
-    -Wl,-wrap,realloc
+    liblog
 
 ifeq ($(strip $(PRODUCT_STATIC_BOOT_CONTROL_HAL)),)
 # No static boot_control HAL defined, so no sideload support. We use a fake

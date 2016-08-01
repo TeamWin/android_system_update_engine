@@ -139,7 +139,8 @@ bool ApplyUpdatePayload(const string& payload,
                         int64_t payload_size,
                         const vector<string>& headers,
                         int64_t status_fd) {
-  brillo::BaseMessageLoop loop;
+  base::MessageLoopForIO base_loop;
+  brillo::BaseMessageLoop loop(&base_loop);
   loop.SetAsCurrent();
 
   // Setup the subprocess handler.
