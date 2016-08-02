@@ -843,9 +843,6 @@ include $(BUILD_PREBUILT)
 # Test HTTP Server.
 include $(CLEAR_VARS)
 LOCAL_MODULE := test_http_server
-ifdef BRILLO
-  LOCAL_MODULE_TAGS := eng
-endif
 LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
@@ -887,9 +884,6 @@ include $(BUILD_EXECUTABLE)
 # Test helper subprocess program.
 include $(CLEAR_VARS)
 LOCAL_MODULE := test_subprocess
-ifdef BRILLO
-  LOCAL_MODULE_TAGS := eng
-endif
 LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
@@ -907,9 +901,6 @@ include $(BUILD_EXECUTABLE)
 # Main unittest file.
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine_unittests
-ifdef BRILLO
-  LOCAL_MODULE_TAGS := eng
-endif
 LOCAL_REQUIRED_MODULES := \
     test_http_server \
     test_subprocess \
