@@ -61,8 +61,8 @@ ue_common_c_includes := \
     external/gtest/include \
     system
 ue_common_shared_libraries := \
-    libbrillo \
     libbrillo-stream \
+    libbrillo \
     libchrome
 
 ifeq ($(local_use_dbus),1)
@@ -482,12 +482,11 @@ include $(BUILD_EXECUTABLE)
 # from a local file directly instead of running in the background.
 include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine_sideload
-# TODO(deymo): Make this binary a static binary and move it to recovery.
-# LOCAL_FORCE_STATIC_EXECUTABLE := true
-# LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
+LOCAL_FORCE_STATIC_EXECUTABLE := true
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_REQUIRED_MODULES := \
-    bspatch
+    bspatch_recovery
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
 LOCAL_CFLAGS := \
@@ -517,12 +516,40 @@ LOCAL_STATIC_LIBRARIES := \
     update_metadata-protos \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_update_metadata_protos_exported_static_libraries)
-LOCAL_SHARED_LIBRARIES := \
+# We add the static versions of the shared libraries since we are forcing this
+# binary to be a static binary, so we also need to include all the static
+# library dependencies of these static libraries.
+LOCAL_STATIC_LIBRARIES += \
     $(ue_common_shared_libraries) \
-    libhardware \
     libcutils \
     $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
-    $(ue_update_metadata_protos_exported_shared_libraries)
+    $(ue_update_metadata_protos_exported_shared_libraries) \
+    libevent \
+    libmodpb64 \
+    libgtest_prod
+# libchrome requires these extra LDFLAGS which are not propagated through the
+# build system.
+LOCAL_LDFLAGS += \
+    -Wl,-wrap,calloc \
+    -Wl,-wrap,free \
+    -Wl,-wrap,malloc \
+    -Wl,-wrap,memalign \
+    -Wl,-wrap,realloc
+
+ifeq ($(strip $(PRODUCT_STATIC_BOOT_CONTROL_HAL)),)
+# No static boot_control HAL defined, so no sideload support. We use a fake
+# boot_control HAL to allow compiling update_engine_sideload for test purposes.
+ifeq ($(strip $(AB_OTA_UPDATER)),true)
+$(warning No PRODUCT_STATIC_BOOT_CONTROL_HAL configured but AB_OTA_UPDATER is \
+true, no update sideload support.)
+endif  # AB_OTA_UPDATER == true
+LOCAL_SRC_FILES += \
+    boot_control_recovery_stub.cc
+else  # PRODUCT_STATIC_BOOT_CONTROL_HAL != ""
+LOCAL_STATIC_LIBRARIES += \
+    $(PRODUCT_STATIC_BOOT_CONTROL_HAL)
+endif  # PRODUCT_STATIC_BOOT_CONTROL_HAL != ""
+
 include $(BUILD_EXECUTABLE)
 
 # libupdate_engine_client (type: shared_library)
