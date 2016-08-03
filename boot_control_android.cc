@@ -28,6 +28,14 @@
 
 using std::string;
 
+#ifdef _UE_SIDELOAD
+// When called from update_engine_sideload, we don't attempt to dynamically load
+// the right boot_control HAL, instead we use the only HAL statically linked in
+// via the PRODUCT_STATIC_BOOT_CONTROL_HAL make variable and access the module
+// struct directly.
+extern const hw_module_t HAL_MODULE_INFO_SYM;
+#endif  // _UE_SIDELOAD
+
 namespace chromeos_update_engine {
 
 namespace boot_control {
@@ -47,7 +55,18 @@ bool BootControlAndroid::Init() {
   const hw_module_t* hw_module;
   int ret;
 
+#ifdef _UE_SIDELOAD
+  // For update_engine_sideload, we simulate the hw_get_module() by accessing it
+  // from the current process directly.
+  hw_module = &HAL_MODULE_INFO_SYM;
+  ret = 0;
+  if (!hw_module ||
+      strcmp(BOOT_CONTROL_HARDWARE_MODULE_ID, hw_module->id) != 0) {
+    ret = -EINVAL;
+  }
+#else  // !_UE_SIDELOAD
   ret = hw_get_module(BOOT_CONTROL_HARDWARE_MODULE_ID, &hw_module);
+#endif  // _UE_SIDELOAD
   if (ret != 0) {
     LOG(ERROR) << "Error loading boot_control HAL implementation.";
     return false;
