@@ -28,7 +28,7 @@
 namespace chromeos_update_engine {
 
 bool PostInstallConfig::IsEmpty() const {
-  return run == false && path.empty() && filesystem_type.empty();
+  return !run && path.empty() && filesystem_type.empty() && !optional;
 }
 
 bool PartitionConfig::ValidateExists() const {
@@ -90,6 +90,8 @@ bool ImageConfig::LoadPostInstallConfig(const brillo::KeyValueStore& store) {
     store.GetString("POSTINSTALL_PATH_" + part.name, &part.postinstall.path);
     store.GetString("FILESYSTEM_TYPE_" + part.name,
                     &part.postinstall.filesystem_type);
+    store.GetBoolean("POSTINSTALL_OPTIONAL_" + part.name,
+                     &part.postinstall.optional);
   }
   if (!found_postinstall) {
     LOG(ERROR) << "No valid postinstall config found.";
