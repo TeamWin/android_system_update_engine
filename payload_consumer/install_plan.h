@@ -95,6 +95,7 @@ struct InstallPlan {
     bool run_postinstall{false};
     std::string postinstall_path;
     std::string filesystem_type;
+    bool postinstall_optional{false};
   };
   std::vector<Partition> partitions;
 

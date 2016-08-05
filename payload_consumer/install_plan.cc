@@ -115,7 +115,8 @@ bool InstallPlan::Partition::operator==(
           target_hash == that.target_hash &&
           run_postinstall == that.run_postinstall &&
           postinstall_path == that.postinstall_path &&
-          filesystem_type == that.filesystem_type);
+          filesystem_type == that.filesystem_type &&
+          postinstall_optional == that.postinstall_optional);
 }
 
 }  // namespace chromeos_update_engine

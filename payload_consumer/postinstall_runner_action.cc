@@ -301,7 +301,14 @@ void PostinstallRunnerAction::CompletePartitionPostinstall(
       // to get back to FW A.
       error_code = ErrorCode::kPostinstallFirmwareRONotUpdatable;
     }
-    return CompletePostinstall(error_code);
+
+    // If postinstall script for this partition is optional we can ignore the
+    // result.
+    if (install_plan_.partitions[current_partition_].postinstall_optional) {
+      LOG(INFO) << "Ignoring postinstall failure since it is optional";
+    } else {
+      return CompletePostinstall(error_code);
+    }
   }
   accumulated_weight_ += partition_weight_[current_partition_];
   current_partition_++;
