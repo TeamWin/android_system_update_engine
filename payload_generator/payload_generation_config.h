@@ -46,6 +46,9 @@ struct PostInstallConfig {
   // The filesystem type used to mount the partition in order to run the
   // post-install program.
   std::string filesystem_type;
+
+  // Whether this postinstall script should be ignored if it fails.
+  bool optional = false;
 };
 
 struct PartitionConfig {
