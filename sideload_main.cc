@@ -22,18 +22,26 @@
 #include <base/command_line.h>
 #include <base/logging.h>
 #include <base/strings/string_split.h>
+#include <base/strings/stringprintf.h>
+#include <brillo/asynchronous_signal_handler.h>
 #include <brillo/flag_helper.h>
+#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/base_message_loop.h>
+#include <brillo/streams/file_stream.h>
+#include <brillo/streams/stream.h>
 
 #include "update_engine/common/boot_control.h"
+#include "update_engine/common/error_code_utils.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/prefs.h"
+#include "update_engine/common/subprocess.h"
 #include "update_engine/common/terminator.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/update_attempter_android.h"
 
 using std::string;
 using std::vector;
+using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
 namespace {
@@ -52,7 +60,8 @@ void SetupLogging() {
 class SideloadDaemonState : public DaemonStateInterface,
                             public ServiceObserverInterface {
  public:
-  SideloadDaemonState() {
+  explicit SideloadDaemonState(brillo::StreamPtr status_stream)
+      : status_stream_(std::move(status_stream)) {
     // Add this class as the only observer.
     observers_.insert(this);
   }
@@ -69,13 +78,31 @@ class SideloadDaemonState : public DaemonStateInterface,
   // ServiceObserverInterface overrides.
   void SendStatusUpdate(int64_t last_checked_time,
                         double progress,
-                        update_engine::UpdateStatus status,
+                        UpdateStatus status,
                         const string& new_version,
                         int64_t new_size) override {
+    if (status_ != status && (status == UpdateStatus::DOWNLOADING ||
+                              status == UpdateStatus::FINALIZING)) {
+      // Split the progress bar in two parts for the two stages DOWNLOADING and
+      // FINALIZING.
+      ReportStatus(base::StringPrintf(
+          "ui_print Step %d/2", status == UpdateStatus::DOWNLOADING ? 1 : 2));
+      ReportStatus(base::StringPrintf("progress 0.5 0"));
+    }
+    if (status_ != status || fabs(progress - progress_) > 0.005) {
+      ReportStatus(base::StringPrintf("set_progress %.lf", progress));
+    }
+    progress_ = progress;
     status_ = status;
   }
 
   void SendPayloadApplicationComplete(ErrorCode error_code) override {
+    if (error_code != ErrorCode::kSuccess) {
+      ReportStatus(
+          base::StringPrintf("ui_print Error applying update: %d (%s)",
+                             error_code,
+                             utils::ErrorCodeToString(error_code).c_str()));
+    }
     error_code_ = error_code;
     brillo::MessageLoop::current()->BreakLoop();
   }
@@ -83,26 +110,46 @@ class SideloadDaemonState : public DaemonStateInterface,
   void SendChannelChangeUpdate(const string& tracking_channel) override {}
 
   // Getters.
-  update_engine::UpdateStatus status() { return status_; }
+  UpdateStatus status() { return status_; }
   ErrorCode error_code() { return error_code_; }
 
  private:
+  // Report a status message in the status_stream_, if any. These messages
+  // should conform to the specification defined in the Android recovery.
+  void ReportStatus(const string& message) {
+    if (!status_stream_)
+      return;
+    string status_line = message + "\n";
+    status_stream_->WriteAllBlocking(
+        status_line.data(), status_line.size(), nullptr);
+  }
+
   std::set<ServiceObserverInterface*> observers_;
+  brillo::StreamPtr status_stream_;
 
   // The last status and error code reported.
-  update_engine::UpdateStatus status_{update_engine::UpdateStatus::IDLE};
+  UpdateStatus status_{UpdateStatus::IDLE};
   ErrorCode error_code_{ErrorCode::kSuccess};
+  double progress_{-1.};
 };
 
 // Apply an update payload directly from the given payload URI.
 bool ApplyUpdatePayload(const string& payload,
                         int64_t payload_offset,
                         int64_t payload_size,
-                        const vector<string>& headers) {
+                        const vector<string>& headers,
+                        int64_t status_fd) {
   brillo::BaseMessageLoop loop;
   loop.SetAsCurrent();
 
-  SideloadDaemonState sideload_daemon_state;
+  // Setup the subprocess handler.
+  brillo::AsynchronousSignalHandler handler;
+  handler.Init();
+  Subprocess subprocess;
+  subprocess.Init(&handler);
+
+  SideloadDaemonState sideload_daemon_state(
+      brillo::FileStream::FromFileDescriptor(status_fd, true, nullptr));
 
   // During the sideload we don't access the prefs persisted on disk but instead
   // use a temporary memory storage.
@@ -129,8 +176,7 @@ bool ApplyUpdatePayload(const string& payload,
       payload, payload_offset, payload_size, headers, nullptr));
 
   loop.Run();
-  return sideload_daemon_state.status() ==
-         update_engine::UpdateStatus::UPDATED_NEED_REBOOT;
+  return sideload_daemon_state.status() == UpdateStatus::UPDATED_NEED_REBOOT;
 }
 
 }  // namespace
@@ -149,6 +195,7 @@ int main(int argc, char** argv) {
   DEFINE_string(headers,
                 "",
                 "A list of key-value pairs, one element of the list per line.");
+  DEFINE_int64(status_fd, -1, "A file descriptor to notify the update status.");
 
   chromeos_update_engine::Terminator::Init();
   chromeos_update_engine::SetupLogging();
@@ -163,7 +210,7 @@ int main(int argc, char** argv) {
       FLAGS_headers, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
   if (!chromeos_update_engine::ApplyUpdatePayload(
-          FLAGS_payload, FLAGS_offset, FLAGS_size, headers))
+          FLAGS_payload, FLAGS_offset, FLAGS_size, headers, FLAGS_status_fd))
     return 1;
 
   return 0;
