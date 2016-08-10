@@ -29,12 +29,14 @@ TEST_F(PayloadGenerationConfigTest, SimpleLoadPostInstallConfigTest) {
   EXPECT_TRUE(
       store.LoadFromString("RUN_POSTINSTALL_root=true\n"
                            "POSTINSTALL_PATH_root=postinstall\n"
-                           "FILESYSTEM_TYPE_root=ext4"));
+                           "FILESYSTEM_TYPE_root=ext4\n"
+                           "POSTINSTALL_OPTIONAL_root=true"));
   EXPECT_TRUE(image_config.LoadPostInstallConfig(store));
   EXPECT_FALSE(image_config.partitions[0].postinstall.IsEmpty());
   EXPECT_EQ(true, image_config.partitions[0].postinstall.run);
   EXPECT_EQ("postinstall", image_config.partitions[0].postinstall.path);
   EXPECT_EQ("ext4", image_config.partitions[0].postinstall.filesystem_type);
+  EXPECT_TRUE(image_config.partitions[0].postinstall.optional);
 }
 
 TEST_F(PayloadGenerationConfigTest, LoadPostInstallConfigNameMismatchTest) {
