@@ -43,6 +43,11 @@ using std::string;
 using std::vector;
 using update_engine::UpdateStatus;
 
+namespace {
+// The root directory used for temporary files in update_engine_sideload.
+const char kSideloadRootTempDir[] = "/tmp/update_engine_sideload";
+}  // namespace
+
 namespace chromeos_update_engine {
 namespace {
 
@@ -205,6 +210,10 @@ int main(int argc, char** argv) {
 
   // xz-embedded requires to initialize its CRC-32 table once on startup.
   xz_crc32_init();
+
+  // When called from recovery, /data is not accessible, so we need to use
+  // /tmp for temporary files.
+  chromeos_update_engine::utils::SetRootTempDir(kSideloadRootTempDir);
 
   vector<string> headers = base::SplitString(
       FLAGS_headers, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
