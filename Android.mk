@@ -145,14 +145,11 @@ ue_libpayload_consumer_exported_static_libraries := \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
     libcrypto-host \
-    libcurl-host \
-    libssl-host \
     $(ue_update_metadata_protos_exported_shared_libraries)
 
 ue_libpayload_consumer_src_files := \
     common/action_processor.cc \
     common/boot_control_stub.cc \
-    common/certificate_checker.cc \
     common/clock.cc \
     common/constants.cc \
     common/cpu_limiter.cc \
@@ -162,7 +159,6 @@ ue_libpayload_consumer_src_files := \
     common/http_fetcher.cc \
     common/file_fetcher.cc \
     common/hwid_override.cc \
-    common/libcurl_http_fetcher.cc \
     common/multi_range_http_fetcher.cc \
     common/platform_constants_android.cc \
     common/prefs.cc \
@@ -258,7 +254,9 @@ ue_libupdate_engine_exported_shared_libraries := \
     libexpat \
     libbrillo-policy \
     libhardware \
+    libcurl \
     libcutils \
+    libssl \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries)
 ifeq ($(local_use_binder),1)
@@ -304,6 +302,7 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_update_metadata_protos_exported_shared_libraries)
 LOCAL_SRC_FILES := \
     boot_control_android.cc \
+    certificate_checker.cc \
     common_service.cc \
     connection_manager.cc \
     daemon.cc \
@@ -311,6 +310,7 @@ LOCAL_SRC_FILES := \
     hardware_android.cc \
     image_properties_android.cc \
     libcros_proxy.cc \
+    libcurl_http_fetcher.cc \
     metrics.cc \
     metrics_utils.cc \
     omaha_request_action.cc \
@@ -378,7 +378,9 @@ ue_libupdate_engine_android_exported_shared_libraries := \
     libbinderwrapper \
     libbrillo-binder \
     libcutils \
+    libcurl \
     libhardware \
+    libssl \
     libutils
 
 include $(CLEAR_VARS)
@@ -407,9 +409,11 @@ LOCAL_SRC_FILES += \
     binder_bindings/android/os/IUpdateEngineCallback.aidl \
     binder_service_android.cc \
     boot_control_android.cc \
+    certificate_checker.cc \
     daemon.cc \
     daemon_state_android.cc \
     hardware_android.cc \
+    libcurl_http_fetcher.cc \
     network_selector_android.cc \
     proxy_resolver.cc \
     update_attempter_android.cc \
@@ -476,7 +480,9 @@ LOCAL_REQUIRED_MODULES := \
     bspatch
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
-LOCAL_CFLAGS := $(ue_common_cflags)
+LOCAL_CFLAGS := \
+    $(ue_common_cflags) \
+    -D_UE_SIDELOAD
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := \
@@ -873,10 +879,10 @@ LOCAL_SHARED_LIBRARIES := \
     $(ue_libupdate_engine_exported_shared_libraries:-host=) \
     $(ue_libpayload_generator_exported_shared_libraries:-host=)
 LOCAL_SRC_FILES := \
+    certificate_checker_unittest.cc \
     common/action_pipe_unittest.cc \
     common/action_processor_unittest.cc \
     common/action_unittest.cc \
-    common/certificate_checker_unittest.cc \
     common/cpu_limiter_unittest.cc \
     common/fake_prefs.cc \
     common/file_fetcher_unittest.cc \

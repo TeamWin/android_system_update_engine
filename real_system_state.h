@@ -28,8 +28,8 @@
 #include <power_manager/dbus-proxies.h>
 #include <session_manager/dbus-proxies.h>
 
+#include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/clock.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"

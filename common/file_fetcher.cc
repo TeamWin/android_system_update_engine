@@ -27,7 +27,6 @@
 #include <base/strings/stringprintf.h>
 #include <brillo/streams/file_stream.h>
 
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
 

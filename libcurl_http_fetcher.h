@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_COMMON_LIBCURL_HTTP_FETCHER_H_
-#define UPDATE_ENGINE_COMMON_LIBCURL_HTTP_FETCHER_H_
+#ifndef UPDATE_ENGINE_LIBCURL_HTTP_FETCHER_H_
+#define UPDATE_ENGINE_LIBCURL_HTTP_FETCHER_H_
 
 #include <map>
 #include <memory>
@@ -28,7 +28,7 @@
 #include <base/macros.h>
 #include <brillo/message_loops/message_loop.h>
 
-#include "update_engine/common/certificate_checker.h"
+#include "update_engine/certificate_checker.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/http_fetcher.h"
 
@@ -266,4 +266,4 @@ class LibcurlHttpFetcher : public HttpFetcher {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_COMMON_LIBCURL_HTTP_FETCHER_H_
+#endif  // UPDATE_ENGINE_LIBCURL_HTTP_FETCHER_H_

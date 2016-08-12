@@ -29,7 +29,6 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/file_fetcher.h"
-#include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/daemon_state_interface.h"
@@ -38,6 +37,12 @@
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/update_status_utils.h"
+
+#ifndef _UE_SIDELOAD
+// Do not include support for external HTTP(s) urls when building
+// update_engine_sideload.
+#include "update_engine/libcurl_http_fetcher.h"
+#endif
 
 using base::Bind;
 using base::TimeDelta;
@@ -433,10 +438,14 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
     DLOG(INFO) << "Using FileFetcher for file URL.";
     download_fetcher = new FileFetcher();
   } else {
+#ifdef _UE_SIDELOAD
+    LOG(FATAL) << "Unsupported sideload URI: " << url;
+#else
     LibcurlHttpFetcher* libcurl_fetcher =
         new LibcurlHttpFetcher(&proxy_resolver_, hardware_);
     libcurl_fetcher->set_server_to_check(ServerToCheck::kDownload);
     download_fetcher = libcurl_fetcher;
+#endif  // _UE_SIDELOAD
   }
   shared_ptr<DownloadAction> download_action(new DownloadAction(
       prefs_,

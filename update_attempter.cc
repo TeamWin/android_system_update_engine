@@ -41,18 +41,18 @@
 #include <power_manager/dbus-proxies.h>
 #include <update_engine/dbus-constants.h>
 
+#include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
-#include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/dbus_service.h"
+#include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/metrics.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
