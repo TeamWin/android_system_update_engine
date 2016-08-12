@@ -14,8 +14,8 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_COMMON_CERTIFICATE_CHECKER_H_
-#define UPDATE_ENGINE_COMMON_CERTIFICATE_CHECKER_H_
+#ifndef UPDATE_ENGINE_CERTIFICATE_CHECKER_H_
+#define UPDATE_ENGINE_CERTIFICATE_CHECKER_H_
 
 #include <curl/curl.h>
 #include <openssl/ssl.h>
@@ -172,4 +172,4 @@ class CertificateChecker {
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_COMMON_CERTIFICATE_CHECKER_H_
+#endif  // UPDATE_ENGINE_CERTIFICATE_CHECKER_H_

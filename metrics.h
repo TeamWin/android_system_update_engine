@@ -19,7 +19,7 @@
 
 #include <base/time/time.h>
 
-#include "update_engine/common/certificate_checker.h"
+#include "update_engine/certificate_checker.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/error_code.h"
 

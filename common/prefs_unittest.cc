@@ -18,6 +18,7 @@
 
 #include <inttypes.h>
 
+#include <limits>
 #include <string>
 
 #include <base/files/file_util.h>
@@ -62,18 +63,18 @@ TEST_F(PrefsTest, GetFileNameForKey) {
   const char kAllvalidCharsKey[] =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-";
   base::FilePath path;
-  EXPECT_TRUE(prefs_.GetFileNameForKey(kAllvalidCharsKey, &path));
+  EXPECT_TRUE(prefs_.file_storage_.GetFileNameForKey(kAllvalidCharsKey, &path));
   EXPECT_EQ(prefs_dir_.Append(kAllvalidCharsKey).value(), path.value());
 }
 
 TEST_F(PrefsTest, GetFileNameForKeyBadCharacter) {
   base::FilePath path;
-  EXPECT_FALSE(prefs_.GetFileNameForKey("ABC abc", &path));
+  EXPECT_FALSE(prefs_.file_storage_.GetFileNameForKey("ABC abc", &path));
 }
 
 TEST_F(PrefsTest, GetFileNameForKeyEmpty) {
   base::FilePath path;
-  EXPECT_FALSE(prefs_.GetFileNameForKey("", &path));
+  EXPECT_FALSE(prefs_.file_storage_.GetFileNameForKey("", &path));
 }
 
 TEST_F(PrefsTest, GetString) {
@@ -336,6 +337,26 @@ TEST_F(PrefsTest, UnsuccessfulCallsNotObserved) {
   EXPECT_FALSE(prefs_.Delete(kInvalidKey));
 
   prefs_.RemoveObserver(kInvalidKey, &mock_obserser);
+}
+
+class MemoryPrefsTest : public ::testing::Test {
+ protected:
+  MemoryPrefs prefs_;
+};
+
+TEST_F(MemoryPrefsTest, BasicTest) {
+  EXPECT_FALSE(prefs_.Exists(kKey));
+  int64_t value = 0;
+  EXPECT_FALSE(prefs_.GetInt64(kKey, &value));
+
+  EXPECT_TRUE(prefs_.SetInt64(kKey, 1234));
+  EXPECT_TRUE(prefs_.Exists(kKey));
+  EXPECT_TRUE(prefs_.GetInt64(kKey, &value));
+  EXPECT_EQ(1234, value);
+
+  EXPECT_TRUE(prefs_.Delete(kKey));
+  EXPECT_FALSE(prefs_.Exists(kKey));
+  EXPECT_FALSE(prefs_.Delete(kKey));
 }
 
 }  // namespace chromeos_update_engine

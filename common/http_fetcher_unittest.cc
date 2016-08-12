@@ -44,11 +44,11 @@
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/file_fetcher.h"
 #include "update_engine/common/http_common.h"
-#include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/mock_http_fetcher.h"
 #include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/mock_proxy_resolver.h"
 #include "update_engine/proxy_resolver.h"
 

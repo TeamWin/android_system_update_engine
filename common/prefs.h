@@ -28,18 +28,36 @@
 
 namespace chromeos_update_engine {
 
-// Implements a preference store by storing the value associated with
-// a key in a separate file named after the key under a preference
-// store directory.
-
-class Prefs : public PrefsInterface {
+// Implements a preference store by storing the value associated with a key
+// in a given storage passed during construction.
+class PrefsBase : public PrefsInterface {
  public:
-  Prefs() = default;
+  // Storage interface used to set and retrieve keys.
+  class StorageInterface {
+   public:
+    StorageInterface() = default;
+    virtual ~StorageInterface() = default;
 
-  // Initializes the store by associating this object with |prefs_dir|
-  // as the preference store directory. Returns true on success, false
-  // otherwise.
-  bool Init(const base::FilePath& prefs_dir);
+    // Get the key named |key| and store its value in the referenced |value|.
+    // Returns whether the operation succeeded.
+    virtual bool GetKey(const std::string& key, std::string* value) const = 0;
+
+    // Set the value of the key named |key| to |value| regardless of the
+    // previous value. Returns whether the operation succeeded.
+    virtual bool SetKey(const std::string& key, const std::string& value) = 0;
+
+    // Returns whether the key named |key| exists.
+    virtual bool KeyExists(const std::string& key) const = 0;
+
+    // Deletes the value associated with the key name |key|. Returns whether the
+    // key was deleted.
+    virtual bool DeleteKey(const std::string& key) = 0;
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(StorageInterface);
+  };
+
+  explicit PrefsBase(StorageInterface* storage) : storage_(storage) {}
 
   // PrefsInterface methods.
   bool GetString(const std::string& key, std::string* value) const override;
@@ -58,24 +76,93 @@ class Prefs : public PrefsInterface {
                       ObserverInterface* observer) override;
 
  private:
+  // The registered observers watching for changes.
+  std::map<std::string, std::vector<ObserverInterface*>> observers_;
+
+  // The concrete implementation of the storage used for the keys.
+  StorageInterface* storage_;
+
+  DISALLOW_COPY_AND_ASSIGN(PrefsBase);
+};
+
+// Implements a preference store by storing the value associated with
+// a key in a separate file named after the key under a preference
+// store directory.
+
+class Prefs : public PrefsBase {
+ public:
+  Prefs() : PrefsBase(&file_storage_) {}
+
+  // Initializes the store by associating this object with |prefs_dir|
+  // as the preference store directory. Returns true on success, false
+  // otherwise.
+  bool Init(const base::FilePath& prefs_dir);
+
+ private:
   FRIEND_TEST(PrefsTest, GetFileNameForKey);
   FRIEND_TEST(PrefsTest, GetFileNameForKeyBadCharacter);
   FRIEND_TEST(PrefsTest, GetFileNameForKeyEmpty);
 
-  // Sets |filename| to the full path to the file containing the data
-  // associated with |key|. Returns true on success, false otherwise.
-  bool GetFileNameForKey(const std::string& key,
-                         base::FilePath* filename) const;
+  class FileStorage : public PrefsBase::StorageInterface {
+   public:
+    FileStorage() = default;
 
-  // Preference store directory.
-  base::FilePath prefs_dir_;
+    bool Init(const base::FilePath& prefs_dir);
 
-  // The registered observers watching for changes.
-  std::map<std::string, std::vector<ObserverInterface*>> observers_;
+    // PrefsBase::StorageInterface overrides.
+    bool GetKey(const std::string& key, std::string* value) const override;
+    bool SetKey(const std::string& key, const std::string& value) override;
+    bool KeyExists(const std::string& key) const override;
+    bool DeleteKey(const std::string& key) override;
+
+   private:
+    FRIEND_TEST(PrefsTest, GetFileNameForKey);
+    FRIEND_TEST(PrefsTest, GetFileNameForKeyBadCharacter);
+    FRIEND_TEST(PrefsTest, GetFileNameForKeyEmpty);
+
+    // Sets |filename| to the full path to the file containing the data
+    // associated with |key|. Returns true on success, false otherwise.
+    bool GetFileNameForKey(const std::string& key,
+                           base::FilePath* filename) const;
+
+    // Preference store directory.
+    base::FilePath prefs_dir_;
+  };
+
+  // The concrete file storage implementation.
+  FileStorage file_storage_;
 
   DISALLOW_COPY_AND_ASSIGN(Prefs);
 };
 
+// Implements a preference store in memory. The stored values are lost when the
+// object is destroyed.
+
+class MemoryPrefs : public PrefsBase {
+ public:
+  MemoryPrefs() : PrefsBase(&mem_storage_) {}
+
+ private:
+  class MemoryStorage : public PrefsBase::StorageInterface {
+   public:
+    MemoryStorage() = default;
+
+    // PrefsBase::StorageInterface overrides.
+    bool GetKey(const std::string& key, std::string* value) const override;
+    bool SetKey(const std::string& key, const std::string& value) override;
+    bool KeyExists(const std::string& key) const override;
+    bool DeleteKey(const std::string& key) override;
+
+   private:
+    // The std::map holding the values in memory.
+    std::map<std::string, std::string> values_;
+  };
+
+  // The concrete memory storage implementation.
+  MemoryStorage mem_storage_;
+
+  DISALLOW_COPY_AND_ASSIGN(MemoryPrefs);
+};
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_COMMON_PREFS_H_

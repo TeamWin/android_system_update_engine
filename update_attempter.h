@@ -31,9 +31,9 @@
 
 #include "debugd/dbus-proxies.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
+#include "update_engine/certificate_checker.h"
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/cpu_limiter.h"
 #include "update_engine/libcros_proxy.h"
 #include "update_engine/omaha_request_params.h"
@@ -242,6 +242,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   }
   void RemoveObserver(ServiceObserverInterface* observer) {
     service_observers_.erase(observer);
+  }
+
+  const std::set<ServiceObserverInterface*>& service_observers() {
+    return service_observers_;
   }
 
   // Remove all the observers.
