@@ -58,12 +58,13 @@ ue_common_ldflags := \
     -Wl,--gc-sections
 ue_common_c_includes := \
     $(LOCAL_PATH)/client_library/include \
-    external/gtest/include \
     system
 ue_common_shared_libraries := \
     libbrillo-stream \
     libbrillo \
     libchrome
+ue_common_static_libraries := \
+    libgtest_prod \
 
 ifeq ($(local_use_dbus),1)
 
@@ -193,6 +194,7 @@ LOCAL_C_INCLUDES := \
     $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     update_metadata-protos \
+    $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
@@ -216,6 +218,7 @@ LOCAL_C_INCLUDES := \
     $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     update_metadata-protos \
+    $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
@@ -292,6 +295,7 @@ LOCAL_C_INCLUDES := \
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
+    $(ue_common_static_libraries) \
     $(ue_libupdate_engine_exported_static_libraries:-host=) \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_update_metadata_protos_exported_static_libraries)
@@ -409,6 +413,7 @@ LOCAL_C_INCLUDES := \
 LOCAL_C_INCLUDES += \
     external/cros/system_api/dbus
 LOCAL_STATIC_LIBRARIES := \
+    $(ue_common_static_libraries) \
     $(ue_libupdate_engine_android_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES += \
     $(ue_common_shared_libraries) \
@@ -454,19 +459,21 @@ LOCAL_C_INCLUDES := \
     $(ue_common_c_includes)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries)
+LOCAL_STATIC_LIBRARIES := \
+    $(ue_common_static_libraries)
 LOCAL_SRC_FILES := \
     main.cc
 
 ifeq ($(local_use_omaha),1)
 LOCAL_C_INCLUDES += \
     $(ue_libupdate_engine_exported_c_includes)
-LOCAL_STATIC_LIBRARIES := \
+LOCAL_STATIC_LIBRARIES += \
     libupdate_engine \
     $(ue_libupdate_engine_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_exported_shared_libraries:-host=)
 else  # local_use_omaha == 1
-LOCAL_STATIC_LIBRARIES := \
+LOCAL_STATIC_LIBRARIES += \
     libupdate_engine_android \
     $(ue_libupdate_engine_android_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES += \
@@ -514,6 +521,7 @@ LOCAL_STATIC_LIBRARIES := \
     libfs_mgr \
     libpayload_consumer \
     update_metadata-protos \
+    $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_update_metadata_protos_exported_static_libraries)
 # We add the static versions of the shared libraries since we are forcing this
@@ -568,8 +576,7 @@ LOCAL_CPP_EXTENSION := .cc
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/client_library/include \
     external/cros/system_api/dbus \
-    system \
-    external/gtest/include
+    system
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/client_library/include
 LOCAL_SHARED_LIBRARIES := \
     libchrome \
@@ -616,6 +623,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
+LOCAL_STATIC_LIBRARIES := $(ue_common_static_libraries)
 ifeq ($(local_use_omaha),1)
 LOCAL_SHARED_LIBRARIES += \
     libupdate_engine_client
@@ -697,6 +705,7 @@ LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
     liblzma \
+    $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
@@ -722,6 +731,7 @@ LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     update_metadata-protos \
     liblzma \
+    $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_update_metadata_protos_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
@@ -755,6 +765,7 @@ LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     libpayload_generator \
+    $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_libpayload_generator_exported_static_libraries)
 LOCAL_SHARED_LIBRARIES := \
@@ -780,6 +791,7 @@ LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libpayload_consumer \
     libpayload_generator \
+    $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries:-host=) \
     $(ue_libpayload_generator_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES := \
@@ -879,6 +891,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
+LOCAL_STATIC_LIBRARIES := $(ue_common_static_libraries)
 LOCAL_SRC_FILES := \
     common/http_common.cc \
     test_http_server.cc
@@ -920,6 +933,7 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_SHARED_LIBRARIES := $(ue_common_shared_libraries)
+LOCAL_STATIC_LIBRARIES := $(ue_common_static_libraries)
 LOCAL_SRC_FILES := test_subprocess.cc
 include $(BUILD_EXECUTABLE)
 
@@ -955,8 +969,8 @@ LOCAL_STATIC_LIBRARIES := \
     libpayload_generator \
     libbrillo-test-helpers \
     libgmock \
-    libgtest \
     libchrome_test_helpers \
+    $(ue_common_static_libraries) \
     $(ue_libpayload_generator_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES := \
     $(ue_common_shared_libraries) \
