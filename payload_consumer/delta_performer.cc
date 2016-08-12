@@ -844,6 +844,7 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
           (partition.has_postinstall_path() ? partition.postinstall_path()
                                             : kPostinstallDefaultScript);
       install_part.filesystem_type = partition.filesystem_type();
+      install_part.postinstall_optional = partition.postinstall_optional();
     }
 
     if (partition.has_old_partition_info()) {

@@ -138,6 +138,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
           partition->set_postinstall_path(part.postinstall.path);
         if (!part.postinstall.filesystem_type.empty())
           partition->set_filesystem_type(part.postinstall.filesystem_type);
+        partition->set_postinstall_optional(part.postinstall.optional);
       }
       for (const AnnotatedOperation& aop : part.aops) {
         *partition->add_operations() = aop.op;
