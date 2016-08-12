@@ -244,6 +244,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
     service_observers_.erase(observer);
   }
 
+  const std::set<ServiceObserverInterface*>& service_observers() {
+    return service_observers_;
+  }
+
   // Remove all the observers.
   void ClearObservers() { service_observers_.clear(); }
 

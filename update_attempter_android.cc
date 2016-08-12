@@ -32,7 +32,7 @@
 #include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/daemon_state_android.h"
+#include "update_engine/daemon_state_interface.h"
 #include "update_engine/network_selector.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
@@ -72,7 +72,7 @@ bool LogAndSetError(brillo::ErrorPtr* error,
 }  // namespace
 
 UpdateAttempterAndroid::UpdateAttempterAndroid(
-    DaemonStateAndroid* daemon_state,
+    DaemonStateInterface* daemon_state,
     PrefsInterface* prefs,
     BootControlInterface* boot_control,
     HardwareInterface* hardware)
@@ -300,7 +300,7 @@ void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
     default:
       // Ignore all other error codes.
       break;
- }
+  }
 
   TerminateUpdateAndNotify(code);
 }
