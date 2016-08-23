@@ -686,13 +686,23 @@ bool MountFilesystem(const string& device,
 }
 
 bool UnmountFilesystem(const string& mountpoint) {
-  for (int num_retries = 0; ; ++num_retries) {
+  int num_retries = 1;
+  for (;; ++num_retries) {
     if (umount(mountpoint.c_str()) == 0)
+      return true;
+    if (errno != EBUSY || num_retries >= kUnmountMaxNumOfRetries)
       break;
-
-    TEST_AND_RETURN_FALSE_ERRNO(errno == EBUSY &&
-                                num_retries < kUnmountMaxNumOfRetries);
     usleep(kUnmountRetryIntervalInMicroseconds);
+  }
+  if (errno == EINVAL) {
+    LOG(INFO) << "Not a mountpoint: " << mountpoint;
+    return false;
+  }
+  PLOG(WARNING) << "Error unmounting " << mountpoint << " after " << num_retries
+                << " attempts. Lazy unmounting instead, error was";
+  if (umount2(mountpoint.c_str(), MNT_DETACH) != 0) {
+    PLOG(ERROR) << "Lazy unmount failed";
+    return false;
   }
   return true;
 }
