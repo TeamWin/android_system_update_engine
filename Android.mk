@@ -28,7 +28,14 @@ local_use_hwid_override := \
 local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
 local_use_omaha := $(if $(BRILLO_USE_OMAHA),$(BRILLO_USE_OMAHA),0)
+local_use_shill := $(if $(BRILLO_USE_SHILL),$(BRILLO_USE_SHILL),0)
 local_use_weave := $(if $(BRILLO_USE_WEAVE),$(BRILLO_USE_WEAVE),0)
+
+ifeq ($(local_use_shill),1)
+ifneq ($(local_use_dbus),1)
+$(error USE_SHILL depends on USE_DBUS.)
+endif  # local_use_dbus != 1
+endif  # local_use_shill == 1
 
 ue_common_cflags := \
     -DUSE_BINDER=$(local_use_binder) \
@@ -37,6 +44,7 @@ ue_common_cflags := \
     -DUSE_LIBCROS=$(local_use_libcros) \
     -DUSE_MTD=$(local_use_mtd) \
     -DUSE_OMAHA=$(local_use_omaha) \
+    -DUSE_SHILL=$(local_use_shill) \
     -DUSE_WEAVE=$(local_use_weave) \
     -D_FILE_OFFSET_BITS=64 \
     -D_POSIX_C_SOURCE=199309L \
@@ -262,9 +270,12 @@ ue_libupdate_engine_exported_static_libraries += \
 ue_libupdate_engine_exported_shared_libraries += \
     libdbus \
     libbrillo-dbus \
-    libchrome-dbus \
-    libshill-client
+    libchrome-dbus
 endif  # local_use_dbus == 1
+ifeq ($(local_use_shill),1)
+ue_libupdate_engine_exported_shared_libraries += \
+    libshill-client
+endif  # local_use_shill == 1
 ifeq ($(local_use_binder),1)
 ue_libupdate_engine_exported_shared_libraries += \
     libbinder \
@@ -343,16 +354,19 @@ LOCAL_SRC_FILES := \
     weave_service_factory.cc
 ifeq ($(local_use_dbus),1)
 LOCAL_SRC_FILES += \
-    connection_manager.cc \
     dbus_connection.cc \
     dbus_service.cc \
-    libcros_proxy.cc \
+    libcros_proxy.cc
+endif  # local_use_dbus == 1
+ifeq ($(local_use_shill),1)
+LOCAL_SRC_FILES += \
+    connection_manager.cc \
     shill_proxy.cc \
     update_manager/real_shill_provider.cc
-else   # local_use_dbus == 1
+else   # local_use_shill != 1
 LOCAL_SRC_FILES += \
     connection_manager_android.cc
-endif  # local_use_dbus == 1
+endif  # local_use_shill == 1
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \
@@ -1059,12 +1073,12 @@ LOCAL_STATIC_LIBRARIES += \
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
 endif  # local_use_omaha == 1
-ifeq ($(local_use_dbus),1)
+ifeq ($(local_use_shill),1)
 LOCAL_SRC_FILES += \
     connection_manager_unittest.cc \
     fake_shill_proxy.cc \
     update_manager/real_shill_provider_unittest.cc
-endif  # local_use_dbus == 1
+endif  # local_use_shill == 1
 ifeq ($(local_use_libcros),1)
 LOCAL_SRC_FILES += \
     chrome_browser_proxy_resolver_unittest.cc
