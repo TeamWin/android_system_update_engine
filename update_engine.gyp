@@ -56,6 +56,7 @@
       'USE_LIBCROS=<(USE_libcros)',
       'USE_MTD=<(USE_mtd)',
       'USE_OMAHA=1',
+      'USE_SHILL=1',
       'USE_WEAVE=<(USE_buffet)',
     ],
     'include_dirs': [
