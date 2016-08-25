@@ -240,7 +240,8 @@ void PostinstallRunnerAction::OnProgressFdReady() {
 
 bool PostinstallRunnerAction::ProcessProgressLine(const string& line) {
   double frac = 0;
-  if (sscanf(line.c_str(), "global_progress %lf", &frac) == 1) {
+  if (sscanf(line.c_str(), "global_progress %lf", &frac) == 1 &&
+      !std::isnan(frac)) {
     ReportProgress(frac);
     return true;
   }
