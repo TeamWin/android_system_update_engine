@@ -443,11 +443,11 @@ TEST(UtilsTest, TestMacros) {
   EXPECT_TRUE(BoolMacroTestHelper());
 }
 
-TEST(UtilsTest, UnmountFilesystemFailureTest) {
+TEST(UtilsTest, RunAsRootUnmountFilesystemFailureTest) {
   EXPECT_FALSE(utils::UnmountFilesystem("/path/to/non-existing-dir"));
 }
 
-TEST(UtilsTest, UnmountFilesystemBusyFailureTest) {
+TEST(UtilsTest, RunAsRootUnmountFilesystemBusyFailureTest) {
   string tmp_image;
   EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &tmp_image, nullptr));
   ScopedPathUnlinker tmp_image_unlinker(tmp_image);

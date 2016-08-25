@@ -133,9 +133,7 @@
       'variables': {
         'exported_deps': [
           'libcrypto',
-          'libcurl',
           'libimgpatch',
-          'libssl',
           'xz-embedded',
         ],
         'deps': ['<@(exported_deps)'],
@@ -161,7 +159,6 @@
       'sources': [
         'common/action_processor.cc',
         'common/boot_control_stub.cc',
-        'common/certificate_checker.cc',
         'common/clock.cc',
         'common/constants.cc',
         'common/cpu_limiter.cc',
@@ -170,7 +167,6 @@
         'common/http_common.cc',
         'common/http_fetcher.cc',
         'common/hwid_override.cc',
-        'common/libcurl_http_fetcher.cc',
         'common/multi_range_http_fetcher.cc',
         'common/platform_constants_chromeos.cc',
         'common/prefs.cc',
@@ -217,13 +213,15 @@
       'variables': {
         'exported_deps': [
           'dbus-1',
+          'expat',
+          'libcurl',
           'libdebugd-client',
-          'libsession_manager-client',
           'libmetrics-<(libbase_ver)',
           'libpower_manager-client',
-          'libupdate_engine-client',
+          'libsession_manager-client',
           'libshill-client',
-          'expat',
+          'libssl',
+          'libupdate_engine-client',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -250,6 +248,7 @@
       },
       'sources': [
         'boot_control_chromeos.cc',
+        'certificate_checker.cc',
         'common_service.cc',
         'connection_manager.cc',
         'connection_utils.cc',
@@ -259,6 +258,7 @@
         'hardware_chromeos.cc',
         'image_properties_chromeos.cc',
         'libcros_proxy.cc',
+        'libcurl_http_fetcher.cc',
         'metrics.cc',
         'metrics_utils.cc',
         'omaha_request_action.cc',
@@ -493,10 +493,10 @@
           'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'sources': [
             'boot_control_chromeos_unittest.cc',
+            'certificate_checker_unittest.cc',
             'common/action_pipe_unittest.cc',
             'common/action_processor_unittest.cc',
             'common/action_unittest.cc',
-            'common/certificate_checker_unittest.cc',
             'common/cpu_limiter_unittest.cc',
             'common/fake_prefs.cc',
             'common/file_fetcher.cc',  # Only required for tests.
