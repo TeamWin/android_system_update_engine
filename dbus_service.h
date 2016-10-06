@@ -19,6 +19,7 @@
 
 #include <inttypes.h>
 
+#include <memory>
 #include <string>
 
 #include <base/memory/ref_counted.h>
@@ -90,6 +91,12 @@ class DBusUpdateEngineService
   bool GetChannel(brillo::ErrorPtr* error,
                   bool in_get_current_channel,
                   std::string* out_channel) override;
+
+  bool SetCohortHint(brillo::ErrorPtr* error,
+                     const std::string& in_cohort_hint) override;
+
+  bool GetCohortHint(brillo::ErrorPtr* error,
+                     std::string* out_cohort_hint) override;
 
   // Enables or disables the sharing and consuming updates over P2P feature
   // according to the |enabled| argument passed.

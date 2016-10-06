@@ -67,6 +67,10 @@ class UpdateEngineClient {
                          std::string* out_new_version,
                          int64_t* out_new_size) const = 0;
 
+  // Getter and setter for the cohort hint.
+  virtual bool SetCohortHint(const std::string& cohort_hint) = 0;
+  virtual bool GetCohortHint(std::string* cohort_hint) const = 0;
+
   // Getter and setter for the updates over cellular connections.
   virtual bool SetUpdateOverCellularPermission(bool allowed) = 0;
   virtual bool GetUpdateOverCellularPermission(bool* allowed) const = 0;

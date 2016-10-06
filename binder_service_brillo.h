@@ -19,6 +19,7 @@
 
 #include <utils/Errors.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -68,6 +69,10 @@ class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
                                      bool powerwash) override;
   android::binder::Status GetChannel(bool get_current_channel,
                                      android::String16* out_channel) override;
+  android::binder::Status SetCohortHint(
+      const android::String16& cohort_hint) override;
+  android::binder::Status GetCohortHint(
+      android::String16* out_cohort_hint) override;
   android::binder::Status SetP2PUpdatePermission(bool enabled) override;
   android::binder::Status GetP2PUpdatePermission(
       bool* out_p2p_permission) override;
