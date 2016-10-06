@@ -187,6 +187,37 @@ bool UpdateEngineService::GetChannel(ErrorPtr* /* error */,
   return true;
 }
 
+bool UpdateEngineService::SetCohortHint(ErrorPtr* error,
+                                        string in_cohort_hint) {
+  PrefsInterface* prefs = system_state_->prefs();
+
+  // It is ok to override the cohort hint with an invalid value since it is
+  // stored in stateful partition. The code reading it should sanitize it
+  // anyway.
+  if (!prefs->SetString(kPrefsOmahaCohortHint, in_cohort_hint)) {
+    LogAndSetError(
+        error,
+        FROM_HERE,
+        StringPrintf("Error setting the cohort hint value to \"%s\".",
+                     in_cohort_hint.c_str()));
+    return false;
+  }
+  return true;
+}
+
+bool UpdateEngineService::GetCohortHint(ErrorPtr* error,
+                                        string* out_cohort_hint) {
+  PrefsInterface* prefs = system_state_->prefs();
+
+  *out_cohort_hint = "";
+  if (prefs->Exists(kPrefsOmahaCohortHint) &&
+      !prefs->GetString(kPrefsOmahaCohortHint, out_cohort_hint)) {
+    LogAndSetError(error, FROM_HERE, "Error getting the cohort hint.");
+    return false;
+  }
+  return true;
+}
+
 bool UpdateEngineService::SetP2PUpdatePermission(ErrorPtr* error,
                                                  bool in_enabled) {
   PrefsInterface* prefs = system_state_->prefs();
