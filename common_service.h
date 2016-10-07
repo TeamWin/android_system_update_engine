@@ -92,6 +92,15 @@ class UpdateEngineService {
                   bool in_get_current_channel,
                   std::string* out_channel);
 
+  // Sets the current "cohort hint" value to |in_cohort_hint|. The cohort hint
+  // is sent back to Omaha on every request and can be used as a hint of what
+  // cohort should we be put on.
+  bool SetCohortHint(brillo::ErrorPtr* error, std::string in_cohort_hint);
+
+  // Return the current cohort hint. This value can be set with SetCohortHint()
+  // and can also be updated from Omaha on every update check request.
+  bool GetCohortHint(brillo::ErrorPtr* error, std::string* out_cohort_hint);
+
   // Enables or disables the sharing and consuming updates over P2P feature
   // according to the |enabled| argument passed.
   bool SetP2PUpdatePermission(brillo::ErrorPtr* error, bool in_enabled);

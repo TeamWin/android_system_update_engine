@@ -73,6 +73,20 @@ bool BinderUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
   return true;
 }
 
+bool BinderUpdateEngineClient::SetCohortHint(const string& in_cohort_hint) {
+  return service_->SetCohortHint(String16{in_cohort_hint.c_str()}).isOk();
+}
+
+bool BinderUpdateEngineClient::GetCohortHint(string* out_cohort_hint) const {
+  String16 out_as_string16;
+
+  if (!service_->GetCohortHint(&out_as_string16).isOk())
+    return false;
+
+  *out_cohort_hint = String8{out_as_string16}.string();
+  return true;
+}
+
 bool BinderUpdateEngineClient::SetUpdateOverCellularPermission(bool allowed) {
   return service_->SetUpdateOverCellularPermission(allowed).isOk();
 }

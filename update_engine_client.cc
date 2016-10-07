@@ -233,6 +233,8 @@ int UpdateEngineClient::ProcessFlags() {
                 "target channel is more stable than the current channel unless "
                 "--nopowerwash is specified.");
   DEFINE_bool(check_for_update, false, "Initiate check for updates.");
+  DEFINE_string(
+      cohort_hint, "", "Set the current cohort hint to the passed value.");
   DEFINE_bool(follow, false,
               "Wait for any update operations to complete."
               "Exit status is 0 if the update succeeded, and 1 otherwise.");
@@ -259,6 +261,7 @@ int UpdateEngineClient::ProcessFlags() {
               "Shows whether rollback partition "
               "is available.");
   DEFINE_bool(show_channel, false, "Show the current and target channels.");
+  DEFINE_bool(show_cohort_hint, false, "Show the current cohort hint.");
   DEFINE_bool(show_p2p_update, false,
               "Show the current setting for peer-to-peer update sharing.");
   DEFINE_bool(show_update_over_cellular, false,
@@ -331,6 +334,27 @@ int UpdateEngineClient::ProcessFlags() {
 
     LOG(INFO) << "Current update over cellular network setting: "
               << (allowed ? "ENABLED" : "DISABLED");
+  }
+
+  // Change/show the cohort hint.
+  bool set_cohort_hint =
+      base::CommandLine::ForCurrentProcess()->HasSwitch("cohort_hint");
+  if (set_cohort_hint) {
+    LOG(INFO) << "Setting cohort hint to: \"" << FLAGS_cohort_hint << "\"";
+    if (!client_->SetCohortHint(FLAGS_cohort_hint)) {
+      LOG(ERROR) << "Error setting the cohort hint.";
+      return 1;
+    }
+  }
+
+  if (FLAGS_show_cohort_hint || set_cohort_hint) {
+    string cohort_hint;
+    if (!client_->GetCohortHint(&cohort_hint)) {
+      LOG(ERROR) << "Error getting the cohort hint.";
+      return 1;
+    }
+
+    LOG(INFO) << "Current cohort hint: \"" << cohort_hint << "\"";
   }
 
   if (!FLAGS_powerwash && !FLAGS_rollback && FLAGS_channel.empty()) {

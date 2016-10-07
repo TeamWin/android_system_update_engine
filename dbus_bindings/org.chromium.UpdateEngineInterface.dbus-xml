@@ -44,6 +44,12 @@
       <arg type="b" name="get_current_channel" direction="in" />
       <arg type="s" name="channel" direction="out" />
     </method>
+    <method name="SetCohortHint">
+      <arg type="s" name="cohort_hint" direction="in" />
+    </method>
+    <method name="GetCohortHint">
+      <arg type="s" name="cohort_hint" direction="out" />
+    </method>
     <method name="SetP2PUpdatePermission">
       <annotation name="org.freedesktop.DBus.GLib.CSymbol"
         value="update_engine_service_set_p2p_update_permission" />
