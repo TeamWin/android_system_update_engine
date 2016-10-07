@@ -72,6 +72,14 @@ bool DBusUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,
   return StringToUpdateStatus(status_as_string, out_update_status);
 }
 
+bool DBusUpdateEngineClient::SetCohortHint(const string& cohort_hint) {
+  return proxy_->SetCohortHint(cohort_hint, nullptr);
+}
+
+bool DBusUpdateEngineClient::GetCohortHint(string* cohort_hint) const {
+  return proxy_->GetCohortHint(cohort_hint, nullptr);
+}
+
 bool DBusUpdateEngineClient::SetUpdateOverCellularPermission(bool allowed) {
   return proxy_->SetUpdateOverCellularPermission(allowed, nullptr);
 }

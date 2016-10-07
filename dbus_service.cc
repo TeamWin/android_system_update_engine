@@ -98,6 +98,16 @@ bool DBusUpdateEngineService::GetChannel(ErrorPtr* error,
   return common_->GetChannel(error, in_get_current_channel, out_channel);
 }
 
+bool DBusUpdateEngineService::GetCohortHint(ErrorPtr* error,
+                                            string* out_cohort_hint) {
+  return common_->GetCohortHint(error, out_cohort_hint);
+}
+
+bool DBusUpdateEngineService::SetCohortHint(ErrorPtr* error,
+                                            const string& in_cohort_hint) {
+  return common_->SetCohortHint(error, in_cohort_hint);
+}
+
 bool DBusUpdateEngineService::SetP2PUpdatePermission(ErrorPtr* error,
                                                      bool in_enabled) {
   return common_->SetP2PUpdatePermission(error, in_enabled);
