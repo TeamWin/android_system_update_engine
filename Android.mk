@@ -60,8 +60,7 @@ ue_common_cflags := \
     -fvisibility=hidden
 ue_common_cppflags := \
     -Wnon-virtual-dtor \
-    -fno-strict-aliasing \
-    -std=gnu++11
+    -fno-strict-aliasing
 ue_common_ldflags := \
     -Wl,--gc-sections
 ue_common_c_includes := \
