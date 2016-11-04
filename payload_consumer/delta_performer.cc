@@ -47,6 +47,7 @@
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/extent_writer.h"
+#include "update_engine/payload_consumer/file_descriptor_utils.h"
 #if USE_MTD
 #include "update_engine/payload_consumer/mtd_file_descriptor.h"
 #endif
@@ -1053,25 +1054,6 @@ bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation) {
 
 namespace {
 
-// Takes |extents| and fills an empty vector |blocks| with a block index for
-// each block in |extents|. For example, [(3, 2), (8, 1)] would give [3, 4, 8].
-void ExtentsToBlocks(const RepeatedPtrField<Extent>& extents,
-                     vector<uint64_t>* blocks) {
-  for (const Extent& ext : extents) {
-    for (uint64_t j = 0; j < ext.num_blocks(); j++)
-      blocks->push_back(ext.start_block() + j);
-  }
-}
-
-// Takes |extents| and returns the number of blocks in those extents.
-uint64_t GetBlockCount(const RepeatedPtrField<Extent>& extents) {
-  uint64_t sum = 0;
-  for (const Extent& ext : extents) {
-    sum += ext.num_blocks();
-  }
-  return sum;
-}
-
 // Compare |calculated_hash| with source hash in |operation|, return false and
 // dump hash and set |error| if don't match.
 bool ValidateSourceHash(const brillo::Blob& calculated_hash,
@@ -1117,57 +1099,18 @@ bool DeltaPerformer::PerformSourceCopyOperation(
   if (operation.has_dst_length())
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
 
-  uint64_t blocks_to_read = GetBlockCount(operation.src_extents());
-  uint64_t blocks_to_write = GetBlockCount(operation.dst_extents());
-  TEST_AND_RETURN_FALSE(blocks_to_write ==  blocks_to_read);
-
-  // Create vectors of all the individual src/dst blocks.
-  vector<uint64_t> src_blocks;
-  vector<uint64_t> dst_blocks;
-  ExtentsToBlocks(operation.src_extents(), &src_blocks);
-  ExtentsToBlocks(operation.dst_extents(), &dst_blocks);
-  DCHECK_EQ(src_blocks.size(), blocks_to_read);
-  DCHECK_EQ(src_blocks.size(), dst_blocks.size());
-
-  brillo::Blob buf(block_size_);
-  ssize_t bytes_read = 0;
-  HashCalculator source_hasher;
-  // Read/write one block at a time.
-  for (uint64_t i = 0; i < blocks_to_read; i++) {
-    ssize_t bytes_read_this_iteration = 0;
-    uint64_t src_block = src_blocks[i];
-    uint64_t dst_block = dst_blocks[i];
-
-    // Read in bytes.
-    TEST_AND_RETURN_FALSE(
-        utils::PReadAll(source_fd_,
-                        buf.data(),
-                        block_size_,
-                        src_block * block_size_,
-                        &bytes_read_this_iteration));
-
-    // Write bytes out.
-    TEST_AND_RETURN_FALSE(
-        utils::PWriteAll(target_fd_,
-                         buf.data(),
-                         block_size_,
-                         dst_block * block_size_));
-
-    bytes_read += bytes_read_this_iteration;
-    TEST_AND_RETURN_FALSE(bytes_read_this_iteration ==
-                          static_cast<ssize_t>(block_size_));
-
-    if (operation.has_src_sha256_hash())
-      TEST_AND_RETURN_FALSE(source_hasher.Update(buf.data(), buf.size()));
-  }
+  brillo::Blob source_hash;
+  TEST_AND_RETURN_FALSE(fd_utils::CopyAndHashExtents(source_fd_,
+                                                     operation.src_extents(),
+                                                     target_fd_,
+                                                     operation.dst_extents(),
+                                                     block_size_,
+                                                     &source_hash));
 
   if (operation.has_src_sha256_hash()) {
-    TEST_AND_RETURN_FALSE(source_hasher.Finalize());
-    TEST_AND_RETURN_FALSE(
-        ValidateSourceHash(source_hasher.raw_hash(), operation, error));
+    TEST_AND_RETURN_FALSE(ValidateSourceHash(source_hash, operation, error));
   }
 
-  DCHECK_EQ(bytes_read, static_cast<ssize_t>(blocks_to_read * block_size_));
   return true;
 }
 
