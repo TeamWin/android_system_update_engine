@@ -14,23 +14,26 @@
 // limitations under the License.
 //
 
-#ifndef UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_
-#define UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_
+#ifndef UPDATE_ENGINE_BOOT_CONTROL_RECOVERY_H_
+#define UPDATE_ENGINE_BOOT_CONTROL_RECOVERY_H_
 
 #include <string>
 
-#include <android/hardware/boot/1.0/IBootControl.h>
+#include <hardware/boot_control.h>
+#include <hardware/hardware.h>
 
 #include "update_engine/common/boot_control.h"
 
 namespace chromeos_update_engine {
 
-// The Android implementation of the BootControlInterface. This implementation
-// uses the libhardware's boot_control HAL to access the bootloader.
-class BootControlAndroid : public BootControlInterface {
+// The Android recovery implementation of the BootControlInterface. This
+// implementation uses the legacy libhardware's boot_control HAL to access the
+// bootloader by linking against it statically. This should only be used in
+// recovery.
+class BootControlRecovery : public BootControlInterface {
  public:
-  BootControlAndroid() = default;
-  ~BootControlAndroid() = default;
+  BootControlRecovery() = default;
+  ~BootControlRecovery() = default;
 
   // Load boot_control HAL implementation using libhardware and
   // initializes it. Returns false if an error occurred.
@@ -48,11 +51,13 @@ class BootControlAndroid : public BootControlInterface {
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
 
  private:
-  ::android::sp<::android::hardware::boot::V1_0::IBootControl> module_;
+  // NOTE: There is no way to release/unload HAL implementations so
+  // this is essentially leaked on object destruction.
+  boot_control_module_t* module_;
 
-  DISALLOW_COPY_AND_ASSIGN(BootControlAndroid);
+  DISALLOW_COPY_AND_ASSIGN(BootControlRecovery);
 };
 
 }  // namespace chromeos_update_engine
 
-#endif  // UPDATE_ENGINE_BOOT_CONTROL_ANDROID_H_
+#endif  // UPDATE_ENGINE_BOOT_CONTROL_RECOVERY_H_
