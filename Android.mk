@@ -244,7 +244,7 @@ ue_libupdate_engine_boot_control_exported_static_libraries := \
 
 ue_libupdate_engine_boot_control_exported_shared_libraries := \
     libhwbinder \
-    libhidl \
+    libhidlbase \
     libutils \
     android.hardware.boot@1.0 \
     $(ue_update_metadata_protos_exported_shared_libraries)
