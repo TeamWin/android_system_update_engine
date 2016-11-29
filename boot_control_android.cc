@@ -28,13 +28,17 @@
 
 using std::string;
 
-#ifdef _UE_SIDELOAD
-// When called from update_engine_sideload, we don't attempt to dynamically load
-// the right boot_control HAL, instead we use the only HAL statically linked in
-// via the PRODUCT_STATIC_BOOT_CONTROL_HAL make variable and access the module
-// struct directly.
-extern const hw_module_t HAL_MODULE_INFO_SYM;
-#endif  // _UE_SIDELOAD
+using android::hardware::Return;
+using android::hardware::boot::V1_0::BoolResult;
+using android::hardware::boot::V1_0::CommandResult;
+using android::hardware::boot::V1_0::IBootControl;
+using android::hardware::hidl_string;
+
+namespace {
+auto StoreResultCallback(CommandResult* dest) {
+  return [dest](const CommandResult& result) { *dest = result; };
+}
+}  // namespace
 
 namespace chromeos_update_engine {
 
@@ -52,43 +56,25 @@ std::unique_ptr<BootControlInterface> CreateBootControl() {
 }  // namespace boot_control
 
 bool BootControlAndroid::Init() {
-  const hw_module_t* hw_module;
-  int ret;
-
-#ifdef _UE_SIDELOAD
-  // For update_engine_sideload, we simulate the hw_get_module() by accessing it
-  // from the current process directly.
-  hw_module = &HAL_MODULE_INFO_SYM;
-  ret = 0;
-  if (!hw_module ||
-      strcmp(BOOT_CONTROL_HARDWARE_MODULE_ID, hw_module->id) != 0) {
-    ret = -EINVAL;
-  }
-#else  // !_UE_SIDELOAD
-  ret = hw_get_module(BOOT_CONTROL_HARDWARE_MODULE_ID, &hw_module);
-#endif  // _UE_SIDELOAD
-  if (ret != 0) {
-    LOG(ERROR) << "Error loading boot_control HAL implementation.";
+  module_ = IBootControl::getService("bootctrl");
+  if (module_ == nullptr) {
+    LOG(ERROR) << "Error getting bootctrl HIDL module.\n";
     return false;
   }
 
-  module_ = reinterpret_cast<boot_control_module_t*>(const_cast<hw_module_t*>(hw_module));
-  module_->init(module_);
+  LOG(INFO) << "Loaded boot HIDL HAL version "
+            << module_->getInterfaceVersion().get_major() << "."
+            << module_->getInterfaceVersion().get_minor();
 
-  LOG(INFO) << "Loaded boot_control HAL "
-            << "'" << hw_module->name << "' "
-            << "version " << (hw_module->module_api_version>>8) << "."
-            << (hw_module->module_api_version&0xff) << " "
-            << "authored by '" << hw_module->author << "'.";
   return true;
 }
 
 unsigned int BootControlAndroid::GetNumSlots() const {
-  return module_->getNumberSlots(module_);
+  return module_->getNumberSlots();
 }
 
 BootControlInterface::Slot BootControlAndroid::GetCurrentSlot() const {
-  return module_->getCurrentSlot(module_);
+  return module_->getCurrentSlot();
 }
 
 bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
@@ -123,8 +109,13 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
     return false;
   }
 
-  const char* suffix = module_->getSuffix(module_, slot);
-  if (suffix == nullptr) {
+  string suffix;
+  auto store_suffix_cb = [&suffix](hidl_string cb_suffix) {
+    suffix = cb_suffix.c_str();
+  };
+  Return<void> ret = module_->getSuffix(slot, store_suffix_cb);
+
+  if (!ret.getStatus().isOk()) {
     LOG(ERROR) << "boot_control impl returned no suffix for slot "
                << SlotName(slot);
     return false;
@@ -141,42 +132,65 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
 }
 
 bool BootControlAndroid::IsSlotBootable(Slot slot) const {
-  int ret = module_->isSlotBootable(module_, slot);
-  if (ret < 0) {
+  Return<BoolResult> ret = module_->isSlotBootable(slot);
+  if (!ret.getStatus().isOk()) {
     LOG(ERROR) << "Unable to determine if slot " << SlotName(slot)
-               << " is bootable: " << strerror(-ret);
+               << " is bootable: "
+               << ret.getStatus().exceptionMessage().string();
     return false;
   }
-  return ret == 1;
+  if (ret == BoolResult::INVALID_SLOT) {
+    LOG(ERROR) << "Invalid slot: " << SlotName(slot);
+    return false;
+  }
+  return ret == BoolResult::TRUE;
 }
 
 bool BootControlAndroid::MarkSlotUnbootable(Slot slot) {
-  int ret = module_->setSlotAsUnbootable(module_, slot);
-  if (ret < 0) {
-    LOG(ERROR) << "Unable to mark slot " << SlotName(slot)
-               << " as bootable: " << strerror(-ret);
+  CommandResult result;
+  auto ret = module_->setSlotAsUnbootable(slot, StoreResultCallback(&result));
+  if (!ret.getStatus().isOk()) {
+    LOG(ERROR) << "Unable to call MarkSlotUnbootable for slot "
+               << SlotName(slot) << ": "
+               << ret.getStatus().exceptionMessage().string();
     return false;
   }
-  return ret == 0;
+  if (!result.success) {
+    LOG(ERROR) << "Unable to mark slot " << SlotName(slot)
+               << " as unbootable: " << result.errMsg.c_str();
+  }
+  return result.success;
 }
 
 bool BootControlAndroid::SetActiveBootSlot(Slot slot) {
-  int ret = module_->setActiveBootSlot(module_, slot);
-  if (ret < 0) {
-    LOG(ERROR) << "Unable to set the active slot to slot " << SlotName(slot)
-               << ": " << strerror(-ret);
+  CommandResult result;
+  auto ret = module_->setActiveBootSlot(slot, StoreResultCallback(&result));
+  if (!ret.getStatus().isOk()) {
+    LOG(ERROR) << "Unable to call SetActiveBootSlot for slot " << SlotName(slot)
+               << ": " << ret.getStatus().exceptionMessage().string();
+    return false;
   }
-  return ret == 0;
+  if (!result.success) {
+    LOG(ERROR) << "Unable to set the active slot to slot " << SlotName(slot)
+               << ": " << result.errMsg.c_str();
+  }
+  return result.success;
 }
 
 bool BootControlAndroid::MarkBootSuccessfulAsync(
     base::Callback<void(bool)> callback) {
-  int ret = module_->markBootSuccessful(module_);
-  if (ret < 0) {
-    LOG(ERROR) << "Unable to mark boot successful: " << strerror(-ret);
+  CommandResult result;
+  auto ret = module_->markBootSuccessful(StoreResultCallback(&result));
+  if (!ret.getStatus().isOk()) {
+    LOG(ERROR) << "Unable to call MarkBootSuccessful: "
+               << ret.getStatus().exceptionMessage().string();
+    return false;
+  }
+  if (!result.success) {
+    LOG(ERROR) << "Unable to mark boot successful: " << result.errMsg.c_str();
   }
   return brillo::MessageLoop::current()->PostTask(
-             FROM_HERE, base::Bind(callback, ret == 0)) !=
+             FROM_HERE, base::Bind(callback, result.success)) !=
          brillo::MessageLoop::kTaskIdNull;
 }
 
