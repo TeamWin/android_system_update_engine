@@ -257,6 +257,12 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
       if (!boot_control_->SetActiveBootSlot(boot_control_->GetCurrentSlot()))
         ret_value = false;
 
+      // Mark the current slot as successful again, since marking it as active
+      // may reset the successful bit. We ignore the result of whether marking
+      // the current slot as successful worked.
+      if (!boot_control_->MarkBootSuccessfulAsync(Bind([](bool successful){})))
+        ret_value = false;
+
       if (!ret_value) {
         return LogAndSetError(
             error,
