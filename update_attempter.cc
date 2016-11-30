@@ -811,12 +811,6 @@ void UpdateAttempter::CheckForUpdate(const string& app_version,
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
-  if (status_ != UpdateStatus::UPDATED_NEED_REBOOT) {
-    LOG(INFO) << "Reboot requested, but status is "
-              << UpdateStatusToString(status_) << ", so not rebooting.";
-    return false;
-  }
-
   if (USE_POWER_MANAGEMENT && RequestPowerManagerReboot())
     return true;
 
