@@ -115,19 +115,9 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
   size_t src_idx = 0;
   size_t dst_idx = 0;
   uint64_t src_offset = 0, dst_offset = 0;
-  bool new_src = true, new_dst = true;
   size_t removed_bytes = 0, nonfull_block_bytes;
   bool do_remove = false;
   while (src_idx < src_extents->size() && dst_idx < dst_extents->size()) {
-    if (new_src) {
-      src_offset = 0;
-      new_src = false;
-    }
-    if (new_dst) {
-      dst_offset = 0;
-      new_dst = false;
-    }
-
     do_remove = ((*src_extents)[src_idx].start_block() + src_offset ==
                  (*dst_extents)[dst_idx].start_block() + dst_offset);
 
@@ -140,10 +130,17 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
     src_offset += min_num_blocks;
     dst_offset += min_num_blocks;
 
-    new_src = ProcessExtentBlockRange(src_extents, &src_idx, do_remove,
-                                      prev_src_offset, src_offset);
-    new_dst = ProcessExtentBlockRange(dst_extents, &dst_idx, do_remove,
-                                      prev_dst_offset, dst_offset);
+    bool new_src = ProcessExtentBlockRange(src_extents, &src_idx, do_remove,
+                                           prev_src_offset, src_offset);
+    bool new_dst = ProcessExtentBlockRange(dst_extents, &dst_idx, do_remove,
+                                           prev_dst_offset, dst_offset);
+    if (new_src) {
+      src_offset = 0;
+    }
+    if (new_dst) {
+      dst_offset = 0;
+    }
+
     if (do_remove)
       removed_bytes += min_num_blocks * kBlockSize;
   }
