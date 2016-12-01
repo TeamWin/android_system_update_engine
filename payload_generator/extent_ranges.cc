@@ -24,6 +24,7 @@
 #include <base/logging.h>
 
 #include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_generator/extent_utils.h"
 
 using std::set;
 using std::vector;
@@ -249,6 +250,7 @@ vector<Extent> ExtentRanges::GetExtentsForBlockCount(
     out.back().set_num_blocks(blocks_needed);
     break;
   }
+  CHECK(out_blocks == BlocksInExtents(out));
   return out;
 }
 
