@@ -1143,7 +1143,7 @@ bool UpdateAttempter::ResetStatus() {
       // Mark the current slot as successful again, since marking it as active
       // may reset the successful bit. We ignore the result of whether marking
       // the current slot as successful worked.
-      if (!boot_control_->MarkBootSuccessfulAsync(Bind([](bool successful){})))
+      if (!boot_control->MarkBootSuccessfulAsync(Bind([](bool successful){})))
         ret_value = false;
 
       // Notify the PayloadState that the successful payload was canceled.
