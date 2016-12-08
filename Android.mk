@@ -733,6 +733,7 @@ ue_libpayload_generator_src_files := \
     payload_generator/graph_types.cc \
     payload_generator/graph_utils.cc \
     payload_generator/inplace_generator.cc \
+    payload_generator/mapfile_filesystem.cc \
     payload_generator/payload_file.cc \
     payload_generator/payload_generation_config.cc \
     payload_generator/payload_signer.cc \
@@ -1063,6 +1064,7 @@ LOCAL_SRC_FILES := \
     payload_generator/full_update_generator_unittest.cc \
     payload_generator/graph_utils_unittest.cc \
     payload_generator/inplace_generator_unittest.cc \
+    payload_generator/mapfile_filesystem_unittest.cc \
     payload_generator/payload_file_unittest.cc \
     payload_generator/payload_generation_config_unittest.cc \
     payload_generator/payload_signer_unittest.cc \
