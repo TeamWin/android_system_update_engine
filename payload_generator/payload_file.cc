@@ -194,7 +194,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
   ScopedFileWriterCloser writer_closer(&writer);
 
   // Write header
-  TEST_AND_RETURN_FALSE(writer.Write(kDeltaMagic, sizeof(kDeltaMagic)));
+  TEST_AND_RETURN_FALSE_ERRNO(writer.Write(kDeltaMagic, sizeof(kDeltaMagic)));
 
   // Write major version number
   TEST_AND_RETURN_FALSE(WriteUint64AsBigEndian(&writer, major_version_));
@@ -209,8 +209,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
     // Metadata signature has the same size as payload signature, because they
     // are both the same kind of signature for the same kind of hash.
     uint32_t metadata_signature_size = htobe32(signature_blob_length);
-    TEST_AND_RETURN_FALSE(writer.Write(&metadata_signature_size,
-                                       sizeof(metadata_signature_size)));
+    TEST_AND_RETURN_FALSE_ERRNO(writer.Write(&metadata_signature_size,
+                                             sizeof(metadata_signature_size)));
     metadata_size += sizeof(metadata_signature_size);
     // Set correct size instead of big endian size.
     metadata_signature_size = signature_blob_length;
@@ -219,8 +219,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
   // Write protobuf
   LOG(INFO) << "Writing final delta file protobuf... "
             << serialized_manifest.size();
-  TEST_AND_RETURN_FALSE(writer.Write(serialized_manifest.data(),
-                                     serialized_manifest.size()));
+  TEST_AND_RETURN_FALSE_ERRNO(
+      writer.Write(serialized_manifest.data(), serialized_manifest.size()));
 
   // Write metadata signature blob.
   if (major_version_ == kBrilloMajorPayloadVersion &&
@@ -233,8 +233,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
         PayloadSigner::SignHashWithKeys(metadata_hash,
                                         vector<string>(1, private_key_path),
                                         &metadata_signature));
-    TEST_AND_RETURN_FALSE(writer.Write(metadata_signature.data(),
-                                       metadata_signature.size()));
+    TEST_AND_RETURN_FALSE_ERRNO(
+        writer.Write(metadata_signature.data(), metadata_signature.size()));
   }
 
   // Append the data blobs
@@ -250,7 +250,7 @@ bool PayloadFile::WritePayload(const string& payload_file,
       break;
     }
     TEST_AND_RETURN_FALSE_ERRNO(rc > 0);
-    TEST_AND_RETURN_FALSE(writer.Write(buf.data(), rc));
+    TEST_AND_RETURN_FALSE_ERRNO(writer.Write(buf.data(), rc));
   }
 
   // Write payload signature blob.
@@ -264,8 +264,8 @@ bool PayloadFile::WritePayload(const string& payload_file,
         metadata_signature_size,
         metadata_size + metadata_signature_size + manifest_.signatures_offset(),
         &signature_blob));
-    TEST_AND_RETURN_FALSE(writer.Write(signature_blob.data(),
-                                       signature_blob.size()));
+    TEST_AND_RETURN_FALSE_ERRNO(
+        writer.Write(signature_blob.data(), signature_blob.size()));
   }
 
   ReportPayloadUsage(metadata_size);
@@ -281,10 +281,12 @@ bool PayloadFile::ReorderDataBlobs(
   ScopedFdCloser in_fd_closer(&in_fd);
 
   DirectFileWriter writer;
-  TEST_AND_RETURN_FALSE(
-      writer.Open(new_data_blobs_path.c_str(),
-                  O_WRONLY | O_TRUNC | O_CREAT,
-                  0644) == 0);
+  int rc = writer.Open(
+      new_data_blobs_path.c_str(), O_WRONLY | O_TRUNC | O_CREAT, 0644);
+  if (rc != 0) {
+    PLOG(ERROR) << "Error creating " << new_data_blobs_path;
+    return false;
+  }
   ScopedFileWriterCloser writer_closer(&writer);
   uint64_t out_file_size = 0;
 
@@ -301,7 +303,7 @@ bool PayloadFile::ReorderDataBlobs(
       TEST_AND_RETURN_FALSE(AddOperationHash(&aop.op, buf));
 
       aop.op.set_data_offset(out_file_size);
-      TEST_AND_RETURN_FALSE(writer.Write(buf.data(), buf.size()));
+      TEST_AND_RETURN_FALSE_ERRNO(writer.Write(buf.data(), buf.size()));
       out_file_size += buf.size();
     }
   }
