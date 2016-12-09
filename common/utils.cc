@@ -57,7 +57,6 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
-#include "update_engine/payload_consumer/file_writer.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 
 using base::Time;
@@ -189,14 +188,11 @@ string ParseECVersion(string input_line) {
   return "";
 }
 
-bool WriteFile(const char* path, const void* data, int data_len) {
-  DirectFileWriter writer;
-  TEST_AND_RETURN_FALSE_ERRNO(0 == writer.Open(path,
-                                               O_WRONLY | O_CREAT | O_TRUNC,
-                                               0600));
-  ScopedFileWriterCloser closer(&writer);
-  TEST_AND_RETURN_FALSE_ERRNO(writer.Write(data, data_len));
-  return true;
+bool WriteFile(const char* path, const void* data, size_t data_len) {
+  int fd = HANDLE_EINTR(open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600));
+  TEST_AND_RETURN_FALSE_ERRNO(fd >= 0);
+  ScopedFdCloser fd_closer(&fd);
+  return WriteAll(fd, data, data_len);
 }
 
 bool ReadAll(
