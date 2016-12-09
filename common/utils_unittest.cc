@@ -52,6 +52,21 @@ TEST(UtilsTest, CanParseECVersion) {
   EXPECT_EQ("", utils::ParseECVersion("b=1231a fw_version a=fasd2"));
 }
 
+TEST(UtilsTest, WriteFileOpenFailure) {
+  EXPECT_FALSE(utils::WriteFile("/this/doesn't/exist", "hello", 5));
+}
+
+TEST(UtilsTest, WriteFileReadFile) {
+  base::FilePath file;
+  EXPECT_TRUE(base::CreateTemporaryFile(&file));
+  ScopedPathUnlinker unlinker(file.value());
+  EXPECT_TRUE(utils::WriteFile(file.value().c_str(), "hello", 5));
+
+  brillo::Blob readback;
+  EXPECT_TRUE(utils::ReadFile(file.value().c_str(), &readback));
+  EXPECT_EQ("hello", string(readback.begin(), readback.end()));
+}
+
 TEST(UtilsTest, ReadFileFailure) {
   brillo::Blob empty;
   EXPECT_FALSE(utils::ReadFile("/this/doesn't/exist", &empty));
