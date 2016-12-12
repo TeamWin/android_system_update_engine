@@ -802,32 +802,6 @@ bool IsExtFilesystem(const string& device) {
   return true;
 }
 
-bool IsSquashfs4Filesystem(const string& device) {
-  brillo::Blob header;
-  // See fs/squashfs/squashfs_fs.h for format details. We only support
-  // Squashfs 4.x little endian.
-
-  // The first 96 is enough to read the squashfs superblock.
-  const ssize_t kSquashfsSuperBlockSize = 96;
-  if (!utils::ReadFileChunk(device, 0, kSquashfsSuperBlockSize, &header) ||
-      header.size() < kSquashfsSuperBlockSize)
-    return false;
-
-  // Check magic, squashfs_fs.h: SQUASHFS_MAGIC
-  if (memcmp(header.data(), "hsqs", 4) != 0)
-    return false;  // Only little endian is supported.
-
-  // squashfs_fs.h: struct squashfs_super_block.s_major
-  uint16_t s_major = *reinterpret_cast<const uint16_t*>(
-      header.data() + 5 * sizeof(uint32_t) + 4 * sizeof(uint16_t));
-
-  if (s_major != 4) {
-    LOG(ERROR) << "Found unsupported squashfs major version " << s_major;
-    return false;
-  }
-  return true;
-}
-
 }  // namespace diff_utils
 
 }  // namespace chromeos_update_engine
