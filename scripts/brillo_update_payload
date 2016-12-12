@@ -187,6 +187,11 @@ set -e
 declare -A SRC_PARTITIONS
 declare -A DST_PARTITIONS
 
+# Associative arrays for the .map files associated with each src/dst partition
+# file in SRC_PARTITIONS and DST_PARTITIONS.
+declare -A SRC_PARTITIONS_MAP
+declare -A DST_PARTITIONS_MAP
+
 # List of partition names in order.
 declare -a PARTITIONS_ORDER
 
@@ -434,6 +439,12 @@ Disabling deltas for this source version."
       part_file="${temp_raw}"
     fi
 
+    # Extract the .map file (if one is available).
+    part_map_file=$(create_tempfile "${part}.map.XXXXXX")
+    CLEANUP_FILES+=("${part_map_file}")
+    unzip -p "${image}" "IMAGES/${part}.map" >"${part_map_file}" || \
+      part_map_file=""
+
     # delta_generator only supports images multiple of 4 KiB. For target images
     # we pad the data with zeros if needed, but for source images we truncate
     # down the data since the last block of the old image could be padded on
@@ -451,6 +462,7 @@ Disabling deltas for this source version."
     fi
 
     eval "${partitions_array}[\"${part}\"]=\"${part_file}\""
+    eval "${partitions_array}_MAP[\"${part}\"]=\"${part_map_file}\""
     echo "Extracted ${partitions_array}[${part}]: ${filesize} bytes"
   done
 }
@@ -481,27 +493,34 @@ cmd_generate() {
   GENERATOR_ARGS=( -out_file="${FLAGS_payload}" )
 
   local part old_partitions="" new_partitions="" partition_names=""
+  local old_mapfiles="" new_mapfiles=""
   for part in "${PARTITIONS_ORDER[@]}"; do
     if [[ -n "${partition_names}" ]]; then
       partition_names+=":"
       new_partitions+=":"
       old_partitions+=":"
+      new_mapfiles+=":"
+      old_mapfiles+=":"
     fi
     partition_names+="${part}"
     new_partitions+="${DST_PARTITIONS[${part}]}"
     old_partitions+="${SRC_PARTITIONS[${part}]:-}"
+    new_mapfiles+="${DST_PARTITIONS_MAP[${part}]:-}"
+    old_mapfiles+="${SRC_PARTITIONS_MAP[${part}]:-}"
   done
 
   # Target image args:
   GENERATOR_ARGS+=(
     -partition_names="${partition_names}"
     -new_partitions="${new_partitions}"
+    -new_mapfiles="${new_mapfiles}"
   )
 
   if [[ "${payload_type}" == "delta" ]]; then
     # Source image args:
     GENERATOR_ARGS+=(
       -old_partitions="${old_partitions}"
+      -old_mapfiles="${old_mapfiles}"
     )
     if [[ -n "${FORCE_MINOR_VERSION}" ]]; then
       GENERATOR_ARGS+=( --minor_version="${FORCE_MINOR_VERSION}" )
