@@ -20,7 +20,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <set>
 #include <string>
 #include <vector>
 
@@ -46,7 +45,6 @@
 // and an output file as arguments and the path to an output file and
 // generates a delta that can be sent to Chrome OS clients.
 
-using std::set;
 using std::string;
 using std::vector;
 
@@ -259,6 +257,17 @@ int Main(int argc, char** argv) {
                 "a single argument with a colon between paths, e.g. "
                 "/path/to/part:/path/to/part2:/path/to/last_part . Path has "
                 "to match the order of partition_names.");
+  DEFINE_string(old_mapfiles,
+                "",
+                "Path to the .map files associated with the partition files "
+                "in the old partition. The .map file is normally generated "
+                "when creating the image in Android builds. Only recommended "
+                "for unsupported filesystem. Pass multiple files separated by "
+                "a colon as with -old_partitions.");
+  DEFINE_string(new_mapfiles,
+                "",
+                "Path to the .map files associated with the partition files "
+                "in the new partition, similar to the -old_mapfiles flag.");
   DEFINE_string(partition_names,
                 string(kLegacyPartitionNameRoot) + ":" +
                 kLegacyPartitionNameKernel,
@@ -404,6 +413,16 @@ int Main(int argc, char** argv) {
   // PayloadGenerationConfig.
   PayloadGenerationConfig payload_config;
   vector<string> partition_names, old_partitions, new_partitions;
+  vector<string> old_mapfiles, new_mapfiles;
+
+  if (!FLAGS_old_mapfiles.empty()) {
+    old_mapfiles = base::SplitString(
+        FLAGS_old_mapfiles, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  }
+  if (!FLAGS_new_mapfiles.empty()) {
+    new_mapfiles = base::SplitString(
+        FLAGS_new_mapfiles, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  }
 
   partition_names =
       base::SplitString(FLAGS_partition_names, ":", base::TRIM_WHITESPACE,
@@ -448,6 +467,8 @@ int Main(int argc, char** argv) {
         << "Partition name can't be empty, see --partition_names.";
     payload_config.target.partitions.emplace_back(partition_names[i]);
     payload_config.target.partitions.back().path = new_partitions[i];
+    if (i < new_mapfiles.size())
+      payload_config.target.partitions.back().mapfile_path = new_mapfiles[i];
   }
 
   if (payload_config.is_delta) {
@@ -464,6 +485,8 @@ int Main(int argc, char** argv) {
     for (size_t i = 0; i < partition_names.size(); i++) {
       payload_config.source.partitions.emplace_back(partition_names[i]);
       payload_config.source.partitions.back().path = old_partitions[i];
+      if (i < old_mapfiles.size())
+        payload_config.source.partitions.back().mapfile_path = old_mapfiles[i];
     }
   }
 
