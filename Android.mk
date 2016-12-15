@@ -586,14 +586,6 @@ LOCAL_STATIC_LIBRARIES += \
     libevent \
     libmodpb64 \
     libgtest_prod
-# libchrome requires these extra LDFLAGS which are not propagated through the
-# build system.
-LOCAL_LDFLAGS += \
-    -Wl,-wrap,calloc \
-    -Wl,-wrap,free \
-    -Wl,-wrap,malloc \
-    -Wl,-wrap,memalign \
-    -Wl,-wrap,realloc
 
 ifeq ($(strip $(PRODUCT_STATIC_BOOT_CONTROL_HAL)),)
 # No static boot_control HAL defined, so no sideload support. We use a fake
