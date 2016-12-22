@@ -115,7 +115,7 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   };
   Return<void> ret = module_->getSuffix(slot, store_suffix_cb);
 
-  if (!ret.getStatus().isOk()) {
+  if (!ret.isOk()) {
     LOG(ERROR) << "boot_control impl returned no suffix for slot "
                << SlotName(slot);
     return false;
@@ -133,10 +133,10 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
 
 bool BootControlAndroid::IsSlotBootable(Slot slot) const {
   Return<BoolResult> ret = module_->isSlotBootable(slot);
-  if (!ret.getStatus().isOk()) {
+  if (!ret.isOk()) {
     LOG(ERROR) << "Unable to determine if slot " << SlotName(slot)
                << " is bootable: "
-               << ret.getStatus().exceptionMessage().string();
+               << ret.description();
     return false;
   }
   if (ret == BoolResult::INVALID_SLOT) {
@@ -149,10 +149,10 @@ bool BootControlAndroid::IsSlotBootable(Slot slot) const {
 bool BootControlAndroid::MarkSlotUnbootable(Slot slot) {
   CommandResult result;
   auto ret = module_->setSlotAsUnbootable(slot, StoreResultCallback(&result));
-  if (!ret.getStatus().isOk()) {
+  if (!ret.isOk()) {
     LOG(ERROR) << "Unable to call MarkSlotUnbootable for slot "
                << SlotName(slot) << ": "
-               << ret.getStatus().exceptionMessage().string();
+               << ret.description();
     return false;
   }
   if (!result.success) {
@@ -165,9 +165,9 @@ bool BootControlAndroid::MarkSlotUnbootable(Slot slot) {
 bool BootControlAndroid::SetActiveBootSlot(Slot slot) {
   CommandResult result;
   auto ret = module_->setActiveBootSlot(slot, StoreResultCallback(&result));
-  if (!ret.getStatus().isOk()) {
+  if (!ret.isOk()) {
     LOG(ERROR) << "Unable to call SetActiveBootSlot for slot " << SlotName(slot)
-               << ": " << ret.getStatus().exceptionMessage().string();
+               << ": " << ret.description();
     return false;
   }
   if (!result.success) {
@@ -181,9 +181,9 @@ bool BootControlAndroid::MarkBootSuccessfulAsync(
     base::Callback<void(bool)> callback) {
   CommandResult result;
   auto ret = module_->markBootSuccessful(StoreResultCallback(&result));
-  if (!ret.getStatus().isOk()) {
+  if (!ret.isOk()) {
     LOG(ERROR) << "Unable to call MarkBootSuccessful: "
-               << ret.getStatus().exceptionMessage().string();
+               << ret.description();
     return false;
   }
   if (!result.success) {
