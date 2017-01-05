@@ -58,13 +58,11 @@ std::unique_ptr<BootControlInterface> CreateBootControl() {
 bool BootControlAndroid::Init() {
   module_ = IBootControl::getService("bootctrl");
   if (module_ == nullptr) {
-    LOG(ERROR) << "Error getting bootctrl HIDL module.\n";
+    LOG(ERROR) << "Error getting bootctrl HIDL module.";
     return false;
   }
 
-  LOG(INFO) << "Loaded boot HIDL HAL version "
-            << module_->getInterfaceVersion().get_major() << "."
-            << module_->getInterfaceVersion().get_minor();
+  LOG(INFO) << "Loaded boot control hidl hal.";
 
   return true;
 }
