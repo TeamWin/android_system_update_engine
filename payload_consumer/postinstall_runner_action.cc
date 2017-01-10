@@ -345,6 +345,8 @@ void PostinstallRunnerAction::SuspendAction() {
     return;
   if (kill(current_command_, SIGSTOP) != 0) {
     PLOG(ERROR) << "Couldn't pause child process " << current_command_;
+  } else {
+    is_current_command_suspended_ = true;
   }
 }
 
@@ -353,6 +355,8 @@ void PostinstallRunnerAction::ResumeAction() {
     return;
   if (kill(current_command_, SIGCONT) != 0) {
     PLOG(ERROR) << "Couldn't resume child process " << current_command_;
+  } else {
+    is_current_command_suspended_ = false;
   }
 }
 
@@ -362,6 +366,13 @@ void PostinstallRunnerAction::TerminateProcessing() {
   // Calling KillExec() will discard the callback we registered and therefore
   // the unretained reference to this object.
   Subprocess::Get().KillExec(current_command_);
+
+  // If the command has been suspended, resume it after KillExec() so that the
+  // process can process the SIGTERM sent by KillExec().
+  if (is_current_command_suspended_) {
+    ResumeAction();
+  }
+
   current_command_ = 0;
   Cleanup();
 }
