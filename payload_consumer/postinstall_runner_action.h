@@ -134,6 +134,9 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // Postinstall command currently running, or 0 if no program running.
   pid_t current_command_{0};
 
+  // True if |current_command_| has been suspended by SuspendAction().
+  bool is_current_command_suspended_{false};
+
   // The parent progress file descriptor used to watch for progress reports from
   // the postinstall program and the task watching for them.
   int progress_fd_{-1};
