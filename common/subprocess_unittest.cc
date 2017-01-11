@@ -236,7 +236,18 @@ TEST_F(SubprocessTest, CancelTest) {
       kBinPath "/sh",
       "-c",
       base::StringPrintf(
-          "echo -n  X >\"%s\"; sleep 60; echo -n  Y >\"%s\"; exit 1",
+          // The 'sleep' launched below could be left behind as an orphaned
+          // process when the 'sh' process is terminated by SIGTERM. As a
+          // remedy, trap SIGTERM and kill the 'sleep' process, which requires
+          // launching 'sleep' in background and then waiting for it.
+          "cleanup() { kill \"${sleep_pid}\"; exit 0; }; "
+          "trap cleanup TERM; "
+          "sleep 60 & "
+          "sleep_pid=$!; "
+          "printf X >\"%s\"; "
+          "wait; "
+          "printf Y >\"%s\"; "
+          "exit 1",
           fifo_path.c_str(),
           fifo_path.c_str())};
   uint32_t tag = Subprocess::Get().Exec(cmd, base::Bind(&CallbackBad));
