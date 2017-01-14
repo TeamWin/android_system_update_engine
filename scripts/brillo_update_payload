@@ -175,12 +175,17 @@ if [[ "${COMMAND}" == "properties" ]]; then
 be used."
 fi
 
-DEFINE_string work_dir "/tmp" "Where to dump temporary files."
+DEFINE_string work_dir "${TMPDIR:-/tmp}" "Where to dump temporary files."
 
 # Parse command line flag arguments
 FLAGS "$@" || exit 1
 eval set -- "${FLAGS_ARGV}"
 set -e
+
+# Override the TMPDIR with the passed work_dir flags, which anyway defaults to
+# ${TMPDIR}.
+TMPDIR="${FLAGS_work_dir}"
+export TMPDIR
 
 # Associative arrays from partition name to file in the source and target
 # images. The size of the updated area must be the size of the file.
