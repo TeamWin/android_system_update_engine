@@ -56,7 +56,7 @@ std::unique_ptr<BootControlInterface> CreateBootControl() {
 }  // namespace boot_control
 
 bool BootControlAndroid::Init() {
-  module_ = IBootControl::getService("bootctrl");
+  module_ = IBootControl::getService();
   if (module_ == nullptr) {
     LOG(ERROR) << "Error getting bootctrl HIDL module.";
     return false;
