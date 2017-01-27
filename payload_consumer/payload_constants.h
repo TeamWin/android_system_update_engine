@@ -63,7 +63,7 @@ extern const char kDeltaMagic[4];
 // carefully and determine if it's still compatible with previous version, if
 // yes then add the new fingerprint to this array, otherwise remove all previous
 // fingerprints in the array first, and only include the new fingerprint.
-extern const char kCompatibleZlibFingerprint[2][65];
+extern const char kCompatibleZlibFingerprint[3][65];
 
 // A block number denoting a hole on a sparse file. Used on Extents to refer to
 // section of blocks not present on disk on a sparse file.
