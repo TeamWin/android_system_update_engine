@@ -285,6 +285,7 @@ ue_libupdate_engine_exported_static_libraries := \
     libbz \
     libfs_mgr \
     libbase \
+    liblog \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries) \
     libupdate_engine_boot_control \
@@ -435,6 +436,7 @@ ue_libupdate_engine_android_exported_static_libraries := \
     libpayload_consumer \
     libfs_mgr \
     libbase \
+    liblog \
     $(ue_libpayload_consumer_exported_static_libraries) \
     libupdate_engine_boot_control \
     $(ue_libupdate_engine_boot_control_exported_static_libraries)
@@ -572,6 +574,7 @@ LOCAL_SRC_FILES := \
 LOCAL_STATIC_LIBRARIES := \
     libfs_mgr \
     libbase \
+    liblog \
     libpayload_consumer \
     update_metadata-protos \
     $(ue_common_static_libraries) \
