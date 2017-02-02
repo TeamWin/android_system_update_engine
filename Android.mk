@@ -443,7 +443,7 @@ ue_libupdate_engine_android_exported_static_libraries := \
 ue_libupdate_engine_android_exported_shared_libraries := \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_libupdate_engine_boot_control_exported_shared_libraries) \
-    libandroid \
+    libandroid_net \
     libbinder \
     libbinderwrapper \
     libbrillo-binder \
