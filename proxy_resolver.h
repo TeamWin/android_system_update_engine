@@ -35,8 +35,15 @@ extern const char kNoProxy[];
 // http://<host>[:<port>] - HTTP proxy
 // socks{4,5}://<host>[:<port>] - SOCKS4/5 proxy
 // kNoProxy - no proxy
-typedef void (*ProxiesResolvedFn)(const std::deque<std::string>& proxies,
-                                  void* data);
+typedef base::Callback<void(const std::deque<std::string>& proxies)>
+    ProxiesResolvedFn;
+
+// An id that identifies a proxy request. Used to cancel an ongoing request
+// before the callback is called.
+typedef brillo::MessageLoop::TaskId ProxyRequestId;
+
+// A constant identifying an invalid ProxyRequestId.
+extern const ProxyRequestId kProxyRequestIdNull;
 
 class ProxyResolver {
  public:
@@ -44,11 +51,14 @@ class ProxyResolver {
   virtual ~ProxyResolver() {}
 
   // Finds proxies for the given URL and returns them via the callback.
-  // |data| will be passed to the callback.
-  // Returns true on success.
-  virtual bool GetProxiesForUrl(const std::string& url,
-                                ProxiesResolvedFn callback,
-                                void* data) = 0;
+  // Returns the id of the pending request on success or kProxyRequestIdNull
+  // otherwise.
+  virtual ProxyRequestId GetProxiesForUrl(
+      const std::string& url, const ProxiesResolvedFn& callback) = 0;
+
+  // Cancel the proxy resolution request initiated by GetProxiesForUrl(). The
+  // |request| value must be the one provided by GetProxiesForUrl().
+  virtual bool CancelProxyRequest(ProxyRequestId request) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProxyResolver);
@@ -59,9 +69,9 @@ class DirectProxyResolver : public ProxyResolver {
  public:
   DirectProxyResolver() = default;
   ~DirectProxyResolver() override;
-  bool GetProxiesForUrl(const std::string& url,
-                        ProxiesResolvedFn callback,
-                        void* data) override;
+  ProxyRequestId GetProxiesForUrl(const std::string& url,
+                                  const ProxiesResolvedFn& callback) override;
+  bool CancelProxyRequest(ProxyRequestId request) override;
 
   // Set the number of direct (non-) proxies to be returned by resolver.
   // The default value is 1; higher numbers are currently used in testing.
@@ -79,7 +89,7 @@ class DirectProxyResolver : public ProxyResolver {
   size_t num_proxies_{1};
 
   // The MainLoop callback, from here we return to the client.
-  void ReturnCallback(ProxiesResolvedFn callback, void* data);
+  void ReturnCallback(const ProxiesResolvedFn& callback);
   DISALLOW_COPY_AND_ASSIGN(DirectProxyResolver);
 };
 

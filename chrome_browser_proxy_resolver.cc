@@ -17,9 +17,7 @@
 #include "update_engine/chrome_browser_proxy_resolver.h"
 
 #include <deque>
-#include <map>
 #include <string>
-#include <utility>
 
 #include <base/bind.h>
 #include <base/strings/string_tokenizer.h>
@@ -33,8 +31,6 @@ using base::StringTokenizer;
 using base::TimeDelta;
 using brillo::MessageLoop;
 using std::deque;
-using std::make_pair;
-using std::pair;
 using std::string;
 
 const char kLibCrosServiceName[] = "org.chromium.LibCrosService";
@@ -64,15 +60,13 @@ bool ChromeBrowserProxyResolver::Init() {
 
 ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() {
   // Kill outstanding timers.
-  for (auto& timer : timers_) {
-    MessageLoop::current()->CancelTask(timer.second);
-    timer.second = MessageLoop::kTaskIdNull;
+  for (const auto& it : callbacks_) {
+    MessageLoop::current()->CancelTask(it.second->timeout_id);
   }
 }
 
-bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
-                                                  ProxiesResolvedFn callback,
-                                                  void* data) {
+ProxyRequestId ChromeBrowserProxyResolver::GetProxiesForUrl(
+    const string& url, const ProxiesResolvedFn& callback) {
   int timeout = timeout_;
   brillo::ErrorPtr error;
   if (!libcros_proxy_->service_interface_proxy()->ResolveNetworkProxy(
@@ -84,38 +78,47 @@ bool ChromeBrowserProxyResolver::GetProxiesForUrl(const string& url,
     timeout = 0;
   }
 
-  callbacks_.insert(make_pair(url, make_pair(callback, data)));
-  MessageLoop::TaskId timer = MessageLoop::current()->PostDelayedTask(
+  std::unique_ptr<ProxyRequestData> request(new ProxyRequestData());
+  request->callback = callback;
+  ProxyRequestId timeout_id = MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&ChromeBrowserProxyResolver::HandleTimeout,
                  base::Unretained(this),
-                 url),
+                 url,
+                 request.get()),
       TimeDelta::FromSeconds(timeout));
-  timers_.insert(make_pair(url, timer));
-  return true;
+  request->timeout_id = timeout_id;
+  callbacks_.emplace(url, std::move(request));
+
+  // We re-use the timeout_id from the MessageLoop as the request id.
+  return timeout_id;
 }
 
-bool ChromeBrowserProxyResolver::DeleteUrlState(
-    const string& source_url,
-    bool delete_timer,
-    pair<ProxiesResolvedFn, void*>* callback) {
-  {
-    CallbacksMap::iterator it = callbacks_.lower_bound(source_url);
-    TEST_AND_RETURN_FALSE(it != callbacks_.end());
-    TEST_AND_RETURN_FALSE(it->first == source_url);
-    if (callback)
-      *callback = it->second;
-    callbacks_.erase(it);
+bool ChromeBrowserProxyResolver::CancelProxyRequest(ProxyRequestId request) {
+  // Finding the timeout_id in the callbacks_ structure requires a linear search
+  // but we expect this operation to not be so frequent and to have just a few
+  // proxy requests, so this should be fast enough.
+  for (auto it = callbacks_.begin(); it != callbacks_.end(); ++it) {
+    if (it->second->timeout_id == request) {
+      MessageLoop::current()->CancelTask(request);
+      callbacks_.erase(it);
+      return true;
+    }
   }
-  {
-    TimeoutsMap::iterator it = timers_.lower_bound(source_url);
-    TEST_AND_RETURN_FALSE(it != timers_.end());
-    TEST_AND_RETURN_FALSE(it->first == source_url);
-    if (delete_timer)
-      MessageLoop::current()->CancelTask(it->second);
-    timers_.erase(it);
+  return false;
+}
+
+void ChromeBrowserProxyResolver::ProcessUrlResponse(
+    const string& source_url, const deque<string>& proxies) {
+  // Call all the occurrences of the |source_url| and erase them.
+  auto lower_end = callbacks_.lower_bound(source_url);
+  auto upper_end = callbacks_.upper_bound(source_url);
+  for (auto it = lower_end; it != upper_end; ++it) {
+    ProxyRequestData* request = it->second.get();
+    MessageLoop::current()->CancelTask(request->timeout_id);
+    request->callback.Run(proxies);
   }
-  return true;
+  callbacks_.erase(lower_end, upper_end);
 }
 
 void ChromeBrowserProxyResolver::OnSignalConnected(const string& interface_name,
@@ -131,21 +134,21 @@ void ChromeBrowserProxyResolver::OnProxyResolvedSignal(
     const string& source_url,
     const string& proxy_info,
     const string& error_message) {
-  pair<ProxiesResolvedFn, void*> callback;
-  TEST_AND_RETURN(DeleteUrlState(source_url, true, &callback));
   if (!error_message.empty()) {
     LOG(WARNING) << "ProxyResolved error: " << error_message;
   }
-  (*callback.first)(ParseProxyString(proxy_info), callback.second);
+  ProcessUrlResponse(source_url, ParseProxyString(proxy_info));
 }
 
-void ChromeBrowserProxyResolver::HandleTimeout(string source_url) {
+void ChromeBrowserProxyResolver::HandleTimeout(string source_url,
+                                               ProxyRequestData* request) {
   LOG(INFO) << "Timeout handler called. Seems Chrome isn't responding.";
-  pair<ProxiesResolvedFn, void*> callback;
-  TEST_AND_RETURN(DeleteUrlState(source_url, false, &callback));
-  deque<string> proxies;
-  proxies.push_back(kNoProxy);
-  (*callback.first)(proxies, callback.second);
+  // Mark the timer_id that produced this callback as invalid to prevent
+  // canceling the timeout callback that already fired.
+  request->timeout_id = MessageLoop::kTaskIdNull;
+
+  deque<string> proxies = {kNoProxy};
+  ProcessUrlResponse(source_url, proxies);
 }
 
 deque<string> ChromeBrowserProxyResolver::ParseProxyString(
