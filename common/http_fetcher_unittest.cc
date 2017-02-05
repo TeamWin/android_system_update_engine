@@ -795,7 +795,7 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
   ~FailureHttpFetcherTestDelegate() override {
     if (server_) {
       LOG(INFO) << "Stopping server in destructor";
-      delete server_;
+      server_.reset();
       LOG(INFO) << "server stopped";
     }
   }
@@ -804,20 +804,23 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
                      const void* bytes, size_t length) override {
     if (server_) {
       LOG(INFO) << "Stopping server in ReceivedBytes";
-      delete server_;
+      server_.reset();
       LOG(INFO) << "server stopped";
-      server_ = nullptr;
     }
   }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_FALSE(successful);
     EXPECT_EQ(0, fetcher->http_response_code());
+    times_transfer_complete_called_++;
     MessageLoop::current()->BreakLoop();
   }
   void TransferTerminated(HttpFetcher* fetcher) override {
-    ADD_FAILURE();
+    times_transfer_terminated_called_++;
+    MessageLoop::current()->BreakLoop();
   }
-  PythonHttpServer* server_;
+  unique_ptr<PythonHttpServer> server_;
+  int times_transfer_terminated_called_{0};
+  int times_transfer_complete_called_{0};
 };
 }  // namespace
 
@@ -827,19 +830,19 @@ TYPED_TEST(HttpFetcherTest, FailureTest) {
   // available at all.
   if (this->test_.IsMock())
     return;
-  {
-    FailureHttpFetcherTestDelegate delegate(nullptr);
-    unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
-    fetcher->set_delegate(&delegate);
+  FailureHttpFetcherTestDelegate delegate(nullptr);
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
 
-    this->loop_.PostTask(FROM_HERE,
-                         base::Bind(StartTransfer,
-                                    fetcher.get(),
-                                    "http://host_doesnt_exist99999999"));
-    this->loop_.Run();
+  this->loop_.PostTask(
+      FROM_HERE,
+      base::Bind(
+          StartTransfer, fetcher.get(), "http://host_doesnt_exist99999999"));
+  this->loop_.Run();
+  EXPECT_EQ(1, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 
-    // Exiting and testing happens in the delegate
-  }
+  // Exiting and testing happens in the delegate
 }
 
 TYPED_TEST(HttpFetcherTest, NoResponseTest) {
@@ -867,6 +870,8 @@ TYPED_TEST(HttpFetcherTest, NoResponseTest) {
       fetcher.get(),
       LocalServerUrlForPath(port, "/hang")));
   this->loop_.Run();
+  EXPECT_EQ(1, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 
   // Check that no other callback runs in the next two seconds. That would
   // indicate a leaked callback.
@@ -885,29 +890,78 @@ TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
   // retries and aborts correctly.
   if (this->test_.IsMock())
     return;
-  {
-    PythonHttpServer* server = new PythonHttpServer();
-    int port = server->GetPort();
-    ASSERT_TRUE(server->started_);
+  PythonHttpServer* server = new PythonHttpServer();
+  int port = server->GetPort();
+  ASSERT_TRUE(server->started_);
 
-    // Handles destruction and claims ownership.
-    FailureHttpFetcherTestDelegate delegate(server);
-    unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
-    fetcher->set_delegate(&delegate);
+  // Handles destruction and claims ownership.
+  FailureHttpFetcherTestDelegate delegate(server);
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
 
-    this->loop_.PostTask(FROM_HERE, base::Bind(
-        StartTransfer,
-        fetcher.get(),
-        LocalServerUrlForPath(port,
-                              base::StringPrintf("/flaky/%d/%d/%d/%d",
-                                                 kBigLength,
-                                                 kFlakyTruncateLength,
-                                                 kFlakySleepEvery,
-                                                 kFlakySleepSecs))));
-    this->loop_.Run();
+  this->loop_.PostTask(
+      FROM_HERE,
+      base::Bind(StartTransfer,
+                 fetcher.get(),
+                 LocalServerUrlForPath(port,
+                                       base::StringPrintf("/flaky/%d/%d/%d/%d",
+                                                          kBigLength,
+                                                          kFlakyTruncateLength,
+                                                          kFlakySleepEvery,
+                                                          kFlakySleepSecs))));
+  this->loop_.Run();
+  EXPECT_EQ(1, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 
-    // Exiting and testing happens in the delegate
-  }
+  // Exiting and testing happens in the delegate
+}
+
+// Test that we can cancel a transfer while it is still trying to connect to the
+// server. This test kills the server after a few bytes are received.
+TYPED_TEST(HttpFetcherTest, TerminateTransferWhenServerDiedTest) {
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
+    return;
+
+  PythonHttpServer* server = new PythonHttpServer();
+  int port = server->GetPort();
+  ASSERT_TRUE(server->started_);
+
+  // Handles destruction and claims ownership.
+  FailureHttpFetcherTestDelegate delegate(server);
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
+
+  this->loop_.PostTask(
+      FROM_HERE,
+      base::Bind(StartTransfer,
+                 fetcher.get(),
+                 LocalServerUrlForPath(port,
+                                       base::StringPrintf("/flaky/%d/%d/%d/%d",
+                                                          kBigLength,
+                                                          kFlakyTruncateLength,
+                                                          kFlakySleepEvery,
+                                                          kFlakySleepSecs))));
+  // Terminating the transfer after 3 seconds gives it a chance to contact the
+  // server and enter the retry loop.
+  this->loop_.PostDelayedTask(FROM_HERE,
+                              base::Bind(&HttpFetcher::TerminateTransfer,
+                                         base::Unretained(fetcher.get())),
+                              base::TimeDelta::FromSeconds(3));
+
+  // Exiting and testing happens in the delegate.
+  this->loop_.Run();
+  EXPECT_EQ(0, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(1, delegate.times_transfer_terminated_called_);
+
+  // Check that no other callback runs in the next two seconds. That would
+  // indicate a leaked callback.
+  bool timeout = false;
+  auto callback = base::Bind([](bool* timeout) { *timeout = true; },
+                             base::Unretained(&timeout));
+  this->loop_.PostDelayedTask(
+      FROM_HERE, callback, base::TimeDelta::FromSeconds(2));
+  EXPECT_TRUE(this->loop_.RunOnce(true));
+  EXPECT_TRUE(timeout);
 }
 
 namespace {
