@@ -551,6 +551,7 @@
             'payload_generator/topological_sort_unittest.cc',
             'payload_generator/zip_unittest.cc',
             'payload_state_unittest.cc',
+            'proxy_resolver_unittest.cc',
             'update_attempter_unittest.cc',
             'update_manager/boxed_value_unittest.cc',
             'update_manager/chromeos_policy_unittest.cc',

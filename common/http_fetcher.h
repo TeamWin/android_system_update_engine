@@ -165,10 +165,6 @@ class HttpFetcher {
  private:
   // Callback from the proxy resolver
   void ProxiesResolved(const std::deque<std::string>& proxies);
-  static void StaticProxiesResolved(const std::deque<std::string>& proxies,
-                                    void* data) {
-    reinterpret_cast<HttpFetcher*>(data)->ProxiesResolved(proxies);
-  }
 
   // Callback used to run the proxy resolver callback when there is no
   // |proxy_resolver_|.
