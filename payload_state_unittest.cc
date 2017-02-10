@@ -63,39 +63,40 @@ static void SetupPayloadStateWith2Urls(string hash,
                                        bool http_enabled,
                                        PayloadState* payload_state,
                                        OmahaResponse* response) {
-  response->payload_urls.clear();
-  response->payload_urls.push_back("http://test");
-  response->payload_urls.push_back("https://test");
-  response->size = 523456789;
-  response->hash = hash;
-  response->metadata_size = 558123;
-  response->metadata_signature = "metasign";
+  response->packages.clear();
+  response->packages.push_back({.payload_urls = {"http://test", "https://test"},
+                                .size = 523456789,
+                                .metadata_size = 558123,
+                                .metadata_signature = "metasign",
+                                .hash = hash});
   response->max_failure_count_per_url = 3;
   payload_state->SetResponse(*response);
   string stored_response_sign = payload_state->GetResponseSignature();
 
   string expected_url_https_only =
-      "NumURLs = 1\n"
-      "Candidate Url0 = https://test\n";
+      "  NumURLs = 1\n"
+      "  Candidate Url0 = https://test\n";
 
   string expected_urls_both =
-      "NumURLs = 2\n"
-      "Candidate Url0 = http://test\n"
-      "Candidate Url1 = https://test\n";
+      "  NumURLs = 2\n"
+      "  Candidate Url0 = http://test\n"
+      "  Candidate Url1 = https://test\n";
 
-  string expected_response_sign =
-      (http_enabled ? expected_urls_both : expected_url_https_only) +
-      base::StringPrintf("Payload Size = 523456789\n"
-                         "Payload Sha256 Hash = %s\n"
-                         "Metadata Size = 558123\n"
-                         "Metadata Signature = metasign\n"
-                         "Is Delta Payload = %d\n"
-                         "Max Failure Count Per Url = %d\n"
-                         "Disable Payload Backoff = %d\n",
-                         hash.c_str(),
-                         response->is_delta_payload,
-                         response->max_failure_count_per_url,
-                         response->disable_payload_backoff);
+  string expected_response_sign = base::StringPrintf(
+      "Payload 0:\n"
+      "  Size = 523456789\n"
+      "  Sha256 Hash = %s\n"
+      "  Metadata Size = 558123\n"
+      "  Metadata Signature = metasign\n"
+      "%s"
+      "Is Delta Payload = %d\n"
+      "Max Failure Count Per Url = %d\n"
+      "Disable Payload Backoff = %d\n",
+      hash.c_str(),
+      (http_enabled ? expected_urls_both : expected_url_https_only).c_str(),
+      response->is_delta_payload,
+      response->max_failure_count_per_url,
+      response->disable_payload_backoff);
   EXPECT_EQ(expected_response_sign, stored_response_sign);
 }
 
@@ -129,14 +130,10 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   payload_state.SetResponse(response);
   string stored_response_sign = payload_state.GetResponseSignature();
-  string expected_response_sign = "NumURLs = 0\n"
-                                  "Payload Size = 0\n"
-                                  "Payload Sha256 Hash = \n"
-                                  "Metadata Size = 0\n"
-                                  "Metadata Signature = \n"
-                                  "Is Delta Payload = 0\n"
-                                  "Max Failure Count Per Url = 0\n"
-                                  "Disable Payload Backoff = 0\n";
+  string expected_response_sign =
+      "Is Delta Payload = 0\n"
+      "Max Failure Count Per Url = 0\n"
+      "Disable Payload Backoff = 0\n";
   EXPECT_EQ(expected_response_sign, stored_response_sign);
   EXPECT_EQ("", payload_state.GetCurrentUrl());
   EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
@@ -146,11 +143,11 @@ TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
 
 TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   OmahaResponse response;
-  response.payload_urls.push_back("https://single.url.test");
-  response.size = 123456789;
-  response.hash = "hash";
-  response.metadata_size = 58123;
-  response.metadata_signature = "msign";
+  response.packages.push_back({.payload_urls = {"https://single.url.test"},
+                               .size = 123456789,
+                               .metadata_size = 58123,
+                               .metadata_signature = "msign",
+                               .hash = "hash"});
   FakeSystemState fake_system_state;
   NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -180,15 +177,17 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   payload_state.SetResponse(response);
   string stored_response_sign = payload_state.GetResponseSignature();
-  string expected_response_sign = "NumURLs = 1\n"
-                                  "Candidate Url0 = https://single.url.test\n"
-                                  "Payload Size = 123456789\n"
-                                  "Payload Sha256 Hash = hash\n"
-                                  "Metadata Size = 58123\n"
-                                  "Metadata Signature = msign\n"
-                                  "Is Delta Payload = 0\n"
-                                  "Max Failure Count Per Url = 0\n"
-                                  "Disable Payload Backoff = 0\n";
+  string expected_response_sign =
+      "Payload 0:\n"
+      "  Size = 123456789\n"
+      "  Sha256 Hash = hash\n"
+      "  Metadata Size = 58123\n"
+      "  Metadata Signature = msign\n"
+      "  NumURLs = 1\n"
+      "  Candidate Url0 = https://single.url.test\n"
+      "Is Delta Payload = 0\n"
+      "Max Failure Count Per Url = 0\n"
+      "Disable Payload Backoff = 0\n";
   EXPECT_EQ(expected_response_sign, stored_response_sign);
   EXPECT_EQ("https://single.url.test", payload_state.GetCurrentUrl());
   EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
@@ -198,12 +197,12 @@ TEST(PayloadStateTest, SetResponseWorksWithSingleUrl) {
 
 TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   OmahaResponse response;
-  response.payload_urls.push_back("http://multiple.url.test");
-  response.payload_urls.push_back("https://multiple.url.test");
-  response.size = 523456789;
-  response.hash = "rhash";
-  response.metadata_size = 558123;
-  response.metadata_signature = "metasign";
+  response.packages.push_back({.payload_urls = {"http://multiple.url.test",
+                                                "https://multiple.url.test"},
+                               .size = 523456789,
+                               .metadata_size = 558123,
+                               .metadata_signature = "metasign",
+                               .hash = "rhash"});
   FakeSystemState fake_system_state;
   NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
   EXPECT_CALL(*prefs, SetInt64(_, _)).Times(AnyNumber());
@@ -230,16 +229,18 @@ TEST(PayloadStateTest, SetResponseWorksWithMultipleUrls) {
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
   payload_state.SetResponse(response);
   string stored_response_sign = payload_state.GetResponseSignature();
-  string expected_response_sign = "NumURLs = 2\n"
-                                  "Candidate Url0 = http://multiple.url.test\n"
-                                  "Candidate Url1 = https://multiple.url.test\n"
-                                  "Payload Size = 523456789\n"
-                                  "Payload Sha256 Hash = rhash\n"
-                                  "Metadata Size = 558123\n"
-                                  "Metadata Signature = metasign\n"
-                                  "Is Delta Payload = 0\n"
-                                  "Max Failure Count Per Url = 0\n"
-                                  "Disable Payload Backoff = 0\n";
+  string expected_response_sign =
+      "Payload 0:\n"
+      "  Size = 523456789\n"
+      "  Sha256 Hash = rhash\n"
+      "  Metadata Size = 558123\n"
+      "  Metadata Signature = metasign\n"
+      "  NumURLs = 2\n"
+      "  Candidate Url0 = http://multiple.url.test\n"
+      "  Candidate Url1 = https://multiple.url.test\n"
+      "Is Delta Payload = 0\n"
+      "Max Failure Count Per Url = 0\n"
+      "Disable Payload Backoff = 0\n";
   EXPECT_EQ(expected_response_sign, stored_response_sign);
   EXPECT_EQ("http://multiple.url.test", payload_state.GetCurrentUrl());
   EXPECT_EQ(0U, payload_state.GetUrlFailureCount());
@@ -1033,6 +1034,7 @@ TEST(PayloadStateTest, RollbackVersion) {
 
 TEST(PayloadStateTest, DurationsAreCorrect) {
   OmahaResponse response;
+  response.packages.resize(1);
   PayloadState payload_state;
   FakeSystemState fake_system_state;
   FakeClock fake_clock;
@@ -1076,6 +1078,7 @@ TEST(PayloadStateTest, DurationsAreCorrect) {
   fake_clock.SetMonotonicTime(Time::FromInternalValue(5000));
   PayloadState payload_state2;
   EXPECT_TRUE(payload_state2.Initialize(&fake_system_state));
+  payload_state2.SetResponse(response);
   EXPECT_EQ(payload_state2.GetUpdateDuration().InMicroseconds(), 10000000);
   EXPECT_EQ(payload_state2.GetUpdateDurationUptime().InMicroseconds(),
             10000000);
@@ -1206,6 +1209,9 @@ TEST(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
   // abnormally).
   fake_system_state.set_prefs(&fake_prefs);
   EXPECT_TRUE(payload_state.Initialize(&fake_system_state));
+  OmahaResponse response;
+  response.packages.resize(1);
+  payload_state.SetResponse(response);
 
   EXPECT_CALL(*fake_system_state.mock_metrics_lib(), SendToUMA(_, _, _, _, _))
     .Times(AnyNumber());

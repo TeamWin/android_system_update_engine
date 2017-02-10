@@ -56,10 +56,18 @@ struct InstallPlan {
   std::string download_url;  // url to download from
   std::string version;       // version we are installing.
 
-  uint64_t payload_size{0};              // size of the payload
-  brillo::Blob payload_hash;             // SHA256 hash of the payload
-  uint64_t metadata_size{0};             // size of the metadata
-  std::string metadata_signature;        // signature of the  metadata
+  struct Payload {
+    uint64_t size = 0;               // size of the payload
+    uint64_t metadata_size = 0;      // size of the metadata
+    std::string metadata_signature;  // signature of the metadata in base64
+    brillo::Blob hash;               // SHA256 hash of the payload
+
+    bool operator==(const Payload& that) const {
+      return size == that.size && metadata_size == that.metadata_size &&
+             metadata_signature == that.metadata_signature && hash == that.hash;
+    }
+  };
+  std::vector<Payload> payloads;
 
   // The partition slots used for the update.
   BootControlInterface::Slot source_slot{BootControlInterface::kInvalidSlot};

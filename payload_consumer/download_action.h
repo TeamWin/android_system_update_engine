@@ -134,6 +134,9 @@ class DownloadAction : public InstallPlanAction,
   // The InstallPlan passed in
   InstallPlan install_plan_;
 
+  // Pointer to the current payload in install_plan_.payloads.
+  InstallPlan::Payload* payload_{nullptr};
+
   // SystemState required pointers.
   PrefsInterface* prefs_;
   BootControlInterface* boot_control_;
