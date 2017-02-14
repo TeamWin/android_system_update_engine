@@ -233,6 +233,9 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // Seconds to wait before retrying a resume.
   int retry_seconds_{20};
 
+  // When waiting for a retry, the task id of the retry callback.
+  brillo::MessageLoop::TaskId retry_task_id_{brillo::MessageLoop::kTaskIdNull};
+
   // Number of resumes due to no network (e.g., HTTP response code 0).
   int no_network_retry_count_{0};
   int no_network_max_retries_{0};
