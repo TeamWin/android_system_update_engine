@@ -18,9 +18,7 @@
 #define UPDATE_ENGINE_CHROME_BROWSER_PROXY_RESOLVER_H_
 
 #include <deque>
-#include <map>
 #include <string>
-#include <utility>
 
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
@@ -43,16 +41,19 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
   // Initialize the ProxyResolver using the provided DBus proxies.
   bool Init();
 
-  bool GetProxiesForUrl(const std::string& url,
-                        ProxiesResolvedFn callback,
-                        void* data) override;
+  ProxyRequestId GetProxiesForUrl(const std::string& url,
+                                  const ProxiesResolvedFn& callback) override;
+  bool CancelProxyRequest(ProxyRequestId request) override;
 
  private:
   FRIEND_TEST(ChromeBrowserProxyResolverTest, ParseTest);
   FRIEND_TEST(ChromeBrowserProxyResolverTest, SuccessTest);
-  typedef std::multimap<std::string, std::pair<ProxiesResolvedFn, void*>>
+  struct ProxyRequestData {
+    brillo::MessageLoop::TaskId timeout_id;
+    ProxiesResolvedFn callback;
+  };
+  typedef std::multimap<std::string, std::unique_ptr<ProxyRequestData>>
       CallbacksMap;
-  typedef std::multimap<std::string, brillo::MessageLoop::TaskId> TimeoutsMap;
 
   // Called when the signal in UpdateEngineLibcrosProxyResolvedInterface is
   // connected.
@@ -65,19 +66,19 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
                              const std::string& proxy_info,
                              const std::string& error_message);
 
-  // Handle no reply:
-  void HandleTimeout(std::string source_url);
+  // Handle no reply. The |request| pointer points to the ProxyRequestData in
+  // the |callbacks_| map that triggered this timeout.
+  void HandleTimeout(std::string source_url, ProxyRequestData* request);
 
   // Parses a string-encoded list of proxies and returns a deque
   // of individual proxies. The last one will always be kNoProxy.
   static std::deque<std::string> ParseProxyString(const std::string& input);
 
-  // Deletes internal state for the first instance of url in the state.
-  // If delete_timer is set, calls CancelTask on the timer id.
-  // Returns the callback in an out parameter. Returns true on success.
-  bool DeleteUrlState(const std::string& url,
-                      bool delete_timer,
-                      std::pair<ProxiesResolvedFn, void*>* callback);
+  // Process a proxy response by calling all the callbacks associated with the
+  // passed |source_url|. All the timeouts associated with these callbacks will
+  // be removed.
+  void ProcessUrlResponse(const std::string& source_url,
+                          const std::deque<std::string>& proxies);
 
   // Shutdown the dbus proxy object.
   void Shutdown();
@@ -88,7 +89,6 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
   LibCrosProxy* libcros_proxy_;
 
   int timeout_;
-  TimeoutsMap timers_;
   CallbacksMap callbacks_;
   DISALLOW_COPY_AND_ASSIGN(ChromeBrowserProxyResolver);
 };

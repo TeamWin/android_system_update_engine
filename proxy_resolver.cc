@@ -26,6 +26,7 @@ using std::string;
 namespace chromeos_update_engine {
 
 const char kNoProxy[] = "direct://";
+const ProxyRequestId kProxyRequestIdNull = brillo::MessageLoop::kTaskIdNull;
 
 DirectProxyResolver::~DirectProxyResolver() {
   if (idle_callback_id_ != MessageLoop::kTaskIdNull) {
@@ -39,27 +40,27 @@ DirectProxyResolver::~DirectProxyResolver() {
   }
 }
 
-bool DirectProxyResolver::GetProxiesForUrl(const string& url,
-                                           ProxiesResolvedFn callback,
-                                           void* data) {
+ProxyRequestId DirectProxyResolver::GetProxiesForUrl(
+    const string& url, const ProxiesResolvedFn& callback) {
   idle_callback_id_ = MessageLoop::current()->PostTask(
       FROM_HERE,
-      base::Bind(
-            &DirectProxyResolver::ReturnCallback,
-            base::Unretained(this),
-            callback,
-            data));
-  return true;
+      base::Bind(&DirectProxyResolver::ReturnCallback,
+                 base::Unretained(this),
+                 callback));
+  return idle_callback_id_;
 }
 
-void DirectProxyResolver::ReturnCallback(ProxiesResolvedFn callback,
-                                         void* data) {
+bool DirectProxyResolver::CancelProxyRequest(ProxyRequestId request) {
+  return MessageLoop::current()->CancelTask(request);
+}
+
+void DirectProxyResolver::ReturnCallback(const ProxiesResolvedFn& callback) {
   idle_callback_id_ = MessageLoop::kTaskIdNull;
 
   // Initialize proxy pool with as many proxies as indicated (all identical).
   deque<string> proxies(num_proxies_, kNoProxy);
 
-  (*callback)(proxies, data);
+  callback.Run(proxies);
 }
 
 
