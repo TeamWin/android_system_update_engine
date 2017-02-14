@@ -1211,7 +1211,75 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetUnrecoverableTest) {
             kHttpResponseUndefined);
 }
 
+namespace {
+// This HttpFetcherDelegate calls TerminateTransfer at a configurable point.
+class MultiHttpFetcherTerminateTestDelegate : public HttpFetcherDelegate {
+ public:
+  explicit MultiHttpFetcherTerminateTestDelegate(size_t terminate_trigger_bytes)
+      : terminate_trigger_bytes_(terminate_trigger_bytes) {}
 
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override {
+    LOG(INFO) << "ReceivedBytes, " << length << " bytes.";
+    EXPECT_EQ(fetcher, fetcher_.get());
+    if (bytes_downloaded_ < terminate_trigger_bytes_ &&
+        bytes_downloaded_ + length >= terminate_trigger_bytes_) {
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          base::Bind(&HttpFetcher::TerminateTransfer,
+                     base::Unretained(fetcher_.get())));
+    }
+    bytes_downloaded_ += length;
+  }
+
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
+    ADD_FAILURE() << "TransferComplete called but expected a failure";
+    // Destroy the fetcher (because we're allowed to).
+    fetcher_.reset(nullptr);
+    MessageLoop::current()->BreakLoop();
+  }
+
+  void TransferTerminated(HttpFetcher* fetcher) override {
+    // Destroy the fetcher (because we're allowed to).
+    fetcher_.reset(nullptr);
+    MessageLoop::current()->BreakLoop();
+  }
+
+  unique_ptr<HttpFetcher> fetcher_;
+  size_t bytes_downloaded_{0};
+  size_t terminate_trigger_bytes_;
+};
+}  // namespace
+
+TYPED_TEST(HttpFetcherTest, MultiHttpFetcherTerminateBetweenRangesTest) {
+  if (!this->test_.IsMulti())
+    return;
+  const size_t kRangeTrigger = 1000;
+  MultiHttpFetcherTerminateTestDelegate delegate(kRangeTrigger);
+
+  unique_ptr<HttpServer> server(this->test_.CreateServer());
+  ASSERT_TRUE(server->started_);
+
+  MultiRangeHttpFetcher* multi_fetcher =
+      static_cast<MultiRangeHttpFetcher*>(this->test_.NewLargeFetcher());
+  ASSERT_TRUE(multi_fetcher);
+  // Transfer ownership of the fetcher to the delegate.
+  delegate.fetcher_.reset(multi_fetcher);
+  multi_fetcher->set_delegate(&delegate);
+
+  multi_fetcher->ClearRanges();
+  multi_fetcher->AddRange(45, kRangeTrigger);
+  multi_fetcher->AddRange(2000, 100);
+
+  this->test_.fake_hardware()->SetIsOfficialBuild(false);
+
+  StartTransfer(multi_fetcher, this->test_.BigUrl(server->GetPort()));
+  MessageLoop::current()->Run();
+
+  // Check that the delegate made it to the trigger point.
+  EXPECT_EQ(kRangeTrigger, delegate.bytes_downloaded_);
+}
 
 namespace {
 class BlockedTransferTestDelegate : public HttpFetcherDelegate {
