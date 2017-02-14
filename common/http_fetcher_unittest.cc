@@ -432,7 +432,6 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
   }
 
   void TransferTerminated(HttpFetcher* fetcher) override {
-    ADD_FAILURE();
     times_transfer_terminated_called_++;
     MessageLoop::current()->BreakLoop();
   }
@@ -468,6 +467,7 @@ TYPED_TEST(HttpFetcherTest, SimpleTest) {
       fetcher.get(),
       this->test_.SmallUrl(server->GetPort())));
   this->loop_.Run();
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 }
 
 TYPED_TEST(HttpFetcherTest, SimpleBigTest) {
@@ -483,6 +483,7 @@ TYPED_TEST(HttpFetcherTest, SimpleBigTest) {
       fetcher.get(),
       this->test_.BigUrl(server->GetPort())));
   this->loop_.Run();
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 }
 
 // Issue #9648: when server returns an error HTTP response, the fetcher needs to
@@ -508,13 +509,13 @@ TYPED_TEST(HttpFetcherTest, ErrorTest) {
   this->loop_.Run();
 
   // Make sure that no bytes were received.
-  CHECK_EQ(delegate.times_received_bytes_called_, 0);
-  CHECK_EQ(fetcher->GetBytesDownloaded(), static_cast<size_t>(0));
+  EXPECT_EQ(0, delegate.times_received_bytes_called_);
+  EXPECT_EQ(0U, fetcher->GetBytesDownloaded());
 
   // Make sure that transfer completion was signaled once, and no termination
   // was signaled.
-  CHECK_EQ(delegate.times_transfer_complete_called_, 1);
-  CHECK_EQ(delegate.times_transfer_terminated_called_, 0);
+  EXPECT_EQ(1, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 }
 
 TYPED_TEST(HttpFetcherTest, ExtraHeadersInRequestTest) {
@@ -704,6 +705,32 @@ TYPED_TEST(HttpFetcherTest, AbortTest) {
   CHECK(!delegate.once_);
   CHECK(!delegate.callback_once_);
   this->loop_.CancelTask(task_id);
+}
+
+TYPED_TEST(HttpFetcherTest, TerminateTransferWhileResolvingProxyTest) {
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
+    return;
+  MockProxyResolver mock_resolver;
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewLargeFetcher(&mock_resolver));
+
+  HttpFetcherTestDelegate delegate;
+  fetcher->set_delegate(&delegate);
+
+  EXPECT_CALL(mock_resolver, GetProxiesForUrl(_, _)).WillOnce(Return(123));
+  fetcher->BeginTransfer("http://fake_url");
+  // Run the message loop until idle. This must call the MockProxyResolver with
+  // the request.
+  while (this->loop_.RunOnce(false)) {
+  }
+  testing::Mock::VerifyAndClearExpectations(&mock_resolver);
+
+  EXPECT_CALL(mock_resolver, CancelProxyRequest(123)).WillOnce(Return(true));
+
+  // Terminate the transfer right before the proxy resolution response.
+  fetcher->TerminateTransfer();
+  EXPECT_EQ(0, delegate.times_received_bytes_called_);
+  EXPECT_EQ(0, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(1, delegate.times_transfer_terminated_called_);
 }
 
 namespace {
