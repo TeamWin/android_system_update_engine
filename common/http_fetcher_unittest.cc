@@ -622,12 +622,9 @@ TYPED_TEST(HttpFetcherTest, PauseWhileResolvingProxyTest) {
   unique_ptr<HttpFetcher> fetcher(this->test_.NewLargeFetcher(&mock_resolver));
 
   // Saved arguments from the proxy call.
-  ProxiesResolvedFn proxy_callback = nullptr;
-  void* proxy_data = nullptr;
-
-  EXPECT_CALL(mock_resolver, GetProxiesForUrl("http://fake_url", _, _))
-      .WillOnce(DoAll(
-          SaveArg<1>(&proxy_callback), SaveArg<2>(&proxy_data), Return(true)));
+  ProxiesResolvedFn proxy_callback;
+  EXPECT_CALL(mock_resolver, GetProxiesForUrl("http://fake_url", _))
+      .WillOnce(DoAll(SaveArg<1>(&proxy_callback), Return(true)));
   fetcher->BeginTransfer("http://fake_url");
   testing::Mock::VerifyAndClearExpectations(&mock_resolver);
 
@@ -637,7 +634,7 @@ TYPED_TEST(HttpFetcherTest, PauseWhileResolvingProxyTest) {
   fetcher->Pause();
   // Proxy resolver comes back after we paused the fetcher.
   ASSERT_TRUE(proxy_callback);
-  (*proxy_callback)({1, kNoProxy}, proxy_data);
+  proxy_callback.Run({1, kNoProxy});
 }
 
 namespace {

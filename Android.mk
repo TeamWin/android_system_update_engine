@@ -1069,6 +1069,7 @@ LOCAL_SRC_FILES := \
     payload_generator/tarjan_unittest.cc \
     payload_generator/topological_sort_unittest.cc \
     payload_generator/zip_unittest.cc \
+    proxy_resolver_unittest.cc \
     testrunner.cc
 ifeq ($(local_use_omaha),1)
 LOCAL_C_INCLUDES += \
