@@ -59,9 +59,8 @@ bool HttpFetcher::ResolveProxiesForUrl(const string& url,
                    base::Unretained(this)));
     return true;
   }
-  return proxy_resolver_->GetProxiesForUrl(url,
-                                           &HttpFetcher::StaticProxiesResolved,
-                                           this);
+  return proxy_resolver_->GetProxiesForUrl(
+      url, base::Bind(&HttpFetcher::ProxiesResolved, base::Unretained(this)));
 }
 
 void HttpFetcher::NoProxyResolverCallback() {
