@@ -59,6 +59,7 @@ void MultiRangeHttpFetcher::TerminateTransfer() {
   terminating_ = true;
 
   if (!pending_transfer_ended_) {
+    pending_transfer_ended_ = true;
     base_fetcher_->TerminateTransfer();
   }
 }
