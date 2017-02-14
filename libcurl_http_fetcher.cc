@@ -58,6 +58,7 @@ LibcurlHttpFetcher::LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
 LibcurlHttpFetcher::~LibcurlHttpFetcher() {
   LOG_IF(ERROR, transfer_in_progress_)
       << "Destroying the fetcher while a transfer is in progress.";
+  CancelProxyResolution();
   CleanUp();
 }
 
@@ -313,6 +314,7 @@ void LibcurlHttpFetcher::ProxiesResolved() {
 }
 
 void LibcurlHttpFetcher::ForceTransferTermination() {
+  CancelProxyResolution();
   CleanUp();
   if (delegate_) {
     // Note that after the callback returns this object may be destroyed.
