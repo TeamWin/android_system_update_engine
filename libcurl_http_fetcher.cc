@@ -393,7 +393,7 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
       http_response_code_ == 0 &&
       no_network_retry_count_ < no_network_max_retries_) {
     no_network_retry_count_++;
-    MessageLoop::current()->PostDelayedTask(
+    retry_task_id_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
                    base::Unretained(this)),
@@ -419,7 +419,7 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     if (HasProxy()) {
       // We have another proxy. Retry immediately.
       LOG(INFO) << "Retrying with next proxy setting";
-      MessageLoop::current()->PostTask(
+      retry_task_id_ = MessageLoop::current()->PostTask(
           FROM_HERE,
           base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
                      base::Unretained(this)));
@@ -446,7 +446,7 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     }
     // Need to restart transfer
     LOG(INFO) << "Restarting transfer to download the remaining bytes";
-    MessageLoop::current()->PostDelayedTask(
+    retry_task_id_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
                    base::Unretained(this)),
@@ -624,6 +624,7 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
 }
 
 void LibcurlHttpFetcher::RetryTimeoutCallback() {
+  retry_task_id_ = MessageLoop::kTaskIdNull;
   if (transfer_paused_) {
     restart_transfer_on_unpause_ = true;
     return;
@@ -648,6 +649,9 @@ void LibcurlHttpFetcher::TimeoutCallback() {
 }
 
 void LibcurlHttpFetcher::CleanUp() {
+  MessageLoop::current()->CancelTask(retry_task_id_);
+  retry_task_id_ = MessageLoop::kTaskIdNull;
+
   MessageLoop::current()->CancelTask(timeout_id_);
   timeout_id_ = MessageLoop::kTaskIdNull;
 
