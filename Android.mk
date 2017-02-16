@@ -150,6 +150,7 @@ ue_libpayload_consumer_exported_static_libraries := \
     libxz-host \
     libbz \
     libimgpatch \
+    libbspatch \
     libz \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
