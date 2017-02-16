@@ -34,6 +34,7 @@
 #include <base/strings/stringprintf.h>
 #include <brillo/data_encoding.h>
 #include <brillo/make_unique_ptr.h>
+#include <bspatch.h>
 #include <google/protobuf/repeated_field.h>
 
 #include "update_engine/common/constants.h"
@@ -1183,30 +1184,13 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
                                                        operation.dst_length(),
                                                        &output_positions));
 
-  string temp_filename;
-  TEST_AND_RETURN_FALSE(utils::MakeTempFile("au_patch.XXXXXX",
-                                            &temp_filename,
-                                            nullptr));
-  ScopedPathUnlinker path_unlinker(temp_filename);
-  {
-    int fd = open(temp_filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    ScopedFdCloser fd_closer(&fd);
-    TEST_AND_RETURN_FALSE(
-        utils::WriteAll(fd, buffer_.data(), operation.data_length()));
-  }
-
-  // Update the buffer to release the patch data memory as soon as the patch
-  // file is written out.
+  TEST_AND_RETURN_FALSE(bsdiff::bspatch(target_path_.c_str(),
+                                        target_path_.c_str(),
+                                        buffer_.data(),
+                                        buffer_.size(),
+                                        input_positions.c_str(),
+                                        output_positions.c_str()) == 0);
   DiscardBuffer(true, buffer_.size());
-
-  vector<string> cmd{kBspatchPath, target_path_, target_path_, temp_filename,
-                     input_positions, output_positions};
-
-  int return_code = 0;
-  TEST_AND_RETURN_FALSE(
-      Subprocess::SynchronousExecFlags(cmd, Subprocess::kSearchPath,
-                                       &return_code, nullptr));
-  TEST_AND_RETURN_FALSE(return_code == 0);
 
   if (operation.dst_length() % block_size_) {
     // Zero out rest of final block.
@@ -1269,30 +1253,13 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
                                                        operation.dst_length(),
                                                        &output_positions));
 
-  string temp_filename;
-  TEST_AND_RETURN_FALSE(utils::MakeTempFile("au_patch.XXXXXX",
-                                            &temp_filename,
-                                            nullptr));
-  ScopedPathUnlinker path_unlinker(temp_filename);
-  {
-    int fd = open(temp_filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    ScopedFdCloser fd_closer(&fd);
-    TEST_AND_RETURN_FALSE(
-        utils::WriteAll(fd, buffer_.data(), operation.data_length()));
-  }
-
-  // Update the buffer to release the patch data memory as soon as the patch
-  // file is written out.
+  TEST_AND_RETURN_FALSE(bsdiff::bspatch(source_path_.c_str(),
+                                        target_path_.c_str(),
+                                        buffer_.data(),
+                                        buffer_.size(),
+                                        input_positions.c_str(),
+                                        output_positions.c_str()) == 0);
   DiscardBuffer(true, buffer_.size());
-
-  vector<string> cmd{kBspatchPath, source_path_, target_path_, temp_filename,
-                     input_positions, output_positions};
-
-  int return_code = 0;
-  TEST_AND_RETURN_FALSE(
-      Subprocess::SynchronousExecFlags(cmd, Subprocess::kSearchPath,
-                                       &return_code, nullptr));
-  TEST_AND_RETURN_FALSE(return_code == 0);
   return true;
 }
 
