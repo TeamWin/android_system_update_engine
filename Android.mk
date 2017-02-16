@@ -500,7 +500,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_REQUIRED_MODULES := \
-    bspatch \
     cacerts_google
 ifeq ($(local_use_weave),1)
 LOCAL_REQUIRED_MODULES += updater.json
@@ -547,8 +546,6 @@ LOCAL_MODULE := update_engine_sideload
 LOCAL_FORCE_STATIC_EXECUTABLE := true
 LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
 LOCAL_MODULE_CLASS := EXECUTABLES
-LOCAL_REQUIRED_MODULES := \
-    bspatch_recovery
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
 LOCAL_CFLAGS := \
