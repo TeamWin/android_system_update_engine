@@ -997,4 +997,14 @@ TEST_F(UpdateAttempterTest, CheckForUpdateScheduledAUTest) {
   EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
 }
 
+TEST_F(UpdateAttempterTest, TargetVersionPrefixSetAndReset) {
+  attempter_.CalculateUpdateParams("", "", "", "1234", false, false);
+  EXPECT_EQ("1234",
+            fake_system_state_.request_params()->target_version_prefix());
+
+  attempter_.CalculateUpdateParams("", "", "", "", false, false);
+  EXPECT_TRUE(
+      fake_system_state_.request_params()->target_version_prefix().empty());
+}
+
 }  // namespace chromeos_update_engine

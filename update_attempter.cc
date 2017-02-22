@@ -374,9 +374,8 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
   // Refresh the policy before computing all the update parameters.
   RefreshDevicePolicy();
 
-  // Set the target version prefix, if provided.
-  if (!target_version_prefix.empty())
-    omaha_request_params_->set_target_version_prefix(target_version_prefix);
+  // Update the target version prefix.
+  omaha_request_params_->set_target_version_prefix(target_version_prefix);
 
   CalculateScatteringParams(interactive);
 
