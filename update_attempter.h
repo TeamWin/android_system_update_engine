@@ -256,6 +256,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, UpdateTest);
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
   FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
+  FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
 
   // CertificateChecker::Observer method.
   // Report metrics about the certificate being checked.
