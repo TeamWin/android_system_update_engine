@@ -16,6 +16,9 @@
 
 #include "update_engine/libcurl_http_fetcher.h"
 
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <string>
 
@@ -25,6 +28,10 @@
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+
+#ifdef __ANDROID__
+#include <cutils/qtaguid.h>
+#endif  // __ANDROID__
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/common/hardware_interface.h"
@@ -41,7 +48,24 @@ using std::string;
 namespace chromeos_update_engine {
 
 namespace {
+
 const int kNoNetworkRetrySeconds = 10;
+
+// Socket tag used by all network sockets. See qtaguid kernel module for stats.
+const int kUpdateEngineSocketTag = 0x55417243;  // "CrAU" in little-endian.
+
+// libcurl's CURLOPT_SOCKOPTFUNCTION callback function. Called after the socket
+// is created but before it is connected. This callback tags the created socket
+// so the network usage can be tracked in Android.
+int LibcurlSockoptCallback(void* /* clientp */,
+                           curl_socket_t curlfd,
+                           curlsocktype /* purpose */) {
+#ifdef __ANDROID__
+  qtaguid_tagSocket(curlfd, kUpdateEngineSocketTag, getuid());
+#endif  // __ANDROID__
+  return CURL_SOCKOPT_OK;
+}
+
 }  // namespace
 
 LibcurlHttpFetcher::LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
@@ -101,6 +125,10 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
   curl_handle_ = curl_easy_init();
   CHECK(curl_handle_);
   ignore_failure_ = false;
+
+  // Tag the socket for network usage stats.
+  curl_easy_setopt(
+      curl_handle_, CURLOPT_SOCKOPTFUNCTION, LibcurlSockoptCallback);
 
   CHECK(HasProxy());
   bool is_direct = (GetCurrentProxy() == kNoProxy);
