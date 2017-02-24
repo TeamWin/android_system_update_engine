@@ -34,6 +34,7 @@ namespace {
 // Build time properties name used in Brillo.
 const char kProductId[] = "product_id";
 const char kProductVersion[] = "product_version";
+const char kSystemVersion[] = "system_version";
 
 // Prefs used to store the target channel and powerwash settings.
 const char kPrefsImgPropChannelName[] = "img-prop-channel-name";
@@ -64,7 +65,11 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
   result.product_id = GetStringWithDefault(
       osrelease, kProductId, "developer-boards:brillo-starter-board");
   result.canary_product_id = result.product_id;
-  result.version = GetStringWithDefault(osrelease, kProductVersion, "0.0.0.0");
+  std::string system_version =
+      GetStringWithDefault(osrelease, kSystemVersion, "0.0.0");
+  std::string product_version =
+      GetStringWithDefault(osrelease, kProductVersion, "0");
+  result.version = system_version + "." + product_version;
 
   result.board = "brillo";
 
