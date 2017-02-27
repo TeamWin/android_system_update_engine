@@ -17,7 +17,12 @@
 #include "update_engine/payload_generator/delta_diff_utils.h"
 
 #include <endian.h>
+// TODO: Remove these pragmas when b/35721782 is fixed.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmacro-redefined"
 #include <ext2fs/ext2fs.h>
+#pragma clang diagnostic pop
+
 
 #include <algorithm>
 #include <map>
