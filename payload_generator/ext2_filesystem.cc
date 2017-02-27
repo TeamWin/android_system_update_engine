@@ -17,8 +17,12 @@
 #include "update_engine/payload_generator/ext2_filesystem.h"
 
 #include <et/com_err.h>
+// TODO: Remove these pragmas when b/35721782 is fixed.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmacro-redefined"
 #include <ext2fs/ext2_io.h>
 #include <ext2fs/ext2fs.h>
+#pragma clang diagnostic pop
 
 #include <map>
 #include <set>
