@@ -27,9 +27,11 @@ local_use_hwid_override := \
 # the system layer.
 local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
-local_use_omaha := $(if $(BRILLO_USE_OMAHA),$(BRILLO_USE_OMAHA),0)
 local_use_shill := $(if $(BRILLO_USE_SHILL),$(BRILLO_USE_SHILL),0)
 local_use_weave := $(if $(BRILLO_USE_WEAVE),$(BRILLO_USE_WEAVE),0)
+
+# IoT devices use Omaha for updates.
+local_use_omaha := $(if $(filter true,$(PRODUCT_IOT)),1,0)
 
 ifeq ($(local_use_shill),1)
 ifneq ($(local_use_dbus),1)
