@@ -20,33 +20,23 @@ LOCAL_PATH := $(my-dir)
 # by setting BRILLO_USE_* values. Note that we define local variables like
 # local_use_* to prevent leaking our default setting for other packages.
 local_use_binder := $(if $(BRILLO_USE_BINDER),$(BRILLO_USE_BINDER),1)
-local_use_dbus := $(if $(BRILLO_USE_DBUS),$(BRILLO_USE_DBUS),0)
 local_use_hwid_override := \
     $(if $(BRILLO_USE_HWID_OVERRIDE),$(BRILLO_USE_HWID_OVERRIDE),0)
 # "libcros" gates the LibCrosService exposed by the Chrome OS' chrome browser to
 # the system layer.
 local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
-local_use_shill := $(if $(BRILLO_USE_SHILL),$(BRILLO_USE_SHILL),0)
 local_use_weave := $(if $(BRILLO_USE_WEAVE),$(BRILLO_USE_WEAVE),0)
 
 # IoT devices use Omaha for updates.
 local_use_omaha := $(if $(filter true,$(PRODUCT_IOT)),1,0)
 
-ifeq ($(local_use_shill),1)
-ifneq ($(local_use_dbus),1)
-$(error USE_SHILL depends on USE_DBUS.)
-endif  # local_use_dbus != 1
-endif  # local_use_shill == 1
-
 ue_common_cflags := \
     -DUSE_BINDER=$(local_use_binder) \
-    -DUSE_DBUS=$(local_use_dbus) \
     -DUSE_HWID_OVERRIDE=$(local_use_hwid_override) \
     -DUSE_LIBCROS=$(local_use_libcros) \
     -DUSE_MTD=$(local_use_mtd) \
     -DUSE_OMAHA=$(local_use_omaha) \
-    -DUSE_SHILL=$(local_use_shill) \
     -DUSE_WEAVE=$(local_use_weave) \
     -D_FILE_OFFSET_BITS=64 \
     -D_POSIX_C_SOURCE=199309L \
@@ -74,21 +64,6 @@ ue_common_shared_libraries := \
     libchrome
 ue_common_static_libraries := \
     libgtest_prod \
-
-ifeq ($(local_use_dbus),1)
-
-# update_engine_client-dbus-proxies (from generate-dbus-proxies.gypi)
-# ========================================================
-include $(CLEAR_VARS)
-LOCAL_MODULE := update_engine_client-dbus-proxies
-LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-LOCAL_SRC_FILES := \
-    dbus_bindings/dbus-service-config.json \
-    dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml
-LOCAL_DBUS_PROXY_PREFIX := update_engine
-include $(BUILD_STATIC_LIBRARY)
-
-endif  # local_use_dbus == 1
 
 # update_metadata-protos (type: static_library)
 # ========================================================
@@ -119,30 +94,6 @@ generated_sources_dir := $(call local-generated-sources-dir)
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(generated_sources_dir)/proto/system
 LOCAL_SRC_FILES := $(ue_update_metadata_protos_src_files)
 include $(BUILD_STATIC_LIBRARY)
-
-ifeq ($(local_use_dbus),1)
-
-# update_engine-dbus-adaptor (from generate-dbus-adaptors.gypi)
-# ========================================================
-# Chrome D-Bus bindings.
-include $(CLEAR_VARS)
-LOCAL_MODULE := update_engine-dbus-adaptor
-LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-LOCAL_SRC_FILES := \
-    dbus_bindings/org.chromium.UpdateEngineInterface.dbus-xml
-include $(BUILD_STATIC_LIBRARY)
-
-# update_engine-dbus-libcros-client (from generate-dbus-proxies.gypi)
-# ========================================================
-include $(CLEAR_VARS)
-LOCAL_MODULE := update_engine-dbus-libcros-client
-LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-LOCAL_SRC_FILES := \
-    dbus_bindings/org.chromium.LibCrosService.dbus-xml
-LOCAL_DBUS_PROXY_PREFIX := libcros
-include $(BUILD_STATIC_LIBRARY)
-
-endif  # local_use_dbus == 1
 
 # libpayload_consumer (type: static_library)
 # ========================================================
@@ -280,7 +231,6 @@ ifeq ($(local_use_omaha),1)
 # The main daemon static_library with all the code used to check for updates
 # with Omaha and expose a DBus daemon.
 ue_libupdate_engine_exported_c_includes := \
-    $(LOCAL_PATH)/include \
     external/cros/system_api/dbus
 ue_libupdate_engine_exported_static_libraries := \
     libpayload_consumer \
@@ -303,20 +253,6 @@ ue_libupdate_engine_exported_shared_libraries := \
     $(ue_libpayload_consumer_exported_shared_libraries) \
     $(ue_update_metadata_protos_exported_shared_libraries) \
     $(ue_libupdate_engine_boot_control_exported_shared_libraries)
-ifeq ($(local_use_dbus),1)
-ue_libupdate_engine_exported_static_libraries += \
-    update_engine-dbus-adaptor \
-    update_engine-dbus-libcros-client \
-    update_engine_client-dbus-proxies
-ue_libupdate_engine_exported_shared_libraries += \
-    libdbus \
-    libbrillo-dbus \
-    libchrome-dbus
-endif  # local_use_dbus == 1
-ifeq ($(local_use_shill),1)
-ue_libupdate_engine_exported_shared_libraries += \
-    libshill-client
-endif  # local_use_shill == 1
 ifeq ($(local_use_binder),1)
 ue_libupdate_engine_exported_shared_libraries += \
     libbinder \
@@ -359,6 +295,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SRC_FILES := \
     certificate_checker.cc \
     common_service.cc \
+    connection_manager_android.cc \
     connection_utils.cc \
     daemon.cc \
     hardware_android.cc \
@@ -392,21 +329,6 @@ LOCAL_SRC_FILES := \
     update_status_utils.cc \
     utils_android.cc \
     weave_service_factory.cc
-ifeq ($(local_use_dbus),1)
-LOCAL_SRC_FILES += \
-    dbus_connection.cc \
-    dbus_service.cc \
-    libcros_proxy.cc
-endif  # local_use_dbus == 1
-ifeq ($(local_use_shill),1)
-LOCAL_SRC_FILES += \
-    connection_manager.cc \
-    shill_proxy.cc \
-    update_manager/real_shill_provider.cc
-else   # local_use_shill != 1
-LOCAL_SRC_FILES += \
-    connection_manager_android.cc
-endif  # local_use_shill == 1
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \
@@ -617,7 +539,6 @@ LOCAL_CFLAGS := \
     -Wall \
     -Werror \
     -Wno-unused-parameter \
-    -DUSE_DBUS=$(local_use_dbus) \
     -DUSE_BINDER=$(local_use_binder)
 LOCAL_CLANG := true
 LOCAL_CPP_EXTENSION := .cc
@@ -634,8 +555,7 @@ LOCAL_SRC_FILES := \
     client_library/client.cc \
     update_status_utils.cc
 
-# We can only compile support for one IPC mechanism. If both "binder" and "dbus"
-# are defined, we prefer binder.
+# We only support binder IPC mechanism in Android.
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES := $(LOCAL_PATH)/binder_bindings
 LOCAL_SHARED_LIBRARIES += \
@@ -647,14 +567,6 @@ LOCAL_SRC_FILES += \
     binder_bindings/android/brillo/IUpdateEngineStatusCallback.aidl \
     client_library/client_binder.cc \
     parcelable_update_engine_status.cc
-else  # local_use_binder != 1
-LOCAL_STATIC_LIBRARIES := \
-    update_engine_client-dbus-proxies
-LOCAL_SHARED_LIBRARIES += \
-    libchrome-dbus \
-    libbrillo-dbus
-LOCAL_SRC_FILES += \
-    client_library/client_dbus.cc
 endif  # local_use_binder == 1
 
 include $(BUILD_SHARED_LIBRARY)
@@ -1111,12 +1023,6 @@ LOCAL_STATIC_LIBRARIES += \
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
 endif  # local_use_omaha == 1
-ifeq ($(local_use_shill),1)
-LOCAL_SRC_FILES += \
-    connection_manager_unittest.cc \
-    fake_shill_proxy.cc \
-    update_manager/real_shill_provider_unittest.cc
-endif  # local_use_shill == 1
 ifeq ($(local_use_libcros),1)
 LOCAL_SRC_FILES += \
     chrome_browser_proxy_resolver_unittest.cc
