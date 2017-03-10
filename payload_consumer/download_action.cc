@@ -185,15 +185,18 @@ void DownloadAction::PerformAction() {
                  << ". Proceeding with the update anyway.";
   }
 
-  if (writer_) {
+  download_active_ = true;
+  StartDownloading();
+}
+
+void DownloadAction::StartDownloading() {
+  if (writer_ && writer_ != delta_performer_.get()) {
     LOG(INFO) << "Using writer for test.";
   } else {
     delta_performer_.reset(new DeltaPerformer(
         prefs_, boot_control_, hardware_, delegate_, &install_plan_, payload_));
     writer_ = delta_performer_.get();
   }
-  download_active_ = true;
-
   if (system_state_ != nullptr) {
     const PayloadStateInterface* payload_state = system_state_->payload_state();
     string file_id = utils::CalculateP2PFileId(payload_->hash, payload_->size);
@@ -310,6 +313,15 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
       // Delete p2p file, if applicable.
       if (!p2p_file_id_.empty())
         CloseP2PSharingFd(true);
+    } else if (payload_ < &install_plan_.payloads.back() &&
+               system_state_->payload_state()->NextPayload()) {
+      // Start downloading next payload.
+      payload_++;
+      DeltaPerformer::ResetUpdateProgress(prefs_, false);
+      install_plan_.download_url =
+          system_state_->payload_state()->GetCurrentUrl();
+      StartDownloading();
+      return;
     }
   }
 
