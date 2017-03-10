@@ -28,16 +28,11 @@ namespace {
 // Open the appropriate fstab file and fallback to /fstab.device if
 // that's what's being used.
 static struct fstab* OpenFSTab() {
-  char propbuf[PROPERTY_VALUE_MAX];
-  struct fstab* fstab;
-
-  property_get("ro.hardware", propbuf, "");
-  string fstab_name = string("/fstab.") + propbuf;
-  fstab = fs_mgr_read_fstab(fstab_name.c_str());
+  struct fstab* fstab = fs_mgr_read_fstab_default();
   if (fstab != nullptr)
     return fstab;
 
-  fstab = fs_mgr_read_fstab("/fstab.device");
+  fstab = fs_mgr_read_fstab_with_dt("/fstab.device");
   return fstab;
 }
 
