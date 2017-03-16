@@ -854,11 +854,11 @@ void VerifyPayloadResult(DeltaPerformer* performer,
   int expected_times = (expected_result == ErrorCode::kSuccess) ? 1 : 0;
   EXPECT_CALL(state->mock_delegate_, DownloadComplete()).Times(expected_times);
 
-  LOG(INFO) << "Verifying payload for expected result "
-            << expected_result;
-  EXPECT_EQ(expected_result, performer->VerifyPayload(
-      HashCalculator::HashOfData(state->delta),
-      state->delta.size()));
+  LOG(INFO) << "Verifying payload for expected result " << expected_result;
+  brillo::Blob expected_hash;
+  HashCalculator::RawHashOfData(state->delta, &expected_hash);
+  EXPECT_EQ(expected_result,
+            performer->VerifyPayload(expected_hash, state->delta.size()));
   LOG(INFO) << "Verified payload.";
 
   if (expected_result != ErrorCode::kSuccess) {

@@ -57,7 +57,7 @@ struct InstallPlan {
   std::string version;       // version we are installing.
 
   uint64_t payload_size{0};              // size of the payload
-  std::string payload_hash;              // SHA256 hash of the payload
+  brillo::Blob payload_hash;             // SHA256 hash of the payload
   uint64_t metadata_size{0};             // size of the metadata
   std::string metadata_signature;        // signature of the  metadata
 
