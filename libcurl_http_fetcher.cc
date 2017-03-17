@@ -68,6 +68,32 @@ int LibcurlSockoptCallback(void* /* clientp */,
 
 }  // namespace
 
+// static
+int LibcurlHttpFetcher::LibcurlCloseSocketCallback(void* clientp,
+                                                   curl_socket_t item) {
+#ifdef __ANDROID__
+  qtaguid_untagSocket(item);
+#endif  // __ANDROID__
+  LibcurlHttpFetcher* fetcher = static_cast<LibcurlHttpFetcher*>(clientp);
+  // Stop watching the socket before closing it.
+  for (size_t t = 0; t < arraysize(fetcher->fd_task_maps_); ++t) {
+    const auto fd_task_pair = fetcher->fd_task_maps_[t].find(item);
+    if (fd_task_pair != fetcher->fd_task_maps_[t].end()) {
+      if (!MessageLoop::current()->CancelTask(fd_task_pair->second)) {
+        LOG(WARNING) << "Error canceling the watch task "
+                     << fd_task_pair->second << " for "
+                     << (t ? "writing" : "reading") << " the fd " << item;
+      }
+      fetcher->fd_task_maps_[t].erase(item);
+    }
+  }
+
+  // Documentation for this callback says to return 0 on success or 1 on error.
+  if (!IGNORE_EINTR(close(item)))
+    return 0;
+  return 1;
+}
+
 LibcurlHttpFetcher::LibcurlHttpFetcher(ProxyResolver* proxy_resolver,
                                        HardwareInterface* hardware)
     : HttpFetcher(proxy_resolver), hardware_(hardware) {
@@ -126,9 +152,12 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
   CHECK(curl_handle_);
   ignore_failure_ = false;
 
-  // Tag the socket for network usage stats.
+  // Tag and untag the socket for network usage stats.
   curl_easy_setopt(
       curl_handle_, CURLOPT_SOCKOPTFUNCTION, LibcurlSockoptCallback);
+  curl_easy_setopt(
+      curl_handle_, CURLOPT_CLOSESOCKETFUNCTION, LibcurlCloseSocketCallback);
+  curl_easy_setopt(curl_handle_, CURLOPT_CLOSESOCKETDATA, this);
 
   CHECK(HasProxy());
   bool is_direct = (GetCurrentProxy() == kNoProxy);
