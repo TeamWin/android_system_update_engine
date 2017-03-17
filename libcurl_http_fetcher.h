@@ -107,6 +107,10 @@ class LibcurlHttpFetcher : public HttpFetcher {
   }
 
  private:
+  // libcurl's CURLOPT_CLOSESOCKETFUNCTION callback function. Called when
+  // closing a socket created with the CURLOPT_OPENSOCKETFUNCTION callback.
+  static int LibcurlCloseSocketCallback(void* clientp, curl_socket_t item);
+
   // Callback for when proxy resolution has completed. This begins the
   // transfer.
   void ProxiesResolved();
