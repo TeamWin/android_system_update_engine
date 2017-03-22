@@ -37,6 +37,10 @@ struct ImageProperties {
   // The product version of this image.
   std::string version;
 
+  // A unique string that identifies this build. Normally a combination of the
+  // the version, signing keys and build target.
+  std::string build_fingerprint;
+
   // The board name this image was built for.
   std::string board;
 

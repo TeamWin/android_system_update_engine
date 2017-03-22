@@ -25,6 +25,7 @@
 #include <bootloader.h>
 
 #include <base/files/file_util.h>
+#include <base/strings/stringprintf.h>
 #include <brillo/make_unique_ptr.h>
 #include <cutils/properties.h>
 
@@ -44,6 +45,15 @@ const char kAndroidRecoveryPowerwashCommand[] =
     "recovery\n"
     "--wipe_data\n"
     "--reason=wipe_data_from_ota\n";
+
+// Android properties that identify the hardware and potentially non-updatable
+// parts of the bootloader (such as the bootloader version and the baseband
+// version).
+const char kPropBootBootloader[] = "ro.boot.bootloader";
+const char kPropBootBaseband[] = "ro.boot.baseband";
+const char kPropProductManufacturer[] = "ro.product.manufacturer";
+const char kPropBootHardwareSKU[] = "ro.boot.hardware.sku";
+const char kPropBootRevision[] = "ro.boot.revision";
 
 // Write a recovery command line |message| to the BCB. The arguments to recovery
 // must be separated by '\n'. An empty string will erase the BCB.
@@ -139,18 +149,26 @@ bool HardwareAndroid::IsOOBEComplete(base::Time* out_time_of_oobe) const {
 }
 
 string HardwareAndroid::GetHardwareClass() const {
-  LOG(WARNING) << "STUB: GetHardwareClass().";
-  return "ANDROID";
+  char manufacturer[PROPERTY_VALUE_MAX];
+  char sku[PROPERTY_VALUE_MAX];
+  char revision[PROPERTY_VALUE_MAX];
+  property_get(kPropBootHardwareSKU, sku, "");
+  property_get(kPropProductManufacturer, manufacturer, "");
+  property_get(kPropBootRevision, revision, "");
+
+  return base::StringPrintf("%s:%s:%s", manufacturer, sku, revision);
 }
 
 string HardwareAndroid::GetFirmwareVersion() const {
-  LOG(WARNING) << "STUB: GetFirmwareVersion().";
-  return "0";
+  char bootloader[PROPERTY_VALUE_MAX];
+  property_get(kPropBootBootloader, bootloader, "");
+  return bootloader;
 }
 
 string HardwareAndroid::GetECVersion() const {
-  LOG(WARNING) << "STUB: GetECVersion().";
-  return "0";
+  char baseband[PROPERTY_VALUE_MAX];
+  property_get(kPropBootBaseband, baseband, "");
+  return baseband;
 }
 
 int HardwareAndroid::GetPowerwashCount() const {
