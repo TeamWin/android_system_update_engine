@@ -23,13 +23,8 @@
       # The -DUSE_* flags are passed from platform2.py. We use sane defaults
       # here when these USE flags are not defined. You can set the default value
       # for the USE flag in the ebuild.
-      'USE_binder%': '0',
       'USE_dbus%': '1',
       'USE_hwid_override%': '0',
-      'USE_libcros%': '1',
-      'USE_mtd%': '0',
-      'USE_power_management%': '0',
-      'USE_buffet%': '0',
     },
     'cflags': [
       '-g',
