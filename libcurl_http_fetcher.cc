@@ -31,6 +31,7 @@
 
 #ifdef __ANDROID__
 #include <cutils/qtaguid.h>
+#include <private/android_filesystem_config.h>
 #endif  // __ANDROID__
 
 #include "update_engine/certificate_checker.h"
@@ -61,7 +62,7 @@ int LibcurlSockoptCallback(void* /* clientp */,
                            curl_socket_t curlfd,
                            curlsocktype /* purpose */) {
 #ifdef __ANDROID__
-  qtaguid_tagSocket(curlfd, kUpdateEngineSocketTag, getuid());
+  qtaguid_tagSocket(curlfd, kUpdateEngineSocketTag, AID_OTA_UPDATE);
 #endif  // __ANDROID__
   return CURL_SOCKOPT_OK;
 }
