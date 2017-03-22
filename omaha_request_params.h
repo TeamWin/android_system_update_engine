@@ -102,6 +102,9 @@ class OmahaRequestParams {
   inline std::string os_version() const { return os_version_; }
   inline std::string os_sp() const { return os_sp_; }
   inline std::string os_board() const { return image_props_.board; }
+  inline std::string os_build_fingerprint() const {
+    return image_props_.build_fingerprint;
+  }
   inline std::string board_app_id() const { return image_props_.product_id; }
   inline std::string canary_app_id() const {
     return image_props_.canary_product_id;

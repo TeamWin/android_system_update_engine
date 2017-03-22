@@ -258,11 +258,18 @@ string GetAppXml(const OmahaEvent* event,
   app_cohort_args += GetCohortArgXml(system_state->prefs(),
                                      "cohortname", kPrefsOmahaCohortName);
 
+  string fingerprint_arg;
+  if (!params->os_build_fingerprint().empty()) {
+    fingerprint_arg =
+        "fingerprint=\"" + XmlEncodeWithDefault(params->os_build_fingerprint(), "") + "\" ";
+  }
+
   string app_xml = "    <app "
       "appid=\"" + XmlEncodeWithDefault(params->GetAppId(), "") + "\" " +
       app_cohort_args +
       app_versions +
       app_channels +
+      fingerprint_arg +
       "lang=\"" + XmlEncodeWithDefault(params->app_lang(), "en-US") + "\" " +
       "board=\"" + XmlEncodeWithDefault(params->os_board(), "") + "\" " +
       "hardware_class=\"" + XmlEncodeWithDefault(params->hwid(), "") + "\" " +
