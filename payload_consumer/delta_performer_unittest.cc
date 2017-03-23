@@ -68,13 +68,6 @@ const char kBogusMetadataSignature1[] =
     "fjoTeLYZpt+WN65Vu7jJ0cQN8e1y+2yka5112wpRf/LLtPgiAjEZnsoYpLUd7CoV"
     "pLRtClp97kN2+tXGNBQqkA==";
 
-#ifdef __ANDROID__
-const char kZlibFingerprintPath[] =
-    "/data/nativetest/update_engine_unittests/zlib_fingerprint";
-#else
-const char kZlibFingerprintPath[] = "/etc/zlib_fingerprint";
-#endif  // __ANDROID__
-
 // Different options that determine what we should fill into the
 // install_plan.metadata_signature to simulate the contents received in the
 // Omaha response.
@@ -906,6 +899,12 @@ TEST_F(DeltaPerformerTest, ConfVersionsMatch) {
 // kCompatibleZlibFingerprint.
 TEST_F(DeltaPerformerTest, ZlibFingerprintMatch) {
   string fingerprint;
+#ifdef __ANDROID__
+  const std::string kZlibFingerprintPath =
+      test_utils::GetBuildArtifactsPath("zlib_fingerprint");
+#else
+  const std::string kZlibFingerprintPath = "/etc/zlib_fingerprint";
+#endif  // __ANDROID__
   EXPECT_TRUE(base::ReadFileToString(base::FilePath(kZlibFingerprintPath),
                                      &fingerprint));
   EXPECT_TRUE(utils::IsZlibCompatible(fingerprint));
