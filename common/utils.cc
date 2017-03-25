@@ -703,6 +703,32 @@ bool UnmountFilesystem(const string& mountpoint) {
   return true;
 }
 
+bool IsMountpoint(const std::string& mountpoint) {
+  struct stat stdir, stparent;
+
+  // Check whether the passed mountpoint is a directory and the /.. is in the
+  // same device or not. If mountpoint/.. is in a different device it means that
+  // there is a filesystem mounted there. If it is not, but they both point to
+  // the same inode it basically is the special case of /.. pointing to /. This
+  // test doesn't play well with bind mount but that's out of the scope of what
+  // we want to detect here.
+  if (lstat(mountpoint.c_str(), &stdir) != 0) {
+    PLOG(ERROR) << "Error stat'ing " << mountpoint;
+    return false;
+  }
+  if (!S_ISDIR(stdir.st_mode))
+    return false;
+
+  base::FilePath parent(mountpoint);
+  parent = parent.Append("..");
+  if (lstat(parent.value().c_str(), &stparent) != 0) {
+    PLOG(ERROR) << "Error stat'ing " << parent.value();
+    return false;
+  }
+  return S_ISDIR(stparent.st_mode) &&
+         (stparent.st_dev != stdir.st_dev || stparent.st_ino == stdir.st_ino);
+}
+
 // Tries to parse the header of an ELF file to obtain a human-readable
 // description of it on the |output| string.
 static bool GetFileFormatELF(const uint8_t* buffer, size_t size,
