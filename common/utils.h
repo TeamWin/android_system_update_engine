@@ -192,6 +192,12 @@ bool MountFilesystem(const std::string& device,
                      const std::string& fs_mount_options);
 bool UnmountFilesystem(const std::string& mountpoint);
 
+// Return whether the passed |mountpoint| path is a directory where a filesystem
+// is mounted. Due to detection mechanism limitations, when used on directories
+// where another part of the tree was bind mounted returns true only if bind
+// mounted on top of a different filesystem (not inside the same filesystem).
+bool IsMountpoint(const std::string& mountpoint);
+
 // Returns a human-readable string with the file format based on magic constants
 // on the header of the file.
 std::string GetFileFormat(const std::string& path);

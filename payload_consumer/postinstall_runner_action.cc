@@ -118,6 +118,13 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   fs_mount_dir_ = temp_dir.value();
 #endif  // __ANDROID__
 
+  // Double check that the fs_mount_dir is not busy with a previous mounted
+  // filesystem from a previous crashed postinstall step.
+  if (utils::IsMountpoint(fs_mount_dir_)) {
+    LOG(INFO) << "Found previously mounted filesystem at " << fs_mount_dir_;
+    utils::UnmountFilesystem(fs_mount_dir_);
+  }
+
   base::FilePath postinstall_path(partition.postinstall_path);
   if (postinstall_path.IsAbsolute()) {
     LOG(ERROR) << "Invalid absolute path passed to postinstall, use a relative"
