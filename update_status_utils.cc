@@ -20,21 +20,6 @@
 
 using update_engine::UpdateStatus;
 
-namespace {
-
-const char kWeaveStatusIdle[] = "idle";
-const char kWeaveStatusCheckingForUpdate[] = "checkingForUpdate";
-const char kWeaveStatusUpdateAvailable[] = "updateAvailable";
-const char kWeaveStatusDownloading[] = "downloading";
-const char kWeaveStatusVerifying[] = "verifying";
-const char kWeaveStatusFinalizing[] = "finalizing";
-const char kWeaveStatusUpdatedNeedReboot[] = "updatedNeedReboot";
-const char kWeaveStatusReportingErrorEvent[] = "reportingErrorEvent";
-const char kWeaveStatusAttemptingRollback[] = "attemptingRollback";
-const char kWeaveStatusDisabled[] = "disabled";
-
-}  // namespace
-
 namespace chromeos_update_engine {
 
 const char* UpdateStatusToString(const UpdateStatus& status) {
@@ -59,34 +44,6 @@ const char* UpdateStatusToString(const UpdateStatus& status) {
       return update_engine::kUpdateStatusAttemptingRollback;
     case UpdateStatus::DISABLED:
       return update_engine::kUpdateStatusDisabled;
-  }
-
-  NOTREACHED();
-  return nullptr;
-}
-
-const char* UpdateStatusToWeaveStatus(const UpdateStatus& status) {
-  switch (status) {
-    case UpdateStatus::IDLE:
-      return kWeaveStatusIdle;
-    case UpdateStatus::CHECKING_FOR_UPDATE:
-      return kWeaveStatusCheckingForUpdate;
-    case UpdateStatus::UPDATE_AVAILABLE:
-      return kWeaveStatusUpdateAvailable;
-    case UpdateStatus::DOWNLOADING:
-      return kWeaveStatusDownloading;
-    case UpdateStatus::VERIFYING:
-      return kWeaveStatusVerifying;
-    case UpdateStatus::FINALIZING:
-      return kWeaveStatusFinalizing;
-    case UpdateStatus::UPDATED_NEED_REBOOT:
-      return kWeaveStatusUpdatedNeedReboot;
-    case UpdateStatus::REPORTING_ERROR_EVENT:
-      return kWeaveStatusReportingErrorEvent;
-    case UpdateStatus::ATTEMPTING_ROLLBACK:
-      return kWeaveStatusAttemptingRollback;
-    case UpdateStatus::DISABLED:
-      return kWeaveStatusDisabled;
   }
 
   NOTREACHED();

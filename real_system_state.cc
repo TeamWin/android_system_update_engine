@@ -31,7 +31,6 @@
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/update_manager/state_factory.h"
-#include "update_engine/weave_service_factory.h"
 
 using brillo::MessageLoop;
 
@@ -139,10 +138,6 @@ bool RealSystemState::Initialize() {
   update_attempter_.reset(
       new UpdateAttempter(this, certificate_checker_.get(), libcros_proxy));
   update_attempter_->Init();
-
-  weave_service_ = ConstructWeaveService(update_attempter_.get());
-  if (weave_service_)
-    update_attempter_->AddObserver(weave_service_.get());
 
   // Initialize the Update Manager using the default state factory.
   chromeos_update_manager::State* um_state =

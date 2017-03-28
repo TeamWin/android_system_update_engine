@@ -112,8 +112,6 @@ class SideloadDaemonState : public DaemonStateInterface,
     brillo::MessageLoop::current()->BreakLoop();
   }
 
-  void SendChannelChangeUpdate(const string& tracking_channel) override {}
-
   // Getters.
   UpdateStatus status() { return status_; }
   ErrorCode error_code() { return error_code_; }
