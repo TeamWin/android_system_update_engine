@@ -37,7 +37,6 @@
 #include "update_engine/power_manager_interface.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/update_manager/update_manager.h"
-#include "update_engine/weave_service_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -106,10 +105,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
     return update_attempter_.get();
   }
 
-  inline WeaveServiceInterface* weave_service() override {
-    return weave_service_.get();
-  }
-
   inline OmahaRequestParams* request_params() override {
     return &request_params_;
   }
@@ -175,8 +170,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   OmahaRequestParams request_params_{this};
 
   std::unique_ptr<P2PManager> p2p_manager_;
-
-  std::unique_ptr<WeaveServiceInterface> weave_service_;
 
   std::unique_ptr<chromeos_update_manager::UpdateManager> update_manager_;
 

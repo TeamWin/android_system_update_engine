@@ -20,9 +20,9 @@
 
 #include <base/bind.h>
 #include <base/location.h>
-#if USE_WEAVE || USE_BINDER
+#if USE_BINDER
 #include <binderwrapper/binder_wrapper.h>
-#endif  // USE_WEAVE || USE_BINDER
+#endif  // USE_BINDER
 
 #if USE_OMAHA
 #include "update_engine/real_system_state.h"
@@ -41,10 +41,10 @@ int UpdateEngineDaemon::OnInit() {
   if (exit_code != EX_OK)
     return exit_code;
 
-#if USE_WEAVE || USE_BINDER
+#if USE_BINDER
   android::BinderWrapper::Create();
   binder_watcher_.Init();
-#endif  // USE_WEAVE || USE_BINDER
+#endif  // USE_BINDER
 
 #if USE_OMAHA
   // Initialize update engine global state but continue if something fails.

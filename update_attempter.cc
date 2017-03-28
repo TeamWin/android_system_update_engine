@@ -409,8 +409,6 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                                  &error_message)) {
       LOG(ERROR) << "Setting the channel failed: " << error_message;
     }
-    // Notify observers the target channel change.
-    BroadcastChannel();
 
     // Since this is the beginning of a new attempt, update the download
     // channel. The download channel won't be updated until the next attempt,
@@ -1066,44 +1064,6 @@ void UpdateAttempter::DownloadComplete() {
   system_state_->payload_state()->DownloadComplete();
 }
 
-bool UpdateAttempter::OnCheckForUpdates(brillo::ErrorPtr* error) {
-  CheckForUpdate(
-      "" /* app_version */, "" /* omaha_url */, true /* interactive */);
-  return true;
-}
-
-bool UpdateAttempter::OnTrackChannel(const string& channel,
-                                     brillo::ErrorPtr* error) {
-  LOG(INFO) << "Setting destination channel to: " << channel;
-  string error_message;
-  if (!system_state_->request_params()->SetTargetChannel(
-          channel, false /* powerwash_allowed */, &error_message)) {
-    brillo::Error::AddTo(error,
-                         FROM_HERE,
-                         brillo::errors::dbus::kDomain,
-                         "set_target_error",
-                         error_message);
-    return false;
-  }
-  // Notify observers the target channel change.
-  BroadcastChannel();
-  return true;
-}
-
-bool UpdateAttempter::GetWeaveState(int64_t* last_checked_time,
-                                    double* progress,
-                                    UpdateStatus* update_status,
-                                    string* current_channel,
-                                    string* tracking_channel) {
-  *last_checked_time = last_checked_time_;
-  *progress = download_progress_;
-  *update_status = status_;
-  OmahaRequestParams* rp = system_state_->request_params();
-  *current_channel = rp->current_channel();
-  *tracking_channel = rp->target_channel();
-  return true;
-}
-
 void UpdateAttempter::ProgressUpdate(double progress) {
   // Self throttle based on progress. Also send notifications if progress is
   // too slow.
@@ -1219,13 +1179,6 @@ void UpdateAttempter::BroadcastStatus() {
                                new_payload_size_);
   }
   last_notify_time_ = TimeTicks::Now();
-}
-
-void UpdateAttempter::BroadcastChannel() {
-  for (const auto& observer : service_observers_) {
-    observer->SendChannelChangeUpdate(
-        system_state_->request_params()->target_channel());
-  }
 }
 
 uint32_t UpdateAttempter::GetErrorCodeFlags()  {

@@ -46,7 +46,6 @@ class PayloadStateInterface;
 class PowerManagerInterface;
 class PrefsInterface;
 class UpdateAttempter;
-class WeaveServiceInterface;
 
 // An interface to global system context, including platform resources,
 // the current state of the system, high-level objects whose lifetime is same
@@ -93,9 +92,6 @@ class SystemState {
 
   // Returns a pointer to the update attempter object.
   virtual UpdateAttempter* update_attempter() = 0;
-
-  // Returns a pointer to the WeaveServiceInterface class or nullptr if none.
-  virtual WeaveServiceInterface* weave_service() = 0;
 
   // Returns a pointer to the object that stores the parameters that are
   // common to all Omaha requests.

@@ -29,7 +29,6 @@
       'USE_libcros%': '1',
       'USE_mtd%': '0',
       'USE_power_management%': '0',
-      'USE_buffet%': '0',
     },
     'cflags': [
       '-g',
@@ -57,7 +56,6 @@
       'USE_MTD=<(USE_mtd)',
       'USE_OMAHA=1',
       'USE_SHILL=1',
-      'USE_WEAVE=<(USE_buffet)',
     ],
     'include_dirs': [
       # We need this include dir because we include all the local code as
@@ -287,19 +285,8 @@
         'update_manager/state_factory.cc',
         'update_manager/update_manager.cc',
         'update_status_utils.cc',
-        'weave_service_factory.cc',
       ],
       'conditions': [
-        ['USE_buffet == 1', {
-          'sources': [
-            'weave_service.cc',
-          ],
-          'variables': {
-            'exported_deps': [
-              'libweave-<(libbase_ver)',
-            ],
-          },
-        }],
         ['USE_libcros == 1', {
           'dependencies': [
             'update_engine-other-dbus-proxies',
