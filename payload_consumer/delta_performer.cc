@@ -1301,13 +1301,9 @@ bool DeltaPerformer::PerformImgdiffOperation(const InstallOperation& operation,
                       src_data.size(),
                       buffer_.data(),
                       operation.data_length(),
-                      [](const unsigned char* data, ssize_t len, void* token) {
-                        return reinterpret_cast<ExtentWriter*>(token)
-                                       ->Write(data, len)
-                                   ? len
-                                   : 0;
-                      },
-                      &writer) == 0);
+                      [&writer](const unsigned char* data, size_t len) {
+                        return writer.Write(data, len) ? len : 0;
+                      }) == 0);
   TEST_AND_RETURN_FALSE(writer.End());
 
   DiscardBuffer(true, buffer_.size());
