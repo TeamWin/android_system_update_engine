@@ -20,9 +20,9 @@
 #include <memory>
 #include <string>
 
-#if USE_WEAVE || USE_BINDER
+#if USE_BINDER
 #include <brillo/binder_watcher.h>
-#endif  // USE_WEAVE || USE_BINDER
+#endif  // USE_BINDER
 #include <brillo/daemons/daemon.h>
 
 #if USE_BINDER
@@ -63,9 +63,9 @@ class UpdateEngineDaemon : public brillo::Daemon {
   // the main() function.
   Subprocess subprocess_;
 
-#if USE_WEAVE || USE_BINDER
+#if USE_BINDER
   brillo::BinderWatcher binder_watcher_;
-#endif  // USE_WEAVE || USE_BINDER
+#endif  // USE_BINDER
 
 #if USE_BINDER
 #if USE_OMAHA

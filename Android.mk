@@ -26,7 +26,6 @@ local_use_hwid_override := \
 # the system layer.
 local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
-local_use_weave := $(if $(BRILLO_USE_WEAVE),$(BRILLO_USE_WEAVE),0)
 
 # IoT devices use Omaha for updates.
 local_use_omaha := $(if $(filter true,$(PRODUCT_IOT)),1,0)
@@ -37,7 +36,6 @@ ue_common_cflags := \
     -DUSE_LIBCROS=$(local_use_libcros) \
     -DUSE_MTD=$(local_use_mtd) \
     -DUSE_OMAHA=$(local_use_omaha) \
-    -DUSE_WEAVE=$(local_use_weave) \
     -D_FILE_OFFSET_BITS=64 \
     -D_POSIX_C_SOURCE=199309L \
     -Wa,--noexecstack \
@@ -260,12 +258,6 @@ ue_libupdate_engine_exported_shared_libraries += \
     libbrillo-binder \
     libutils
 endif  # local_use_binder == 1
-ifeq ($(local_use_weave),1)
-ue_libupdate_engine_exported_shared_libraries += \
-    libbinderwrapper \
-    libbrillo-binder \
-    libweaved
-endif  # local_use_weave == 1
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine
@@ -327,8 +319,7 @@ LOCAL_SRC_FILES := \
     update_manager/state_factory.cc \
     update_manager/update_manager.cc \
     update_status_utils.cc \
-    utils_android.cc \
-    weave_service_factory.cc
+    utils_android.cc
 ifeq ($(local_use_binder),1)
 LOCAL_AIDL_INCLUDES += $(LOCAL_PATH)/binder_bindings
 LOCAL_SRC_FILES += \
@@ -337,10 +328,6 @@ LOCAL_SRC_FILES += \
     binder_service_brillo.cc \
     parcelable_update_engine_status.cc
 endif  # local_use_binder == 1
-ifeq ($(local_use_weave),1)
-LOCAL_SRC_FILES += \
-    weave_service.cc
-endif  # local_use_weave == 1
 ifeq ($(local_use_libcros),1)
 LOCAL_SRC_FILES += \
     chrome_browser_proxy_resolver.cc
@@ -425,9 +412,6 @@ LOCAL_MODULE := update_engine
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_REQUIRED_MODULES := \
     cacerts_google
-ifeq ($(local_use_weave),1)
-LOCAL_REQUIRED_MODULES += updater.json
-endif  # local_use_weave == 1
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
@@ -1036,15 +1020,6 @@ LOCAL_SRC_FILES += \
     chrome_browser_proxy_resolver_unittest.cc
 endif  # local_use_libcros == 1
 include $(BUILD_NATIVE_TEST)
-
-# Weave schema files
-# ========================================================
-include $(CLEAR_VARS)
-LOCAL_MODULE := updater.json
-LOCAL_MODULE_CLASS := ETC
-LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/weaved/traits
-LOCAL_SRC_FILES := weaved/traits/$(LOCAL_MODULE)
-include $(BUILD_PREBUILT)
 
 # Update payload signing public key.
 # ========================================================
