@@ -84,8 +84,6 @@ class FakeSystemState : public SystemState {
     return update_attempter_;
   }
 
-  inline WeaveServiceInterface* weave_service() override { return nullptr; }
-
   inline OmahaRequestParams* request_params() override {
     return request_params_;
   }

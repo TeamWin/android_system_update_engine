@@ -25,10 +25,6 @@ namespace chromeos_update_engine {
 
 const char* UpdateStatusToString(const update_engine::UpdateStatus& status);
 
-// Convert the UpdateStatus |status| to the string reported in the weave status.
-const char* UpdateStatusToWeaveStatus(
-    const update_engine::UpdateStatus& status);
-
 bool StringToUpdateStatus(const std::string& update_status_as_string,
                           update_engine::UpdateStatus* status);
 

@@ -175,9 +175,6 @@ class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor,
 
   void SendPayloadApplicationComplete(ErrorCode error_code) override {}
 
-  // Channel tracking changes are ignored.
-  void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
-
  private:
   scoped_refptr<dbus::Bus> bus_;
   DBusUpdateEngineService dbus_service_;
