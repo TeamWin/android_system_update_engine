@@ -33,9 +33,13 @@ struct ImageProperties {
   std::string product_id;
   // The canary-channel product id.
   std::string canary_product_id;
+  // The system id for the Android Things SoM, empty for Chrome OS.
+  std::string system_id;
 
   // The product version of this image.
   std::string version;
+  // The system version of this image.
+  std::string system_version;
 
   // A unique string that identifies this build. Normally a combination of the
   // the version, signing keys and build target.
