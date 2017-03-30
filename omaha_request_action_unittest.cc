@@ -2108,7 +2108,7 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   params.set_update_check_count_wait_enabled(false);
 
   Time arbitrary_date;
-  Time::FromString("6/4/1989", &arbitrary_date);
+  ASSERT_TRUE(Time::FromString("6/4/1989", &arbitrary_date));
   fake_system_state_.fake_clock()->SetWallclockTime(arbitrary_date);
   ASSERT_FALSE(TestUpdateCheck(&params,
                                fake_update_response_.GetUpdateResponse(),
@@ -2149,8 +2149,8 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   params.set_update_check_count_wait_enabled(false);
 
   Time t1, t2;
-  Time::FromString("1/1/2012", &t1);
-  Time::FromString("1/3/2012", &t2);
+  ASSERT_TRUE(Time::FromString("1/1/2012", &t1));
+  ASSERT_TRUE(Time::FromString("1/3/2012", &t2));
   ASSERT_TRUE(
       fake_prefs_.SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
   fake_system_state_.fake_clock()->SetWallclockTime(t2);
@@ -2180,7 +2180,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
 
   brillo::Blob post_data;
   OmahaRequestParams params(&fake_system_state_);
-  params.set_root(tempdir.path().value());
+  params.set_root(tempdir.GetPath().value());
   params.set_app_id("{22222222-2222-2222-2222-222222222222}");
   params.set_app_version("1.2.3.4");
   params.set_current_channel("canary-channel");
@@ -2213,7 +2213,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
 
   brillo::Blob post_data;
   OmahaRequestParams params(&fake_system_state_);
-  params.set_root(tempdir.path().value());
+  params.set_root(tempdir.GetPath().value());
   params.set_app_id("{11111111-1111-1111-1111-111111111111}");
   params.set_app_version("5.6.7.8");
   params.set_current_channel("stable-channel");

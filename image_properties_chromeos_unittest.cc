@@ -36,10 +36,10 @@ class ImagePropertiesTest : public ::testing::Test {
   void SetUp() override {
     // Create a uniquely named test directory.
     ASSERT_TRUE(tempdir_.CreateUniqueTempDir());
-    EXPECT_TRUE(base::CreateDirectory(tempdir_.path().Append("etc")));
-    EXPECT_TRUE(base::CreateDirectory(
-        base::FilePath(tempdir_.path().value() + kStatefulPartition + "/etc")));
-    test::SetImagePropertiesRootPrefix(tempdir_.path().value().c_str());
+    EXPECT_TRUE(base::CreateDirectory(tempdir_.GetPath().Append("etc")));
+    EXPECT_TRUE(base::CreateDirectory(base::FilePath(
+        tempdir_.GetPath().value() + kStatefulPartition + "/etc")));
+    test::SetImagePropertiesRootPrefix(tempdir_.GetPath().value().c_str());
     SetLockDown(false);
   }
 
@@ -54,12 +54,13 @@ class ImagePropertiesTest : public ::testing::Test {
 };
 
 TEST_F(ImagePropertiesTest, SimpleTest) {
-  ASSERT_TRUE(WriteFileString(tempdir_.path().Append("etc/lsb-release").value(),
-                              "CHROMEOS_RELEASE_BOARD=arm-generic\n"
-                              "CHROMEOS_RELEASE_FOO=bar\n"
-                              "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
-                              "CHROMEOS_RELEASE_TRACK=dev-channel\n"
-                              "CHROMEOS_AUSERVER=http://www.google.com"));
+  ASSERT_TRUE(
+      WriteFileString(tempdir_.GetPath().Append("etc/lsb-release").value(),
+                      "CHROMEOS_RELEASE_BOARD=arm-generic\n"
+                      "CHROMEOS_RELEASE_FOO=bar\n"
+                      "CHROMEOS_RELEASE_VERSION=0.2.2.3\n"
+                      "CHROMEOS_RELEASE_TRACK=dev-channel\n"
+                      "CHROMEOS_AUSERVER=http://www.google.com"));
   ImageProperties props = LoadImageProperties(&fake_system_state_);
   EXPECT_EQ("arm-generic", props.board);
   EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", props.product_id);
@@ -70,7 +71,7 @@ TEST_F(ImagePropertiesTest, SimpleTest) {
 
 TEST_F(ImagePropertiesTest, AppIDTest) {
   ASSERT_TRUE(WriteFileString(
-      tempdir_.path().Append("etc/lsb-release").value(),
+      tempdir_.GetPath().Append("etc/lsb-release").value(),
       "CHROMEOS_RELEASE_APPID={58c35cef-9d30-476e-9098-ce20377d535d}"));
   ImageProperties props = LoadImageProperties(&fake_system_state_);
   EXPECT_EQ("{58c35cef-9d30-476e-9098-ce20377d535d}", props.product_id);
@@ -78,7 +79,7 @@ TEST_F(ImagePropertiesTest, AppIDTest) {
 
 TEST_F(ImagePropertiesTest, ConfusingReleaseTest) {
   ASSERT_TRUE(
-      WriteFileString(tempdir_.path().Append("etc/lsb-release").value(),
+      WriteFileString(tempdir_.GetPath().Append("etc/lsb-release").value(),
                       "CHROMEOS_RELEASE_FOO=CHROMEOS_RELEASE_VERSION=1.2.3.4\n"
                       "CHROMEOS_RELEASE_VERSION=0.2.2.3"));
   ImageProperties props = LoadImageProperties(&fake_system_state_);
@@ -91,13 +92,14 @@ TEST_F(ImagePropertiesTest, MissingVersionTest) {
 }
 
 TEST_F(ImagePropertiesTest, OverrideTest) {
-  ASSERT_TRUE(WriteFileString(tempdir_.path().Append("etc/lsb-release").value(),
-                              "CHROMEOS_RELEASE_BOARD=arm-generic\n"
-                              "CHROMEOS_RELEASE_FOO=bar\n"
-                              "CHROMEOS_RELEASE_TRACK=dev-channel\n"
-                              "CHROMEOS_AUSERVER=http://www.google.com"));
+  ASSERT_TRUE(
+      WriteFileString(tempdir_.GetPath().Append("etc/lsb-release").value(),
+                      "CHROMEOS_RELEASE_BOARD=arm-generic\n"
+                      "CHROMEOS_RELEASE_FOO=bar\n"
+                      "CHROMEOS_RELEASE_TRACK=dev-channel\n"
+                      "CHROMEOS_AUSERVER=http://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      tempdir_.path().value() + kStatefulPartition + "/etc/lsb-release",
+      tempdir_.GetPath().value() + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=beta-channel\n"
       "CHROMEOS_AUSERVER=https://www.google.com"));
@@ -111,13 +113,14 @@ TEST_F(ImagePropertiesTest, OverrideTest) {
 }
 
 TEST_F(ImagePropertiesTest, OverrideLockDownTest) {
-  ASSERT_TRUE(WriteFileString(tempdir_.path().Append("etc/lsb-release").value(),
-                              "CHROMEOS_RELEASE_BOARD=arm-generic\n"
-                              "CHROMEOS_RELEASE_FOO=bar\n"
-                              "CHROMEOS_RELEASE_TRACK=dev-channel\n"
-                              "CHROMEOS_AUSERVER=https://www.google.com"));
+  ASSERT_TRUE(
+      WriteFileString(tempdir_.GetPath().Append("etc/lsb-release").value(),
+                      "CHROMEOS_RELEASE_BOARD=arm-generic\n"
+                      "CHROMEOS_RELEASE_FOO=bar\n"
+                      "CHROMEOS_RELEASE_TRACK=dev-channel\n"
+                      "CHROMEOS_AUSERVER=https://www.google.com"));
   ASSERT_TRUE(WriteFileString(
-      tempdir_.path().value() + kStatefulPartition + "/etc/lsb-release",
+      tempdir_.GetPath().value() + kStatefulPartition + "/etc/lsb-release",
       "CHROMEOS_RELEASE_BOARD=x86-generic\n"
       "CHROMEOS_RELEASE_TRACK=stable-channel\n"
       "CHROMEOS_AUSERVER=http://www.google.com"));
@@ -132,32 +135,35 @@ TEST_F(ImagePropertiesTest, OverrideLockDownTest) {
 }
 
 TEST_F(ImagePropertiesTest, BoardAppIdUsedForNonCanaryChannelTest) {
-  ASSERT_TRUE(WriteFileString(tempdir_.path().Append("etc/lsb-release").value(),
-                              "CHROMEOS_RELEASE_APPID=r\n"
-                              "CHROMEOS_BOARD_APPID=b\n"
-                              "CHROMEOS_CANARY_APPID=c\n"
-                              "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
+  ASSERT_TRUE(
+      WriteFileString(tempdir_.GetPath().Append("etc/lsb-release").value(),
+                      "CHROMEOS_RELEASE_APPID=r\n"
+                      "CHROMEOS_BOARD_APPID=b\n"
+                      "CHROMEOS_CANARY_APPID=c\n"
+                      "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   ImageProperties props = LoadImageProperties(&fake_system_state_);
   EXPECT_EQ("stable-channel", props.current_channel);
   EXPECT_EQ("b", props.product_id);
 }
 
 TEST_F(ImagePropertiesTest, CanaryAppIdUsedForCanaryChannelTest) {
-  ASSERT_TRUE(WriteFileString(tempdir_.path().Append("etc/lsb-release").value(),
-                              "CHROMEOS_RELEASE_APPID=r\n"
-                              "CHROMEOS_BOARD_APPID=b\n"
-                              "CHROMEOS_CANARY_APPID=c\n"
-                              "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
+  ASSERT_TRUE(
+      WriteFileString(tempdir_.GetPath().Append("etc/lsb-release").value(),
+                      "CHROMEOS_RELEASE_APPID=r\n"
+                      "CHROMEOS_BOARD_APPID=b\n"
+                      "CHROMEOS_CANARY_APPID=c\n"
+                      "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   ImageProperties props = LoadImageProperties(&fake_system_state_);
   EXPECT_EQ("canary-channel", props.current_channel);
   EXPECT_EQ("c", props.canary_product_id);
 }
 
 TEST_F(ImagePropertiesTest, ReleaseAppIdUsedAsDefaultTest) {
-  ASSERT_TRUE(WriteFileString(tempdir_.path().Append("etc/lsb-release").value(),
-                              "CHROMEOS_RELEASE_APPID=r\n"
-                              "CHROMEOS_CANARY_APPID=c\n"
-                              "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
+  ASSERT_TRUE(
+      WriteFileString(tempdir_.GetPath().Append("etc/lsb-release").value(),
+                      "CHROMEOS_RELEASE_APPID=r\n"
+                      "CHROMEOS_CANARY_APPID=c\n"
+                      "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   ImageProperties props = LoadImageProperties(&fake_system_state_);
   EXPECT_EQ("stable-channel", props.current_channel);
   EXPECT_EQ("r", props.product_id);
