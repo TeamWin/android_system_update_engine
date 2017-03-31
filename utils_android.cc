@@ -32,7 +32,7 @@ static struct fstab* OpenFSTab() {
   if (fstab != nullptr)
     return fstab;
 
-  fstab = fs_mgr_read_fstab_with_dt("/fstab.device");
+  fstab = fs_mgr_read_fstab("/fstab.device");
   return fstab;
 }
 
