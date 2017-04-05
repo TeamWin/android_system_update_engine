@@ -1021,7 +1021,7 @@ include $(BUILD_NATIVE_TEST)
 
 # Update payload signing public key.
 # ========================================================
-ifdef BRILLO
+ifeq ($(PRODUCT_IOT),true)
 include $(CLEAR_VARS)
 LOCAL_MODULE := brillo-update-payload-key
 LOCAL_MODULE_CLASS := ETC
@@ -1030,7 +1030,7 @@ LOCAL_MODULE_STEM := update-payload-key.pub.pem
 LOCAL_SRC_FILES := update_payload_key/brillo-update-payload-key.pub.pem
 LOCAL_BUILT_MODULE_STEM := update_payload_key/brillo-update-payload-key.pub.pem
 include $(BUILD_PREBUILT)
-endif  # BRILLO
+endif  # PRODUCT_IOT
 
 # Brillo update payload generation script
 # ========================================================
