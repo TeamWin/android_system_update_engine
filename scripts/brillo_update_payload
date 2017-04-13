@@ -459,6 +459,11 @@ Disabling deltas for this source version."
       if [[ "${partitions_array}" == "SRC_PARTITIONS" ]]; then
         echo "Rounding DOWN partition ${part}.img to a multiple of 4 KiB."
         : $(( filesize = filesize & -4096 ))
+        if [[ ${filesize} == 0 ]]; then
+          echo "Source partition ${part}.img is empty after rounding down," \
+            "skipping."
+          continue
+        fi
       else
         echo "Rounding UP partition ${part}.img to a multiple of 4 KiB."
         : $(( filesize = (filesize + 4095) & -4096 ))
