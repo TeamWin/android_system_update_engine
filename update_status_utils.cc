@@ -25,6 +25,7 @@ namespace {
 const char kWeaveStatusIdle[] = "idle";
 const char kWeaveStatusCheckingForUpdate[] = "checkingForUpdate";
 const char kWeaveStatusUpdateAvailable[] = "updateAvailable";
+const char kWeaveStatusNeedPermissionToUpdate[] = "needPermissionToUpdate";
 const char kWeaveStatusDownloading[] = "downloading";
 const char kWeaveStatusVerifying[] = "verifying";
 const char kWeaveStatusFinalizing[] = "finalizing";
@@ -45,6 +46,8 @@ const char* UpdateStatusToString(const UpdateStatus& status) {
       return update_engine::kUpdateStatusCheckingForUpdate;
     case UpdateStatus::UPDATE_AVAILABLE:
       return update_engine::kUpdateStatusUpdateAvailable;
+    case UpdateStatus::NEED_PERMISSION_TO_UPDATE:
+      return update_engine::kUpdateStatusNeedPermissionToUpdate;
     case UpdateStatus::DOWNLOADING:
       return update_engine::kUpdateStatusDownloading;
     case UpdateStatus::VERIFYING:
@@ -73,6 +76,8 @@ const char* UpdateStatusToWeaveStatus(const UpdateStatus& status) {
       return kWeaveStatusCheckingForUpdate;
     case UpdateStatus::UPDATE_AVAILABLE:
       return kWeaveStatusUpdateAvailable;
+    case UpdateStatus::NEED_PERMISSION_TO_UPDATE:
+      return kWeaveStatusNeedPermissionToUpdate;
     case UpdateStatus::DOWNLOADING:
       return kWeaveStatusDownloading;
     case UpdateStatus::VERIFYING:
@@ -103,6 +108,9 @@ bool StringToUpdateStatus(const std::string& s,
     return true;
   } else if (s == update_engine::kUpdateStatusUpdateAvailable) {
     *status = UpdateStatus::UPDATE_AVAILABLE;
+    return true;
+  } else if (s == update_engine::kUpdateStatusNeedPermissionToUpdate) {
+    *status = UpdateStatus::NEED_PERMISSION_TO_UPDATE;
     return true;
   } else if (s == update_engine::kUpdateStatusDownloading) {
     *status = UpdateStatus::DOWNLOADING;

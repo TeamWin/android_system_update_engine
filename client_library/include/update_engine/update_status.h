@@ -23,6 +23,9 @@ enum class UpdateStatus {
   IDLE = 0,
   CHECKING_FOR_UPDATE,
   UPDATE_AVAILABLE,
+  // Broadcast this state when an update aborts because user preferences does
+  // not allow update over cellular.
+  NEED_PERMISSION_TO_UPDATE,
   DOWNLOADING,
   VERIFYING,
   FINALIZING,

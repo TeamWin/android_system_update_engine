@@ -36,6 +36,7 @@ class MockConnectionManager : public ConnectionManagerInterface {
 
   MOCK_CONST_METHOD2(IsUpdateAllowedOver, bool(NetworkConnectionType type,
                                                NetworkTethering tethering));
+  MOCK_CONST_METHOD0(IsAllowedConnectionTypesForUpdateSet, bool());
 };
 
 }  // namespace chromeos_update_engine

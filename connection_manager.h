@@ -49,6 +49,7 @@ class ConnectionManager : public ConnectionManagerInterface {
                                NetworkTethering* out_tethering) override;
   bool IsUpdateAllowedOver(NetworkConnectionType type,
                            NetworkTethering tethering) const override;
+  bool IsAllowedConnectionTypesForUpdateSet() const override;
 
  private:
   // Returns (via out_path) the default network path, or empty string if
