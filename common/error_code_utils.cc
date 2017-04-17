@@ -144,6 +144,8 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kUserCanceled";
     case ErrorCode::kNonCriticalUpdateInOOBE:
       return "ErrorCode::kNonCriticalUpdateInOOBE";
+    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
+      return "ErrorCode::kOmahaUpdateIgnoredOverCellular";
     case ErrorCode::kUpdatedButNotActive:
       return "ErrorCode::kUpdatedButNotActive";
       // Don't add a default case to let the compiler warn about newly added

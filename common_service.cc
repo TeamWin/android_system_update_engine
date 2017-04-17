@@ -16,7 +16,6 @@
 
 #include "update_engine/common_service.h"
 
-#include <set>
 #include <string>
 
 #include <base/bind.h>
@@ -41,7 +40,6 @@
 using base::StringPrintf;
 using brillo::ErrorPtr;
 using brillo::string_utils::ToString;
-using std::set;
 using std::string;
 using update_engine::UpdateAttemptFlags;
 using update_engine::UpdateEngineStatus;
@@ -258,22 +256,11 @@ bool UpdateEngineService::GetP2PUpdatePermission(ErrorPtr* error,
 
 bool UpdateEngineService::SetUpdateOverCellularPermission(ErrorPtr* error,
                                                           bool in_allowed) {
-  set<string> allowed_types;
-  const policy::DevicePolicy* device_policy = system_state_->device_policy();
-
-  // The device_policy is loaded in a lazy way before an update check. Load it
-  // now from the libbrillo cache if it wasn't already loaded.
-  if (!device_policy) {
-    UpdateAttempter* update_attempter = system_state_->update_attempter();
-    if (update_attempter) {
-      update_attempter->RefreshDevicePolicy();
-      device_policy = system_state_->device_policy();
-    }
-  }
+  ConnectionManagerInterface* connection_manager =
+      system_state_->connection_manager();
 
   // Check if this setting is allowed by the device policy.
-  if (device_policy &&
-      device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
+  if (connection_manager->IsAllowedConnectionTypesForUpdateSet()) {
     LogAndSetError(error,
                    FROM_HERE,
                    "Ignoring the update over cellular setting since there's "
@@ -286,7 +273,8 @@ bool UpdateEngineService::SetUpdateOverCellularPermission(ErrorPtr* error,
 
   PrefsInterface* prefs = system_state_->prefs();
 
-  if (!prefs->SetBoolean(kPrefsUpdateOverCellularPermission, in_allowed)) {
+  if (!prefs ||
+      !prefs->SetBoolean(kPrefsUpdateOverCellularPermission, in_allowed)) {
     LogAndSetError(error,
                    FROM_HERE,
                    string("Error setting the update over cellular to ") +
@@ -296,24 +284,66 @@ bool UpdateEngineService::SetUpdateOverCellularPermission(ErrorPtr* error,
   return true;
 }
 
-bool UpdateEngineService::GetUpdateOverCellularPermission(ErrorPtr* /* error */,
-                                                          bool* out_allowed) {
-  ConnectionManagerInterface* cm = system_state_->connection_manager();
+bool UpdateEngineService::SetUpdateOverCellularTarget(
+    brillo::ErrorPtr* error,
+    const std::string& target_version,
+    int64_t target_size) {
+  ConnectionManagerInterface* connection_manager =
+      system_state_->connection_manager();
 
-  // The device_policy is loaded in a lazy way before an update check and is
-  // used to determine if an update is allowed over cellular. Load the device
-  // policy now from the libbrillo cache if it wasn't already loaded.
-  if (!system_state_->device_policy()) {
-    UpdateAttempter* update_attempter = system_state_->update_attempter();
-    if (update_attempter)
-      update_attempter->RefreshDevicePolicy();
+  // Check if this setting is allowed by the device policy.
+  if (connection_manager->IsAllowedConnectionTypesForUpdateSet()) {
+    LogAndSetError(error,
+                   FROM_HERE,
+                   "Ignoring the update over cellular setting since there's "
+                   "a device policy enforcing this setting.");
+    return false;
   }
 
-  // Return the current setting based on the same logic used while checking for
-  // updates. A log message could be printed as the result of this test.
-  LOG(INFO) << "Checking if updates over cellular networks are allowed:";
-  *out_allowed = cm->IsUpdateAllowedOver(ConnectionType::kCellular,
-                                         ConnectionTethering::kUnknown);
+  // If the policy wasn't loaded yet, then it is still OK to change the local
+  // setting because the policy will be checked again during the update check.
+
+  PrefsInterface* prefs = system_state_->prefs();
+
+  if (!prefs ||
+      !prefs->SetString(kPrefsUpdateOverCellularTargetVersion,
+                        target_version) ||
+      !prefs->SetInt64(kPrefsUpdateOverCellularTargetSize, target_size)) {
+    LogAndSetError(
+        error, FROM_HERE, "Error setting the target for update over cellular.");
+    return false;
+  }
+  return true;
+}
+
+bool UpdateEngineService::GetUpdateOverCellularPermission(ErrorPtr* error,
+                                                          bool* out_allowed) {
+  ConnectionManagerInterface* connection_manager =
+      system_state_->connection_manager();
+
+  if (connection_manager->IsAllowedConnectionTypesForUpdateSet()) {
+    // We have device policy, so ignore the user preferences.
+    *out_allowed = connection_manager->IsUpdateAllowedOver(
+        ConnectionType::kCellular, ConnectionTethering::kUnknown);
+  } else {
+    PrefsInterface* prefs = system_state_->prefs();
+
+    if (!prefs || !prefs->Exists(kPrefsUpdateOverCellularPermission)) {
+      // Update is not allowed as user preference is not set or not available.
+      *out_allowed = false;
+      return true;
+    }
+
+    bool is_allowed;
+
+    if (!prefs->GetBoolean(kPrefsUpdateOverCellularPermission, &is_allowed)) {
+      LogAndSetError(error,
+                     FROM_HERE,
+                     "Error getting the update over cellular preference.");
+      return false;
+    }
+    *out_allowed = is_allowed;
+  }
   return true;
 }
 

@@ -31,6 +31,7 @@
 #include "update_engine/connection_utils.h"
 #include "update_engine/shill_proxy.h"
 #include "update_engine/system_state.h"
+#include "update_engine/update_attempter.h"
 
 using org::chromium::flimflam::ManagerProxyInterface;
 using org::chromium::flimflam::ServiceProxyInterface;
@@ -59,16 +60,27 @@ bool ConnectionManager::IsUpdateAllowedOver(
 
     case ConnectionType::kCellular: {
       set<string> allowed_types;
+
       const policy::DevicePolicy* device_policy =
           system_state_->device_policy();
 
-      // A device_policy is loaded in a lazy way right before an update check,
-      // so the device_policy should be already loaded at this point. If it's
-      // not, return a safe value for this setting.
+      // The device_policy is loaded in a lazy way before an update check. Load
+      // it now from the libbrillo cache if it wasn't already loaded.
       if (!device_policy) {
-        LOG(INFO) << "Disabling updates over cellular networks as there's no "
-                     "device policy loaded yet.";
-        return false;
+        UpdateAttempter* update_attempter = system_state_->update_attempter();
+        if (update_attempter) {
+          update_attempter->RefreshDevicePolicy();
+          device_policy = system_state_->device_policy();
+        }
+      }
+
+      if (!device_policy) {
+        // Device policy fails to be loaded (possibly due to guest account). We
+        // do not check the local user setting here, which should be checked by
+        // |OmahaRequestAction| during checking for update.
+        LOG(INFO) << "Allowing updates over cellular as device policy "
+                     "fails to be loaded.";
+        return true;
       }
 
       if (device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
@@ -82,31 +94,14 @@ bool ConnectionManager::IsUpdateAllowedOver(
 
         LOG(INFO) << "Allowing updates over cellular per device policy.";
         return true;
-      } else {
-        // There's no update setting in the device policy, using the local user
-        // setting.
-        PrefsInterface* prefs = system_state_->prefs();
-
-        if (!prefs || !prefs->Exists(kPrefsUpdateOverCellularPermission)) {
-          LOG(INFO) << "Disabling updates over cellular connection as there's "
-                       "no device policy setting nor user preference present.";
-          return false;
-        }
-
-        bool stored_value;
-        if (!prefs->GetBoolean(kPrefsUpdateOverCellularPermission,
-                               &stored_value)) {
-          return false;
-        }
-
-        if (!stored_value) {
-          LOG(INFO) << "Disabling updates over cellular connection per user "
-                       "setting.";
-          return false;
-        }
-        LOG(INFO) << "Allowing updates over cellular per user setting.";
-        return true;
       }
+
+      // If there's no update setting in the device policy, we do not check
+      // the local user setting here, which should be checked by
+      // |OmahaRequestAction| during checking for update.
+      LOG(INFO) << "Allowing updates over cellular as device policy does "
+                   "not include update setting.";
+      return true;
     }
 
     default:
@@ -119,6 +114,21 @@ bool ConnectionManager::IsUpdateAllowedOver(
       }
       return true;
   }
+}
+
+bool ConnectionManager::IsAllowedConnectionTypesForUpdateSet() const {
+  const policy::DevicePolicy* device_policy = system_state_->device_policy();
+  if (!device_policy) {
+    LOG(INFO) << "There's no device policy loaded yet.";
+    return false;
+  }
+
+  set<string> allowed_types;
+  if (!device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
+    return false;
+  }
+
+  return true;
 }
 
 bool ConnectionManager::GetConnectionProperties(
