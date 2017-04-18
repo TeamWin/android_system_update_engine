@@ -27,6 +27,7 @@
 #include "update_engine/common/action_pipe.h"
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/error_code_utils.h"
+#include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
@@ -47,14 +48,12 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
       boot_control_(boot_control),
       hardware_(hardware),
       system_state_(system_state),
-      http_fetcher_(http_fetcher),
+      http_fetcher_(new MultiRangeHttpFetcher(http_fetcher)),
       writer_(nullptr),
       code_(ErrorCode::kSuccess),
       delegate_(nullptr),
-      bytes_received_(0),
       p2p_sharing_fd_(-1),
-      p2p_visible_(true) {
-}
+      p2p_visible_(true) {}
 
 DownloadAction::~DownloadAction() {}
 
@@ -171,9 +170,24 @@ void DownloadAction::PerformAction() {
   // Get the InstallPlan and read it
   CHECK(HasInputObject());
   install_plan_ = GetInputObject();
-  bytes_received_ = 0;
-
   install_plan_.Dump();
+
+  bytes_received_ = 0;
+  bytes_total_ = 0;
+  for (const auto& payload : install_plan_.payloads)
+    bytes_total_ += payload.size;
+
+  if (install_plan_.is_resume) {
+    int64_t payload_index = 0;
+    if (prefs_->GetInt64(kPrefsUpdateStatePayloadIndex, &payload_index) &&
+        static_cast<size_t>(payload_index) < install_plan_.payloads.size()) {
+      // Save the index for the resume payload before downloading any previous
+      // payload, otherwise it will be overwritten.
+      resume_payload_index_ = payload_index;
+      for (int i = 0; i < payload_index; i++)
+        install_plan_.payloads[i].already_applied = true;
+    }
+  }
   // TODO(senj): check that install plan has at least one payload.
   if (!payload_)
     payload_ = &install_plan_.payloads[0];
@@ -185,11 +199,44 @@ void DownloadAction::PerformAction() {
                  << ". Proceeding with the update anyway.";
   }
 
-  download_active_ = true;
   StartDownloading();
 }
 
 void DownloadAction::StartDownloading() {
+  download_active_ = true;
+  http_fetcher_->ClearRanges();
+  if (install_plan_.is_resume &&
+      payload_ == &install_plan_.payloads[resume_payload_index_]) {
+    // Resuming an update so fetch the update manifest metadata first.
+    int64_t manifest_metadata_size = 0;
+    int64_t manifest_signature_size = 0;
+    prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size);
+    prefs_->GetInt64(kPrefsManifestSignatureSize, &manifest_signature_size);
+    http_fetcher_->AddRange(base_offset_,
+                            manifest_metadata_size + manifest_signature_size);
+    // If there're remaining unprocessed data blobs, fetch them. Be careful not
+    // to request data beyond the end of the payload to avoid 416 HTTP response
+    // error codes.
+    int64_t next_data_offset = 0;
+    prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
+    uint64_t resume_offset =
+        manifest_metadata_size + manifest_signature_size + next_data_offset;
+    if (!payload_->size) {
+      http_fetcher_->AddRange(base_offset_ + resume_offset);
+    } else if (resume_offset < payload_->size) {
+      http_fetcher_->AddRange(base_offset_ + resume_offset,
+                              payload_->size - resume_offset);
+    }
+  } else {
+    if (payload_->size) {
+      http_fetcher_->AddRange(base_offset_, payload_->size);
+    } else {
+      // If no payload size is passed we assume we read until the end of the
+      // stream.
+      http_fetcher_->AddRange(base_offset_);
+    }
+  }
+
   if (writer_ && writer_ != delta_performer_.get()) {
     LOG(INFO) << "Using writer for test.";
   } else {
@@ -271,12 +318,14 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
 
   bytes_received_ += length;
   if (delegate_ && download_active_) {
-    delegate_->BytesReceived(length, bytes_received_, payload_->size);
+    delegate_->BytesReceived(length, bytes_received_, bytes_total_);
   }
   if (writer_ && !writer_->Write(bytes, length, &code_)) {
-    LOG(ERROR) << "Error " << utils::ErrorCodeToString(code_) << " (" << code_
-               << ") in DeltaPerformer's Write method when "
-               << "processing the received payload -- Terminating processing";
+    if (code_ != ErrorCode::kSuccess) {
+      LOG(ERROR) << "Error " << utils::ErrorCodeToString(code_) << " (" << code_
+                 << ") in DeltaPerformer's Write method when "
+                 << "processing the received payload -- Terminating processing";
+    }
     // Delete p2p file, if applicable.
     if (!p2p_file_id_.empty())
       CloseP2PSharingFd(true);
@@ -306,7 +355,8 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
   ErrorCode code =
       successful ? ErrorCode::kSuccess : ErrorCode::kDownloadTransferError;
   if (code == ErrorCode::kSuccess && delta_performer_.get()) {
-    code = delta_performer_->VerifyPayload(payload_->hash, payload_->size);
+    if (!payload_->already_applied)
+      code = delta_performer_->VerifyPayload(payload_->hash, payload_->size);
     if (code != ErrorCode::kSuccess) {
       LOG(ERROR) << "Download of " << install_plan_.download_url
                  << " failed due to payload verification error.";
@@ -315,9 +365,11 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
         CloseP2PSharingFd(true);
     } else if (payload_ < &install_plan_.payloads.back() &&
                system_state_->payload_state()->NextPayload()) {
+      // No need to reset if this payload was already applied.
+      if (!payload_->already_applied)
+        DeltaPerformer::ResetUpdateProgress(prefs_, false);
       // Start downloading next payload.
       payload_++;
-      DeltaPerformer::ResetUpdateProgress(prefs_, false);
       install_plan_.download_url =
           system_state_->payload_state()->GetCurrentUrl();
       StartDownloading();
@@ -331,9 +383,13 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
   processor_->ActionComplete(this, code);
 }
 
-void DownloadAction::TransferTerminated(HttpFetcher *fetcher) {
+void DownloadAction::TransferTerminated(HttpFetcher* fetcher) {
   if (code_ != ErrorCode::kSuccess) {
     processor_->ActionComplete(this, code_);
+  } else if (payload_->already_applied) {
+    LOG(INFO) << "TransferTerminated with ErrorCode::kSuccess when the current "
+                 "payload has already applied, treating as TransferComplete.";
+    TransferComplete(fetcher, true);
   }
 }
 

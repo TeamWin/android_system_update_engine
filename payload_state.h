@@ -153,13 +153,7 @@ class PayloadState : public PayloadStateInterface {
     return attempt_error_code_;
   }
 
-  bool NextPayload() override {
-    if (payload_index_ + 1 >= candidate_urls_.size())
-      return false;
-    payload_index_++;
-    url_index_ = 0;
-    return true;
-  }
+  bool NextPayload() override;
 
  private:
   enum class AttemptType {
@@ -279,6 +273,11 @@ class PayloadState : public PayloadStateInterface {
   // persists the value being set so that we resume from the same value in case
   // of a process restart.
   void SetFullPayloadAttemptNumber(int payload_attempt_number);
+
+  // Sets the current payload index to the given value. Also persists the value
+  // being set so that we resume from the same value in case of a process
+  // restart.
+  void SetPayloadIndex(size_t payload_index);
 
   // Initializes the current URL index from the persisted state.
   void LoadUrlIndex();
