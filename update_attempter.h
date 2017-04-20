@@ -29,13 +29,11 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
-#include "debugd/dbus-proxies.h"
 #include "update_engine/chrome_browser_proxy_resolver.h"
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/cpu_limiter.h"
-#include "update_engine/libcros_proxy.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
 #include "update_engine/payload_consumer/download_action.h"
@@ -48,6 +46,13 @@
 #include "update_engine/weave_service_interface.h"
 
 class MetricsLibraryInterface;
+
+namespace org {
+namespace chromium {
+class debugdProxyInterface;
+class NetworkProxyServiceInterfaceProxyInterface;
+}  // namespace chromium
+}  // namespace org
 
 namespace policy {
 class PolicyProvider;
@@ -68,7 +73,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   UpdateAttempter(SystemState* system_state,
                   CertificateChecker* cert_checker,
-                  LibCrosProxy* libcros_proxy,
+                  org::chromium::NetworkProxyServiceInterfaceProxyInterface*
+                      network_proxy_service_proxy,
                   org::chromium::debugdProxyInterface* debugd_proxy);
   ~UpdateAttempter() override;
 

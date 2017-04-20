@@ -112,6 +112,17 @@
           ],
           'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
+        {
+          'action_name': 'update_engine-dbus-network_proxy-client',
+          'variables': {
+            'mock_output_file': 'include/network_proxy/dbus-proxy-mocks.h',
+            'proxy_output_file': 'include/network_proxy/dbus-proxies.h'
+          },
+          'sources': [
+            'dbus_bindings/org.chromium.NetworkProxyService.dbus-xml',
+          ],
+          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
+        },
       ],
     },
     # The payload application component and common dependencies.
@@ -249,7 +260,6 @@
         'dbus_service.cc',
         'hardware_chromeos.cc',
         'image_properties_chromeos.cc',
-        'libcros_proxy.cc',
         'metrics.cc',
         'metrics_utils.cc',
         'omaha_request_action.cc',

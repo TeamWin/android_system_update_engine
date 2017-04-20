@@ -285,11 +285,7 @@ void LibcurlHttpFetcher::BeginTransfer(const string& url) {
   url_ = url;
   auto closure = base::Bind(&LibcurlHttpFetcher::ProxiesResolved,
                             base::Unretained(this));
-  if (!ResolveProxiesForUrl(url_, closure)) {
-    LOG(ERROR) << "Couldn't resolve proxies";
-    if (delegate_)
-      delegate_->TransferComplete(this, false);
-  }
+  ResolveProxiesForUrl(url_, closure);
 }
 
 void LibcurlHttpFetcher::ProxiesResolved() {

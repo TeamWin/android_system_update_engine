@@ -24,6 +24,7 @@
 #include <base/time/time.h>
 #include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
+#include <chromeos/dbus/service_constants.h>
 
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
@@ -39,10 +40,11 @@ namespace chromeos_update_engine {
 
 RealSystemState::RealSystemState(const scoped_refptr<dbus::Bus>& bus)
     : debugd_proxy_(bus),
+      libcros_proxy_(bus, chromeos::kLibCrosServiceName),
+      network_proxy_service_proxy_(bus, chromeos::kNetworkProxyServiceName),
       power_manager_proxy_(bus),
       session_manager_proxy_(bus),
-      shill_proxy_(bus),
-      libcros_proxy_(bus) {
+      shill_proxy_(bus) {
 }
 
 RealSystemState::~RealSystemState() {
@@ -131,9 +133,9 @@ bool RealSystemState::Initialize() {
   certificate_checker_->Init();
 
   // Initialize the UpdateAttempter before the UpdateManager.
-  update_attempter_.reset(
-      new UpdateAttempter(this, certificate_checker_.get(), &libcros_proxy_,
-                          &debugd_proxy_));
+  update_attempter_.reset(new UpdateAttempter(this, certificate_checker_.get(),
+                                              &network_proxy_service_proxy_,
+                                              &debugd_proxy_));
   update_attempter_->Init();
 
   weave_service_ = ConstructWeaveService(update_attempter_.get());

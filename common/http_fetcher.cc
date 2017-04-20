@@ -46,7 +46,7 @@ void HttpFetcher::SetPostData(const void* data, size_t size) {
 }
 
 // Proxy methods to set the proxies, then to pop them off.
-bool HttpFetcher::ResolveProxiesForUrl(const string& url,
+void HttpFetcher::ResolveProxiesForUrl(const string& url,
                                        const Closure& callback) {
   CHECK_EQ(static_cast<Closure*>(nullptr), callback_.get());
   callback_.reset(new Closure(callback));
@@ -57,10 +57,10 @@ bool HttpFetcher::ResolveProxiesForUrl(const string& url,
         FROM_HERE,
         base::Bind(&HttpFetcher::NoProxyResolverCallback,
                    base::Unretained(this)));
-    return true;
+    return;
   }
-  return proxy_resolver_->GetProxiesForUrl(
-      url, base::Bind(&HttpFetcher::ProxiesResolved, base::Unretained(this)));
+  proxy_resolver_->GetProxiesForUrl(url,
+      base::Bind(&HttpFetcher::ProxiesResolved, base::Unretained(this)));
 }
 
 void HttpFetcher::NoProxyResolverCallback() {

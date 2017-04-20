@@ -34,8 +34,8 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#include "libcros/dbus-proxies.h"
-#include "libcros/dbus-proxy-mocks.h"
+#include "network_proxy/dbus-proxies.h"
+#include "network_proxy/dbus-proxy-mocks.h"
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_action.h"
@@ -56,8 +56,9 @@
 
 using base::Time;
 using base::TimeDelta;
-using org::chromium::LibCrosServiceInterfaceProxyMock;
-using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxyMock;
+using org::chromium::debugdProxyMock;
+using org::chromium::NetworkProxyServiceInterfaceProxyInterface;
+using org::chromium::NetworkProxyServiceInterfaceProxyMock;
 using std::string;
 using std::unique_ptr;
 using testing::DoAll;
@@ -79,10 +80,12 @@ namespace chromeos_update_engine {
 // methods.
 class UpdateAttempterUnderTest : public UpdateAttempter {
  public:
-  UpdateAttempterUnderTest(SystemState* system_state,
-                           LibCrosProxy* libcros_proxy,
-                           org::chromium::debugdProxyInterface* debugd_proxy)
-      : UpdateAttempter(system_state, nullptr, libcros_proxy, debugd_proxy) {}
+  UpdateAttempterUnderTest(
+      SystemState* system_state,
+      NetworkProxyServiceInterfaceProxyInterface* network_proxy_service_proxy,
+      org::chromium::debugdProxyInterface* debugd_proxy)
+      : UpdateAttempter(system_state, nullptr, network_proxy_service_proxy,
+                        debugd_proxy) {}
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
@@ -111,13 +114,7 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 class UpdateAttempterTest : public ::testing::Test {
  protected:
   UpdateAttempterTest()
-      : service_interface_mock_(new LibCrosServiceInterfaceProxyMock()),
-        ue_proxy_resolved_interface_mock_(
-            new NiceMock<UpdateEngineLibcrosProxyResolvedInterfaceProxyMock>()),
-        libcros_proxy_(
-            brillo::make_unique_ptr(service_interface_mock_),
-            brillo::make_unique_ptr(ue_proxy_resolved_interface_mock_)),
-        certificate_checker_(fake_system_state_.mock_prefs(),
+      : certificate_checker_(fake_system_state_.mock_prefs(),
                              &openssl_wrapper_) {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
@@ -189,14 +186,11 @@ class UpdateAttempterTest : public ::testing::Test {
 
   FakeSystemState fake_system_state_;
   org::chromium::debugdProxyMock debugd_proxy_mock_;
-  LibCrosServiceInterfaceProxyMock* service_interface_mock_;
-  UpdateEngineLibcrosProxyResolvedInterfaceProxyMock*
-      ue_proxy_resolved_interface_mock_;
-  LibCrosProxy libcros_proxy_;
+  NetworkProxyServiceInterfaceProxyMock network_proxy_service_proxy_mock_;
   OpenSSLWrapper openssl_wrapper_;
   CertificateChecker certificate_checker_;
   UpdateAttempterUnderTest attempter_{&fake_system_state_,
-                                      &libcros_proxy_,
+                                      &network_proxy_service_proxy_mock_,
                                       &debugd_proxy_mock_};
 
   NiceMock<MockActionProcessor>* processor_;
@@ -256,7 +250,8 @@ TEST_F(UpdateAttempterTest, ConstructWithUpdatedMarkerTest) {
   EXPECT_TRUE(utils::GetBootId(&boot_id));
   fake_prefs.SetString(kPrefsUpdateCompletedOnBootId, boot_id);
   fake_system_state_.set_prefs(&fake_prefs);
-  UpdateAttempterUnderTest attempter(&fake_system_state_, &libcros_proxy_,
+  UpdateAttempterUnderTest attempter(&fake_system_state_,
+                                     &network_proxy_service_proxy_mock_,
                                      &debugd_proxy_mock_);
   attempter.Init();
   EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter.status());
@@ -926,7 +921,7 @@ TEST_F(UpdateAttempterTest, ReportDailyMetrics) {
 
 TEST_F(UpdateAttempterTest, BootTimeInUpdateMarkerFile) {
   UpdateAttempterUnderTest attempter{&fake_system_state_,
-                                     &libcros_proxy_,
+                                     &network_proxy_service_proxy_mock_,
                                      &debugd_proxy_mock_};
   FakeClock fake_clock;
   fake_clock.SetBootTime(Time::FromTimeT(42));

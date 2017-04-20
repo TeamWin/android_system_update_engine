@@ -22,7 +22,9 @@
 #include <memory>
 
 #include <debugd/dbus-proxies.h>
+#include <libcros/dbus-proxies.h>
 #include <metrics/metrics_library.h>
+#include <network_proxy/dbus-proxies.h>
 #include <policy/device_policy.h>
 #include <power_manager/dbus-proxies.h>
 #include <session_manager/dbus-proxies.h>
@@ -128,10 +130,11 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
  private:
   // Real DBus proxies using the DBus connection.
   org::chromium::debugdProxy debugd_proxy_;
+  org::chromium::LibCrosServiceInterfaceProxy libcros_proxy_;
+  org::chromium::NetworkProxyServiceInterfaceProxy network_proxy_service_proxy_;
   org::chromium::PowerManagerProxy power_manager_proxy_;
   org::chromium::SessionManagerInterfaceProxy session_manager_proxy_;
   ShillProxy shill_proxy_;
-  LibCrosProxy libcros_proxy_;
 
   // Interface for the clock.
   std::unique_ptr<BootControlInterface> boot_control_;

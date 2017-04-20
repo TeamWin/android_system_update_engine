@@ -23,9 +23,11 @@
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/state.h"
 
-namespace chromeos_update_engine {
-class LibCrosProxy;
-}
+namespace org {
+namespace chromium {
+class LibCrosServiceInterfaceProxyInterface;
+}  // namespace chromium
+}  // namespace org
 
 namespace chromeos_update_manager {
 
@@ -38,7 +40,7 @@ State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
     chromeos_update_engine::ShillProxy* shill_proxy,
     org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy,
-    chromeos_update_engine::LibCrosProxy* libcros_proxy,
+    org::chromium::LibCrosServiceInterfaceProxyInterface* libcros_proxy,
     chromeos_update_engine::SystemState* system_state);
 
 }  // namespace chromeos_update_manager

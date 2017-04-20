@@ -35,6 +35,7 @@
 #include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
 #include <debugd/dbus-constants.h>
+#include <debugd/dbus-proxies.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
 #include <power_manager/dbus-constants.h>
@@ -125,13 +126,14 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
 UpdateAttempter::UpdateAttempter(
     SystemState* system_state,
     CertificateChecker* cert_checker,
-    LibCrosProxy* libcros_proxy,
+    org::chromium::NetworkProxyServiceInterfaceProxyInterface*
+        network_proxy_service_proxy,
     org::chromium::debugdProxyInterface* debugd_proxy)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
       cert_checker_(cert_checker),
 #if USE_LIBCROS
-      chrome_proxy_resolver_(libcros_proxy),
+      chrome_proxy_resolver_(network_proxy_service_proxy),
 #endif  // USE_LIBCROS
       debugd_proxy_(debugd_proxy) {
 }
@@ -161,10 +163,6 @@ void UpdateAttempter::Init() {
     status_ = UpdateStatus::UPDATED_NEED_REBOOT;
   else
     status_ = UpdateStatus::IDLE;
-
-#if USE_LIBCROS
-  chrome_proxy_resolver_.Init();
-#endif  // USE_LIBCROS
 }
 
 void UpdateAttempter::ScheduleUpdates() {
