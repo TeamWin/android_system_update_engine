@@ -25,6 +25,11 @@
 #include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 
+#if USE_LIBCROS
+#include <libcros/dbus-proxies.h>
+#include <network_proxy/dbus-proxies.h>
+#endif  // USE_LIBCROS
+
 #include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/clock.h"
@@ -123,8 +128,10 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 
  private:
 #if USE_LIBCROS
-  // LibCros proxy using the DBus connection.
-  LibCrosProxy libcros_proxy_;
+  // Real DBus proxies using the DBus connection.
+  std::unique_ptr<org::chromium::LibCrosServiceInterfaceProxy> libcros_proxy_;
+  std::unique_ptr<org::chromium::NetworkProxyServiceInterfaceProxy>
+      network_proxy_service_proxy_;
 #endif  // USE_LIBCROS
 
   // Interface for the power manager.
