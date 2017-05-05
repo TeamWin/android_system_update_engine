@@ -933,7 +933,10 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
   output_object->update_exists = false;
   for (size_t i = 0; i < parser_data->apps.size(); i++) {
     const string& status = parser_data->apps[i].updatecheck_status;
-    if (status == "noupdate") {
+    // Also treat noupdate="true" in postinstall attributes as no update even if
+    // updatecheck status says otherwise.
+    if (status == "noupdate" ||
+        parser_data->apps[i].action_postinstall_attrs["noupdate"] == "true") {
       LOG(INFO) << "No update for <app> " << i;
     } else if (status == "ok") {
       output_object->update_exists = true;
