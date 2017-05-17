@@ -98,7 +98,7 @@ include $(BUILD_STATIC_LIBRARY)
 # The payload application component and common dependencies.
 ue_libpayload_consumer_exported_static_libraries := \
     update_metadata-protos \
-    libxz-host \
+    libxz \
     libbz \
     libimgpatch \
     libbspatch \
