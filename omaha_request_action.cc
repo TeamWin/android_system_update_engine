@@ -804,6 +804,11 @@ bool ParsePackage(OmahaParserData::App* app,
                         ":",
                         base::TRIM_WHITESPACE,
                         base::SPLIT_WANT_ALL);
+  vector<string> is_delta_payloads =
+      base::SplitString(app->action_postinstall_attrs[kTagIsDeltaPayload],
+                        ":",
+                        base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
   for (size_t i = 0; i < app->packages.size(); i++) {
     const auto& package = app->packages[i];
     if (package.name.empty()) {
@@ -848,6 +853,11 @@ bool ParsePackage(OmahaParserData::App* app,
       return false;
     }
     LOG(INFO) << "Payload hash = " << out_package.hash;
+
+    if (i < is_delta_payloads.size())
+      out_package.is_delta = ParseBool(is_delta_payloads[i]);
+    LOG(INFO) << "Payload is delta = " << utils::ToString(out_package.is_delta);
+
     output_object->packages.push_back(std::move(out_package));
   }
 
@@ -993,8 +1003,6 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
   string max = attrs[kTagMaxFailureCountPerUrl];
   if (!base::StringToUint(max, &output_object->max_failure_count_per_url))
     output_object->max_failure_count_per_url = kDefaultMaxFailureCountPerUrl;
-
-  output_object->is_delta_payload = ParseBool(attrs[kTagIsDeltaPayload]);
 
   output_object->disable_payload_backoff =
       ParseBool(attrs[kTagDisablePayloadBackoff]);

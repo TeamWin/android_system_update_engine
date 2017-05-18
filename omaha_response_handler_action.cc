@@ -99,7 +99,9 @@ void OmahaResponseHandlerAction::PerformAction() {
         {.size = package.size,
          .metadata_size = package.metadata_size,
          .metadata_signature = package.metadata_signature,
-         .hash = raw_hash});
+         .hash = raw_hash,
+         .type = package.is_delta ? InstallPayloadType::kDelta
+                                  : InstallPayloadType::kFull});
     update_check_response_hash += package.hash + ":";
   }
   install_plan_.public_key_rsa = response.public_key_rsa;
@@ -118,9 +120,6 @@ void OmahaResponseHandlerAction::PerformAction() {
                                               update_check_response_hash))
         << "Unable to save the update check response hash.";
   }
-  install_plan_.payload_type = response.is_delta_payload
-                                   ? InstallPayloadType::kDelta
-                                   : InstallPayloadType::kFull;
 
   install_plan_.source_slot = system_state_->boot_control()->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;

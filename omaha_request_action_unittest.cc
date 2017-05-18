@@ -127,7 +127,9 @@ struct FakeUpdateResponse {
            "\" MoreInfo=\"" + more_info_url + "\" Prompt=\"" + prompt +
            "\" "
            "IsDelta=\"true\" "
-           "IsDeltaPayload=\"true\" "
+           "IsDeltaPayload=\"true" +
+           (multi_package ? ":false" : "") +
+           "\" "
            "MaxDaysToScatter=\"" +
            max_days_to_scatter +
            "\" "
@@ -146,7 +148,7 @@ struct FakeUpdateResponse {
                       "<package name=\"package3\" size=\"333\" "
                       "hash_sha256=\"hash3\"/></packages>"
                       "<actions><action event=\"postinstall\" "
-                      "MetadataSize=\"33\"/></actions>"
+                      "MetadataSize=\"33\" IsDeltaPayload=\"false\"/></actions>"
                       "</manifest></updatecheck></app>"
                 : "") +
            (multi_app_no_update
@@ -513,6 +515,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_EQ(fake_update_response_.more_info_url, response.more_info_url);
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(true, response.packages[0].is_delta);
   EXPECT_EQ(fake_update_response_.prompt == "true", response.prompt);
   EXPECT_EQ(fake_update_response_.deadline, response.deadline);
   // Omaha cohort attribets are not set in the response, so they should not be
@@ -543,11 +546,13 @@ TEST_F(OmahaRequestActionTest, MultiPackageUpdateTest) {
             response.packages[1].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(true, response.packages[0].is_delta);
   EXPECT_EQ(11u, response.packages[0].metadata_size);
   ASSERT_EQ(2u, response.packages.size());
   EXPECT_EQ(string("hash2"), response.packages[1].hash);
   EXPECT_EQ(222u, response.packages[1].size);
   EXPECT_EQ(22u, response.packages[1].metadata_size);
+  EXPECT_EQ(false, response.packages[1].is_delta);
 }
 
 TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
@@ -572,10 +577,12 @@ TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
   EXPECT_EQ(11u, response.packages[0].metadata_size);
+  EXPECT_EQ(true, response.packages[0].is_delta);
   ASSERT_EQ(2u, response.packages.size());
   EXPECT_EQ(string("hash3"), response.packages[1].hash);
   EXPECT_EQ(333u, response.packages[1].size);
   EXPECT_EQ(33u, response.packages[1].metadata_size);
+  EXPECT_EQ(false, response.packages[1].is_delta);
 }
 
 TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
@@ -626,13 +633,16 @@ TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
   EXPECT_EQ(11u, response.packages[0].metadata_size);
+  EXPECT_EQ(true, response.packages[0].is_delta);
   ASSERT_EQ(3u, response.packages.size());
   EXPECT_EQ(string("hash2"), response.packages[1].hash);
   EXPECT_EQ(222u, response.packages[1].size);
   EXPECT_EQ(22u, response.packages[1].metadata_size);
+  EXPECT_EQ(false, response.packages[1].is_delta);
   EXPECT_EQ(string("hash3"), response.packages[2].hash);
   EXPECT_EQ(333u, response.packages[2].size);
   EXPECT_EQ(33u, response.packages[2].metadata_size);
+  EXPECT_EQ(false, response.packages[2].is_delta);
 }
 
 TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
