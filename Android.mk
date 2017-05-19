@@ -100,11 +100,7 @@ ue_libpayload_consumer_exported_static_libraries := \
     update_metadata-protos \
     libxz \
     libbz \
-    libimgpatch \
     libbspatch \
-    libbase \
-    liblog \
-    libz \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
     libcrypto \
