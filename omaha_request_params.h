@@ -105,6 +105,7 @@ class OmahaRequestParams {
   inline std::string os_build_fingerprint() const {
     return image_props_.build_fingerprint;
   }
+  inline std::string os_build_type() const { return image_props_.build_type; }
   inline std::string board_app_id() const { return image_props_.product_id; }
   inline std::string canary_app_id() const {
     return image_props_.canary_product_id;

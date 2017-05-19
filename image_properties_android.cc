@@ -45,6 +45,7 @@ const char kPrefsImgPropPowerwashAllowed[] = "img-prop-powerwash-allowed";
 // System properties that identifies the "board".
 const char kPropProductName[] = "ro.product.name";
 const char kPropBuildFingerprint[] = "ro.build.fingerprint";
+const char kPropBuildType[] = "ro.build.type";
 
 std::string GetStringWithDefault(const brillo::OsReleaseReader& osrelease,
                                  const std::string& key,
@@ -86,6 +87,9 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
 
   property_get(kPropBuildFingerprint, prop, "none");
   result.build_fingerprint = prop;
+
+  property_get(kPropBuildType, prop, "");
+  result.build_type = prop;
 
   // Brillo images don't have a channel assigned. We stored the name of the
   // channel where we got the image from in prefs at the time of the update, so
