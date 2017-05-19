@@ -208,7 +208,6 @@ bool UpdateAttempterAndroid::ApplyPayload(
   if (!headers[kPayloadPropertyUserAgent].empty())
     fetcher->SetHeader("User-Agent", headers[kPayloadPropertyUserAgent]);
 
-  cpu_limiter_.StartLimiter();
   SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
   ongoing_update_ = true;
 
@@ -410,8 +409,6 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
     return;
   }
 
-  // Reset cpu shares back to normal.
-  cpu_limiter_.StopLimiter();
   download_progress_ = 0;
   actions_.clear();
   UpdateStatus new_status =
