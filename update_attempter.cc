@@ -332,12 +332,11 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
   bool use_p2p_for_downloading = false;
   bool use_p2p_for_sharing = false;
 
-  // Never use p2p for downloading in interactive checks unless the
-  // developer has opted in for it via a marker file.
+  // Never use p2p for downloading in interactive checks unless the developer
+  // has opted in for it via a marker file.
   //
-  // (Why would a developer want to opt in? If he's working on the
-  // update_engine or p2p codebases so he can actually test his
-  // code.).
+  // (Why would a developer want to opt in? If they are working on the
+  // update_engine or p2p codebases so they can actually test their code.)
 
   if (system_state_ != nullptr) {
     if (!system_state_->p2p_manager()->IsP2PEnabled()) {
