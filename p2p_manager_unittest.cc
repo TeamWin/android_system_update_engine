@@ -506,7 +506,18 @@ TEST_F(P2PManagerTest, LookupURL) {
 
   // Emulate p2p-client exceeding its timeout.
   test_conf_->SetP2PClientCommand({
-      "sh", "-c", "echo http://1.2.3.4/; sleep 2"});
+      "sh", "-c",
+      // The 'sleep' launched below could be left behind as an orphaned
+      // process when the 'sh' process is terminated by SIGTERM. As a
+      // remedy, trap SIGTERM and kill the 'sleep' process, which requires
+      // launching 'sleep' in background and then waiting for it.
+      "cleanup() { kill \"${sleep_pid}\"; exit 0; }; "
+      "trap cleanup TERM; "
+      "sleep 5 & "
+      "sleep_pid=$!; "
+      "echo http://1.2.3.4/; "
+      "wait"
+  });
   manager_->LookupUrlForFile("foobar", 42, TimeDelta::FromMilliseconds(500),
                              base::Bind(ExpectUrl, ""));
   loop_.Run();
