@@ -348,6 +348,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
+    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
       LOG(INFO) << "Not incrementing URL index or failure count for this error";
       break;
 

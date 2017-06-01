@@ -123,6 +123,14 @@ bool DBusUpdateEngineService::SetUpdateOverCellularPermission(ErrorPtr* error,
   return common_->SetUpdateOverCellularPermission(error, in_allowed);
 }
 
+bool DBusUpdateEngineService::SetUpdateOverCellularTarget(
+    brillo::ErrorPtr* error,
+    const std::string& target_version,
+    int64_t target_size) {
+  return common_->SetUpdateOverCellularTarget(error, target_version,
+                                              target_size);
+}
+
 bool DBusUpdateEngineService::GetUpdateOverCellularPermission(
     ErrorPtr* error, bool* out_allowed) {
   return common_->GetUpdateOverCellularPermission(error, out_allowed);

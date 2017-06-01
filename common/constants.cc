@@ -74,6 +74,10 @@ const char kPrefsUpdateDurationUptime[] = "update-duration-uptime";
 const char kPrefsUpdateFirstSeenAt[] = "update-first-seen-at";
 const char kPrefsUpdateOverCellularPermission[] =
     "update-over-cellular-permission";
+const char kPrefsUpdateOverCellularTargetVersion[] =
+    "update-over-cellular-target-version";
+const char kPrefsUpdateOverCellularTargetSize[] =
+    "update-over-cellular-target-size";
 const char kPrefsUpdateServerCertificate[] = "update-server-cert";
 const char kPrefsUpdateStateNextDataLength[] = "update-state-next-data-length";
 const char kPrefsUpdateStateNextDataOffset[] = "update-state-next-data-offset";
