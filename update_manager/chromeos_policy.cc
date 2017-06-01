@@ -245,9 +245,9 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
       }
 
       result->target_version_prefix = *kiosk_required_platform_version_p;
-      LOG(INFO) << "Allow kiosk app to control Chrome version policy is set,"
-                << ", target version is "
-                << (kiosk_required_platform_version_p
+      LOG(INFO) << "Allow kiosk app to control Chrome version policy is set, "
+                << "target version is "
+                << (!kiosk_required_platform_version_p->empty()
                         ? *kiosk_required_platform_version_p
                         : std::string("latest"));
     } else {
