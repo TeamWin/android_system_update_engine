@@ -115,6 +115,12 @@ class UpdateEngineService {
   bool SetUpdateOverCellularPermission(brillo::ErrorPtr* error,
                                        bool in_allowed);
 
+  // If there's no device policy installed, sets the update over cellular
+  // target. Otherwise, this method returns with an error.
+  bool SetUpdateOverCellularTarget(brillo::ErrorPtr* error,
+                                   const std::string& target_version,
+                                   int64_t target_size);
+
   // Returns the current value of the update over cellular network setting,
   // either forced by the device policy if the device is enrolled or the current
   // user preference otherwise.

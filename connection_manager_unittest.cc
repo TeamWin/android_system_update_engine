@@ -277,16 +277,24 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GAndOtherTypesPerPolicyTest) {
                                         ConnectionTethering::kConfirmed));
 }
 
-TEST_F(ConnectionManagerTest, BlockUpdatesOverCellularByDefaultTest) {
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
-                                         ConnectionTethering::kUnknown));
+TEST_F(ConnectionManagerTest, AllowUpdatesOverCellularByDefaultTest) {
+  policy::MockDevicePolicy device_policy;
+  // Set an empty device policy.
+  fake_system_state_.set_device_policy(&device_policy);
+
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                        ConnectionTethering::kUnknown));
 }
 
-TEST_F(ConnectionManagerTest, BlockUpdatesOverTetheredNetworkByDefaultTest) {
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
-                                         ConnectionTethering::kConfirmed));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kEthernet,
-                                         ConnectionTethering::kConfirmed));
+TEST_F(ConnectionManagerTest, AllowUpdatesOverTetheredNetworkByDefaultTest) {
+  policy::MockDevicePolicy device_policy;
+  // Set an empty device policy.
+  fake_system_state_.set_device_policy(&device_policy);
+
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
+                                        ConnectionTethering::kConfirmed));
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kEthernet,
+                                        ConnectionTethering::kConfirmed));
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kWifi,
                                         ConnectionTethering::kSuspected));
 }
@@ -311,62 +319,20 @@ TEST_F(ConnectionManagerTest, BlockUpdatesOver3GPerPolicyTest) {
                                          ConnectionTethering::kUnknown));
 }
 
-TEST_F(ConnectionManagerTest, BlockUpdatesOver3GIfErrorInPolicyFetchTest) {
-  policy::MockDevicePolicy allow_3g_policy;
+TEST_F(ConnectionManagerTest, AllowUpdatesOver3GIfPolicyIsNotSet) {
+  policy::MockDevicePolicy device_policy;
 
-  fake_system_state_.set_device_policy(&allow_3g_policy);
-
-  set<string> allowed_set;
-  allowed_set.insert(StringForConnectionType(ConnectionType::kCellular));
+  fake_system_state_.set_device_policy(&device_policy);
 
   // Return false for GetAllowedConnectionTypesForUpdate and see
-  // that updates are still blocked for 3G despite the value being in
-  // the string set above.
-  EXPECT_CALL(allow_3g_policy, GetAllowedConnectionTypesForUpdate(_))
-      .Times(1)
-      .WillOnce(DoAll(SetArgPointee<0>(allowed_set), Return(false)));
-
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
-                                         ConnectionTethering::kUnknown));
-}
-
-TEST_F(ConnectionManagerTest, UseUserPrefForUpdatesOverCellularIfNoPolicyTest) {
-  policy::MockDevicePolicy no_policy;
-  testing::NiceMock<MockPrefs>* prefs = fake_system_state_.mock_prefs();
-
-  fake_system_state_.set_device_policy(&no_policy);
-
-  // No setting enforced by the device policy, user prefs should be used.
-  EXPECT_CALL(no_policy, GetAllowedConnectionTypesForUpdate(_))
-      .Times(3)
-      .WillRepeatedly(Return(false));
-
-  // No user pref: block.
-  EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
+  // that updates are allowed as device policy is not set. Further
+  // check is left to |OmahaRequestAction|.
+  EXPECT_CALL(device_policy, GetAllowedConnectionTypesForUpdate(_))
       .Times(1)
       .WillOnce(Return(false));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
-                                         ConnectionTethering::kUnknown));
 
-  // Allow per user pref.
-  EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
-      .Times(1)
-      .WillOnce(Return(true));
-  EXPECT_CALL(*prefs, GetBoolean(kPrefsUpdateOverCellularPermission, _))
-      .Times(1)
-      .WillOnce(DoAll(SetArgPointee<1>(true), Return(true)));
   EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
                                         ConnectionTethering::kUnknown));
-
-  // Block per user pref.
-  EXPECT_CALL(*prefs, Exists(kPrefsUpdateOverCellularPermission))
-      .Times(1)
-      .WillOnce(Return(true));
-  EXPECT_CALL(*prefs, GetBoolean(kPrefsUpdateOverCellularPermission, _))
-      .Times(1)
-      .WillOnce(DoAll(SetArgPointee<1>(false), Return(true)));
-  EXPECT_FALSE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
-                                         ConnectionTethering::kUnknown));
 }
 
 TEST_F(ConnectionManagerTest, StringForConnectionTypeTest) {
