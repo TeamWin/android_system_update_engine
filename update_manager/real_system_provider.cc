@@ -20,11 +20,11 @@
 #include <base/callback.h>
 #include <base/logging.h>
 #include <base/time/time.h>
+#if USE_LIBCROS
+#include <libcros/dbus-proxies.h>
+#endif
 
 #include "update_engine/common/utils.h"
-#if USE_LIBCROS
-#include "update_engine/libcros_proxy.h"
-#endif
 #include "update_engine/update_manager/generic_variables.h"
 #include "update_engine/update_manager/variable.h"
 
@@ -126,9 +126,8 @@ bool RealSystemProvider::GetKioskAppRequiredPlatformVersion(
     string* required_platform_version) {
 #if USE_LIBCROS
   brillo::ErrorPtr error;
-  if (!libcros_proxy_->service_interface_proxy()
-           ->GetKioskAppRequiredPlatformVersion(required_platform_version,
-                                                &error)) {
+  if (!libcros_proxy_->GetKioskAppRequiredPlatformVersion(
+          required_platform_version, &error)) {
     LOG(WARNING) << "Failed to get kiosk required platform version";
     required_platform_version->clear();
     return false;

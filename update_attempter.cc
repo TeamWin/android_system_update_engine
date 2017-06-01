@@ -120,14 +120,16 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
   return code;
 }
 
-UpdateAttempter::UpdateAttempter(SystemState* system_state,
-                                 CertificateChecker* cert_checker,
-                                 LibCrosProxy* libcros_proxy)
+UpdateAttempter::UpdateAttempter(
+    SystemState* system_state,
+    CertificateChecker* cert_checker,
+    org::chromium::NetworkProxyServiceInterfaceProxyInterface*
+        network_proxy_service_proxy)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
 #if USE_LIBCROS
       cert_checker_(cert_checker),
-      chrome_proxy_resolver_(libcros_proxy) {
+      chrome_proxy_resolver_(network_proxy_service_proxy) {
 #else
       cert_checker_(cert_checker) {
 #endif  // USE_LIBCROS
@@ -158,10 +160,6 @@ void UpdateAttempter::Init() {
     status_ = UpdateStatus::UPDATED_NEED_REBOOT;
   else
     status_ = UpdateStatus::IDLE;
-
-#if USE_LIBCROS
-  chrome_proxy_resolver_.Init();
-#endif  // USE_LIBCROS
 }
 
 void UpdateAttempter::ScheduleUpdates() {
