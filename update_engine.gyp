@@ -131,7 +131,6 @@
       'variables': {
         'exported_deps': [
           'libcrypto',
-          'libimgpatch',
           'xz-embedded',
         ],
         'deps': ['<@(exported_deps)'],
