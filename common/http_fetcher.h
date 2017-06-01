@@ -66,8 +66,7 @@ class HttpFetcher {
   void SetPostData(const void* data, size_t size);
 
   // Proxy methods to set the proxies, then to pop them off.
-  // Returns true on success.
-  bool ResolveProxiesForUrl(const std::string& url,
+  void ResolveProxiesForUrl(const std::string& url,
                             const base::Closure& callback);
 
   void SetProxies(const std::deque<std::string>& proxies) {
