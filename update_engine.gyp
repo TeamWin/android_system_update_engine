@@ -150,6 +150,7 @@
           ],
         },
         'libraries': [
+          '-lbspatch',
           '-lbz2',
           '-lrt',
         ],
