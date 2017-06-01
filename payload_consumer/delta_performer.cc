@@ -34,7 +34,7 @@
 #include <base/strings/stringprintf.h>
 #include <brillo/data_encoding.h>
 #include <brillo/make_unique_ptr.h>
-#include <bspatch.h>
+#include <bsdiff/bspatch.h>
 #include <google/protobuf/repeated_field.h>
 
 #include "update_engine/common/constants.h"
