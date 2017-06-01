@@ -47,7 +47,7 @@ namespace chromeos_update_manager {
 
 State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
-    chromeos_update_engine::LibCrosProxy* libcros_proxy,
+    org::chromium::LibCrosServiceInterfaceProxyInterface* libcros_proxy,
     chromeos_update_engine::SystemState* system_state) {
   chromeos_update_engine::ClockInterface* const clock = system_state->clock();
   unique_ptr<RealConfigProvider> config_provider(
