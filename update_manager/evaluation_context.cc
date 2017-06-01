@@ -19,10 +19,12 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <base/bind.h>
 #include <base/json/json_writer.h>
 #include <base/location.h>
+#include <base/memory/ptr_util.h>
 #include <base/strings/string_util.h>
 #include <base/values.h>
 
@@ -227,13 +229,13 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
 }
 
 string EvaluationContext::DumpContext() const {
-  base::DictionaryValue* variables = new base::DictionaryValue();
+  auto variables = base::MakeUnique<base::DictionaryValue>();
   for (auto& it : value_cache_) {
     variables->SetString(it.first->GetName(), it.second.ToString());
   }
 
   base::DictionaryValue value;
-  value.Set("variables", variables);  // Adopts |variables|.
+  value.Set("variables", std::move(variables));
   value.SetString(
       "evaluation_start_wallclock",
       chromeos_update_engine::utils::ToString(evaluation_start_wallclock_));
