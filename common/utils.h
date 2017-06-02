@@ -305,9 +305,6 @@ bool ConvertToOmahaInstallDate(base::Time time, int *out_num_days);
 bool GetMinorVersion(const brillo::KeyValueStore& store,
                      uint32_t* minor_version);
 
-// Returns whether zlib |fingerprint| is compatible with zlib we are using.
-bool IsZlibCompatible(const std::string& fingerprint);
-
 // This function reads the specified data in |extents| into |out_data|. The
 // extents are read from the file at |path|. |out_data_size| is the size of
 // |out_data|. Returns false if the number of bytes to read given in

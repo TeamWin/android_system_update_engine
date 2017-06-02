@@ -58,7 +58,6 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/file_writer.h"
-#include "update_engine/payload_consumer/payload_constants.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -1007,19 +1006,6 @@ bool GetMinorVersion(const brillo::KeyValueStore& store,
       return false;
     }
     return true;
-  }
-  return false;
-}
-
-bool IsZlibCompatible(const string& fingerprint) {
-  if (fingerprint.size() != sizeof(kCompatibleZlibFingerprint[0]) - 1) {
-    LOG(ERROR) << "Invalid fingerprint: " << fingerprint;
-    return false;
-  }
-  for (auto& f : kCompatibleZlibFingerprint) {
-    if (base::CompareCaseInsensitiveASCII(fingerprint, f) == 0) {
-      return true;
-    }
   }
   return false;
 }
