@@ -48,13 +48,18 @@
 
 class MetricsLibraryInterface;
 
+namespace org {
+namespace chromium {
+class NetworkProxyServiceInterfaceProxyInterface;
+}  // namespace chromium
+}  // namespace org
+
 namespace policy {
 class PolicyProvider;
 }
 
 namespace chromeos_update_engine {
 
-class LibCrosProxy;
 class UpdateEngineAdaptor;
 
 class UpdateAttempter : public ActionProcessorDelegate,
@@ -67,7 +72,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   UpdateAttempter(SystemState* system_state,
                   CertificateChecker* cert_checker,
-                  LibCrosProxy* libcros_proxy);
+                  org::chromium::NetworkProxyServiceInterfaceProxyInterface*
+                      network_proxy_service_proxy);
   ~UpdateAttempter() override;
 
   // Further initialization to be done post construction.
@@ -256,6 +262,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, UpdateTest);
   FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
   FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
+  FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
 
   // CertificateChecker::Observer method.
   // Report metrics about the certificate being checked.

@@ -26,7 +26,6 @@
 #include <string>
 #include <vector>
 
-#include <applypatch/imgpatch.h>
 #include <base/files/file_util.h>
 #include <base/format_macros.h>
 #include <base/strings/string_number_conversions.h>
@@ -34,7 +33,7 @@
 #include <base/strings/stringprintf.h>
 #include <brillo/data_encoding.h>
 #include <brillo/make_unique_ptr.h>
-#include <bspatch.h>
+#include <bsdiff/bspatch.h>
 #include <google/protobuf/repeated_field.h>
 
 #include "update_engine/common/constants.h"
@@ -733,10 +732,11 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
         op_result = PerformSourceBsdiffOperation(op, error);
         break;
       case InstallOperation::IMGDIFF:
-        op_result = PerformImgdiffOperation(op, error);
+        // TODO(deymo): Replace with PUFFIN operation.
+        op_result = false;
         break;
       default:
-       op_result = false;
+        op_result = false;
     }
     if (!HandleOpResult(op_result, InstallOperationTypeName(op.type()), error))
       return false;
@@ -1259,53 +1259,6 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
                                         buffer_.size(),
                                         input_positions.c_str(),
                                         output_positions.c_str()) == 0);
-  DiscardBuffer(true, buffer_.size());
-  return true;
-}
-
-bool DeltaPerformer::PerformImgdiffOperation(const InstallOperation& operation,
-                                             ErrorCode* error) {
-  // Since we delete data off the beginning of the buffer as we use it,
-  // the data we need should be exactly at the beginning of the buffer.
-  TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
-  TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
-
-  uint64_t src_blocks = GetBlockCount(operation.src_extents());
-  brillo::Blob src_data(src_blocks * block_size_);
-
-  ssize_t bytes_read = 0;
-  for (const Extent& extent : operation.src_extents()) {
-    ssize_t bytes_read_this_iteration = 0;
-    ssize_t bytes_to_read = extent.num_blocks() * block_size_;
-    TEST_AND_RETURN_FALSE(utils::PReadAll(source_fd_,
-                                          &src_data[bytes_read],
-                                          bytes_to_read,
-                                          extent.start_block() * block_size_,
-                                          &bytes_read_this_iteration));
-    TEST_AND_RETURN_FALSE(bytes_read_this_iteration == bytes_to_read);
-    bytes_read += bytes_read_this_iteration;
-  }
-
-  if (operation.has_src_sha256_hash()) {
-    brillo::Blob src_hash;
-    TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfData(src_data, &src_hash));
-    TEST_AND_RETURN_FALSE(ValidateSourceHash(src_hash, operation, error));
-  }
-
-  vector<Extent> target_extents(operation.dst_extents().begin(),
-                                operation.dst_extents().end());
-  DirectExtentWriter writer;
-  TEST_AND_RETURN_FALSE(writer.Init(target_fd_, target_extents, block_size_));
-  TEST_AND_RETURN_FALSE(
-      ApplyImagePatch(src_data.data(),
-                      src_data.size(),
-                      buffer_.data(),
-                      operation.data_length(),
-                      [&writer](const unsigned char* data, size_t len) {
-                        return writer.Write(data, len) ? len : 0;
-                      }) == 0);
-  TEST_AND_RETURN_FALSE(writer.End());
-
   DiscardBuffer(true, buffer_.size());
   return true;
 }

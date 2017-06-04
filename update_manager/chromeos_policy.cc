@@ -134,6 +134,7 @@ bool HandleErrorCode(ErrorCode err_code, int* url_num_error_p) {
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
+    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
       LOG(INFO) << "Not changing URL index or failure count due to error "
                 << chromeos_update_engine::utils::ErrorCodeToString(err_code)
                 << " (" << static_cast<int>(err_code) << ")";
@@ -245,9 +246,9 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
       }
 
       result->target_version_prefix = *kiosk_required_platform_version_p;
-      LOG(INFO) << "Allow kiosk app to control Chrome version policy is set,"
-                << ", target version is "
-                << (kiosk_required_platform_version_p
+      LOG(INFO) << "Allow kiosk app to control Chrome version policy is set, "
+                << "target version is "
+                << (!kiosk_required_platform_version_p->empty()
                         ? *kiosk_required_platform_version_p
                         : std::string("latest"));
     } else {

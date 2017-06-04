@@ -46,6 +46,10 @@ class ConnectionManagerInterface {
   virtual bool IsUpdateAllowedOver(ConnectionType type,
                                    ConnectionTethering tethering) const = 0;
 
+  // Returns true if the allowed connection types for update is set in the
+  // device policy. Otherwise, returns false.
+  virtual bool IsAllowedConnectionTypesForUpdateSet() const = 0;
+
  protected:
   ConnectionManagerInterface() = default;
 

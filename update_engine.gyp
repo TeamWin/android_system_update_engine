@@ -23,12 +23,7 @@
       # The -DUSE_* flags are passed from platform2.py. We use sane defaults
       # here when these USE flags are not defined. You can set the default value
       # for the USE flag in the ebuild.
-      'USE_binder%': '0',
-      'USE_dbus%': '1',
       'USE_hwid_override%': '0',
-      'USE_libcros%': '1',
-      'USE_mtd%': '0',
-      'USE_power_management%': '0',
     },
     'cflags': [
       '-g',
@@ -117,6 +112,17 @@
           ],
           'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
         },
+        {
+          'action_name': 'update_engine-dbus-network_proxy-client',
+          'variables': {
+            'mock_output_file': 'include/network_proxy/dbus-proxy-mocks.h',
+            'proxy_output_file': 'include/network_proxy/dbus-proxies.h'
+          },
+          'sources': [
+            'dbus_bindings/org.chromium.NetworkProxyService.dbus-xml',
+          ],
+          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
+        },
       ],
     },
     # The payload application component and common dependencies.
@@ -131,7 +137,6 @@
       'variables': {
         'exported_deps': [
           'libcrypto',
-          'libimgpatch',
           'xz-embedded',
         ],
         'deps': ['<@(exported_deps)'],
@@ -150,6 +155,7 @@
           ],
         },
         'libraries': [
+          '-lbspatch',
           '-lbz2',
           '-lrt',
         ],
@@ -255,7 +261,6 @@
         'dbus_service.cc',
         'hardware_chromeos.cc',
         'image_properties_chromeos.cc',
-        'libcros_proxy.cc',
         'libcurl_http_fetcher.cc',
         'metrics.cc',
         'metrics_utils.cc',

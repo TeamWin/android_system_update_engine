@@ -20,147 +20,68 @@
 #include <string>
 #include <vector>
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <base/bind.h>
-#include <brillo/make_unique_ptr.h>
-#include <brillo/message_loops/fake_message_loop.h>
+#include <base/macros.h>
+#include <brillo/errors/error.h>
 
-#include "libcros/dbus-proxies.h"
-#include "libcros/dbus-proxy-mocks.h"
+#include "network_proxy/dbus-proxies.h"
+#include "network_proxy/dbus-proxy-mocks.h"
 #include "update_engine/dbus_test_utils.h"
 
-using ::testing::Return;
+using ::testing::DoAll;
+using ::testing::SaveArg;
 using ::testing::StrEq;
 using ::testing::_;
-using brillo::MessageLoop;
-using org::chromium::LibCrosServiceInterfaceProxyMock;
-using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxyMock;
+using org::chromium::NetworkProxyServiceInterfaceProxyMock;
 using std::deque;
 using std::string;
 using std::vector;
 
 namespace chromeos_update_engine {
 
-class ChromeBrowserProxyResolverTest : public ::testing::Test {
- protected:
-  ChromeBrowserProxyResolverTest()
-      : service_interface_mock_(new LibCrosServiceInterfaceProxyMock()),
-        ue_proxy_resolved_interface_mock_(
-            new UpdateEngineLibcrosProxyResolvedInterfaceProxyMock()),
-        libcros_proxy_(
-            brillo::make_unique_ptr(service_interface_mock_),
-            brillo::make_unique_ptr(ue_proxy_resolved_interface_mock_)) {}
-
-  void SetUp() override {
-    loop_.SetAsCurrent();
-    // The ProxyResolved signal should be subscribed to.
-    MOCK_SIGNAL_HANDLER_EXPECT_SIGNAL_HANDLER(
-        ue_proxy_resolved_signal_,
-        *ue_proxy_resolved_interface_mock_,
-        ProxyResolved);
-
-    EXPECT_TRUE(resolver_.Init());
-    // Run the loop once to dispatch the successfully registered signal handler.
-    EXPECT_TRUE(loop_.RunOnce(false));
-  }
-
-  void TearDown() override {
-    EXPECT_FALSE(loop_.PendingTasks());
-  }
-
-  // Send the signal to the callback passed during registration of the
-  // ProxyResolved.
-  void SendReplySignal(const string& source_url,
-                       const string& proxy_info,
-                       const string& error_message);
-
-  void RunTest(bool chrome_replies, bool chrome_alive);
-
-  brillo::FakeMessageLoop loop_{nullptr};
-
-  // Local pointers to the mocks. The instances are owned by the
-  // |libcros_proxy_|.
-  LibCrosServiceInterfaceProxyMock* service_interface_mock_;
-  UpdateEngineLibcrosProxyResolvedInterfaceProxyMock*
-      ue_proxy_resolved_interface_mock_;
-
-  // The registered signal handler for the signal
-  // UpdateEngineLibcrosProxyResolvedInterface.ProxyResolved.
-  chromeos_update_engine::dbus_test_utils::MockSignalHandler<
-      void(const string&, const string&, const string&)>
-      ue_proxy_resolved_signal_;
-
-  LibCrosProxy libcros_proxy_;
-  ChromeBrowserProxyResolver resolver_{&libcros_proxy_};
-};
-
-
-void ChromeBrowserProxyResolverTest::SendReplySignal(
-    const string& source_url,
-    const string& proxy_info,
-    const string& error_message) {
-  ASSERT_TRUE(ue_proxy_resolved_signal_.IsHandlerRegistered());
-  ue_proxy_resolved_signal_.signal_callback().Run(
-      source_url, proxy_info, error_message);
-}
-
 namespace {
-void CheckResponseResolved(const deque<string>& proxies) {
-  EXPECT_EQ(2U, proxies.size());
-  EXPECT_EQ("socks5://192.168.52.83:5555", proxies[0]);
-  EXPECT_EQ(kNoProxy, proxies[1]);
-  MessageLoop::current()->BreakLoop();
+
+// Callback for ProxyResolver::GetProxiesForUrl() that copies |src| to |dest|.
+void CopyProxies(deque<string>* dest, const deque<string>& src) {
+  *dest = src;
 }
 
-void CheckResponseNoReply(const deque<string>& proxies) {
-  EXPECT_EQ(1U, proxies.size());
-  EXPECT_EQ(kNoProxy, proxies[0]);
-  MessageLoop::current()->BreakLoop();
-}
 }  // namespace
 
-// chrome_replies should be set to whether or not we fake a reply from
-// chrome. If there's no reply, the resolver should time out.
-// If chrome_alive is false, assume that sending to chrome fails.
-void ChromeBrowserProxyResolverTest::RunTest(bool chrome_replies,
-                                             bool chrome_alive) {
-  char kUrl[] = "http://example.com/blah";
-  char kProxyConfig[] = "SOCKS5 192.168.52.83:5555;DIRECT";
+class ChromeBrowserProxyResolverTest : public ::testing::Test {
+ public:
+  ChromeBrowserProxyResolverTest() = default;
+  ~ChromeBrowserProxyResolverTest() override = default;
 
-  EXPECT_CALL(*service_interface_mock_,
-              ResolveNetworkProxy(StrEq(kUrl),
-                                  StrEq(kLibCrosProxyResolveSignalInterface),
-                                  StrEq(kLibCrosProxyResolveName),
-                                  _,
-                                  _))
-      .WillOnce(Return(chrome_alive));
-
-  ProxiesResolvedFn get_proxies_response = base::Bind(&CheckResponseNoReply);
-  if (chrome_replies) {
-    get_proxies_response = base::Bind(&CheckResponseResolved);
-    MessageLoop::current()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&ChromeBrowserProxyResolverTest::SendReplySignal,
-                   base::Unretained(this),
-                   kUrl,
-                   kProxyConfig,
-                   ""),
-        base::TimeDelta::FromSeconds(1));
+ protected:
+  // Adds a GoogleMock expectation for a call to |dbus_proxy_|'s
+  // ResolveProxyAsync method to resolve |url|.
+  void AddResolveProxyExpectation(const std::string& url) {
+    EXPECT_CALL(dbus_proxy_, ResolveProxyAsync(StrEq(url), _, _, _))
+        .WillOnce(DoAll(SaveArg<1>(&success_callback_),
+                        SaveArg<2>(&error_callback_)));
   }
 
-  EXPECT_NE(kProxyRequestIdNull,
-            resolver_.GetProxiesForUrl(kUrl, get_proxies_response));
-  MessageLoop::current()->Run();
-}
+  NetworkProxyServiceInterfaceProxyMock dbus_proxy_;
+  ChromeBrowserProxyResolver resolver_{&dbus_proxy_};
 
+  // Callbacks that were passed to |dbus_proxy_|'s ResolveProxyAsync method.
+  base::Callback<void(const std::string&, const std::string&)>
+      success_callback_;
+  base::Callback<void(brillo::Error*)> error_callback_;
 
-TEST_F(ChromeBrowserProxyResolverTest, ParseTest) {
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ChromeBrowserProxyResolverTest);
+};
+
+TEST_F(ChromeBrowserProxyResolverTest, Parse) {
   // Test ideas from
   // http://src.chromium.org/svn/trunk/src/net/proxy/proxy_list_unittest.cc
   vector<string> inputs = {
       "PROXY foopy:10",
-      " DIRECT",  // leading space.
+      " DIRECT", // leading space.
       "PROXY foopy1 ; proxy foopy2;\t DIRECT",
       "proxy foopy1 ; SOCKS foopy2",
       "DIRECT ; proxy foopy1 ; DIRECT ; SOCKS5 foopy2;DIRECT ",
@@ -168,7 +89,8 @@ TEST_F(ChromeBrowserProxyResolverTest, ParseTest) {
       "PROXY-foopy:10",
       "PROXY",
       "PROXY foopy1 ; JUNK ; JUNK ; SOCKS5 foopy2 ; ;",
-      "HTTP foopy1; SOCKS5 foopy2"};
+      "HTTP foopy1; SOCKS5 foopy2",
+  };
   vector<deque<string>> outputs = {
       {"http://foopy:10", kNoProxy},
       {kNoProxy},
@@ -179,7 +101,8 @@ TEST_F(ChromeBrowserProxyResolverTest, ParseTest) {
       {kNoProxy},
       {kNoProxy},
       {"http://foopy1", "socks5://foopy2", kNoProxy},
-      {"socks5://foopy2", kNoProxy}};
+      {"socks5://foopy2", kNoProxy},
+  };
   ASSERT_EQ(inputs.size(), outputs.size());
 
   for (size_t i = 0; i < inputs.size(); i++) {
@@ -195,44 +118,63 @@ TEST_F(ChromeBrowserProxyResolverTest, ParseTest) {
   }
 }
 
-TEST_F(ChromeBrowserProxyResolverTest, SuccessTest) {
-  RunTest(true, true);
+TEST_F(ChromeBrowserProxyResolverTest, Success) {
+  const char kUrl[] = "http://example.com/blah";
+  const char kProxyConfig[] = "SOCKS5 192.168.52.83:5555;DIRECT";
+  AddResolveProxyExpectation(kUrl);
+  deque<string> proxies;
+  resolver_.GetProxiesForUrl(kUrl, base::Bind(&CopyProxies, &proxies));
+
+  // Run the D-Bus success callback and verify that the proxies are passed to
+  // the supplied function.
+  ASSERT_FALSE(success_callback_.is_null());
+  success_callback_.Run(kProxyConfig, string());
+  ASSERT_EQ(2u, proxies.size());
+  EXPECT_EQ("socks5://192.168.52.83:5555", proxies[0]);
+  EXPECT_EQ(kNoProxy, proxies[1]);
 }
 
-TEST_F(ChromeBrowserProxyResolverTest, NoReplyTest) {
-  RunTest(false, true);
+TEST_F(ChromeBrowserProxyResolverTest, Failure) {
+  const char kUrl[] = "http://example.com/blah";
+  AddResolveProxyExpectation(kUrl);
+  deque<string> proxies;
+  resolver_.GetProxiesForUrl(kUrl, base::Bind(&CopyProxies, &proxies));
+
+  // Run the D-Bus error callback and verify that the supplied function is
+  // instructed to use a direct connection.
+  ASSERT_FALSE(error_callback_.is_null());
+  brillo::ErrorPtr error = brillo::Error::Create(FROM_HERE, "", "", "");
+  error_callback_.Run(error.get());
+  ASSERT_EQ(1u, proxies.size());
+  EXPECT_EQ(kNoProxy, proxies[0]);
 }
 
-TEST_F(ChromeBrowserProxyResolverTest, NoChromeTest) {
-  RunTest(false, false);
-}
-
-TEST_F(ChromeBrowserProxyResolverTest, CancelCallbackTest) {
+TEST_F(ChromeBrowserProxyResolverTest, CancelCallback) {
+  const char kUrl[] = "http://example.com/blah";
+  AddResolveProxyExpectation(kUrl);
   int called = 0;
   auto callback = base::Bind(
       [](int* called, const deque<string>& proxies) { (*called)++; }, &called);
+  ProxyRequestId request = resolver_.GetProxiesForUrl(kUrl, callback);
 
-  EXPECT_CALL(*service_interface_mock_, ResolveNetworkProxy(_, _, _, _, _))
-      .Times(4)
-      .WillRepeatedly(Return(true));
-
-  EXPECT_NE(kProxyRequestIdNull,
-            resolver_.GetProxiesForUrl("http://urlA", callback));
-  ProxyRequestId req_b = resolver_.GetProxiesForUrl("http://urlB", callback);
-  // Note that we add twice the same url.
-  ProxyRequestId req_c = resolver_.GetProxiesForUrl("http://urlC", callback);
-  EXPECT_NE(kProxyRequestIdNull,
-            resolver_.GetProxiesForUrl("http://urlC", callback));
-
+  // Cancel the request and then run the D-Bus success callback. The original
+  // callback shouldn't be run.
+  EXPECT_TRUE(resolver_.CancelProxyRequest(request));
+  ASSERT_FALSE(success_callback_.is_null());
+  success_callback_.Run("DIRECT", string());
   EXPECT_EQ(0, called);
-  EXPECT_TRUE(resolver_.CancelProxyRequest(req_b));
-  EXPECT_TRUE(resolver_.CancelProxyRequest(req_c));
-  // Canceling the same request twice should fail even if there's another
-  // request for the same URL.
-  EXPECT_FALSE(resolver_.CancelProxyRequest(req_c));
+}
 
-  loop_.Run();
-  EXPECT_EQ(2, called);
+TEST_F(ChromeBrowserProxyResolverTest, CancelCallbackTwice) {
+  const char kUrl[] = "http://example.com/blah";
+  AddResolveProxyExpectation(kUrl);
+  deque<string> proxies;
+  ProxyRequestId request =
+      resolver_.GetProxiesForUrl(kUrl, base::Bind(&CopyProxies, &proxies));
+
+  // Cancel the same request twice. The second call should fail.
+  EXPECT_TRUE(resolver_.CancelProxyRequest(request));
+  EXPECT_FALSE(resolver_.CancelProxyRequest(request));
 }
 
 }  // namespace chromeos_update_engine

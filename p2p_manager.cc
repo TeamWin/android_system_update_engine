@@ -16,6 +16,9 @@
 
 // This provides access to timestamps with nanosecond resolution in
 // struct stat, See NOTES in stat(2) for details.
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
 #ifndef _BSD_SOURCE
 #define _BSD_SOURCE
 #endif

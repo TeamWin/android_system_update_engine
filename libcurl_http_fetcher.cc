@@ -52,9 +52,6 @@ namespace {
 
 const int kNoNetworkRetrySeconds = 10;
 
-// Socket tag used by all network sockets. See qtaguid kernel module for stats.
-const int kUpdateEngineSocketTag = 0x55417243;  // "CrAU" in little-endian.
-
 // libcurl's CURLOPT_SOCKOPTFUNCTION callback function. Called after the socket
 // is created but before it is connected. This callback tags the created socket
 // so the network usage can be tracked in Android.
@@ -62,6 +59,9 @@ int LibcurlSockoptCallback(void* /* clientp */,
                            curl_socket_t curlfd,
                            curlsocktype /* purpose */) {
 #ifdef __ANDROID__
+  // Socket tag used by all network sockets. See qtaguid kernel module for
+  // stats.
+  const int kUpdateEngineSocketTag = 0x55417243;  // "CrAU" in little-endian.
   qtaguid_tagSocket(curlfd, kUpdateEngineSocketTag, AID_OTA_UPDATE);
 #endif  // __ANDROID__
   return CURL_SOCKOPT_OK;
@@ -346,11 +346,7 @@ void LibcurlHttpFetcher::BeginTransfer(const string& url) {
   url_ = url;
   auto closure = base::Bind(&LibcurlHttpFetcher::ProxiesResolved,
                             base::Unretained(this));
-  if (!ResolveProxiesForUrl(url_, closure)) {
-    LOG(ERROR) << "Couldn't resolve proxies";
-    if (delegate_)
-      delegate_->TransferComplete(this, false);
-  }
+  ResolveProxiesForUrl(url_, closure);
 }
 
 void LibcurlHttpFetcher::ProxiesResolved() {

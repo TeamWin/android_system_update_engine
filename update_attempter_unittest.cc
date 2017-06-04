@@ -32,9 +32,8 @@
 #include <policy/mock_device_policy.h>
 
 #if USE_LIBCROS
-#include "libcros/dbus-proxies.h"
-#include "libcros/dbus-proxy-mocks.h"
-#include "update_engine/libcros_proxy.h"
+#include "network_proxy/dbus-proxies.h"
+#include "network_proxy/dbus-proxy-mocks.h"
 #endif // USE_LIBCROS
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
@@ -54,12 +53,16 @@
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 
+namespace org {
+namespace chromium {
+class NetworkProxyServiceInterfaceProxyMock;
+}  // namespace chromium
+}  // namespace org
+
 using base::Time;
 using base::TimeDelta;
-#if USE_LIBCROS
-using org::chromium::LibCrosServiceInterfaceProxyMock;
-using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxyMock;
-#endif // USE_LIBCROS
+using org::chromium::NetworkProxyServiceInterfaceProxyInterface;
+using org::chromium::NetworkProxyServiceInterfaceProxyMock;
 using std::string;
 using std::unique_ptr;
 using testing::DoAll;
@@ -81,9 +84,10 @@ namespace chromeos_update_engine {
 // methods.
 class UpdateAttempterUnderTest : public UpdateAttempter {
  public:
-  UpdateAttempterUnderTest(SystemState* system_state,
-                           LibCrosProxy* libcros_proxy)
-      : UpdateAttempter(system_state, nullptr, libcros_proxy) {}
+  UpdateAttempterUnderTest(
+      SystemState* system_state,
+      NetworkProxyServiceInterfaceProxyInterface* network_proxy_service_proxy)
+      : UpdateAttempter(system_state, nullptr, network_proxy_service_proxy) {}
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
@@ -112,16 +116,7 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 class UpdateAttempterTest : public ::testing::Test {
  protected:
   UpdateAttempterTest()
-      :
-#if USE_LIBCROS
-        service_interface_mock_(new LibCrosServiceInterfaceProxyMock()),
-        ue_proxy_resolved_interface_mock_(
-            new NiceMock<UpdateEngineLibcrosProxyResolvedInterfaceProxyMock>()),
-        libcros_proxy_(
-            brillo::make_unique_ptr(service_interface_mock_),
-            brillo::make_unique_ptr(ue_proxy_resolved_interface_mock_)),
-#endif  // USE_LIBCROS
-        certificate_checker_(fake_system_state_.mock_prefs(),
+      : certificate_checker_(fake_system_state_.mock_prefs(),
                              &openssl_wrapper_) {
     // Override system state members.
     fake_system_state_.set_connection_manager(&mock_connection_manager);
@@ -193,11 +188,9 @@ class UpdateAttempterTest : public ::testing::Test {
 
   FakeSystemState fake_system_state_;
 #if USE_LIBCROS
-  LibCrosServiceInterfaceProxyMock* service_interface_mock_;
-  UpdateEngineLibcrosProxyResolvedInterfaceProxyMock*
-      ue_proxy_resolved_interface_mock_;
-  LibCrosProxy libcros_proxy_;
-  UpdateAttempterUnderTest attempter_{&fake_system_state_, &libcros_proxy_};
+  NetworkProxyServiceInterfaceProxyMock network_proxy_service_proxy_mock_;
+  UpdateAttempterUnderTest attempter_{&fake_system_state_,
+                                      &network_proxy_service_proxy_mock_};
 #else
   UpdateAttempterUnderTest attempter_{&fake_system_state_, nullptr};
 #endif  // USE_LIBCROS
@@ -976,6 +969,16 @@ TEST_F(UpdateAttempterTest, CheckForUpdateScheduledAUTest) {
   fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
   attempter_.CheckForUpdate("", "autest-scheduled", true);
   EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
+}
+
+TEST_F(UpdateAttempterTest, TargetVersionPrefixSetAndReset) {
+  attempter_.CalculateUpdateParams("", "", "", "1234", false, false);
+  EXPECT_EQ("1234",
+            fake_system_state_.request_params()->target_version_prefix());
+
+  attempter_.CalculateUpdateParams("", "", "", "", false, false);
+  EXPECT_TRUE(
+      fake_system_state_.request_params()->target_version_prefix().empty());
 }
 
 }  // namespace chromeos_update_engine

@@ -24,12 +24,18 @@
 #include <base/time/time.h>
 #include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
+#if USE_LIBCROS
+#include <chromeos/dbus/service_constants.h>
+#endif  // USE_LIBCROS
 
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/utils.h"
+#if USE_DBUS
+#include "update_engine/dbus_connection.h"
+#endif  // USE_DBUS
 #include "update_engine/update_manager/state_factory.h"
 
 using brillo::MessageLoop;
@@ -58,6 +64,15 @@ bool RealSystemState::Initialize() {
     LOG(ERROR) << "Error intializing the HardwareInterface.";
     return false;
   }
+
+#if USE_LIBCROS
+  libcros_proxy_.reset(new org::chromium::LibCrosServiceInterfaceProxy(
+      DBusConnection::Get()->GetDBus(), chromeos::kLibCrosServiceName));
+  network_proxy_service_proxy_.reset(
+      new org::chromium::NetworkProxyServiceInterfaceProxy(
+          DBusConnection::Get()->GetDBus(),
+          chromeos::kNetworkProxyServiceName));
+#endif  // USE_LIBCROS
 
   LOG_IF(INFO, !hardware_->IsNormalBootMode()) << "Booted in dev mode.";
   LOG_IF(INFO, !hardware_->IsOfficialBuild()) << "Booted non-official build.";
@@ -129,14 +144,20 @@ bool RealSystemState::Initialize() {
   certificate_checker_->Init();
 
 #if USE_LIBCROS
-  LibCrosProxy* libcros_proxy = &libcros_proxy_;
+  org::chromium::NetworkProxyServiceInterfaceProxyInterface* net_proxy =
+      network_proxy_service_proxy_.get();
+  org::chromium::LibCrosServiceInterfaceProxyInterface* libcros_proxy =
+      libcros_proxy_.get();
 #else
-  LibCrosProxy* libcros_proxy = nullptr;
+  org::chromium::NetworkProxyServiceInterfaceProxyInterface* net_proxy =
+      nullptr;
+  org::chromium::LibCrosServiceInterfaceProxyInterface* libcros_proxy =
+      nullptr;
 #endif  // USE_LIBCROS
 
   // Initialize the UpdateAttempter before the UpdateManager.
-  update_attempter_.reset(
-      new UpdateAttempter(this, certificate_checker_.get(), libcros_proxy));
+  update_attempter_.reset(new UpdateAttempter(this, certificate_checker_.get(),
+                                              net_proxy));
   update_attempter_->Init();
 
   // Initialize the Update Manager using the default state factory.
