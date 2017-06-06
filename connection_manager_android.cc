@@ -34,9 +34,5 @@ bool ConnectionManagerAndroid::IsUpdateAllowedOver(
     ConnectionType type, ConnectionTethering tethering) const {
   return true;
 }
-bool ConnectionManagerAndroid::IsAllowedConnectionTypesForUpdateSet() const {
-  return false;
-}
-
 
 }  // namespace chromeos_update_engine

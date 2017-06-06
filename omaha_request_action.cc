@@ -1001,11 +1001,9 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   output_object.update_exists = true;
   SetOutputObject(output_object);
 
-  ErrorCode error = ErrorCode::kSuccess;
-  if (ShouldIgnoreUpdate(&error, output_object)) {
-    // No need to change output_object.update_exists here, since the value
-    // has been output to the pipe.
-    completer.set_code(error);
+  if (ShouldIgnoreUpdate(output_object)) {
+    output_object.update_exists = false;
+    completer.set_code(ErrorCode::kOmahaUpdateIgnoredPerPolicy);
     return;
   }
 
@@ -1463,7 +1461,6 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
     break;
 
   case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
-  case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     result = metrics::CheckResult::kUpdateAvailable;
     reaction = metrics::CheckReaction::kIgnored;
     break;
@@ -1498,7 +1495,7 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
 }
 
 bool OmahaRequestAction::ShouldIgnoreUpdate(
-    ErrorCode* error, const OmahaResponse& response) const {
+    const OmahaResponse& response) const {
   // Note: policy decision to not update to a version we rolled back from.
   string rollback_version =
       system_state_->payload_state()->GetRollbackVersion();
@@ -1506,12 +1503,11 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(
     LOG(INFO) << "Detected previous rollback from version " << rollback_version;
     if (rollback_version == response.version) {
       LOG(INFO) << "Received version that we rolled back from. Ignoring.";
-      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
       return true;
     }
   }
 
-  if (!IsUpdateAllowedOverCurrentConnection(error, response)) {
+  if (!IsUpdateAllowedOverCurrentConnection()) {
     LOG(INFO) << "Update is not allowed over current connection.";
     return true;
   }
@@ -1526,59 +1522,7 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(
   return false;
 }
 
-bool OmahaRequestAction::IsUpdateAllowedOverCellularByPrefs(
-    const OmahaResponse& response) const {
-  PrefsInterface* prefs = system_state_->prefs();
-
-  if (!prefs) {
-    LOG(INFO) << "Disabling updates over cellular as the preferences are "
-                 "not available.";
-    return false;
-  }
-
-  bool is_allowed;
-
-  if (prefs->Exists(kPrefsUpdateOverCellularPermission) &&
-      prefs->GetBoolean(kPrefsUpdateOverCellularPermission, &is_allowed) &&
-      is_allowed) {
-    LOG(INFO) << "Allowing updates over cellular as permission preference is "
-                 "set to true.";
-    return true;
-  }
-
-  if (!prefs->Exists(kPrefsUpdateOverCellularTargetVersion) ||
-      !prefs->Exists(kPrefsUpdateOverCellularTargetSize)) {
-    LOG(INFO) << "Disabling updates over cellular as permission preference is "
-                 "set to false or does not exist while target does not exist.";
-    return false;
-  }
-
-  std::string target_version;
-  int64_t target_size;
-
-  if (!prefs->GetString(kPrefsUpdateOverCellularTargetVersion,
-                        &target_version) ||
-      !prefs->GetInt64(kPrefsUpdateOverCellularTargetSize,
-                       &target_size)) {
-    LOG(INFO) << "Disabling updates over cellular as the target version or "
-                 "size is not accessible.";
-    return false;
-  }
-
-  if (target_version == response.version && target_size == response.size) {
-    LOG(INFO) << "Allowing updates over cellular as the target matches the"
-                 "omaha response.";
-    return true;
-  } else {
-    LOG(INFO) << "Disabling updates over cellular as the target does not"
-                 "match the omaha response.";
-    return false;
-  }
-}
-
-bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
-    ErrorCode* error,
-    const OmahaResponse& response) const {
+bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection() const {
   ConnectionType type;
   ConnectionTethering tethering;
   ConnectionManagerInterface* connection_manager =
@@ -1588,30 +1532,7 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
               << "Defaulting to allow updates.";
     return true;
   }
-
   bool is_allowed = connection_manager->IsUpdateAllowedOver(type, tethering);
-  bool is_device_policy_set = connection_manager->
-                                  IsAllowedConnectionTypesForUpdateSet();
-  // Treats tethered connection as if it is cellular connection.
-  bool is_over_cellular = type == ConnectionType::kCellular ||
-                          tethering == ConnectionTethering::kConfirmed;
-
-  if (!is_over_cellular) {
-    // There's no need to further check user preferences as we are not over
-    // cellular connection.
-    if (!is_allowed)
-      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
-  } else if (is_device_policy_set) {
-    // There's no need to further check user preferences as the device policy
-    // is set regarding updates over cellular.
-    if (!is_allowed)
-      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
-  } else if (!IsUpdateAllowedOverCellularByPrefs(response)) {
-    // The user prefereces does not allow updates over cellular.
-    is_allowed = false;
-    *error = ErrorCode::kOmahaUpdateIgnoredOverCellular;
-  }
-
   LOG(INFO) << "We are connected via "
             << connection_utils::StringForConnectionType(type)
             << ", Updates allowed: " << (is_allowed ? "Yes" : "No");
