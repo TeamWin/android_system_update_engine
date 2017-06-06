@@ -299,17 +299,11 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
   void OnLookupPayloadViaP2PCompleted(const std::string& url);
 
   // Returns true if the current update should be ignored.
-  bool ShouldIgnoreUpdate(ErrorCode* error,
-                          const OmahaResponse& response) const;
-
-  // Return true if updates are allowed by user preferences.
-  bool IsUpdateAllowedOverCellularByPrefs(const OmahaResponse& response) const;
+  bool ShouldIgnoreUpdate(const OmahaResponse& response) const;
 
   // Returns true if updates are allowed over the current type of connection.
   // False otherwise.
-  bool IsUpdateAllowedOverCurrentConnection(
-      ErrorCode* error,
-      const OmahaResponse& response) const;
+  bool IsUpdateAllowedOverCurrentConnection() const;
 
   // Global system context.
   SystemState* system_state_;

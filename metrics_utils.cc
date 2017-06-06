@@ -109,7 +109,6 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kPostinstallPowerwashError:
     case ErrorCode::kUpdateCanceledByChannelChange:
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
-    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
       return metrics::AttemptResult::kInternalError;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -210,7 +209,6 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
-    case ErrorCode::kOmahaUpdateIgnoredOverCellular:
       break;
 
     // Special flags. These can't happen (we mask them out above) but

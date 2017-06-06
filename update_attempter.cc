@@ -49,7 +49,6 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/connection_manager_interface.h"
 #include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/metrics.h"
 #include "update_engine/omaha_request_action.h"
@@ -1004,20 +1003,9 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
         consecutive_failed_update_checks_ = 0;
       }
 
-      const OmahaResponse& omaha_response =
-          omaha_request_action->GetOutputObject();
       // Store the server-dictated poll interval, if any.
       server_dictated_poll_interval_ =
-          std::max(0, omaha_response.poll_interval);
-
-      // This update is ignored by omaha request action because update over
-      // cellular connection is not allowed. Needs to ask for user's permissions
-      // to update.
-      if (code == ErrorCode::kOmahaUpdateIgnoredOverCellular) {
-        new_version_ = omaha_response.version;
-        new_payload_size_ = omaha_response.size;
-        SetStatusAndNotify(UpdateStatus::NEED_PERMISSION_TO_UPDATE);
-      }
+          std::max(0, omaha_request_action->GetOutputObject().poll_interval);
     }
   }
   if (code != ErrorCode::kSuccess) {
