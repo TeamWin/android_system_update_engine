@@ -31,11 +31,11 @@ class MockConnectionManager : public ConnectionManagerInterface {
   MockConnectionManager() = default;
 
   MOCK_METHOD2(GetConnectionProperties,
-               bool(NetworkConnectionType* out_type,
-                    NetworkTethering* out_tethering));
+               bool(ConnectionType* out_type,
+                    ConnectionTethering* out_tethering));
 
-  MOCK_CONST_METHOD2(IsUpdateAllowedOver, bool(NetworkConnectionType type,
-                                               NetworkTethering tethering));
+  MOCK_CONST_METHOD2(IsUpdateAllowedOver,
+                     bool(ConnectionType type, ConnectionTethering tethering));
   MOCK_CONST_METHOD0(IsAllowedConnectionTypesForUpdateSet, bool());
 };
 

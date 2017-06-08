@@ -17,7 +17,12 @@
 #include "update_engine/payload_generator/delta_diff_utils.h"
 
 #include <endian.h>
+// TODO: Remove these pragmas when b/35721782 is fixed.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmacro-redefined"
 #include <ext2fs/ext2fs.h>
+#pragma clang diagnostic pop
+
 
 #include <algorithm>
 #include <map>
@@ -115,19 +120,9 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
   size_t src_idx = 0;
   size_t dst_idx = 0;
   uint64_t src_offset = 0, dst_offset = 0;
-  bool new_src = true, new_dst = true;
   size_t removed_bytes = 0, nonfull_block_bytes;
   bool do_remove = false;
   while (src_idx < src_extents->size() && dst_idx < dst_extents->size()) {
-    if (new_src) {
-      src_offset = 0;
-      new_src = false;
-    }
-    if (new_dst) {
-      dst_offset = 0;
-      new_dst = false;
-    }
-
     do_remove = ((*src_extents)[src_idx].start_block() + src_offset ==
                  (*dst_extents)[dst_idx].start_block() + dst_offset);
 
@@ -140,10 +135,17 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
     src_offset += min_num_blocks;
     dst_offset += min_num_blocks;
 
-    new_src = ProcessExtentBlockRange(src_extents, &src_idx, do_remove,
-                                      prev_src_offset, src_offset);
-    new_dst = ProcessExtentBlockRange(dst_extents, &dst_idx, do_remove,
-                                      prev_dst_offset, dst_offset);
+    bool new_src = ProcessExtentBlockRange(src_extents, &src_idx, do_remove,
+                                           prev_src_offset, src_offset);
+    bool new_dst = ProcessExtentBlockRange(dst_extents, &dst_idx, do_remove,
+                                           prev_dst_offset, dst_offset);
+    if (new_src) {
+      src_offset = 0;
+    }
+    if (new_dst) {
+      dst_offset = 0;
+    }
+
     if (do_remove)
       removed_bytes += min_num_blocks * kBlockSize;
   }
@@ -183,8 +185,8 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
       aops,
       old_part.path,
       new_part.path,
-      old_part.fs_interface ? old_part.fs_interface->GetBlockCount() : 0,
-      new_part.fs_interface->GetBlockCount(),
+      old_part.size / kBlockSize,
+      new_part.size / kBlockSize,
       soft_chunk_blocks,
       version,
       blob_file,
@@ -323,6 +325,13 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
   for (uint64_t block = old_num_blocks; block-- > 0; ) {
     if (old_block_ids[block] != 0 && !old_visited_blocks->ContainsBlock(block))
       old_blocks_map[old_block_ids[block]].push_back(block);
+
+    // Mark all zeroed blocks in the old image as "used" since it doesn't make
+    // any sense to spend I/O to read zeros from the source partition and more
+    // importantly, these could sometimes be blocks discarded in the SSD which
+    // would read non-zero values.
+    if (old_block_ids[block] == 0)
+      old_visited_blocks->AddBlock(block);
   }
 
   // The collection of blocks in the new partition with just zeros. This is a
@@ -363,7 +372,7 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
   // TODO(deymo): Produce ZERO operations instead of calling DeltaReadFile().
   size_t num_ops = aops->size();
   new_visited_blocks->AddExtents(new_zeros);
-  for (Extent extent : new_zeros) {
+  for (const Extent& extent : new_zeros) {
     TEST_AND_RETURN_FALSE(DeltaReadFile(aops,
                                         "",
                                         new_part,
@@ -384,7 +393,7 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
   uint64_t used_blocks = 0;
   old_visited_blocks->AddExtents(old_identical_blocks);
   new_visited_blocks->AddExtents(new_identical_blocks);
-  for (Extent extent : new_identical_blocks) {
+  for (const Extent& extent : new_identical_blocks) {
     // We split the operation at the extent boundary or when bigger than
     // chunk_blocks.
     for (uint64_t op_block_offset = 0; op_block_offset < extent.num_blocks();
@@ -397,8 +406,8 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
                            : InstallOperation::MOVE);
 
       uint64_t chunk_num_blocks =
-        std::min(extent.num_blocks() - op_block_offset,
-                 static_cast<uint64_t>(chunk_blocks));
+          std::min(static_cast<uint64_t>(extent.num_blocks()) - op_block_offset,
+                   static_cast<uint64_t>(chunk_blocks));
 
       // The current operation represents the move/copy operation for the
       // sublist starting at |used_blocks| of length |chunk_num_blocks| where
@@ -795,32 +804,6 @@ bool IsExtFilesystem(const string& device) {
   TEST_AND_RETURN_FALSE(log_block_size >= EXT2_MIN_BLOCK_LOG_SIZE &&
                         log_block_size <= EXT2_MAX_BLOCK_LOG_SIZE);
   TEST_AND_RETURN_FALSE(block_count > 0);
-  return true;
-}
-
-bool IsSquashfs4Filesystem(const string& device) {
-  brillo::Blob header;
-  // See fs/squashfs/squashfs_fs.h for format details. We only support
-  // Squashfs 4.x little endian.
-
-  // The first 96 is enough to read the squashfs superblock.
-  const ssize_t kSquashfsSuperBlockSize = 96;
-  if (!utils::ReadFileChunk(device, 0, kSquashfsSuperBlockSize, &header) ||
-      header.size() < kSquashfsSuperBlockSize)
-    return false;
-
-  // Check magic, squashfs_fs.h: SQUASHFS_MAGIC
-  if (memcmp(header.data(), "hsqs", 4) != 0)
-    return false;  // Only little endian is supported.
-
-  // squashfs_fs.h: struct squashfs_super_block.s_major
-  uint16_t s_major = *reinterpret_cast<const uint16_t*>(
-      header.data() + 5 * sizeof(uint32_t) + 4 * sizeof(uint16_t));
-
-  if (s_major != 4) {
-    LOG(ERROR) << "Found unsupported squashfs major version " << s_major;
-    return false;
-  }
   return true;
 }
 

@@ -36,12 +36,15 @@ class HardwareAndroid final : public HardwareInterface {
   // HardwareInterface methods.
   bool IsOfficialBuild() const override;
   bool IsNormalBootMode() const override;
+  bool AreDevFeaturesEnabled() const override;
   bool IsOOBEEnabled() const override;
   bool IsOOBEComplete(base::Time* out_time_of_oobe) const override;
   std::string GetHardwareClass() const override;
   std::string GetFirmwareVersion() const override;
   std::string GetECVersion() const override;
   int GetPowerwashCount() const override;
+  bool SchedulePowerwash() override;
+  bool CancelPowerwash() override;
   bool GetNonVolatileDirectory(base::FilePath* path) const override;
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override;
 

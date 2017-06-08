@@ -19,8 +19,7 @@
 
 #include <string>
 
-#include <hardware/boot_control.h>
-#include <hardware/hardware.h>
+#include <android/hardware/boot/1.0/IBootControl.h>
 
 #include "update_engine/common/boot_control.h"
 
@@ -49,9 +48,7 @@ class BootControlAndroid : public BootControlInterface {
   bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
 
  private:
-  // NOTE: There is no way to release/unload HAL implementations so
-  // this is essentially leaked on object destruction.
-  boot_control_module_t* module_;
+  ::android::sp<::android::hardware::boot::V1_0::IBootControl> module_;
 
   DISALLOW_COPY_AND_ASSIGN(BootControlAndroid);
 };

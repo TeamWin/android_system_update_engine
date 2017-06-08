@@ -16,7 +16,9 @@
 
 #include "update_engine/common/utils.h"
 
+#include <fcntl.h>
 #include <stdint.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -48,6 +50,21 @@ TEST(UtilsTest, CanParseECVersion) {
 
   // For invalid entries, should return the empty string.
   EXPECT_EQ("", utils::ParseECVersion("b=1231a fw_version a=fasd2"));
+}
+
+TEST(UtilsTest, WriteFileOpenFailure) {
+  EXPECT_FALSE(utils::WriteFile("/this/doesn't/exist", "hello", 5));
+}
+
+TEST(UtilsTest, WriteFileReadFile) {
+  base::FilePath file;
+  EXPECT_TRUE(base::CreateTemporaryFile(&file));
+  ScopedPathUnlinker unlinker(file.value());
+  EXPECT_TRUE(utils::WriteFile(file.value().c_str(), "hello", 5));
+
+  brillo::Blob readback;
+  EXPECT_TRUE(utils::ReadFile(file.value().c_str(), &readback));
+  EXPECT_EQ("hello", string(readback.begin(), readback.end()));
 }
 
 TEST(UtilsTest, ReadFileFailure) {
@@ -439,6 +456,59 @@ TEST(UtilsTest, TestMacros) {
   EXPECT_TRUE(void_test);
 
   EXPECT_TRUE(BoolMacroTestHelper());
+}
+
+TEST(UtilsTest, RunAsRootUnmountFilesystemFailureTest) {
+  EXPECT_FALSE(utils::UnmountFilesystem("/path/to/non-existing-dir"));
+}
+
+TEST(UtilsTest, RunAsRootUnmountFilesystemBusyFailureTest) {
+  string tmp_image;
+  EXPECT_TRUE(utils::MakeTempFile("img.XXXXXX", &tmp_image, nullptr));
+  ScopedPathUnlinker tmp_image_unlinker(tmp_image);
+
+  EXPECT_TRUE(base::CopyFile(
+      test_utils::GetBuildArtifactsPath().Append("gen/disk_ext2_4k.img"),
+      base::FilePath(tmp_image)));
+
+  base::ScopedTempDir mnt_dir;
+  EXPECT_TRUE(mnt_dir.CreateUniqueTempDir());
+
+  string loop_dev;
+  test_utils::ScopedLoopbackDeviceBinder loop_binder(
+      tmp_image, true, &loop_dev);
+
+  EXPECT_FALSE(utils::IsMountpoint(mnt_dir.path().value()));
+  // This is the actual test part. While we hold a file descriptor open for the
+  // mounted filesystem, umount should still succeed.
+  EXPECT_TRUE(utils::MountFilesystem(
+      loop_dev, mnt_dir.path().value(), MS_RDONLY, "ext4", ""));
+  // Verify the directory is a mount point now.
+  EXPECT_TRUE(utils::IsMountpoint(mnt_dir.path().value()));
+
+  string target_file = mnt_dir.path().Append("empty-file").value();
+  int fd = HANDLE_EINTR(open(target_file.c_str(), O_RDONLY));
+  EXPECT_GE(fd, 0);
+  EXPECT_TRUE(utils::UnmountFilesystem(mnt_dir.path().value()));
+  // The filesystem should be already unmounted at this point.
+  EXPECT_FALSE(utils::IsMountpoint(mnt_dir.path().value()));
+  IGNORE_EINTR(close(fd));
+  // The filesystem was already unmounted so this call should fail.
+  EXPECT_FALSE(utils::UnmountFilesystem(mnt_dir.path().value()));
+}
+
+TEST(UtilsTest, IsMountpointTest) {
+  EXPECT_TRUE(utils::IsMountpoint("/"));
+  EXPECT_FALSE(utils::IsMountpoint("/path/to/nowhere"));
+
+  base::ScopedTempDir mnt_dir;
+  EXPECT_TRUE(mnt_dir.CreateUniqueTempDir());
+  EXPECT_FALSE(utils::IsMountpoint(mnt_dir.path().value()));
+
+  base::FilePath file;
+  EXPECT_TRUE(base::CreateTemporaryFile(&file));
+  ScopedPathUnlinker unlinker(file.value());
+  EXPECT_FALSE(utils::IsMountpoint(file.value()));
 }
 
 }  // namespace chromeos_update_engine

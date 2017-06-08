@@ -35,6 +35,8 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ConnectionTethering;
+using chromeos_update_engine::ConnectionType;
 using chromeos_update_engine::FakeClock;
 using org::chromium::flimflam::ManagerProxyMock;
 using org::chromium::flimflam::ServiceProxyMock;
@@ -65,9 +67,10 @@ class UmRealShillProviderTest : public ::testing::Test {
   void SetUp() override {
     fake_clock_.SetWallclockTime(InitTime());
     loop_.SetAsCurrent();
-    provider_.reset(new RealShillProvider(&fake_shill_proxy_, &fake_clock_));
+    fake_shill_proxy_ = new chromeos_update_engine::FakeShillProxy();
+    provider_.reset(new RealShillProvider(fake_shill_proxy_, &fake_clock_));
 
-    ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_.GetManagerProxy();
+    ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_->GetManagerProxy();
 
     // The PropertyChanged signal should be subscribed to.
     MOCK_SIGNAL_HANDLER_EXPECT_SIGNAL_HANDLER(
@@ -202,7 +205,7 @@ class UmRealShillProviderTest : public ::testing::Test {
 
   brillo::FakeMessageLoop loop_{nullptr};
   FakeClock fake_clock_;
-  chromeos_update_engine::FakeShillProxy fake_shill_proxy_;
+  chromeos_update_engine::FakeShillProxy* fake_shill_proxy_;
 
   // The registered signal handler for the signal Manager.PropertyChanged.
   chromeos_update_engine::dbus_test_utils::MockSignalHandler<
@@ -213,7 +216,7 @@ class UmRealShillProviderTest : public ::testing::Test {
 
 void UmRealShillProviderTest::SetManagerReply(const char* default_service,
                                               bool reply_succeeds) {
-  ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_.GetManagerProxy();
+  ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_->GetManagerProxy();
   if (!reply_succeeds) {
     EXPECT_CALL(*manager_proxy_mock, GetProperties(_, _, _))
         .WillOnce(Return(false));
@@ -258,7 +261,7 @@ ServiceProxyMock* UmRealShillProviderTest::SetServiceReply(
   EXPECT_CALL(*service_proxy_mock, GetProperties(_, _, _))
       .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
 
-  fake_shill_proxy_.SetServiceForPath(
+  fake_shill_proxy_->SetServiceForPath(
       dbus::ObjectPath(service_path),
       brillo::make_unique_ptr(service_proxy_mock));
   return service_proxy_mock;
@@ -287,7 +290,7 @@ TEST_F(UmRealShillProviderTest, InvalidServicePath) {
 
 // Ensure that a service path property including a different type is ignored.
 TEST_F(UmRealShillProviderTest, InvalidServicePathType) {
-  ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_.GetManagerProxy();
+  ManagerProxyMock* manager_proxy_mock = fake_shill_proxy_->GetManagerProxy();
   brillo::VariantDictionary reply_dict;
   reply_dict[shill::kDefaultServiceProperty] = "/not/an/object/path";
   EXPECT_CALL(*manager_proxy_mock, GetProperties(_, _, _))

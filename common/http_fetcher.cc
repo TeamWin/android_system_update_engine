@@ -26,10 +26,7 @@ using std::string;
 namespace chromeos_update_engine {
 
 HttpFetcher::~HttpFetcher() {
-  if (no_resolver_idle_id_ != MessageLoop::kTaskIdNull) {
-    MessageLoop::current()->CancelTask(no_resolver_idle_id_);
-    no_resolver_idle_id_ = MessageLoop::kTaskIdNull;
-  }
+  CancelProxyResolution();
 }
 
 void HttpFetcher::SetPostData(const void* data, size_t size,
@@ -59,23 +56,37 @@ void HttpFetcher::ResolveProxiesForUrl(const string& url,
                    base::Unretained(this)));
     return;
   }
-  proxy_resolver_->GetProxiesForUrl(url,
-      base::Bind(&HttpFetcher::ProxiesResolved, base::Unretained(this)));
+  proxy_request_ = proxy_resolver_->GetProxiesForUrl(
+      url, base::Bind(&HttpFetcher::ProxiesResolved, base::Unretained(this)));
 }
 
 void HttpFetcher::NoProxyResolverCallback() {
+  no_resolver_idle_id_ = MessageLoop::kTaskIdNull;
   ProxiesResolved(deque<string>());
 }
 
 void HttpFetcher::ProxiesResolved(const deque<string>& proxies) {
-  no_resolver_idle_id_ = MessageLoop::kTaskIdNull;
+  proxy_request_ = kProxyRequestIdNull;
   if (!proxies.empty())
     SetProxies(proxies);
-  CHECK_NE(static_cast<Closure*>(nullptr), callback_.get());
+  CHECK(callback_.get()) << "ProxiesResolved but none pending.";
   Closure* callback = callback_.release();
   // This may indirectly call back into ResolveProxiesForUrl():
   callback->Run();
   delete callback;
+}
+
+bool HttpFetcher::CancelProxyResolution() {
+  bool ret = false;
+  if (no_resolver_idle_id_ != MessageLoop::kTaskIdNull) {
+    ret = MessageLoop::current()->CancelTask(no_resolver_idle_id_);
+    no_resolver_idle_id_ = MessageLoop::kTaskIdNull;
+  }
+  if (proxy_request_ && proxy_resolver_) {
+    ret = proxy_resolver_->CancelProxyRequest(proxy_request_) || ret;
+    proxy_request_ = kProxyRequestIdNull;
+  }
+  return ret;
 }
 
 }  // namespace chromeos_update_engine

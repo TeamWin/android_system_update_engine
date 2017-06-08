@@ -32,12 +32,8 @@ namespace chromeos_update_engine {
 // This class implements the connection to shill using real DBus calls.
 class ShillProxy : public ShillProxyInterface {
  public:
-  explicit ShillProxy(const scoped_refptr<dbus::Bus>& bus);
+  ShillProxy();
   ~ShillProxy() override = default;
-
-  // Initializes the ShillProxy instance creating the manager proxy from the
-  // |bus_|.
-  bool Init();
 
   // ShillProxyInterface overrides.
   org::chromium::flimflam::ManagerProxyInterface* GetManagerProxy() override;

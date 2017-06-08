@@ -213,8 +213,10 @@ void Subprocess::KillExec(pid_t pid) {
   if (pid_record == subprocess_records_.end())
     return;
   pid_record->second->callback.Reset();
-  if (kill(pid, SIGTERM) != 0) {
-    PLOG(WARNING) << "Error sending SIGTERM to " << pid;
+  // We don't care about output/return code, so we use SIGKILL here to ensure it
+  // will be killed, SIGTERM might lead to leaked subprocess.
+  if (kill(pid, SIGKILL) != 0) {
+    PLOG(WARNING) << "Error sending SIGKILL to " << pid;
   }
   // Release the pid now so we don't try to kill it if Subprocess is destroyed
   // before the corresponding ChildExitedCallback() is called.

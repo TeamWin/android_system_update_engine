@@ -17,25 +17,15 @@
 #ifndef UPDATE_ENGINE_CONNECTION_MANAGER_INTERFACE_H_
 #define UPDATE_ENGINE_CONNECTION_MANAGER_INTERFACE_H_
 
+#include <memory>
+
 #include <base/macros.h>
+
+#include "update_engine/connection_utils.h"
 
 namespace chromeos_update_engine {
 
-enum class NetworkConnectionType {
-  kEthernet,
-  kWifi,
-  kWimax,
-  kBluetooth,
-  kCellular,
-  kUnknown
-};
-
-enum class NetworkTethering {
-  kNotDetected,
-  kSuspected,
-  kConfirmed,
-  kUnknown
-};
+class SystemState;
 
 // This class exposes a generic interface to the connection manager
 // (e.g FlimFlam, Shill, etc.) to consolidate all connection-related
@@ -47,14 +37,14 @@ class ConnectionManagerInterface {
   // Populates |out_type| with the type of the network connection
   // that we are currently connected and |out_tethering| with the estimate of
   // whether that network is being tethered.
-  virtual bool GetConnectionProperties(NetworkConnectionType* out_type,
-                                       NetworkTethering* out_tethering) = 0;
+  virtual bool GetConnectionProperties(ConnectionType* out_type,
+                                       ConnectionTethering* out_tethering) = 0;
 
   // Returns true if we're allowed to update the system when we're
   // connected to the internet through the given network connection type and the
   // given tethering state.
-  virtual bool IsUpdateAllowedOver(NetworkConnectionType type,
-                                   NetworkTethering tethering) const = 0;
+  virtual bool IsUpdateAllowedOver(ConnectionType type,
+                                   ConnectionTethering tethering) const = 0;
 
   // Returns true if the allowed connection types for update is set in the
   // device policy. Otherwise, returns false.
@@ -66,6 +56,12 @@ class ConnectionManagerInterface {
  private:
   DISALLOW_COPY_AND_ASSIGN(ConnectionManagerInterface);
 };
+
+namespace connection_manager {
+// Factory function which creates a ConnectionManager.
+std::unique_ptr<ConnectionManagerInterface> CreateConnectionManager(
+    SystemState* system_state);
+}
 
 }  // namespace chromeos_update_engine
 

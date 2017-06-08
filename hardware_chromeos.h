@@ -22,6 +22,7 @@
 
 #include <base/macros.h>
 #include <base/time/time.h>
+#include <debugd/dbus-proxies.h>
 
 #include "update_engine/common/hardware_interface.h"
 
@@ -39,12 +40,15 @@ class HardwareChromeOS final : public HardwareInterface {
   // HardwareInterface methods.
   bool IsOfficialBuild() const override;
   bool IsNormalBootMode() const override;
+  bool AreDevFeaturesEnabled() const override;
   bool IsOOBEEnabled() const override;
   bool IsOOBEComplete(base::Time* out_time_of_oobe) const override;
   std::string GetHardwareClass() const override;
   std::string GetFirmwareVersion() const override;
   std::string GetECVersion() const override;
   int GetPowerwashCount() const override;
+  bool SchedulePowerwash() override;
+  bool CancelPowerwash() override;
   bool GetNonVolatileDirectory(base::FilePath* path) const override;
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override;
 
@@ -57,6 +61,8 @@ class HardwareChromeOS final : public HardwareInterface {
   void LoadConfig(const std::string& root_prefix, bool normal_mode);
 
   bool is_oobe_enabled_;
+
+  std::unique_ptr<org::chromium::debugdProxyInterface> debugd_proxy_;
 
   DISALLOW_COPY_AND_ASSIGN(HardwareChromeOS);
 };

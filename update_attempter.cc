@@ -32,29 +32,25 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/bind_lambda.h>
+#include <brillo/errors/error_codes.h>
 #include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
-#include <debugd/dbus-constants.h>
-#include <debugd/dbus-proxies.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
-#include <power_manager/dbus-constants.h>
-#include <power_manager/dbus-proxies.h>
 #include <update_engine/dbus-constants.h>
 
+#include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
-#include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/connection_manager.h"
-#include "update_engine/dbus_service.h"
+#include "update_engine/connection_manager_interface.h"
+#include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/metrics.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
@@ -64,6 +60,7 @@
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/payload_state_interface.h"
+#include "update_engine/power_manager_interface.h"
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
@@ -127,15 +124,15 @@ UpdateAttempter::UpdateAttempter(
     SystemState* system_state,
     CertificateChecker* cert_checker,
     org::chromium::NetworkProxyServiceInterfaceProxyInterface*
-        network_proxy_service_proxy,
-    org::chromium::debugdProxyInterface* debugd_proxy)
+        network_proxy_service_proxy)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
-      cert_checker_(cert_checker),
 #if USE_LIBCROS
-      chrome_proxy_resolver_(network_proxy_service_proxy),
+      cert_checker_(cert_checker),
+      chrome_proxy_resolver_(network_proxy_service_proxy) {
+#else
+      cert_checker_(cert_checker) {
 #endif  // USE_LIBCROS
-      debugd_proxy_(debugd_proxy) {
 }
 
 UpdateAttempter::~UpdateAttempter() {
@@ -409,8 +406,6 @@ bool UpdateAttempter::CalculateUpdateParams(const string& app_version,
                                                  &error_message)) {
       LOG(ERROR) << "Setting the channel failed: " << error_message;
     }
-    // Notify observers the target channel change.
-    BroadcastChannel();
 
     // Since this is the beginning of a new attempt, update the download
     // channel. The download channel won't be updated until the next attempt,
@@ -584,7 +579,8 @@ void UpdateAttempter::GenerateNewWaitingPeriod() {
 void UpdateAttempter::BuildPostInstallActions(
     InstallPlanAction* previous_action) {
   shared_ptr<PostinstallRunnerAction> postinstall_runner_action(
-      new PostinstallRunnerAction(system_state_->boot_control()));
+      new PostinstallRunnerAction(system_state_->boot_control(),
+                                  system_state_->hardware()));
   postinstall_runner_action->set_delegate(this);
   actions_.push_back(shared_ptr<AbstractAction>(postinstall_runner_action));
   BondActions(previous_action,
@@ -808,7 +804,7 @@ void UpdateAttempter::CheckForUpdate(const string& app_version,
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
-  if (USE_POWER_MANAGEMENT && RequestPowerManagerReboot())
+  if (system_state_->power_manager()->RequestReboot())
     return true;
 
   return RebootDirectly();
@@ -822,20 +818,6 @@ void UpdateAttempter::WriteUpdateCompletedMarker() {
 
   int64_t value = system_state_->clock()->GetBootTime().ToInternalValue();
   prefs_->SetInt64(kPrefsUpdateCompletedBootTime, value);
-}
-
-bool UpdateAttempter::RequestPowerManagerReboot() {
-  org::chromium::PowerManagerProxyInterface* power_manager_proxy =
-      system_state_->power_manager_proxy();
-  if (!power_manager_proxy) {
-    LOG(WARNING) << "No PowerManager proxy defined, skipping reboot.";
-    return false;
-  }
-  LOG(INFO) << "Calling " << power_manager::kPowerManagerInterface << "."
-            << power_manager::kRequestRestartMethod;
-  brillo::ErrorPtr error;
-  return power_manager_proxy->RequestRestart(
-      power_manager::REQUEST_RESTART_FOR_UPDATE, &error);
 }
 
 bool UpdateAttempter::RebootDirectly() {
@@ -1084,44 +1066,6 @@ void UpdateAttempter::DownloadComplete() {
   system_state_->payload_state()->DownloadComplete();
 }
 
-bool UpdateAttempter::OnCheckForUpdates(brillo::ErrorPtr* error) {
-  CheckForUpdate(
-      "" /* app_version */, "" /* omaha_url */, true /* interactive */);
-  return true;
-}
-
-bool UpdateAttempter::OnTrackChannel(const string& channel,
-                                     brillo::ErrorPtr* error) {
-  LOG(INFO) << "Setting destination channel to: " << channel;
-  string error_message;
-  if (!system_state_->request_params()->SetTargetChannel(
-          channel, false /* powerwash_allowed */, &error_message)) {
-    brillo::Error::AddTo(error,
-                         FROM_HERE,
-                         brillo::errors::dbus::kDomain,
-                         "set_target_error",
-                         error_message);
-    return false;
-  }
-  // Notify observers the target channel change.
-  BroadcastChannel();
-  return true;
-}
-
-bool UpdateAttempter::GetWeaveState(int64_t* last_checked_time,
-                                    double* progress,
-                                    UpdateStatus* update_status,
-                                    string* current_channel,
-                                    string* tracking_channel) {
-  *last_checked_time = last_checked_time_;
-  *progress = download_progress_;
-  *update_status = status_;
-  OmahaRequestParams* rp = system_state_->request_params();
-  *current_channel = rp->current_channel();
-  *tracking_channel = rp->target_channel();
-  return true;
-}
-
 void UpdateAttempter::ProgressUpdate(double progress) {
   // Self throttle based on progress. Also send notifications if progress is
   // too slow.
@@ -1156,6 +1100,12 @@ bool UpdateAttempter::ResetStatus() {
       // Update the boot flags so the current slot has higher priority.
       BootControlInterface* boot_control = system_state_->boot_control();
       if (!boot_control->SetActiveBootSlot(boot_control->GetCurrentSlot()))
+        ret_value = false;
+
+      // Mark the current slot as successful again, since marking it as active
+      // may reset the successful bit. We ignore the result of whether marking
+      // the current slot as successful worked.
+      if (!boot_control->MarkBootSuccessfulAsync(Bind([](bool successful){})))
         ret_value = false;
 
       // Notify the PayloadState that the successful payload was canceled.
@@ -1231,13 +1181,6 @@ void UpdateAttempter::BroadcastStatus() {
                                new_payload_size_);
   }
   last_notify_time_ = TimeTicks::Now();
-}
-
-void UpdateAttempter::BroadcastChannel() {
-  for (const auto& observer : service_observers_) {
-    observer->SendChannelChangeUpdate(
-        system_state_->request_params()->target_channel());
-  }
 }
 
 uint32_t UpdateAttempter::GetErrorCodeFlags()  {
@@ -1356,7 +1299,8 @@ void UpdateAttempter::ScheduleProcessingStart() {
   start_action_processor_ = false;
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      Bind([this] { this->processor_->StartProcessing(); }));
+      Bind([](ActionProcessor* processor) { processor->StartProcessing(); },
+           base::Unretained(processor_.get())));
 }
 
 void UpdateAttempter::DisableDeltaUpdateIfNeeded() {
@@ -1596,28 +1540,13 @@ bool UpdateAttempter::IsAnyUpdateSourceAllowed() {
     return true;
   }
 
-  // Even though the debugd tools are also gated on devmode, checking here can
-  // save us a D-Bus call so it's worth doing explicitly.
-  if (system_state_->hardware()->IsNormalBootMode()) {
-    LOG(INFO) << "Not in devmode; disallowing custom update sources.";
-    return false;
-  }
-
-  // Official images in devmode are allowed a custom update source iff the
-  // debugd dev tools are enabled.
-  if (!debugd_proxy_)
-    return false;
-  int32_t dev_features = debugd::DEV_FEATURES_DISABLED;
-  brillo::ErrorPtr error;
-  bool success = debugd_proxy_->QueryDevFeatures(&dev_features, &error);
-
-  // Some boards may not include debugd so it's expected that this may fail,
-  // in which case we default to disallowing custom update sources.
-  if (success && !(dev_features & debugd::DEV_FEATURES_DISABLED)) {
-    LOG(INFO) << "Debugd dev tools enabled; allowing any update source.";
+  if (system_state_->hardware()->AreDevFeaturesEnabled()) {
+    LOG(INFO) << "Developer features enabled; allowing custom update sources.";
     return true;
   }
-  LOG(INFO) << "Debugd dev tools disabled; disallowing custom update sources.";
+
+  LOG(INFO)
+      << "Developer features disabled; disallowing custom update sources.";
   return false;
 }
 

@@ -160,8 +160,7 @@ class DBusUpdateEngineService
 class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor,
                             public ServiceObserverInterface {
  public:
-  UpdateEngineAdaptor(SystemState* system_state,
-                      const scoped_refptr<dbus::Bus>& bus);
+  UpdateEngineAdaptor(SystemState* system_state);
   ~UpdateEngineAdaptor() = default;
 
   // Register the DBus object with the update engine service asynchronously.
@@ -181,9 +180,6 @@ class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor,
                         int64_t new_size) override;
 
   void SendPayloadApplicationComplete(ErrorCode error_code) override {}
-
-  // Channel tracking changes are ignored.
-  void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
 
  private:
   scoped_refptr<dbus::Bus> bus_;

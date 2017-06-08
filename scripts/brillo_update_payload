@@ -175,17 +175,27 @@ if [[ "${COMMAND}" == "properties" ]]; then
 be used."
 fi
 
-DEFINE_string work_dir "/tmp" "Where to dump temporary files."
+DEFINE_string work_dir "${TMPDIR:-/tmp}" "Where to dump temporary files."
 
 # Parse command line flag arguments
 FLAGS "$@" || exit 1
 eval set -- "${FLAGS_ARGV}"
 set -e
 
+# Override the TMPDIR with the passed work_dir flags, which anyway defaults to
+# ${TMPDIR}.
+TMPDIR="${FLAGS_work_dir}"
+export TMPDIR
+
 # Associative arrays from partition name to file in the source and target
 # images. The size of the updated area must be the size of the file.
 declare -A SRC_PARTITIONS
 declare -A DST_PARTITIONS
+
+# Associative arrays for the .map files associated with each src/dst partition
+# file in SRC_PARTITIONS and DST_PARTITIONS.
+declare -A SRC_PARTITIONS_MAP
+declare -A DST_PARTITIONS_MAP
 
 # List of partition names in order.
 declare -a PARTITIONS_ORDER
@@ -217,6 +227,18 @@ read_option_uint() {
     fi
   fi
   echo "${default_value}"
+}
+
+# truncate_file <file_path> <file_size>
+#
+# Truncate the given |file_path| to |file_size| using perl.
+# The truncate binary might not be available.
+truncate_file() {
+  local file_path="$1"
+  local file_size="$2"
+  perl -e "open(FILE, \"+<\", \$ARGV[0]); \
+           truncate(FILE, ${file_size}); \
+           close(FILE);" "${file_path}"
 }
 
 # Create a temporary file in the work_dir with an optional pattern name.
@@ -410,26 +432,45 @@ Disabling deltas for this source version."
       part_file="${temp_raw}"
     fi
 
-    # delta_generator only supports images multiple of 4 KiB, so we pad with
-    # zeros if needed.
+    # Extract the .map file (if one is available).
+    part_map_file=$(create_tempfile "${part}.map.XXXXXX")
+    CLEANUP_FILES+=("${part_map_file}")
+    unzip -p "${image}" "IMAGES/${part}.map" >"${part_map_file}" || \
+      part_map_file=""
+
+    # delta_generator only supports images multiple of 4 KiB. For target images
+    # we pad the data with zeros if needed, but for source images we truncate
+    # down the data since the last block of the old image could be padded on
+    # disk with unknown data.
     filesize=$(stat -c%s "${part_file}")
     if [[ $(( filesize % 4096 )) -ne 0 ]]; then
-      echo "Rounding up partition ${part}.img to multiple of 4 KiB."
-      : $(( filesize = (filesize + 4095) & -4096 ))
-      truncate --size="${filesize}" "${part_file}"
+      if [[ "${partitions_array}" == "SRC_PARTITIONS" ]]; then
+        echo "Rounding DOWN partition ${part}.img to a multiple of 4 KiB."
+        : $(( filesize = filesize & -4096 ))
+        if [[ ${filesize} == 0 ]]; then
+          echo "Source partition ${part}.img is empty after rounding down," \
+            "skipping."
+          continue
+        fi
+      else
+        echo "Rounding UP partition ${part}.img to a multiple of 4 KiB."
+        : $(( filesize = (filesize + 4095) & -4096 ))
+      fi
+      truncate_file "${part_file}" "${filesize}"
     fi
 
     eval "${partitions_array}[\"${part}\"]=\"${part_file}\""
+    eval "${partitions_array}_MAP[\"${part}\"]=\"${part_map_file}\""
     echo "Extracted ${partitions_array}[${part}]: ${filesize} bytes"
   done
 }
 
 validate_generate() {
   [[ -n "${FLAGS_payload}" ]] ||
-    die "Error: you must specify an output filename with --payload FILENAME"
+    die "You must specify an output filename with --payload FILENAME"
 
   [[ -n "${FLAGS_target_image}" ]] ||
-    die "Error: you must specify a target image with --target_image FILENAME"
+    die "You must specify a target image with --target_image FILENAME"
 }
 
 cmd_generate() {
@@ -450,27 +491,34 @@ cmd_generate() {
   GENERATOR_ARGS=( -out_file="${FLAGS_payload}" )
 
   local part old_partitions="" new_partitions="" partition_names=""
+  local old_mapfiles="" new_mapfiles=""
   for part in "${PARTITIONS_ORDER[@]}"; do
     if [[ -n "${partition_names}" ]]; then
       partition_names+=":"
       new_partitions+=":"
       old_partitions+=":"
+      new_mapfiles+=":"
+      old_mapfiles+=":"
     fi
     partition_names+="${part}"
     new_partitions+="${DST_PARTITIONS[${part}]}"
     old_partitions+="${SRC_PARTITIONS[${part}]:-}"
+    new_mapfiles+="${DST_PARTITIONS_MAP[${part}]:-}"
+    old_mapfiles+="${SRC_PARTITIONS_MAP[${part}]:-}"
   done
 
   # Target image args:
   GENERATOR_ARGS+=(
     -partition_names="${partition_names}"
     -new_partitions="${new_partitions}"
+    -new_mapfiles="${new_mapfiles}"
   )
 
   if [[ "${payload_type}" == "delta" ]]; then
     # Source image args:
     GENERATOR_ARGS+=(
       -old_partitions="${old_partitions}"
+      -old_mapfiles="${old_mapfiles}"
     )
     if [[ -n "${FORCE_MINOR_VERSION}" ]]; then
       GENERATOR_ARGS+=( --minor_version="${FORCE_MINOR_VERSION}" )
@@ -499,17 +547,17 @@ cmd_generate() {
 
 validate_hash() {
   [[ -n "${FLAGS_signature_size}" ]] ||
-    die "Error: you must specify signature size with --signature_size SIZES"
+    die "You must specify signature size with --signature_size SIZES"
 
   [[ -n "${FLAGS_unsigned_payload}" ]] ||
-    die "Error: you must specify the input unsigned payload with \
+    die "You must specify the input unsigned payload with \
 --unsigned_payload FILENAME"
 
   [[ -n "${FLAGS_payload_hash_file}" ]] ||
-    die "Error: you must specify --payload_hash_file FILENAME"
+    die "You must specify --payload_hash_file FILENAME"
 
   [[ -n "${FLAGS_metadata_hash_file}" ]] ||
-    die "Error: you must specify --metadata_hash_file FILENAME"
+    die "You must specify --metadata_hash_file FILENAME"
 }
 
 cmd_hash() {
@@ -524,22 +572,21 @@ cmd_hash() {
 
 validate_sign() {
   [[ -n "${FLAGS_signature_size}" ]] ||
-    die "Error: you must specify signature size with --signature_size SIZES"
+    die "You must specify signature size with --signature_size SIZES"
 
   [[ -n "${FLAGS_unsigned_payload}" ]] ||
-    die "Error: you must specify the input unsigned payload with \
+    die "You must specify the input unsigned payload with \
 --unsigned_payload FILENAME"
 
   [[ -n "${FLAGS_payload}" ]] ||
-    die "Error: you must specify the output signed payload with \
---payload FILENAME"
+    die "You must specify the output signed payload with --payload FILENAME"
 
   [[ -n "${FLAGS_payload_signature_file}" ]] ||
-    die "Error: you must specify the payload signature file with \
+    die "You must specify the payload signature file with \
 --payload_signature_file SIGNATURES"
 
   [[ -n "${FLAGS_metadata_signature_file}" ]] ||
-    die "Error: you must specify the metadata signature file with \
+    die "You must specify the metadata signature file with \
 --metadata_signature_file SIGNATURES"
 }
 
@@ -562,10 +609,10 @@ cmd_sign() {
 
 validate_properties() {
   [[ -n "${FLAGS_payload}" ]] ||
-    die "Error: you must specify the payload file with --payload FILENAME"
+    die "You must specify the payload file with --payload FILENAME"
 
   [[ -n "${FLAGS_properties_file}" ]] ||
-    die "Error: you must specify a non empty --properties_file FILENAME"
+    die "You must specify a non empty --properties_file FILENAME"
 }
 
 cmd_properties() {
@@ -575,7 +622,7 @@ cmd_properties() {
 }
 
 # Sanity check that the real generator exists:
-GENERATOR="$(which delta_generator)"
+GENERATOR="$(which delta_generator || true)"
 [[ -x "${GENERATOR}" ]] || die "can't find delta_generator"
 
 case "$COMMAND" in

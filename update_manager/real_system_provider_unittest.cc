@@ -20,37 +20,48 @@
 
 #include <base/time/time.h>
 #include <brillo/make_unique_ptr.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "libcros/dbus-proxy-mocks.h"
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/update_manager/umtest_utils.h"
+#if USE_LIBCROS
+#include "libcros/dbus-proxies.h"
+#include "libcros/dbus-proxy-mocks.h"
 
 using org::chromium::LibCrosServiceInterfaceProxyMock;
+#endif  // USE_LIBCROS
 using std::unique_ptr;
 using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
 
+#if USE_LIBCROS
 namespace {
 const char kRequiredPlatformVersion[] ="1234.0.0";
 }  // namespace
+#endif  // USE_LIBCROS
 
 namespace chromeos_update_manager {
 
 class UmRealSystemProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
+#if USE_LIBCROS
     libcros_proxy_mock_.reset(new LibCrosServiceInterfaceProxyMock());
     ON_CALL(*libcros_proxy_mock_,
             GetKioskAppRequiredPlatformVersion(_, _, _))
         .WillByDefault(
             DoAll(SetArgPointee<0>(kRequiredPlatformVersion), Return(true)));
 
-    provider_.reset(new RealSystemProvider(&fake_hardware_, &fake_boot_control_,
-                                           libcros_proxy_mock_.get()));
+    provider_.reset(new RealSystemProvider(
+        &fake_hardware_, &fake_boot_control_, libcros_proxy_mock_.get()));
+#else
+    provider_.reset(
+        new RealSystemProvider(&fake_hardware_, &fake_boot_control_, nullptr));
+#endif  // USE_LIBCROS
     EXPECT_TRUE(provider_->Init());
   }
 
@@ -58,7 +69,9 @@ class UmRealSystemProviderTest : public ::testing::Test {
   chromeos_update_engine::FakeBootControl fake_boot_control_;
   unique_ptr<RealSystemProvider> provider_;
 
-  std::unique_ptr<LibCrosServiceInterfaceProxyMock> libcros_proxy_mock_;
+#if USE_LIBCROS
+  unique_ptr<LibCrosServiceInterfaceProxyMock> libcros_proxy_mock_;
+#endif  // USE_LIBCROS
 };
 
 TEST_F(UmRealSystemProviderTest, InitTest) {

@@ -42,12 +42,13 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/fake_hardware.h"
+#include "update_engine/common/file_fetcher.h"
 #include "update_engine/common/http_common.h"
-#include "update_engine/common/libcurl_http_fetcher.h"
 #include "update_engine/common/mock_http_fetcher.h"
 #include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/libcurl_http_fetcher.h"
 #include "update_engine/mock_proxy_resolver.h"
 #include "update_engine/proxy_resolver.h"
 
@@ -217,6 +218,7 @@ class AnyHttpFetcherTest {
 
   virtual bool IsMock() const = 0;
   virtual bool IsMulti() const = 0;
+  virtual bool IsHttpSupported() const = 0;
 
   virtual void IgnoreServerAborting(HttpServer* server) const {}
 
@@ -249,6 +251,7 @@ class MockHttpFetcherTest : public AnyHttpFetcherTest {
 
   bool IsMock() const override { return true; }
   bool IsMulti() const override { return false; }
+  bool IsHttpSupported() const override { return true; }
 
   HttpServer* CreateServer() override {
     return new NullHttpServer;
@@ -289,6 +292,7 @@ class LibcurlHttpFetcherTest : public AnyHttpFetcherTest {
 
   bool IsMock() const override { return false; }
   bool IsMulti() const override { return false; }
+  bool IsHttpSupported() const override { return true; }
 
   void IgnoreServerAborting(HttpServer* server) const override {
     // Nothing to do.
@@ -324,6 +328,42 @@ class MultiRangeHttpFetcherTest : public LibcurlHttpFetcherTest {
   bool IsMulti() const override { return true; }
 };
 
+class FileFetcherTest : public AnyHttpFetcherTest {
+ public:
+  // Necessary to unhide the definition in the base class.
+  using AnyHttpFetcherTest::NewLargeFetcher;
+  HttpFetcher* NewLargeFetcher(ProxyResolver* /* proxy_resolver */) override {
+    return new FileFetcher();
+  }
+
+  // Necessary to unhide the definition in the base class.
+  using AnyHttpFetcherTest::NewSmallFetcher;
+  HttpFetcher* NewSmallFetcher(ProxyResolver* proxy_resolver) override {
+    return NewLargeFetcher(proxy_resolver);
+  }
+
+  string BigUrl(in_port_t port) const override {
+    return "file://" + temp_file_.path();
+  }
+  string SmallUrl(in_port_t port) const override {
+    test_utils::WriteFileString(temp_file_.path(), "small contents");
+    return "file://" + temp_file_.path();
+  }
+  string ErrorUrl(in_port_t port) const override {
+    return "file:///path/to/non-existing-file";
+  }
+
+  bool IsMock() const override { return false; }
+  bool IsMulti() const override { return false; }
+  bool IsHttpSupported() const override { return false; }
+
+  void IgnoreServerAborting(HttpServer* server) const override {}
+
+  HttpServer* CreateServer() override { return new NullHttpServer; }
+
+ private:
+  test_utils::ScopedTempFile temp_file_{"ue_file_fetcher.XXXXXX"};
+};
 
 //
 // Infrastructure for type tests of HTTP fetcher.
@@ -361,7 +401,9 @@ class HttpFetcherTest : public ::testing::Test {
 // Test case types list.
 typedef ::testing::Types<LibcurlHttpFetcherTest,
                          MockHttpFetcherTest,
-                         MultiRangeHttpFetcherTest> HttpFetcherTestTypes;
+                         MultiRangeHttpFetcherTest,
+                         FileFetcherTest>
+    HttpFetcherTestTypes;
 TYPED_TEST_CASE(HttpFetcherTest, HttpFetcherTestTypes);
 
 
@@ -390,8 +432,8 @@ class HttpFetcherTestDelegate : public HttpFetcherDelegate {
   }
 
   void TransferTerminated(HttpFetcher* fetcher) override {
-    ADD_FAILURE();
     times_transfer_terminated_called_++;
+    MessageLoop::current()->BreakLoop();
   }
 
   // Are we expecting an error response? (default: no)
@@ -425,6 +467,7 @@ TYPED_TEST(HttpFetcherTest, SimpleTest) {
       fetcher.get(),
       this->test_.SmallUrl(server->GetPort())));
   this->loop_.Run();
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 }
 
 TYPED_TEST(HttpFetcherTest, SimpleBigTest) {
@@ -440,6 +483,7 @@ TYPED_TEST(HttpFetcherTest, SimpleBigTest) {
       fetcher.get(),
       this->test_.BigUrl(server->GetPort())));
   this->loop_.Run();
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 }
 
 // Issue #9648: when server returns an error HTTP response, the fetcher needs to
@@ -465,17 +509,17 @@ TYPED_TEST(HttpFetcherTest, ErrorTest) {
   this->loop_.Run();
 
   // Make sure that no bytes were received.
-  CHECK_EQ(delegate.times_received_bytes_called_, 0);
-  CHECK_EQ(fetcher->GetBytesDownloaded(), static_cast<size_t>(0));
+  EXPECT_EQ(0, delegate.times_received_bytes_called_);
+  EXPECT_EQ(0U, fetcher->GetBytesDownloaded());
 
   // Make sure that transfer completion was signaled once, and no termination
   // was signaled.
-  CHECK_EQ(delegate.times_transfer_complete_called_, 1);
-  CHECK_EQ(delegate.times_transfer_terminated_called_, 0);
+  EXPECT_EQ(1, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 }
 
 TYPED_TEST(HttpFetcherTest, ExtraHeadersInRequestTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
 
   HttpFetcherTestDelegate delegate;
@@ -496,7 +540,11 @@ TYPED_TEST(HttpFetcherTest, ExtraHeadersInRequestTest) {
   int port = server.GetPort();
   ASSERT_TRUE(server.started_);
 
-  StartTransfer(fetcher.get(), LocalServerUrlForPath(port, "/echo-headers"));
+  this->loop_.PostTask(
+      FROM_HERE,
+      base::Bind(StartTransfer,
+                 fetcher.get(),
+                 LocalServerUrlForPath(port, "/echo-headers")));
   this->loop_.Run();
 
   EXPECT_NE(string::npos,
@@ -569,7 +617,7 @@ TYPED_TEST(HttpFetcherTest, PauseTest) {
 // This test will pause the fetcher while the download is not yet started
 // because it is waiting for the proxy to be resolved.
 TYPED_TEST(HttpFetcherTest, PauseWhileResolvingProxyTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
   MockProxyResolver mock_resolver;
   unique_ptr<HttpFetcher> fetcher(this->test_.NewLargeFetcher(&mock_resolver));
@@ -659,6 +707,32 @@ TYPED_TEST(HttpFetcherTest, AbortTest) {
   this->loop_.CancelTask(task_id);
 }
 
+TYPED_TEST(HttpFetcherTest, TerminateTransferWhileResolvingProxyTest) {
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
+    return;
+  MockProxyResolver mock_resolver;
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewLargeFetcher(&mock_resolver));
+
+  HttpFetcherTestDelegate delegate;
+  fetcher->set_delegate(&delegate);
+
+  EXPECT_CALL(mock_resolver, GetProxiesForUrl(_, _)).WillOnce(Return(123));
+  fetcher->BeginTransfer("http://fake_url");
+  // Run the message loop until idle. This must call the MockProxyResolver with
+  // the request.
+  while (this->loop_.RunOnce(false)) {
+  }
+  testing::Mock::VerifyAndClearExpectations(&mock_resolver);
+
+  EXPECT_CALL(mock_resolver, CancelProxyRequest(123)).WillOnce(Return(true));
+
+  // Terminate the transfer right before the proxy resolution response.
+  fetcher->TerminateTransfer();
+  EXPECT_EQ(0, delegate.times_received_bytes_called_);
+  EXPECT_EQ(0, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(1, delegate.times_transfer_terminated_called_);
+}
+
 namespace {
 class FlakyHttpFetcherTestDelegate : public HttpFetcherDelegate {
  public:
@@ -679,7 +753,7 @@ class FlakyHttpFetcherTestDelegate : public HttpFetcherDelegate {
 }  // namespace
 
 TYPED_TEST(HttpFetcherTest, FlakyTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
   {
     FlakyHttpFetcherTestDelegate delegate;
@@ -721,7 +795,7 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
   ~FailureHttpFetcherTestDelegate() override {
     if (server_) {
       LOG(INFO) << "Stopping server in destructor";
-      delete server_;
+      server_.reset();
       LOG(INFO) << "server stopped";
     }
   }
@@ -730,20 +804,23 @@ class FailureHttpFetcherTestDelegate : public HttpFetcherDelegate {
                      const void* bytes, size_t length) override {
     if (server_) {
       LOG(INFO) << "Stopping server in ReceivedBytes";
-      delete server_;
+      server_.reset();
       LOG(INFO) << "server stopped";
-      server_ = nullptr;
     }
   }
   void TransferComplete(HttpFetcher* fetcher, bool successful) override {
     EXPECT_FALSE(successful);
     EXPECT_EQ(0, fetcher->http_response_code());
+    times_transfer_complete_called_++;
     MessageLoop::current()->BreakLoop();
   }
   void TransferTerminated(HttpFetcher* fetcher) override {
-    ADD_FAILURE();
+    times_transfer_terminated_called_++;
+    MessageLoop::current()->BreakLoop();
   }
-  PythonHttpServer* server_;
+  unique_ptr<PythonHttpServer> server_;
+  int times_transfer_terminated_called_{0};
+  int times_transfer_complete_called_{0};
 };
 }  // namespace
 
@@ -753,19 +830,19 @@ TYPED_TEST(HttpFetcherTest, FailureTest) {
   // available at all.
   if (this->test_.IsMock())
     return;
-  {
-    FailureHttpFetcherTestDelegate delegate(nullptr);
-    unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
-    fetcher->set_delegate(&delegate);
+  FailureHttpFetcherTestDelegate delegate(nullptr);
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
 
-    this->loop_.PostTask(FROM_HERE,
-                         base::Bind(StartTransfer,
-                                    fetcher.get(),
-                                    "http://host_doesnt_exist99999999"));
-    this->loop_.Run();
+  this->loop_.PostTask(
+      FROM_HERE,
+      base::Bind(
+          StartTransfer, fetcher.get(), "http://host_doesnt_exist99999999"));
+  this->loop_.Run();
+  EXPECT_EQ(1, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 
-    // Exiting and testing happens in the delegate
-  }
+  // Exiting and testing happens in the delegate
 }
 
 TYPED_TEST(HttpFetcherTest, NoResponseTest) {
@@ -793,11 +870,14 @@ TYPED_TEST(HttpFetcherTest, NoResponseTest) {
       fetcher.get(),
       LocalServerUrlForPath(port, "/hang")));
   this->loop_.Run();
+  EXPECT_EQ(1, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 
   // Check that no other callback runs in the next two seconds. That would
   // indicate a leaked callback.
   bool timeout = false;
-  auto callback = base::Bind([&timeout]{ timeout = true;});
+  auto callback = base::Bind([](bool* timeout) { *timeout = true; },
+                             base::Unretained(&timeout));
   this->loop_.PostDelayedTask(FROM_HERE, callback,
                               base::TimeDelta::FromSeconds(2));
   EXPECT_TRUE(this->loop_.RunOnce(true));
@@ -810,29 +890,78 @@ TYPED_TEST(HttpFetcherTest, ServerDiesTest) {
   // retries and aborts correctly.
   if (this->test_.IsMock())
     return;
-  {
-    PythonHttpServer* server = new PythonHttpServer();
-    int port = server->GetPort();
-    ASSERT_TRUE(server->started_);
+  PythonHttpServer* server = new PythonHttpServer();
+  int port = server->GetPort();
+  ASSERT_TRUE(server->started_);
 
-    // Handles destruction and claims ownership.
-    FailureHttpFetcherTestDelegate delegate(server);
-    unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
-    fetcher->set_delegate(&delegate);
+  // Handles destruction and claims ownership.
+  FailureHttpFetcherTestDelegate delegate(server);
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
 
-    this->loop_.PostTask(FROM_HERE, base::Bind(
-        StartTransfer,
-        fetcher.get(),
-        LocalServerUrlForPath(port,
-                              base::StringPrintf("/flaky/%d/%d/%d/%d",
-                                                 kBigLength,
-                                                 kFlakyTruncateLength,
-                                                 kFlakySleepEvery,
-                                                 kFlakySleepSecs))));
-    this->loop_.Run();
+  this->loop_.PostTask(
+      FROM_HERE,
+      base::Bind(StartTransfer,
+                 fetcher.get(),
+                 LocalServerUrlForPath(port,
+                                       base::StringPrintf("/flaky/%d/%d/%d/%d",
+                                                          kBigLength,
+                                                          kFlakyTruncateLength,
+                                                          kFlakySleepEvery,
+                                                          kFlakySleepSecs))));
+  this->loop_.Run();
+  EXPECT_EQ(1, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(0, delegate.times_transfer_terminated_called_);
 
-    // Exiting and testing happens in the delegate
-  }
+  // Exiting and testing happens in the delegate
+}
+
+// Test that we can cancel a transfer while it is still trying to connect to the
+// server. This test kills the server after a few bytes are received.
+TYPED_TEST(HttpFetcherTest, TerminateTransferWhenServerDiedTest) {
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
+    return;
+
+  PythonHttpServer* server = new PythonHttpServer();
+  int port = server->GetPort();
+  ASSERT_TRUE(server->started_);
+
+  // Handles destruction and claims ownership.
+  FailureHttpFetcherTestDelegate delegate(server);
+  unique_ptr<HttpFetcher> fetcher(this->test_.NewSmallFetcher());
+  fetcher->set_delegate(&delegate);
+
+  this->loop_.PostTask(
+      FROM_HERE,
+      base::Bind(StartTransfer,
+                 fetcher.get(),
+                 LocalServerUrlForPath(port,
+                                       base::StringPrintf("/flaky/%d/%d/%d/%d",
+                                                          kBigLength,
+                                                          kFlakyTruncateLength,
+                                                          kFlakySleepEvery,
+                                                          kFlakySleepSecs))));
+  // Terminating the transfer after 3 seconds gives it a chance to contact the
+  // server and enter the retry loop.
+  this->loop_.PostDelayedTask(FROM_HERE,
+                              base::Bind(&HttpFetcher::TerminateTransfer,
+                                         base::Unretained(fetcher.get())),
+                              base::TimeDelta::FromSeconds(3));
+
+  // Exiting and testing happens in the delegate.
+  this->loop_.Run();
+  EXPECT_EQ(0, delegate.times_transfer_complete_called_);
+  EXPECT_EQ(1, delegate.times_transfer_terminated_called_);
+
+  // Check that no other callback runs in the next two seconds. That would
+  // indicate a leaked callback.
+  bool timeout = false;
+  auto callback = base::Bind([](bool* timeout) { *timeout = true; },
+                             base::Unretained(&timeout));
+  this->loop_.PostDelayedTask(
+      FROM_HERE, callback, base::TimeDelta::FromSeconds(2));
+  EXPECT_TRUE(this->loop_.RunOnce(true));
+  EXPECT_TRUE(timeout);
 }
 
 namespace {
@@ -892,7 +1021,7 @@ void RedirectTest(const HttpServer* server,
 }  // namespace
 
 TYPED_TEST(HttpFetcherTest, SimpleRedirectTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
 
   unique_ptr<HttpServer> server(this->test_.CreateServer());
@@ -907,7 +1036,7 @@ TYPED_TEST(HttpFetcherTest, SimpleRedirectTest) {
 }
 
 TYPED_TEST(HttpFetcherTest, MaxRedirectTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
 
   unique_ptr<HttpServer> server(this->test_.CreateServer());
@@ -923,7 +1052,7 @@ TYPED_TEST(HttpFetcherTest, MaxRedirectTest) {
 }
 
 TYPED_TEST(HttpFetcherTest, BeyondMaxRedirectTest) {
-  if (this->test_.IsMock())
+  if (this->test_.IsMock() || !this->test_.IsHttpSupported())
     return;
 
   unique_ptr<HttpServer> server(this->test_.CreateServer());
@@ -1136,7 +1265,75 @@ TYPED_TEST(HttpFetcherTest, MultiHttpFetcherErrorIfOffsetUnrecoverableTest) {
             kHttpResponseUndefined);
 }
 
+namespace {
+// This HttpFetcherDelegate calls TerminateTransfer at a configurable point.
+class MultiHttpFetcherTerminateTestDelegate : public HttpFetcherDelegate {
+ public:
+  explicit MultiHttpFetcherTerminateTestDelegate(size_t terminate_trigger_bytes)
+      : terminate_trigger_bytes_(terminate_trigger_bytes) {}
 
+  void ReceivedBytes(HttpFetcher* fetcher,
+                     const void* bytes,
+                     size_t length) override {
+    LOG(INFO) << "ReceivedBytes, " << length << " bytes.";
+    EXPECT_EQ(fetcher, fetcher_.get());
+    if (bytes_downloaded_ < terminate_trigger_bytes_ &&
+        bytes_downloaded_ + length >= terminate_trigger_bytes_) {
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          base::Bind(&HttpFetcher::TerminateTransfer,
+                     base::Unretained(fetcher_.get())));
+    }
+    bytes_downloaded_ += length;
+  }
+
+  void TransferComplete(HttpFetcher* fetcher, bool successful) override {
+    ADD_FAILURE() << "TransferComplete called but expected a failure";
+    // Destroy the fetcher (because we're allowed to).
+    fetcher_.reset(nullptr);
+    MessageLoop::current()->BreakLoop();
+  }
+
+  void TransferTerminated(HttpFetcher* fetcher) override {
+    // Destroy the fetcher (because we're allowed to).
+    fetcher_.reset(nullptr);
+    MessageLoop::current()->BreakLoop();
+  }
+
+  unique_ptr<HttpFetcher> fetcher_;
+  size_t bytes_downloaded_{0};
+  size_t terminate_trigger_bytes_;
+};
+}  // namespace
+
+TYPED_TEST(HttpFetcherTest, MultiHttpFetcherTerminateBetweenRangesTest) {
+  if (!this->test_.IsMulti())
+    return;
+  const size_t kRangeTrigger = 1000;
+  MultiHttpFetcherTerminateTestDelegate delegate(kRangeTrigger);
+
+  unique_ptr<HttpServer> server(this->test_.CreateServer());
+  ASSERT_TRUE(server->started_);
+
+  MultiRangeHttpFetcher* multi_fetcher =
+      static_cast<MultiRangeHttpFetcher*>(this->test_.NewLargeFetcher());
+  ASSERT_TRUE(multi_fetcher);
+  // Transfer ownership of the fetcher to the delegate.
+  delegate.fetcher_.reset(multi_fetcher);
+  multi_fetcher->set_delegate(&delegate);
+
+  multi_fetcher->ClearRanges();
+  multi_fetcher->AddRange(45, kRangeTrigger);
+  multi_fetcher->AddRange(2000, 100);
+
+  this->test_.fake_hardware()->SetIsOfficialBuild(false);
+
+  StartTransfer(multi_fetcher, this->test_.BigUrl(server->GetPort()));
+  MessageLoop::current()->Run();
+
+  // Check that the delegate made it to the trigger point.
+  EXPECT_EQ(kRangeTrigger, delegate.bytes_downloaded_);
+}
 
 namespace {
 class BlockedTransferTestDelegate : public HttpFetcherDelegate {

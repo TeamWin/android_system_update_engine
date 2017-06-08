@@ -52,8 +52,6 @@ class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
                         const std::string& new_version,
                         int64_t new_size) override;
   void SendPayloadApplicationComplete(ErrorCode error_code) override {}
-  // Channel tracking changes are ignored.
-  void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
 
   // android::brillo::BnUpdateEngine overrides.
   android::binder::Status AttemptUpdate(const android::String16& app_version,
@@ -78,6 +76,9 @@ class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
       bool* out_p2p_permission) override;
   android::binder::Status SetUpdateOverCellularPermission(
       bool enabled) override;
+  android::binder::Status SetUpdateOverCellularTarget(
+      const android::String16& target_version,
+      int64_t target_size) override;
   android::binder::Status GetUpdateOverCellularPermission(
       bool* out_cellular_permission) override;
   android::binder::Status GetDurationSinceUpdate(

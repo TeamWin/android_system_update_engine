@@ -40,9 +40,6 @@ class ServiceObserverInterface {
   // Called whenever an update attempt is completed.
   virtual void SendPayloadApplicationComplete(ErrorCode error_code) = 0;
 
-  // Called whenever the channel we are tracking changes.
-  virtual void SendChannelChangeUpdate(const std::string& tracking_channel) = 0;
-
  protected:
   ServiceObserverInterface() = default;
 };

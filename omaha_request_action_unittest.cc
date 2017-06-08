@@ -352,7 +352,9 @@ bool OmahaRequestActionTest::TestUpdateCheck(
       .Times(expected_download_error_code == metrics::DownloadErrorCode::kUnset
              ? 0 : 1);
 
-  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.PostTask(base::Bind(
+      [](ActionProcessor* processor) { processor->StartProcessing(); },
+      base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
   if (collector_action.has_input_object_ && out_response)
@@ -385,7 +387,9 @@ void TestEvent(OmahaRequestParams params,
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&action);
 
-  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.PostTask(base::Bind(
+      [](ActionProcessor* processor) { processor->StartProcessing(); },
+      base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
 
@@ -458,6 +462,33 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortName));
 }
 
+TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
+  const string http_response = "<?xml invalid response";
+  request_params_.set_interactive(true);
+
+  brillo::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
+
+  MockHttpFetcher* fetcher =
+      new MockHttpFetcher(http_response.data(), http_response.size(), nullptr);
+  OmahaRequestAction action(
+      &fake_system_state_, nullptr, brillo::make_unique_ptr(fetcher), false);
+  ActionProcessor processor;
+  processor.EnqueueAction(&action);
+
+  loop.PostTask(base::Bind(
+      [](ActionProcessor* processor) { processor->StartProcessing(); },
+      base::Unretained(&processor)));
+  loop.Run();
+  EXPECT_FALSE(loop.PendingTasks());
+
+  // Check that the headers were set in the fetcher during the action. Note that
+  // we set this request as "interactive".
+  EXPECT_EQ("fg", fetcher->GetHeader("X-GoogleUpdate-Interactivity"));
+  EXPECT_EQ(kTestAppId, fetcher->GetHeader("X-GoogleUpdate-AppId"));
+  EXPECT_NE("", fetcher->GetHeader("X-GoogleUpdate-Updater"));
+}
+
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
   OmahaResponse response;
   // Set up a connection manager that doesn't allow a valid update over
@@ -467,11 +498,11 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(NetworkConnectionType::kEthernet),
-                SetArgumentPointee<1>(NetworkTethering::kUnknown),
+          DoAll(SetArgumentPointee<0>(ConnectionType::kEthernet),
+                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
-  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kEthernet, _))
-    .WillRepeatedly(Return(false));
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kEthernet, _))
+      .WillRepeatedly(Return(false));
 
   ASSERT_FALSE(
       TestUpdateCheck(nullptr,  // request_params
@@ -497,12 +528,12 @@ TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularAllowedByDevicePolicy) {
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(NetworkConnectionType::kCellular),
-                SetArgumentPointee<1>(NetworkTethering::kUnknown),
+          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
+                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(true));
-  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kCellular, _))
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
       .WillRepeatedly(Return(true));
 
   ASSERT_TRUE(
@@ -529,12 +560,12 @@ TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularBlockedByDevicePolicy) {
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(NetworkConnectionType::kCellular),
-                SetArgumentPointee<1>(NetworkTethering::kUnknown),
+          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
+                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(true));
-  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kCellular, _))
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
       .WillRepeatedly(Return(false));
 
   ASSERT_FALSE(
@@ -563,12 +594,12 @@ TEST_F(OmahaRequestActionTest,
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(NetworkConnectionType::kCellular),
-                SetArgumentPointee<1>(NetworkTethering::kUnknown),
+          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
+                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kCellular, _))
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
       .WillRepeatedly(Return(true));
 
   ASSERT_TRUE(
@@ -604,12 +635,12 @@ TEST_F(OmahaRequestActionTest,
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(NetworkConnectionType::kCellular),
-                SetArgumentPointee<1>(NetworkTethering::kUnknown),
+          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
+                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kCellular, _))
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
       .WillRepeatedly(Return(true));
 
   ASSERT_FALSE(
@@ -644,12 +675,12 @@ TEST_F(OmahaRequestActionTest,
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(NetworkConnectionType::kCellular),
-                SetArgumentPointee<1>(NetworkTethering::kUnknown),
+          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
+                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(NetworkConnectionType::kCellular, _))
+  EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kCellular, _))
       .WillRepeatedly(Return(true));
 
   ASSERT_TRUE(
@@ -1080,7 +1111,9 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   processor.set_delegate(&delegate);
   processor.EnqueueAction(&action);
 
-  loop.PostTask(base::Bind([&processor] { processor.StartProcessing(); }));
+  loop.PostTask(base::Bind(
+      [](ActionProcessor* processor) { processor->StartProcessing(); },
+      base::Unretained(&processor)));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
   EXPECT_FALSE(processor.IsRunning());
@@ -1954,36 +1987,37 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsPersistedFirstTime) {
   params.set_waiting_period(TimeDelta().FromDays(1));
   params.set_update_check_count_wait_enabled(false);
 
-  ASSERT_FALSE(TestUpdateCheck(
-                      &params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kOmahaUpdateDeferredPerPolicy,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kDeferring,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  Time arbitrary_date;
+  Time::FromString("6/4/1989", &arbitrary_date);
+  fake_system_state_.fake_clock()->SetWallclockTime(arbitrary_date);
+  ASSERT_FALSE(TestUpdateCheck(&params,
+                               fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kOmahaUpdateDeferredPerPolicy,
+                               metrics::CheckResult::kUpdateAvailable,
+                               metrics::CheckReaction::kDeferring,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
 
   int64_t timestamp = 0;
   ASSERT_TRUE(fake_prefs_.GetInt64(kPrefsUpdateFirstSeenAt, &timestamp));
-  ASSERT_GT(timestamp, 0);
+  EXPECT_EQ(arbitrary_date.ToInternalValue(), timestamp);
   EXPECT_FALSE(response.update_exists);
 
   // Verify if we are interactive check we don't defer.
   params.set_interactive(true);
-  ASSERT_TRUE(
-      TestUpdateCheck(&params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
   EXPECT_TRUE(response.update_exists);
 }
 
@@ -1994,23 +2028,22 @@ TEST_F(OmahaRequestActionTest, TestUpdateFirstSeenAtGetsUsedIfAlreadyPresent) {
   params.set_waiting_period(TimeDelta().FromDays(1));
   params.set_update_check_count_wait_enabled(false);
 
-  // Set the timestamp to a very old value such that it exceeds the
-  // waiting period set above.
-  Time t1;
+  Time t1, t2;
   Time::FromString("1/1/2012", &t1);
-  ASSERT_TRUE(fake_prefs_.SetInt64(
-      kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
-  ASSERT_TRUE(TestUpdateCheck(
-                      &params,
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUpdateAvailable,
-                      metrics::CheckReaction::kUpdating,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  Time::FromString("1/3/2012", &t2);
+  ASSERT_TRUE(
+      fake_prefs_.SetInt64(kPrefsUpdateFirstSeenAt, t1.ToInternalValue()));
+  fake_system_state_.fake_clock()->SetWallclockTime(t2);
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
 
   EXPECT_TRUE(response.update_exists);
 

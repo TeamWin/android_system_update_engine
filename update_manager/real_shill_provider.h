@@ -21,6 +21,7 @@
 // update engine's connection_manager.  We need to make sure to deprecate use of
 // connection manager when the time comes.
 
+#include <memory>
 #include <string>
 
 #include <base/time/time.h>
@@ -49,22 +50,17 @@ class RealShillProvider : public ShillProvider {
     return &var_is_connected_;
   }
 
-  Variable<ConnectionType>* var_conn_type() override {
+  Variable<chromeos_update_engine::ConnectionType>* var_conn_type() override {
     return &var_conn_type_;
   }
 
-  Variable<ConnectionTethering>* var_conn_tethering() override {
+  Variable<chromeos_update_engine::ConnectionTethering>* var_conn_tethering() override {
     return &var_conn_tethering_;
   }
 
   Variable<base::Time>* var_conn_last_changed() override {
     return &var_conn_last_changed_;
   }
-
-  // Helper methods for converting shill strings into symbolic values.
-  static ConnectionType ParseConnectionType(const std::string& type_str);
-  static ConnectionTethering ParseConnectionTethering(
-      const std::string& tethering_str);
 
  private:
   // A handler for ManagerProxy.PropertyChanged signal.
@@ -83,17 +79,18 @@ class RealShillProvider : public ShillProvider {
   // The current default service path, if connected. "/" means not connected.
   dbus::ObjectPath default_service_path_{"uninitialized"};
 
-  // The mockable interface to access the shill DBus proxies, owned by the
-  // caller.
-  chromeos_update_engine::ShillProxyInterface* shill_proxy_;
+  // The mockable interface to access the shill DBus proxies.
+  std::unique_ptr<chromeos_update_engine::ShillProxyInterface> shill_proxy_;
 
   // A clock abstraction (mockable).
   chromeos_update_engine::ClockInterface* const clock_;
 
   // The provider's variables.
   AsyncCopyVariable<bool> var_is_connected_{"is_connected"};
-  AsyncCopyVariable<ConnectionType> var_conn_type_{"conn_type"};
-  AsyncCopyVariable<ConnectionTethering> var_conn_tethering_{"conn_tethering"};
+  AsyncCopyVariable<chromeos_update_engine::ConnectionType> var_conn_type_{
+      "conn_type"};
+  AsyncCopyVariable<chromeos_update_engine::ConnectionTethering>
+      var_conn_tethering_{"conn_tethering"};
   AsyncCopyVariable<base::Time> var_conn_last_changed_{"conn_last_changed"};
 
   DISALLOW_COPY_AND_ASSIGN(RealShillProvider);

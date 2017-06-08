@@ -49,8 +49,8 @@
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
       'USE_LIBCROS=<(USE_libcros)',
       'USE_MTD=<(USE_mtd)',
-      'USE_POWER_MANAGEMENT=<(USE_power_management)',
-      'USE_WEAVE=<(USE_buffet)',
+      'USE_OMAHA=1',
+      'USE_SHILL=1',
     ],
     'include_dirs': [
       # We need this include dir because we include all the local code as
@@ -137,9 +137,6 @@
       'variables': {
         'exported_deps': [
           'libcrypto',
-          'libcurl',
-          'libimgpatch',
-          'libssl',
           'xz-embedded',
         ],
         'deps': ['<@(exported_deps)'],
@@ -158,6 +155,7 @@
           ],
         },
         'libraries': [
+          '-lbspatch',
           '-lbz2',
           '-lrt',
         ],
@@ -165,7 +163,6 @@
       'sources': [
         'common/action_processor.cc',
         'common/boot_control_stub.cc',
-        'common/certificate_checker.cc',
         'common/clock.cc',
         'common/constants.cc',
         'common/cpu_limiter.cc',
@@ -174,7 +171,6 @@
         'common/http_common.cc',
         'common/http_fetcher.cc',
         'common/hwid_override.cc',
-        'common/libcurl_http_fetcher.cc',
         'common/multi_range_http_fetcher.cc',
         'common/platform_constants_chromeos.cc',
         'common/prefs.cc',
@@ -221,13 +217,15 @@
       'variables': {
         'exported_deps': [
           'dbus-1',
+          'expat',
+          'libcurl',
           'libdebugd-client',
-          'libsession_manager-client',
           'libmetrics-<(libbase_ver)',
           'libpower_manager-client',
-          'libupdate_engine-client',
+          'libsession_manager-client',
           'libshill-client',
-          'expat',
+          'libssl',
+          'libupdate_engine-client',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -254,12 +252,16 @@
       },
       'sources': [
         'boot_control_chromeos.cc',
+        'certificate_checker.cc',
         'common_service.cc',
         'connection_manager.cc',
+        'connection_utils.cc',
         'daemon.cc',
+        'dbus_connection.cc',
         'dbus_service.cc',
         'hardware_chromeos.cc',
         'image_properties_chromeos.cc',
+        'libcurl_http_fetcher.cc',
         'metrics.cc',
         'metrics_utils.cc',
         'omaha_request_action.cc',
@@ -268,6 +270,7 @@
         'omaha_utils.cc',
         'p2p_manager.cc',
         'payload_state.cc',
+        'power_manager_chromeos.cc',
         'proxy_resolver.cc',
         'real_system_state.cc',
         'shill_proxy.cc',
@@ -287,19 +290,8 @@
         'update_manager/state_factory.cc',
         'update_manager/update_manager.cc',
         'update_status_utils.cc',
-        'weave_service_factory.cc',
       ],
       'conditions': [
-        ['USE_buffet == 1', {
-          'sources': [
-            'weave_service.cc',
-          ],
-          'variables': {
-            'exported_deps': [
-              'libweave-<(libbase_ver)',
-            ],
-          },
-        }],
         ['USE_libcros == 1', {
           'dependencies': [
             'update_engine-other-dbus-proxies',
@@ -398,6 +390,7 @@
         'payload_generator/graph_types.cc',
         'payload_generator/graph_utils.cc',
         'payload_generator/inplace_generator.cc',
+        'payload_generator/mapfile_filesystem.cc',
         'payload_generator/payload_file.cc',
         'payload_generator/payload_generation_config.cc',
         'payload_generator/payload_signer.cc',
@@ -493,12 +486,13 @@
           'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'sources': [
             'boot_control_chromeos_unittest.cc',
+            'certificate_checker_unittest.cc',
             'common/action_pipe_unittest.cc',
             'common/action_processor_unittest.cc',
             'common/action_unittest.cc',
-            'common/certificate_checker_unittest.cc',
             'common/cpu_limiter_unittest.cc',
             'common/fake_prefs.cc',
+            'common/file_fetcher.cc',  # Only required for tests.
             'common/hash_calculator_unittest.cc',
             'common/http_fetcher_unittest.cc',
             'common/hwid_override_unittest.cc',
@@ -541,6 +535,7 @@
             'payload_generator/full_update_generator_unittest.cc',
             'payload_generator/graph_utils_unittest.cc',
             'payload_generator/inplace_generator_unittest.cc',
+            'payload_generator/mapfile_filesystem_unittest.cc',
             'payload_generator/payload_file_unittest.cc',
             'payload_generator/payload_generation_config_unittest.cc',
             'payload_generator/payload_signer_unittest.cc',

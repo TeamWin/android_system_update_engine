@@ -23,12 +23,13 @@
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/ext2_filesystem.h"
+#include "update_engine/payload_generator/mapfile_filesystem.h"
 #include "update_engine/payload_generator/raw_filesystem.h"
 
 namespace chromeos_update_engine {
 
 bool PostInstallConfig::IsEmpty() const {
-  return run == false && path.empty() && filesystem_type.empty();
+  return !run && path.empty() && filesystem_type.empty() && !optional;
 }
 
 bool PartitionConfig::ValidateExists() const {
@@ -49,18 +50,24 @@ bool PartitionConfig::OpenFilesystem() {
     fs_interface = Ext2Filesystem::CreateFromFile(path);
     // TODO(deymo): The delta generator algorithm doesn't support a block size
     // different than 4 KiB. Remove this check once that's fixed. b/26972455
-    if (fs_interface)
+    if (fs_interface) {
       TEST_AND_RETURN_FALSE(fs_interface->GetBlockSize() == kBlockSize);
+      return true;
+    }
   }
 
-  if (!fs_interface) {
-    // Fall back to a RAW filesystem.
-    TEST_AND_RETURN_FALSE(size % kBlockSize == 0);
-    fs_interface = RawFilesystem::Create(
-      "<" + name + "-partition>",
-      kBlockSize,
-      size / kBlockSize);
+  if (!mapfile_path.empty()) {
+    fs_interface = MapfileFilesystem::CreateFromFile(path, mapfile_path);
+    if (fs_interface) {
+      TEST_AND_RETURN_FALSE(fs_interface->GetBlockSize() == kBlockSize);
+      return true;
+    }
   }
+
+  // Fall back to a RAW filesystem.
+  TEST_AND_RETURN_FALSE(size % kBlockSize == 0);
+  fs_interface = RawFilesystem::Create(
+      "<" + name + "-partition>", kBlockSize, size / kBlockSize);
   return true;
 }
 
@@ -90,6 +97,8 @@ bool ImageConfig::LoadPostInstallConfig(const brillo::KeyValueStore& store) {
     store.GetString("POSTINSTALL_PATH_" + part.name, &part.postinstall.path);
     store.GetString("FILESYSTEM_TYPE_" + part.name,
                     &part.postinstall.filesystem_type);
+    store.GetBoolean("POSTINSTALL_OPTIONAL_" + part.name,
+                     &part.postinstall.optional);
   }
   if (!found_postinstall) {
     LOG(ERROR) << "No valid postinstall config found.";

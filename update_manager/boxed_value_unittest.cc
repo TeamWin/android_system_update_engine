@@ -31,6 +31,8 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ConnectionTethering;
+using chromeos_update_engine::ConnectionType;
 using std::list;
 using std::map;
 using std::set;
@@ -156,17 +158,17 @@ TEST(UmBoxedValueTest, TimeDeltaToString) {
 }
 
 TEST(UmBoxedValueTest, ConnectionTypeToString) {
-  EXPECT_EQ("Ethernet",
+  EXPECT_EQ("ethernet",
             BoxedValue(new ConnectionType(ConnectionType::kEthernet))
             .ToString());
-  EXPECT_EQ("Wifi",
+  EXPECT_EQ("wifi",
             BoxedValue(new ConnectionType(ConnectionType::kWifi)).ToString());
-  EXPECT_EQ("Wimax",
+  EXPECT_EQ("wimax",
             BoxedValue(new ConnectionType(ConnectionType::kWimax)).ToString());
-  EXPECT_EQ("Bluetooth",
+  EXPECT_EQ("bluetooth",
             BoxedValue(new ConnectionType(ConnectionType::kBluetooth))
             .ToString());
-  EXPECT_EQ("Cellular",
+  EXPECT_EQ("cellular",
             BoxedValue(new ConnectionType(ConnectionType::kCellular))
             .ToString());
   EXPECT_EQ("Unknown",
@@ -193,11 +195,11 @@ TEST(UmBoxedValueTest, SetConnectionTypeToString) {
   set<ConnectionType>* set1 = new set<ConnectionType>;
   set1->insert(ConnectionType::kWimax);
   set1->insert(ConnectionType::kEthernet);
-  EXPECT_EQ("Ethernet,Wimax", BoxedValue(set1).ToString());
+  EXPECT_EQ("ethernet,wimax", BoxedValue(set1).ToString());
 
   set<ConnectionType>* set2 = new set<ConnectionType>;
   set2->insert(ConnectionType::kWifi);
-  EXPECT_EQ("Wifi", BoxedValue(set2).ToString());
+  EXPECT_EQ("wifi", BoxedValue(set2).ToString());
 }
 
 TEST(UmBoxedValueTest, StageToString) {

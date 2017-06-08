@@ -171,8 +171,6 @@ bool UpdateEngineService::SetChannel(ErrorPtr* error,
     LogAndSetError(error, FROM_HERE, error_message);
     return false;
   }
-  // Update the weave state because updated the target channel.
-  system_state_->update_attempter()->BroadcastChannel();
   return true;
 }
 
@@ -312,7 +310,7 @@ bool UpdateEngineService::GetUpdateOverCellularPermission(ErrorPtr* error,
   if (connection_manager->IsAllowedConnectionTypesForUpdateSet()) {
     // We have device policy, so ignore the user preferences.
     *out_allowed = connection_manager->IsUpdateAllowedOver(
-        NetworkConnectionType::kCellular, NetworkTethering::kUnknown);
+        ConnectionType::kCellular, ConnectionTethering::kUnknown);
   } else {
     PrefsInterface* prefs = system_state_->prefs();
 

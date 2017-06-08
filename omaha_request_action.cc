@@ -40,7 +40,7 @@
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/utils.h"
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/metrics.h"
 #include "update_engine/metrics_utils.h"
 #include "update_engine/omaha_request_params.h"
@@ -76,6 +76,11 @@ static const char* kTagDisableP2PForSharing = "DisableP2PForSharing";
 static const char* kTagPublicKeyRsa = "PublicKeyRsa";
 
 static const char* kOmahaUpdaterVersion = "0.1.0.0";
+
+// X-GoogleUpdate headers.
+static const char* kXGoogleUpdateInteractivity = "X-GoogleUpdate-Interactivity";
+static const char* kXGoogleUpdateAppId = "X-GoogleUpdate-AppId";
+static const char* kXGoogleUpdateUpdater = "X-GoogleUpdate-Updater";
 
 // updatecheck attributes (without the underscore prefix).
 static const char* kEolAttr = "eol";
@@ -253,11 +258,18 @@ string GetAppXml(const OmahaEvent* event,
   app_cohort_args += GetCohortArgXml(system_state->prefs(),
                                      "cohortname", kPrefsOmahaCohortName);
 
+  string fingerprint_arg;
+  if (!params->os_build_fingerprint().empty()) {
+    fingerprint_arg =
+        "fingerprint=\"" + XmlEncodeWithDefault(params->os_build_fingerprint(), "") + "\" ";
+  }
+
   string app_xml = "    <app "
       "appid=\"" + XmlEncodeWithDefault(params->GetAppId(), "") + "\" " +
       app_cohort_args +
       app_versions +
       app_channels +
+      fingerprint_arg +
       "lang=\"" + XmlEncodeWithDefault(params->app_lang(), "en-US") + "\" " +
       "board=\"" + XmlEncodeWithDefault(params->os_board(), "") + "\" " +
       "hardware_class=\"" + XmlEncodeWithDefault(params->hwid(), "") + "\" " +
@@ -648,6 +660,15 @@ void OmahaRequestAction::PerformAction() {
                                     ping_roll_call_days_,
                                     GetInstallDate(system_state_),
                                     system_state_));
+
+  // Set X-GoogleUpdate headers.
+  http_fetcher_->SetHeader(kXGoogleUpdateInteractivity,
+                           params_->interactive() ? "fg" : "bg");
+  http_fetcher_->SetHeader(kXGoogleUpdateAppId, params_->GetAppId());
+  http_fetcher_->SetHeader(
+      kXGoogleUpdateUpdater,
+      base::StringPrintf(
+          "%s-%s", constants::kOmahaUpdaterID, kOmahaUpdaterVersion));
 
   http_fetcher_->SetPostData(request_post.data(), request_post.size(),
                              kHttpContentTypeTextXml);
@@ -1212,7 +1233,7 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
      return kWallClockWaitDoneAndUpdateCheckWaitNotRequired;
     }
   } else {
-    update_first_seen_at = Time::Now();
+    update_first_seen_at = system_state_->clock()->GetWallclockTime();
     update_first_seen_at_int = update_first_seen_at.ToInternalValue();
     if (system_state_->prefs()->SetInt64(kPrefsUpdateFirstSeenAt,
                                          update_first_seen_at_int)) {
@@ -1229,9 +1250,10 @@ OmahaRequestAction::IsWallClockBasedWaitingSatisfied(
     }
   }
 
-  TimeDelta elapsed_time = Time::Now() - update_first_seen_at;
-  TimeDelta max_scatter_period = TimeDelta::FromDays(
-      output_object->max_days_to_scatter);
+  TimeDelta elapsed_time =
+      system_state_->clock()->GetWallclockTime() - update_first_seen_at;
+  TimeDelta max_scatter_period =
+      TimeDelta::FromDays(output_object->max_days_to_scatter);
 
   LOG(INFO) << "Waiting Period = "
             << utils::FormatSecs(params_->waiting_period().InSeconds())
@@ -1557,8 +1579,8 @@ bool OmahaRequestAction::IsUpdateAllowedOverCellularByPrefs(
 bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
     ErrorCode* error,
     const OmahaResponse& response) const {
-  NetworkConnectionType type;
-  NetworkTethering tethering;
+  ConnectionType type;
+  ConnectionTethering tethering;
   ConnectionManagerInterface* connection_manager =
       system_state_->connection_manager();
   if (!connection_manager->GetConnectionProperties(&type, &tethering)) {
@@ -1571,8 +1593,8 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
   bool is_device_policy_set = connection_manager->
                                   IsAllowedConnectionTypesForUpdateSet();
   // Treats tethered connection as if it is cellular connection.
-  bool is_over_cellular = type == NetworkConnectionType::kCellular ||
-                          tethering == NetworkTethering::kConfirmed;
+  bool is_over_cellular = type == ConnectionType::kCellular ||
+                          tethering == ConnectionTethering::kConfirmed;
 
   if (!is_over_cellular) {
     // There's no need to further check user preferences as we are not over
@@ -1591,7 +1613,7 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
   }
 
   LOG(INFO) << "We are connected via "
-            << ConnectionManager::StringForConnectionType(type)
+            << connection_utils::StringForConnectionType(type)
             << ", Updates allowed: " << (is_allowed ? "Yes" : "No");
   return is_allowed;
 }

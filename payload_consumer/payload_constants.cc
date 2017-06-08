@@ -31,7 +31,6 @@ const char kLegacyPartitionNameKernel[] = "boot";
 const char kLegacyPartitionNameRoot[] = "system";
 
 const char kDeltaMagic[4] = {'C', 'r', 'A', 'U'};
-const char kBspatchPath[] = "bspatch";
 
 const char* InstallOperationTypeName(InstallOperation_Type op_type) {
   switch (op_type) {

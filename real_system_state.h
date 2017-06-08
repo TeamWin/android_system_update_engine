@@ -20,28 +20,28 @@
 #include "update_engine/system_state.h"
 
 #include <memory>
+#include <set>
 
-#include <debugd/dbus-proxies.h>
-#include <libcros/dbus-proxies.h>
 #include <metrics/metrics_library.h>
-#include <network_proxy/dbus-proxies.h>
 #include <policy/device_policy.h>
-#include <power_manager/dbus-proxies.h>
-#include <session_manager/dbus-proxies.h>
 
+#if USE_LIBCROS
+#include <libcros/dbus-proxies.h>
+#include <network_proxy/dbus-proxies.h>
+#endif  // USE_LIBCROS
+
+#include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/clock.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs.h"
-#include "update_engine/connection_manager.h"
+#include "update_engine/connection_manager_interface.h"
 #include "update_engine/daemon_state_interface.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
-#include "update_engine/shill_proxy.h"
+#include "update_engine/power_manager_interface.h"
 #include "update_engine/update_attempter.h"
 #include "update_engine/update_manager/update_manager.h"
-#include "update_engine/weave_service_interface.h"
 
 namespace chromeos_update_engine {
 
@@ -51,7 +51,7 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
  public:
   // Constructs all system objects that do not require separate initialization;
   // see Initialize() below for the remaining ones.
-  explicit RealSystemState(const scoped_refptr<dbus::Bus>& bus);
+  RealSystemState() = default;
   ~RealSystemState() override;
 
   // Initializes and sets systems objects that require an initialization
@@ -65,6 +65,10 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 
   void AddObserver(ServiceObserverInterface* observer) override;
   void RemoveObserver(ServiceObserverInterface* observer) override;
+  const std::set<ServiceObserverInterface*>& service_observers() override {
+    CHECK(update_attempter_.get());
+    return update_attempter_->service_observers();
+  }
 
   // SystemState overrides.
   inline void set_device_policy(
@@ -83,7 +87,7 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   inline ClockInterface* clock() override { return &clock_; }
 
   inline ConnectionManagerInterface* connection_manager() override {
-    return &connection_manager_;
+    return connection_manager_.get();
   }
 
   inline HardwareInterface* hardware() override { return hardware_.get(); }
@@ -106,10 +110,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
     return update_attempter_.get();
   }
 
-  inline WeaveServiceInterface* weave_service() override {
-    return weave_service_.get();
-  }
-
   inline OmahaRequestParams* request_params() override {
     return &request_params_;
   }
@@ -120,21 +120,22 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
     return update_manager_.get();
   }
 
-  inline org::chromium::PowerManagerProxyInterface* power_manager_proxy()
-      override {
-    return &power_manager_proxy_;
+  inline PowerManagerInterface* power_manager() override {
+    return power_manager_.get();
   }
 
   inline bool system_rebooted() override { return system_rebooted_; }
 
  private:
+#if USE_LIBCROS
   // Real DBus proxies using the DBus connection.
-  org::chromium::debugdProxy debugd_proxy_;
-  org::chromium::LibCrosServiceInterfaceProxy libcros_proxy_;
-  org::chromium::NetworkProxyServiceInterfaceProxy network_proxy_service_proxy_;
-  org::chromium::PowerManagerProxy power_manager_proxy_;
-  org::chromium::SessionManagerInterfaceProxy session_manager_proxy_;
-  ShillProxy shill_proxy_;
+  std::unique_ptr<org::chromium::LibCrosServiceInterfaceProxy> libcros_proxy_;
+  std::unique_ptr<org::chromium::NetworkProxyServiceInterfaceProxy>
+      network_proxy_service_proxy_;
+#endif  // USE_LIBCROS
+
+  // Interface for the power manager.
+  std::unique_ptr<PowerManagerInterface> power_manager_;
 
   // Interface for the clock.
   std::unique_ptr<BootControlInterface> boot_control_;
@@ -147,7 +148,7 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 
   // The connection manager object that makes download decisions depending on
   // the current type of connection.
-  ConnectionManager connection_manager_{&shill_proxy_, this};
+  std::unique_ptr<ConnectionManagerInterface> connection_manager_;
 
   // Interface for the hardware functions.
   std::unique_ptr<HardwareInterface> hardware_;
@@ -176,8 +177,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   OmahaRequestParams request_params_{this};
 
   std::unique_ptr<P2PManager> p2p_manager_;
-
-  std::unique_ptr<WeaveServiceInterface> weave_service_;
 
   std::unique_ptr<chromeos_update_manager::UpdateManager> update_manager_;
 

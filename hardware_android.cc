@@ -16,16 +16,80 @@
 
 #include "update_engine/hardware_android.h"
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include <algorithm>
+
+#include <bootloader.h>
+
 #include <base/files/file_util.h>
+#include <base/strings/stringprintf.h>
 #include <brillo/make_unique_ptr.h>
 #include <cutils/properties.h>
 
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/platform_constants.h"
+#include "update_engine/common/utils.h"
+#include "update_engine/utils_android.h"
 
 using std::string;
 
 namespace chromeos_update_engine {
+
+namespace {
+
+// The powerwash arguments passed to recovery. Arguments are separated by \n.
+const char kAndroidRecoveryPowerwashCommand[] =
+    "recovery\n"
+    "--wipe_data\n"
+    "--reason=wipe_data_from_ota\n";
+
+// Android properties that identify the hardware and potentially non-updatable
+// parts of the bootloader (such as the bootloader version and the baseband
+// version).
+const char kPropBootBootloader[] = "ro.boot.bootloader";
+const char kPropBootBaseband[] = "ro.boot.baseband";
+const char kPropProductManufacturer[] = "ro.product.manufacturer";
+const char kPropBootHardwareSKU[] = "ro.boot.hardware.sku";
+const char kPropBootRevision[] = "ro.boot.revision";
+
+// Write a recovery command line |message| to the BCB. The arguments to recovery
+// must be separated by '\n'. An empty string will erase the BCB.
+bool WriteBootloaderRecoveryMessage(const string& message) {
+  base::FilePath misc_device;
+  if (!utils::DeviceForMountPoint("/misc", &misc_device))
+    return false;
+
+  // Setup a bootloader_message with just the command and recovery fields set.
+  bootloader_message boot = {};
+  if (!message.empty()) {
+    strncpy(boot.command, "boot-recovery", sizeof(boot.command) - 1);
+    memcpy(boot.recovery,
+           message.data(),
+           std::min(message.size(), sizeof(boot.recovery) - 1));
+  }
+
+  int fd =
+      HANDLE_EINTR(open(misc_device.value().c_str(), O_WRONLY | O_SYNC, 0600));
+  if (fd < 0) {
+    PLOG(ERROR) << "Opening misc";
+    return false;
+  }
+  ScopedFdCloser fd_closer(&fd);
+  // We only re-write the first part of the bootloader_message, up to and
+  // including the recovery message.
+  size_t boot_size =
+      offsetof(bootloader_message, recovery) + sizeof(boot.recovery);
+  if (!utils::WriteAll(fd, &boot, boot_size)) {
+    PLOG(ERROR) << "Writing recovery command to misc";
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
 
 namespace hardware {
 
@@ -68,6 +132,10 @@ bool HardwareAndroid::IsNormalBootMode() const {
   return property_get_bool("ro.debuggable", 0) != 1;
 }
 
+bool HardwareAndroid::AreDevFeaturesEnabled() const {
+  return !IsNormalBootMode();
+}
+
 bool HardwareAndroid::IsOOBEEnabled() const {
   // No OOBE flow blocking updates for Android-based boards.
   return false;
@@ -81,23 +149,40 @@ bool HardwareAndroid::IsOOBEComplete(base::Time* out_time_of_oobe) const {
 }
 
 string HardwareAndroid::GetHardwareClass() const {
-  LOG(WARNING) << "STUB: GetHardwareClass().";
-  return "ANDROID";
+  char manufacturer[PROPERTY_VALUE_MAX];
+  char sku[PROPERTY_VALUE_MAX];
+  char revision[PROPERTY_VALUE_MAX];
+  property_get(kPropBootHardwareSKU, sku, "");
+  property_get(kPropProductManufacturer, manufacturer, "");
+  property_get(kPropBootRevision, revision, "");
+
+  return base::StringPrintf("%s:%s:%s", manufacturer, sku, revision);
 }
 
 string HardwareAndroid::GetFirmwareVersion() const {
-  LOG(WARNING) << "STUB: GetFirmwareVersion().";
-  return "0";
+  char bootloader[PROPERTY_VALUE_MAX];
+  property_get(kPropBootBootloader, bootloader, "");
+  return bootloader;
 }
 
 string HardwareAndroid::GetECVersion() const {
-  LOG(WARNING) << "STUB: GetECVersion().";
-  return "0";
+  char baseband[PROPERTY_VALUE_MAX];
+  property_get(kPropBootBaseband, baseband, "");
+  return baseband;
 }
 
 int HardwareAndroid::GetPowerwashCount() const {
   LOG(WARNING) << "STUB: Assuming no factory reset was performed.";
   return 0;
+}
+
+bool HardwareAndroid::SchedulePowerwash() {
+  LOG(INFO) << "Scheduling a powerwash to BCB.";
+  return WriteBootloaderRecoveryMessage(kAndroidRecoveryPowerwashCommand);
+}
+
+bool HardwareAndroid::CancelPowerwash() {
+  return WriteBootloaderRecoveryMessage("");
 }
 
 bool HardwareAndroid::GetNonVolatileDirectory(base::FilePath* path) const {

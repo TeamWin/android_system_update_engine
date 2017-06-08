@@ -91,6 +91,10 @@ class MockHttpFetcher : public HttpFetcher {
   void SetHeader(const std::string& header_name,
                  const std::string& header_value) override;
 
+  // Return the value of the header |header_name| or the empty string if not
+  // set.
+  std::string GetHeader(const std::string& header_name) const;
+
   // Suspend the mock transfer.
   void Pause() override;
 

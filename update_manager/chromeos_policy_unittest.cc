@@ -32,6 +32,8 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ConnectionTethering;
+using chromeos_update_engine::ConnectionType;
 using chromeos_update_engine::ErrorCode;
 using chromeos_update_engine::FakeClock;
 using std::set;

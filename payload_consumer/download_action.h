@@ -24,8 +24,6 @@
 #include <memory>
 #include <string>
 
-#include <curl/curl.h>
-
 #include "update_engine/common/action.h"
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/http_fetcher.h"

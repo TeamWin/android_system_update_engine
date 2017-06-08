@@ -29,10 +29,12 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
+#if USE_LIBCROS
 #include "update_engine/chrome_browser_proxy_resolver.h"
+#endif  // USE_LIBCROS
+#include "update_engine/certificate_checker.h"
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/cpu_limiter.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
@@ -43,13 +45,11 @@
 #include "update_engine/system_state.h"
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
-#include "update_engine/weave_service_interface.h"
 
 class MetricsLibraryInterface;
 
 namespace org {
 namespace chromium {
-class debugdProxyInterface;
 class NetworkProxyServiceInterfaceProxyInterface;
 }  // namespace chromium
 }  // namespace org
@@ -65,7 +65,6 @@ class UpdateEngineAdaptor;
 class UpdateAttempter : public ActionProcessorDelegate,
                         public DownloadActionDelegate,
                         public CertificateChecker::Observer,
-                        public WeaveServiceInterface::DelegateInterface,
                         public PostinstallRunnerAction::DelegateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
@@ -74,8 +73,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   UpdateAttempter(SystemState* system_state,
                   CertificateChecker* cert_checker,
                   org::chromium::NetworkProxyServiceInterfaceProxyInterface*
-                      network_proxy_service_proxy,
-                  org::chromium::debugdProxyInterface* debugd_proxy);
+                      network_proxy_service_proxy);
   ~UpdateAttempter() override;
 
   // Further initialization to be done post construction.
@@ -105,16 +103,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
                        ErrorCode code) override;
-
-  // WeaveServiceInterface::DelegateInterface overrides.
-  bool OnCheckForUpdates(brillo::ErrorPtr* error) override;
-  bool OnTrackChannel(const std::string& channel,
-                      brillo::ErrorPtr* error) override;
-  bool GetWeaveState(int64_t* last_checked_time,
-                     double* progress,
-                     UpdateStatus* update_status,
-                     std::string* current_channel,
-                     std::string* tracking_channel) override;
 
   // PostinstallRunnerAction::DelegateInterface
   void ProgressUpdate(double progress) override;
@@ -187,9 +175,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Broadcasts the current status to all observers.
   void BroadcastStatus();
 
-  // Broadcasts the current tracking channel to all observers.
-  void BroadcastChannel();
-
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
   uint32_t GetErrorCodeFlags();
@@ -248,6 +233,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
   }
   void RemoveObserver(ServiceObserverInterface* observer) {
     service_observers_.erase(observer);
+  }
+
+  const std::set<ServiceObserverInterface*>& service_observers() {
+    return service_observers_;
   }
 
   // Remove all the observers.
@@ -388,10 +377,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // |update_completed_marker_| is empty.
   void WriteUpdateCompletedMarker();
 
-  // Sends a D-Bus message to the Chrome OS power manager asking it to reboot
-  // the system. Returns true on success.
-  bool RequestPowerManagerReboot();
-
   // Reboots the system directly by calling /sbin/shutdown. Returns true on
   // success.
   bool RebootDirectly();
@@ -517,8 +502,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // actually scheduled.
   std::string forced_app_version_;
   std::string forced_omaha_url_;
-
-  org::chromium::debugdProxyInterface* debugd_proxy_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempter);
 };

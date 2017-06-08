@@ -20,8 +20,8 @@
 #include <memory>
 #include <set>
 
+#include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/certificate_checker.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/daemon_state_interface.h"
@@ -43,7 +43,7 @@ class DaemonStateAndroid : public DaemonStateInterface {
   void AddObserver(ServiceObserverInterface* observer) override;
   void RemoveObserver(ServiceObserverInterface* observer) override;
 
-  const std::set<ServiceObserverInterface*>& service_observers() {
+  const std::set<ServiceObserverInterface*>& service_observers() override {
     return service_observers_;
   }
 
@@ -64,6 +64,11 @@ class DaemonStateAndroid : public DaemonStateInterface {
 
   // The main class handling the updates.
   std::unique_ptr<UpdateAttempterAndroid> update_attempter_;
+
+  // OpenSSLWrapper and CertificateChecker used for checking changes in SSL
+  // certificates.
+  OpenSSLWrapper openssl_wrapper_;
+  std::unique_ptr<CertificateChecker> certificate_checker_;
 };
 
 }  // namespace chromeos_update_engine

@@ -24,11 +24,12 @@
 #include <policy/device_policy.h>
 
 #include "update_engine/common/utils.h"
+#include "update_engine/connection_utils.h"
 #include "update_engine/update_manager/generic_variables.h"
-#include "update_engine/update_manager/real_shill_provider.h"
 
 using base::TimeDelta;
 using brillo::MessageLoop;
+using chromeos_update_engine::ConnectionType;
 using policy::DevicePolicy;
 using std::set;
 using std::string;
@@ -51,6 +52,7 @@ bool RealDevicePolicyProvider::Init() {
   // On Init() we try to get the device policy and keep updating it.
   RefreshDevicePolicyAndReschedule();
 
+#if USE_DBUS
   // We also listen for signals from the session manager to force a device
   // policy refresh.
   session_manager_proxy_->RegisterPropertyChangeCompleteSignalHandler(
@@ -58,6 +60,7 @@ bool RealDevicePolicyProvider::Init() {
                  base::Unretained(this)),
       base::Bind(&RealDevicePolicyProvider::OnSignalConnected,
                  base::Unretained(this)));
+#endif  // USE_DBUS
   return true;
 }
 
@@ -133,7 +136,7 @@ bool RealDevicePolicyProvider::ConvertAllowedConnectionTypesForUpdate(
   allowed_types->clear();
   for (auto& type_str : allowed_types_str) {
     ConnectionType type =
-        RealShillProvider::ParseConnectionType(type_str.c_str());
+        chromeos_update_engine::connection_utils::ParseConnectionType(type_str);
     if (type != ConnectionType::kUnknown) {
       allowed_types->insert(type);
     } else {

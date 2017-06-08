@@ -20,7 +20,9 @@
 #include <base/callback.h>
 #include <base/logging.h>
 #include <base/time/time.h>
+#if USE_LIBCROS
 #include <libcros/dbus-proxies.h>
+#endif
 
 #include "update_engine/common/utils.h"
 #include "update_engine/update_manager/generic_variables.h"

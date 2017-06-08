@@ -88,7 +88,7 @@ void ExpectedResults(int expected_return_code, const string& expected_output,
 void ExpectedEnvVars(int return_code, const string& output) {
   EXPECT_EQ(0, return_code);
   const std::set<string> allowed_envs = {"LD_LIBRARY_PATH", "PATH"};
-  for (string key_value : brillo::string_utils::Split(output, "\n")) {
+  for (const string& key_value : brillo::string_utils::Split(output, "\n")) {
     auto key_value_pair = brillo::string_utils::SplitAtFirst(
         key_value, "=", true);
     EXPECT_NE(allowed_envs.end(), allowed_envs.find(key_value_pair.first));
@@ -260,13 +260,13 @@ TEST_F(SubprocessTest, CancelTest) {
                             fifo_fd,
                             MessageLoop::WatchMode::kWatchRead,
                             false,
-                            base::Bind([fifo_fd, tag] {
+                            base::Bind([](int fifo_fd, uint32_t tag) {
                               char c;
                               EXPECT_EQ(1, HANDLE_EINTR(read(fifo_fd, &c, 1)));
                               EXPECT_EQ('X', c);
                               LOG(INFO) << "Killing tag " << tag;
                               Subprocess::Get().KillExec(tag);
-                            }));
+                            }, fifo_fd, tag));
 
   // This test would leak a callback that runs when the child process exits
   // unless we wait for it to run.

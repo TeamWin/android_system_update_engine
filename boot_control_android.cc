@@ -22,33 +22,23 @@
 #include <base/strings/string_util.h>
 #include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
-#include <cutils/properties.h>
-#include <fs_mgr.h>
 
 #include "update_engine/common/utils.h"
+#include "update_engine/utils_android.h"
 
 using std::string;
 
+using android::hardware::Return;
+using android::hardware::boot::V1_0::BoolResult;
+using android::hardware::boot::V1_0::CommandResult;
+using android::hardware::boot::V1_0::IBootControl;
+using android::hardware::hidl_string;
+
 namespace {
-
-// Open the appropriate fstab file and fallback to /fstab.device if
-// that's what's being used.
-static struct fstab* OpenFSTab() {
-  char propbuf[PROPERTY_VALUE_MAX];
-  struct fstab* fstab;
-
-  property_get("ro.hardware", propbuf, "");
-  string fstab_name = string("/fstab.") + propbuf;
-  fstab = fs_mgr_read_fstab(fstab_name.c_str());
-  if (fstab != nullptr)
-    return fstab;
-
-  fstab = fs_mgr_read_fstab("/fstab.device");
-  return fstab;
+auto StoreResultCallback(CommandResult* dest) {
+  return [dest](const CommandResult& result) { *dest = result; };
 }
-
 }  // namespace
-
 
 namespace chromeos_update_engine {
 
@@ -66,40 +56,28 @@ std::unique_ptr<BootControlInterface> CreateBootControl() {
 }  // namespace boot_control
 
 bool BootControlAndroid::Init() {
-  const hw_module_t* hw_module;
-  int ret;
-
-  ret = hw_get_module(BOOT_CONTROL_HARDWARE_MODULE_ID, &hw_module);
-  if (ret != 0) {
-    LOG(ERROR) << "Error loading boot_control HAL implementation.";
+  module_ = IBootControl::getService();
+  if (module_ == nullptr) {
+    LOG(ERROR) << "Error getting bootctrl HIDL module.";
     return false;
   }
 
-  module_ = reinterpret_cast<boot_control_module_t*>(const_cast<hw_module_t*>(hw_module));
-  module_->init(module_);
+  LOG(INFO) << "Loaded boot control hidl hal.";
 
-  LOG(INFO) << "Loaded boot_control HAL "
-            << "'" << hw_module->name << "' "
-            << "version " << (hw_module->module_api_version>>8) << "."
-            << (hw_module->module_api_version&0xff) << " "
-            << "authored by '" << hw_module->author << "'.";
   return true;
 }
 
 unsigned int BootControlAndroid::GetNumSlots() const {
-  return module_->getNumberSlots(module_);
+  return module_->getNumberSlots();
 }
 
 BootControlInterface::Slot BootControlAndroid::GetCurrentSlot() const {
-  return module_->getCurrentSlot(module_);
+  return module_->getCurrentSlot();
 }
 
 bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
                                             Slot slot,
                                             string* device) const {
-  struct fstab* fstab;
-  struct fstab_rec* record;
-
   // We can't use fs_mgr to look up |partition_name| because fstab
   // doesn't list every slot partition (it uses the slotselect option
   // to mask the suffix).
@@ -119,20 +97,9 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
   // of misc and then finding an entry in /dev matching the sysfs
   // entry.
 
-  fstab = OpenFSTab();
-  if (fstab == nullptr) {
-    LOG(ERROR) << "Error opening fstab file.";
+  base::FilePath misc_device;
+  if (!utils::DeviceForMountPoint("/misc", &misc_device))
     return false;
-  }
-  record = fs_mgr_get_entry_for_mount_point(fstab, "/misc");
-  if (record == nullptr) {
-    LOG(ERROR) << "Error finding /misc entry in fstab file.";
-    fs_mgr_free_fstab(fstab);
-    return false;
-  }
-
-  base::FilePath misc_device = base::FilePath(record->blk_device);
-  fs_mgr_free_fstab(fstab);
 
   if (!utils::IsSymlink(misc_device.value().c_str())) {
     LOG(ERROR) << "Device file " << misc_device.value() << " for /misc "
@@ -140,8 +107,13 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
     return false;
   }
 
-  const char* suffix = module_->getSuffix(module_, slot);
-  if (suffix == nullptr) {
+  string suffix;
+  auto store_suffix_cb = [&suffix](hidl_string cb_suffix) {
+    suffix = cb_suffix.c_str();
+  };
+  Return<void> ret = module_->getSuffix(slot, store_suffix_cb);
+
+  if (!ret.isOk()) {
     LOG(ERROR) << "boot_control impl returned no suffix for slot "
                << SlotName(slot);
     return false;
@@ -158,42 +130,65 @@ bool BootControlAndroid::GetPartitionDevice(const string& partition_name,
 }
 
 bool BootControlAndroid::IsSlotBootable(Slot slot) const {
-  int ret = module_->isSlotBootable(module_, slot);
-  if (ret < 0) {
+  Return<BoolResult> ret = module_->isSlotBootable(slot);
+  if (!ret.isOk()) {
     LOG(ERROR) << "Unable to determine if slot " << SlotName(slot)
-               << " is bootable: " << strerror(-ret);
+               << " is bootable: "
+               << ret.description();
     return false;
   }
-  return ret == 1;
+  if (ret == BoolResult::INVALID_SLOT) {
+    LOG(ERROR) << "Invalid slot: " << SlotName(slot);
+    return false;
+  }
+  return ret == BoolResult::TRUE;
 }
 
 bool BootControlAndroid::MarkSlotUnbootable(Slot slot) {
-  int ret = module_->setSlotAsUnbootable(module_, slot);
-  if (ret < 0) {
-    LOG(ERROR) << "Unable to mark slot " << SlotName(slot)
-               << " as bootable: " << strerror(-ret);
+  CommandResult result;
+  auto ret = module_->setSlotAsUnbootable(slot, StoreResultCallback(&result));
+  if (!ret.isOk()) {
+    LOG(ERROR) << "Unable to call MarkSlotUnbootable for slot "
+               << SlotName(slot) << ": "
+               << ret.description();
     return false;
   }
-  return ret == 0;
+  if (!result.success) {
+    LOG(ERROR) << "Unable to mark slot " << SlotName(slot)
+               << " as unbootable: " << result.errMsg.c_str();
+  }
+  return result.success;
 }
 
 bool BootControlAndroid::SetActiveBootSlot(Slot slot) {
-  int ret = module_->setActiveBootSlot(module_, slot);
-  if (ret < 0) {
-    LOG(ERROR) << "Unable to set the active slot to slot " << SlotName(slot)
-               << ": " << strerror(-ret);
+  CommandResult result;
+  auto ret = module_->setActiveBootSlot(slot, StoreResultCallback(&result));
+  if (!ret.isOk()) {
+    LOG(ERROR) << "Unable to call SetActiveBootSlot for slot " << SlotName(slot)
+               << ": " << ret.description();
+    return false;
   }
-  return ret == 0;
+  if (!result.success) {
+    LOG(ERROR) << "Unable to set the active slot to slot " << SlotName(slot)
+               << ": " << result.errMsg.c_str();
+  }
+  return result.success;
 }
 
 bool BootControlAndroid::MarkBootSuccessfulAsync(
     base::Callback<void(bool)> callback) {
-  int ret = module_->markBootSuccessful(module_);
-  if (ret < 0) {
-    LOG(ERROR) << "Unable to mark boot successful: " << strerror(-ret);
+  CommandResult result;
+  auto ret = module_->markBootSuccessful(StoreResultCallback(&result));
+  if (!ret.isOk()) {
+    LOG(ERROR) << "Unable to call MarkBootSuccessful: "
+               << ret.description();
+    return false;
+  }
+  if (!result.success) {
+    LOG(ERROR) << "Unable to mark boot successful: " << result.errMsg.c_str();
   }
   return brillo::MessageLoop::current()->PostTask(
-             FROM_HERE, base::Bind(callback, ret == 0)) !=
+             FROM_HERE, base::Bind(callback, result.success)) !=
          brillo::MessageLoop::kTaskIdNull;
 }
 

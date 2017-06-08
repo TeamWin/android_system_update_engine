@@ -33,6 +33,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/cycle_breaker.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
+#include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/graph_types.h"
 #include "update_engine/payload_generator/graph_utils.h"
@@ -116,6 +117,16 @@ class InplaceGeneratorTest : public ::testing::Test {
     blob_file_size_ = 0;
     EXPECT_GE(blob_fd_, 0);
     blob_file_.reset(new BlobFileWriter(blob_fd_, &blob_file_size_));
+  }
+
+  // Dump the list of operations |aops| in case of test failure.
+  void DumpAopsOnFailure(const vector<AnnotatedOperation>& aops) {
+    if (HasNonfatalFailure()) {
+      LOG(INFO) << "Result operation list:";
+      for (const auto& aop : aops) {
+        LOG(INFO) << aop;
+      }
+    }
   }
 
   // Blob file name, file descriptor and file size used to store operation
@@ -618,19 +629,21 @@ TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesAvoidMoveToZero) {
   // space, forcing it to create a new full operation and the second case with
   // one extra block in the partition that can be used for the move operation.
   for (const auto part_blocks : vector<uint64_t>{num_blocks, num_blocks + 1}) {
-    SCOPED_TRACE(base::StringPrintf("Using partition_blocs=%" PRIu64,
-                                    part_blocks));
+    SCOPED_TRACE(
+        base::StringPrintf("Using partition_blocks=%" PRIu64, part_blocks));
     vector<AnnotatedOperation> result_aops = aops;
     EXPECT_TRUE(InplaceGenerator::ResolveReadAfterWriteDependencies(
-      part, part_blocks * block_size, block_size, blob_file_.get(),
-      &result_aops));
+        part,
+        part,
+        part_blocks * block_size,
+        block_size,
+        blob_file_.get(),
+        &result_aops));
 
     size_t full_ops = 0;
     for (const auto& aop : result_aops) {
-      if (aop.op.type() == InstallOperation::REPLACE ||
-          aop.op.type() == InstallOperation::REPLACE_BZ) {
+      if (diff_utils::IsAReplaceOperation(aop.op.type()))
         full_ops++;
-      }
 
       if (aop.op.type() != InstallOperation::MOVE)
         continue;
@@ -648,13 +661,90 @@ TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesAvoidMoveToZero) {
     // operation for it.
     EXPECT_EQ(part_blocks == num_blocks ? 2U : 1U, full_ops);
 
-    if (HasNonfatalFailure()) {
-      LOG(INFO) << "Result operation list:";
-      for (const auto& aop : result_aops) {
-        LOG(INFO) << aop;
+    DumpAopsOnFailure(result_aops);
+  }
+}
+
+// Test that we can shrink a filesystem and break cycles.
+TEST_F(InplaceGeneratorTest, ResolveReadAfterWriteDependenciesShrinkData) {
+  size_t block_size = 4096;
+  size_t old_blocks = 10;
+  size_t new_blocks = 8;
+  vector<AnnotatedOperation> aops;
+
+  // Create a loop using the blocks 1-6 and one other operation writing to the
+  // block 7 from outside the new partition. The loop in the blocks 1-6 uses
+  // two-block operations, so it needs two blocks of scratch space. It can't use
+  // the block 0 as scratch space (see previous test) and it can't use the
+  // blocks 7 or 8 due the last move operation.
+
+  aops.emplace_back();
+  aops.back().name = base::StringPrintf("<bz-block-0>");
+  aops.back().op.set_type(InstallOperation::REPLACE_BZ);
+  StoreExtents({ExtentForRange(0, 1)}, aops.back().op.mutable_dst_extents());
+
+  const size_t num_ops = 3;
+  for (size_t i = 0; i < num_ops; i++) {
+    AnnotatedOperation aop;
+    aop.name = base::StringPrintf("<op-%" PRIuS ">", i);
+    aop.op.set_type(InstallOperation::BSDIFF);
+    StoreExtents({ExtentForRange(1 + 2 * i, 2)}, aop.op.mutable_src_extents());
+    StoreExtents({ExtentForRange(1 + 2 * ((i + 1) % num_ops), 2)},
+                 aop.op.mutable_dst_extents());
+    aops.push_back(aop);
+  }
+
+  {
+    AnnotatedOperation aop;
+    aop.name = "<op-shrink>";
+    aop.op.set_type(InstallOperation::BSDIFF);
+    StoreExtents({ExtentForRange(8, 1)}, aop.op.mutable_src_extents());
+    StoreExtents({ExtentForRange(7, 1)}, aop.op.mutable_dst_extents());
+    aops.push_back(aop);
+  }
+
+  PartitionConfig old_part("part");
+  old_part.path = "/dev/zero";
+  old_part.size = old_blocks * block_size;
+
+  PartitionConfig new_part("part");
+  new_part.path = "/dev/zero";
+  new_part.size = new_blocks * block_size;
+
+  CreateBlobFile();
+
+  EXPECT_TRUE(InplaceGenerator::ResolveReadAfterWriteDependencies(
+      old_part,
+      new_part,
+      (old_blocks + 2) * block_size,  // enough scratch space.
+      block_size,
+      blob_file_.get(),
+      &aops));
+
+  size_t full_ops = 0;
+  for (const auto& aop : aops) {
+    if (diff_utils::IsAReplaceOperation(aop.op.type()))
+      full_ops++;
+  }
+  // There should be only one REPLACE* operation, the one we added for block 0.
+  EXPECT_EQ(1U, full_ops);
+
+  // There should be only one MOVE operation, the one used to break the loop
+  // which should write to scratch space past the block 7 (the last block of the
+  // new partition) which is being written later.
+  size_t move_ops = 0;
+  for (const auto& aop : aops) {
+    if (aop.op.type() == InstallOperation::MOVE) {
+      move_ops++;
+      for (const Extent& extent : aop.op.dst_extents()) {
+        EXPECT_LE(7U, extent.start_block()) << "On dst extents for aop: "
+                                            << aop;
       }
     }
   }
+  EXPECT_EQ(1U, move_ops);
+
+  DumpAopsOnFailure(aops);
 }
 
 }  // namespace chromeos_update_engine

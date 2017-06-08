@@ -62,15 +62,15 @@ std::string ParseECVersion(std::string input_line);
 
 // Writes the data passed to path. The file at path will be overwritten if it
 // exists. Returns true on success, false otherwise.
-bool WriteFile(const char* path, const void* data, int data_len);
+bool WriteFile(const char* path, const void* data, size_t data_len);
 
 // Calls write() or pwrite() repeatedly until all count bytes at buf are
 // written to fd or an error occurs. Returns true on success.
 bool WriteAll(int fd, const void* buf, size_t count);
 bool PWriteAll(int fd, const void* buf, size_t count, off_t offset);
 
-bool WriteAll(FileDescriptorPtr fd, const void* buf, size_t count);
-bool PWriteAll(FileDescriptorPtr fd,
+bool WriteAll(const FileDescriptorPtr& fd, const void* buf, size_t count);
+bool PWriteAll(const FileDescriptorPtr& fd,
                const void* buf,
                size_t count,
                off_t offset);
@@ -88,7 +88,7 @@ bool ReadAll(
 bool PReadAll(int fd, void* buf, size_t count, off_t offset,
               ssize_t* out_bytes_read);
 
-bool PReadAll(FileDescriptorPtr fd, void* buf, size_t count, off_t offset,
+bool PReadAll(const FileDescriptorPtr& fd, void* buf, size_t count, off_t offset,
               ssize_t* out_bytes_read);
 
 // Opens |path| for reading and appends its entire content to the container
@@ -130,6 +130,13 @@ bool IsSymlink(const char* path);
 // commands to attach the volume, this function returns false. This function
 // only returns true if "/dev/ubi%d_0" becomes available in |timeout| seconds.
 bool TryAttachingUbiVolume(int volume_num, int timeout);
+
+// Setup the directory |new_root_temp_dir| to be used as the root directory for
+// temporary files instead of the system's default. If the directory doesn't
+// exists, it will be created when first used.
+// NOTE: The memory pointed by |new_root_temp_dir| must be available until this
+// function is called again with a different value.
+void SetRootTempDir(const char* new_root_temp_dir);
 
 // If |base_filename_template| is neither absolute (starts with "/") nor
 // explicitly relative to the current working directory (starts with "./" or
@@ -184,6 +191,12 @@ bool MountFilesystem(const std::string& device,
                      const std::string& type,
                      const std::string& fs_mount_options);
 bool UnmountFilesystem(const std::string& mountpoint);
+
+// Return whether the passed |mountpoint| path is a directory where a filesystem
+// is mounted. Due to detection mechanism limitations, when used on directories
+// where another part of the tree was bind mounted returns true only if bind
+// mounted on top of a different filesystem (not inside the same filesystem).
+bool IsMountpoint(const std::string& mountpoint);
 
 // Returns a human-readable string with the file format based on magic constants
 // on the header of the file.
@@ -264,16 +277,6 @@ std::string FormatTimeDelta(base::TimeDelta delta);
 // idempotent, i.e. if called with a value previously returned by this method,
 // it'll return the same value again.
 ErrorCode GetBaseErrorCode(ErrorCode code);
-
-// Creates the powerwash marker file with the appropriate commands in it.  Uses
-// |file_path| as the path to the marker file if non-null, otherwise uses the
-// global default. Returns true if successfully created.  False otherwise.
-bool CreatePowerwashMarkerFile(const char* file_path);
-
-// Deletes the marker file used to trigger Powerwash using clobber-state.  Uses
-// |file_path| as the path to the marker file if non-null, otherwise uses the
-// global default. Returns true if successfully deleted. False otherwise.
-bool DeletePowerwashMarkerFile(const char* file_path);
 
 // Decodes the data in |base64_encoded| and stores it in a temporary
 // file. Returns false if the given data is empty, not well-formed

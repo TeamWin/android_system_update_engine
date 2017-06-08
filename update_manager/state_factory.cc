@@ -19,16 +19,27 @@
 #include <memory>
 
 #include <base/logging.h>
+#include <brillo/make_unique_ptr.h>
+#if USE_DBUS
+#include <session_manager/dbus-proxies.h>
+#endif  // USE_DBUS
 
 #include "update_engine/common/clock_interface.h"
+#if USE_DBUS
+#include "update_engine/dbus_connection.h"
+#endif  // USE_DBUS
+#include "update_engine/update_manager/fake_shill_provider.h"
 #include "update_engine/update_manager/real_config_provider.h"
 #include "update_engine/update_manager/real_device_policy_provider.h"
 #include "update_engine/update_manager/real_random_provider.h"
-#include "update_engine/update_manager/real_shill_provider.h"
 #include "update_engine/update_manager/real_state.h"
 #include "update_engine/update_manager/real_system_provider.h"
 #include "update_engine/update_manager/real_time_provider.h"
 #include "update_engine/update_manager/real_updater_provider.h"
+#if USE_SHILL
+#include "update_engine/shill_proxy.h"
+#include "update_engine/update_manager/real_shill_provider.h"
+#endif  // USE_SHILL
 
 using std::unique_ptr;
 
@@ -36,22 +47,32 @@ namespace chromeos_update_manager {
 
 State* DefaultStateFactory(
     policy::PolicyProvider* policy_provider,
-    chromeos_update_engine::ShillProxy* shill_proxy,
-    org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy,
     org::chromium::LibCrosServiceInterfaceProxyInterface* libcros_proxy,
     chromeos_update_engine::SystemState* system_state) {
   chromeos_update_engine::ClockInterface* const clock = system_state->clock();
   unique_ptr<RealConfigProvider> config_provider(
       new RealConfigProvider(system_state->hardware()));
+#if USE_DBUS
+  scoped_refptr<dbus::Bus> bus =
+      chromeos_update_engine::DBusConnection::Get()->GetDBus();
   unique_ptr<RealDevicePolicyProvider> device_policy_provider(
-      new RealDevicePolicyProvider(session_manager_proxy, policy_provider));
-  unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
+      new RealDevicePolicyProvider(
+          brillo::make_unique_ptr(
+              new org::chromium::SessionManagerInterfaceProxy(bus)),
+          policy_provider));
+#else
+  unique_ptr<RealDevicePolicyProvider> device_policy_provider(
+      new RealDevicePolicyProvider(policy_provider));
+#endif  // USE_DBUS
+#if USE_SHILL
   unique_ptr<RealShillProvider> shill_provider(
-      new RealShillProvider(shill_proxy, clock));
-  unique_ptr<RealSystemProvider> system_provider(
-      new RealSystemProvider(system_state->hardware(),
-                             system_state->boot_control(),
-                             libcros_proxy));
+      new RealShillProvider(new chromeos_update_engine::ShillProxy(), clock));
+#else
+  unique_ptr<FakeShillProvider> shill_provider(new FakeShillProvider());
+#endif  // USE_SHILL
+  unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
+  unique_ptr<RealSystemProvider> system_provider(new RealSystemProvider(
+      system_state->hardware(), system_state->boot_control(), libcros_proxy));
   unique_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
   unique_ptr<RealUpdaterProvider> updater_provider(
       new RealUpdaterProvider(system_state));
@@ -59,7 +80,9 @@ State* DefaultStateFactory(
   if (!(config_provider->Init() &&
         device_policy_provider->Init() &&
         random_provider->Init() &&
+#if USE_SHILL
         shill_provider->Init() &&
+#endif  // USE_SHILL
         system_provider->Init() &&
         time_provider->Init() &&
         updater_provider->Init())) {

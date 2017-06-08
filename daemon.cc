@@ -20,22 +20,15 @@
 
 #include <base/bind.h>
 #include <base/location.h>
-#include <base/time/time.h>
-#if USE_WEAVE || USE_BINDER
+#if USE_BINDER
 #include <binderwrapper/binder_wrapper.h>
-#endif  // USE_WEAVE || USE_BINDER
+#endif  // USE_BINDER
 
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
+#if USE_OMAHA
 #include "update_engine/real_system_state.h"
-#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+#else  // !USE_OMAHA
 #include "update_engine/daemon_state_android.h"
-#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
-
-#if USE_DBUS
-namespace {
-const int kDBusSystemMaxWaitSeconds = 2 * 60;
-}  // namespace
-#endif  // USE_DBUS
+#endif  // USE_OMAHA
 
 namespace chromeos_update_engine {
 
@@ -48,51 +41,35 @@ int UpdateEngineDaemon::OnInit() {
   if (exit_code != EX_OK)
     return exit_code;
 
-#if USE_WEAVE || USE_BINDER
+#if USE_BINDER
   android::BinderWrapper::Create();
   binder_watcher_.Init();
-#endif  // USE_WEAVE || USE_BINDER
+#endif  // USE_BINDER
 
-#if USE_DBUS
-  // We wait for the D-Bus connection for up two minutes to avoid re-spawning
-  // the daemon too fast causing thrashing if dbus-daemon is not running.
-  scoped_refptr<dbus::Bus> bus = dbus_connection_.ConnectWithTimeout(
-      base::TimeDelta::FromSeconds(kDBusSystemMaxWaitSeconds));
-
-  if (!bus) {
-    // TODO(deymo): Make it possible to run update_engine even if dbus-daemon
-    // is not running or constantly crashing.
-    LOG(ERROR) << "Failed to initialize DBus, aborting.";
-    return 1;
-  }
-
-  CHECK(bus->SetUpAsyncOperations());
-#endif  // USE_DBUS
-
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
+#if USE_OMAHA
   // Initialize update engine global state but continue if something fails.
   // TODO(deymo): Move the daemon_state_ initialization to a factory method
   // avoiding the explicit re-usage of the |bus| instance, shared between
   // D-Bus service and D-Bus client calls.
-  RealSystemState* real_system_state = new RealSystemState(bus);
+  RealSystemState* real_system_state = new RealSystemState();
   daemon_state_.reset(real_system_state);
   LOG_IF(ERROR, !real_system_state->Initialize())
       << "Failed to initialize system state.";
-#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+#else  // !USE_OMAHA
   DaemonStateAndroid* daemon_state_android = new DaemonStateAndroid();
   daemon_state_.reset(daemon_state_android);
   LOG_IF(ERROR, !daemon_state_android->Initialize())
       << "Failed to initialize system state.";
-#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
+#endif  // USE_OMAHA
 
 #if USE_BINDER
   // Create the Binder Service.
-#if defined(__BRILLO__) || defined(__CHROMEOS__)
+#if USE_OMAHA
   binder_service_ = new BinderUpdateEngineBrilloService{real_system_state};
-#else  // !(defined(__BRILLO__) || defined(__CHROMEOS__))
+#else  // !USE_OMAHA
   binder_service_ = new BinderUpdateEngineAndroidService{
       daemon_state_android->service_delegate()};
-#endif  // defined(__BRILLO__) || defined(__CHROMEOS__)
+#endif  // USE_OMAHA
   auto binder_wrapper = android::BinderWrapper::Get();
   if (!binder_wrapper->RegisterService(binder_service_->ServiceName(),
                                        binder_service_)) {
@@ -104,7 +81,7 @@ int UpdateEngineDaemon::OnInit() {
 
 #if USE_DBUS
   // Create the DBus service.
-  dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state, bus));
+  dbus_adaptor_.reset(new UpdateEngineAdaptor(real_system_state));
   daemon_state_->AddObserver(dbus_adaptor_.get());
 
   dbus_adaptor_->RegisterAsync(base::Bind(&UpdateEngineDaemon::OnDBusRegistered,

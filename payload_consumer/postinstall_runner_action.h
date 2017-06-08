@@ -24,6 +24,8 @@
 #include <gtest/gtest_prod.h>
 
 #include "update_engine/common/action.h"
+#include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/hardware_interface.h"
 #include "update_engine/payload_consumer/install_plan.h"
 
 // The Postinstall Runner Action is responsible for running the postinstall
@@ -35,8 +37,9 @@ class BootControlInterface;
 
 class PostinstallRunnerAction : public InstallPlanAction {
  public:
-  explicit PostinstallRunnerAction(BootControlInterface* boot_control)
-      : PostinstallRunnerAction(boot_control, nullptr) {}
+  PostinstallRunnerAction(BootControlInterface* boot_control,
+                          HardwareInterface* hardware)
+      : boot_control_(boot_control), hardware_(hardware) {}
 
   // InstallPlanAction overrides.
   void PerformAction() override;
@@ -62,12 +65,6 @@ class PostinstallRunnerAction : public InstallPlanAction {
  private:
   friend class PostinstallRunnerActionTest;
   FRIEND_TEST(PostinstallRunnerActionTest, ProcessProgressLineTest);
-
-  // Special constructor used for testing purposes.
-  PostinstallRunnerAction(BootControlInterface* boot_control,
-                          const char* powerwash_marker_file)
-      : boot_control_(boot_control),
-        powerwash_marker_file_(powerwash_marker_file) {}
 
   void PerformPartitionPostinstall();
 
@@ -127,13 +124,12 @@ class PostinstallRunnerAction : public InstallPlanAction {
   // The BootControlInerface used to mark the new slot as ready.
   BootControlInterface* boot_control_;
 
-  // True if Powerwash Marker was created before invoking post-install script.
-  // False otherwise. Used for cleaning up if post-install fails.
-  bool powerwash_marker_created_{false};
+  // HardwareInterface used to signal powerwash.
+  HardwareInterface* hardware_;
 
-  // Non-null value will cause post-install to override the default marker
-  // file name; used for testing.
-  const char* powerwash_marker_file_;
+  // Whether the Powerwash was scheduled before invoking post-install script.
+  // Used for cleaning up if post-install fails.
+  bool powerwash_scheduled_{false};
 
   // Postinstall command currently running, or 0 if no program running.
   pid_t current_command_{0};

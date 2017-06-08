@@ -25,9 +25,13 @@
 #include <base/time/time.h>
 
 #include "update_engine/common/utils.h"
+#include "update_engine/connection_utils.h"
 #include "update_engine/update_manager/shill_provider.h"
 #include "update_engine/update_manager/updater_provider.h"
 
+using chromeos_update_engine::ConnectionTethering;
+using chromeos_update_engine::ConnectionType;
+using chromeos_update_engine::connection_utils::StringForConnectionType;
 using std::set;
 using std::string;
 
@@ -91,29 +95,10 @@ string BoxedValue::ValuePrinter<base::TimeDelta>(const void* value) {
   return chromeos_update_engine::utils::FormatTimeDelta(*val);
 }
 
-static string ConnectionTypeToString(ConnectionType type) {
-  switch (type) {
-    case ConnectionType::kEthernet:
-      return "Ethernet";
-    case ConnectionType::kWifi:
-      return "Wifi";
-    case ConnectionType::kWimax:
-      return "Wimax";
-    case ConnectionType::kBluetooth:
-      return "Bluetooth";
-    case ConnectionType::kCellular:
-      return "Cellular";
-    case ConnectionType::kUnknown:
-      return "Unknown";
-  }
-  NOTREACHED();
-  return "Unknown";
-}
-
 template<>
 string BoxedValue::ValuePrinter<ConnectionType>(const void* value) {
   const ConnectionType* val = reinterpret_cast<const ConnectionType*>(value);
-  return ConnectionTypeToString(*val);
+  return StringForConnectionType(*val);
 }
 
 template<>
@@ -125,7 +110,7 @@ string BoxedValue::ValuePrinter<set<ConnectionType>>(const void* value) {
     ConnectionType type = it;
     if (ret.size() > 0)
       ret += ",";
-    ret += ConnectionTypeToString(type);
+    ret += StringForConnectionType(type);
   }
   return ret;
 }

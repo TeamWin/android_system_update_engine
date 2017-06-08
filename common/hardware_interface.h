@@ -44,6 +44,9 @@ class HardwareInterface {
   // features.
   virtual bool IsNormalBootMode() const = 0;
 
+  // Returns whether the developer features are enabled.
+  virtual bool AreDevFeaturesEnabled() const = 0;
+
   // Returns whether the device has an OOBE flow that the user must go through
   // before getting non-critical updates. Use IsOOBEComplete() to determine if
   // that flow is complete.
@@ -69,6 +72,13 @@ class HardwareInterface {
   // or is invalid, returns -1. Brand new machines out of the factory or after
   // recovery don't have this value set.
   virtual int GetPowerwashCount() const = 0;
+
+  // Signals that a powerwash (stateful partition wipe) should be performed
+  // after reboot.
+  virtual bool SchedulePowerwash() = 0;
+
+  // Cancel the powerwash operation scheduled to be performed on next boot.
+  virtual bool CancelPowerwash() = 0;
 
   // Store in |path| the path to a non-volatile directory (persisted across
   // reboots) available for this daemon. In case of an error, such as no

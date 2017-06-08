@@ -235,6 +235,10 @@ message PartitionUpdate {
   // associated operation blobs (in operations[i].data_offset, data_length)
   // should be stored contiguously and in the same order.
   repeated InstallOperation operations = 8;
+
+  // Whether a failure in the postinstall step for this partition should be
+  // ignored.
+  optional bool postinstall_optional = 9;
 }
 
 message DeltaArchiveManifest {

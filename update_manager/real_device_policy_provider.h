@@ -17,13 +17,16 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_REAL_DEVICE_POLICY_PROVIDER_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_REAL_DEVICE_POLICY_PROVIDER_H_
 
+#include <memory>
 #include <set>
 #include <string>
 
 #include <brillo/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 #include <policy/libpolicy.h>
+#if USE_DBUS
 #include <session_manager/dbus-proxies.h>
+#endif  // USE_DBUS
 
 #include "update_engine/update_manager/device_policy_provider.h"
 #include "update_engine/update_manager/generic_variables.h"
@@ -33,11 +36,16 @@ namespace chromeos_update_manager {
 // DevicePolicyProvider concrete implementation.
 class RealDevicePolicyProvider : public DevicePolicyProvider {
  public:
-  RealDevicePolicyProvider(org::chromium::SessionManagerInterfaceProxyInterface*
-                               session_manager_proxy,
-                           policy::PolicyProvider* policy_provider)
+#if USE_DBUS
+  RealDevicePolicyProvider(
+      std::unique_ptr<org::chromium::SessionManagerInterfaceProxyInterface>
+          session_manager_proxy,
+      policy::PolicyProvider* policy_provider)
       : policy_provider_(policy_provider),
-        session_manager_proxy_(session_manager_proxy) {}
+        session_manager_proxy_(std::move(session_manager_proxy)) {}
+#endif  // USE_DBUS
+  explicit RealDevicePolicyProvider(policy::PolicyProvider* policy_provider)
+      : policy_provider_(policy_provider) {}
   ~RealDevicePolicyProvider();
 
   // Initializes the provider and returns whether it succeeded.
@@ -67,7 +75,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_scatter_factor_;
   }
 
-  Variable<std::set<ConnectionType>>*
+  Variable<std::set<chromeos_update_engine::ConnectionType>>*
       var_allowed_connection_types_for_update() override {
     return &var_allowed_connection_types_for_update_;
   }
@@ -130,7 +138,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   // Wrapper for DevicePolicy::GetAllowedConnectionTypesForUpdate() that
   // converts the result to a set of ConnectionType elements instead of strings.
   bool ConvertAllowedConnectionTypesForUpdate(
-      std::set<ConnectionType>* allowed_types) const;
+      std::set<chromeos_update_engine::ConnectionType>* allowed_types) const;
 
   // Used for fetching information about the device policy.
   policy::PolicyProvider* policy_provider_;
@@ -139,9 +147,11 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   brillo::MessageLoop::TaskId scheduled_refresh_{
       brillo::MessageLoop::kTaskIdNull};
 
-  // The DBus (mockable) session manager proxy, owned by the caller.
-  org::chromium::SessionManagerInterfaceProxyInterface* session_manager_proxy_{
-      nullptr};
+#if USE_DBUS
+  // The DBus (mockable) session manager proxy.
+  std::unique_ptr<org::chromium::SessionManagerInterfaceProxyInterface>
+      session_manager_proxy_;
+#endif  // USE_DBUS
 
   // Variable exposing whether the policy is loaded.
   AsyncCopyVariable<bool> var_device_policy_is_loaded_{
@@ -155,7 +165,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<std::string> var_target_version_prefix_{
       "target_version_prefix"};
   AsyncCopyVariable<base::TimeDelta> var_scatter_factor_{"scatter_factor"};
-  AsyncCopyVariable<std::set<ConnectionType>>
+  AsyncCopyVariable<std::set<chromeos_update_engine::ConnectionType>>
       var_allowed_connection_types_for_update_{
           "allowed_connection_types_for_update"};
   AsyncCopyVariable<std::string> var_owner_{"owner"};

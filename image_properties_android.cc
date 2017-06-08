@@ -20,6 +20,7 @@
 
 #include <base/logging.h>
 #include <brillo/osrelease_reader.h>
+#include <cutils/properties.h>
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/constants.h"
@@ -34,10 +35,15 @@ namespace {
 // Build time properties name used in Brillo.
 const char kProductId[] = "product_id";
 const char kProductVersion[] = "product_version";
+const char kSystemVersion[] = "system_version";
 
 // Prefs used to store the target channel and powerwash settings.
 const char kPrefsImgPropChannelName[] = "img-prop-channel-name";
 const char kPrefsImgPropPowerwashAllowed[] = "img-prop-powerwash-allowed";
+
+// System properties that identifies the "board".
+const char kPropProductName[] = "ro.product.name";
+const char kPropBuildFingerprint[] = "ro.build.fingerprint";
 
 std::string GetStringWithDefault(const brillo::OsReleaseReader& osrelease,
                                  const std::string& key,
@@ -64,9 +70,18 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
   result.product_id = GetStringWithDefault(
       osrelease, kProductId, "developer-boards:brillo-starter-board");
   result.canary_product_id = result.product_id;
-  result.version = GetStringWithDefault(osrelease, kProductVersion, "0.0.0.0");
+  std::string system_version =
+      GetStringWithDefault(osrelease, kSystemVersion, "0.0.0");
+  std::string product_version =
+      GetStringWithDefault(osrelease, kProductVersion, "0");
+  result.version = system_version + "." + product_version;
 
-  result.board = "brillo";
+  char prop[PROPERTY_VALUE_MAX];
+  property_get(kPropProductName, prop, "brillo");
+  result.board = prop;
+
+  property_get(kPropBuildFingerprint, prop, "none");
+  result.build_fingerprint = prop;
 
   // Brillo images don't have a channel assigned. We stored the name of the
   // channel where we got the image from in prefs at the time of the update, so

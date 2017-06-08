@@ -28,17 +28,16 @@
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/cpu_limiter.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs_interface.h"
+#include "update_engine/daemon_state_interface.h"
+#include "update_engine/network_selector_interface.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/service_delegate_android_interface.h"
 #include "update_engine/service_observer_interface.h"
 
 namespace chromeos_update_engine {
-
-class DaemonStateAndroid;
 
 class UpdateAttempterAndroid
     : public ServiceDelegateAndroidInterface,
@@ -48,7 +47,7 @@ class UpdateAttempterAndroid
  public:
   using UpdateStatus = update_engine::UpdateStatus;
 
-  UpdateAttempterAndroid(DaemonStateAndroid* daemon_state,
+  UpdateAttempterAndroid(DaemonStateInterface* daemon_state,
                          PrefsInterface* prefs,
                          BootControlInterface* boot_control_,
                          HardwareInterface* hardware_);
@@ -108,8 +107,8 @@ class UpdateAttempterAndroid
   void SetStatusAndNotify(UpdateStatus status);
 
   // Helper method to construct the sequence of actions to be performed for
-  // applying an update.
-  void BuildUpdateActions();
+  // applying an update from the given |url|.
+  void BuildUpdateActions(const std::string& url);
 
   // Sets up the download parameters based on the update requested on the
   // |install_plan_|.
@@ -122,7 +121,7 @@ class UpdateAttempterAndroid
   // Returns whether an update was completed in the current boot.
   bool UpdateCompletedOnThisBoot();
 
-  DaemonStateAndroid* daemon_state_;
+  DaemonStateInterface* daemon_state_;
 
   // DaemonStateAndroid pointers.
   PrefsInterface* prefs_;
@@ -160,8 +159,8 @@ class UpdateAttempterAndroid
   // Only direct proxy supported.
   DirectProxyResolver proxy_resolver_;
 
-  // CPU limiter during the update.
-  CPULimiter cpu_limiter_;
+  // Helper class to select the network to use during the update.
+  std::unique_ptr<NetworkSelectorInterface> network_selector_;
 
   // Whether we have marked the current slot as good. This step is required
   // before applying an update to the other slot.

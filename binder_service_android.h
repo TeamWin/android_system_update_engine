@@ -36,7 +36,7 @@ namespace chromeos_update_engine {
 class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
                                          public ServiceObserverInterface {
  public:
-  BinderUpdateEngineAndroidService(
+  explicit BinderUpdateEngineAndroidService(
       ServiceDelegateAndroidInterface* service_delegate);
   ~BinderUpdateEngineAndroidService() override = default;
 
@@ -51,9 +51,6 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
                         const std::string& new_version,
                         int64_t new_size) override;
   void SendPayloadApplicationComplete(ErrorCode error_code) override;
-
-  // Channel tracking changes are ignored.
-  void SendChannelChangeUpdate(const std::string& tracking_channel) override {}
 
   // android::os::BnUpdateEngine overrides.
   android::binder::Status applyPayload(

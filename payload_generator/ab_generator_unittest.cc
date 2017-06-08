@@ -42,7 +42,7 @@ namespace chromeos_update_engine {
 
 namespace {
 
-bool ExtentEquals(Extent ext, uint64_t start_block, uint64_t num_blocks) {
+bool ExtentEquals(const Extent& ext, uint64_t start_block, uint64_t num_blocks) {
   return ext.start_block() == start_block && ext.num_blocks() == num_blocks;
 }
 
