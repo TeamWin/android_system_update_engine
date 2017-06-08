@@ -75,8 +75,6 @@ extern const char kPrefsUpdateCompletedOnBootId[];
 extern const char kPrefsUpdateDurationUptime[];
 extern const char kPrefsUpdateFirstSeenAt[];
 extern const char kPrefsUpdateOverCellularPermission[];
-extern const char kPrefsUpdateOverCellularTargetVersion[];
-extern const char kPrefsUpdateOverCellularTargetSize[];
 extern const char kPrefsUpdateServerCertificate[];
 extern const char kPrefsUpdateStateNextDataLength[];
 extern const char kPrefsUpdateStateNextDataOffset[];
