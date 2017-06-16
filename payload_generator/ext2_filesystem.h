@@ -23,11 +23,15 @@
 #include <string>
 #include <vector>
 
+#if defined(__clang__)
 // TODO: Remove these pragmas when b/35721782 is fixed.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmacro-redefined"
+#endif
 #include <ext2fs/ext2fs.h>
+#if defined(__clang__)
 #pragma clang diagnostic pop
+#endif
 
 namespace chromeos_update_engine {
 
