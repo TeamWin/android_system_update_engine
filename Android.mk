@@ -984,6 +984,7 @@ LOCAL_SHARED_LIBRARIES += \
 LOCAL_SRC_FILES += \
     common_service_unittest.cc \
     fake_system_state.cc \
+    image_properties_android_unittest.cc \
     metrics_utils_unittest.cc \
     omaha_request_action_unittest.cc \
     omaha_request_params_unittest.cc \
