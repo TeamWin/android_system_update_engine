@@ -139,7 +139,7 @@ bool FullUpdateGenerator::GenerateOperations(
   TEST_AND_RETURN_FALSE(full_chunk_size % config.block_size == 0);
 
   size_t chunk_blocks = full_chunk_size / config.block_size;
-  size_t max_threads = std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
+  size_t max_threads = diff_utils::GetMaxThreads();
   LOG(INFO) << "Compressing partition " << new_part.name
             << " from " << new_part.path << " splitting in chunks of "
             << chunk_blocks << " blocks (" << config.block_size
