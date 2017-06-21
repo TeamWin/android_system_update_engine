@@ -574,6 +574,11 @@ bool OmahaRequestAction::ShouldPing() const {
                 << "powerwash_count is " << powerwash_count;
       return false;
     }
+    if (system_state_->hardware()->GetFirstActiveOmahaPingSent()) {
+      LOG(INFO) << "Not sending ping with a=-1 r=-1 to omaha because "
+                << "the first_active_omaha_ping_sent is true";
+      return false;
+    }
     return true;
   }
   return ping_active_days_ > 0 || ping_roll_call_days_ > 0;
@@ -987,6 +992,16 @@ void OmahaRequestAction::TransferComplete(HttpFetcher *fetcher,
   // response, but log the error if it didn't.
   LOG_IF(ERROR, !UpdateLastPingDays(&parser_data, system_state_->prefs()))
       << "Failed to update the last ping day preferences!";
+
+  // Sets first_active_omaha_ping_sent to true (vpd in CrOS). We only do this if
+  // we have got a response from omaha and if its value has never been set to
+  // true before. Failure of this function should be ignored. There should be no
+  // need to check if a=-1 has been sent because older devices have already sent
+  // their a=-1 in the past and we have to set first_active_omaha_ping_sent for
+  // future checks.
+  if (!system_state_->hardware()->GetFirstActiveOmahaPingSent()) {
+    system_state_->hardware()->SetFirstActiveOmahaPingSent();
+  }
 
   if (!HasOutputPipe()) {
     // Just set success to whether or not the http transfer succeeded,

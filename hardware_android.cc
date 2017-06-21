@@ -200,4 +200,14 @@ bool HardwareAndroid::GetPowerwashSafeDirectory(base::FilePath* path) const {
   return false;
 }
 
+bool HardwareAndroid::GetFirstActiveOmahaPingSent() const {
+  LOG(WARNING) << "STUB: Assuming first active omaha was never set.";
+  return false;
+}
+
+void HardwareChromeOS::SetFirstActiveOmahaPingSent() {
+  LOG(WARNING) << "STUB: Assuming first active omaha is never set.";
+  return;
+}
+
 }  // namespace chromeos_update_engine

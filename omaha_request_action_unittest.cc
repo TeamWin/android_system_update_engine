@@ -2145,6 +2145,35 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
   EXPECT_EQ(string::npos, post_str.find("<ping"));
 }
 
+// Checks that the initial ping with a=-1 r=-1 is not send when the device
+// first_active_omaha_ping_sent is set.
+TEST_F(OmahaRequestActionTest, PingWhenFirstActiveOmahaPingIsSent) {
+  fake_prefs_.SetString(kPrefsPreviousVersion, "");
+
+  // Flag that the device was not powerwashed in the past.
+  fake_system_state_.fake_hardware()->SetPowerwashCount(0);
+
+  // Flag that the device has sent first active ping in the past.
+  fake_system_state_.fake_hardware()->SetFirstActiveOmahaPingSent();
+
+  brillo::Blob post_data;
+  ASSERT_TRUE(
+      TestUpdateCheck(nullptr,  // request_params
+                      fake_update_response_.GetNoUpdateResponse(),
+                      -1,
+                      false,  // ping_only
+                      ErrorCode::kSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
+                      nullptr,
+                      &post_data));
+  // We shouldn't send a ping in this case since
+  // first_active_omaha_ping_sent=true
+  string post_str(post_data.begin(), post_data.end());
+  EXPECT_EQ(string::npos, post_str.find("<ping"));
+}
+
 // Checks that the event 54 is sent on a reboot to a new update.
 TEST_F(OmahaRequestActionTest, RebootAfterUpdateEvent) {
   // Flag that the device was updated in a previous boot.
