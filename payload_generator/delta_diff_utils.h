@@ -143,6 +143,9 @@ bool CompareAopsByDestination(AnnotatedOperation first_aop,
 // false.
 bool IsExtFilesystem(const std::string& device);
 
+// Returns the max number of threads to process the files(chunks) in parallel.
+size_t GetMaxThreads();
+
 }  // namespace diff_utils
 
 }  // namespace chromeos_update_engine
