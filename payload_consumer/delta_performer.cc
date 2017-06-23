@@ -145,8 +145,8 @@ bool DiscardPartitionTail(const FileDescriptorPtr& fd, uint64_t data_size) {
     const char* name;
   };
   const vector<blkioctl_request> blkioctl_requests = {
-      {BLKSECDISCARD, "BLKSECDISCARD"},
       {BLKDISCARD, "BLKDISCARD"},
+      {BLKSECDISCARD, "BLKSECDISCARD"},
 #ifdef BLKZEROOUT
       {BLKZEROOUT, "BLKZEROOUT"},
 #endif
