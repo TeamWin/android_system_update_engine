@@ -25,8 +25,8 @@
 #include <bootloader.h>
 
 #include <base/files/file_util.h>
+#include <base/memory/ptr_util.h>
 #include <base/strings/stringprintf.h>
-#include <brillo/make_unique_ptr.h>
 #include <cutils/properties.h>
 
 #include "update_engine/common/hardware.h"
@@ -95,7 +95,7 @@ namespace hardware {
 
 // Factory defined in hardware.h.
 std::unique_ptr<HardwareInterface> CreateHardware() {
-  return brillo::make_unique_ptr(new HardwareAndroid());
+  return base::MakeUnique<HardwareAndroid>();
 }
 
 }  // namespace hardware

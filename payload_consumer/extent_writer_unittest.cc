@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include <brillo/make_unique_ptr.h>
+#include <base/memory/ptr_util.h>
 #include <brillo/secure_blob.h>
 #include <gtest/gtest.h>
 
@@ -184,8 +184,7 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
   brillo::Blob data(kBlockSize * 2);
   test_utils::FillWithData(&data);
 
-  ZeroPadExtentWriter zero_pad_writer(
-      brillo::make_unique_ptr(new DirectExtentWriter()));
+  ZeroPadExtentWriter zero_pad_writer(base::MakeUnique<DirectExtentWriter>());
 
   EXPECT_TRUE(zero_pad_writer.Init(fd_, extents, kBlockSize));
   size_t bytes_to_write = data.size();

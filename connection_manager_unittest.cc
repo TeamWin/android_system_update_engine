@@ -21,7 +21,6 @@
 
 #include <base/logging.h>
 #include <brillo/any.h>
-#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/variant_dictionary.h>
 #include <gmock/gmock.h>

@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-#include <brillo/make_unique_ptr.h>
+#include <base/memory/ptr_util.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
@@ -88,8 +88,7 @@ class XzExtentWriterTest : public ::testing::Test {
  protected:
   void SetUp() override {
     fake_extent_writer_ = new FakeExtentWriter();
-    xz_writer_.reset(
-        new XzExtentWriter(brillo::make_unique_ptr(fake_extent_writer_)));
+    xz_writer_.reset(new XzExtentWriter(base::WrapUnique(fake_extent_writer_)));
   }
 
   void WriteAll(const brillo::Blob& compressed) {

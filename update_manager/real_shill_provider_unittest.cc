@@ -18,8 +18,8 @@
 #include <memory>
 #include <utility>
 
+#include <base/memory/ptr_util.h>
 #include <base/time/time.h>
-#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -261,9 +261,9 @@ ServiceProxyMock* UmRealShillProviderTest::SetServiceReply(
   EXPECT_CALL(*service_proxy_mock, GetProperties(_, _, _))
       .WillOnce(DoAll(SetArgPointee<0>(reply_dict), Return(true)));
 
-  fake_shill_proxy_->SetServiceForPath(
-      dbus::ObjectPath(service_path),
-      brillo::make_unique_ptr(service_proxy_mock));
+  fake_shill_proxy_->SetServiceForPath(dbus::ObjectPath(service_path),
+                                       base::WrapUnique(service_proxy_mock));
+
   return service_proxy_mock;
 }
 

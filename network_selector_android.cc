@@ -18,7 +18,7 @@
 
 #include <android/multinetwork.h>
 #include <base/logging.h>
-#include <brillo/make_unique_ptr.h>
+#include <base/memory/ptr_util.h>
 
 namespace chromeos_update_engine {
 
@@ -26,7 +26,7 @@ namespace network {
 
 // Factory defined in network_selector.h.
 std::unique_ptr<NetworkSelectorInterface> CreateNetworkSelector() {
-  return brillo::make_unique_ptr(new NetworkSelectorAndroid());
+  return base::MakeUnique<NetworkSelectorAndroid>();
 }
 
 }  // namespace network

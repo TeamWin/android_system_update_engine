@@ -21,8 +21,8 @@
 #include <base/bind.h>
 #include <base/files/file_util.h>
 #include <base/location.h>
+#include <base/memory/ptr_util.h>
 #include <base/time/time.h>
-#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
 #if USE_LIBCROS
 #include <chromeos/dbus/service_constants.h>
@@ -56,7 +56,7 @@ bool RealSystemState::Initialize() {
   if (!boot_control_) {
     LOG(WARNING) << "Unable to create BootControl instance, using stub "
                  << "instead. All update attempts will fail.";
-    boot_control_ = brillo::make_unique_ptr(new BootControlStub());
+    boot_control_ = base::MakeUnique<BootControlStub>();
   }
 
   hardware_ = hardware::CreateHardware();

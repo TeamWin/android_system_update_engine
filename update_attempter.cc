@@ -28,12 +28,12 @@
 #include <base/bind.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
+#include <base/memory/ptr_util.h>
 #include <base/rand_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/bind_lambda.h>
 #include <brillo/errors/error_codes.h>
-#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
@@ -607,13 +607,12 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaResponseHandlerAction(system_state_));
 
   shared_ptr<OmahaRequestAction> download_started_action(
-      new OmahaRequestAction(system_state_,
-                             new OmahaEvent(
-                                 OmahaEvent::kTypeUpdateDownloadStarted),
-                             brillo::make_unique_ptr(new LibcurlHttpFetcher(
-                                 GetProxyResolver(),
-                                 system_state_->hardware())),
-                             false));
+      new OmahaRequestAction(
+          system_state_,
+          new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
+          base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                               system_state_->hardware()),
+          false));
 
   LibcurlHttpFetcher* download_fetcher =
       new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
@@ -628,9 +627,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaRequestAction(
           system_state_,
           new OmahaEvent(OmahaEvent::kTypeUpdateDownloadFinished),
-          brillo::make_unique_ptr(
-              new LibcurlHttpFetcher(GetProxyResolver(),
-                                     system_state_->hardware())),
+          base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                               system_state_->hardware()),
           false));
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
       new FilesystemVerifierAction());
@@ -638,9 +636,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaRequestAction(
           system_state_,
           new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-          brillo::make_unique_ptr(
-              new LibcurlHttpFetcher(GetProxyResolver(),
-                                     system_state_->hardware())),
+          base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                               system_state_->hardware()),
           false));
 
   download_action->set_delegate(this);
@@ -1281,12 +1278,12 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
   // Send it to Omaha.
   LOG(INFO) << "Reporting the error event";
   shared_ptr<OmahaRequestAction> error_event_action(
-      new OmahaRequestAction(system_state_,
-                             error_event_.release(),  // Pass ownership.
-                             brillo::make_unique_ptr(new LibcurlHttpFetcher(
-                                 GetProxyResolver(),
-                                 system_state_->hardware())),
-                             false));
+      new OmahaRequestAction(
+          system_state_,
+          error_event_.release(),  // Pass ownership.
+          base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                               system_state_->hardware()),
+          false));
   actions_.push_back(shared_ptr<AbstractAction>(error_event_action));
   processor_->EnqueueAction(error_event_action.get());
   SetStatusAndNotify(UpdateStatus::REPORTING_ERROR_EVENT);
@@ -1355,9 +1352,8 @@ void UpdateAttempter::PingOmaha() {
     shared_ptr<OmahaRequestAction> ping_action(new OmahaRequestAction(
         system_state_,
         nullptr,
-        brillo::make_unique_ptr(new LibcurlHttpFetcher(
-            GetProxyResolver(),
-            system_state_->hardware())),
+        base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                             system_state_->hardware()),
         true));
     actions_.push_back(shared_ptr<OmahaRequestAction>(ping_action));
     processor_->set_delegate(nullptr);

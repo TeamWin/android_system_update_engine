@@ -22,7 +22,6 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <brillo/key_value_store.h>
-#include <brillo/make_unique_ptr.h>
 #include <debugd/dbus-constants.h>
 #include <vboot/crossystem.h>
 

@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include <brillo/make_unique_ptr.h>
+#include <base/memory/ptr_util.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
@@ -70,8 +70,7 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
     0x22, 0x9c, 0x28, 0x48, 0x66, 0x61, 0xb8, 0xea, 0x00,
   };
 
-  BzipExtentWriter bzip_writer(
-      brillo::make_unique_ptr(new DirectExtentWriter()));
+  BzipExtentWriter bzip_writer(base::MakeUnique<DirectExtentWriter>());
   EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
   EXPECT_TRUE(bzip_writer.Write(test, sizeof(test)));
   EXPECT_TRUE(bzip_writer.End());
@@ -108,8 +107,7 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   extent.set_num_blocks((kDecompressedLength + kBlockSize - 1) / kBlockSize);
   extents.push_back(extent);
 
-  BzipExtentWriter bzip_writer(
-      brillo::make_unique_ptr(new DirectExtentWriter()));
+  BzipExtentWriter bzip_writer(base::MakeUnique<DirectExtentWriter>());
   EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
 
   brillo::Blob original_compressed_data = compressed_data;

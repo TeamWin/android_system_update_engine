@@ -28,11 +28,11 @@
 
 #include <base/files/file_util.h>
 #include <base/format_macros.h>
+#include <base/memory/ptr_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/data_encoding.h>
-#include <brillo/make_unique_ptr.h>
 #include <bsdiff/bspatch.h>
 #include <google/protobuf/repeated_field.h>
 
@@ -910,9 +910,8 @@ bool DeltaPerformer::PerformReplaceOperation(
   }
 
   // Setup the ExtentWriter stack based on the operation type.
-  std::unique_ptr<ExtentWriter> writer =
-    brillo::make_unique_ptr(new ZeroPadExtentWriter(
-      brillo::make_unique_ptr(new DirectExtentWriter())));
+  std::unique_ptr<ExtentWriter> writer = base::MakeUnique<ZeroPadExtentWriter>(
+      base::MakeUnique<DirectExtentWriter>());
 
   if (operation.type() == InstallOperation::REPLACE_BZ) {
     writer.reset(new BzipExtentWriter(std::move(writer)));

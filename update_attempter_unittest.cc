@@ -23,7 +23,6 @@
 #include <base/files/file_util.h>
 #include <base/message_loop/message_loop.h>
 #include <brillo/bind_lambda.h>
-#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
