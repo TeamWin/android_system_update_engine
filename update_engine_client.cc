@@ -14,6 +14,13 @@
 // limitations under the License.
 //
 
+#include <base/bind.h>
+#include <base/command_line.h>
+#include <base/logging.h>
+#include <base/macros.h>
+#include <brillo/daemons/daemon.h>
+#include <brillo/flag_helper.h>
+
 #include <inttypes.h>
 #include <sysexits.h>
 #include <unistd.h>
@@ -21,13 +28,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <base/bind.h>
-#include <base/command_line.h>
-#include <base/logging.h>
-#include <base/macros.h>
-#include <brillo/daemons/daemon.h>
-#include <brillo/flag_helper.h>
 
 #include "update_engine/client.h"
 #include "update_engine/common/error_code.h"
@@ -51,6 +51,11 @@ namespace {
 // Constant to signal that we need to continue running the daemon after
 // initialization.
 const int kContinueRunning = -1;
+
+// The ShowStatus request will be retried `kShowStatusRetryCount` times at
+// `kShowStatusRetryInterval` second intervals on failure.
+const int kShowStatusRetryCount = 30;
+const int kShowStatusRetryInterval = 2;
 
 class UpdateEngineClient : public brillo::Daemon {
  public:
@@ -151,9 +156,17 @@ bool UpdateEngineClient::ShowStatus() {
   string new_version;
   int64_t new_size = 0;
 
-  if (!client_->GetStatus(&last_checked_time, &progress, &current_op,
-                          &new_version, &new_size)) {
-    return false;
+  int retry_count = kShowStatusRetryCount;
+  while (retry_count > 0) {
+    if (client_->GetStatus(&last_checked_time, &progress, &current_op,
+                           &new_version, &new_size)) {
+      break;
+    }
+    if (--retry_count == 0) {
+      return false;
+    }
+    LOG(WARNING) << "Trying " << retry_count << " more times";
+    sleep(kShowStatusRetryInterval);
   }
 
   printf("LAST_CHECKED_TIME=%" PRIi64
