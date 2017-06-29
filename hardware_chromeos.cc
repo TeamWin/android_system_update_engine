@@ -230,6 +230,11 @@ bool HardwareChromeOS::GetPowerwashSafeDirectory(base::FilePath* path) const {
   return true;
 }
 
+int64_t HardwareChromeOS::GetBuildTimestamp() const {
+  // TODO(senj): implement this in Chrome OS.
+  return 0;
+}
+
 void HardwareChromeOS::LoadConfig(const string& root_prefix, bool normal_mode) {
   brillo::KeyValueStore store;
 
