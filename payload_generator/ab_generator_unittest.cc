@@ -354,11 +354,11 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ("SplitSourceCopyTestOp:0", result_ops[0].name);
   InstallOperation first_op = result_ops[0].op;
   EXPECT_EQ(InstallOperation::SOURCE_COPY, first_op.type());
-  EXPECT_EQ(kBlockSize * 2, first_op.src_length());
+  EXPECT_FALSE(first_op.has_src_length());
   EXPECT_EQ(1, first_op.src_extents().size());
   EXPECT_EQ(2U, first_op.src_extents(0).start_block());
   EXPECT_EQ(2U, first_op.src_extents(0).num_blocks());
-  EXPECT_EQ(kBlockSize * 2, first_op.dst_length());
+  EXPECT_FALSE(first_op.has_dst_length());
   EXPECT_EQ(1, first_op.dst_extents().size());
   EXPECT_EQ(10U, first_op.dst_extents(0).start_block());
   EXPECT_EQ(2U, first_op.dst_extents(0).num_blocks());
@@ -366,7 +366,7 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ("SplitSourceCopyTestOp:1", result_ops[1].name);
   InstallOperation second_op = result_ops[1].op;
   EXPECT_EQ(InstallOperation::SOURCE_COPY, second_op.type());
-  EXPECT_EQ(kBlockSize * 3, second_op.src_length());
+  EXPECT_FALSE(second_op.has_src_length());
   EXPECT_EQ(3, second_op.src_extents().size());
   EXPECT_EQ(4U, second_op.src_extents(0).start_block());
   EXPECT_EQ(1U, second_op.src_extents(0).num_blocks());
@@ -374,7 +374,7 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ(1U, second_op.src_extents(1).num_blocks());
   EXPECT_EQ(8U, second_op.src_extents(2).start_block());
   EXPECT_EQ(1U, second_op.src_extents(2).num_blocks());
-  EXPECT_EQ(kBlockSize * 3, second_op.dst_length());
+  EXPECT_FALSE(second_op.has_dst_length());
   EXPECT_EQ(1, second_op.dst_extents().size());
   EXPECT_EQ(14U, second_op.dst_extents(0).start_block());
   EXPECT_EQ(3U, second_op.dst_extents(0).num_blocks());
@@ -382,11 +382,11 @@ TEST_F(ABGeneratorTest, SplitSourceCopyTest) {
   EXPECT_EQ("SplitSourceCopyTestOp:2", result_ops[2].name);
   InstallOperation third_op = result_ops[2].op;
   EXPECT_EQ(InstallOperation::SOURCE_COPY, third_op.type());
-  EXPECT_EQ(kBlockSize * 3, third_op.src_length());
+  EXPECT_FALSE(third_op.has_src_length());
   EXPECT_EQ(1, third_op.src_extents().size());
   EXPECT_EQ(9U, third_op.src_extents(0).start_block());
   EXPECT_EQ(3U, third_op.src_extents(0).num_blocks());
-  EXPECT_EQ(kBlockSize * 3, third_op.dst_length());
+  EXPECT_FALSE(third_op.has_dst_length());
   EXPECT_EQ(1, third_op.dst_extents().size());
   EXPECT_EQ(18U, third_op.dst_extents(0).start_block());
   EXPECT_EQ(3U, third_op.dst_extents(0).num_blocks());
@@ -445,8 +445,6 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   vector<AnnotatedOperation> aops;
   InstallOperation first_op;
   first_op.set_type(InstallOperation::SOURCE_COPY);
-  first_op.set_src_length(kBlockSize);
-  first_op.set_dst_length(kBlockSize);
   *(first_op.add_src_extents()) = ExtentForRange(1, 1);
   *(first_op.add_dst_extents()) = ExtentForRange(6, 1);
   AnnotatedOperation first_aop;
@@ -456,8 +454,6 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
 
   InstallOperation second_op;
   second_op.set_type(InstallOperation::SOURCE_COPY);
-  second_op.set_src_length(3 * kBlockSize);
-  second_op.set_dst_length(3 * kBlockSize);
   *(second_op.add_src_extents()) = ExtentForRange(2, 2);
   *(second_op.add_src_extents()) = ExtentForRange(8, 2);
   *(second_op.add_dst_extents()) = ExtentForRange(7, 3);
@@ -469,8 +465,6 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
 
   InstallOperation third_op;
   third_op.set_type(InstallOperation::SOURCE_COPY);
-  third_op.set_src_length(kBlockSize);
-  third_op.set_dst_length(kBlockSize);
   *(third_op.add_src_extents()) = ExtentForRange(11, 1);
   *(third_op.add_dst_extents()) = ExtentForRange(12, 1);
   AnnotatedOperation third_aop;
@@ -486,12 +480,12 @@ TEST_F(ABGeneratorTest, MergeSourceCopyOperationsTest) {
   EXPECT_EQ(1U, aops.size());
   InstallOperation first_result_op = aops[0].op;
   EXPECT_EQ(InstallOperation::SOURCE_COPY, first_result_op.type());
-  EXPECT_EQ(kBlockSize * 5, first_result_op.src_length());
+  EXPECT_FALSE(first_result_op.has_src_length());
   EXPECT_EQ(3, first_result_op.src_extents().size());
   EXPECT_TRUE(ExtentEquals(first_result_op.src_extents(0), 1, 3));
   EXPECT_TRUE(ExtentEquals(first_result_op.src_extents(1), 8, 2));
   EXPECT_TRUE(ExtentEquals(first_result_op.src_extents(2), 11, 1));
-  EXPECT_EQ(kBlockSize * 5, first_result_op.dst_length());
+  EXPECT_FALSE(first_result_op.has_dst_length());
   EXPECT_EQ(2, first_result_op.dst_extents().size());
   EXPECT_TRUE(ExtentEquals(first_result_op.dst_extents(0), 6, 4));
   EXPECT_TRUE(ExtentEquals(first_result_op.dst_extents(1), 11, 2));
