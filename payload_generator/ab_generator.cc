@@ -88,14 +88,19 @@ bool ABGenerator::FragmentOperations(const PayloadVersion& version,
                                      BlobFileWriter* blob_file) {
   vector<AnnotatedOperation> fragmented_aops;
   for (const AnnotatedOperation& aop : *aops) {
-    if (aop.op.type() == InstallOperation::SOURCE_COPY) {
-      TEST_AND_RETURN_FALSE(SplitSourceCopy(aop, &fragmented_aops));
-    } else if (IsAReplaceOperation(aop.op.type())) {
-      TEST_AND_RETURN_FALSE(SplitAReplaceOp(
-          version, aop, target_part_path, &fragmented_aops, blob_file));
-    } else {
-      fragmented_aops.push_back(aop);
+    // Only do split if the operation has more than one dst extents.
+    if (aop.op.dst_extents_size() > 1) {
+      if (aop.op.type() == InstallOperation::SOURCE_COPY) {
+        TEST_AND_RETURN_FALSE(SplitSourceCopy(aop, &fragmented_aops));
+        continue;
+      }
+      if (IsAReplaceOperation(aop.op.type())) {
+        TEST_AND_RETURN_FALSE(SplitAReplaceOp(
+            version, aop, target_part_path, &fragmented_aops, blob_file));
+        continue;
+      }
     }
+    fragmented_aops.push_back(aop);
   }
   *aops = std::move(fragmented_aops);
   return true;
@@ -139,8 +144,6 @@ bool ABGenerator::SplitSourceCopy(
     // Fix up our new operation and add it to the results.
     new_op.set_type(InstallOperation::SOURCE_COPY);
     *(new_op.add_dst_extents()) = dst_ext;
-    new_op.set_src_length(dst_ext.num_blocks() * kBlockSize);
-    new_op.set_dst_length(dst_ext.num_blocks() * kBlockSize);
 
     AnnotatedOperation new_aop;
     new_aop.op = new_op;
