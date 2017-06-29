@@ -44,6 +44,7 @@ class HardwareChromeOS final : public HardwareInterface {
   int GetPowerwashCount() const override;
   bool GetNonVolatileDirectory(base::FilePath* path) const override;
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override;
+  int64_t GetBuildTimestamp() const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HardwareChromeOS);

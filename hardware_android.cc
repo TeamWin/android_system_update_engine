@@ -27,6 +27,12 @@ using std::string;
 
 namespace chromeos_update_engine {
 
+namespace {
+
+const char kPropBuildDateUTC[] = "ro.build.date.utc";
+
+}  // namespace
+
 namespace hardware {
 
 // Factory defined in hardware.h.
@@ -108,6 +114,10 @@ bool HardwareAndroid::GetNonVolatileDirectory(base::FilePath* path) const {
 bool HardwareAndroid::GetPowerwashSafeDirectory(base::FilePath* path) const {
   // On Android, we don't have a directory persisted across powerwash.
   return false;
+}
+
+int64_t HardwareAndroid::GetBuildTimestamp() const {
+  return property_get_int64(kPropBuildDateUTC, 0);
 }
 
 }  // namespace chromeos_update_engine

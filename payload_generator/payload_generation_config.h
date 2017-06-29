@@ -182,6 +182,9 @@ struct PayloadGenerationConfig {
 
   // The block size used for all the operations in the manifest.
   size_t block_size = 4096;
+
+  // The maximum timestamp of the OS allowed to apply this payload.
+  int64_t max_timestamp = 0;
 };
 
 }  // namespace chromeos_update_engine

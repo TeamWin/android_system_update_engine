@@ -70,6 +70,8 @@ class FakeHardware : public HardwareInterface {
     return false;
   }
 
+  int64_t GetBuildTimestamp() const override { return build_timestamp_; }
+
   // Setters
   void SetIsOfficialBuild(bool is_official_build) {
     is_official_build_ = is_official_build;
@@ -106,6 +108,10 @@ class FakeHardware : public HardwareInterface {
     powerwash_count_ = powerwash_count;
   }
 
+  void SetBuildTimestamp(int64_t build_timestamp) {
+    build_timestamp_ = build_timestamp;
+  }
+
  private:
   bool is_official_build_;
   bool is_normal_boot_mode_;
@@ -115,6 +121,7 @@ class FakeHardware : public HardwareInterface {
   std::string firmware_version_;
   std::string ec_version_;
   int powerwash_count_;
+  int64_t build_timestamp_{0};
 
   DISALLOW_COPY_AND_ASSIGN(FakeHardware);
 };
