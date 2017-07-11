@@ -28,6 +28,8 @@ interface IUpdateEngine {
   /** @hide */
   boolean bind(IUpdateEngineCallback callback);
   /** @hide */
+  boolean unbind(IUpdateEngineCallback callback);
+  /** @hide */
   void suspend();
   /** @hide */
   void resume();
