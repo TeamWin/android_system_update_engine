@@ -44,12 +44,14 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
                                BootControlInterface* boot_control,
                                HardwareInterface* hardware,
                                SystemState* system_state,
-                               HttpFetcher* http_fetcher)
+                               HttpFetcher* http_fetcher,
+                               bool is_interactive)
     : prefs_(prefs),
       boot_control_(boot_control),
       hardware_(hardware),
       system_state_(system_state),
       http_fetcher_(http_fetcher),
+      is_interactive_(is_interactive),
       writer_(nullptr),
       code_(ErrorCode::kSuccess),
       delegate_(nullptr),
@@ -188,8 +190,12 @@ void DownloadAction::PerformAction() {
   if (writer_) {
     LOG(INFO) << "Using writer for test.";
   } else {
-    delta_performer_.reset(new DeltaPerformer(
-        prefs_, boot_control_, hardware_, delegate_, &install_plan_));
+    delta_performer_.reset(new DeltaPerformer(prefs_,
+                                              boot_control_,
+                                              hardware_,
+                                              delegate_,
+                                              &install_plan_,
+                                              is_interactive_));
     writer_ = delta_performer_.get();
   }
   download_active_ = true;

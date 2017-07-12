@@ -78,12 +78,14 @@ class DeltaPerformer : public FileWriter {
                  BootControlInterface* boot_control,
                  HardwareInterface* hardware,
                  DownloadActionDelegate* download_delegate,
-                 InstallPlan* install_plan)
+                 InstallPlan* install_plan,
+                 bool is_interactive)
       : prefs_(prefs),
         boot_control_(boot_control),
         hardware_(hardware),
         download_delegate_(download_delegate),
-        install_plan_(install_plan) {}
+        install_plan_(install_plan),
+        is_interactive_(is_interactive) {}
 
   // FileWriter's Write implementation where caller doesn't care about
   // error codes.
@@ -384,6 +386,9 @@ class DeltaPerformer : public FileWriter {
 
   // The last progress chunk recorded.
   unsigned last_progress_chunk_{0};
+
+  // If |true|, the update is user initiated (vs. periodic update checks).
+  bool is_interactive_{false};
 
   // The timeout after which we should force emitting a progress log (constant),
   // and the actual point in time for the next forced log to be emitted.

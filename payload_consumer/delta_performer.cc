@@ -355,7 +355,14 @@ bool DeltaPerformer::OpenCurrentPartition() {
   target_path_ = install_plan_->partitions[current_partition_].target_path;
   int err;
 
-  target_fd_ = OpenFile(target_path_.c_str(), O_RDWR | O_DSYNC, &err);
+  int flags = O_RDWR;
+  if (!is_interactive_)
+    flags |= O_DSYNC;
+
+  LOG(INFO) << "Opening " << target_path_ << " partition with"
+            << (is_interactive_ ? "out" : "") << " O_DSYNC";
+
+  target_fd_ = OpenFile(target_path_.c_str(), flags, &err);
   if (!target_fd_) {
     LOG(ERROR) << "Unable to open target partition "
                << partition.partition_name() << " on slot "

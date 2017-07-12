@@ -328,8 +328,12 @@ class DeltaPerformerTest : public ::testing::Test {
   FakeBootControl fake_boot_control_;
   FakeHardware fake_hardware_;
   MockDownloadActionDelegate mock_delegate_;
-  DeltaPerformer performer_{
-      &prefs_, &fake_boot_control_, &fake_hardware_, &mock_delegate_, &install_plan_};
+  DeltaPerformer performer_{&prefs_,
+                            &fake_boot_control_,
+                            &fake_hardware_,
+                            &mock_delegate_,
+                            &install_plan_,
+                            false /* is_interactive*/};
 };
 
 TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {

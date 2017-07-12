@@ -617,12 +617,14 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   LibcurlHttpFetcher* download_fetcher =
       new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
   download_fetcher->set_server_to_check(ServerToCheck::kDownload);
-  shared_ptr<DownloadAction> download_action(new DownloadAction(
-      prefs_,
-      system_state_->boot_control(),
-      system_state_->hardware(),
-      system_state_,
-      new MultiRangeHttpFetcher(download_fetcher)));  // passes ownership
+  shared_ptr<DownloadAction> download_action(
+      new DownloadAction(prefs_,
+                         system_state_->boot_control(),
+                         system_state_->hardware(),
+                         system_state_,
+                         // passes ownership
+                         new MultiRangeHttpFetcher(download_fetcher),
+                         interactive));
   shared_ptr<OmahaRequestAction> download_finished_action(
       new OmahaRequestAction(
           system_state_,

@@ -452,12 +452,14 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
     download_fetcher = libcurl_fetcher;
 #endif  // _UE_SIDELOAD
   }
-  shared_ptr<DownloadAction> download_action(new DownloadAction(
-      prefs_,
-      boot_control_,
-      hardware_,
-      nullptr,                                        // system_state, not used.
-      new MultiRangeHttpFetcher(download_fetcher)));  // passes ownership
+  shared_ptr<DownloadAction> download_action(
+      new DownloadAction(prefs_,
+                         boot_control_,
+                         hardware_,
+                         nullptr,  // system_state, not used.
+                         // passes ownership
+                         new MultiRangeHttpFetcher(download_fetcher),
+                         true /* is_interactive */));
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
       new FilesystemVerifierAction());
 

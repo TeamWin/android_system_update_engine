@@ -214,7 +214,12 @@ void UpdateAttempterTest::ScheduleQuitMainLoop() {
 TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
   unique_ptr<MockHttpFetcher> fetcher(new MockHttpFetcher("", 0, nullptr));
   fetcher->FailTransfer(503);  // Sets the HTTP response code.
-  DownloadAction action(prefs_, nullptr, nullptr, nullptr, fetcher.release());
+  DownloadAction action(prefs_,
+                        nullptr,
+                        nullptr,
+                        nullptr,
+                        fetcher.release(),
+                        false /* is_interactive */);
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_EQ(503, attempter_.http_response_code());

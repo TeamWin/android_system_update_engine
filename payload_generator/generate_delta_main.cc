@@ -212,7 +212,8 @@ void ApplyDelta(const string& in_file,
     install_plan.partitions.push_back(part);
   }
 
-  DeltaPerformer performer(&prefs, nullptr, nullptr, nullptr, &install_plan);
+  DeltaPerformer performer(
+      &prefs, nullptr, nullptr, nullptr, &install_plan, true);
   brillo::Blob buf(1024 * 1024);
   int fd = open(in_file.c_str(), O_RDONLY, 0);
   CHECK_GE(fd, 0);
