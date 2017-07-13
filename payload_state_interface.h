@@ -193,6 +193,9 @@ class PayloadStateInterface {
   virtual void SetP2PUrl(const std::string& url) = 0;
   virtual std::string GetP2PUrl() const = 0;
   virtual ErrorCode GetAttemptErrorCode() const = 0;
+
+  // Switch to next payload.
+  virtual bool NextPayload() = 0;
 };
 
 }  // namespace chromeos_update_engine
