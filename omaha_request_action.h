@@ -274,13 +274,6 @@ class OmahaRequestAction : public Action<OmahaRequestAction>,
                  OmahaResponse* output_object,
                  ScopedActionCompleter* completer);
 
-  // Parses the package node in the given XML document and populates
-  // |output_object| if valid. Returns true if we should continue the parsing.
-  // False otherwise, in which case it sets any error code using |completer|.
-  bool ParsePackage(OmahaParserData* parser_data,
-                    OmahaResponse* output_object,
-                    ScopedActionCompleter* completer);
-
   // Parses the other parameters in the given XML document and populates
   // |output_object| if valid. Returns true if we should continue the parsing.
   // False otherwise, in which case it sets any error code using |completer|.
