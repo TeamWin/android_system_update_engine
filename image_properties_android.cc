@@ -32,9 +32,10 @@ namespace chromeos_update_engine {
 
 namespace {
 
-// Build time properties name used in Brillo.
+// Build time properties name used in Android Things.
 const char kProductId[] = "product_id";
 const char kProductVersion[] = "product_version";
+const char kSystemId[] = "system_id";
 const char kSystemVersion[] = "system_version";
 
 // Prefs used to store the target channel and powerwash settings.
@@ -67,14 +68,17 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
 
   brillo::OsReleaseReader osrelease;
   osrelease.Load();
-  result.product_id = GetStringWithDefault(
-      osrelease, kProductId, "developer-boards:brillo-starter-board");
+  result.product_id =
+      GetStringWithDefault(osrelease, kProductId, "invalid-product");
+  result.system_id = GetStringWithDefault(
+      osrelease, kSystemId, "developer-boards:brillo-starter-board");
   result.canary_product_id = result.product_id;
   std::string system_version =
-      GetStringWithDefault(osrelease, kSystemVersion, "0.0.0");
+      GetStringWithDefault(osrelease, kSystemVersion, "0.0.0.0");
   std::string product_version =
-      GetStringWithDefault(osrelease, kProductVersion, "0");
-  result.version = system_version + "." + product_version;
+      GetStringWithDefault(osrelease, kProductVersion, "0.0.0.0");
+  result.version = product_version;
+  result.system_version = system_version;
 
   char prop[PROPERTY_VALUE_MAX];
   property_get(kPropProductName, prop, "brillo");
