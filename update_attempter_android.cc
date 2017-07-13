@@ -161,6 +161,8 @@ bool UpdateAttempterAndroid::ApplyPayload(
                             &payload.metadata_size)) {
     payload.metadata_size = 0;
   }
+  // The |payload.type| is not used anymore since minor_version 3.
+  payload.type = InstallPayloadType::kUnknown;
   install_plan_.payloads.push_back(payload);
 
   // The |public_key_rsa| key would override the public key stored on disk.
@@ -177,9 +179,6 @@ bool UpdateAttempterAndroid::ApplyPayload(
       LOG(WARNING) << "Unable to save the update check response hash.";
     }
   }
-  // The |payload_type| is not used anymore since minor_version 3.
-  install_plan_.payload_type = InstallPayloadType::kUnknown;
-
   install_plan_.source_slot = boot_control_->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
 

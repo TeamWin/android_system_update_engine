@@ -719,12 +719,11 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
 
   // Update the A image in place.
   InstallPlan* install_plan = &state->install_plan;
-  install_plan->payloads.resize(1);
   install_plan->hash_checks_mandatory = hash_checks_mandatory;
-  install_plan->payloads[0].metadata_size = state->metadata_size;
-  install_plan->payload_type = (full_kernel && full_rootfs)
-                                   ? InstallPayloadType::kFull
-                                   : InstallPayloadType::kDelta;
+  install_plan->payloads = {{.metadata_size = state->metadata_size,
+                             .type = (full_kernel && full_rootfs)
+                                         ? InstallPayloadType::kFull
+                                         : InstallPayloadType::kDelta}};
   install_plan->source_slot = 0;
   install_plan->target_slot = 1;
 

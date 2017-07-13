@@ -141,8 +141,8 @@ void TestWithData(const brillo::Blob& data,
 
   uint64_t size = data.size() - 1;
   InstallPlan install_plan;
-  install_plan.payload_type = InstallPayloadType::kDelta;
-  install_plan.payloads.push_back({.size = size});
+  install_plan.payloads.push_back(
+      {.size = size, .type = InstallPayloadType::kDelta});
   // We pull off the first byte from data and seek past it.
   EXPECT_TRUE(HashCalculator::RawHashOfBytes(
       &data[1], data.size() - 1, &install_plan.payloads[0].hash));
