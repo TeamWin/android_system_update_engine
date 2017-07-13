@@ -204,10 +204,16 @@ string GetCohortArgXml(PrefsInterface* prefs,
                             arg_name.c_str(), escaped_xml_value.c_str());
 }
 
+struct OmahaAppData {
+  string id;
+  string version;
+};
+
 // Returns an XML that corresponds to the entire <app> node of the Omaha
 // request based on the given parameters.
 string GetAppXml(const OmahaEvent* event,
                  OmahaRequestParams* params,
+                 const OmahaAppData& app_data,
                  bool ping_only,
                  bool include_ping,
                  int ping_active_days,
@@ -226,10 +232,10 @@ string GetAppXml(const OmahaEvent* event,
     LOG(INFO) << "Passing OS version as 0.0.0.0 as we are set to powerwash "
               << "on downgrading to the version in the more stable channel";
     app_versions = "version=\"0.0.0.0\" from_version=\"" +
-        XmlEncodeWithDefault(params->app_version(), "0.0.0.0") + "\" ";
+                   XmlEncodeWithDefault(app_data.version, "0.0.0.0") + "\" ";
   } else {
     app_versions = "version=\"" +
-        XmlEncodeWithDefault(params->app_version(), "0.0.0.0") + "\" ";
+                   XmlEncodeWithDefault(app_data.version, "0.0.0.0") + "\" ";
   }
 
   string download_channel = params->download_channel();
@@ -265,7 +271,7 @@ string GetAppXml(const OmahaEvent* event,
   }
 
   string app_xml = "    <app "
-      "appid=\"" + XmlEncodeWithDefault(params->GetAppId(), "") + "\" " +
+      "appid=\"" + XmlEncodeWithDefault(app_data.id, "") + "\" " +
       app_cohort_args +
       app_versions +
       app_channels +
@@ -306,9 +312,30 @@ string GetRequestXml(const OmahaEvent* event,
                      int install_date_in_days,
                      SystemState* system_state) {
   string os_xml = GetOsXml(params);
-  string app_xml = GetAppXml(event, params, ping_only, include_ping,
-                             ping_active_days, ping_roll_call_days,
-                             install_date_in_days, system_state);
+  OmahaAppData product_app = {.id = params->GetAppId(),
+                              .version = params->app_version()};
+  string app_xml = GetAppXml(event,
+                             params,
+                             product_app,
+                             ping_only,
+                             include_ping,
+                             ping_active_days,
+                             ping_roll_call_days,
+                             install_date_in_days,
+                             system_state);
+  if (!params->system_app_id().empty()) {
+    OmahaAppData system_app = {.id = params->system_app_id(),
+                               .version = params->system_version()};
+    app_xml += GetAppXml(event,
+                         params,
+                         system_app,
+                         ping_only,
+                         include_ping,
+                         ping_active_days,
+                         ping_roll_call_days,
+                         install_date_in_days,
+                         system_state);
+  }
 
   string install_source = base::StringPrintf("installsource=\"%s\" ",
       (params->interactive() ? "ondemandupdate" : "scheduler"));
