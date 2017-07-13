@@ -103,7 +103,7 @@ class DeltaPerformerTest : public ::testing::Test {
                              uint64_t major_version,
                              InstallPayloadType payload_type,
                              ErrorCode expected) {
-    install_plan_.payload_type = payload_type;
+    payload_.type = payload_type;
 
     // The Manifest we are validating.
     performer_.manifest_.CopyFrom(manifest);
@@ -338,7 +338,7 @@ class DeltaPerformerTest : public ::testing::Test {
 };
 
 TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
-  install_plan_.payload_type = InstallPayloadType::kFull;
+  payload_.type = InstallPayloadType::kFull;
   brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
                                             std::end(kRandomString));
   expected_data.resize(4096);  // block size
@@ -357,7 +357,7 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
 }
 
 TEST_F(DeltaPerformerTest, ShouldCancelTest) {
-  install_plan_.payload_type = InstallPayloadType::kFull;
+  payload_.type = InstallPayloadType::kFull;
   brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
                                             std::end(kRandomString));
   expected_data.resize(4096);  // block size

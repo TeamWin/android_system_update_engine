@@ -204,8 +204,10 @@ void FilesystemVerifierAction::FinishPartitionHashing() {
       if (partition.target_hash != hasher_->raw_hash()) {
         LOG(ERROR) << "New '" << partition.name
                    << "' partition verification failed.";
-        if (install_plan_.payload_type == InstallPayloadType::kFull)
+        if (partition.source_hash.empty()) {
+          // No need to verify source if it is a full payload.
           return Cleanup(ErrorCode::kNewRootfsVerificationError);
+        }
         // If we have not verified source partition yet, now that the target
         // partition does not match, and it's not a full payload, we need to
         // switch to kVerifySourceHash step to check if it's because the source

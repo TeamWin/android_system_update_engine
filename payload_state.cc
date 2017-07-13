@@ -386,14 +386,16 @@ bool PayloadState::ShouldBackoffDownload() {
     LOG(INFO) << "Payload backoff disabled for interactive update checks.";
     return false;
   }
-  if (response_.is_delta_payload) {
-    // If delta payloads fail, we want to fallback quickly to full payloads as
-    // they are more likely to succeed. Exponential backoffs would greatly
-    // slow down the fallback to full payloads.  So we don't backoff for delta
-    // payloads.
-    LOG(INFO) << "No backoffs for delta payloads. "
-              << "Can proceed with the download";
-    return false;
+  for (const auto& package : response_.packages) {
+    if (package.is_delta) {
+      // If delta payloads fail, we want to fallback quickly to full payloads as
+      // they are more likely to succeed. Exponential backoffs would greatly
+      // slow down the fallback to full payloads.  So we don't backoff for delta
+      // payloads.
+      LOG(INFO) << "No backoffs for delta payloads. "
+                << "Can proceed with the download";
+      return false;
+    }
   }
 
   if (!system_state_->hardware()->IsOfficialBuild()) {
@@ -434,7 +436,7 @@ void PayloadState::IncrementPayloadAttemptNumber() {
 
 void PayloadState::IncrementFullPayloadAttemptNumber() {
   // Update the payload attempt number for full payloads and the backoff time.
-  if (response_.is_delta_payload) {
+  if (response_.packages[payload_index_].is_delta) {
     LOG(INFO) << "Not incrementing payload attempt number for delta payloads";
     return;
   }
@@ -553,16 +555,17 @@ void PayloadState::UpdateBytesDownloaded(size_t count) {
 }
 
 PayloadType PayloadState::CalculatePayloadType() {
-  PayloadType payload_type;
-  OmahaRequestParams* params = system_state_->request_params();
-  if (response_.is_delta_payload) {
-    payload_type = kPayloadTypeDelta;
-  } else if (params->delta_okay()) {
-    payload_type = kPayloadTypeFull;
-  } else {  // Full payload, delta was not allowed by request.
-    payload_type = kPayloadTypeForcedFull;
+  for (const auto& package : response_.packages) {
+    if (package.is_delta) {
+      return kPayloadTypeDelta;
+    }
   }
-  return payload_type;
+  OmahaRequestParams* params = system_state_->request_params();
+  if (params->delta_okay()) {
+    return kPayloadTypeFull;
+  }
+  // Full payload, delta was not allowed by request.
+  return kPayloadTypeForcedFull;
 }
 
 // TODO(zeuthen): Currently we don't report the UpdateEngine.Attempt.*
@@ -817,12 +820,14 @@ string PayloadState::CalculateResponseSignature() {
         "  Sha256 Hash = %s\n"
         "  Metadata Size = %ju\n"
         "  Metadata Signature = %s\n"
+        "  Is Delta = %d\n"
         "  NumURLs = %zu\n",
         i,
         static_cast<uintmax_t>(package.size),
         package.hash.c_str(),
         static_cast<uintmax_t>(package.metadata_size),
         package.metadata_signature.c_str(),
+        package.is_delta,
         candidate_urls_[i].size());
 
     for (size_t j = 0; j < candidate_urls_[i].size(); j++)
@@ -831,10 +836,8 @@ string PayloadState::CalculateResponseSignature() {
   }
 
   response_sign += base::StringPrintf(
-      "Is Delta Payload = %d\n"
       "Max Failure Count Per Url = %d\n"
       "Disable Payload Backoff = %d\n",
-      response_.is_delta_payload,
       response_.max_failure_count_per_url,
       response_.disable_payload_backoff);
   return response_sign;

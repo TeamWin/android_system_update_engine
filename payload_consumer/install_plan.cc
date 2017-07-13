@@ -42,7 +42,6 @@ string InstallPayloadTypeToString(InstallPayloadType type) {
 
 bool InstallPlan::operator==(const InstallPlan& that) const {
   return ((is_resume == that.is_resume) &&
-          (payload_type == that.payload_type) &&
           (download_url == that.download_url) && (payloads == that.payloads) &&
           (source_slot == that.source_slot) &&
           (target_slot == that.target_slot) && (partitions == that.partitions));
@@ -67,15 +66,15 @@ void InstallPlan::Dump() const {
   for (const auto& payload : payloads) {
     payloads_str += base::StringPrintf(
         ", payload: (size: %" PRIu64 ", metadata_size: %" PRIu64
-        ", metadata signature: %s, hash: %s)",
+        ", metadata signature: %s, hash: %s, payload type: %s)",
         payload.size,
         payload.metadata_size,
         payload.metadata_signature.c_str(),
-        base::HexEncode(payload.hash.data(), payload.hash.size()).c_str());
+        base::HexEncode(payload.hash.data(), payload.hash.size()).c_str(),
+        InstallPayloadTypeToString(payload.type).c_str());
   }
 
   LOG(INFO) << "InstallPlan: " << (is_resume ? "resume" : "new_update")
-            << ", payload type: " << InstallPayloadTypeToString(payload_type)
             << ", source_slot: " << BootControlInterface::SlotName(source_slot)
             << ", target_slot: " << BootControlInterface::SlotName(target_slot)
             << ", url: " << download_url << payloads_str << partitions_str

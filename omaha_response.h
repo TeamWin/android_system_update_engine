@@ -46,6 +46,9 @@ struct OmahaResponse {
     uint64_t metadata_size = 0;
     std::string metadata_signature;
     std::string hash;
+    // True if the payload described in this response is a delta payload.
+    // False if it's a full payload.
+    bool is_delta = false;
   };
   std::vector<Package> packages;
 
@@ -57,10 +60,6 @@ struct OmahaResponse {
   // Omaha Response attribute, if ever we need to fine tune the behavior.
   uint32_t max_failure_count_per_url = 0;
   bool prompt = false;
-
-  // True if the payload described in this response is a delta payload.
-  // False if it's a full payload.
-  bool is_delta_payload = false;
 
   // True if the Omaha rule instructs us to disable the back-off logic
   // on the client altogether. False otherwise.
