@@ -147,8 +147,11 @@ struct FakeUpdateResponse {
                       "\"/></urls><manifest><packages>"
                       "<package name=\"package3\" size=\"333\" "
                       "hash_sha256=\"hash3\"/></packages>"
-                      "<actions><action event=\"postinstall\" "
-                      "MetadataSize=\"33\" IsDeltaPayload=\"false\"/></actions>"
+                      "<actions><action event=\"postinstall\" " +
+                      (multi_app_self_update
+                           ? "noupdate=\"true\" IsDeltaPayload=\"true\" "
+                           : "IsDeltaPayload=\"false\" ") +
+                      "MetadataSize=\"33\"/></actions>"
                       "</manifest></updatecheck></app>"
                 : "") +
            (multi_app_no_update
@@ -191,7 +194,9 @@ struct FakeUpdateResponse {
 
   // Whether to include more than one app.
   bool multi_app = false;
-  // Whether to include an additional app with no update.
+  // Whether to include an app with noupdate="true".
+  bool multi_app_self_update = false;
+  // Whether to include an additional app with status="noupdate".
   bool multi_app_no_update = false;
   // Whether to include more than one package in an app.
   bool multi_package = false;
@@ -492,6 +497,40 @@ TEST_F(OmahaRequestActionTest, MultiAppNoUpdateTest) {
   EXPECT_FALSE(response.update_exists);
 }
 
+TEST_F(OmahaRequestActionTest, MultiAppNoPartialUpdateTest) {
+  OmahaResponse response;
+  fake_update_response_.multi_app_no_update = true;
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, NoSelfUpdateTest) {
+  OmahaResponse response;
+  ASSERT_TRUE(TestUpdateCheck(
+      nullptr,  // request_params
+      "<response><app><updatecheck status=\"ok\"><manifest><actions><action "
+      "event=\"postinstall\" noupdate=\"true\"/></actions>"
+      "</manifest></updatecheck></app></response>",
+      -1,
+      false,  // ping_only
+      ErrorCode::kSuccess,
+      metrics::CheckResult::kNoUpdateAvailable,
+      metrics::CheckReaction::kUnset,
+      metrics::DownloadErrorCode::kUnset,
+      &response,
+      nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
+
 // Test that all the values in the response are parsed in a normal update
 // response.
 TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
@@ -587,7 +626,8 @@ TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
 
 TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
   OmahaResponse response;
-  fake_update_response_.multi_app_no_update = true;
+  fake_update_response_.multi_app = true;
+  fake_update_response_.multi_app_self_update = true;
   ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
                               fake_update_response_.GetUpdateResponse(),
                               -1,
@@ -605,7 +645,11 @@ TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
   EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
   EXPECT_EQ(11u, response.packages[0].metadata_size);
-  ASSERT_EQ(1u, response.packages.size());
+  ASSERT_EQ(2u, response.packages.size());
+  EXPECT_EQ(string("hash3"), response.packages[1].hash);
+  EXPECT_EQ(333u, response.packages[1].size);
+  EXPECT_EQ(33u, response.packages[1].metadata_size);
+  EXPECT_EQ(true, response.packages[1].is_delta);
 }
 
 TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
