@@ -19,6 +19,7 @@
 #include <string>
 
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <policy/device_policy.h>
 
@@ -86,7 +87,12 @@ void OmahaResponseHandlerAction::PerformAction() {
 
   // Fill up the other properties based on the response.
   install_plan_.payload_size = response.size;
-  install_plan_.payload_hash = response.hash;
+  if (!base::HexStringToBytes(response.hash, &install_plan_.payload_hash)) {
+    LOG(ERROR) << "Failed to convert payload hash from hex string to bytes: "
+               << response.hash;
+    completer.set_code(ErrorCode::kOmahaResponseInvalid);
+    return;
+  }
   install_plan_.metadata_size = response.metadata_size;
   install_plan_.metadata_signature = response.metadata_signature;
   install_plan_.public_key_rsa = response.public_key_rsa;

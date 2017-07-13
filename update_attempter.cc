@@ -32,6 +32,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/bind_lambda.h>
+#include <brillo/data_encoding.h>
 #include <brillo/errors/error_codes.h>
 #include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
@@ -939,7 +940,8 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
       // Generate an unique payload identifier.
       const string target_version_uid =
-          install_plan.payload_hash + ":" + install_plan.metadata_signature;
+          brillo::data_encoding::Base64Encode(install_plan.payload_hash) + ":" +
+          install_plan.metadata_signature;
 
       // Expect to reboot into the new version to send the proper metric during
       // next boot.
