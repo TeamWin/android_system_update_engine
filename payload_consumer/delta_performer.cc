@@ -340,7 +340,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
   const InstallPlan::Partition& install_part =
       install_plan_->partitions[num_previous_partitions + current_partition_];
   // Open source fds if we have a delta payload with minor version >= 2.
-  if (install_plan_->payload_type == InstallPayloadType::kDelta &&
+  if (payload_->type == InstallPayloadType::kDelta &&
       GetMinorVersion() != kInPlaceMinorPayloadVersion) {
     source_path_ = install_part.source_path;
     int err;
@@ -431,7 +431,7 @@ uint32_t DeltaPerformer::GetMinorVersion() const {
   if (manifest_.has_minor_version()) {
     return manifest_.minor_version();
   } else {
-    return install_plan_->payload_type == InstallPayloadType::kDelta
+    return payload_->type == InstallPayloadType::kDelta
                ? kSupportedMinorPayloadVersion
                : kFullPayloadMinorVersion;
   }
@@ -1427,14 +1427,14 @@ ErrorCode DeltaPerformer::ValidateManifest() {
   InstallPayloadType actual_payload_type =
       has_old_fields ? InstallPayloadType::kDelta : InstallPayloadType::kFull;
 
-  if (install_plan_->payload_type == InstallPayloadType::kUnknown) {
+  if (payload_->type == InstallPayloadType::kUnknown) {
     LOG(INFO) << "Detected a '"
               << InstallPayloadTypeToString(actual_payload_type)
               << "' payload.";
-    install_plan_->payload_type = actual_payload_type;
-  } else if (install_plan_->payload_type != actual_payload_type) {
+    payload_->type = actual_payload_type;
+  } else if (payload_->type != actual_payload_type) {
     LOG(ERROR) << "InstallPlan expected a '"
-               << InstallPayloadTypeToString(install_plan_->payload_type)
+               << InstallPayloadTypeToString(payload_->type)
                << "' payload but the downloaded manifest contains a '"
                << InstallPayloadTypeToString(actual_payload_type)
                << "' payload.";
