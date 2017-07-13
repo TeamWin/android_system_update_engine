@@ -111,8 +111,11 @@ struct FakeUpdateResponse {
            "\">"
            "<packages><package hash=\"not-used\" name=\"" +
            filename + "\" size=\"" + base::Int64ToString(size) +
-           "\" hash_sha256=\"" + hash +
-           "\"/></packages>"
+           "\" hash_sha256=\"" + hash + "\"/>" +
+           (multi_package ? "<package name=\"package2\" size=\"222\" "
+                            "hash_sha256=\"hash2\"/>"
+                          : "") +
+           "</packages>"
            "<actions><action event=\"postinstall\" "
            "ChromeOSVersion=\"" +
            version + "\" MoreInfo=\"" + more_info_url + "\" Prompt=\"" +
@@ -146,7 +149,7 @@ struct FakeUpdateResponse {
   string filename = "file.signed";
   string hash = "4841534831323334";
   string needsadmin = "false";
-  int64_t size = 123;
+  uint64_t size = 123;
   string deadline = "";
   string max_days_to_scatter = "7";
   string elapsed_days = "42";
@@ -163,6 +166,9 @@ struct FakeUpdateResponse {
 
   // Whether to include the CrOS <!ENTITY> in the XML response.
   bool include_entity = false;
+
+  // Whether to include more than one package.
+  bool multi_package = false;
 };
 
 }  // namespace
@@ -461,12 +467,12 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
                       &response,
                       nullptr));
   EXPECT_TRUE(response.update_exists);
-  EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.version, response.version);
-  EXPECT_EQ(fake_update_response_.GetPayloadUrl(), response.payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
+            response.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.more_info_url, response.more_info_url);
-  EXPECT_EQ(fake_update_response_.hash, response.hash);
-  EXPECT_EQ(fake_update_response_.size, response.size);
+  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
   EXPECT_EQ(fake_update_response_.prompt == "true", response.prompt);
   EXPECT_EQ(fake_update_response_.deadline, response.deadline);
   // Omaha cohort attribets are not set in the response, so they should not be
@@ -474,6 +480,31 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohort));
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortHint));
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortName));
+}
+
+TEST_F(OmahaRequestActionTest, MultiPackageUpdateTest) {
+  OmahaResponse response;
+  fake_update_response_.multi_package = true;
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
+            response.packages[0].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.codebase + "package2",
+            response.packages[1].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  ASSERT_EQ(2u, response.packages.size());
+  EXPECT_EQ(222u, response.packages[1].size);
 }
 
 TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
@@ -1079,10 +1110,11 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
                               nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ("10.2.3.4", response.version);
-  EXPECT_EQ("http://missing/field/test/f", response.payload_urls[0]);
+  EXPECT_EQ("http://missing/field/test/f",
+            response.packages[0].payload_urls[0]);
   EXPECT_EQ("", response.more_info_url);
-  EXPECT_EQ("lkq34j5345", response.hash);
-  EXPECT_EQ(587, response.size);
+  EXPECT_EQ("lkq34j5345", response.packages[0].hash);
+  EXPECT_EQ(587u, response.packages[0].size);
   EXPECT_FALSE(response.prompt);
   EXPECT_TRUE(response.deadline.empty());
 }
@@ -1216,15 +1248,16 @@ TEST_F(OmahaRequestActionTest, XmlDecodeTest) {
                       &response,
                       nullptr));
 
-  EXPECT_EQ(response.more_info_url, "testthe<url");
-  EXPECT_EQ(response.payload_urls[0], "testthe&codebase/file.signed");
-  EXPECT_EQ(response.deadline, "<20110101");
+  EXPECT_EQ("testthe<url", response.more_info_url);
+  EXPECT_EQ("testthe&codebase/file.signed",
+            response.packages[0].payload_urls[0]);
+  EXPECT_EQ("<20110101", response.deadline);
 }
 
 TEST_F(OmahaRequestActionTest, ParseIntTest) {
   OmahaResponse response;
   // overflows int32_t:
-  fake_update_response_.size = 123123123123123ll;
+  fake_update_response_.size = 123123123123123ull;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       fake_update_response_.GetUpdateResponse(),
@@ -1237,7 +1270,7 @@ TEST_F(OmahaRequestActionTest, ParseIntTest) {
                       &response,
                       nullptr));
 
-  EXPECT_EQ(response.size, 123123123123123ll);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
 }
 
 TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {

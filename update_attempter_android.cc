@@ -145,23 +145,25 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.download_url = payload_url;
   install_plan_.version = "";
   base_offset_ = payload_offset;
-  install_plan_.payload_size = payload_size;
-  if (!install_plan_.payload_size) {
+  InstallPlan::Payload payload;
+  payload.size = payload_size;
+  if (!payload.size) {
     if (!base::StringToUint64(headers[kPayloadPropertyFileSize],
-                              &install_plan_.payload_size)) {
-      install_plan_.payload_size = 0;
+                              &payload.size)) {
+      payload.size = 0;
     }
   }
   if (!brillo::data_encoding::Base64Decode(headers[kPayloadPropertyFileHash],
-                                           &install_plan_.payload_hash)) {
+                                           &payload.hash)) {
     LOG(WARNING) << "Unable to decode base64 file hash: "
                  << headers[kPayloadPropertyFileHash];
   }
   if (!base::StringToUint64(headers[kPayloadPropertyMetadataSize],
-                            &install_plan_.metadata_size)) {
-    install_plan_.metadata_size = 0;
+                            &payload.metadata_size)) {
+    payload.metadata_size = 0;
   }
-  install_plan_.metadata_signature = "";
+  install_plan_.payloads.push_back(payload);
+
   // The |public_key_rsa| key would override the public key stored on disk.
   install_plan_.public_key_rsa = "";
 
@@ -430,7 +432,7 @@ void UpdateAttempterAndroid::SetStatusAndNotify(UpdateStatus status) {
   status_ = status;
   for (auto observer : daemon_state_->service_observers()) {
     observer->SendStatusUpdate(
-        0, download_progress_, status_, "", install_plan_.payload_size);
+        0, download_progress_, status_, "", install_plan_.payloads[0].size);
   }
   last_notify_time_ = TimeTicks::Now();
 }
@@ -509,15 +511,15 @@ void UpdateAttempterAndroid::SetupDownload() {
     prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
     uint64_t resume_offset =
         manifest_metadata_size + manifest_signature_size + next_data_offset;
-    if (!install_plan_.payload_size) {
+    if (!install_plan_.payloads[0].size) {
       fetcher->AddRange(base_offset_ + resume_offset);
-    } else if (resume_offset < install_plan_.payload_size) {
+    } else if (resume_offset < install_plan_.payloads[0].size) {
       fetcher->AddRange(base_offset_ + resume_offset,
-                        install_plan_.payload_size - resume_offset);
+                        install_plan_.payloads[0].size - resume_offset);
     }
   } else {
-    if (install_plan_.payload_size) {
-      fetcher->AddRange(base_offset_, install_plan_.payload_size);
+    if (install_plan_.payloads[0].size) {
+      fetcher->AddRange(base_offset_, install_plan_.payloads[0].size);
     } else {
       // If no payload size is passed we assume we read until the end of the
       // stream.

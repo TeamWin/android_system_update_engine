@@ -83,7 +83,7 @@ void DownloadAction::CloseP2PSharingFd(bool delete_p2p_file) {
 bool DownloadAction::SetupP2PSharingFd() {
   P2PManager *p2p_manager = system_state_->p2p_manager();
 
-  if (!p2p_manager->FileShare(p2p_file_id_, install_plan_.payload_size)) {
+  if (!p2p_manager->FileShare(p2p_file_id_, payload_->size)) {
     LOG(ERROR) << "Unable to share file via p2p";
     CloseP2PSharingFd(true);  // delete p2p file
     return false;
@@ -174,6 +174,9 @@ void DownloadAction::PerformAction() {
   bytes_received_ = 0;
 
   install_plan_.Dump();
+  // TODO(senj): check that install plan has at least one payload.
+  if (!payload_)
+    payload_ = &install_plan_.payloads[0];
 
   LOG(INFO) << "Marking new slot as unbootable";
   if (!boot_control_->MarkSlotUnbootable(install_plan_.target_slot)) {
@@ -186,15 +189,14 @@ void DownloadAction::PerformAction() {
     LOG(INFO) << "Using writer for test.";
   } else {
     delta_performer_.reset(new DeltaPerformer(
-        prefs_, boot_control_, hardware_, delegate_, &install_plan_));
+        prefs_, boot_control_, hardware_, delegate_, &install_plan_, payload_));
     writer_ = delta_performer_.get();
   }
   download_active_ = true;
 
   if (system_state_ != nullptr) {
     const PayloadStateInterface* payload_state = system_state_->payload_state();
-    string file_id = utils::CalculateP2PFileId(install_plan_.payload_hash,
-                                               install_plan_.payload_size);
+    string file_id = utils::CalculateP2PFileId(payload_->hash, payload_->size);
     if (payload_state->GetUsingP2PForSharing()) {
       // If we're sharing the update, store the file_id to convey
       // that we should write to the file.
@@ -266,8 +268,7 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
 
   bytes_received_ += length;
   if (delegate_ && download_active_) {
-    delegate_->BytesReceived(
-        length, bytes_received_, install_plan_.payload_size);
+    delegate_->BytesReceived(length, bytes_received_, payload_->size);
   }
   if (writer_ && !writer_->Write(bytes, length, &code_)) {
     LOG(ERROR) << "Error " << utils::ErrorCodeToString(code_) << " (" << code_
@@ -302,8 +303,7 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
   ErrorCode code =
       successful ? ErrorCode::kSuccess : ErrorCode::kDownloadTransferError;
   if (code == ErrorCode::kSuccess && delta_performer_.get()) {
-    code = delta_performer_->VerifyPayload(install_plan_.payload_hash,
-                                           install_plan_.payload_size);
+    code = delta_performer_->VerifyPayload(payload_->hash, payload_->size);
     if (code != ErrorCode::kSuccess) {
       LOG(ERROR) << "Download of " << install_plan_.download_url
                  << " failed due to payload verification error.";

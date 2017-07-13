@@ -719,8 +719,9 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
 
   // Update the A image in place.
   InstallPlan* install_plan = &state->install_plan;
+  install_plan->payloads.resize(1);
   install_plan->hash_checks_mandatory = hash_checks_mandatory;
-  install_plan->metadata_size = state->metadata_size;
+  install_plan->payloads[0].metadata_size = state->metadata_size;
   install_plan->payload_type = (full_kernel && full_rootfs)
                                    ? InstallPayloadType::kFull
                                    : InstallPayloadType::kDelta;
@@ -739,14 +740,15 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       state->delta.data(),
       state->metadata_size,
       GetBuildArtifactsPath(kUnittestPrivateKeyPath),
-      &install_plan->metadata_signature));
-  EXPECT_FALSE(install_plan->metadata_signature.empty());
+      &install_plan->payloads[0].metadata_signature));
+  EXPECT_FALSE(install_plan->payloads[0].metadata_signature.empty());
 
   *performer = new DeltaPerformer(&prefs,
                                   &state->fake_boot_control_,
                                   &state->fake_hardware_,
                                   &state->mock_delegate_,
-                                  install_plan);
+                                  install_plan,
+                                  &install_plan->payloads[0]);
   string public_key_path = GetBuildArtifactsPath(kUnittestPublicKeyPath);
   EXPECT_TRUE(utils::FileExists(public_key_path.c_str()));
   (*performer)->set_public_key_path(public_key_path);

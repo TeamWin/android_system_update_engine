@@ -78,12 +78,14 @@ class DeltaPerformer : public FileWriter {
                  BootControlInterface* boot_control,
                  HardwareInterface* hardware,
                  DownloadActionDelegate* download_delegate,
-                 InstallPlan* install_plan)
+                 InstallPlan* install_plan,
+                 InstallPlan::Payload* payload)
       : prefs_(prefs),
         boot_control_(boot_control),
         hardware_(hardware),
         download_delegate_(download_delegate),
-        install_plan_(install_plan) {}
+        install_plan_(install_plan),
+        payload_(payload) {}
 
   // FileWriter's Write implementation where caller doesn't care about
   // error codes.
@@ -302,6 +304,9 @@ class DeltaPerformer : public FileWriter {
 
   // Install Plan based on Omaha Response.
   InstallPlan* install_plan_;
+
+  // Pointer to the current payload in install_plan_.payloads.
+  InstallPlan::Payload* payload_{nullptr};
 
   // File descriptor of the source partition. Only set while updating a
   // partition when using a delta payload.

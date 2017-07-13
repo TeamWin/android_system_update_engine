@@ -339,8 +339,7 @@ TEST_F(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest) {
       .Times(0);
   OmahaResponse response;
   string url1 = "http://url1";
-  response.payload_urls.push_back(url1);
-  response.payload_urls.push_back("https://url");
+  response.packages.push_back({.payload_urls = {url1, "https://url"}});
   EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(url1));
   fake_system_state_.mock_payload_state()->SetResponse(response);
