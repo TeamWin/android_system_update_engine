@@ -18,6 +18,7 @@
 
 #include <base/format_macros.h>
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/common/utils.h"
@@ -68,19 +69,17 @@ void InstallPlan::Dump() const {
                            utils::ToString(partition.run_postinstall).c_str());
   }
 
-  LOG(INFO) << "InstallPlan: "
-            << (is_resume ? "resume" : "new_update")
+  LOG(INFO) << "InstallPlan: " << (is_resume ? "resume" : "new_update")
             << ", payload type: " << InstallPayloadTypeToString(payload_type)
             << ", source_slot: " << BootControlInterface::SlotName(source_slot)
             << ", target_slot: " << BootControlInterface::SlotName(target_slot)
-            << ", url: " << download_url
-            << ", payload size: " << payload_size
-            << ", payload hash: " << payload_hash
+            << ", url: " << download_url << ", payload size: " << payload_size
+            << ", payload hash: "
+            << base::HexEncode(payload_hash.data(), payload_hash.size())
             << ", metadata size: " << metadata_size
-            << ", metadata signature: " << metadata_signature
-            << partitions_str
-            << ", hash_checks_mandatory: " << utils::ToString(
-                hash_checks_mandatory)
+            << ", metadata signature: " << metadata_signature << partitions_str
+            << ", hash_checks_mandatory: "
+            << utils::ToString(hash_checks_mandatory)
             << ", powerwash_required: " << utils::ToString(powerwash_required);
 }
 

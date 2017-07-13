@@ -53,7 +53,7 @@ base::Time TimeFromStructTimespec(struct timespec *ts);
 std::string StringVectorToString(const std::vector<std::string> &vec_str);
 
 // Calculates the p2p file id from payload hash and size
-std::string CalculateP2PFileId(const std::string& payload_hash,
+std::string CalculateP2PFileId(const brillo::Blob& payload_hash,
                                size_t payload_size);
 
 // Parse the firmware version from one line of output from the

@@ -24,6 +24,7 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <brillo/bind_lambda.h>
+#include <brillo/data_encoding.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/strings/string_utils.h>
 
@@ -151,7 +152,11 @@ bool UpdateAttempterAndroid::ApplyPayload(
       install_plan_.payload_size = 0;
     }
   }
-  install_plan_.payload_hash = headers[kPayloadPropertyFileHash];
+  if (!brillo::data_encoding::Base64Decode(headers[kPayloadPropertyFileHash],
+                                           &install_plan_.payload_hash)) {
+    LOG(WARNING) << "Unable to decode base64 file hash: "
+                 << headers[kPayloadPropertyFileHash];
+  }
   if (!base::StringToUint64(headers[kPayloadPropertyMetadataSize],
                             &install_plan_.metadata_size)) {
     install_plan_.metadata_size = 0;

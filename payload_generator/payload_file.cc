@@ -312,10 +312,8 @@ bool PayloadFile::ReorderDataBlobs(
 
 bool PayloadFile::AddOperationHash(InstallOperation* op,
                                    const brillo::Blob& buf) {
-  HashCalculator hasher;
-  TEST_AND_RETURN_FALSE(hasher.Update(buf.data(), buf.size()));
-  TEST_AND_RETURN_FALSE(hasher.Finalize());
-  const brillo::Blob& hash = hasher.raw_hash();
+  brillo::Blob hash;
+  TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfData(buf, &hash));
   op->set_data_sha256_hash(hash.data(), hash.size());
   return true;
 }

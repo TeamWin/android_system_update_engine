@@ -70,7 +70,6 @@ static const char* kTagMetadataSize = "MetadataSize";
 static const char* kTagMoreInfo = "MoreInfo";
 // Deprecated: "NeedsAdmin"
 static const char* kTagPrompt = "Prompt";
-static const char* kTagSha256 = "sha256";
 static const char* kTagDisableP2PForDownloading = "DisableP2PForDownloading";
 static const char* kTagDisableP2PForSharing = "DisableP2PForSharing";
 static const char* kTagPublicKeyRsa = "PublicKeyRsa";
@@ -360,6 +359,7 @@ struct OmahaParserData {
   vector<string> url_codebase;
   string package_name;
   string package_size;
+  string package_hash;
   string manifest_version;
   map<string, string> action_postinstall_attrs;
 };
@@ -420,6 +420,7 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
     // Only look at the first <package>.
     data->package_name = attrs["name"];
     data->package_size = attrs["size"];
+    data->package_hash = attrs["hash_sha256"];
   } else if (data->current_path == "/response/app/updatecheck/manifest") {
     // Get the version.
     data->manifest_version = attrs[kTagVersion];
@@ -870,6 +871,13 @@ bool OmahaRequestAction::ParsePackage(OmahaParserData* parser_data,
 
   LOG(INFO) << "Payload size = " << output_object->size << " bytes";
 
+  output_object->hash = parser_data->package_hash;
+  if (output_object->hash.empty()) {
+    LOG(ERROR) << "Omaha Response has empty hash_sha256 value";
+    completer->set_code(ErrorCode::kOmahaResponseInvalid);
+    return false;
+  }
+
   return true;
 }
 
@@ -889,13 +897,6 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
   map<string, string> attrs = parser_data->action_postinstall_attrs;
   if (attrs.empty()) {
     LOG(ERROR) << "Omaha Response has no postinstall event action";
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
-  output_object->hash = attrs[kTagSha256];
-  if (output_object->hash.empty()) {
-    LOG(ERROR) << "Omaha Response has empty sha256 value";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
@@ -1133,10 +1134,13 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
                    next_data_offset + next_data_length;
   }
 
-  string file_id = utils::CalculateP2PFileId(response.hash, response.size);
+  brillo::Blob raw_hash;
+  if (!base::HexStringToBytes(response.hash, &raw_hash))
+    return;
+  string file_id = utils::CalculateP2PFileId(raw_hash, response.size);
   if (system_state_->p2p_manager()) {
-    LOG(INFO) << "Checking if payload is available via p2p, file_id="
-              << file_id << " minimum_size=" << minimum_size;
+    LOG(INFO) << "Checking if payload is available via p2p, file_id=" << file_id
+              << " minimum_size=" << minimum_size;
     system_state_->p2p_manager()->LookupUrlForFile(
         file_id,
         minimum_size,

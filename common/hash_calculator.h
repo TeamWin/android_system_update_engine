@@ -27,11 +27,11 @@
 #include <base/macros.h>
 #include <brillo/secure_blob.h>
 
-// Omaha uses base64 encoded SHA-256 as the hash. This class provides a simple
-// wrapper around OpenSSL providing such a formatted hash of data passed in.
+// This class provides a simple wrapper around OpenSSL providing a hash of data
+// passed in.
 // The methods of this class must be called in a very specific order: First the
 // ctor (of course), then 0 or more calls to Update(), then Finalize(), then 0
-// or more calls to hash().
+// or more calls to raw_hash().
 
 namespace chromeos_update_engine {
 
@@ -50,16 +50,9 @@ class HashCalculator {
   off_t UpdateFile(const std::string& name, off_t length);
 
   // Call Finalize() when all data has been passed in. This method tells
-  // OpenSSl that no more data will come in and base64 encodes the resulting
-  // hash.
+  // OpenSSL that no more data will come in.
   // Returns true on success.
   bool Finalize();
-
-  // Gets the hash. Finalize() must have been called.
-  const std::string& hash() const {
-    DCHECK(!hash_.empty()) << "Call Finalize() first";
-    return hash_;
-  }
 
   const brillo::Blob& raw_hash() const {
     DCHECK(!raw_hash_.empty()) << "Call Finalize() first";
@@ -83,15 +76,9 @@ class HashCalculator {
   static off_t RawHashOfFile(const std::string& name, off_t length,
                              brillo::Blob* out_hash);
 
-  // Used by tests
-  static std::string HashOfBytes(const void* data, size_t length);
-  static std::string HashOfString(const std::string& str);
-  static std::string HashOfData(const brillo::Blob& data);
-
  private:
-  // If non-empty, the final base64 encoded hash and the raw hash. Will only be
-  // set to non-empty when Finalize is called.
-  std::string hash_;
+  // If non-empty, the final raw hash. Will only be set to non-empty when
+  // Finalize is called.
   brillo::Blob raw_hash_;
 
   // Init success

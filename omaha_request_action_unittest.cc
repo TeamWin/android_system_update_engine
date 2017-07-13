@@ -89,34 +89,48 @@ struct FakeUpdateResponse {
   }
 
   string GetUpdateResponse() const {
-    return
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-        "protocol=\"3.0\">"
-        "<daystart elapsed_seconds=\"100\"" +
-        (elapsed_days.empty() ? "" : (" elapsed_days=\"" + elapsed_days + "\""))
-        + "/>"
-        "<app appid=\"" + app_id + "\" " +
-        (include_cohorts ? "cohort=\"" + cohort + "\" cohorthint=\"" +
-         cohorthint + "\" cohortname=\"" + cohortname + "\" " : "") +
-        " status=\"ok\">"
-        "<ping status=\"ok\"/><updatecheck status=\"ok\">"
-        "<urls><url codebase=\"" + codebase + "\"/></urls>"
-        "<manifest version=\"" + version + "\">"
-        "<packages><package hash=\"not-used\" name=\"" + filename +  "\" "
-        "size=\"" + base::Int64ToString(size) + "\"/></packages>"
-        "<actions><action event=\"postinstall\" "
-        "ChromeOSVersion=\"" + version + "\" "
-        "MoreInfo=\"" + more_info_url + "\" Prompt=\"" + prompt + "\" "
-        "IsDelta=\"true\" "
-        "IsDeltaPayload=\"true\" "
-        "MaxDaysToScatter=\"" + max_days_to_scatter + "\" "
-        "sha256=\"" + hash + "\" "
-        "needsadmin=\"" + needsadmin + "\" " +
-        (deadline.empty() ? "" : ("deadline=\"" + deadline + "\" ")) +
-        (disable_p2p_for_downloading ?
-            "DisableP2PForDownloading=\"true\" " : "") +
-        (disable_p2p_for_sharing ? "DisableP2PForSharing=\"true\" " : "") +
-        "/></actions></manifest></updatecheck></app></response>";
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+           "protocol=\"3.0\">"
+           "<daystart elapsed_seconds=\"100\"" +
+           (elapsed_days.empty() ? ""
+                                 : (" elapsed_days=\"" + elapsed_days + "\"")) +
+           "/>"
+           "<app appid=\"" +
+           app_id + "\" " +
+           (include_cohorts
+                ? "cohort=\"" + cohort + "\" cohorthint=\"" + cohorthint +
+                      "\" cohortname=\"" + cohortname + "\" "
+                : "") +
+           " status=\"ok\">"
+           "<ping status=\"ok\"/><updatecheck status=\"ok\">"
+           "<urls><url codebase=\"" +
+           codebase +
+           "\"/></urls>"
+           "<manifest version=\"" +
+           version +
+           "\">"
+           "<packages><package hash=\"not-used\" name=\"" +
+           filename + "\" size=\"" + base::Int64ToString(size) +
+           "\" hash_sha256=\"" + hash +
+           "\"/></packages>"
+           "<actions><action event=\"postinstall\" "
+           "ChromeOSVersion=\"" +
+           version + "\" MoreInfo=\"" + more_info_url + "\" Prompt=\"" +
+           prompt +
+           "\" "
+           "IsDelta=\"true\" "
+           "IsDeltaPayload=\"true\" "
+           "MaxDaysToScatter=\"" +
+           max_days_to_scatter +
+           "\" "
+           "sha256=\"not-used\" "
+           "needsadmin=\"" +
+           needsadmin + "\" " +
+           (deadline.empty() ? "" : ("deadline=\"" + deadline + "\" ")) +
+           (disable_p2p_for_downloading ? "DisableP2PForDownloading=\"true\" "
+                                        : "") +
+           (disable_p2p_for_sharing ? "DisableP2PForSharing=\"true\" " : "") +
+           "/></actions></manifest></updatecheck></app></response>";
   }
 
   // Return the payload URL, which is split in two fields in the XML response.
@@ -130,7 +144,7 @@ struct FakeUpdateResponse {
   string prompt = "true";
   string codebase = "http://code/base/";
   string filename = "file.signed";
-  string hash = "HASH1234=";
+  string hash = "4841534831323334";
   string needsadmin = "false";
   int64_t size = 123;
   string deadline = "";
@@ -1041,13 +1055,13 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
       "<urls><url codebase=\"http://missing/field/test/\"/></urls>"
       "<manifest version=\"10.2.3.4\">"
       "<packages><package hash=\"not-used\" name=\"f\" "
-      "size=\"587\"/></packages>"
+      "size=\"587\" hash_sha256=\"lkq34j5345\"/></packages>"
       "<actions><action event=\"postinstall\" "
       "ChromeOSVersion=\"10.2.3.4\" "
       "Prompt=\"false\" "
       "IsDelta=\"true\" "
       "IsDeltaPayload=\"false\" "
-      "sha256=\"lkq34j5345\" "
+      "sha256=\"not-used\" "
       "needsadmin=\"true\" "
       "/></actions></manifest></updatecheck></app></response>";
   LOG(INFO) << "Input Response = " << input_response;
