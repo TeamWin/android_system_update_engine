@@ -52,6 +52,7 @@ class MockPayloadState: public PayloadStateInterface {
   MOCK_METHOD1(SetUsingP2PForSharing, void(bool value));
   MOCK_METHOD1(SetScatteringWaitPeriod, void(base::TimeDelta));
   MOCK_METHOD1(SetP2PUrl, void(const std::string&));
+  MOCK_METHOD0(NextPayload, bool());
 
   // Getters.
   MOCK_METHOD0(GetResponseSignature, std::string());
