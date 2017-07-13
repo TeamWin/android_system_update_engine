@@ -122,6 +122,10 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
     return;
   }
 
+  // Always start from payload index 0, even for resume, to download partition
+  // info from previous payloads.
+  payload_index_ = 0;
+
   // This is the earliest point at which we can validate whether the URL index
   // we loaded from the persisted state is a valid value. If the response
   // hasn't changed but the URL index is invalid, it's indicative of some
@@ -240,6 +244,7 @@ void PayloadState::UpdateSucceeded() {
   // Reset the number of responses seen since it counts from the last
   // successful update, e.g. now.
   SetNumResponsesSeen(0);
+  SetPayloadIndex(0);
 
   CreateSystemUpdatedMarkerFile();
 }
@@ -762,6 +767,7 @@ void PayloadState::SetNumReboots(uint32_t num_reboots) {
 void PayloadState::ResetPersistedState() {
   SetPayloadAttemptNumber(0);
   SetFullPayloadAttemptNumber(0);
+  SetPayloadIndex(0);
   SetUrlIndex(0);
   SetUrlFailureCount(0);
   SetUrlSwitchCount(0);
