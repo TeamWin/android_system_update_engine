@@ -335,10 +335,14 @@ bool DeltaPerformer::OpenCurrentPartition() {
     return false;
 
   const PartitionUpdate& partition = partitions_[current_partition_];
+  size_t num_previous_partitions =
+      install_plan_->partitions.size() - partitions_.size();
+  const InstallPlan::Partition& install_part =
+      install_plan_->partitions[num_previous_partitions + current_partition_];
   // Open source fds if we have a delta payload with minor version >= 2.
   if (install_plan_->payload_type == InstallPayloadType::kDelta &&
       GetMinorVersion() != kInPlaceMinorPayloadVersion) {
-    source_path_ = install_plan_->partitions[current_partition_].source_path;
+    source_path_ = install_part.source_path;
     int err;
     source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, &err);
     if (!source_fd_) {
@@ -350,7 +354,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
     }
   }
 
-  target_path_ = install_plan_->partitions[current_partition_].target_path;
+  target_path_ = install_part.target_path;
   int err;
   target_fd_ = OpenFile(target_path_.c_str(), O_RDWR, &err);
   if (!target_fd_) {
@@ -366,8 +370,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
             << "\"";
 
   // Discard the end of the partition, but ignore failures.
-  DiscardPartitionTail(
-      target_fd_, install_plan_->partitions[current_partition_].target_size);
+  DiscardPartitionTail(target_fd_, install_part.target_size);
 
   return true;
 }
@@ -831,7 +834,6 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
 
   // Fill in the InstallPlan::partitions based on the partitions from the
   // payload.
-  install_plan_->partitions.clear();
   for (const auto& partition : partitions_) {
     InstallPlan::Partition install_part;
     install_part.name = partition.partition_name();
