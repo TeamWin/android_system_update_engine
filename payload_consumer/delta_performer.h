@@ -113,13 +113,13 @@ class DeltaPerformer : public FileWriter {
   bool IsManifestValid();
 
   // Verifies the downloaded payload against the signed hash included in the
-  // payload, against the update check hash (which is in base64 format)  and
-  // size using the public key and returns ErrorCode::kSuccess on success, an
-  // error code on failure.  This method should be called after closing the
-  // stream. Note this method skips the signed hash check if the public key is
-  // unavailable; it returns ErrorCode::kSignedDeltaPayloadExpectedError if the
-  // public key is available but the delta payload doesn't include a signature.
-  ErrorCode VerifyPayload(const std::string& update_check_response_hash,
+  // payload, against the update check hash and size using the public key and
+  // returns ErrorCode::kSuccess on success, an error code on failure.
+  // This method should be called after closing the stream. Note this method
+  // skips the signed hash check if the public key is unavailable; it returns
+  // ErrorCode::kSignedDeltaPayloadExpectedError if the public key is available
+  // but the delta payload doesn't include a signature.
+  ErrorCode VerifyPayload(const brillo::Blob& update_check_response_hash,
                           const uint64_t update_check_response_size);
 
   // Converts an ordered collection of Extent objects which contain data of

@@ -31,6 +31,7 @@
 #include <base/format_macros.h>
 #include <base/strings/stringprintf.h>
 #include <base/threading/simple_thread.h>
+#include <brillo/data_encoding.h>
 
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/subprocess.h"
@@ -845,7 +846,8 @@ bool InitializePartitionInfo(const PartitionConfig& part, PartitionInfo* info) {
   TEST_AND_RETURN_FALSE(hasher.Finalize());
   const brillo::Blob& hash = hasher.raw_hash();
   info->set_hash(hash.data(), hash.size());
-  LOG(INFO) << part.path << ": size=" << part.size << " hash=" << hasher.hash();
+  LOG(INFO) << part.path << ": size=" << part.size
+            << " hash=" << brillo::data_encoding::Base64Encode(hash);
   return true;
 }
 
