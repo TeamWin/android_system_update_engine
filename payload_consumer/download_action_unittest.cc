@@ -139,7 +139,7 @@ void TestWithData(const brillo::Blob& data,
       0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
   writer.set_fail_write(fail_write);
 
-  uint64_t size = data.size();
+  uint64_t size = data.size() - 1;
   InstallPlan install_plan;
   install_plan.payload_type = InstallPayloadType::kDelta;
   install_plan.payloads.push_back({.size = size});
@@ -174,7 +174,7 @@ void TestWithData(const brillo::Blob& data,
     download_action.set_delegate(&download_delegate);
     if (data.size() > kMockHttpFetcherChunkSize)
       EXPECT_CALL(download_delegate,
-                  BytesReceived(_, 1 + kMockHttpFetcherChunkSize, _));
+                  BytesReceived(_, kMockHttpFetcherChunkSize, _));
     EXPECT_CALL(download_delegate, BytesReceived(_, _, _)).Times(AtLeast(1));
   }
   ErrorCode expected_code = ErrorCode::kSuccess;

@@ -61,10 +61,15 @@ struct InstallPlan {
     uint64_t metadata_size = 0;      // size of the metadata
     std::string metadata_signature;  // signature of the metadata in base64
     brillo::Blob hash;               // SHA256 hash of the payload
+    // Only download manifest and fill in partitions in install plan without
+    // apply the payload if true. Will be set by DownloadAction when resuming
+    // multi-payload.
+    bool already_applied = false;
 
     bool operator==(const Payload& that) const {
       return size == that.size && metadata_size == that.metadata_size &&
-             metadata_signature == that.metadata_signature && hash == that.hash;
+             metadata_signature == that.metadata_signature &&
+             hash == that.hash && already_applied == that.already_applied;
     }
   };
   std::vector<Payload> payloads;

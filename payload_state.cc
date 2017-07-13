@@ -881,6 +881,20 @@ void PayloadState::SetFullPayloadAttemptNumber(
       full_payload_attempt_number_);
 }
 
+void PayloadState::SetPayloadIndex(size_t payload_index) {
+  CHECK(prefs_);
+  payload_index_ = payload_index;
+  LOG(INFO) << "Payload Index = " << payload_index_;
+  prefs_->SetInt64(kPrefsUpdateStatePayloadIndex, payload_index_);
+}
+
+bool PayloadState::NextPayload() {
+  if (payload_index_ + 1 >= candidate_urls_.size())
+    return false;
+  SetPayloadIndex(payload_index_ + 1);
+  return true;
+}
+
 void PayloadState::LoadUrlIndex() {
   SetUrlIndex(GetPersistedValue(kPrefsCurrentUrlIndex));
 }
