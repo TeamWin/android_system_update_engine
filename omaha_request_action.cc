@@ -379,21 +379,25 @@ struct OmahaParserData {
   bool app_cohort_set = false;
   bool app_cohorthint_set = false;
   bool app_cohortname_set = false;
-  string updatecheck_status;
   string updatecheck_poll_interval;
   map<string, string> updatecheck_attrs;
   string daystart_elapsed_days;
   string daystart_elapsed_seconds;
-  vector<string> url_codebase;
-  string manifest_version;
-  map<string, string> action_postinstall_attrs;
 
-  struct Package {
-    string name;
-    string size;
-    string hash;
+  struct App {
+    vector<string> url_codebase;
+    string manifest_version;
+    map<string, string> action_postinstall_attrs;
+    string updatecheck_status;
+
+    struct Package {
+      string name;
+      string size;
+      string hash;
+    };
+    vector<Package> packages;
   };
-  vector<Package> packages;
+  vector<App> apps;
 };
 
 namespace {
@@ -418,6 +422,7 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
   }
 
   if (data->current_path == "/response/app") {
+    data->apps.emplace_back();
     if (attrs.find("cohort") != attrs.end()) {
       data->app_cohort_set = true;
       data->app_cohort = attrs["cohort"];
@@ -431,9 +436,10 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
       data->app_cohortname = attrs["cohortname"];
     }
   } else if (data->current_path == "/response/app/updatecheck") {
-    // There is only supposed to be a single <updatecheck> element.
-    data->updatecheck_status = attrs["status"];
-    data->updatecheck_poll_interval = attrs["PollInterval"];
+    if (!data->apps.empty())
+      data->apps.back().updatecheck_status = attrs["status"];
+    if (data->updatecheck_poll_interval.empty())
+      data->updatecheck_poll_interval = attrs["PollInterval"];
     // Omaha sends arbitrary key-value pairs as extra attributes starting with
     // an underscore.
     for (const auto& attr : attrs) {
@@ -446,21 +452,24 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
     data->daystart_elapsed_seconds = attrs["elapsed_seconds"];
   } else if (data->current_path == "/response/app/updatecheck/urls/url") {
     // Look at all <url> elements.
-    data->url_codebase.push_back(attrs["codebase"]);
+    if (!data->apps.empty())
+      data->apps.back().url_codebase.push_back(attrs["codebase"]);
   } else if (data->current_path ==
              "/response/app/updatecheck/manifest/packages/package") {
     // Look at all <package> elements.
-    data->packages.push_back({.name = attrs["name"],
-                              .size = attrs["size"],
-                              .hash = attrs["hash_sha256"]});
+    if (!data->apps.empty())
+      data->apps.back().packages.push_back({.name = attrs["name"],
+                                            .size = attrs["size"],
+                                            .hash = attrs["hash_sha256"]});
   } else if (data->current_path == "/response/app/updatecheck/manifest") {
     // Get the version.
-    data->manifest_version = attrs[kTagVersion];
+    if (!data->apps.empty())
+      data->apps.back().manifest_version = attrs[kTagVersion];
   } else if (data->current_path ==
              "/response/app/updatecheck/manifest/actions/action") {
     // We only care about the postinstall action.
-    if (attrs["event"] == "postinstall") {
-      data->action_postinstall_attrs = attrs;
+    if (attrs["event"] == "postinstall" && !data->apps.empty()) {
+      data->apps.back().action_postinstall_attrs = std::move(attrs);
     }
   }
 }
@@ -759,15 +768,102 @@ bool UpdateLastPingDays(OmahaParserData *parser_data, PrefsInterface* prefs) {
   prefs->SetInt64(kPrefsLastRollCallPingDay, daystart.ToInternalValue());
   return true;
 }
+
+// Parses the package node in the given XML document and populates
+// |output_object| if valid. Returns true if we should continue the parsing.
+// False otherwise, in which case it sets any error code using |completer|.
+bool ParsePackage(OmahaParserData::App* app,
+                  OmahaResponse* output_object,
+                  ScopedActionCompleter* completer) {
+  if (app->updatecheck_status == "noupdate") {
+    if (!app->packages.empty()) {
+      LOG(ERROR) << "No update in this <app> but <package> is not empty.";
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    return true;
+  }
+  if (app->packages.empty()) {
+    LOG(ERROR) << "Omaha Response has no packages";
+    completer->set_code(ErrorCode::kOmahaResponseInvalid);
+    return false;
+  }
+  if (app->url_codebase.empty()) {
+    LOG(ERROR) << "No Omaha Response URLs";
+    completer->set_code(ErrorCode::kOmahaResponseInvalid);
+    return false;
+  }
+  LOG(INFO) << "Found " << app->url_codebase.size() << " url(s)";
+  vector<string> metadata_sizes =
+      base::SplitString(app->action_postinstall_attrs[kTagMetadataSize],
+                        ":",
+                        base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
+  vector<string> metadata_signatures =
+      base::SplitString(app->action_postinstall_attrs[kTagMetadataSignatureRsa],
+                        ":",
+                        base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
+  for (size_t i = 0; i < app->packages.size(); i++) {
+    const auto& package = app->packages[i];
+    if (package.name.empty()) {
+      LOG(ERROR) << "Omaha Response has empty package name";
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    LOG(INFO) << "Found package " << package.name;
+
+    OmahaResponse::Package out_package;
+    for (const string& codebase : app->url_codebase) {
+      if (codebase.empty()) {
+        LOG(ERROR) << "Omaha Response URL has empty codebase";
+        completer->set_code(ErrorCode::kOmahaResponseInvalid);
+        return false;
+      }
+      out_package.payload_urls.push_back(codebase + package.name);
+    }
+    // Parse the payload size.
+    base::StringToUint64(package.size, &out_package.size);
+    if (out_package.size <= 0) {
+      LOG(ERROR) << "Omaha Response has invalid payload size: " << package.size;
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    LOG(INFO) << "Payload size = " << out_package.size << " bytes";
+
+    if (i < metadata_sizes.size())
+      base::StringToUint64(metadata_sizes[i], &out_package.metadata_size);
+    LOG(INFO) << "Payload metadata size = " << out_package.metadata_size
+              << " bytes";
+
+    if (i < metadata_signatures.size())
+      out_package.metadata_signature = metadata_signatures[i];
+    LOG(INFO) << "Payload metadata signature = "
+              << out_package.metadata_signature;
+
+    out_package.hash = package.hash;
+    if (out_package.hash.empty()) {
+      LOG(ERROR) << "Omaha Response has empty hash_sha256 value";
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    LOG(INFO) << "Payload hash = " << out_package.hash;
+    output_object->packages.push_back(std::move(out_package));
+  }
+
+  return true;
+}
+
 }  // namespace
 
 bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
                                        OmahaResponse* output_object,
                                        ScopedActionCompleter* completer) {
-  if (parser_data->updatecheck_status.empty()) {
+  if (parser_data->apps.empty()) {
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
+  LOG(INFO) << "Found " << parser_data->apps.size() << " <app>.";
 
   // chromium-os:37289: The PollInterval is not supported by Omaha server
   // currently.  But still keeping this existing code in case we ever decide to
@@ -824,8 +920,9 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 
   // Package has to be parsed after Params now because ParseParams need to make
   // sure that postinstall action exists.
-  if (!ParsePackage(parser_data, output_object, completer))
-    return false;
+  for (auto& app : parser_data->apps)
+    if (!ParsePackage(&app, output_object, completer))
+      return false;
 
   return true;
 }
@@ -833,104 +930,37 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
 bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
-  const string& status = parser_data->updatecheck_status;
-  if (status == "noupdate") {
-    LOG(INFO) << "No update.";
-    output_object->update_exists = false;
+  output_object->update_exists = false;
+  for (size_t i = 0; i < parser_data->apps.size(); i++) {
+    const string& status = parser_data->apps[i].updatecheck_status;
+    if (status == "noupdate") {
+      LOG(INFO) << "No update for <app> " << i;
+    } else if (status == "ok") {
+      output_object->update_exists = true;
+    } else {
+      LOG(ERROR) << "Unknown Omaha response status: " << status;
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+  }
+  if (!output_object->update_exists) {
     SetOutputObject(*output_object);
     completer->set_code(ErrorCode::kSuccess);
-    return false;
   }
 
-  if (status != "ok") {
-    LOG(ERROR) << "Unknown Omaha response status: " << status;
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-
-  return true;
-}
-
-bool OmahaRequestAction::ParsePackage(OmahaParserData* parser_data,
-                                      OmahaResponse* output_object,
-                                      ScopedActionCompleter* completer) {
-  if (parser_data->packages.empty()) {
-    LOG(ERROR) << "Omaha Response has no packages";
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-  if (parser_data->url_codebase.empty()) {
-    LOG(ERROR) << "No Omaha Response URLs";
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-  LOG(INFO) << "Found " << parser_data->url_codebase.size() << " url(s)";
-
-  vector<string> metadata_sizes =
-      base::SplitString(parser_data->action_postinstall_attrs[kTagMetadataSize],
-                        ":",
-                        base::TRIM_WHITESPACE,
-                        base::SPLIT_WANT_ALL);
-  vector<string> metadata_signatures = base::SplitString(
-      parser_data->action_postinstall_attrs[kTagMetadataSignatureRsa],
-      ":",
-      base::TRIM_WHITESPACE,
-      base::SPLIT_WANT_ALL);
-
-  for (size_t i = 0; i < parser_data->packages.size(); i++) {
-    const auto& package = parser_data->packages[i];
-    if (package.name.empty()) {
-      LOG(ERROR) << "Omaha Response has empty package name";
-      completer->set_code(ErrorCode::kOmahaResponseInvalid);
-      return false;
-    }
-    LOG(INFO) << "Found package " << package.name;
-
-    OmahaResponse::Package out_package;
-    for (const string& codebase : parser_data->url_codebase) {
-      if (codebase.empty()) {
-        LOG(ERROR) << "Omaha Response URL has empty codebase";
-        completer->set_code(ErrorCode::kOmahaResponseInvalid);
-        return false;
-      }
-      out_package.payload_urls.push_back(codebase + package.name);
-    }
-    // Parse the payload size.
-    base::StringToUint64(package.size, &out_package.size);
-    if (out_package.size <= 0) {
-      LOG(ERROR) << "Omaha Response has invalid payload size: " << package.size;
-      completer->set_code(ErrorCode::kOmahaResponseInvalid);
-      return false;
-    }
-    LOG(INFO) << "Payload size = " << out_package.size << " bytes";
-
-    if (i < metadata_sizes.size())
-      base::StringToUint64(metadata_sizes[i], &out_package.metadata_size);
-    LOG(INFO) << "Payload metadata size = " << out_package.metadata_size
-              << " bytes";
-
-    if (i < metadata_signatures.size())
-      out_package.metadata_signature = metadata_signatures[i];
-    LOG(INFO) << "Payload metadata signature = "
-              << out_package.metadata_signature;
-
-    out_package.hash = package.hash;
-    if (out_package.hash.empty()) {
-      LOG(ERROR) << "Omaha Response has empty hash_sha256 value";
-      completer->set_code(ErrorCode::kOmahaResponseInvalid);
-      return false;
-    }
-    LOG(INFO) << "Payload hash = " << out_package.hash;
-    output_object->packages.push_back(std::move(out_package));
-  }
-
-  return true;
+  return output_object->update_exists;
 }
 
 bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
                                      OmahaResponse* output_object,
                                      ScopedActionCompleter* completer) {
-  output_object->version = parser_data->manifest_version;
+  map<string, string> attrs;
+  for (auto& app : parser_data->apps) {
+    if (!app.manifest_version.empty() && output_object->version.empty())
+      output_object->version = app.manifest_version;
+    if (!app.action_postinstall_attrs.empty() && attrs.empty())
+      attrs = app.action_postinstall_attrs;
+  }
   if (output_object->version.empty()) {
     LOG(ERROR) << "Omaha Response does not have version in manifest!";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
@@ -940,7 +970,6 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
   LOG(INFO) << "Received omaha response to update to version "
             << output_object->version;
 
-  map<string, string> attrs = parser_data->action_postinstall_attrs;
   if (attrs.empty()) {
     LOG(ERROR) << "Omaha Response has no postinstall event action";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
