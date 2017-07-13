@@ -30,7 +30,6 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/file_fetcher.h"
-#include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/daemon_state_interface.h"
 #include "update_engine/network_selector.h"
@@ -207,7 +206,6 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.Dump();
 
   BuildUpdateActions(payload_url);
-  SetupDownload();
   // Setup extra headers.
   HttpFetcher* fetcher = download_action_->http_fetcher();
   if (!headers[kPayloadPropertyAuthorization].empty())
@@ -459,12 +457,12 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
     download_fetcher = libcurl_fetcher;
 #endif  // _UE_SIDELOAD
   }
-  shared_ptr<DownloadAction> download_action(new DownloadAction(
-      prefs_,
-      boot_control_,
-      hardware_,
-      nullptr,                                        // system_state, not used.
-      new MultiRangeHttpFetcher(download_fetcher)));  // passes ownership
+  shared_ptr<DownloadAction> download_action(
+      new DownloadAction(prefs_,
+                         boot_control_,
+                         hardware_,
+                         nullptr,             // system_state, not used.
+                         download_fetcher));  // passes ownership
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
       new FilesystemVerifierAction());
 
@@ -472,6 +470,7 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
       new PostinstallRunnerAction(boot_control_, hardware_));
 
   download_action->set_delegate(this);
+  download_action->set_base_offset(base_offset_);
   download_action_ = download_action;
   postinstall_runner_action->set_delegate(this);
 
@@ -490,42 +489,6 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
   // Enqueue the actions.
   for (const shared_ptr<AbstractAction>& action : actions_)
     processor_->EnqueueAction(action.get());
-}
-
-void UpdateAttempterAndroid::SetupDownload() {
-  MultiRangeHttpFetcher* fetcher =
-      static_cast<MultiRangeHttpFetcher*>(download_action_->http_fetcher());
-  fetcher->ClearRanges();
-  if (install_plan_.is_resume) {
-    // Resuming an update so fetch the update manifest metadata first.
-    int64_t manifest_metadata_size = 0;
-    int64_t manifest_signature_size = 0;
-    prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size);
-    prefs_->GetInt64(kPrefsManifestSignatureSize, &manifest_signature_size);
-    fetcher->AddRange(base_offset_,
-                      manifest_metadata_size + manifest_signature_size);
-    // If there're remaining unprocessed data blobs, fetch them. Be careful not
-    // to request data beyond the end of the payload to avoid 416 HTTP response
-    // error codes.
-    int64_t next_data_offset = 0;
-    prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
-    uint64_t resume_offset =
-        manifest_metadata_size + manifest_signature_size + next_data_offset;
-    if (!install_plan_.payloads[0].size) {
-      fetcher->AddRange(base_offset_ + resume_offset);
-    } else if (resume_offset < install_plan_.payloads[0].size) {
-      fetcher->AddRange(base_offset_ + resume_offset,
-                        install_plan_.payloads[0].size - resume_offset);
-    }
-  } else {
-    if (install_plan_.payloads[0].size) {
-      fetcher->AddRange(base_offset_, install_plan_.payloads[0].size);
-    } else {
-      // If no payload size is passed we assume we read until the end of the
-      // stream.
-      fetcher->AddRange(base_offset_);
-    }
-  }
 }
 
 bool UpdateAttempterAndroid::WriteUpdateCompletedMarker() {

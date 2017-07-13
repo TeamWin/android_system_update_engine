@@ -281,9 +281,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Sets the status to the given status and notifies a status update over dbus.
   void SetStatusAndNotify(UpdateStatus status);
 
-  // Sets up the download parameters after receiving the update check response.
-  void SetupDownload();
-
   // Creates an error event object in |error_event_| to be included in an
   // OmahaRequestAction once the current action processor is done.
   void CreatePendingErrorEvent(AbstractAction* action, ErrorCode code);
