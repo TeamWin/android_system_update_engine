@@ -27,6 +27,7 @@
 #include <base/logging.h>
 #include <base/rand_util.h>
 #include <base/strings/string_number_conversions.h>
+#include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
@@ -357,11 +358,15 @@ struct OmahaParserData {
   string daystart_elapsed_days;
   string daystart_elapsed_seconds;
   vector<string> url_codebase;
-  string package_name;
-  string package_size;
-  string package_hash;
   string manifest_version;
   map<string, string> action_postinstall_attrs;
+
+  struct Package {
+    string name;
+    string size;
+    string hash;
+  };
+  vector<Package> packages;
 };
 
 namespace {
@@ -415,12 +420,12 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
   } else if (data->current_path == "/response/app/updatecheck/urls/url") {
     // Look at all <url> elements.
     data->url_codebase.push_back(attrs["codebase"]);
-  } else if (data->package_name.empty() && data->current_path ==
+  } else if (data->current_path ==
              "/response/app/updatecheck/manifest/packages/package") {
-    // Only look at the first <package>.
-    data->package_name = attrs["name"];
-    data->package_size = attrs["size"];
-    data->package_hash = attrs["hash_sha256"];
+    // Look at all <package> elements.
+    data->packages.push_back({.name = attrs["name"],
+                              .size = attrs["size"],
+                              .hash = attrs["hash_sha256"]});
   } else if (data->current_path == "/response/app/updatecheck/manifest") {
     // Get the version.
     data->manifest_version = attrs[kTagVersion];
@@ -787,15 +792,12 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   if (!ParseStatus(parser_data, output_object, completer))
     return false;
 
-  // Note: ParseUrls MUST be called before ParsePackage as ParsePackage
-  // appends the package name to the URLs populated in this method.
-  if (!ParseUrls(parser_data, output_object, completer))
-    return false;
-
-  if (!ParsePackage(parser_data, output_object, completer))
-    return false;
-
   if (!ParseParams(parser_data, output_object, completer))
+    return false;
+
+  // Package has to be parsed after Params now because ParseParams need to make
+  // sure that postinstall action exists.
+  if (!ParsePackage(parser_data, output_object, completer))
     return false;
 
   return true;
@@ -822,60 +824,77 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
   return true;
 }
 
-bool OmahaRequestAction::ParseUrls(OmahaParserData* parser_data,
-                                   OmahaResponse* output_object,
-                                   ScopedActionCompleter* completer) {
+bool OmahaRequestAction::ParsePackage(OmahaParserData* parser_data,
+                                      OmahaResponse* output_object,
+                                      ScopedActionCompleter* completer) {
+  if (parser_data->packages.empty()) {
+    LOG(ERROR) << "Omaha Response has no packages";
+    completer->set_code(ErrorCode::kOmahaResponseInvalid);
+    return false;
+  }
   if (parser_data->url_codebase.empty()) {
     LOG(ERROR) << "No Omaha Response URLs";
     completer->set_code(ErrorCode::kOmahaResponseInvalid);
     return false;
   }
-
   LOG(INFO) << "Found " << parser_data->url_codebase.size() << " url(s)";
-  output_object->payload_urls.clear();
-  for (const auto& codebase : parser_data->url_codebase) {
-    if (codebase.empty()) {
-      LOG(ERROR) << "Omaha Response URL has empty codebase";
+
+  vector<string> metadata_sizes =
+      base::SplitString(parser_data->action_postinstall_attrs[kTagMetadataSize],
+                        ":",
+                        base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_ALL);
+  vector<string> metadata_signatures = base::SplitString(
+      parser_data->action_postinstall_attrs[kTagMetadataSignatureRsa],
+      ":",
+      base::TRIM_WHITESPACE,
+      base::SPLIT_WANT_ALL);
+
+  for (size_t i = 0; i < parser_data->packages.size(); i++) {
+    const auto& package = parser_data->packages[i];
+    if (package.name.empty()) {
+      LOG(ERROR) << "Omaha Response has empty package name";
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
       return false;
     }
-    output_object->payload_urls.push_back(codebase);
-  }
+    LOG(INFO) << "Found package " << package.name;
 
-  return true;
-}
+    OmahaResponse::Package out_package;
+    for (const string& codebase : parser_data->url_codebase) {
+      if (codebase.empty()) {
+        LOG(ERROR) << "Omaha Response URL has empty codebase";
+        completer->set_code(ErrorCode::kOmahaResponseInvalid);
+        return false;
+      }
+      out_package.payload_urls.push_back(codebase + package.name);
+    }
+    // Parse the payload size.
+    base::StringToUint64(package.size, &out_package.size);
+    if (out_package.size <= 0) {
+      LOG(ERROR) << "Omaha Response has invalid payload size: " << package.size;
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    LOG(INFO) << "Payload size = " << out_package.size << " bytes";
 
-bool OmahaRequestAction::ParsePackage(OmahaParserData* parser_data,
-                                      OmahaResponse* output_object,
-                                      ScopedActionCompleter* completer) {
-  if (parser_data->package_name.empty()) {
-    LOG(ERROR) << "Omaha Response has empty package name";
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
+    if (i < metadata_sizes.size())
+      base::StringToUint64(metadata_sizes[i], &out_package.metadata_size);
+    LOG(INFO) << "Payload metadata size = " << out_package.metadata_size
+              << " bytes";
 
-  // Append the package name to each URL in our list so that we don't
-  // propagate the urlBase vs packageName distinctions beyond this point.
-  // From now on, we only need to use payload_urls.
-  for (auto& payload_url : output_object->payload_urls)
-    payload_url += parser_data->package_name;
+    if (i < metadata_signatures.size())
+      out_package.metadata_signature = metadata_signatures[i];
+    LOG(INFO) << "Payload metadata signature = "
+              << out_package.metadata_signature;
 
-  // Parse the payload size.
-  off_t size = ParseInt(parser_data->package_size);
-  if (size <= 0) {
-    LOG(ERROR) << "Omaha Response has invalid payload size: " << size;
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
-  }
-  output_object->size = size;
-
-  LOG(INFO) << "Payload size = " << output_object->size << " bytes";
-
-  output_object->hash = parser_data->package_hash;
-  if (output_object->hash.empty()) {
-    LOG(ERROR) << "Omaha Response has empty hash_sha256 value";
-    completer->set_code(ErrorCode::kOmahaResponseInvalid);
-    return false;
+    out_package.hash = package.hash;
+    if (out_package.hash.empty()) {
+      LOG(ERROR) << "Omaha Response has empty hash_sha256 value";
+      completer->set_code(ErrorCode::kOmahaResponseInvalid);
+      return false;
+    }
+    LOG(INFO) << "Payload hash = " << out_package.hash;
+    output_object->packages.push_back(std::move(out_package));
   }
 
   return true;
@@ -903,8 +922,6 @@ bool OmahaRequestAction::ParseParams(OmahaParserData* parser_data,
 
   // Get the optional properties one by one.
   output_object->more_info_url = attrs[kTagMoreInfo];
-  output_object->metadata_size = ParseInt(attrs[kTagMetadataSize]);
-  output_object->metadata_signature = attrs[kTagMetadataSignatureRsa];
   output_object->prompt = ParseBool(attrs[kTagPrompt]);
   output_object->deadline = attrs[kTagDeadline];
   output_object->max_days_to_scatter = ParseInt(attrs[kTagMaxDaysToScatter]);
@@ -1134,10 +1151,12 @@ void OmahaRequestAction::LookupPayloadViaP2P(const OmahaResponse& response) {
                    next_data_offset + next_data_length;
   }
 
+  // TODO(senj): Fix P2P for multiple package.
   brillo::Blob raw_hash;
-  if (!base::HexStringToBytes(response.hash, &raw_hash))
+  if (!base::HexStringToBytes(response.packages[0].hash, &raw_hash))
     return;
-  string file_id = utils::CalculateP2PFileId(raw_hash, response.size);
+  string file_id =
+      utils::CalculateP2PFileId(raw_hash, response.packages[0].size);
   if (system_state_->p2p_manager()) {
     LOG(INFO) << "Checking if payload is available via p2p, file_id=" << file_id
               << " minimum_size=" << minimum_size;

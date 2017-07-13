@@ -142,10 +142,10 @@ void TestWithData(const brillo::Blob& data,
   uint64_t size = data.size();
   InstallPlan install_plan;
   install_plan.payload_type = InstallPayloadType::kDelta;
-  install_plan.payload_size = size;
+  install_plan.payloads.push_back({.size = size});
   // We pull off the first byte from data and seek past it.
   EXPECT_TRUE(HashCalculator::RawHashOfBytes(
-      &data[1], data.size() - 1, &install_plan.payload_hash));
+      &data[1], data.size() - 1, &install_plan.payloads[0].hash));
   install_plan.source_slot = 0;
   install_plan.target_slot = 1;
   // We mark both slots as bootable. Only the target slot should be unbootable
@@ -272,6 +272,7 @@ void TestTerminateEarly(bool use_download_delegate) {
     // takes ownership of passed in HttpFetcher
     ObjectFeederAction<InstallPlan> feeder_action;
     InstallPlan install_plan;
+    install_plan.payloads.resize(1);
     feeder_action.set_obj(install_plan);
     FakeSystemState fake_system_state_;
     MockPrefs prefs;
@@ -370,8 +371,9 @@ TEST(DownloadActionTest, PassObjectOutTest) {
 
   // takes ownership of passed in HttpFetcher
   InstallPlan install_plan;
-  install_plan.payload_size = 1;
-  EXPECT_TRUE(HashCalculator::RawHashOfData({'x'}, &install_plan.payload_hash));
+  install_plan.payloads.push_back({.size = 1});
+  EXPECT_TRUE(
+      HashCalculator::RawHashOfData({'x'}, &install_plan.payloads[0].hash));
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
@@ -455,8 +457,9 @@ class P2PDownloadActionTest : public testing::Test {
     EXPECT_EQ(
         0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
     InstallPlan install_plan;
-    install_plan.payload_size = data_.length();
-    install_plan.payload_hash = {'1', '2', '3', '4', 'h', 'a', 's', 'h'};
+    install_plan.payloads.push_back(
+        {.size = data_.length(),
+         .hash = {'1', '2', '3', '4', 'h', 'a', 's', 'h'}});
     ObjectFeederAction<InstallPlan> feeder_action;
     feeder_action.set_obj(install_plan);
     MockPrefs prefs;

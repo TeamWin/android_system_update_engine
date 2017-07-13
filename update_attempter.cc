@@ -939,9 +939,12 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
           response_handler_action_->install_plan();
 
       // Generate an unique payload identifier.
-      const string target_version_uid =
-          brillo::data_encoding::Base64Encode(install_plan.payload_hash) + ":" +
-          install_plan.metadata_signature;
+      string target_version_uid;
+      for (const auto& payload : install_plan.payloads) {
+        target_version_uid +=
+            brillo::data_encoding::Base64Encode(payload.hash) + ":" +
+            payload.metadata_signature + ":";
+      }
 
       // Expect to reboot into the new version to send the proper metric during
       // next boot.
@@ -1032,7 +1035,9 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     const InstallPlan& plan = response_handler_action_->install_plan();
     UpdateLastCheckedTime();
     new_version_ = plan.version;
-    new_payload_size_ = plan.payload_size;
+    new_payload_size_ = 0;
+    for (const auto& payload : plan.payloads)
+      new_payload_size_ += payload.size;
     SetupDownload();
     cpu_limiter_.StartLimiter();
     SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
@@ -1339,7 +1344,10 @@ void UpdateAttempter::SetupDownload() {
     prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
     uint64_t resume_offset =
         manifest_metadata_size + manifest_signature_size + next_data_offset;
-    if (resume_offset < response_handler_action_->install_plan().payload_size) {
+    int64_t payload_index = 0;
+    prefs_->GetInt64(kPrefsUpdateStatePayloadIndex, &payload_index);
+    if (resume_offset <
+        response_handler_action_->install_plan().payloads[payload_index].size) {
       fetcher->AddRange(resume_offset);
     }
   } else {
