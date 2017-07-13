@@ -110,10 +110,6 @@ class UpdateAttempterAndroid
   // applying an update from the given |url|.
   void BuildUpdateActions(const std::string& url);
 
-  // Sets up the download parameters based on the update requested on the
-  // |install_plan_|.
-  void SetupDownload();
-
   // Writes to the processing completed marker. Does nothing if
   // |update_completed_marker_| is empty.
   bool WriteUpdateCompletedMarker();

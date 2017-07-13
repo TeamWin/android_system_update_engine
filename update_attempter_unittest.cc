@@ -218,7 +218,6 @@ TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
   DownloadAction action(prefs_, nullptr, nullptr, nullptr, fetcher.release());
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
-  EXPECT_EQ(503, attempter_.http_response_code());
   EXPECT_EQ(UpdateStatus::FINALIZING, attempter_.status());
   ASSERT_EQ(nullptr, attempter_.error_event_.get());
 }

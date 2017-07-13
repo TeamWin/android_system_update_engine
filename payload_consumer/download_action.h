@@ -27,6 +27,7 @@
 #include "update_engine/common/action.h"
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/http_fetcher.h"
+#include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/system_state.h"
@@ -106,6 +107,8 @@ class DownloadAction : public InstallPlanAction,
     delegate_ = delegate;
   }
 
+  void set_base_offset(int64_t base_offset) { base_offset_ = base_offset; }
+
   HttpFetcher* http_fetcher() { return http_fetcher_.get(); }
 
   // Returns the p2p file id for the file being written or the empty
@@ -148,8 +151,8 @@ class DownloadAction : public InstallPlanAction,
   // Global context for the system.
   SystemState* system_state_;
 
-  // Pointer to the HttpFetcher that does the http work.
-  std::unique_ptr<HttpFetcher> http_fetcher_;
+  // Pointer to the MultiRangeHttpFetcher that does the http work.
+  std::unique_ptr<MultiRangeHttpFetcher> http_fetcher_;
 
   // The FileWriter that downloaded data should be written to. It will
   // either point to *decompressing_file_writer_ or *delta_performer_.
@@ -163,7 +166,8 @@ class DownloadAction : public InstallPlanAction,
 
   // For reporting status to outsiders
   DownloadActionDelegate* delegate_;
-  uint64_t bytes_received_;
+  uint64_t bytes_received_{0};
+  uint64_t bytes_total_{0};
   bool download_active_{false};
 
   // The file-id for the file we're sharing or the empty string
@@ -176,6 +180,12 @@ class DownloadAction : public InstallPlanAction,
 
   // Set to |false| if p2p file is not visible.
   bool p2p_visible_;
+
+  // Loaded from prefs before downloading any payload.
+  size_t resume_payload_index_{0};
+
+  // Offset of the payload in the download URL, used by UpdateAttempterAndroid.
+  int64_t base_offset_{0};
 
   DISALLOW_COPY_AND_ASSIGN(DownloadAction);
 };

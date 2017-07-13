@@ -626,6 +626,12 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     if (!ParseManifestPartitions(error))
       return false;
 
+    // |install_plan.partitions| was filled in, nothing need to be done here if
+    // the payload was already applied, returns false to terminate http fetcher,
+    // but keep |error| as ErrorCode::kSuccess.
+    if (payload_->already_applied)
+      return false;
+
     num_total_operations_ = 0;
     for (const auto& partition : partitions_) {
       num_total_operations_ += partition.operations_size();
@@ -1673,7 +1679,6 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
   TEST_AND_RETURN_FALSE(prefs->SetInt64(kPrefsUpdateStateNextOperation,
                                         kUpdateStateOperationInvalid));
   if (!quick) {
-    prefs->SetString(kPrefsUpdateCheckResponseHash, "");
     prefs->SetInt64(kPrefsUpdateStateNextDataOffset, -1);
     prefs->SetInt64(kPrefsUpdateStateNextDataLength, 0);
     prefs->SetString(kPrefsUpdateStateSHA256Context, "");
