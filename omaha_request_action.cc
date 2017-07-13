@@ -950,13 +950,20 @@ bool OmahaRequestAction::ParseStatus(OmahaParserData* parser_data,
   output_object->update_exists = false;
   for (size_t i = 0; i < parser_data->apps.size(); i++) {
     const string& status = parser_data->apps[i].updatecheck_status;
-    // Also treat noupdate="true" in postinstall attributes as no update even if
-    // updatecheck status says otherwise.
-    if (status == "noupdate" ||
-        parser_data->apps[i].action_postinstall_attrs["noupdate"] == "true") {
+    if (status == "noupdate") {
+      // Don't update if any app has status="noupdate".
       LOG(INFO) << "No update for <app> " << i;
+      output_object->update_exists = false;
+      break;
     } else if (status == "ok") {
-      output_object->update_exists = true;
+      if (parser_data->apps[i].action_postinstall_attrs["noupdate"] == "true") {
+        // noupdate="true" in postinstall attributes means it's an update to
+        // self, only update if there's at least one app really have update.
+        LOG(INFO) << "Update to self for <app> " << i;
+      } else {
+        LOG(INFO) << "Update for <app> " << i;
+        output_object->update_exists = true;
+      }
     } else {
       LOG(ERROR) << "Unknown Omaha response status: " << status;
       completer->set_code(ErrorCode::kOmahaResponseInvalid);
