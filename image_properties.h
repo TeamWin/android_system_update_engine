@@ -45,6 +45,10 @@ struct ImageProperties {
   // the version, signing keys and build target.
   std::string build_fingerprint;
 
+  // The Android build type, should be either 'user', 'userdebug' or 'eng'.
+  // It's empty string on other platform.
+  std::string build_type;
+
   // The board name this image was built for.
   std::string board;
 
