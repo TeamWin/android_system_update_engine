@@ -763,9 +763,8 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                   state->old_kernel_data,
                   &kernel_part.source_hash));
 
-  // This partitions are normally filed by the FilesystemVerifierAction with
-  // the source hashes used for deltas.
-  install_plan->partitions = {root_part, kernel_part};
+  // The partitions should be empty before DeltaPerformer.
+  install_plan->partitions.clear();
 
   // With minor version 2, we want the target to be the new image, result_img,
   // but with version 1, we want to update A in place.
