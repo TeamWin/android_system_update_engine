@@ -79,6 +79,7 @@ extern const char kPrefsUpdateServerCertificate[];
 extern const char kPrefsUpdateStateNextDataLength[];
 extern const char kPrefsUpdateStateNextDataOffset[];
 extern const char kPrefsUpdateStateNextOperation[];
+extern const char kPrefsUpdateStatePayloadIndex[];
 extern const char kPrefsUpdateStateSHA256Context[];
 extern const char kPrefsUpdateStateSignatureBlob[];
 extern const char kPrefsUpdateStateSignedSHA256Context[];

@@ -187,7 +187,7 @@ void DeltaPerformer::LogProgress(const char* message_prefix) {
   }
 
   // Format download total count and percentage.
-  size_t payload_size = install_plan_->payload_size;
+  size_t payload_size = payload_->size;
   string payload_size_str("?");
   string downloaded_percentage_str("");
   if (payload_size) {
@@ -222,7 +222,7 @@ void DeltaPerformer::UpdateOverallProgress(bool force_log,
   // eliminated once we ensure that the payload_size in the install plan is
   // always given and is non-zero. This currently isn't the case during unit
   // tests (see chromium-os:37969).
-  size_t payload_size = install_plan_->payload_size;
+  size_t payload_size = payload_->size;
   unsigned actual_operations_weight = kProgressOperationsWeight;
   if (payload_size)
     new_overall_progress += min(
@@ -518,9 +518,9 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
     // beyond the expected metadata size.
     metadata_size_ = manifest_offset + manifest_size_;
     if (install_plan_->hash_checks_mandatory) {
-      if (install_plan_->metadata_size != metadata_size_) {
+      if (payload_->metadata_size != metadata_size_) {
         LOG(ERROR) << "Mandatory metadata size in Omaha response ("
-                   << install_plan_->metadata_size
+                   << payload_->metadata_size
                    << ") is missing/incorrect, actual = " << metadata_size_;
         *error = ErrorCode::kDownloadInvalidMetadataSize;
         return kMetadataParseError;
@@ -537,13 +537,13 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   // here. This is logged here (after we received the full metadata data) so
   // that we just log once (instead of logging n times) if it takes n
   // DeltaPerformer::Write calls to download the full manifest.
-  if (install_plan_->metadata_size == metadata_size_) {
+  if (payload_->metadata_size == metadata_size_) {
     LOG(INFO) << "Manifest size in payload matches expected value from Omaha";
   } else {
     // For mandatory-cases, we'd have already returned a kMetadataParseError
     // above. We'll be here only for non-mandatory cases. Just send a UMA stat.
     LOG(WARNING) << "Ignoring missing/incorrect metadata size ("
-                 << install_plan_->metadata_size
+                 << payload_->metadata_size
                  << ") in Omaha response as validation is not mandatory. "
                  << "Trusting metadata size in payload = " << metadata_size_;
   }
@@ -687,7 +687,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     // NOTE: If hash checks are mandatory and if metadata_signature is empty,
     // we would have already failed in ParsePayloadMetadata method and thus not
     // even be here. So no need to handle that case again here.
-    if (!install_plan_->metadata_signature.empty()) {
+    if (!payload_->metadata_signature.empty()) {
       // Note: Validate must be called only if CanPerformInstallOperation is
       // called. Otherwise, we might be failing operations before even if there
       // isn't sufficient data to compute the proper hash.
@@ -1323,18 +1323,18 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
     return ErrorCode::kDownloadMetadataSignatureError;
 
   brillo::Blob metadata_signature_blob, metadata_signature_protobuf_blob;
-  if (!install_plan_->metadata_signature.empty()) {
+  if (!payload_->metadata_signature.empty()) {
     // Convert base64-encoded signature to raw bytes.
-    if (!brillo::data_encoding::Base64Decode(
-        install_plan_->metadata_signature, &metadata_signature_blob)) {
+    if (!brillo::data_encoding::Base64Decode(payload_->metadata_signature,
+                                             &metadata_signature_blob)) {
       LOG(ERROR) << "Unable to decode base64 metadata signature: "
-                 << install_plan_->metadata_signature;
+                 << payload_->metadata_signature;
       return ErrorCode::kDownloadMetadataSignatureError;
     }
   } else if (major_payload_version_ == kBrilloMajorPayloadVersion) {
-    metadata_signature_protobuf_blob.assign(payload.begin() + metadata_size_,
-                                            payload.begin() + metadata_size_ +
-                                            metadata_signature_size_);
+    metadata_signature_protobuf_blob.assign(
+        payload.begin() + metadata_size_,
+        payload.begin() + metadata_size_ + metadata_signature_size_);
   }
 
   if (metadata_signature_blob.empty() &&

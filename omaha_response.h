@@ -38,16 +38,19 @@ struct OmahaResponse {
   // These are only valid if update_exists is true:
   std::string version;
 
-  // The ordered list of URLs in the Omaha response. Each item is a complete
-  // URL (i.e. in terms of Omaha XML, each value is a urlBase + packageName)
-  std::vector<std::string> payload_urls;
+  struct Package {
+    // The ordered list of URLs in the Omaha response. Each item is a complete
+    // URL (i.e. in terms of Omaha XML, each value is a urlBase + packageName)
+    std::vector<std::string> payload_urls;
+    uint64_t size = 0;
+    uint64_t metadata_size = 0;
+    std::string metadata_signature;
+    std::string hash;
+  };
+  std::vector<Package> packages;
 
   std::string more_info_url;
-  std::string hash;
-  std::string metadata_signature;
   std::string deadline;
-  off_t size = 0;
-  off_t metadata_size = 0;
   int max_days_to_scatter = 0;
   // The number of URL-related failures to tolerate before moving on to the
   // next URL in the current pass. This is a configurable value from the
