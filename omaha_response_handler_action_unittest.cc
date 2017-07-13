@@ -59,6 +59,8 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
               InstallPlan* out);
 
   FakeSystemState fake_system_state_;
+  // "Hash+"
+  const brillo::Blob expected_hash_ = {0x48, 0x61, 0x73, 0x68, 0x2b};
 };
 
 class OmahaResponseHandlerActionProcessorDelegate
@@ -90,6 +92,7 @@ const char* const kLongName =
     "very_long_name_and_no_slashes-very_long_name_and_no_slashes"
     "-the_update_a.b.c.d_DELTA_.tgz";
 const char* const kBadVersion = "don't update me";
+const char* const kPayloadHashHex = "486173682b";
 }  // namespace
 
 bool OmahaResponseHandlerActionTest::DoTest(
@@ -148,14 +151,14 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.version = "a.b.c.d";
     in.payload_urls.push_back("http://foo/the_update_a.b.c.d.tgz");
     in.more_info_url = "http://more/info";
-    in.hash = "HASH+";
+    in.hash = kPayloadHashHex;
     in.size = 12;
     in.prompt = false;
     in.deadline = "20101020";
     InstallPlan install_plan;
     EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
-    EXPECT_EQ(in.hash, install_plan.payload_hash);
+    EXPECT_EQ(expected_hash_, install_plan.payload_hash);
     EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
@@ -173,7 +176,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.version = "a.b.c.d";
     in.payload_urls.push_back("http://foo/the_update_a.b.c.d.tgz");
     in.more_info_url = "http://more/info";
-    in.hash = "HASHj+";
+    in.hash = kPayloadHashHex;
     in.size = 12;
     in.prompt = true;
     InstallPlan install_plan;
@@ -181,7 +184,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     fake_system_state_.fake_boot_control()->SetCurrentSlot(1);
     EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
-    EXPECT_EQ(in.hash, install_plan.payload_hash);
+    EXPECT_EQ(expected_hash_, install_plan.payload_hash);
     EXPECT_EQ(0U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline) &&
@@ -194,7 +197,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     in.version = "a.b.c.d";
     in.payload_urls.push_back(kLongName);
     in.more_info_url = "http://more/info";
-    in.hash = "HASHj+";
+    in.hash = kPayloadHashHex;
     in.size = 12;
     in.prompt = true;
     in.deadline = "some-deadline";
@@ -202,7 +205,7 @@ TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
     fake_system_state_.fake_boot_control()->SetCurrentSlot(0);
     EXPECT_TRUE(DoTest(in, test_deadline_file, &install_plan));
     EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
-    EXPECT_EQ(in.hash, install_plan.payload_hash);
+    EXPECT_EQ(expected_hash_, install_plan.payload_hash);
     EXPECT_EQ(1U, install_plan.target_slot);
     string deadline;
     EXPECT_TRUE(utils::ReadFile(test_deadline_file, &deadline));
@@ -225,7 +228,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
   in.version = "a.b.c.d";
   in.payload_urls.push_back("http://test.should/need/hash.checks.signed");
   in.more_info_url = "http://more/info";
-  in.hash = "HASHj+";
+  in.hash = kPayloadHashHex;
   in.size = 12;
   // Hash checks are always skipped for non-official update URLs.
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
@@ -234,7 +237,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpTest) {
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
-  EXPECT_EQ(in.hash, install_plan.payload_hash);
+  EXPECT_EQ(expected_hash_, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -245,7 +248,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForUnofficialUpdateUrl) {
   in.version = "a.b.c.d";
   in.payload_urls.push_back("http://url.normally/needs/hash.checks.signed");
   in.more_info_url = "http://more/info";
-  in.hash = "HASHj+";
+  in.hash = kPayloadHashHex;
   in.size = 12;
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
@@ -253,7 +256,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForUnofficialUpdateUrl) {
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
-  EXPECT_EQ(in.hash, install_plan.payload_hash);
+  EXPECT_EQ(expected_hash_, install_plan.payload_hash);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -266,7 +269,7 @@ TEST_F(OmahaResponseHandlerActionTest,
   in.version = "a.b.c.d";
   in.payload_urls.push_back("http://url.normally/needs/hash.checks.signed");
   in.more_info_url = "http://more/info";
-  in.hash = "HASHj+";
+  in.hash = kPayloadHashHex;
   in.size = 12;
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
@@ -275,7 +278,7 @@ TEST_F(OmahaResponseHandlerActionTest,
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
-  EXPECT_EQ(in.hash, install_plan.payload_hash);
+  EXPECT_EQ(expected_hash_, install_plan.payload_hash);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -286,7 +289,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   in.version = "a.b.c.d";
   in.payload_urls.push_back("https://test.should.not/need/hash.checks.signed");
   in.more_info_url = "http://more/info";
-  in.hash = "HASHj+";
+  in.hash = kPayloadHashHex;
   in.size = 12;
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
@@ -294,7 +297,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForHttpsTest) {
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
-  EXPECT_EQ(in.hash, install_plan.payload_hash);
+  EXPECT_EQ(expected_hash_, install_plan.payload_hash);
   EXPECT_FALSE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -306,7 +309,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   in.payload_urls.push_back("http://test.should.still/need/hash.checks");
   in.payload_urls.push_back("https://test.should.still/need/hash.checks");
   in.more_info_url = "http://more/info";
-  in.hash = "HASHj+";
+  in.hash = kPayloadHashHex;
   in.size = 12;
   EXPECT_CALL(*(fake_system_state_.mock_request_params()),
               IsUpdateUrlOfficial())
@@ -314,7 +317,7 @@ TEST_F(OmahaResponseHandlerActionTest, HashChecksForBothHttpAndHttpsTest) {
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
   EXPECT_EQ(in.payload_urls[0], install_plan.download_url);
-  EXPECT_EQ(in.hash, install_plan.payload_hash);
+  EXPECT_EQ(expected_hash_, install_plan.payload_hash);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
   EXPECT_EQ(in.version, install_plan.version);
 }
@@ -325,7 +328,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   in.version = "a.b.c.d";
   in.payload_urls.push_back("https://MoreStableChannelTest");
   in.more_info_url = "http://more/info";
-  in.hash = "HASHjk";
+  in.hash = kPayloadHashHex;
   in.size = 15;
 
   // Create a uniquely named test directory.
@@ -360,7 +363,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   in.version = "a.b.c.d";
   in.payload_urls.push_back("https://LessStableChannelTest");
   in.more_info_url = "http://more/info";
-  in.hash = "HASHjk";
+  in.hash = kPayloadHashHex;
   in.size = 15;
 
   // Create a uniquely named test directory.
@@ -395,7 +398,7 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   in.version = "a.b.c.d";
   in.payload_urls.push_back("https://would.not/cause/hash/checks");
   in.more_info_url = "http://more/info";
-  in.hash = "HASHj+";
+  in.hash = kPayloadHashHex;
   in.size = 12;
 
   OmahaRequestParams params(&fake_system_state_);
@@ -416,8 +419,8 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
 
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));
-  EXPECT_EQ(in.hash, install_plan.payload_hash);
-  EXPECT_EQ(install_plan.download_url, p2p_url);
+  EXPECT_EQ(expected_hash_, install_plan.payload_hash);
+  EXPECT_EQ(p2p_url, install_plan.download_url);
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
 }
 

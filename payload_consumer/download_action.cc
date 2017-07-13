@@ -23,7 +23,6 @@
 #include <vector>
 
 #include <base/files/file_path.h>
-#include <base/strings/stringprintf.h>
 
 #include "update_engine/common/action_pipe.h"
 #include "update_engine/common/boot_control_interface.h"

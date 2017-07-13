@@ -1361,14 +1361,13 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
   LOG(INFO) << "Verifying metadata hash signature using public key: "
             << path_to_public_key.value();
 
-  HashCalculator metadata_hasher;
-  metadata_hasher.Update(payload.data(), metadata_size_);
-  if (!metadata_hasher.Finalize()) {
+  brillo::Blob calculated_metadata_hash;
+  if (!HashCalculator::RawHashOfBytes(
+          payload.data(), metadata_size_, &calculated_metadata_hash)) {
     LOG(ERROR) << "Unable to compute actual hash of manifest";
     return ErrorCode::kDownloadMetadataSignatureVerificationError;
   }
 
-  brillo::Blob calculated_metadata_hash = metadata_hasher.raw_hash();
   PayloadVerifier::PadRSA2048SHA256Hash(&calculated_metadata_hash);
   if (calculated_metadata_hash.empty()) {
     LOG(ERROR) << "Computed actual hash of metadata is empty.";
@@ -1515,15 +1514,14 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
                           (operation.data_sha256_hash().data() +
                            operation.data_sha256_hash().size()));
 
-  HashCalculator operation_hasher;
-  operation_hasher.Update(buffer_.data(), operation.data_length());
-  if (!operation_hasher.Finalize()) {
+  brillo::Blob calculated_op_hash;
+  if (!HashCalculator::RawHashOfBytes(
+          buffer_.data(), operation.data_length(), &calculated_op_hash)) {
     LOG(ERROR) << "Unable to compute actual hash of operation "
                << next_operation_num_;
     return ErrorCode::kDownloadOperationHashVerificationError;
   }
 
-  brillo::Blob calculated_op_hash = operation_hasher.raw_hash();
   if (calculated_op_hash != expected_op_hash) {
     LOG(ERROR) << "Hash verification failed for operation "
                << next_operation_num_ << ". Expected hash = ";
@@ -1546,7 +1544,7 @@ ErrorCode DeltaPerformer::ValidateOperationHash(
   } while (0);
 
 ErrorCode DeltaPerformer::VerifyPayload(
-    const string& update_check_response_hash,
+    const brillo::Blob& update_check_response_hash,
     const uint64_t update_check_response_size) {
 
   // See if we should use the public RSA key in the Omaha response.
@@ -1568,11 +1566,11 @@ ErrorCode DeltaPerformer::VerifyPayload(
                       buffer_offset_);
 
   // Verifies the payload hash.
-  const string& payload_hash_data = payload_hash_calculator_.hash();
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadVerificationError,
-                      !payload_hash_data.empty());
-  TEST_AND_RETURN_VAL(ErrorCode::kPayloadHashMismatchError,
-                      payload_hash_data == update_check_response_hash);
+                      !payload_hash_calculator_.raw_hash().empty());
+  TEST_AND_RETURN_VAL(
+      ErrorCode::kPayloadHashMismatchError,
+      payload_hash_calculator_.raw_hash() == update_check_response_hash);
 
   // Verifies the signed payload hash.
   if (!utils::FileExists(path_to_public_key.value().c_str())) {

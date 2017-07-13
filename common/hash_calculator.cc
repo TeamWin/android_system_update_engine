@@ -20,7 +20,6 @@
 
 #include <base/logging.h>
 #include <base/posix/eintr_wrapper.h>
-#include <brillo/data_encoding.h>
 
 #include "update_engine/common/utils.h"
 
@@ -37,7 +36,7 @@ HashCalculator::HashCalculator() : valid_(false) {
 // Mostly just passes the data through to OpenSSL's SHA256_Update()
 bool HashCalculator::Update(const void* data, size_t length) {
   TEST_AND_RETURN_FALSE(valid_);
-  TEST_AND_RETURN_FALSE(hash_.empty());
+  TEST_AND_RETURN_FALSE(raw_hash_.empty());
   static_assert(sizeof(size_t) <= sizeof(unsigned long),  // NOLINT(runtime/int)
                 "length param may be truncated in SHA256_Update");
   TEST_AND_RETURN_FALSE(SHA256_Update(&ctx_, data, length) == 1);
@@ -73,16 +72,11 @@ off_t HashCalculator::UpdateFile(const string& name, off_t length) {
 }
 
 // Call Finalize() when all data has been passed in. This mostly just
-// calls OpenSSL's SHA256_Final() and then base64 encodes the hash.
+// calls OpenSSL's SHA256_Final().
 bool HashCalculator::Finalize() {
-  TEST_AND_RETURN_FALSE(hash_.empty());
   TEST_AND_RETURN_FALSE(raw_hash_.empty());
   raw_hash_.resize(SHA256_DIGEST_LENGTH);
   TEST_AND_RETURN_FALSE(SHA256_Final(raw_hash_.data(), &ctx_) == 1);
-
-  // Convert raw_hash_ to base64 encoding and store it in hash_.
-  hash_ = brillo::data_encoding::Base64Encode(raw_hash_.data(),
-                                              raw_hash_.size());
   return true;
 }
 
@@ -113,21 +107,6 @@ off_t HashCalculator::RawHashOfFile(const string& name, off_t length,
   }
   *out_hash = calc.raw_hash();
   return res;
-}
-
-string HashCalculator::HashOfBytes(const void* data, size_t length) {
-  HashCalculator calc;
-  calc.Update(data, length);
-  calc.Finalize();
-  return calc.hash();
-}
-
-string HashCalculator::HashOfString(const string& str) {
-  return HashOfBytes(str.data(), str.size());
-}
-
-string HashCalculator::HashOfData(const brillo::Blob& data) {
-  return HashOfBytes(data.data(), data.size());
 }
 
 string HashCalculator::GetContext() const {
