@@ -109,6 +109,7 @@ class OmahaRequestParams {
   inline std::string canary_app_id() const {
     return image_props_.canary_product_id;
   }
+  inline std::string system_app_id() const { return image_props_.system_id; }
   inline void set_app_id(const std::string& app_id) {
     image_props_.product_id = app_id;
     image_props_.canary_product_id = app_id;
@@ -122,6 +123,9 @@ class OmahaRequestParams {
     image_props_.version = version;
   }
   inline std::string app_version() const { return image_props_.version; }
+  inline std::string system_version() const {
+    return image_props_.system_version;
+  }
 
   inline std::string current_channel() const {
     return image_props_.current_channel;
