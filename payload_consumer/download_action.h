@@ -131,6 +131,9 @@ class DownloadAction : public InstallPlanAction,
   // called or if CloseP2PSharingFd() has been called.
   void WriteToP2PFile(const void* data, size_t length, off_t file_offset);
 
+  // Start downloading the current payload using delta_performer.
+  void StartDownloading();
+
   // The InstallPlan passed in
   InstallPlan install_plan_;
 

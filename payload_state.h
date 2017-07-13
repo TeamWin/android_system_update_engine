@@ -153,6 +153,14 @@ class PayloadState : public PayloadStateInterface {
     return attempt_error_code_;
   }
 
+  bool NextPayload() override {
+    if (payload_index_ + 1 >= candidate_urls_.size())
+      return false;
+    payload_index_++;
+    url_index_ = 0;
+    return true;
+  }
+
  private:
   enum class AttemptType {
     kUpdate,
