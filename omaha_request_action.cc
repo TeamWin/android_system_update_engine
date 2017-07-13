@@ -270,12 +270,19 @@ string GetAppXml(const OmahaEvent* event,
         "fingerprint=\"" + XmlEncodeWithDefault(params->os_build_fingerprint(), "") + "\" ";
   }
 
+  string buildtype_arg;
+  if (!params->os_build_type().empty()) {
+    buildtype_arg = "os_build_type=\"" +
+                    XmlEncodeWithDefault(params->os_build_type(), "") + "\" ";
+  }
+
   string app_xml = "    <app "
       "appid=\"" + XmlEncodeWithDefault(app_data.id, "") + "\" " +
       app_cohort_args +
       app_versions +
       app_channels +
       fingerprint_arg +
+      buildtype_arg +
       "lang=\"" + XmlEncodeWithDefault(params->app_lang(), "en-US") + "\" " +
       "board=\"" + XmlEncodeWithDefault(params->os_board(), "") + "\" " +
       "hardware_class=\"" + XmlEncodeWithDefault(params->hwid(), "") + "\" " +
