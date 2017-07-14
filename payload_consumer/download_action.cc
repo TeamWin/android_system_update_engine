@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <base/files/file_path.h>
+#include <base/metrics/statistics_recorder.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/common/action_pipe.h"
@@ -55,6 +56,7 @@ DownloadAction::DownloadAction(PrefsInterface* prefs,
       bytes_received_(0),
       p2p_sharing_fd_(-1),
       p2p_visible_(true) {
+  base::StatisticsRecorder::Initialize();
 }
 
 DownloadAction::~DownloadAction() {}
@@ -305,7 +307,14 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
   if (code == ErrorCode::kSuccess && delta_performer_.get()) {
     code = delta_performer_->VerifyPayload(install_plan_.payload_hash,
                                            install_plan_.payload_size);
-    if (code != ErrorCode::kSuccess) {
+    if (code == ErrorCode::kSuccess) {
+      // Log UpdateEngine.DownloadAction.* histograms to help diagnose
+      // long-blocking oeprations.
+      std::string histogram_output;
+      base::StatisticsRecorder::WriteGraph(
+          "UpdateEngine.DownloadAction.", &histogram_output);
+      LOG(INFO) << histogram_output;
+    } else {
       LOG(ERROR) << "Download of " << install_plan_.download_url
                  << " failed due to payload verification error.";
       // Delete p2p file, if applicable.

@@ -29,9 +29,11 @@
 #include <base/files/file_util.h>
 #include <base/format_macros.h>
 #include <base/memory/ptr_util.h>
+#include <base/metrics/histogram_macros.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <brillo/data_encoding.h>
 #include <bsdiff/bspatch.h>
 #include <google/protobuf/repeated_field.h>
@@ -580,6 +582,15 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   return kMetadataParseSuccess;
 }
 
+#define OP_DURATION_HISTOGRAM(_op_name, _start_time)      \
+    LOCAL_HISTOGRAM_CUSTOM_TIMES(                         \
+        "UpdateEngine.DownloadAction.InstallOperation::"  \
+        _op_name ".Duration",                             \
+        base::TimeTicks::Now() - _start_time,             \
+        base::TimeDelta::FromMilliseconds(10),            \
+        base::TimeDelta::FromMinutes(5),                  \
+        20);
+
 // Wrapper around write. Returns true if all requested bytes
 // were written, or false on any error, regardless of progress
 // and stores an action exit code in |error|.
@@ -709,28 +720,36 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     ScopedTerminatorExitUnblocker exit_unblocker =
         ScopedTerminatorExitUnblocker();  // Avoids a compiler unused var bug.
 
+    base::TimeTicks op_start_time = base::TimeTicks::Now();
+
     bool op_result;
     switch (op.type()) {
       case InstallOperation::REPLACE:
       case InstallOperation::REPLACE_BZ:
       case InstallOperation::REPLACE_XZ:
         op_result = PerformReplaceOperation(op);
+        OP_DURATION_HISTOGRAM("REPLACE", op_start_time);
         break;
       case InstallOperation::ZERO:
       case InstallOperation::DISCARD:
         op_result = PerformZeroOrDiscardOperation(op);
+        OP_DURATION_HISTOGRAM("ZERO_OR_DISCARD", op_start_time);
         break;
       case InstallOperation::MOVE:
         op_result = PerformMoveOperation(op);
+        OP_DURATION_HISTOGRAM("MOVE", op_start_time);
         break;
       case InstallOperation::BSDIFF:
         op_result = PerformBsdiffOperation(op);
+        OP_DURATION_HISTOGRAM("BSDIFF", op_start_time);
         break;
       case InstallOperation::SOURCE_COPY:
         op_result = PerformSourceCopyOperation(op, error);
+        OP_DURATION_HISTOGRAM("SOURCE_COPY", op_start_time);
         break;
       case InstallOperation::SOURCE_BSDIFF:
         op_result = PerformSourceBsdiffOperation(op, error);
+        OP_DURATION_HISTOGRAM("SOURCE_BSDIFF", op_start_time);
         break;
       case InstallOperation::IMGDIFF:
         // TODO(deymo): Replace with PUFFIN operation.
