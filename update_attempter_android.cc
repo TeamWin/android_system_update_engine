@@ -427,9 +427,11 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
 
 void UpdateAttempterAndroid::SetStatusAndNotify(UpdateStatus status) {
   status_ = status;
+  size_t payload_size =
+      install_plan_.payloads.empty() ? 0 : install_plan_.payloads[0].size;
   for (auto observer : daemon_state_->service_observers()) {
     observer->SendStatusUpdate(
-        0, download_progress_, status_, "", install_plan_.payloads[0].size);
+        0, download_progress_, status_, "", payload_size);
   }
   last_notify_time_ = TimeTicks::Now();
 }
