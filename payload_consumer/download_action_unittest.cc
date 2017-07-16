@@ -139,13 +139,13 @@ void TestWithData(const brillo::Blob& data,
       0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
   writer.set_fail_write(fail_write);
 
-  // We pull off the first byte from data and seek past it.
-  string hash = HashCalculator::HashOfBytes(&data[1], data.size() - 1);
-  uint64_t size = data.size();
+  uint64_t size = data.size() - 1;
   InstallPlan install_plan;
-  install_plan.payload_type = InstallPayloadType::kDelta;
-  install_plan.payload_size = size;
-  install_plan.payload_hash = hash;
+  install_plan.payloads.push_back(
+      {.size = size, .type = InstallPayloadType::kDelta});
+  // We pull off the first byte from data and seek past it.
+  EXPECT_TRUE(HashCalculator::RawHashOfBytes(
+      &data[1], data.size() - 1, &install_plan.payloads[0].hash));
   install_plan.source_slot = 0;
   install_plan.target_slot = 1;
   // We mark both slots as bootable. Only the target slot should be unbootable
@@ -174,7 +174,7 @@ void TestWithData(const brillo::Blob& data,
     download_action.set_delegate(&download_delegate);
     if (data.size() > kMockHttpFetcherChunkSize)
       EXPECT_CALL(download_delegate,
-                  BytesReceived(_, 1 + kMockHttpFetcherChunkSize, _));
+                  BytesReceived(_, kMockHttpFetcherChunkSize, _));
     EXPECT_CALL(download_delegate, BytesReceived(_, _, _)).Times(AtLeast(1));
   }
   ErrorCode expected_code = ErrorCode::kSuccess;
@@ -272,6 +272,7 @@ void TestTerminateEarly(bool use_download_delegate) {
     // takes ownership of passed in HttpFetcher
     ObjectFeederAction<InstallPlan> feeder_action;
     InstallPlan install_plan;
+    install_plan.payloads.resize(1);
     feeder_action.set_obj(install_plan);
     FakeSystemState fake_system_state_;
     MockPrefs prefs;
@@ -370,8 +371,9 @@ TEST(DownloadActionTest, PassObjectOutTest) {
 
   // takes ownership of passed in HttpFetcher
   InstallPlan install_plan;
-  install_plan.payload_size = 1;
-  install_plan.payload_hash = HashCalculator::HashOfString("x");
+  install_plan.payloads.push_back({.size = 1});
+  EXPECT_TRUE(
+      HashCalculator::RawHashOfData({'x'}, &install_plan.payloads[0].hash));
   ObjectFeederAction<InstallPlan> feeder_action;
   feeder_action.set_obj(install_plan);
   MockPrefs prefs;
@@ -455,8 +457,9 @@ class P2PDownloadActionTest : public testing::Test {
     EXPECT_EQ(
         0, writer.Open(output_temp_file.path().c_str(), O_WRONLY | O_CREAT, 0));
     InstallPlan install_plan;
-    install_plan.payload_size = data_.length();
-    install_plan.payload_hash = "1234hash";
+    install_plan.payloads.push_back(
+        {.size = data_.length(),
+         .hash = {'1', '2', '3', '4', 'h', 'a', 's', 'h'}});
     ObjectFeederAction<InstallPlan> feeder_action;
     feeder_action.set_obj(install_plan);
     MockPrefs prefs;
@@ -569,7 +572,8 @@ TEST_F(P2PDownloadActionTest, CanAppend) {
 
   // Prepare the file with existing data before starting to write to
   // it via DownloadAction.
-  string file_id = utils::CalculateP2PFileId("1234hash", data_.length());
+  string file_id = utils::CalculateP2PFileId(
+      {'1', '2', '3', '4', 'h', 'a', 's', 'h'}, data_.length());
   ASSERT_TRUE(p2p_manager_->FileShare(file_id, data_.length()));
   string existing_data;
   for (unsigned int i = 0; i < 1000; i++)
@@ -606,7 +610,8 @@ TEST_F(P2PDownloadActionTest, DeletePartialP2PFileIfResumingWithoutP2P) {
 
   // Prepare the file with all existing data before starting to write
   // to it via DownloadAction.
-  string file_id = utils::CalculateP2PFileId("1234hash", data_.length());
+  string file_id = utils::CalculateP2PFileId(
+      {'1', '2', '3', '4', 'h', 'a', 's', 'h'}, data_.length());
   ASSERT_TRUE(p2p_manager_->FileShare(file_id, data_.length()));
   string existing_data;
   for (unsigned int i = 0; i < 1000; i++)

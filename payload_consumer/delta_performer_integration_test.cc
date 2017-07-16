@@ -720,10 +720,10 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
   // Update the A image in place.
   InstallPlan* install_plan = &state->install_plan;
   install_plan->hash_checks_mandatory = hash_checks_mandatory;
-  install_plan->metadata_size = state->metadata_size;
-  install_plan->payload_type = (full_kernel && full_rootfs)
-                                   ? InstallPayloadType::kFull
-                                   : InstallPayloadType::kDelta;
+  install_plan->payloads = {{.metadata_size = state->metadata_size,
+                             .type = (full_kernel && full_rootfs)
+                                         ? InstallPayloadType::kFull
+                                         : InstallPayloadType::kDelta}};
   install_plan->source_slot = 0;
   install_plan->target_slot = 1;
 
@@ -739,14 +739,15 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
       state->delta.data(),
       state->metadata_size,
       GetBuildArtifactsPath(kUnittestPrivateKeyPath),
-      &install_plan->metadata_signature));
-  EXPECT_FALSE(install_plan->metadata_signature.empty());
+      &install_plan->payloads[0].metadata_signature));
+  EXPECT_FALSE(install_plan->payloads[0].metadata_signature.empty());
 
   *performer = new DeltaPerformer(&prefs,
                                   &state->fake_boot_control_,
                                   &state->fake_hardware_,
                                   &state->mock_delegate_,
-                                  install_plan);
+                                  install_plan,
+                                  &install_plan->payloads[0]);
   string public_key_path = GetBuildArtifactsPath(kUnittestPublicKeyPath);
   EXPECT_TRUE(utils::FileExists(public_key_path.c_str()));
   (*performer)->set_public_key_path(public_key_path);
@@ -761,9 +762,8 @@ static void ApplyDeltaFile(bool full_kernel, bool full_rootfs, bool noop,
                   state->old_kernel_data,
                   &kernel_part.source_hash));
 
-  // This partitions are normally filed by the FilesystemVerifierAction with
-  // the source hashes used for deltas.
-  install_plan->partitions = {root_part, kernel_part};
+  // The partitions should be empty before DeltaPerformer.
+  install_plan->partitions.clear();
 
   // With minor version 2, we want the target to be the new image, result_img,
   // but with version 1, we want to update A in place.
@@ -854,11 +854,11 @@ void VerifyPayloadResult(DeltaPerformer* performer,
   int expected_times = (expected_result == ErrorCode::kSuccess) ? 1 : 0;
   EXPECT_CALL(state->mock_delegate_, DownloadComplete()).Times(expected_times);
 
-  LOG(INFO) << "Verifying payload for expected result "
-            << expected_result;
-  EXPECT_EQ(expected_result, performer->VerifyPayload(
-      HashCalculator::HashOfData(state->delta),
-      state->delta.size()));
+  LOG(INFO) << "Verifying payload for expected result " << expected_result;
+  brillo::Blob expected_hash;
+  HashCalculator::RawHashOfData(state->delta, &expected_hash);
+  EXPECT_EQ(expected_result,
+            performer->VerifyPayload(expected_hash, state->delta.size()));
   LOG(INFO) << "Verified payload.";
 
   if (expected_result != ErrorCode::kSuccess) {

@@ -19,6 +19,7 @@
 #include <string>
 
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <policy/device_policy.h>
 
@@ -85,28 +86,40 @@ void OmahaResponseHandlerAction::PerformAction() {
   }
 
   // Fill up the other properties based on the response.
-  install_plan_.payload_size = response.size;
-  install_plan_.payload_hash = response.hash;
-  install_plan_.metadata_size = response.metadata_size;
-  install_plan_.metadata_signature = response.metadata_signature;
+  string update_check_response_hash;
+  for (const auto& package : response.packages) {
+    brillo::Blob raw_hash;
+    if (!base::HexStringToBytes(package.hash, &raw_hash)) {
+      LOG(ERROR) << "Failed to convert payload hash from hex string to bytes: "
+                 << package.hash;
+      completer.set_code(ErrorCode::kOmahaResponseInvalid);
+      return;
+    }
+    install_plan_.payloads.push_back(
+        {.size = package.size,
+         .metadata_size = package.metadata_size,
+         .metadata_signature = package.metadata_signature,
+         .hash = raw_hash,
+         .type = package.is_delta ? InstallPayloadType::kDelta
+                                  : InstallPayloadType::kFull});
+    update_check_response_hash += package.hash + ":";
+  }
   install_plan_.public_key_rsa = response.public_key_rsa;
   install_plan_.hash_checks_mandatory = AreHashChecksMandatory(response);
-  install_plan_.is_resume =
-      DeltaPerformer::CanResumeUpdate(system_state_->prefs(), response.hash);
+  install_plan_.is_resume = DeltaPerformer::CanResumeUpdate(
+      system_state_->prefs(), update_check_response_hash);
   if (install_plan_.is_resume) {
     payload_state->UpdateResumed();
   } else {
     payload_state->UpdateRestarted();
-    LOG_IF(WARNING, !DeltaPerformer::ResetUpdateProgress(
-        system_state_->prefs(), false))
+    LOG_IF(WARNING,
+           !DeltaPerformer::ResetUpdateProgress(system_state_->prefs(), false))
         << "Unable to reset the update progress.";
-    LOG_IF(WARNING, !system_state_->prefs()->SetString(
-        kPrefsUpdateCheckResponseHash, response.hash))
+    LOG_IF(WARNING,
+           !system_state_->prefs()->SetString(kPrefsUpdateCheckResponseHash,
+                                              update_check_response_hash))
         << "Unable to save the update check response hash.";
   }
-  install_plan_.payload_type = response.is_delta_payload
-                                   ? InstallPayloadType::kDelta
-                                   : InstallPayloadType::kFull;
 
   install_plan_.source_slot = system_state_->boot_control()->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
@@ -193,12 +206,14 @@ bool OmahaResponseHandlerAction::AreHashChecksMandatory(
   // mandatory because we could be downloading the payload from any URL later
   // on. It's really hard to do book-keeping based on each byte being
   // downloaded to see whether we only used HTTPS throughout.
-  for (size_t i = 0; i < response.payload_urls.size(); i++) {
-    if (!base::StartsWith(response.payload_urls[i], "https://",
-                          base::CompareCase::INSENSITIVE_ASCII)) {
-      LOG(INFO) << "Mandating payload hash checks since Omaha response "
-                << "contains non-HTTPS URL(s)";
-      return true;
+  for (const auto& package : response.packages) {
+    for (const string& payload_url : package.payload_urls) {
+      if (!base::StartsWith(
+              payload_url, "https://", base::CompareCase::INSENSITIVE_ASCII)) {
+        LOG(INFO) << "Mandating payload hash checks since Omaha response "
+                  << "contains non-HTTPS URL(s)";
+        return true;
+      }
     }
   }
 

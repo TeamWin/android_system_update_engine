@@ -103,7 +103,7 @@ class DeltaPerformerTest : public ::testing::Test {
                              uint64_t major_version,
                              InstallPayloadType payload_type,
                              ErrorCode expected) {
-    install_plan_.payload_type = payload_type;
+    payload_.type = payload_type;
 
     // The Manifest we are validating.
     performer_.manifest_.CopyFrom(manifest);
@@ -164,7 +164,7 @@ class DeltaPerformerTest : public ::testing::Test {
     string private_key =
         sign_payload ? GetBuildArtifactsPath(kUnittestPrivateKeyPath) : "";
     EXPECT_TRUE(payload.WritePayload(
-        payload_path, blob_path, private_key, &install_plan_.metadata_size));
+        payload_path, blob_path, private_key, &payload_.metadata_size));
 
     brillo::Blob payload_data;
     EXPECT_TRUE(utils::ReadFile(payload_path, &payload_data));
@@ -231,7 +231,7 @@ class DeltaPerformerTest : public ::testing::Test {
     uint64_t version = htobe64(kChromeOSMajorPayloadVersion);
     EXPECT_TRUE(performer_.Write(&version, 8));
 
-    install_plan_.metadata_size = expected_metadata_size;
+    payload_.metadata_size = expected_metadata_size;
     ErrorCode error_code;
     // When filling in size in manifest, exclude the size of the 20-byte header.
     uint64_t size_in_manifest = htobe64(actual_metadata_size - 20);
@@ -268,13 +268,13 @@ class DeltaPerformerTest : public ::testing::Test {
     // Fill up the metadata signature in install plan according to the test.
     switch (metadata_signature_test) {
       case kEmptyMetadataSignature:
-        install_plan_.metadata_signature.clear();
+        payload_.metadata_signature.clear();
         expected_result = DeltaPerformer::kMetadataParseError;
         expected_error = ErrorCode::kDownloadMetadataSignatureMissingError;
         break;
 
       case kInvalidMetadataSignature:
-        install_plan_.metadata_signature = kBogusMetadataSignature1;
+        payload_.metadata_signature = kBogusMetadataSignature1;
         expected_result = DeltaPerformer::kMetadataParseError;
         expected_error = ErrorCode::kDownloadMetadataSignatureMismatch;
         break;
@@ -286,10 +286,10 @@ class DeltaPerformerTest : public ::testing::Test {
         // then we can get to manifest signature checks.
         ASSERT_TRUE(PayloadSigner::GetMetadataSignature(
             payload.data(),
-            install_plan_.metadata_size,
+            payload_.metadata_size,
             GetBuildArtifactsPath(kUnittestPrivateKeyPath),
-            &install_plan_.metadata_signature));
-        EXPECT_FALSE(install_plan_.metadata_signature.empty());
+            &payload_.metadata_signature));
+        EXPECT_FALSE(payload_.metadata_signature.empty());
         expected_result = DeltaPerformer::kMetadataParseSuccess;
         expected_error = ErrorCode::kSuccess;
         break;
@@ -317,7 +317,7 @@ class DeltaPerformerTest : public ::testing::Test {
 
     // Check that the parsed metadata size is what's expected. This test
     // implicitly confirms that the metadata signature is valid, if required.
-    EXPECT_EQ(install_plan_.metadata_size, performer_.GetMetadataSize());
+    EXPECT_EQ(payload_.metadata_size, performer_.GetMetadataSize());
   }
 
   void SetSupportedMajorVersion(uint64_t major_version) {
@@ -325,15 +325,20 @@ class DeltaPerformerTest : public ::testing::Test {
   }
   FakePrefs prefs_;
   InstallPlan install_plan_;
+  InstallPlan::Payload payload_;
   FakeBootControl fake_boot_control_;
   FakeHardware fake_hardware_;
   MockDownloadActionDelegate mock_delegate_;
-  DeltaPerformer performer_{
-      &prefs_, &fake_boot_control_, &fake_hardware_, &mock_delegate_, &install_plan_};
+  DeltaPerformer performer_{&prefs_,
+                            &fake_boot_control_,
+                            &fake_hardware_,
+                            &mock_delegate_,
+                            &install_plan_,
+                            &payload_};
 };
 
 TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
-  install_plan_.payload_type = InstallPayloadType::kFull;
+  payload_.type = InstallPayloadType::kFull;
   brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
                                             std::end(kRandomString));
   expected_data.resize(4096);  // block size
@@ -352,7 +357,7 @@ TEST_F(DeltaPerformerTest, FullPayloadWriteTest) {
 }
 
 TEST_F(DeltaPerformerTest, ShouldCancelTest) {
-  install_plan_.payload_type = InstallPayloadType::kFull;
+  payload_.type = InstallPayloadType::kFull;
   brillo::Blob expected_data = brillo::Blob(std::begin(kRandomString),
                                             std::end(kRandomString));
   expected_data.resize(4096);  // block size
@@ -666,7 +671,7 @@ TEST_F(DeltaPerformerTest, BrilloVerifyMetadataSignatureTest) {
   install_plan_.hash_checks_mandatory = true;
   // Just set these value so that we can use ValidateMetadataSignature directly.
   performer_.major_payload_version_ = kBrilloMajorPayloadVersion;
-  performer_.metadata_size_ = install_plan_.metadata_size;
+  performer_.metadata_size_ = payload_.metadata_size;
   uint64_t signature_length;
   EXPECT_TRUE(PayloadSigner::SignatureBlobLength(
       {GetBuildArtifactsPath(kUnittestPrivateKeyPath)}, &signature_length));

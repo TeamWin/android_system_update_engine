@@ -211,8 +211,13 @@ void ApplyDelta(const string& in_file,
     part.target_path = old_part.path;
     install_plan.partitions.push_back(part);
   }
-
-  DeltaPerformer performer(&prefs, nullptr, nullptr, nullptr, &install_plan);
+  install_plan.payloads.resize(1);
+  DeltaPerformer performer(&prefs,
+                           nullptr,
+                           nullptr,
+                           nullptr,
+                           &install_plan,
+                           &install_plan.payloads[0]);
   brillo::Blob buf(1024 * 1024);
   int fd = open(in_file.c_str(), O_RDONLY, 0);
   CHECK_GE(fd, 0);

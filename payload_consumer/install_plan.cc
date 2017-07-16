@@ -18,6 +18,7 @@
 
 #include <base/format_macros.h>
 #include <base/logging.h>
+#include <base/strings/string_number_conversions.h>
 #include <base/strings/stringprintf.h>
 
 #include "update_engine/common/utils.h"
@@ -41,15 +42,9 @@ string InstallPayloadTypeToString(InstallPayloadType type) {
 
 bool InstallPlan::operator==(const InstallPlan& that) const {
   return ((is_resume == that.is_resume) &&
-          (payload_type == that.payload_type) &&
-          (download_url == that.download_url) &&
-          (payload_size == that.payload_size) &&
-          (payload_hash == that.payload_hash) &&
-          (metadata_size == that.metadata_size) &&
-          (metadata_signature == that.metadata_signature) &&
+          (download_url == that.download_url) && (payloads == that.payloads) &&
           (source_slot == that.source_slot) &&
-          (target_slot == that.target_slot) &&
-          (partitions == that.partitions));
+          (target_slot == that.target_slot) && (partitions == that.partitions));
 }
 
 bool InstallPlan::operator!=(const InstallPlan& that) const {
@@ -67,20 +62,24 @@ void InstallPlan::Dump() const {
                            partition.target_size,
                            utils::ToString(partition.run_postinstall).c_str());
   }
+  string payloads_str;
+  for (const auto& payload : payloads) {
+    payloads_str += base::StringPrintf(
+        ", payload: (size: %" PRIu64 ", metadata_size: %" PRIu64
+        ", metadata signature: %s, hash: %s, payload type: %s)",
+        payload.size,
+        payload.metadata_size,
+        payload.metadata_signature.c_str(),
+        base::HexEncode(payload.hash.data(), payload.hash.size()).c_str(),
+        InstallPayloadTypeToString(payload.type).c_str());
+  }
 
-  LOG(INFO) << "InstallPlan: "
-            << (is_resume ? "resume" : "new_update")
-            << ", payload type: " << InstallPayloadTypeToString(payload_type)
+  LOG(INFO) << "InstallPlan: " << (is_resume ? "resume" : "new_update")
             << ", source_slot: " << BootControlInterface::SlotName(source_slot)
             << ", target_slot: " << BootControlInterface::SlotName(target_slot)
-            << ", url: " << download_url
-            << ", payload size: " << payload_size
-            << ", payload hash: " << payload_hash
-            << ", metadata size: " << metadata_size
-            << ", metadata signature: " << metadata_signature
-            << partitions_str
-            << ", hash_checks_mandatory: " << utils::ToString(
-                hash_checks_mandatory)
+            << ", url: " << download_url << payloads_str << partitions_str
+            << ", hash_checks_mandatory: "
+            << utils::ToString(hash_checks_mandatory)
             << ", powerwash_required: " << utils::ToString(powerwash_required);
 }
 

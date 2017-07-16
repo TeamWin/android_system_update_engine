@@ -52,14 +52,28 @@ struct InstallPlan {
   bool LoadPartitionsFromSlots(BootControlInterface* boot_control);
 
   bool is_resume{false};
-  InstallPayloadType payload_type{InstallPayloadType::kUnknown};
   std::string download_url;  // url to download from
   std::string version;       // version we are installing.
 
-  uint64_t payload_size{0};              // size of the payload
-  std::string payload_hash;              // SHA256 hash of the payload
-  uint64_t metadata_size{0};             // size of the metadata
-  std::string metadata_signature;        // signature of the  metadata
+  struct Payload {
+    uint64_t size = 0;               // size of the payload
+    uint64_t metadata_size = 0;      // size of the metadata
+    std::string metadata_signature;  // signature of the metadata in base64
+    brillo::Blob hash;               // SHA256 hash of the payload
+    InstallPayloadType type{InstallPayloadType::kUnknown};
+    // Only download manifest and fill in partitions in install plan without
+    // apply the payload if true. Will be set by DownloadAction when resuming
+    // multi-payload.
+    bool already_applied = false;
+
+    bool operator==(const Payload& that) const {
+      return size == that.size && metadata_size == that.metadata_size &&
+             metadata_signature == that.metadata_signature &&
+             hash == that.hash && type == that.type &&
+             already_applied == that.already_applied;
+    }
+  };
+  std::vector<Payload> payloads;
 
   // The partition slots used for the update.
   BootControlInterface::Slot source_slot{BootControlInterface::kInvalidSlot};

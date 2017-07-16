@@ -24,12 +24,12 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <brillo/bind_lambda.h>
+#include <brillo/data_encoding.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/strings/string_utils.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/file_fetcher.h"
-#include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/daemon_state_interface.h"
 #include "update_engine/network_selector.h"
@@ -144,19 +144,27 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.download_url = payload_url;
   install_plan_.version = "";
   base_offset_ = payload_offset;
-  install_plan_.payload_size = payload_size;
-  if (!install_plan_.payload_size) {
+  InstallPlan::Payload payload;
+  payload.size = payload_size;
+  if (!payload.size) {
     if (!base::StringToUint64(headers[kPayloadPropertyFileSize],
-                              &install_plan_.payload_size)) {
-      install_plan_.payload_size = 0;
+                              &payload.size)) {
+      payload.size = 0;
     }
   }
-  install_plan_.payload_hash = headers[kPayloadPropertyFileHash];
-  if (!base::StringToUint64(headers[kPayloadPropertyMetadataSize],
-                            &install_plan_.metadata_size)) {
-    install_plan_.metadata_size = 0;
+  if (!brillo::data_encoding::Base64Decode(headers[kPayloadPropertyFileHash],
+                                           &payload.hash)) {
+    LOG(WARNING) << "Unable to decode base64 file hash: "
+                 << headers[kPayloadPropertyFileHash];
   }
-  install_plan_.metadata_signature = "";
+  if (!base::StringToUint64(headers[kPayloadPropertyMetadataSize],
+                            &payload.metadata_size)) {
+    payload.metadata_size = 0;
+  }
+  // The |payload.type| is not used anymore since minor_version 3.
+  payload.type = InstallPayloadType::kUnknown;
+  install_plan_.payloads.push_back(payload);
+
   // The |public_key_rsa| key would override the public key stored on disk.
   install_plan_.public_key_rsa = "";
 
@@ -171,9 +179,6 @@ bool UpdateAttempterAndroid::ApplyPayload(
       LOG(WARNING) << "Unable to save the update check response hash.";
     }
   }
-  // The |payload_type| is not used anymore since minor_version 3.
-  install_plan_.payload_type = InstallPayloadType::kUnknown;
-
   install_plan_.source_slot = boot_control_->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
 
@@ -200,7 +205,6 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.Dump();
 
   BuildUpdateActions(payload_url);
-  SetupDownload();
   // Setup extra headers.
   HttpFetcher* fetcher = download_action_->http_fetcher();
   if (!headers[kPayloadPropertyAuthorization].empty())
@@ -423,9 +427,11 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
 
 void UpdateAttempterAndroid::SetStatusAndNotify(UpdateStatus status) {
   status_ = status;
+  size_t payload_size =
+      install_plan_.payloads.empty() ? 0 : install_plan_.payloads[0].size;
   for (auto observer : daemon_state_->service_observers()) {
     observer->SendStatusUpdate(
-        0, download_progress_, status_, "", install_plan_.payload_size);
+        0, download_progress_, status_, "", payload_size);
   }
   last_notify_time_ = TimeTicks::Now();
 }
@@ -452,12 +458,12 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
     download_fetcher = libcurl_fetcher;
 #endif  // _UE_SIDELOAD
   }
-  shared_ptr<DownloadAction> download_action(new DownloadAction(
-      prefs_,
-      boot_control_,
-      hardware_,
-      nullptr,                                        // system_state, not used.
-      new MultiRangeHttpFetcher(download_fetcher)));  // passes ownership
+  shared_ptr<DownloadAction> download_action(
+      new DownloadAction(prefs_,
+                         boot_control_,
+                         hardware_,
+                         nullptr,             // system_state, not used.
+                         download_fetcher));  // passes ownership
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
       new FilesystemVerifierAction());
 
@@ -465,6 +471,7 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
       new PostinstallRunnerAction(boot_control_, hardware_));
 
   download_action->set_delegate(this);
+  download_action->set_base_offset(base_offset_);
   download_action_ = download_action;
   postinstall_runner_action->set_delegate(this);
 
@@ -483,42 +490,6 @@ void UpdateAttempterAndroid::BuildUpdateActions(const string& url) {
   // Enqueue the actions.
   for (const shared_ptr<AbstractAction>& action : actions_)
     processor_->EnqueueAction(action.get());
-}
-
-void UpdateAttempterAndroid::SetupDownload() {
-  MultiRangeHttpFetcher* fetcher =
-      static_cast<MultiRangeHttpFetcher*>(download_action_->http_fetcher());
-  fetcher->ClearRanges();
-  if (install_plan_.is_resume) {
-    // Resuming an update so fetch the update manifest metadata first.
-    int64_t manifest_metadata_size = 0;
-    int64_t manifest_signature_size = 0;
-    prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size);
-    prefs_->GetInt64(kPrefsManifestSignatureSize, &manifest_signature_size);
-    fetcher->AddRange(base_offset_,
-                      manifest_metadata_size + manifest_signature_size);
-    // If there're remaining unprocessed data blobs, fetch them. Be careful not
-    // to request data beyond the end of the payload to avoid 416 HTTP response
-    // error codes.
-    int64_t next_data_offset = 0;
-    prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
-    uint64_t resume_offset =
-        manifest_metadata_size + manifest_signature_size + next_data_offset;
-    if (!install_plan_.payload_size) {
-      fetcher->AddRange(base_offset_ + resume_offset);
-    } else if (resume_offset < install_plan_.payload_size) {
-      fetcher->AddRange(base_offset_ + resume_offset,
-                        install_plan_.payload_size - resume_offset);
-    }
-  } else {
-    if (install_plan_.payload_size) {
-      fetcher->AddRange(base_offset_, install_plan_.payload_size);
-    } else {
-      // If no payload size is passed we assume we read until the end of the
-      // stream.
-      fetcher->AddRange(base_offset_);
-    }
-  }
 }
 
 bool UpdateAttempterAndroid::WriteUpdateCompletedMarker() {

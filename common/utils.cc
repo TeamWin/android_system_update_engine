@@ -944,8 +944,16 @@ string StringVectorToString(const vector<string> &vec_str) {
   return str;
 }
 
-string CalculateP2PFileId(const string& payload_hash, size_t payload_size) {
-  string encoded_hash = brillo::data_encoding::Base64Encode(payload_hash);
+// The P2P file id should be the same for devices running new version and old
+// version so that they can share it with each other. The hash in the response
+// was base64 encoded, but now that we switched to use "hash_sha256" field which
+// is hex encoded, we have to convert them back to base64 for P2P. However, the
+// base64 encoded hash was base64 encoded here again historically for some
+// reason, so we keep the same behavior here.
+string CalculateP2PFileId(const brillo::Blob& payload_hash,
+                          size_t payload_size) {
+  string encoded_hash = brillo::data_encoding::Base64Encode(
+      brillo::data_encoding::Base64Encode(payload_hash));
   return base::StringPrintf("cros_update_size_%" PRIuS "_hash_%s",
                             payload_size,
                             encoded_hash.c_str());

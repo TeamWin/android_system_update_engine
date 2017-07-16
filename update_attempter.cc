@@ -32,6 +32,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/bind_lambda.h>
+#include <brillo/data_encoding.h>
 #include <brillo/errors/error_codes.h>
 #include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
@@ -44,7 +45,6 @@
 #include "update_engine/common/clock_interface.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
-#include "update_engine/common/multi_range_http_fetcher.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/subprocess.h"
@@ -618,12 +618,12 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   LibcurlHttpFetcher* download_fetcher =
       new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
   download_fetcher->set_server_to_check(ServerToCheck::kDownload);
-  shared_ptr<DownloadAction> download_action(new DownloadAction(
-      prefs_,
-      system_state_->boot_control(),
-      system_state_->hardware(),
-      system_state_,
-      new MultiRangeHttpFetcher(download_fetcher)));  // passes ownership
+  shared_ptr<DownloadAction> download_action(
+      new DownloadAction(prefs_,
+                         system_state_->boot_control(),
+                         system_state_->hardware(),
+                         system_state_,
+                         download_fetcher));  // passes ownership
   shared_ptr<OmahaRequestAction> download_finished_action(
       new OmahaRequestAction(
           system_state_,
@@ -938,8 +938,12 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
           response_handler_action_->install_plan();
 
       // Generate an unique payload identifier.
-      const string target_version_uid =
-          install_plan.payload_hash + ":" + install_plan.metadata_signature;
+      string target_version_uid;
+      for (const auto& payload : install_plan.payloads) {
+        target_version_uid +=
+            brillo::data_encoding::Base64Encode(payload.hash) + ":" +
+            payload.metadata_signature + ":";
+      }
 
       // Expect to reboot into the new version to send the proper metric during
       // next boot.
@@ -1030,8 +1034,9 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     const InstallPlan& plan = response_handler_action_->install_plan();
     UpdateLastCheckedTime();
     new_version_ = plan.version;
-    new_payload_size_ = plan.payload_size;
-    SetupDownload();
+    new_payload_size_ = 0;
+    for (const auto& payload : plan.payloads)
+      new_payload_size_ += payload.size;
     cpu_limiter_.StartLimiter();
     SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
   } else if (type == DownloadAction::StaticType()) {
@@ -1317,32 +1322,6 @@ void UpdateAttempter::MarkDeltaUpdateFailure() {
     delta_failures = 0;
   }
   prefs_->SetInt64(kPrefsDeltaUpdateFailures, ++delta_failures);
-}
-
-void UpdateAttempter::SetupDownload() {
-  MultiRangeHttpFetcher* fetcher =
-      static_cast<MultiRangeHttpFetcher*>(download_action_->http_fetcher());
-  fetcher->ClearRanges();
-  if (response_handler_action_->install_plan().is_resume) {
-    // Resuming an update so fetch the update manifest metadata first.
-    int64_t manifest_metadata_size = 0;
-    int64_t manifest_signature_size = 0;
-    prefs_->GetInt64(kPrefsManifestMetadataSize, &manifest_metadata_size);
-    prefs_->GetInt64(kPrefsManifestSignatureSize, &manifest_signature_size);
-    fetcher->AddRange(0, manifest_metadata_size + manifest_signature_size);
-    // If there're remaining unprocessed data blobs, fetch them. Be careful not
-    // to request data beyond the end of the payload to avoid 416 HTTP response
-    // error codes.
-    int64_t next_data_offset = 0;
-    prefs_->GetInt64(kPrefsUpdateStateNextDataOffset, &next_data_offset);
-    uint64_t resume_offset =
-        manifest_metadata_size + manifest_signature_size + next_data_offset;
-    if (resume_offset < response_handler_action_->install_plan().payload_size) {
-      fetcher->AddRange(resume_offset);
-    }
-  } else {
-    fetcher->AddRange(0);
-  }
 }
 
 void UpdateAttempter::PingOmaha() {

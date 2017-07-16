@@ -76,47 +76,88 @@ struct FakeUpdateResponse {
     string entity_str;
     if (include_entity)
       entity_str = "<!DOCTYPE response [<!ENTITY CrOS \"ChromeOS\">]>";
-    return
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-        entity_str + "<response protocol=\"3.0\">"
-        "<daystart elapsed_seconds=\"100\"/>"
-        "<app appid=\"" + app_id + "\" " +
-        (include_cohorts ? "cohort=\"" + cohort + "\" cohorthint=\"" +
-         cohorthint + "\" cohortname=\"" + cohortname + "\" " : "") +
-        " status=\"ok\">"
-        "<ping status=\"ok\"/>"
-        "<updatecheck status=\"noupdate\"/></app></response>";
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + entity_str +
+           "<response protocol=\"3.0\">"
+           "<daystart elapsed_seconds=\"100\"/>"
+           "<app appid=\"" +
+           app_id + "\" " +
+           (include_cohorts
+                ? "cohort=\"" + cohort + "\" cohorthint=\"" + cohorthint +
+                      "\" cohortname=\"" + cohortname + "\" "
+                : "") +
+           " status=\"ok\">"
+           "<ping status=\"ok\"/>"
+           "<updatecheck status=\"noupdate\"/></app>" +
+           (multi_app_no_update
+                ? "<app><updatecheck status=\"noupdate\"/></app>"
+                : "") +
+           "</response>";
   }
 
   string GetUpdateResponse() const {
-    return
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
-        "protocol=\"3.0\">"
-        "<daystart elapsed_seconds=\"100\"" +
-        (elapsed_days.empty() ? "" : (" elapsed_days=\"" + elapsed_days + "\""))
-        + "/>"
-        "<app appid=\"" + app_id + "\" " +
-        (include_cohorts ? "cohort=\"" + cohort + "\" cohorthint=\"" +
-         cohorthint + "\" cohortname=\"" + cohortname + "\" " : "") +
-        " status=\"ok\">"
-        "<ping status=\"ok\"/><updatecheck status=\"ok\">"
-        "<urls><url codebase=\"" + codebase + "\"/></urls>"
-        "<manifest version=\"" + version + "\">"
-        "<packages><package hash=\"not-used\" name=\"" + filename +  "\" "
-        "size=\"" + base::Int64ToString(size) + "\"/></packages>"
-        "<actions><action event=\"postinstall\" "
-        "ChromeOSVersion=\"" + version + "\" "
-        "MoreInfo=\"" + more_info_url + "\" Prompt=\"" + prompt + "\" "
-        "IsDelta=\"true\" "
-        "IsDeltaPayload=\"true\" "
-        "MaxDaysToScatter=\"" + max_days_to_scatter + "\" "
-        "sha256=\"" + hash + "\" "
-        "needsadmin=\"" + needsadmin + "\" " +
-        (deadline.empty() ? "" : ("deadline=\"" + deadline + "\" ")) +
-        (disable_p2p_for_downloading ?
-            "DisableP2PForDownloading=\"true\" " : "") +
-        (disable_p2p_for_sharing ? "DisableP2PForSharing=\"true\" " : "") +
-        "/></actions></manifest></updatecheck></app></response>";
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response "
+           "protocol=\"3.0\">"
+           "<daystart elapsed_seconds=\"100\"" +
+           (elapsed_days.empty() ? ""
+                                 : (" elapsed_days=\"" + elapsed_days + "\"")) +
+           "/>"
+           "<app appid=\"" +
+           app_id + "\" " +
+           (include_cohorts
+                ? "cohort=\"" + cohort + "\" cohorthint=\"" + cohorthint +
+                      "\" cohortname=\"" + cohortname + "\" "
+                : "") +
+           " status=\"ok\">"
+           "<ping status=\"ok\"/><updatecheck status=\"ok\">"
+           "<urls><url codebase=\"" +
+           codebase +
+           "\"/></urls>"
+           "<manifest version=\"" +
+           version +
+           "\">"
+           "<packages><package hash=\"not-used\" name=\"" +
+           filename + "\" size=\"" + base::Int64ToString(size) +
+           "\" hash_sha256=\"" + hash + "\"/>" +
+           (multi_package ? "<package name=\"package2\" size=\"222\" "
+                            "hash_sha256=\"hash2\"/>"
+                          : "") +
+           "</packages>"
+           "<actions><action event=\"postinstall\" MetadataSize=\"11" +
+           (multi_package ? ":22" : "") + "\" ChromeOSVersion=\"" + version +
+           "\" MoreInfo=\"" + more_info_url + "\" Prompt=\"" + prompt +
+           "\" "
+           "IsDelta=\"true\" "
+           "IsDeltaPayload=\"true" +
+           (multi_package ? ":false" : "") +
+           "\" "
+           "MaxDaysToScatter=\"" +
+           max_days_to_scatter +
+           "\" "
+           "sha256=\"not-used\" "
+           "needsadmin=\"" +
+           needsadmin + "\" " +
+           (deadline.empty() ? "" : ("deadline=\"" + deadline + "\" ")) +
+           (disable_p2p_for_downloading ? "DisableP2PForDownloading=\"true\" "
+                                        : "") +
+           (disable_p2p_for_sharing ? "DisableP2PForSharing=\"true\" " : "") +
+           "/></actions></manifest></updatecheck></app>" +
+           (multi_app
+                ? "<app><updatecheck status=\"ok\"><urls><url codebase=\"" +
+                      codebase2 +
+                      "\"/></urls><manifest><packages>"
+                      "<package name=\"package3\" size=\"333\" "
+                      "hash_sha256=\"hash3\"/></packages>"
+                      "<actions><action event=\"postinstall\" " +
+                      (multi_app_self_update
+                           ? "noupdate=\"true\" IsDeltaPayload=\"true\" "
+                           : "IsDeltaPayload=\"false\" ") +
+                      "MetadataSize=\"33\"/></actions>"
+                      "</manifest></updatecheck></app>"
+                : "") +
+           (multi_app_no_update
+                ? "<app><updatecheck status=\"noupdate\"/></app>"
+                : "") +
+           "</response>";
   }
 
   // Return the payload URL, which is split in two fields in the XML response.
@@ -129,10 +170,11 @@ struct FakeUpdateResponse {
   string more_info_url = "http://more/info";
   string prompt = "true";
   string codebase = "http://code/base/";
+  string codebase2 = "http://code/base/2/";
   string filename = "file.signed";
-  string hash = "HASH1234=";
+  string hash = "4841534831323334";
   string needsadmin = "false";
-  int64_t size = 123;
+  uint64_t size = 123;
   string deadline = "";
   string max_days_to_scatter = "7";
   string elapsed_days = "42";
@@ -149,6 +191,15 @@ struct FakeUpdateResponse {
 
   // Whether to include the CrOS <!ENTITY> in the XML response.
   bool include_entity = false;
+
+  // Whether to include more than one app.
+  bool multi_app = false;
+  // Whether to include an app with noupdate="true".
+  bool multi_app_self_update = false;
+  // Whether to include an additional app with status="noupdate".
+  bool multi_app_no_update = false;
+  // Whether to include more than one package in an app.
+  bool multi_package = false;
 };
 
 }  // namespace
@@ -430,6 +481,56 @@ TEST_F(OmahaRequestActionTest, NoUpdateTest) {
   EXPECT_FALSE(response.update_exists);
 }
 
+TEST_F(OmahaRequestActionTest, MultiAppNoUpdateTest) {
+  OmahaResponse response;
+  fake_update_response_.multi_app_no_update = true;
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, MultiAppNoPartialUpdateTest) {
+  OmahaResponse response;
+  fake_update_response_.multi_app_no_update = true;
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
+
+TEST_F(OmahaRequestActionTest, NoSelfUpdateTest) {
+  OmahaResponse response;
+  ASSERT_TRUE(TestUpdateCheck(
+      nullptr,  // request_params
+      "<response><app><updatecheck status=\"ok\"><manifest><actions><action "
+      "event=\"postinstall\" noupdate=\"true\"/></actions>"
+      "</manifest></updatecheck></app></response>",
+      -1,
+      false,  // ping_only
+      ErrorCode::kSuccess,
+      metrics::CheckResult::kNoUpdateAvailable,
+      metrics::CheckReaction::kUnset,
+      metrics::DownloadErrorCode::kUnset,
+      &response,
+      nullptr));
+  EXPECT_FALSE(response.update_exists);
+}
+
 // Test that all the values in the response are parsed in a normal update
 // response.
 TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
@@ -447,12 +548,13 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
                       &response,
                       nullptr));
   EXPECT_TRUE(response.update_exists);
-  EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.version, response.version);
-  EXPECT_EQ(fake_update_response_.GetPayloadUrl(), response.payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
+            response.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.more_info_url, response.more_info_url);
-  EXPECT_EQ(fake_update_response_.hash, response.hash);
-  EXPECT_EQ(fake_update_response_.size, response.size);
+  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(true, response.packages[0].is_delta);
   EXPECT_EQ(fake_update_response_.prompt == "true", response.prompt);
   EXPECT_EQ(fake_update_response_.deadline, response.deadline);
   // Omaha cohort attribets are not set in the response, so they should not be
@@ -460,6 +562,131 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohort));
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortHint));
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortName));
+}
+
+TEST_F(OmahaRequestActionTest, MultiPackageUpdateTest) {
+  OmahaResponse response;
+  fake_update_response_.multi_package = true;
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
+            response.packages[0].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.codebase + "package2",
+            response.packages[1].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(true, response.packages[0].is_delta);
+  EXPECT_EQ(11u, response.packages[0].metadata_size);
+  ASSERT_EQ(2u, response.packages.size());
+  EXPECT_EQ(string("hash2"), response.packages[1].hash);
+  EXPECT_EQ(222u, response.packages[1].size);
+  EXPECT_EQ(22u, response.packages[1].metadata_size);
+  EXPECT_EQ(false, response.packages[1].is_delta);
+}
+
+TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
+  OmahaResponse response;
+  fake_update_response_.multi_app = true;
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
+            response.packages[0].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.codebase2 + "package3",
+            response.packages[1].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(11u, response.packages[0].metadata_size);
+  EXPECT_EQ(true, response.packages[0].is_delta);
+  ASSERT_EQ(2u, response.packages.size());
+  EXPECT_EQ(string("hash3"), response.packages[1].hash);
+  EXPECT_EQ(333u, response.packages[1].size);
+  EXPECT_EQ(33u, response.packages[1].metadata_size);
+  EXPECT_EQ(false, response.packages[1].is_delta);
+}
+
+TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
+  OmahaResponse response;
+  fake_update_response_.multi_app = true;
+  fake_update_response_.multi_app_self_update = true;
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
+            response.packages[0].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(11u, response.packages[0].metadata_size);
+  ASSERT_EQ(2u, response.packages.size());
+  EXPECT_EQ(string("hash3"), response.packages[1].hash);
+  EXPECT_EQ(333u, response.packages[1].size);
+  EXPECT_EQ(33u, response.packages[1].metadata_size);
+  EXPECT_EQ(true, response.packages[1].is_delta);
+}
+
+TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
+  OmahaResponse response;
+  fake_update_response_.multi_app = true;
+  fake_update_response_.multi_package = true;
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
+            response.packages[0].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.codebase + "package2",
+            response.packages[1].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.codebase2 + "package3",
+            response.packages[2].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(11u, response.packages[0].metadata_size);
+  EXPECT_EQ(true, response.packages[0].is_delta);
+  ASSERT_EQ(3u, response.packages.size());
+  EXPECT_EQ(string("hash2"), response.packages[1].hash);
+  EXPECT_EQ(222u, response.packages[1].size);
+  EXPECT_EQ(22u, response.packages[1].metadata_size);
+  EXPECT_EQ(false, response.packages[1].is_delta);
+  EXPECT_EQ(string("hash3"), response.packages[2].hash);
+  EXPECT_EQ(333u, response.packages[2].size);
+  EXPECT_EQ(33u, response.packages[2].metadata_size);
+  EXPECT_EQ(false, response.packages[2].is_delta);
 }
 
 TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
@@ -1041,13 +1268,13 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
       "<urls><url codebase=\"http://missing/field/test/\"/></urls>"
       "<manifest version=\"10.2.3.4\">"
       "<packages><package hash=\"not-used\" name=\"f\" "
-      "size=\"587\"/></packages>"
+      "size=\"587\" hash_sha256=\"lkq34j5345\"/></packages>"
       "<actions><action event=\"postinstall\" "
       "ChromeOSVersion=\"10.2.3.4\" "
       "Prompt=\"false\" "
       "IsDelta=\"true\" "
       "IsDeltaPayload=\"false\" "
-      "sha256=\"lkq34j5345\" "
+      "sha256=\"not-used\" "
       "needsadmin=\"true\" "
       "/></actions></manifest></updatecheck></app></response>";
   LOG(INFO) << "Input Response = " << input_response;
@@ -1065,10 +1292,11 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
                               nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ("10.2.3.4", response.version);
-  EXPECT_EQ("http://missing/field/test/f", response.payload_urls[0]);
+  EXPECT_EQ("http://missing/field/test/f",
+            response.packages[0].payload_urls[0]);
   EXPECT_EQ("", response.more_info_url);
-  EXPECT_EQ("lkq34j5345", response.hash);
-  EXPECT_EQ(587, response.size);
+  EXPECT_EQ("lkq34j5345", response.packages[0].hash);
+  EXPECT_EQ(587u, response.packages[0].size);
   EXPECT_FALSE(response.prompt);
   EXPECT_TRUE(response.deadline.empty());
 }
@@ -1202,15 +1430,16 @@ TEST_F(OmahaRequestActionTest, XmlDecodeTest) {
                       &response,
                       nullptr));
 
-  EXPECT_EQ(response.more_info_url, "testthe<url");
-  EXPECT_EQ(response.payload_urls[0], "testthe&codebase/file.signed");
-  EXPECT_EQ(response.deadline, "<20110101");
+  EXPECT_EQ("testthe<url", response.more_info_url);
+  EXPECT_EQ("testthe&codebase/file.signed",
+            response.packages[0].payload_urls[0]);
+  EXPECT_EQ("<20110101", response.deadline);
 }
 
 TEST_F(OmahaRequestActionTest, ParseIntTest) {
   OmahaResponse response;
   // overflows int32_t:
-  fake_update_response_.size = 123123123123123ll;
+  fake_update_response_.size = 123123123123123ull;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
                       fake_update_response_.GetUpdateResponse(),
@@ -1223,7 +1452,7 @@ TEST_F(OmahaRequestActionTest, ParseIntTest) {
                       &response,
                       nullptr));
 
-  EXPECT_EQ(response.size, 123123123123123ll);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
 }
 
 TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {

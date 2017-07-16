@@ -122,11 +122,16 @@ void PayloadState::SetResponse(const OmahaResponse& omaha_response) {
     return;
   }
 
+  // Always start from payload index 0, even for resume, to download partition
+  // info from previous payloads.
+  payload_index_ = 0;
+
   // This is the earliest point at which we can validate whether the URL index
   // we loaded from the persisted state is a valid value. If the response
   // hasn't changed but the URL index is invalid, it's indicative of some
   // tampering of the persisted state.
-  if (static_cast<uint32_t>(url_index_) >= candidate_urls_.size()) {
+  if (payload_index_ >= candidate_urls_.size() ||
+      url_index_ >= candidate_urls_[payload_index_].size()) {
     LOG(INFO) << "Resetting all payload state as the url index seems to have "
                  "been tampered with";
     ResetPersistedState();
@@ -239,6 +244,7 @@ void PayloadState::UpdateSucceeded() {
   // Reset the number of responses seen since it counts from the last
   // successful update, e.g. now.
   SetNumResponsesSeen(0);
+  SetPayloadIndex(0);
 
   CreateSystemUpdatedMarkerFile();
 }
@@ -385,14 +391,16 @@ bool PayloadState::ShouldBackoffDownload() {
     LOG(INFO) << "Payload backoff disabled for interactive update checks.";
     return false;
   }
-  if (response_.is_delta_payload) {
-    // If delta payloads fail, we want to fallback quickly to full payloads as
-    // they are more likely to succeed. Exponential backoffs would greatly
-    // slow down the fallback to full payloads.  So we don't backoff for delta
-    // payloads.
-    LOG(INFO) << "No backoffs for delta payloads. "
-              << "Can proceed with the download";
-    return false;
+  for (const auto& package : response_.packages) {
+    if (package.is_delta) {
+      // If delta payloads fail, we want to fallback quickly to full payloads as
+      // they are more likely to succeed. Exponential backoffs would greatly
+      // slow down the fallback to full payloads.  So we don't backoff for delta
+      // payloads.
+      LOG(INFO) << "No backoffs for delta payloads. "
+                << "Can proceed with the download";
+      return false;
+    }
   }
 
   if (!system_state_->hardware()->IsOfficialBuild()) {
@@ -433,7 +441,7 @@ void PayloadState::IncrementPayloadAttemptNumber() {
 
 void PayloadState::IncrementFullPayloadAttemptNumber() {
   // Update the payload attempt number for full payloads and the backoff time.
-  if (response_.is_delta_payload) {
+  if (response_.packages[payload_index_].is_delta) {
     LOG(INFO) << "Not incrementing payload attempt number for delta payloads";
     return;
   }
@@ -444,21 +452,23 @@ void PayloadState::IncrementFullPayloadAttemptNumber() {
 }
 
 void PayloadState::IncrementUrlIndex() {
-  uint32_t next_url_index = GetUrlIndex() + 1;
-  if (next_url_index < candidate_urls_.size()) {
+  size_t next_url_index = url_index_ + 1;
+  size_t max_url_size = 0;
+  for (const auto& urls : candidate_urls_)
+    max_url_size = std::max(max_url_size, urls.size());
+  if (next_url_index < max_url_size) {
     LOG(INFO) << "Incrementing the URL index for next attempt";
     SetUrlIndex(next_url_index);
   } else {
-    LOG(INFO) << "Resetting the current URL index (" << GetUrlIndex() << ") to "
-              << "0 as we only have " << candidate_urls_.size()
-              << " candidate URL(s)";
+    LOG(INFO) << "Resetting the current URL index (" << url_index_ << ") to "
+              << "0 as we only have " << max_url_size << " candidate URL(s)";
     SetUrlIndex(0);
     IncrementPayloadAttemptNumber();
     IncrementFullPayloadAttemptNumber();
   }
 
   // If we have multiple URLs, record that we just switched to another one
-  if (candidate_urls_.size() > 1)
+  if (max_url_size > 1)
     SetUrlSwitchCount(url_switch_count_ + 1);
 
   // Whenever we update the URL index, we should also clear the URL failure
@@ -519,12 +529,14 @@ void PayloadState::UpdateCurrentDownloadSource() {
 
   if (using_p2p_for_downloading_) {
     current_download_source_ = kDownloadSourceHttpPeer;
-  } else if (GetUrlIndex() < candidate_urls_.size())  {
-    string current_url = candidate_urls_[GetUrlIndex()];
-    if (base::StartsWith(current_url, "https://",
-                         base::CompareCase::INSENSITIVE_ASCII)) {
+  } else if (payload_index_ < candidate_urls_.size() &&
+             candidate_urls_[payload_index_].size() != 0) {
+    const string& current_url = candidate_urls_[payload_index_][GetUrlIndex()];
+    if (base::StartsWith(
+            current_url, "https://", base::CompareCase::INSENSITIVE_ASCII)) {
       current_download_source_ = kDownloadSourceHttpsServer;
-    } else if (base::StartsWith(current_url, "http://",
+    } else if (base::StartsWith(current_url,
+                                "http://",
                                 base::CompareCase::INSENSITIVE_ASCII)) {
       current_download_source_ = kDownloadSourceHttpServer;
     }
@@ -548,16 +560,17 @@ void PayloadState::UpdateBytesDownloaded(size_t count) {
 }
 
 PayloadType PayloadState::CalculatePayloadType() {
-  PayloadType payload_type;
-  OmahaRequestParams* params = system_state_->request_params();
-  if (response_.is_delta_payload) {
-    payload_type = kPayloadTypeDelta;
-  } else if (params->delta_okay()) {
-    payload_type = kPayloadTypeFull;
-  } else {  // Full payload, delta was not allowed by request.
-    payload_type = kPayloadTypeForcedFull;
+  for (const auto& package : response_.packages) {
+    if (package.is_delta) {
+      return kPayloadTypeDelta;
+    }
   }
-  return payload_type;
+  OmahaRequestParams* params = system_state_->request_params();
+  if (params->delta_okay()) {
+    return kPayloadTypeFull;
+  }
+  // Full payload, delta was not allowed by request.
+  return kPayloadTypeForcedFull;
 }
 
 // TODO(zeuthen): Currently we don't report the UpdateEngine.Attempt.*
@@ -569,7 +582,7 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
 
   PayloadType payload_type = CalculatePayloadType();
 
-  int64_t payload_size = response_.size;
+  int64_t payload_size = GetPayloadSize();
 
   int64_t payload_bytes_downloaded = attempt_num_bytes_downloaded_;
 
@@ -715,7 +728,7 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
 
   PayloadType payload_type = CalculatePayloadType();
 
-  int64_t payload_size = response_.size;
+  int64_t payload_size = GetPayloadSize();
 
   int attempt_count = GetPayloadAttemptNumber();
 
@@ -754,6 +767,7 @@ void PayloadState::SetNumReboots(uint32_t num_reboots) {
 void PayloadState::ResetPersistedState() {
   SetPayloadAttemptNumber(0);
   SetFullPayloadAttemptNumber(0);
+  SetPayloadIndex(0);
   SetUrlIndex(0);
   SetUrlFailureCount(0);
   SetUrlSwitchCount(0);
@@ -803,27 +817,33 @@ int64_t PayloadState::GetPersistedValue(const string& key) {
 }
 
 string PayloadState::CalculateResponseSignature() {
-  string response_sign = base::StringPrintf(
-      "NumURLs = %d\n", static_cast<int>(candidate_urls_.size()));
+  string response_sign;
+  for (size_t i = 0; i < response_.packages.size(); i++) {
+    const auto& package = response_.packages[i];
+    response_sign += base::StringPrintf(
+        "Payload %zu:\n"
+        "  Size = %ju\n"
+        "  Sha256 Hash = %s\n"
+        "  Metadata Size = %ju\n"
+        "  Metadata Signature = %s\n"
+        "  Is Delta = %d\n"
+        "  NumURLs = %zu\n",
+        i,
+        static_cast<uintmax_t>(package.size),
+        package.hash.c_str(),
+        static_cast<uintmax_t>(package.metadata_size),
+        package.metadata_signature.c_str(),
+        package.is_delta,
+        candidate_urls_[i].size());
 
-  for (size_t i = 0; i < candidate_urls_.size(); i++)
-    response_sign += base::StringPrintf("Candidate Url%d = %s\n",
-                                        static_cast<int>(i),
-                                        candidate_urls_[i].c_str());
+    for (size_t j = 0; j < candidate_urls_[i].size(); j++)
+      response_sign += base::StringPrintf(
+          "  Candidate Url%zu = %s\n", j, candidate_urls_[i][j].c_str());
+  }
 
   response_sign += base::StringPrintf(
-      "Payload Size = %ju\n"
-      "Payload Sha256 Hash = %s\n"
-      "Metadata Size = %ju\n"
-      "Metadata Signature = %s\n"
-      "Is Delta Payload = %d\n"
       "Max Failure Count Per Url = %d\n"
       "Disable Payload Backoff = %d\n",
-      static_cast<uintmax_t>(response_.size),
-      response_.hash.c_str(),
-      static_cast<uintmax_t>(response_.metadata_size),
-      response_.metadata_signature.c_str(),
-      response_.is_delta_payload,
       response_.max_failure_count_per_url,
       response_.disable_payload_backoff);
   return response_sign;
@@ -868,6 +888,20 @@ void PayloadState::SetFullPayloadAttemptNumber(
   LOG(INFO) << "Full Payload Attempt Number = " << full_payload_attempt_number_;
   prefs_->SetInt64(kPrefsFullPayloadAttemptNumber,
       full_payload_attempt_number_);
+}
+
+void PayloadState::SetPayloadIndex(size_t payload_index) {
+  CHECK(prefs_);
+  payload_index_ = payload_index;
+  LOG(INFO) << "Payload Index = " << payload_index_;
+  prefs_->SetInt64(kPrefsUpdateStatePayloadIndex, payload_index_);
+}
+
+bool PayloadState::NextPayload() {
+  if (payload_index_ + 1 >= candidate_urls_.size())
+    return false;
+  SetPayloadIndex(payload_index_ + 1);
+  return true;
 }
 
 void PayloadState::LoadUrlIndex() {
@@ -1172,20 +1206,22 @@ void PayloadState::ComputeCandidateUrls() {
   }
 
   candidate_urls_.clear();
-  for (size_t i = 0; i < response_.payload_urls.size(); i++) {
-    string candidate_url = response_.payload_urls[i];
-    if (base::StartsWith(candidate_url, "http://",
-                         base::CompareCase::INSENSITIVE_ASCII) &&
-        !http_url_ok) {
-      continue;
+  for (const auto& package : response_.packages) {
+    candidate_urls_.emplace_back();
+    for (const string& candidate_url : package.payload_urls) {
+      if (base::StartsWith(
+              candidate_url, "http://", base::CompareCase::INSENSITIVE_ASCII) &&
+          !http_url_ok) {
+        continue;
+      }
+      candidate_urls_.back().push_back(candidate_url);
+      LOG(INFO) << "Candidate Url" << (candidate_urls_.back().size() - 1)
+                << ": " << candidate_url;
     }
-    candidate_urls_.push_back(candidate_url);
-    LOG(INFO) << "Candidate Url" << (candidate_urls_.size() - 1)
-              << ": " << candidate_url;
+    LOG(INFO) << "Found " << candidate_urls_.back().size() << " candidate URLs "
+              << "out of " << package.payload_urls.size()
+              << " URLs supplied in package " << candidate_urls_.size() - 1;
   }
-
-  LOG(INFO) << "Found " << candidate_urls_.size() << " candidate URLs "
-            << "out of " << response_.payload_urls.size() << " URLs supplied";
 }
 
 void PayloadState::CreateSystemUpdatedMarkerFile() {
@@ -1392,6 +1428,13 @@ bool PayloadState::P2PAttemptAllowed() {
   }
 
   return true;
+}
+
+int64_t PayloadState::GetPayloadSize() {
+  int64_t payload_size = 0;
+  for (const auto& package : response_.packages)
+    payload_size += package.size;
+  return payload_size;
 }
 
 }  // namespace chromeos_update_engine
