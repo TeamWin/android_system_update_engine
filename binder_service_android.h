@@ -73,7 +73,7 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
   // Remove the passed |callback| from the list of registered callbacks. Called
   // on unbind() or whenever the callback object is destroyed.
   // Returns true on success.
-  bool UnbindCallback(android::os::IUpdateEngineCallback* callback);
+  bool UnbindCallback(const IBinder* callback);
 
   // List of currently bound callbacks.
   std::vector<android::sp<android::os::IUpdateEngineCallback>> callbacks_;
