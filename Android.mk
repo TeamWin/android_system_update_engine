@@ -143,7 +143,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_consumer
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -167,7 +166,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_consumer
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -203,7 +201,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine_boot_control
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -261,7 +258,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(ue_libupdate_engine_exported_c_includes)
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
@@ -366,7 +362,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libupdate_engine_android
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -411,7 +406,6 @@ LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_REQUIRED_MODULES := \
     cacerts_google
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -453,7 +447,6 @@ LOCAL_FORCE_STATIC_EXECUTABLE := true
 LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/sbin
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := \
     $(ue_common_cflags) \
     -D_UE_SIDELOAD
@@ -530,7 +523,6 @@ LOCAL_CFLAGS := \
     -Werror \
     -Wno-unused-parameter \
     -DUSE_BINDER=$(local_use_binder)
-LOCAL_CLANG := true
 LOCAL_CPP_EXTENSION := .cc
 # TODO(deymo): Remove "external/cros/system_api/dbus" when dbus is not used.
 LOCAL_C_INCLUDES := \
@@ -568,7 +560,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := update_engine_client
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -648,7 +639,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_generator
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -674,7 +664,6 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libpayload_generator
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -709,7 +698,6 @@ LOCAL_REQUIRED_MODULES := \
     imgdiff
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -735,7 +723,6 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
 LOCAL_MODULE_STEM := delta_generator
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -837,7 +824,6 @@ LOCAL_MODULE := test_http_server
 LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -879,7 +865,6 @@ LOCAL_MODULE := test_subprocess
 LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
@@ -910,7 +895,6 @@ LOCAL_REQUIRED_MODULES := \
     ue_unittest_update_engine.conf \
     zlib_fingerprint
 LOCAL_CPP_EXTENSION := .cc
-LOCAL_CLANG := true
 LOCAL_CFLAGS := $(ue_common_cflags)
 LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
