@@ -98,9 +98,9 @@ bool ParseRequest(int fd, HttpRequest* request) {
   request->raw_headers = headers;
 
   // Break header into lines.
-  vector<string> lines;
-  base::SplitStringUsingSubstr(
-      headers.substr(0, headers.length() - strlen(EOL EOL)), EOL, &lines);
+  vector<string> lines = base::SplitStringUsingSubstr(
+      headers.substr(0, headers.length() - strlen(EOL EOL)), EOL,
+      base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   // Decode URL line.
   vector<string> terms = base::SplitString(lines[0], base::kWhitespaceASCII,

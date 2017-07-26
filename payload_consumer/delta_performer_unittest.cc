@@ -752,8 +752,8 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
 
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  string non_existing_file = temp_dir.path().Append("non-existing").value();
-  string existing_file = temp_dir.path().Append("existing").value();
+  string non_existing_file = temp_dir.GetPath().Append("non-existing").value();
+  string existing_file = temp_dir.GetPath().Append("existing").value();
   EXPECT_EQ(0, System(base::StringPrintf("touch %s", existing_file.c_str())));
 
   // Non-official build, non-existing public-key, key in response -> true
