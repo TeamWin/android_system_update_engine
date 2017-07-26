@@ -44,7 +44,7 @@ class PrefsTest : public ::testing::Test {
  protected:
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
-    prefs_dir_ = temp_dir_.path();
+    prefs_dir_ = temp_dir_.GetPath();
     ASSERT_TRUE(prefs_.Init(prefs_dir_));
   }
 
