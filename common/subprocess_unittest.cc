@@ -225,7 +225,7 @@ void CallbackBad(int return_code, const string& output) {
 TEST_F(SubprocessTest, CancelTest) {
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  string fifo_path = tempdir.GetPath().Append("fifo").value();
+  string fifo_path = tempdir.path().Append("fifo").value();
   EXPECT_EQ(0, mkfifo(fifo_path.c_str(), 0666));
 
   // Start a process, make sure it is running and try to cancel it. We write
