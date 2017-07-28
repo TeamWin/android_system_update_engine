@@ -14,13 +14,6 @@
 // limitations under the License.
 //
 
-#include <base/bind.h>
-#include <base/command_line.h>
-#include <base/logging.h>
-#include <base/macros.h>
-#include <brillo/daemons/daemon.h>
-#include <brillo/flag_helper.h>
-
 #include <inttypes.h>
 #include <sysexits.h>
 #include <unistd.h>
@@ -28,6 +21,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <base/bind.h>
+#include <base/command_line.h>
+#include <base/logging.h>
+#include <base/macros.h>
+#include <base/threading/platform_thread.h>
+#include <brillo/daemons/daemon.h>
+#include <brillo/flag_helper.h>
 
 #include "update_engine/client.h"
 #include "update_engine/common/error_code.h"
@@ -55,7 +56,7 @@ const int kContinueRunning = -1;
 // The ShowStatus request will be retried `kShowStatusRetryCount` times at
 // `kShowStatusRetryInterval` second intervals on failure.
 const int kShowStatusRetryCount = 30;
-const int kShowStatusRetryInterval = 2;
+const int kShowStatusRetryIntervalInSeconds = 2;
 
 class UpdateEngineClient : public brillo::Daemon {
  public:
@@ -165,8 +166,9 @@ bool UpdateEngineClient::ShowStatus() {
     if (--retry_count == 0) {
       return false;
     }
-    LOG(WARNING) << "Trying " << retry_count << " more times";
-    sleep(kShowStatusRetryInterval);
+    LOG(WARNING) << "Will try " << retry_count << " more times!";
+    base::PlatformThread::Sleep(
+        base::TimeDelta::FromSeconds(kShowStatusRetryIntervalInSeconds));
   }
 
   printf("LAST_CHECKED_TIME=%" PRIi64
