@@ -71,8 +71,7 @@ bool WriteBootloaderRecoveryMessage(const string& message) {
            std::min(message.size(), sizeof(boot.recovery) - 1));
   }
 
-  int fd =
-      HANDLE_EINTR(open(misc_device.value().c_str(), O_WRONLY | O_SYNC, 0600));
+  int fd = HANDLE_EINTR(open(misc_device.value().c_str(), O_WRONLY | O_SYNC));
   if (fd < 0) {
     PLOG(ERROR) << "Opening misc";
     return false;
