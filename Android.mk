@@ -22,18 +22,18 @@ LOCAL_PATH := $(my-dir)
 local_use_binder := $(if $(BRILLO_USE_BINDER),$(BRILLO_USE_BINDER),1)
 local_use_hwid_override := \
     $(if $(BRILLO_USE_HWID_OVERRIDE),$(BRILLO_USE_HWID_OVERRIDE),0)
-# "libcros" gates the LibCrosService exposed by the Chrome OS' chrome browser to
-# the system layer.
-local_use_libcros := $(if $(BRILLO_USE_LIBCROS),$(BRILLO_USE_LIBCROS),0)
 local_use_mtd := $(if $(BRILLO_USE_MTD),$(BRILLO_USE_MTD),0)
+local_use_chrome_network_proxy := 0
+local_use_chrome_kiosk_app := 0
 
 # IoT devices use Omaha for updates.
 local_use_omaha := $(if $(filter true,$(PRODUCT_IOT)),1,0)
 
 ue_common_cflags := \
     -DUSE_BINDER=$(local_use_binder) \
+    -DUSE_CHROME_NETWORK_PROXY=$(local_use_chrome_network_proxy) \
+    -DUSE_CHROME_KIOSK_APP=$(local_use_chrome_kiosk_app) \
     -DUSE_HWID_OVERRIDE=$(local_use_hwid_override) \
-    -DUSE_LIBCROS=$(local_use_libcros) \
     -DUSE_MTD=$(local_use_mtd) \
     -DUSE_OMAHA=$(local_use_omaha) \
     -D_FILE_OFFSET_BITS=64 \
@@ -326,10 +326,10 @@ LOCAL_SRC_FILES += \
     binder_service_brillo.cc \
     parcelable_update_engine_status.cc
 endif  # local_use_binder == 1
-ifeq ($(local_use_libcros),1)
+ifeq ($(local_use_chrome_network_proxy),1)
 LOCAL_SRC_FILES += \
     chrome_browser_proxy_resolver.cc
-endif  # local_use_libcros == 1
+endif  # local_use_chrome_network_proxy == 1
 include $(BUILD_STATIC_LIBRARY)
 
 else  # local_use_omaha == 1
@@ -1014,10 +1014,10 @@ LOCAL_STATIC_LIBRARIES += \
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
 endif  # local_use_omaha == 1
-ifeq ($(local_use_libcros),1)
+ifeq ($(local_use_chrome_network_proxy),1)
 LOCAL_SRC_FILES += \
     chrome_browser_proxy_resolver_unittest.cc
-endif  # local_use_libcros == 1
+endif  # local_use_chrome_network_proxy == 1
 include $(BUILD_NATIVE_TEST)
 
 # Update payload signing public key.

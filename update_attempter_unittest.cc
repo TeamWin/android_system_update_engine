@@ -30,10 +30,10 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#if USE_LIBCROS
+#if USE_CHROME_NETWORK_PROXY
 #include "network_proxy/dbus-proxies.h"
 #include "network_proxy/dbus-proxy-mocks.h"
-#endif // USE_LIBCROS
+#endif  // USE_CHROME_NETWORK_PROXY
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_action.h"
@@ -186,13 +186,13 @@ class UpdateAttempterTest : public ::testing::Test {
   brillo::BaseMessageLoop loop_{&base_loop_};
 
   FakeSystemState fake_system_state_;
-#if USE_LIBCROS
+#if USE_CHROME_NETWORK_PROXY
   NetworkProxyServiceInterfaceProxyMock network_proxy_service_proxy_mock_;
   UpdateAttempterUnderTest attempter_{&fake_system_state_,
                                       &network_proxy_service_proxy_mock_};
 #else
   UpdateAttempterUnderTest attempter_{&fake_system_state_, nullptr};
-#endif  // USE_LIBCROS
+#endif  // USE_CHROME_NETWORK_PROXY
   OpenSSLWrapper openssl_wrapper_;
   CertificateChecker certificate_checker_;
 

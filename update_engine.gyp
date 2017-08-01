@@ -14,6 +14,10 @@
 # limitations under the License.
 #
 {
+  'variables': {
+    'USE_chrome_network_proxy': '1',
+    'USE_chrome_kiosk_app': '1',
+  },
   'target_defaults': {
     'variables': {
       'deps': [
@@ -47,7 +51,8 @@
       'USE_BINDER=<(USE_binder)',
       'USE_DBUS=<(USE_dbus)',
       'USE_HWID_OVERRIDE=<(USE_hwid_override)',
-      'USE_LIBCROS=<(USE_libcros)',
+      'USE_CHROME_KIOSK_APP=<(USE_chrome_kiosk_app)',
+      'USE_CHROME_NETWORK_PROXY=<(USE_chrome_network_proxy)',
       'USE_MTD=<(USE_mtd)',
       'USE_OMAHA=1',
       'USE_SHILL=1',
@@ -98,32 +103,34 @@
       'includes': ['../../../platform2/common-mk/generate-dbus-adaptors.gypi'],
     },
     {
-      'target_name': 'update_engine-other-dbus-proxies',
+      'target_name': 'update_engine-dbus-libcros-client',
       'type': 'none',
-      'actions': [
-        {
-          'action_name': 'update_engine-dbus-libcros-client',
-          'variables': {
-            'mock_output_file': 'include/libcros/dbus-proxy-mocks.h',
-            'proxy_output_file': 'include/libcros/dbus-proxies.h'
-          },
-          'sources': [
-            'dbus_bindings/org.chromium.LibCrosService.dbus-xml',
-          ],
-          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
+      'actions': [{
+        'action_name': 'update_engine-dbus-libcros-client-action',
+        'variables': {
+          'mock_output_file': 'include/libcros/dbus-proxy-mocks.h',
+          'proxy_output_file': 'include/libcros/dbus-proxies.h'
         },
-        {
-          'action_name': 'update_engine-dbus-network_proxy-client',
-          'variables': {
-            'mock_output_file': 'include/network_proxy/dbus-proxy-mocks.h',
-            'proxy_output_file': 'include/network_proxy/dbus-proxies.h'
-          },
-          'sources': [
-            'dbus_bindings/org.chromium.NetworkProxyService.dbus-xml',
-          ],
-          'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
+        'sources': [
+          'dbus_bindings/org.chromium.LibCrosService.dbus-xml',
+        ],
+        'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
+      }],
+    },
+    {
+      'target_name': 'update_engine-dbus-chrome_network_proxy-client',
+      'type': 'none',
+      'actions': [{
+        'action_name': 'update_engine-dbus-chrome_network_proxy-client-action',
+        'variables': {
+          'mock_output_file': 'include/network_proxy/dbus-proxy-mocks.h',
+          'proxy_output_file': 'include/network_proxy/dbus-proxies.h'
         },
-      ],
+        'sources': [
+          'dbus_bindings/org.chromium.NetworkProxyService.dbus-xml',
+        ],
+        'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
+      }],
     },
     # The payload application component and common dependencies.
     {
@@ -212,7 +219,6 @@
         'libpayload_consumer',
         'update_metadata-protos',
         'update_engine-dbus-adaptor',
-        'update_engine-other-dbus-proxies',
       ],
       'variables': {
         'exported_deps': [
@@ -292,12 +298,17 @@
         'update_status_utils.cc',
       ],
       'conditions': [
-        ['USE_libcros == 1', {
+        ['USE_chrome_network_proxy == 1', {
           'dependencies': [
-            'update_engine-other-dbus-proxies',
+            'update_engine-dbus-chrome_network_proxy-client',
           ],
           'sources': [
             'chrome_browser_proxy_resolver.cc',
+          ],
+        }],
+        ['USE_chrome_kiosk_app == 1', {
+          'dependencies': [
+            'update_engine-dbus-libcros-client',
           ],
         }],
       ],
@@ -563,9 +574,17 @@
             'testrunner.cc',
           ],
           'conditions': [
-            ['USE_libcros == 1', {
+            ['USE_chrome_network_proxy == 1', {
+              'dependencies': [
+                'update_engine-dbus-chrome_network_proxy-client',
+              ],
               'sources': [
                 'chrome_browser_proxy_resolver_unittest.cc',
+              ],
+            }],
+            ['USE_chrome_kiosk_app == 1', {
+              'dependencies': [
+                'update_engine-dbus-libcros-client',
               ],
             }],
           ],
