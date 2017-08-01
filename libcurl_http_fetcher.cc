@@ -272,7 +272,7 @@ void LibcurlHttpFetcher::ResumeTransfer(const string& url) {
     } else if (base::StartsWith(
                    url_, "https://", base::CompareCase::INSENSITIVE_ASCII)) {
       SetCurlOptionsForHttps();
-#if !defined(__CHROMEOS__) && !defined(__BRILLO__)
+#if !USE_OMAHA
     } else if (base::StartsWith(
                    url_, "file://", base::CompareCase::INSENSITIVE_ASCII)) {
       SetCurlOptionsForFile();

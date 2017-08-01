@@ -73,6 +73,7 @@ State* DefaultStateFactory(
   unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
   unique_ptr<RealSystemProvider> system_provider(new RealSystemProvider(
       system_state->hardware(), system_state->boot_control(), libcros_proxy));
+
   unique_ptr<RealTimeProvider> time_provider(new RealTimeProvider(clock));
   unique_ptr<RealUpdaterProvider> updater_provider(
       new RealUpdaterProvider(system_state));
