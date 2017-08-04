@@ -816,7 +816,7 @@ class PayloadChecker(object):
       raise error.PayloadError('%s: excess dst blocks.' % op_name)
 
   def _CheckAnyDiffOperation(self, data_length, total_dst_blocks, op_name):
-    """Specific checks for BSDIFF, SOURCE_BSDIFF and IMGDIFF operations.
+    """Specific checks for BSDIFF, SOURCE_BSDIFF and PUFFDIFF operations.
 
     Args:
       data_length: The length of the data blob associated with the operation.
@@ -981,7 +981,7 @@ class PayloadChecker(object):
     elif op.type == common.OpType.SOURCE_BSDIFF and self.minor_version >= 2:
       self._CheckAnyDiffOperation(data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
-    elif op.type == common.OpType.IMGDIFF and self.minor_version >= 4:
+    elif op.type == common.OpType.PUFFDIFF and self.minor_version >= 4:
       self._CheckAnyDiffOperation(data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
     else:
@@ -1041,7 +1041,7 @@ class PayloadChecker(object):
         common.OpType.BSDIFF: 0,
         common.OpType.SOURCE_COPY: 0,
         common.OpType.SOURCE_BSDIFF: 0,
-        common.OpType.IMGDIFF: 0,
+        common.OpType.PUFFDIFF: 0,
     }
     # Total blob sizes for each operation type.
     op_blob_totals = {
@@ -1051,7 +1051,7 @@ class PayloadChecker(object):
         common.OpType.BSDIFF: 0,
         # SOURCE_COPY operations don't have blobs.
         common.OpType.SOURCE_BSDIFF: 0,
-        common.OpType.IMGDIFF: 0,
+        common.OpType.PUFFDIFF: 0,
     }
     # Counts of hashed vs unhashed operations.
     blob_hash_counts = {

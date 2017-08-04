@@ -603,7 +603,6 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
 // and stores an action exit code in |error|.
 bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
   *error = ErrorCode::kSuccess;
-
   const char* c_bytes = reinterpret_cast<const char*>(bytes);
 
   // Update the total byte downloaded count and the progress logs.
@@ -758,8 +757,8 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
         op_result = PerformSourceBsdiffOperation(op, error);
         OP_DURATION_HISTOGRAM("SOURCE_BSDIFF", op_start_time);
         break;
-      case InstallOperation::IMGDIFF:
-        // TODO(deymo): Replace with PUFFIN operation.
+      case InstallOperation::PUFFDIFF:
+        // TODO(ahassani): Later add PerformPuffdiffOperation(op, error);
         op_result = false;
         break;
       default:
