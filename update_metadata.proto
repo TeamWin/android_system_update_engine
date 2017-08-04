@@ -81,6 +81,8 @@
 // The operations allowed in the payload (supported by the client) depend on the
 // major and minor version. See InstallOperation.Type bellow for details.
 
+syntax = "proto2";
+
 package chromeos_update_engine;
 option optimize_for = LITE_RUNTIME;
 
