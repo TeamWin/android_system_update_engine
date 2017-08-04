@@ -607,9 +607,10 @@ include $(BUILD_EXECUTABLE)
 # server-side code. This is used for delta_generator and unittests but not
 # for any client code.
 ue_libpayload_generator_exported_static_libraries := \
+    libbsdiff \
     libpayload_consumer \
-    update_metadata-protos \
     liblzma \
+    update_metadata-protos \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_generator_exported_shared_libraries := \
@@ -654,9 +655,10 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
+    libbsdiff \
     libpayload_consumer \
-    update_metadata-protos \
     liblzma \
+    update_metadata-protos \
     $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
@@ -704,8 +706,6 @@ ifeq ($(HOST_OS),linux)
 # Build for the host.
 include $(CLEAR_VARS)
 LOCAL_MODULE := delta_generator
-LOCAL_REQUIRED_MODULES := \
-    bsdiff
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CLANG := true
@@ -848,28 +848,6 @@ LOCAL_SRC_FILES := \
     test_http_server.cc
 include $(BUILD_EXECUTABLE)
 
-# bsdiff (type: executable)
-# ========================================================
-# We need bsdiff in the update_engine_unittests directory, so we build it here.
-include $(CLEAR_VARS)
-LOCAL_MODULE := ue_unittest_bsdiff
-LOCAL_MODULE_PATH := $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests
-LOCAL_MODULE_STEM := bsdiff
-LOCAL_CPP_EXTENSION := .cc
-LOCAL_SRC_FILES := ../../external/bsdiff/bsdiff_main.cc
-LOCAL_CFLAGS := \
-    -D_FILE_OFFSET_BITS=64 \
-    -Wall \
-    -Werror \
-    -Wextra \
-    -Wno-unused-parameter
-LOCAL_STATIC_LIBRARIES := \
-    libbsdiff \
-    libbz \
-    libdivsufsort64 \
-    libdivsufsort
-include $(BUILD_EXECUTABLE)
-
 # test_subprocess (type: executable)
 # ========================================================
 # Test helper subprocess program.
@@ -896,7 +874,6 @@ LOCAL_MODULE := update_engine_unittests
 LOCAL_REQUIRED_MODULES := \
     test_http_server \
     test_subprocess \
-    ue_unittest_bsdiff \
     ue_unittest_delta_generator \
     ue_unittest_disk_ext2_1k.img \
     ue_unittest_disk_ext2_4k.img \
