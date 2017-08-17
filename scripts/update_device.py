@@ -93,7 +93,7 @@ class UpdateHandler(BaseHTTPServer.BaseHTTPRequestHandler):
   """
 
   @staticmethod
-  def _ParseRange(range_str, file_size):
+  def _parse_range(range_str, file_size):
     """Parse an HTTP range string.
 
     Args:
@@ -141,11 +141,11 @@ class UpdateHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.send_response(200)
 
     stat = os.fstat(f.fileno())
-    start_range, end_range = self._ParseRange(self.headers.get('range'),
-                                              stat.st_size)
+    start_range, end_range = self._parse_range(self.headers.get('range'),
+                                               stat.st_size)
     logging.info('Serving request for %s from %s [%d, %d) length: %d',
-             self.path, self.serving_payload, start_range, end_range,
-             end_range - start_range)
+                 self.path, self.serving_payload, start_range, end_range,
+                 end_range - start_range)
 
     self.send_header('Accept-Ranges', 'bytes')
     self.send_header('Content-Range',
