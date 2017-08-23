@@ -32,6 +32,7 @@
 #include <base/strings/stringprintf.h>
 #include <base/threading/simple_thread.h>
 #include <brillo/data_encoding.h>
+#include <bsdiff/bsdiff.h>
 
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/subprocess.h"
@@ -49,8 +50,6 @@ using std::vector;
 
 namespace chromeos_update_engine {
 namespace {
-
-const char* const kBsdiffPath = "bsdiff";
 
 // The maximum destination size allowed for bsdiff. In general, bsdiff should
 // work for arbitrary big files, but the payload generation and payload
@@ -701,24 +700,21 @@ bool ReadExtentsToDiff(const string& old_part,
                              ? InstallOperation::SOURCE_COPY
                              : InstallOperation::MOVE);
       data_blob = brillo::Blob();
-    } else if (bsdiff_allowed || puffdiff_allowed) {
-      // If the source file is considered bsdiff safe (no bsdiff bugs
-      // triggered), see if BSDIFF encoding is smaller.
-      base::FilePath old_chunk;
-      TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&old_chunk));
-      ScopedPathUnlinker old_unlinker(old_chunk.value());
-      TEST_AND_RETURN_FALSE(utils::WriteFile(
-          old_chunk.value().c_str(), old_data.data(), old_data.size()));
-      base::FilePath new_chunk;
-      TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&new_chunk));
-      ScopedPathUnlinker new_unlinker(new_chunk.value());
-      TEST_AND_RETURN_FALSE(utils::WriteFile(
-          new_chunk.value().c_str(), new_data.data(), new_data.size()));
-
+    } else {
       if (bsdiff_allowed) {
+        base::FilePath patch;
+        TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&patch));
+        ScopedPathUnlinker unlinker(patch.value());
+
         brillo::Blob bsdiff_delta;
-        TEST_AND_RETURN_FALSE(DiffFiles(
-            kBsdiffPath, old_chunk.value(), new_chunk.value(), &bsdiff_delta));
+        TEST_AND_RETURN_FALSE(0 == bsdiff::bsdiff(old_data.data(),
+                                                  old_data.size(),
+                                                  new_data.data(),
+                                                  new_data.size(),
+                                                  patch.value().c_str(),
+                                                  nullptr));
+
+        TEST_AND_RETURN_FALSE(utils::ReadFile(patch.value(), &bsdiff_delta));
         CHECK_GT(bsdiff_delta.size(), static_cast<brillo::Blob::size_type>(0));
         if (bsdiff_delta.size() < data_blob.size()) {
           operation.set_type(
@@ -757,36 +753,6 @@ bool ReadExtentsToDiff(const string& old_part,
 
   *out_data = std::move(data_blob);
   *out_op = operation;
-  return true;
-}
-
-// Runs the bsdiff tool in |diff_path| on two files and returns the
-// resulting delta in |out|. Returns true on success.
-bool DiffFiles(const string& diff_path,
-               const string& old_file,
-               const string& new_file,
-               brillo::Blob* out) {
-  const string kPatchFile = "delta.patchXXXXXX";
-  string patch_file_path;
-
-  TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile(kPatchFile, &patch_file_path, nullptr));
-
-  vector<string> cmd;
-  cmd.push_back(diff_path);
-  cmd.push_back(old_file);
-  cmd.push_back(new_file);
-  cmd.push_back(patch_file_path);
-
-  int rc = 1;
-  string stdout;
-  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &rc, &stdout));
-  if (rc != 0) {
-    LOG(ERROR) << diff_path << " returned " << rc << std::endl << stdout;
-    return false;
-  }
-  TEST_AND_RETURN_FALSE(utils::ReadFile(patch_file_path, out));
-  unlink(patch_file_path.c_str());
   return true;
 }
 
