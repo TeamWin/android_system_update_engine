@@ -167,15 +167,19 @@ void SignPayload(const string& in_file,
   }
 }
 
-void VerifySignedPayload(const string& in_file,
-                         const string& public_key) {
+int VerifySignedPayload(const string& in_file, const string& public_key) {
   LOG(INFO) << "Verifying signed payload.";
   LOG_IF(FATAL, in_file.empty())
       << "Must pass --in_file to verify signed payload.";
   LOG_IF(FATAL, public_key.empty())
       << "Must pass --public_key to verify signed payload.";
-  CHECK(PayloadSigner::VerifySignedPayload(in_file, public_key));
+  if (!PayloadSigner::VerifySignedPayload(in_file, public_key)) {
+    LOG(INFO) << "VerifySignedPayload failed";
+    return 1;
+  }
+
   LOG(INFO) << "Done verifying signed payload.";
+  return 0;
 }
 
 // TODO(deymo): This function is likely broken for deltas minor version 2 or
@@ -222,7 +226,6 @@ bool ApplyPayload(const string& payload_file,
     LOG(INFO) << "Install partition:"
               << " source: " << part.source_path
               << " target: " << part.target_path;
-
   }
 
   DeltaPerformer performer(&prefs,
@@ -413,8 +416,7 @@ int Main(int argc, char** argv) {
   if (!FLAGS_public_key.empty()) {
     LOG_IF(WARNING, FLAGS_public_key_version != -1)
         << "--public_key_version is deprecated and ignored.";
-    VerifySignedPayload(FLAGS_in_file, FLAGS_public_key);
-    return 0;
+    return VerifySignedPayload(FLAGS_in_file, FLAGS_public_key);
   }
   if (!FLAGS_properties_file.empty()) {
     return ExtractProperties(FLAGS_in_file, FLAGS_properties_file) ? 0 : 1;
