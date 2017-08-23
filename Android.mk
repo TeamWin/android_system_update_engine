@@ -642,6 +642,7 @@ ue_libpayload_generator_src_files := \
     payload_generator/payload_generation_config.cc \
     payload_generator/payload_signer.cc \
     payload_generator/raw_filesystem.cc \
+    payload_generator/squashfs_filesystem.cc \
     payload_generator/tarjan.cc \
     payload_generator/topological_sort.cc \
     payload_generator/xz_android.cc
@@ -951,6 +952,7 @@ LOCAL_SRC_FILES := \
     payload_generator/payload_file_unittest.cc \
     payload_generator/payload_generation_config_unittest.cc \
     payload_generator/payload_signer_unittest.cc \
+    payload_generator/squashfs_filesystem_unittest.cc \
     payload_generator/tarjan_unittest.cc \
     payload_generator/topological_sort_unittest.cc \
     payload_generator/zip_unittest.cc \
