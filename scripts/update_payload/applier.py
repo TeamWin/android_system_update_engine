@@ -195,14 +195,14 @@ class PayloadApplier(object):
   """
 
   def __init__(self, payload, bsdiff_in_place=True, bspatch_path=None,
-               imgpatch_path=None, truncate_to_expected_size=True):
+               puffpatch_path=None, truncate_to_expected_size=True):
     """Initialize the applier.
 
     Args:
       payload: the payload object to check
       bsdiff_in_place: whether to perform BSDIFF operation in-place (optional)
       bspatch_path: path to the bspatch binary (optional)
-      imgpatch_path: path to the imgpatch binary (optional)
+      puffpatch_path: path to the puffpatch binary (optional)
       truncate_to_expected_size: whether to truncate the resulting partitions
                                  to their expected sizes, as specified in the
                                  payload (optional)
@@ -213,7 +213,7 @@ class PayloadApplier(object):
     self.minor_version = payload.manifest.minor_version
     self.bsdiff_in_place = bsdiff_in_place
     self.bspatch_path = bspatch_path or 'bspatch'
-    self.imgpatch_path = imgpatch_path or 'imgpatch'
+    self.puffpatch_path = puffpatch_path or 'imgpatch'
     self.truncate_to_expected_size = truncate_to_expected_size
 
   def _ApplyReplaceOperation(self, op, op_name, out_data, part_file, part_size):
@@ -347,7 +347,7 @@ class PayloadApplier(object):
 
   def _ApplyDiffOperation(self, op, op_name, patch_data, old_part_file,
                           new_part_file):
-    """Applies a SOURCE_BSDIFF or IMGDIFF operation.
+    """Applies a SOURCE_BSDIFF or PUFFDIFF operation.
 
     Args:
       op: the operation object
@@ -373,7 +373,7 @@ class PayloadApplier(object):
 
     if (hasattr(new_part_file, 'fileno') and
         ((not old_part_file) or hasattr(old_part_file, 'fileno')) and
-        op.type != common.OpType.IMGDIFF):
+        op.type != common.OpType.PUFFDIFF):
       # Construct input and output extents argument for bspatch.
       in_extents_arg, _, _ = _ExtentsToBspatchArg(
           op.src_extents, block_size, '%s.src_extents' % op_name,
@@ -411,8 +411,8 @@ class PayloadApplier(object):
       # Invoke bspatch.
       patch_cmd = [self.bspatch_path, in_file_name, out_file_name,
                    patch_file_name]
-      if op.type == common.OpType.IMGDIFF:
-        patch_cmd[0] = self.imgpatch_path
+      if op.type == common.OpType.PUFFDIFF:
+        patch_cmd[0] = self.puffpatch_path
       subprocess.check_call(patch_cmd)
 
       # Read output.
@@ -468,7 +468,7 @@ class PayloadApplier(object):
       elif op.type == common.OpType.SOURCE_COPY:
         self._ApplySourceCopyOperation(op, op_name, old_part_file,
                                        new_part_file)
-      elif op.type in (common.OpType.SOURCE_BSDIFF, common.OpType.IMGDIFF):
+      elif op.type in (common.OpType.SOURCE_BSDIFF, common.OpType.PUFFDIFF):
         self._ApplyDiffOperation(op, op_name, data, old_part_file,
                                  new_part_file)
       else:
@@ -504,7 +504,7 @@ class PayloadApplier(object):
         shutil.copyfile(old_part_file_name, new_part_file_name)
       elif (self.minor_version == common.SOURCE_MINOR_PAYLOAD_VERSION or
             self.minor_version == common.OPSRCHASH_MINOR_PAYLOAD_VERSION or
-            self.minor_version == common.IMGDIFF_MINOR_PAYLOAD_VERSION):
+            self.minor_version == common.PUFFDIFF_MINOR_PAYLOAD_VERSION):
         # In minor version >= 2, we don't want to copy the partitions, so
         # instead just make the new partition file.
         open(new_part_file_name, 'w').close()
