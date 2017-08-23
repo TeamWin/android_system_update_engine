@@ -591,6 +591,8 @@ include $(BUILD_EXECUTABLE)
 # for any client code.
 ue_libpayload_generator_exported_static_libraries := \
     libbsdiff \
+    libdivsufsort \
+    libdivsufsort64 \
     libpayload_consumer \
     liblzma \
     update_metadata-protos \
@@ -638,6 +640,8 @@ LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
     libbsdiff \
+    libdivsufsort \
+    libdivsufsort64 \
     libpayload_consumer \
     liblzma \
     update_metadata-protos \
@@ -663,6 +667,9 @@ LOCAL_CPPFLAGS := $(ue_common_cppflags)
 LOCAL_LDFLAGS := $(ue_common_ldflags)
 LOCAL_C_INCLUDES := $(ue_common_c_includes)
 LOCAL_STATIC_LIBRARIES := \
+    libbsdiff \
+    libdivsufsort \
+    libdivsufsort64 \
     libpayload_consumer \
     update_metadata-protos \
     liblzma \
