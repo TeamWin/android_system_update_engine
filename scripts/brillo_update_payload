@@ -1,8 +1,20 @@
 #!/bin/bash
 
-# Copyright 2015 The Chromium OS Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+#
+# Copyright (C) 2015 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 # Script to generate a Brillo update for use by the update engine.
 #
@@ -12,14 +24,15 @@
 #  hash        generate a payload or metadata hash
 #  sign        generate a signed payload
 #  properties  generate a properties file from a payload
+#  verify      verify a payload by recreating a target image.
 #
 #  Generate command arguments:
 #  --payload             generated unsigned payload output file
 #  --source_image        if defined, generate a delta payload from the specified
 #                        image to the target_image
 #  --target_image        the target image that should be sent to clients
-#  --metadata_size_file  if defined, generate a file containing the size of the payload
-#                        metadata in bytes to the specified file
+#  --metadata_size_file  if defined, generate a file containing the size of the
+#                        payload metadata in bytes to the specified file
 #
 #  Hash command arguments:
 #  --unsigned_payload    the input unsigned payload to generate the hash from
@@ -50,6 +63,10 @@
 #  --payload                 the input signed or unsigned payload
 #  --properties_file         the output path where to write the properties, or
 #                            '-' for stdout.
+#  Verify command arguments:
+#  --payload             payload input file
+#  --source_image        verify payload to the specified source image.
+#  --target_image        the target image to verify upon.
 
 
 # Exit codes:
@@ -85,6 +102,7 @@ HELP_HASH="hash: Generate the hashes of the unsigned payload and metadata used \
 for signing."
 HELP_SIGN="sign: Insert the signatures into the unsigned payload."
 HELP_PROPERTIES="properties: Extract payload properties to a file."
+HELP_VERIFY="verify: Verify a (signed) update payload."
 
 usage() {
   echo "Supported commands:"
@@ -93,6 +111,7 @@ usage() {
   echo "${HELP_HASH}"
   echo "${HELP_SIGN}"
   echo "${HELP_PROPERTIES}"
+  echo "${HELP_VERIFY}"
   echo
   echo "Use: \"$0 <command> --help\" for more options."
 }
@@ -123,6 +142,11 @@ case "${COMMAND}" in
   properties)
     FLAGS_HELP="${HELP_PROPERTIES}"
     ;;
+
+  verify)
+    FLAGS_HELP="${HELP_VERIFY}"
+    ;;
+
   *)
     echo "Unrecognized command: \"${COMMAND}\"" >&2
     usage >&2
@@ -173,6 +197,15 @@ if [[ "${COMMAND}" == "properties" ]]; then
   DEFINE_string properties_file "-" \
     "Path to output the extracted property files. If '-' is passed stdout will \
 be used."
+fi
+if [[ "${COMMAND}" == "verify" ]]; then
+  DEFINE_string payload "" \
+    "Path to the input payload file."
+  DEFINE_string target_image "" \
+    "Path to the target image to verify upon."
+  DEFINE_string source_image "" \
+    "Optional: Path to a source image. If specified, the delta update is \
+applied to this."
 fi
 
 DEFINE_string work_dir "${TMPDIR:-/tmp}" "Where to dump temporary files."
@@ -621,6 +654,87 @@ cmd_properties() {
       -properties_file="${FLAGS_properties_file}"
 }
 
+validate_verify() {
+  [[ -n "${FLAGS_payload}" ]] ||
+    die "Error: you must specify an input filename with --payload FILENAME"
+
+  [[ -n "${FLAGS_target_image}" ]] ||
+    die "Error: you must specify a target image with --target_image FILENAME"
+}
+
+cmd_verify() {
+  local payload_type="delta"
+  if [[ -z "${FLAGS_source_image}" ]]; then
+    payload_type="full"
+  fi
+
+  echo "Extracting images for ${payload_type} update."
+
+  if [[ "${payload_type}" == "delta" ]]; then
+    extract_image "${FLAGS_source_image}" SRC_PARTITIONS
+  fi
+  extract_image "${FLAGS_target_image}" DST_PARTITIONS PARTITIONS_ORDER
+
+  declare -A TMP_PARTITIONS
+  for part in "${PARTITIONS_ORDER[@]}"; do
+    local tmp_part=$(create_tempfile "tmp_part.bin.XXXXXX")
+    echo "Creating temporary target partition ${tmp_part} for ${part}"
+    CLEANUP_FILES+=("${tmp_part}")
+    TMP_PARTITIONS[${part}]=${tmp_part}
+    local FILESIZE=$(stat -c%s "${DST_PARTITIONS[${part}]}")
+    echo "Truncating ${TMP_PARTITIONS[${part}]} to ${FILESIZE}"
+    truncate_file "${TMP_PARTITIONS[${part}]}" "${FILESIZE}"
+  done
+
+  echo "Verifying ${payload_type} update."
+  # Common payload args:
+  GENERATOR_ARGS=( -in_file="${FLAGS_payload}" )
+
+  local part old_partitions="" new_partitions="" partition_names=""
+  for part in "${PARTITIONS_ORDER[@]}"; do
+    if [[ -n "${partition_names}" ]]; then
+      partition_names+=":"
+      new_partitions+=":"
+      old_partitions+=":"
+    fi
+    partition_names+="${part}"
+    new_partitions+="${TMP_PARTITIONS[${part}]}"
+    old_partitions+="${SRC_PARTITIONS[${part}]:-}"
+  done
+
+  # Target image args:
+  GENERATOR_ARGS+=(
+    -partition_names="${partition_names}"
+    -new_partitions="${new_partitions}"
+  )
+
+  if [[ "${payload_type}" == "delta" ]]; then
+    # Source image args:
+    GENERATOR_ARGS+=(
+      -old_partitions="${old_partitions}"
+    )
+  fi
+
+  echo "Running delta_generator to verify ${payload_type} payload with args: \
+${GENERATOR_ARGS[@]}"
+  "${GENERATOR}" "${GENERATOR_ARGS[@]}"
+
+  if [[ $? -eq 0 ]]; then
+    echo "Done applying ${payload_type} update."
+    echo "Checking the newly generated partitions against the target partitions"
+    for part in "${PARTITIONS_ORDER[@]}"; do
+      cmp "${TMP_PARTITIONS[${part}]}" "${DST_PARTITIONS[${part}]}"
+      local not_str=""
+      if [[ $? -ne 0 ]]; then
+        not_str="in"
+      fi
+      echo "The new partition (${part}) is ${not_str}valid."
+    done
+  else
+    echo "Failed to apply ${payload_type} update."
+  fi
+}
+
 # Sanity check that the real generator exists:
 GENERATOR="$(which delta_generator || true)"
 [[ -x "${GENERATOR}" ]] || die "can't find delta_generator"
@@ -638,4 +752,7 @@ case "$COMMAND" in
   properties) validate_properties
               cmd_properties
               ;;
+  verify) validate_verify
+          cmd_verify
+          ;;
 esac
