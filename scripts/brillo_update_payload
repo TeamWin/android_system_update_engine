@@ -210,9 +210,6 @@ FORCE_MINOR_VERSION=""
 # Path to the postinstall config file in target image if exists.
 POSTINSTALL_CONFIG_FILE=""
 
-# The fingerprint of zlib in the source image.
-ZLIB_FINGERPRINT=""
-
 # read_option_int <file.txt> <option_key> [default_value]
 #
 # Reads the unsigned integer value associated with |option_key| in a key=value
@@ -332,11 +329,6 @@ extract_image_cros() {
   # updater supports a newer major version.
   FORCE_MAJOR_VERSION="1"
 
-  if [[ "${partitions_array}" == "SRC_PARTITIONS" ]]; then
-    # Copy from zlib_fingerprint in source image to stdout.
-    ZLIB_FINGERPRINT=$(e2cp "${root}":/etc/zlib_fingerprint -)
-  fi
-
   # When generating legacy Chrome OS images, we need to use "boot" and "system"
   # for the partition names to be compatible with updating Brillo devices with
   # Chrome OS images.
@@ -409,10 +401,6 @@ using payload minor version 2"
       warn "No delta support from minor version ${FORCE_MINOR_VERSION}. \
 Disabling deltas for this source version."
       exit ${EX_UNSUPPORTED_DELTA}
-    fi
-
-    if [[ "${FORCE_MINOR_VERSION}" -ge 4 ]]; then
-      ZLIB_FINGERPRINT=$(unzip -p "${image}" "META/zlib_fingerprint.txt")
     fi
   else
     # Target image
@@ -534,9 +522,6 @@ cmd_generate() {
     )
     if [[ -n "${FORCE_MINOR_VERSION}" ]]; then
       GENERATOR_ARGS+=( --minor_version="${FORCE_MINOR_VERSION}" )
-    fi
-    if [[ -n "${ZLIB_FINGERPRINT}" ]]; then
-      GENERATOR_ARGS+=( --zlib_fingerprint="${ZLIB_FINGERPRINT}" )
     fi
   fi
 
