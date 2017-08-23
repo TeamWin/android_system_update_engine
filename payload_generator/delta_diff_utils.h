@@ -103,13 +103,6 @@ bool ReadExtentsToDiff(const std::string& old_part,
                        brillo::Blob* out_data,
                        InstallOperation* out_op);
 
-// Runs the bsdiff tool in |diff_path| on two files and returns the
-// resulting delta in |out|. Returns true on success.
-bool DiffFiles(const std::string& diff_path,
-               const std::string& old_file,
-               const std::string& new_file,
-               brillo::Blob* out);
-
 // Generates the best allowed full operation to produce |new_data|. The allowed
 // operations are based on |payload_version|. The operation blob will be stored
 // in |out_blob| and the resulting operation type in |out_type|. Returns whether
