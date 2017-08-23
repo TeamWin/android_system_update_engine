@@ -26,30 +26,30 @@
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/update_manager/umtest_utils.h"
-#if USE_LIBCROS
+#if USE_CHROME_KIOSK_APP
 #include "libcros/dbus-proxies.h"
 #include "libcros/dbus-proxy-mocks.h"
 
 using org::chromium::LibCrosServiceInterfaceProxyMock;
-#endif  // USE_LIBCROS
+#endif  // USE_CHROME_KIOSK_APP
 using std::unique_ptr;
 using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
 
-#if USE_LIBCROS
+#if USE_CHROME_KIOSK_APP
 namespace {
 const char kRequiredPlatformVersion[] ="1234.0.0";
 }  // namespace
-#endif  // USE_LIBCROS
+#endif  // USE_CHROME_KIOSK_APP
 
 namespace chromeos_update_manager {
 
 class UmRealSystemProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
-#if USE_LIBCROS
+#if USE_CHROME_KIOSK_APP
     libcros_proxy_mock_.reset(new LibCrosServiceInterfaceProxyMock());
     ON_CALL(*libcros_proxy_mock_,
             GetKioskAppRequiredPlatformVersion(_, _, _))
@@ -61,7 +61,7 @@ class UmRealSystemProviderTest : public ::testing::Test {
 #else
     provider_.reset(
         new RealSystemProvider(&fake_hardware_, &fake_boot_control_, nullptr));
-#endif  // USE_LIBCROS
+#endif  // USE_CHROME_KIOSK_APP
     EXPECT_TRUE(provider_->Init());
   }
 
@@ -69,9 +69,9 @@ class UmRealSystemProviderTest : public ::testing::Test {
   chromeos_update_engine::FakeBootControl fake_boot_control_;
   unique_ptr<RealSystemProvider> provider_;
 
-#if USE_LIBCROS
+#if USE_CHROME_KIOSK_APP
   unique_ptr<LibCrosServiceInterfaceProxyMock> libcros_proxy_mock_;
-#endif  // USE_LIBCROS
+#endif  // USE_CHROME_KIOSK_APP
 };
 
 TEST_F(UmRealSystemProviderTest, InitTest) {
@@ -91,7 +91,7 @@ TEST_F(UmRealSystemProviderTest, IsOOBECompleteFalse) {
   UmTestUtils::ExpectVariableHasValue(false, provider_->var_is_oobe_complete());
 }
 
-#if USE_LIBCROS
+#if USE_CHROME_KIOSK_APP
 TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
   UmTestUtils::ExpectVariableHasValue(
       std::string(kRequiredPlatformVersion),
@@ -129,6 +129,6 @@ TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersion) {
   UmTestUtils::ExpectVariableHasValue(
       std::string(), provider_->var_kiosk_required_platform_version());
 }
-#endif
+#endif  // USE_CHROME_KIOSK_APP
 
 }  // namespace chromeos_update_manager
