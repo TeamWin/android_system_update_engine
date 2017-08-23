@@ -686,8 +686,7 @@ ifeq ($(HOST_OS),linux)
 include $(CLEAR_VARS)
 LOCAL_MODULE := delta_generator
 LOCAL_REQUIRED_MODULES := \
-    bsdiff \
-    imgdiff
+    bsdiff
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CFLAGS := $(ue_common_cflags)

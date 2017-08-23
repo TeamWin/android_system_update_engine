@@ -38,7 +38,7 @@ def _OpTypeByName(op_name):
       'ZERO': common.OpType.ZERO,
       'DISCARD': common.OpType.DISCARD,
       'REPLACE_XZ': common.OpType.REPLACE_XZ,
-      'IMGDIFF': common.OpType.IMGDIFF,
+      'PUFFDIFF': common.OpType.PUFFDIFF,
   }
   return op_name_to_type[op_name]
 

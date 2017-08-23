@@ -131,7 +131,6 @@ class DeltaDiffUtilsTest : public ::testing::Test {
                                   uint32_t minor_version) {
     BlobFileWriter blob_file(blob_fd_, &blob_size_);
     PayloadVersion version(kChromeOSMajorPayloadVersion, minor_version);
-    version.imgdiff_allowed = true;  // Assume no fingerprint mismatch.
     return diff_utils::DeltaMovedAndZeroBlocks(&aops_,
                                                old_part_.path,
                                                new_part_.path,
