@@ -43,9 +43,8 @@ extern const uint32_t kSourceMinorPayloadVersion;
 // The minor version that allows per-operation source hash.
 extern const uint32_t kOpSrcHashMinorPayloadVersion;
 
-// The minor version that allows IMGDIFF operation.
-extern const uint32_t kImgdiffMinorPayloadVersion;
-
+// The minor version that allows PUFFDIFF operation.
+extern const uint32_t kPuffdiffMinorPayloadVersion;
 
 // The kernel and rootfs partition names used by the BootControlInterface when
 // handling update payloads with a major version 1. The names of the updated
@@ -55,15 +54,6 @@ extern const char kLegacyPartitionNameRoot[];
 
 extern const char kBspatchPath[];
 extern const char kDeltaMagic[4];
-
-// The list of compatible SHA256 hashes of zlib source code.
-// This is used to check if the source image have a compatible zlib (produce
-// same compressed result given the same input).
-// When a new fingerprint is found, please examine the changes in zlib source
-// carefully and determine if it's still compatible with previous version, if
-// yes then add the new fingerprint to this array, otherwise remove all previous
-// fingerprints in the array first, and only include the new fingerprint.
-extern const char kCompatibleZlibFingerprint[3][65];
 
 // A block number denoting a hole on a sparse file. Used on Extents to refer to
 // section of blocks not present on disk on a sparse file.

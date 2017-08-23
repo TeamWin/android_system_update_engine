@@ -126,12 +126,12 @@ UpdateAttempter::UpdateAttempter(
         network_proxy_service_proxy)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
-#if USE_LIBCROS
+#if USE_CHROME_NETWORK_PROXY
       cert_checker_(cert_checker),
       chrome_proxy_resolver_(network_proxy_service_proxy) {
 #else
       cert_checker_(cert_checker) {
-#endif  // USE_LIBCROS
+#endif  // USE_CHROME_NETWORK_PROXY
 }
 
 UpdateAttempter::~UpdateAttempter() {

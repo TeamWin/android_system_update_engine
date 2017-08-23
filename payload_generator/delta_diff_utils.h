@@ -93,7 +93,7 @@ bool DeltaReadFile(std::vector<AnnotatedOperation>* aops,
 // fills in |out_op|. If there's no change in old and new files, it creates a
 // MOVE or SOURCE_COPY operation. If there is a change, the smallest of the
 // operations allowed in the given |version| (REPLACE, REPLACE_BZ, BSDIFF,
-// SOURCE_BSDIFF or IMGDIFF) wins.
+// SOURCE_BSDIFF, or PUFFDIFF) wins.
 // |new_extents| must not be empty. Returns true on success.
 bool ReadExtentsToDiff(const std::string& old_part,
                        const std::string& new_part,
@@ -102,13 +102,6 @@ bool ReadExtentsToDiff(const std::string& old_part,
                        const PayloadVersion& version,
                        brillo::Blob* out_data,
                        InstallOperation* out_op);
-
-// Runs the bsdiff or imgdiff tool in |diff_path| on two files and returns the
-// resulting delta in |out|. Returns true on success.
-bool DiffFiles(const std::string& diff_path,
-               const std::string& old_file,
-               const std::string& new_file,
-               brillo::Blob* out);
 
 // Generates the best allowed full operation to produce |new_data|. The allowed
 // operations are based on |payload_version|. The operation blob will be stored

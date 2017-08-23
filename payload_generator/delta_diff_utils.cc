@@ -32,6 +32,7 @@
 #include <base/strings/stringprintf.h>
 #include <base/threading/simple_thread.h>
 #include <brillo/data_encoding.h>
+#include <bsdiff/bsdiff.h>
 
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/subprocess.h"
@@ -50,9 +51,6 @@ using std::vector;
 namespace chromeos_update_engine {
 namespace {
 
-const char* const kBsdiffPath = "bsdiff";
-const char* const kImgdiffPath = "imgdiff";
-
 // The maximum destination size allowed for bsdiff. In general, bsdiff should
 // work for arbitrary big files, but the payload generation and payload
 // application requires a significant amount of RAM. We put a hard-limit of
@@ -60,10 +58,10 @@ const char* const kImgdiffPath = "imgdiff";
 // Chrome binary in ASan builders.
 const uint64_t kMaxBsdiffDestinationSize = 200 * 1024 * 1024;  // bytes
 
-// The maximum destination size allowed for imgdiff. In general, imgdiff should
-// work for arbitrary big files, but the payload application is quite memory
-// intensive, so we limit these operations to 50 MiB.
-const uint64_t kMaxImgdiffDestinationSize = 50 * 1024 * 1024;  // bytes
+// The maximum destination size allowed for puffdiff. In general, puffdiff
+// should work for arbitrary big files, but the payload application is quite
+// memory intensive, so we limit these operations to 50 MiB.
+const uint64_t kMaxPuffdiffDestinationSize = 50 * 1024 * 1024;  // bytes
 
 // Process a range of blocks from |range_start| to |range_end| in the extent at
 // position |*idx_p| of |extents|. If |do_remove| is true, this range will be
@@ -158,15 +156,6 @@ size_t RemoveIdenticalBlockRanges(vector<Extent>* src_extents,
     removed_bytes -= kBlockSize - nonfull_block_bytes;
 
   return removed_bytes;
-}
-
-// Returns true if the given blob |data| contains gzip header magic.
-bool ContainsGZip(const brillo::Blob& data) {
-  const uint8_t kGZipMagic[] = {0x1f, 0x8b, 0x08, 0x00};
-  return std::search(data.begin(),
-                     data.end(),
-                     std::begin(kGZipMagic),
-                     std::end(kGZipMagic)) != data.end();
 }
 
 }  // namespace
@@ -657,7 +646,7 @@ bool ReadExtentsToDiff(const string& old_part,
   uint64_t blocks_to_read = BlocksInExtents(old_extents);
   uint64_t blocks_to_write = BlocksInExtents(new_extents);
 
-  // Disable bsdiff and imgdiff when the data is too big.
+  // Disable bsdiff, and puffdiff when the data is too big.
   bool bsdiff_allowed =
       version.OperationAllowed(InstallOperation::SOURCE_BSDIFF) ||
       version.OperationAllowed(InstallOperation::BSDIFF);
@@ -668,12 +657,12 @@ bool ReadExtentsToDiff(const string& old_part,
     bsdiff_allowed = false;
   }
 
-  bool imgdiff_allowed = version.OperationAllowed(InstallOperation::IMGDIFF);
-  if (imgdiff_allowed &&
-      blocks_to_read * kBlockSize > kMaxImgdiffDestinationSize) {
-    LOG(INFO) << "imgdiff blacklisted, data too big: "
+  bool puffdiff_allowed = version.OperationAllowed(InstallOperation::PUFFDIFF);
+  if (puffdiff_allowed &&
+      blocks_to_read * kBlockSize > kMaxPuffdiffDestinationSize) {
+    LOG(INFO) << "puffdiff blacklisted, data too big: "
               << blocks_to_read * kBlockSize << " bytes";
-    imgdiff_allowed = false;
+    puffdiff_allowed = false;
   }
 
   // Make copies of the extents so we can modify them.
@@ -711,24 +700,21 @@ bool ReadExtentsToDiff(const string& old_part,
                              ? InstallOperation::SOURCE_COPY
                              : InstallOperation::MOVE);
       data_blob = brillo::Blob();
-    } else if (bsdiff_allowed || imgdiff_allowed) {
-      // If the source file is considered bsdiff safe (no bsdiff bugs
-      // triggered), see if BSDIFF encoding is smaller.
-      base::FilePath old_chunk;
-      TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&old_chunk));
-      ScopedPathUnlinker old_unlinker(old_chunk.value());
-      TEST_AND_RETURN_FALSE(utils::WriteFile(
-          old_chunk.value().c_str(), old_data.data(), old_data.size()));
-      base::FilePath new_chunk;
-      TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&new_chunk));
-      ScopedPathUnlinker new_unlinker(new_chunk.value());
-      TEST_AND_RETURN_FALSE(utils::WriteFile(
-          new_chunk.value().c_str(), new_data.data(), new_data.size()));
-
+    } else {
       if (bsdiff_allowed) {
+        base::FilePath patch;
+        TEST_AND_RETURN_FALSE(base::CreateTemporaryFile(&patch));
+        ScopedPathUnlinker unlinker(patch.value());
+
         brillo::Blob bsdiff_delta;
-        TEST_AND_RETURN_FALSE(DiffFiles(
-            kBsdiffPath, old_chunk.value(), new_chunk.value(), &bsdiff_delta));
+        TEST_AND_RETURN_FALSE(0 == bsdiff::bsdiff(old_data.data(),
+                                                  old_data.size(),
+                                                  new_data.data(),
+                                                  new_data.size(),
+                                                  patch.value().c_str(),
+                                                  nullptr));
+
+        TEST_AND_RETURN_FALSE(utils::ReadFile(patch.value(), &bsdiff_delta));
         CHECK_GT(bsdiff_delta.size(), static_cast<brillo::Blob::size_type>(0));
         if (bsdiff_delta.size() < data_blob.size()) {
           operation.set_type(
@@ -738,25 +724,9 @@ bool ReadExtentsToDiff(const string& old_part,
           data_blob = std::move(bsdiff_delta);
         }
       }
-      if (imgdiff_allowed && ContainsGZip(old_data) && ContainsGZip(new_data)) {
-        brillo::Blob imgdiff_delta;
-        // Imgdiff might fail in some cases, only use the result if it succeed,
-        // otherwise print the extents to analyze.
-        if (DiffFiles(kImgdiffPath,
-                      old_chunk.value(),
-                      new_chunk.value(),
-                      &imgdiff_delta) &&
-            imgdiff_delta.size() > 0) {
-          if (imgdiff_delta.size() < data_blob.size()) {
-            operation.set_type(InstallOperation::IMGDIFF);
-            data_blob = std::move(imgdiff_delta);
-          }
-        } else {
-          LOG(ERROR) << "Imgdiff failed with source extents: "
-                     << ExtentsToString(src_extents)
-                     << ", destination extents: "
-                     << ExtentsToString(dst_extents);
-        }
+      if (puffdiff_allowed) {
+        LOG(ERROR) << "puffdiff is not supported yet!";
+        return false;
       }
     }
   }
@@ -783,37 +753,6 @@ bool ReadExtentsToDiff(const string& old_part,
 
   *out_data = std::move(data_blob);
   *out_op = operation;
-
-  return true;
-}
-
-// Runs the bsdiff or imgdiff tool in |diff_path| on two files and returns the
-// resulting delta in |out|. Returns true on success.
-bool DiffFiles(const string& diff_path,
-               const string& old_file,
-               const string& new_file,
-               brillo::Blob* out) {
-  const string kPatchFile = "delta.patchXXXXXX";
-  string patch_file_path;
-
-  TEST_AND_RETURN_FALSE(
-      utils::MakeTempFile(kPatchFile, &patch_file_path, nullptr));
-
-  vector<string> cmd;
-  cmd.push_back(diff_path);
-  cmd.push_back(old_file);
-  cmd.push_back(new_file);
-  cmd.push_back(patch_file_path);
-
-  int rc = 1;
-  string stdout;
-  TEST_AND_RETURN_FALSE(Subprocess::SynchronousExec(cmd, &rc, &stdout));
-  if (rc != 0) {
-    LOG(ERROR) << diff_path << " returned " << rc << std::endl << stdout;
-    return false;
-  }
-  TEST_AND_RETURN_FALSE(utils::ReadFile(patch_file_path, out));
-  unlink(patch_file_path.c_str());
   return true;
 }
 

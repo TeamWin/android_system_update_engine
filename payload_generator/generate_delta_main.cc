@@ -29,6 +29,8 @@
 #include <brillo/flag_helper.h>
 #include <brillo/key_value_store.h>
 
+#include "update_engine/common/fake_boot_control.h"
+#include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/terminator.h"
 #include "update_engine/common/utils.h"
@@ -179,47 +181,59 @@ void VerifySignedPayload(const string& in_file,
 // TODO(deymo): This function is likely broken for deltas minor version 2 or
 // newer. Move this function to a new file and make the delta_performer
 // integration tests use this instead.
-void ApplyDelta(const string& in_file,
-                const string& old_kernel,
-                const string& old_rootfs,
-                const string& prefs_dir) {
+bool ApplyPayload(const string& payload_file,
+                  // Simply reuses the payload config used for payload
+                  // generation.
+                  const PayloadGenerationConfig& config) {
   LOG(INFO) << "Applying delta.";
-  LOG_IF(FATAL, old_rootfs.empty())
-      << "Must pass --old_image to apply delta.";
-  Prefs prefs;
+  FakeBootControl fake_boot_control;
+  FakeHardware fake_hardware;
+  MemoryPrefs prefs;
   InstallPlan install_plan;
-  LOG(INFO) << "Setting up preferences under: " << prefs_dir;
-  LOG_IF(ERROR, !prefs.Init(base::FilePath(prefs_dir)))
-      << "Failed to initialize preferences.";
-  // Get original checksums
-  LOG(INFO) << "Calculating original checksums";
-  ImageConfig old_image;
-  old_image.partitions.emplace_back(kLegacyPartitionNameRoot);
-  old_image.partitions.back().path = old_rootfs;
-  old_image.partitions.emplace_back(kLegacyPartitionNameKernel);
-  old_image.partitions.back().path = old_kernel;
-  CHECK(old_image.LoadImageSize());
-  for (const auto& old_part : old_image.partitions) {
-    PartitionInfo part_info;
-    CHECK(diff_utils::InitializePartitionInfo(old_part, &part_info));
+  InstallPlan::Payload payload;
+  install_plan.source_slot =
+      config.is_delta ? 0 : BootControlInterface::kInvalidSlot;
+  install_plan.target_slot = 1;
+  payload.type =
+      config.is_delta ? InstallPayloadType::kDelta : InstallPayloadType::kFull;
+
+  for (size_t i = 0; i < config.target.partitions.size(); i++) {
     InstallPlan::Partition part;
-    part.name = old_part.name;
-    part.source_hash.assign(part_info.hash().begin(),
-                            part_info.hash().end());
-    part.source_path = old_part.path;
-    // Apply the delta in-place to the old_part.
-    part.target_path = old_part.path;
+    part.name = config.target.partitions[i].name;
+    part.target_path = config.target.partitions[i].path;
+    fake_boot_control.SetPartitionDevice(
+        part.name, install_plan.target_slot, part.target_path);
+
+    if (config.is_delta) {
+      TEST_AND_RETURN_FALSE(config.target.partitions.size() ==
+                            config.source.partitions.size());
+      PartitionInfo part_info;
+      TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(
+          config.source.partitions[i], &part_info));
+      part.source_hash.assign(part_info.hash().begin(), part_info.hash().end());
+      part.source_path = config.source.partitions[i].path;
+
+      fake_boot_control.SetPartitionDevice(
+          part.name, install_plan.source_slot, part.source_path);
+    }
+
     install_plan.partitions.push_back(part);
+
+    LOG(INFO) << "Install partition:"
+              << " source: " << part.source_path
+              << " target: " << part.target_path;
+
   }
-  install_plan.payloads.resize(1);
+
   DeltaPerformer performer(&prefs,
-                           nullptr,
-                           nullptr,
+                           &fake_boot_control,
+                           &fake_hardware,
                            nullptr,
                            &install_plan,
-                           &install_plan.payloads[0]);
+                           &payload);
+
   brillo::Blob buf(1024 * 1024);
-  int fd = open(in_file.c_str(), O_RDONLY, 0);
+  int fd = open(payload_file.c_str(), O_RDONLY, 0);
   CHECK_GE(fd, 0);
   ScopedFdCloser fd_closer(&fd);
   for (off_t offset = 0;; offset += buf.size()) {
@@ -227,11 +241,13 @@ void ApplyDelta(const string& in_file,
     CHECK(utils::PReadAll(fd, buf.data(), buf.size(), offset, &bytes_read));
     if (bytes_read == 0)
       break;
-    CHECK_EQ(performer.Write(buf.data(), bytes_read), bytes_read);
+    TEST_AND_RETURN_FALSE(performer.Write(buf.data(), bytes_read));
   }
   CHECK_EQ(performer.Close(), 0);
   DeltaPerformer::ResetUpdateProgress(&prefs, false);
-  LOG(INFO) << "Done applying delta.";
+  LOG(INFO) << "Completed applying " << (config.is_delta ? "delta" : "full")
+            << " payload.";
+  return true;
 }
 
 int ExtractProperties(const string& payload_path, const string& props_file) {
@@ -293,8 +309,6 @@ int Main(int argc, char** argv) {
   DEFINE_string(public_key, "", "Path to public key in .pem format");
   DEFINE_int32(public_key_version, -1,
                "DEPRECATED. Key-check version # of client");
-  DEFINE_string(prefs_dir, "/tmp/update_engine_prefs",
-                "Preferences directory, used with apply_delta");
   DEFINE_string(signature_size, "",
                 "Raw signature size used for hash calculation. "
                 "You may pass in multiple sizes by colon separating them. E.g. "
@@ -324,9 +338,6 @@ int Main(int argc, char** argv) {
   DEFINE_string(properties_file, "",
                 "If passed, dumps the payload properties of the payload passed "
                 "in --in_file and exits.");
-  DEFINE_string(zlib_fingerprint, "",
-                "The fingerprint of zlib in the source image in hash string "
-                "format, used to check imgdiff compatibility.");
 
   DEFINE_string(old_channel, "",
                 "The channel for the old image. 'dev-channel', 'npo-channel', "
@@ -407,11 +418,6 @@ int Main(int argc, char** argv) {
   }
   if (!FLAGS_properties_file.empty()) {
     return ExtractProperties(FLAGS_in_file, FLAGS_properties_file) ? 0 : 1;
-  }
-  if (!FLAGS_in_file.empty()) {
-    ApplyDelta(FLAGS_in_file, FLAGS_old_kernel, FLAGS_old_image,
-               FLAGS_prefs_dir);
-    return 0;
   }
 
   // A payload generation was requested. Convert the flags to a
@@ -495,6 +501,11 @@ int Main(int argc, char** argv) {
     }
   }
 
+  if (!FLAGS_in_file.empty()) {
+    ApplyPayload(FLAGS_in_file, payload_config);
+    return 0;
+  }
+
   if (!FLAGS_new_postinstall_config_file.empty()) {
     LOG_IF(FATAL, FLAGS_major_version == kChromeOSMajorPayloadVersion)
         << "Postinstall config is only allowed in major version 2 or newer.";
@@ -570,19 +581,8 @@ int Main(int argc, char** argv) {
     LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
   }
 
-  if (!FLAGS_zlib_fingerprint.empty()) {
-    if (utils::IsZlibCompatible(FLAGS_zlib_fingerprint)) {
-      payload_config.version.imgdiff_allowed = true;
-    } else {
-      LOG(INFO) << "IMGDIFF operation disabled due to fingerprint mismatch.";
-    }
-  }
-
-  if (payload_config.is_delta) {
-    LOG(INFO) << "Generating delta update";
-  } else {
-    LOG(INFO) << "Generating full update";
-  }
+  LOG(INFO) << "Generating " << (payload_config.is_delta ? "delta" : "full")
+            << " update";
 
   // From this point, all the options have been parsed.
   if (!payload_config.Validate()) {

@@ -818,20 +818,4 @@ TEST_F(DeltaPerformerTest, ConfVersionsMatch) {
   EXPECT_EQ(DeltaPerformer::kSupportedMajorPayloadVersion, major_version);
 }
 
-// Test that we recognize our own zlib compressor implementation as supported.
-// All other equivalent implementations should be added to
-// kCompatibleZlibFingerprint.
-TEST_F(DeltaPerformerTest, ZlibFingerprintMatch) {
-  string fingerprint;
-#ifdef __ANDROID__
-  const std::string kZlibFingerprintPath =
-      test_utils::GetBuildArtifactsPath("zlib_fingerprint");
-#else
-  const std::string kZlibFingerprintPath = "/etc/zlib_fingerprint";
-#endif  // __ANDROID__
-  EXPECT_TRUE(base::ReadFileToString(base::FilePath(kZlibFingerprintPath),
-                                     &fingerprint));
-  EXPECT_TRUE(utils::IsZlibCompatible(fingerprint));
-}
-
 }  // namespace chromeos_update_engine
