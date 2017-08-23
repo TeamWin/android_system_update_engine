@@ -151,7 +151,7 @@ bool RealSystemState::Initialize() {
 #if USE_CHROME_NETWORK_PROXY
                           network_proxy_service_proxy_.get()));
 #else
-                          nullptr)));
+                          nullptr));
 #endif  // USE_CHROME_NETWORK_PROXY
 
   // Initialize the UpdateAttempter before the UpdateManager.
