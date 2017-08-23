@@ -384,6 +384,9 @@
             '<@(exported_deps)',
           ],
         },
+        'libraries': [
+          '-lbsdiff',
+        ],
       },
       'sources': [
         'payload_generator/ab_generator.cc',
