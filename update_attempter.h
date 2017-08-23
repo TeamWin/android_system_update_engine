@@ -29,9 +29,9 @@
 #include <base/time/time.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
-#if USE_LIBCROS
+#if USE_CHROME_NETWORK_PROXY
 #include "update_engine/chrome_browser_proxy_resolver.h"
-#endif  // USE_LIBCROS
+#endif  // USE_CHROME_NETWORK_PROXY
 #include "update_engine/certificate_checker.h"
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
@@ -304,13 +304,13 @@ class UpdateAttempter : public ActionProcessorDelegate,
   void MarkDeltaUpdateFailure();
 
   ProxyResolver* GetProxyResolver() {
-#if USE_LIBCROS
+#if USE_CHROME_NETWORK_PROXY
     return obeying_proxies_ ?
         reinterpret_cast<ProxyResolver*>(&chrome_proxy_resolver_) :
         reinterpret_cast<ProxyResolver*>(&direct_proxy_resolver_);
 #else
     return &direct_proxy_resolver_;
-#endif  // USE_LIBCROS
+#endif  // USE_CHROME_NETWORK_PROXY
   }
 
   // Sends a ping to Omaha.
@@ -452,9 +452,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Our two proxy resolvers
   DirectProxyResolver direct_proxy_resolver_;
-#if USE_LIBCROS
+#if USE_CHROME_NETWORK_PROXY
   ChromeBrowserProxyResolver chrome_proxy_resolver_;
-#endif  // USE_LIBCROS
+#endif  // USE_CHROME_NETWORK_PROXY
 
   // Originally, both of these flags are false. Once UpdateBootFlags is called,
   // |update_boot_flags_running_| is set to true. As soon as UpdateBootFlags
