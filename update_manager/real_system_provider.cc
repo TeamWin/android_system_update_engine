@@ -20,9 +20,9 @@
 #include <base/callback.h>
 #include <base/logging.h>
 #include <base/time/time.h>
-#if USE_LIBCROS
+#if USE_CHROME_KIOSK_APP
 #include <libcros/dbus-proxies.h>
-#endif
+#endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/common/utils.h"
 #include "update_engine/update_manager/generic_variables.h"
@@ -124,7 +124,7 @@ bool RealSystemProvider::Init() {
 
 bool RealSystemProvider::GetKioskAppRequiredPlatformVersion(
     string* required_platform_version) {
-#if USE_LIBCROS
+#if USE_CHROME_KIOSK_APP
   brillo::ErrorPtr error;
   if (!libcros_proxy_->GetKioskAppRequiredPlatformVersion(
           required_platform_version, &error)) {
@@ -132,7 +132,7 @@ bool RealSystemProvider::GetKioskAppRequiredPlatformVersion(
     required_platform_version->clear();
     return false;
   }
-#endif
+#endif  // USE_CHROME_KIOSK_APP
 
   return true;
 }
