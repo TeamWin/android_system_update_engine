@@ -137,10 +137,6 @@ struct PayloadVersion {
 
   // The minor version of the payload.
   uint32_t minor;
-
-  // Wheter the IMGDIFF operation is allowed based on the available compressor
-  // in the delta_generator and the one supported by the target.
-  bool imgdiff_allowed = false;
 };
 
 // The PayloadGenerationConfig struct encapsulates all the configuration to
