@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <xz.h>
 
 #include <string>
 #include <vector>
@@ -235,6 +236,7 @@ bool ApplyPayload(const string& payload_file,
   int fd = open(payload_file.c_str(), O_RDONLY, 0);
   CHECK_GE(fd, 0);
   ScopedFdCloser fd_closer(&fd);
+  xz_crc32_init();
   for (off_t offset = 0;; offset += buf.size()) {
     ssize_t bytes_read;
     CHECK(utils::PReadAll(fd, buf.data(), buf.size(), offset, &bytes_read));
@@ -501,8 +503,7 @@ int Main(int argc, char** argv) {
   }
 
   if (!FLAGS_in_file.empty()) {
-    ApplyPayload(FLAGS_in_file, payload_config);
-    return 0;
+    return ApplyPayload(FLAGS_in_file, payload_config) ? 0 : 1;
   }
 
   if (!FLAGS_new_postinstall_config_file.empty()) {
