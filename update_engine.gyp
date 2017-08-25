@@ -85,7 +85,7 @@
         },
       },
       'sources': [
-        'update_metadata.proto'
+        'update_metadata.proto',
       ],
       'includes': ['../../../platform2/common-mk/protoc.gypi'],
     },
@@ -109,7 +109,7 @@
         'action_name': 'update_engine-dbus-libcros-client-action',
         'variables': {
           'mock_output_file': 'include/libcros/dbus-proxy-mocks.h',
-          'proxy_output_file': 'include/libcros/dbus-proxies.h'
+          'proxy_output_file': 'include/libcros/dbus-proxies.h',
         },
         'sources': [
           'dbus_bindings/org.chromium.LibCrosService.dbus-xml',
@@ -124,7 +124,7 @@
         'action_name': 'update_engine-dbus-chrome_network_proxy-client-action',
         'variables': {
           'mock_output_file': 'include/network_proxy/dbus-proxy-mocks.h',
-          'proxy_output_file': 'include/network_proxy/dbus-proxies.h'
+          'proxy_output_file': 'include/network_proxy/dbus-proxies.h',
         },
         'sources': [
           'dbus_bindings/org.chromium.NetworkProxyService.dbus-xml',
@@ -354,7 +354,7 @@
         'common/error_code_utils.cc',
         'omaha_utils.cc',
         'update_engine_client.cc',
-     ],
+      ],
     },
     # server-side code. This is used for delta_generator and unittests but not
     # for any client code.
@@ -482,7 +482,6 @@
         {
           'target_name': 'update_engine_unittests',
           'type': 'executable',
-          'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'variables': {
             'deps': [
               'libbrillo-test-<(libbase_ver)',
@@ -558,6 +557,7 @@
             'payload_generator/zip_unittest.cc',
             'payload_state_unittest.cc',
             'proxy_resolver_unittest.cc',
+            'testrunner.cc',
             'update_attempter_unittest.cc',
             'update_manager/boxed_value_unittest.cc',
             'update_manager/chromeos_policy_unittest.cc',
@@ -573,23 +573,6 @@
             'update_manager/umtest_utils.cc',
             'update_manager/update_manager_unittest.cc',
             'update_manager/variable_unittest.cc',
-            # Main entry point for runnning tests.
-            'testrunner.cc',
-          ],
-          'conditions': [
-            ['USE_chrome_network_proxy == 1', {
-              'dependencies': [
-                'update_engine-dbus-chrome_network_proxy-client',
-              ],
-              'sources': [
-                'chrome_browser_proxy_resolver_unittest.cc',
-              ],
-            }],
-            ['USE_chrome_kiosk_app == 1', {
-              'dependencies': [
-                'update_engine-dbus-libcros-client',
-              ],
-            }],
           ],
         },
       ],
