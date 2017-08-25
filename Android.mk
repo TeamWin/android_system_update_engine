@@ -288,7 +288,7 @@ LOCAL_SRC_FILES := \
     hardware_android.cc \
     image_properties_android.cc \
     libcurl_http_fetcher.cc \
-    metrics.cc \
+    metrics_reporter_omaha.cc \
     metrics_utils.cc \
     omaha_request_action.cc \
     omaha_request_params.cc \
