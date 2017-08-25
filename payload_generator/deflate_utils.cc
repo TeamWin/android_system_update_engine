@@ -33,6 +33,8 @@
 
 using std::string;
 using std::vector;
+using puffin::BitExtent;
+using puffin::ByteExtent;
 
 namespace chromeos_update_engine {
 namespace deflate_utils {
@@ -81,6 +83,9 @@ bool RealignSplittedFiles(const FilesystemInterface::File& file,
   for (auto& in_file : *files) {  // We need to modify so no constant.
     TEST_AND_RETURN_FALSE(
         ShiftExtentsOverExtents(file.extents, &in_file.extents));
+    TEST_AND_RETURN_FALSE(
+        ShiftBitExtentsOverExtents(file.extents, &in_file.deflates));
+
     in_file.name = file.name + "/" + in_file.name;
     num_blocks += BlocksInExtents(in_file.extents);
   }
@@ -90,7 +95,19 @@ bool RealignSplittedFiles(const FilesystemInterface::File& file,
   return true;
 }
 
+bool IsBitExtentInExtent(const Extent& extent, const BitExtent& bit_extent) {
+  return (bit_extent.offset / 8) >= (extent.start_block() * kBlockSize) &&
+         ((bit_extent.offset + bit_extent.length + 7) / 8) <=
+             ((extent.start_block() + extent.num_blocks()) * kBlockSize);
+}
+
 }  // namespace
+
+ByteExtent ExpandToByteExtent(const BitExtent& extent) {
+  uint64_t offset = extent.offset / 8;
+  uint64_t length = ((extent.offset + extent.length + 7) / 8) - offset;
+  return {offset, length};
+}
 
 bool ShiftExtentsOverExtents(const vector<Extent>& base_extents,
                              vector<Extent>* over_extents) {
@@ -133,8 +150,104 @@ bool ShiftExtentsOverExtents(const vector<Extent>& base_extents,
   return true;
 }
 
+bool ShiftBitExtentsOverExtents(const vector<Extent>& base_extents,
+                                vector<BitExtent>* over_extents) {
+  if (over_extents->empty()) {
+    return true;
+  }
+
+  // This check is needed to make sure the number of bytes in |over_extents|
+  // does not exceed |base_extents|.
+  auto last_extent = ExpandToByteExtent(over_extents->back());
+  TEST_AND_RETURN_FALSE(last_extent.offset + last_extent.length <=
+                        BlocksInExtents(base_extents) * kBlockSize);
+
+  for (auto o_ext = over_extents->begin(); o_ext != over_extents->end();) {
+    size_t gap_blocks = base_extents[0].start_block();
+    size_t last_end_block = base_extents[0].start_block();
+    bool o_ext_processed = false;
+    for (auto b_ext : base_extents) {  // We need to modify |b_ext|, so we copy.
+      gap_blocks += b_ext.start_block() - last_end_block;
+      last_end_block = b_ext.start_block() + b_ext.num_blocks();
+      b_ext.set_start_block(b_ext.start_block() - gap_blocks);
+      auto byte_o_ext = ExpandToByteExtent(*o_ext);
+      if (byte_o_ext.offset >= b_ext.start_block() * kBlockSize &&
+          byte_o_ext.offset <
+              (b_ext.start_block() + b_ext.num_blocks()) * kBlockSize) {
+        if ((byte_o_ext.offset + byte_o_ext.length) <=
+            (b_ext.start_block() + b_ext.num_blocks()) * kBlockSize) {
+          // |o_ext| is inside |b_ext|, increase its start block.
+          o_ext->offset += gap_blocks * kBlockSize * 8;
+          ++o_ext;
+        } else {
+          // |o_ext| spills over this |b_ext|, remove it.
+          o_ext = over_extents->erase(o_ext);
+        }
+        o_ext_processed = true;
+        break;  // We processed o_ext, so break the loop;
+      }
+    }
+    TEST_AND_RETURN_FALSE(o_ext_processed);
+  }
+  return true;
+}
+
+vector<BitExtent> FindDeflates(const vector<Extent>& extents,
+                               const vector<BitExtent>& in_deflates) {
+  vector<BitExtent> result;
+  // TODO(ahassani): Replace this with binary_search style search.
+  for (const auto& deflate : in_deflates) {
+    for (const auto& extent : extents) {
+      if (IsBitExtentInExtent(extent, deflate)) {
+        result.push_back(deflate);
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+bool CompactDeflates(const vector<Extent>& extents,
+                     const vector<BitExtent>& in_deflates,
+                     vector<BitExtent>* out_deflates) {
+  size_t bytes_passed = 0;
+  out_deflates->reserve(in_deflates.size());
+  for (const auto& extent : extents) {
+    size_t gap_bytes = extent.start_block() * kBlockSize - bytes_passed;
+    for (const auto& deflate : in_deflates) {
+      if (IsBitExtentInExtent(extent, deflate)) {
+        out_deflates->emplace_back(deflate.offset - (gap_bytes * 8),
+                                   deflate.length);
+      }
+    }
+    bytes_passed += extent.num_blocks() * kBlockSize;
+  }
+
+  // All given |in_deflates| items should've been inside one of the extents in
+  // |extents|.
+  TEST_AND_RETURN_FALSE(in_deflates.size() == out_deflates->size());
+
+  // Make sure all outgoing deflates are ordered and non-overlapping.
+  auto result = std::adjacent_find(out_deflates->begin(),
+                                   out_deflates->end(),
+                                   [](const BitExtent& a, const BitExtent& b) {
+                                     return (a.offset + a.length) > b.offset;
+                                   });
+  TEST_AND_RETURN_FALSE(result == out_deflates->end());
+  return true;
+}
+
+bool FindAndCompactDeflates(const vector<Extent>& extents,
+                            const vector<BitExtent>& in_deflates,
+                            vector<BitExtent>* out_deflates) {
+  auto found_deflates = FindDeflates(extents, in_deflates);
+  TEST_AND_RETURN_FALSE(CompactDeflates(extents, found_deflates, out_deflates));
+  return true;
+}
+
 bool PreprocessParitionFiles(const PartitionConfig& part,
-                             vector<FilesystemInterface::File>* result_files) {
+                             vector<FilesystemInterface::File>* result_files,
+                             bool extract_deflates) {
   // Get the file system files.
   vector<FilesystemInterface::File> tmp_files;
   part.fs_interface->GetFiles(&tmp_files);
@@ -149,15 +262,18 @@ bool PreprocessParitionFiles(const PartitionConfig& part,
       TEST_AND_RETURN_FALSE(
           CopyExtentsToFile(part.path, file.extents, path.value(), kBlockSize));
       // Test if it is actually a Squashfs file.
-      auto sqfs = SquashfsFilesystem::CreateFromFile(path.value());
+      auto sqfs =
+          SquashfsFilesystem::CreateFromFile(path.value(), extract_deflates);
       if (sqfs) {
         // It is an squashfs file. Get its files to replace with itself.
         vector<FilesystemInterface::File> files;
         sqfs->GetFiles(&files);
 
-        // Replace squashfs file with its files only if |files| has at
-        // least two files.
-        if (files.size() > 1) {
+        // Replace squashfs file with its files only if |files| has at least two
+        // files or if it has some deflates (since it is better to replace it to
+        // take advantage of the deflates.)
+        if (files.size() > 1 ||
+            (files.size() == 1 && !files[0].deflates.empty())) {
           TEST_AND_RETURN_FALSE(RealignSplittedFiles(file, &files));
           result_files->insert(result_files->end(), files.begin(), files.end());
           continue;
@@ -170,7 +286,6 @@ bool PreprocessParitionFiles(const PartitionConfig& part,
     // TODO(ahassani): Process other types of files like apk, zip, etc.
     result_files->push_back(file);
   }
-
   return true;
 }
 

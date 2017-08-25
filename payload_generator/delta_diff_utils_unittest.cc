@@ -179,6 +179,8 @@ TEST_F(DeltaDiffUtilsTest, MoveSmallTest) {
       new_part_.path,
       old_extents,
       new_extents,
+      {},  // old_deflates
+      {},  // new_deflates
       PayloadVersion(kChromeOSMajorPayloadVersion, kInPlaceMinorPayloadVersion),
       &data,
       &op));
@@ -238,6 +240,8 @@ TEST_F(DeltaDiffUtilsTest, MoveWithSameBlock) {
       new_part_.path,
       old_extents,
       new_extents,
+      {},  // old_deflates
+      {},  // new_deflates
       PayloadVersion(kChromeOSMajorPayloadVersion, kInPlaceMinorPayloadVersion),
       &data,
       &op));
@@ -301,6 +305,8 @@ TEST_F(DeltaDiffUtilsTest, BsdiffSmallTest) {
       new_part_.path,
       old_extents,
       new_extents,
+      {},  // old_deflates
+      {},  // new_deflates
       PayloadVersion(kChromeOSMajorPayloadVersion, kInPlaceMinorPayloadVersion),
       &data,
       &op));
@@ -349,6 +355,8 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
         new_part_.path,
         old_extents,
         new_extents,
+        {},  // old_deflates
+        {},  // new_deflates
         PayloadVersion(kChromeOSMajorPayloadVersion,
                        kInPlaceMinorPayloadVersion),
         &data,
@@ -390,6 +398,8 @@ TEST_F(DeltaDiffUtilsTest, SourceCopyTest) {
       new_part_.path,
       old_extents,
       new_extents,
+      {},  // old_deflates
+      {},  // new_deflates
       PayloadVersion(kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion),
       &data,
       &op));
@@ -422,6 +432,8 @@ TEST_F(DeltaDiffUtilsTest, SourceBsdiffTest) {
       new_part_.path,
       old_extents,
       new_extents,
+      {},  // old_deflates
+      {},  // new_deflates
       PayloadVersion(kChromeOSMajorPayloadVersion, kSourceMinorPayloadVersion),
       &data,
       &op));

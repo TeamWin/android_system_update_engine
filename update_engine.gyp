@@ -353,6 +353,7 @@
       'variables': {
         'exported_deps': [
           'ext2fs',
+          'libpuffdiff',
         ],
         'deps': ['<@(exported_deps)'],
       },

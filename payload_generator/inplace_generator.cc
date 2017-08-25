@@ -573,6 +573,8 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
         new_part,
         vector<Extent>(),  // old_extents
         new_extents,
+        {},  // old_deflates
+        {},  // new_deflates
         (*graph)[cut.old_dst].aop.name,
         -1,  // chunk_blocks, forces to have a single operation.
         kInPlacePayloadVersion,

@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
 #include <base/files/file_util.h>
 #include <base/logging.h>
@@ -29,6 +30,7 @@
 
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_generator/deflate_utils.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
@@ -53,6 +55,7 @@ Extent ExtentForBytes(uint64_t block_size,
 // The size of the squashfs super block.
 constexpr size_t kSquashfsSuperBlockSize = 96;
 constexpr uint64_t kSquashfsCompressedBit = 1 << 24;
+constexpr uint32_t kSquashfsZlibCompression = 1;
 
 bool ReadSquashfsHeader(const brillo::Blob blob,
                         SquashfsFilesystem::SquashfsHeader* header) {
@@ -96,9 +99,18 @@ bool GetFileMapContent(const string& sqfs_path, string* map) {
 }  // namespace
 
 bool SquashfsFilesystem::Init(const string& map,
+                              const string& sqfs_path,
                               size_t size,
-                              const SquashfsHeader& header) {
+                              const SquashfsHeader& header,
+                              bool extract_deflates) {
   size_ = size;
+
+  bool is_zlib = header.compression_type == kSquashfsZlibCompression;
+  if (!is_zlib) {
+    LOG(WARNING) << "Filesystem is not Gzipped. Not filling deflates!";
+  }
+  vector<puffin::ByteExtent> zlib_blks;
+
   // Reading files map. For the format of the file map look at the comments for
   // |CreateFromFileMap()|.
   auto lines = base::SplitStringPiece(map,
@@ -122,6 +134,12 @@ bool SquashfsFilesystem::Init(const string& map,
       // TODO(ahassani): For puffin push it into a proper list if uncompressed.
       auto new_blk_size = blk_size & ~kSquashfsCompressedBit;
       TEST_AND_RETURN_FALSE(new_blk_size <= header.block_size);
+      if (new_blk_size > 0 && !(blk_size & kSquashfsCompressedBit)) {
+        // Compressed block
+        if (is_zlib && extract_deflates) {
+          zlib_blks.emplace_back(cur_offset, new_blk_size);
+        }
+      }
       cur_offset += new_blk_size;
     }
 
@@ -192,11 +210,45 @@ bool SquashfsFilesystem::Init(const string& map,
   std::sort(files_.begin(), files_.end(), [](const File& a, const File& b) {
     return a.extents[0].start_block() < b.extents[0].start_block();
   });
+
+  if (is_zlib && extract_deflates) {
+    // If it is infact gzipped, then the sqfs_path should be valid to read its
+    // content.
+    TEST_AND_RETURN_FALSE(!sqfs_path.empty());
+    if (zlib_blks.empty()) {
+      return true;
+    }
+
+    // Sort zlib blocks.
+    std::sort(zlib_blks.begin(),
+              zlib_blks.end(),
+              [](const puffin::ByteExtent& a, const puffin::ByteExtent& b) {
+                return a.offset < b.offset;
+              });
+
+    // Sanity check. Make sure zlib blocks are not overlapping.
+    auto result = std::adjacent_find(
+        zlib_blks.begin(),
+        zlib_blks.end(),
+        [](const puffin::ByteExtent& a, const puffin::ByteExtent& b) {
+          return (a.offset + a.length) > b.offset;
+        });
+    TEST_AND_RETURN_FALSE(result == zlib_blks.end());
+
+    vector<puffin::BitExtent> deflates;
+    TEST_AND_RETURN_FALSE(
+        puffin::LocateDeflatesInZlibBlocks(sqfs_path, zlib_blks, &deflates));
+
+    // Add deflates for each file.
+    for (auto& file : files_) {
+      file.deflates = deflate_utils::FindDeflates(file.extents, deflates);
+    }
+  }
   return true;
 }
 
 unique_ptr<SquashfsFilesystem> SquashfsFilesystem::CreateFromFile(
-    const string& sqfs_path) {
+    const string& sqfs_path, bool extract_deflates) {
   if (sqfs_path.empty())
     return nullptr;
 
@@ -229,11 +281,12 @@ unique_ptr<SquashfsFilesystem> SquashfsFilesystem::CreateFromFile(
   }
 
   unique_ptr<SquashfsFilesystem> sqfs(new SquashfsFilesystem());
-  if (!sqfs->Init(filemap, sqfs_file->GetSize(), header)) {
+  if (!sqfs->Init(
+          filemap, sqfs_path, sqfs_file->GetSize(), header, extract_deflates)) {
     LOG(ERROR) << "Failed to initialized the Squashfs file system";
     return nullptr;
   }
-  // TODO(ahassani): Add a function that initializes the puffin related extents.
+
   return sqfs;
 }
 
@@ -245,7 +298,7 @@ unique_ptr<SquashfsFilesystem> SquashfsFilesystem::CreateFromFileMap(
   }
 
   unique_ptr<SquashfsFilesystem> sqfs(new SquashfsFilesystem());
-  if (!sqfs->Init(filemap, size, header)) {
+  if (!sqfs->Init(filemap, "", size, header, false)) {
     LOG(ERROR) << "Failed to initialize the Squashfs file system using filemap";
     return nullptr;
   }
@@ -276,5 +329,4 @@ bool SquashfsFilesystem::IsSquashfsImage(const brillo::Blob& blob) {
   SquashfsHeader header;
   return ReadSquashfsHeader(blob, &header) && CheckHeader(header);
 }
-
 }  // namespace chromeos_update_engine

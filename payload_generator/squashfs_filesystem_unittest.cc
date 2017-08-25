@@ -110,7 +110,7 @@ class SquashfsFilesystemTest : public ::testing::Test {
 
 TEST_F(SquashfsFilesystemTest, EmptyFilesystemTest) {
   unique_ptr<SquashfsFilesystem> fs = SquashfsFilesystem::CreateFromFile(
-      GetBuildArtifactsPath("gen/disk_sqfs_empty.img"));
+      GetBuildArtifactsPath("gen/disk_sqfs_empty.img"), true);
   CheckSquashfs(fs);
 
   // Even an empty squashfs filesystem is rounded up to 4K.
@@ -131,7 +131,7 @@ TEST_F(SquashfsFilesystemTest, EmptyFilesystemTest) {
 
 TEST_F(SquashfsFilesystemTest, DefaultFilesystemTest) {
   unique_ptr<SquashfsFilesystem> fs = SquashfsFilesystem::CreateFromFile(
-      GetBuildArtifactsPath("gen/disk_sqfs_default.img"));
+      GetBuildArtifactsPath("gen/disk_sqfs_default.img"), true);
   CheckSquashfs(fs);
 
   vector<FilesystemInterface::File> files;

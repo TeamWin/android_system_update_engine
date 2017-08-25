@@ -55,9 +55,11 @@ class SquashfsFilesystem : public FilesystemInterface {
 
   ~SquashfsFilesystem() override = default;
 
-  // Creates the file system from the Squashfs file itself.
+  // Creates the file system from the Squashfs file itself. If
+  // |extract_deflates| is true, it will process files to find location of all
+  // deflate streams.
   static std::unique_ptr<SquashfsFilesystem> CreateFromFile(
-      const std::string& sqfs_path);
+      const std::string& sqfs_path, bool extract_deflates);
 
   // Creates the file system from a file map |filemap| which is a multi-line
   // string with each line with the following format:
@@ -99,7 +101,11 @@ class SquashfsFilesystem : public FilesystemInterface {
   SquashfsFilesystem() = default;
 
   // Initialize and populates the files in the file system.
-  bool Init(const std::string& map, size_t size, const SquashfsHeader& header);
+  bool Init(const std::string& map,
+            const std::string& sqfs_path,
+            size_t size,
+            const SquashfsHeader& header,
+            bool extract_deflates);
 
   // The size of the image in bytes.
   size_t size_;
