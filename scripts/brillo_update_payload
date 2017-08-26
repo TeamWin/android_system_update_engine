@@ -715,6 +715,10 @@ cmd_verify() {
     )
   fi
 
+  if [[ -n "${FORCE_MAJOR_VERSION}" ]]; then
+    GENERATOR_ARGS+=( --major_version="${FORCE_MAJOR_VERSION}" )
+  fi
+
   echo "Running delta_generator to verify ${payload_type} payload with args: \
 ${GENERATOR_ARGS[@]}"
   "${GENERATOR}" "${GENERATOR_ARGS[@]}"
