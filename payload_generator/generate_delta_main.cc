@@ -38,7 +38,6 @@
 #include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
-#include "update_engine/payload_generator/delta_diff_utils.h"
 #include "update_engine/payload_generator/payload_generation_config.h"
 #include "update_engine/payload_generator/payload_signer.h"
 #include "update_engine/payload_generator/xz.h"
@@ -203,30 +202,22 @@ bool ApplyPayload(const string& payload_file,
       config.is_delta ? InstallPayloadType::kDelta : InstallPayloadType::kFull;
 
   for (size_t i = 0; i < config.target.partitions.size(); i++) {
-    InstallPlan::Partition part;
-    part.name = config.target.partitions[i].name;
-    part.target_path = config.target.partitions[i].path;
+    const string& part_name = config.target.partitions[i].name;
+    const string& target_path = config.target.partitions[i].path;
     fake_boot_control.SetPartitionDevice(
-        part.name, install_plan.target_slot, part.target_path);
+        part_name, install_plan.target_slot, target_path);
 
+    string source_path;
     if (config.is_delta) {
       TEST_AND_RETURN_FALSE(config.target.partitions.size() ==
                             config.source.partitions.size());
-      PartitionInfo part_info;
-      TEST_AND_RETURN_FALSE(diff_utils::InitializePartitionInfo(
-          config.source.partitions[i], &part_info));
-      part.source_hash.assign(part_info.hash().begin(), part_info.hash().end());
-      part.source_path = config.source.partitions[i].path;
-
+      source_path = config.source.partitions[i].path;
       fake_boot_control.SetPartitionDevice(
-          part.name, install_plan.source_slot, part.source_path);
+          part_name, install_plan.source_slot, source_path);
     }
 
-    install_plan.partitions.push_back(part);
-
     LOG(INFO) << "Install partition:"
-              << " source: " << part.source_path
-              << " target: " << part.target_path;
+              << " source: " << source_path << " target: " << target_path;
   }
 
   DeltaPerformer performer(&prefs,
