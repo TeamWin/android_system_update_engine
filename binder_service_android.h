@@ -45,11 +45,8 @@ class BinderUpdateEngineAndroidService : public android::os::BnUpdateEngine,
   }
 
   // ServiceObserverInterface overrides.
-  void SendStatusUpdate(int64_t last_checked_time,
-                        double progress,
-                        update_engine::UpdateStatus status,
-                        const std::string& new_version,
-                        int64_t new_size) override;
+  void SendStatusUpdate(
+      const update_engine::UpdateEngineStatus& update_engine_status) override;
   void SendPayloadApplicationComplete(ErrorCode error_code) override;
 
   // android::os::BnUpdateEngine overrides.

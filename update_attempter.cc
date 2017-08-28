@@ -78,6 +78,7 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
+using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_engine {
 
@@ -1034,6 +1035,7 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     const InstallPlan& plan = response_handler_action_->install_plan();
     UpdateLastCheckedTime();
     new_version_ = plan.version;
+    new_system_version_ = plan.system_version;
     new_payload_size_ = 0;
     for (const auto& payload : plan.payloads)
       new_payload_size_ += payload.size;
@@ -1127,16 +1129,15 @@ bool UpdateAttempter::ResetStatus() {
   }
 }
 
-bool UpdateAttempter::GetStatus(int64_t* last_checked_time,
-                                double* progress,
-                                string* current_operation,
-                                string* new_version,
-                                int64_t* new_payload_size) {
-  *last_checked_time = last_checked_time_;
-  *progress = download_progress_;
-  *current_operation = UpdateStatusToString(status_);
-  *new_version = new_version_;
-  *new_payload_size = new_payload_size_;
+bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
+  out_status->last_checked_time_ms = last_checked_time_;
+  out_status->status = status_;
+  out_status->current_version = omaha_request_params_->app_version();
+  out_status->current_system_version = omaha_request_params_->system_version();
+  out_status->progress = download_progress_;
+  out_status->new_size_bytes = new_payload_size_;
+  out_status->new_version = new_version_;
+  out_status->new_system_version = new_system_version_;
   return true;
 }
 
@@ -1173,12 +1174,12 @@ void UpdateAttempter::CompleteUpdateBootFlags(bool successful) {
 }
 
 void UpdateAttempter::BroadcastStatus() {
+  UpdateEngineStatus broadcast_status;
+  // Use common method for generating the current status.
+  GetStatus(&broadcast_status);
+
   for (const auto& observer : service_observers_) {
-    observer->SendStatusUpdate(last_checked_time_,
-                               download_progress_,
-                               status_,
-                               new_version_,
-                               new_payload_size_);
+    observer->SendStatusUpdate(broadcast_status);
   }
   last_notify_time_ = TimeTicks::Now();
 }

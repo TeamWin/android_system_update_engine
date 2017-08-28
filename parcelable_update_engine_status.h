@@ -20,6 +20,8 @@
 #include <binder/Parcelable.h>
 #include <utils/String16.h>
 
+#include "update_engine/client_library/include/update_engine/update_status.h"
+
 namespace android {
 namespace brillo {
 
@@ -28,16 +30,31 @@ namespace brillo {
 class ParcelableUpdateEngineStatus : public Parcelable {
  public:
   ParcelableUpdateEngineStatus() = default;
+  explicit ParcelableUpdateEngineStatus(
+      const update_engine::UpdateEngineStatus& status);
   virtual ~ParcelableUpdateEngineStatus() = default;
 
   status_t writeToParcel(Parcel* parcel) const override;
   status_t readFromParcel(const Parcel* parcel) override;
 
+  // This list is kept in the Parcelable serialization order.
+
+  // When the update_engine last checked for updates (ms since Epoch)
   int64_t last_checked_time_;
-  double progress_;
+  // The current status/operation of the update_engine.
   android::String16 current_operation_;
-  android::String16 new_version_;
+  // The current progress (0.0f-1.0f).
+  double progress_;
+  // The current product version.
+  android::String16 current_version_;
+  // The current system version.
+  android::String16 current_system_version_;
+  // The size of the update (bytes).  This is int64_t for java compatibility.
   int64_t new_size_;
+  // The new product version.
+  android::String16 new_version_;
+  // The new system version, if there is one (empty, otherwise).
+  android::String16 new_system_version_;
 };
 
 }  // namespace brillo

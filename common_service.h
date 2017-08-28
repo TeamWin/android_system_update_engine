@@ -24,6 +24,7 @@
 #include <base/memory/ref_counted.h>
 #include <brillo/errors/error.h>
 
+#include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/system_state.h"
 
 namespace chromeos_update_engine {
@@ -63,11 +64,7 @@ class UpdateEngineService {
   // progress, the number of operations, size to download and overall progress
   // is reported.
   bool GetStatus(brillo::ErrorPtr* error,
-                 int64_t* out_last_checked_time,
-                 double* out_progress,
-                 std::string* out_current_operation,
-                 std::string* out_new_version,
-                 int64_t* out_new_size);
+                 update_engine::UpdateEngineStatus* out_status);
 
   // Reboots the device if an update is applied and a reboot is required.
   bool RebootIfNeeded(brillo::ErrorPtr* error);
