@@ -574,6 +574,13 @@
             'update_manager/update_manager_unittest.cc',
             'update_manager/variable_unittest.cc',
           ],
+          'conditions': [
+            ['USE_chrome_network_proxy == 1', {
+              'sources': [
+                'chrome_browser_proxy_resolver_unittest.cc',
+              ],
+            }],
+          ],
         },
       ],
     }],
