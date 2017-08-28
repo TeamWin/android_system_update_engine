@@ -129,6 +129,7 @@ ue_libpayload_consumer_src_files := \
     payload_consumer/download_action.cc \
     payload_consumer/extent_writer.cc \
     payload_consumer/file_descriptor.cc \
+    payload_consumer/file_descriptor_utils.cc \
     payload_consumer/file_writer.cc \
     payload_consumer/filesystem_verifier_action.cc \
     payload_consumer/install_plan.cc \
@@ -907,6 +908,8 @@ LOCAL_SRC_FILES := \
     payload_consumer/delta_performer_integration_test.cc \
     payload_consumer/delta_performer_unittest.cc \
     payload_consumer/extent_writer_unittest.cc \
+    payload_consumer/fake_file_descriptor.cc \
+    payload_consumer/file_descriptor_utils_unittest.cc \
     payload_consumer/file_writer_unittest.cc \
     payload_consumer/filesystem_verifier_action_unittest.cc \
     payload_consumer/postinstall_runner_action_unittest.cc \
