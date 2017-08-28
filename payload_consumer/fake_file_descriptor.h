@@ -67,6 +67,10 @@ class FakeFileDescriptor : public FileDescriptor {
     return false;
   }
 
+  bool Flush() override {
+    return open_;
+  }
+
   bool Close() override {
     if (!open_)
       return false;

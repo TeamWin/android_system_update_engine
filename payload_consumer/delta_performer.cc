@@ -770,6 +770,10 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     if (!HandleOpResult(op_result, InstallOperationTypeName(op.type()), error))
       return false;
 
+    if (!target_fd_->Flush()) {
+      return false;
+    }
+
     next_operation_num_++;
     UpdateOverallProgress(false, "Completed ");
     CheckpointUpdateProgress();
