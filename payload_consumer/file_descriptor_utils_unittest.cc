@@ -16,13 +16,14 @@
 
 #include "update_engine/payload_consumer/file_descriptor_utils.h"
 
+#include <fcntl.h>
+
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <gtest/gtest.h>
-
 #include <brillo/data_encoding.h>
+#include <gtest/gtest.h>
 
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/test_utils.h"
