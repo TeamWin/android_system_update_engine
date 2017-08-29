@@ -24,6 +24,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/files/file_util.h>
@@ -992,8 +993,8 @@ bool DeltaPerformer::PerformZeroOrDiscardOperation(
     for (uint64_t offset = 0; offset < length; offset += zeros.size()) {
       uint64_t chunk_length = min(length - offset,
                                   static_cast<uint64_t>(zeros.size()));
-      TEST_AND_RETURN_FALSE(
-          utils::PWriteAll(target_fd_, zeros.data(), chunk_length, start + offset));
+      TEST_AND_RETURN_FALSE(utils::PWriteAll(
+          target_fd_, zeros.data(), chunk_length, start + offset));
     }
   }
   return true;
@@ -1227,8 +1228,8 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
     const uint64_t begin_byte =
         end_byte - (block_size_ - operation.dst_length() % block_size_);
     brillo::Blob zeros(end_byte - begin_byte);
-    TEST_AND_RETURN_FALSE(
-        utils::PWriteAll(target_fd_, zeros.data(), end_byte - begin_byte, begin_byte));
+    TEST_AND_RETURN_FALSE(utils::PWriteAll(
+        target_fd_, zeros.data(), end_byte - begin_byte, begin_byte));
   }
   return true;
 }
