@@ -127,6 +127,7 @@ ue_libpayload_consumer_src_files := \
     payload_consumer/bzip_extent_writer.cc \
     payload_consumer/delta_performer.cc \
     payload_consumer/download_action.cc \
+    payload_consumer/extent_reader.cc \
     payload_consumer/extent_writer.cc \
     payload_consumer/file_descriptor.cc \
     payload_consumer/file_descriptor_utils.cc \
@@ -924,6 +925,7 @@ LOCAL_SRC_FILES := \
     payload_consumer/bzip_extent_writer_unittest.cc \
     payload_consumer/delta_performer_integration_test.cc \
     payload_consumer/delta_performer_unittest.cc \
+    payload_consumer/extent_reader_unittest.cc \
     payload_consumer/extent_writer_unittest.cc \
     payload_consumer/fake_file_descriptor.cc \
     payload_consumer/file_descriptor_utils_unittest.cc \
