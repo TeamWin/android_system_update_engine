@@ -50,7 +50,7 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/libcurl_http_fetcher.h"
-#include "update_engine/metrics.h"
+#include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/omaha_request_action.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/omaha_response_handler_action.h"
@@ -179,9 +179,8 @@ void UpdateAttempter::ScheduleUpdates() {
 
 void UpdateAttempter::CertificateChecked(ServerToCheck server_to_check,
                                          CertificateCheckResult result) {
-  metrics::ReportCertificateCheckMetrics(system_state_,
-                                         server_to_check,
-                                         result);
+  system_state_->metrics_reporter()->ReportCertificateCheckMetrics(
+      server_to_check, result);
 }
 
 bool UpdateAttempter::CheckAndReportDailyMetrics() {
@@ -242,7 +241,7 @@ void UpdateAttempter::ReportOSAge() {
     return;
   }
 
-  metrics::ReportDailyMetrics(system_state_, age);
+  system_state_->metrics_reporter()->ReportDailyMetrics(age);
 }
 
 void UpdateAttempter::Update(const string& app_version,
@@ -270,10 +269,11 @@ void UpdateAttempter::Update(const string& app_version,
     // not performing an update check because of this.
     LOG(INFO) << "Not updating b/c we already updated and we're waiting for "
               << "reboot, we'll ping Omaha instead";
-    metrics::ReportUpdateCheckMetrics(system_state_,
-                                      metrics::CheckResult::kRebootPending,
-                                      metrics::CheckReaction::kUnset,
-                                      metrics::DownloadErrorCode::kUnset);
+    system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
+        system_state_,
+        metrics::CheckResult::kRebootPending,
+        metrics::CheckReaction::kUnset,
+        metrics::DownloadErrorCode::kUnset);
     PingOmaha();
     return;
   }

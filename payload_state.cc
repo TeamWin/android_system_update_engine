@@ -32,6 +32,7 @@
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/connection_manager_interface.h"
+#include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/metrics_utils.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/payload_consumer/install_plan.h"
@@ -235,8 +236,8 @@ void PayloadState::UpdateSucceeded() {
       break;
 
     case AttemptType::kRollback:
-      metrics::ReportRollbackMetrics(system_state_,
-                                     metrics::RollbackResult::kSuccess);
+      system_state_->metrics_reporter()->ReportRollbackMetrics(
+          metrics::RollbackResult::kSuccess);
       break;
   }
   attempt_error_code_ = ErrorCode::kSuccess;
@@ -270,8 +271,8 @@ void PayloadState::UpdateFailed(ErrorCode error) {
       break;
 
     case AttemptType::kRollback:
-      metrics::ReportRollbackMetrics(system_state_,
-                                     metrics::RollbackResult::kFailed);
+      system_state_->metrics_reporter()->ReportRollbackMetrics(
+          metrics::RollbackResult::kFailed);
       break;
   }
 
@@ -635,19 +636,20 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
       break;
   }
 
-  metrics::ReportUpdateAttemptMetrics(system_state_,
-                                      attempt_number,
-                                      payload_type,
-                                      duration,
-                                      duration_uptime,
-                                      payload_size,
-                                      payload_bytes_downloaded,
-                                      payload_download_speed_bps,
-                                      download_source,
-                                      attempt_result,
-                                      internal_error_code,
-                                      payload_download_error_code,
-                                      attempt_connection_type_);
+  system_state_->metrics_reporter()->ReportUpdateAttemptMetrics(
+      system_state_,
+      attempt_number,
+      payload_type,
+      duration,
+      duration_uptime,
+      payload_size,
+      payload_bytes_downloaded,
+      payload_download_speed_bps,
+      download_source,
+      attempt_result,
+      internal_error_code,
+      payload_download_error_code,
+      attempt_connection_type_);
 }
 
 void PayloadState::PersistAttemptMetrics() {
@@ -672,7 +674,8 @@ void PayloadState::ReportAndClearPersistedAttemptMetrics() {
   if (!attempt_in_progress)
     return;
 
-  metrics::ReportAbnormallyTerminatedUpdateAttemptMetrics(system_state_);
+  system_state_->metrics_reporter()
+      ->ReportAbnormallyTerminatedUpdateAttemptMetrics();
 
   ClearPersistedAttemptMetrics();
 }
@@ -734,16 +737,16 @@ void PayloadState::CollectAndReportSuccessfulUpdateMetrics() {
 
   int updates_abandoned_count = num_responses_seen_ - 1;
 
-  metrics::ReportSuccessfulUpdateMetrics(system_state_,
-                                         attempt_count,
-                                         updates_abandoned_count,
-                                         payload_type,
-                                         payload_size,
-                                         total_bytes_by_source,
-                                         download_overhead_percentage,
-                                         duration,
-                                         reboot_count,
-                                         url_switch_count);
+  system_state_->metrics_reporter()->ReportSuccessfulUpdateMetrics(
+      attempt_count,
+      updates_abandoned_count,
+      payload_type,
+      payload_size,
+      total_bytes_by_source,
+      download_overhead_percentage,
+      duration,
+      reboot_count,
+      url_switch_count);
 }
 
 void PayloadState::UpdateNumReboots() {
@@ -1232,14 +1235,8 @@ void PayloadState::CreateSystemUpdatedMarkerFile() {
 
 void PayloadState::BootedIntoUpdate(TimeDelta time_to_reboot) {
   // Send |time_to_reboot| as a UMA stat.
-  string metric = metrics::kMetricTimeToRebootMinutes;
-  system_state_->metrics_lib()->SendToUMA(metric,
-                                          time_to_reboot.InMinutes(),
-                                          0,         // min: 0 minute
-                                          30*24*60,  // max: 1 month (approx)
-                                          kNumDefaultUmaBuckets);
-  LOG(INFO) << "Uploading " << utils::FormatTimeDelta(time_to_reboot)
-            << " for metric " <<  metric;
+  system_state_->metrics_reporter()->ReportTimeToReboot(
+      time_to_reboot.InMinutes());
 }
 
 void PayloadState::UpdateEngineStarted() {
@@ -1302,15 +1299,8 @@ void PayloadState::ReportFailedBootIfNeeded() {
       }
 
       // Report the UMA metric of the current boot failure.
-      string metric = metrics::kMetricFailedUpdateCount;
-      LOG(INFO) << "Uploading " << target_attempt
-                << " (count) for metric " <<  metric;
-      system_state_->metrics_lib()->SendToUMA(
-           metric,
-           target_attempt,
-           1,    // min value
-           50,   // max value
-           kNumDefaultUmaBuckets);
+      system_state_->metrics_reporter()->ReportFailedUpdateCount(
+          target_attempt);
     } else {
       prefs_->Delete(kPrefsTargetVersionAttempt);
       prefs_->Delete(kPrefsTargetVersionUniqueId);
