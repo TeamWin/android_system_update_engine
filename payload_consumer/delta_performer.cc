@@ -46,6 +46,7 @@
 #include "update_engine/common/terminator.h"
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
 #include "update_engine/payload_consumer/download_action.h"
+#include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
 #include "update_engine/payload_consumer/file_descriptor_utils.h"
 #if USE_MTD
@@ -1172,6 +1173,28 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
   return true;
 }
 
+bool DeltaPerformer::CalculateAndValidateSourceHash(
+    const InstallOperation& operation, ErrorCode* error) {
+  const uint64_t kMaxBlocksToRead = 256;  // 1MB if block size is 4KB
+  auto total_blocks = utils::BlocksInExtents(operation.src_extents());
+  brillo::Blob buf(std::min(kMaxBlocksToRead, total_blocks) * block_size_);
+  DirectExtentReader reader;
+  TEST_AND_RETURN_FALSE(
+      reader.Init(source_fd_, operation.src_extents(), block_size_));
+  HashCalculator source_hasher;
+  while (total_blocks > 0) {
+    auto read_blocks = std::min(total_blocks, kMaxBlocksToRead);
+    TEST_AND_RETURN_FALSE(reader.Read(buf.data(), read_blocks * block_size_));
+    TEST_AND_RETURN_FALSE(
+        source_hasher.Update(buf.data(), read_blocks * block_size_));
+    total_blocks -= read_blocks;
+  }
+  TEST_AND_RETURN_FALSE(source_hasher.Finalize());
+  TEST_AND_RETURN_FALSE(
+      ValidateSourceHash(source_hasher.raw_hash(), operation, error));
+  return true;
+}
+
 bool DeltaPerformer::PerformSourceBsdiffOperation(
     const InstallOperation& operation, ErrorCode* error) {
   // Since we delete data off the beginning of the buffer as we use it,
@@ -1184,26 +1207,7 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
 
   if (operation.has_src_sha256_hash()) {
-    HashCalculator source_hasher;
-    const uint64_t kMaxBlocksToRead = 512;  // 2MB if block size is 4KB
-    brillo::Blob buf(kMaxBlocksToRead * block_size_);
-    for (const Extent& extent : operation.src_extents()) {
-      for (uint64_t i = 0; i < extent.num_blocks(); i += kMaxBlocksToRead) {
-        uint64_t blocks_to_read = min(
-            kMaxBlocksToRead, static_cast<uint64_t>(extent.num_blocks()) - i);
-        ssize_t bytes_to_read = blocks_to_read * block_size_;
-        ssize_t bytes_read_this_iteration = 0;
-        TEST_AND_RETURN_FALSE(
-            utils::PReadAll(source_fd_, buf.data(), bytes_to_read,
-                            (extent.start_block() + i) * block_size_,
-                            &bytes_read_this_iteration));
-        TEST_AND_RETURN_FALSE(bytes_read_this_iteration == bytes_to_read);
-        TEST_AND_RETURN_FALSE(source_hasher.Update(buf.data(), bytes_to_read));
-      }
-    }
-    TEST_AND_RETURN_FALSE(source_hasher.Finalize());
-    TEST_AND_RETURN_FALSE(
-        ValidateSourceHash(source_hasher.raw_hash(), operation, error));
+    TEST_AND_RETURN_FALSE(CalculateAndValidateSourceHash(operation, error));
   }
 
   string input_positions;

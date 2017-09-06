@@ -22,6 +22,7 @@
 
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
 
 using google::protobuf::RepeatedPtrField;
@@ -34,15 +35,6 @@ namespace {
 // Size of the buffer used to copy blocks.
 const int kMaxCopyBufferSize = 1024 * 1024;
 
-// Return the total number of blocks in the passed |extents| list.
-uint64_t GetBlockCount(const RepeatedPtrField<Extent>& extents) {
-  uint64_t sum = 0;
-  for (const Extent& ext : extents) {
-    sum += ext.num_blocks();
-  }
-  return sum;
-}
-
 }  // namespace
 
 namespace fd_utils {
@@ -53,48 +45,31 @@ bool CopyAndHashExtents(FileDescriptorPtr source,
                         const RepeatedPtrField<Extent>& tgt_extents,
                         uint32_t block_size,
                         brillo::Blob* hash_out) {
-  HashCalculator source_hasher;
+  uint64_t total_blocks = utils::BlocksInExtents(src_extents);
+  TEST_AND_RETURN_FALSE(total_blocks == utils::BlocksInExtents(tgt_extents));
+
+  DirectExtentReader reader;
+  TEST_AND_RETURN_FALSE(reader.Init(source, src_extents, block_size));
+  DirectExtentWriter writer;
+  TEST_AND_RETURN_FALSE(writer.Init(target, tgt_extents, block_size));
 
   uint64_t buffer_blocks = kMaxCopyBufferSize / block_size;
   // Ensure we copy at least one block at a time.
   if (buffer_blocks < 1)
     buffer_blocks = 1;
-
-  uint64_t total_blocks = GetBlockCount(src_extents);
-  TEST_AND_RETURN_FALSE(total_blocks == GetBlockCount(tgt_extents));
-
   brillo::Blob buf(buffer_blocks * block_size);
 
-  DirectExtentWriter writer;
-  TEST_AND_RETURN_FALSE(writer.Init(target, tgt_extents, block_size));
-
-  for (const Extent& src_ext : src_extents) {
-    for (uint64_t src_ext_block = 0; src_ext_block < src_ext.num_blocks();
-         src_ext_block += buffer_blocks) {
-      uint64_t iteration_blocks =
-          min(buffer_blocks,
-              static_cast<uint64_t>(src_ext.num_blocks() - src_ext_block));
-      uint64_t src_start_block = src_ext.start_block() + src_ext_block;
-
-      ssize_t bytes_read_this_iteration;
-      TEST_AND_RETURN_FALSE(utils::PReadAll(source,
-                                            buf.data(),
-                                            iteration_blocks * block_size,
-                                            src_start_block * block_size,
-                                            &bytes_read_this_iteration));
-
+  HashCalculator source_hasher;
+  uint64_t blocks_left = total_blocks;
+  while (blocks_left > 0) {
+    uint64_t read_blocks = std::min(blocks_left, buffer_blocks);
+    TEST_AND_RETURN_FALSE(reader.Read(buf.data(), read_blocks * block_size));
+    if (hash_out) {
       TEST_AND_RETURN_FALSE(
-          bytes_read_this_iteration ==
-          static_cast<ssize_t>(iteration_blocks * block_size));
-
-      TEST_AND_RETURN_FALSE(
-          writer.Write(buf.data(), iteration_blocks * block_size));
-
-      if (hash_out) {
-        TEST_AND_RETURN_FALSE(
-            source_hasher.Update(buf.data(), iteration_blocks * block_size));
-      }
+          source_hasher.Update(buf.data(), read_blocks * block_size));
     }
+    TEST_AND_RETURN_FALSE(writer.Write(buf.data(), read_blocks * block_size));
+    blocks_left -= read_blocks;
   }
   TEST_AND_RETURN_FALSE(writer.End());
 

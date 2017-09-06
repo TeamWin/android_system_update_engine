@@ -88,8 +88,8 @@ bool ReadAll(
 bool PReadAll(int fd, void* buf, size_t count, off_t offset,
               ssize_t* out_bytes_read);
 
-bool PReadAll(const FileDescriptorPtr& fd, void* buf, size_t count, off_t offset,
-              ssize_t* out_bytes_read);
+bool PReadAll(const FileDescriptorPtr& fd, void* buf, size_t count,
+              off_t offset, ssize_t* out_bytes_read);
 
 // Opens |path| for reading and appends its entire content to the container
 // pointed to by |out_p|. Returns true upon successfully reading all of the
@@ -254,6 +254,16 @@ bool VectorIndexOf(const std::vector<T>& vect, const T& value,
     *out_index = it - vect.begin();
     return true;
   }
+}
+
+// Return the total number of blocks in the passed |extents| collection.
+template <class T>
+uint64_t BlocksInExtents(const T& extents) {
+  uint64_t sum = 0;
+  for (const auto& ext : extents) {
+    sum += ext.num_blocks();
+  }
+  return sum;
 }
 
 // Converts seconds into human readable notation including days, hours, minutes

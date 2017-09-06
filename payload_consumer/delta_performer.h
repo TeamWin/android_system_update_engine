@@ -19,6 +19,7 @@
 
 #include <inttypes.h>
 
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -162,9 +163,9 @@ class DeltaPerformer : public FileWriter {
     public_key_path_ = public_key_path;
   }
 
-  // Set |*out_offset| to the byte offset where the size of the metadata signature
-  // is stored in a payload. Return true on success, if this field is not
-  // present in the payload, return false.
+  // Set |*out_offset| to the byte offset where the size of the metadata
+  // signature is stored in a payload. Return true on success, if this field is
+  // not present in the payload, return false.
   bool GetMetadataSignatureSizeOffset(uint64_t* out_offset) const;
 
   // Set |*out_offset| to the byte offset at which the manifest protobuf begins
@@ -241,6 +242,10 @@ class DeltaPerformer : public FileWriter {
   // doesn't exploit any vulnerability in the code that parses the protocol
   // buffer.
   ErrorCode ValidateMetadataSignature(const brillo::Blob& payload);
+
+  // Calculates and validates the source hash of the operation |operation|.
+  bool CalculateAndValidateSourceHash(const InstallOperation& operation,
+                                      ErrorCode* error);
 
   // Returns true on success.
   bool PerformInstallOperation(const InstallOperation& operation);
