@@ -37,6 +37,7 @@
 #include <brillo/data_encoding.h>
 #include <bsdiff/bspatch.h>
 #include <google/protobuf/repeated_field.h>
+#include <puffin/puffpatch.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
@@ -771,8 +772,8 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
         OP_DURATION_HISTOGRAM("SOURCE_BSDIFF", op_start_time);
         break;
       case InstallOperation::PUFFDIFF:
-        // TODO(ahassani): Later add PerformPuffdiffOperation(op, error);
-        op_result = false;
+        op_result = PerformPuffDiffOperation(op, error);
+        OP_DURATION_HISTOGRAM("PUFFDIFF", op_start_time);
         break;
       default:
         op_result = false;
@@ -1241,6 +1242,121 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
                                         buffer_.size(),
                                         input_positions.c_str(),
                                         output_positions.c_str()) == 0);
+  DiscardBuffer(true, buffer_.size());
+  return true;
+}
+
+namespace {
+
+// A class to be passed to |puffpatch| for reading from |source_fd_| and writing
+// into |target_fd_|.
+class PuffinExtentStream : public puffin::StreamInterface {
+ public:
+  // Constructor for creating a stream for reading from an |ExtentReader|.
+  PuffinExtentStream(std::unique_ptr<ExtentReader> reader, size_t size)
+      : PuffinExtentStream(std::move(reader), nullptr, size) {}
+
+  // Constructor for creating a stream for writing to an |ExtentWriter|.
+  PuffinExtentStream(std::unique_ptr<ExtentWriter> writer, size_t size)
+      : PuffinExtentStream(nullptr, std::move(writer), size) {}
+
+  ~PuffinExtentStream() override = default;
+
+  bool GetSize(size_t* size) const override {
+    *size = size_;
+    return true;
+  }
+
+  bool GetOffset(size_t* offset) const override {
+    *offset = offset_;
+    return true;
+  }
+
+  bool Seek(size_t offset) override {
+    if (is_read_) {
+      TEST_AND_RETURN_FALSE(reader_->Seek(offset));
+      offset_ = offset;
+    } else {
+      // For writes technically there should be no change of position, or it
+      // should equivalent of current offset.
+      TEST_AND_RETURN_FALSE(offset_ == offset);
+    }
+    return true;
+  }
+
+  bool Read(void* buffer, size_t count) override {
+    TEST_AND_RETURN_FALSE(is_read_);
+    TEST_AND_RETURN_FALSE(reader_->Read(buffer, count));
+    offset_ += count;
+    return true;
+  }
+
+  bool Write(const void* buffer, size_t count) override {
+    TEST_AND_RETURN_FALSE(!is_read_);
+    TEST_AND_RETURN_FALSE(writer_->Write(buffer, count));
+    offset_ += count;
+    return true;
+  }
+
+  bool Close() override {
+    if (!is_read_) {
+      TEST_AND_RETURN_FALSE(writer_->End());
+    }
+    return true;
+  }
+
+ private:
+  PuffinExtentStream(std::unique_ptr<ExtentReader> reader,
+                     std::unique_ptr<ExtentWriter> writer,
+                     size_t size)
+      : reader_(std::move(reader)),
+        writer_(std::move(writer)),
+        size_(size),
+        offset_(0),
+        is_read_(reader_ ? true : false) {}
+
+  std::unique_ptr<ExtentReader> reader_;
+  std::unique_ptr<ExtentWriter> writer_;
+  uint64_t size_;
+  uint64_t offset_;
+  bool is_read_;
+
+  DISALLOW_COPY_AND_ASSIGN(PuffinExtentStream);
+};
+
+}  // namespace
+
+bool DeltaPerformer::PerformPuffDiffOperation(const InstallOperation& operation,
+                                              ErrorCode* error) {
+  // Since we delete data off the beginning of the buffer as we use it,
+  // the data we need should be exactly at the beginning of the buffer.
+  TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
+  TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
+
+  if (operation.has_src_sha256_hash()) {
+    TEST_AND_RETURN_FALSE(CalculateAndValidateSourceHash(operation, error));
+  }
+
+  auto reader = std::make_unique<DirectExtentReader>();
+  TEST_AND_RETURN_FALSE(
+      reader->Init(source_fd_, operation.src_extents(), block_size_));
+  puffin::UniqueStreamPtr src_stream(new PuffinExtentStream(
+      std::move(reader),
+      utils::BlocksInExtents(operation.src_extents()) * block_size_));
+
+  auto writer = std::make_unique<DirectExtentWriter>();
+  TEST_AND_RETURN_FALSE(
+      writer->Init(target_fd_, operation.dst_extents(), block_size_));
+  puffin::UniqueStreamPtr dst_stream(new PuffinExtentStream(
+      std::move(writer),
+      utils::BlocksInExtents(operation.dst_extents()) * block_size_));
+
+  const size_t kMaxCacheSize = 5 * 1024 * 1024;  // Total 5MB cache.
+  TEST_AND_RETURN_FALSE(puffin::PuffPatch(std::move(src_stream),
+                                          std::move(dst_stream),
+                                          buffer_.data(),
+                                          buffer_.size(),
+                                          kMaxCacheSize));
   DiscardBuffer(true, buffer_.size());
   return true;
 }

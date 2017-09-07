@@ -130,6 +130,7 @@
         'exported_deps': [
           'libcrypto',
           'xz-embedded',
+          'libpuffpatch',
         ],
         'deps': ['<@(exported_deps)'],
       },
