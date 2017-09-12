@@ -197,7 +197,10 @@ bool UpdateAttempterAndroid::ApplyPayload(
           "Invalid network_id: " + headers[kPayloadPropertyNetworkId]);
     }
     if (!network_selector_->SetProcessNetwork(network_id)) {
-      LOG(WARNING) << "Unable to set network_id, continuing with the update.";
+      return LogAndSetError(
+          error,
+          FROM_HERE,
+          "Unable to set network_id: " + headers[kPayloadPropertyNetworkId]);
     }
   }
 
