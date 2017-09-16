@@ -380,12 +380,6 @@ struct OmahaParserData {
   string current_path;
 
   // These are the values extracted from the XML.
-  string app_cohort;
-  string app_cohorthint;
-  string app_cohortname;
-  bool app_cohort_set = false;
-  bool app_cohorthint_set = false;
-  bool app_cohortname_set = false;
   string updatecheck_poll_interval;
   map<string, string> updatecheck_attrs;
   string daystart_elapsed_days;
@@ -397,6 +391,12 @@ struct OmahaParserData {
     string manifest_version;
     map<string, string> action_postinstall_attrs;
     string updatecheck_status;
+    string cohort;
+    string cohorthint;
+    string cohortname;
+    bool cohort_set = false;
+    bool cohorthint_set = false;
+    bool cohortname_set = false;
 
     struct Package {
       string name;
@@ -430,22 +430,23 @@ void ParserHandlerStart(void* user_data, const XML_Char* element,
   }
 
   if (data->current_path == "/response/app") {
-    data->apps.emplace_back();
+    OmahaParserData::App app;
     if (attrs.find("appid") != attrs.end()) {
-      data->apps.back().id = attrs["appid"];
+      app.id = attrs["appid"];
     }
     if (attrs.find("cohort") != attrs.end()) {
-      data->app_cohort_set = true;
-      data->app_cohort = attrs["cohort"];
+      app.cohort_set = true;
+      app.cohort = attrs["cohort"];
     }
     if (attrs.find("cohorthint") != attrs.end()) {
-      data->app_cohorthint_set = true;
-      data->app_cohorthint = attrs["cohorthint"];
+      app.cohorthint_set = true;
+      app.cohorthint = attrs["cohorthint"];
     }
     if (attrs.find("cohortname") != attrs.end()) {
-      data->app_cohortname_set = true;
-      data->app_cohortname = attrs["cohortname"];
+      app.cohortname_set = true;
+      app.cohortname = attrs["cohortname"];
     }
+    data->apps.push_back(std::move(app));
   } else if (data->current_path == "/response/app/updatecheck") {
     if (!data->apps.empty())
       data->apps.back().updatecheck_status = attrs["status"];
@@ -923,12 +924,17 @@ bool OmahaRequestAction::ParseResponse(OmahaParserData* parser_data,
   }
 
   // We persist the cohorts sent by omaha even if the status is "noupdate".
-  if (parser_data->app_cohort_set)
-    PersistCohortData(kPrefsOmahaCohort, parser_data->app_cohort);
-  if (parser_data->app_cohorthint_set)
-    PersistCohortData(kPrefsOmahaCohortHint, parser_data->app_cohorthint);
-  if (parser_data->app_cohortname_set)
-    PersistCohortData(kPrefsOmahaCohortName, parser_data->app_cohortname);
+  for (const auto& app : parser_data->apps) {
+    if (app.id == params_->GetAppId()) {
+      if (app.cohort_set)
+        PersistCohortData(kPrefsOmahaCohort, app.cohort);
+      if (app.cohorthint_set)
+        PersistCohortData(kPrefsOmahaCohortHint, app.cohorthint);
+      if (app.cohortname_set)
+        PersistCohortData(kPrefsOmahaCohortName, app.cohortname);
+      break;
+    }
+  }
 
   // Parse the updatecheck attributes.
   PersistEolStatus(parser_data->updatecheck_attrs);
