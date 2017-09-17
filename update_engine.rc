@@ -1,4 +1,4 @@
-service update_engine /system/bin/update_engine --logtostderr --foreground
+service update_engine /system/bin/update_engine --logtostderr --logtofile --foreground
     class late_start
     user root
     group root system wakelock inet cache
