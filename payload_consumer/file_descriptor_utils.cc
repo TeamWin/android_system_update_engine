@@ -66,12 +66,7 @@ bool CopyAndHashExtents(FileDescriptorPtr source,
   brillo::Blob buf(buffer_blocks * block_size);
 
   DirectExtentWriter writer;
-  std::vector<Extent> vec_tgt_extents;
-  vec_tgt_extents.reserve(tgt_extents.size());
-  for (const auto& ext : tgt_extents) {
-    vec_tgt_extents.push_back(ext);
-  }
-  TEST_AND_RETURN_FALSE(writer.Init(target, vec_tgt_extents, block_size));
+  TEST_AND_RETURN_FALSE(writer.Init(target, tgt_extents, block_size));
 
   for (const Extent& src_ext : src_extents) {
     for (uint64_t src_ext_block = 0; src_ext_block < src_ext.num_blocks();

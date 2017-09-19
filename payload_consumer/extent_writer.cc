@@ -34,21 +34,19 @@ bool DirectExtentWriter::Write(const void* bytes, size_t count) {
     return true;
   const char* c_bytes = reinterpret_cast<const char*>(bytes);
   size_t bytes_written = 0;
-  while (count - bytes_written > 0) {
-    TEST_AND_RETURN_FALSE(next_extent_index_ < extents_.size());
-    uint64_t bytes_remaining_next_extent =
-        extents_[next_extent_index_].num_blocks() * block_size_ -
-        extent_bytes_written_;
-    CHECK_NE(bytes_remaining_next_extent, static_cast<uint64_t>(0));
+  while (bytes_written < count) {
+    TEST_AND_RETURN_FALSE(cur_extent_ != extents_.end());
+    uint64_t bytes_remaining_cur_extent =
+        cur_extent_->num_blocks() * block_size_ - extent_bytes_written_;
+    CHECK_NE(bytes_remaining_cur_extent, static_cast<uint64_t>(0));
     size_t bytes_to_write =
         static_cast<size_t>(min(static_cast<uint64_t>(count - bytes_written),
-                                bytes_remaining_next_extent));
+                                bytes_remaining_cur_extent));
     TEST_AND_RETURN_FALSE(bytes_to_write > 0);
 
-    if (extents_[next_extent_index_].start_block() != kSparseHole) {
+    if (cur_extent_->start_block() != kSparseHole) {
       const off64_t offset =
-          extents_[next_extent_index_].start_block() * block_size_ +
-          extent_bytes_written_;
+          cur_extent_->start_block() * block_size_ + extent_bytes_written_;
       TEST_AND_RETURN_FALSE_ERRNO(fd_->Seek(offset, SEEK_SET) !=
                                   static_cast<off64_t>(-1));
       TEST_AND_RETURN_FALSE(
@@ -56,13 +54,12 @@ bool DirectExtentWriter::Write(const void* bytes, size_t count) {
     }
     bytes_written += bytes_to_write;
     extent_bytes_written_ += bytes_to_write;
-    if (bytes_remaining_next_extent == bytes_to_write) {
+    if (bytes_remaining_cur_extent == bytes_to_write) {
       // We filled this extent
-      CHECK_EQ(extent_bytes_written_,
-               extents_[next_extent_index_].num_blocks() * block_size_);
+      CHECK_EQ(extent_bytes_written_, cur_extent_->num_blocks() * block_size_);
       // move to next extent
       extent_bytes_written_ = 0;
-      next_extent_index_++;
+      cur_extent_++;
     }
   }
   return true;

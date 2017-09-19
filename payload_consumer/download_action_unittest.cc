@@ -22,7 +22,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include <base/bind.h>
 #include <base/files/file_path.h>
@@ -51,7 +50,6 @@ using base::ReadFileToString;
 using base::WriteFile;
 using std::string;
 using std::unique_ptr;
-using std::vector;
 using test_utils::ScopedTempFile;
 using testing::AtLeast;
 using testing::InSequence;

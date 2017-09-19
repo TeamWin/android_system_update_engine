@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <string>
-#include <vector>
 
 #include <base/files/file_path.h>
 #include <base/metrics/statistics_recorder.h>
@@ -36,7 +35,6 @@
 
 using base::FilePath;
 using std::string;
-using std::vector;
 
 namespace chromeos_update_engine {
 

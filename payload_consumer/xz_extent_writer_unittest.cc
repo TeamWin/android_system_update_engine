@@ -22,8 +22,6 @@
 #include <unistd.h>
 
 #include <algorithm>
-#include <string>
-#include <vector>
 
 #include <base/memory/ptr_util.h>
 #include <gtest/gtest.h>
@@ -31,9 +29,6 @@
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/fake_extent_writer.h"
-
-using std::string;
-using std::vector;
 
 namespace chromeos_update_engine {
 

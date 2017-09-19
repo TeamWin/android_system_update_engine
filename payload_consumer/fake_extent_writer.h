@@ -18,7 +18,6 @@
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_FAKE_EXTENT_WRITER_H_
 
 #include <memory>
-#include <vector>
 
 #include <brillo/secure_blob.h>
 
@@ -35,7 +34,7 @@ class FakeExtentWriter : public ExtentWriter {
 
   // ExtentWriter overrides.
   bool Init(FileDescriptorPtr /* fd */,
-            const std::vector<Extent>& /* extents */,
+            const google::protobuf::RepeatedPtrField<Extent>& /* extents */,
             uint32_t /* block_size */) override {
     init_called_ = true;
     return true;

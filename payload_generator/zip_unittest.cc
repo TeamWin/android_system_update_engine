@@ -31,6 +31,7 @@
 #include "update_engine/payload_generator/xz.h"
 
 using chromeos_update_engine::test_utils::kRandomString;
+using google::protobuf::RepeatedPtrField;
 using std::string;
 using std::vector;
 
@@ -50,7 +51,7 @@ class MemoryExtentWriter : public ExtentWriter {
   ~MemoryExtentWriter() override = default;
 
   bool Init(FileDescriptorPtr fd,
-            const vector<Extent>& extents,
+            const RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override {
     return true;
   }

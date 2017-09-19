@@ -946,13 +946,8 @@ bool DeltaPerformer::PerformReplaceOperation(
     writer.reset(new XzExtentWriter(std::move(writer)));
   }
 
-  // Create a vector of extents to pass to the ExtentWriter.
-  vector<Extent> extents;
-  for (int i = 0; i < operation.dst_extents_size(); i++) {
-    extents.push_back(operation.dst_extents(i));
-  }
-
-  TEST_AND_RETURN_FALSE(writer->Init(target_fd_, extents, block_size_));
+  TEST_AND_RETURN_FALSE(
+      writer->Init(target_fd_, operation.dst_extents(), block_size_));
   TEST_AND_RETURN_FALSE(writer->Write(buffer_.data(), operation.data_length()));
   TEST_AND_RETURN_FALSE(writer->End());
 

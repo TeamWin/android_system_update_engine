@@ -17,8 +17,6 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_CONSUMER_FILE_DESCRIPTOR_UTILS_H_
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_FILE_DESCRIPTOR_UTILS_H_
 
-#include <vector>
-
 #include <brillo/secure_blob.h>
 
 #include "update_engine/payload_consumer/file_descriptor.h"
