@@ -44,7 +44,7 @@
 #include "update_engine/common/prefs.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/fake_system_state.h"
-#include "update_engine/metrics.h"
+#include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/mock_connection_manager.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/omaha_request_params.h"
@@ -391,23 +391,16 @@ bool OmahaRequestActionTest::TestUpdateCheck(
   BondActions(&action, &collector_action);
   processor.EnqueueAction(&collector_action);
 
-  EXPECT_CALL(*fake_system_state_.mock_metrics_lib(), SendEnumToUMA(_, _, _))
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportUpdateCheckMetrics(_, _, _, _))
       .Times(AnyNumber());
-  EXPECT_CALL(*fake_system_state_.mock_metrics_lib(),
-      SendEnumToUMA(metrics::kMetricCheckResult,
-          static_cast<int>(expected_check_result),
-          static_cast<int>(metrics::CheckResult::kNumConstants) - 1))
-      .Times(expected_check_result == metrics::CheckResult::kUnset ? 0 : 1);
-  EXPECT_CALL(*fake_system_state_.mock_metrics_lib(),
-      SendEnumToUMA(metrics::kMetricCheckReaction,
-          static_cast<int>(expected_check_reaction),
-          static_cast<int>(metrics::CheckReaction::kNumConstants) - 1))
-      .Times(expected_check_reaction == metrics::CheckReaction::kUnset ? 0 : 1);
-  EXPECT_CALL(*fake_system_state_.mock_metrics_lib(),
-      SendSparseToUMA(metrics::kMetricCheckDownloadErrorCode,
-          static_cast<int>(expected_download_error_code)))
-      .Times(expected_download_error_code == metrics::DownloadErrorCode::kUnset
-             ? 0 : 1);
+
+  EXPECT_CALL(*fake_system_state_.mock_metrics_reporter(),
+              ReportUpdateCheckMetrics(_,
+                                       expected_check_result,
+                                       expected_check_reaction,
+                                       expected_download_error_code))
+      .Times(ping_only ? 0 : 1);
 
   loop.PostTask(base::Bind(
       [](ActionProcessor* processor) { processor->StartProcessing(); },
@@ -818,18 +811,19 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
 TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
   OmahaResponse response;
 
+  // TODO set better default value for metrics::checkresult in
+  // OmahaRequestAction::ActionCompleted.
   fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
-  ASSERT_FALSE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetUpdateResponse(),
-                      -1,
-                      false,  // ping_only
-                      ErrorCode::kNonCriticalUpdateInOOBE,
-                      metrics::CheckResult::kUnset,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      &response,
-                      nullptr));
+  ASSERT_FALSE(TestUpdateCheck(nullptr,  // request_params
+                               fake_update_response_.GetUpdateResponse(),
+                               -1,
+                               false,  // ping_only
+                               ErrorCode::kNonCriticalUpdateInOOBE,
+                               metrics::CheckResult::kParsingError,
+                               metrics::CheckReaction::kUnset,
+                               metrics::DownloadErrorCode::kUnset,
+                               &response,
+                               nullptr));
   EXPECT_FALSE(response.update_exists);
 
   // The IsOOBEComplete() value is ignored when the OOBE flow is not enabled.
@@ -1752,17 +1746,16 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(five_days_ago), Return(true)));
   brillo::Blob post_data;
-  ASSERT_TRUE(
-      TestUpdateCheck(nullptr,  // request_params
-                      fake_update_response_.GetNoUpdateResponse(),
-                      -1,
-                      ping_only,
-                      ErrorCode::kSuccess,
-                      metrics::CheckResult::kUnset,
-                      metrics::CheckReaction::kUnset,
-                      metrics::DownloadErrorCode::kUnset,
-                      nullptr,
-                      &post_data));
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetNoUpdateResponse(),
+                              -1,
+                              ping_only,
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kNoUpdateAvailable,
+                              metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              nullptr,
+                              &post_data));
   string post_str(post_data.begin(), post_data.end());
   EXPECT_NE(post_str.find("<ping active=\"1\" a=\"6\" r=\"5\"></ping>"),
             string::npos);

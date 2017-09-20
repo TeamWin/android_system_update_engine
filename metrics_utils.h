@@ -17,8 +17,11 @@
 #ifndef UPDATE_ENGINE_METRICS_UTILS_H_
 #define UPDATE_ENGINE_METRICS_UTILS_H_
 
+#include <base/time/time.h>
+
+#include "update_engine/common/error_code.h"
 #include "update_engine/connection_utils.h"
-#include "update_engine/metrics.h"
+#include "update_engine/metrics_constants.h"
 
 namespace chromeos_update_engine {
 

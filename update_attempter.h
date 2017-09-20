@@ -46,8 +46,6 @@
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
 
-class MetricsLibraryInterface;
-
 namespace org {
 namespace chromium {
 class NetworkProxyServiceInterfaceProxyInterface;
