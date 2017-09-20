@@ -15,11 +15,26 @@
 //
 
 #include "update_engine/parcelable_update_engine_status.h"
+#include "update_engine/update_status_utils.h"
 
 #include <binder/Parcel.h>
 
+using update_engine::UpdateEngineStatus;
+
 namespace android {
 namespace brillo {
+
+ParcelableUpdateEngineStatus::ParcelableUpdateEngineStatus(
+    const UpdateEngineStatus& status)
+    : last_checked_time_(status.last_checked_time_ms),
+      current_operation_(
+          chromeos_update_engine::UpdateStatusToString(status.status)),
+      progress_(status.progress),
+      current_version_(String16{status.current_version.c_str()}),
+      current_system_version_(String16{status.current_system_version.c_str()}),
+      new_size_(status.new_size_bytes),
+      new_version_(String16{status.new_version.c_str()}),
+      new_system_version_(String16{status.new_system_version.c_str()}) {}
 
 status_t ParcelableUpdateEngineStatus::writeToParcel(Parcel* parcel) const {
   status_t status;
@@ -29,12 +44,27 @@ status_t ParcelableUpdateEngineStatus::writeToParcel(Parcel* parcel) const {
     return status;
   }
 
+  status = parcel->writeString16(current_operation_);
+  if (status != OK) {
+    return status;
+  }
+
   status = parcel->writeDouble(progress_);
   if (status != OK) {
     return status;
   }
 
-  status = parcel->writeString16(current_operation_);
+  status = parcel->writeString16(current_version_);
+  if (status != OK) {
+    return status;
+  }
+
+  status = parcel->writeString16(current_system_version_);
+  if (status != OK) {
+    return status;
+  }
+
+  status = parcel->writeInt64(new_size_);
   if (status != OK) {
     return status;
   }
@@ -44,7 +74,7 @@ status_t ParcelableUpdateEngineStatus::writeToParcel(Parcel* parcel) const {
     return status;
   }
 
-  return parcel->writeInt64(new_size_);
+  return parcel->writeString16(new_system_version_);
 }
 
 status_t ParcelableUpdateEngineStatus::readFromParcel(const Parcel* parcel) {
@@ -55,12 +85,27 @@ status_t ParcelableUpdateEngineStatus::readFromParcel(const Parcel* parcel) {
     return status;
   }
 
+  status = parcel->readString16(&current_operation_);
+  if (status != OK) {
+    return status;
+  }
+
   status = parcel->readDouble(&progress_);
   if (status != OK) {
     return status;
   }
 
-  status = parcel->readString16(&current_operation_);
+  status = parcel->readString16(&current_version_);
+  if (status != OK) {
+    return status;
+  }
+
+  status = parcel->readString16(&current_system_version_);
+  if (status != OK) {
+    return status;
+  }
+
+  status = parcel->readInt64(&new_size_);
   if (status != OK) {
     return status;
   }
@@ -70,7 +115,7 @@ status_t ParcelableUpdateEngineStatus::readFromParcel(const Parcel* parcel) {
     return status;
   }
 
-  return parcel->readInt64(&new_size_);
+  return parcel->readString16(&new_system_version_);
 }
 
 }  // namespace brillo

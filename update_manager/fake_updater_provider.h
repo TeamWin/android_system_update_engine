@@ -53,7 +53,7 @@ class FakeUpdaterProvider : public UpdaterProvider {
     return &var_new_version_;
   }
 
-  FakeVariable<int64_t>* var_payload_size() override {
+  FakeVariable<uint64_t>* var_payload_size() override {
     return &var_payload_size_;
   }
 
@@ -100,7 +100,7 @@ class FakeUpdaterProvider : public UpdaterProvider {
     "stage", kVariableModePoll};
   FakeVariable<std::string> var_new_version_{  // NOLINT(whitespace/braces)
     "new_version", kVariableModePoll};
-  FakeVariable<int64_t> var_payload_size_{  // NOLINT(whitespace/braces)
+  FakeVariable<uint64_t> var_payload_size_{// NOLINT(whitespace/braces)
     "payload_size", kVariableModePoll};
   FakeVariable<std::string> var_curr_channel_{  // NOLINT(whitespace/braces)
     "curr_channel", kVariableModePoll};

@@ -36,11 +36,7 @@ class MockUpdateAttempter : public UpdateAttempter {
                             bool obey_proxies,
                             bool interactive));
 
-  MOCK_METHOD5(GetStatus, bool(int64_t* last_checked_time,
-                               double* progress,
-                               std::string* current_operation,
-                               std::string* new_version,
-                               int64_t* new_size));
+  MOCK_METHOD1(GetStatus, bool(update_engine::UpdateEngineStatus* out_status));
 
   MOCK_METHOD1(GetBootTimeAtUpdate, bool(base::Time* out_boot_time));
 

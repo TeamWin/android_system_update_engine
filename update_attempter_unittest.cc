@@ -48,6 +48,7 @@
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
+#include "update_engine/mock_service_observer.h"
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/payload_constants.h"
@@ -66,6 +67,7 @@ using org::chromium::NetworkProxyServiceInterfaceProxyMock;
 using std::string;
 using std::unique_ptr;
 using testing::DoAll;
+using testing::Field;
 using testing::InSequence;
 using testing::Ne;
 using testing::NiceMock;
@@ -75,6 +77,7 @@ using testing::ReturnPointee;
 using testing::SaveArg;
 using testing::SetArgumentPointee;
 using testing::_;
+using update_engine::UpdateEngineStatus;
 using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
@@ -136,7 +139,7 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_EQ(0.0, attempter_.download_progress_);
     EXPECT_EQ(0, attempter_.last_checked_time_);
     EXPECT_EQ("0.0.0.0", attempter_.new_version_);
-    EXPECT_EQ(0, attempter_.new_payload_size_);
+    EXPECT_EQ(0ULL, attempter_.new_payload_size_);
     processor_ = new NiceMock<MockActionProcessor>();
     attempter_.processor_.reset(processor_);  // Transfers ownership.
     prefs_ = fake_system_state_.mock_prefs();
@@ -219,6 +222,7 @@ TEST_F(UpdateAttempterTest, ActionCompletedDownloadTest) {
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _)).Times(0);
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kSuccess);
   EXPECT_EQ(UpdateStatus::FINALIZING, attempter_.status());
+  EXPECT_EQ(0.0, attempter_.download_progress_);
   ASSERT_EQ(nullptr, attempter_.error_event_.get());
 }
 
@@ -230,6 +234,86 @@ TEST_F(UpdateAttempterTest, ActionCompletedErrorTest) {
       .WillOnce(Return(false));
   attempter_.ActionCompleted(nullptr, &action, ErrorCode::kError);
   ASSERT_NE(nullptr, attempter_.error_event_.get());
+}
+
+TEST_F(UpdateAttempterTest, DownloadProgressAccumulationTest) {
+  // Simple test case, where all the values match (nothing was skipped)
+  uint64_t bytes_progressed_1 = 1024 * 1024;  // 1MB
+  uint64_t bytes_progressed_2 = 1024 * 1024;  // 1MB
+  uint64_t bytes_received_1 = bytes_progressed_1;
+  uint64_t bytes_received_2 = bytes_received_1 + bytes_progressed_2;
+  uint64_t bytes_total = 20 * 1024 * 1024;  // 20MB
+
+  double progress_1 =
+      static_cast<double>(bytes_received_1) / static_cast<double>(bytes_total);
+  double progress_2 =
+      static_cast<double>(bytes_received_2) / static_cast<double>(bytes_total);
+
+  EXPECT_EQ(0.0, attempter_.download_progress_);
+  // This is set via inspecting the InstallPlan payloads when the
+  // OmahaResponseAction is completed
+  attempter_.new_payload_size_ = bytes_total;
+  NiceMock<MockServiceObserver> observer;
+  EXPECT_CALL(observer,
+              SendStatusUpdate(AllOf(
+                  Field(&UpdateEngineStatus::progress, progress_1),
+                  Field(&UpdateEngineStatus::status, UpdateStatus::DOWNLOADING),
+                  Field(&UpdateEngineStatus::new_size_bytes, bytes_total))));
+  EXPECT_CALL(observer,
+              SendStatusUpdate(AllOf(
+                  Field(&UpdateEngineStatus::progress, progress_2),
+                  Field(&UpdateEngineStatus::status, UpdateStatus::DOWNLOADING),
+                  Field(&UpdateEngineStatus::new_size_bytes, bytes_total))));
+  attempter_.AddObserver(&observer);
+  attempter_.BytesReceived(bytes_progressed_1, bytes_received_1, bytes_total);
+  EXPECT_EQ(progress_1, attempter_.download_progress_);
+  // This iteration validates that a later set of updates to the variables are
+  // properly handled (so that |getStatus()| will return the same progress info
+  // as the callback is receiving.
+  attempter_.BytesReceived(bytes_progressed_2, bytes_received_2, bytes_total);
+  EXPECT_EQ(progress_2, attempter_.download_progress_);
+}
+
+TEST_F(UpdateAttempterTest, ChangeToDownloadingOnReceivedBytesTest) {
+  // The transition into UpdateStatus::DOWNLOADING happens when the
+  // first bytes are received.
+  uint64_t bytes_progressed = 1024 * 1024;    // 1MB
+  uint64_t bytes_received = 2 * 1024 * 1024;  // 2MB
+  uint64_t bytes_total = 20 * 1024 * 1024;    // 300MB
+  attempter_.status_ = UpdateStatus::CHECKING_FOR_UPDATE;
+  // This is set via inspecting the InstallPlan payloads when the
+  // OmahaResponseAction is completed
+  attempter_.new_payload_size_ = bytes_total;
+  EXPECT_EQ(0.0, attempter_.download_progress_);
+  NiceMock<MockServiceObserver> observer;
+  EXPECT_CALL(observer,
+              SendStatusUpdate(AllOf(
+                  Field(&UpdateEngineStatus::status, UpdateStatus::DOWNLOADING),
+                  Field(&UpdateEngineStatus::new_size_bytes, bytes_total))));
+  attempter_.AddObserver(&observer);
+  attempter_.BytesReceived(bytes_progressed, bytes_received, bytes_total);
+  EXPECT_EQ(UpdateStatus::DOWNLOADING, attempter_.status_);
+}
+
+TEST_F(UpdateAttempterTest, BroadcastCompleteDownloadTest) {
+  // There is a special case to ensure that at 100% downloaded,
+  // download_progress_ is updated and that value broadcast. This test confirms
+  // that.
+  uint64_t bytes_progressed = 0;              // ignored
+  uint64_t bytes_received = 5 * 1024 * 1024;  // ignored
+  uint64_t bytes_total = 5 * 1024 * 1024;     // 300MB
+  attempter_.status_ = UpdateStatus::DOWNLOADING;
+  attempter_.new_payload_size_ = bytes_total;
+  EXPECT_EQ(0.0, attempter_.download_progress_);
+  NiceMock<MockServiceObserver> observer;
+  EXPECT_CALL(observer,
+              SendStatusUpdate(AllOf(
+                  Field(&UpdateEngineStatus::progress, 1.0),
+                  Field(&UpdateEngineStatus::status, UpdateStatus::DOWNLOADING),
+                  Field(&UpdateEngineStatus::new_size_bytes, bytes_total))));
+  attempter_.AddObserver(&observer);
+  attempter_.BytesReceived(bytes_progressed, bytes_received, bytes_total);
+  EXPECT_EQ(1.0, attempter_.download_progress_);
 }
 
 TEST_F(UpdateAttempterTest, ActionCompletedOmahaRequestTest) {

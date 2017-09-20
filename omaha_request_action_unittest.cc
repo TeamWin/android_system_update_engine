@@ -68,6 +68,7 @@ using testing::_;
 namespace {
 
 const char kTestAppId[] = "test-app-id";
+const char kTestAppId2[] = "test-app2-id";
 
 // This is a helper struct to allow unit tests build an update response with the
 // values they care about.
@@ -89,7 +90,8 @@ struct FakeUpdateResponse {
            "<ping status=\"ok\"/>"
            "<updatecheck status=\"noupdate\"/></app>" +
            (multi_app_no_update
-                ? "<app><updatecheck status=\"noupdate\"/></app>"
+                ? "<app appid=\"" + app_id2 +
+                      "\"><updatecheck status=\"noupdate\"/></app>"
                 : "") +
            "</response>";
   }
@@ -142,9 +144,11 @@ struct FakeUpdateResponse {
            (disable_p2p_for_sharing ? "DisableP2PForSharing=\"true\" " : "") +
            "/></actions></manifest></updatecheck></app>" +
            (multi_app
-                ? "<app><updatecheck status=\"ok\"><urls><url codebase=\"" +
-                      codebase2 +
-                      "\"/></urls><manifest><packages>"
+                ? "<app appid=\"" + app_id2 + "\"" +
+                      (include_cohorts ? " cohort=\"cohort2\"" : "") +
+                      "><updatecheck status=\"ok\"><urls><url codebase=\"" +
+                      codebase2 + "\"/></urls><manifest version=\"" + version2 +
+                      "\"><packages>"
                       "<package name=\"package3\" size=\"333\" "
                       "hash_sha256=\"hash3\"/></packages>"
                       "<actions><action event=\"postinstall\" " +
@@ -166,7 +170,9 @@ struct FakeUpdateResponse {
   }
 
   string app_id = kTestAppId;
+  string app_id2 = kTestAppId2;
   string version = "1.2.3.4";
+  string version2 = "2.3.4.5";
   string more_info_url = "http://more/info";
   string prompt = "true";
   string codebase = "http://code/base/";
@@ -549,6 +555,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
                       nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ("", response.system_version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
             response.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.more_info_url, response.more_info_url);
@@ -557,7 +564,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateTest) {
   EXPECT_EQ(true, response.packages[0].is_delta);
   EXPECT_EQ(fake_update_response_.prompt == "true", response.prompt);
   EXPECT_EQ(fake_update_response_.deadline, response.deadline);
-  // Omaha cohort attribets are not set in the response, so they should not be
+  // Omaha cohort attributes are not set in the response, so they should not be
   // persisted.
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohort));
   EXPECT_FALSE(fake_prefs_.Exists(kPrefsOmahaCohortHint));
@@ -624,6 +631,40 @@ TEST_F(OmahaRequestActionTest, MultiAppUpdateTest) {
   EXPECT_EQ(false, response.packages[1].is_delta);
 }
 
+TEST_F(OmahaRequestActionTest, MultiAppAndSystemUpdateTest) {
+  OmahaResponse response;
+  fake_update_response_.multi_app = true;
+  // trigger the lining up of the app and system versions
+  request_params_.set_system_app_id(fake_update_response_.app_id2);
+
+  ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+  EXPECT_TRUE(response.update_exists);
+  EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ(fake_update_response_.version2, response.system_version);
+  EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
+            response.packages[0].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.codebase2 + "package3",
+            response.packages[1].payload_urls[0]);
+  EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
+  EXPECT_EQ(fake_update_response_.size, response.packages[0].size);
+  EXPECT_EQ(11u, response.packages[0].metadata_size);
+  EXPECT_EQ(true, response.packages[0].is_delta);
+  ASSERT_EQ(2u, response.packages.size());
+  EXPECT_EQ(string("hash3"), response.packages[1].hash);
+  EXPECT_EQ(333u, response.packages[1].size);
+  EXPECT_EQ(33u, response.packages[1].metadata_size);
+  EXPECT_EQ(false, response.packages[1].is_delta);
+}
+
 TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
   OmahaResponse response;
   fake_update_response_.multi_app = true;
@@ -640,6 +681,7 @@ TEST_F(OmahaRequestActionTest, MultiAppPartialUpdateTest) {
                               nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ("", response.system_version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
             response.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.hash, response.packages[0].hash);
@@ -668,6 +710,7 @@ TEST_F(OmahaRequestActionTest, MultiAppMultiPackageUpdateTest) {
                               nullptr));
   EXPECT_TRUE(response.update_exists);
   EXPECT_EQ(fake_update_response_.version, response.version);
+  EXPECT_EQ("", response.system_version);
   EXPECT_EQ(fake_update_response_.GetPayloadUrl(),
             response.packages[0].payload_urls[0]);
   EXPECT_EQ(fake_update_response_.codebase + "package2",
@@ -1140,6 +1183,37 @@ TEST_F(OmahaRequestActionTest, CohortsArePersistedWhenNoUpdate) {
   EXPECT_EQ(fake_update_response_.cohortname, value);
 }
 
+TEST_F(OmahaRequestActionTest, MultiAppCohortTest) {
+  OmahaResponse response;
+  OmahaRequestParams params = request_params_;
+  fake_update_response_.multi_app = true;
+  fake_update_response_.include_cohorts = true;
+  fake_update_response_.cohort = "s/154454/8479665";
+  fake_update_response_.cohorthint = "please-put-me-on-beta";
+  fake_update_response_.cohortname = "stable";
+
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+
+  string value;
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_EQ(fake_update_response_.cohort, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_EQ(fake_update_response_.cohorthint, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+  EXPECT_EQ(fake_update_response_.cohortname, value);
+}
+
 TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   const string http_response(fake_update_response_.GetNoUpdateResponse());
 
@@ -1263,7 +1337,10 @@ TEST_F(OmahaRequestActionTest, MissingFieldTest) {
   string input_response =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response protocol=\"3.0\">"
       "<daystart elapsed_seconds=\"100\"/>"
-      "<app appid=\"xyz\" status=\"ok\">"
+      // the appid needs to match that in the request params
+      "<app appid=\"" +
+      fake_update_response_.app_id +
+      "\" status=\"ok\">"
       "<updatecheck status=\"ok\">"
       "<urls><url codebase=\"http://missing/field/test/\"/></urls>"
       "<manifest version=\"10.2.3.4\">"

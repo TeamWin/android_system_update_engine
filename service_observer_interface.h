@@ -31,11 +31,8 @@ class ServiceObserverInterface {
 
   // Called whenever the value of these parameters changes. For |progress|
   // value changes, this method will be called only if it changes significantly.
-  virtual void SendStatusUpdate(int64_t last_checked_time,
-                                double progress,
-                                update_engine::UpdateStatus status,
-                                const std::string& new_version,
-                                int64_t new_size) = 0;
+  virtual void SendStatusUpdate(
+      const update_engine::UpdateEngineStatus& update_engine_status) = 0;
 
   // Called whenever an update attempt is completed.
   virtual void SendPayloadApplicationComplete(ErrorCode error_code) = 0;

@@ -114,12 +114,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // for testing purposes.
   virtual bool ResetStatus();
 
-  // Returns the current status in the out params. Returns true on success.
-  virtual bool GetStatus(int64_t* last_checked_time,
-                         double* progress,
-                         std::string* current_operation,
-                         std::string* new_version,
-                         int64_t* new_size);
+  // Returns the current status in the out param. Returns true on success.
+  virtual bool GetStatus(update_engine::UpdateEngineStatus* out_status);
 
   // Runs chromeos-setgoodkernel, whose responsibility it is to mark the
   // currently booted partition has high priority/permanent/etc. The execution
@@ -252,17 +248,20 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedDownloadTest);
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedErrorTest);
   FRIEND_TEST(UpdateAttempterTest, ActionCompletedOmahaRequestTest);
+  FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
+  FRIEND_TEST(UpdateAttempterTest, BroadcastCompleteDownloadTest);
+  FRIEND_TEST(UpdateAttempterTest, ChangeToDownloadingOnReceivedBytesTest);
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventTest);
   FRIEND_TEST(UpdateAttempterTest, CreatePendingErrorEventResumedTest);
   FRIEND_TEST(UpdateAttempterTest, DisableDeltaUpdateIfNeededTest);
+  FRIEND_TEST(UpdateAttempterTest, DownloadProgressAccumulationTest);
   FRIEND_TEST(UpdateAttempterTest, MarkDeltaUpdateFailureTest);
   FRIEND_TEST(UpdateAttempterTest, PingOmahaTest);
+  FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
-  FRIEND_TEST(UpdateAttempterTest, UpdateTest);
-  FRIEND_TEST(UpdateAttempterTest, ReportDailyMetrics);
-  FRIEND_TEST(UpdateAttempterTest, BootTimeInUpdateMarkerFile);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
+  FRIEND_TEST(UpdateAttempterTest, UpdateTest);
 
   // CertificateChecker::Observer method.
   // Report metrics about the certificate being checked.
@@ -438,7 +437,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   int64_t last_checked_time_ = 0;
   std::string prev_version_;
   std::string new_version_ = "0.0.0.0";
-  int64_t new_payload_size_ = 0;
+  std::string new_system_version_;
+  uint64_t new_payload_size_ = 0;
 
   // Common parameters for all Omaha requests.
   OmahaRequestParams* omaha_request_params_ = nullptr;

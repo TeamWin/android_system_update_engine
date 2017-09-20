@@ -64,7 +64,7 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_new_version_.get();
   }
 
-  Variable<int64_t>* var_payload_size() override {
+  Variable<uint64_t>* var_payload_size() override {
     return var_payload_size_.get();
   }
 
@@ -107,7 +107,7 @@ class RealUpdaterProvider : public UpdaterProvider {
   std::unique_ptr<Variable<double>> var_progress_;
   std::unique_ptr<Variable<Stage>> var_stage_;
   std::unique_ptr<Variable<std::string>> var_new_version_;
-  std::unique_ptr<Variable<int64_t>> var_payload_size_;
+  std::unique_ptr<Variable<uint64_t>> var_payload_size_;
   std::unique_ptr<Variable<std::string>> var_curr_channel_;
   std::unique_ptr<Variable<std::string>> var_new_channel_;
   std::unique_ptr<Variable<bool>> var_p2p_enabled_;

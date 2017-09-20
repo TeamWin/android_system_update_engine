@@ -74,7 +74,14 @@ void InstallPlan::Dump() const {
         InstallPayloadTypeToString(payload.type).c_str());
   }
 
+  string version_str = base::StringPrintf(", version: %s", version.c_str());
+  if (!system_version.empty()) {
+    version_str +=
+        base::StringPrintf(", system_version: %s", system_version.c_str());
+  }
+
   LOG(INFO) << "InstallPlan: " << (is_resume ? "resume" : "new_update")
+            << version_str
             << ", source_slot: " << BootControlInterface::SlotName(source_slot)
             << ", target_slot: " << BootControlInterface::SlotName(target_slot)
             << ", url: " << download_url << payloads_str << partitions_str

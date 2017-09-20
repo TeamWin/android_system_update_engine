@@ -54,6 +54,8 @@ struct InstallPlan {
   bool is_resume{false};
   std::string download_url;  // url to download from
   std::string version;       // version we are installing.
+  // system version, if present and separate from version
+  std::string system_version;
 
   struct Payload {
     uint64_t size = 0;               // size of the payload
