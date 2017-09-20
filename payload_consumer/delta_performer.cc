@@ -45,6 +45,7 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/terminator.h"
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
+#include "update_engine/payload_consumer/cached_file_descriptor.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
@@ -85,6 +86,8 @@ const int kMaxResumedUpdateFailures = 10;
 const int kUbiVolumeAttachTimeout = 5 * 60;
 #endif
 
+const uint64_t kCacheSize = 1024 * 1024;  // 1MB
+
 FileDescriptorPtr CreateFileDescriptor(const char* path) {
   FileDescriptorPtr ret;
 #if USE_MTD
@@ -115,12 +118,20 @@ FileDescriptorPtr CreateFileDescriptor(const char* path) {
 
 // Opens path for read/write. On success returns an open FileDescriptor
 // and sets *err to 0. On failure, sets *err to errno and returns nullptr.
-FileDescriptorPtr OpenFile(const char* path, int mode, int* err) {
+FileDescriptorPtr OpenFile(const char* path,
+                           int mode,
+                           bool cache_writes,
+                           int* err) {
   // Try to mark the block device read-only based on the mode. Ignore any
   // failure since this won't work when passing regular files.
-  utils::SetBlockDeviceReadOnly(path, (mode & O_ACCMODE) == O_RDONLY);
+  bool read_only = (mode & O_ACCMODE) == O_RDONLY;
+  utils::SetBlockDeviceReadOnly(path, read_only);
 
   FileDescriptorPtr fd = CreateFileDescriptor(path);
+  if (cache_writes && !read_only) {
+    fd = FileDescriptorPtr(new CachedFileDescriptor(fd, kCacheSize));
+    LOG(INFO) << "Caching writes.";
+  }
 #if USE_MTD
   // On NAND devices, we can either read, or write, but not both. So here we
   // use O_WRONLY.
@@ -345,7 +356,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
       GetMinorVersion() != kInPlaceMinorPayloadVersion) {
     source_path_ = install_plan_->partitions[current_partition_].source_path;
     int err;
-    source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, &err);
+    source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, false, &err);
     if (!source_fd_) {
       LOG(ERROR) << "Unable to open source partition "
                  << partition.partition_name() << " on slot "
@@ -365,7 +376,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
   LOG(INFO) << "Opening " << target_path_ << " partition with"
             << (is_interactive_ ? "out" : "") << " O_DSYNC";
 
-  target_fd_ = OpenFile(target_path_.c_str(), flags, &err);
+  target_fd_ = OpenFile(target_path_.c_str(), flags, true, &err);
   if (!target_fd_) {
     LOG(ERROR) << "Unable to open target partition "
                << partition.partition_name() << " on slot "
