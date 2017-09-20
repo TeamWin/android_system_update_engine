@@ -43,6 +43,7 @@ using brillo::ErrorPtr;
 using brillo::string_utils::ToString;
 using std::set;
 using std::string;
+using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_engine {
 
@@ -116,16 +117,8 @@ bool UpdateEngineService::ResetStatus(ErrorPtr* error) {
 }
 
 bool UpdateEngineService::GetStatus(ErrorPtr* error,
-                                    int64_t* out_last_checked_time,
-                                    double* out_progress,
-                                    string* out_current_operation,
-                                    string* out_new_version,
-                                    int64_t* out_new_size) {
-  if (!system_state_->update_attempter()->GetStatus(out_last_checked_time,
-                                                    out_progress,
-                                                    out_current_operation,
-                                                    out_new_version,
-                                                    out_new_size)) {
+                                    UpdateEngineStatus* out_status) {
+  if (!system_state_->update_attempter()->GetStatus(out_status)) {
     LogAndSetError(error, FROM_HERE, "GetStatus failed.");
     return false;
   }

@@ -143,18 +143,18 @@ bool BinderUpdateEngineClient::ResetStatus() {
 }
 
 Status BinderUpdateEngineClient::StatusUpdateCallback::HandleStatusUpdate(
-    int64_t last_checked_time,
-    double progress,
-    const String16& current_operation,
-    const String16& new_version,
-    int64_t new_size) {
+    const ParcelableUpdateEngineStatus& status) {
   UpdateStatus update_status;
 
-  StringToUpdateStatus(String8{current_operation}.string(), &update_status);
+  StringToUpdateStatus(String8{status.current_operation_}.string(),
+                       &update_status);
 
   for (auto& handler : client_->handlers_) {
-    handler->HandleStatusUpdate(last_checked_time, progress, update_status,
-                                String8{new_version}.string(), new_size);
+    handler->HandleStatusUpdate(status.last_checked_time_,
+                                status.progress_,
+                                update_status,
+                                String8{status.new_version_}.string(),
+                                status.new_size_);
   }
 
   return Status::ok();
