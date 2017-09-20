@@ -1211,6 +1211,74 @@ bool DeltaPerformer::CalculateAndValidateSourceHash(
   return true;
 }
 
+namespace {
+
+class BsdiffExtentFile : public bsdiff::FileInterface {
+ public:
+  BsdiffExtentFile(std::unique_ptr<ExtentReader> reader, size_t size)
+      : BsdiffExtentFile(std::move(reader), nullptr, size) {}
+  BsdiffExtentFile(std::unique_ptr<ExtentWriter> writer, size_t size)
+      : BsdiffExtentFile(nullptr, std::move(writer), size) {}
+
+  ~BsdiffExtentFile() override = default;
+
+  bool Read(void* buf, size_t count, size_t* bytes_read) override {
+    TEST_AND_RETURN_FALSE(reader_->Read(buf, count));
+    *bytes_read = count;
+    offset_ += count;
+    return true;
+  }
+
+  bool Write(const void* buf, size_t count, size_t* bytes_written) override {
+    TEST_AND_RETURN_FALSE(writer_->Write(buf, count));
+    *bytes_written = count;
+    offset_ += count;
+    return true;
+  }
+
+  bool Seek(off_t pos) override {
+    if (reader_ != nullptr) {
+      TEST_AND_RETURN_FALSE(reader_->Seek(pos));
+      offset_ = pos;
+    } else {
+      // For writes technically there should be no change of position, or it
+      // should be equivalent of current offset.
+      TEST_AND_RETURN_FALSE(offset_ == static_cast<uint64_t>(pos));
+    }
+    return true;
+  }
+
+  bool Close() override {
+    if (writer_ != nullptr) {
+      TEST_AND_RETURN_FALSE(writer_->End());
+    }
+    return true;
+  }
+
+  bool GetSize(uint64_t* size) override {
+    *size = size_;
+    return true;
+  }
+
+ private:
+  BsdiffExtentFile(std::unique_ptr<ExtentReader> reader,
+                   std::unique_ptr<ExtentWriter> writer,
+                   size_t size)
+      : reader_(std::move(reader)),
+        writer_(std::move(writer)),
+        size_(size),
+        offset_(0) {}
+
+  std::unique_ptr<ExtentReader> reader_;
+  std::unique_ptr<ExtentWriter> writer_;
+  uint64_t size_;
+  uint64_t offset_;
+
+  DISALLOW_COPY_AND_ASSIGN(BsdiffExtentFile);
+};
+
+}  // namespace
+
 bool DeltaPerformer::PerformSourceBsdiffOperation(
     const InstallOperation& operation, ErrorCode* error) {
   // Since we delete data off the beginning of the buffer as we use it,
@@ -1226,25 +1294,24 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
     TEST_AND_RETURN_FALSE(CalculateAndValidateSourceHash(operation, error));
   }
 
-  string input_positions;
-  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(
-      operation.src_extents(),
-      block_size_,
-      utils::BlocksInExtents(operation.src_extents()) * block_size_,
-      &input_positions));
-  string output_positions;
-  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(
-      operation.dst_extents(),
-      block_size_,
-      utils::BlocksInExtents(operation.dst_extents()) * block_size_,
-      &output_positions));
+  auto reader = std::make_unique<DirectExtentReader>();
+  TEST_AND_RETURN_FALSE(
+      reader->Init(source_fd_, operation.src_extents(), block_size_));
+  auto src_file = std::make_unique<BsdiffExtentFile>(
+      std::move(reader),
+      utils::BlocksInExtents(operation.src_extents()) * block_size_);
 
-  TEST_AND_RETURN_FALSE(bsdiff::bspatch(source_path_.c_str(),
-                                        target_path_.c_str(),
+  auto writer = std::make_unique<DirectExtentWriter>();
+  TEST_AND_RETURN_FALSE(
+      writer->Init(target_fd_, operation.dst_extents(), block_size_));
+  auto dst_file = std::make_unique<BsdiffExtentFile>(
+      std::move(writer),
+      utils::BlocksInExtents(operation.dst_extents()) * block_size_);
+
+  TEST_AND_RETURN_FALSE(bsdiff::bspatch(std::move(src_file),
+                                        std::move(dst_file),
                                         buffer_.data(),
-                                        buffer_.size(),
-                                        input_positions.c_str(),
-                                        output_positions.c_str()) == 0);
+                                        buffer_.size()) == 0);
   DiscardBuffer(true, buffer_.size());
   return true;
 }
