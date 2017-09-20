@@ -42,7 +42,7 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/connection_manager_interface.h"
-#include "update_engine/metrics.h"
+#include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/metrics_utils.h"
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/p2p_manager.h"
@@ -1521,12 +1521,9 @@ bool OmahaRequestAction::PersistInstallDate(
   if (!prefs->SetInt64(kPrefsInstallDateDays, install_date_days))
     return false;
 
-  string metric_name = metrics::kMetricInstallDateProvisioningSource;
-  system_state->metrics_lib()->SendEnumToUMA(
-      metric_name,
+  system_state->metrics_reporter()->ReportInstallDateProvisioningSource(
       static_cast<int>(source),  // Sample.
       kProvisionedMax);          // Maximum.
-
   return true;
 }
 
@@ -1612,8 +1609,8 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
     break;
   }
 
-  metrics::ReportUpdateCheckMetrics(system_state_,
-                                    result, reaction, download_error_code);
+  system_state_->metrics_reporter()->ReportUpdateCheckMetrics(
+      system_state_, result, reaction, download_error_code);
 }
 
 bool OmahaRequestAction::ShouldIgnoreUpdate(
