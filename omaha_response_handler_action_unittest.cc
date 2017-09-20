@@ -456,4 +456,28 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   EXPECT_TRUE(install_plan.hash_checks_mandatory);
 }
 
+TEST_F(OmahaResponseHandlerActionTest, SystemVersionTest) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "a.b.c.d";
+  in.system_version = "b.c.d.e";
+  in.packages.push_back({.payload_urls = {"http://package/1"},
+                         .size = 1,
+                         .hash = kPayloadHashHex});
+  in.packages.push_back({.payload_urls = {"http://package/2"},
+                         .size = 2,
+                         .hash = kPayloadHashHex});
+  in.more_info_url = "http://more/info";
+  InstallPlan install_plan;
+  EXPECT_TRUE(DoTest(in, "", &install_plan));
+  EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
+  EXPECT_EQ(2u, install_plan.payloads.size());
+  EXPECT_EQ(in.packages[0].size, install_plan.payloads[0].size);
+  EXPECT_EQ(in.packages[1].size, install_plan.payloads[1].size);
+  EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+  EXPECT_EQ(expected_hash_, install_plan.payloads[1].hash);
+  EXPECT_EQ(in.version, install_plan.version);
+  EXPECT_EQ(in.system_version, install_plan.system_version);
+}
+
 }  // namespace chromeos_update_engine

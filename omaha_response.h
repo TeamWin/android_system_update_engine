@@ -37,6 +37,7 @@ struct OmahaResponse {
 
   // These are only valid if update_exists is true:
   std::string version;
+  std::string system_version;
 
   struct Package {
     // The ordered list of URLs in the Omaha response. Each item is a complete
