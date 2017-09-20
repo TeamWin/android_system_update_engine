@@ -111,6 +111,9 @@ class OmahaRequestParams {
     return image_props_.canary_product_id;
   }
   inline std::string system_app_id() const { return image_props_.system_id; }
+  inline void set_system_app_id(const std::string& system_app_id) {
+    image_props_.system_id = system_app_id;
+  }
   inline void set_app_id(const std::string& app_id) {
     image_props_.product_id = app_id;
     image_props_.canary_product_id = app_id;
