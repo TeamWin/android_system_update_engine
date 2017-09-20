@@ -144,8 +144,9 @@ struct FakeUpdateResponse {
            (disable_p2p_for_sharing ? "DisableP2PForSharing=\"true\" " : "") +
            "/></actions></manifest></updatecheck></app>" +
            (multi_app
-                ? "<app appid=\"" + app_id2 +
-                      "\"><updatecheck status=\"ok\"><urls><url codebase=\"" +
+                ? "<app appid=\"" + app_id2 + "\"" +
+                      (include_cohorts ? " cohort=\"cohort2\"" : "") +
+                      "><updatecheck status=\"ok\"><urls><url codebase=\"" +
                       codebase2 + "\"/></urls><manifest version=\"" + version2 +
                       "\"><packages>"
                       "<package name=\"package3\" size=\"333\" "
@@ -1167,6 +1168,37 @@ TEST_F(OmahaRequestActionTest, CohortsArePersistedWhenNoUpdate) {
                               ErrorCode::kSuccess,
                               metrics::CheckResult::kNoUpdateAvailable,
                               metrics::CheckReaction::kUnset,
+                              metrics::DownloadErrorCode::kUnset,
+                              &response,
+                              nullptr));
+
+  string value;
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohort, &value));
+  EXPECT_EQ(fake_update_response_.cohort, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortHint, &value));
+  EXPECT_EQ(fake_update_response_.cohorthint, value);
+
+  EXPECT_TRUE(fake_prefs_.GetString(kPrefsOmahaCohortName, &value));
+  EXPECT_EQ(fake_update_response_.cohortname, value);
+}
+
+TEST_F(OmahaRequestActionTest, MultiAppCohortTest) {
+  OmahaResponse response;
+  OmahaRequestParams params = request_params_;
+  fake_update_response_.multi_app = true;
+  fake_update_response_.include_cohorts = true;
+  fake_update_response_.cohort = "s/154454/8479665";
+  fake_update_response_.cohorthint = "please-put-me-on-beta";
+  fake_update_response_.cohortname = "stable";
+
+  ASSERT_TRUE(TestUpdateCheck(&params,
+                              fake_update_response_.GetUpdateResponse(),
+                              -1,
+                              false,  // ping_only
+                              ErrorCode::kSuccess,
+                              metrics::CheckResult::kUpdateAvailable,
+                              metrics::CheckReaction::kUpdating,
                               metrics::DownloadErrorCode::kUnset,
                               &response,
                               nullptr));
