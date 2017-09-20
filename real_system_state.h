@@ -22,7 +22,6 @@
 #include <memory>
 #include <set>
 
-#include <metrics/metrics_library.h>
 #include <policy/device_policy.h>
 
 #if USE_CHROME_KIOSK_APP
@@ -39,6 +38,8 @@
 #include "update_engine/common/prefs.h"
 #include "update_engine/connection_manager_interface.h"
 #include "update_engine/daemon_state_interface.h"
+#include "update_engine/metrics_reporter_interface.h"
+#include "update_engine/metrics_reporter_omaha.h"
 #include "update_engine/p2p_manager.h"
 #include "update_engine/payload_state.h"
 #include "update_engine/power_manager_interface.h"
@@ -94,8 +95,8 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 
   inline HardwareInterface* hardware() override { return hardware_.get(); }
 
-  inline MetricsLibraryInterface* metrics_lib() override {
-    return &metrics_lib_;
+  inline MetricsReporterInterface* metrics_reporter() override {
+    return &metrics_reporter_;
   }
 
   inline PrefsInterface* prefs() override { return prefs_.get(); }
@@ -157,8 +158,8 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
   // Interface for the hardware functions.
   std::unique_ptr<HardwareInterface> hardware_;
 
-  // The Metrics Library interface for reporting UMA stats.
-  MetricsLibrary metrics_lib_;
+  // The Metrics reporter for reporting UMA stats.
+  MetricsReporterOmaha metrics_reporter_;
 
   // Interface for persisted store.
   std::unique_ptr<PrefsInterface> prefs_;
