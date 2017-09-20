@@ -173,6 +173,7 @@ void DownloadAction::PerformAction() {
   install_plan_.Dump();
 
   bytes_received_ = 0;
+  bytes_received_previous_payloads_ = 0;
   bytes_total_ = 0;
   for (const auto& payload : install_plan_.payloads)
     bytes_total_ += payload.size;
@@ -317,8 +318,10 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
   }
 
   bytes_received_ += length;
+  uint64_t bytes_downloaded_total =
+      bytes_received_previous_payloads_ + bytes_received_;
   if (delegate_ && download_active_) {
-    delegate_->BytesReceived(length, bytes_received_, bytes_total_);
+    delegate_->BytesReceived(length, bytes_downloaded_total, bytes_total_);
   }
   if (writer_ && !writer_->Write(bytes, length, &code_)) {
     if (code_ != ErrorCode::kSuccess) {
@@ -349,13 +352,16 @@ void DownloadAction::ReceivedBytes(HttpFetcher* fetcher,
 void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
   if (writer_) {
     LOG_IF(WARNING, writer_->Close() != 0) << "Error closing the writer.";
-    writer_ = nullptr;
+    if (delta_performer_.get() == writer_) {
+      // no delta_performer_ in tests, so leave the test writer in place
+      writer_ = nullptr;
+    }
   }
   download_active_ = false;
   ErrorCode code =
       successful ? ErrorCode::kSuccess : ErrorCode::kDownloadTransferError;
-  if (code == ErrorCode::kSuccess && delta_performer_.get()) {
-    if (!payload_->already_applied)
+  if (code == ErrorCode::kSuccess) {
+    if (delta_performer_ && !payload_->already_applied)
       code = delta_performer_->VerifyPayload(payload_->hash, payload_->size);
     if (code != ErrorCode::kSuccess) {
       LOG(ERROR) << "Download of " << install_plan_.download_url
@@ -365,10 +371,12 @@ void DownloadAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
         CloseP2PSharingFd(true);
     } else if (payload_ < &install_plan_.payloads.back() &&
                system_state_->payload_state()->NextPayload()) {
+      LOG(INFO) << "Incrementing to next payload";
       // No need to reset if this payload was already applied.
-      if (!payload_->already_applied)
+      if (delta_performer_ && !payload_->already_applied)
         DeltaPerformer::ResetUpdateProgress(prefs_, false);
       // Start downloading next payload.
+      bytes_received_previous_payloads_ += payload_->size;
       payload_++;
       install_plan_.download_url =
           system_state_->payload_state()->GetCurrentUrl();
