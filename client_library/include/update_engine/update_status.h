@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_CLIENT_LIBRARY_INCLUDE_UPDATE_ENGINE_UPDATE_STATUS_H_
 #define UPDATE_ENGINE_CLIENT_LIBRARY_INCLUDE_UPDATE_ENGINE_UPDATE_STATUS_H_
 
+#include <string>
+
 namespace update_engine {
 
 enum class UpdateStatus {
@@ -30,6 +32,25 @@ enum class UpdateStatus {
   REPORTING_ERROR_EVENT,
   ATTEMPTING_ROLLBACK,
   DISABLED,
+};
+
+struct UpdateEngineStatus {
+  // When the update_engine last checked for updates (ms since Epoch)
+  int64_t last_checked_time_ms;
+  // the current status/operation of the update_engine
+  UpdateStatus status;
+  // the current product version (oem bundle id)
+  std::string current_version;
+  // the current system version
+  std::string current_system_version;
+  // The current progress (0.0f-1.0f).
+  double progress;
+  // the size of the update (bytes)
+  uint64_t new_size_bytes;
+  // the new product version
+  std::string new_version;
+  // the new system version, if there is one (empty, otherwise)
+  std::string new_system_version;
 };
 
 }  // namespace update_engine

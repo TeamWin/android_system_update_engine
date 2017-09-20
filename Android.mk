@@ -955,6 +955,7 @@ LOCAL_SRC_FILES += \
     p2p_manager_unittest.cc \
     payload_consumer/download_action_unittest.cc \
     payload_state_unittest.cc \
+    parcelable_update_engine_status_unittest.cc \
     update_attempter_unittest.cc \
     update_manager/boxed_value_unittest.cc \
     update_manager/chromeos_policy_unittest.cc \
