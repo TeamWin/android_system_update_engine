@@ -67,6 +67,7 @@ using org::chromium::NetworkProxyServiceInterfaceProxyMock;
 using std::string;
 using std::unique_ptr;
 using testing::DoAll;
+using testing::Field;
 using testing::InSequence;
 using testing::Ne;
 using testing::NiceMock;
@@ -76,6 +77,7 @@ using testing::ReturnPointee;
 using testing::SaveArg;
 using testing::SetArgumentPointee;
 using testing::_;
+using update_engine::UpdateEngineStatus;
 using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
@@ -137,7 +139,7 @@ class UpdateAttempterTest : public ::testing::Test {
     EXPECT_EQ(0.0, attempter_.download_progress_);
     EXPECT_EQ(0, attempter_.last_checked_time_);
     EXPECT_EQ("0.0.0.0", attempter_.new_version_);
-    EXPECT_EQ(0, attempter_.new_payload_size_);
+    EXPECT_EQ(0ULL, attempter_.new_payload_size_);
     processor_ = new NiceMock<MockActionProcessor>();
     attempter_.processor_.reset(processor_);  // Transfers ownership.
     prefs_ = fake_system_state_.mock_prefs();
@@ -253,11 +255,15 @@ TEST_F(UpdateAttempterTest, DownloadProgressAccumulationTest) {
   attempter_.new_payload_size_ = bytes_total;
   NiceMock<MockServiceObserver> observer;
   EXPECT_CALL(observer,
-              SendStatusUpdate(
-                  _, progress_1, UpdateStatus::DOWNLOADING, _, bytes_total));
+              SendStatusUpdate(AllOf(
+                  Field(&UpdateEngineStatus::progress, progress_1),
+                  Field(&UpdateEngineStatus::status, UpdateStatus::DOWNLOADING),
+                  Field(&UpdateEngineStatus::new_size_bytes, bytes_total))));
   EXPECT_CALL(observer,
-              SendStatusUpdate(
-                  _, progress_2, UpdateStatus::DOWNLOADING, _, bytes_total));
+              SendStatusUpdate(AllOf(
+                  Field(&UpdateEngineStatus::progress, progress_2),
+                  Field(&UpdateEngineStatus::status, UpdateStatus::DOWNLOADING),
+                  Field(&UpdateEngineStatus::new_size_bytes, bytes_total))));
   attempter_.AddObserver(&observer);
   attempter_.BytesReceived(bytes_progressed_1, bytes_received_1, bytes_total);
   EXPECT_EQ(progress_1, attempter_.download_progress_);
@@ -280,9 +286,10 @@ TEST_F(UpdateAttempterTest, ChangeToDownloadingOnReceivedBytesTest) {
   attempter_.new_payload_size_ = bytes_total;
   EXPECT_EQ(0.0, attempter_.download_progress_);
   NiceMock<MockServiceObserver> observer;
-  EXPECT_CALL(
-      observer,
-      SendStatusUpdate(_, _, UpdateStatus::DOWNLOADING, _, bytes_total));
+  EXPECT_CALL(observer,
+              SendStatusUpdate(AllOf(
+                  Field(&UpdateEngineStatus::status, UpdateStatus::DOWNLOADING),
+                  Field(&UpdateEngineStatus::new_size_bytes, bytes_total))));
   attempter_.AddObserver(&observer);
   attempter_.BytesReceived(bytes_progressed, bytes_received, bytes_total);
   EXPECT_EQ(UpdateStatus::DOWNLOADING, attempter_.status_);
@@ -299,9 +306,11 @@ TEST_F(UpdateAttempterTest, BroadcastCompleteDownloadTest) {
   attempter_.new_payload_size_ = bytes_total;
   EXPECT_EQ(0.0, attempter_.download_progress_);
   NiceMock<MockServiceObserver> observer;
-  EXPECT_CALL(
-      observer,
-      SendStatusUpdate(_, 1.0, UpdateStatus::DOWNLOADING, _, bytes_total));
+  EXPECT_CALL(observer,
+              SendStatusUpdate(AllOf(
+                  Field(&UpdateEngineStatus::progress, 1.0),
+                  Field(&UpdateEngineStatus::status, UpdateStatus::DOWNLOADING),
+                  Field(&UpdateEngineStatus::new_size_bytes, bytes_total))));
   attempter_.AddObserver(&observer);
   attempter_.BytesReceived(bytes_progressed, bytes_received, bytes_total);
   EXPECT_EQ(1.0, attempter_.download_progress_);

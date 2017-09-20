@@ -79,7 +79,7 @@ class UpdaterProvider : public Provider {
 
   // A variable returning the update payload size. The payload size is
   // guaranteed to be non-negative.
-  virtual Variable<int64_t>* var_payload_size() = 0;
+  virtual Variable<uint64_t>* var_payload_size() = 0;
 
   // A variable returning the current channel.
   virtual Variable<std::string>* var_curr_channel() = 0;
