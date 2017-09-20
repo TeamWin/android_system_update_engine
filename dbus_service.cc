@@ -25,6 +25,7 @@ namespace chromeos_update_engine {
 using brillo::ErrorPtr;
 using chromeos_update_engine::UpdateEngineService;
 using std::string;
+using update_engine::UpdateEngineStatus;
 
 DBusUpdateEngineService::DBusUpdateEngineService(SystemState* system_state)
     : common_(new UpdateEngineService{system_state}) {
@@ -172,14 +173,13 @@ bool UpdateEngineAdaptor::RequestOwnership() {
                                         dbus::Bus::REQUIRE_PRIMARY);
 }
 
-void UpdateEngineAdaptor::SendStatusUpdate(int64_t last_checked_time,
-                                           double progress,
-                                           update_engine::UpdateStatus status,
-                                           const string& new_version,
-                                           int64_t new_size) {
-  const string str_status = UpdateStatusToString(status);
-  SendStatusUpdateSignal(
-      last_checked_time, progress, str_status, new_version, new_size);
+void UpdateEngineAdaptor::SendStatusUpdate(
+    const UpdateEngineStatus& update_engine_status) {
+  SendStatusUpdateSignal(update_engine_status.last_checked_time,
+                         update_engine_status.progress,
+                         UpdateStatusToString(update_engine_status.status),
+                         update_engine_status.new_version,
+                         update_engine_status.new_size);
 }
 
 }  // namespace chromeos_update_engine

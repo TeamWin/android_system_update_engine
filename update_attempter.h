@@ -114,12 +114,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // for testing purposes.
   virtual bool ResetStatus();
 
-  // Returns the current status in the out params. Returns true on success.
-  virtual bool GetStatus(int64_t* last_checked_time,
-                         double* progress,
-                         std::string* current_operation,
-                         std::string* new_version,
-                         int64_t* new_size);
+  // Returns the current status in the out param. Returns true on success.
+  virtual bool GetStatus(update_engine::UpdateEngineStatus* out_status);
 
   // Runs chromeos-setgoodkernel, whose responsibility it is to mark the
   // currently booted partition has high priority/permanent/etc. The execution
@@ -441,7 +437,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   int64_t last_checked_time_ = 0;
   std::string prev_version_;
   std::string new_version_ = "0.0.0.0";
-  int64_t new_payload_size_ = 0;
+  std::string new_system_version_;
+  uint64_t new_payload_size_ = 0;
 
   // Common parameters for all Omaha requests.
   OmahaRequestParams* omaha_request_params_ = nullptr;

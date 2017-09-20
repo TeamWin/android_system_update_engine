@@ -69,6 +69,7 @@ void OmahaResponseHandlerAction::PerformAction() {
     return;
   }
 
+  // This is the url to the first package, not all packages.
   install_plan_.download_url = current_url;
   install_plan_.version = response.version;
   install_plan_.system_version = response.system_version;

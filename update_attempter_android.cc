@@ -50,6 +50,7 @@ using base::TimeTicks;
 using std::shared_ptr;
 using std::string;
 using std::vector;
+using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_engine {
 
@@ -432,9 +433,12 @@ void UpdateAttempterAndroid::SetStatusAndNotify(UpdateStatus status) {
   status_ = status;
   size_t payload_size =
       install_plan_.payloads.empty() ? 0 : install_plan_.payloads[0].size;
+  UpdateEngineStatus status_to_send = {.status = status_,
+                                       .progress = download_progress_,
+                                       .new_size_bytes = payload_size};
+
   for (auto observer : daemon_state_->service_observers()) {
-    observer->SendStatusUpdate(
-        0, download_progress_, status_, "", payload_size);
+    observer->SendStatusUpdate(status_to_send);
   }
   last_notify_time_ = TimeTicks::Now();
 }

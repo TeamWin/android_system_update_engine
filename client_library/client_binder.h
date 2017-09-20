@@ -94,11 +94,7 @@ class BinderUpdateEngineClient : public UpdateEngineClient {
         : client_(client) {}
 
     android::binder::Status HandleStatusUpdate(
-        int64_t last_checked_time,
-        double progress,
-        const android::String16& current_operation,
-        const android::String16& new_version,
-        int64_t new_size) override;
+        const android::brillo::ParcelableUpdateEngineStatus& status) override;
 
    private:
     BinderUpdateEngineClient* client_;
