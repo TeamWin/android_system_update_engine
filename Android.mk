@@ -1007,6 +1007,7 @@ LOCAL_IS_HOST_MODULE := true
 LOCAL_MODULE_TAGS := optional
 LOCAL_REQUIRED_MODULES := \
     delta_generator \
-    shflags
+    shflags \
+    simg2img
 include $(BUILD_PREBUILT)
 endif  # HOST_OS == linux
