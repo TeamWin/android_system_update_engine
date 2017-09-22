@@ -418,9 +418,9 @@ TEST_F(UmChromeOSPolicyTest,
 }
 
 TEST_F(UmChromeOSPolicyTest,
-       UpdateCheckAllowedUpdatesDisabledForRemovableBootDevice) {
+       UpdateCheckAllowedUpdatesDisabledWhenNotEnoughSlotsAbUpdates) {
   // UpdateCheckAllowed should return false (kSucceeded) if the image booted
-  // from a removable device.
+  // without enough slots to do A/B updates.
 
   fake_state_.system_provider()->var_num_slots()->reset(new unsigned int(1));
 
