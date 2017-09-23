@@ -27,7 +27,7 @@
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/mock_prefs.h"
 #include "update_engine/mock_connection_manager.h"
-#include "update_engine/mock_metrics.h"
+#include "update_engine/mock_metrics_reporter.h"
 #include "update_engine/mock_omaha_request_params.h"
 #include "update_engine/mock_p2p_manager.h"
 #include "update_engine/mock_payload_state.h"
