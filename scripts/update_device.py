@@ -25,6 +25,7 @@ import socket
 import subprocess
 import sys
 import threading
+import xml.etree.ElementTree
 import zipfile
 
 import update_payload.payload
@@ -184,6 +185,18 @@ class UpdateHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.send_error(404, 'File not found')
       return
 
+    content_length = int(self.headers.getheader('Content-Length'))
+    request_xml = self.rfile.read(content_length)
+    xml_root = xml.etree.ElementTree.fromstring(request_xml)
+    appid = None
+    for app in xml_root.iter('app'):
+      if 'appid' in app.attrib:
+        appid = app.attrib['appid']
+        break
+    if not appid:
+      self.send_error(400, 'No appid in Omaha request')
+      return
+
     self.send_response(200)
     self.send_header("Content-type", "text/xml")
     self.end_headers()
@@ -194,28 +207,30 @@ class UpdateHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     payload = update_payload.Payload(f)
     payload.Init()
 
-    xml = '''
+    response_xml = '''
         <?xml version="1.0" encoding="UTF-8"?>
         <response protocol="3.0">
-          <app appid="appid">
+          <app appid="{appid}">
             <updatecheck status="ok">
               <urls>
-                <url codebase="http://127.0.0.1:%d/"/>
+                <url codebase="http://127.0.0.1:{port}/"/>
               </urls>
               <manifest version="0.0.0.1">
                 <actions>
                   <action event="install" run="payload"/>
-                  <action event="postinstall" MetadataSize="%d"/>
+                  <action event="postinstall" MetadataSize="{metadata_size}"/>
                 </actions>
                 <packages>
-                  <package hash_sha256="%s" name="payload" size="%d"/>
+                  <package hash_sha256="{payload_hash}" name="payload" size="{payload_size}"/>
                 </packages>
               </manifest>
             </updatecheck>
           </app>
         </response>
-    ''' % (DEVICE_PORT, payload.metadata_size, payload_hash, stat.st_size)
-    self.wfile.write(xml.strip())
+    '''.format(appid=appid, port=DEVICE_PORT,
+               metadata_size=payload.metadata_size, payload_hash=payload_hash,
+               payload_size=stat.st_size)
+    self.wfile.write(response_xml.strip())
     return
 
 
