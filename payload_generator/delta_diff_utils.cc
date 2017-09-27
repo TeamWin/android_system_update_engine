@@ -41,6 +41,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/block_mapping.h"
 #include "update_engine/payload_generator/bzip.h"
+#include "update_engine/payload_generator/deflate_utils.h"
 #include "update_engine/payload_generator/delta_diff_generator.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 #include "update_engine/payload_generator/extent_utils.h"
@@ -189,14 +190,16 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
   map<string, vector<Extent>> old_files_map;
   if (old_part.fs_interface) {
     vector<FilesystemInterface::File> old_files;
-    old_part.fs_interface->GetFiles(&old_files);
+    TEST_AND_RETURN_FALSE(
+        deflate_utils::PreprocessParitionFiles(old_part, &old_files));
     for (const FilesystemInterface::File& file : old_files)
       old_files_map[file.name] = file.extents;
   }
 
   TEST_AND_RETURN_FALSE(new_part.fs_interface);
   vector<FilesystemInterface::File> new_files;
-  new_part.fs_interface->GetFiles(&new_files);
+  TEST_AND_RETURN_FALSE(
+      deflate_utils::PreprocessParitionFiles(new_part, &new_files));
 
   // The processing is very straightforward here, we generate operations for
   // every file (and pseudo-file such as the metadata) in the new filesystem
