@@ -38,6 +38,7 @@ using std::string;
 namespace chromeos_update_engine {
 namespace {
 
+#ifndef __ANDROID__
 void SetupLogSymlink(const string& symlink_path, const string& log_path) {
   // TODO(petkov): To ensure a smooth transition between non-timestamped and
   // timestamped logs, move an existing log to start the first timestamped
@@ -75,23 +76,27 @@ string SetupLogFile(const string& kLogsRoot) {
   SetupLogSymlink(kLogSymlink, kLogPath);
   return kLogSymlink;
 }
+#endif  // __ANDROID__
 
-void SetupLogging(bool log_to_std_err) {
-  string log_file;
+void SetupLogging(bool log_to_system, bool log_to_file) {
   logging::LoggingSettings log_settings;
   log_settings.lock_log = logging::DONT_LOCK_LOG_FILE;
-  log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
+  log_settings.logging_dest = static_cast<logging::LoggingDestination>(
+      (log_to_system ? logging::LOG_TO_SYSTEM_DEBUG_LOG : 0) |
+      (log_to_file ? logging::LOG_TO_FILE : 0));
+  log_settings.log_file = nullptr;
 
-  if (log_to_std_err) {
-    // Log to stderr initially.
-    log_settings.log_file = nullptr;
-    log_settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
-  } else {
+  string log_file;
+  if (log_to_file) {
+#ifdef __ANDROID__
+    log_file = "/data/misc/update_engine/update_engine.log";
+    log_settings.delete_old = logging::DELETE_OLD_LOG_FILE;
+#else
     log_file = SetupLogFile("/var/log");
+    log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
+#endif  // __ANDROID__
     log_settings.log_file = log_file.c_str();
-    log_settings.logging_dest = logging::LOG_TO_FILE;
   }
-
   logging::InitLogging(log_settings);
 }
 
@@ -99,6 +104,7 @@ void SetupLogging(bool log_to_std_err) {
 }  // namespace chromeos_update_engine
 
 int main(int argc, char** argv) {
+  DEFINE_bool(logtofile, false, "Write logs to a file in log_dir.");
   DEFINE_bool(logtostderr, false,
               "Write logs to stderr instead of to a file in log_dir.");
   DEFINE_bool(foreground, false,
@@ -106,7 +112,15 @@ int main(int argc, char** argv) {
 
   chromeos_update_engine::Terminator::Init();
   brillo::FlagHelper::Init(argc, argv, "Chromium OS Update Engine");
-  chromeos_update_engine::SetupLogging(FLAGS_logtostderr);
+
+  // We have two logging flags "--logtostderr" and "--logtofile"; and the logic
+  // to choose the logging destination is:
+  // 1. --logtostderr --logtofile -> logs to both
+  // 2. --logtostderr             -> logs to system debug
+  // 3. --logtofile or no flags   -> logs to file
+  bool log_to_system = FLAGS_logtostderr;
+  bool log_to_file = FLAGS_logtofile || !FLAGS_logtostderr;
+  chromeos_update_engine::SetupLogging(log_to_system, log_to_file);
   if (!FLAGS_foreground)
     PLOG_IF(FATAL, daemon(0, 0) == 1) << "daemon() failed";
 
