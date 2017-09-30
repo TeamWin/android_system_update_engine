@@ -9,12 +9,12 @@ from __future__ import print_function
 import hashlib
 import struct
 
-import applier
-import block_tracer
-import checker
-import common
-from error import PayloadError
-import update_metadata_pb2
+from update_payload import applier
+from update_payload import block_tracer
+from update_payload import checker
+from update_payload import common
+from update_payload.error import PayloadError
+from update_payload import update_metadata_pb2
 
 
 #
@@ -215,6 +215,7 @@ class Payload(object):
   def Describe(self):
     """Emits the payload embedded description data to standard output."""
     def _DescribeImageInfo(description, image_info):
+      """Display info about the image."""
       def _DisplayIndentedValue(name, value):
         print('  {:<14} {}'.format(name+':', value))
 
