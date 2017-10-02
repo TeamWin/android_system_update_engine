@@ -24,9 +24,9 @@
 #include <base/memory/ptr_util.h>
 #include <base/time/time.h>
 #include <brillo/message_loops/message_loop.h>
-#if USE_CHROME_KIOSK_APP || USE_CHROME_NETWORK_PROXY
+#if USE_CHROME_KIOSK_APP
 #include <chromeos/dbus/service_constants.h>
-#endif  // USE_CHROME_KIOSK_APP || USE_CHROME_NETWORK_PROXY
+#endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
@@ -69,12 +69,6 @@ bool RealSystemState::Initialize() {
   libcros_proxy_.reset(new org::chromium::LibCrosServiceInterfaceProxy(
       DBusConnection::Get()->GetDBus(), chromeos::kLibCrosServiceName));
 #endif  // USE_CHROME_KIOSK_APP
-#if USE_CHROME_NETWORK_PROXY
-  network_proxy_service_proxy_.reset(
-      new org::chromium::NetworkProxyServiceInterfaceProxy(
-          DBusConnection::Get()->GetDBus(),
-          chromeos::kNetworkProxyServiceName));
-#endif  // USE_CHROME_NETWORK_PROXY
 
   LOG_IF(INFO, !hardware_->IsNormalBootMode()) << "Booted in dev mode.";
   LOG_IF(INFO, !hardware_->IsOfficialBuild()) << "Booted non-official build.";
@@ -145,14 +139,8 @@ bool RealSystemState::Initialize() {
       new CertificateChecker(prefs_.get(), &openssl_wrapper_));
   certificate_checker_->Init();
 
-  update_attempter_.reset(
-      new UpdateAttempter(this,
-                          certificate_checker_.get(),
-#if USE_CHROME_NETWORK_PROXY
-                          network_proxy_service_proxy_.get()));
-#else
-                          nullptr));
-#endif  // USE_CHROME_NETWORK_PROXY
+  update_attempter_.reset(new UpdateAttempter(this,
+                                              certificate_checker_.get()));
 
   // Initialize the UpdateAttempter before the UpdateManager.
   update_attempter_->Init();

@@ -117,21 +117,6 @@
         'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
       }],
     },
-    {
-      'target_name': 'update_engine-dbus-chrome_network_proxy-client',
-      'type': 'none',
-      'actions': [{
-        'action_name': 'update_engine-dbus-chrome_network_proxy-client-action',
-        'variables': {
-          'mock_output_file': 'include/network_proxy/dbus-proxy-mocks.h',
-          'proxy_output_file': 'include/network_proxy/dbus-proxies.h',
-        },
-        'sources': [
-          'dbus_bindings/org.chromium.NetworkProxyService.dbus-xml',
-        ],
-        'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
-      }],
-    },
     # The payload application component and common dependencies.
     {
       'target_name': 'libpayload_consumer',
@@ -235,6 +220,7 @@
           'libshill-client',
           'libssl',
           'libupdate_engine-client',
+          'vboot_host',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -256,7 +242,6 @@
           '-lpolicy-<(libbase_ver)',
           '-lrootdev',
           '-lrt',
-          '-lvboot_host',
         ],
       },
       'sources': [
@@ -302,9 +287,6 @@
       ],
       'conditions': [
         ['USE_chrome_network_proxy == 1', {
-          'dependencies': [
-            'update_engine-dbus-chrome_network_proxy-client',
-          ],
           'sources': [
             'chrome_browser_proxy_resolver.cc',
           ],
@@ -582,13 +564,6 @@
             'update_manager/umtest_utils.cc',
             'update_manager/update_manager_unittest.cc',
             'update_manager/variable_unittest.cc',
-          ],
-          'conditions': [
-            ['USE_chrome_network_proxy == 1', {
-              'sources': [
-                'chrome_browser_proxy_resolver_unittest.cc',
-              ],
-            }],
           ],
         },
       ],

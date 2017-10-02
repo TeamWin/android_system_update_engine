@@ -999,10 +999,6 @@ LOCAL_STATIC_LIBRARIES += \
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
 endif  # local_use_omaha == 1
-ifeq ($(local_use_chrome_network_proxy),1)
-LOCAL_SRC_FILES += \
-    chrome_browser_proxy_resolver_unittest.cc
-endif  # local_use_chrome_network_proxy == 1
 include $(BUILD_NATIVE_TEST)
 
 # Update payload signing public key.

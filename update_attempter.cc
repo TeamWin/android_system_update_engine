@@ -122,17 +122,10 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
 
 UpdateAttempter::UpdateAttempter(
     SystemState* system_state,
-    CertificateChecker* cert_checker,
-    org::chromium::NetworkProxyServiceInterfaceProxyInterface*
-        network_proxy_service_proxy)
+    CertificateChecker* cert_checker)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
-#if USE_CHROME_NETWORK_PROXY
-      cert_checker_(cert_checker),
-      chrome_proxy_resolver_(network_proxy_service_proxy) {
-#else
       cert_checker_(cert_checker) {
-#endif  // USE_CHROME_NETWORK_PROXY
 }
 
 UpdateAttempter::~UpdateAttempter() {

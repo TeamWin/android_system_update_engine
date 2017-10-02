@@ -30,10 +30,6 @@
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
 
-#if USE_CHROME_NETWORK_PROXY
-#include "network_proxy/dbus-proxies.h"
-#include "network_proxy/dbus-proxy-mocks.h"
-#endif  // USE_CHROME_NETWORK_PROXY
 #include "update_engine/common/fake_clock.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_action.h"
@@ -52,16 +48,8 @@
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 
-namespace org {
-namespace chromium {
-class NetworkProxyServiceInterfaceProxyMock;
-}  // namespace chromium
-}  // namespace org
-
 using base::Time;
 using base::TimeDelta;
-using org::chromium::NetworkProxyServiceInterfaceProxyInterface;
-using org::chromium::NetworkProxyServiceInterfaceProxyMock;
 using std::string;
 using std::unique_ptr;
 using testing::DoAll;
@@ -83,10 +71,8 @@ namespace chromeos_update_engine {
 // methods.
 class UpdateAttempterUnderTest : public UpdateAttempter {
  public:
-  UpdateAttempterUnderTest(
-      SystemState* system_state,
-      NetworkProxyServiceInterfaceProxyInterface* network_proxy_service_proxy)
-      : UpdateAttempter(system_state, nullptr, network_proxy_service_proxy) {}
+  explicit UpdateAttempterUnderTest(SystemState* system_state)
+      : UpdateAttempter(system_state, nullptr) {}
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
@@ -186,13 +172,7 @@ class UpdateAttempterTest : public ::testing::Test {
   brillo::BaseMessageLoop loop_{&base_loop_};
 
   FakeSystemState fake_system_state_;
-#if USE_CHROME_NETWORK_PROXY
-  NetworkProxyServiceInterfaceProxyMock network_proxy_service_proxy_mock_;
-  UpdateAttempterUnderTest attempter_{&fake_system_state_,
-                                      &network_proxy_service_proxy_mock_};
-#else
-  UpdateAttempterUnderTest attempter_{&fake_system_state_, nullptr};
-#endif  // USE_CHROME_NETWORK_PROXY
+  UpdateAttempterUnderTest attempter_{&fake_system_state_};
   OpenSSLWrapper openssl_wrapper_;
   CertificateChecker certificate_checker_;
 
