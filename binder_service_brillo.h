@@ -51,6 +51,7 @@ class BinderUpdateEngineBrilloService : public android::brillo::BnUpdateEngine,
   void SendPayloadApplicationComplete(ErrorCode error_code) override {}
 
   // android::brillo::BnUpdateEngine overrides.
+  android::binder::Status SetUpdateAttemptFlags(int flags) override;
   android::binder::Status AttemptUpdate(const android::String16& app_version,
                                         const android::String16& omaha_url,
                                         int flags) override;

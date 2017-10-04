@@ -34,6 +34,32 @@ enum class UpdateStatus {
   DISABLED,
 };
 
+// Enum of bit-wise flags for controlling how updates are attempted.
+enum UpdateAttemptFlags : int32_t {
+  kNone = 0,
+  // Treat the update like a non-interactive update, even when being triggered
+  // by the interactive APIs.
+  kFlagNonInteractive = (1 << 0),
+  // Restrict (disallow) downloading of updates.
+  kFlagRestrictDownload = (1 << 1),
+};
+
+// These bit-wise operators for the above flags allow for standard bit-wise
+// operations to return values in an expected manner, with the need to
+// continually cast the results back to UpdateAttemptFlags after the implicit
+// conversion to int from enum to perform the bitwise comparison using the
+// underlying type.
+inline UpdateAttemptFlags operator|(const UpdateAttemptFlags& l,
+                                    const UpdateAttemptFlags& r) {
+  return static_cast<UpdateAttemptFlags>(static_cast<const int32_t&>(l) |
+                                         static_cast<const int32_t&>(r));
+}
+inline UpdateAttemptFlags operator&(const UpdateAttemptFlags& l,
+                                    const UpdateAttemptFlags& r) {
+  return static_cast<UpdateAttemptFlags>(static_cast<const int32_t&>(l) &
+                                         static_cast<const int32_t&>(r));
+}
+
 struct UpdateEngineStatus {
   // When the update_engine last checked for updates (ms since Epoch)
   int64_t last_checked_time_ms;

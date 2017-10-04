@@ -42,6 +42,8 @@ class MockUpdateAttempter : public UpdateAttempter {
 
   MOCK_METHOD0(ResetStatus, bool(void));
 
+  MOCK_METHOD0(GetCurrentUpdateAttemptFlags, UpdateAttemptFlags(void));
+
   MOCK_METHOD3(CheckForUpdate, void(const std::string& app_version,
                                     const std::string& omaha_url,
                                     bool is_interactive));

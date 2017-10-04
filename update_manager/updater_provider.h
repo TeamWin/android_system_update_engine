@@ -44,6 +44,12 @@ enum class UpdateRequestStatus {
   kPeriodic,
 };
 
+// These enum values are a bit-field.
+enum UpdateRestrictions : int {
+  kNone,
+  kRestrictDownloading = (1 << 0),
+};
+
 // Provider for Chrome OS update related information.
 class UpdaterProvider : public Provider {
  public:
@@ -104,6 +110,10 @@ class UpdaterProvider : public Provider {
   // performed yet; also tells whether this request is for an interactive or
   // scheduled update.
   virtual Variable<UpdateRequestStatus>* var_forced_update_requested() = 0;
+
+  // A variable that returns the update restriction flags that are set
+  // for all updates.
+  virtual Variable<UpdateRestrictions>* var_update_restrictions() = 0;
 
  protected:
   UpdaterProvider() {}

@@ -78,6 +78,7 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
+using update_engine::UpdateAttemptFlags;
 using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_engine {
@@ -859,6 +860,12 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
               << (params.is_interactive ? "interactive" : "periodic")
               << " update.";
 
+    // Cache the update attempt flags that will be used by this update attempt
+    // so that they can't be changed mid-way through.
+    current_update_attempt_flags_ = update_attempt_flags_;
+    LOG(INFO) << "Update attempt flags in use = 0x" << std::hex
+              << current_update_attempt_flags_;
+
     Update(forced_app_version_, forced_omaha_url_, params.target_channel,
            params.target_version_prefix, false, params.is_interactive);
     // Always clear the forced app_version and omaha_url after an update attempt
@@ -891,6 +898,9 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
+
+  // reset the state that's only valid for a single update pass
+  current_update_attempt_flags_ = UpdateAttemptFlags::kNone;
 
   if (status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     LOG(INFO) << "Error event sent.";
