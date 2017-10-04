@@ -96,6 +96,10 @@ class RealUpdaterProvider : public UpdaterProvider {
     return var_forced_update_requested_.get();
   }
 
+  Variable<UpdateRestrictions>* var_update_restrictions() override {
+    return var_update_restrictions_.get();
+  }
+
  private:
   // A pointer to the update engine's system state aggregator.
   chromeos_update_engine::SystemState* system_state_;
@@ -115,6 +119,7 @@ class RealUpdaterProvider : public UpdaterProvider {
   std::unique_ptr<Variable<unsigned int>> var_consecutive_failed_update_checks_;
   std::unique_ptr<Variable<unsigned int>> var_server_dictated_poll_interval_;
   std::unique_ptr<Variable<UpdateRequestStatus>> var_forced_update_requested_;
+  std::unique_ptr<Variable<UpdateRestrictions>> var_update_restrictions_;
 
   DISALLOW_COPY_AND_ASSIGN(RealUpdaterProvider);
 };

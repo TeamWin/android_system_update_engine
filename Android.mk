@@ -306,6 +306,7 @@ LOCAL_SRC_FILES := \
     real_system_state.cc \
     update_attempter.cc \
     update_manager/android_things_policy.cc \
+    update_manager/api_restricted_downloads_policy_impl.cc \
     update_manager/boxed_value.cc \
     update_manager/default_policy.cc \
     update_manager/enough_slots_ab_updates_policy_impl.cc \

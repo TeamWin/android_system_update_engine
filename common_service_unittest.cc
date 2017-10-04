@@ -28,9 +28,10 @@
 #include "update_engine/omaha_utils.h"
 
 using std::string;
+using testing::_;
 using testing::Return;
 using testing::SetArgumentPointee;
-using testing::_;
+using update_engine::UpdateAttemptFlags;
 
 namespace chromeos_update_engine {
 
@@ -60,8 +61,7 @@ TEST_F(UpdateEngineServiceTest, AttemptUpdate) {
       "app_ver", "url", false /* interactive */));
   // The update is non-interactive when we pass the non-interactive flag.
   EXPECT_TRUE(common_service_.AttemptUpdate(
-      &error_, "app_ver", "url",
-      UpdateEngineService::kAttemptUpdateFlagNonInteractive));
+      &error_, "app_ver", "url", UpdateAttemptFlags::kFlagNonInteractive));
   EXPECT_EQ(nullptr, error_);
 }
 

@@ -38,10 +38,11 @@ using chromeos_update_engine::FakeSystemState;
 using chromeos_update_engine::OmahaRequestParams;
 using std::string;
 using std::unique_ptr;
+using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
-using testing::_;
+using update_engine::UpdateAttemptFlags;
 
 namespace {
 
@@ -425,4 +426,20 @@ TEST_F(UmRealUpdaterProviderTest, GetServerDictatedPollInterval) {
       kPollInterval, provider_->var_server_dictated_poll_interval());
 }
 
+TEST_F(UmRealUpdaterProviderTest, GetUpdateRestrictions) {
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
+              GetCurrentUpdateAttemptFlags())
+      .WillRepeatedly(Return(UpdateAttemptFlags::kFlagRestrictDownload |
+                             UpdateAttemptFlags::kFlagNonInteractive));
+  UmTestUtils::ExpectVariableHasValue(UpdateRestrictions::kRestrictDownloading,
+                                      provider_->var_update_restrictions());
+}
+
+TEST_F(UmRealUpdaterProviderTest, GetUpdateRestrictionsNone) {
+  EXPECT_CALL(*fake_sys_state_.mock_update_attempter(),
+              GetCurrentUpdateAttemptFlags())
+      .WillRepeatedly(Return(UpdateAttemptFlags::kNone));
+  UmTestUtils::ExpectVariableHasValue(UpdateRestrictions::kNone,
+                                      provider_->var_update_restrictions());
+}
 }  // namespace chromeos_update_manager

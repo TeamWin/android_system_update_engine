@@ -62,10 +62,17 @@ class NetworkProxyServiceInterfaceProxyMock;
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_manager::EvalStatus;
+using chromeos_update_manager::UpdateCheckParams;
 using org::chromium::NetworkProxyServiceInterfaceProxyInterface;
 using org::chromium::NetworkProxyServiceInterfaceProxyMock;
+#if USE_LIBCROS
+using org::chromium::LibCrosServiceInterfaceProxyMock;
+using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxyMock;
+#endif // USE_LIBCROS
 using std::string;
 using std::unique_ptr;
+using testing::_;
 using testing::DoAll;
 using testing::Field;
 using testing::InSequence;
@@ -76,7 +83,7 @@ using testing::Return;
 using testing::ReturnPointee;
 using testing::SaveArg;
 using testing::SetArgumentPointee;
-using testing::_;
+using update_engine::UpdateAttemptFlags;
 using update_engine::UpdateEngineStatus;
 using update_engine::UpdateStatus;
 
@@ -1116,6 +1123,16 @@ TEST_F(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable) {
   // Verify in-progress update with UPDATE_AVAILABLE is running
   attempter_.status_ = UpdateStatus::UPDATE_AVAILABLE;
   EXPECT_TRUE(attempter_.IsUpdateRunningOrScheduled());
+}
+
+TEST_F(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart) {
+  attempter_.SetUpdateAttemptFlags(UpdateAttemptFlags::kFlagRestrictDownload);
+
+  UpdateCheckParams params = {.updates_enabled = true};
+  attempter_.OnUpdateScheduled(EvalStatus::kSucceeded, params);
+
+  EXPECT_EQ(UpdateAttemptFlags::kFlagRestrictDownload,
+            attempter_.GetCurrentUpdateAttemptFlags());
 }
 
 }  // namespace chromeos_update_engine

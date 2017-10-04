@@ -22,6 +22,7 @@
 #include <base/logging.h>
 #include <base/time/time.h>
 
+#include "update_engine/update_manager/api_restricted_downloads_policy_impl.h"
 #include "update_engine/update_manager/enough_slots_ab_updates_policy_impl.h"
 #include "update_engine/update_manager/interactive_update_policy_impl.h"
 #include "update_engine/update_manager/official_build_check_policy_impl.h"
@@ -96,15 +97,43 @@ EvalStatus AndroidThingsPolicy::UpdateCheckAllowed(
   }
 }
 
-// Always returns |EvalStatus::kSucceeded|
+// Uses the |UpdateRestrictions| to determine if the download and apply can
+// occur at this time.
 EvalStatus AndroidThingsPolicy::UpdateCanBeApplied(
     EvaluationContext* ec,
     State* state,
     string* error,
-    chromeos_update_engine::ErrorCode* result,
+    ErrorCode* result,
     chromeos_update_engine::InstallPlan* install_plan) const {
-  *result = ErrorCode::kSuccess;
-  return EvalStatus::kSucceeded;
+  // Build a list of policies to consult.  Note that each policy may modify the
+  // result structure, even if it signals kContinue.
+  ApiRestrictedDownloadsPolicyImpl api_restricted_downloads_policy;
+
+  vector<Policy const*> policies_to_consult = {
+
+      // Do not apply the update if all updates are restricted by the API.
+      &api_restricted_downloads_policy,
+  };
+
+  // Now that the list of policy implementations, and the order to consult them,
+  // as been setup, do that.  If none of the policies make a definitive
+  // decisions about whether or not to check for updates, then allow the update
+  // check to happen.
+  EvalStatus status = ConsultPolicies(policies_to_consult,
+                                      &Policy::UpdateCanBeApplied,
+                                      ec,
+                                      state,
+                                      error,
+                                      result,
+                                      install_plan);
+  if (EvalStatus::kContinue != status) {
+    return status;
+  } else {
+    // The update can proceed.
+    LOG(INFO) << "Allowing update to be applied.";
+    *result = ErrorCode::kSuccess;
+    return EvalStatus::kSucceeded;
+  }
 }
 
 // Always returns |EvalStatus::kSucceeded|
