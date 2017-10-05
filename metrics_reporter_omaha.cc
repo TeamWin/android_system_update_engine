@@ -16,6 +16,7 @@
 
 #include "update_engine/metrics_reporter_omaha.h"
 
+#include <memory>
 #include <string>
 
 #include <base/logging.h>
@@ -32,97 +33,103 @@ using std::string;
 
 namespace chromeos_update_engine {
 
+namespace metrics {
+
 // UpdateEngine.Daily.* metrics.
-constexpr char kMetricDailyOSAgeDays[] = "UpdateEngine.Daily.OSAgeDays";
+const char kMetricDailyOSAgeDays[] = "UpdateEngine.Daily.OSAgeDays";
 
 // UpdateEngine.Check.* metrics.
-constexpr char kMetricCheckDownloadErrorCode[] =
+const char kMetricCheckDownloadErrorCode[] =
     "UpdateEngine.Check.DownloadErrorCode";
-constexpr char kMetricCheckReaction[] = "UpdateEngine.Check.Reaction";
-constexpr char kMetricCheckResult[] = "UpdateEngine.Check.Result";
-constexpr char kMetricCheckTimeSinceLastCheckMinutes[] =
+const char kMetricCheckReaction[] = "UpdateEngine.Check.Reaction";
+const char kMetricCheckResult[] = "UpdateEngine.Check.Result";
+const char kMetricCheckTimeSinceLastCheckMinutes[] =
     "UpdateEngine.Check.TimeSinceLastCheckMinutes";
-constexpr char kMetricCheckTimeSinceLastCheckUptimeMinutes[] =
+const char kMetricCheckTimeSinceLastCheckUptimeMinutes[] =
     "UpdateEngine.Check.TimeSinceLastCheckUptimeMinutes";
 
 // UpdateEngine.Attempt.* metrics.
-constexpr char kMetricAttemptNumber[] = "UpdateEngine.Attempt.Number";
-constexpr char kMetricAttemptPayloadType[] = "UpdateEngine.Attempt.PayloadType";
-constexpr char kMetricAttemptPayloadSizeMiB[] =
+const char kMetricAttemptNumber[] = "UpdateEngine.Attempt.Number";
+const char kMetricAttemptPayloadType[] = "UpdateEngine.Attempt.PayloadType";
+const char kMetricAttemptPayloadSizeMiB[] =
     "UpdateEngine.Attempt.PayloadSizeMiB";
-constexpr char kMetricAttemptConnectionType[] =
+const char kMetricAttemptConnectionType[] =
     "UpdateEngine.Attempt.ConnectionType";
-constexpr char kMetricAttemptDurationMinutes[] =
+const char kMetricAttemptDurationMinutes[] =
     "UpdateEngine.Attempt.DurationMinutes";
-constexpr char kMetricAttemptDurationUptimeMinutes[] =
+const char kMetricAttemptDurationUptimeMinutes[] =
     "UpdateEngine.Attempt.DurationUptimeMinutes";
-constexpr char kMetricAttemptTimeSinceLastAttemptMinutes[] =
+const char kMetricAttemptTimeSinceLastAttemptMinutes[] =
     "UpdateEngine.Attempt.TimeSinceLastAttemptMinutes";
-constexpr char kMetricAttemptTimeSinceLastAttemptUptimeMinutes[] =
+const char kMetricAttemptTimeSinceLastAttemptUptimeMinutes[] =
     "UpdateEngine.Attempt.TimeSinceLastAttemptUptimeMinutes";
-constexpr char kMetricAttemptPayloadBytesDownloadedMiB[] =
+const char kMetricAttemptPayloadBytesDownloadedMiB[] =
     "UpdateEngine.Attempt.PayloadBytesDownloadedMiB";
-constexpr char kMetricAttemptPayloadDownloadSpeedKBps[] =
+const char kMetricAttemptPayloadDownloadSpeedKBps[] =
     "UpdateEngine.Attempt.PayloadDownloadSpeedKBps";
-constexpr char kMetricAttemptDownloadSource[] =
+const char kMetricAttemptDownloadSource[] =
     "UpdateEngine.Attempt.DownloadSource";
-constexpr char kMetricAttemptResult[] = "UpdateEngine.Attempt.Result";
-constexpr char kMetricAttemptInternalErrorCode[] =
+const char kMetricAttemptResult[] = "UpdateEngine.Attempt.Result";
+const char kMetricAttemptInternalErrorCode[] =
     "UpdateEngine.Attempt.InternalErrorCode";
-constexpr char kMetricAttemptDownloadErrorCode[] =
+const char kMetricAttemptDownloadErrorCode[] =
     "UpdateEngine.Attempt.DownloadErrorCode";
 
 // UpdateEngine.SuccessfulUpdate.* metrics.
-constexpr char kMetricSuccessfulUpdateAttemptCount[] =
+const char kMetricSuccessfulUpdateAttemptCount[] =
     "UpdateEngine.SuccessfulUpdate.AttemptCount";
-constexpr char kMetricSuccessfulUpdateBytesDownloadedMiB[] =
+const char kMetricSuccessfulUpdateBytesDownloadedMiB[] =
     "UpdateEngine.SuccessfulUpdate.BytesDownloadedMiB";
-constexpr char kMetricSuccessfulUpdateDownloadOverheadPercentage[] =
+const char kMetricSuccessfulUpdateDownloadOverheadPercentage[] =
     "UpdateEngine.SuccessfulUpdate.DownloadOverheadPercentage";
-constexpr char kMetricSuccessfulUpdateDownloadSourcesUsed[] =
+const char kMetricSuccessfulUpdateDownloadSourcesUsed[] =
     "UpdateEngine.SuccessfulUpdate.DownloadSourcesUsed";
-constexpr char kMetricSuccessfulUpdatePayloadType[] =
+const char kMetricSuccessfulUpdatePayloadType[] =
     "UpdateEngine.SuccessfulUpdate.PayloadType";
-constexpr char kMetricSuccessfulUpdatePayloadSizeMiB[] =
+const char kMetricSuccessfulUpdatePayloadSizeMiB[] =
     "UpdateEngine.SuccessfulUpdate.PayloadSizeMiB";
-constexpr char kMetricSuccessfulUpdateRebootCount[] =
+const char kMetricSuccessfulUpdateRebootCount[] =
     "UpdateEngine.SuccessfulUpdate.RebootCount";
-constexpr char kMetricSuccessfulUpdateTotalDurationMinutes[] =
+const char kMetricSuccessfulUpdateTotalDurationMinutes[] =
     "UpdateEngine.SuccessfulUpdate.TotalDurationMinutes";
-constexpr char kMetricSuccessfulUpdateUpdatesAbandonedCount[] =
+const char kMetricSuccessfulUpdateUpdatesAbandonedCount[] =
     "UpdateEngine.SuccessfulUpdate.UpdatesAbandonedCount";
-constexpr char kMetricSuccessfulUpdateUrlSwitchCount[] =
+const char kMetricSuccessfulUpdateUrlSwitchCount[] =
     "UpdateEngine.SuccessfulUpdate.UrlSwitchCount";
 
 // UpdateEngine.Rollback.* metric.
-constexpr char kMetricRollbackResult[] = "UpdateEngine.Rollback.Result";
+const char kMetricRollbackResult[] = "UpdateEngine.Rollback.Result";
 
 // UpdateEngine.CertificateCheck.* metrics.
-constexpr char kMetricCertificateCheckUpdateCheck[] =
+const char kMetricCertificateCheckUpdateCheck[] =
     "UpdateEngine.CertificateCheck.UpdateCheck";
-constexpr char kMetricCertificateCheckDownload[] =
+const char kMetricCertificateCheckDownload[] =
     "UpdateEngine.CertificateCheck.Download";
 
 // UpdateEngine.* metrics.
-constexpr char kMetricFailedUpdateCount[] = "UpdateEngine.FailedUpdateCount";
-constexpr char kMetricInstallDateProvisioningSource[] =
+const char kMetricFailedUpdateCount[] = "UpdateEngine.FailedUpdateCount";
+const char kMetricInstallDateProvisioningSource[] =
     "UpdateEngine.InstallDateProvisioningSource";
-constexpr char kMetricTimeToRebootMinutes[] =
-    "UpdateEngine.TimeToRebootMinutes";
+const char kMetricTimeToRebootMinutes[] = "UpdateEngine.TimeToRebootMinutes";
+
+}  // namespace metrics
+
+MetricsReporterOmaha::MetricsReporterOmaha()
+    : metrics_lib_(new MetricsLibrary()) {}
 
 void MetricsReporterOmaha::Initialize() {
-  metrics_lib_.Init();
+  metrics_lib_->Init();
 }
 
 void MetricsReporterOmaha::ReportDailyMetrics(base::TimeDelta os_age) {
-  string metric = kMetricDailyOSAgeDays;
+  string metric = metrics::kMetricDailyOSAgeDays;
   LOG(INFO) << "Uploading " << utils::FormatTimeDelta(os_age) << " for metric "
             << metric;
-  metrics_lib_.SendToUMA(metric,
-                         static_cast<int>(os_age.InDays()),
-                         0,       // min: 0 days
-                         6 * 30,  // max: 6 months (approx)
-                         50);     // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          static_cast<int>(os_age.InDays()),
+                          0,       // min: 0 days
+                          6 * 30,  // max: 6 months (approx)
+                          50);     // num_buckets
 }
 
 void MetricsReporterOmaha::ReportUpdateCheckMetrics(
@@ -135,24 +142,24 @@ void MetricsReporterOmaha::ReportUpdateCheckMetrics(
   int max_value;
 
   if (result != metrics::CheckResult::kUnset) {
-    metric = kMetricCheckResult;
+    metric = metrics::kMetricCheckResult;
     value = static_cast<int>(result);
     max_value = static_cast<int>(metrics::CheckResult::kNumConstants) - 1;
     LOG(INFO) << "Sending " << value << " for metric " << metric << " (enum)";
-    metrics_lib_.SendEnumToUMA(metric, value, max_value);
+    metrics_lib_->SendEnumToUMA(metric, value, max_value);
   }
   if (reaction != metrics::CheckReaction::kUnset) {
-    metric = kMetricCheckReaction;
+    metric = metrics::kMetricCheckReaction;
     value = static_cast<int>(reaction);
     max_value = static_cast<int>(metrics::CheckReaction::kNumConstants) - 1;
     LOG(INFO) << "Sending " << value << " for metric " << metric << " (enum)";
-    metrics_lib_.SendEnumToUMA(metric, value, max_value);
+    metrics_lib_->SendEnumToUMA(metric, value, max_value);
   }
   if (download_error_code != metrics::DownloadErrorCode::kUnset) {
-    metric = kMetricCheckDownloadErrorCode;
+    metric = metrics::kMetricCheckDownloadErrorCode;
     value = static_cast<int>(download_error_code);
     LOG(INFO) << "Sending " << value << " for metric " << metric << " (sparse)";
-    metrics_lib_.SendSparseToUMA(metric, value);
+    metrics_lib_->SendSparseToUMA(metric, value);
   }
 
   base::TimeDelta time_since_last;
@@ -160,39 +167,39 @@ void MetricsReporterOmaha::ReportUpdateCheckMetrics(
           system_state,
           kPrefsMetricsCheckLastReportingTime,
           &time_since_last)) {
-    metric = kMetricCheckTimeSinceLastCheckMinutes;
+    metric = metrics::kMetricCheckTimeSinceLastCheckMinutes;
     LOG(INFO) << "Sending " << utils::FormatTimeDelta(time_since_last)
               << " for metric " << metric;
-    metrics_lib_.SendToUMA(metric,
-                           time_since_last.InMinutes(),
-                           0,             // min: 0 min
-                           30 * 24 * 60,  // max: 30 days
-                           50);           // num_buckets
+    metrics_lib_->SendToUMA(metric,
+                            time_since_last.InMinutes(),
+                            0,             // min: 0 min
+                            30 * 24 * 60,  // max: 30 days
+                            50);           // num_buckets
   }
 
   base::TimeDelta uptime_since_last;
   static int64_t uptime_since_last_storage = 0;
   if (metrics_utils::MonotonicDurationHelper(
           system_state, &uptime_since_last_storage, &uptime_since_last)) {
-    metric = kMetricCheckTimeSinceLastCheckUptimeMinutes;
+    metric = metrics::kMetricCheckTimeSinceLastCheckUptimeMinutes;
     LOG(INFO) << "Sending " << utils::FormatTimeDelta(uptime_since_last)
               << " for metric " << metric;
-    metrics_lib_.SendToUMA(metric,
-                           uptime_since_last.InMinutes(),
-                           0,             // min: 0 min
-                           30 * 24 * 60,  // max: 30 days
-                           50);           // num_buckets
+    metrics_lib_->SendToUMA(metric,
+                            uptime_since_last.InMinutes(),
+                            0,             // min: 0 min
+                            30 * 24 * 60,  // max: 30 days
+                            50);           // num_buckets
   }
 }
 
 void MetricsReporterOmaha::ReportAbnormallyTerminatedUpdateAttemptMetrics() {
-  string metric = kMetricAttemptResult;
+  string metric = metrics::kMetricAttemptResult;
   metrics::AttemptResult attempt_result =
       metrics::AttemptResult::kAbnormalTermination;
 
   LOG(INFO) << "Uploading " << static_cast<int>(attempt_result)
             << " for metric " << metric;
-  metrics_lib_.SendEnumToUMA(
+  metrics_lib_->SendEnumToUMA(
       metric,
       static_cast<int>(attempt_result),
       static_cast<int>(metrics::AttemptResult::kNumConstants));
@@ -212,94 +219,94 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
     ErrorCode internal_error_code,
     metrics::DownloadErrorCode payload_download_error_code,
     metrics::ConnectionType connection_type) {
-  string metric = kMetricAttemptNumber;
+  string metric = metrics::kMetricAttemptNumber;
   LOG(INFO) << "Uploading " << attempt_number << " for metric " << metric;
-  metrics_lib_.SendToUMA(metric,
-                         attempt_number,
-                         0,    // min: 0 attempts
-                         49,   // max: 49 attempts
-                         50);  // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          attempt_number,
+                          0,    // min: 0 attempts
+                          49,   // max: 49 attempts
+                          50);  // num_buckets
 
-  metric = kMetricAttemptPayloadType;
+  metric = metrics::kMetricAttemptPayloadType;
   LOG(INFO) << "Uploading " << utils::ToString(payload_type) << " for metric "
             << metric;
-  metrics_lib_.SendEnumToUMA(metric, payload_type, kNumPayloadTypes);
+  metrics_lib_->SendEnumToUMA(metric, payload_type, kNumPayloadTypes);
 
-  metric = kMetricAttemptDurationMinutes;
+  metric = metrics::kMetricAttemptDurationMinutes;
   LOG(INFO) << "Uploading " << utils::FormatTimeDelta(duration)
             << " for metric " << metric;
-  metrics_lib_.SendToUMA(metric,
-                         duration.InMinutes(),
-                         0,             // min: 0 min
-                         10 * 24 * 60,  // max: 10 days
-                         50);           // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          duration.InMinutes(),
+                          0,             // min: 0 min
+                          10 * 24 * 60,  // max: 10 days
+                          50);           // num_buckets
 
-  metric = kMetricAttemptDurationUptimeMinutes;
+  metric = metrics::kMetricAttemptDurationUptimeMinutes;
   LOG(INFO) << "Uploading " << utils::FormatTimeDelta(duration_uptime)
             << " for metric " << metric;
-  metrics_lib_.SendToUMA(metric,
-                         duration_uptime.InMinutes(),
-                         0,             // min: 0 min
-                         10 * 24 * 60,  // max: 10 days
-                         50);           // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          duration_uptime.InMinutes(),
+                          0,             // min: 0 min
+                          10 * 24 * 60,  // max: 10 days
+                          50);           // num_buckets
 
-  metric = kMetricAttemptPayloadSizeMiB;
+  metric = metrics::kMetricAttemptPayloadSizeMiB;
   int64_t payload_size_mib = payload_size / kNumBytesInOneMiB;
   LOG(INFO) << "Uploading " << payload_size_mib << " for metric " << metric;
-  metrics_lib_.SendToUMA(metric,
-                         payload_size_mib,
-                         0,     // min: 0 MiB
-                         1024,  // max: 1024 MiB = 1 GiB
-                         50);   // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          payload_size_mib,
+                          0,     // min: 0 MiB
+                          1024,  // max: 1024 MiB = 1 GiB
+                          50);   // num_buckets
 
-  metric = kMetricAttemptPayloadBytesDownloadedMiB;
+  metric = metrics::kMetricAttemptPayloadBytesDownloadedMiB;
   int64_t payload_bytes_downloaded_mib =
       payload_bytes_downloaded / kNumBytesInOneMiB;
   LOG(INFO) << "Uploading " << payload_bytes_downloaded_mib << " for metric "
             << metric;
-  metrics_lib_.SendToUMA(metric,
-                         payload_bytes_downloaded_mib,
-                         0,     // min: 0 MiB
-                         1024,  // max: 1024 MiB = 1 GiB
-                         50);   // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          payload_bytes_downloaded_mib,
+                          0,     // min: 0 MiB
+                          1024,  // max: 1024 MiB = 1 GiB
+                          50);   // num_buckets
 
-  metric = kMetricAttemptPayloadDownloadSpeedKBps;
+  metric = metrics::kMetricAttemptPayloadDownloadSpeedKBps;
   int64_t payload_download_speed_kbps = payload_download_speed_bps / 1000;
   LOG(INFO) << "Uploading " << payload_download_speed_kbps << " for metric "
             << metric;
-  metrics_lib_.SendToUMA(metric,
-                         payload_download_speed_kbps,
-                         0,          // min: 0 kB/s
-                         10 * 1000,  // max: 10000 kB/s = 10 MB/s
-                         50);        // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          payload_download_speed_kbps,
+                          0,          // min: 0 kB/s
+                          10 * 1000,  // max: 10000 kB/s = 10 MB/s
+                          50);        // num_buckets
 
-  metric = kMetricAttemptDownloadSource;
+  metric = metrics::kMetricAttemptDownloadSource;
   LOG(INFO) << "Uploading " << download_source << " for metric " << metric;
-  metrics_lib_.SendEnumToUMA(metric, download_source, kNumDownloadSources);
+  metrics_lib_->SendEnumToUMA(metric, download_source, kNumDownloadSources);
 
-  metric = kMetricAttemptResult;
+  metric = metrics::kMetricAttemptResult;
   LOG(INFO) << "Uploading " << static_cast<int>(attempt_result)
             << " for metric " << metric;
-  metrics_lib_.SendEnumToUMA(
+  metrics_lib_->SendEnumToUMA(
       metric,
       static_cast<int>(attempt_result),
       static_cast<int>(metrics::AttemptResult::kNumConstants));
 
   if (internal_error_code != ErrorCode::kSuccess) {
-    metric = kMetricAttemptInternalErrorCode;
+    metric = metrics::kMetricAttemptInternalErrorCode;
     LOG(INFO) << "Uploading " << internal_error_code << " for metric "
               << metric;
-    metrics_lib_.SendEnumToUMA(metric,
-                               static_cast<int>(internal_error_code),
-                               static_cast<int>(ErrorCode::kUmaReportedMax));
+    metrics_lib_->SendEnumToUMA(metric,
+                                static_cast<int>(internal_error_code),
+                                static_cast<int>(ErrorCode::kUmaReportedMax));
   }
 
   if (payload_download_error_code != metrics::DownloadErrorCode::kUnset) {
-    metric = kMetricAttemptDownloadErrorCode;
+    metric = metrics::kMetricAttemptDownloadErrorCode;
     LOG(INFO) << "Uploading " << static_cast<int>(payload_download_error_code)
               << " for metric " << metric << " (sparse)";
-    metrics_lib_.SendSparseToUMA(metric,
-                                 static_cast<int>(payload_download_error_code));
+    metrics_lib_->SendSparseToUMA(
+        metric, static_cast<int>(payload_download_error_code));
   }
 
   base::TimeDelta time_since_last;
@@ -307,34 +314,34 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
           system_state,
           kPrefsMetricsAttemptLastReportingTime,
           &time_since_last)) {
-    metric = kMetricAttemptTimeSinceLastAttemptMinutes;
+    metric = metrics::kMetricAttemptTimeSinceLastAttemptMinutes;
     LOG(INFO) << "Sending " << utils::FormatTimeDelta(time_since_last)
               << " for metric " << metric;
-    metrics_lib_.SendToUMA(metric,
-                           time_since_last.InMinutes(),
-                           0,             // min: 0 min
-                           30 * 24 * 60,  // max: 30 days
-                           50);           // num_buckets
+    metrics_lib_->SendToUMA(metric,
+                            time_since_last.InMinutes(),
+                            0,             // min: 0 min
+                            30 * 24 * 60,  // max: 30 days
+                            50);           // num_buckets
   }
 
   static int64_t uptime_since_last_storage = 0;
   base::TimeDelta uptime_since_last;
   if (metrics_utils::MonotonicDurationHelper(
           system_state, &uptime_since_last_storage, &uptime_since_last)) {
-    metric = kMetricAttemptTimeSinceLastAttemptUptimeMinutes;
+    metric = metrics::kMetricAttemptTimeSinceLastAttemptUptimeMinutes;
     LOG(INFO) << "Sending " << utils::FormatTimeDelta(uptime_since_last)
               << " for metric " << metric;
-    metrics_lib_.SendToUMA(metric,
-                           uptime_since_last.InMinutes(),
-                           0,             // min: 0 min
-                           30 * 24 * 60,  // max: 30 days
-                           50);           // num_buckets
+    metrics_lib_->SendToUMA(metric,
+                            uptime_since_last.InMinutes(),
+                            0,             // min: 0 min
+                            30 * 24 * 60,  // max: 30 days
+                            50);           // num_buckets
   }
 
-  metric = kMetricAttemptConnectionType;
+  metric = metrics::kMetricAttemptConnectionType;
   LOG(INFO) << "Uploading " << static_cast<int>(connection_type)
             << " for metric " << metric;
-  metrics_lib_.SendEnumToUMA(
+  metrics_lib_->SendEnumToUMA(
       metric,
       static_cast<int>(connection_type),
       static_cast<int>(metrics::ConnectionType::kNumConstants));
@@ -350,14 +357,14 @@ void MetricsReporterOmaha::ReportSuccessfulUpdateMetrics(
     base::TimeDelta total_duration,
     int reboot_count,
     int url_switch_count) {
-  string metric = kMetricSuccessfulUpdatePayloadSizeMiB;
+  string metric = metrics::kMetricSuccessfulUpdatePayloadSizeMiB;
   int64_t mbs = payload_size / kNumBytesInOneMiB;
   LOG(INFO) << "Uploading " << mbs << " (MiBs) for metric " << metric;
-  metrics_lib_.SendToUMA(metric,
-                         mbs,
-                         0,     // min: 0 MiB
-                         1024,  // max: 1024 MiB = 1 GiB
-                         50);   // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          mbs,
+                          0,     // min: 0 MiB
+                          1024,  // max: 1024 MiB = 1 GiB
+                          50);   // num_buckets
 
   int64_t total_bytes = 0;
   int download_sources_used = 0;
@@ -370,7 +377,7 @@ void MetricsReporterOmaha::ReportSuccessfulUpdateMetrics(
     // update. Otherwise we're going to end up with a lot of zero-byte
     // events in the histogram.
 
-    metric = kMetricSuccessfulUpdateBytesDownloadedMiB;
+    metric = metrics::kMetricSuccessfulUpdateBytesDownloadedMiB;
     if (i < kNumDownloadSources) {
       metric += utils::ToString(source);
       mbs = num_bytes_downloaded[i] / kNumBytesInOneMiB;
@@ -383,88 +390,88 @@ void MetricsReporterOmaha::ReportSuccessfulUpdateMetrics(
 
     if (mbs > 0) {
       LOG(INFO) << "Uploading " << mbs << " (MiBs) for metric " << metric;
-      metrics_lib_.SendToUMA(metric,
-                             mbs,
-                             0,     // min: 0 MiB
-                             1024,  // max: 1024 MiB = 1 GiB
-                             50);   // num_buckets
+      metrics_lib_->SendToUMA(metric,
+                              mbs,
+                              0,     // min: 0 MiB
+                              1024,  // max: 1024 MiB = 1 GiB
+                              50);   // num_buckets
     }
   }
 
-  metric = kMetricSuccessfulUpdateDownloadSourcesUsed;
+  metric = metrics::kMetricSuccessfulUpdateDownloadSourcesUsed;
   LOG(INFO) << "Uploading 0x" << std::hex << download_sources_used
             << " (bit flags) for metric " << metric;
-  metrics_lib_.SendToUMA(metric,
-                         download_sources_used,
-                         0,                               // min
-                         (1 << kNumDownloadSources) - 1,  // max
-                         1 << kNumDownloadSources);       // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          download_sources_used,
+                          0,                               // min
+                          (1 << kNumDownloadSources) - 1,  // max
+                          1 << kNumDownloadSources);       // num_buckets
 
-  metric = kMetricSuccessfulUpdateDownloadOverheadPercentage;
+  metric = metrics::kMetricSuccessfulUpdateDownloadOverheadPercentage;
   LOG(INFO) << "Uploading " << download_overhead_percentage << "% for metric "
             << metric;
-  metrics_lib_.SendToUMA(metric,
-                         download_overhead_percentage,
-                         0,     // min: 0% overhead
-                         1000,  // max: 1000% overhead
-                         50);   // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          download_overhead_percentage,
+                          0,     // min: 0% overhead
+                          1000,  // max: 1000% overhead
+                          50);   // num_buckets
 
-  metric = kMetricSuccessfulUpdateUrlSwitchCount;
+  metric = metrics::kMetricSuccessfulUpdateUrlSwitchCount;
   LOG(INFO) << "Uploading " << url_switch_count << " (count) for metric "
             << metric;
-  metrics_lib_.SendToUMA(metric,
-                         url_switch_count,
-                         0,    // min: 0 URL switches
-                         49,   // max: 49 URL switches
-                         50);  // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          url_switch_count,
+                          0,    // min: 0 URL switches
+                          49,   // max: 49 URL switches
+                          50);  // num_buckets
 
-  metric = kMetricSuccessfulUpdateTotalDurationMinutes;
+  metric = metrics::kMetricSuccessfulUpdateTotalDurationMinutes;
   LOG(INFO) << "Uploading " << utils::FormatTimeDelta(total_duration)
             << " for metric " << metric;
-  metrics_lib_.SendToUMA(metric,
-                         static_cast<int>(total_duration.InMinutes()),
-                         0,              // min: 0 min
-                         365 * 24 * 60,  // max: 365 days ~= 1 year
-                         50);            // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          static_cast<int>(total_duration.InMinutes()),
+                          0,              // min: 0 min
+                          365 * 24 * 60,  // max: 365 days ~= 1 year
+                          50);            // num_buckets
 
-  metric = kMetricSuccessfulUpdateRebootCount;
+  metric = metrics::kMetricSuccessfulUpdateRebootCount;
   LOG(INFO) << "Uploading reboot count of " << reboot_count << " for metric "
             << metric;
-  metrics_lib_.SendToUMA(metric,
-                         reboot_count,
-                         0,    // min: 0 reboots
-                         49,   // max: 49 reboots
-                         50);  // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          reboot_count,
+                          0,    // min: 0 reboots
+                          49,   // max: 49 reboots
+                          50);  // num_buckets
 
-  metric = kMetricSuccessfulUpdatePayloadType;
-  metrics_lib_.SendEnumToUMA(metric, payload_type, kNumPayloadTypes);
+  metric = metrics::kMetricSuccessfulUpdatePayloadType;
+  metrics_lib_->SendEnumToUMA(metric, payload_type, kNumPayloadTypes);
   LOG(INFO) << "Uploading " << utils::ToString(payload_type) << " for metric "
             << metric;
 
-  metric = kMetricSuccessfulUpdateAttemptCount;
-  metrics_lib_.SendToUMA(metric,
-                         attempt_count,
-                         1,    // min: 1 attempt
-                         50,   // max: 50 attempts
-                         50);  // num_buckets
+  metric = metrics::kMetricSuccessfulUpdateAttemptCount;
+  metrics_lib_->SendToUMA(metric,
+                          attempt_count,
+                          1,    // min: 1 attempt
+                          50,   // max: 50 attempts
+                          50);  // num_buckets
   LOG(INFO) << "Uploading " << attempt_count << " for metric " << metric;
 
-  metric = kMetricSuccessfulUpdateUpdatesAbandonedCount;
+  metric = metrics::kMetricSuccessfulUpdateUpdatesAbandonedCount;
   LOG(INFO) << "Uploading " << updates_abandoned_count << " (count) for metric "
             << metric;
-  metrics_lib_.SendToUMA(metric,
-                         updates_abandoned_count,
-                         0,    // min: 0 counts
-                         49,   // max: 49 counts
-                         50);  // num_buckets
+  metrics_lib_->SendToUMA(metric,
+                          updates_abandoned_count,
+                          0,    // min: 0 counts
+                          49,   // max: 49 counts
+                          50);  // num_buckets
 }
 
 void MetricsReporterOmaha::ReportRollbackMetrics(
     metrics::RollbackResult result) {
-  string metric = kMetricRollbackResult;
+  string metric = metrics::kMetricRollbackResult;
   int value = static_cast<int>(result);
   LOG(INFO) << "Sending " << value << " for metric " << metric << " (enum)";
-  metrics_lib_.SendEnumToUMA(
+  metrics_lib_->SendEnumToUMA(
       metric, value, static_cast<int>(metrics::RollbackResult::kNumConstants));
 }
 
@@ -473,41 +480,41 @@ void MetricsReporterOmaha::ReportCertificateCheckMetrics(
   string metric;
   switch (server_to_check) {
     case ServerToCheck::kUpdate:
-      metric = kMetricCertificateCheckUpdateCheck;
+      metric = metrics::kMetricCertificateCheckUpdateCheck;
       break;
     case ServerToCheck::kDownload:
-      metric = kMetricCertificateCheckDownload;
+      metric = metrics::kMetricCertificateCheckDownload;
       break;
     case ServerToCheck::kNone:
       return;
   }
   LOG(INFO) << "Uploading " << static_cast<int>(result) << " for metric "
             << metric;
-  metrics_lib_.SendEnumToUMA(
+  metrics_lib_->SendEnumToUMA(
       metric,
       static_cast<int>(result),
       static_cast<int>(CertificateCheckResult::kNumConstants));
 }
 
 void MetricsReporterOmaha::ReportFailedUpdateCount(int target_attempt) {
-  string metric = kMetricFailedUpdateCount;
-  metrics_lib_.SendToUMA(metric,
-                         target_attempt,
-                         1,   // min value
-                         50,  // max value
-                         kNumDefaultUmaBuckets);
+  string metric = metrics::kMetricFailedUpdateCount;
+  metrics_lib_->SendToUMA(metric,
+                          target_attempt,
+                          1,   // min value
+                          50,  // max value
+                          kNumDefaultUmaBuckets);
 
   LOG(INFO) << "Uploading " << target_attempt << " (count) for metric "
             << metric;
 }
 
 void MetricsReporterOmaha::ReportTimeToReboot(int time_to_reboot_minutes) {
-  string metric = kMetricTimeToRebootMinutes;
-  metrics_lib_.SendToUMA(metric,
-                         time_to_reboot_minutes,
-                         0,             // min: 0 minute
-                         30 * 24 * 60,  // max: 1 month (approx)
-                         kNumDefaultUmaBuckets);
+  string metric = metrics::kMetricTimeToRebootMinutes;
+  metrics_lib_->SendToUMA(metric,
+                          time_to_reboot_minutes,
+                          0,             // min: 0 minute
+                          30 * 24 * 60,  // max: 1 month (approx)
+                          kNumDefaultUmaBuckets);
 
   LOG(INFO) << "Uploading " << time_to_reboot_minutes << " for metric "
             << metric;
@@ -515,9 +522,9 @@ void MetricsReporterOmaha::ReportTimeToReboot(int time_to_reboot_minutes) {
 
 void MetricsReporterOmaha::ReportInstallDateProvisioningSource(int source,
                                                                int max) {
-  metrics_lib_.SendEnumToUMA(kMetricInstallDateProvisioningSource,
-                             source,  // Sample.
-                             max);
+  metrics_lib_->SendEnumToUMA(metrics::kMetricInstallDateProvisioningSource,
+                              source,  // Sample.
+                              max);
 }
 
 }  // namespace chromeos_update_engine
