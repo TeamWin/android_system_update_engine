@@ -523,6 +523,7 @@
             'fake_system_state.cc',
             'hardware_chromeos_unittest.cc',
             'image_properties_chromeos_unittest.cc',
+            'metrics_reporter_omaha_unittest.cc',
             'metrics_utils_unittest.cc',
             'omaha_request_action_unittest.cc',
             'omaha_request_params_unittest.cc',
