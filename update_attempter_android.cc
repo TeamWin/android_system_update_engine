@@ -32,6 +32,8 @@
 #include "update_engine/common/file_fetcher.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/daemon_state_interface.h"
+#include "update_engine/metrics_reporter_android.h"
+#include "update_engine/metrics_utils.h"
 #include "update_engine/network_selector.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
@@ -86,7 +88,8 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
       prefs_(prefs),
       boot_control_(boot_control),
       hardware_(hardware),
-      processor_(new ActionProcessor()) {
+      processor_(new ActionProcessor()),
+      metrics_reporter_(new MetricsReporterAndroid()) {
   network_selector_ = network::CreateNetworkSelector();
 }
 
@@ -427,6 +430,30 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
 
   for (auto observer : daemon_state_->service_observers())
     observer->SendPayloadApplicationComplete(error_code);
+
+  // TODO(xunchang): assign proper values to the metrics.
+  PayloadType payload_type = kNumPayloadTypes;
+  DownloadSource download_source = kNumDownloadSources;
+  metrics::AttemptResult attempt_result =
+      metrics_utils::GetAttemptResult(error_code);
+  TimeDelta duration;
+  TimeDelta duration_uptime;
+  // Report the android metrics when we terminate the update. Currently we are
+  // reporting error_code only.
+  metrics_reporter_->ReportUpdateAttemptMetrics(
+      nullptr,  // system_state
+      0,        // attempt_number
+      payload_type,
+      duration,
+      duration_uptime,
+      0,  // payload_size
+      0,  // payload_bytes_downloaded
+      0,  // payload_download_speed_bps
+      download_source,
+      attempt_result,
+      error_code,
+      metrics::DownloadErrorCode::kUnset,
+      metrics::ConnectionType::kUnset);
 }
 
 void UpdateAttempterAndroid::SetStatusAndNotify(UpdateStatus status) {
