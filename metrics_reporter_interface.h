@@ -19,13 +19,15 @@
 
 #include <base/time/time.h>
 
-#include "update_engine/certificate_checker.h"
 #include "update_engine/common/constants.h"
 #include "update_engine/common/error_code.h"
 #include "update_engine/metrics_constants.h"
 #include "update_engine/system_state.h"
 
 namespace chromeos_update_engine {
+
+enum class ServerToCheck;
+enum class CertificateCheckResult;
 
 class MetricsReporterInterface {
  public:
@@ -80,8 +82,8 @@ class MetricsReporterInterface {
   //  |kMetricAttemptNumber|
   //  |kMetricAttemptPayloadType|
   //  |kMetricAttemptPayloadSizeMiB|
-  //  |kMetricAttemptDurationSeconds|
-  //  |kMetricAttemptDurationUptimeSeconds|
+  //  |kMetricAttemptDurationMinutes|
+  //  |kMetricAttemptDurationUptimeMinutes|
   //  |kMetricAttemptTimeSinceLastAttemptMinutes|
   //  |kMetricAttemptTimeSinceLastAttemptUptimeMinutes|
   //  |kMetricAttemptPayloadBytesDownloadedMiB|
