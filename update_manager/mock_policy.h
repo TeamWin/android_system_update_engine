@@ -36,6 +36,11 @@ class MockPolicy : public Policy {
                                       testing::_))
         .WillByDefault(testing::Invoke(
                 &default_policy_, &DefaultPolicy::UpdateCheckAllowed));
+    ON_CALL(*this,
+            UpdateCanBeApplied(
+                testing::_, testing::_, testing::_, testing::_, testing::_))
+        .WillByDefault(testing::Invoke(&default_policy_,
+                                       &DefaultPolicy::UpdateCanBeApplied));
     ON_CALL(*this, UpdateCanStart(testing::_, testing::_, testing::_,
                                   testing::_, testing::_))
         .WillByDefault(testing::Invoke(
@@ -60,6 +65,13 @@ class MockPolicy : public Policy {
   MOCK_CONST_METHOD4(UpdateCheckAllowed,
                      EvalStatus(EvaluationContext*, State*, std::string*,
                                 UpdateCheckParams*));
+
+  MOCK_CONST_METHOD5(UpdateCanBeApplied,
+                     EvalStatus(EvaluationContext*,
+                                State*,
+                                std::string*,
+                                chromeos_update_engine::ErrorCode*,
+                                chromeos_update_engine::InstallPlan*));
 
   MOCK_CONST_METHOD5(UpdateCanStart,
                      EvalStatus(EvaluationContext*, State*, std::string*,

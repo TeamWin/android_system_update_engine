@@ -259,6 +259,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
+  FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
+  FRIEND_TEST(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable);
   FRIEND_TEST(UpdateAttempterTest, UpdateTest);
 
   // CertificateChecker::Observer method.
