@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_METRICS_REPORTER_OMAHA_H_
 #define UPDATE_ENGINE_METRICS_REPORTER_OMAHA_H_
 
+#include <memory>
+
 #include <base/time/time.h>
 #include <metrics/metrics_library.h>
 
@@ -31,9 +33,63 @@ namespace chromeos_update_engine {
 
 class SystemState;
 
+namespace metrics {
+
+// UpdateEngine.Daily.* metrics.
+extern const char kMetricDailyOSAgeDays[];
+
+// UpdateEngine.Check.* metrics.
+extern const char kMetricCheckDownloadErrorCode[];
+extern const char kMetricCheckReaction[];
+extern const char kMetricCheckResult[];
+extern const char kMetricCheckTimeSinceLastCheckMinutes[];
+extern const char kMetricCheckTimeSinceLastCheckUptimeMinutes[];
+
+// UpdateEngine.Attempt.* metrics.
+extern const char kMetricAttemptNumber[];
+extern const char kMetricAttemptPayloadType[];
+extern const char kMetricAttemptPayloadSizeMiB[];
+extern const char kMetricAttemptConnectionType[];
+extern const char kMetricAttemptDurationMinutes[];
+extern const char kMetricAttemptDurationUptimeMinutes[];
+extern const char kMetricAttemptTimeSinceLastAttemptMinutes[];
+extern const char kMetricAttemptTimeSinceLastAttemptUptimeMinutes[];
+extern const char kMetricAttemptPayloadBytesDownloadedMiB[];
+extern const char kMetricAttemptPayloadDownloadSpeedKBps[];
+extern const char kMetricAttemptDownloadSource[];
+extern const char kMetricAttemptResult[];
+extern const char kMetricAttemptInternalErrorCode[];
+extern const char kMetricAttemptDownloadErrorCode[];
+
+// UpdateEngine.SuccessfulUpdate.* metrics.
+extern const char kMetricSuccessfulUpdateAttemptCount[];
+extern const char kMetricSuccessfulUpdateBytesDownloadedMiB[];
+extern const char kMetricSuccessfulUpdateDownloadOverheadPercentage[];
+extern const char kMetricSuccessfulUpdateDownloadSourcesUsed[];
+extern const char kMetricSuccessfulUpdatePayloadType[];
+extern const char kMetricSuccessfulUpdatePayloadSizeMiB[];
+extern const char kMetricSuccessfulUpdateRebootCount[];
+extern const char kMetricSuccessfulUpdateTotalDurationMinutes[];
+extern const char kMetricSuccessfulUpdateUpdatesAbandonedCount[];
+extern const char kMetricSuccessfulUpdateUrlSwitchCount[];
+
+// UpdateEngine.Rollback.* metric.
+extern const char kMetricRollbackResult[];
+
+// UpdateEngine.CertificateCheck.* metrics.
+extern const char kMetricCertificateCheckUpdateCheck[];
+extern const char kMetricCertificateCheckDownload[];
+
+// UpdateEngine.* metrics.
+extern const char kMetricFailedUpdateCount[];
+extern const char kMetricInstallDateProvisioningSource[];
+extern const char kMetricTimeToRebootMinutes[];
+
+}  // namespace metrics
+
 class MetricsReporterOmaha : public MetricsReporterInterface {
  public:
-  MetricsReporterOmaha() = default;
+  MetricsReporterOmaha();
 
   ~MetricsReporterOmaha() override = default;
 
@@ -87,7 +143,9 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void ReportInstallDateProvisioningSource(int source, int max) override;
 
  private:
-  MetricsLibrary metrics_lib_;
+  friend class MetricsReporterOmahaTest;
+
+  std::unique_ptr<MetricsLibraryInterface> metrics_lib_;
 
   DISALLOW_COPY_AND_ASSIGN(MetricsReporterOmaha);
 };  // class metrics
