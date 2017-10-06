@@ -31,6 +31,7 @@
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/daemon_state_interface.h"
+#include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/network_selector_interface.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
@@ -161,6 +162,8 @@ class UpdateAttempterAndroid
   // Whether we have marked the current slot as good. This step is required
   // before applying an update to the other slot.
   bool updated_boot_flags_ = false;
+
+  std::unique_ptr<MetricsReporterInterface> metrics_reporter_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateAttempterAndroid);
 };
