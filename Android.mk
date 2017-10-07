@@ -356,6 +356,7 @@ ue_libupdate_engine_android_exported_shared_libraries := \
     libbrillo-binder \
     libcutils \
     libcurl \
+    libmetricslogger \
     libssl \
     libutils
 
@@ -389,6 +390,8 @@ LOCAL_SRC_FILES += \
     daemon_state_android.cc \
     hardware_android.cc \
     libcurl_http_fetcher.cc \
+    metrics_reporter_android.cc \
+    metrics_utils.cc \
     network_selector_android.cc \
     proxy_resolver.cc \
     update_attempter_android.cc \
@@ -463,6 +466,8 @@ LOCAL_C_INCLUDES += \
 LOCAL_SRC_FILES := \
     boot_control_recovery.cc \
     hardware_android.cc \
+    metrics_reporter_android.cc \
+    metrics_utils.cc \
     network_selector_stub.cc \
     proxy_resolver.cc \
     sideload_main.cc \
