@@ -433,27 +433,20 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
 
   // TODO(xunchang): assign proper values to the metrics.
   PayloadType payload_type = kNumPayloadTypes;
-  DownloadSource download_source = kNumDownloadSources;
   metrics::AttemptResult attempt_result =
       metrics_utils::GetAttemptResult(error_code);
   TimeDelta duration;
   TimeDelta duration_uptime;
   // Report the android metrics when we terminate the update. Currently we are
   // reporting error_code only.
-  metrics_reporter_->ReportUpdateAttemptMetrics(
-      nullptr,  // system_state
-      0,        // attempt_number
-      payload_type,
-      duration,
-      duration_uptime,
-      0,  // payload_size
-      0,  // payload_bytes_downloaded
-      0,  // payload_download_speed_bps
-      download_source,
-      attempt_result,
-      error_code,
-      metrics::DownloadErrorCode::kUnset,
-      metrics::ConnectionType::kUnset);
+  metrics_reporter_->ReportUpdateAttemptMetrics(nullptr,  // system_state
+                                                0,        // attempt_number
+                                                payload_type,
+                                                duration,
+                                                duration_uptime,
+                                                0,  // payload_size
+                                                attempt_result,
+                                                error_code);
 }
 
 void UpdateAttempterAndroid::SetStatusAndNotify(UpdateStatus status) {
