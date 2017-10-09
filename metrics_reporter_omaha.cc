@@ -212,13 +212,8 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
     base::TimeDelta duration,
     base::TimeDelta duration_uptime,
     int64_t payload_size,
-    int64_t payload_bytes_downloaded,
-    int64_t payload_download_speed_bps,
-    DownloadSource download_source,
     metrics::AttemptResult attempt_result,
-    ErrorCode internal_error_code,
-    metrics::DownloadErrorCode payload_download_error_code,
-    metrics::ConnectionType connection_type) {
+    ErrorCode internal_error_code) {
   string metric = metrics::kMetricAttemptNumber;
   LOG(INFO) << "Uploading " << attempt_number << " for metric " << metric;
   metrics_lib_->SendToUMA(metric,
@@ -259,30 +254,7 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
                           1024,  // max: 1024 MiB = 1 GiB
                           50);   // num_buckets
 
-  metric = metrics::kMetricAttemptPayloadBytesDownloadedMiB;
-  int64_t payload_bytes_downloaded_mib =
-      payload_bytes_downloaded / kNumBytesInOneMiB;
-  LOG(INFO) << "Uploading " << payload_bytes_downloaded_mib << " for metric "
-            << metric;
-  metrics_lib_->SendToUMA(metric,
-                          payload_bytes_downloaded_mib,
-                          0,     // min: 0 MiB
-                          1024,  // max: 1024 MiB = 1 GiB
-                          50);   // num_buckets
 
-  metric = metrics::kMetricAttemptPayloadDownloadSpeedKBps;
-  int64_t payload_download_speed_kbps = payload_download_speed_bps / 1000;
-  LOG(INFO) << "Uploading " << payload_download_speed_kbps << " for metric "
-            << metric;
-  metrics_lib_->SendToUMA(metric,
-                          payload_download_speed_kbps,
-                          0,          // min: 0 kB/s
-                          10 * 1000,  // max: 10000 kB/s = 10 MB/s
-                          50);        // num_buckets
-
-  metric = metrics::kMetricAttemptDownloadSource;
-  LOG(INFO) << "Uploading " << download_source << " for metric " << metric;
-  metrics_lib_->SendEnumToUMA(metric, download_source, kNumDownloadSources);
 
   metric = metrics::kMetricAttemptResult;
   LOG(INFO) << "Uploading " << static_cast<int>(attempt_result)
@@ -299,14 +271,6 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
     metrics_lib_->SendEnumToUMA(metric,
                                 static_cast<int>(internal_error_code),
                                 static_cast<int>(ErrorCode::kUmaReportedMax));
-  }
-
-  if (payload_download_error_code != metrics::DownloadErrorCode::kUnset) {
-    metric = metrics::kMetricAttemptDownloadErrorCode;
-    LOG(INFO) << "Uploading " << static_cast<int>(payload_download_error_code)
-              << " for metric " << metric << " (sparse)";
-    metrics_lib_->SendSparseToUMA(
-        metric, static_cast<int>(payload_download_error_code));
   }
 
   base::TimeDelta time_since_last;
@@ -336,6 +300,46 @@ void MetricsReporterOmaha::ReportUpdateAttemptMetrics(
                             0,             // min: 0 min
                             30 * 24 * 60,  // max: 30 days
                             50);           // num_buckets
+  }
+}
+
+void MetricsReporterOmaha::ReportUpdateAttemptDownloadMetrics(
+    int64_t payload_bytes_downloaded,
+    int64_t payload_download_speed_bps,
+    DownloadSource download_source,
+    metrics::DownloadErrorCode payload_download_error_code,
+    metrics::ConnectionType connection_type) {
+  string metric = metrics::kMetricAttemptPayloadBytesDownloadedMiB;
+  int64_t payload_bytes_downloaded_mib =
+      payload_bytes_downloaded / kNumBytesInOneMiB;
+  LOG(INFO) << "Uploading " << payload_bytes_downloaded_mib << " for metric "
+            << metric;
+  metrics_lib_->SendToUMA(metric,
+                          payload_bytes_downloaded_mib,
+                          0,     // min: 0 MiB
+                          1024,  // max: 1024 MiB = 1 GiB
+                          50);   // num_buckets
+
+  metric = metrics::kMetricAttemptPayloadDownloadSpeedKBps;
+  int64_t payload_download_speed_kbps = payload_download_speed_bps / 1000;
+  LOG(INFO) << "Uploading " << payload_download_speed_kbps << " for metric "
+            << metric;
+  metrics_lib_->SendToUMA(metric,
+                          payload_download_speed_kbps,
+                          0,          // min: 0 kB/s
+                          10 * 1000,  // max: 10000 kB/s = 10 MB/s
+                          50);        // num_buckets
+
+  metric = metrics::kMetricAttemptDownloadSource;
+  LOG(INFO) << "Uploading " << download_source << " for metric " << metric;
+  metrics_lib_->SendEnumToUMA(metric, download_source, kNumDownloadSources);
+
+  if (payload_download_error_code != metrics::DownloadErrorCode::kUnset) {
+    metric = metrics::kMetricAttemptDownloadErrorCode;
+    LOG(INFO) << "Uploading " << static_cast<int>(payload_download_error_code)
+              << " for metric " << metric << " (sparse)";
+    metrics_lib_->SendSparseToUMA(
+        metric, static_cast<int>(payload_download_error_code));
   }
 
   metric = metrics::kMetricAttemptConnectionType;
