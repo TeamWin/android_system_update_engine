@@ -36,13 +36,8 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
     base::TimeDelta /* duration */,
     base::TimeDelta /* duration_uptime */,
     int64_t /* payload_size */,
-    int64_t /* payload_bytes_downloaded */,
-    int64_t /* payload_download_speed_bps */,
-    DownloadSource /* download_source */,
     metrics::AttemptResult /* attempt_result */,
-    ErrorCode error_code,
-    metrics::DownloadErrorCode /* payload_download_error_code */,
-    metrics::ConnectionType /* connection_type */) {
+    ErrorCode error_code) {
 // No need to log histogram under sideload mode.
 #ifndef _UE_SIDELOAD
   android::metricslogger::LogHistogram(metrics::kMetricsUpdateEngineErrorCode,
