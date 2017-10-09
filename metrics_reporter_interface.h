@@ -86,12 +86,8 @@ class MetricsReporterInterface {
   //  |kMetricAttemptDurationUptimeMinutes|
   //  |kMetricAttemptTimeSinceLastAttemptMinutes|
   //  |kMetricAttemptTimeSinceLastAttemptUptimeMinutes|
-  //  |kMetricAttemptPayloadBytesDownloadedMiB|
-  //  |kMetricAttemptPayloadDownloadSpeedKBps|
-  //  |kMetricAttemptDownloadSource|
   //  |kMetricAttemptResult|
   //  |kMetricAttemptInternalErrorCode|
-  //  |kMetricAttemptDownloadErrorCode|
   //
   // The |kMetricAttemptInternalErrorCode| metric will only be reported
   // if |internal_error_code| is not |kErrorSuccess|.
@@ -103,18 +99,27 @@ class MetricsReporterInterface {
   // |kMetricAttemptTimeSinceLastAttemptUptimeMinutes| metrics are
   // automatically calculated and reported by maintaining persistent and
   // process-local state variables.
-  virtual void ReportUpdateAttemptMetrics(
-      SystemState* system_state,
-      int attempt_number,
-      PayloadType payload_type,
-      base::TimeDelta duration,
-      base::TimeDelta duration_uptime,
-      int64_t payload_size,
+  virtual void ReportUpdateAttemptMetrics(SystemState* system_state,
+                                          int attempt_number,
+                                          PayloadType payload_type,
+                                          base::TimeDelta duration,
+                                          base::TimeDelta duration_uptime,
+                                          int64_t payload_size,
+                                          metrics::AttemptResult attempt_result,
+                                          ErrorCode internal_error_code) = 0;
+
+  // Helper function to report download metrics after the completion of each
+  // update attempt. The following metrics are reported:
+  //
+  // |kMetricAttemptPayloadBytesDownloadedMiB|
+  // |kMetricAttemptPayloadDownloadSpeedKBps|
+  // |kMetricAttemptDownloadSource|
+  // |kMetricAttemptDownloadErrorCode|
+  // |kMetricAttemptConnectionType|
+  virtual void ReportUpdateAttemptDownloadMetrics(
       int64_t payload_bytes_downloaded,
       int64_t payload_download_speed_bps,
       DownloadSource download_source,
-      metrics::AttemptResult attempt_result,
-      ErrorCode internal_error_code,
       metrics::DownloadErrorCode payload_download_error_code,
       metrics::ConnectionType connection_type) = 0;
 

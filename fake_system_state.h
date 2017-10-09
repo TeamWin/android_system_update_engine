@@ -190,7 +190,7 @@ class FakeSystemState : public SystemState {
     return &fake_hardware_;
   }
 
-  inline testing::NiceMock<MockMetrics>* mock_metrics_reporter() {
+  inline testing::NiceMock<MockMetricsReporter>* mock_metrics_reporter() {
     CHECK(metrics_reporter_ == &mock_metrics_reporter_);
     return &mock_metrics_reporter_;
   }
@@ -236,7 +236,7 @@ class FakeSystemState : public SystemState {
   FakeClock fake_clock_;
   testing::NiceMock<MockConnectionManager> mock_connection_manager_;
   FakeHardware fake_hardware_;
-  testing::NiceMock<MockMetrics> mock_metrics_reporter_;
+  testing::NiceMock<MockMetricsReporter> mock_metrics_reporter_;
   testing::NiceMock<MockPrefs> mock_prefs_;
   testing::NiceMock<MockPrefs> mock_powerwash_safe_prefs_;
   testing::NiceMock<MockPayloadState> mock_payload_state_;
