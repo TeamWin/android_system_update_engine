@@ -41,20 +41,21 @@ class MetricsReporterAndroid : public MetricsReporterInterface {
       metrics::CheckReaction reaction,
       metrics::DownloadErrorCode download_error_code) override {}
 
-  void ReportUpdateAttemptMetrics(
-      SystemState* system_state,
-      int attempt_number,
-      PayloadType payload_type,
-      base::TimeDelta duration,
-      base::TimeDelta duration_uptime,
-      int64_t payload_size,
+  void ReportUpdateAttemptMetrics(SystemState* system_state,
+                                  int attempt_number,
+                                  PayloadType payload_type,
+                                  base::TimeDelta duration,
+                                  base::TimeDelta duration_uptime,
+                                  int64_t payload_size,
+                                  metrics::AttemptResult attempt_result,
+                                  ErrorCode internal_error_code) override;
+
+  void ReportUpdateAttemptDownloadMetrics(
       int64_t payload_bytes_downloaded,
       int64_t payload_download_speed_bps,
       DownloadSource download_source,
-      metrics::AttemptResult attempt_result,
-      ErrorCode internal_error_code,
       metrics::DownloadErrorCode payload_download_error_code,
-      metrics::ConnectionType connection_type) override;
+      metrics::ConnectionType connection_type) override {}
 
   void ReportAbnormallyTerminatedUpdateAttemptMetrics() override {}
 
