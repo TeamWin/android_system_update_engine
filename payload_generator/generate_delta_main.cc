@@ -334,6 +334,10 @@ int Main(int argc, char** argv) {
   DEFINE_string(properties_file, "",
                 "If passed, dumps the payload properties of the payload passed "
                 "in --in_file and exits.");
+  DEFINE_int64(max_timestamp,
+               0,
+               "The maximum timestamp of the OS allowed to apply this "
+               "payload.");
 
   DEFINE_string(old_channel, "",
                 "The channel for the old image. 'dev-channel', 'npo-channel', "
@@ -574,6 +578,8 @@ int Main(int argc, char** argv) {
     payload_config.version.minor = FLAGS_minor_version;
     LOG(INFO) << "Using provided minor_version=" << FLAGS_minor_version;
   }
+
+  payload_config.max_timestamp = FLAGS_max_timestamp;
 
   LOG(INFO) << "Generating " << (payload_config.is_delta ? "delta" : "full")
             << " update";
