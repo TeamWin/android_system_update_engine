@@ -639,6 +639,20 @@ TEST_F(DeltaPerformerTest, ValidateManifestBadMinorVersion) {
                         ErrorCode::kUnsupportedMinorPayloadVersion);
 }
 
+TEST_F(DeltaPerformerTest, ValidateManifestDowngrade) {
+  // The Manifest we are validating.
+  DeltaArchiveManifest manifest;
+
+  manifest.set_minor_version(kFullPayloadMinorVersion);
+  manifest.set_max_timestamp(1);
+  fake_hardware_.SetBuildTimestamp(2);
+
+  RunManifestValidation(manifest,
+                        DeltaPerformer::kSupportedMajorPayloadVersion,
+                        InstallPayloadType::kFull,
+                        ErrorCode::kPayloadTimestampError);
+}
+
 TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   EXPECT_TRUE(performer_.Write(kDeltaMagic, sizeof(kDeltaMagic)));
 

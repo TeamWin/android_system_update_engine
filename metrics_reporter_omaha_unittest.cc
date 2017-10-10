@@ -133,15 +133,10 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
   TimeDelta duration_uptime = TimeDelta::FromMinutes(1000);
 
   int64_t payload_size = 100 * kNumBytesInOneMiB;
-  int64_t payload_bytes_downloaded = 200 * kNumBytesInOneMiB;
-  int64_t payload_download_speed_bps = 100 * 1000;
-  DownloadSource download_source = kDownloadSourceHttpServer;
+
   metrics::AttemptResult attempt_result =
       metrics::AttemptResult::kInternalError;
   ErrorCode internal_error_code = ErrorCode::kDownloadInvalidMetadataSignature;
-  metrics::DownloadErrorCode payload_download_error_code =
-      metrics::DownloadErrorCode::kDownloadError;
-  metrics::ConnectionType connection_type = metrics::ConnectionType::kCellular;
 
   EXPECT_CALL(*mock_metrics_lib_,
               SendToUMA(metrics::kMetricAttemptNumber, attempt_number, _, _, _))
@@ -166,23 +161,6 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
                         _))
       .Times(2);
 
-  // Check the report of payload download metrics.
-  EXPECT_CALL(*mock_metrics_lib_,
-              SendToUMA(metrics::kMetricAttemptPayloadSizeMiB, 100, _, _, _))
-      .Times(2);
-  EXPECT_CALL(
-      *mock_metrics_lib_,
-      SendToUMA(metrics::kMetricAttemptPayloadBytesDownloadedMiB, 200, _, _, _))
-      .Times(2);
-  EXPECT_CALL(
-      *mock_metrics_lib_,
-      SendToUMA(metrics::kMetricAttemptPayloadDownloadSpeedKBps, 100, _, _, _))
-      .Times(2);
-  EXPECT_CALL(*mock_metrics_lib_,
-              SendEnumToUMA(metrics::kMetricAttemptDownloadSource,
-                            static_cast<int>(download_source),
-                            _))
-      .Times(2);
 
   // Check the report of attempt result.
   EXPECT_CALL(
@@ -196,8 +174,7 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
                             _))
       .Times(2);
   EXPECT_CALL(*mock_metrics_lib_,
-              SendSparseToUMA(metrics::kMetricAttemptDownloadErrorCode,
-                              static_cast<int>(payload_download_error_code)))
+              SendToUMA(metrics::kMetricAttemptPayloadSizeMiB, 100, _, _, _))
       .Times(2);
 
   // Check the duration between two reports.
@@ -211,25 +188,14 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
           metrics::kMetricAttemptTimeSinceLastAttemptUptimeMinutes, 1, _, _, _))
       .Times(1);
 
-  EXPECT_CALL(*mock_metrics_lib_,
-              SendEnumToUMA(metrics::kMetricAttemptConnectionType,
-                            static_cast<int>(connection_type),
-                            _))
-      .Times(2);
-
   reporter_.ReportUpdateAttemptMetrics(&fake_system_state,
                                        attempt_number,
                                        payload_type,
                                        duration,
                                        duration_uptime,
                                        payload_size,
-                                       payload_bytes_downloaded,
-                                       payload_download_speed_bps,
-                                       download_source,
                                        attempt_result,
-                                       internal_error_code,
-                                       payload_download_error_code,
-                                       connection_type);
+                                       internal_error_code);
 
   // Advance the clock by 1 minute and report the same metrics again.
   fake_clock.SetWallclockTime(base::Time::FromInternalValue(61000000));
@@ -240,13 +206,46 @@ TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptMetrics) {
                                        duration,
                                        duration_uptime,
                                        payload_size,
-                                       payload_bytes_downloaded,
-                                       payload_download_speed_bps,
-                                       download_source,
                                        attempt_result,
-                                       internal_error_code,
-                                       payload_download_error_code,
-                                       connection_type);
+                                       internal_error_code);
+}
+
+TEST_F(MetricsReporterOmahaTest, ReportUpdateAttemptDownloadMetrics) {
+  int64_t payload_bytes_downloaded = 200 * kNumBytesInOneMiB;
+  int64_t payload_download_speed_bps = 100 * 1000;
+  DownloadSource download_source = kDownloadSourceHttpServer;
+  metrics::DownloadErrorCode payload_download_error_code =
+      metrics::DownloadErrorCode::kDownloadError;
+  metrics::ConnectionType connection_type = metrics::ConnectionType::kCellular;
+
+  EXPECT_CALL(
+      *mock_metrics_lib_,
+      SendToUMA(metrics::kMetricAttemptPayloadBytesDownloadedMiB, 200, _, _, _))
+      .Times(1);
+  EXPECT_CALL(
+      *mock_metrics_lib_,
+      SendToUMA(metrics::kMetricAttemptPayloadDownloadSpeedKBps, 100, _, _, _))
+      .Times(1);
+  EXPECT_CALL(*mock_metrics_lib_,
+              SendEnumToUMA(metrics::kMetricAttemptDownloadSource,
+                            static_cast<int>(download_source),
+                            _))
+      .Times(1);
+  EXPECT_CALL(*mock_metrics_lib_,
+              SendSparseToUMA(metrics::kMetricAttemptDownloadErrorCode,
+                              static_cast<int>(payload_download_error_code)))
+      .Times(1);
+  EXPECT_CALL(*mock_metrics_lib_,
+              SendEnumToUMA(metrics::kMetricAttemptConnectionType,
+                            static_cast<int>(connection_type),
+                            _))
+      .Times(1);
+
+  reporter_.ReportUpdateAttemptDownloadMetrics(payload_bytes_downloaded,
+                                               payload_download_speed_bps,
+                                               download_source,
+                                               payload_download_error_code,
+                                               connection_type);
 }
 
 TEST_F(MetricsReporterOmahaTest, ReportSuccessfulUpdateMetrics) {

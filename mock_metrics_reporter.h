@@ -23,7 +23,7 @@
 
 namespace chromeos_update_engine {
 
-class MockMetrics : public MetricsReporterInterface {
+class MockMetricsReporter : public MetricsReporterInterface {
  public:
   MOCK_METHOD0(Initialize, void());
 
@@ -37,20 +37,22 @@ class MockMetrics : public MetricsReporterInterface {
                     metrics::CheckReaction reaction,
                     metrics::DownloadErrorCode download_error_code));
 
-  void ReportUpdateAttemptMetrics(
-      SystemState* system_state,
-      int attempt_number,
-      PayloadType payload_type,
-      base::TimeDelta duration,
-      base::TimeDelta duration_uptime,
-      int64_t payload_size,
-      int64_t payload_bytes_downloaded,
-      int64_t payload_download_speed_bps,
-      DownloadSource download_source,
-      metrics::AttemptResult attempt_result,
-      ErrorCode internal_error_code,
-      metrics::DownloadErrorCode payload_download_error_code,
-      metrics::ConnectionType connection_type) override {}
+  MOCK_METHOD8(ReportUpdateAttemptMetrics,
+               void(SystemState* system_state,
+                    int attempt_number,
+                    PayloadType payload_type,
+                    base::TimeDelta duration,
+                    base::TimeDelta duration_uptime,
+                    int64_t payload_size,
+                    metrics::AttemptResult attempt_result,
+                    ErrorCode internal_error_code));
+
+  MOCK_METHOD5(ReportUpdateAttemptDownloadMetrics,
+               void(int64_t payload_bytes_downloaded,
+                    int64_t payload_download_speed_bps,
+                    DownloadSource download_source,
+                    metrics::DownloadErrorCode payload_download_error_code,
+                    metrics::ConnectionType connection_type));
 
   MOCK_METHOD0(ReportAbnormallyTerminatedUpdateAttemptMetrics, void());
 

@@ -1133,7 +1133,7 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
 TEST(PayloadStateTest, RestartAfterCrash) {
   PayloadState payload_state;
   FakeSystemState fake_system_state;
-  testing::StrictMock<MockMetrics> mock_metrics_reporter;
+  testing::StrictMock<MockMetricsReporter> mock_metrics_reporter;
   fake_system_state.set_metrics_reporter(&mock_metrics_reporter);
   NiceMock<MockPrefs>* prefs = fake_system_state.mock_prefs();
 

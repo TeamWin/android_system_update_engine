@@ -303,6 +303,7 @@ void PayloadState::UpdateFailed(ErrorCode error) {
     case ErrorCode::kPayloadMismatchedType:
     case ErrorCode::kUnsupportedMajorPayloadVersion:
     case ErrorCode::kUnsupportedMinorPayloadVersion:
+    case ErrorCode::kPayloadTimestampError:
       IncrementUrlIndex();
       break;
 
@@ -643,11 +644,13 @@ void PayloadState::CollectAndReportAttemptMetrics(ErrorCode code) {
       duration,
       duration_uptime,
       payload_size,
+      attempt_result,
+      internal_error_code);
+
+  system_state_->metrics_reporter()->ReportUpdateAttemptDownloadMetrics(
       payload_bytes_downloaded,
       payload_download_speed_bps,
       download_source,
-      attempt_result,
-      internal_error_code,
       payload_download_error_code,
       attempt_connection_type_);
 }
