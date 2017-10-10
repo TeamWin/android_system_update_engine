@@ -488,7 +488,7 @@ LOCAL_STATIC_LIBRARIES := \
 # library dependencies of these static libraries.
 LOCAL_STATIC_LIBRARIES += \
     $(ue_common_shared_libraries) \
-    libcutils \
+    libbase \
     liblog \
     $(ue_libpayload_consumer_exported_shared_libraries:-host=) \
     $(ue_update_metadata_protos_exported_shared_libraries) \
