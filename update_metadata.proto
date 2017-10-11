@@ -77,6 +77,9 @@
 // - REPLACE_XZ: Replace the dst_extents with the contents of the attached
 //   xz file after decompression. The xz file should only use crc32 or no crc at
 //   all to be compatible with xz-embedded.
+// - PUFFDIFF: Read the data in src_extents in the old partition, perform
+//   puffpatch with the attached data and write the new data to dst_extents in
+//   the new partition.
 //
 // The operations allowed in the payload (supported by the client) depend on the
 // major and minor version. See InstallOperation.Type bellow for details.

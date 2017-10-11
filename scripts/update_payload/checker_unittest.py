@@ -818,7 +818,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
     Args:
       op_type_name: 'REPLACE', 'REPLACE_BZ', 'MOVE', 'BSDIFF', 'SOURCE_COPY',
-        or 'SOURCE_BSDIFF'.
+        'SOURCE_BSDIFF' or 'PUFFDIFF'.
       is_last: Whether we're testing the last operation in a sequence.
       allow_signature: Whether we're testing a signature-capable operation.
       allow_unhashed: Whether we're allowing to not hash the data.
@@ -857,7 +857,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
     total_src_blocks = 0
     if op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
-                   common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF):
+                   common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF,
+                   common.OpType.PUFFDIFF):
       if fail_src_extents:
         self.AddToMessage(op.src_extents,
                           self.NewExtentList((1, 0)))
@@ -872,7 +873,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
       payload_checker.minor_version = 2 if fail_bad_minor_version else 1
     elif op_type in (common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF):
       payload_checker.minor_version = 1 if fail_bad_minor_version else 2
-    elif op_type in (common.OpType.ZERO, common.OpType.DISCARD):
+    elif op_type in (common.OpType.ZERO, common.OpType.DISCARD,
+                     common.OpType.PUFFDIFF):
       payload_checker.minor_version = 3 if fail_bad_minor_version else 4
 
     if op_type not in (common.OpType.MOVE, common.OpType.SOURCE_COPY):
@@ -1277,7 +1279,7 @@ def AddAllParametricTests():
   AddParametricTests('CheckOperation',
                      {'op_type_name': ('REPLACE', 'REPLACE_BZ', 'MOVE',
                                        'BSDIFF', 'SOURCE_COPY',
-                                       'SOURCE_BSDIFF'),
+                                       'SOURCE_BSDIFF', 'PUFFDIFF'),
                       'is_last': (True, False),
                       'allow_signature': (True, False),
                       'allow_unhashed': (True, False),

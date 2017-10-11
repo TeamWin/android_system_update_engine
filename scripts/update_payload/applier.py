@@ -213,7 +213,7 @@ class PayloadApplier(object):
     self.minor_version = payload.manifest.minor_version
     self.bsdiff_in_place = bsdiff_in_place
     self.bspatch_path = bspatch_path or 'bspatch'
-    self.puffpatch_path = puffpatch_path or 'imgpatch'
+    self.puffpatch_path = puffpatch_path or 'puffin'
     self.truncate_to_expected_size = truncate_to_expected_size
 
   def _ApplyReplaceOperation(self, op, op_name, out_data, part_file, part_size):
@@ -322,23 +322,6 @@ class PayloadApplier(object):
         part_file.seek(ex.start_block * block_size)
         part_file.write('\0' * (ex.num_blocks * block_size))
 
-  def _ApplyBsdiffOperation(self, op, op_name, patch_data, new_part_file):
-    """Applies a BSDIFF operation.
-
-    Args:
-      op: the operation object
-      op_name: name string for error reporting
-      patch_data: the binary patch content
-      new_part_file: the target partition file object
-
-    Raises:
-      PayloadError if something goes wrong.
-    """
-    # Implemented using a SOURCE_BSDIFF operation with the source and target
-    # partition set to the new partition.
-    self._ApplyDiffOperation(op, op_name, patch_data, new_part_file,
-                             new_part_file)
-
   def _ApplySourceCopyOperation(self, op, op_name, old_part_file,
                                 new_part_file):
     """Applies a SOURCE_COPY operation.
@@ -393,8 +376,7 @@ class PayloadApplier(object):
       patch_file.write(patch_data)
 
     if (hasattr(new_part_file, 'fileno') and
-        ((not old_part_file) or hasattr(old_part_file, 'fileno')) and
-        op.type != common.OpType.PUFFDIFF):
+        ((not old_part_file) or hasattr(old_part_file, 'fileno'))):
       # Construct input and output extents argument for bspatch.
       in_extents_arg, _, _ = _ExtentsToBspatchArg(
           op.src_extents, block_size, '%s.src_extents' % op_name,
@@ -407,10 +389,23 @@ class PayloadApplier(object):
       # Diff from source partition.
       old_file_name = '/dev/fd/%d' % old_part_file.fileno()
 
-      # Invoke bspatch on partition file with extents args.
-      bspatch_cmd = [self.bspatch_path, old_file_name, new_file_name,
-                     patch_file_name, in_extents_arg, out_extents_arg]
-      subprocess.check_call(bspatch_cmd)
+      if op.type in (common.OpType.BSDIFF, common.OpType.SOURCE_BSDIFF):
+        # Invoke bspatch on partition file with extents args.
+        bspatch_cmd = [self.bspatch_path, old_file_name, new_file_name,
+                       patch_file_name, in_extents_arg, out_extents_arg]
+        subprocess.check_call(bspatch_cmd)
+      elif op.type == common.OpType.PUFFDIFF:
+        # Invoke puffpatch on partition file with extents args.
+        puffpatch_cmd = [self.puffpatch_path,
+                         "--operation=puffpatch",
+                         "--src_file=%s" % old_file_name,
+                         "--dst_file=%s" % new_file_name,
+                         "--patch_file=%s" % patch_file_name,
+                         "--src_extents=%s" % in_extents_arg,
+                         "--dst_extents=%s" % out_extents_arg]
+        subprocess.check_call(puffpatch_cmd)
+      else:
+        raise PayloadError("Unknown operation %s", op.type)
 
       # Pad with zeros past the total output length.
       if pad_len:
@@ -429,12 +424,21 @@ class PayloadApplier(object):
       with tempfile.NamedTemporaryFile(delete=False) as out_file:
         out_file_name = out_file.name
 
-      # Invoke bspatch.
-      patch_cmd = [self.bspatch_path, in_file_name, out_file_name,
-                   patch_file_name]
-      if op.type == common.OpType.PUFFDIFF:
-        patch_cmd[0] = self.puffpatch_path
-      subprocess.check_call(patch_cmd)
+      if op.type in (common.OpType.BSDIFF, common.OpType.SOURCE_BSDIFF):
+        # Invoke bspatch.
+        bspatch_cmd = [self.bspatch_path, in_file_name, out_file_name,
+                       patch_file_name]
+        subprocess.check_call(bspatch_cmd)
+      elif op.type == common.OpType.PUFFDIFF:
+        # Invoke puffpatch.
+        puffpatch_cmd = [self.puffpatch_path,
+                         "--operation=puffpatch",
+                         "--src_file=%s" % in_file_name,
+                         "--dst_file=%s" % out_file_name,
+                         "--patch_file=%s" % patch_file_name]
+        subprocess.check_call(puffpatch_cmd)
+      else:
+        raise PayloadError("Unknown operation %s", op.type)
 
       # Read output.
       with open(out_file_name, 'rb') as out_file:
@@ -487,7 +491,8 @@ class PayloadApplier(object):
       elif op.type == common.OpType.ZERO:
         self._ApplyZeroOperation(op, op_name, new_part_file)
       elif op.type == common.OpType.BSDIFF:
-        self._ApplyBsdiffOperation(op, op_name, data, new_part_file)
+        self._ApplyDiffOperation(op, op_name, data, new_part_file,
+                                 new_part_file)
       elif op.type == common.OpType.SOURCE_COPY:
         self._ApplySourceCopyOperation(op, op_name, old_part_file,
                                        new_part_file)
