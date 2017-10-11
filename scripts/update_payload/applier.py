@@ -301,6 +301,27 @@ class PayloadApplier(object):
     _WriteExtents(part_file, in_data, op.dst_extents, block_size,
                   '%s.dst_extents' % op_name)
 
+  def _ApplyZeroOperation(self, op, op_name, part_file):
+    """Applies a ZERO operation.
+
+    Args:
+      op: the operation object
+      op_name: name string for error reporting
+      part_file: the partition file object
+
+    Raises:
+      PayloadError if something goes wrong.
+    """
+    block_size = self.block_size
+    base_name = '%s.dst_extents' % op_name
+
+    # Iterate over the extents and write zero.
+    for ex, ex_name in common.ExtentIter(op.dst_extents, base_name):
+      # Only do actual writing if this is not a pseudo-extent.
+      if ex.start_block != common.PSEUDO_EXTENT_MARKER:
+        part_file.seek(ex.start_block * block_size)
+        part_file.write('\0' * (ex.num_blocks * block_size))
+
   def _ApplyBsdiffOperation(self, op, op_name, patch_data, new_part_file):
     """Applies a BSDIFF operation.
 
@@ -463,6 +484,8 @@ class PayloadApplier(object):
         self._ApplyReplaceOperation(op, op_name, data, new_part_file, part_size)
       elif op.type == common.OpType.MOVE:
         self._ApplyMoveOperation(op, op_name, new_part_file)
+      elif op.type == common.OpType.ZERO:
+        self._ApplyZeroOperation(op, op_name, new_part_file)
       elif op.type == common.OpType.BSDIFF:
         self._ApplyBsdiffOperation(op, op_name, data, new_part_file)
       elif op.type == common.OpType.SOURCE_COPY:

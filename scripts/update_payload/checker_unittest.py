@@ -872,6 +872,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
       payload_checker.minor_version = 2 if fail_bad_minor_version else 1
     elif op_type in (common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF):
       payload_checker.minor_version = 1 if fail_bad_minor_version else 2
+    elif op_type in (common.OpType.ZERO, common.OpType.DISCARD):
+      payload_checker.minor_version = 3 if fail_bad_minor_version else 4
 
     if op_type not in (common.OpType.MOVE, common.OpType.SOURCE_COPY):
       if not fail_mismatched_data_offset_length:

@@ -815,6 +815,24 @@ class PayloadChecker(object):
     if dst_extent:
       raise error.PayloadError('%s: excess dst blocks.' % op_name)
 
+  def _CheckZeroOperation(self, op, op_name):
+    """Specific checks for ZERO operations.
+
+    Args:
+      op: The operation object from the manifest.
+      op_name: Operation name for error reporting.
+
+    Raises:
+      error.PayloadError if any check fails.
+    """
+    # Check: Does not contain src extents, data_length and data_offset.
+    if op.src_extents:
+      raise error.PayloadError('%s: contains src_extents.' % op_name)
+    if op.data_length:
+      raise error.PayloadError('%s: contains data_length.' % op_name)
+    if op.data_offset:
+      raise error.PayloadError('%s: contains data_offset.' % op_name)
+
   def _CheckAnyDiffOperation(self, data_length, total_dst_blocks, op_name):
     """Specific checks for BSDIFF, SOURCE_BSDIFF and PUFFDIFF operations.
 
@@ -972,6 +990,8 @@ class PayloadChecker(object):
     elif op.type == common.OpType.MOVE and self.minor_version == 1:
       self._CheckMoveOperation(op, data_offset, total_src_blocks,
                                total_dst_blocks, op_name)
+    elif op.type == common.OpType.ZERO and self.minor_version >= 4:
+      self._CheckZeroOperation(op, op_name)
     elif op.type == common.OpType.BSDIFF and self.minor_version == 1:
       self._CheckAnyDiffOperation(data_length, total_dst_blocks, op_name)
     elif op.type == common.OpType.SOURCE_COPY and self.minor_version >= 2:
@@ -1039,6 +1059,7 @@ class PayloadChecker(object):
         common.OpType.REPLACE: 0,
         common.OpType.REPLACE_BZ: 0,
         common.OpType.MOVE: 0,
+        common.OpType.ZERO: 0,
         common.OpType.BSDIFF: 0,
         common.OpType.SOURCE_COPY: 0,
         common.OpType.SOURCE_BSDIFF: 0,
