@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_STATE_H_
 #define UPDATE_ENGINE_PAYLOAD_STATE_H_
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -240,10 +241,6 @@ class PayloadState : public PayloadStateInterface {
   // reset on a new update.
   void ResetDownloadSourcesOnNewUpdate();
 
-  // Returns the persisted value from prefs_ for the given key. It also
-  // validates that the value returned is non-negative.
-  int64_t GetPersistedValue(const std::string& key);
-
   // Calculates the response "signature", which is basically a string composed
   // of the subset of the fields in the current response that affect the
   // behavior of the PayloadState.
@@ -404,16 +401,7 @@ class PayloadState : public PayloadStateInterface {
   // increments num_reboots.
   void UpdateNumReboots();
 
-  // Writes the current wall-clock time to the kPrefsSystemUpdatedMarker
-  // state variable.
-  void CreateSystemUpdatedMarkerFile();
 
-  // Called at program startup if the device booted into a new update.
-  // The |time_to_reboot| parameter contains the (wall-clock) duration
-  // from when the update successfully completed (the value written
-  // into the kPrefsSystemUpdatedMarker state variable) until the device
-  // was booted into the update (current wall-clock time).
-  void BootedIntoUpdate(base::TimeDelta time_to_reboot);
 
   // Loads the |kPrefsP2PFirstAttemptTimestamp| state variable from disk
   // into |p2p_first_attempt_timestamp_|.

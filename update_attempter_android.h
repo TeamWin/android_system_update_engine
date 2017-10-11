@@ -28,10 +28,12 @@
 #include "update_engine/client_library/include/update_engine/update_status.h"
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/boot_control_interface.h"
+#include "update_engine/common/clock.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/daemon_state_interface.h"
 #include "update_engine/metrics_reporter_interface.h"
+#include "update_engine/metrics_utils.h"
 #include "update_engine/network_selector_interface.h"
 #include "update_engine/payload_consumer/download_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
@@ -87,6 +89,8 @@ class UpdateAttempterAndroid
   void ProgressUpdate(double progress) override;
 
  private:
+  friend class UpdateAttempterAndroidTest;
+
   // Asynchronously marks the current slot as successful if needed. If already
   // marked as good, CompleteUpdateBootFlags() is called starting the action
   // processor.
@@ -117,6 +121,36 @@ class UpdateAttempterAndroid
 
   // Returns whether an update was completed in the current boot.
   bool UpdateCompletedOnThisBoot();
+
+  // Prefs to use for metrics report
+  // |kPrefsPayloadAttemptNumber|: number of update attempts for the current
+  // payload_id.
+  // |KprefsNumReboots|: number of reboots when applying the current update.
+  // |kPrefsSystemUpdatedMarker|: end timestamp of the last successful update.
+  // |kPrefsUpdateTimestampStart|: start timestamp of the current update.
+
+  // Metrics report function to call:
+  //   |ReportUpdateAttemptMetrics|
+  //   |ReportSuccessfulUpdateMetrics|
+  // Prefs to update:
+  //   |kPrefsSystemUpdatedMarker|
+  void CollectAndReportUpdateMetricsOnUpdateFinished(ErrorCode error_code);
+
+  // Metrics report function to call:
+  //   |ReportAbnormallyTerminatedUpdateAttemptMetrics|
+  //   |ReportTimeToRebootMetrics|
+  // Prefs to update:
+  //   |kPrefsBootId|, |kPrefsPreviousVersion|
+  void UpdatePrefsAndReportUpdateMetricsOnReboot();
+
+  // Prefs to update:
+  //   |kPrefsPayloadAttemptNumber|, |kPrefsUpdateTimestampStart|
+  void UpdatePrefsOnUpdateStart(bool is_resume);
+
+  // Prefs to delete:
+  //   |kPrefsNumReboots|, |kPrefsPayloadAttemptNumber|,
+  //   |kPrefsSystemUpdatedMarker|, |kPrefsUpdateTimestampStart|
+  void ClearMetricsPrefs();
 
   DaemonStateInterface* daemon_state_;
 
@@ -162,6 +196,8 @@ class UpdateAttempterAndroid
   // Whether we have marked the current slot as good. This step is required
   // before applying an update to the other slot.
   bool updated_boot_flags_ = false;
+
+  std::unique_ptr<ClockInterface> clock_;
 
   std::unique_ptr<MetricsReporterInterface> metrics_reporter_;
 
