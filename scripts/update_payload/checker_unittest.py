@@ -982,8 +982,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
     payload_checker.payload_type = checker._TYPE_FULL
     report = checker._PayloadReport()
 
-    args = (payload_checker.payload.manifest.install_operations, report,
-            'foo', 0, rootfs_part_size, rootfs_part_size, 0, False)
+    args = (payload_checker.payload.manifest.install_operations, report, 'foo',
+            0, rootfs_part_size, rootfs_part_size, rootfs_part_size, 0, False)
     if fail_nonexhaustive_full_update:
       self.assertRaises(update_payload.PayloadError,
                         payload_checker._CheckOperations, *args)

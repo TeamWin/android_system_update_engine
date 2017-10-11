@@ -1011,8 +1011,8 @@ class PayloadChecker(object):
                        itertools.repeat(0, self._SizeToNumBlocks(total_size)))
 
   def _CheckOperations(self, operations, report, base_name, old_fs_size,
-                       new_fs_size, new_usable_size, prev_data_offset,
-                       allow_signature):
+                       new_fs_size, old_usable_size, new_usable_size,
+                       prev_data_offset, allow_signature):
     """Checks a sequence of update operations.
 
     Args:
@@ -1021,6 +1021,7 @@ class PayloadChecker(object):
       base_name: The name of the operation block.
       old_fs_size: The old filesystem size in bytes.
       new_fs_size: The new filesystem size in bytes.
+      old_usable_size: The overall usable size of the old partition in bytes.
       new_usable_size: The overall usable size of the new partition in bytes.
       prev_data_offset: Offset of last used data bytes.
       allow_signature: Whether this sequence may contain signature operations.
@@ -1062,7 +1063,7 @@ class PayloadChecker(object):
       blob_hash_counts['signature'] = 0
 
     # Allocate old and new block counters.
-    old_block_counters = (self._AllocBlockCounters(new_usable_size)
+    old_block_counters = (self._AllocBlockCounters(old_usable_size)
                           if old_fs_size else None)
     new_block_counters = self._AllocBlockCounters(new_usable_size)
 
@@ -1079,7 +1080,7 @@ class PayloadChecker(object):
       is_last = op_num == len(operations)
       curr_data_used = self._CheckOperation(
           op, op_name, is_last, old_block_counters, new_block_counters,
-          new_usable_size if old_fs_size else 0, new_usable_size,
+          old_usable_size, new_usable_size,
           prev_data_offset + total_data_used, allow_signature,
           blob_hash_counts)
       if curr_data_used:
@@ -1229,10 +1230,13 @@ class PayloadChecker(object):
       #   exceed the filesystem size when moving data blocks around.
       # - Otherwise, use the encoded filesystem size.
       new_rootfs_usable_size = self.new_rootfs_fs_size
+      old_rootfs_usable_size = self.old_rootfs_fs_size
       if rootfs_part_size:
         new_rootfs_usable_size = rootfs_part_size
+        old_rootfs_usable_size = rootfs_part_size
       elif self.payload_type == _TYPE_DELTA and self.minor_version in (None, 1):
         new_rootfs_usable_size = _OLD_DELTA_USABLE_PART_SIZE
+        old_rootfs_usable_size = _OLD_DELTA_USABLE_PART_SIZE
 
       # Part 3: Examine rootfs operations.
       # TODO(garnold)(chromium:243559) only default to the filesystem size if
@@ -1242,7 +1246,8 @@ class PayloadChecker(object):
       total_blob_size = self._CheckOperations(
           self.payload.manifest.install_operations, report,
           'install_operations', self.old_rootfs_fs_size,
-          self.new_rootfs_fs_size, new_rootfs_usable_size, 0, False)
+          self.new_rootfs_fs_size, old_rootfs_usable_size,
+          new_rootfs_usable_size, 0, False)
 
       # Part 4: Examine kernel operations.
       # TODO(garnold)(chromium:243559) as above.
@@ -1251,6 +1256,7 @@ class PayloadChecker(object):
           self.payload.manifest.kernel_install_operations, report,
           'kernel_install_operations', self.old_kernel_fs_size,
           self.new_kernel_fs_size,
+          kernel_part_size if kernel_part_size else self.old_kernel_fs_size,
           kernel_part_size if kernel_part_size else self.new_kernel_fs_size,
           total_blob_size, True)
 
