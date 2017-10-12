@@ -16,7 +16,6 @@
 
 #include "update_engine/utils_android.h"
 
-#include <cutils/properties.h>
 #include <fs_mgr.h>
 
 using std::string;
