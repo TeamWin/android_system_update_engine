@@ -19,10 +19,10 @@
 #include <fcntl.h>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include <base/memory/ptr_util.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
@@ -68,7 +68,7 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
     0x22, 0x9c, 0x28, 0x48, 0x66, 0x61, 0xb8, 0xea, 0x00,
   };
 
-  BzipExtentWriter bzip_writer(base::MakeUnique<DirectExtentWriter>());
+  BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>());
   EXPECT_TRUE(
       bzip_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(bzip_writer.Write(test, sizeof(test)));
@@ -103,7 +103,7 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   vector<Extent> extents = {
       ExtentForRange(0, (kDecompressedLength + kBlockSize - 1) / kBlockSize)};
 
-  BzipExtentWriter bzip_writer(base::MakeUnique<DirectExtentWriter>());
+  BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>());
   EXPECT_TRUE(
       bzip_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
 

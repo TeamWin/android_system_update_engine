@@ -29,7 +29,6 @@
 
 #include <base/files/file_util.h>
 #include <base/format_macros.h>
-#include <base/memory/ptr_util.h>
 #include <base/metrics/histogram_macros.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
@@ -953,8 +952,8 @@ bool DeltaPerformer::PerformReplaceOperation(
   }
 
   // Setup the ExtentWriter stack based on the operation type.
-  std::unique_ptr<ExtentWriter> writer = base::MakeUnique<ZeroPadExtentWriter>(
-      base::MakeUnique<DirectExtentWriter>());
+  std::unique_ptr<ExtentWriter> writer = std::make_unique<ZeroPadExtentWriter>(
+      std::make_unique<DirectExtentWriter>());
 
   if (operation.type() == InstallOperation::REPLACE_BZ) {
     writer.reset(new BzipExtentWriter(std::move(writer)));

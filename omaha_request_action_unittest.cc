@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -1103,7 +1104,7 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   OmahaRequestAction action(
       &fake_system_state_,
       nullptr,
-      base::MakeUnique<MockHttpFetcher>(http_response.data(),
+      std::make_unique<MockHttpFetcher>(http_response.data(),
                                         http_response.size(),
                                         nullptr),
       false);
@@ -1276,7 +1277,7 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
   OmahaRequestAction action(
       &fake_system_state_,
       nullptr,
-      base::MakeUnique<MockHttpFetcher>(http_response.data(),
+      std::make_unique<MockHttpFetcher>(http_response.data(),
                                         http_response.size(),
                                         nullptr),
       false);
@@ -1489,7 +1490,7 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
   OmahaRequestAction update_check_action(
       &fake_system_state_,
       nullptr,
-      base::MakeUnique<MockHttpFetcher>(http_response.data(),
+      std::make_unique<MockHttpFetcher>(http_response.data(),
                                         http_response.size(),
                                         nullptr),
       false);
@@ -1500,7 +1501,7 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
   OmahaRequestAction event_action(
       &fake_system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-      base::MakeUnique<MockHttpFetcher>(http_response.data(),
+      std::make_unique<MockHttpFetcher>(http_response.data(),
                                         http_response.size(),
                                         nullptr),
       false);

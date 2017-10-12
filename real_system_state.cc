@@ -16,12 +16,12 @@
 
 #include "update_engine/real_system_state.h"
 
+#include <memory>
 #include <string>
 
 #include <base/bind.h>
 #include <base/files/file_util.h>
 #include <base/location.h>
-#include <base/memory/ptr_util.h>
 #include <base/time/time.h>
 #include <brillo/message_loops/message_loop.h>
 #if USE_CHROME_KIOSK_APP
@@ -56,7 +56,7 @@ bool RealSystemState::Initialize() {
   if (!boot_control_) {
     LOG(WARNING) << "Unable to create BootControl instance, using stub "
                  << "instead. All update attempts will fail.";
-    boot_control_ = base::MakeUnique<BootControlStub>();
+    boot_control_ = std::make_unique<BootControlStub>();
   }
 
   hardware_ = hardware::CreateHardware();

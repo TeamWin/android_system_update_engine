@@ -21,11 +21,11 @@
 #include <sys/types.h>
 
 #include <algorithm>
+#include <memory>
 
 #include <bootloader.h>
 
 #include <base/files/file_util.h>
-#include <base/memory/ptr_util.h>
 #include <base/strings/stringprintf.h>
 #include <cutils/properties.h>
 
@@ -95,7 +95,7 @@ namespace hardware {
 
 // Factory defined in hardware.h.
 std::unique_ptr<HardwareInterface> CreateHardware() {
-  return base::MakeUnique<HardwareAndroid>();
+  return std::make_unique<HardwareAndroid>();
 }
 
 }  // namespace hardware

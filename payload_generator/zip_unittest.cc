@@ -17,10 +17,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include <base/memory/ptr_util.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
@@ -71,7 +71,7 @@ class MemoryExtentWriter : public ExtentWriter {
 template <typename W>
 bool DecompressWithWriter(const brillo::Blob& in, brillo::Blob* out) {
   std::unique_ptr<ExtentWriter> writer(
-      new W(base::MakeUnique<MemoryExtentWriter>(out)));
+      new W(std::make_unique<MemoryExtentWriter>(out)));
   // Init() parameters are ignored by the testing MemoryExtentWriter.
   bool ok = writer->Init(nullptr, {}, 1);
   ok = writer->Write(in.data(), in.size()) && ok;

@@ -28,7 +28,6 @@
 #include <base/bind.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
-#include <base/memory/ptr_util.h>
 #include <base/rand_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
@@ -603,7 +602,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaRequestAction(
           system_state_,
           new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
-          base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+          std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                                system_state_->hardware()),
           false));
 
@@ -622,7 +621,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaRequestAction(
           system_state_,
           new OmahaEvent(OmahaEvent::kTypeUpdateDownloadFinished),
-          base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+          std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                                system_state_->hardware()),
           false));
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
@@ -631,7 +630,7 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       new OmahaRequestAction(
           system_state_,
           new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-          base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+          std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                                system_state_->hardware()),
           false));
 
@@ -1276,7 +1275,7 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
       new OmahaRequestAction(
           system_state_,
           error_event_.release(),  // Pass ownership.
-          base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+          std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                                system_state_->hardware()),
           false));
   actions_.push_back(shared_ptr<AbstractAction>(error_event_action));
@@ -1347,7 +1346,7 @@ void UpdateAttempter::PingOmaha() {
     shared_ptr<OmahaRequestAction> ping_action(new OmahaRequestAction(
         system_state_,
         nullptr,
-        base::MakeUnique<LibcurlHttpFetcher>(GetProxyResolver(),
+        std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
                                              system_state_->hardware()),
         true));
     actions_.push_back(shared_ptr<OmahaRequestAction>(ping_action));
