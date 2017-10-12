@@ -18,10 +18,10 @@
 
 #include <string>
 
+#include <android-base/properties.h>
 #include <base/logging.h>
 #include <brillo/osrelease_reader.h>
 #include <brillo/strings/string_utils.h>
-#include <cutils/properties.h>
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/constants.h"
@@ -29,6 +29,7 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/system_state.h"
 
+using android::base::GetProperty;
 using std::string;
 
 namespace chromeos_update_engine {
@@ -97,15 +98,9 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
   result.system_version =
       GetStringWithDefault(osrelease, kSystemVersion, "0.0.0.0");
 
-  char prop[PROPERTY_VALUE_MAX];
-  property_get(kPropProductName, prop, "brillo");
-  result.board = prop;
-
-  property_get(kPropBuildFingerprint, prop, "none");
-  result.build_fingerprint = prop;
-
-  property_get(kPropBuildType, prop, "");
-  result.build_type = prop;
+  result.board = GetProperty(kPropProductName, "brillo");
+  result.build_fingerprint = GetProperty(kPropBuildFingerprint, "none");
+  result.build_type = GetProperty(kPropBuildType, "");
 
   // Brillo images don't have a channel assigned. We stored the name of the
   // channel where we got the image from in prefs at the time of the update, so
