@@ -21,19 +21,23 @@
 #include <sys/types.h>
 
 #include <algorithm>
+#include <memory>
 
 #include <bootloader.h>
 
+#include <android-base/properties.h>
 #include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/make_unique_ptr.h>
-#include <cutils/properties.h>
 
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/utils_android.h"
 
+using android::base::GetBoolProperty;
+using android::base::GetIntProperty;
+using android::base::GetProperty;
 using std::string;
 
 namespace chromeos_update_engine {
@@ -121,7 +125,7 @@ bool HardwareAndroid::IsOfficialBuild() const {
   //
   // In case of a non-bool value, we take the most restrictive option and
   // assume we are in an official-build.
-  return property_get_bool("ro.secure", 1) != 0;
+  return GetBoolProperty("ro.secure", true);
 }
 
 bool HardwareAndroid::IsNormalBootMode() const {
@@ -129,7 +133,7 @@ bool HardwareAndroid::IsNormalBootMode() const {
   // update_engine will allow extra developers options, such as providing a
   // different update URL. In case of error, we assume the build is in
   // normal-mode.
-  return property_get_bool("ro.debuggable", 0) != 1;
+  return !GetBoolProperty("ro.debuggable", false);
 }
 
 bool HardwareAndroid::AreDevFeaturesEnabled() const {
@@ -149,26 +153,19 @@ bool HardwareAndroid::IsOOBEComplete(base::Time* out_time_of_oobe) const {
 }
 
 string HardwareAndroid::GetHardwareClass() const {
-  char manufacturer[PROPERTY_VALUE_MAX];
-  char sku[PROPERTY_VALUE_MAX];
-  char revision[PROPERTY_VALUE_MAX];
-  property_get(kPropBootHardwareSKU, sku, "");
-  property_get(kPropProductManufacturer, manufacturer, "");
-  property_get(kPropBootRevision, revision, "");
+  auto manufacturer = GetProperty(kPropProductManufacturer, "");
+  auto sku = GetProperty(kPropBootHardwareSKU, "");
+  auto revision = GetProperty(kPropBootRevision, "");
 
-  return base::StringPrintf("%s:%s:%s", manufacturer, sku, revision);
+  return manufacturer + ":" + sku + ":" + revision;
 }
 
 string HardwareAndroid::GetFirmwareVersion() const {
-  char bootloader[PROPERTY_VALUE_MAX];
-  property_get(kPropBootBootloader, bootloader, "");
-  return bootloader;
+  return GetProperty(kPropBootBootloader, "");
 }
 
 string HardwareAndroid::GetECVersion() const {
-  char baseband[PROPERTY_VALUE_MAX];
-  property_get(kPropBootBaseband, baseband, "");
-  return baseband;
+  return GetProperty(kPropBootBaseband, "");
 }
 
 int HardwareAndroid::GetPowerwashCount() const {
@@ -201,7 +198,7 @@ bool HardwareAndroid::GetPowerwashSafeDirectory(base::FilePath* path) const {
 }
 
 int64_t HardwareAndroid::GetBuildTimestamp() const {
-  return property_get_int64(kPropBuildDateUTC, 0);
+  return GetIntProperty<int64_t>(kPropBuildDateUTC, 0);
 }
 
 }  // namespace chromeos_update_engine
