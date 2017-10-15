@@ -982,6 +982,8 @@ LOCAL_STATIC_LIBRARIES += \
     $(ue_libupdate_engine_android_exported_static_libraries:-host=)
 LOCAL_SHARED_LIBRARIES += \
     $(ue_libupdate_engine_android_exported_shared_libraries:-host=)
+LOCAL_SRC_FILES += \
+    update_attempter_android_unittest.cc
 endif  # local_use_omaha == 1
 ifeq ($(local_use_chrome_network_proxy),1)
 LOCAL_SRC_FILES += \
