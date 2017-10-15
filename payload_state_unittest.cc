@@ -1095,8 +1095,8 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   FakePrefs fake_prefs;
 
   // Set the clock to a well-known time (t = 30 seconds).
-  fake_clock.SetWallclockTime(Time::FromInternalValue(
-      30 * Time::kMicrosecondsPerSecond));
+  fake_clock.SetMonotonicTime(
+      Time::FromInternalValue(30 * Time::kMicrosecondsPerSecond));
 
   fake_system_state.set_clock(&fake_clock);
   fake_system_state.set_prefs(&fake_prefs);
@@ -1114,8 +1114,8 @@ TEST(PayloadStateTest, RebootAfterSuccessfulUpdateTest) {
   // (t = 500 seconds). We do this by using a new PayloadState object
   // and checking that it emits the right UMA metric with the right
   // value.
-  fake_clock.SetWallclockTime(Time::FromInternalValue(
-      500 * Time::kMicrosecondsPerSecond));
+  fake_clock.SetMonotonicTime(
+      Time::FromInternalValue(500 * Time::kMicrosecondsPerSecond));
   PayloadState payload_state2;
   EXPECT_TRUE(payload_state2.Initialize(&fake_system_state));
 
