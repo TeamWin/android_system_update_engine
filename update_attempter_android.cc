@@ -18,8 +18,10 @@
 
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <utility>
 
+#include <android-base/properties.h>
 #include <base/bind.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
@@ -47,6 +49,7 @@
 #endif
 
 using base::Bind;
+using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
 using std::shared_ptr;
@@ -89,6 +92,7 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
       boot_control_(boot_control),
       hardware_(hardware),
       processor_(new ActionProcessor()),
+      clock_(new Clock()),
       metrics_reporter_(new MetricsReporterAndroid()) {
   network_selector_ = network::CreateNetworkSelector();
 }
@@ -102,10 +106,12 @@ UpdateAttempterAndroid::~UpdateAttempterAndroid() {
 void UpdateAttempterAndroid::Init() {
   // In case of update_engine restart without a reboot we need to restore the
   // reboot needed state.
-  if (UpdateCompletedOnThisBoot())
+  if (UpdateCompletedOnThisBoot()) {
     SetStatusAndNotify(UpdateStatus::UPDATED_NEED_REBOOT);
-  else
+  } else {
     SetStatusAndNotify(UpdateStatus::IDLE);
+    UpdatePrefsAndReportUpdateMetricsOnReboot();
+  }
 }
 
 bool UpdateAttempterAndroid::ApplyPayload(
@@ -225,6 +231,10 @@ bool UpdateAttempterAndroid::ApplyPayload(
   // Just in case we didn't update boot flags yet, make sure they're updated
   // before any update processing starts. This will start the update process.
   UpdateBootFlags();
+
+  UpdatePrefsOnUpdateStart(install_plan_.is_resume);
+  // TODO(xunchang) report the metrics for unresumable updates
+
   return true;
 }
 
@@ -262,6 +272,7 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
       // after resetting to idle state, it doesn't go back to
       // UpdateStatus::UPDATED_NEED_REBOOT state.
       bool ret_value = prefs_->Delete(kPrefsUpdateCompletedOnBootId);
+      ClearMetricsPrefs();
 
       // Update the boot flags so the current slot has higher priority.
       if (!boot_control_->SetActiveBootSlot(boot_control_->GetCurrentSlot()))
@@ -431,22 +442,11 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
   for (auto observer : daemon_state_->service_observers())
     observer->SendPayloadApplicationComplete(error_code);
 
-  // TODO(xunchang): assign proper values to the metrics.
-  PayloadType payload_type = kNumPayloadTypes;
-  metrics::AttemptResult attempt_result =
-      metrics_utils::GetAttemptResult(error_code);
-  TimeDelta duration;
-  TimeDelta duration_uptime;
-  // Report the android metrics when we terminate the update. Currently we are
-  // reporting error_code only.
-  metrics_reporter_->ReportUpdateAttemptMetrics(nullptr,  // system_state
-                                                0,        // attempt_number
-                                                payload_type,
-                                                duration,
-                                                duration_uptime,
-                                                0,  // payload_size
-                                                attempt_result,
-                                                error_code);
+  CollectAndReportUpdateMetricsOnUpdateFinished(error_code);
+  ClearMetricsPrefs();
+  if (error_code == ErrorCode::kSuccess) {
+    metrics_utils::SetSystemUpdatedMarker(clock_.get(), prefs_);
+  }
 }
 
 void UpdateAttempterAndroid::SetStatusAndNotify(UpdateStatus status) {
@@ -538,6 +538,128 @@ bool UpdateAttempterAndroid::UpdateCompletedOnThisBoot() {
           prefs_->GetString(kPrefsUpdateCompletedOnBootId,
                             &update_completed_on_boot_id) &&
           update_completed_on_boot_id == boot_id);
+}
+
+// Collect and report the android metrics when we terminate the update.
+void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
+    ErrorCode error_code) {
+  int64_t attempt_number =
+      metrics_utils::GetPersistedValue(kPrefsPayloadAttemptNumber, prefs_);
+  PayloadType payload_type = kPayloadTypeFull;
+  int64_t payload_size = 0;
+  for (const auto& p : install_plan_.payloads) {
+    if (p.type == InstallPayloadType::kDelta)
+      payload_type = kPayloadTypeDelta;
+    payload_size += p.size;
+  }
+
+  metrics::AttemptResult attempt_result =
+      metrics_utils::GetAttemptResult(error_code);
+  Time attempt_start_time = Time::FromInternalValue(
+      metrics_utils::GetPersistedValue(kPrefsUpdateTimestampStart, prefs_));
+  TimeDelta duration_uptime = clock_->GetMonotonicTime() - attempt_start_time;
+
+  metrics_reporter_->ReportUpdateAttemptMetrics(
+      nullptr,  // system_state
+      static_cast<int>(attempt_number),
+      payload_type,
+      TimeDelta(),
+      duration_uptime,
+      payload_size,
+      attempt_result,
+      error_code);
+
+  if (error_code == ErrorCode::kSuccess) {
+    int64_t reboot_count =
+        metrics_utils::GetPersistedValue(kPrefsNumReboots, prefs_);
+    string build_version;
+    prefs_->GetString(kPrefsPreviousVersion, &build_version);
+    metrics_reporter_->ReportSuccessfulUpdateMetrics(
+        static_cast<int>(attempt_number),
+        0,  // update abandoned count
+        payload_type,
+        payload_size,
+        nullptr,  // num bytes downloaded
+        0,        // download overhead percentage
+        duration_uptime,
+        static_cast<int>(reboot_count),
+        0);  // url_switch_count
+  }
+}
+
+void UpdateAttempterAndroid::UpdatePrefsAndReportUpdateMetricsOnReboot() {
+  string current_boot_id;
+  TEST_AND_RETURN(utils::GetBootId(&current_boot_id));
+  // Example: [ro.build.version.incremental]: [4292972]
+  string current_version =
+      android::base::GetProperty("ro.build.version.incremental", "");
+  TEST_AND_RETURN(!current_version.empty());
+
+  // If there's no record of previous version (e.g. due to a data wipe), we
+  // save the info of current boot and skip the metrics report.
+  if (!prefs_->Exists(kPrefsPreviousVersion)) {
+    prefs_->SetString(kPrefsBootId, current_boot_id);
+    prefs_->SetString(kPrefsPreviousVersion, current_version);
+    ClearMetricsPrefs();
+    return;
+  }
+  string previous_version;
+  // update_engine restarted under the same build.
+  // TODO(xunchang) identify and report rollback by checking UpdateMarker.
+  if (prefs_->GetString(kPrefsPreviousVersion, &previous_version) &&
+      previous_version == current_version) {
+    string last_boot_id;
+    bool is_reboot = prefs_->Exists(kPrefsBootId) &&
+                     (prefs_->GetString(kPrefsBootId, &last_boot_id) &&
+                      last_boot_id != current_boot_id);
+    // Increment the reboot number if |kPrefsNumReboots| exists. That pref is
+    // set when we start a new update.
+    if (is_reboot && prefs_->Exists(kPrefsNumReboots)) {
+      prefs_->SetString(kPrefsBootId, current_boot_id);
+      int64_t reboot_count =
+          metrics_utils::GetPersistedValue(kPrefsNumReboots, prefs_);
+      metrics_utils::SetNumReboots(reboot_count + 1, prefs_);
+    }
+    return;
+  }
+
+  // Now that the build version changes, report the update metrics.
+  // TODO(xunchang) check the build version is larger than the previous one.
+  prefs_->SetString(kPrefsBootId, current_boot_id);
+  prefs_->SetString(kPrefsPreviousVersion, current_version);
+
+  bool previous_attempt_exists = prefs_->Exists(kPrefsPayloadAttemptNumber);
+  // |kPrefsPayloadAttemptNumber| should be cleared upon successful update.
+  if (previous_attempt_exists) {
+    metrics_reporter_->ReportAbnormallyTerminatedUpdateAttemptMetrics();
+  }
+
+  metrics_utils::LoadAndReportTimeToReboot(
+      metrics_reporter_.get(), prefs_, clock_.get());
+  ClearMetricsPrefs();
+}
+
+// Save the update start time. Reset the reboot count and attempt number if the
+// update isn't a resume; otherwise increment the attempt number.
+void UpdateAttempterAndroid::UpdatePrefsOnUpdateStart(bool is_resume) {
+  if (!is_resume) {
+    metrics_utils::SetNumReboots(0, prefs_);
+    metrics_utils::SetPayloadAttemptNumber(1, prefs_);
+  } else {
+    int64_t attempt_number =
+        metrics_utils::GetPersistedValue(kPrefsPayloadAttemptNumber, prefs_);
+    metrics_utils::SetPayloadAttemptNumber(attempt_number + 1, prefs_);
+  }
+  Time update_start_time = clock_->GetMonotonicTime();
+  metrics_utils::SetUpdateTimestampStart(update_start_time, prefs_);
+}
+
+void UpdateAttempterAndroid::ClearMetricsPrefs() {
+  CHECK(prefs_);
+  prefs_->Delete(kPrefsNumReboots);
+  prefs_->Delete(kPrefsPayloadAttemptNumber);
+  prefs_->Delete(kPrefsSystemUpdatedMarker);
+  prefs_->Delete(kPrefsUpdateTimestampStart);
 }
 
 }  // namespace chromeos_update_engine
