@@ -45,6 +45,8 @@ using std::string;
 
 namespace chromeos_update_engine {
 
+using metrics_utils::GetPersistedValue;
+
 const TimeDelta PayloadState::kDurationSlack = TimeDelta::FromSeconds(600);
 
 // We want to upperbound backoffs to 16 days
@@ -247,7 +249,7 @@ void PayloadState::UpdateSucceeded() {
   SetNumResponsesSeen(0);
   SetPayloadIndex(0);
 
-  CreateSystemUpdatedMarkerFile();
+  metrics_utils::SetSystemUpdatedMarker(system_state_->clock(), prefs_);
 }
 
 void PayloadState::UpdateFailed(ErrorCode error) {
@@ -763,11 +765,8 @@ void PayloadState::UpdateNumReboots() {
 }
 
 void PayloadState::SetNumReboots(uint32_t num_reboots) {
-  CHECK(prefs_);
   num_reboots_ = num_reboots;
-  prefs_->SetInt64(kPrefsNumReboots, num_reboots);
-  LOG(INFO) << "Number of Reboots during current update attempt = "
-            << num_reboots_;
+  metrics_utils::SetNumReboots(num_reboots, prefs_);
 }
 
 void PayloadState::ResetPersistedState() {
@@ -802,24 +801,6 @@ void PayloadState::ResetDownloadSourcesOnNewUpdate() {
     // to count the bytes downloaded across various update attempts until
     // we have successfully applied the update.
   }
-}
-
-int64_t PayloadState::GetPersistedValue(const string& key) {
-  CHECK(prefs_);
-  if (!prefs_->Exists(key))
-    return 0;
-
-  int64_t stored_value;
-  if (!prefs_->GetInt64(key, &stored_value))
-    return 0;
-
-  if (stored_value < 0) {
-    LOG(ERROR) << key << ": Invalid value (" << stored_value
-               << ") in persisted state. Defaulting to 0";
-    return 0;
-  }
-
-  return stored_value;
 }
 
 string PayloadState::CalculateResponseSignature() {
@@ -872,19 +853,18 @@ void PayloadState::SetResponseSignature(const string& response_signature) {
 }
 
 void PayloadState::LoadPayloadAttemptNumber() {
-  SetPayloadAttemptNumber(GetPersistedValue(kPrefsPayloadAttemptNumber));
+  SetPayloadAttemptNumber(
+      GetPersistedValue(kPrefsPayloadAttemptNumber, prefs_));
 }
 
 void PayloadState::LoadFullPayloadAttemptNumber() {
-  SetFullPayloadAttemptNumber(GetPersistedValue(
-      kPrefsFullPayloadAttemptNumber));
+  SetFullPayloadAttemptNumber(
+      GetPersistedValue(kPrefsFullPayloadAttemptNumber, prefs_));
 }
 
 void PayloadState::SetPayloadAttemptNumber(int payload_attempt_number) {
-  CHECK(prefs_);
   payload_attempt_number_ = payload_attempt_number;
-  LOG(INFO) << "Payload Attempt Number = " << payload_attempt_number_;
-  prefs_->SetInt64(kPrefsPayloadAttemptNumber, payload_attempt_number_);
+  metrics_utils::SetPayloadAttemptNumber(payload_attempt_number, prefs_);
 }
 
 void PayloadState::SetFullPayloadAttemptNumber(
@@ -911,7 +891,7 @@ bool PayloadState::NextPayload() {
 }
 
 void PayloadState::LoadUrlIndex() {
-  SetUrlIndex(GetPersistedValue(kPrefsCurrentUrlIndex));
+  SetUrlIndex(GetPersistedValue(kPrefsCurrentUrlIndex, prefs_));
 }
 
 void PayloadState::SetUrlIndex(uint32_t url_index) {
@@ -926,8 +906,8 @@ void PayloadState::SetUrlIndex(uint32_t url_index) {
 }
 
 void PayloadState::LoadScatteringWaitPeriod() {
-  SetScatteringWaitPeriod(
-      TimeDelta::FromSeconds(GetPersistedValue(kPrefsWallClockWaitPeriod)));
+  SetScatteringWaitPeriod(TimeDelta::FromSeconds(
+      GetPersistedValue(kPrefsWallClockWaitPeriod, prefs_)));
 }
 
 void PayloadState::SetScatteringWaitPeriod(TimeDelta wait_period) {
@@ -944,7 +924,7 @@ void PayloadState::SetScatteringWaitPeriod(TimeDelta wait_period) {
 }
 
 void PayloadState::LoadUrlSwitchCount() {
-  SetUrlSwitchCount(GetPersistedValue(kPrefsUrlSwitchCount));
+  SetUrlSwitchCount(GetPersistedValue(kPrefsUrlSwitchCount, prefs_));
 }
 
 void PayloadState::SetUrlSwitchCount(uint32_t url_switch_count) {
@@ -955,7 +935,7 @@ void PayloadState::SetUrlSwitchCount(uint32_t url_switch_count) {
 }
 
 void PayloadState::LoadUrlFailureCount() {
-  SetUrlFailureCount(GetPersistedValue(kPrefsCurrentUrlFailureCount));
+  SetUrlFailureCount(GetPersistedValue(kPrefsCurrentUrlFailureCount, prefs_));
 }
 
 void PayloadState::SetUrlFailureCount(uint32_t url_failure_count) {
@@ -1038,12 +1018,8 @@ void PayloadState::LoadUpdateTimestampStart() {
 }
 
 void PayloadState::SetUpdateTimestampStart(const Time& value) {
-  CHECK(prefs_);
   update_timestamp_start_ = value;
-  prefs_->SetInt64(kPrefsUpdateTimestampStart,
-                   update_timestamp_start_.ToInternalValue());
-  LOG(INFO) << "Update Timestamp Start = "
-            << utils::ToString(update_timestamp_start_);
+  metrics_utils::SetUpdateTimestampStart(value, prefs_);
 }
 
 void PayloadState::SetUpdateTimestampEnd(const Time& value) {
@@ -1089,7 +1065,7 @@ void PayloadState::LoadUpdateDurationUptime() {
 }
 
 void PayloadState::LoadNumReboots() {
-  SetNumReboots(GetPersistedValue(kPrefsNumReboots));
+  SetNumReboots(GetPersistedValue(kPrefsNumReboots, prefs_));
 }
 
 void PayloadState::LoadRollbackVersion() {
@@ -1141,7 +1117,7 @@ string PayloadState::GetPrefsKey(const string& prefix, DownloadSource source) {
 
 void PayloadState::LoadCurrentBytesDownloaded(DownloadSource source) {
   string key = GetPrefsKey(kPrefsCurrentBytesDownloaded, source);
-  SetCurrentBytesDownloaded(source, GetPersistedValue(key), true);
+  SetCurrentBytesDownloaded(source, GetPersistedValue(key, prefs_), true);
 }
 
 void PayloadState::SetCurrentBytesDownloaded(
@@ -1165,7 +1141,7 @@ void PayloadState::SetCurrentBytesDownloaded(
 
 void PayloadState::LoadTotalBytesDownloaded(DownloadSource source) {
   string key = GetPrefsKey(kPrefsTotalBytesDownloaded, source);
-  SetTotalBytesDownloaded(source, GetPersistedValue(key), true);
+  SetTotalBytesDownloaded(source, GetPersistedValue(key, prefs_), true);
 }
 
 void PayloadState::SetTotalBytesDownloaded(
@@ -1189,7 +1165,7 @@ void PayloadState::SetTotalBytesDownloaded(
 }
 
 void PayloadState::LoadNumResponsesSeen() {
-  SetNumResponsesSeen(GetPersistedValue(kPrefsNumResponsesSeen));
+  SetNumResponsesSeen(GetPersistedValue(kPrefsNumResponsesSeen, prefs_));
 }
 
 void PayloadState::SetNumResponsesSeen(int num_responses_seen) {
@@ -1230,18 +1206,6 @@ void PayloadState::ComputeCandidateUrls() {
   }
 }
 
-void PayloadState::CreateSystemUpdatedMarkerFile() {
-  CHECK(prefs_);
-  int64_t value = system_state_->clock()->GetWallclockTime().ToInternalValue();
-  prefs_->SetInt64(kPrefsSystemUpdatedMarker, value);
-}
-
-void PayloadState::BootedIntoUpdate(TimeDelta time_to_reboot) {
-  // Send |time_to_reboot| as a UMA stat.
-  system_state_->metrics_reporter()->ReportTimeToReboot(
-      time_to_reboot.InMinutes());
-}
-
 void PayloadState::UpdateEngineStarted() {
   // Flush previous state from abnormal attempt failure, if any.
   ReportAndClearPersistedAttemptMetrics();
@@ -1251,24 +1215,11 @@ void PayloadState::UpdateEngineStarted() {
   if (!system_state_->system_rebooted())
     return;
 
-  // Figure out if we just booted into a new update
-  if (prefs_->Exists(kPrefsSystemUpdatedMarker)) {
-    int64_t stored_value;
-    if (prefs_->GetInt64(kPrefsSystemUpdatedMarker, &stored_value)) {
-      Time system_updated_at = Time::FromInternalValue(stored_value);
-      if (!system_updated_at.is_null()) {
-        TimeDelta time_to_reboot =
-            system_state_->clock()->GetWallclockTime() - system_updated_at;
-        if (time_to_reboot.ToInternalValue() < 0) {
-          LOG(ERROR) << "time_to_reboot is negative - system_updated_at: "
-                     << utils::ToString(system_updated_at);
-        } else {
-          BootedIntoUpdate(time_to_reboot);
-        }
-      }
-    }
-    prefs_->Delete(kPrefsSystemUpdatedMarker);
-  }
+  // Report time_to_reboot if we booted into a new update.
+  metrics_utils::LoadAndReportTimeToReboot(
+      system_state_->metrics_reporter(), prefs_, system_state_->clock());
+  prefs_->Delete(kPrefsSystemUpdatedMarker);
+
   // Check if it is needed to send metrics about a failed reboot into a new
   // version.
   ReportFailedBootIfNeeded();
@@ -1360,7 +1311,7 @@ void PayloadState::SetP2PNumAttempts(int value) {
 }
 
 void PayloadState::LoadP2PNumAttempts() {
-  SetP2PNumAttempts(GetPersistedValue(kPrefsP2PNumAttempts));
+  SetP2PNumAttempts(GetPersistedValue(kPrefsP2PNumAttempts, prefs_));
 }
 
 Time PayloadState::GetP2PFirstAttemptTimestamp() {
@@ -1377,7 +1328,8 @@ void PayloadState::SetP2PFirstAttemptTimestamp(const Time& time) {
 }
 
 void PayloadState::LoadP2PFirstAttemptTimestamp() {
-  int64_t stored_value = GetPersistedValue(kPrefsP2PFirstAttemptTimestamp);
+  int64_t stored_value =
+      GetPersistedValue(kPrefsP2PFirstAttemptTimestamp, prefs_);
   Time stored_time = Time::FromInternalValue(stored_value);
   SetP2PFirstAttemptTimestamp(stored_time);
 }
