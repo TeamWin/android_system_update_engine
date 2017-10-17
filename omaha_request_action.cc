@@ -31,6 +31,7 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
+#include <brillo/key_value_store.h>
 #include <expat.h>
 #include <metrics/metrics_library.h>
 
@@ -207,7 +208,16 @@ string GetCohortArgXml(PrefsInterface* prefs,
 struct OmahaAppData {
   string id;
   string version;
+  string product_components;
 };
+
+bool IsValidComponentID(const string& id) {
+  for (char c : id) {
+    if (!isalnum(c) && c != '-' && c != '_' && c != '.')
+      return false;
+  }
+  return true;
+}
 
 // Returns an XML that corresponds to the entire <app> node of the Omaha
 // request based on the given parameters.
@@ -276,11 +286,39 @@ string GetAppXml(const OmahaEvent* event,
                     XmlEncodeWithDefault(params->os_build_type(), "") + "\" ";
   }
 
+  string product_components_args;
+  if (!app_data.product_components.empty()) {
+    brillo::KeyValueStore store;
+    if (store.LoadFromString(app_data.product_components)) {
+      for (const string& key : store.GetKeys()) {
+        if (!IsValidComponentID(key)) {
+          LOG(ERROR) << "Invalid component id: " << key;
+          continue;
+        }
+        string version;
+        if (!store.GetString(key, &version)) {
+          LOG(ERROR) << "Failed to get version for " << key
+                     << " in product_components.";
+          continue;
+        }
+        product_components_args +=
+            base::StringPrintf("_%s.version=\"%s\" ",
+                               key.c_str(),
+                               XmlEncodeWithDefault(version, "").c_str());
+      }
+    } else {
+      LOG(ERROR) << "Failed to parse product_components:\n"
+                 << app_data.product_components;
+    }
+  }
+
+  // clang-format off
   string app_xml = "    <app "
       "appid=\"" + XmlEncodeWithDefault(app_data.id, "") + "\" " +
       app_cohort_args +
       app_versions +
       app_channels +
+      product_components_args +
       fingerprint_arg +
       buildtype_arg +
       "lang=\"" + XmlEncodeWithDefault(params->app_lang(), "en-US") + "\" " +
@@ -293,7 +331,7 @@ string GetAppXml(const OmahaEvent* event,
       ">\n" +
          app_body +
       "    </app>\n";
-
+  // clang-format on
   return app_xml;
 }
 
@@ -319,8 +357,10 @@ string GetRequestXml(const OmahaEvent* event,
                      int install_date_in_days,
                      SystemState* system_state) {
   string os_xml = GetOsXml(params);
-  OmahaAppData product_app = {.id = params->GetAppId(),
-                              .version = params->app_version()};
+  OmahaAppData product_app = {
+      .id = params->GetAppId(),
+      .version = params->app_version(),
+      .product_components = params->product_components()};
   string app_xml = GetAppXml(event,
                              params,
                              product_app,
