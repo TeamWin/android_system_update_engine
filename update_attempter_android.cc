@@ -557,13 +557,14 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
       metrics_utils::GetAttemptResult(error_code);
   Time attempt_start_time = Time::FromInternalValue(
       metrics_utils::GetPersistedValue(kPrefsUpdateTimestampStart, prefs_));
+  TimeDelta duration = clock_->GetBootTime() - attempt_start_time;
   TimeDelta duration_uptime = clock_->GetMonotonicTime() - attempt_start_time;
 
   metrics_reporter_->ReportUpdateAttemptMetrics(
       nullptr,  // system_state
       static_cast<int>(attempt_number),
       payload_type,
-      TimeDelta(),
+      duration,
       duration_uptime,
       payload_size,
       attempt_result,
@@ -581,7 +582,7 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
         payload_size,
         nullptr,  // num bytes downloaded
         0,        // download overhead percentage
-        duration_uptime,
+        duration,
         static_cast<int>(reboot_count),
         0);  // url_switch_count
   }
