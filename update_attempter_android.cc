@@ -26,6 +26,7 @@
 #include <brillo/bind_lambda.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/strings/string_utils.h>
+#include <log/log.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/libcurl_http_fetcher.h"
@@ -262,6 +263,9 @@ void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
     DeltaPerformer::ResetUpdateProgress(prefs_, false);
 
     LOG(INFO) << "Update successfully applied, waiting to reboot.";
+  } else if (code == ErrorCode::kPayloadTimestampError) {
+    // SafetyNet logging, b/36232423
+    android_errorWriteLog(0x534e4554, "36232423");
   }
 
   TerminateUpdateAndNotify(code);
