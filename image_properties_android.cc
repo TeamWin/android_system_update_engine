@@ -27,6 +27,7 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/prefs_interface.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/system_state.h"
 
 using android::base::GetProperty;
@@ -41,6 +42,10 @@ const char kProductId[] = "product_id";
 const char kProductVersion[] = "product_version";
 const char kSystemId[] = "system_id";
 const char kSystemVersion[] = "system_version";
+
+// The path to the product_components file which stores the version of each
+// components in OEM partition.
+const char kProductComponentsPath[] = "/oem/os-release.d/product_components";
 
 // Prefs used to store the target channel and powerwash settings.
 const char kPrefsImgPropChannelName[] = "img-prop-channel-name";
@@ -97,6 +102,8 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
   result.version = GetStringWithDefault(osrelease, kProductVersion, "0.0.0.0");
   result.system_version =
       GetStringWithDefault(osrelease, kSystemVersion, "0.0.0.0");
+  // Can't read it with OsReleaseReader because it has multiple lines.
+  utils::ReadFile(kProductComponentsPath, &result.product_components);
 
   result.board = GetProperty(kPropProductName, "brillo");
   result.build_fingerprint = GetProperty(kPropBuildFingerprint, "none");
