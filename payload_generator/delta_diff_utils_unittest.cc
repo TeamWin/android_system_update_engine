@@ -364,7 +364,7 @@ TEST_F(DeltaDiffUtilsTest, ReplaceSmallTest) {
     EXPECT_EQ(0, op.src_extents_size());
     EXPECT_FALSE(op.has_src_length());
     EXPECT_EQ(1, op.dst_extents_size());
-    EXPECT_EQ(data_to_test.size(), op.dst_length());
+    EXPECT_FALSE(op.has_dst_length());
     EXPECT_EQ(1U, BlocksInExtents(op.dst_extents()));
   }
 }

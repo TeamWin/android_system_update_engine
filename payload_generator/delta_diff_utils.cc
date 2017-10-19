@@ -737,25 +737,29 @@ bool ReadExtentsToDiff(const string& old_part,
     }
   }
 
-  size_t removed_bytes = 0;
   // Remove identical src/dst block ranges in MOVE operations.
   if (operation.type() == InstallOperation::MOVE) {
-    removed_bytes = RemoveIdenticalBlockRanges(
+    auto removed_bytes = RemoveIdenticalBlockRanges(
         &src_extents, &dst_extents, new_data.size());
+    operation.set_src_length(old_data.size() - removed_bytes);
+    operation.set_dst_length(new_data.size() - removed_bytes);
   }
-  // Set legacy src_length and dst_length fields.
-  operation.set_src_length(old_data.size() - removed_bytes);
-  operation.set_dst_length(new_data.size() - removed_bytes);
 
-  // Embed extents in the operation.
-  StoreExtents(src_extents, operation.mutable_src_extents());
+  // Set legacy |src_length| and |dst_length| fields for both BSDIFF and
+  // SOURCE_BSDIFF as only these two use these parameters.
+  if (operation.type() == InstallOperation::BSDIFF ||
+      operation.type() == InstallOperation::SOURCE_BSDIFF) {
+    operation.set_src_length(old_data.size());
+    operation.set_dst_length(new_data.size());
+  }
+
+  // Embed extents in the operation. Replace (all variants), zero and discard
+  // operations should not have source extents.
+  if (!IsNoSourceOperation(operation.type())) {
+    StoreExtents(src_extents, operation.mutable_src_extents());
+  }
+  // All operations have dst_extents.
   StoreExtents(dst_extents, operation.mutable_dst_extents());
-
-  // Replace operations should not have source extents.
-  if (IsAReplaceOperation(operation.type())) {
-    operation.clear_src_extents();
-    operation.clear_src_length();
-  }
 
   *out_data = std::move(data_blob);
   *out_op = operation;
@@ -766,6 +770,12 @@ bool IsAReplaceOperation(InstallOperation_Type op_type) {
   return (op_type == InstallOperation::REPLACE ||
           op_type == InstallOperation::REPLACE_BZ ||
           op_type == InstallOperation::REPLACE_XZ);
+}
+
+bool IsNoSourceOperation(InstallOperation_Type op_type) {
+  return (IsAReplaceOperation(op_type) ||
+          op_type == InstallOperation::ZERO ||
+          op_type == InstallOperation::DISCARD);
 }
 
 // Returns true if |op| is a no-op operation that doesn't do any useful work

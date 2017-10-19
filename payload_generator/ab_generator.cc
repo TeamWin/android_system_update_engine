@@ -17,6 +17,7 @@
 #include "update_engine/payload_generator/ab_generator.h"
 
 #include <algorithm>
+#include <utility>
 
 #include <base/strings/stringprintf.h>
 
@@ -173,7 +174,6 @@ bool ABGenerator::SplitAReplaceOp(const PayloadVersion& version,
     InstallOperation new_op;
     *(new_op.add_dst_extents()) = dst_ext;
     uint32_t data_size = dst_ext.num_blocks() * kBlockSize;
-    new_op.set_dst_length(data_size);
     // If this is a REPLACE, attempt to reuse portions of the existing blob.
     if (is_replace) {
       new_op.set_type(InstallOperation::REPLACE);
@@ -238,15 +238,9 @@ bool ABGenerator::MergeOperations(vector<AnnotatedOperation>* aops,
       if (is_delta_op) {
         ExtendExtents(last_aop.op.mutable_src_extents(),
                       curr_aop.op.src_extents());
-        if (curr_aop.op.src_length() > 0)
-          last_aop.op.set_src_length(last_aop.op.src_length() +
-                                     curr_aop.op.src_length());
       }
       ExtendExtents(last_aop.op.mutable_dst_extents(),
                     curr_aop.op.dst_extents());
-      if (curr_aop.op.dst_length() > 0)
-        last_aop.op.set_dst_length(last_aop.op.dst_length() +
-                                   curr_aop.op.dst_length());
       // Set the data length to zero so we know to add the blob later.
       if (is_a_replace)
         last_aop.op.set_data_length(0);
@@ -276,9 +270,9 @@ bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
                                     BlobFileWriter* blob_file) {
   TEST_AND_RETURN_FALSE(IsAReplaceOperation(aop->op.type()));
 
-  brillo::Blob data(aop->op.dst_length());
   vector<Extent> dst_extents;
   ExtentsToVector(aop->op.dst_extents(), &dst_extents);
+  brillo::Blob data(BlocksInExtents(dst_extents) * kBlockSize);
   TEST_AND_RETURN_FALSE(utils::ReadExtents(target_part_path,
                                            dst_extents,
                                            &data,
