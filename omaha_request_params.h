@@ -130,6 +130,9 @@ class OmahaRequestParams {
   inline std::string system_version() const {
     return image_props_.system_version;
   }
+  inline std::string product_components() const {
+    return image_props_.product_components;
+  }
 
   inline std::string current_channel() const {
     return image_props_.current_channel;
