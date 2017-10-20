@@ -1049,14 +1049,14 @@ TEST_F(UpdateAttempterTest, AnyUpdateSourceDisallowedOfficialNormal) {
 TEST_F(UpdateAttempterTest, CheckForUpdateAUTest) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
-  attempter_.CheckForUpdate("", "autest", true);
+  attempter_.CheckForUpdate("", "autest", UpdateAttemptFlags::kNone);
   EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
 }
 
 TEST_F(UpdateAttempterTest, CheckForUpdateScheduledAUTest) {
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(true);
   fake_system_state_.fake_hardware()->SetAreDevFeaturesEnabled(false);
-  attempter_.CheckForUpdate("", "autest-scheduled", true);
+  attempter_.CheckForUpdate("", "autest-scheduled", UpdateAttemptFlags::kNone);
   EXPECT_EQ(constants::kOmahaDefaultAUTestURL, attempter_.forced_omaha_url());
 }
 
@@ -1132,6 +1132,27 @@ TEST_F(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart) {
   attempter_.OnUpdateScheduled(EvalStatus::kSucceeded, params);
 
   EXPECT_EQ(UpdateAttemptFlags::kFlagRestrictDownload,
+            attempter_.GetCurrentUpdateAttemptFlags());
+}
+
+TEST_F(UpdateAttempterTest, InteractiveUpdateUsesPassedRestrictions) {
+  attempter_.SetUpdateAttemptFlags(UpdateAttemptFlags::kFlagRestrictDownload);
+
+  attempter_.CheckForUpdate("", "", UpdateAttemptFlags::kNone);
+  EXPECT_EQ(UpdateAttemptFlags::kNone,
+            attempter_.GetCurrentUpdateAttemptFlags());
+}
+
+TEST_F(UpdateAttempterTest, NonInteractiveUpdateUsesSetRestrictions) {
+  attempter_.SetUpdateAttemptFlags(UpdateAttemptFlags::kNone);
+
+  // This tests that when CheckForUpdate() is called with the non-interactive
+  // flag set, that it doesn't change the current UpdateAttemptFlags.
+  attempter_.CheckForUpdate("",
+                            "",
+                            UpdateAttemptFlags::kFlagNonInteractive |
+                                UpdateAttemptFlags::kFlagRestrictDownload);
+  EXPECT_EQ(UpdateAttemptFlags::kNone,
             attempter_.GetCurrentUpdateAttemptFlags());
 }
 
