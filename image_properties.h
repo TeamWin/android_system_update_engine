@@ -41,6 +41,9 @@ struct ImageProperties {
   // The system version of this image.
   std::string system_version;
 
+  // The version of all product components in key values pairs.
+  std::string product_components;
+
   // A unique string that identifies this build. Normally a combination of the
   // the version, signing keys and build target.
   std::string build_fingerprint;
