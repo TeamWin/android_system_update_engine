@@ -48,11 +48,13 @@ bool BinderUpdateEngineClient::Init() {
 bool BinderUpdateEngineClient::AttemptUpdate(const string& in_app_version,
                                              const string& in_omaha_url,
                                              bool at_user_request) {
+  bool started;
   return service_
       ->AttemptUpdate(
           String16{in_app_version.c_str()},
           String16{in_omaha_url.c_str()},
-          at_user_request ? 0 : UpdateAttemptFlags::kFlagNonInteractive)
+          at_user_request ? 0 : UpdateAttemptFlags::kFlagNonInteractive,
+          &started)
       .isOk();
 }
 

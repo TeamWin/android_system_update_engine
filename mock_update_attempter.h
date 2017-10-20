@@ -44,9 +44,10 @@ class MockUpdateAttempter : public UpdateAttempter {
 
   MOCK_METHOD0(GetCurrentUpdateAttemptFlags, UpdateAttemptFlags(void));
 
-  MOCK_METHOD3(CheckForUpdate, void(const std::string& app_version,
-                                    const std::string& omaha_url,
-                                    bool is_interactive));
+  MOCK_METHOD3(CheckForUpdate,
+               bool(const std::string& app_version,
+                    const std::string& omaha_url,
+                    UpdateAttemptFlags flags));
 
   MOCK_METHOD0(RefreshDevicePolicy, void(void));
 
