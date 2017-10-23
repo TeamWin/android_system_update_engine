@@ -120,16 +120,19 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsOnUpdateTerminated) {
   prefs_.SetString(kPrefsPreviousVersion, "56789");
   prefs_.SetInt64(kPrefsUpdateTimestampStart, 12345);
 
-  Time now = Time::FromInternalValue(22345);
-  clock_->SetMonotonicTime(now);
-  TimeDelta duration = now - Time::FromInternalValue(12345);
+  Time boot_time = Time::FromInternalValue(22345);
+  Time up_time = Time::FromInternalValue(21345);
+  clock_->SetBootTime(boot_time);
+  clock_->SetMonotonicTime(up_time);
+  TimeDelta duration = boot_time - Time::FromInternalValue(12345);
+  TimeDelta duration_uptime = up_time - Time::FromInternalValue(12345);
   EXPECT_CALL(
       *metrics_reporter_,
       ReportUpdateAttemptMetrics(_,
                                  2,
                                  _,
-                                 _,
                                  duration,
+                                 duration_uptime,
                                  _,
                                  metrics::AttemptResult::kUpdateSucceeded,
                                  ErrorCode::kSuccess))
