@@ -374,7 +374,7 @@ TEST_F(DeltaPerformerTest, ShouldCancelTest) {
   testing::Mock::VerifyAndClearExpectations(&mock_delegate_);
   EXPECT_CALL(mock_delegate_, ShouldCancel(_))
       .WillOnce(
-          testing::DoAll(testing::SetArgumentPointee<0>(ErrorCode::kError),
+          testing::DoAll(testing::SetArgPointee<0>(ErrorCode::kError),
                          testing::Return(true)));
 
   ApplyPayload(payload_data, "/dev/null", false);

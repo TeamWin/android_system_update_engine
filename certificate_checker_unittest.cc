@@ -29,7 +29,7 @@
 
 using ::testing::DoAll;
 using ::testing::Return;
-using ::testing::SetArgumentPointee;
+using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
 using ::testing::_;
 using std::string;
@@ -78,8 +78,8 @@ class CertificateCheckerTest : public testing::Test {
 TEST_F(CertificateCheckerTest, NewCertificate) {
   EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(nullptr, _, _, _))
       .WillOnce(DoAll(
-          SetArgumentPointee<1>(depth_),
-          SetArgumentPointee<2>(length_),
+          SetArgPointee<1>(depth_),
+          SetArgPointee<2>(length_),
           SetArrayArgument<3>(digest_, digest_ + 4),
           Return(true)));
   EXPECT_CALL(prefs_, GetString(cert_key_, _)).WillOnce(Return(false));
@@ -95,12 +95,12 @@ TEST_F(CertificateCheckerTest, NewCertificate) {
 TEST_F(CertificateCheckerTest, SameCertificate) {
   EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(nullptr, _, _, _))
       .WillOnce(DoAll(
-          SetArgumentPointee<1>(depth_),
-          SetArgumentPointee<2>(length_),
+          SetArgPointee<1>(depth_),
+          SetArgPointee<2>(length_),
           SetArrayArgument<3>(digest_, digest_ + 4),
           Return(true)));
   EXPECT_CALL(prefs_, GetString(cert_key_, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(digest_hex_), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(digest_hex_), Return(true)));
   EXPECT_CALL(prefs_, SetString(_, _)).Times(0);
   EXPECT_CALL(observer_,
               CertificateChecked(server_to_check_,
@@ -113,12 +113,12 @@ TEST_F(CertificateCheckerTest, SameCertificate) {
 TEST_F(CertificateCheckerTest, ChangedCertificate) {
   EXPECT_CALL(openssl_wrapper_, GetCertificateDigest(nullptr, _, _, _))
       .WillOnce(DoAll(
-          SetArgumentPointee<1>(depth_),
-          SetArgumentPointee<2>(length_),
+          SetArgPointee<1>(depth_),
+          SetArgPointee<2>(length_),
           SetArrayArgument<3>(digest_, digest_ + 4),
           Return(true)));
   EXPECT_CALL(prefs_, GetString(cert_key_, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(diff_digest_hex_), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(diff_digest_hex_), Return(true)));
   EXPECT_CALL(observer_,
               CertificateChecked(server_to_check_,
                                  CertificateCheckResult::kValidChanged));

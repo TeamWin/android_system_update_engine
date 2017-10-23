@@ -63,7 +63,7 @@ using testing::NiceMock;
 using testing::Return;
 using testing::ReturnPointee;
 using testing::SaveArg;
-using testing::SetArgumentPointee;
+using testing::SetArgPointee;
 using testing::_;
 
 namespace {
@@ -499,8 +499,8 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(ConnectionType::kEthernet),
-                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
+          DoAll(SetArgPointee<0>(ConnectionType::kEthernet),
+                SetArgPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kEthernet, _))
       .WillRepeatedly(Return(false));
@@ -529,8 +529,8 @@ TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularAllowedByDevicePolicy) {
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
-                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
+          DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                SetArgPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(true));
@@ -561,8 +561,8 @@ TEST_F(OmahaRequestActionTest, ValidUpdateOverCellularBlockedByDevicePolicy) {
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
-                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
+          DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                SetArgPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(true));
@@ -595,8 +595,8 @@ TEST_F(OmahaRequestActionTest,
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
-                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
+          DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                SetArgPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(false));
@@ -636,8 +636,8 @@ TEST_F(OmahaRequestActionTest,
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
-                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
+          DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                SetArgPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(false));
@@ -676,8 +676,8 @@ TEST_F(OmahaRequestActionTest,
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(ConnectionType::kCellular),
-                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
+          DoAll(SetArgPointee<0>(ConnectionType::kCellular),
+                SetArgPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsAllowedConnectionTypesForUpdateSet())
       .WillRepeatedly(Return(false));
@@ -1414,7 +1414,7 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
   fake_system_state_.set_prefs(&prefs);
 
   EXPECT_CALL(prefs, GetString(kPrefsPreviousVersion, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(string("")), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(string("")), Return(true)));
   // An existing but empty previous version means that we didn't reboot to a new
   // update, therefore, no need to update the previous version.
   EXPECT_CALL(prefs, SetString(kPrefsPreviousVersion, _)).Times(0);
@@ -1620,11 +1620,11 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
   int64_t six_days_ago =
       (Time::Now() - TimeDelta::FromHours(6 * 24 + 11)).ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(six_days_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(six_days_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(five_days_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(five_days_ago), Return(true)));
   brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
@@ -1667,11 +1667,11 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
       (Time::Now() - TimeDelta::FromHours(3 * 24 + 12)).ToInternalValue();
   int64_t now = Time::Now().ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(three_days_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(three_days_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
   brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
@@ -1699,11 +1699,11 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
       (Time::Now() - TimeDelta::FromHours(4 * 24)).ToInternalValue();
   int64_t now = Time::Now().ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(four_days_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(four_days_ago), Return(true)));
   brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
@@ -1730,11 +1730,11 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
   int64_t one_hour_ago =
       (Time::Now() - TimeDelta::FromHours(1)).ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(one_hour_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(one_hour_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(one_hour_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(one_hour_ago), Return(true)));
   // LastActivePingDay and PrefsLastRollCallPingDay are set even if we didn't
   // send a ping.
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _))
@@ -1763,9 +1763,9 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
   fake_system_state_.set_prefs(&prefs);
   int64_t now = Time::Now().ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   brillo::Blob post_data;
@@ -1792,11 +1792,11 @@ TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
   int64_t future =
       (Time::Now() + TimeDelta::FromHours(3 * 24 + 4)).ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(future), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(future), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(future), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(future), Return(true)));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _))
       .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _))

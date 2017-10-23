@@ -41,7 +41,7 @@ using testing::AtLeast;
 using testing::Mock;
 using testing::NiceMock;
 using testing::Return;
-using testing::SetArgumentPointee;
+using testing::SetArgPointee;
 using testing::_;
 
 namespace chromeos_update_engine {
@@ -607,7 +607,7 @@ TEST(PayloadStateTest, SetResponseResetsInvalidUrlIndex) {
   EXPECT_CALL(*prefs2, GetInt64(kPrefsFullPayloadAttemptNumber, _))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsCurrentUrlIndex, _))
-      .WillRepeatedly(DoAll(SetArgumentPointee<1>(2), Return(true)));
+      .WillRepeatedly(DoAll(SetArgPointee<1>(2), Return(true)));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsCurrentUrlFailureCount, _))
     .Times(AtLeast(1));
   EXPECT_CALL(*prefs2, GetInt64(kPrefsUrlSwitchCount, _))
@@ -1011,7 +1011,7 @@ TEST(PayloadStateTest, RollbackVersion) {
   // Let's verify we can reload it correctly.
   EXPECT_CALL(*mock_powerwash_safe_prefs, GetString(
       kPrefsRollbackVersion, _)).WillOnce(DoAll(
-          SetArgumentPointee<1>(rollback_version), Return(true)));
+          SetArgPointee<1>(rollback_version), Return(true)));
   EXPECT_CALL(*mock_powerwash_safe_prefs, SetString(kPrefsRollbackVersion,
                                                     rollback_version));
   payload_state.LoadRollbackVersion();
@@ -1253,7 +1253,7 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
 
   // Test with device policy not allowing http updates.
   EXPECT_CALL(disable_http_policy, GetHttpDownloadsEnabled(_))
-      .WillRepeatedly(DoAll(SetArgumentPointee<0>(false), Return(true)));
+      .WillRepeatedly(DoAll(SetArgPointee<0>(false), Return(true)));
 
   // Reset state and set again.
   SetupPayloadStateWith2Urls("Hash8433", false, &payload_state, &response);
@@ -1280,7 +1280,7 @@ TEST(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   policy::MockDevicePolicy enable_http_policy;
   fake_system_state.set_device_policy(&enable_http_policy);
   EXPECT_CALL(enable_http_policy, GetHttpDownloadsEnabled(_))
-      .WillRepeatedly(DoAll(SetArgumentPointee<0>(true), Return(true)));
+      .WillRepeatedly(DoAll(SetArgPointee<0>(true), Return(true)));
 
   // Now, set the same response using the same hash
   // so that we can test that the state is reset not because of the

@@ -60,7 +60,7 @@ using testing::Property;
 using testing::Return;
 using testing::ReturnPointee;
 using testing::SaveArg;
-using testing::SetArgumentPointee;
+using testing::SetArgPointee;
 using testing::_;
 using update_engine::UpdateStatus;
 
@@ -283,13 +283,13 @@ TEST_F(UpdateAttempterTest, DisableDeltaUpdateIfNeededTest) {
   EXPECT_TRUE(attempter_.omaha_request_params_->delta_okay());
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
       .WillOnce(DoAll(
-          SetArgumentPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures - 1),
+          SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures - 1),
           Return(true)));
   attempter_.DisableDeltaUpdateIfNeeded();
   EXPECT_TRUE(attempter_.omaha_request_params_->delta_okay());
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
       .WillOnce(DoAll(
-          SetArgumentPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
+          SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
           Return(true)));
   attempter_.DisableDeltaUpdateIfNeeded();
   EXPECT_FALSE(attempter_.omaha_request_params_->delta_okay());
@@ -301,10 +301,10 @@ TEST_F(UpdateAttempterTest, DisableDeltaUpdateIfNeededTest) {
 TEST_F(UpdateAttempterTest, MarkDeltaUpdateFailureTest) {
   EXPECT_CALL(*prefs_, GetInt64(kPrefsDeltaUpdateFailures, _))
       .WillOnce(Return(false))
-      .WillOnce(DoAll(SetArgumentPointee<1>(-1), Return(true)))
-      .WillOnce(DoAll(SetArgumentPointee<1>(1), Return(true)))
+      .WillOnce(DoAll(SetArgPointee<1>(-1), Return(true)))
+      .WillOnce(DoAll(SetArgPointee<1>(1), Return(true)))
       .WillOnce(DoAll(
-          SetArgumentPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
+          SetArgPointee<1>(UpdateAttempter::kMaxDeltaUpdateFailures),
           Return(true)));
   EXPECT_CALL(*prefs_, SetInt64(Ne(kPrefsDeltaUpdateFailures), _))
       .WillRepeatedly(Return(true));
@@ -439,12 +439,12 @@ void UpdateAttempterTest::RollbackTestStart(
   if (enterprise_rollback) {
     // We return an empty owner as this is an enterprise.
     EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
-        DoAll(SetArgumentPointee<0>(string("")),
+        DoAll(SetArgPointee<0>(string("")),
         Return(true)));
   } else {
     // We return a fake owner as this is an owned consumer device.
     EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
-        DoAll(SetArgumentPointee<0>(string("fake.mail@fake.com")),
+        DoAll(SetArgPointee<0>(string("fake.mail@fake.com")),
         Return(true)));
   }
 
@@ -726,7 +726,7 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
-          SetArgumentPointee<0>(scatter_factor_in_seconds),
+          SetArgPointee<0>(scatter_factor_in_seconds),
           Return(true)));
 
   attempter_.Update("", "", "", "", false, false);
@@ -764,7 +764,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
-          SetArgumentPointee<0>(scatter_factor_in_seconds),
+          SetArgPointee<0>(scatter_factor_in_seconds),
           Return(true)));
 
   attempter_.Update("", "", "", "", false, false);
@@ -823,7 +823,7 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
-          SetArgumentPointee<0>(scatter_factor_in_seconds),
+          SetArgPointee<0>(scatter_factor_in_seconds),
           Return(true)));
 
   // Trigger an interactive check so we can test that scattering is disabled.
