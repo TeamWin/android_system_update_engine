@@ -57,7 +57,7 @@ class MetricsReporterAndroid : public MetricsReporterInterface {
       metrics::DownloadErrorCode payload_download_error_code,
       metrics::ConnectionType connection_type) override {}
 
-  void ReportAbnormallyTerminatedUpdateAttemptMetrics() override {}
+  void ReportAbnormallyTerminatedUpdateAttemptMetrics() override;
 
   void ReportSuccessfulUpdateMetrics(
       int attempt_count,
@@ -68,7 +68,7 @@ class MetricsReporterAndroid : public MetricsReporterInterface {
       int download_overhead_percentage,
       base::TimeDelta total_duration,
       int reboot_count,
-      int url_switch_count) override {}
+      int url_switch_count) override;
 
   void ReportCertificateCheckMetrics(ServerToCheck server_to_check,
                                      CertificateCheckResult result) override {}
