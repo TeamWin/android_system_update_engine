@@ -112,6 +112,10 @@ const char kMetricInstallDateProvisioningSource[] =
     "UpdateEngine.InstallDateProvisioningSource";
 const char kMetricTimeToRebootMinutes[] = "UpdateEngine.TimeToRebootMinutes";
 
+std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter() {
+  return std::make_unique<MetricsReporterOmaha>();
+}
+
 }  // namespace metrics
 
 MetricsReporterOmaha::MetricsReporterOmaha()
