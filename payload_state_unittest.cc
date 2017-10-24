@@ -103,11 +103,6 @@ static void SetupPayloadStateWith2Urls(string hash,
   EXPECT_EQ(expected_response_sign, stored_response_sign);
 }
 
-// Compare the value of native array for download source parameter.
-MATCHER_P(DownloadSourceMatcher, source_array, "") {
-  return memcmp(source_array, arg, kNumDownloadSources) == 0;
-}
-
 class PayloadStateTest : public ::testing::Test { };
 
 TEST(PayloadStateTest, SetResponseWorksWithEmptyResponse) {
@@ -917,7 +912,15 @@ TEST(PayloadStateTest, DownloadSourcesUsedIsCorrect) {
 
   EXPECT_CALL(*fake_system_state.mock_metrics_reporter(),
               ReportSuccessfulUpdateMetrics(
-                  _, _, _, _, DownloadSourceMatcher(total_bytes), _, _, _, _))
+                  _,
+                  _,
+                  _,
+                  _,
+                  test_utils::DownloadSourceMatcher(total_bytes),
+                  _,
+                  _,
+                  _,
+                  _))
       .Times(1);
 
   payload_state.UpdateSucceeded();
