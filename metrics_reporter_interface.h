@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_METRICS_REPORTER_INTERFACE_H_
 #define UPDATE_ENGINE_METRICS_REPORTER_INTERFACE_H_
 
+#include <memory>
+
 #include <base/time/time.h>
 
 #include "update_engine/common/constants.h"
@@ -28,6 +30,12 @@ namespace chromeos_update_engine {
 
 enum class ServerToCheck;
 enum class CertificateCheckResult;
+
+namespace metrics {
+
+std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter();
+
+}  // namespace metrics
 
 class MetricsReporterInterface {
  public:
