@@ -35,7 +35,7 @@
 #include "update_engine/common/file_fetcher.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/daemon_state_interface.h"
-#include "update_engine/metrics_reporter_android.h"
+#include "update_engine/metrics_reporter_interface.h"
 #include "update_engine/metrics_utils.h"
 #include "update_engine/network_selector.h"
 #include "update_engine/payload_consumer/download_action.h"
@@ -93,8 +93,8 @@ UpdateAttempterAndroid::UpdateAttempterAndroid(
       boot_control_(boot_control),
       hardware_(hardware),
       processor_(new ActionProcessor()),
-      clock_(new Clock()),
-      metrics_reporter_(new MetricsReporterAndroid()) {
+      clock_(new Clock()) {
+  metrics_reporter_ = metrics::CreateMetricsReporter();
   network_selector_ = network::CreateNetworkSelector();
 }
 

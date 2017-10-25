@@ -466,7 +466,7 @@ LOCAL_C_INCLUDES += \
 LOCAL_SRC_FILES := \
     boot_control_recovery.cc \
     hardware_android.cc \
-    metrics_reporter_android.cc \
+    metrics_reporter_stub.cc \
     metrics_utils.cc \
     network_selector_stub.cc \
     proxy_resolver.cc \
