@@ -382,7 +382,12 @@ def main():
     device_ota_file = os.path.join(OTA_PACKAGE_PATH, 'debug.zip')
     payload_url = 'file://' + device_ota_file
     if not args.no_push:
-      cmds.append(['push', args.otafile, device_ota_file])
+      data_local_tmp_file = '/data/local/tmp/debug.zip'
+      cmds.append(['push', args.otafile, data_local_tmp_file])
+      cmds.append(['shell', 'su', '0', 'mv', data_local_tmp_file,
+                   device_ota_file])
+      cmds.append(['shell', 'su', '0', 'chcon',
+                   'u:object_r:ota_package_file:s0', device_ota_file])
     cmds.append(['shell', 'su', '0', 'chown', 'system:cache', device_ota_file])
     cmds.append(['shell', 'su', '0', 'chmod', '0660', device_ota_file])
   else:
