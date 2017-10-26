@@ -16,28 +16,24 @@
 
 #include "update_engine/metrics_reporter_android.h"
 
-#ifndef _UE_SIDELOAD
+#include <memory>
 #include <string>
 
 #include <metricslogger/metrics_logger.h>
 
 #include "update_engine/common/constants.h"
-#endif  // _UE_SIDELOAD
 
 namespace {
-#ifndef _UE_SIDELOAD
 void LogHistogram(const std::string& metrics, int value) {
   android::metricslogger::LogHistogram(metrics, value);
   LOG(INFO) << "uploading " << value << "to histogram for metric " << metrics;
 }
-#endif
 }  // namespace
 
 namespace chromeos_update_engine {
 
 namespace metrics {
 
-#ifndef _UE_SIDELOAD
 // The histograms are defined in:
 // depot/google3/analysis/uma/configs/clearcut/TRON/histograms.xml
 constexpr char kMetricsUpdateEngineAttemptNumber[] =
@@ -65,7 +61,11 @@ constexpr char kMetricsUpdateEngineSuccessfulUpdatePayloadType[] =
     "ota_update_engine_successful_update_payload_type";
 constexpr char kMetricsUpdateEngineSuccessfulUpdateRebootCount[] =
     "ota_update_engine_successful_update_reboot_count";
-#endif
+
+std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter() {
+  return std::make_unique<MetricsReporterAndroid>();
+}
+
 }  // namespace metrics
 
 void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
@@ -77,8 +77,6 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
     int64_t payload_size,
     metrics::AttemptResult attempt_result,
     ErrorCode error_code) {
-// No need to log histogram under sideload mode.
-#ifndef _UE_SIDELOAD
   LogHistogram(metrics::kMetricsUpdateEngineAttemptNumber, attempt_number);
   LogHistogram(metrics::kMetricsUpdateEngineAttemptPayloadType,
                static_cast<int>(payload_type));
@@ -95,7 +93,6 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
                static_cast<int>(attempt_result));
   LogHistogram(metrics::kMetricsUpdateEngineAttemptErrorCode,
                static_cast<int>(error_code));
-#endif
 }
 
 void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
@@ -108,7 +105,6 @@ void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
     base::TimeDelta total_duration,
     int reboot_count,
     int /* url_switch_count */) {
-#ifndef _UE_SIDELOAD
   LogHistogram(metrics::kMetricsUpdateEngineSuccessfulUpdateAttemptCount,
                attempt_count);
   LogHistogram(metrics::kMetricsUpdateEngineSuccessfulUpdatePayloadType,
@@ -123,15 +119,12 @@ void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
       total_duration.InMinutes());
   LogHistogram(metrics::kMetricsUpdateEngineSuccessfulUpdateRebootCount,
                reboot_count);
-#endif
 }
 
 void MetricsReporterAndroid::ReportAbnormallyTerminatedUpdateAttemptMetrics() {
-#ifndef _UE_SIDELOAD
   int attempt_result =
       static_cast<int>(metrics::AttemptResult::kAbnormalTermination);
   LogHistogram(metrics::kMetricsUpdateEngineAttemptResult, attempt_result);
-#endif
 }
 
 };  // namespace chromeos_update_engine
