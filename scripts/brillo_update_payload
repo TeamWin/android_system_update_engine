@@ -401,7 +401,8 @@ extract_image_brillo() {
     if grep -v -E '^[a-zA-Z0-9_-]*$' "${ab_partitions_list}" >&2; then
       die "Invalid partition names found in the partition list."
     fi
-    partitions=($(cat "${ab_partitions_list}"))
+    # Get partition list without duplicates.
+    partitions=($(awk '!seen[$0]++' "${ab_partitions_list}"))
     if [[ ${#partitions[@]} -eq 0 ]]; then
       die "The list of partitions is empty. Can't generate a payload."
     fi
