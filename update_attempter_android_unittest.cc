@@ -28,6 +28,7 @@
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_action_processor.h"
+#include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/daemon_state_android.h"
 #include "update_engine/mock_metrics_reporter.h"
@@ -38,6 +39,7 @@ using testing::_;
 using update_engine::UpdateStatus;
 
 namespace chromeos_update_engine {
+
 class UpdateAttempterAndroidTest : public ::testing::Test {
  protected:
   UpdateAttempterAndroidTest() = default;
@@ -148,6 +150,60 @@ TEST_F(UpdateAttempterAndroidTest, ReportMetricsOnUpdateTerminated) {
   EXPECT_FALSE(prefs_.Exists(kPrefsPayloadAttemptNumber));
   EXPECT_FALSE(prefs_.Exists(kPrefsUpdateTimestampStart));
   EXPECT_TRUE(prefs_.Exists(kPrefsSystemUpdatedMarker));
+}
+
+TEST_F(UpdateAttempterAndroidTest, ReportMetricsForBytesDownloaded) {
+  // Check both prefs are updated correctly.
+  update_attempter_android_.BytesReceived(20, 50, 200);
+  EXPECT_EQ(
+      20,
+      metrics_utils::GetPersistedValue(kPrefsCurrentBytesDownloaded, &prefs_));
+  EXPECT_EQ(
+      20,
+      metrics_utils::GetPersistedValue(kPrefsTotalBytesDownloaded, &prefs_));
+
+  EXPECT_CALL(*metrics_reporter_,
+              ReportUpdateAttemptDownloadMetrics(50, _, _, _, _))
+      .Times(1);
+  EXPECT_CALL(*metrics_reporter_,
+              ReportUpdateAttemptDownloadMetrics(40, _, _, _, _))
+      .Times(1);
+
+  int64_t total_bytes[kNumDownloadSources] = {};
+  total_bytes[kDownloadSourceHttpsServer] = 90;
+  EXPECT_CALL(*metrics_reporter_,
+              ReportSuccessfulUpdateMetrics(
+                  _,
+                  _,
+                  _,
+                  _,
+                  test_utils::DownloadSourceMatcher(total_bytes),
+                  125,
+                  _,
+                  _,
+                  _))
+      .Times(1);
+
+  // The first update fails after receving 50 bytes in total.
+  update_attempter_android_.BytesReceived(30, 50, 200);
+  update_attempter_android_.ProcessingDone(nullptr, ErrorCode::kError);
+  EXPECT_EQ(
+      0,
+      metrics_utils::GetPersistedValue(kPrefsCurrentBytesDownloaded, &prefs_));
+  EXPECT_EQ(
+      50,
+      metrics_utils::GetPersistedValue(kPrefsTotalBytesDownloaded, &prefs_));
+
+  // The second update succeeds after receiving 40 bytes, which leads to a
+  // overhead of 50 / 40 = 125%.
+  update_attempter_android_.BytesReceived(40, 40, 50);
+  update_attempter_android_.ProcessingDone(nullptr, ErrorCode::kSuccess);
+  // Both prefs should be cleared.
+  EXPECT_EQ(
+      0,
+      metrics_utils::GetPersistedValue(kPrefsCurrentBytesDownloaded, &prefs_));
+  EXPECT_EQ(
+      0, metrics_utils::GetPersistedValue(kPrefsTotalBytesDownloaded, &prefs_));
 }
 
 }  // namespace chromeos_update_engine

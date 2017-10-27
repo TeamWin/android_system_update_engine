@@ -372,6 +372,16 @@ void UpdateAttempterAndroid::BytesReceived(uint64_t bytes_progressed,
   } else {
     ProgressUpdate(progress);
   }
+
+  // Update the bytes downloaded in prefs.
+  int64_t current_bytes_downloaded =
+      metrics_utils::GetPersistedValue(kPrefsCurrentBytesDownloaded, prefs_);
+  int64_t total_bytes_downloaded =
+      metrics_utils::GetPersistedValue(kPrefsTotalBytesDownloaded, prefs_);
+  prefs_->SetInt64(kPrefsCurrentBytesDownloaded,
+                   current_bytes_downloaded + bytes_progressed);
+  prefs_->SetInt64(kPrefsTotalBytesDownloaded,
+                   total_bytes_downloaded + bytes_progressed);
 }
 
 bool UpdateAttempterAndroid::ShouldCancel(ErrorCode* cancel_reason) {
@@ -446,6 +456,8 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
   ClearMetricsPrefs();
   if (error_code == ErrorCode::kSuccess) {
     metrics_utils::SetSystemUpdatedMarker(clock_.get(), prefs_);
+    // Clear the total bytes downloaded if and only if the update succeeds.
+    prefs_->SetInt64(kPrefsTotalBytesDownloaded, 0);
   }
 }
 
@@ -570,18 +582,43 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
       attempt_result,
       error_code);
 
+  int64_t current_bytes_downloaded =
+      metrics_utils::GetPersistedValue(kPrefsCurrentBytesDownloaded, prefs_);
+  metrics_reporter_->ReportUpdateAttemptDownloadMetrics(
+      current_bytes_downloaded,
+      0,
+      DownloadSource::kNumDownloadSources,
+      metrics::DownloadErrorCode::kUnset,
+      metrics::ConnectionType::kUnset);
+
   if (error_code == ErrorCode::kSuccess) {
     int64_t reboot_count =
         metrics_utils::GetPersistedValue(kPrefsNumReboots, prefs_);
     string build_version;
     prefs_->GetString(kPrefsPreviousVersion, &build_version);
+
+    // For android metrics, we only care about the total bytes downloaded
+    // for all sources; for now we assume the only download source is
+    // HttpsServer.
+    int64_t total_bytes_downloaded =
+        metrics_utils::GetPersistedValue(kPrefsTotalBytesDownloaded, prefs_);
+    int64_t num_bytes_downloaded[kNumDownloadSources] = {};
+    num_bytes_downloaded[DownloadSource::kDownloadSourceHttpsServer] =
+        total_bytes_downloaded;
+
+    int download_overhead_percentage = 0;
+    if (current_bytes_downloaded > 0) {
+      download_overhead_percentage =
+          (total_bytes_downloaded - current_bytes_downloaded) * 100ull /
+          current_bytes_downloaded;
+    }
     metrics_reporter_->ReportSuccessfulUpdateMetrics(
         static_cast<int>(attempt_number),
         0,  // update abandoned count
         payload_type,
         payload_size,
-        nullptr,  // num bytes downloaded
-        0,        // download overhead percentage
+        num_bytes_downloaded,
+        download_overhead_percentage,
         duration,
         static_cast<int>(reboot_count),
         0);  // url_switch_count
@@ -657,6 +694,7 @@ void UpdateAttempterAndroid::UpdatePrefsOnUpdateStart(bool is_resume) {
 
 void UpdateAttempterAndroid::ClearMetricsPrefs() {
   CHECK(prefs_);
+  prefs_->Delete(kPrefsCurrentBytesDownloaded);
   prefs_->Delete(kPrefsNumReboots);
   prefs_->Delete(kPrefsPayloadAttemptNumber);
   prefs_->Delete(kPrefsSystemUpdatedMarker);
