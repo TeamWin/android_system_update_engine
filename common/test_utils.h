@@ -31,6 +31,7 @@
 #include <base/callback.h>
 #include <base/files/file_path.h>
 #include <base/files/scoped_temp_dir.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/action.h"
@@ -100,6 +101,11 @@ std::string Readlink(const std::string& path);
 bool IsXAttrSupported(const base::FilePath& dir_path);
 
 void FillWithData(brillo::Blob* buffer);
+
+// Compare the value of native array for download source parameter.
+MATCHER_P(DownloadSourceMatcher, source_array, "") {
+  return std::equal(source_array, source_array + kNumDownloadSources, arg);
+}
 
 // Class to unmount FS when object goes out of scope
 class ScopedFilesystemUnmounter {
