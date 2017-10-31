@@ -82,6 +82,11 @@ void PostinstallRunnerAction::PerformAction() {
 }
 
 void PostinstallRunnerAction::PerformPartitionPostinstall() {
+  if (!install_plan_.run_post_install) {
+    LOG(INFO) << "Skipping post-install according to install plan.";
+    return CompletePostinstall(ErrorCode::kSuccess);
+  }
+
   if (install_plan_.download_url.empty()) {
     LOG(INFO) << "Skipping post-install during rollback";
     return CompletePostinstall(ErrorCode::kSuccess);
@@ -331,15 +336,21 @@ void PostinstallRunnerAction::CompletePartitionPostinstall(
 void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
   // We only attempt to mark the new slot as active if all the postinstall
   // steps succeeded.
-  if (error_code == ErrorCode::kSuccess &&
-      !boot_control_->SetActiveBootSlot(install_plan_.target_slot)) {
-    error_code = ErrorCode::kPostinstallRunnerError;
+  if (error_code == ErrorCode::kSuccess) {
+    if (install_plan_.switch_slot_on_reboot) {
+      if (!boot_control_->SetActiveBootSlot(install_plan_.target_slot)) {
+        error_code = ErrorCode::kPostinstallRunnerError;
+      }
+    } else {
+      error_code = ErrorCode::kUpdatedButNotActive;
+    }
   }
 
   ScopedActionCompleter completer(processor_, this);
   completer.set_code(error_code);
 
-  if (error_code != ErrorCode::kSuccess) {
+  if (error_code != ErrorCode::kSuccess &&
+      error_code != ErrorCode::kUpdatedButNotActive) {
     LOG(ERROR) << "Postinstall action failed.";
 
     // Undo any changes done to trigger Powerwash.

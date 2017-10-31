@@ -57,6 +57,7 @@ const char kPrefsP2PEnabled[] = "p2p-enabled";
 const char kPrefsP2PFirstAttemptTimestamp[] = "p2p-first-attempt-timestamp";
 const char kPrefsP2PNumAttempts[] = "p2p-num-attempts";
 const char kPrefsPayloadAttemptNumber[] = "payload-attempt-number";
+const char kPrefsPostInstallSucceeded[] = "post-install-succeeded";
 const char kPrefsPreviousVersion[] = "previous-version";
 const char kPrefsResumedUpdateFailures[] = "resumed-update-failures";
 const char kPrefsRollbackVersion[] = "rollback-version";
@@ -103,5 +104,12 @@ const char kPayloadPropertyPowerwash[] = "POWERWASH";
 // This can be used to zero-rate OTA traffic by sending it over the correct
 // network.
 const char kPayloadPropertyNetworkId[] = "NETWORK_ID";
+// Set "SWITCH_SLOT_ON_REBOOT=0" to skip marking the updated partitions active.
+// The default is 1 (always switch slot if update succeeded).
+const char kPayloadPropertySwitchSlotOnReboot[] = "SWITCH_SLOT_ON_REBOOT";
+// Set "RUN_POST_INSTALL=0" to skip running post install, this will only be
+// honored if we're resuming an update and post install has already succeeded.
+// The default is 1 (always run post install).
+const char kPayloadPropertyRunPostInstall[] = "RUN_POST_INSTALL";
 
 }  // namespace chromeos_update_engine

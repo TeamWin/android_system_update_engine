@@ -39,6 +39,9 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kSuccess:
       return metrics::AttemptResult::kUpdateSucceeded;
 
+    case ErrorCode::kUpdatedButNotActive:
+      return metrics::AttemptResult::kUpdateSucceededNotActive;
+
     case ErrorCode::kDownloadTransferError:
       return metrics::AttemptResult::kPayloadDownloadError;
 
@@ -210,6 +213,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
+    case ErrorCode::kUpdatedButNotActive:
       break;
 
     // Special flags. These can't happen (we mask them out above) but

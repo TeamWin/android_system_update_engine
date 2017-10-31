@@ -87,7 +87,10 @@ void InstallPlan::Dump() const {
             << ", url: " << download_url << payloads_str << partitions_str
             << ", hash_checks_mandatory: "
             << utils::ToString(hash_checks_mandatory)
-            << ", powerwash_required: " << utils::ToString(powerwash_required);
+            << ", powerwash_required: " << utils::ToString(powerwash_required)
+            << ", switch_slot_on_reboot: "
+            << utils::ToString(switch_slot_on_reboot)
+            << ", run_post_install: " << utils::ToString(run_post_install);
 }
 
 bool InstallPlan::LoadPartitionsFromSlots(BootControlInterface* boot_control) {
