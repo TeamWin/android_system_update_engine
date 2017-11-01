@@ -276,14 +276,13 @@ def StartServer(ota_filename, serving_range):
   return t
 
 
-def AndroidUpdateCommand(ota_filename, payload_url):
+def AndroidUpdateCommand(ota_filename, payload_url, extra_headers):
   """Return the command to run to start the update in the Android device."""
   ota = AndroidOTAPackage(ota_filename)
   headers = ota.properties
   headers += 'USER_AGENT=Dalvik (something, something)\n'
-
-  # headers += 'POWERWASH=1\n'
   headers += 'NETWORK_ID=0\n'
+  headers += extra_headers
 
   return ['update_engine_client', '--update', '--follow',
           '--payload=%s' % payload_url, '--offset=%d' % ota.offset,
@@ -360,6 +359,8 @@ def main():
                       help='Less verbose output')
   parser.add_argument('--public-key', type=str, default='',
                       help='Override the public key used to verify payload.')
+  parser.add_argument('--extra-headers', type=str, default='',
+                      help='Extra headers to pass to the device.')
   args = parser.parse_args()
   logging.basicConfig(
       level=logging.WARNING if args.no_verbose else logging.INFO)
@@ -423,7 +424,8 @@ def main():
       update_cmd = \
           OmahaUpdateCommand('http://127.0.0.1:%d/update' % DEVICE_PORT)
     else:
-      update_cmd = AndroidUpdateCommand(args.otafile, payload_url)
+      update_cmd = \
+          AndroidUpdateCommand(args.otafile, payload_url, args.extra_headers)
     cmds.append(['shell', 'su', '0'] + update_cmd)
 
     for cmd in cmds:
