@@ -95,6 +95,8 @@ enum class AttemptResult {
   kPostInstallFailed,           // The postinstall step failed.
   kAbnormalTermination,         // The attempt ended abnormally.
   kUpdateCanceled,              // Update canceled by the user.
+  kUpdateSucceededNotActive,    // Update succeeded but the new slot is not
+                                // active.
 
   kNumConstants,
 

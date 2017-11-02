@@ -119,6 +119,14 @@ struct InstallPlan {
   // False otherwise.
   bool powerwash_required{false};
 
+  // True if the updated slot should be marked active on success.
+  // False otherwise.
+  bool switch_slot_on_reboot{true};
+
+  // True if the update should run its post-install step.
+  // False otherwise.
+  bool run_post_install{true};
+
   // If not blank, a base-64 encoded representation of the PEM-encoded
   // public key in the response.
   std::string public_key_rsa;
