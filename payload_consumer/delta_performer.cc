@@ -1638,6 +1638,7 @@ bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
     prefs->SetInt64(kPrefsManifestMetadataSize, -1);
     prefs->SetInt64(kPrefsManifestSignatureSize, -1);
     prefs->SetInt64(kPrefsResumedUpdateFailures, 0);
+    prefs->Delete(kPrefsPostInstallSucceeded);
   }
   return true;
 }
