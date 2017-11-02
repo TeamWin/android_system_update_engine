@@ -103,6 +103,7 @@ ue_libpayload_consumer_exported_static_libraries := \
     libxz \
     libbz \
     libbspatch \
+    libbrotli \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
     libcrypto \
@@ -601,6 +602,7 @@ ue_libpayload_generator_exported_static_libraries := \
     libbsdiff \
     libdivsufsort \
     libdivsufsort64 \
+    libbrotli \
     libpayload_consumer \
     liblzma \
     update_metadata-protos \
