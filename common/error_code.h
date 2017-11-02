@@ -73,6 +73,9 @@ enum class ErrorCode : int {
   kFilesystemVerifierError = 47,
   kUserCanceled = 48,
   kNonCriticalUpdateInOOBE = 49,
+  // kOmahaUpdateIgnoredOverCellular = 50,
+  // kPayloadTimestampError = 51,
+  kUpdatedButNotActive = 52,
 
   // VERY IMPORTANT! When adding new error codes:
   //

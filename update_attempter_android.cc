@@ -80,6 +80,13 @@ bool LogAndSetError(brillo::ErrorPtr* error,
   return false;
 }
 
+bool GetHeaderAsBool(const string& header, bool default_value) {
+  int value = 0;
+  if (base::StringToInt(header, &value) && (value == 0 || value == 1))
+    return value == 1;
+  return default_value;
+}
+
 }  // namespace
 
 UpdateAttempterAndroid::UpdateAttempterAndroid(
@@ -192,10 +199,25 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.source_slot = boot_control_->GetCurrentSlot();
   install_plan_.target_slot = install_plan_.source_slot == 0 ? 1 : 0;
 
-  int data_wipe = 0;
   install_plan_.powerwash_required =
-      base::StringToInt(headers[kPayloadPropertyPowerwash], &data_wipe) &&
-      data_wipe != 0;
+      GetHeaderAsBool(headers[kPayloadPropertyPowerwash], false);
+
+  install_plan_.switch_slot_on_reboot =
+      GetHeaderAsBool(headers[kPayloadPropertySwitchSlotOnReboot], true);
+
+  install_plan_.run_post_install = true;
+  // Optionally skip post install if and only if:
+  // a) we're resuming
+  // b) post install has already succeeded before
+  // c) RUN_POST_INSTALL is set to 0.
+  if (install_plan_.is_resume && prefs_->Exists(kPrefsPostInstallSucceeded)) {
+    bool post_install_succeeded = false;
+    prefs_->GetBoolean(kPrefsPostInstallSucceeded, &post_install_succeeded);
+    if (post_install_succeeded) {
+      install_plan_.run_post_install =
+          GetHeaderAsBool(headers[kPayloadPropertyRunPostInstall], true);
+    }
+  }
 
   NetworkId network_id = kDefaultNetworkId;
   if (!headers[kPayloadPropertyNetworkId].empty()) {
@@ -313,7 +335,6 @@ void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
       // Update succeeded.
       WriteUpdateCompletedMarker();
       prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
-      DeltaPerformer::ResetUpdateProgress(prefs_, false);
 
       LOG(INFO) << "Update successfully applied, waiting to reboot.";
       break;
@@ -350,6 +371,11 @@ void UpdateAttempterAndroid::ActionCompleted(ActionProcessor* processor,
   const string type = action->Type();
   if (type == DownloadAction::StaticType()) {
     download_progress_ = 0;
+  }
+  if (type == PostinstallRunnerAction::StaticType()) {
+    bool succeeded =
+        code == ErrorCode::kSuccess || code == ErrorCode::kUpdatedButNotActive;
+    prefs_->SetBoolean(kPrefsPostInstallSucceeded, succeeded);
   }
   if (code != ErrorCode::kSuccess) {
     // If an action failed, the ActionProcessor will cancel the whole thing.
