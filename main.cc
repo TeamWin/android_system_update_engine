@@ -89,7 +89,7 @@ void SetupLogging(bool log_to_system, bool log_to_file) {
   string log_file;
   if (log_to_file) {
 #ifdef __ANDROID__
-    log_file = "/data/misc/update_engine/update_engine.log";
+    log_file = "/data/misc/update_engine_log/update_engine.log";
     log_settings.delete_old = logging::DELETE_OLD_LOG_FILE;
 #else
     log_file = SetupLogFile("/var/log");
@@ -98,6 +98,12 @@ void SetupLogging(bool log_to_system, bool log_to_file) {
     log_settings.log_file = log_file.c_str();
   }
   logging::InitLogging(log_settings);
+
+#ifdef __ANDROID__
+  // The log file will have AID_LOG as group ID; this GID is inherited from the
+  // parent directory "/data/misc/update_engine_log" which sets the SGID bit.
+  chmod(log_file.c_str(), 0640);
+#endif
 }
 
 }  // namespace
