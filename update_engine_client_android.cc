@@ -97,7 +97,10 @@ Status UpdateEngineClientAndroid::UECallback::onPayloadApplicationComplete(
   ErrorCode code = static_cast<ErrorCode>(error_code);
   LOG(INFO) << "onPayloadApplicationComplete(" << utils::ErrorCodeToString(code)
             << " (" << error_code << "))";
-  client_->ExitWhenIdle(code == ErrorCode::kSuccess ? EX_OK : 1);
+  client_->ExitWhenIdle(
+      (code == ErrorCode::kSuccess || code == ErrorCode::kUpdatedButNotActive)
+          ? EX_OK
+          : 1);
   return Status::ok();
 }
 

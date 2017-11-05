@@ -146,8 +146,10 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kNonCriticalUpdateInOOBE";
     case ErrorCode::kPayloadTimestampError:
       return "ErrorCode::kPayloadTimestampError";
-    // Don't add a default case to let the compiler warn about newly added
-    // error codes which should be added here.
+    case ErrorCode::kUpdatedButNotActive:
+      return "ErrorCode::kUpdatedButNotActive";
+      // Don't add a default case to let the compiler warn about newly added
+      // error codes which should be added here.
   }
 
   return "Unknown error: " + base::UintToString(static_cast<unsigned>(code));
