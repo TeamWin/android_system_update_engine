@@ -55,7 +55,7 @@ class MetricsReporterAndroid : public MetricsReporterInterface {
       int64_t payload_download_speed_bps,
       DownloadSource download_source,
       metrics::DownloadErrorCode payload_download_error_code,
-      metrics::ConnectionType connection_type) override {}
+      metrics::ConnectionType connection_type) override;
 
   void ReportAbnormallyTerminatedUpdateAttemptMetrics() override;
 
