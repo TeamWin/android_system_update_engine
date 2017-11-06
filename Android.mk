@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+ifneq ($(TARGET_BUILD_PDK),true)
+
 LOCAL_PATH := $(my-dir)
 
 # Default values for the USE flags. Override these USE flags from your product
@@ -1023,3 +1025,5 @@ LOCAL_REQUIRED_MODULES := \
     simg2img
 include $(BUILD_PREBUILT)
 endif  # HOST_OS == linux
+
+endif  # ifneq ($(TARGET_BUILD_PDK),true)
