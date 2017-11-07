@@ -72,7 +72,7 @@ const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
 const uint64_t DeltaPerformer::kDeltaMetadataSignatureSizeSize = 4;
 const uint64_t DeltaPerformer::kMaxPayloadHeaderSize = 24;
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 2;
-const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 3;
+const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 4;
 
 const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
 const unsigned DeltaPerformer::kProgressLogTimeoutSeconds = 30;
