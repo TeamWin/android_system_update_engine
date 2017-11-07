@@ -41,15 +41,17 @@ constexpr char kMetricsUpdateEngineAttemptNumber[] =
 constexpr char kMetricsUpdateEngineAttemptResult[] =
     "ota_update_engine_attempt_result";
 constexpr char kMetricsUpdateEngineAttemptDurationInMinutes[] =
-    "ota_update_engine_attempt_duration_in_minutes";
+    "ota_update_engine_attempt_duration_boottime_in_minutes";
 constexpr char kMetricsUpdateEngineAttemptDurationUptimeInMinutes[] =
-    "ota_update_engine_attempt_duration_uptime_in_minutes";
+    "ota_update_engine_attempt_duration_monotonic_in_minutes";
 constexpr char kMetricsUpdateEngineAttemptErrorCode[] =
     "ota_update_engine_attempt_error_code";
 constexpr char kMetricsUpdateEngineAttemptPayloadSizeMiB[] =
     "ota_update_engine_attempt_payload_size_mib";
 constexpr char kMetricsUpdateEngineAttemptPayloadType[] =
     "ota_update_engine_attempt_payload_type";
+constexpr char kMetricsUpdateEngineAttemptCurrentBytesDownloadedMiB[] =
+    "ota_update_engine_attempt_current_bytes_downloaded_mib";
 
 constexpr char kMetricsUpdateEngineSuccessfulUpdateAttemptCount[] =
     "ota_update_engine_successful_update_attempt_count";
@@ -61,6 +63,11 @@ constexpr char kMetricsUpdateEngineSuccessfulUpdatePayloadType[] =
     "ota_update_engine_successful_update_payload_type";
 constexpr char kMetricsUpdateEngineSuccessfulUpdateRebootCount[] =
     "ota_update_engine_successful_update_reboot_count";
+constexpr char kMetricsUpdateEngineSuccessfulUpdateTotalBytesDownloadedMiB[] =
+    "ota_update_engine_successful_update_total_bytes_downloaded_mib";
+constexpr char
+    kMetricsUpdateEngineSuccessfulUpdateDownloadOverheadPercentage[] =
+        "ota_update_engine_successful_update_download_overhead_percentage";
 
 std::unique_ptr<MetricsReporterInterface> CreateMetricsReporter() {
   return std::make_unique<MetricsReporterAndroid>();
@@ -95,13 +102,23 @@ void MetricsReporterAndroid::ReportUpdateAttemptMetrics(
                static_cast<int>(error_code));
 }
 
+void MetricsReporterAndroid::ReportUpdateAttemptDownloadMetrics(
+    int64_t payload_bytes_downloaded,
+    int64_t /* payload_download_speed_bps */,
+    DownloadSource /* download_source */,
+    metrics::DownloadErrorCode /* payload_download_error_code */,
+    metrics::ConnectionType /* connection_type */) {
+  LogHistogram(metrics::kMetricsUpdateEngineAttemptCurrentBytesDownloadedMiB,
+               payload_bytes_downloaded);
+}
+
 void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
     int attempt_count,
     int /* updates_abandoned_count */,
     PayloadType payload_type,
     int64_t payload_size,
-    int64_t* /* num_bytes_downloaded */,
-    int /* download_overhead_percentage */,
+    int64_t num_bytes_downloaded[kNumDownloadSources],
+    int download_overhead_percentage,
     base::TimeDelta total_duration,
     int reboot_count,
     int /* url_switch_count */) {
@@ -113,6 +130,17 @@ void MetricsReporterAndroid::ReportSuccessfulUpdateMetrics(
   int64_t payload_size_mib = payload_size / kNumBytesInOneMiB;
   LogHistogram(metrics::kMetricsUpdateEngineSuccessfulUpdatePayloadSizeMiB,
                payload_size_mib);
+
+  int64_t total_bytes_downloaded = 0;
+  for (size_t i = 0; i < kNumDownloadSources; i++) {
+    total_bytes_downloaded += num_bytes_downloaded[i] / kNumBytesInOneMiB;
+  }
+  LogHistogram(
+      metrics::kMetricsUpdateEngineSuccessfulUpdateTotalBytesDownloadedMiB,
+      total_bytes_downloaded);
+  LogHistogram(
+      metrics::kMetricsUpdateEngineSuccessfulUpdateDownloadOverheadPercentage,
+      download_overhead_percentage);
 
   LogHistogram(
       metrics::kMetricsUpdateEngineSuccessfulUpdateTotalDurationInMinutes,
