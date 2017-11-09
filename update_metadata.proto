@@ -170,6 +170,7 @@ message InstallOperation {
 
     // On minor version 4 or newer, these operations are supported:
     PUFFDIFF = 9;  // The data is in puffdiff format.
+    BROTLI_BSDIFF = 10;  // Like SOURCE_BSDIFF, but compressed with brotli.
   }
   required Type type = 1;
   // The offset into the delta file (after the protobuf)

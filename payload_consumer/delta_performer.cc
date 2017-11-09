@@ -768,6 +768,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
         OP_DURATION_HISTOGRAM("SOURCE_COPY", op_start_time);
         break;
       case InstallOperation::SOURCE_BSDIFF:
+      case InstallOperation::BROTLI_BSDIFF:
         op_result = PerformSourceBsdiffOperation(op, error);
         OP_DURATION_HISTOGRAM("SOURCE_BSDIFF", op_start_time);
         break;
@@ -1226,15 +1227,17 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
   }
 
   string input_positions;
-  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(operation.src_extents(),
-                                                       block_size_,
-                                                       operation.src_length(),
-                                                       &input_positions));
+  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(
+      operation.src_extents(),
+      block_size_,
+      utils::BlocksInExtents(operation.src_extents()) * block_size_,
+      &input_positions));
   string output_positions;
-  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(operation.dst_extents(),
-                                                       block_size_,
-                                                       operation.dst_length(),
-                                                       &output_positions));
+  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(
+      operation.dst_extents(),
+      block_size_,
+      utils::BlocksInExtents(operation.dst_extents()) * block_size_,
+      &output_positions));
 
   TEST_AND_RETURN_FALSE(bsdiff::bspatch(source_path_.c_str(),
                                         target_path_.c_str(),

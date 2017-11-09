@@ -43,6 +43,7 @@
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_generator/block_mapping.h"
 #include "update_engine/payload_generator/bzip.h"
 #include "update_engine/payload_generator/deflate_utils.h"
@@ -821,10 +822,11 @@ bool ReadExtentsToDiff(const string& old_part,
     operation.set_dst_length(new_data.size() - removed_bytes);
   }
 
-  // Set legacy |src_length| and |dst_length| fields for both BSDIFF and
-  // SOURCE_BSDIFF as only these two use these parameters.
+  // WARNING: We always set legacy |src_length| and |dst_length| fields for
+  // BSDIFF. For SOURCE_BSDIFF we only set them for minor version 3 and lower.
   if (operation.type() == InstallOperation::BSDIFF ||
-      operation.type() == InstallOperation::SOURCE_BSDIFF) {
+      (operation.type() == InstallOperation::SOURCE_BSDIFF &&
+       version.minor <= kOpSrcHashMinorPayloadVersion)) {
     operation.set_src_length(old_data.size());
     operation.set_dst_length(new_data.size());
   }

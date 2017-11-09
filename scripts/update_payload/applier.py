@@ -349,9 +349,25 @@ class PayloadApplier(object):
     _WriteExtents(new_part_file, in_data, op.dst_extents, block_size,
                   '%s.dst_extents' % op_name)
 
+  def _BytesInExtents(self, extents, base_name):
+    """Counts the length of extents in bytes.
+
+    Args:
+      extents: The list of Extents.
+      base_name: For error reporting.
+
+    Returns:
+      The number of bytes in extents.
+    """
+
+    length = 0
+    for ex, ex_name in common.ExtentIter(extents, base_name):
+      length += ex.num_blocks * self.block_size
+    return length
+
   def _ApplyDiffOperation(self, op, op_name, patch_data, old_part_file,
                           new_part_file):
-    """Applies a SOURCE_BSDIFF or PUFFDIFF operation.
+    """Applies a SOURCE_BSDIFF, BROTLI_BSDIFF or PUFFDIFF operation.
 
     Args:
       op: the operation object
@@ -378,18 +394,22 @@ class PayloadApplier(object):
     if (hasattr(new_part_file, 'fileno') and
         ((not old_part_file) or hasattr(old_part_file, 'fileno'))):
       # Construct input and output extents argument for bspatch.
+
       in_extents_arg, _, _ = _ExtentsToBspatchArg(
           op.src_extents, block_size, '%s.src_extents' % op_name,
-          data_length=op.src_length)
+          data_length=op.src_length if op.src_length else
+          self._BytesInExtents(op.src_extents, "%s.src_extents"))
       out_extents_arg, pad_off, pad_len = _ExtentsToBspatchArg(
           op.dst_extents, block_size, '%s.dst_extents' % op_name,
-          data_length=op.dst_length)
+          data_length=op.dst_length if op.dst_length else
+          self._BytesInExtents(op.dst_extents, "%s.dst_extents"))
 
       new_file_name = '/dev/fd/%d' % new_part_file.fileno()
       # Diff from source partition.
       old_file_name = '/dev/fd/%d' % old_part_file.fileno()
 
-      if op.type in (common.OpType.BSDIFF, common.OpType.SOURCE_BSDIFF):
+      if op.type in (common.OpType.BSDIFF, common.OpType.SOURCE_BSDIFF,
+                     common.OpType.BROTLI_BSDIFF):
         # Invoke bspatch on partition file with extents args.
         bspatch_cmd = [self.bspatch_path, old_file_name, new_file_name,
                        patch_file_name, in_extents_arg, out_extents_arg]
@@ -415,7 +435,9 @@ class PayloadApplier(object):
       # Gather input raw data and write to a temp file.
       input_part_file = old_part_file if old_part_file else new_part_file
       in_data = _ReadExtents(input_part_file, op.src_extents, block_size,
-                             max_length=op.src_length)
+                             max_length=op.src_length if op.src_length else
+                             self._BytesInExtents(op.src_extents,
+                                                  "%s.src_extents"))
       with tempfile.NamedTemporaryFile(delete=False) as in_file:
         in_file_name = in_file.name
         in_file.write(in_data)
@@ -424,7 +446,8 @@ class PayloadApplier(object):
       with tempfile.NamedTemporaryFile(delete=False) as out_file:
         out_file_name = out_file.name
 
-      if op.type in (common.OpType.BSDIFF, common.OpType.SOURCE_BSDIFF):
+      if op.type in (common.OpType.BSDIFF, common.OpType.SOURCE_BSDIFF,
+                     common.OpType.BROTLI_BSDIFF):
         # Invoke bspatch.
         bspatch_cmd = [self.bspatch_path, in_file_name, out_file_name,
                        patch_file_name]
@@ -496,7 +519,8 @@ class PayloadApplier(object):
       elif op.type == common.OpType.SOURCE_COPY:
         self._ApplySourceCopyOperation(op, op_name, old_part_file,
                                        new_part_file)
-      elif op.type in (common.OpType.SOURCE_BSDIFF, common.OpType.PUFFDIFF):
+      elif op.type in (common.OpType.SOURCE_BSDIFF, common.OpType.PUFFDIFF,
+                       common.OpType.BROTLI_BSDIFF):
         self._ApplyDiffOperation(op, op_name, data, old_part_file,
                                  new_part_file)
       else:

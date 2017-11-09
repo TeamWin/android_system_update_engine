@@ -39,6 +39,7 @@ def _OpTypeByName(op_name):
       'DISCARD': common.OpType.DISCARD,
       'REPLACE_XZ': common.OpType.REPLACE_XZ,
       'PUFFDIFF': common.OpType.PUFFDIFF,
+      'BROTLI_BSDIFF': common.OpType.BROTLI_BSDIFF,
   }
   return op_name_to_type[op_name]
 
@@ -771,22 +772,23 @@ class PayloadCheckerTest(mox.MoxTestBase):
   def testCheckAnyDiff(self):
     """Tests _CheckAnyDiffOperation()."""
     payload_checker = checker.PayloadChecker(self.MockPayload())
+    op = update_metadata_pb2.InstallOperation()
 
     # Pass.
     self.assertIsNone(
-        payload_checker._CheckAnyDiffOperation(10000, 3, 'foo'))
+        payload_checker._CheckAnyDiffOperation(op, 10000, 3, 'foo'))
 
     # Fail, missing data blob.
     self.assertRaises(
         update_payload.PayloadError,
         payload_checker._CheckAnyDiffOperation,
-        None, 3, 'foo')
+        op, None, 3, 'foo')
 
     # Fail, too big of a diff blob (unjustified).
     self.assertRaises(
         update_payload.PayloadError,
         payload_checker._CheckAnyDiffOperation,
-        10000, 2, 'foo')
+        op, 10000, 2, 'foo')
 
   def testCheckSourceCopyOperation_Pass(self):
     """Tests _CheckSourceCopyOperation(); pass case."""
@@ -818,7 +820,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
     Args:
       op_type_name: 'REPLACE', 'REPLACE_BZ', 'MOVE', 'BSDIFF', 'SOURCE_COPY',
-        'SOURCE_BSDIFF' or 'PUFFDIFF'.
+        'SOURCE_BSDIFF', BROTLI_BSDIFF or 'PUFFDIFF'.
       is_last: Whether we're testing the last operation in a sequence.
       allow_signature: Whether we're testing a signature-capable operation.
       allow_unhashed: Whether we're allowing to not hash the data.
@@ -858,7 +860,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     total_src_blocks = 0
     if op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
                    common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF,
-                   common.OpType.PUFFDIFF):
+                   common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF):
       if fail_src_extents:
         self.AddToMessage(op.src_extents,
                           self.NewExtentList((1, 0)))
@@ -874,7 +876,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     elif op_type in (common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF):
       payload_checker.minor_version = 1 if fail_bad_minor_version else 2
     elif op_type in (common.OpType.ZERO, common.OpType.DISCARD,
-                     common.OpType.PUFFDIFF):
+                     common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF):
       payload_checker.minor_version = 3 if fail_bad_minor_version else 4
 
     if op_type not in (common.OpType.MOVE, common.OpType.SOURCE_COPY):
@@ -893,6 +895,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
           op.data_sha256_hash = hashlib.sha256(fake_data).digest()
           payload.ReadDataBlob(op.data_offset, op.data_length).AndReturn(
               fake_data)
+
       elif fail_data_hash:
         # Create an invalid data blob hash.
         op.data_sha256_hash = hashlib.sha256(
@@ -913,7 +916,9 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if total_src_blocks:
       if fail_src_length:
         op.src_length = total_src_blocks * block_size + 8
-      else:
+      elif (op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
+                        common.OpType.SOURCE_BSDIFF) and
+            payload_checker.minor_version <= 3):
         op.src_length = total_src_blocks * block_size
     elif fail_src_length:
       # Add an orphaned src_length.
@@ -922,7 +927,9 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if total_dst_blocks:
       if fail_dst_length:
         op.dst_length = total_dst_blocks * block_size + 8
-      else:
+      elif (op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
+                        common.OpType.SOURCE_BSDIFF) and
+            payload_checker.minor_version <= 3):
         op.dst_length = total_dst_blocks * block_size
 
     self.mox.ReplayAll()
@@ -1279,7 +1286,8 @@ def AddAllParametricTests():
   AddParametricTests('CheckOperation',
                      {'op_type_name': ('REPLACE', 'REPLACE_BZ', 'MOVE',
                                        'BSDIFF', 'SOURCE_COPY',
-                                       'SOURCE_BSDIFF', 'PUFFDIFF'),
+                                       'SOURCE_BSDIFF', 'PUFFDIFF',
+                                       'BROTLI_BSDIFF'),
                       'is_last': (True, False),
                       'allow_signature': (True, False),
                       'allow_unhashed': (True, False),

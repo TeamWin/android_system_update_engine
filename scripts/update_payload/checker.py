@@ -833,10 +833,12 @@ class PayloadChecker(object):
     if op.data_offset:
       raise error.PayloadError('%s: contains data_offset.' % op_name)
 
-  def _CheckAnyDiffOperation(self, data_length, total_dst_blocks, op_name):
-    """Specific checks for BSDIFF, SOURCE_BSDIFF and PUFFDIFF operations.
+  def _CheckAnyDiffOperation(self, op, data_length, total_dst_blocks, op_name):
+    """Specific checks for BSDIFF, SOURCE_BSDIFF, PUFFDIFF and BROTLI_BSDIFF
+       operations.
 
     Args:
+      op: The operation.
       data_length: The length of the data blob associated with the operation.
       total_dst_blocks: Total number of blocks in dst_extents.
       op_name: Operation name for error reporting.
@@ -855,6 +857,15 @@ class PayloadChecker(object):
           '(%d * %d = %d).' %
           (op_name, data_length, total_dst_blocks, self.block_size,
            total_dst_blocks * self.block_size))
+
+    # Check the existence of src_length and dst_length for legacy bsdiffs.
+    if (op.type == common.OpType.BSDIFF or
+        (op.type == common.OpType.SOURCE_BSDIFF and self.minor_version <= 3)):
+      if not op.HasField('src_length') or not op.HasField('dst_length'):
+        raise error.PayloadError('%s: require {src,dst}_length.' % op_name)
+    else:
+      if op.HasField('src_length') or op.HasField('dst_length'):
+        raise error.PayloadError('%s: unneeded {src,dst}_length.' % op_name)
 
   def _CheckSourceCopyOperation(self, data_offset, total_src_blocks,
                                 total_dst_blocks, op_name):
@@ -993,16 +1004,17 @@ class PayloadChecker(object):
     elif op.type == common.OpType.ZERO and self.minor_version >= 4:
       self._CheckZeroOperation(op, op_name)
     elif op.type == common.OpType.BSDIFF and self.minor_version == 1:
-      self._CheckAnyDiffOperation(data_length, total_dst_blocks, op_name)
+      self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
     elif op.type == common.OpType.SOURCE_COPY and self.minor_version >= 2:
       self._CheckSourceCopyOperation(data_offset, total_src_blocks,
                                      total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
     elif op.type == common.OpType.SOURCE_BSDIFF and self.minor_version >= 2:
-      self._CheckAnyDiffOperation(data_length, total_dst_blocks, op_name)
+      self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
-    elif op.type == common.OpType.PUFFDIFF and self.minor_version >= 4:
-      self._CheckAnyDiffOperation(data_length, total_dst_blocks, op_name)
+    elif (op.type in (common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF) and
+          self.minor_version >= 4):
+      self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
     else:
       raise error.PayloadError(
@@ -1064,6 +1076,7 @@ class PayloadChecker(object):
         common.OpType.SOURCE_COPY: 0,
         common.OpType.SOURCE_BSDIFF: 0,
         common.OpType.PUFFDIFF: 0,
+        common.OpType.BROTLI_BSDIFF: 0,
     }
     # Total blob sizes for each operation type.
     op_blob_totals = {
@@ -1074,6 +1087,7 @@ class PayloadChecker(object):
         # SOURCE_COPY operations don't have blobs.
         common.OpType.SOURCE_BSDIFF: 0,
         common.OpType.PUFFDIFF: 0,
+        common.OpType.BROTLI_BSDIFF: 0,
     }
     # Counts of hashed vs unhashed operations.
     blob_hash_counts = {
