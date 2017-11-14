@@ -1398,7 +1398,7 @@ ErrorCode DeltaPerformer::ValidateMetadataSignature(
       return ErrorCode::kDownloadMetadataSignatureMismatch;
     }
   } else {
-    if (!PayloadVerifier::VerifySignature(metadata_signature_protobuf_blob,
+    if (hardware_->IsOfficialBuild() && !PayloadVerifier::VerifySignature(metadata_signature_protobuf_blob,
                                           path_to_public_key.value(),
                                           calculated_metadata_hash)) {
       LOG(ERROR) << "Manifest hash verification failed.";
@@ -1601,7 +1601,7 @@ ErrorCode DeltaPerformer::VerifyPayload(
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       !hash_data.empty());
 
-  if (!PayloadVerifier::VerifySignature(
+  if (hardware_->IsOfficialBuild() && !PayloadVerifier::VerifySignature(
       signatures_message_data_, path_to_public_key.value(), hash_data)) {
     // The autoupdate_CatchBadSignatures test checks for this string
     // in log-files. Keep in sync.
