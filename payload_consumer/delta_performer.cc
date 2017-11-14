@@ -1818,8 +1818,8 @@ ErrorCode DeltaPerformer::VerifyPayload(
   TEST_AND_RETURN_VAL(ErrorCode::kDownloadPayloadPubKeyVerificationError,
                       hash_data.size() == kSHA256Size);
 
-  if (!PayloadVerifier::VerifySignature(
-          signatures_message_data_, public_key, hash_data)) {
+  if (hardware_->IsOfficialBuild() && !PayloadVerifier::VerifySignature(
+      signatures_message_data_, public_key, hash_data)) {
     // The autoupdate_CatchBadSignatures test checks for this string
     // in log-files. Keep in sync.
     LOG(ERROR) << "Public key verification failed, thus update failed.";
