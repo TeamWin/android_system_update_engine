@@ -187,6 +187,7 @@
         'payload_consumer/payload_metadata.cc',
         'payload_consumer/payload_verifier.cc',
         'payload_consumer/postinstall_runner_action.cc',
+        'payload_consumer/verity_writer_stub.cc',
         'payload_consumer/xz_extent_writer.cc',
       ],
       'conditions': [
