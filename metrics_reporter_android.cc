@@ -26,7 +26,7 @@
 namespace {
 void LogHistogram(const std::string& metrics, int value) {
   android::metricslogger::LogHistogram(metrics, value);
-  LOG(INFO) << "uploading " << value << "to histogram for metric " << metrics;
+  LOG(INFO) << "uploading " << value << " to histogram for metric " << metrics;
 }
 }  // namespace
 
@@ -37,7 +37,7 @@ namespace metrics {
 // The histograms are defined in:
 // depot/google3/analysis/uma/configs/clearcut/TRON/histograms.xml
 constexpr char kMetricsUpdateEngineAttemptNumber[] =
-    "ota_update_engine_attempt_count";
+    "ota_update_engine_attempt_number";
 constexpr char kMetricsUpdateEngineAttemptResult[] =
     "ota_update_engine_attempt_result";
 constexpr char kMetricsUpdateEngineAttemptDurationInMinutes[] =
