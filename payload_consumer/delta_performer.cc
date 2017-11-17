@@ -273,6 +273,7 @@ size_t DeltaPerformer::CopyDataToBuffer(const char** bytes_p, size_t* count_p,
   size_t read_len = min(count, max - buffer_.size());
   const char* bytes_start = *bytes_p;
   const char* bytes_end = bytes_start + read_len;
+  buffer_.reserve(max);
   buffer_.insert(buffer_.end(), bytes_start, bytes_end);
   *bytes_p = bytes_end;
   *count_p = count - read_len;
