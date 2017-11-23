@@ -59,6 +59,13 @@ class ChromeOSPolicy : public Policy {
       EvaluationContext* ec, State* state, std::string* error,
       UpdateCheckParams* result) const override;
 
+  EvalStatus UpdateCanBeApplied(
+      EvaluationContext* ec,
+      State* state,
+      std::string* error,
+      chromeos_update_engine::ErrorCode* result,
+      chromeos_update_engine::InstallPlan* install_plan) const override;
+
   EvalStatus UpdateCanStart(
       EvaluationContext* ec,
       State* state,

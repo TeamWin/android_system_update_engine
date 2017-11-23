@@ -305,10 +305,15 @@ LOCAL_SRC_FILES := \
     proxy_resolver.cc \
     real_system_state.cc \
     update_attempter.cc \
+    update_manager/android_things_policy.cc \
+    update_manager/api_restricted_downloads_policy_impl.cc \
     update_manager/boxed_value.cc \
-    update_manager/chromeos_policy.cc \
     update_manager/default_policy.cc \
+    update_manager/enough_slots_ab_updates_policy_impl.cc \
     update_manager/evaluation_context.cc \
+    update_manager/interactive_update_policy_impl.cc \
+    update_manager/next_update_check_policy_impl.cc \
+    update_manager/official_build_check_policy_impl.cc \
     update_manager/policy.cc \
     update_manager/real_config_provider.cc \
     update_manager/real_device_policy_provider.cc \
@@ -969,10 +974,14 @@ LOCAL_SRC_FILES += \
     payload_state_unittest.cc \
     parcelable_update_engine_status_unittest.cc \
     update_attempter_unittest.cc \
+    update_manager/android_things_policy_unittest.cc \
     update_manager/boxed_value_unittest.cc \
+    update_manager/chromeos_policy.cc \
     update_manager/chromeos_policy_unittest.cc \
     update_manager/evaluation_context_unittest.cc \
     update_manager/generic_variables_unittest.cc \
+    update_manager/next_update_check_policy_impl_unittest.cc \
+    update_manager/policy_test_utils.cc \
     update_manager/prng_unittest.cc \
     update_manager/real_device_policy_provider_unittest.cc \
     update_manager/real_random_provider_unittest.cc \

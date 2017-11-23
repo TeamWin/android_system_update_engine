@@ -85,6 +85,10 @@ class FakeUpdaterProvider : public UpdaterProvider {
     return &var_forced_update_requested_;
   }
 
+  FakeVariable<UpdateRestrictions>* var_update_restrictions() override {
+    return &var_update_restrictions_;
+  }
+
  private:
   FakeVariable<base::Time>
       var_updater_started_time_{  // NOLINT(whitespace/braces)
@@ -121,6 +125,10 @@ class FakeUpdaterProvider : public UpdaterProvider {
   FakeVariable<UpdateRequestStatus>
       var_forced_update_requested_{  // NOLINT(whitespace/braces)
     "forced_update_requested", kVariableModeAsync};
+  FakeVariable<UpdateRestrictions> var_update_restrictions_{
+      // NOLINT(whitespace/braces)
+      "update_restrictions",
+      kVariableModePoll};
 
   DISALLOW_COPY_AND_ASSIGN(FakeUpdaterProvider);
 };

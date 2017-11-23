@@ -28,9 +28,10 @@
 #include "update_engine/omaha_utils.h"
 
 using std::string;
+using testing::_;
 using testing::Return;
 using testing::SetArgumentPointee;
-using testing::_;
+using update_engine::UpdateAttemptFlags;
 
 namespace chromeos_update_engine {
 
@@ -56,13 +57,32 @@ class UpdateEngineServiceTest : public ::testing::Test {
 };
 
 TEST_F(UpdateEngineServiceTest, AttemptUpdate) {
-  EXPECT_CALL(*mock_update_attempter_, CheckForUpdate(
-      "app_ver", "url", false /* interactive */));
-  // The update is non-interactive when we pass the non-interactive flag.
-  EXPECT_TRUE(common_service_.AttemptUpdate(
-      &error_, "app_ver", "url",
-      UpdateEngineService::kAttemptUpdateFlagNonInteractive));
+  EXPECT_CALL(
+      *mock_update_attempter_,
+      CheckForUpdate("app_ver", "url", UpdateAttemptFlags::kFlagNonInteractive))
+      .WillOnce(Return(true));
+
+  // The non-interactive flag needs to be passed through to CheckForUpdate.
+  bool result = false;
+  EXPECT_TRUE(
+      common_service_.AttemptUpdate(&error_,
+                                    "app_ver",
+                                    "url",
+                                    UpdateAttemptFlags::kFlagNonInteractive,
+                                    &result));
   EXPECT_EQ(nullptr, error_);
+  EXPECT_TRUE(result);
+}
+
+TEST_F(UpdateEngineServiceTest, AttemptUpdateReturnsFalse) {
+  EXPECT_CALL(*mock_update_attempter_,
+              CheckForUpdate("app_ver", "url", UpdateAttemptFlags::kNone))
+      .WillOnce(Return(false));
+  bool result = true;
+  EXPECT_TRUE(common_service_.AttemptUpdate(
+      &error_, "app_ver", "url", UpdateAttemptFlags::kNone, &result));
+  EXPECT_EQ(nullptr, error_);
+  EXPECT_FALSE(result);
 }
 
 // SetChannel is allowed when there's no device policy (the device is not

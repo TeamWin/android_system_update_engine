@@ -43,6 +43,7 @@ using brillo::ErrorPtr;
 using brillo::string_utils::ToString;
 using std::set;
 using std::string;
+using update_engine::UpdateAttemptFlags;
 using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_engine {
@@ -72,19 +73,35 @@ UpdateEngineService::UpdateEngineService(SystemState* system_state)
 
 // org::chromium::UpdateEngineInterfaceInterface methods implementation.
 
+bool UpdateEngineService::SetUpdateAttemptFlags(ErrorPtr* /* error */,
+                                                int32_t in_flags_as_int) {
+  auto flags = static_cast<UpdateAttemptFlags>(in_flags_as_int);
+  LOG(INFO) << "Setting Update Attempt Flags: "
+            << "flags=0x" << std::hex << flags << " "
+            << "RestrictDownload="
+            << ((flags & UpdateAttemptFlags::kFlagRestrictDownload) ? "yes"
+                                                                    : "no");
+  system_state_->update_attempter()->SetUpdateAttemptFlags(flags);
+  return true;
+}
+
 bool UpdateEngineService::AttemptUpdate(ErrorPtr* /* error */,
                                         const string& in_app_version,
                                         const string& in_omaha_url,
-                                        int32_t in_flags_as_int) {
-  AttemptUpdateFlags flags = static_cast<AttemptUpdateFlags>(in_flags_as_int);
-  bool interactive = !(flags & kAttemptUpdateFlagNonInteractive);
+                                        int32_t in_flags_as_int,
+                                        bool* out_result) {
+  auto flags = static_cast<UpdateAttemptFlags>(in_flags_as_int);
+  bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
+  bool restrict_downloads = (flags & UpdateAttemptFlags::kFlagRestrictDownload);
 
   LOG(INFO) << "Attempt update: app_version=\"" << in_app_version << "\" "
             << "omaha_url=\"" << in_omaha_url << "\" "
             << "flags=0x" << std::hex << flags << " "
-            << "interactive=" << (interactive ? "yes" : "no");
-  system_state_->update_attempter()->CheckForUpdate(
-      in_app_version, in_omaha_url, interactive);
+            << "interactive=" << (interactive ? "yes " : "no ")
+            << "RestrictDownload=" << (restrict_downloads ? "yes " : "no ");
+
+  *out_result = system_state_->update_attempter()->CheckForUpdate(
+      in_app_version, in_omaha_url, flags);
   return true;
 }
 

@@ -25,15 +25,15 @@
 #include "update_engine/parcelable_update_engine_status.h"
 #include "update_engine/update_status_utils.h"
 
-using android::OK;
-using android::String16;
-using android::String8;
 using android::binder::Status;
 using android::brillo::ParcelableUpdateEngineStatus;
 using android::getService;
+using android::OK;
+using android::String16;
+using android::String8;
 using chromeos_update_engine::StringToUpdateStatus;
-using chromeos_update_engine::UpdateEngineService;
 using std::string;
+using update_engine::UpdateAttemptFlags;
 
 namespace update_engine {
 namespace internal {
@@ -48,10 +48,14 @@ bool BinderUpdateEngineClient::Init() {
 bool BinderUpdateEngineClient::AttemptUpdate(const string& in_app_version,
                                              const string& in_omaha_url,
                                              bool at_user_request) {
-  return service_->AttemptUpdate(String16{in_app_version.c_str()},
-      String16{in_omaha_url.c_str()},
-      at_user_request ? 0 :
-          UpdateEngineService::kAttemptUpdateFlagNonInteractive).isOk();
+  bool started;
+  return service_
+      ->AttemptUpdate(
+          String16{in_app_version.c_str()},
+          String16{in_omaha_url.c_str()},
+          at_user_request ? 0 : UpdateAttemptFlags::kFlagNonInteractive,
+          &started)
+      .isOk();
 }
 
 bool BinderUpdateEngineClient::GetStatus(int64_t* out_last_checked_time,

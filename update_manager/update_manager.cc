@@ -16,7 +16,11 @@
 
 #include "update_engine/update_manager/update_manager.h"
 
+#ifdef __ANDROID__
+#include "update_engine/update_manager/android_things_policy.h"
+#else
 #include "update_engine/update_manager/chromeos_policy.h"
+#endif  // __ANDROID__
 #include "update_engine/update_manager/state.h"
 
 namespace chromeos_update_manager {
@@ -28,9 +32,11 @@ UpdateManager::UpdateManager(chromeos_update_engine::ClockInterface* clock,
         evaluation_timeout_(evaluation_timeout),
         expiration_timeout_(expiration_timeout),
         weak_ptr_factory_(this) {
-  // TODO(deymo): Make it possible to replace this policy with a different
-  // implementation with a build-time flag.
+#ifdef __ANDROID__
+  policy_.reset(new AndroidThingsPolicy());
+#else
   policy_.reset(new ChromeOSPolicy());
+#endif  // __ANDROID__
 }
 
 UpdateManager::~UpdateManager() {

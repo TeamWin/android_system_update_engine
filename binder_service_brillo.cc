@@ -58,12 +58,20 @@ Status BinderUpdateEngineBrilloService::CallCommonHandler(
   return ToStatus(&error);
 }
 
+Status BinderUpdateEngineBrilloService::SetUpdateAttemptFlags(int flags) {
+  return CallCommonHandler(&UpdateEngineService::SetUpdateAttemptFlags, flags);
+}
+
 Status BinderUpdateEngineBrilloService::AttemptUpdate(
-    const String16& app_version, const String16& omaha_url, int flags) {
+    const String16& app_version,
+    const String16& omaha_url,
+    int flags,
+    bool* out_result) {
   return CallCommonHandler(&UpdateEngineService::AttemptUpdate,
                            NormalString(app_version),
                            NormalString(omaha_url),
-                           flags);
+                           flags,
+                           out_result);
 }
 
 Status BinderUpdateEngineBrilloService::AttemptRollback(bool powerwash) {

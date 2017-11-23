@@ -78,6 +78,7 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
+using update_engine::UpdateAttemptFlags;
 using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_engine {
@@ -772,9 +773,20 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
   return BootControlInterface::kInvalidSlot;
 }
 
-void UpdateAttempter::CheckForUpdate(const string& app_version,
+bool UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
-                                     bool interactive) {
+                                     UpdateAttemptFlags flags) {
+  bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
+
+  if (interactive && status_ != UpdateStatus::IDLE) {
+    // An update check is either in-progress, or an update has completed and the
+    // system is in UPDATED_NEED_REBOOT.  Either way, don't do an interactive
+    // update at this time
+    LOG(INFO) << "Refusing to do an interactive update with an update already "
+                 "in progress";
+    return false;
+  }
+
   LOG(INFO) << "Forced update check requested.";
   forced_app_version_.clear();
   forced_omaha_url_.clear();
@@ -796,12 +808,22 @@ void UpdateAttempter::CheckForUpdate(const string& app_version,
     forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
   }
 
+  if (interactive) {
+    // Use the passed-in update attempt flags for this update attempt instead
+    // of the previously set ones.
+    current_update_attempt_flags_ = flags;
+    // Note: The caching for non-interactive update checks happens in
+    // OnUpdateScheduled().
+  }
+
   if (forced_update_pending_callback_.get()) {
     // Make sure that a scheduling request is made prior to calling the forced
     // update pending callback.
     ScheduleUpdates();
     forced_update_pending_callback_->Run(true, interactive);
   }
+
+  return true;
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
@@ -859,6 +881,15 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
               << (params.is_interactive ? "interactive" : "periodic")
               << " update.";
 
+    if (!params.is_interactive) {
+      // Cache the update attempt flags that will be used by this update attempt
+      // so that they can't be changed mid-way through.
+      current_update_attempt_flags_ = update_attempt_flags_;
+    }
+
+    LOG(INFO) << "Update attempt flags in use = 0x" << std::hex
+              << current_update_attempt_flags_;
+
     Update(forced_app_version_, forced_omaha_url_, params.target_channel,
            params.target_version_prefix, false, params.is_interactive);
     // Always clear the forced app_version and omaha_url after an update attempt
@@ -891,6 +922,9 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
 
   // Reset cpu shares back to normal.
   cpu_limiter_.StopLimiter();
+
+  // reset the state that's only valid for a single update pass
+  current_update_attempt_flags_ = UpdateAttemptFlags::kNone;
 
   if (status_ == UpdateStatus::REPORTING_ERROR_EVENT) {
     LOG(INFO) << "Error event sent.";
@@ -1012,7 +1046,28 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
       server_dictated_poll_interval_ =
           std::max(0, omaha_request_action->GetOutputObject().poll_interval);
     }
+  } else if (type == OmahaResponseHandlerAction::StaticType()) {
+    // Depending on the returned error code, note that an update is available.
+    if (code == ErrorCode::kOmahaUpdateDeferredPerPolicy ||
+        code == ErrorCode::kSuccess) {
+      // Note that the status will be updated to DOWNLOADING when some bytes
+      // get actually downloaded from the server and the BytesReceived
+      // callback is invoked. This avoids notifying the user that a download
+      // has started in cases when the server and the client are unable to
+      // initiate the download.
+      CHECK(action == response_handler_action_.get());
+      auto plan = response_handler_action_->install_plan();
+      UpdateLastCheckedTime();
+      new_version_ = plan.version;
+      new_system_version_ = plan.system_version;
+      new_payload_size_ = 0;
+      for (const auto& payload : plan.payloads)
+        new_payload_size_ += payload.size;
+      cpu_limiter_.StartLimiter();
+      SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
+    }
   }
+  // General failure cases.
   if (code != ErrorCode::kSuccess) {
     // If the current state is at or past the download phase, count the failure
     // in case a switch to full update becomes necessary. Ignore network
@@ -1025,23 +1080,8 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     CreatePendingErrorEvent(action, code);
     return;
   }
-  // Find out which action completed.
-  if (type == OmahaResponseHandlerAction::StaticType()) {
-    // Note that the status will be updated to DOWNLOADING when some bytes get
-    // actually downloaded from the server and the BytesReceived callback is
-    // invoked. This avoids notifying the user that a download has started in
-    // cases when the server and the client are unable to initiate the download.
-    CHECK(action == response_handler_action_.get());
-    const InstallPlan& plan = response_handler_action_->install_plan();
-    UpdateLastCheckedTime();
-    new_version_ = plan.version;
-    new_system_version_ = plan.system_version;
-    new_payload_size_ = 0;
-    for (const auto& payload : plan.payloads)
-      new_payload_size_ += payload.size;
-    cpu_limiter_.StartLimiter();
-    SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
-  } else if (type == DownloadAction::StaticType()) {
+  // Find out which action completed (successfully).
+  if (type == DownloadAction::StaticType()) {
     SetStatusAndNotify(UpdateStatus::FINALIZING);
   }
 }

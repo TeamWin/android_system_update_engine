@@ -66,6 +66,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
                         public PostinstallRunnerAction::DelegateInterface {
  public:
   using UpdateStatus = update_engine::UpdateStatus;
+  using UpdateAttemptFlags = update_engine::UpdateAttemptFlags;
   static const int kMaxDeltaUpdateFailures;
 
   UpdateAttempter(SystemState* system_state,
@@ -130,12 +131,28 @@ class UpdateAttempter : public ActionProcessorDelegate,
   int http_response_code() const { return http_response_code_; }
   void set_http_response_code(int code) { http_response_code_ = code; }
 
+  // Set flags that influence how updates and checks are performed.  These
+  // influence all future checks and updates until changed or the device
+  // reboots.
+  void SetUpdateAttemptFlags(UpdateAttemptFlags flags) {
+    update_attempt_flags_ = flags;
+  }
+
+  // Returns the update attempt flags that are in place for the current update
+  // attempt.  These are cached at the start of an update attempt so that they
+  // remain constant throughout the process.
+  virtual UpdateAttemptFlags GetCurrentUpdateAttemptFlags() {
+    return current_update_attempt_flags_;
+  }
+
   // This is the internal entry point for going through an
   // update. If the current status is idle invokes Update.
   // This is called by the DBus implementation.
-  virtual void CheckForUpdate(const std::string& app_version,
+  // This returns true if an update check was started, false if a check or an
+  // update was already in progress.
+  virtual bool CheckForUpdate(const std::string& app_version,
                               const std::string& omaha_url,
-                              bool is_interactive);
+                              UpdateAttemptFlags flags);
 
   // This is the internal entry point for going through a rollback. This will
   // attempt to run the postinstall on the non-active partition and set it as
@@ -259,6 +276,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionNoEventTest);
   FRIEND_TEST(UpdateAttempterTest, ScheduleErrorEventActionTest);
   FRIEND_TEST(UpdateAttempterTest, TargetVersionPrefixSetAndReset);
+  FRIEND_TEST(UpdateAttempterTest, UpdateAttemptFlagsCachedAtUpdateStart);
+  FRIEND_TEST(UpdateAttempterTest, UpdateDeferredByPolicyTest);
+  FRIEND_TEST(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable);
   FRIEND_TEST(UpdateAttempterTest, UpdateTest);
 
   // CertificateChecker::Observer method.
@@ -437,6 +457,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   std::string new_version_ = "0.0.0.0";
   std::string new_system_version_;
   uint64_t new_payload_size_ = 0;
+  // Flags influencing all periodic update checks
+  UpdateAttemptFlags update_attempt_flags_ = UpdateAttemptFlags::kNone;
+  // Flags influencing the currently in-progress check (cached at the start of
+  // the update check).
+  UpdateAttemptFlags current_update_attempt_flags_ = UpdateAttemptFlags::kNone;
 
   // Common parameters for all Omaha requests.
   OmahaRequestParams* omaha_request_params_ = nullptr;
