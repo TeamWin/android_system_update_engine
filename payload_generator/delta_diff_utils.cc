@@ -823,7 +823,11 @@ bool ReadExtentsToDiff(const string& old_part,
   }
 
   // WARNING: We always set legacy |src_length| and |dst_length| fields for
-  // BSDIFF. For SOURCE_BSDIFF we only set them for minor version 3 and lower.
+  // BSDIFF. For SOURCE_BSDIFF we only set them for minor version 3 and
+  // lower. This is needed because we used to use these two parameters in the
+  // SOURCE_BSDIFF for minor version 3 and lower, but we do not need them
+  // anymore in higher minor versions. This means if we stop adding these
+  // parameters for those minor versions, the delta payloads will be invalid.
   if (operation.type() == InstallOperation::BSDIFF ||
       (operation.type() == InstallOperation::SOURCE_BSDIFF &&
        version.minor <= kOpSrcHashMinorPayloadVersion)) {
