@@ -91,6 +91,8 @@ def ParseArguments(argv):
                               'operations (not in-place)'))
   trace_opts.add_option('--bspatch-path', metavar='FILE',
                         help=('use the specified bspatch binary'))
+  trace_opts.add_option('--puffpatch-path', metavar='FILE',
+                        help=('use the specified puffpatch binary'))
   parser.add_option_group(trace_opts)
 
   trace_opts = optparse.OptionGroup(parser, 'Block tracing')
@@ -147,6 +149,8 @@ def ParseArguments(argv):
       parser.error('--extract-bsdiff can only be used when applying payloads')
     if opts.bspatch_path:
       parser.error('--bspatch-path can only be used when applying payloads')
+    if opts.puffpatch_path:
+      parser.error('--puffpatch-path can only be used when applying payloads')
   else:
     parser.error('unexpected number of arguments')
 
@@ -215,6 +219,8 @@ def main(argv):
         dargs = {'bsdiff_in_place': not options.extract_bsdiff}
         if options.bspatch_path:
           dargs['bspatch_path'] = options.bspatch_path
+        if options.puffpatch_path:
+          dargs['puffpatch_path'] = options.puffpatch_path
         if options.assert_type == _TYPE_DELTA:
           dargs['old_kernel_part'] = extra_args[2]
           dargs['old_rootfs_part'] = extra_args[3]
