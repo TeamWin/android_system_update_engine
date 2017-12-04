@@ -123,4 +123,8 @@ bool StoreMutableImageProperties(SystemState* system_state,
                         properties.is_powerwash_allowed));
 }
 
+void LogImageProperties() {
+  // TODO(*): Implement this.
+}
+
 }  // namespace chromeos_update_engine

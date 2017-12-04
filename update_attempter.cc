@@ -1032,6 +1032,15 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
   } else if (type == DownloadAction::StaticType()) {
     SetStatusAndNotify(UpdateStatus::FINALIZING);
+  } else if (type == FilesystemVerifierAction::StaticType()) {
+    // Log the system properties before the postinst and after the file system
+    // is verified. It used to be done in the postinst itself. But postinst
+    // cannot do this anymore. On the other hand, these logs are frequently
+    // looked at and it is preferable not to scatter them in random location in
+    // the log and rather log it right before the postinst. The reason not do
+    // this in the |PostinstallRunnerAction| is to prevent dependency from
+    // libpayload_consumer to libupdate_engine.
+    LogImageProperties();
   }
 }
 
