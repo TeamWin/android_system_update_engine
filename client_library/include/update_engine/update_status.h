@@ -50,8 +50,9 @@ enum UpdateAttemptFlags : int32_t {
 DECLARE_FLAGS_ENUM(UpdateAttemptFlags);
 
 struct UpdateEngineStatus {
-  // When the update_engine last checked for updates (ms since Epoch)
-  int64_t last_checked_time_ms;
+  // When the update_engine last checked for updates (time_t: seconds from unix
+  // epoch)
+  int64_t last_checked_time;
   // the current status/operation of the update_engine
   UpdateStatus status;
   // the current product version (oem bundle id)

@@ -69,8 +69,8 @@ Time RoundedToSecond(Time time) {
   return Time::FromLocalExploded(exp);
 }
 
-ACTION_P(ActionSetUpdateEngineStatusLastCheckedTime, time_ms) {
-  arg0->last_checked_time_ms = time_ms;
+ACTION_P(ActionSetUpdateEngineStatusLastCheckedTime, time) {
+  arg0->last_checked_time = time;
 };
 
 ACTION_P(ActionSetUpdateEngineStatusProgress, progress) {
