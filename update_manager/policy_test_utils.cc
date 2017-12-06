@@ -16,6 +16,7 @@
 
 #include "update_engine/update_manager/policy_test_utils.h"
 
+#include <memory>
 #include <tuple>
 #include <vector>
 
@@ -53,9 +54,9 @@ void UmPolicyTestBase::SetUpDefaultState() {
   fake_state_.updater_provider()->var_last_checked_time()->reset(
       new Time(fake_clock_.GetWallclockTime()));
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->reset(
-      new unsigned int(0));
+      new unsigned int(0));  // NOLINT(readability/casting)
   fake_state_.updater_provider()->var_server_dictated_poll_interval()->reset(
-      new unsigned int(0));
+      new unsigned int(0));  // NOLINT(readability/casting)
   fake_state_.updater_provider()->var_forced_update_requested()->reset(
       new UpdateRequestStatus{UpdateRequestStatus::kNone});
 
