@@ -81,7 +81,7 @@ TEST_F(ExtentReaderTest, SimpleTest) {
   DirectExtentReader reader;
   EXPECT_TRUE(reader.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(reader.Seek(0));
-  brillo::Blob blob1(BlocksInExtents(extents) * kBlockSize);
+  brillo::Blob blob1(utils::BlocksInExtents(extents) * kBlockSize);
   EXPECT_TRUE(reader.Read(blob1.data(), blob1.size()));
   brillo::Blob blob2;
   ReadExtents(extents, &blob2);
@@ -112,7 +112,7 @@ TEST_F(ExtentReaderTest, OverflowExtentTest) {
   DirectExtentReader reader;
   EXPECT_TRUE(reader.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(reader.Seek(0));
-  brillo::Blob blob(BlocksInExtents(extents) * kBlockSize + 1);
+  brillo::Blob blob(utils::BlocksInExtents(extents) * kBlockSize + 1);
   EXPECT_FALSE(reader.Read(blob.data(), blob.size()));
 }
 
@@ -152,7 +152,7 @@ TEST_F(ExtentReaderTest, RandomReadTest) {
   brillo::Blob result;
   ReadExtents(extents, &result);
 
-  brillo::Blob blob(BlocksInExtents(extents) * kBlockSize);
+  brillo::Blob blob(utils::BlocksInExtents(extents) * kBlockSize);
   srand(time(nullptr));
   uint32_t rand_seed;
   for (size_t idx = 0; idx < kRandomIterations; idx++) {

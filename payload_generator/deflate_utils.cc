@@ -49,7 +49,7 @@ bool CopyExtentsToFile(const string& in_path,
                        const vector<Extent> extents,
                        const string& out_path,
                        size_t block_size) {
-  brillo::Blob data(BlocksInExtents(extents) * block_size);
+  brillo::Blob data(utils::BlocksInExtents(extents) * block_size);
   TEST_AND_RETURN_FALSE(
       utils::ReadExtents(in_path, extents, &data, data.size(), block_size));
   TEST_AND_RETURN_FALSE(
@@ -61,7 +61,8 @@ bool IsSquashfsImage(const string& part_path,
                      const FilesystemInterface::File& file) {
   // Only check for files with img postfix.
   if (base::EndsWith(file.name, ".img", base::CompareCase::SENSITIVE) &&
-      BlocksInExtents(file.extents) >= kMinimumSquashfsImageSize / kBlockSize) {
+      utils::BlocksInExtents(file.extents) >=
+          kMinimumSquashfsImageSize / kBlockSize) {
     brillo::Blob super_block;
     TEST_AND_RETURN_FALSE(
         utils::ReadFileChunk(part_path,
@@ -87,11 +88,11 @@ bool RealignSplittedFiles(const FilesystemInterface::File& file,
         ShiftBitExtentsOverExtents(file.extents, &in_file.deflates));
 
     in_file.name = file.name + "/" + in_file.name;
-    num_blocks += BlocksInExtents(in_file.extents);
+    num_blocks += utils::BlocksInExtents(in_file.extents);
   }
 
   // Check that all files in |in_files| cover the entire image.
-  TEST_AND_RETURN_FALSE(BlocksInExtents(file.extents) == num_blocks);
+  TEST_AND_RETURN_FALSE(utils::BlocksInExtents(file.extents) == num_blocks);
   return true;
 }
 
@@ -111,7 +112,8 @@ ByteExtent ExpandToByteExtent(const BitExtent& extent) {
 
 bool ShiftExtentsOverExtents(const vector<Extent>& base_extents,
                              vector<Extent>* over_extents) {
-  if (BlocksInExtents(base_extents) < BlocksInExtents(*over_extents)) {
+  if (utils::BlocksInExtents(base_extents) <
+      utils::BlocksInExtents(*over_extents)) {
     LOG(ERROR) << "over_extents have more blocks than base_extents! Invalid!";
     return false;
   }
@@ -160,7 +162,7 @@ bool ShiftBitExtentsOverExtents(const vector<Extent>& base_extents,
   // does not exceed |base_extents|.
   auto last_extent = ExpandToByteExtent(over_extents->back());
   TEST_AND_RETURN_FALSE(last_extent.offset + last_extent.length <=
-                        BlocksInExtents(base_extents) * kBlockSize);
+                        utils::BlocksInExtents(base_extents) * kBlockSize);
 
   for (auto o_ext = over_extents->begin(); o_ext != over_extents->end();) {
     size_t gap_blocks = base_extents[0].start_block();

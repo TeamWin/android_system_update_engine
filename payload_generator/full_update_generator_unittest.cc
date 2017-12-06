@@ -16,6 +16,7 @@
 
 #include "update_engine/payload_generator/full_update_generator.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -116,9 +117,9 @@ TEST_F(FullUpdateGeneratorTest, ChunkSizeTooBig) {
   // new_part has one chunk and a half.
   EXPECT_EQ(2U, aops.size());
   EXPECT_EQ(config_.hard_chunk_size / config_.block_size,
-            BlocksInExtents(aops[0].op.dst_extents()));
+            utils::BlocksInExtents(aops[0].op.dst_extents()));
   EXPECT_EQ((new_part.size() - config_.hard_chunk_size) / config_.block_size,
-            BlocksInExtents(aops[1].op.dst_extents()));
+            utils::BlocksInExtents(aops[1].op.dst_extents()));
 }
 
 // Test that if the image size is much smaller than the chunk size, it handles
@@ -138,7 +139,7 @@ TEST_F(FullUpdateGeneratorTest, ImageSizeTooSmall) {
   // new_part has less than one chunk.
   EXPECT_EQ(1U, aops.size());
   EXPECT_EQ(new_part.size() / config_.block_size,
-            BlocksInExtents(aops[0].op.dst_extents()));
+            utils::BlocksInExtents(aops[0].op.dst_extents()));
 }
 
 }  // namespace chromeos_update_engine

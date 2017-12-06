@@ -299,8 +299,7 @@ namespace {
 
 template<typename T>
 bool TempBlocksExistInExtents(const T& extents) {
-  for (int i = 0, e = extents.size(); i < e; ++i) {
-    Extent extent = GetElement(extents, i);
+  for (const auto& extent : extents) {
     uint64_t start = extent.start_block();
     uint64_t num = extent.num_blocks();
     if (start >= kTempBlockStart || (start + num) >= kTempBlockStart) {

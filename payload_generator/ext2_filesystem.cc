@@ -18,7 +18,7 @@
 
 #include <et/com_err.h>
 #if defined(__clang__)
-// TODO: Remove these pragmas when b/35721782 is fixed.
+// TODO(*): Remove these pragmas when b/35721782 is fixed.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmacro-redefined"
 #endif
@@ -348,7 +348,7 @@ bool Ext2Filesystem::LoadSettings(brillo::KeyValueStore* store) const {
     return false;
 
   brillo::Blob blob;
-  uint64_t physical_size = BlocksInExtents(extents) * filsys_->blocksize;
+  uint64_t physical_size = utils::BlocksInExtents(extents) * filsys_->blocksize;
   // Sparse holes in the settings file are not supported.
   if (EXT2_I_SIZE(&ino_data) > physical_size)
     return false;

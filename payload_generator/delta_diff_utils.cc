@@ -234,7 +234,7 @@ void FileDeltaProcessor::Run() {
   TEST_AND_RETURN(blob_file_ != nullptr);
 
   LOG(INFO) << "Encoding file " << name_ << " ("
-            << BlocksInExtents(new_extents_) << " blocks)";
+            << utils::BlocksInExtents(new_extents_) << " blocks)";
 
   if (!DeltaReadFile(&file_aops_,
                      old_part_,
@@ -248,7 +248,7 @@ void FileDeltaProcessor::Run() {
                      version_,
                      blob_file_)) {
     LOG(ERROR) << "Failed to generate delta for " << name_ << " ("
-               << BlocksInExtents(new_extents_) << " blocks)";
+               << utils::BlocksInExtents(new_extents_) << " blocks)";
   }
 }
 
@@ -367,9 +367,9 @@ bool DeltaReadPartition(vector<AnnotatedOperation>* aops,
     old_unvisited = FilterExtentRanges(old_unvisited, old_visited_blocks);
   }
 
-  LOG(INFO) << "Scanning " << BlocksInExtents(new_unvisited)
-            << " unwritten blocks using chunk size of "
-            << soft_chunk_blocks << " blocks.";
+  LOG(INFO) << "Scanning " << utils::BlocksInExtents(new_unvisited)
+            << " unwritten blocks using chunk size of " << soft_chunk_blocks
+            << " blocks.";
   // We use the soft_chunk_blocks limit for the <non-file-data> as we don't
   // really know the structure of this data and we should not expect it to have
   // redundancy between partitions.
@@ -492,7 +492,7 @@ bool DeltaMovedAndZeroBlocks(vector<AnnotatedOperation>* aops,
                                         blob_file));
   }
   LOG(INFO) << "Produced " << (aops->size() - num_ops) << " operations for "
-            << BlocksInExtents(new_zeros) << " zeroed blocks";
+            << utils::BlocksInExtents(new_zeros) << " zeroed blocks";
 
   // Produce MOVE/SOURCE_COPY operations for the moved blocks.
   num_ops = aops->size();
@@ -555,7 +555,7 @@ bool DeltaReadFile(vector<AnnotatedOperation>* aops,
   brillo::Blob data;
   InstallOperation operation;
 
-  uint64_t total_blocks = BlocksInExtents(new_extents);
+  uint64_t total_blocks = utils::BlocksInExtents(new_extents);
   if (chunk_blocks == -1)
     chunk_blocks = total_blocks;
 
@@ -676,8 +676,8 @@ bool ReadExtentsToDiff(const string& old_part,
   InstallOperation operation;
 
   // We read blocks from old_extents and write blocks to new_extents.
-  uint64_t blocks_to_read = BlocksInExtents(old_extents);
-  uint64_t blocks_to_write = BlocksInExtents(new_extents);
+  uint64_t blocks_to_read = utils::BlocksInExtents(old_extents);
+  uint64_t blocks_to_write = utils::BlocksInExtents(new_extents);
 
   // Disable bsdiff, and puffdiff when the data is too big.
   bool bsdiff_allowed =

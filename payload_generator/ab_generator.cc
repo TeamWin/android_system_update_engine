@@ -272,7 +272,7 @@ bool ABGenerator::AddDataAndSetType(AnnotatedOperation* aop,
 
   vector<Extent> dst_extents;
   ExtentsToVector(aop->op.dst_extents(), &dst_extents);
-  brillo::Blob data(BlocksInExtents(dst_extents) * kBlockSize);
+  brillo::Blob data(utils::BlocksInExtents(dst_extents) * kBlockSize);
   TEST_AND_RETURN_FALSE(utils::ReadExtents(target_part_path,
                                            dst_extents,
                                            &data,
@@ -306,7 +306,7 @@ bool ABGenerator::AddSourceHash(vector<AnnotatedOperation>* aops,
     uint64_t src_length =
         aop.op.has_src_length()
             ? aop.op.src_length()
-            : BlocksInExtents(aop.op.src_extents()) * kBlockSize;
+            : utils::BlocksInExtents(aop.op.src_extents()) * kBlockSize;
     TEST_AND_RETURN_FALSE(utils::ReadExtents(
         source_part_path, src_extents, &src_data, src_length, kBlockSize));
     TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfData(src_data, &src_hash));
