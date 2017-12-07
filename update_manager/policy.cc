@@ -30,6 +30,8 @@ string ToString(EvalStatus status) {
       return "kSucceeded";
     case EvalStatus::kAskMeAgainLater:
       return "kAskMeAgainLater";
+    case EvalStatus::kContinue:
+      return "kContinue";
   }
   return "Invalid";
 }
