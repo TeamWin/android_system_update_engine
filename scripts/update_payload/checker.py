@@ -322,6 +322,10 @@ class PayloadChecker(object):
     self.new_rootfs_fs_size = 0
     self.new_kernel_fs_size = 0
     self.minor_version = None
+    # TODO(*): When fixing crbug.com/794404, the major version should be
+    # correclty handled in update_payload scripts. So stop forcing
+    # major_verions=1 here and set it to the correct value.
+    self.major_version = 1;
 
   @staticmethod
   def _CheckElem(msg, name, report, is_mandatory, is_submsg, convert=str,
@@ -701,7 +705,7 @@ class PayloadChecker(object):
     return total_num_blocks
 
   def _CheckReplaceOperation(self, op, data_length, total_dst_blocks, op_name):
-    """Specific checks for REPLACE/REPLACE_BZ operations.
+    """Specific checks for REPLACE/REPLACE_BZ/REPLACE_XZ operations.
 
     Args:
       op: The operation object from the manifest.
@@ -998,6 +1002,9 @@ class PayloadChecker(object):
     # Type-specific checks.
     if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
       self._CheckReplaceOperation(op, data_length, total_dst_blocks, op_name)
+    elif op.type == common.OpType.REPLACE_XZ and (self.minor_version >= 3 or
+                                                  self.major_version >= 2):
+      self._CheckReplaceOperation(op, data_length, total_dst_blocks, op_name)
     elif op.type == common.OpType.MOVE and self.minor_version == 1:
       self._CheckMoveOperation(op, data_offset, total_src_blocks,
                                total_dst_blocks, op_name)
@@ -1070,6 +1077,7 @@ class PayloadChecker(object):
     op_counts = {
         common.OpType.REPLACE: 0,
         common.OpType.REPLACE_BZ: 0,
+        common.OpType.REPLACE_XZ: 0,
         common.OpType.MOVE: 0,
         common.OpType.ZERO: 0,
         common.OpType.BSDIFF: 0,
@@ -1082,6 +1090,7 @@ class PayloadChecker(object):
     op_blob_totals = {
         common.OpType.REPLACE: 0,
         common.OpType.REPLACE_BZ: 0,
+        common.OpType.REPLACE_XZ: 0,
         # MOVE operations don't have blobs.
         common.OpType.BSDIFF: 0,
         # SOURCE_COPY operations don't have blobs.

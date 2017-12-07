@@ -634,6 +634,44 @@ class PayloadCheckerTest(mox.MoxTestBase):
         payload_checker._CheckReplaceOperation,
         op, data_length, (data_length + block_size - 1) / block_size, 'foo')
 
+  def testCheckReplaceXzOperation(self):
+    """Tests _CheckReplaceOperation() where op.type == REPLACE_XZ."""
+    payload_checker = checker.PayloadChecker(self.MockPayload())
+    block_size = payload_checker.block_size
+    data_length = block_size * 3
+
+    op = self.mox.CreateMock(
+        update_metadata_pb2.InstallOperation)
+    op.type = common.OpType.REPLACE_XZ
+
+    # Pass.
+    op.src_extents = []
+    self.assertIsNone(
+        payload_checker._CheckReplaceOperation(
+            op, data_length, (data_length + block_size - 1) / block_size + 5,
+            'foo'))
+
+    # Fail, src extents founds.
+    op.src_extents = ['bar']
+    self.assertRaises(
+        update_payload.PayloadError,
+        payload_checker._CheckReplaceOperation,
+        op, data_length, (data_length + block_size - 1) / block_size + 5, 'foo')
+
+    # Fail, missing data.
+    op.src_extents = []
+    self.assertRaises(
+        update_payload.PayloadError,
+        payload_checker._CheckReplaceOperation,
+        op, None, (data_length + block_size - 1) / block_size, 'foo')
+
+    # Fail, too few blocks to justify XZ.
+    op.src_extents = []
+    self.assertRaises(
+        update_payload.PayloadError,
+        payload_checker._CheckReplaceOperation,
+        op, data_length, (data_length + block_size - 1) / block_size, 'foo')
+
   def testCheckMoveOperation_Pass(self):
     """Tests _CheckMoveOperation(); pass case."""
     payload_checker = checker.PayloadChecker(self.MockPayload())
@@ -819,8 +857,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
     """Parametric testing of _CheckOperation().
 
     Args:
-      op_type_name: 'REPLACE', 'REPLACE_BZ', 'MOVE', 'BSDIFF', 'SOURCE_COPY',
-        'SOURCE_BSDIFF', BROTLI_BSDIFF or 'PUFFDIFF'.
+      op_type_name: 'REPLACE', 'REPLACE_BZ', 'REPLACE_XZ', 'MOVE', 'BSDIFF',
+        'SOURCE_COPY', 'SOURCE_BSDIFF', BROTLI_BSDIFF or 'PUFFDIFF'.
       is_last: Whether we're testing the last operation in a sequence.
       allow_signature: Whether we're testing a signature-capable operation.
       allow_unhashed: Whether we're allowing to not hash the data.
@@ -875,6 +913,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
       payload_checker.minor_version = 2 if fail_bad_minor_version else 1
     elif op_type in (common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF):
       payload_checker.minor_version = 1 if fail_bad_minor_version else 2
+    if op_type == common.OpType.REPLACE_XZ:
+      payload_checker.minor_version = 2 if fail_bad_minor_version else 3
     elif op_type in (common.OpType.ZERO, common.OpType.DISCARD,
                      common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF):
       payload_checker.minor_version = 3 if fail_bad_minor_version else 4
@@ -1195,10 +1235,13 @@ def ValidateCheckOperationTest(op_type_name, is_last, allow_signature,
   """Returns True iff the combination of arguments represents a valid test."""
   op_type = _OpTypeByName(op_type_name)
 
-  # REPLACE/REPLACE_BZ operations don't read data from src partition. They are
-  # compatible with all valid minor versions, so we don't need to check that.
-  if (op_type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ) and (
-      fail_src_extents or fail_src_length or fail_bad_minor_version)):
+  # REPLACE/REPLACE_BZ/REPLACE_XZ operations don't read data from src
+  # partition. They are compatible with all valid minor versions, so we don't
+  # need to check that.
+  if (op_type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ,
+                  common.OpType.REPLACE_XZ) and (fail_src_extents or
+                                                 fail_src_length or
+                                                 fail_bad_minor_version)):
     return False
 
   # MOVE and SOURCE_COPY operations don't carry data.
@@ -1284,8 +1327,8 @@ def AddAllParametricTests():
 
   # Add all _CheckOperation() test cases.
   AddParametricTests('CheckOperation',
-                     {'op_type_name': ('REPLACE', 'REPLACE_BZ', 'MOVE',
-                                       'BSDIFF', 'SOURCE_COPY',
+                     {'op_type_name': ('REPLACE', 'REPLACE_BZ', 'REPLACE_XZ',
+                                       'MOVE', 'BSDIFF', 'SOURCE_COPY',
                                        'SOURCE_BSDIFF', 'PUFFDIFF',
                                        'BROTLI_BSDIFF'),
                       'is_last': (True, False),

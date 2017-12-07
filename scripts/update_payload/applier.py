@@ -18,6 +18,10 @@ import array
 import bz2
 import hashlib
 import itertools
+try:
+    import lzma
+except ImportError:
+    from backports import lzma
 import os
 import shutil
 import subprocess
@@ -217,7 +221,7 @@ class PayloadApplier(object):
     self.truncate_to_expected_size = truncate_to_expected_size
 
   def _ApplyReplaceOperation(self, op, op_name, out_data, part_file, part_size):
-    """Applies a REPLACE{,_BZ} operation.
+    """Applies a REPLACE{,_BZ,_XZ} operation.
 
     Args:
       op: the operation object
@@ -235,6 +239,9 @@ class PayloadApplier(object):
     # Decompress data if needed.
     if op.type == common.OpType.REPLACE_BZ:
       out_data = bz2.decompress(out_data)
+      data_length = len(out_data)
+    elif op.type == common.OpType.REPLACE_XZ:
+      out_data = lzma.decompress(out_data)
       data_length = len(out_data)
 
     # Write data to blocks specified in dst extents.
@@ -507,7 +514,8 @@ class PayloadApplier(object):
       # Read data blob.
       data = self.payload.ReadDataBlob(op.data_offset, op.data_length)
 
-      if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ):
+      if op.type in (common.OpType.REPLACE, common.OpType.REPLACE_BZ,
+                     common.OpType.REPLACE_XZ):
         self._ApplyReplaceOperation(op, op_name, data, new_part_file, part_size)
       elif op.type == common.OpType.MOVE:
         self._ApplyMoveOperation(op, op_name, new_part_file)
