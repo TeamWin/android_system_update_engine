@@ -36,6 +36,7 @@ using base::TimeDelta;
 using chromeos_update_engine::ConnectionTethering;
 using chromeos_update_engine::ConnectionType;
 using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::InstallPlan;
 using std::get;
 using std::max;
 using std::min;
@@ -321,6 +322,15 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
 
   // It is time to check for an update.
   LOG(INFO) << "Allowing update check.";
+  return EvalStatus::kSucceeded;
+}
+
+EvalStatus ChromeOSPolicy::UpdateCanBeApplied(EvaluationContext* ec,
+                                              State* state,
+                                              std::string* error,
+                                              ErrorCode* result,
+                                              InstallPlan* install_plan) const {
+  *result = ErrorCode::kSuccess;
   return EvalStatus::kSucceeded;
 }
 

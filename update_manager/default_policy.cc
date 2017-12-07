@@ -16,6 +16,9 @@
 
 #include "update_engine/update_manager/default_policy.h"
 
+using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::InstallPlan;
+
 namespace {
 
 // A fixed minimum interval between consecutive allowed update checks. This
@@ -51,6 +54,15 @@ EvalStatus DefaultPolicy::UpdateCheckAllowed(
   }
 
   return EvalStatus::kAskMeAgainLater;
+}
+
+EvalStatus DefaultPolicy::UpdateCanBeApplied(EvaluationContext* ec,
+                                             State* state,
+                                             std::string* error,
+                                             ErrorCode* result,
+                                             InstallPlan* install_plan) const {
+  *result = ErrorCode::kSuccess;
+  return EvalStatus::kSucceeded;
 }
 
 EvalStatus DefaultPolicy::UpdateCanStart(

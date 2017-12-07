@@ -31,7 +31,11 @@
 #include "update_engine/omaha_request_params.h"
 #include "update_engine/payload_consumer/delta_performer.h"
 #include "update_engine/payload_state_interface.h"
+#include "update_engine/update_manager/policy.h"
+#include "update_engine/update_manager/update_manager.h"
 
+using chromeos_update_manager::Policy;
+using chromeos_update_manager::UpdateManager;
 using std::string;
 
 namespace chromeos_update_engine {
@@ -158,7 +162,14 @@ void OmahaResponseHandlerAction::PerformAction() {
     chmod(deadline_file_.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   }
 
-  completer.set_code(ErrorCode::kSuccess);
+  // Check the generated install-plan with the Policy to confirm that
+  // it can be applied at this time (or at all).
+  UpdateManager* const update_manager = system_state_->update_manager();
+  CHECK(update_manager);
+  auto ec = ErrorCode::kSuccess;
+  update_manager->PolicyRequest(
+      &Policy::UpdateCanBeApplied, &ec, &install_plan_);
+  completer.set_code(ec);
 }
 
 bool OmahaResponseHandlerAction::AreHashChecksMandatory(

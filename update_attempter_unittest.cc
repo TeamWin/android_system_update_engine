@@ -1063,4 +1063,59 @@ TEST_F(UpdateAttempterTest, TargetVersionPrefixSetAndReset) {
       fake_system_state_.request_params()->target_version_prefix().empty());
 }
 
+TEST_F(UpdateAttempterTest, UpdateDeferredByPolicyTest) {
+  // Construct an OmahaResponseHandlerAction that has processed an InstallPlan,
+  // but the update is being deferred by the Policy.
+  OmahaResponseHandlerAction* response_action =
+      new OmahaResponseHandlerAction(&fake_system_state_);
+  response_action->install_plan_.version = "a.b.c.d";
+  response_action->install_plan_.system_version = "b.c.d.e";
+  response_action->install_plan_.payloads.push_back(
+      {.size = 1234ULL, .type = InstallPayloadType::kFull});
+  attempter_.response_handler_action_.reset(response_action);
+  // Inform the UpdateAttempter that the OmahaResponseHandlerAction has
+  // completed, with the deferred-update error code.
+  attempter_.ActionCompleted(
+      nullptr, response_action, ErrorCode::kOmahaUpdateDeferredPerPolicy);
+  {
+    UpdateEngineStatus status;
+    attempter_.GetStatus(&status);
+    EXPECT_EQ(UpdateStatus::UPDATE_AVAILABLE, status.status);
+    EXPECT_EQ(response_action->install_plan_.version, status.new_version);
+    EXPECT_EQ(response_action->install_plan_.system_version,
+              status.new_system_version);
+    EXPECT_EQ(response_action->install_plan_.payloads[0].size,
+              status.new_size_bytes);
+  }
+  // An "error" event should have been created to tell Omaha that the update is
+  // being deferred.
+  EXPECT_TRUE(nullptr != attempter_.error_event_);
+  EXPECT_EQ(OmahaEvent::kTypeUpdateComplete, attempter_.error_event_->type);
+  EXPECT_EQ(OmahaEvent::kResultUpdateDeferred, attempter_.error_event_->result);
+  ErrorCode expected_code = static_cast<ErrorCode>(
+      static_cast<int>(ErrorCode::kOmahaUpdateDeferredPerPolicy) |
+      static_cast<int>(ErrorCode::kTestOmahaUrlFlag));
+  EXPECT_EQ(expected_code, attempter_.error_event_->error_code);
+  // End the processing
+  attempter_.ProcessingDone(nullptr, ErrorCode::kOmahaUpdateDeferredPerPolicy);
+  // Validate the state of the attempter.
+  {
+    UpdateEngineStatus status;
+    attempter_.GetStatus(&status);
+    EXPECT_EQ(UpdateStatus::REPORTING_ERROR_EVENT, status.status);
+    EXPECT_EQ(response_action->install_plan_.version, status.new_version);
+    EXPECT_EQ(response_action->install_plan_.system_version,
+              status.new_system_version);
+    EXPECT_EQ(response_action->install_plan_.payloads[0].size,
+              status.new_size_bytes);
+  }
+}
+
+TEST_F(UpdateAttempterTest, UpdateIsNotRunningWhenUpdateAvailable) {
+  EXPECT_FALSE(attempter_.IsUpdateRunningOrScheduled());
+  // Verify in-progress update with UPDATE_AVAILABLE is running
+  attempter_.status_ = UpdateStatus::UPDATE_AVAILABLE;
+  EXPECT_TRUE(attempter_.IsUpdateRunningOrScheduled());
+}
+
 }  // namespace chromeos_update_engine

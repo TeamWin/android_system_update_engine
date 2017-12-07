@@ -1012,7 +1012,28 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
       server_dictated_poll_interval_ =
           std::max(0, omaha_request_action->GetOutputObject().poll_interval);
     }
+  } else if (type == OmahaResponseHandlerAction::StaticType()) {
+    // Depending on the returned error code, note that an update is available.
+    if (code == ErrorCode::kOmahaUpdateDeferredPerPolicy ||
+        code == ErrorCode::kSuccess) {
+      // Note that the status will be updated to DOWNLOADING when some bytes
+      // get actually downloaded from the server and the BytesReceived
+      // callback is invoked. This avoids notifying the user that a download
+      // has started in cases when the server and the client are unable to
+      // initiate the download.
+      CHECK(action == response_handler_action_.get());
+      auto plan = response_handler_action_->install_plan();
+      UpdateLastCheckedTime();
+      new_version_ = plan.version;
+      new_system_version_ = plan.system_version;
+      new_payload_size_ = 0;
+      for (const auto& payload : plan.payloads)
+        new_payload_size_ += payload.size;
+      cpu_limiter_.StartLimiter();
+      SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
+    }
   }
+  // General failure cases.
   if (code != ErrorCode::kSuccess) {
     // If the current state is at or past the download phase, count the failure
     // in case a switch to full update becomes necessary. Ignore network
@@ -1025,23 +1046,8 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
     CreatePendingErrorEvent(action, code);
     return;
   }
-  // Find out which action completed.
-  if (type == OmahaResponseHandlerAction::StaticType()) {
-    // Note that the status will be updated to DOWNLOADING when some bytes get
-    // actually downloaded from the server and the BytesReceived callback is
-    // invoked. This avoids notifying the user that a download has started in
-    // cases when the server and the client are unable to initiate the download.
-    CHECK(action == response_handler_action_.get());
-    const InstallPlan& plan = response_handler_action_->install_plan();
-    UpdateLastCheckedTime();
-    new_version_ = plan.version;
-    new_system_version_ = plan.system_version;
-    new_payload_size_ = 0;
-    for (const auto& payload : plan.payloads)
-      new_payload_size_ += payload.size;
-    cpu_limiter_.StartLimiter();
-    SetStatusAndNotify(UpdateStatus::UPDATE_AVAILABLE);
-  } else if (type == DownloadAction::StaticType()) {
+  // Find out which action completed (successfully).
+  if (type == DownloadAction::StaticType()) {
     SetStatusAndNotify(UpdateStatus::FINALIZING);
   }
 }
