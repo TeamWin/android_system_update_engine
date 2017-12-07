@@ -38,6 +38,7 @@ using base::TimeDelta;
 using chromeos_update_engine::OmahaRequestParams;
 using chromeos_update_engine::SystemState;
 using std::string;
+using update_engine::UpdateAttemptFlags;
 using update_engine::UpdateEngineStatus;
 
 namespace chromeos_update_manager {
@@ -416,40 +417,66 @@ class ForcedUpdateRequestedVariable
   DISALLOW_COPY_AND_ASSIGN(ForcedUpdateRequestedVariable);
 };
 
+// A variable returning the current update restrictions that are in effect.
+class UpdateRestrictionsVariable
+    : public UpdaterVariableBase<UpdateRestrictions> {
+ public:
+  UpdateRestrictionsVariable(const string& name, SystemState* system_state)
+      : UpdaterVariableBase<UpdateRestrictions>(
+            name, kVariableModePoll, system_state) {}
+
+ private:
+  const UpdateRestrictions* GetValue(TimeDelta /* timeout */,
+                                     string* /* errmsg */) override {
+    UpdateAttemptFlags attempt_flags =
+        system_state()->update_attempter()->GetCurrentUpdateAttemptFlags();
+    UpdateRestrictions restriction_flags = UpdateRestrictions::kNone;
+    // Don't blindly copy the whole value, test and set bits that should
+    // transfer from one set of flags to the other.
+    if (attempt_flags & UpdateAttemptFlags::kFlagRestrictDownload) {
+      restriction_flags = static_cast<UpdateRestrictions>(
+          restriction_flags | UpdateRestrictions::kRestrictDownloading);
+    }
+
+    return new UpdateRestrictions(restriction_flags);
+  }
+
+  DISALLOW_COPY_AND_ASSIGN(UpdateRestrictionsVariable);
+};
+
 // RealUpdaterProvider methods.
 
 RealUpdaterProvider::RealUpdaterProvider(SystemState* system_state)
-  : system_state_(system_state),
-    var_updater_started_time_("updater_started_time",
-                              system_state->clock()->GetWallclockTime()),
-    var_last_checked_time_(
-        new LastCheckedTimeVariable("last_checked_time", system_state_)),
-    var_update_completed_time_(
-        new UpdateCompletedTimeVariable("update_completed_time",
-                                        system_state_)),
-    var_progress_(new ProgressVariable("progress", system_state_)),
-    var_stage_(new StageVariable("stage", system_state_)),
-    var_new_version_(new NewVersionVariable("new_version", system_state_)),
-    var_payload_size_(new PayloadSizeVariable("payload_size", system_state_)),
-    var_curr_channel_(new CurrChannelVariable("curr_channel", system_state_)),
-    var_new_channel_(new NewChannelVariable("new_channel", system_state_)),
-    var_p2p_enabled_(
-        new BooleanPrefVariable("p2p_enabled", system_state_->prefs(),
-                                chromeos_update_engine::kPrefsP2PEnabled,
-                                false)),
-    var_cellular_enabled_(
-        new BooleanPrefVariable(
-            "cellular_enabled", system_state_->prefs(),
-            chromeos_update_engine::kPrefsUpdateOverCellularPermission,
-            false)),
-    var_consecutive_failed_update_checks_(
-        new ConsecutiveFailedUpdateChecksVariable(
-            "consecutive_failed_update_checks", system_state_)),
-    var_server_dictated_poll_interval_(
-        new ServerDictatedPollIntervalVariable(
-            "server_dictated_poll_interval", system_state_)),
-    var_forced_update_requested_(
-        new ForcedUpdateRequestedVariable(
-            "forced_update_requested", system_state_)) {}
-
+    : system_state_(system_state),
+      var_updater_started_time_("updater_started_time",
+                                system_state->clock()->GetWallclockTime()),
+      var_last_checked_time_(
+          new LastCheckedTimeVariable("last_checked_time", system_state_)),
+      var_update_completed_time_(new UpdateCompletedTimeVariable(
+          "update_completed_time", system_state_)),
+      var_progress_(new ProgressVariable("progress", system_state_)),
+      var_stage_(new StageVariable("stage", system_state_)),
+      var_new_version_(new NewVersionVariable("new_version", system_state_)),
+      var_payload_size_(new PayloadSizeVariable("payload_size", system_state_)),
+      var_curr_channel_(new CurrChannelVariable("curr_channel", system_state_)),
+      var_new_channel_(new NewChannelVariable("new_channel", system_state_)),
+      var_p2p_enabled_(
+          new BooleanPrefVariable("p2p_enabled",
+                                  system_state_->prefs(),
+                                  chromeos_update_engine::kPrefsP2PEnabled,
+                                  false)),
+      var_cellular_enabled_(new BooleanPrefVariable(
+          "cellular_enabled",
+          system_state_->prefs(),
+          chromeos_update_engine::kPrefsUpdateOverCellularPermission,
+          false)),
+      var_consecutive_failed_update_checks_(
+          new ConsecutiveFailedUpdateChecksVariable(
+              "consecutive_failed_update_checks", system_state_)),
+      var_server_dictated_poll_interval_(new ServerDictatedPollIntervalVariable(
+          "server_dictated_poll_interval", system_state_)),
+      var_forced_update_requested_(new ForcedUpdateRequestedVariable(
+          "forced_update_requested", system_state_)),
+      var_update_restrictions_(new UpdateRestrictionsVariable(
+          "update_restrictions", system_state_)) {}
 }  // namespace chromeos_update_manager

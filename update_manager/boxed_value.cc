@@ -176,4 +176,19 @@ string BoxedValue::ValuePrinter<UpdateRequestStatus>(const void* value) {
   return "Unknown";
 }
 
+template <>
+string BoxedValue::ValuePrinter<UpdateRestrictions>(const void* value) {
+  const UpdateRestrictions* val =
+      reinterpret_cast<const UpdateRestrictions*>(value);
+
+  if (*val == UpdateRestrictions::kNone) {
+    return "None";
+  }
+  string retval = "Flags:";
+  if (*val & kRestrictDownloading) {
+    retval += " RestrictDownloading";
+  }
+  return retval;
+}
+
 }  // namespace chromeos_update_manager

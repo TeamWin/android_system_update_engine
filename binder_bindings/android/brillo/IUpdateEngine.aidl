@@ -20,6 +20,7 @@ import android.brillo.IUpdateEngineStatusCallback;
 import android.brillo.ParcelableUpdateEngineStatus;
 
 interface IUpdateEngine {
+  void SetUpdateAttemptFlags(in int flags);
   void AttemptUpdate(in String app_version, in String omaha_url, in int flags);
   void AttemptRollback(in boolean powerwash);
   boolean CanRollback();
