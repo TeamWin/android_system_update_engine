@@ -148,9 +148,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // This is the internal entry point for going through an
   // update. If the current status is idle invokes Update.
   // This is called by the DBus implementation.
-  virtual void CheckForUpdate(const std::string& app_version,
+  // This returns true if an update check was started, false if a check or an
+  // update was already in progress.
+  virtual bool CheckForUpdate(const std::string& app_version,
                               const std::string& omaha_url,
-                              bool is_interactive);
+                              UpdateAttemptFlags flags);
 
   // This is the internal entry point for going through a rollback. This will
   // attempt to run the postinstall on the non-active partition and set it as

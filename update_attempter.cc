@@ -773,9 +773,20 @@ BootControlInterface::Slot UpdateAttempter::GetRollbackSlot() const {
   return BootControlInterface::kInvalidSlot;
 }
 
-void UpdateAttempter::CheckForUpdate(const string& app_version,
+bool UpdateAttempter::CheckForUpdate(const string& app_version,
                                      const string& omaha_url,
-                                     bool interactive) {
+                                     UpdateAttemptFlags flags) {
+  bool interactive = !(flags & UpdateAttemptFlags::kFlagNonInteractive);
+
+  if (interactive && status_ != UpdateStatus::IDLE) {
+    // An update check is either in-progress, or an update has completed and the
+    // system is in UPDATED_NEED_REBOOT.  Either way, don't do an interactive
+    // update at this time
+    LOG(INFO) << "Refusing to do an interactive update with an update already "
+                 "in progress";
+    return false;
+  }
+
   LOG(INFO) << "Forced update check requested.";
   forced_app_version_.clear();
   forced_omaha_url_.clear();
@@ -797,12 +808,22 @@ void UpdateAttempter::CheckForUpdate(const string& app_version,
     forced_omaha_url_ = constants::kOmahaDefaultAUTestURL;
   }
 
+  if (interactive) {
+    // Use the passed-in update attempt flags for this update attempt instead
+    // of the previously set ones.
+    current_update_attempt_flags_ = flags;
+    // Note: The caching for non-interactive update checks happens in
+    // OnUpdateScheduled().
+  }
+
   if (forced_update_pending_callback_.get()) {
     // Make sure that a scheduling request is made prior to calling the forced
     // update pending callback.
     ScheduleUpdates();
     forced_update_pending_callback_->Run(true, interactive);
   }
+
+  return true;
 }
 
 bool UpdateAttempter::RebootIfNeeded() {
@@ -860,9 +881,12 @@ void UpdateAttempter::OnUpdateScheduled(EvalStatus status,
               << (params.is_interactive ? "interactive" : "periodic")
               << " update.";
 
-    // Cache the update attempt flags that will be used by this update attempt
-    // so that they can't be changed mid-way through.
-    current_update_attempt_flags_ = update_attempt_flags_;
+    if (!params.is_interactive) {
+      // Cache the update attempt flags that will be used by this update attempt
+      // so that they can't be changed mid-way through.
+      current_update_attempt_flags_ = update_attempt_flags_;
+    }
+
     LOG(INFO) << "Update attempt flags in use = 0x" << std::hex
               << current_update_attempt_flags_;
 
