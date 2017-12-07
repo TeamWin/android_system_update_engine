@@ -20,6 +20,7 @@
 
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
+#include <brillo/message_loops/fake_message_loop.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
@@ -29,11 +30,17 @@
 #include "update_engine/fake_system_state.h"
 #include "update_engine/mock_payload_state.h"
 #include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/update_manager/mock_policy.h"
 
 using chromeos_update_engine::test_utils::System;
 using chromeos_update_engine::test_utils::WriteFileString;
+using chromeos_update_manager::EvalStatus;
+using chromeos_update_manager::FakeUpdateManager;
+using chromeos_update_manager::MockPolicy;
 using std::string;
+using testing::DoAll;
 using testing::Return;
+using testing::SetArgPointee;
 using testing::_;
 
 namespace chromeos_update_engine {
@@ -57,6 +64,13 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
   bool DoTest(const OmahaResponse& in,
               const string& deadline_file,
               InstallPlan* out);
+
+  // Pointer to the Action, valid after |DoTest|, released when the test is
+  // finished.
+  std::unique_ptr<OmahaResponseHandlerAction> action_;
+  // Captures the action's result code, for tests that need to directly verify
+  // it in non-success cases.
+  ErrorCode action_result_code_;
 
   FakeSystemState fake_system_state_;
   // "Hash+"
@@ -99,6 +113,8 @@ bool OmahaResponseHandlerActionTest::DoTest(
     const OmahaResponse& in,
     const string& test_deadline_file,
     InstallPlan* out) {
+  brillo::FakeMessageLoop loop(nullptr);
+  loop.SetAsCurrent();
   ActionProcessor processor;
   OmahaResponseHandlerActionProcessorDelegate delegate;
   processor.set_delegate(&delegate);
@@ -123,15 +139,15 @@ bool OmahaResponseHandlerActionTest::DoTest(
   EXPECT_CALL(*(fake_system_state_.mock_payload_state()), GetCurrentUrl())
       .WillRepeatedly(Return(current_url));
 
-  OmahaResponseHandlerAction response_handler_action(
+  action_.reset(new OmahaResponseHandlerAction(
       &fake_system_state_,
-      (test_deadline_file.empty() ?
-       constants::kOmahaResponseDeadlineFile : test_deadline_file));
-  BondActions(&feeder_action, &response_handler_action);
+      (test_deadline_file.empty() ? constants::kOmahaResponseDeadlineFile
+                                  : test_deadline_file)));
+  BondActions(&feeder_action, action_.get());
   ObjectCollectorAction<InstallPlan> collector_action;
-  BondActions(&response_handler_action, &collector_action);
+  BondActions(action_.get(), &collector_action);
   processor.EnqueueAction(&feeder_action);
-  processor.EnqueueAction(&response_handler_action);
+  processor.EnqueueAction(action_.get());
   processor.EnqueueAction(&collector_action);
   processor.StartProcessing();
   EXPECT_TRUE(!processor.IsRunning())
@@ -139,6 +155,7 @@ bool OmahaResponseHandlerActionTest::DoTest(
   if (out)
     *out = collector_action.object();
   EXPECT_TRUE(delegate.code_set_);
+  action_result_code_ = delegate.code_;
   return delegate.code_ == ErrorCode::kSuccess;
 }
 
@@ -478,6 +495,38 @@ TEST_F(OmahaResponseHandlerActionTest, SystemVersionTest) {
   EXPECT_EQ(expected_hash_, install_plan.payloads[1].hash);
   EXPECT_EQ(in.version, install_plan.version);
   EXPECT_EQ(in.system_version, install_plan.system_version);
+}
+
+TEST_F(OmahaResponseHandlerActionTest, TestDeferredByPolicy) {
+  OmahaResponse in;
+  in.update_exists = true;
+  in.version = "a.b.c.d";
+  in.packages.push_back({.payload_urls = {"http://foo/the_update_a.b.c.d.tgz"},
+                         .size = 12,
+                         .hash = kPayloadHashHex});
+  // Setup the UpdateManager to disallow the update.
+  FakeClock fake_clock;
+  MockPolicy* mock_policy = new MockPolicy(&fake_clock);
+  FakeUpdateManager* fake_update_manager =
+      fake_system_state_.fake_update_manager();
+  fake_update_manager->set_policy(mock_policy);
+  EXPECT_CALL(*mock_policy, UpdateCanBeApplied(_, _, _, _, _))
+      .WillOnce(
+          DoAll(SetArgPointee<3>(ErrorCode::kOmahaUpdateDeferredPerPolicy),
+                Return(EvalStatus::kSucceeded)));
+  // Perform the Action. It should "fail" with kOmahaUpdateDeferredPerPolicy.
+  InstallPlan install_plan;
+  EXPECT_FALSE(DoTest(in, "", &install_plan));
+  EXPECT_EQ(ErrorCode::kOmahaUpdateDeferredPerPolicy, action_result_code_);
+  // Verify that DoTest() didn't set the output install plan.
+  EXPECT_EQ("", install_plan.version);
+  // Copy the underlying InstallPlan from the Action (like a real Delegate).
+  install_plan = action_->install_plan();
+  // Now verify the InstallPlan that was generated.
+  EXPECT_EQ(in.packages[0].payload_urls[0], install_plan.download_url);
+  EXPECT_EQ(expected_hash_, install_plan.payloads[0].hash);
+  EXPECT_EQ(1U, install_plan.target_slot);
+  EXPECT_EQ(in.version, install_plan.version);
 }
 
 }  // namespace chromeos_update_engine
