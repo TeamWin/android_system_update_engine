@@ -33,6 +33,7 @@ enum class EvalStatus {
   kFailed,
   kSucceeded,
   kAskMeAgainLater,
+  kContinue,
 };
 
 std::string ToString(EvalStatus status);
