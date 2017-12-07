@@ -21,6 +21,8 @@
 
 using base::Time;
 using base::TimeDelta;
+using chromeos_update_engine::ErrorCode;
+using chromeos_update_engine::InstallPlan;
 
 namespace chromeos_update_manager {
 
@@ -151,6 +153,32 @@ TEST_F(UmAndroidThingsPolicyTest,
       EvalStatus::kSucceeded, &Policy::UpdateCheckAllowed, &result);
   EXPECT_TRUE(result.updates_enabled);
   EXPECT_FALSE(result.is_interactive);
+}
+
+TEST_F(UmAndroidThingsPolicyTest, UpdateCanBeAppliedOk) {
+  // UpdateCanBeApplied should return kSucceeded in the base case
+
+  InstallPlan plan;
+  ErrorCode result;
+  ExpectPolicyStatus(
+      EvalStatus::kSucceeded, &Policy::UpdateCanBeApplied, &result, &plan);
+
+  EXPECT_EQ(ErrorCode::kSuccess, result);
+}
+
+TEST_F(UmAndroidThingsPolicyTest, UpdateCanBeAppliedRestricted) {
+  // UpdateCanBeApplied should return kOmahaUpdateDeferredPerPolicy in
+  // when the restricted flag is set in the Updater.
+
+  fake_state_.updater_provider()->var_update_restrictions()->reset(
+      new UpdateRestrictions(UpdateRestrictions::kRestrictDownloading));
+
+  InstallPlan plan;
+  ErrorCode result;
+  ExpectPolicyStatus(
+      EvalStatus::kSucceeded, &Policy::UpdateCanBeApplied, &result, &plan);
+
+  EXPECT_EQ(ErrorCode::kOmahaUpdateDeferredPerPolicy, result);
 }
 
 }  // namespace chromeos_update_manager

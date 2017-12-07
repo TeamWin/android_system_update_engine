@@ -37,7 +37,8 @@ class AndroidThingsPolicy : public Policy {
                                 std::string* error,
                                 UpdateCheckParams* result) const override;
 
-  // Always returns |EvalStatus::kSucceeded|
+  // Uses the |UpdateRestrictions| to determine if the download and apply can
+  // occur at this time.
   EvalStatus UpdateCanBeApplied(
       EvaluationContext* ec,
       State* state,

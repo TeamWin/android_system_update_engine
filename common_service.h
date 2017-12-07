@@ -31,11 +31,6 @@ namespace chromeos_update_engine {
 
 class UpdateEngineService {
  public:
-  // Flags used in the AttemptUpdateWithFlags() D-Bus method.
-  typedef enum {
-    kAttemptUpdateFlagNonInteractive = (1<<0)
-  } AttemptUpdateFlags;
-
   // Error domain for all the service errors.
   static const char* const kErrorDomain;
 
@@ -44,6 +39,12 @@ class UpdateEngineService {
 
   explicit UpdateEngineService(SystemState* system_state);
   virtual ~UpdateEngineService() = default;
+
+  // Set flags that influence how updates and checks are performed.  These
+  // influence all future checks and updates until changed or the device
+  // reboots.  The |in_flags_as_int| values are a union of values from
+  // |UpdateAttemptFlags|
+  bool SetUpdateAttemptFlags(brillo::ErrorPtr* error, int32_t in_flags_as_int);
 
   bool AttemptUpdate(brillo::ErrorPtr* error,
                      const std::string& in_app_version,
