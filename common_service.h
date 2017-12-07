@@ -49,7 +49,8 @@ class UpdateEngineService {
   bool AttemptUpdate(brillo::ErrorPtr* error,
                      const std::string& in_app_version,
                      const std::string& in_omaha_url,
-                     int32_t in_flags_as_int);
+                     int32_t in_flags_as_int,
+                     bool* out_result);
 
   bool AttemptRollback(brillo::ErrorPtr* error, bool in_powerwash);
 
