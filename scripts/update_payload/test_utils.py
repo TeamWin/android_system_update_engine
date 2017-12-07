@@ -276,7 +276,7 @@ class EnhancedPayloadGenerator(PayloadGenerator):
 
     Args:
       is_kernel: whether this is a kernel (True) or rootfs (False) operation
-      op_type: one of REPLACE, REPLACE_BZ, MOVE or BSDIFF
+      op_type: one of REPLACE, REPLACE_BZ, REPLACE_XZ, MOVE or BSDIFF
       src_extents: list of (start, length) pairs indicating src block ranges
       src_length: size of the src data in bytes (needed for BSDIFF)
       dst_extents: list of (start, length) pairs indicating dst block ranges
