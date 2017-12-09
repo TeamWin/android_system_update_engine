@@ -19,6 +19,8 @@
 
 #include <string>
 
+#include <brillo/enum_flags.h>
+
 namespace update_engine {
 
 enum class UpdateStatus {
@@ -44,21 +46,8 @@ enum UpdateAttemptFlags : int32_t {
   kFlagRestrictDownload = (1 << 1),
 };
 
-// These bit-wise operators for the above flags allow for standard bit-wise
-// operations to return values in an expected manner, with the need to
-// continually cast the results back to UpdateAttemptFlags after the implicit
-// conversion to int from enum to perform the bitwise comparison using the
-// underlying type.
-inline UpdateAttemptFlags operator|(const UpdateAttemptFlags& l,
-                                    const UpdateAttemptFlags& r) {
-  return static_cast<UpdateAttemptFlags>(static_cast<const int32_t&>(l) |
-                                         static_cast<const int32_t&>(r));
-}
-inline UpdateAttemptFlags operator&(const UpdateAttemptFlags& l,
-                                    const UpdateAttemptFlags& r) {
-  return static_cast<UpdateAttemptFlags>(static_cast<const int32_t&>(l) &
-                                         static_cast<const int32_t&>(r));
-}
+// Enable bit-wise operators for the above enumeration of flag values.
+DECLARE_FLAGS_ENUM(UpdateAttemptFlags);
 
 struct UpdateEngineStatus {
   // When the update_engine last checked for updates (ms since Epoch)
