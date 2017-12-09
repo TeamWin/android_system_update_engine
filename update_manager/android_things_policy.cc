@@ -110,7 +110,6 @@ EvalStatus AndroidThingsPolicy::UpdateCanBeApplied(
   ApiRestrictedDownloadsPolicyImpl api_restricted_downloads_policy;
 
   vector<Policy const*> policies_to_consult = {
-
       // Do not apply the update if all updates are restricted by the API.
       &api_restricted_downloads_policy,
   };

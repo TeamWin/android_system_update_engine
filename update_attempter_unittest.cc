@@ -69,7 +69,7 @@ using org::chromium::NetworkProxyServiceInterfaceProxyMock;
 #if USE_LIBCROS
 using org::chromium::LibCrosServiceInterfaceProxyMock;
 using org::chromium::UpdateEngineLibcrosProxyResolvedInterfaceProxyMock;
-#endif // USE_LIBCROS
+#endif  // USE_LIBCROS
 using std::string;
 using std::unique_ptr;
 using testing::_;

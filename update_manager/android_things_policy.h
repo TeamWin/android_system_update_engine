@@ -61,18 +61,18 @@ class AndroidThingsPolicy : public Policy {
 
   // P2P is always disabled.  Returns |result|==|false| and
   // |EvalStatus::kSucceeded|
-  virtual EvalStatus P2PEnabled(EvaluationContext* ec,
-                                State* state,
-                                std::string* error,
-                                bool* result) const override;
+  EvalStatus P2PEnabled(EvaluationContext* ec,
+                        State* state,
+                        std::string* error,
+                        bool* result) const override;
 
   // This will return immediately with |EvalStatus::kSucceeded| and set
   // |result|==|false|
-  virtual EvalStatus P2PEnabledChanged(EvaluationContext* ec,
-                                       State* state,
-                                       std::string* error,
-                                       bool* result,
-                                       bool prev_result) const override;
+  EvalStatus P2PEnabledChanged(EvaluationContext* ec,
+                               State* state,
+                               std::string* error,
+                               bool* result,
+                               bool prev_result) const override;
 
  protected:
   // Policy override.

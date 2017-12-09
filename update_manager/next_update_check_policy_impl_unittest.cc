@@ -16,6 +16,8 @@
 
 #include "update_engine/update_manager/next_update_check_policy_impl.h"
 
+#include <memory>
+
 #include "update_engine/update_manager/policy_test_utils.h"
 
 using base::Time;
@@ -92,7 +94,7 @@ TEST_F(UmNextUpdateCheckTimePolicyImplTest,
   Time next_update_check;
 
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->reset(
-      new unsigned int(2));
+      new unsigned int{2});
 
   ExpectStatus(EvalStatus::kSucceeded,
                NextUpdateCheckTimePolicyImpl::NextUpdateCheckTime,
@@ -117,10 +119,10 @@ TEST_F(UmNextUpdateCheckTimePolicyImplTest,
 
   const auto kInterval = policy_test_constants.timeout_periodic_interval * 4;
   fake_state_.updater_provider()->var_server_dictated_poll_interval()->reset(
-      new unsigned int(kInterval));
+      new unsigned int(kInterval));  // NOLINT(readability/casting)
   // We should not be backing off in this case.
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->reset(
-      new unsigned int(2));
+      new unsigned int(2));  // NOLINT(readability/casting)
 
   ExpectStatus(EvalStatus::kSucceeded,
                &NextUpdateCheckTimePolicyImpl::NextUpdateCheckTime,
@@ -139,7 +141,7 @@ TEST_F(UmNextUpdateCheckTimePolicyImplTest, ExponentialBackoffIsCapped) {
   Time next_update_check;
 
   fake_state_.updater_provider()->var_consecutive_failed_update_checks()->reset(
-      new unsigned int(100));
+      new unsigned int(100));  // NOLINT(readability/casting)
 
   ExpectStatus(EvalStatus::kSucceeded,
                &NextUpdateCheckTimePolicyImpl::NextUpdateCheckTime,
