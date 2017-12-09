@@ -16,6 +16,7 @@
 
 #include "update_engine/omaha_response_handler_action.h"
 
+#include <memory>
 #include <string>
 
 #include <base/files/file_util.h>
@@ -38,10 +39,10 @@ using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::FakeUpdateManager;
 using chromeos_update_manager::MockPolicy;
 using std::string;
+using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
-using testing::_;
 
 namespace chromeos_update_engine {
 
@@ -81,8 +82,7 @@ class OmahaResponseHandlerActionProcessorDelegate
     : public ActionProcessorDelegate {
  public:
   OmahaResponseHandlerActionProcessorDelegate()
-      : code_(ErrorCode::kError),
-        code_set_(false) {}
+      : code_(ErrorCode::kError), code_set_(false) {}
   void ActionCompleted(ActionProcessor* processor,
                        AbstractAction* action,
                        ErrorCode code) {
@@ -109,10 +109,9 @@ const char* const kBadVersion = "don't update me";
 const char* const kPayloadHashHex = "486173682b";
 }  // namespace
 
-bool OmahaResponseHandlerActionTest::DoTest(
-    const OmahaResponse& in,
-    const string& test_deadline_file,
-    InstallPlan* out) {
+bool OmahaResponseHandlerActionTest::DoTest(const OmahaResponse& in,
+                                            const string& test_deadline_file,
+                                            InstallPlan* out) {
   brillo::FakeMessageLoop loop(nullptr);
   loop.SetAsCurrent();
   ActionProcessor processor;
@@ -161,9 +160,9 @@ bool OmahaResponseHandlerActionTest::DoTest(
 
 TEST_F(OmahaResponseHandlerActionTest, SimpleTest) {
   string test_deadline_file;
-  CHECK(utils::MakeTempFile(
-          "omaha_response_handler_action_unittest-XXXXXX",
-          &test_deadline_file, nullptr));
+  CHECK(utils::MakeTempFile("omaha_response_handler_action_unittest-XXXXXX",
+                            &test_deadline_file,
+                            nullptr));
   ScopedPathUnlinker deadline_unlinker(test_deadline_file);
   {
     OmahaResponse in;
@@ -464,7 +463,8 @@ TEST_F(OmahaResponseHandlerActionTest, P2PUrlIsUsedAndHashChecksMandatory) {
   EXPECT_CALL(*fake_system_state_.mock_payload_state(), GetP2PUrl())
       .WillRepeatedly(Return(p2p_url));
   EXPECT_CALL(*fake_system_state_.mock_payload_state(),
-              GetUsingP2PForDownloading()).WillRepeatedly(Return(true));
+              GetUsingP2PForDownloading())
+      .WillRepeatedly(Return(true));
 
   InstallPlan install_plan;
   EXPECT_TRUE(DoTest(in, "", &install_plan));

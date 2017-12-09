@@ -16,6 +16,8 @@
 
 #include "update_engine/update_manager/android_things_policy.h"
 
+#include <memory>
+
 #include "update_engine/update_manager/next_update_check_policy_impl.h"
 #include "update_engine/update_manager/policy_test_utils.h"
 
@@ -38,6 +40,7 @@ class UmAndroidThingsPolicyTest : public UmPolicyTestBase {
     // For the purpose of the tests, this is an official build
     fake_state_.system_provider()->var_is_official_build()->reset(
         new bool(true));
+    // NOLINTNEXTLINE(readability/casting)
     fake_state_.system_provider()->var_num_slots()->reset(new unsigned int(2));
   }
 
@@ -115,6 +118,7 @@ TEST_F(UmAndroidThingsPolicyTest,
   // UpdateCheckAllowed should return false (kSucceeded) if the image booted
   // without enough slots to do A/B updates.
 
+  // NOLINTNEXTLINE(readability/casting)
   fake_state_.system_provider()->var_num_slots()->reset(new unsigned int(1));
 
   UpdateCheckParams result;
