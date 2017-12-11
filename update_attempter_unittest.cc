@@ -372,10 +372,11 @@ void UpdateAttempterTest::UpdateTestStart() {
 
   // Expect that the device policy is loaded by the UpdateAttempter at some
   // point by calling RefreshDevicePolicy.
-  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
-  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy())
       .Times(testing::AtLeast(1)).WillRepeatedly(Return(true));
+  attempter_.policy_provider_.reset(
+      new policy::PolicyProvider(std::move(device_policy)));
 
   {
     InSequence s;
@@ -414,11 +415,23 @@ void UpdateAttempterTest::UpdateTestVerify() {
 void UpdateAttempterTest::RollbackTestStart(
     bool enterprise_rollback, bool valid_slot) {
   // Create a device policy so that we can change settings.
-  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
-  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
-
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy.get());
+  if (enterprise_rollback) {
+    // We return an empty owner as this is an enterprise.
+    EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
+        DoAll(SetArgPointee<0>(string("")),
+        Return(true)));
+  } else {
+    // We return a fake owner as this is an owned consumer device.
+    EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
+        DoAll(SetArgPointee<0>(string("fake.mail@fake.com")),
+        Return(true)));
+  }
+
+  attempter_.policy_provider_.reset(
+      new policy::PolicyProvider(std::move(device_policy)));
 
   if (valid_slot) {
     BootControlInterface::Slot rollback_slot = 1;
@@ -434,18 +447,6 @@ void UpdateAttempterTest::RollbackTestStart(
   // which have a valid slot to rollback to.
   if (!enterprise_rollback && valid_slot) {
      is_rollback_allowed = true;
-  }
-
-  if (enterprise_rollback) {
-    // We return an empty owner as this is an enterprise.
-    EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
-        DoAll(SetArgPointee<0>(string("")),
-        Return(true)));
-  } else {
-    // We return a fake owner as this is an owned consumer device.
-    EXPECT_CALL(*device_policy, GetOwner(_)).WillRepeatedly(
-        DoAll(SetArgPointee<0>(string("fake.mail@fake.com")),
-        Return(true)));
   }
 
   if (is_rollback_allowed) {
@@ -718,16 +719,17 @@ TEST_F(UpdateAttempterTest, ReadScatterFactorFromPolicy) {
 void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
   int64_t scatter_factor_in_seconds = 36000;
 
-  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
-  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
-
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy.get());
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
           SetArgPointee<0>(scatter_factor_in_seconds),
           Return(true)));
+
+  attempter_.policy_provider_.reset(
+      new policy::PolicyProvider(std::move(device_policy)));
 
   attempter_.Update("", "", "", "", false, false);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
@@ -756,16 +758,17 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
 
   int64_t scatter_factor_in_seconds = 10;
 
-  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
-  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
-
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy.get());
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
           SetArgPointee<0>(scatter_factor_in_seconds),
           Return(true)));
+
+  attempter_.policy_provider_.reset(
+      new policy::PolicyProvider(std::move(device_policy)));
 
   attempter_.Update("", "", "", "", false, false);
   EXPECT_EQ(scatter_factor_in_seconds, attempter_.scatter_factor_.InSeconds());
@@ -815,16 +818,17 @@ void UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart() {
   // otherwise.
   int64_t scatter_factor_in_seconds = 50;
 
-  policy::MockDevicePolicy* device_policy = new policy::MockDevicePolicy();
-  attempter_.policy_provider_.reset(new policy::PolicyProvider(device_policy));
-
+  auto device_policy = std::make_unique<policy::MockDevicePolicy>();
   EXPECT_CALL(*device_policy, LoadPolicy()).WillRepeatedly(Return(true));
-  fake_system_state_.set_device_policy(device_policy);
+  fake_system_state_.set_device_policy(device_policy.get());
 
   EXPECT_CALL(*device_policy, GetScatterFactorInSeconds(_))
       .WillRepeatedly(DoAll(
           SetArgPointee<0>(scatter_factor_in_seconds),
           Return(true)));
+
+  attempter_.policy_provider_.reset(
+      new policy::PolicyProvider(std::move(device_policy)));
 
   // Trigger an interactive check so we can test that scattering is disabled.
   attempter_.Update("", "", "", "", false, true);
