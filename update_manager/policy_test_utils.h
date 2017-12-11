@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_POLICY_TEST_UTILS_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_POLICY_TEST_UTILS_H_
 
+#include <memory>
 #include <string>
 
 #include <base/time/time.h>
@@ -32,7 +33,7 @@ namespace chromeos_update_manager {
 
 class UmPolicyTestBase : public ::testing::Test {
  protected:
-  explicit UmPolicyTestBase() = default;
+  UmPolicyTestBase() = default;
 
   void SetUp() override;
 

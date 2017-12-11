@@ -17,6 +17,9 @@
 #ifndef UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_
 #define UPDATE_ENGINE_UPDATE_MANAGER_POLICY_UTILS_H_
 
+#include <string>
+#include <vector>
+
 #include "update_engine/update_manager/policy.h"
 
 // Checks that the passed pointer value is not null, returning kFailed on the
@@ -57,7 +60,7 @@ EvalStatus ConsultPolicies(const std::vector<Policy const*> policies,
     }
   }
   return EvalStatus::kContinue;
-};
+}
 
 // Base class implementation that returns |EvalStatus::kContinue| for all
 // decisions, to be used as a base-class for various Policy facets that only
