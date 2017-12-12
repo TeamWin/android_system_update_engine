@@ -73,7 +73,7 @@ class GetStatusHelper {
 
   inline bool is_success() { return is_success_; }
   inline int64_t last_checked_time() {
-    return update_engine_status_.last_checked_time_ms;
+    return update_engine_status_.last_checked_time;
   }
   inline double progress() { return update_engine_status_.progress; }
   inline const string update_status() {
