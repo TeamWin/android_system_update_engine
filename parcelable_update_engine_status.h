@@ -39,7 +39,7 @@ class ParcelableUpdateEngineStatus : public Parcelable {
 
   // This list is kept in the Parcelable serialization order.
 
-  // When the update_engine last checked for updates (ms since Epoch)
+  // When the update_engine last checked for updates (seconds since unix Epoch)
   int64_t last_checked_time_;
   // The current status/operation of the update_engine.
   android::String16 current_operation_;

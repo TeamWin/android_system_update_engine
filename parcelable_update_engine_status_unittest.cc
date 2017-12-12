@@ -40,8 +40,7 @@ TEST(ParcelableUpdateEngineStatusTest, TestCreationFromUpdateEngineStatus) {
                                   "2.3.4.5",
                                   "3.4.5.6"};
   ParcelableUpdateEngineStatus parcelable_status(ue_status);
-  EXPECT_EQ(ue_status.last_checked_time_ms,
-            parcelable_status.last_checked_time_);
+  EXPECT_EQ(ue_status.last_checked_time, parcelable_status.last_checked_time_);
   EXPECT_EQ(
       String16{chromeos_update_engine::UpdateStatusToString(ue_status.status)},
       parcelable_status.current_operation_);
