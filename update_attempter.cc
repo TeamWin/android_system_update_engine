@@ -1170,7 +1170,7 @@ bool UpdateAttempter::ResetStatus() {
 }
 
 bool UpdateAttempter::GetStatus(UpdateEngineStatus* out_status) {
-  out_status->last_checked_time_ms = last_checked_time_;
+  out_status->last_checked_time = last_checked_time_;
   out_status->status = status_;
   out_status->current_version = omaha_request_params_->app_version();
   out_status->current_system_version = omaha_request_params_->system_version();
