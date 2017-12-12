@@ -26,7 +26,7 @@ namespace brillo {
 
 ParcelableUpdateEngineStatus::ParcelableUpdateEngineStatus(
     const UpdateEngineStatus& status)
-    : last_checked_time_(status.last_checked_time_ms),
+    : last_checked_time_(status.last_checked_time),
       current_operation_(
           chromeos_update_engine::UpdateStatusToString(status.status)),
       progress_(status.progress),
