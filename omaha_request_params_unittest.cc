@@ -47,7 +47,7 @@ class OmahaRequestParamsTest : public ::testing::Test {
     // Create a fresh copy of the params for each test, so there's no
     // unintended reuse of state across tests.
     params_ = OmahaRequestParams(&fake_system_state_);
-    params_.set_root(tempdir_.path().value());
+    params_.set_root(tempdir_.GetPath().value());
     SetLockDown(false);
     fake_system_state_.set_prefs(&fake_prefs_);
   }
@@ -105,7 +105,8 @@ TEST_F(OmahaRequestParamsTest, DeltaOKTest) {
 }
 
 TEST_F(OmahaRequestParamsTest, NoDeltasTest) {
-  ASSERT_TRUE(WriteFileString(tempdir_.path().Append(".nodelta").value(), ""));
+  ASSERT_TRUE(
+      WriteFileString(tempdir_.GetPath().Append(".nodelta").value(), ""));
   EXPECT_TRUE(params_.Init("", "", false));
   EXPECT_FALSE(params_.delta_okay());
 }
@@ -113,12 +114,12 @@ TEST_F(OmahaRequestParamsTest, NoDeltasTest) {
 TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
   {
     OmahaRequestParams params(&fake_system_state_);
-    params.set_root(tempdir_.path().value());
+    params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", false));
     EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
     EXPECT_FALSE(params.is_powerwash_allowed());
   }
-  params_.set_root(tempdir_.path().value());
+  params_.set_root(tempdir_.GetPath().value());
   EXPECT_TRUE(params_.Init("", "", false));
   EXPECT_EQ("canary-channel", params_.target_channel());
   EXPECT_FALSE(params_.is_powerwash_allowed());
@@ -127,12 +128,12 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
 TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
   {
     OmahaRequestParams params(&fake_system_state_);
-    params.set_root(tempdir_.path().value());
+    params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", false));
     EXPECT_TRUE(params.SetTargetChannel("canary-channel", true, nullptr));
     EXPECT_TRUE(params.is_powerwash_allowed());
   }
-  params_.set_root(tempdir_.path().value());
+  params_.set_root(tempdir_.GetPath().value());
   EXPECT_TRUE(params_.Init("", "", false));
   EXPECT_EQ("canary-channel", params_.target_channel());
   EXPECT_TRUE(params_.is_powerwash_allowed());
@@ -141,7 +142,7 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
 TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
   {
     OmahaRequestParams params(&fake_system_state_);
-    params.set_root(tempdir_.path().value());
+    params.set_root(tempdir_.GetPath().value());
     SetLockDown(true);
     EXPECT_TRUE(params.Init("", "", false));
     string error_message;
@@ -151,7 +152,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
     EXPECT_NE(string::npos, error_message.find("stable-channel"));
     EXPECT_FALSE(params.is_powerwash_allowed());
   }
-  params_.set_root(tempdir_.path().value());
+  params_.set_root(tempdir_.GetPath().value());
   EXPECT_TRUE(params_.Init("", "", false));
   EXPECT_EQ("stable-channel", params_.target_channel());
   EXPECT_FALSE(params_.is_powerwash_allowed());

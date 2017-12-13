@@ -31,7 +31,6 @@
 #include <base/rand_util.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <brillo/bind_lambda.h>
 #include <brillo/data_encoding.h>
 #include <brillo/errors/error_codes.h>
 #include <brillo/make_unique_ptr.h>
