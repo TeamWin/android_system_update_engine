@@ -256,7 +256,7 @@ ScopedLoopMounter::ScopedLoopMounter(const string& file_path,
                                      string* mnt_path,
                                      unsigned long flags) {  // NOLINT - long
   EXPECT_TRUE(temp_dir_.CreateUniqueTempDir());
-  *mnt_path = temp_dir_.path().value();
+  *mnt_path = temp_dir_.GetPath().value();
 
   string loop_dev;
   loop_binder_.reset(

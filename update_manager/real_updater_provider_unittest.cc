@@ -57,7 +57,9 @@ Time FixedTime() {
   now_exp.minute = 5;
   now_exp.second = 33;
   now_exp.millisecond = 675;
-  return Time::FromLocalExploded(now_exp);
+  Time time;
+  ignore_result(Time::FromLocalExploded(now_exp, &time));
+  return time;
 }
 
 // Rounds down a timestamp to the nearest second. This is useful when faking
@@ -66,7 +68,9 @@ Time RoundedToSecond(Time time) {
   Time::Exploded exp;
   time.LocalExplode(&exp);
   exp.millisecond = 0;
-  return Time::FromLocalExploded(exp);
+  Time rounded_time;
+  ignore_result(Time::FromLocalExploded(exp, &rounded_time));
+  return rounded_time;
 }
 
 ACTION_P(ActionSetUpdateEngineStatusLastCheckedTime, time) {
