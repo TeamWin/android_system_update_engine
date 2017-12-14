@@ -3,3 +3,7 @@ service update_engine /system/bin/update_engine --logtostderr --logtofile --fore
     user root
     group root system wakelock inet cache
     writepid /dev/cpuset/system-background/tasks
+    disabled
+
+on property:ro.boot.slot_suffix=*
+    enable update_engine
