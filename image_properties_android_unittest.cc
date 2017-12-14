@@ -36,9 +36,9 @@ class ImagePropertiesTest : public ::testing::Test {
   void SetUp() override {
     // Create a uniquely named test directory.
     ASSERT_TRUE(tempdir_.CreateUniqueTempDir());
-    osrelease_dir_ = tempdir_.path().Append("etc/os-release.d");
+    osrelease_dir_ = tempdir_.GetPath().Append("etc/os-release.d");
     EXPECT_TRUE(base::CreateDirectory(osrelease_dir_));
-    test::SetImagePropertiesRootPrefix(tempdir_.path().value().c_str());
+    test::SetImagePropertiesRootPrefix(tempdir_.GetPath().value().c_str());
   }
 
   void WriteOsRelease(const string& key, const string& value) {
