@@ -13,8 +13,8 @@ from update_payload import applier
 from update_payload import block_tracer
 from update_payload import checker
 from update_payload import common
-from update_payload.error import PayloadError
 from update_payload import update_metadata_pb2
+from update_payload.error import PayloadError
 
 
 #
@@ -189,8 +189,6 @@ class Payload(object):
     if self.is_init:
       raise PayloadError('payload object already initialized')
 
-    # Initialize hash context.
-    # pylint: disable=E1101
     self.manifest_hasher = hashlib.sha256()
 
     # Read the file header.
@@ -232,11 +230,9 @@ class Payload(object):
         _DisplayIndentedValue('Build version', image_info.build_version)
 
     if self.manifest.HasField('old_image_info'):
-      # pylint: disable=E1101
       _DescribeImageInfo('Old Image', self.manifest.old_image_info)
 
     if self.manifest.HasField('new_image_info'):
-      # pylint: disable=E1101
       _DescribeImageInfo('New Image', self.manifest.new_image_info)
 
   def _AssertInit(self):

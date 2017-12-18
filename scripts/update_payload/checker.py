@@ -21,11 +21,11 @@ import itertools
 import os
 import subprocess
 
-import common
-import error
-import format_utils
-import histogram
-import update_metadata_pb2
+from update_payload import common
+from update_payload import error
+from update_payload import format_utils
+from update_payload import histogram
+from update_payload import update_metadata_pb2
 
 
 #
@@ -970,8 +970,6 @@ class PayloadChecker(object):
             op_name)
 
       # Check: Hash verifies correctly.
-      # pylint cannot find the method in hashlib, for some reason.
-      # pylint: disable=E1101
       actual_hash = hashlib.sha256(self.payload.ReadDataBlob(data_offset,
                                                              data_length))
       if op.data_sha256_hash != actual_hash.digest():
@@ -1168,8 +1166,6 @@ class PayloadChecker(object):
     report.AddSection('signatures')
 
     # Check: At least one signature present.
-    # pylint cannot see through the protobuf object, it seems.
-    # pylint: disable=E1101
     if not sigs.signatures:
       raise error.PayloadError('Signature block is empty.')
 

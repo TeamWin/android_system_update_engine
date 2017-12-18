@@ -1,10 +1,12 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 #
 # Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Block diff utility."""
+
+from __future__ import print_function
 
 import optparse
 import sys
@@ -92,7 +94,7 @@ def main(argv):
         diff_list = BlockDiff(opts.block_size, file1, file2, name1, name2,
                               opts.max_length)
   except BlockDiffError as e:
-    print >> sys.stderr, 'Error:', e
+    print('Error: ' % e, file=sys.stderr)
     return 2
 
   # Print the diff, if such was found.
@@ -103,7 +105,7 @@ def main(argv):
       print('%d->%d (%d)' %
             (extent_start, extent_start + extent_length, extent_length))
 
-    print 'total diff: %d blocks' % total_diff_blocks
+    print('total diff: %d blocks' % total_diff_blocks)
     return 1
 
   return 0

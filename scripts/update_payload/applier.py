@@ -24,8 +24,8 @@ import subprocess
 import sys
 import tempfile
 
-import common
-from error import PayloadError
+from update_payload import common
+from update_payload.error import PayloadError
 
 
 #
@@ -44,7 +44,6 @@ def _VerifySha256(file_obj, expected_hash, name, length=-1):
     PayloadError if computed hash doesn't match expected one, or if fails to
     read the specified length of data.
   """
-  # pylint: disable=E1101
   hasher = hashlib.sha256()
   block_length = 1024 * 1024
   max_length = length if length >= 0 else sys.maxint
@@ -316,6 +315,7 @@ class PayloadApplier(object):
     base_name = '%s.dst_extents' % op_name
 
     # Iterate over the extents and write zero.
+    # pylint: disable=unused-variable
     for ex, ex_name in common.ExtentIter(op.dst_extents, base_name):
       # Only do actual writing if this is not a pseudo-extent.
       if ex.start_block != common.PSEUDO_EXTENT_MARKER:
@@ -361,6 +361,7 @@ class PayloadApplier(object):
     """
 
     length = 0
+    # pylint: disable=unused-variable
     for ex, ex_name in common.ExtentIter(extents, base_name):
       length += ex.num_blocks * self.block_size
     return length
