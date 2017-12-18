@@ -19,10 +19,10 @@
 #include <set>
 #include <string>
 
+#include <base/bind.h>
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
-#include <brillo/bind_lambda.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/strings/string_utils.h>
 #include <policy/device_policy.h>

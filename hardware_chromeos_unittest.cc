@@ -37,21 +37,22 @@ class HardwareChromeOSTest : public ::testing::Test {
   void SetUp() override { ASSERT_TRUE(root_dir_.CreateUniqueTempDir()); }
 
   void WriteStatefulConfig(const string& config) {
-    base::FilePath kFile(root_dir_.path().value() + kStatefulPartition +
+    base::FilePath kFile(root_dir_.GetPath().value() + kStatefulPartition +
                          "/etc/update_manager.conf");
     ASSERT_TRUE(base::CreateDirectory(kFile.DirName()));
     ASSERT_TRUE(WriteFileString(kFile.value(), config));
   }
 
   void WriteRootfsConfig(const string& config) {
-    base::FilePath kFile(root_dir_.path().value() + "/etc/update_manager.conf");
+    base::FilePath kFile(root_dir_.GetPath().value() +
+                         "/etc/update_manager.conf");
     ASSERT_TRUE(base::CreateDirectory(kFile.DirName()));
     ASSERT_TRUE(WriteFileString(kFile.value(), config));
   }
 
   // Helper method to call HardwareChromeOS::LoadConfig with the test directory.
   void CallLoadConfig(bool normal_mode) {
-    hardware_.LoadConfig(root_dir_.path().value(), normal_mode);
+    hardware_.LoadConfig(root_dir_.GetPath().value(), normal_mode);
   }
 
   HardwareChromeOS hardware_;

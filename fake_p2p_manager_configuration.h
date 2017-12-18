@@ -37,9 +37,7 @@ class FakeP2PManagerConfiguration : public P2PManager::Configuration {
   }
 
   // P2PManager::Configuration override
-  base::FilePath GetP2PDir() override {
-    return p2p_dir_.path();
-  }
+  base::FilePath GetP2PDir() override { return p2p_dir_.GetPath(); }
 
   // P2PManager::Configuration override
   std::vector<std::string> GetInitctlArgs(bool is_start) override {
