@@ -100,11 +100,11 @@ TEST(UtilsTest, ErrnoNumberAsStringTest) {
 TEST(UtilsTest, IsSymlinkTest) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  string temp_file = temp_dir.path().Append("temp-file").value();
+  string temp_file = temp_dir.GetPath().Append("temp-file").value();
   EXPECT_TRUE(utils::WriteFile(temp_file.c_str(), "", 0));
-  string temp_symlink = temp_dir.path().Append("temp-symlink").value();
+  string temp_symlink = temp_dir.GetPath().Append("temp-symlink").value();
   EXPECT_EQ(0, symlink(temp_file.c_str(), temp_symlink.c_str()));
-  EXPECT_FALSE(utils::IsSymlink(temp_dir.path().value().c_str()));
+  EXPECT_FALSE(utils::IsSymlink(temp_dir.GetPath().value().c_str()));
   EXPECT_FALSE(utils::IsSymlink(temp_file.c_str()));
   EXPECT_TRUE(utils::IsSymlink(temp_symlink.c_str()));
   EXPECT_FALSE(utils::IsSymlink("/non/existent/path"));
@@ -303,8 +303,9 @@ TEST(UtilsTest, TimeFromStructTimespecTest) {
   base::Time::Exploded exploded = (base::Time::Exploded) {
     .year = 2001, .month = 9, .day_of_week = 0, .day_of_month = 9,
     .hour = 1, .minute = 46, .second = 40, .millisecond = 42};
-  EXPECT_EQ(base::Time::FromUTCExploded(exploded),
-            utils::TimeFromStructTimespec(&ts));
+  base::Time time;
+  EXPECT_TRUE(base::Time::FromUTCExploded(exploded, &time));
+  EXPECT_EQ(time, utils::TimeFromStructTimespec(&ts));
 }
 
 TEST(UtilsTest, DecodeAndStoreBase64String) {
@@ -478,23 +479,23 @@ TEST(UtilsTest, RunAsRootUnmountFilesystemBusyFailureTest) {
   test_utils::ScopedLoopbackDeviceBinder loop_binder(
       tmp_image, true, &loop_dev);
 
-  EXPECT_FALSE(utils::IsMountpoint(mnt_dir.path().value()));
+  EXPECT_FALSE(utils::IsMountpoint(mnt_dir.GetPath().value()));
   // This is the actual test part. While we hold a file descriptor open for the
   // mounted filesystem, umount should still succeed.
   EXPECT_TRUE(utils::MountFilesystem(
-      loop_dev, mnt_dir.path().value(), MS_RDONLY, "ext4", ""));
+      loop_dev, mnt_dir.GetPath().value(), MS_RDONLY, "ext4", ""));
   // Verify the directory is a mount point now.
-  EXPECT_TRUE(utils::IsMountpoint(mnt_dir.path().value()));
+  EXPECT_TRUE(utils::IsMountpoint(mnt_dir.GetPath().value()));
 
-  string target_file = mnt_dir.path().Append("empty-file").value();
+  string target_file = mnt_dir.GetPath().Append("empty-file").value();
   int fd = HANDLE_EINTR(open(target_file.c_str(), O_RDONLY));
   EXPECT_GE(fd, 0);
-  EXPECT_TRUE(utils::UnmountFilesystem(mnt_dir.path().value()));
+  EXPECT_TRUE(utils::UnmountFilesystem(mnt_dir.GetPath().value()));
   // The filesystem should be already unmounted at this point.
-  EXPECT_FALSE(utils::IsMountpoint(mnt_dir.path().value()));
+  EXPECT_FALSE(utils::IsMountpoint(mnt_dir.GetPath().value()));
   IGNORE_EINTR(close(fd));
   // The filesystem was already unmounted so this call should fail.
-  EXPECT_FALSE(utils::UnmountFilesystem(mnt_dir.path().value()));
+  EXPECT_FALSE(utils::UnmountFilesystem(mnt_dir.GetPath().value()));
 }
 
 TEST(UtilsTest, IsMountpointTest) {
@@ -503,7 +504,7 @@ TEST(UtilsTest, IsMountpointTest) {
 
   base::ScopedTempDir mnt_dir;
   EXPECT_TRUE(mnt_dir.CreateUniqueTempDir());
-  EXPECT_FALSE(utils::IsMountpoint(mnt_dir.path().value()));
+  EXPECT_FALSE(utils::IsMountpoint(mnt_dir.GetPath().value()));
 
   base::FilePath file;
   EXPECT_TRUE(base::CreateTemporaryFile(&file));

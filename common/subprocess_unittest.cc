@@ -32,7 +32,6 @@
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
-#include <brillo/bind_lambda.h>
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
@@ -225,7 +224,7 @@ void CallbackBad(int return_code, const string& output) {
 TEST_F(SubprocessTest, CancelTest) {
   base::ScopedTempDir tempdir;
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  string fifo_path = tempdir.path().Append("fifo").value();
+  string fifo_path = tempdir.GetPath().Append("fifo").value();
   EXPECT_EQ(0, mkfifo(fifo_path.c_str(), 0666));
 
   // Start a process, make sure it is running and try to cancel it. We write
