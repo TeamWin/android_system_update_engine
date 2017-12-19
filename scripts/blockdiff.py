@@ -8,7 +8,8 @@
 
 from __future__ import print_function
 
-import optparse
+# pylint: disable=import-error
+import argparse
 import sys
 
 
@@ -71,28 +72,25 @@ def BlockDiff(block_size, file1, file2, name1, name2, max_length=-1):
 
 def main(argv):
   # Parse command-line arguments.
-  parser = optparse.OptionParser(
-      usage='Usage: %prog FILE1 FILE2',
-      description='Compare FILE1 and FILE2 by blocks.')
+  parser = argparse.ArgumentParser(
+      description='Compare FILE1 and FILE2 by blocks.',
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-  parser.add_option('-b', '--block-size', metavar='NUM', type=int, default=4096,
-                    help='the block size to use (default: %default)')
-  parser.add_option('-m', '--max-length', metavar='NUM', type=int, default=-1,
-                    help='maximum number of bytes to compared')
+  parser.add_argument('-b', '--block-size', metavar='NUM', type=int,
+                      default=4096, help='the block size to use')
+  parser.add_argument('-m', '--max-length', metavar='NUM', type=int, default=-1,
+                      help='maximum number of bytes to compare')
+  parser.add_argument('file1', metavar='FILE1')
+  parser.add_argument('file2', metavar='FILE2')
 
-  opts, args = parser.parse_args(argv[1:])
-
-  try:
-    name1, name2 = args
-  except ValueError:
-    parser.error('unexpected number of arguments')
+  args = parser.parse_args(argv[1:])
 
   # Perform the block diff.
   try:
-    with open(name1) as file1:
-      with open(name2) as file2:
-        diff_list = BlockDiff(opts.block_size, file1, file2, name1, name2,
-                              opts.max_length)
+    with open(args.file1) as file1:
+      with open(args.file2) as file2:
+        diff_list = BlockDiff(args.block_size, file1, file2,
+                              args.file1, args.file2, args.max_length)
   except BlockDiffError as e:
     print('Error: ' % e, file=sys.stderr)
     return 2

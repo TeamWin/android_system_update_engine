@@ -97,7 +97,8 @@ apply_full_payload() {
   dst_kern_part="$2/$3"
   dst_root_part="$2/$4"
 
-  time ${paycheck} ${payload_file} ${dst_kern_part} ${dst_root_part}
+  time ${paycheck} ${payload_file} \
+    --dst_kern ${dst_kern_part} --dst_root ${dst_root_part}
 }
 
 apply_delta_payload() {
@@ -107,8 +108,9 @@ apply_delta_payload() {
   src_kern_part="$2/$5"
   src_root_part="$2/$6"
 
-  time ${paycheck} ${payload_file} ${dst_kern_part} ${dst_root_part} \
-    ${src_kern_part} ${src_root_part}
+  time ${paycheck} ${payload_file} \
+    --dst_kern ${dst_kern_part} --dst_root ${dst_root_part} \
+    --src_kern ${src_kern_part} --dst_kern ${src_root_part}
 }
 
 main() {
