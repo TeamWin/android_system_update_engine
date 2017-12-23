@@ -176,6 +176,7 @@ const int kDownloadP2PLowSpeedTimeSeconds = 60;
 // succeeding. When using p2p, this is low in order to fail fast.
 const int kDownloadMaxRetryCount = 20;
 const int kDownloadMaxRetryCountOobeNotComplete = 3;
+const int kDownloadMaxRetryCountInteractive = 3;
 const int kDownloadP2PMaxRetryCount = 5;
 
 // The connect timeout, in seconds.
