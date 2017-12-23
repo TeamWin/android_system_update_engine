@@ -619,6 +619,8 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   LibcurlHttpFetcher* download_fetcher =
       new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
   download_fetcher->set_server_to_check(ServerToCheck::kDownload);
+  if (interactive)
+    download_fetcher->set_max_retry_count(kDownloadMaxRetryCountInteractive);
   shared_ptr<DownloadAction> download_action(
       new DownloadAction(prefs_,
                          system_state_->boot_control(),
