@@ -1621,10 +1621,12 @@ bool OmahaRequestAction::IsUpdateAllowedOverCurrentConnection(
     // is set regarding updates over cellular.
     if (!is_allowed)
       *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
-  } else if (!IsUpdateAllowedOverCellularByPrefs(response)) {
-    // The user prefereces does not allow updates over cellular.
-    is_allowed = false;
-    *error = ErrorCode::kOmahaUpdateIgnoredOverCellular;
+  } else {
+    // Deivce policy is not set, so user preferences overwrite whether to
+    // allow updates over cellular.
+    is_allowed = IsUpdateAllowedOverCellularByPrefs(response);
+    if (!is_allowed)
+      *error = ErrorCode::kOmahaUpdateIgnoredOverCellular;
   }
 
   LOG(INFO) << "We are connected via "

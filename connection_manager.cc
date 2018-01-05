@@ -74,9 +74,12 @@ bool ConnectionManager::IsUpdateAllowedOver(
       }
 
       if (!device_policy) {
-        LOG(INFO) << "Disabling updates over cellular as device policy "
+        // Device policy fails to be loaded (possibly due to guest account). We
+        // do not check the local user setting here, which should be checked by
+        // |OmahaRequestAction| during checking for update.
+        LOG(INFO) << "Allowing updates over cellular as device policy "
                      "fails to be loaded.";
-        return false;
+        return true;
       }
 
       if (device_policy->GetAllowedConnectionTypesForUpdate(&allowed_types)) {
@@ -88,11 +91,14 @@ bool ConnectionManager::IsUpdateAllowedOver(
         }
 
         LOG(INFO) << "Allowing updates over cellular per device policy.";
+        return true;
       }
 
       // If there's no update setting in the device policy, we do not check
       // the local user setting here, which should be checked by
       // |OmahaRequestAction| during checking for update.
+      LOG(INFO) << "Allowing updates over cellular as device policy does "
+                   "not include update setting.";
       return true;
     }
 

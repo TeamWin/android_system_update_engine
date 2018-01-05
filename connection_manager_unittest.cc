@@ -334,6 +334,14 @@ TEST_F(ConnectionManagerTest, AllowUpdatesOver3GIfPolicyIsNotSet) {
                                         ConnectionTethering::kUnknown));
 }
 
+TEST_F(ConnectionManagerTest,
+       AllowUpdatesOverCellularIfPolicyFailsToBeLoaded) {
+  fake_system_state_.set_device_policy(nullptr);
+
+  EXPECT_TRUE(cmut_.IsUpdateAllowedOver(ConnectionType::kCellular,
+                                        ConnectionTethering::kUnknown));
+}
+
 TEST_F(ConnectionManagerTest, StringForConnectionTypeTest) {
   EXPECT_STREQ(shill::kTypeEthernet,
                StringForConnectionType(ConnectionType::kEthernet));
