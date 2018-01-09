@@ -21,7 +21,6 @@
 #include <unistd.h>
 
 #include <string>
-#include <vector>
 
 #include <brillo/secure_blob.h>
 #include <gtest/gtest.h>
@@ -30,7 +29,6 @@
 #include "update_engine/common/utils.h"
 
 using std::string;
-using std::vector;
 
 namespace chromeos_update_engine {
 

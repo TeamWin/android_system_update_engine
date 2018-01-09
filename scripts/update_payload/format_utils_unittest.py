@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 #
 # Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -8,10 +8,11 @@
 
 import unittest
 
-import format_utils
+from update_payload import format_utils
 
 
 class NumToPercentTest(unittest.TestCase):
+  """ Tests number conversion to percentage format."""
   def testHundredPercent(self):
     self.assertEqual(format_utils.NumToPercent(1, 1), '100%')
 
@@ -43,6 +44,7 @@ class NumToPercentTest(unittest.TestCase):
 
 
 class BytesToHumanReadableTest(unittest.TestCase):
+  """ Tests number conversion to human readable format."""
   def testBaseTwo(self):
     self.assertEqual(format_utils.BytesToHumanReadable(0x1000), '4 KiB')
     self.assertEqual(format_utils.BytesToHumanReadable(0x400000), '4 MiB')

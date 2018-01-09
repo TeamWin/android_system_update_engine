@@ -19,16 +19,17 @@
 #include <fcntl.h>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include <brillo/make_unique_ptr.h>
 #include <brillo/secure_blob.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/payload_constants.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 
 using chromeos_update_engine::test_utils::ExpectVectorsEq;
 using std::min;
@@ -65,16 +66,11 @@ class ExtentWriterTest : public ::testing::Test {
 };
 
 TEST_F(ExtentWriterTest, SimpleTest) {
-  vector<Extent> extents;
-  Extent extent;
-  extent.set_start_block(1);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
-
+  vector<Extent> extents = {ExtentForRange(1, 1)};
   const string bytes = "1234";
-
   DirectExtentWriter direct_writer;
-  EXPECT_TRUE(direct_writer.Init(fd_, extents, kBlockSize));
+  EXPECT_TRUE(
+      direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(direct_writer.Write(bytes.data(), bytes.size()));
   EXPECT_TRUE(direct_writer.End());
 
@@ -91,14 +87,10 @@ TEST_F(ExtentWriterTest, SimpleTest) {
 }
 
 TEST_F(ExtentWriterTest, ZeroLengthTest) {
-  vector<Extent> extents;
-  Extent extent;
-  extent.set_start_block(1);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
-
+  vector<Extent> extents = {ExtentForRange(1, 1)};
   DirectExtentWriter direct_writer;
-  EXPECT_TRUE(direct_writer.Init(fd_, extents, kBlockSize));
+  EXPECT_TRUE(
+      direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(direct_writer.Write(nullptr, 0));
   EXPECT_TRUE(direct_writer.End());
 }
@@ -117,23 +109,14 @@ TEST_F(ExtentWriterTest, LargeUnalignedWriteTest) {
 
 void ExtentWriterTest::WriteAlignedExtents(size_t chunk_size,
                                            size_t first_chunk_size) {
-  vector<Extent> extents;
-  Extent extent;
-  extent.set_start_block(1);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
-  extent.set_start_block(0);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
-  extent.set_start_block(2);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
-
+  vector<Extent> extents = {
+      ExtentForRange(1, 1), ExtentForRange(0, 1), ExtentForRange(2, 1)};
   brillo::Blob data(kBlockSize * 3);
   test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
-  EXPECT_TRUE(direct_writer.Init(fd_, extents, kBlockSize));
+  EXPECT_TRUE(
+      direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
 
   size_t bytes_written = 0;
   while (bytes_written < data.size()) {
@@ -172,22 +155,14 @@ TEST_F(ExtentWriterTest, ZeroPadFillTest) {
 }
 
 void ExtentWriterTest::TestZeroPad(bool aligned_size) {
-  vector<Extent> extents;
-  Extent extent;
-  extent.set_start_block(1);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
-  extent.set_start_block(0);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
-
+  vector<Extent> extents = {ExtentForRange(1, 1), ExtentForRange(0, 1)};
   brillo::Blob data(kBlockSize * 2);
   test_utils::FillWithData(&data);
 
-  ZeroPadExtentWriter zero_pad_writer(
-      brillo::make_unique_ptr(new DirectExtentWriter()));
+  ZeroPadExtentWriter zero_pad_writer(std::make_unique<DirectExtentWriter>());
 
-  EXPECT_TRUE(zero_pad_writer.Init(fd_, extents, kBlockSize));
+  EXPECT_TRUE(
+      zero_pad_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   size_t bytes_to_write = data.size();
   const size_t missing_bytes = (aligned_size ? 0 : 9);
   bytes_to_write -= missing_bytes;
@@ -216,17 +191,9 @@ void ExtentWriterTest::TestZeroPad(bool aligned_size) {
 }
 
 TEST_F(ExtentWriterTest, SparseFileTest) {
-  vector<Extent> extents;
-  Extent extent;
-  extent.set_start_block(1);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
-  extent.set_start_block(kSparseHole);
-  extent.set_num_blocks(2);
-  extents.push_back(extent);
-  extent.set_start_block(0);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
+  vector<Extent> extents = {ExtentForRange(1, 1),
+                            ExtentForRange(kSparseHole, 2),
+                            ExtentForRange(0, 1)};
   const int block_count = 4;
   const int on_disk_count = 2;
 
@@ -234,7 +201,8 @@ TEST_F(ExtentWriterTest, SparseFileTest) {
   test_utils::FillWithData(&data);
 
   DirectExtentWriter direct_writer;
-  EXPECT_TRUE(direct_writer.Init(fd_, extents, kBlockSize));
+  EXPECT_TRUE(
+      direct_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
 
   size_t bytes_written = 0;
   while (bytes_written < (block_count * kBlockSize)) {

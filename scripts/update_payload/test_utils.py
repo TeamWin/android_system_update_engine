@@ -12,9 +12,9 @@ import os
 import struct
 import subprocess
 
-import common
-import payload
-import update_metadata_pb2
+from update_payload import common
+from update_payload import payload
+from update_payload import update_metadata_pb2
 
 
 class TestError(Exception):
@@ -84,7 +84,6 @@ def SignSha256(data, privkey_file_name):
   Raises:
     TestError if something goes wrong.
   """
-  # pylint: disable=E1101
   data_sha256_hash = common.SIG_ASN1_HEADER + hashlib.sha256(data).digest()
   sign_cmd = ['openssl', 'rsautl', '-sign', '-inkey', privkey_file_name]
   try:
@@ -110,8 +109,6 @@ class SignaturesGenerator(object):
       version: signature version (None means do not assign)
       data: signature binary data (None means do not assign)
     """
-    # Pylint fails to identify a member of the Signatures message.
-    # pylint: disable=E1101
     sig = self.sigs.signatures.add()
     if version is not None:
       sig.version = version
@@ -174,11 +171,9 @@ class PayloadGenerator(object):
       part_hash: the partition hash
     """
     if is_kernel:
-      # pylint: disable=E1101
       part_info = (self.manifest.new_kernel_info if is_new
                    else self.manifest.old_kernel_info)
     else:
-      # pylint: disable=E1101
       part_info = (self.manifest.new_rootfs_info if is_new
                    else self.manifest.old_rootfs_info)
     _SetMsgField(part_info, 'size', part_size)
@@ -188,7 +183,6 @@ class PayloadGenerator(object):
                    data_length=None, src_extents=None, src_length=None,
                    dst_extents=None, dst_length=None, data_sha256_hash=None):
     """Adds an InstallOperation entry."""
-    # pylint: disable=E1101
     operations = (self.manifest.kernel_install_operations if is_kernel
                   else self.manifest.install_operations)
 
@@ -293,7 +287,6 @@ class EnhancedPayloadGenerator(PayloadGenerator):
     data_offset = data_length = data_sha256_hash = None
     if data_blob is not None:
       if do_hash_data_blob:
-        # pylint: disable=E1101
         data_sha256_hash = hashlib.sha256(data_blob).digest()
       data_length, data_offset = self.AddData(data_blob)
 

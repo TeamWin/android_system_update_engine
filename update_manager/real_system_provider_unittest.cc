@@ -19,7 +19,6 @@
 #include <memory>
 
 #include <base/time/time.h>
-#include <brillo/make_unique_ptr.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 

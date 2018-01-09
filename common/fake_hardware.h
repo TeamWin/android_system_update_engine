@@ -83,6 +83,14 @@ class FakeHardware : public HardwareInterface {
 
   int64_t GetBuildTimestamp() const override { return build_timestamp_; }
 
+  bool GetFirstActiveOmahaPingSent() const override {
+    return first_active_omaha_ping_sent_;
+  }
+
+  void SetFirstActiveOmahaPingSent() override {
+    first_active_omaha_ping_sent_ = true;
+  }
+
   // Setters
   void SetIsOfficialBuild(bool is_official_build) {
     is_official_build_ = is_official_build;
@@ -144,6 +152,7 @@ class FakeHardware : public HardwareInterface {
   int powerwash_count_{kPowerwashCountNotSet};
   bool powerwash_scheduled_{false};
   int64_t build_timestamp_{0};
+  bool first_active_omaha_ping_sent_{false};
 
   DISALLOW_COPY_AND_ASSIGN(FakeHardware);
 };

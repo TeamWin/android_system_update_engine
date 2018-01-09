@@ -22,7 +22,6 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/string_util.h>
-#include <brillo/make_unique_ptr.h>
 #include <rootdev/rootdev.h>
 
 extern "C" {
