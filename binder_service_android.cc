@@ -139,6 +139,18 @@ Status BinderUpdateEngineAndroidService::resetStatus() {
   return Status::ok();
 }
 
+Status BinderUpdateEngineAndroidService::verifyPayloadApplicable(
+    const android::String16& metadata_filename, bool* return_value) {
+  const std::string payload_metadata{
+      android::String8{metadata_filename}.string()};
+  LOG(INFO) << "Received a request of verifying payload metadata in "
+            << payload_metadata << ".";
+
+  // FIXME: Do the actual verification work.
+  *return_value = true;
+  return Status::ok();
+}
+
 bool BinderUpdateEngineAndroidService::UnbindCallback(const IBinder* callback) {
   auto it = std::find_if(
       callbacks_.begin(),
