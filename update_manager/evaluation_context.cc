@@ -24,7 +24,6 @@
 #include <base/bind.h>
 #include <base/json/json_writer.h>
 #include <base/location.h>
-#include <base/memory/ptr_util.h>
 #include <base/strings/string_util.h>
 #include <base/values.h>
 
@@ -229,7 +228,7 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
 }
 
 string EvaluationContext::DumpContext() const {
-  auto variables = base::MakeUnique<base::DictionaryValue>();
+  auto variables = std::make_unique<base::DictionaryValue>();
   for (auto& it : value_cache_) {
     variables->SetString(it.first->GetName(), it.second.ToString());
   }

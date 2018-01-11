@@ -32,31 +32,12 @@ namespace chromeos_update_engine {
 // into an arbitrary place in the extents.
 void AppendBlockToExtents(std::vector<Extent>* extents, uint64_t block);
 
-// Get/SetElement are intentionally overloaded so that templated functions
-// can accept either type of collection of Extents.
-Extent GetElement(const std::vector<Extent>& collection, size_t index);
-Extent GetElement(
-    const google::protobuf::RepeatedPtrField<Extent>& collection,
-    size_t index);
-
-// Return the total number of blocks in a collection (vector or
-// RepeatedPtrField) of Extents.
-template<typename T>
-uint64_t BlocksInExtents(const T& collection) {
-  uint64_t ret = 0;
-  for (size_t i = 0; i < static_cast<size_t>(collection.size()); ++i) {
-    ret += GetElement(collection, i).num_blocks();
-  }
-  return ret;
-}
-
 // Takes a collection (vector or RepeatedPtrField) of Extent and
 // returns a vector of the blocks referenced, in order.
 template<typename T>
 std::vector<uint64_t> ExpandExtents(const T& extents) {
   std::vector<uint64_t> ret;
-  for (size_t i = 0, e = static_cast<size_t>(extents.size()); i != e; ++i) {
-    const Extent extent = GetElement(extents, i);
+  for (const auto& extent : extents) {
     if (extent.start_block() == kSparseHole) {
       ret.resize(ret.size() + extent.num_blocks(), kSparseHole);
     } else {

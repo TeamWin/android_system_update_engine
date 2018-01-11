@@ -53,16 +53,6 @@ void AppendBlockToExtents(vector<Extent>* extents, uint64_t block) {
   extents->push_back(new_extent);
 }
 
-Extent GetElement(const vector<Extent>& collection, size_t index) {
-  return collection[index];
-}
-
-Extent GetElement(
-    const google::protobuf::RepeatedPtrField<Extent>& collection,
-    size_t index) {
-  return collection.Get(index);
-}
-
 void ExtendExtents(
     google::protobuf::RepeatedPtrField<Extent>* extents,
     const google::protobuf::RepeatedPtrField<Extent>& extents_to_add) {

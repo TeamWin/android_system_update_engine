@@ -18,7 +18,6 @@
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_PAYLOAD_VERIFIER_H_
 
 #include <string>
-#include <vector>
 
 #include <base/macros.h>
 #include <brillo/secure_blob.h>

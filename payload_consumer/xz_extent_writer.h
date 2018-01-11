@@ -20,7 +20,7 @@
 #include <xz.h>
 
 #include <memory>
-#include <vector>
+#include <utility>
 
 #include <brillo/secure_blob.h>
 
@@ -40,7 +40,7 @@ class XzExtentWriter : public ExtentWriter {
   ~XzExtentWriter() override;
 
   bool Init(FileDescriptorPtr fd,
-            const std::vector<Extent>& extents,
+            const google::protobuf::RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override;
   bool Write(const void* bytes, size_t count) override;
   bool EndImpl() override;

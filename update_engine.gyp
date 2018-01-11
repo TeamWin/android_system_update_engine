@@ -85,7 +85,7 @@
         },
       },
       'sources': [
-        'update_metadata.proto'
+        'update_metadata.proto',
       ],
       'includes': ['../../../platform2/common-mk/protoc.gypi'],
     },
@@ -109,25 +109,10 @@
         'action_name': 'update_engine-dbus-libcros-client-action',
         'variables': {
           'mock_output_file': 'include/libcros/dbus-proxy-mocks.h',
-          'proxy_output_file': 'include/libcros/dbus-proxies.h'
+          'proxy_output_file': 'include/libcros/dbus-proxies.h',
         },
         'sources': [
           'dbus_bindings/org.chromium.LibCrosService.dbus-xml',
-        ],
-        'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
-      }],
-    },
-    {
-      'target_name': 'update_engine-dbus-chrome_network_proxy-client',
-      'type': 'none',
-      'actions': [{
-        'action_name': 'update_engine-dbus-chrome_network_proxy-client-action',
-        'variables': {
-          'mock_output_file': 'include/network_proxy/dbus-proxy-mocks.h',
-          'proxy_output_file': 'include/network_proxy/dbus-proxies.h'
-        },
-        'sources': [
-          'dbus_bindings/org.chromium.NetworkProxyService.dbus-xml',
         ],
         'includes': ['../../../platform2/common-mk/generate-dbus-proxies.gypi'],
       }],
@@ -145,6 +130,7 @@
         'exported_deps': [
           'libcrypto',
           'xz-embedded',
+          'libpuffpatch',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -185,8 +171,10 @@
         'common/terminator.cc',
         'common/utils.cc',
         'payload_consumer/bzip_extent_writer.cc',
+        'payload_consumer/cached_file_descriptor.cc',
         'payload_consumer/delta_performer.cc',
         'payload_consumer/download_action.cc',
+        'payload_consumer/extent_reader.cc',
         'payload_consumer/extent_writer.cc',
         'payload_consumer/file_descriptor.cc',
         'payload_consumer/file_descriptor_utils.cc',
@@ -233,6 +221,7 @@
           'libshill-client',
           'libssl',
           'libupdate_engine-client',
+          'vboot_host',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -254,7 +243,6 @@
           '-lpolicy-<(libbase_ver)',
           '-lrootdev',
           '-lrt',
-          '-lvboot_host',
         ],
       },
       'sources': [
@@ -300,9 +288,6 @@
       ],
       'conditions': [
         ['USE_chrome_network_proxy == 1', {
-          'dependencies': [
-            'update_engine-dbus-chrome_network_proxy-client',
-          ],
           'sources': [
             'chrome_browser_proxy_resolver.cc',
           ],
@@ -355,7 +340,7 @@
         'common/error_code_utils.cc',
         'omaha_utils.cc',
         'update_engine_client.cc',
-     ],
+      ],
     },
     # server-side code. This is used for delta_generator and unittests but not
     # for any client code.
@@ -369,6 +354,7 @@
       'variables': {
         'exported_deps': [
           'ext2fs',
+          'libpuffdiff',
         ],
         'deps': ['<@(exported_deps)'],
       },
@@ -396,6 +382,7 @@
         'payload_generator/block_mapping.cc',
         'payload_generator/bzip.cc',
         'payload_generator/cycle_breaker.cc',
+        'payload_generator/deflate_utils.cc',
         'payload_generator/delta_diff_generator.cc',
         'payload_generator/delta_diff_utils.cc',
         'payload_generator/ext2_filesystem.cc',
@@ -410,6 +397,7 @@
         'payload_generator/payload_generation_config.cc',
         'payload_generator/payload_signer.cc',
         'payload_generator/raw_filesystem.cc',
+        'payload_generator/squashfs_filesystem.cc',
         'payload_generator/tarjan.cc',
         'payload_generator/topological_sort.cc',
         'payload_generator/xz_chromeos.cc',
@@ -483,7 +471,6 @@
         {
           'target_name': 'update_engine_unittests',
           'type': 'executable',
-          'includes': ['../../../platform2/common-mk/common_test.gypi'],
           'variables': {
             'deps': [
               'libbrillo-test-<(libbase_ver)',
@@ -531,9 +518,11 @@
             'omaha_utils_unittest.cc',
             'p2p_manager_unittest.cc',
             'payload_consumer/bzip_extent_writer_unittest.cc',
+            'payload_consumer/cached_file_descriptor_unittest.cc',
             'payload_consumer/delta_performer_integration_test.cc',
             'payload_consumer/delta_performer_unittest.cc',
             'payload_consumer/download_action_unittest.cc',
+            'payload_consumer/extent_reader_unittest.cc',
             'payload_consumer/extent_writer_unittest.cc',
             'payload_consumer/fake_file_descriptor.cc',
             'payload_consumer/file_descriptor_utils_unittest.cc',
@@ -545,6 +534,7 @@
             'payload_generator/blob_file_writer_unittest.cc',
             'payload_generator/block_mapping_unittest.cc',
             'payload_generator/cycle_breaker_unittest.cc',
+            'payload_generator/deflate_utils_unittest.cc',
             'payload_generator/delta_diff_utils_unittest.cc',
             'payload_generator/ext2_filesystem_unittest.cc',
             'payload_generator/extent_ranges_unittest.cc',
@@ -557,11 +547,13 @@
             'payload_generator/payload_file_unittest.cc',
             'payload_generator/payload_generation_config_unittest.cc',
             'payload_generator/payload_signer_unittest.cc',
+            'payload_generator/squashfs_filesystem_unittest.cc',
             'payload_generator/tarjan_unittest.cc',
             'payload_generator/topological_sort_unittest.cc',
             'payload_generator/zip_unittest.cc',
             'payload_state_unittest.cc',
             'proxy_resolver_unittest.cc',
+            'testrunner.cc',
             'update_attempter_unittest.cc',
             'update_manager/boxed_value_unittest.cc',
             'update_manager/chromeos_policy_unittest.cc',
@@ -577,23 +569,6 @@
             'update_manager/umtest_utils.cc',
             'update_manager/update_manager_unittest.cc',
             'update_manager/variable_unittest.cc',
-            # Main entry point for runnning tests.
-            'testrunner.cc',
-          ],
-          'conditions': [
-            ['USE_chrome_network_proxy == 1', {
-              'dependencies': [
-                'update_engine-dbus-chrome_network_proxy-client',
-              ],
-              'sources': [
-                'chrome_browser_proxy_resolver_unittest.cc',
-              ],
-            }],
-            ['USE_chrome_kiosk_app == 1', {
-              'dependencies': [
-                'update_engine-dbus-libcros-client',
-              ],
-            }],
           ],
         },
       ],

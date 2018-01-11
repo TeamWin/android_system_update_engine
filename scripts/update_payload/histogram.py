@@ -6,7 +6,7 @@
 
 from collections import defaultdict
 
-import format_utils
+from update_payload import format_utils
 
 
 class Histogram(object):

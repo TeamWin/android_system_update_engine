@@ -30,7 +30,7 @@
 using std::string;
 using testing::_;
 using testing::Return;
-using testing::SetArgumentPointee;
+using testing::SetArgPointee;
 using update_engine::UpdateAttemptFlags;
 
 namespace chromeos_update_engine {
@@ -102,7 +102,7 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithDelegatedPolicy) {
   policy::MockDevicePolicy mock_device_policy;
   fake_system_state_.set_device_policy(&mock_device_policy);
   EXPECT_CALL(mock_device_policy, GetReleaseChannelDelegated(_))
-      .WillOnce(DoAll(SetArgumentPointee<0>(true), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<0>(true), Return(true)));
   EXPECT_CALL(*fake_system_state_.mock_request_params(),
               SetTargetChannel("beta-channel", true, _))
       .WillOnce(Return(true));

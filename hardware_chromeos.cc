@@ -22,7 +22,6 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <brillo/key_value_store.h>
-#include <brillo/make_unique_ptr.h>
 #include <debugd/dbus-constants.h>
 #include <vboot/crossystem.h>
 
@@ -68,6 +67,8 @@ const char* kConfigFilePath = "/etc/update_manager.conf";
 
 // UpdateManager config options:
 const char* kConfigOptsIsOOBEEnabled = "is_oobe_enabled";
+
+const char* kActivePingKey = "first_active_omaha_ping_sent";
 
 }  // namespace
 
@@ -246,6 +247,51 @@ void HardwareChromeOS::LoadConfig(const string& root_prefix, bool normal_mode) {
 
   if (!store.GetBoolean(kConfigOptsIsOOBEEnabled, &is_oobe_enabled_))
     is_oobe_enabled_ = true;  // Default value.
+}
+
+bool HardwareChromeOS::GetFirstActiveOmahaPingSent() const {
+  int exit_code = 0;
+  string active_ping_str;
+  vector<string> cmd = { "vpd_get_value", kActivePingKey };
+  if (!Subprocess::SynchronousExec(cmd, &exit_code, &active_ping_str) ||
+      exit_code) {
+    LOG(ERROR) << "Failed to get vpd key for " << kActivePingKey
+               << " with exit code: " << exit_code;
+    return false;
+  }
+
+  base::TrimWhitespaceASCII(active_ping_str,
+                            base::TRIM_ALL,
+                            &active_ping_str);
+  int active_ping;
+  if (active_ping_str.empty() ||
+      !base::StringToInt(active_ping_str, &active_ping)) {
+    LOG(INFO) << "Failed to parse active_ping value: " << active_ping_str;
+    return false;
+  }
+  return static_cast<bool>(active_ping);
+}
+
+void HardwareChromeOS::SetFirstActiveOmahaPingSent() {
+  int exit_code = 0;
+  string output;
+  vector<string> vpd_set_cmd = {
+    "vpd", "-i", "RW_VPD", "-s", string(kActivePingKey) + "=1" };
+  if (!Subprocess::SynchronousExec(vpd_set_cmd, &exit_code, &output) ||
+      exit_code) {
+    LOG(ERROR) << "Failed to set vpd key for " << kActivePingKey
+               << " with exit code: " << exit_code
+               << " with error: " << output;
+    return;
+  }
+
+  vector<string> vpd_dump_cmd = { "dump_vpd_log", "--force" };
+  if (!Subprocess::SynchronousExec(vpd_dump_cmd, &exit_code, &output) ||
+      exit_code) {
+    LOG(ERROR) << "Failed to cache " << kActivePingKey<< " using dump_vpd_log"
+               << " with exit code: " << exit_code
+               << " with error: " << output;
+  }
 }
 
 }  // namespace chromeos_update_engine

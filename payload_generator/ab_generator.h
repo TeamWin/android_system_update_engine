@@ -55,13 +55,13 @@ class ABGenerator : public OperationsGenerator {
       BlobFileWriter* blob_file,
       std::vector<AnnotatedOperation>* aops) override;
 
-  // Split the operations in the vector of AnnotatedOperations |aops|
-  // such that for every operation there is only one dst extent and updates
-  // |aops| with the new list of operations. All kinds of operations are
-  // fragmented except BSDIFF and SOURCE_BSDIFF operations.
-  // The |target_part_path| is the filename of the new image, where the
-  // destination extents refer to. The blobs of the operations in |aops| should
-  // reference |blob_file|. |blob_file| are updated if needed.
+  // Split the operations in the vector of AnnotatedOperations |aops| such that
+  // for every operation there is only one dst extent and updates |aops| with
+  // the new list of operations. All kinds of operations are fragmented except
+  // BSDIFF and SOURCE_BSDIFF, PUFFDIFF and BROTLI_BSDIFF operations.  The
+  // |target_part_path| is the filename of the new image, where the destination
+  // extents refer to. The blobs of the operations in |aops| should reference
+  // |blob_file|. |blob_file| are updated if needed.
   static bool FragmentOperations(const PayloadVersion& version,
                                  std::vector<AnnotatedOperation>* aops,
                                  const std::string& target_part_path,

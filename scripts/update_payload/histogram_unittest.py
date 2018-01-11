@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 #
 # Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -8,11 +8,12 @@
 
 import unittest
 
-import format_utils
-import histogram
+from update_payload import format_utils
+from update_payload import histogram
 
 
 class HistogramTest(unittest.TestCase):
+  """ Tests histogram"""
 
   @staticmethod
   def AddHumanReadableSize(size):

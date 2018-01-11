@@ -16,6 +16,8 @@
 
 #include "update_engine/power_manager_chromeos.h"
 
+#include <memory>
+
 #include <power_manager/dbus-constants.h>
 #include <power_manager/dbus-proxies.h>
 
@@ -37,7 +39,9 @@ bool PowerManagerChromeOS::RequestReboot() {
             << ::power_manager::kRequestRestartMethod;
   brillo::ErrorPtr error;
   return power_manager_proxy_.RequestRestart(
-      ::power_manager::REQUEST_RESTART_FOR_UPDATE, &error);
+      ::power_manager::REQUEST_RESTART_FOR_UPDATE,
+      "update_engine applying update",
+      &error);
 }
 
 }  // namespace chromeos_update_engine

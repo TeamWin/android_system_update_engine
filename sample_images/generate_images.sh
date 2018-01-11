@@ -26,12 +26,15 @@ set -e
 # cleanup <path>
 # Unmount and remove the mountpoint <path>
 cleanup() {
-  if ! sudo umount "$1" 2>/dev/null; then
-    if mountpoint -q "$1"; then
-      sync && sudo umount "$1"
+  local path="$1"
+  if ! sudo umount "${path}" 2>/dev/null; then
+    if mountpoint -q "${path}"; then
+      sync && sudo umount "${path}"
     fi
   fi
-  rmdir "$1"
+  if [ -n "${path}" ]; then
+    sudo rm -rf "${path}"
+  fi
 }
 
 # add_files_default <mntdir> <block_size>
@@ -203,10 +206,11 @@ EOF
 # generate_fs <filename> <kind> <size> [block_size] [block_groups]
 generate_fs() {
   local filename="$1"
-  local kind="$2"
-  local size="$3"
-  local block_size="${4:-4096}"
-  local block_groups="${5:-}"
+  local type="$2"
+  local kind="$3"
+  local size="$4"
+  local block_size="${5:-4096}"
+  local block_groups="${6:-}"
 
   local mkfs_opts=( -q -F -b "${block_size}" -L "ROOT-TEST" -t ext2 )
   if [[ -n "${block_groups}" ]]; then
@@ -215,16 +219,17 @@ generate_fs() {
 
   local mntdir=$(mktemp --tmpdir -d generate_ext2.XXXXXX)
   trap 'cleanup "${mntdir}"; rm -f "${filename}"' INT TERM EXIT
-
   # Cleanup old image.
   if [[ -e "${filename}" ]]; then
     rm -f "${filename}"
   fi
-  truncate --size="${size}" "${filename}"
 
-  mkfs.ext2 "${mkfs_opts[@]}" "${filename}"
-  sudo mount "${filename}" "${mntdir}" -o loop
+  if [[ "${type}" == "ext2" ]]; then
+    truncate --size="${size}" "${filename}"
 
+    mkfs.ext2 "${mkfs_opts[@]}" "${filename}"
+    sudo mount "${filename}" "${mntdir}" -o loop
+  fi
   case "${kind}" in
     unittest)
       add_files_ue_settings "${mntdir}" "${block_size}"
@@ -236,6 +241,10 @@ generate_fs() {
     empty)
       ;;
   esac
+
+  if [[ "${type}" == "sqfs" ]]; then
+    mksquashfs "${mntdir}" "${filename}"
+  fi
 
   cleanup "${mntdir}"
   trap - INT TERM EXIT
@@ -253,10 +262,14 @@ generate_image() {
 
 main() {
   # Add more sample images here.
-  generate_image disk_ext2_1k default $((1024 * 1024)) 1024
-  generate_image disk_ext2_4k default $((1024 * 4096)) 4096
-  generate_image disk_ext2_4k_empty empty $((1024 * 4096)) 4096
-  generate_image disk_ext2_unittest unittest $((1024 * 4096)) 4096
+  generate_image disk_ext2_1k ext2 default $((1024 * 1024)) 1024
+  generate_image disk_ext2_4k ext2 default $((1024 * 4096)) 4096
+  generate_image disk_ext2_4k_empty ext2 empty $((1024 * 4096)) 4096
+  generate_image disk_ext2_unittest ext2 unittest $((1024 * 4096)) 4096
+
+  # Add squashfs sample images.
+  generate_image disk_sqfs_empty sqfs empty $((1024 * 4096)) 4096
+  generate_image disk_sqfs_default sqfs default $((1024 * 4096)) 4096
 
   # Generate the tarball and delete temporary images.
   echo "Packing tar file sample_images.tar.bz2"

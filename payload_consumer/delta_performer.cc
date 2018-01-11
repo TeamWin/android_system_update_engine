@@ -29,13 +29,15 @@
 
 #include <base/files/file_util.h>
 #include <base/format_macros.h>
+#include <base/metrics/histogram_macros.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/time/time.h>
 #include <brillo/data_encoding.h>
-#include <brillo/make_unique_ptr.h>
 #include <bsdiff/bspatch.h>
 #include <google/protobuf/repeated_field.h>
+#include <puffin/puffpatch.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
@@ -43,7 +45,9 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/terminator.h"
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
+#include "update_engine/payload_consumer/cached_file_descriptor.h"
 #include "update_engine/payload_consumer/download_action.h"
+#include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
 #include "update_engine/payload_consumer/file_descriptor_utils.h"
 #if USE_MTD
@@ -68,7 +72,7 @@ const uint64_t DeltaPerformer::kDeltaManifestSizeSize = 8;
 const uint64_t DeltaPerformer::kDeltaMetadataSignatureSizeSize = 4;
 const uint64_t DeltaPerformer::kMaxPayloadHeaderSize = 24;
 const uint64_t DeltaPerformer::kSupportedMajorPayloadVersion = 2;
-const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 3;
+const uint32_t DeltaPerformer::kSupportedMinorPayloadVersion = 4;
 
 const unsigned DeltaPerformer::kProgressLogMaxChunks = 10;
 const unsigned DeltaPerformer::kProgressLogTimeoutSeconds = 30;
@@ -81,6 +85,8 @@ const int kMaxResumedUpdateFailures = 10;
 #if USE_MTD
 const int kUbiVolumeAttachTimeout = 5 * 60;
 #endif
+
+const uint64_t kCacheSize = 1024 * 1024;  // 1MB
 
 FileDescriptorPtr CreateFileDescriptor(const char* path) {
   FileDescriptorPtr ret;
@@ -112,12 +118,20 @@ FileDescriptorPtr CreateFileDescriptor(const char* path) {
 
 // Opens path for read/write. On success returns an open FileDescriptor
 // and sets *err to 0. On failure, sets *err to errno and returns nullptr.
-FileDescriptorPtr OpenFile(const char* path, int mode, int* err) {
+FileDescriptorPtr OpenFile(const char* path,
+                           int mode,
+                           bool cache_writes,
+                           int* err) {
   // Try to mark the block device read-only based on the mode. Ignore any
   // failure since this won't work when passing regular files.
-  utils::SetBlockDeviceReadOnly(path, (mode & O_ACCMODE) == O_RDONLY);
+  bool read_only = (mode & O_ACCMODE) == O_RDONLY;
+  utils::SetBlockDeviceReadOnly(path, read_only);
 
   FileDescriptorPtr fd = CreateFileDescriptor(path);
+  if (cache_writes && !read_only) {
+    fd = FileDescriptorPtr(new CachedFileDescriptor(fd, kCacheSize));
+    LOG(INFO) << "Caching writes.";
+  }
 #if USE_MTD
   // On NAND devices, we can either read, or write, but not both. So here we
   // use O_WRONLY.
@@ -347,7 +361,7 @@ bool DeltaPerformer::OpenCurrentPartition() {
       GetMinorVersion() != kInPlaceMinorPayloadVersion) {
     source_path_ = install_part.source_path;
     int err;
-    source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, &err);
+    source_fd_ = OpenFile(source_path_.c_str(), O_RDONLY, false, &err);
     if (!source_fd_) {
       LOG(ERROR) << "Unable to open source partition "
                  << partition.partition_name() << " on slot "
@@ -359,7 +373,15 @@ bool DeltaPerformer::OpenCurrentPartition() {
 
   target_path_ = install_part.target_path;
   int err;
-  target_fd_ = OpenFile(target_path_.c_str(), O_RDWR, &err);
+
+  int flags = O_RDWR;
+  if (!is_interactive_)
+    flags |= O_DSYNC;
+
+  LOG(INFO) << "Opening " << target_path_ << " partition with"
+            << (is_interactive_ ? "out" : "") << " O_DSYNC";
+
+  target_fd_ = OpenFile(target_path_.c_str(), flags, true, &err);
   if (!target_fd_) {
     LOG(ERROR) << "Unable to open target partition "
                << partition.partition_name() << " on slot "
@@ -585,6 +607,15 @@ DeltaPerformer::MetadataParseResult DeltaPerformer::ParsePayloadMetadata(
   return kMetadataParseSuccess;
 }
 
+#define OP_DURATION_HISTOGRAM(_op_name, _start_time)      \
+    LOCAL_HISTOGRAM_CUSTOM_TIMES(                         \
+        "UpdateEngine.DownloadAction.InstallOperation::"  \
+        _op_name ".Duration",                             \
+        base::TimeTicks::Now() - _start_time,             \
+        base::TimeDelta::FromMilliseconds(10),            \
+        base::TimeDelta::FromMinutes(5),                  \
+        20);
+
 // Wrapper around write. Returns true if all requested bytes
 // were written, or false on any error, regardless of progress
 // and stores an action exit code in |error|.
@@ -719,38 +750,51 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode *error) {
     ScopedTerminatorExitUnblocker exit_unblocker =
         ScopedTerminatorExitUnblocker();  // Avoids a compiler unused var bug.
 
+    base::TimeTicks op_start_time = base::TimeTicks::Now();
+
     bool op_result;
     switch (op.type()) {
       case InstallOperation::REPLACE:
       case InstallOperation::REPLACE_BZ:
       case InstallOperation::REPLACE_XZ:
         op_result = PerformReplaceOperation(op);
+        OP_DURATION_HISTOGRAM("REPLACE", op_start_time);
         break;
       case InstallOperation::ZERO:
       case InstallOperation::DISCARD:
         op_result = PerformZeroOrDiscardOperation(op);
+        OP_DURATION_HISTOGRAM("ZERO_OR_DISCARD", op_start_time);
         break;
       case InstallOperation::MOVE:
         op_result = PerformMoveOperation(op);
+        OP_DURATION_HISTOGRAM("MOVE", op_start_time);
         break;
       case InstallOperation::BSDIFF:
         op_result = PerformBsdiffOperation(op);
+        OP_DURATION_HISTOGRAM("BSDIFF", op_start_time);
         break;
       case InstallOperation::SOURCE_COPY:
         op_result = PerformSourceCopyOperation(op, error);
+        OP_DURATION_HISTOGRAM("SOURCE_COPY", op_start_time);
         break;
       case InstallOperation::SOURCE_BSDIFF:
+      case InstallOperation::BROTLI_BSDIFF:
         op_result = PerformSourceBsdiffOperation(op, error);
+        OP_DURATION_HISTOGRAM("SOURCE_BSDIFF", op_start_time);
         break;
       case InstallOperation::PUFFDIFF:
-        // TODO(ahassani): Later add PerformPuffdiffOperation(op, error);
-        op_result = false;
+        op_result = PerformPuffDiffOperation(op, error);
+        OP_DURATION_HISTOGRAM("PUFFDIFF", op_start_time);
         break;
       default:
         op_result = false;
     }
     if (!HandleOpResult(op_result, InstallOperationTypeName(op.type()), error))
       return false;
+
+    if (!target_fd_->Flush()) {
+      return false;
+    }
 
     next_operation_num_++;
     UpdateOverallProgress(false, "Completed ");
@@ -919,9 +963,8 @@ bool DeltaPerformer::PerformReplaceOperation(
   }
 
   // Setup the ExtentWriter stack based on the operation type.
-  std::unique_ptr<ExtentWriter> writer =
-    brillo::make_unique_ptr(new ZeroPadExtentWriter(
-      brillo::make_unique_ptr(new DirectExtentWriter())));
+  std::unique_ptr<ExtentWriter> writer = std::make_unique<ZeroPadExtentWriter>(
+      std::make_unique<DirectExtentWriter>());
 
   if (operation.type() == InstallOperation::REPLACE_BZ) {
     writer.reset(new BzipExtentWriter(std::move(writer)));
@@ -929,13 +972,8 @@ bool DeltaPerformer::PerformReplaceOperation(
     writer.reset(new XzExtentWriter(std::move(writer)));
   }
 
-  // Create a vector of extents to pass to the ExtentWriter.
-  vector<Extent> extents;
-  for (int i = 0; i < operation.dst_extents_size(); i++) {
-    extents.push_back(operation.dst_extents(i));
-  }
-
-  TEST_AND_RETURN_FALSE(writer->Init(target_fd_, extents, block_size_));
+  TEST_AND_RETURN_FALSE(
+      writer->Init(target_fd_, operation.dst_extents(), block_size_));
   TEST_AND_RETURN_FALSE(writer->Write(buffer_.data(), operation.data_length()));
   TEST_AND_RETURN_FALSE(writer->End());
 
@@ -1160,6 +1198,96 @@ bool DeltaPerformer::PerformBsdiffOperation(const InstallOperation& operation) {
   return true;
 }
 
+bool DeltaPerformer::CalculateAndValidateSourceHash(
+    const InstallOperation& operation, ErrorCode* error) {
+  const uint64_t kMaxBlocksToRead = 256;  // 1MB if block size is 4KB
+  auto total_blocks = utils::BlocksInExtents(operation.src_extents());
+  brillo::Blob buf(std::min(kMaxBlocksToRead, total_blocks) * block_size_);
+  DirectExtentReader reader;
+  TEST_AND_RETURN_FALSE(
+      reader.Init(source_fd_, operation.src_extents(), block_size_));
+  HashCalculator source_hasher;
+  while (total_blocks > 0) {
+    auto read_blocks = std::min(total_blocks, kMaxBlocksToRead);
+    TEST_AND_RETURN_FALSE(reader.Read(buf.data(), read_blocks * block_size_));
+    TEST_AND_RETURN_FALSE(
+        source_hasher.Update(buf.data(), read_blocks * block_size_));
+    total_blocks -= read_blocks;
+  }
+  TEST_AND_RETURN_FALSE(source_hasher.Finalize());
+  TEST_AND_RETURN_FALSE(
+      ValidateSourceHash(source_hasher.raw_hash(), operation, error));
+  return true;
+}
+
+namespace {
+
+class BsdiffExtentFile : public bsdiff::FileInterface {
+ public:
+  BsdiffExtentFile(std::unique_ptr<ExtentReader> reader, size_t size)
+      : BsdiffExtentFile(std::move(reader), nullptr, size) {}
+  BsdiffExtentFile(std::unique_ptr<ExtentWriter> writer, size_t size)
+      : BsdiffExtentFile(nullptr, std::move(writer), size) {}
+
+  ~BsdiffExtentFile() override = default;
+
+  bool Read(void* buf, size_t count, size_t* bytes_read) override {
+    TEST_AND_RETURN_FALSE(reader_->Read(buf, count));
+    *bytes_read = count;
+    offset_ += count;
+    return true;
+  }
+
+  bool Write(const void* buf, size_t count, size_t* bytes_written) override {
+    TEST_AND_RETURN_FALSE(writer_->Write(buf, count));
+    *bytes_written = count;
+    offset_ += count;
+    return true;
+  }
+
+  bool Seek(off_t pos) override {
+    if (reader_ != nullptr) {
+      TEST_AND_RETURN_FALSE(reader_->Seek(pos));
+      offset_ = pos;
+    } else {
+      // For writes technically there should be no change of position, or it
+      // should be equivalent of current offset.
+      TEST_AND_RETURN_FALSE(offset_ == static_cast<uint64_t>(pos));
+    }
+    return true;
+  }
+
+  bool Close() override {
+    if (writer_ != nullptr) {
+      TEST_AND_RETURN_FALSE(writer_->End());
+    }
+    return true;
+  }
+
+  bool GetSize(uint64_t* size) override {
+    *size = size_;
+    return true;
+  }
+
+ private:
+  BsdiffExtentFile(std::unique_ptr<ExtentReader> reader,
+                   std::unique_ptr<ExtentWriter> writer,
+                   size_t size)
+      : reader_(std::move(reader)),
+        writer_(std::move(writer)),
+        size_(size),
+        offset_(0) {}
+
+  std::unique_ptr<ExtentReader> reader_;
+  std::unique_ptr<ExtentWriter> writer_;
+  uint64_t size_;
+  uint64_t offset_;
+
+  DISALLOW_COPY_AND_ASSIGN(BsdiffExtentFile);
+};
+
+}  // namespace
+
 bool DeltaPerformer::PerformSourceBsdiffOperation(
     const InstallOperation& operation, ErrorCode* error) {
   // Since we delete data off the beginning of the buffer as we use it,
@@ -1172,45 +1300,142 @@ bool DeltaPerformer::PerformSourceBsdiffOperation(
     TEST_AND_RETURN_FALSE(operation.dst_length() % block_size_ == 0);
 
   if (operation.has_src_sha256_hash()) {
-    HashCalculator source_hasher;
-    const uint64_t kMaxBlocksToRead = 512;  // 2MB if block size is 4KB
-    brillo::Blob buf(kMaxBlocksToRead * block_size_);
-    for (const Extent& extent : operation.src_extents()) {
-      for (uint64_t i = 0; i < extent.num_blocks(); i += kMaxBlocksToRead) {
-        uint64_t blocks_to_read = min(
-            kMaxBlocksToRead, static_cast<uint64_t>(extent.num_blocks()) - i);
-        ssize_t bytes_to_read = blocks_to_read * block_size_;
-        ssize_t bytes_read_this_iteration = 0;
-        TEST_AND_RETURN_FALSE(
-            utils::PReadAll(source_fd_, buf.data(), bytes_to_read,
-                            (extent.start_block() + i) * block_size_,
-                            &bytes_read_this_iteration));
-        TEST_AND_RETURN_FALSE(bytes_read_this_iteration == bytes_to_read);
-        TEST_AND_RETURN_FALSE(source_hasher.Update(buf.data(), bytes_to_read));
-      }
-    }
-    TEST_AND_RETURN_FALSE(source_hasher.Finalize());
-    TEST_AND_RETURN_FALSE(
-        ValidateSourceHash(source_hasher.raw_hash(), operation, error));
+    TEST_AND_RETURN_FALSE(CalculateAndValidateSourceHash(operation, error));
   }
 
-  string input_positions;
-  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(operation.src_extents(),
-                                                       block_size_,
-                                                       operation.src_length(),
-                                                       &input_positions));
-  string output_positions;
-  TEST_AND_RETURN_FALSE(ExtentsToBsdiffPositionsString(operation.dst_extents(),
-                                                       block_size_,
-                                                       operation.dst_length(),
-                                                       &output_positions));
+  auto reader = std::make_unique<DirectExtentReader>();
+  TEST_AND_RETURN_FALSE(
+      reader->Init(source_fd_, operation.src_extents(), block_size_));
+  auto src_file = std::make_unique<BsdiffExtentFile>(
+      std::move(reader),
+      utils::BlocksInExtents(operation.src_extents()) * block_size_);
 
-  TEST_AND_RETURN_FALSE(bsdiff::bspatch(source_path_.c_str(),
-                                        target_path_.c_str(),
+  auto writer = std::make_unique<DirectExtentWriter>();
+  TEST_AND_RETURN_FALSE(
+      writer->Init(target_fd_, operation.dst_extents(), block_size_));
+  auto dst_file = std::make_unique<BsdiffExtentFile>(
+      std::move(writer),
+      utils::BlocksInExtents(operation.dst_extents()) * block_size_);
+
+  TEST_AND_RETURN_FALSE(bsdiff::bspatch(std::move(src_file),
+                                        std::move(dst_file),
                                         buffer_.data(),
-                                        buffer_.size(),
-                                        input_positions.c_str(),
-                                        output_positions.c_str()) == 0);
+                                        buffer_.size()) == 0);
+  DiscardBuffer(true, buffer_.size());
+  return true;
+}
+
+namespace {
+
+// A class to be passed to |puffpatch| for reading from |source_fd_| and writing
+// into |target_fd_|.
+class PuffinExtentStream : public puffin::StreamInterface {
+ public:
+  // Constructor for creating a stream for reading from an |ExtentReader|.
+  PuffinExtentStream(std::unique_ptr<ExtentReader> reader, size_t size)
+      : PuffinExtentStream(std::move(reader), nullptr, size) {}
+
+  // Constructor for creating a stream for writing to an |ExtentWriter|.
+  PuffinExtentStream(std::unique_ptr<ExtentWriter> writer, size_t size)
+      : PuffinExtentStream(nullptr, std::move(writer), size) {}
+
+  ~PuffinExtentStream() override = default;
+
+  bool GetSize(size_t* size) const override {
+    *size = size_;
+    return true;
+  }
+
+  bool GetOffset(size_t* offset) const override {
+    *offset = offset_;
+    return true;
+  }
+
+  bool Seek(size_t offset) override {
+    if (is_read_) {
+      TEST_AND_RETURN_FALSE(reader_->Seek(offset));
+      offset_ = offset;
+    } else {
+      // For writes technically there should be no change of position, or it
+      // should equivalent of current offset.
+      TEST_AND_RETURN_FALSE(offset_ == offset);
+    }
+    return true;
+  }
+
+  bool Read(void* buffer, size_t count) override {
+    TEST_AND_RETURN_FALSE(is_read_);
+    TEST_AND_RETURN_FALSE(reader_->Read(buffer, count));
+    offset_ += count;
+    return true;
+  }
+
+  bool Write(const void* buffer, size_t count) override {
+    TEST_AND_RETURN_FALSE(!is_read_);
+    TEST_AND_RETURN_FALSE(writer_->Write(buffer, count));
+    offset_ += count;
+    return true;
+  }
+
+  bool Close() override {
+    if (!is_read_) {
+      TEST_AND_RETURN_FALSE(writer_->End());
+    }
+    return true;
+  }
+
+ private:
+  PuffinExtentStream(std::unique_ptr<ExtentReader> reader,
+                     std::unique_ptr<ExtentWriter> writer,
+                     size_t size)
+      : reader_(std::move(reader)),
+        writer_(std::move(writer)),
+        size_(size),
+        offset_(0),
+        is_read_(reader_ ? true : false) {}
+
+  std::unique_ptr<ExtentReader> reader_;
+  std::unique_ptr<ExtentWriter> writer_;
+  uint64_t size_;
+  uint64_t offset_;
+  bool is_read_;
+
+  DISALLOW_COPY_AND_ASSIGN(PuffinExtentStream);
+};
+
+}  // namespace
+
+bool DeltaPerformer::PerformPuffDiffOperation(const InstallOperation& operation,
+                                              ErrorCode* error) {
+  // Since we delete data off the beginning of the buffer as we use it,
+  // the data we need should be exactly at the beginning of the buffer.
+  TEST_AND_RETURN_FALSE(buffer_offset_ == operation.data_offset());
+  TEST_AND_RETURN_FALSE(buffer_.size() >= operation.data_length());
+
+  if (operation.has_src_sha256_hash()) {
+    TEST_AND_RETURN_FALSE(CalculateAndValidateSourceHash(operation, error));
+  }
+
+  auto reader = std::make_unique<DirectExtentReader>();
+  TEST_AND_RETURN_FALSE(
+      reader->Init(source_fd_, operation.src_extents(), block_size_));
+  puffin::UniqueStreamPtr src_stream(new PuffinExtentStream(
+      std::move(reader),
+      utils::BlocksInExtents(operation.src_extents()) * block_size_));
+
+  auto writer = std::make_unique<DirectExtentWriter>();
+  TEST_AND_RETURN_FALSE(
+      writer->Init(target_fd_, operation.dst_extents(), block_size_));
+  puffin::UniqueStreamPtr dst_stream(new PuffinExtentStream(
+      std::move(writer),
+      utils::BlocksInExtents(operation.dst_extents()) * block_size_));
+
+  const size_t kMaxCacheSize = 5 * 1024 * 1024;  // Total 5MB cache.
+  TEST_AND_RETURN_FALSE(puffin::PuffPatch(std::move(src_stream),
+                                          std::move(dst_stream),
+                                          buffer_.data(),
+                                          buffer_.size(),
+                                          kMaxCacheSize));
   DiscardBuffer(true, buffer_.size());
   return true;
 }
