@@ -22,7 +22,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include <base/bind.h>
 #include <base/files/file_path.h>
@@ -51,7 +50,6 @@ using base::ReadFileToString;
 using base::WriteFile;
 using std::string;
 using std::unique_ptr;
-using std::vector;
 using test_utils::ScopedTempFile;
 using testing::AtLeast;
 using testing::InSequence;
@@ -166,7 +164,8 @@ void TestWithData(const brillo::Blob& data,
                                  fake_system_state.boot_control(),
                                  fake_system_state.hardware(),
                                  &fake_system_state,
-                                 http_fetcher);
+                                 http_fetcher,
+                                 false /* is_interactive */);
   download_action.SetTestFileWriter(&writer);
   BondActions(&feeder_action, &download_action);
   MockDownloadActionDelegate download_delegate;
@@ -279,7 +278,8 @@ TEST(DownloadActionTest, MultiPayloadProgressTest) {
                                  fake_system_state.boot_control(),
                                  fake_system_state.hardware(),
                                  &fake_system_state,
-                                 http_fetcher);
+                                 http_fetcher,
+                                 false /* is_interactive */);
   download_action.SetTestFileWriter(&mock_file_writer);
   BondActions(&feeder_action, &download_action);
   MockDownloadActionDelegate download_delegate;
@@ -368,7 +368,8 @@ void TestTerminateEarly(bool use_download_delegate) {
         fake_system_state_.boot_control(),
         fake_system_state_.hardware(),
         &fake_system_state_,
-        new MockHttpFetcher(data.data(), data.size(), nullptr));
+        new MockHttpFetcher(data.data(), data.size(), nullptr),
+        false /* is_interactive */);
     download_action.SetTestFileWriter(&writer);
     MockDownloadActionDelegate download_delegate;
     if (use_download_delegate) {
@@ -469,7 +470,8 @@ TEST(DownloadActionTest, PassObjectOutTest) {
                                  fake_system_state_.boot_control(),
                                  fake_system_state_.hardware(),
                                  &fake_system_state_,
-                                 new MockHttpFetcher("x", 1, nullptr));
+                                 new MockHttpFetcher("x", 1, nullptr),
+                                 false /* is_interactive */);
   download_action.SetTestFileWriter(&writer);
 
   DownloadActionTestAction test_action;
@@ -558,7 +560,8 @@ class P2PDownloadActionTest : public testing::Test {
                                               fake_system_state_.boot_control(),
                                               fake_system_state_.hardware(),
                                               &fake_system_state_,
-                                              http_fetcher_));
+                                              http_fetcher_,
+                                              false /* is_interactive */));
     download_action_->SetTestFileWriter(&writer);
     BondActions(&feeder_action, download_action_.get());
     DownloadActionTestProcessorDelegate delegate(ErrorCode::kSuccess);

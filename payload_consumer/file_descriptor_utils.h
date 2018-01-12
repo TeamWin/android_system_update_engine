@@ -17,8 +17,6 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_CONSUMER_FILE_DESCRIPTOR_UTILS_H_
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_FILE_DESCRIPTOR_UTILS_H_
 
-#include <vector>
-
 #include <brillo/secure_blob.h>
 
 #include "update_engine/payload_consumer/file_descriptor.h"
@@ -27,7 +25,7 @@
 namespace chromeos_update_engine {
 namespace fd_utils {
 
-// Copy a blocks from the |source| file to the |target| file and hash the
+// Copy blocks from the |source| file to the |target| file and hashes the
 // contents. The blocks to copy from the |source| to the |target| files are
 // specified by the |src_extents| and |tgt_extents| list of Extents, which
 // must have the same length in number of blocks. Stores the hash of the

@@ -19,15 +19,17 @@
 #include <fcntl.h>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include <brillo/make_unique_ptr.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/payload_generator/extent_ranges.h"
 
+using google::protobuf::RepeatedPtrField;
 using std::min;
 using std::string;
 using std::vector;
@@ -55,11 +57,7 @@ class BzipExtentWriterTest : public ::testing::Test {
 };
 
 TEST_F(BzipExtentWriterTest, SimpleTest) {
-  vector<Extent> extents;
-  Extent extent;
-  extent.set_start_block(0);
-  extent.set_num_blocks(1);
-  extents.push_back(extent);
+  vector<Extent> extents = {ExtentForRange(0, 1)};
 
   // 'echo test | bzip2 | hexdump' yields:
   static const char test_uncompressed[] = "test\n";
@@ -70,9 +68,9 @@ TEST_F(BzipExtentWriterTest, SimpleTest) {
     0x22, 0x9c, 0x28, 0x48, 0x66, 0x61, 0xb8, 0xea, 0x00,
   };
 
-  BzipExtentWriter bzip_writer(
-      brillo::make_unique_ptr(new DirectExtentWriter()));
-  EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
+  BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>());
+  EXPECT_TRUE(
+      bzip_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
   EXPECT_TRUE(bzip_writer.Write(test, sizeof(test)));
   EXPECT_TRUE(bzip_writer.End());
 
@@ -102,15 +100,12 @@ TEST_F(BzipExtentWriterTest, ChunkedTest) {
   for (size_t i = 0; i < decompressed_data.size(); ++i)
     decompressed_data[i] = static_cast<uint8_t>("ABC\n"[i % 4]);
 
-  vector<Extent> extents;
-  Extent extent;
-  extent.set_start_block(0);
-  extent.set_num_blocks((kDecompressedLength + kBlockSize - 1) / kBlockSize);
-  extents.push_back(extent);
+  vector<Extent> extents = {
+      ExtentForRange(0, (kDecompressedLength + kBlockSize - 1) / kBlockSize)};
 
-  BzipExtentWriter bzip_writer(
-      brillo::make_unique_ptr(new DirectExtentWriter()));
-  EXPECT_TRUE(bzip_writer.Init(fd_, extents, kBlockSize));
+  BzipExtentWriter bzip_writer(std::make_unique<DirectExtentWriter>());
+  EXPECT_TRUE(
+      bzip_writer.Init(fd_, {extents.begin(), extents.end()}, kBlockSize));
 
   brillo::Blob original_compressed_data = compressed_data;
   for (brillo::Blob::size_type i = 0; i < compressed_data.size();

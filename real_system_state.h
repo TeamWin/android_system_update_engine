@@ -27,9 +27,6 @@
 #if USE_CHROME_KIOSK_APP
 #include <libcros/dbus-proxies.h>
 #endif  // USE_CHROME_KIOSK_APP
-#if USE_CHROME_NETWORK_PROXY
-#include <network_proxy/dbus-proxies.h>
-#endif  // USE_CHROME_NETWORK_PROXY
 
 #include "update_engine/certificate_checker.h"
 #include "update_engine/common/boot_control_interface.h"
@@ -134,10 +131,6 @@ class RealSystemState : public SystemState, public DaemonStateInterface {
 #if USE_CHROME_KIOSK_APP
   std::unique_ptr<org::chromium::LibCrosServiceInterfaceProxy> libcros_proxy_;
 #endif  // USE_CHROME_KIOSK_APP
-#if USE_CHROME_NETWORK_PROXY
-  std::unique_ptr<org::chromium::NetworkProxyServiceInterfaceProxy>
-      network_proxy_service_proxy_;
-#endif  // USE_CHROME_NETWORK_PROXY
 
   // Interface for the power manager.
   std::unique_ptr<PowerManagerInterface> power_manager_;

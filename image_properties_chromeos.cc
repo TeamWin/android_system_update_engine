@@ -26,6 +26,7 @@
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/platform_constants.h"
+#include "update_engine/common/utils.h"
 #include "update_engine/system_state.h"
 
 namespace {
@@ -147,6 +148,19 @@ bool StoreMutableImageProperties(SystemState* system_state,
   if (!base::DirectoryExists(path.DirName()))
     base::CreateDirectory(path.DirName());
   return lsb_release.Save(path);
+}
+
+void LogImageProperties() {
+  std::string lsb_release;
+  if (utils::ReadFile(kLsbRelease, &lsb_release)) {
+    LOG(INFO) << "lsb-release inside the old rootfs:\n" << lsb_release;
+  }
+
+  std::string stateful_lsb_release;
+  if (utils::ReadFile(std::string(kStatefulPartition) + kLsbRelease,
+                      &stateful_lsb_release)) {
+    LOG(INFO) << "stateful lsb-release:\n" << stateful_lsb_release;
+  }
 }
 
 }  // namespace chromeos_update_engine

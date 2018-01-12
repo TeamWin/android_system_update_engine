@@ -25,7 +25,6 @@
 #include <base/strings/stringprintf.h>
 #include <brillo/asynchronous_signal_handler.h>
 #include <brillo/flag_helper.h>
-#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/streams/file_stream.h>
 #include <brillo/streams/stream.h>

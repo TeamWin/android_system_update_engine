@@ -87,6 +87,11 @@ class FileDescriptor {
                         uint64_t length,
                         int* result) = 0;
 
+  // Flushes any cached data. The descriptor must be opened prior to this
+  // call. Returns false if it fails to write data. Implementations may set
+  // errno accrodingly.
+  virtual bool Flush() = 0;
+
   // Closes a file descriptor. The descriptor must be open prior to this call.
   // Returns true on success, false otherwise. Specific implementations may set
   // errno accordingly.
@@ -118,6 +123,7 @@ class EintrSafeFileDescriptor : public FileDescriptor {
                 uint64_t start,
                 uint64_t length,
                 int* result) override;
+  bool Flush() override;
   bool Close() override;
   bool IsSettingErrno() override {
     return true;

@@ -28,7 +28,6 @@
 #include <android-base/properties.h>
 #include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
-#include <brillo/make_unique_ptr.h>
 
 #include "update_engine/common/hardware.h"
 #include "update_engine/common/platform_constants.h"
@@ -97,7 +96,7 @@ namespace hardware {
 
 // Factory defined in hardware.h.
 std::unique_ptr<HardwareInterface> CreateHardware() {
-  return brillo::make_unique_ptr(new HardwareAndroid());
+  return std::make_unique<HardwareAndroid>();
 }
 
 }  // namespace hardware
@@ -193,6 +192,16 @@ bool HardwareAndroid::GetNonVolatileDirectory(base::FilePath* path) const {
 bool HardwareAndroid::GetPowerwashSafeDirectory(base::FilePath* path) const {
   // On Android, we don't have a directory persisted across powerwash.
   return false;
+}
+
+bool HardwareAndroid::GetFirstActiveOmahaPingSent() const {
+  LOG(WARNING) << "STUB: Assuming first active omaha was never set.";
+  return false;
+}
+
+void HardwareAndroid::SetFirstActiveOmahaPingSent() {
+  LOG(WARNING) << "STUB: Assuming first active omaha is never set.";
+  return;
 }
 
 }  // namespace chromeos_update_engine

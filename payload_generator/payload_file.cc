@@ -19,6 +19,9 @@
 #include <endian.h>
 
 #include <algorithm>
+#include <map>
+
+#include <base/strings/stringprintf.h>
 
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/payload_consumer/delta_performer.h"
@@ -319,38 +322,39 @@ bool PayloadFile::AddOperationHash(InstallOperation* op,
 }
 
 void PayloadFile::ReportPayloadUsage(uint64_t metadata_size) const {
-  vector<DeltaObject> objects;
+  std::map<DeltaObject, int> object_counts;
   off_t total_size = 0;
 
   for (const auto& part : part_vec_) {
     for (const AnnotatedOperation& aop : part.aops) {
-      objects.push_back(DeltaObject(aop.name,
-                                    aop.op.type(),
-                                    aop.op.data_length()));
+      DeltaObject delta(aop.name, aop.op.type(), aop.op.data_length());
+      object_counts[delta]++;
       total_size += aop.op.data_length();
     }
   }
 
-  objects.push_back(DeltaObject("<manifest-metadata>",
-                                -1,
-                                metadata_size));
+  object_counts[DeltaObject("<manifest-metadata>", -1, metadata_size)] = 1;
   total_size += metadata_size;
 
-  std::sort(objects.begin(), objects.end());
-
-  static const char kFormatString[] = "%6.2f%% %10jd %-10s %s\n";
-  for (const DeltaObject& object : objects) {
-    fprintf(
-        stderr, kFormatString,
+  static const char kFormatString[] = "%6.2f%% %10jd %-13s %s %d";
+  for (const auto& object_count : object_counts) {
+    const DeltaObject& object = object_count.first;
+    LOG(INFO) << base::StringPrintf(
+        kFormatString,
         object.size * 100.0 / total_size,
         static_cast<intmax_t>(object.size),
         (object.type >= 0 ? InstallOperationTypeName(
                                 static_cast<InstallOperation_Type>(object.type))
                           : "-"),
-        object.name.c_str());
+        object.name.c_str(),
+        object_count.second);
   }
-  fprintf(stderr, kFormatString,
-          100.0, static_cast<intmax_t>(total_size), "", "<total>");
+  LOG(INFO) << base::StringPrintf(kFormatString,
+                                  100.0,
+                                  static_cast<intmax_t>(total_size),
+                                  "",
+                                  "<total>",
+                                  1);
 }
 
 }  // namespace chromeos_update_engine

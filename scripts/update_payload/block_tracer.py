@@ -16,7 +16,7 @@ tracer is as follows:
 
 from __future__ import print_function
 
-import common
+from update_payload import common
 
 
 #

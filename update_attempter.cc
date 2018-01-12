@@ -33,7 +33,6 @@
 #include <base/strings/stringprintf.h>
 #include <brillo/data_encoding.h>
 #include <brillo/errors/error_codes.h>
-#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
 #include <policy/device_policy.h>
 #include <policy/libpolicy.h>
@@ -120,20 +119,11 @@ ErrorCode GetErrorCodeForAction(AbstractAction* action,
   return code;
 }
 
-UpdateAttempter::UpdateAttempter(
-    SystemState* system_state,
-    CertificateChecker* cert_checker,
-    org::chromium::NetworkProxyServiceInterfaceProxyInterface*
-        network_proxy_service_proxy)
+UpdateAttempter::UpdateAttempter(SystemState* system_state,
+                                 CertificateChecker* cert_checker)
     : processor_(new ActionProcessor()),
       system_state_(system_state),
-#if USE_CHROME_NETWORK_PROXY
-      cert_checker_(cert_checker),
-      chrome_proxy_resolver_(network_proxy_service_proxy) {
-#else
-      cert_checker_(cert_checker) {
-#endif  // USE_CHROME_NETWORK_PROXY
-}
+      cert_checker_(cert_checker) {}
 
 UpdateAttempter::~UpdateAttempter() {
   // CertificateChecker might not be initialized in unittests.
@@ -329,12 +319,11 @@ void UpdateAttempter::CalculateP2PParams(bool interactive) {
   bool use_p2p_for_downloading = false;
   bool use_p2p_for_sharing = false;
 
-  // Never use p2p for downloading in interactive checks unless the
-  // developer has opted in for it via a marker file.
+  // Never use p2p for downloading in interactive checks unless the developer
+  // has opted in for it via a marker file.
   //
-  // (Why would a developer want to opt in? If he's working on the
-  // update_engine or p2p codebases so he can actually test his
-  // code.).
+  // (Why would a developer want to opt in? If they are working on the
+  // update_engine or p2p codebases so they can actually test their code.)
 
   if (system_state_ != nullptr) {
     if (!system_state_->p2p_manager()->IsP2PEnabled()) {
@@ -607,14 +596,12 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
   shared_ptr<OmahaResponseHandlerAction> response_handler_action(
       new OmahaResponseHandlerAction(system_state_));
 
-  shared_ptr<OmahaRequestAction> download_started_action(
-      new OmahaRequestAction(system_state_,
-                             new OmahaEvent(
-                                 OmahaEvent::kTypeUpdateDownloadStarted),
-                             brillo::make_unique_ptr(new LibcurlHttpFetcher(
-                                 GetProxyResolver(),
-                                 system_state_->hardware())),
-                             false));
+  shared_ptr<OmahaRequestAction> download_started_action(new OmahaRequestAction(
+      system_state_,
+      new OmahaEvent(OmahaEvent::kTypeUpdateDownloadStarted),
+      std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                           system_state_->hardware()),
+      false));
 
   LibcurlHttpFetcher* download_fetcher =
       new LibcurlHttpFetcher(GetProxyResolver(), system_state_->hardware());
@@ -626,25 +613,23 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
                          system_state_->boot_control(),
                          system_state_->hardware(),
                          system_state_,
-                         download_fetcher));  // passes ownership
+                         download_fetcher,  // passes ownership
+                         interactive));
   shared_ptr<OmahaRequestAction> download_finished_action(
       new OmahaRequestAction(
           system_state_,
           new OmahaEvent(OmahaEvent::kTypeUpdateDownloadFinished),
-          brillo::make_unique_ptr(
-              new LibcurlHttpFetcher(GetProxyResolver(),
-                                     system_state_->hardware())),
+          std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                               system_state_->hardware()),
           false));
   shared_ptr<FilesystemVerifierAction> filesystem_verifier_action(
       new FilesystemVerifierAction());
   shared_ptr<OmahaRequestAction> update_complete_action(
-      new OmahaRequestAction(
-          system_state_,
-          new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-          brillo::make_unique_ptr(
-              new LibcurlHttpFetcher(GetProxyResolver(),
-                                     system_state_->hardware())),
-          false));
+      new OmahaRequestAction(system_state_,
+                             new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
+                             std::make_unique<LibcurlHttpFetcher>(
+                                 GetProxyResolver(), system_state_->hardware()),
+                             false));
 
   download_action->set_delegate(this);
   response_handler_action_ = response_handler_action;
@@ -1084,6 +1069,15 @@ void UpdateAttempter::ActionCompleted(ActionProcessor* processor,
   // Find out which action completed (successfully).
   if (type == DownloadAction::StaticType()) {
     SetStatusAndNotify(UpdateStatus::FINALIZING);
+  } else if (type == FilesystemVerifierAction::StaticType()) {
+    // Log the system properties before the postinst and after the file system
+    // is verified. It used to be done in the postinst itself. But postinst
+    // cannot do this anymore. On the other hand, these logs are frequently
+    // looked at and it is preferable not to scatter them in random location in
+    // the log and rather log it right before the postinst. The reason not do
+    // this in the |PostinstallRunnerAction| is to prevent dependency from
+    // libpayload_consumer to libupdate_engine.
+    LogImageProperties();
   }
 }
 
@@ -1325,9 +1319,8 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
   shared_ptr<OmahaRequestAction> error_event_action(
       new OmahaRequestAction(system_state_,
                              error_event_.release(),  // Pass ownership.
-                             brillo::make_unique_ptr(new LibcurlHttpFetcher(
-                                 GetProxyResolver(),
-                                 system_state_->hardware())),
+                             std::make_unique<LibcurlHttpFetcher>(
+                                 GetProxyResolver(), system_state_->hardware()),
                              false));
   actions_.push_back(shared_ptr<AbstractAction>(error_event_action));
   processor_->EnqueueAction(error_event_action.get());
@@ -1371,9 +1364,8 @@ void UpdateAttempter::PingOmaha() {
     shared_ptr<OmahaRequestAction> ping_action(new OmahaRequestAction(
         system_state_,
         nullptr,
-        brillo::make_unique_ptr(new LibcurlHttpFetcher(
-            GetProxyResolver(),
-            system_state_->hardware())),
+        std::make_unique<LibcurlHttpFetcher>(GetProxyResolver(),
+                                             system_state_->hardware()),
         true));
     actions_.push_back(shared_ptr<OmahaRequestAction>(ping_action));
     processor_->set_delegate(nullptr);

@@ -20,85 +20,26 @@
 
 #include <base/bind.h>
 #include <base/memory/ptr_util.h>
-#include <base/strings/string_tokenizer.h>
 #include <base/strings/string_util.h>
+#include <brillo/http/http_proxy.h>
 
-#include "network_proxy/dbus-proxies.h"
+#include "update_engine/dbus_connection.h"
 
 namespace chromeos_update_engine {
 
-using base::StringTokenizer;
-using std::deque;
-using std::string;
-
-namespace {
-
-// Timeout for D-Bus calls in milliseconds.
-constexpr int kTimeoutMs = 5000;
-
-}  // namespace
-
-ChromeBrowserProxyResolver::ChromeBrowserProxyResolver(
-    org::chromium::NetworkProxyServiceInterfaceProxyInterface* dbus_proxy)
-    : dbus_proxy_(dbus_proxy),
-      next_request_id_(kProxyRequestIdNull + 1),
+ChromeBrowserProxyResolver::ChromeBrowserProxyResolver()
+    : next_request_id_(kProxyRequestIdNull + 1),
       weak_ptr_factory_(this) {}
 
 ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() = default;
 
-// static
-deque<string> ChromeBrowserProxyResolver::ParseProxyString(
-    const string& input) {
-  deque<string> ret;
-  // Some of this code taken from
-  // http://src.chromium.org/svn/trunk/src/net/proxy/proxy_server.cc and
-  // http://src.chromium.org/svn/trunk/src/net/proxy/proxy_list.cc
-  StringTokenizer entry_tok(input, ";");
-  while (entry_tok.GetNext()) {
-    string token = entry_tok.token();
-    base::TrimWhitespaceASCII(token, base::TRIM_ALL, &token);
-
-    // Start by finding the first space (if any).
-    string::iterator space;
-    for (space = token.begin(); space != token.end(); ++space) {
-      if (base::IsAsciiWhitespace(*space)) {
-        break;
-      }
-    }
-
-    string scheme = base::ToLowerASCII(string(token.begin(), space));
-    // Chrome uses "socks" to mean socks4 and "proxy" to mean http.
-    if (scheme == "socks")
-      scheme += "4";
-    else if (scheme == "proxy")
-      scheme = "http";
-    else if (scheme != "https" &&
-             scheme != "socks4" &&
-             scheme != "socks5" &&
-             scheme != "direct")
-      continue;  // Invalid proxy scheme
-
-    string host_and_port = string(space, token.end());
-    base::TrimWhitespaceASCII(host_and_port, base::TRIM_ALL, &host_and_port);
-    if (scheme != "direct" && host_and_port.empty())
-      continue;  // Must supply host/port when non-direct proxy used.
-    ret.push_back(scheme + "://" + host_and_port);
-  }
-  if (ret.empty() || *ret.rbegin() != kNoProxy)
-    ret.push_back(kNoProxy);
-  return ret;
-}
-
 ProxyRequestId ChromeBrowserProxyResolver::GetProxiesForUrl(
-    const string& url, const ProxiesResolvedFn& callback) {
+    const std::string& url, const ProxiesResolvedFn& callback) {
   const ProxyRequestId id = next_request_id_++;
-  dbus_proxy_->ResolveProxyAsync(
-      url,
-      base::Bind(&ChromeBrowserProxyResolver::OnResolveProxyResponse,
-                 weak_ptr_factory_.GetWeakPtr(), id),
-      base::Bind(&ChromeBrowserProxyResolver::OnResolveProxyError,
-                 weak_ptr_factory_.GetWeakPtr(), id),
-      kTimeoutMs);
+  brillo::http::GetChromeProxyServersAsync(
+      DBusConnection::Get()->GetDBus(), url,
+      base::Bind(&ChromeBrowserProxyResolver::OnGetChromeProxyServers,
+                 weak_ptr_factory_.GetWeakPtr(), id));
   pending_callbacks_[id] = callback;
   return id;
 }
@@ -107,32 +48,18 @@ bool ChromeBrowserProxyResolver::CancelProxyRequest(ProxyRequestId request) {
   return pending_callbacks_.erase(request) != 0;
 }
 
-void ChromeBrowserProxyResolver::OnResolveProxyResponse(
-    ProxyRequestId request_id,
-    const std::string& proxy_info,
-    const std::string& error_message) {
-  if (!error_message.empty())
-    LOG(WARNING) << "Got error resolving proxy: " << error_message;
-  RunCallback(request_id, ParseProxyString(proxy_info));
-}
-
-void ChromeBrowserProxyResolver::OnResolveProxyError(ProxyRequestId request_id,
-                                                     brillo::Error* error) {
-  LOG(WARNING) << "Failed to resolve proxy: "
-               << (error ? error->GetMessage() : "[null]");
-  RunCallback(request_id, deque<string>{kNoProxy});
-}
-
-void ChromeBrowserProxyResolver::RunCallback(
-    ProxyRequestId request_id,
-    const std::deque<std::string>& proxies) {
+void ChromeBrowserProxyResolver::OnGetChromeProxyServers(
+    ProxyRequestId request_id, bool success,
+    const std::vector<std::string>& proxies) {
+  // If |success| is false, |proxies| will still hold the direct proxy option
+  // which is what we do in our error case.
   auto it = pending_callbacks_.find(request_id);
   if (it == pending_callbacks_.end())
     return;
 
   ProxiesResolvedFn callback = it->second;
   pending_callbacks_.erase(it);
-  callback.Run(proxies);
+  callback.Run(std::deque<std::string>(proxies.begin(), proxies.end()));
 }
 
-} // namespace chromeos_update_engine
+}  // namespace chromeos_update_engine

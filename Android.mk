@@ -106,6 +106,7 @@ ue_libpayload_consumer_exported_static_libraries := \
     libbz \
     libbspatch \
     libbrotli \
+    libpuffpatch \
     $(ue_update_metadata_protos_exported_static_libraries)
 ue_libpayload_consumer_exported_shared_libraries := \
     libcrypto \
@@ -130,8 +131,10 @@ ue_libpayload_consumer_src_files := \
     common/terminator.cc \
     common/utils.cc \
     payload_consumer/bzip_extent_writer.cc \
+    payload_consumer/cached_file_descriptor.cc \
     payload_consumer/delta_performer.cc \
     payload_consumer/download_action.cc \
+    payload_consumer/extent_reader.cc \
     payload_consumer/extent_writer.cc \
     payload_consumer/file_descriptor.cc \
     payload_consumer/file_descriptor_utils.cc \
@@ -610,8 +613,9 @@ ue_libpayload_generator_exported_static_libraries := \
     libdivsufsort \
     libdivsufsort64 \
     libbrotli \
-    libpayload_consumer \
     liblzma \
+    libpayload_consumer \
+    libpuffdiff \
     update_metadata-protos \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
@@ -627,6 +631,7 @@ ue_libpayload_generator_src_files := \
     payload_generator/block_mapping.cc \
     payload_generator/bzip.cc \
     payload_generator/cycle_breaker.cc \
+    payload_generator/deflate_utils.cc \
     payload_generator/delta_diff_generator.cc \
     payload_generator/delta_diff_utils.cc \
     payload_generator/ext2_filesystem.cc \
@@ -641,6 +646,7 @@ ue_libpayload_generator_src_files := \
     payload_generator/payload_generation_config.cc \
     payload_generator/payload_signer.cc \
     payload_generator/raw_filesystem.cc \
+    payload_generator/squashfs_filesystem.cc \
     payload_generator/tarjan.cc \
     payload_generator/topological_sort.cc \
     payload_generator/xz_android.cc
@@ -659,8 +665,9 @@ LOCAL_STATIC_LIBRARIES := \
     libbsdiff \
     libdivsufsort \
     libdivsufsort64 \
-    libpayload_consumer \
     liblzma \
+    libpayload_consumer \
+    libpuffdiff \
     update_metadata-protos \
     $(ue_common_static_libraries) \
     $(ue_libpayload_consumer_exported_static_libraries) \
@@ -911,8 +918,10 @@ LOCAL_SRC_FILES := \
     common/test_utils.cc \
     common/utils_unittest.cc \
     payload_consumer/bzip_extent_writer_unittest.cc \
+    payload_consumer/cached_file_descriptor_unittest.cc \
     payload_consumer/delta_performer_integration_test.cc \
     payload_consumer/delta_performer_unittest.cc \
+    payload_consumer/extent_reader_unittest.cc \
     payload_consumer/extent_writer_unittest.cc \
     payload_consumer/fake_file_descriptor.cc \
     payload_consumer/file_descriptor_utils_unittest.cc \
@@ -924,6 +933,7 @@ LOCAL_SRC_FILES := \
     payload_generator/blob_file_writer_unittest.cc \
     payload_generator/block_mapping_unittest.cc \
     payload_generator/cycle_breaker_unittest.cc \
+    payload_generator/deflate_utils_unittest.cc \
     payload_generator/delta_diff_utils_unittest.cc \
     payload_generator/ext2_filesystem_unittest.cc \
     payload_generator/extent_ranges_unittest.cc \
@@ -936,6 +946,7 @@ LOCAL_SRC_FILES := \
     payload_generator/payload_file_unittest.cc \
     payload_generator/payload_generation_config_unittest.cc \
     payload_generator/payload_signer_unittest.cc \
+    payload_generator/squashfs_filesystem_unittest.cc \
     payload_generator/tarjan_unittest.cc \
     payload_generator/topological_sort_unittest.cc \
     payload_generator/zip_unittest.cc \
@@ -990,10 +1001,6 @@ LOCAL_SHARED_LIBRARIES += \
 LOCAL_SRC_FILES += \
     update_attempter_android_unittest.cc
 endif  # local_use_omaha == 1
-ifeq ($(local_use_chrome_network_proxy),1)
-LOCAL_SRC_FILES += \
-    chrome_browser_proxy_resolver_unittest.cc
-endif  # local_use_chrome_network_proxy == 1
 include $(BUILD_NATIVE_TEST)
 
 # Update payload signing public key.

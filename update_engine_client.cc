@@ -26,6 +26,7 @@
 #include <base/command_line.h>
 #include <base/logging.h>
 #include <base/macros.h>
+#include <base/threading/platform_thread.h>
 #include <brillo/daemons/daemon.h>
 #include <brillo/flag_helper.h>
 
@@ -51,6 +52,11 @@ namespace {
 // Constant to signal that we need to continue running the daemon after
 // initialization.
 const int kContinueRunning = -1;
+
+// The ShowStatus request will be retried `kShowStatusRetryCount` times at
+// `kShowStatusRetryInterval` second intervals on failure.
+const int kShowStatusRetryCount = 30;
+const int kShowStatusRetryIntervalInSeconds = 2;
 
 class UpdateEngineClient : public brillo::Daemon {
  public:
@@ -151,9 +157,18 @@ bool UpdateEngineClient::ShowStatus() {
   string new_version;
   int64_t new_size = 0;
 
-  if (!client_->GetStatus(&last_checked_time, &progress, &current_op,
-                          &new_version, &new_size)) {
-    return false;
+  int retry_count = kShowStatusRetryCount;
+  while (retry_count > 0) {
+    if (client_->GetStatus(&last_checked_time, &progress, &current_op,
+                           &new_version, &new_size)) {
+      break;
+    }
+    if (--retry_count == 0) {
+      return false;
+    }
+    LOG(WARNING) << "Will try " << retry_count << " more times!";
+    base::PlatformThread::Sleep(
+        base::TimeDelta::FromSeconds(kShowStatusRetryIntervalInSeconds));
   }
 
   printf("LAST_CHECKED_TIME=%" PRIi64
