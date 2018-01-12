@@ -21,11 +21,11 @@ import itertools
 import os
 import subprocess
 
-import common
-import error
-import format_utils
-import histogram
-import update_metadata_pb2
+from update_payload import common
+from update_payload import error
+from update_payload import format_utils
+from update_payload import histogram
+from update_payload import update_metadata_pb2
 
 
 #
@@ -815,10 +815,30 @@ class PayloadChecker(object):
     if dst_extent:
       raise error.PayloadError('%s: excess dst blocks.' % op_name)
 
-  def _CheckAnyDiffOperation(self, data_length, total_dst_blocks, op_name):
-    """Specific checks for BSDIFF, SOURCE_BSDIFF and PUFFDIFF operations.
+  def _CheckZeroOperation(self, op, op_name):
+    """Specific checks for ZERO operations.
 
     Args:
+      op: The operation object from the manifest.
+      op_name: Operation name for error reporting.
+
+    Raises:
+      error.PayloadError if any check fails.
+    """
+    # Check: Does not contain src extents, data_length and data_offset.
+    if op.src_extents:
+      raise error.PayloadError('%s: contains src_extents.' % op_name)
+    if op.data_length:
+      raise error.PayloadError('%s: contains data_length.' % op_name)
+    if op.data_offset:
+      raise error.PayloadError('%s: contains data_offset.' % op_name)
+
+  def _CheckAnyDiffOperation(self, op, data_length, total_dst_blocks, op_name):
+    """Specific checks for BSDIFF, SOURCE_BSDIFF, PUFFDIFF and BROTLI_BSDIFF
+       operations.
+
+    Args:
+      op: The operation.
       data_length: The length of the data blob associated with the operation.
       total_dst_blocks: Total number of blocks in dst_extents.
       op_name: Operation name for error reporting.
@@ -837,6 +857,15 @@ class PayloadChecker(object):
           '(%d * %d = %d).' %
           (op_name, data_length, total_dst_blocks, self.block_size,
            total_dst_blocks * self.block_size))
+
+    # Check the existence of src_length and dst_length for legacy bsdiffs.
+    if (op.type == common.OpType.BSDIFF or
+        (op.type == common.OpType.SOURCE_BSDIFF and self.minor_version <= 3)):
+      if not op.HasField('src_length') or not op.HasField('dst_length'):
+        raise error.PayloadError('%s: require {src,dst}_length.' % op_name)
+    else:
+      if op.HasField('src_length') or op.HasField('dst_length'):
+        raise error.PayloadError('%s: unneeded {src,dst}_length.' % op_name)
 
   def _CheckSourceCopyOperation(self, data_offset, total_src_blocks,
                                 total_dst_blocks, op_name):
@@ -941,8 +970,6 @@ class PayloadChecker(object):
             op_name)
 
       # Check: Hash verifies correctly.
-      # pylint cannot find the method in hashlib, for some reason.
-      # pylint: disable=E1101
       actual_hash = hashlib.sha256(self.payload.ReadDataBlob(data_offset,
                                                              data_length))
       if op.data_sha256_hash != actual_hash.digest():
@@ -972,17 +999,20 @@ class PayloadChecker(object):
     elif op.type == common.OpType.MOVE and self.minor_version == 1:
       self._CheckMoveOperation(op, data_offset, total_src_blocks,
                                total_dst_blocks, op_name)
+    elif op.type == common.OpType.ZERO and self.minor_version >= 4:
+      self._CheckZeroOperation(op, op_name)
     elif op.type == common.OpType.BSDIFF and self.minor_version == 1:
-      self._CheckAnyDiffOperation(data_length, total_dst_blocks, op_name)
+      self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
     elif op.type == common.OpType.SOURCE_COPY and self.minor_version >= 2:
       self._CheckSourceCopyOperation(data_offset, total_src_blocks,
                                      total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
     elif op.type == common.OpType.SOURCE_BSDIFF and self.minor_version >= 2:
-      self._CheckAnyDiffOperation(data_length, total_dst_blocks, op_name)
+      self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
-    elif op.type == common.OpType.PUFFDIFF and self.minor_version >= 4:
-      self._CheckAnyDiffOperation(data_length, total_dst_blocks, op_name)
+    elif (op.type in (common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF) and
+          self.minor_version >= 4):
+      self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
     else:
       raise error.PayloadError(
@@ -1011,8 +1041,8 @@ class PayloadChecker(object):
                        itertools.repeat(0, self._SizeToNumBlocks(total_size)))
 
   def _CheckOperations(self, operations, report, base_name, old_fs_size,
-                       new_fs_size, new_usable_size, prev_data_offset,
-                       allow_signature):
+                       new_fs_size, old_usable_size, new_usable_size,
+                       prev_data_offset, allow_signature):
     """Checks a sequence of update operations.
 
     Args:
@@ -1021,6 +1051,7 @@ class PayloadChecker(object):
       base_name: The name of the operation block.
       old_fs_size: The old filesystem size in bytes.
       new_fs_size: The new filesystem size in bytes.
+      old_usable_size: The overall usable size of the old partition in bytes.
       new_usable_size: The overall usable size of the new partition in bytes.
       prev_data_offset: Offset of last used data bytes.
       allow_signature: Whether this sequence may contain signature operations.
@@ -1038,10 +1069,12 @@ class PayloadChecker(object):
         common.OpType.REPLACE: 0,
         common.OpType.REPLACE_BZ: 0,
         common.OpType.MOVE: 0,
+        common.OpType.ZERO: 0,
         common.OpType.BSDIFF: 0,
         common.OpType.SOURCE_COPY: 0,
         common.OpType.SOURCE_BSDIFF: 0,
         common.OpType.PUFFDIFF: 0,
+        common.OpType.BROTLI_BSDIFF: 0,
     }
     # Total blob sizes for each operation type.
     op_blob_totals = {
@@ -1052,6 +1085,7 @@ class PayloadChecker(object):
         # SOURCE_COPY operations don't have blobs.
         common.OpType.SOURCE_BSDIFF: 0,
         common.OpType.PUFFDIFF: 0,
+        common.OpType.BROTLI_BSDIFF: 0,
     }
     # Counts of hashed vs unhashed operations.
     blob_hash_counts = {
@@ -1062,7 +1096,7 @@ class PayloadChecker(object):
       blob_hash_counts['signature'] = 0
 
     # Allocate old and new block counters.
-    old_block_counters = (self._AllocBlockCounters(new_usable_size)
+    old_block_counters = (self._AllocBlockCounters(old_usable_size)
                           if old_fs_size else None)
     new_block_counters = self._AllocBlockCounters(new_usable_size)
 
@@ -1079,7 +1113,7 @@ class PayloadChecker(object):
       is_last = op_num == len(operations)
       curr_data_used = self._CheckOperation(
           op, op_name, is_last, old_block_counters, new_block_counters,
-          new_usable_size if old_fs_size else 0, new_usable_size,
+          old_usable_size, new_usable_size,
           prev_data_offset + total_data_used, allow_signature,
           blob_hash_counts)
       if curr_data_used:
@@ -1132,8 +1166,6 @@ class PayloadChecker(object):
     report.AddSection('signatures')
 
     # Check: At least one signature present.
-    # pylint cannot see through the protobuf object, it seems.
-    # pylint: disable=E1101
     if not sigs.signatures:
       raise error.PayloadError('Signature block is empty.')
 
@@ -1229,10 +1261,13 @@ class PayloadChecker(object):
       #   exceed the filesystem size when moving data blocks around.
       # - Otherwise, use the encoded filesystem size.
       new_rootfs_usable_size = self.new_rootfs_fs_size
+      old_rootfs_usable_size = self.old_rootfs_fs_size
       if rootfs_part_size:
         new_rootfs_usable_size = rootfs_part_size
+        old_rootfs_usable_size = rootfs_part_size
       elif self.payload_type == _TYPE_DELTA and self.minor_version in (None, 1):
         new_rootfs_usable_size = _OLD_DELTA_USABLE_PART_SIZE
+        old_rootfs_usable_size = _OLD_DELTA_USABLE_PART_SIZE
 
       # Part 3: Examine rootfs operations.
       # TODO(garnold)(chromium:243559) only default to the filesystem size if
@@ -1242,7 +1277,8 @@ class PayloadChecker(object):
       total_blob_size = self._CheckOperations(
           self.payload.manifest.install_operations, report,
           'install_operations', self.old_rootfs_fs_size,
-          self.new_rootfs_fs_size, new_rootfs_usable_size, 0, False)
+          self.new_rootfs_fs_size, old_rootfs_usable_size,
+          new_rootfs_usable_size, 0, False)
 
       # Part 4: Examine kernel operations.
       # TODO(garnold)(chromium:243559) as above.
@@ -1251,6 +1287,7 @@ class PayloadChecker(object):
           self.payload.manifest.kernel_install_operations, report,
           'kernel_install_operations', self.old_kernel_fs_size,
           self.new_kernel_fs_size,
+          kernel_part_size if kernel_part_size else self.old_kernel_fs_size,
           kernel_part_size if kernel_part_size else self.new_kernel_fs_size,
           total_blob_size, True)
 

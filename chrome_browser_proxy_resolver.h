@@ -20,55 +20,35 @@
 #include <deque>
 #include <map>
 #include <string>
+#include <vector>
 
 #include <base/memory/weak_ptr.h>
 
 #include "update_engine/proxy_resolver.h"
 
-namespace brillo {
-class Error;
-}  // namespace brillo
-
-namespace org {
-namespace chromium {
-class NetworkProxyServiceInterfaceProxyInterface;
-}  // namespace chromium
-}  // namespace org
-
 namespace chromeos_update_engine {
 
 class ChromeBrowserProxyResolver : public ProxyResolver {
  public:
-  explicit ChromeBrowserProxyResolver(
-      org::chromium::NetworkProxyServiceInterfaceProxyInterface* dbus_proxy);
+  ChromeBrowserProxyResolver();
   ~ChromeBrowserProxyResolver() override;
-
-  // Parses a string-encoded list of proxies and returns a deque
-  // of individual proxies. The last one will always be kNoProxy.
-  static std::deque<std::string> ParseProxyString(const std::string& input);
 
   // ProxyResolver:
   ProxyRequestId GetProxiesForUrl(const std::string& url,
                                   const ProxiesResolvedFn& callback) override;
   bool CancelProxyRequest(ProxyRequestId request) override;
 
-private:
-  // Callback for successful D-Bus calls made by GetProxiesForUrl().
-  void OnResolveProxyResponse(ProxyRequestId request_id,
-                              const std::string& proxy_info,
-                              const std::string& error_message);
-
-  // Callback for failed D-Bus calls made by GetProxiesForUrl().
-  void OnResolveProxyError(ProxyRequestId request_id, brillo::Error* error);
+ private:
+  // Callback for calls made by GetProxiesForUrl().
+  void OnGetChromeProxyServers(ProxyRequestId request_id,
+                               bool success,
+                               const std::vector<std::string>& proxies);
 
   // Finds the callback identified by |request_id| in |pending_callbacks_|,
   // passes |proxies| to it, and deletes it. Does nothing if the request has
   // been cancelled.
   void RunCallback(ProxyRequestId request_id,
                    const std::deque<std::string>& proxies);
-
-  // D-Bus proxy for resolving network proxies.
-  org::chromium::NetworkProxyServiceInterfaceProxyInterface* dbus_proxy_;
 
   // Next ID to return from GetProxiesForUrl().
   ProxyRequestId next_request_id_;

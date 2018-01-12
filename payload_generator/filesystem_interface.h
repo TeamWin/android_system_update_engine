@@ -33,6 +33,7 @@
 
 #include <base/macros.h>
 #include <brillo/key_value_store.h>
+#include <puffin/utils.h>
 
 #include "update_engine/update_metadata.pb.h"
 
@@ -62,6 +63,10 @@ class FilesystemInterface {
     // between 0 and GetBlockCount() - 1. The blocks are encoded in extents,
     // indicating the starting block, and the number of consecutive blocks.
     std::vector<Extent> extents;
+
+    // All the deflate locations in the file. These locations are not relative
+    // to the extents. They are relative to the file system itself.
+    std::vector<puffin::BitExtent> deflates;
   };
 
   virtual ~FilesystemInterface() = default;

@@ -21,9 +21,9 @@
 
 #include <base/files/file_util.h>
 #include <base/logging.h>
+#include <base/memory/ptr_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
-#include <brillo/make_unique_ptr.h>
 
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_generator/extent_ranges.h"
@@ -61,8 +61,7 @@ std::unique_ptr<MapfileFilesystem> MapfileFilesystem::CreateFromFile(
     return nullptr;
   }
 
-  return brillo::make_unique_ptr(
-      new MapfileFilesystem(mapfile_filename, num_blocks));
+  return base::WrapUnique(new MapfileFilesystem(mapfile_filename, num_blocks));
 }
 
 MapfileFilesystem::MapfileFilesystem(const string& mapfile_filename,

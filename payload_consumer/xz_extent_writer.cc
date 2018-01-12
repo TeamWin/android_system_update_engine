@@ -16,7 +16,7 @@
 
 #include "update_engine/payload_consumer/xz_extent_writer.h"
 
-using std::vector;
+using google::protobuf::RepeatedPtrField;
 
 namespace chromeos_update_engine {
 
@@ -47,7 +47,7 @@ const char* XzErrorString(enum xz_ret error) {
       return "<unknown xz error>";
   }
   #undef __XZ_ERROR_STRING_CASE
-};
+}
 }  // namespace
 
 XzExtentWriter::~XzExtentWriter() {
@@ -55,7 +55,7 @@ XzExtentWriter::~XzExtentWriter() {
 }
 
 bool XzExtentWriter::Init(FileDescriptorPtr fd,
-                          const vector<Extent>& extents,
+                          const RepeatedPtrField<Extent>& extents,
                           uint32_t block_size) {
   stream_ = xz_dec_init(XZ_DYNALLOC, kXzMaxDictSize);
   TEST_AND_RETURN_FALSE(stream_ != nullptr);

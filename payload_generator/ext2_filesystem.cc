@@ -17,12 +17,16 @@
 #include "update_engine/payload_generator/ext2_filesystem.h"
 
 #include <et/com_err.h>
-// TODO: Remove these pragmas when b/35721782 is fixed.
+#if defined(__clang__)
+// TODO(*): Remove these pragmas when b/35721782 is fixed.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmacro-redefined"
+#endif
 #include <ext2fs/ext2_io.h>
 #include <ext2fs/ext2fs.h>
+#if defined(__clang__)
 #pragma clang diagnostic pop
+#endif
 
 #include <map>
 #include <set>
@@ -344,7 +348,7 @@ bool Ext2Filesystem::LoadSettings(brillo::KeyValueStore* store) const {
     return false;
 
   brillo::Blob blob;
-  uint64_t physical_size = BlocksInExtents(extents) * filsys_->blocksize;
+  uint64_t physical_size = utils::BlocksInExtents(extents) * filsys_->blocksize;
   // Sparse holes in the settings file are not supported.
   if (EXT2_I_SIZE(&ino_data) > physical_size)
     return false;

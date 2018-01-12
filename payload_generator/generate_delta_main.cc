@@ -225,7 +225,8 @@ bool ApplyPayload(const string& payload_file,
                            &fake_hardware,
                            nullptr,
                            &install_plan,
-                           &payload);
+                           &payload,
+                           true);  // is_interactive
 
   brillo::Blob buf(1024 * 1024);
   int fd = open(payload_file.c_str(), O_RDONLY, 0);

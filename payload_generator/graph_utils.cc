@@ -104,9 +104,9 @@ namespace {
 template<typename T>
 void DumpExtents(const T& field, int prepend_space_count) {
   string header(prepend_space_count, ' ');
-  for (int i = 0, e = field.size(); i != e; ++i) {
-    LOG(INFO) << header << "(" << GetElement(field, i).start_block() << ", "
-              << GetElement(field, i).num_blocks() << ")";
+  for (const auto& extent : field) {
+    LOG(INFO) << header << "(" << extent.start_block() << ", "
+              << extent.num_blocks() << ")";
   }
 }
 

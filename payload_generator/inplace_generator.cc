@@ -299,8 +299,7 @@ namespace {
 
 template<typename T>
 bool TempBlocksExistInExtents(const T& extents) {
-  for (int i = 0, e = extents.size(); i < e; ++i) {
-    Extent extent = GetElement(extents, i);
+  for (const auto& extent : extents) {
     uint64_t start = extent.start_block();
     uint64_t num = extent.num_blocks();
     if (start >= kTempBlockStart || (start + num) >= kTempBlockStart) {
@@ -573,6 +572,8 @@ bool InplaceGenerator::ConvertCutToFullOp(Graph* graph,
         new_part,
         vector<Extent>(),  // old_extents
         new_extents,
+        {},  // old_deflates
+        {},  // new_deflates
         (*graph)[cut.old_dst].aop.name,
         -1,  // chunk_blocks, forces to have a single operation.
         kInPlacePayloadVersion,

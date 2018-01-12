@@ -46,12 +46,6 @@
 #include "update_engine/update_manager/policy.h"
 #include "update_engine/update_manager/update_manager.h"
 
-namespace org {
-namespace chromium {
-class NetworkProxyServiceInterfaceProxyInterface;
-}  // namespace chromium
-}  // namespace org
-
 namespace policy {
 class PolicyProvider;
 }
@@ -69,10 +63,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   using UpdateAttemptFlags = update_engine::UpdateAttemptFlags;
   static const int kMaxDeltaUpdateFailures;
 
-  UpdateAttempter(SystemState* system_state,
-                  CertificateChecker* cert_checker,
-                  org::chromium::NetworkProxyServiceInterfaceProxyInterface*
-                      network_proxy_service_proxy);
+  UpdateAttempter(SystemState* system_state, CertificateChecker* cert_checker);
   ~UpdateAttempter() override;
 
   // Further initialization to be done post construction.

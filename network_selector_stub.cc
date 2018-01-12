@@ -16,8 +16,9 @@
 
 #include "update_engine/network_selector_stub.h"
 
+#include <memory>
+
 #include <base/logging.h>
-#include <brillo/make_unique_ptr.h>
 
 namespace chromeos_update_engine {
 
@@ -25,7 +26,7 @@ namespace network {
 
 // Factory defined in network_selector.h.
 std::unique_ptr<NetworkSelectorInterface> CreateNetworkSelector() {
-  return brillo::make_unique_ptr(new NetworkSelectorStub());
+  return std::make_unique<NetworkSelectorStub>();
 }
 
 }  // namespace network

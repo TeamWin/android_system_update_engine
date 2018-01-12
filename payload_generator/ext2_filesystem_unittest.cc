@@ -158,7 +158,8 @@ TEST_F(Ext2FilesystemTest, ParseGeneratedImages) {
 
     // Small symlinks don't actually have data blocks.
     EXPECT_TRUE(map_files["/link-short_symlink"].extents.empty());
-    EXPECT_EQ(1U, BlocksInExtents(map_files["/link-long_symlink"].extents));
+    EXPECT_EQ(1U,
+              utils::BlocksInExtents(map_files["/link-long_symlink"].extents));
 
     // Hard-links report the same list of blocks.
     EXPECT_EQ(map_files["/link-hard-regular-16k"].extents,
@@ -168,14 +169,19 @@ TEST_F(Ext2FilesystemTest, ParseGeneratedImages) {
     // The number of blocks in these files doesn't depend on the
     // block size.
     EXPECT_TRUE(map_files["/empty-file"].extents.empty());
-    EXPECT_EQ(1U, BlocksInExtents(map_files["/regular-small"].extents));
-    EXPECT_EQ(1U, BlocksInExtents(map_files["/regular-with_net_cap"].extents));
+    EXPECT_EQ(1U, utils::BlocksInExtents(map_files["/regular-small"].extents));
+    EXPECT_EQ(
+        1U, utils::BlocksInExtents(map_files["/regular-with_net_cap"].extents));
     EXPECT_TRUE(map_files["/sparse_empty-10k"].extents.empty());
     EXPECT_TRUE(map_files["/sparse_empty-2blocks"].extents.empty());
-    EXPECT_EQ(1U, BlocksInExtents(map_files["/sparse-16k-last_block"].extents));
-    EXPECT_EQ(1U,
-              BlocksInExtents(map_files["/sparse-16k-first_block"].extents));
-    EXPECT_EQ(2U, BlocksInExtents(map_files["/sparse-16k-holes"].extents));
+    EXPECT_EQ(
+        1U,
+        utils::BlocksInExtents(map_files["/sparse-16k-last_block"].extents));
+    EXPECT_EQ(
+        1U,
+        utils::BlocksInExtents(map_files["/sparse-16k-first_block"].extents));
+    EXPECT_EQ(2U,
+              utils::BlocksInExtents(map_files["/sparse-16k-holes"].extents));
   }
 }
 

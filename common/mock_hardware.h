@@ -63,6 +63,12 @@ class MockHardware : public HardwareInterface {
     ON_CALL(*this, GetPowerwashSafeDirectory(testing::_))
       .WillByDefault(testing::Invoke(&fake_,
             &FakeHardware::GetPowerwashSafeDirectory));
+    ON_CALL(*this, GetFirstActiveOmahaPingSent())
+      .WillByDefault(testing::Invoke(&fake_,
+            &FakeHardware::GetFirstActiveOmahaPingSent()));
+    ON_CALL(*this, SetFirstActiveOmahaPingSent())
+      .WillByDefault(testing::Invoke(&fake_,
+            &FakeHardware::SetFirstActiveOmahaPingSent()));
   }
 
   ~MockHardware() override = default;
@@ -78,6 +84,7 @@ class MockHardware : public HardwareInterface {
   MOCK_CONST_METHOD0(GetPowerwashCount, int());
   MOCK_CONST_METHOD1(GetNonVolatileDirectory, bool(base::FilePath*));
   MOCK_CONST_METHOD1(GetPowerwashSafeDirectory, bool(base::FilePath*));
+  MOCK_CONST_METHOD0(GetFirstActiveOmahaPingSent, bool());
 
   // Returns a reference to the underlying FakeHardware.
   FakeHardware& fake() {
