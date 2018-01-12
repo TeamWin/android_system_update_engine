@@ -182,4 +182,9 @@ bool HardwareChromeOS::GetPowerwashSafeDirectory(base::FilePath* path) const {
   return true;
 }
 
+int64_t HardwareChromeOS::GetBuildTimestamp() const {
+  // TODO(senj): implement this in Chrome OS.
+  return 0;
+}
+
 }  // namespace chromeos_update_engine

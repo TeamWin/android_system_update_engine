@@ -72,6 +72,9 @@ enum class ErrorCode : int {
   kOmahaRequestXMLHasEntityDecl = 46,
   kFilesystemVerifierError = 47,
   kUserCanceled = 48,
+  // kNonCriticalUpdateInOOBE = 49,
+  // kOmahaUpdateIgnoredOverCellular = 50,
+  kPayloadTimestampError = 51,
 
   // VERY IMPORTANT! When adding new error codes:
   //

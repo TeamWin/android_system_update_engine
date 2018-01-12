@@ -70,6 +70,7 @@ bool PayloadFile::Init(const PayloadGenerationConfig& config) {
     *(manifest_.mutable_new_image_info()) = config.target.image_info;
 
   manifest_.set_block_size(config.block_size);
+  manifest_.set_max_timestamp(config.max_timestamp);
   return true;
 }
 

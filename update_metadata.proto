@@ -281,4 +281,8 @@ message DeltaArchiveManifest {
   // array can have more than two partitions if needed, and they are identified
   // by the partition name.
   repeated PartitionUpdate partitions = 13;
+
+  // The maximum timestamp of the OS allowed to apply this payload.
+  // Can be used to prevent downgrading the OS.
+  optional int64 max_timestamp = 14;
 }
