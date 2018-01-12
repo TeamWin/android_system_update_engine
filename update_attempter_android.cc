@@ -26,6 +26,7 @@
 #include <brillo/bind_lambda.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/strings/string_utils.h>
+#include <log/log.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/file_fetcher.h"
@@ -306,6 +307,11 @@ void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
       // beginning next time.
       DeltaPerformer::ResetUpdateProgress(prefs_, false);
       LOG(INFO) << "Resetting update progress.";
+      break;
+
+    case ErrorCode::kPayloadTimestampError:
+      // SafetyNet logging, b/36232423
+      android_errorWriteLog(0x534e4554, "36232423");
       break;
 
     default:
