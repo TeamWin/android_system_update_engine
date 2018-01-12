@@ -327,6 +327,10 @@ int Main(int argc, char** argv) {
   DEFINE_string(zlib_fingerprint, "",
                 "The fingerprint of zlib in the source image in hash string "
                 "format, used to check imgdiff compatibility.");
+  DEFINE_int64(max_timestamp,
+               0,
+               "The maximum timestamp of the OS allowed to apply this "
+               "payload.");
 
   DEFINE_string(old_channel, "",
                 "The channel for the old image. 'dev-channel', 'npo-channel', "
@@ -577,6 +581,8 @@ int Main(int argc, char** argv) {
       LOG(INFO) << "IMGDIFF operation disabled due to fingerprint mismatch.";
     }
   }
+
+  payload_config.max_timestamp = FLAGS_max_timestamp;
 
   if (payload_config.is_delta) {
     LOG(INFO) << "Generating delta update";
