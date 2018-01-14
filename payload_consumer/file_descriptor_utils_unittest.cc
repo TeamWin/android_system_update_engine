@@ -16,13 +16,14 @@
 
 #include "update_engine/payload_consumer/file_descriptor_utils.h"
 
+#include <fcntl.h>
+
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <gtest/gtest.h>
-
 #include <brillo/data_encoding.h>
+#include <gtest/gtest.h>
 
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/test_utils.h"
@@ -31,13 +32,15 @@
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_generator/extent_ranges.h"
 
+using google::protobuf::RepeatedPtrField;
+
 namespace chromeos_update_engine {
 
 namespace {
 
-::google::protobuf::RepeatedPtrField<Extent> CreateExtentList(
+RepeatedPtrField<Extent> CreateExtentList(
     const std::vector<std::pair<uint64_t, uint64_t>>& lst) {
-  ::google::protobuf::RepeatedPtrField<Extent> result;
+  RepeatedPtrField<Extent> result;
   for (const auto& item : lst) {
     *result.Add() = ExtentForRange(item.first, item.second);
   }

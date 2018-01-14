@@ -79,14 +79,17 @@ struct MutableImageProperties {
 // value may be returned instead.
 ImageProperties LoadImageProperties(SystemState* system_state);
 
-// Loads the mutable image properties from the stateful partition if found or the
-// system image otherwise.
+// Loads the mutable image properties from the stateful partition if found or
+// the system image otherwise.
 MutableImageProperties LoadMutableImageProperties(SystemState* system_state);
 
 // Stores the mutable image properties in the stateful partition. Returns
 // whether the operation succeeded.
 bool StoreMutableImageProperties(SystemState* system_state,
                                  const MutableImageProperties& properties);
+
+// Logs the image properties.
+void LogImageProperties();
 
 // Sets the root_prefix used to load files from during unittests to
 // |test_root_prefix|. Passing a nullptr value resets it to the default.

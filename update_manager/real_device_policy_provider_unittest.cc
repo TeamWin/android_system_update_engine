@@ -18,7 +18,7 @@
 
 #include <memory>
 
-#include <brillo/make_unique_ptr.h>
+#include <base/memory/ptr_util.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
@@ -63,8 +63,7 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
     auto session_manager_proxy_mock =
         new org::chromium::SessionManagerInterfaceProxyMock();
     provider_.reset(new RealDevicePolicyProvider(
-        brillo::make_unique_ptr(session_manager_proxy_mock),
-        &mock_policy_provider_));
+        base::WrapUnique(session_manager_proxy_mock), &mock_policy_provider_));
 #else
     provider_.reset(new RealDevicePolicyProvider(&mock_policy_provider_));
 #endif  // USE_DBUS

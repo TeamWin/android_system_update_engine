@@ -42,7 +42,9 @@ namespace chromeos_update_engine {
 
 namespace {
 
-bool ExtentEquals(const Extent& ext, uint64_t start_block, uint64_t num_blocks) {
+bool ExtentEquals(const Extent& ext,
+                  uint64_t start_block,
+                  uint64_t num_blocks) {
   return ext.start_block() == start_block && ext.num_blocks() == num_blocks;
 }
 
@@ -85,7 +87,6 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
                                            op_ex1_num_blocks);
   *(op.add_dst_extents()) = ExtentForRange(op_ex2_start_block,
                                            op_ex2_num_blocks);
-  op.set_dst_length(op_ex1_num_blocks + op_ex2_num_blocks);
 
   brillo::Blob op_data;
   op_data.insert(op_data.end(),
@@ -136,7 +137,8 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   EXPECT_EQ("SplitTestOp:0", result_ops[0].name);
   InstallOperation first_op = result_ops[0].op;
   EXPECT_EQ(expected_type, first_op.type());
-  EXPECT_EQ(op_ex1_size, first_op.dst_length());
+  EXPECT_FALSE(first_op.has_src_length());
+  EXPECT_FALSE(first_op.has_dst_length());
   EXPECT_EQ(1, first_op.dst_extents().size());
   EXPECT_TRUE(ExtentEquals(first_op.dst_extents(0), op_ex1_start_block,
                            op_ex1_num_blocks));
@@ -165,7 +167,8 @@ void TestSplitReplaceOrReplaceBzOperation(InstallOperation_Type orig_type,
   EXPECT_EQ("SplitTestOp:1", result_ops[1].name);
   InstallOperation second_op = result_ops[1].op;
   EXPECT_EQ(expected_type, second_op.type());
-  EXPECT_EQ(op_ex2_size, second_op.dst_length());
+  EXPECT_FALSE(second_op.has_src_length());
+  EXPECT_FALSE(second_op.has_dst_length());
   EXPECT_EQ(1, second_op.dst_extents().size());
   EXPECT_TRUE(ExtentEquals(second_op.dst_extents(0), op_ex2_start_block,
                            op_ex2_num_blocks));
@@ -235,7 +238,6 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   InstallOperation first_op;
   first_op.set_type(orig_type);
   const size_t first_op_size = first_op_num_blocks * kBlockSize;
-  first_op.set_dst_length(first_op_size);
   *(first_op.add_dst_extents()) = ExtentForRange(0, first_op_num_blocks);
   brillo::Blob first_op_data(part_data.begin(),
                                part_data.begin() + first_op_size);
@@ -255,8 +257,6 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
 
   InstallOperation second_op;
   second_op.set_type(orig_type);
-  const size_t second_op_size = second_op_num_blocks * kBlockSize;
-  second_op.set_dst_length(second_op_size);
   *(second_op.add_dst_extents()) = ExtentForRange(first_op_num_blocks,
                                                   second_op_num_blocks);
   brillo::Blob second_op_data(part_data.begin() + first_op_size,
@@ -302,7 +302,7 @@ void TestMergeReplaceOrReplaceBzOperations(InstallOperation_Type orig_type,
   InstallOperation new_op = aops[0].op;
   EXPECT_EQ(expected_op_type, new_op.type());
   EXPECT_FALSE(new_op.has_src_length());
-  EXPECT_EQ(total_op_num_blocks * kBlockSize, new_op.dst_length());
+  EXPECT_FALSE(new_op.has_dst_length());
   EXPECT_EQ(1, new_op.dst_extents().size());
   EXPECT_TRUE(ExtentEquals(new_op.dst_extents(0), 0, total_op_num_blocks));
   EXPECT_EQ("first,second", aops[0].name);

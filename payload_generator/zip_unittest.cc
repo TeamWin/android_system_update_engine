@@ -17,10 +17,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include <brillo/make_unique_ptr.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/test_utils.h"
@@ -31,6 +31,7 @@
 #include "update_engine/payload_generator/xz.h"
 
 using chromeos_update_engine::test_utils::kRandomString;
+using google::protobuf::RepeatedPtrField;
 using std::string;
 using std::vector;
 
@@ -50,7 +51,7 @@ class MemoryExtentWriter : public ExtentWriter {
   ~MemoryExtentWriter() override = default;
 
   bool Init(FileDescriptorPtr fd,
-            const vector<Extent>& extents,
+            const RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override {
     return true;
   }
@@ -70,7 +71,7 @@ class MemoryExtentWriter : public ExtentWriter {
 template <typename W>
 bool DecompressWithWriter(const brillo::Blob& in, brillo::Blob* out) {
   std::unique_ptr<ExtentWriter> writer(
-      new W(brillo::make_unique_ptr(new MemoryExtentWriter(out))));
+      new W(std::make_unique<MemoryExtentWriter>(out)));
   // Init() parameters are ignored by the testing MemoryExtentWriter.
   bool ok = writer->Init(nullptr, {}, 1);
   ok = writer->Write(in.data(), in.size()) && ok;

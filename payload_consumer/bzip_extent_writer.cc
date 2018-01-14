@@ -16,7 +16,7 @@
 
 #include "update_engine/payload_consumer/bzip_extent_writer.h"
 
-using std::vector;
+using google::protobuf::RepeatedPtrField;
 
 namespace chromeos_update_engine {
 
@@ -25,7 +25,7 @@ const brillo::Blob::size_type kOutputBufferLength = 16 * 1024;
 }
 
 bool BzipExtentWriter::Init(FileDescriptorPtr fd,
-                            const vector<Extent>& extents,
+                            const RepeatedPtrField<Extent>& extents,
                             uint32_t block_size) {
   // Init bzip2 stream
   int rc = BZ2_bzDecompressInit(&stream_,

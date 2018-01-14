@@ -5,7 +5,6 @@
 """Library for processing, verifying and applying Chrome OS update payloads."""
 
 # Just raise the interface classes to the root namespace.
-# pylint: disable=W0401
-from checker import CHECKS_TO_DISABLE
-from error import PayloadError
-from payload import Payload
+from update_payload.checker import CHECKS_TO_DISABLE
+from update_payload.error import PayloadError
+from update_payload.payload import Payload

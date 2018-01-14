@@ -54,23 +54,23 @@ TEST(ExtentUtilsTest, AppendSparseToExtentsTest) {
 TEST(ExtentUtilsTest, BlocksInExtentsTest) {
   {
     vector<Extent> extents;
-    EXPECT_EQ(0U, BlocksInExtents(extents));
+    EXPECT_EQ(0U, utils::BlocksInExtents(extents));
     extents.push_back(ExtentForRange(0, 1));
-    EXPECT_EQ(1U, BlocksInExtents(extents));
+    EXPECT_EQ(1U, utils::BlocksInExtents(extents));
     extents.push_back(ExtentForRange(23, 55));
-    EXPECT_EQ(56U, BlocksInExtents(extents));
+    EXPECT_EQ(56U, utils::BlocksInExtents(extents));
     extents.push_back(ExtentForRange(1, 2));
-    EXPECT_EQ(58U, BlocksInExtents(extents));
+    EXPECT_EQ(58U, utils::BlocksInExtents(extents));
   }
   {
     google::protobuf::RepeatedPtrField<Extent> extents;
-    EXPECT_EQ(0U, BlocksInExtents(extents));
+    EXPECT_EQ(0U, utils::BlocksInExtents(extents));
     *extents.Add() = ExtentForRange(0, 1);
-    EXPECT_EQ(1U, BlocksInExtents(extents));
+    EXPECT_EQ(1U, utils::BlocksInExtents(extents));
     *extents.Add() = ExtentForRange(23, 55);
-    EXPECT_EQ(56U, BlocksInExtents(extents));
+    EXPECT_EQ(56U, utils::BlocksInExtents(extents));
     *extents.Add() = ExtentForRange(1, 2);
-    EXPECT_EQ(58U, BlocksInExtents(extents));
+    EXPECT_EQ(58U, utils::BlocksInExtents(extents));
   }
 }
 

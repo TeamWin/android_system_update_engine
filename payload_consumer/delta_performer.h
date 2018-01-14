@@ -19,6 +19,7 @@
 
 #include <inttypes.h>
 
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -79,13 +80,15 @@ class DeltaPerformer : public FileWriter {
                  HardwareInterface* hardware,
                  DownloadActionDelegate* download_delegate,
                  InstallPlan* install_plan,
-                 InstallPlan::Payload* payload)
+                 InstallPlan::Payload* payload,
+                 bool is_interactive)
       : prefs_(prefs),
         boot_control_(boot_control),
         hardware_(hardware),
         download_delegate_(download_delegate),
         install_plan_(install_plan),
-        payload_(payload) {}
+        payload_(payload),
+        is_interactive_(is_interactive) {}
 
   // FileWriter's Write implementation where caller doesn't care about
   // error codes.
@@ -162,9 +165,9 @@ class DeltaPerformer : public FileWriter {
     public_key_path_ = public_key_path;
   }
 
-  // Set |*out_offset| to the byte offset where the size of the metadata signature
-  // is stored in a payload. Return true on success, if this field is not
-  // present in the payload, return false.
+  // Set |*out_offset| to the byte offset where the size of the metadata
+  // signature is stored in a payload. Return true on success, if this field is
+  // not present in the payload, return false.
   bool GetMetadataSignatureSizeOffset(uint64_t* out_offset) const;
 
   // Set |*out_offset| to the byte offset at which the manifest protobuf begins
@@ -242,6 +245,10 @@ class DeltaPerformer : public FileWriter {
   // buffer.
   ErrorCode ValidateMetadataSignature(const brillo::Blob& payload);
 
+  // Calculates and validates the source hash of the operation |operation|.
+  bool CalculateAndValidateSourceHash(const InstallOperation& operation,
+                                      ErrorCode* error);
+
   // Returns true on success.
   bool PerformInstallOperation(const InstallOperation& operation);
 
@@ -256,6 +263,8 @@ class DeltaPerformer : public FileWriter {
                                   ErrorCode* error);
   bool PerformSourceBsdiffOperation(const InstallOperation& operation,
                                     ErrorCode* error);
+  bool PerformPuffDiffOperation(const InstallOperation& operation,
+                                ErrorCode* error);
 
   // Extracts the payload signature message from the blob on the |operation| if
   // the offset matches the one specified by the manifest. Returns whether the
@@ -389,6 +398,9 @@ class DeltaPerformer : public FileWriter {
 
   // The last progress chunk recorded.
   unsigned last_progress_chunk_{0};
+
+  // If |true|, the update is user initiated (vs. periodic update checks).
+  bool is_interactive_{false};
 
   // The timeout after which we should force emitting a progress log (constant),
   // and the actual point in time for the next forced log to be emitted.

@@ -633,7 +633,7 @@ TYPED_TEST(HttpFetcherTest, PauseWhileResolvingProxyTest) {
   fetcher->Unpause();
   fetcher->Pause();
   // Proxy resolver comes back after we paused the fetcher.
-  ASSERT_TRUE(proxy_callback);
+  ASSERT_FALSE(proxy_callback.is_null());
   proxy_callback.Run({1, kNoProxy});
 }
 

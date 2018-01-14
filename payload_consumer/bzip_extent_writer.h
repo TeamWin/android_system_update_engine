@@ -19,7 +19,7 @@
 
 #include <bzlib.h>
 #include <memory>
-#include <vector>
+#include <utility>
 
 #include <brillo/secure_blob.h>
 
@@ -41,7 +41,7 @@ class BzipExtentWriter : public ExtentWriter {
   ~BzipExtentWriter() override = default;
 
   bool Init(FileDescriptorPtr fd,
-            const std::vector<Extent>& extents,
+            const google::protobuf::RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override;
   bool Write(const void* bytes, size_t count) override;
   bool EndImpl() override;

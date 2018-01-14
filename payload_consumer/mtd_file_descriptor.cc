@@ -18,11 +18,12 @@
 
 #include <fcntl.h>
 #include <mtd/ubi-user.h>
-#include <string>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <vector>
+
+#include <memory>
+#include <string>
 
 #include <base/files/file_path.h>
 #include <base/strings/string_number_conversions.h>
@@ -33,7 +34,6 @@
 #include "update_engine/common/utils.h"
 
 using std::string;
-using std::vector;
 
 namespace {
 

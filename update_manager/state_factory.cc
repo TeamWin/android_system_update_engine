@@ -19,7 +19,6 @@
 #include <memory>
 
 #include <base/logging.h>
-#include <brillo/make_unique_ptr.h>
 #if USE_DBUS
 #include <session_manager/dbus-proxies.h>
 #endif  // USE_DBUS
@@ -57,8 +56,7 @@ State* DefaultStateFactory(
       chromeos_update_engine::DBusConnection::Get()->GetDBus();
   unique_ptr<RealDevicePolicyProvider> device_policy_provider(
       new RealDevicePolicyProvider(
-          brillo::make_unique_ptr(
-              new org::chromium::SessionManagerInterfaceProxy(bus)),
+          std::make_unique<org::chromium::SessionManagerInterfaceProxy>(bus),
           policy_provider));
 #else
   unique_ptr<RealDevicePolicyProvider> device_policy_provider(

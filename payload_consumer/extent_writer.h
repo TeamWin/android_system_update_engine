@@ -17,7 +17,8 @@
 #ifndef UPDATE_ENGINE_PAYLOAD_CONSUMER_EXTENT_WRITER_H_
 #define UPDATE_ENGINE_PAYLOAD_CONSUMER_EXTENT_WRITER_H_
 
-#include <vector>
+#include <memory>
+#include <utility>
 
 #include <base/logging.h>
 #include <brillo/secure_blob.h>
@@ -40,7 +41,7 @@ class ExtentWriter {
 
   // Returns true on success.
   virtual bool Init(FileDescriptorPtr fd,
-                    const std::vector<Extent>& extents,
+                    const google::protobuf::RepeatedPtrField<Extent>& extents,
                     uint32_t block_size) = 0;
 
   // Returns true on success.
@@ -66,11 +67,12 @@ class DirectExtentWriter : public ExtentWriter {
   ~DirectExtentWriter() override = default;
 
   bool Init(FileDescriptorPtr fd,
-            const std::vector<Extent>& extents,
+            const google::protobuf::RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override {
     fd_ = fd;
     block_size_ = block_size;
     extents_ = extents;
+    cur_extent_ = extents_.begin();
     return true;
   }
   bool Write(const void* bytes, size_t count) override;
@@ -80,11 +82,11 @@ class DirectExtentWriter : public ExtentWriter {
   FileDescriptorPtr fd_{nullptr};
 
   size_t block_size_{0};
-  // Bytes written into next_extent_index_ thus far
+  // Bytes written into |cur_extent_| thus far.
   uint64_t extent_bytes_written_{0};
-  std::vector<Extent> extents_;
-  // The next call to write should correspond to extents_[next_extent_index_]
-  std::vector<Extent>::size_type next_extent_index_{0};
+  google::protobuf::RepeatedPtrField<Extent> extents_;
+  // The next call to write should correspond to |cur_extents_|.
+  google::protobuf::RepeatedPtrField<Extent>::iterator cur_extent_;
 };
 
 // Takes an underlying ExtentWriter to which all operations are delegated.
@@ -100,7 +102,7 @@ class ZeroPadExtentWriter : public ExtentWriter {
   ~ZeroPadExtentWriter() override = default;
 
   bool Init(FileDescriptorPtr fd,
-            const std::vector<Extent>& extents,
+            const google::protobuf::RepeatedPtrField<Extent>& extents,
             uint32_t block_size) override {
     block_size_ = block_size;
     return underlying_extent_writer_->Init(fd, extents, block_size);

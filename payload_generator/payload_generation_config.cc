@@ -165,6 +165,7 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
     case InstallOperation::SOURCE_BSDIFF:
       return minor >= kSourceMinorPayloadVersion;
 
+    case InstallOperation::BROTLI_BSDIFF:
     case InstallOperation::PUFFDIFF:
       return minor >= kPuffdiffMinorPayloadVersion;
   }

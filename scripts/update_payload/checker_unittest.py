@@ -20,14 +20,16 @@ import unittest
 # pylint: disable=F0401
 import mox
 
-import checker
-import common
-import payload as update_payload  # Avoid name conflicts later.
-import test_utils
-import update_metadata_pb2
+from update_payload import checker
+from update_payload import common
+from update_payload import test_utils
+from update_payload import update_metadata_pb2
+from update_payload.error import PayloadError
+from update_payload.payload import Payload # Avoid name conflicts later.
 
 
 def _OpTypeByName(op_name):
+  """Returns the type of an operation from itsname."""
   op_name_to_type = {
       'REPLACE': common.OpType.REPLACE,
       'REPLACE_BZ': common.OpType.REPLACE_BZ,
@@ -39,6 +41,7 @@ def _OpTypeByName(op_name):
       'DISCARD': common.OpType.DISCARD,
       'REPLACE_XZ': common.OpType.REPLACE_XZ,
       'PUFFDIFF': common.OpType.PUFFDIFF,
+      'BROTLI_BSDIFF': common.OpType.BROTLI_BSDIFF,
   }
   return op_name_to_type[op_name]
 
@@ -54,7 +57,7 @@ def _GetPayloadChecker(payload_gen_write_to_file_func, payload_gen_dargs=None,
   payload_file = cStringIO.StringIO()
   payload_gen_write_to_file_func(payload_file, **payload_gen_dargs)
   payload_file.seek(0)
-  payload = update_payload.Payload(payload_file)
+  payload = Payload(payload_file)
   payload.Init()
   return checker.PayloadChecker(payload, **checker_init_dargs)
 
@@ -64,7 +67,7 @@ def _GetPayloadCheckerWithData(payload_gen):
   payload_file = cStringIO.StringIO()
   payload_gen.WriteToFile(payload_file)
   payload_file.seek(0)
-  payload = update_payload.Payload(payload_file)
+  payload = Payload(payload_file)
   payload.Init()
   return checker.PayloadChecker(payload)
 
@@ -90,7 +93,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
   def MockPayload(self):
     """Create a mock payload object, complete with a mock manifest."""
-    payload = self.mox.CreateMock(update_payload.Payload)
+    payload = self.mox.CreateMock(Payload)
     payload.is_init = True
     payload.manifest = self.mox.CreateMock(
         update_metadata_pb2.DeltaArchiveManifest)
@@ -194,7 +197,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     args = (msg, name, report, is_mandatory, is_submsg)
     kwargs = {'convert': convert, 'linebreak': linebreak, 'indent': indent}
     if is_mandatory and not is_present:
-      self.assertRaises(update_payload.PayloadError,
+      self.assertRaises(PayloadError,
                         checker.PayloadChecker._CheckElem, *args, **kwargs)
     else:
       ret_val, ret_subreport = checker.PayloadChecker._CheckElem(*args,
@@ -228,8 +231,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
     # Test the method call.
     if is_mandatory and not is_present:
-      self.assertRaises(update_payload.PayloadError, tested_func, *args,
-                        **kwargs)
+      self.assertRaises(PayloadError, tested_func, *args, **kwargs)
     else:
       ret_val = tested_func(*args, **kwargs)
       self.assertEquals(val if is_present else None, ret_val)
@@ -253,7 +255,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
     # Test the method call.
     if is_mandatory and not is_present:
-      self.assertRaises(update_payload.PayloadError, tested_func, *args)
+      self.assertRaises(PayloadError, tested_func, *args)
     else:
       ret_val, ret_subreport = tested_func(*args)
       self.assertEquals(val if is_present else None, ret_val)
@@ -265,11 +267,9 @@ class PayloadCheckerTest(mox.MoxTestBase):
         None, None, 'foo', 'bar', 'baz'))
     self.assertIsNone(checker.PayloadChecker._CheckPresentIff(
         'a', 'b', 'foo', 'bar', 'baz'))
-    self.assertRaises(update_payload.PayloadError,
-                      checker.PayloadChecker._CheckPresentIff,
+    self.assertRaises(PayloadError, checker.PayloadChecker._CheckPresentIff,
                       'a', None, 'foo', 'bar', 'baz')
-    self.assertRaises(update_payload.PayloadError,
-                      checker.PayloadChecker._CheckPresentIff,
+    self.assertRaises(PayloadError, checker.PayloadChecker._CheckPresentIff,
                       None, 'b', 'foo', 'bar', 'baz')
 
   def DoCheckSha256SignatureTest(self, expect_pass, expect_subprocess_call,
@@ -298,7 +298,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
         self.assertIsNone(checker.PayloadChecker._CheckSha256Signature(
             sig_data, 'foo', expected_signed_hash, 'bar'))
       else:
-        self.assertRaises(update_payload.PayloadError,
+        self.assertRaises(PayloadError,
                           checker.PayloadChecker._CheckSha256Signature,
                           sig_data, 'foo', expected_signed_hash, 'bar')
     finally:
@@ -358,31 +358,31 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
   def testCheckBlocksFitLength_TooManyBlocks(self):
     """Tests _CheckBlocksFitLength(); fails due to excess blocks."""
-    self.assertRaises(update_payload.PayloadError,
+    self.assertRaises(PayloadError,
                       checker.PayloadChecker._CheckBlocksFitLength,
                       64, 5, 16, 'foo')
-    self.assertRaises(update_payload.PayloadError,
+    self.assertRaises(PayloadError,
                       checker.PayloadChecker._CheckBlocksFitLength,
                       60, 5, 16, 'foo')
-    self.assertRaises(update_payload.PayloadError,
+    self.assertRaises(PayloadError,
                       checker.PayloadChecker._CheckBlocksFitLength,
                       49, 5, 16, 'foo')
-    self.assertRaises(update_payload.PayloadError,
+    self.assertRaises(PayloadError,
                       checker.PayloadChecker._CheckBlocksFitLength,
                       48, 4, 16, 'foo')
 
   def testCheckBlocksFitLength_TooFewBlocks(self):
     """Tests _CheckBlocksFitLength(); fails due to insufficient blocks."""
-    self.assertRaises(update_payload.PayloadError,
+    self.assertRaises(PayloadError,
                       checker.PayloadChecker._CheckBlocksFitLength,
                       64, 3, 16, 'foo')
-    self.assertRaises(update_payload.PayloadError,
+    self.assertRaises(PayloadError,
                       checker.PayloadChecker._CheckBlocksFitLength,
                       60, 3, 16, 'foo')
-    self.assertRaises(update_payload.PayloadError,
+    self.assertRaises(PayloadError,
                       checker.PayloadChecker._CheckBlocksFitLength,
                       49, 3, 16, 'foo')
-    self.assertRaises(update_payload.PayloadError,
+    self.assertRaises(PayloadError,
                       checker.PayloadChecker._CheckBlocksFitLength,
                       48, 2, 16, 'foo')
 
@@ -475,8 +475,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
                    fail_old_rootfs_fs_size or fail_new_kernel_fs_size or
                    fail_new_rootfs_fs_size)
     if should_fail:
-      self.assertRaises(update_payload.PayloadError,
-                        payload_checker._CheckManifest, report,
+      self.assertRaises(PayloadError, payload_checker._CheckManifest, report,
                         rootfs_part_size, kernel_part_size)
     else:
       self.assertIsNone(payload_checker._CheckManifest(report,
@@ -492,12 +491,10 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.assertIsNone(payload_checker._CheckLength(
         int(3.5 * block_size), 4, 'foo', 'bar'))
     # Fails, too few blocks.
-    self.assertRaises(update_payload.PayloadError,
-                      payload_checker._CheckLength,
+    self.assertRaises(PayloadError, payload_checker._CheckLength,
                       int(3.5 * block_size), 3, 'foo', 'bar')
     # Fails, too many blocks.
-    self.assertRaises(update_payload.PayloadError,
-                      payload_checker._CheckLength,
+    self.assertRaises(PayloadError, payload_checker._CheckLength,
                       int(3.5 * block_size), 5, 'foo', 'bar')
 
   def testCheckExtents(self):
@@ -532,30 +529,26 @@ class PayloadCheckerTest(mox.MoxTestBase):
     # Fails, extent missing a start block.
     extents = self.NewExtentList((-1, 4), (8, 3), (1024, 16))
     self.assertRaises(
-        update_payload.PayloadError, payload_checker._CheckExtents,
-        extents, (1024 + 16) * block_size, collections.defaultdict(int),
-        'foo')
+        PayloadError, payload_checker._CheckExtents, extents,
+        (1024 + 16) * block_size, collections.defaultdict(int), 'foo')
 
     # Fails, extent missing block count.
     extents = self.NewExtentList((0, -1), (8, 3), (1024, 16))
     self.assertRaises(
-        update_payload.PayloadError, payload_checker._CheckExtents,
-        extents, (1024 + 16) * block_size, collections.defaultdict(int),
-        'foo')
+        PayloadError, payload_checker._CheckExtents, extents,
+        (1024 + 16) * block_size, collections.defaultdict(int), 'foo')
 
     # Fails, extent has zero blocks.
     extents = self.NewExtentList((0, 4), (8, 3), (1024, 0))
     self.assertRaises(
-        update_payload.PayloadError, payload_checker._CheckExtents,
-        extents, (1024 + 16) * block_size, collections.defaultdict(int),
-        'foo')
+        PayloadError, payload_checker._CheckExtents, extents,
+        (1024 + 16) * block_size, collections.defaultdict(int), 'foo')
 
     # Fails, extent exceeds partition boundaries.
     extents = self.NewExtentList((0, 4), (8, 3), (1024, 16))
     self.assertRaises(
-        update_payload.PayloadError, payload_checker._CheckExtents,
-        extents, (1024 + 15) * block_size, collections.defaultdict(int),
-        'foo')
+        PayloadError, payload_checker._CheckExtents, extents,
+        (1024 + 15) * block_size, collections.defaultdict(int), 'foo')
 
   def testCheckReplaceOperation(self):
     """Tests _CheckReplaceOperation() where op.type == REPLACE."""
@@ -577,22 +570,19 @@ class PayloadCheckerTest(mox.MoxTestBase):
     # Fail, src extents founds.
     op.src_extents = ['bar']
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckReplaceOperation,
+        PayloadError, payload_checker._CheckReplaceOperation,
         op, data_length, (data_length + block_size - 1) / block_size, 'foo')
 
     # Fail, missing data.
     op.src_extents = []
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckReplaceOperation,
+        PayloadError, payload_checker._CheckReplaceOperation,
         op, None, (data_length + block_size - 1) / block_size, 'foo')
 
     # Fail, length / block number mismatch.
     op.src_extents = ['bar']
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckReplaceOperation,
+        PayloadError, payload_checker._CheckReplaceOperation,
         op, data_length, (data_length + block_size - 1) / block_size + 1, 'foo')
 
   def testCheckReplaceBzOperation(self):
@@ -615,22 +605,19 @@ class PayloadCheckerTest(mox.MoxTestBase):
     # Fail, src extents founds.
     op.src_extents = ['bar']
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckReplaceOperation,
+        PayloadError, payload_checker._CheckReplaceOperation,
         op, data_length, (data_length + block_size - 1) / block_size + 5, 'foo')
 
     # Fail, missing data.
     op.src_extents = []
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckReplaceOperation,
+        PayloadError, payload_checker._CheckReplaceOperation,
         op, None, (data_length + block_size - 1) / block_size, 'foo')
 
     # Fail, too few blocks to justify BZ.
     op.src_extents = []
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckReplaceOperation,
+        PayloadError, payload_checker._CheckReplaceOperation,
         op, data_length, (data_length + block_size - 1) / block_size, 'foo')
 
   def testCheckMoveOperation_Pass(self):
@@ -657,8 +644,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.AddToMessage(op.dst_extents,
                       self.NewExtentList((16, 128), (512, 6)))
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckMoveOperation,
+        PayloadError, payload_checker._CheckMoveOperation,
         op, 1024, 134, 134, 'foo')
 
   def testCheckMoveOperation_FailInsufficientSrcBlocks(self):
@@ -672,8 +658,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.AddToMessage(op.dst_extents,
                       self.NewExtentList((16, 128), (512, 6)))
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckMoveOperation,
+        PayloadError, payload_checker._CheckMoveOperation,
         op, None, 134, 134, 'foo')
 
   def testCheckMoveOperation_FailInsufficientDstBlocks(self):
@@ -687,8 +672,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.AddToMessage(op.dst_extents,
                       self.NewExtentList((16, 128), (512, 5)))
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckMoveOperation,
+        PayloadError, payload_checker._CheckMoveOperation,
         op, None, 134, 134, 'foo')
 
   def testCheckMoveOperation_FailExcessSrcBlocks(self):
@@ -702,16 +686,14 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.AddToMessage(op.dst_extents,
                       self.NewExtentList((16, 128), (512, 5)))
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckMoveOperation,
+        PayloadError, payload_checker._CheckMoveOperation,
         op, None, 134, 134, 'foo')
     self.AddToMessage(op.src_extents,
                       self.NewExtentList((1, 4), (12, 2), (1024, 129)))
     self.AddToMessage(op.dst_extents,
                       self.NewExtentList((16, 128), (512, 6)))
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckMoveOperation,
+        PayloadError, payload_checker._CheckMoveOperation,
         op, None, 134, 134, 'foo')
 
   def testCheckMoveOperation_FailExcessDstBlocks(self):
@@ -725,8 +707,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.AddToMessage(op.dst_extents,
                       self.NewExtentList((16, 128), (512, 7)))
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckMoveOperation,
+        PayloadError, payload_checker._CheckMoveOperation,
         op, None, 134, 134, 'foo')
 
   def testCheckMoveOperation_FailStagnantBlocks(self):
@@ -740,8 +721,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.AddToMessage(op.dst_extents,
                       self.NewExtentList((8, 128), (512, 6)))
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckMoveOperation,
+        PayloadError, payload_checker._CheckMoveOperation,
         op, None, 134, 134, 'foo')
 
   def testCheckMoveOperation_FailZeroStartBlock(self):
@@ -755,8 +735,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.AddToMessage(op.dst_extents,
                       self.NewExtentList((8, 128), (512, 6)))
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckMoveOperation,
+        PayloadError, payload_checker._CheckMoveOperation,
         op, None, 134, 134, 'foo')
 
     self.AddToMessage(op.src_extents,
@@ -764,29 +743,27 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.AddToMessage(op.dst_extents,
                       self.NewExtentList((0, 128), (512, 6)))
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckMoveOperation,
+        PayloadError, payload_checker._CheckMoveOperation,
         op, None, 134, 134, 'foo')
 
   def testCheckAnyDiff(self):
     """Tests _CheckAnyDiffOperation()."""
     payload_checker = checker.PayloadChecker(self.MockPayload())
+    op = update_metadata_pb2.InstallOperation()
 
     # Pass.
     self.assertIsNone(
-        payload_checker._CheckAnyDiffOperation(10000, 3, 'foo'))
+        payload_checker._CheckAnyDiffOperation(op, 10000, 3, 'foo'))
 
     # Fail, missing data blob.
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckAnyDiffOperation,
-        None, 3, 'foo')
+        PayloadError, payload_checker._CheckAnyDiffOperation,
+        op, None, 3, 'foo')
 
     # Fail, too big of a diff blob (unjustified).
     self.assertRaises(
-        update_payload.PayloadError,
-        payload_checker._CheckAnyDiffOperation,
-        10000, 2, 'foo')
+        PayloadError, payload_checker._CheckAnyDiffOperation,
+        op, 10000, 2, 'foo')
 
   def testCheckSourceCopyOperation_Pass(self):
     """Tests _CheckSourceCopyOperation(); pass case."""
@@ -797,15 +774,13 @@ class PayloadCheckerTest(mox.MoxTestBase):
   def testCheckSourceCopyOperation_FailContainsData(self):
     """Tests _CheckSourceCopyOperation(); message contains data."""
     payload_checker = checker.PayloadChecker(self.MockPayload())
-    self.assertRaises(update_payload.PayloadError,
-                      payload_checker._CheckSourceCopyOperation,
+    self.assertRaises(PayloadError, payload_checker._CheckSourceCopyOperation,
                       134, 0, 0, 'foo')
 
   def testCheckSourceCopyOperation_FailBlockCountsMismatch(self):
     """Tests _CheckSourceCopyOperation(); src and dst block totals not equal."""
     payload_checker = checker.PayloadChecker(self.MockPayload())
-    self.assertRaises(update_payload.PayloadError,
-                      payload_checker._CheckSourceCopyOperation,
+    self.assertRaises(PayloadError, payload_checker._CheckSourceCopyOperation,
                       None, 0, 1, 'foo')
 
   def DoCheckOperationTest(self, op_type_name, is_last, allow_signature,
@@ -818,7 +793,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
     Args:
       op_type_name: 'REPLACE', 'REPLACE_BZ', 'MOVE', 'BSDIFF', 'SOURCE_COPY',
-        or 'SOURCE_BSDIFF'.
+        'SOURCE_BSDIFF', BROTLI_BSDIFF or 'PUFFDIFF'.
       is_last: Whether we're testing the last operation in a sequence.
       allow_signature: Whether we're testing a signature-capable operation.
       allow_unhashed: Whether we're allowing to not hash the data.
@@ -857,7 +832,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
 
     total_src_blocks = 0
     if op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
-                   common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF):
+                   common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF,
+                   common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF):
       if fail_src_extents:
         self.AddToMessage(op.src_extents,
                           self.NewExtentList((1, 0)))
@@ -872,6 +848,9 @@ class PayloadCheckerTest(mox.MoxTestBase):
       payload_checker.minor_version = 2 if fail_bad_minor_version else 1
     elif op_type in (common.OpType.SOURCE_COPY, common.OpType.SOURCE_BSDIFF):
       payload_checker.minor_version = 1 if fail_bad_minor_version else 2
+    elif op_type in (common.OpType.ZERO, common.OpType.DISCARD,
+                     common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF):
+      payload_checker.minor_version = 3 if fail_bad_minor_version else 4
 
     if op_type not in (common.OpType.MOVE, common.OpType.SOURCE_COPY):
       if not fail_mismatched_data_offset_length:
@@ -889,6 +868,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
           op.data_sha256_hash = hashlib.sha256(fake_data).digest()
           payload.ReadDataBlob(op.data_offset, op.data_length).AndReturn(
               fake_data)
+
       elif fail_data_hash:
         # Create an invalid data blob hash.
         op.data_sha256_hash = hashlib.sha256(
@@ -909,7 +889,9 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if total_src_blocks:
       if fail_src_length:
         op.src_length = total_src_blocks * block_size + 8
-      else:
+      elif (op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
+                        common.OpType.SOURCE_BSDIFF) and
+            payload_checker.minor_version <= 3):
         op.src_length = total_src_blocks * block_size
     elif fail_src_length:
       # Add an orphaned src_length.
@@ -918,7 +900,9 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if total_dst_blocks:
       if fail_dst_length:
         op.dst_length = total_dst_blocks * block_size + 8
-      else:
+      elif (op_type in (common.OpType.MOVE, common.OpType.BSDIFF,
+                        common.OpType.SOURCE_BSDIFF) and
+            payload_checker.minor_version <= 3):
         op.dst_length = total_dst_blocks * block_size
 
     self.mox.ReplayAll()
@@ -931,8 +915,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
             old_part_size, new_part_size, prev_data_offset, allow_signature,
             blob_hash_counts)
     if should_fail:
-      self.assertRaises(update_payload.PayloadError,
-                        payload_checker._CheckOperation, *args)
+      self.assertRaises(PayloadError, payload_checker._CheckOperation, *args)
     else:
       self.assertEqual(op.data_length if op.HasField('data_length') else 0,
                        payload_checker._CheckOperation(*args))
@@ -954,6 +937,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     self.assertEqual(17, len(result))
 
   def DoCheckOperationsTest(self, fail_nonexhaustive_full_update):
+    """Tests _CheckOperations()."""
     # Generate a test payload. For this test, we only care about one
     # (arbitrary) set of operations, so we'll only be generating kernel and
     # test with them.
@@ -982,11 +966,10 @@ class PayloadCheckerTest(mox.MoxTestBase):
     payload_checker.payload_type = checker._TYPE_FULL
     report = checker._PayloadReport()
 
-    args = (payload_checker.payload.manifest.install_operations, report,
-            'foo', 0, rootfs_part_size, rootfs_part_size, 0, False)
+    args = (payload_checker.payload.manifest.install_operations, report, 'foo',
+            0, rootfs_part_size, rootfs_part_size, rootfs_part_size, 0, False)
     if fail_nonexhaustive_full_update:
-      self.assertRaises(update_payload.PayloadError,
-                        payload_checker._CheckOperations, *args)
+      self.assertRaises(PayloadError, payload_checker._CheckOperations, *args)
     else:
       self.assertEqual(rootfs_data_length,
                        payload_checker._CheckOperations(*args))
@@ -994,6 +977,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
   def DoCheckSignaturesTest(self, fail_empty_sigs_blob, fail_missing_pseudo_op,
                             fail_mismatched_pseudo_op, fail_sig_missing_fields,
                             fail_unknown_sig_version, fail_incorrect_sig):
+    """Tests _CheckSignatures()."""
     # Generate a test payload. For this test, we only care about the signature
     # block and how it relates to the payload hash. Therefore, we're generating
     # a random (otherwise useless) payload for this purpose.
@@ -1058,8 +1042,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
                    fail_unknown_sig_version or fail_incorrect_sig)
     args = (report, test_utils._PUBKEY_FILE_NAME)
     if should_fail:
-      self.assertRaises(update_payload.PayloadError,
-                        payload_checker._CheckSignatures, *args)
+      self.assertRaises(PayloadError, payload_checker._CheckSignatures, *args)
     else:
       self.assertIsNone(payload_checker._CheckSignatures(*args))
 
@@ -1088,7 +1071,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if should_succeed:
       self.assertIsNone(payload_checker._CheckManifestMinorVersion(*args))
     else:
-      self.assertRaises(update_payload.PayloadError,
+      self.assertRaises(PayloadError,
                         payload_checker._CheckManifestMinorVersion, *args)
 
   def DoRunTest(self, rootfs_part_size_provided, kernel_part_size_provided,
@@ -1096,6 +1079,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
                 fail_mismatched_block_size, fail_excess_data,
                 fail_rootfs_part_size_exceeded,
                 fail_kernel_part_size_exceeded):
+    """Tests Run()."""
     # Generate a test payload. For this test, we generate a full update that
     # has sample kernel and rootfs operations. Since most testing is done with
     # internal PayloadChecker methods that are tested elsewhere, here we only
@@ -1153,7 +1137,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
             'assert_type': 'delta' if fail_wrong_payload_type else 'full',
             'block_size': use_block_size}}
     if fail_invalid_block_size:
-      self.assertRaises(update_payload.PayloadError, _GetPayloadChecker,
+      self.assertRaises(PayloadError, _GetPayloadChecker,
                         payload_gen.WriteToFileWithData, **kwargs)
     else:
       payload_checker = _GetPayloadChecker(payload_gen.WriteToFileWithData,
@@ -1167,8 +1151,7 @@ class PayloadCheckerTest(mox.MoxTestBase):
                      fail_rootfs_part_size_exceeded or
                      fail_kernel_part_size_exceeded)
       if should_fail:
-        self.assertRaises(update_payload.PayloadError, payload_checker.Run,
-                          **kwargs)
+        self.assertRaises(PayloadError, payload_checker.Run, **kwargs)
       else:
         self.assertIsNone(payload_checker.Run(**kwargs))
 
@@ -1275,7 +1258,8 @@ def AddAllParametricTests():
   AddParametricTests('CheckOperation',
                      {'op_type_name': ('REPLACE', 'REPLACE_BZ', 'MOVE',
                                        'BSDIFF', 'SOURCE_COPY',
-                                       'SOURCE_BSDIFF'),
+                                       'SOURCE_BSDIFF', 'PUFFDIFF',
+                                       'BROTLI_BSDIFF'),
                       'is_last': (True, False),
                       'allow_signature': (True, False),
                       'allow_unhashed': (True, False),

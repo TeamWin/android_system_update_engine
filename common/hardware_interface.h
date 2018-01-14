@@ -94,6 +94,15 @@ class HardwareInterface {
 
   // Returns the timestamp of the current OS build.
   virtual int64_t GetBuildTimestamp() const = 0;
+
+  // Returns whether the first active ping was sent to Omaha at some point, and
+  // that the value is persisted across recovery (and powerwash) once set with
+  // |SetFirstActiveOmahaPingSent()|.
+  virtual bool GetFirstActiveOmahaPingSent() const = 0;
+
+  // Persist the fact that first active ping was sent to omaha. It bails out if
+  // it fails.
+  virtual void SetFirstActiveOmahaPingSent() = 0;
 };
 
 }  // namespace chromeos_update_engine

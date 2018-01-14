@@ -123,6 +123,11 @@ bool EintrSafeFileDescriptor::BlkIoctl(int request,
 #endif  // defined(BLKZEROOUT)
 }
 
+bool EintrSafeFileDescriptor::Flush() {
+  CHECK_GE(fd_, 0);
+  return true;
+}
+
 bool EintrSafeFileDescriptor::Close() {
   CHECK_GE(fd_, 0);
   if (IGNORE_EINTR(close(fd_)))

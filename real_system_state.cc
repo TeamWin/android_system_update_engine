@@ -16,17 +16,17 @@
 
 #include "update_engine/real_system_state.h"
 
+#include <memory>
 #include <string>
 
 #include <base/bind.h>
 #include <base/files/file_util.h>
 #include <base/location.h>
 #include <base/time/time.h>
-#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/message_loop.h>
-#if USE_CHROME_KIOSK_APP || USE_CHROME_NETWORK_PROXY
+#if USE_CHROME_KIOSK_APP
 #include <chromeos/dbus/service_constants.h>
-#endif  // USE_CHROME_KIOSK_APP || USE_CHROME_NETWORK_PROXY
+#endif  // USE_CHROME_KIOSK_APP
 
 #include "update_engine/common/boot_control.h"
 #include "update_engine/common/boot_control_stub.h"
@@ -57,7 +57,7 @@ bool RealSystemState::Initialize() {
   if (!boot_control_) {
     LOG(WARNING) << "Unable to create BootControl instance, using stub "
                  << "instead. All update attempts will fail.";
-    boot_control_ = brillo::make_unique_ptr(new BootControlStub());
+    boot_control_ = std::make_unique<BootControlStub>();
   }
 
   hardware_ = hardware::CreateHardware();
@@ -70,12 +70,6 @@ bool RealSystemState::Initialize() {
   libcros_proxy_.reset(new org::chromium::LibCrosServiceInterfaceProxy(
       DBusConnection::Get()->GetDBus(), chromeos::kLibCrosServiceName));
 #endif  // USE_CHROME_KIOSK_APP
-#if USE_CHROME_NETWORK_PROXY
-  network_proxy_service_proxy_.reset(
-      new org::chromium::NetworkProxyServiceInterfaceProxy(
-          DBusConnection::Get()->GetDBus(),
-          chromeos::kNetworkProxyServiceName));
-#endif  // USE_CHROME_NETWORK_PROXY
 
   LOG_IF(INFO, !hardware_->IsNormalBootMode()) << "Booted in dev mode.";
   LOG_IF(INFO, !hardware_->IsOfficialBuild()) << "Booted non-official build.";
@@ -146,14 +140,8 @@ bool RealSystemState::Initialize() {
       new CertificateChecker(prefs_.get(), &openssl_wrapper_));
   certificate_checker_->Init();
 
-  update_attempter_.reset(
-      new UpdateAttempter(this,
-                          certificate_checker_.get(),
-#if USE_CHROME_NETWORK_PROXY
-                          network_proxy_service_proxy_.get()));
-#else
-                          nullptr));
-#endif  // USE_CHROME_NETWORK_PROXY
+  update_attempter_.reset(new UpdateAttempter(this,
+                                              certificate_checker_.get()));
 
   // Initialize the UpdateAttempter before the UpdateManager.
   update_attempter_->Init();

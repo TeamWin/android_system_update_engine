@@ -18,18 +18,19 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <base/bind.h>
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
+#include <base/memory/ptr_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 #include <brillo/bind_lambda.h>
-#include <brillo/make_unique_ptr.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
@@ -62,7 +63,7 @@ using testing::NiceMock;
 using testing::Return;
 using testing::ReturnPointee;
 using testing::SaveArg;
-using testing::SetArgumentPointee;
+using testing::SetArgPointee;
 using testing::_;
 
 namespace {
@@ -378,7 +379,7 @@ bool OmahaRequestActionTest::TestUpdateCheck(
     fake_system_state_.set_request_params(request_params);
   OmahaRequestAction action(&fake_system_state_,
                             nullptr,
-                            brillo::make_unique_ptr(fetcher),
+                            base::WrapUnique(fetcher),
                             ping_only);
   OmahaRequestActionTestProcessorDelegate delegate;
   delegate.expected_code_ = expected_code;
@@ -430,7 +431,7 @@ void TestEvent(OmahaRequestParams params,
   fake_system_state.set_request_params(&params);
   OmahaRequestAction action(&fake_system_state,
                             event,
-                            brillo::make_unique_ptr(fetcher),
+                            base::WrapUnique(fetcher),
                             false);
   OmahaRequestActionTestProcessorDelegate delegate;
   ActionProcessor processor;
@@ -734,8 +735,8 @@ TEST_F(OmahaRequestActionTest, ExtraHeadersSentTest) {
 
   MockHttpFetcher* fetcher =
       new MockHttpFetcher(http_response.data(), http_response.size(), nullptr);
-  OmahaRequestAction action(
-      &fake_system_state_, nullptr, brillo::make_unique_ptr(fetcher), false);
+  OmahaRequestAction action(&fake_system_state_, nullptr,
+                            base::WrapUnique(fetcher), false);
   ActionProcessor processor;
   processor.EnqueueAction(&action);
 
@@ -761,8 +762,8 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByConnection) {
 
   EXPECT_CALL(mock_cm, GetConnectionProperties(_, _))
       .WillRepeatedly(
-          DoAll(SetArgumentPointee<0>(ConnectionType::kEthernet),
-                SetArgumentPointee<1>(ConnectionTethering::kUnknown),
+          DoAll(SetArgPointee<0>(ConnectionType::kEthernet),
+                SetArgPointee<1>(ConnectionTethering::kUnknown),
                 Return(true)));
   EXPECT_CALL(mock_cm, IsUpdateAllowedOver(ConnectionType::kEthernet, _))
       .WillRepeatedly(Return(false));
@@ -1216,12 +1217,13 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
 
   OmahaRequestParams params = request_params_;
   fake_system_state_.set_request_params(&params);
-  OmahaRequestAction action(&fake_system_state_, nullptr,
-                            brillo::make_unique_ptr(
-                                new MockHttpFetcher(http_response.data(),
-                                                    http_response.size(),
-                                                    nullptr)),
-                            false);
+  OmahaRequestAction action(
+      &fake_system_state_,
+      nullptr,
+      std::make_unique<MockHttpFetcher>(http_response.data(),
+                                        http_response.size(),
+                                        nullptr),
+      false);
   OmahaRequestActionTestProcessorDelegate delegate;
   ActionProcessor processor;
   processor.set_delegate(&delegate);
@@ -1392,12 +1394,13 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
   loop.SetAsCurrent();
 
   string http_response("doesn't matter");
-  OmahaRequestAction action(&fake_system_state_, nullptr,
-                            brillo::make_unique_ptr(
-                                new MockHttpFetcher(http_response.data(),
-                                                    http_response.size(),
-                                                    nullptr)),
-                            false);
+  OmahaRequestAction action(
+      &fake_system_state_,
+      nullptr,
+      std::make_unique<MockHttpFetcher>(http_response.data(),
+                                        http_response.size(),
+                                        nullptr),
+      false);
   TerminateEarlyTestProcessorDelegate delegate;
   ActionProcessor processor;
   processor.set_delegate(&delegate);
@@ -1532,7 +1535,7 @@ TEST_F(OmahaRequestActionTest, FormatUpdateCheckOutputTest) {
   fake_system_state_.set_prefs(&prefs);
 
   EXPECT_CALL(prefs, GetString(kPrefsPreviousVersion, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(string("")), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(string("")), Return(true)));
   // An existing but empty previous version means that we didn't reboot to a new
   // update, therefore, no need to update the previous version.
   EXPECT_CALL(prefs, SetString(kPrefsPreviousVersion, _)).Times(0);
@@ -1608,10 +1611,9 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
   OmahaRequestAction update_check_action(
       &fake_system_state_,
       nullptr,
-      brillo::make_unique_ptr(
-          new MockHttpFetcher(http_response.data(),
-                              http_response.size(),
-                              nullptr)),
+      std::make_unique<MockHttpFetcher>(http_response.data(),
+                                        http_response.size(),
+                                        nullptr),
       false);
   EXPECT_FALSE(update_check_action.IsEvent());
 
@@ -1620,10 +1622,9 @@ TEST_F(OmahaRequestActionTest, IsEventTest) {
   OmahaRequestAction event_action(
       &fake_system_state_,
       new OmahaEvent(OmahaEvent::kTypeUpdateComplete),
-      brillo::make_unique_ptr(
-          new MockHttpFetcher(http_response.data(),
-                              http_response.size(),
-                              nullptr)),
+      std::make_unique<MockHttpFetcher>(http_response.data(),
+                                        http_response.size(),
+                                        nullptr),
       false);
   EXPECT_TRUE(event_action.IsEvent());
 }
@@ -1740,11 +1741,11 @@ void OmahaRequestActionTest::PingTest(bool ping_only) {
   int64_t six_days_ago =
       (Time::Now() - TimeDelta::FromHours(6 * 24 + 11)).ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(six_days_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(six_days_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(five_days_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(five_days_ago), Return(true)));
   brillo::Blob post_data;
   ASSERT_TRUE(TestUpdateCheck(nullptr,  // request_params
                               fake_update_response_.GetNoUpdateResponse(),
@@ -1786,11 +1787,11 @@ TEST_F(OmahaRequestActionTest, ActivePingTest) {
       (Time::Now() - TimeDelta::FromHours(3 * 24 + 12)).ToInternalValue();
   int64_t now = Time::Now().ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(three_days_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(three_days_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
   brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
@@ -1818,11 +1819,11 @@ TEST_F(OmahaRequestActionTest, RollCallPingTest) {
       (Time::Now() - TimeDelta::FromHours(4 * 24)).ToInternalValue();
   int64_t now = Time::Now().ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(four_days_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(four_days_ago), Return(true)));
   brillo::Blob post_data;
   ASSERT_TRUE(
       TestUpdateCheck(nullptr,  // request_params
@@ -1849,11 +1850,11 @@ TEST_F(OmahaRequestActionTest, NoPingTest) {
   int64_t one_hour_ago =
       (Time::Now() - TimeDelta::FromHours(1)).ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(one_hour_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(one_hour_ago), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(one_hour_ago), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(one_hour_ago), Return(true)));
   // LastActivePingDay and PrefsLastRollCallPingDay are set even if we didn't
   // send a ping.
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _))
@@ -1882,9 +1883,9 @@ TEST_F(OmahaRequestActionTest, IgnoreEmptyPingTest) {
   fake_system_state_.set_prefs(&prefs);
   int64_t now = Time::Now().ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(now), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(now), Return(true)));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _)).Times(0);
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _)).Times(0);
   brillo::Blob post_data;
@@ -1911,11 +1912,11 @@ TEST_F(OmahaRequestActionTest, BackInTimePingTest) {
   int64_t future =
       (Time::Now() + TimeDelta::FromHours(3 * 24 + 4)).ToInternalValue();
   EXPECT_CALL(prefs, GetInt64(kPrefsInstallDateDays, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(0), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(0), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastActivePingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(future), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(future), Return(true)));
   EXPECT_CALL(prefs, GetInt64(kPrefsLastRollCallPingDay, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(future), Return(true)));
+      .WillOnce(DoAll(SetArgPointee<1>(future), Return(true)));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastActivePingDay, _))
       .WillOnce(Return(true));
   EXPECT_CALL(prefs, SetInt64(kPrefsLastRollCallPingDay, _))
@@ -2261,6 +2262,35 @@ TEST_F(OmahaRequestActionTest, PingWhenPowerwashed) {
                       nullptr,
                       &post_data));
   // We shouldn't send a ping in this case since powerwash > 0.
+  string post_str(post_data.begin(), post_data.end());
+  EXPECT_EQ(string::npos, post_str.find("<ping"));
+}
+
+// Checks that the initial ping with a=-1 r=-1 is not send when the device
+// first_active_omaha_ping_sent is set.
+TEST_F(OmahaRequestActionTest, PingWhenFirstActiveOmahaPingIsSent) {
+  fake_prefs_.SetString(kPrefsPreviousVersion, "");
+
+  // Flag that the device was not powerwashed in the past.
+  fake_system_state_.fake_hardware()->SetPowerwashCount(0);
+
+  // Flag that the device has sent first active ping in the past.
+  fake_system_state_.fake_hardware()->SetFirstActiveOmahaPingSent();
+
+  brillo::Blob post_data;
+  ASSERT_TRUE(
+      TestUpdateCheck(nullptr,  // request_params
+                      fake_update_response_.GetNoUpdateResponse(),
+                      -1,
+                      false,  // ping_only
+                      ErrorCode::kSuccess,
+                      metrics::CheckResult::kNoUpdateAvailable,
+                      metrics::CheckReaction::kUnset,
+                      metrics::DownloadErrorCode::kUnset,
+                      nullptr,
+                      &post_data));
+  // We shouldn't send a ping in this case since
+  // first_active_omaha_ping_sent=true
   string post_str(post_data.begin(), post_data.end());
   EXPECT_EQ(string::npos, post_str.find("<ping"));
 }
