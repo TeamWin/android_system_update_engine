@@ -74,6 +74,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kDownloadPayloadVerificationError:
     case ErrorCode::kSignedDeltaPayloadExpectedError:
     case ErrorCode::kDownloadPayloadPubKeyVerificationError:
+    case ErrorCode::kPayloadTimestampError:
       return metrics::AttemptResult::kPayloadVerificationFailed;
 
     case ErrorCode::kNewRootfsVerificationError:
@@ -209,6 +210,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kOmahaRequestXMLHasEntityDecl:
     case ErrorCode::kFilesystemVerifierError:
     case ErrorCode::kUserCanceled:
+    case ErrorCode::kPayloadTimestampError:
       break;
 
     // Special flags. These can't happen (we mask them out above) but

@@ -143,6 +143,10 @@ if [[ "${COMMAND}" == "generate" ]]; then
     "Optional: Path to a source image. If specified, this makes a delta update."
   DEFINE_string metadata_size_file "" \
     "Optional: Path to output metadata size."
+  DEFINE_string max_timestamp "" \
+    "Optional: The maximum unix timestamp of the OS allowed to apply this \
+payload, should be set to a number higher than the build timestamp of the \
+system running on the device, 0 if not specified."
 fi
 if [[ "${COMMAND}" == "hash" || "${COMMAND}" == "sign" ]]; then
   DEFINE_string unsigned_payload "" "Path to the input unsigned payload."
@@ -546,6 +550,10 @@ cmd_generate() {
 
   if [[ -n "${FLAGS_metadata_size_file}" ]]; then
     GENERATOR_ARGS+=( --out_metadata_size_file="${FLAGS_metadata_size_file}" )
+  fi
+
+  if [[ -n "${FLAGS_max_timestamp}" ]]; then
+    GENERATOR_ARGS+=( --max_timestamp="${FLAGS_max_timestamp}" )
   fi
 
   if [[ -n "${POSTINSTALL_CONFIG_FILE}" ]]; then

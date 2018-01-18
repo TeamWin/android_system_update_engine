@@ -54,6 +54,7 @@ const char kPropBootBaseband[] = "ro.boot.baseband";
 const char kPropProductManufacturer[] = "ro.product.manufacturer";
 const char kPropBootHardwareSKU[] = "ro.boot.hardware.sku";
 const char kPropBootRevision[] = "ro.boot.revision";
+const char kPropBuildDateUTC[] = "ro.build.date.utc";
 
 // Write a recovery command line |message| to the BCB. The arguments to recovery
 // must be separated by '\n'. An empty string will erase the BCB.
@@ -198,6 +199,10 @@ bool HardwareAndroid::GetNonVolatileDirectory(base::FilePath* path) const {
 bool HardwareAndroid::GetPowerwashSafeDirectory(base::FilePath* path) const {
   // On Android, we don't have a directory persisted across powerwash.
   return false;
+}
+
+int64_t HardwareAndroid::GetBuildTimestamp() const {
+  return property_get_int64(kPropBuildDateUTC, 0);
 }
 
 }  // namespace chromeos_update_engine
