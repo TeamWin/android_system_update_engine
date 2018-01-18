@@ -17,6 +17,8 @@
 #ifndef UPDATE_ENGINE_COMMON_HARDWARE_INTERFACE_H_
 #define UPDATE_ENGINE_COMMON_HARDWARE_INTERFACE_H_
 
+#include <stdint.h>
+
 #include <string>
 #include <vector>
 
@@ -89,6 +91,9 @@ class HardwareInterface {
   // powerwash cycles. In case of an error, such as no directory available,
   // returns false.
   virtual bool GetPowerwashSafeDirectory(base::FilePath* path) const = 0;
+
+  // Returns the timestamp of the current OS build.
+  virtual int64_t GetBuildTimestamp() const = 0;
 };
 
 }  // namespace chromeos_update_engine
