@@ -410,8 +410,10 @@ void LogPartitionInfoHash(const PartitionInfo& info, const string& tag) {
 
 void LogPartitionInfo(const vector<PartitionUpdate>& partitions) {
   for (const PartitionUpdate& partition : partitions) {
-    LogPartitionInfoHash(partition.old_partition_info(),
-                         "old " + partition.partition_name());
+    if (partition.has_old_partition_info()) {
+      LogPartitionInfoHash(partition.old_partition_info(),
+                           "old " + partition.partition_name());
+    }
     LogPartitionInfoHash(partition.new_partition_info(),
                          "new " + partition.partition_name());
   }
