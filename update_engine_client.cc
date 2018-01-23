@@ -79,7 +79,7 @@ class UpdateEngineClient : public brillo::Daemon {
 
     // We can't call QuitWithExitCode from OnInit(), so we delay the execution
     // of the ProcessFlags method after the Daemon initialization is done.
-    base::MessageLoop::current()->PostTask(
+    base::MessageLoop::current()->task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&UpdateEngineClient::ProcessFlagsAndExit,
                    base::Unretained(this)));
