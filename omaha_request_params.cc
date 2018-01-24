@@ -192,7 +192,7 @@ string OmahaRequestParams::GetMachineType() const {
 }
 
 bool OmahaRequestParams::IsValidChannel(const string& channel) const {
-  return GetChannelIndex(channel) >= 0;
+  return image_props_.allow_arbitrary_channels || GetChannelIndex(channel) >= 0;
 }
 
 void OmahaRequestParams::set_root(const string& root) {

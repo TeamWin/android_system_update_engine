@@ -201,6 +201,7 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
       !system_state->prefs()->GetString(current_channel_key, &current_channel))
     current_channel = GetTargetChannel();
   result.current_channel = current_channel;
+  result.allow_arbitrary_channels = true;
 
   // Brillo only supports the official omaha URL.
   result.omaha_url = constants::kOmahaDefaultProductionURL;
