@@ -19,8 +19,7 @@
 #include <vector>
 
 #include <base/logging.h>
-
-#include "update_engine/common/utils.h"
+#include <base/stl_util.h>
 
 using std::min;
 using std::vector;
@@ -59,7 +58,7 @@ void TarjanAlgorithm::Tarjan(Vertex::Index vertex, Graph* graph) {
       Tarjan(vertex_next, graph);
       (*graph)[vertex].lowlink = min((*graph)[vertex].lowlink,
                                      (*graph)[vertex_next].lowlink);
-    } else if (utils::VectorContainsValue(stack_, vertex_next)) {
+    } else if (base::ContainsValue(stack_, vertex_next)) {
       (*graph)[vertex].lowlink = min((*graph)[vertex].lowlink,
                                      (*graph)[vertex_next].index);
     }
@@ -73,7 +72,7 @@ void TarjanAlgorithm::Tarjan(Vertex::Index vertex, Graph* graph) {
       component.push_back(other_vertex);
     } while (other_vertex != vertex && !stack_.empty());
 
-    if (utils::VectorContainsValue(component, required_vertex_)) {
+    if (base::ContainsValue(component, required_vertex_)) {
       components_.resize(components_.size() + 1);
       component.swap(components_.back());
     }
