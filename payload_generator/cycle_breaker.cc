@@ -18,6 +18,7 @@
 
 #include <inttypes.h>
 
+#include <limits>
 #include <set>
 #include <string>
 #include <utility>
