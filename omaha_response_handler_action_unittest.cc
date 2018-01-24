@@ -334,7 +334,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
 
   OmahaRequestParams params(&fake_system_state_);
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
-  params.set_root(tempdir.path().value());
+  params.set_root(tempdir.GetPath().value());
   params.set_current_channel("canary-channel");
   // The ImageProperties in Android uses prefs to store MutableImageProperties.
 #ifdef __ANDROID__
@@ -369,7 +369,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
 
   OmahaRequestParams params(&fake_system_state_);
   fake_system_state_.fake_hardware()->SetIsOfficialBuild(false);
-  params.set_root(tempdir.path().value());
+  params.set_root(tempdir.GetPath().value());
   params.set_current_channel("stable-channel");
   // The ImageProperties in Android uses prefs to store MutableImageProperties.
 #ifdef __ANDROID__

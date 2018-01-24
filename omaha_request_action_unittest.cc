@@ -2061,7 +2061,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
 
   brillo::Blob post_data;
   OmahaRequestParams params(&fake_system_state_);
-  params.set_root(tempdir.path().value());
+  params.set_root(tempdir.GetPath().value());
   params.set_app_id("{22222222-2222-2222-2222-222222222222}");
   params.set_app_version("1.2.3.4");
   params.set_current_channel("canary-channel");
@@ -2094,7 +2094,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
 
   brillo::Blob post_data;
   OmahaRequestParams params(&fake_system_state_);
-  params.set_root(tempdir.path().value());
+  params.set_root(tempdir.GetPath().value());
   params.set_app_id("{11111111-1111-1111-1111-111111111111}");
   params.set_app_version("5.6.7.8");
   params.set_current_channel("stable-channel");
