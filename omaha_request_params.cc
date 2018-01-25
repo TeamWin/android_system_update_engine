@@ -150,16 +150,7 @@ bool OmahaRequestParams::SetTargetChannel(const string& new_target_channel,
             << ", existing target channel = "
             << mutable_image_props_.target_channel
             << ", download channel = " << download_channel_;
-  if (!IsValidChannel(new_target_channel)) {
-    string valid_channels = brillo::string_utils::JoinRange(
-        ", ",
-        std::begin(kChannelsByStability),
-        std::end(kChannelsByStability));
-    if (error_message) {
-      *error_message = base::StringPrintf(
-          "Invalid channel name \"%s\", valid names are: %s",
-          new_target_channel.c_str(), valid_channels.c_str());
-    }
+  if (!IsValidChannel(new_target_channel, error_message)) {
     return false;
   }
 
@@ -191,8 +182,31 @@ string OmahaRequestParams::GetMachineType() const {
   return ret;
 }
 
-bool OmahaRequestParams::IsValidChannel(const string& channel) const {
-  return image_props_.allow_arbitrary_channels || GetChannelIndex(channel) >= 0;
+bool OmahaRequestParams::IsValidChannel(const string& channel,
+                                        string* error_message) const {
+  if (image_props_.allow_arbitrary_channels) {
+    if (!base::EndsWith(channel, "-channel", base::CompareCase::SENSITIVE)) {
+      if (error_message) {
+        *error_message = base::StringPrintf(
+            "Invalid channel name \"%s\", must ends with -channel.",
+            channel.c_str());
+      }
+      return false;
+    }
+    return true;
+  }
+  if (GetChannelIndex(channel) < 0) {
+    string valid_channels = brillo::string_utils::JoinRange(
+        ", ", std::begin(kChannelsByStability), std::end(kChannelsByStability));
+    if (error_message) {
+      *error_message =
+          base::StringPrintf("Invalid channel name \"%s\", valid names are: %s",
+                             channel.c_str(),
+                             valid_channels.c_str());
+    }
+    return false;
+  }
+  return true;
 }
 
 void OmahaRequestParams::set_root(const string& root) {
@@ -211,6 +225,11 @@ int OmahaRequestParams::GetChannelIndex(const string& channel) const {
 bool OmahaRequestParams::to_more_stable_channel() const {
   int current_channel_index = GetChannelIndex(image_props_.current_channel);
   int download_channel_index = GetChannelIndex(download_channel_);
+
+  // If any of the two channels are arbitrary channels, stability is unknown, so
+  // always powerwash if allowed.
+  if (current_channel_index < 0 || download_channel_index < 0)
+    return true;
 
   return download_channel_index > current_channel_index;
 }
