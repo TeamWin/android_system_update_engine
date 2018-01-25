@@ -93,7 +93,7 @@ apply_delta_payload() {
 
   time ${paycheck} ${payload_file} \
     --dst_kern ${dst_kern_part} --dst_root ${dst_root_part} \
-    --src_kern ${src_kern_part} --dst_kern ${src_root_part}
+    --src_kern ${src_kern_part} --src_root ${src_root_part}
 }
 
 main() {
