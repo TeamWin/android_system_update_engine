@@ -14,15 +14,19 @@
 // limitations under the License.
 //
 
+#include <inttypes.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <xz.h>
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
 #include <base/at_exit.h>
 #include <base/command_line.h>
+#include <base/files/dir_reader_posix.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
@@ -38,7 +42,65 @@ using std::string;
 namespace chromeos_update_engine {
 namespace {
 
-#ifndef __ANDROID__
+string GetTimeAsString(time_t utime) {
+  struct tm tm;
+  CHECK_EQ(localtime_r(&utime, &tm), &tm);
+  char str[16];
+  CHECK_EQ(strftime(str, sizeof(str), "%Y%m%d-%H%M%S", &tm), 15u);
+  return str;
+}
+
+#ifdef __ANDROID__
+constexpr char kSystemLogsRoot[] = "/data/misc/update_engine_log";
+constexpr size_t kLogCount = 5;
+
+// Keep the most recent |kLogCount| logs but remove the old ones in
+// "/data/misc/update_engine_log/".
+void DeleteOldLogs(const string& kLogsRoot) {
+  base::DirReaderPosix reader(kLogsRoot.c_str());
+  if (!reader.IsValid()) {
+    LOG(ERROR) << "Failed to read " << kLogsRoot;
+    return;
+  }
+
+  std::vector<string> old_logs;
+  while (reader.Next()) {
+    if (reader.name()[0] == '.')
+      continue;
+
+    // Log files are in format "update_engine.%Y%m%d-%H%M%S",
+    // e.g. update_engine.20090103-231425
+    uint64_t date;
+    uint64_t local_time;
+    if (sscanf(reader.name(),
+               "update_engine.%" PRIu64 "-%" PRIu64 "",
+               &date,
+               &local_time) == 2) {
+      old_logs.push_back(reader.name());
+    } else {
+      LOG(WARNING) << "Unrecognized log file " << reader.name();
+    }
+  }
+
+  std::sort(old_logs.begin(), old_logs.end(), std::greater<string>());
+  for (size_t i = kLogCount; i < old_logs.size(); i++) {
+    string log_path = kLogsRoot + "/" + old_logs[i];
+    if (unlink(log_path.c_str()) == -1) {
+      PLOG(WARNING) << "Failed to unlink " << log_path;
+    }
+  }
+}
+
+string SetupLogFile(const string& kLogsRoot) {
+  DeleteOldLogs(kLogsRoot);
+
+  return base::StringPrintf("%s/update_engine.%s",
+                            kLogsRoot.c_str(),
+                            GetTimeAsString(::time(nullptr)).c_str());
+}
+#else
+constexpr char kSystemLogsRoot[] = "/var/log";
+
 void SetupLogSymlink(const string& symlink_path, const string& log_path) {
   // TODO(petkov): To ensure a smooth transition between non-timestamped and
   // timestamped logs, move an existing log to start the first timestamped
@@ -55,14 +117,6 @@ void SetupLogSymlink(const string& symlink_path, const string& log_path) {
     PLOG(ERROR) << "Unable to create symlink " << symlink_path
                 << " pointing at " << log_path;
   }
-}
-
-string GetTimeAsString(time_t utime) {
-  struct tm tm;
-  CHECK_EQ(localtime_r(&utime, &tm), &tm);
-  char str[16];
-  CHECK_EQ(strftime(str, sizeof(str), "%Y%m%d-%H%M%S", &tm), 15u);
-  return str;
 }
 
 string SetupLogFile(const string& kLogsRoot) {
@@ -88,13 +142,8 @@ void SetupLogging(bool log_to_system, bool log_to_file) {
 
   string log_file;
   if (log_to_file) {
-#ifdef __ANDROID__
-    log_file = "/data/misc/update_engine_log/update_engine.log";
-    log_settings.delete_old = logging::DELETE_OLD_LOG_FILE;
-#else
-    log_file = SetupLogFile("/var/log");
+    log_file = SetupLogFile(kSystemLogsRoot);
     log_settings.delete_old = logging::APPEND_TO_OLD_LOG_FILE;
-#endif  // __ANDROID__
     log_settings.log_file = log_file.c_str();
   }
   logging::InitLogging(log_settings);
