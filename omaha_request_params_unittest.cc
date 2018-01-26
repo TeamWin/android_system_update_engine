@@ -145,6 +145,7 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
     params.set_root(tempdir_.GetPath().value());
     SetLockDown(true);
     EXPECT_TRUE(params.Init("", "", false));
+    params.image_props_.allow_arbitrary_channels = false;
     string error_message;
     EXPECT_FALSE(
         params.SetTargetChannel("dogfood-channel", true, &error_message));
@@ -167,6 +168,8 @@ TEST_F(OmahaRequestParamsTest, IsValidChannelTest) {
   EXPECT_FALSE(params_.IsValidChannel("dogfood-channel"));
   EXPECT_FALSE(params_.IsValidChannel("some-channel"));
   EXPECT_FALSE(params_.IsValidChannel(""));
+  params_.image_props_.allow_arbitrary_channels = true;
+  EXPECT_TRUE(params_.IsValidChannel("some-channel"));
 }
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
