@@ -58,6 +58,10 @@ struct ImageProperties {
   // The release channel this image was obtained from.
   std::string current_channel;
 
+  // Whether we allow arbitrary channels instead of just the ones listed in
+  // kChannelsByStability.
+  bool allow_arbitrary_channels = false;
+
   // The Omaha URL this image should get updates from.
   std::string omaha_url;
 };

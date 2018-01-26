@@ -118,6 +118,7 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
                            constants::kOmahaDefaultProductionURL);
   // Build fingerprint not used in Chrome OS.
   result.build_fingerprint = "";
+  result.allow_arbitrary_channels = false;
 
   return result;
 }
