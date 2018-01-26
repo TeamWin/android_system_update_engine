@@ -21,9 +21,6 @@
 #   payload type. Another artifact is a human-readable payload report, which
 #   is output to stdout to be inspected by the user.
 #
-# - It performs a random block trace on the delta payload (both kernel and
-#   rootfs blocks), dumping the traces to stdout for the user to inspect.
-#
 # - It applies old_full_payload to yield old kernel (old_kern.part) and rootfs
 #   (old_root.part) partitions.
 #
@@ -37,11 +34,9 @@
 #   ensure that they are binary identical.
 #
 # If all steps have completed successfully we know with high certainty that
-# paycheck.py (and hence update_payload.py) correctly parses both full and
-# delta payloads, and applies them to yield the expected result. We also know
-# that tracing works, to the extent it does not crash. Manual inspection of
-# payload reports and block traces will improve this our confidence and are
-# strongly encouraged. Finally, each paycheck.py execution is timed.
+# paycheck.py (and hence update_payload.py) correctly parses both full and delta
+# payloads, and applies them to yield the expected result. Finally, each
+# paycheck.py execution is timed.
 
 
 # Stop on errors, unset variables.
@@ -78,18 +73,6 @@ check_payload() {
   payload_type=$2
 
   time ${paycheck} -t ${payload_type} ${payload_file}
-}
-
-trace_kern_block() {
-  payload_file=$1
-  block=$2
-  time ${paycheck} -B ${block} ${payload_file}
-}
-
-trace_root_block() {
-  payload_file=$1
-  block=$2
-  time ${paycheck} -b ${block} ${payload_file}
 }
 
 apply_full_payload() {
@@ -135,15 +118,6 @@ main() {
   check_payload "${old_full_payload}" full
   check_payload "${new_full_payload}" full
   check_payload "${delta_payload}" delta
-  log "Done"
-
-  # Trace a random block between 0-1024 on all payloads.
-  block=$((RANDOM * 1024 / 32767))
-  log "Tracing a random block (${block}) in full/delta payloads..."
-  trace_kern_block "${new_full_payload}" ${block}
-  trace_root_block "${new_full_payload}" ${block}
-  trace_kern_block "${delta_payload}" ${block}
-  trace_root_block "${delta_payload}" ${block}
   log "Done"
 
   # Apply full/delta payloads and verify results are identical.

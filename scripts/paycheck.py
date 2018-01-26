@@ -100,23 +100,10 @@ def ParseArguments(argv):
   apply_args.add_argument('--src_root', metavar='FILE',
                           help='source root partition file')
 
-  trace_args = parser.add_argument_group('Block tracing')
-  trace_args.add_argument('-b', '--root-block', metavar='BLOCK', type=int,
-                          help='trace the origin for a rootfs block')
-  trace_args.add_argument('-B', '--kern-block', metavar='BLOCK', type=int,
-                          help='trace the origin for a kernel block')
-  trace_args.add_argument('-s', '--skip', metavar='NUM', default='0', type=int,
-                          help='skip first NUM occurrences of traced block')
-
   parser.add_argument('payload', metavar='PAYLOAD', help='the payload file')
 
   # Parse command-line arguments.
   args = parser.parse_args(argv)
-
-  # Ensure consistent use of block tracing options.
-  do_block_trace = not (args.root_block is None and args.kern_block is None)
-  if args.skip and not do_block_trace:
-    parser.error('--skip must be used with either --root-block or --kern-block')
 
   # There are several options that imply --check.
   args.check = (args.check or args.report or args.assert_type or
@@ -144,10 +131,7 @@ def ParseArguments(argv):
       else:
         args.assert_type = _TYPE_FULL
   else:
-    # Not applying payload; if block tracing not requested either, do an
-    # integrity check.
-    if not do_block_trace:
-      args.check = True
+    # Not applying payload.
     if args.extract_bsdiff:
       parser.error('--extract-bsdiff can only be used when applying payloads')
     if args.bspatch_path:
@@ -208,12 +192,6 @@ def main(argv):
             metadata_sig_file.close()
           if do_close_report_file:
             report_file.close()
-
-      # Trace blocks.
-      if args.root_block is not None:
-        payload.TraceBlock(args.root_block, args.skip, sys.stdout, False)
-      if args.kern_block is not None:
-        payload.TraceBlock(args.kern_block, args.skip, sys.stdout, True)
 
       # Apply payload.
       if args.dst_root or args.dst_kern:
