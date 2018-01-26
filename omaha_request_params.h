@@ -253,10 +253,11 @@ class OmahaRequestParams {
   }
 
  private:
-  FRIEND_TEST(OmahaRequestParamsTest, IsValidChannelTest);
   FRIEND_TEST(OmahaRequestParamsTest, ChannelIndexTest);
-  FRIEND_TEST(OmahaRequestParamsTest, ToMoreStableChannelFlagTest);
   FRIEND_TEST(OmahaRequestParamsTest, CollectECFWVersionsTest);
+  FRIEND_TEST(OmahaRequestParamsTest, IsValidChannelTest);
+  FRIEND_TEST(OmahaRequestParamsTest, SetTargetChannelInvalidTest);
+  FRIEND_TEST(OmahaRequestParamsTest, ToMoreStableChannelFlagTest);
 
   // Returns true if |channel| is a valid channel, false otherwise.
   bool IsValidChannel(const std::string& channel) const;
