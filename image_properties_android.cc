@@ -16,10 +16,13 @@
 
 #include "update_engine/image_properties.h"
 
+#include <fcntl.h>
+
 #include <string>
 
 #include <android-base/properties.h>
 #include <base/logging.h>
+#include <bootloader.h>
 #include <brillo/osrelease_reader.h>
 #include <brillo/strings/string_utils.h>
 
@@ -29,6 +32,7 @@
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/system_state.h"
+#include "update_engine/utils_android.h"
 
 using android::base::GetProperty;
 using std::string;
@@ -47,14 +51,16 @@ const char kSystemVersion[] = "system_version";
 // components in OEM partition.
 const char kProductComponentsPath[] = "/oem/os-release.d/product_components";
 
-// Prefs used to store the target channel and powerwash settings.
-const char kPrefsImgPropChannelName[] = "img-prop-channel-name";
+// Prefs used to store the powerwash settings.
 const char kPrefsImgPropPowerwashAllowed[] = "img-prop-powerwash-allowed";
 
 // System properties that identifies the "board".
 const char kPropProductName[] = "ro.product.name";
 const char kPropBuildFingerprint[] = "ro.build.fingerprint";
 const char kPropBuildType[] = "ro.build.type";
+
+// Default channel from factory.prop
+const char kPropDefaultChannel[] = "ro.update.default_channel";
 
 // A prefix added to the path, used for testing.
 const char* root_prefix = nullptr;
@@ -70,6 +76,81 @@ string GetStringWithDefault(const brillo::OsReleaseReader& osrelease,
   return default_value;
 }
 
+// Open misc partition for read or write and output the fd in |out_fd|.
+bool OpenMisc(bool write, int* out_fd) {
+  base::FilePath misc_device;
+  int flags = write ? O_WRONLY | O_SYNC : O_RDONLY;
+  if (root_prefix) {
+    // Use a file for unittest and create one if doesn't exist.
+    misc_device = base::FilePath(root_prefix).Append("misc");
+    if (write)
+      flags |= O_CREAT;
+  } else if (!utils::DeviceForMountPoint("/misc", &misc_device)) {
+    return false;
+  }
+
+  int fd = HANDLE_EINTR(open(misc_device.value().c_str(), flags, 0600));
+  if (fd < 0) {
+    PLOG(ERROR) << "Opening misc failed";
+    return false;
+  }
+  *out_fd = fd;
+  return true;
+}
+
+// The offset and size of the channel field in misc partition.
+constexpr size_t kChannelOffset =
+    BOOTLOADER_MESSAGE_OFFSET_IN_MISC +
+    offsetof(bootloader_message_ab, update_channel);
+constexpr size_t kChannelSize = sizeof(bootloader_message_ab::update_channel);
+
+// Read channel from misc partition to |out_channel|, return false if unable to
+// read misc or no channel is set in misc.
+bool ReadChannelFromMisc(string* out_channel) {
+  int fd;
+  TEST_AND_RETURN_FALSE(OpenMisc(false, &fd));
+  ScopedFdCloser fd_closer(&fd);
+  char channel[kChannelSize] = {0};
+  ssize_t bytes_read = 0;
+  if (!utils::PReadAll(
+          fd, channel, kChannelSize - 1, kChannelOffset, &bytes_read) ||
+      bytes_read != kChannelSize - 1) {
+    PLOG(ERROR) << "Reading update channel from misc failed";
+    return false;
+  }
+  if (channel[0] == '\0') {
+    LOG(INFO) << "No channel set in misc.";
+    return false;
+  }
+  out_channel->assign(channel);
+  return true;
+}
+
+// Write |in_channel| to misc partition, return false if failed to write.
+bool WriteChannelToMisc(const string& in_channel) {
+  int fd;
+  TEST_AND_RETURN_FALSE(OpenMisc(true, &fd));
+  ScopedFdCloser fd_closer(&fd);
+  if (in_channel.size() >= kChannelSize) {
+    LOG(ERROR) << "Channel name is too long: " << in_channel
+               << ", the maximum length is " << kChannelSize - 1;
+    return false;
+  }
+  char channel[kChannelSize] = {0};
+  memcpy(channel, in_channel.data(), in_channel.size());
+  if (!utils::PWriteAll(fd, channel, kChannelSize, kChannelOffset)) {
+    PLOG(ERROR) << "Writing update channel to misc failed";
+    return false;
+  }
+  return true;
+}
+
+string GetTargetChannel() {
+  string channel;
+  if (!ReadChannelFromMisc(&channel))
+    channel = GetProperty(kPropDefaultChannel, "stable-channel");
+  return channel;
+}
 }  // namespace
 
 namespace test {
@@ -109,17 +190,16 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
   result.build_fingerprint = GetProperty(kPropBuildFingerprint, "none");
   result.build_type = GetProperty(kPropBuildType, "");
 
-  // Brillo images don't have a channel assigned. We stored the name of the
-  // channel where we got the image from in prefs at the time of the update, so
-  // we use that as the current channel if available. During provisioning, there
-  // is no value assigned, so we default to the "stable-channel".
+  // Android doesn't have channel information in system image, we try to read
+  // the channel of current slot from prefs and then fallback to use the
+  // persisted target channel as current channel.
   string current_channel_key =
       kPrefsChannelOnSlotPrefix +
       std::to_string(system_state->boot_control()->GetCurrentSlot());
   string current_channel;
   if (!system_state->prefs()->Exists(current_channel_key) ||
       !system_state->prefs()->GetString(current_channel_key, &current_channel))
-    current_channel = "stable-channel";
+    current_channel = GetTargetChannel();
   result.current_channel = current_channel;
 
   // Brillo only supports the official omaha URL.
@@ -130,11 +210,9 @@ ImageProperties LoadImageProperties(SystemState* system_state) {
 
 MutableImageProperties LoadMutableImageProperties(SystemState* system_state) {
   MutableImageProperties result;
-  PrefsInterface* const prefs = system_state->prefs();
-  if (!prefs->GetString(kPrefsImgPropChannelName, &result.target_channel))
-    result.target_channel.clear();
-  if (!prefs->GetBoolean(kPrefsImgPropPowerwashAllowed,
-                         &result.is_powerwash_allowed)) {
+  result.target_channel = GetTargetChannel();
+  if (!system_state->prefs()->GetBoolean(kPrefsImgPropPowerwashAllowed,
+                                         &result.is_powerwash_allowed)) {
     result.is_powerwash_allowed = false;
   }
   return result;
@@ -142,11 +220,13 @@ MutableImageProperties LoadMutableImageProperties(SystemState* system_state) {
 
 bool StoreMutableImageProperties(SystemState* system_state,
                                  const MutableImageProperties& properties) {
-  PrefsInterface* const prefs = system_state->prefs();
-  return (
-      prefs->SetString(kPrefsImgPropChannelName, properties.target_channel) &&
-      prefs->SetBoolean(kPrefsImgPropPowerwashAllowed,
-                        properties.is_powerwash_allowed));
+  bool ret = true;
+  if (!WriteChannelToMisc(properties.target_channel))
+    ret = false;
+  if (!system_state->prefs()->SetBoolean(kPrefsImgPropPowerwashAllowed,
+                                         properties.is_powerwash_allowed))
+    ret = false;
+  return ret;
 }
 
 void LogImageProperties() {
