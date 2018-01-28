@@ -388,8 +388,6 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
   params.set_current_channel("canary-channel");
   // The ImageProperties in Android uses prefs to store MutableImageProperties.
 #ifdef __ANDROID__
-  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetString(_, "stable-channel"))
-      .WillOnce(Return(true));
   EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, true))
       .WillOnce(Return(true));
 #endif  // __ANDROID__
@@ -423,8 +421,6 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
   params.set_current_channel("stable-channel");
   // The ImageProperties in Android uses prefs to store MutableImageProperties.
 #ifdef __ANDROID__
-  EXPECT_CALL(*fake_system_state_.mock_prefs(), SetString(_, "canary-channel"))
-      .WillOnce(Return(true));
   EXPECT_CALL(*fake_system_state_.mock_prefs(), SetBoolean(_, false))
       .WillOnce(Return(true));
 #endif  // __ANDROID__
