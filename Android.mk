@@ -772,7 +772,6 @@ define ue-unittest-keys
     $(eval include $(CLEAR_VARS)) \
     $(eval LOCAL_MODULE := ue_$(1).pem) \
     $(eval LOCAL_MODULE_CLASS := ETC) \
-    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
     $(eval LOCAL_SRC_FILES := $(1).pem) \
     $(eval LOCAL_MODULE_PATH := \
         $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests) \
@@ -782,7 +781,6 @@ define ue-unittest-keys
     $(eval include $(CLEAR_VARS)) \
     $(eval LOCAL_MODULE := ue_$(1).pub.pem) \
     $(eval LOCAL_MODULE_CLASS := ETC) \
-    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
     $(eval LOCAL_MODULE_PATH := \
         $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests) \
     $(eval LOCAL_MODULE_STEM := $(1).pub.pem) \
@@ -804,7 +802,6 @@ define ue-unittest-sample-image
     $(eval include $(CLEAR_VARS)) \
     $(eval LOCAL_MODULE := ue_unittest_$(1)) \
     $(eval LOCAL_MODULE_CLASS := EXECUTABLES) \
-    $(eval $(ifeq $(BRILLO), 1, LOCAL_MODULE_TAGS := eng)) \
     $(eval LOCAL_MODULE_PATH := \
         $(TARGET_OUT_DATA_NATIVE_TESTS)/update_engine_unittests/gen) \
     $(eval LOCAL_MODULE_STEM := $(1)) \
