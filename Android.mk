@@ -616,6 +616,7 @@ ue_libpayload_generator_exported_static_libraries := \
     liblzma \
     libpayload_consumer \
     libpuffdiff \
+    libz \
     update_metadata-protos \
     $(ue_libpayload_consumer_exported_static_libraries) \
     $(ue_update_metadata_protos_exported_static_libraries)
