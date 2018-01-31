@@ -170,6 +170,8 @@ TEST_F(OmahaRequestParamsTest, IsValidChannelTest) {
   EXPECT_FALSE(params_.IsValidChannel(""));
   params_.image_props_.allow_arbitrary_channels = true;
   EXPECT_TRUE(params_.IsValidChannel("some-channel"));
+  EXPECT_FALSE(params_.IsValidChannel("wrong-suffix"));
+  EXPECT_FALSE(params_.IsValidChannel(""));
 }
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
@@ -230,6 +232,12 @@ TEST_F(OmahaRequestParamsTest, ChannelIndexTest) {
 TEST_F(OmahaRequestParamsTest, ToMoreStableChannelFlagTest) {
   params_.image_props_.current_channel = "canary-channel";
   params_.download_channel_ = "stable-channel";
+  EXPECT_TRUE(params_.to_more_stable_channel());
+  params_.image_props_.current_channel = "stable-channel";
+  EXPECT_FALSE(params_.to_more_stable_channel());
+  params_.download_channel_ = "beta-channel";
+  EXPECT_FALSE(params_.to_more_stable_channel());
+  params_.download_channel_ = "some-channel";
   EXPECT_TRUE(params_.to_more_stable_channel());
 }
 

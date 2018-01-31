@@ -22,6 +22,7 @@
 
 #include <android-base/properties.h>
 #include <base/logging.h>
+#include <base/strings/string_util.h>
 #include <bootloader.h>
 #include <brillo/osrelease_reader.h>
 #include <brillo/strings/string_utils.h>
@@ -120,6 +121,10 @@ bool ReadChannelFromMisc(string* out_channel) {
   }
   if (channel[0] == '\0') {
     LOG(INFO) << "No channel set in misc.";
+    return false;
+  }
+  if (!base::EndsWith(channel, "-channel", base::CompareCase::SENSITIVE)) {
+    LOG(ERROR) << "Channel " << channel << " doesn't end with -channel.";
     return false;
   }
   out_channel->assign(channel);
