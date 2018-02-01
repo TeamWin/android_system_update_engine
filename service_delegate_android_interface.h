@@ -70,6 +70,12 @@ class ServiceDelegateAndroidInterface {
   // of error, returns false and sets |error| accordingly.
   virtual bool ResetStatus(brillo::ErrorPtr* error) = 0;
 
+  // Verifies whether a payload (delegated by the payload metadata) can be
+  // applied to the current device. Returns whether the payload is applicable.
+  // In case of error, returns false and sets |error| accordingly.
+  virtual bool VerifyPayloadApplicable(const std::string& metadata_filename,
+                                       brillo::ErrorPtr* error) = 0;
+
  protected:
   ServiceDelegateAndroidInterface() = default;
 };

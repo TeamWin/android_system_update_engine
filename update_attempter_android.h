@@ -69,6 +69,8 @@ class UpdateAttempterAndroid
   bool ResumeUpdate(brillo::ErrorPtr* error) override;
   bool CancelUpdate(brillo::ErrorPtr* error) override;
   bool ResetStatus(brillo::ErrorPtr* error) override;
+  bool VerifyPayloadApplicable(const std::string& metadata_filename,
+                               brillo::ErrorPtr* error) override;
 
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor,
