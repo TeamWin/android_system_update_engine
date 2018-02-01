@@ -1031,15 +1031,10 @@ bool DeltaPerformer::PerformMoveOperation(const InstallOperation& operation) {
   return true;
 }
 
-namespace {
-
-// Compare |calculated_hash| with source hash in |operation|, return false and
-// dump hash and set |error| if don't match.
-// |source_fd| is the file descriptor of the source partition.
-bool ValidateSourceHash(const brillo::Blob& calculated_hash,
-                        const InstallOperation& operation,
-                        const FileDescriptorPtr source_fd,
-                        ErrorCode* error) {
+bool DeltaPerformer::ValidateSourceHash(const brillo::Blob& calculated_hash,
+                                        const InstallOperation& operation,
+                                        const FileDescriptorPtr source_fd,
+                                        ErrorCode* error) {
   brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
                                     operation.src_sha256_hash().end());
   if (calculated_hash != expected_source_hash) {
@@ -1073,8 +1068,6 @@ bool ValidateSourceHash(const brillo::Blob& calculated_hash,
   }
   return true;
 }
-
-}  // namespace
 
 bool DeltaPerformer::PerformSourceCopyOperation(
     const InstallOperation& operation, ErrorCode* error) {

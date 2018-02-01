@@ -145,9 +145,11 @@ Status BinderUpdateEngineAndroidService::verifyPayloadApplicable(
       android::String8{metadata_filename}.string()};
   LOG(INFO) << "Received a request of verifying payload metadata in "
             << payload_metadata << ".";
-
-  // FIXME: Do the actual verification work.
-  *return_value = true;
+  brillo::ErrorPtr error;
+  *return_value =
+      service_delegate_->VerifyPayloadApplicable(payload_metadata, &error);
+  if (error != nullptr)
+    return ErrorPtrToStatus(error);
   return Status::ok();
 }
 
