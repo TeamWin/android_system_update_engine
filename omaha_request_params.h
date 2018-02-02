@@ -133,6 +133,9 @@ class OmahaRequestParams {
   inline std::string product_components() const {
     return image_props_.product_components;
   }
+  inline void set_product_components(const std::string& product_components) {
+    image_props_.product_components = product_components;
+  }
 
   inline std::string current_channel() const {
     return image_props_.current_channel;
