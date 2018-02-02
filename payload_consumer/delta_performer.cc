@@ -50,6 +50,7 @@
 #include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/extent_writer.h"
 #include "update_engine/payload_consumer/file_descriptor_utils.h"
+#include "update_engine/payload_consumer/mount_history.h"
 #if USE_MTD
 #include "update_engine/payload_consumer/mtd_file_descriptor.h"
 #endif
@@ -1079,8 +1080,10 @@ namespace {
 
 // Compare |calculated_hash| with source hash in |operation|, return false and
 // dump hash and set |error| if don't match.
+// |source_fd| is the file descriptor of the source partition.
 bool ValidateSourceHash(const brillo::Blob& calculated_hash,
                         const InstallOperation& operation,
+                        const FileDescriptorPtr source_fd,
                         ErrorCode* error) {
   brillo::Blob expected_source_hash(operation.src_sha256_hash().begin(),
                                     operation.src_sha256_hash().end());
@@ -1107,6 +1110,9 @@ bool ValidateSourceHash(const brillo::Blob& calculated_hash,
     LOG(ERROR) << "Operation source (offset:size) in blocks: "
                << base::JoinString(source_extents, ",");
 
+    // Log remount history if this device is an ext4 partition.
+    LogMountHistory(source_fd);
+
     *error = ErrorCode::kDownloadStateInitializationError;
     return false;
   }
@@ -1131,7 +1137,8 @@ bool DeltaPerformer::PerformSourceCopyOperation(
                                                      &source_hash));
 
   if (operation.has_src_sha256_hash()) {
-    TEST_AND_RETURN_FALSE(ValidateSourceHash(source_hash, operation, error));
+    TEST_AND_RETURN_FALSE(
+        ValidateSourceHash(source_hash, operation, source_fd_, error));
   }
 
   return true;
@@ -1217,8 +1224,8 @@ bool DeltaPerformer::CalculateAndValidateSourceHash(
     total_blocks -= read_blocks;
   }
   TEST_AND_RETURN_FALSE(source_hasher.Finalize());
-  TEST_AND_RETURN_FALSE(
-      ValidateSourceHash(source_hasher.raw_hash(), operation, error));
+  TEST_AND_RETURN_FALSE(ValidateSourceHash(
+      source_hasher.raw_hash(), operation, source_fd_, error));
   return true;
 }
 
