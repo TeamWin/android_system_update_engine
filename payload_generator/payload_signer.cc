@@ -18,6 +18,8 @@
 
 #include <endian.h>
 
+#include <utility>
+
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
@@ -248,7 +250,7 @@ bool PayloadSigner::LoadPayloadMetadata(const string& payload_path,
   TEST_AND_RETURN_FALSE(payload_file);
   brillo::Blob payload_metadata;
 
-  payload_metadata.resize(DeltaPerformer::kMaxPayloadHeaderSize);
+  payload_metadata.resize(kMaxPayloadHeaderSize);
   TEST_AND_RETURN_FALSE(payload_file->ReadAllBlocking(
       payload_metadata.data(), payload_metadata.size(), nullptr));
 

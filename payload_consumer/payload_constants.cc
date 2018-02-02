@@ -28,6 +28,8 @@ const uint32_t kOpSrcHashMinorPayloadVersion = 3;
 const uint32_t kBrotliBsdiffMinorPayloadVersion = 4;
 const uint32_t kPuffdiffMinorPayloadVersion = 5;
 
+const uint64_t kMaxPayloadHeaderSize = 24;
+
 const char kLegacyPartitionNameKernel[] = "boot";
 const char kLegacyPartitionNameRoot[] = "system";
 

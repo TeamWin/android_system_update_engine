@@ -33,6 +33,7 @@
 #include "update_engine/payload_consumer/file_descriptor.h"
 #include "update_engine/payload_consumer/file_writer.h"
 #include "update_engine/payload_consumer/install_plan.h"
+#include "update_engine/payload_consumer/payload_metadata.h"
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
@@ -47,18 +48,6 @@ class PrefsInterface;
 
 class DeltaPerformer : public FileWriter {
  public:
-  enum MetadataParseResult {
-    kMetadataParseSuccess,
-    kMetadataParseError,
-    kMetadataParseInsufficientData,
-  };
-
-  static const uint64_t kDeltaVersionOffset;
-  static const uint64_t kDeltaVersionSize;
-  static const uint64_t kDeltaManifestSizeOffset;
-  static const uint64_t kDeltaManifestSizeSize;
-  static const uint64_t kDeltaMetadataSignatureSizeSize;
-  static const uint64_t kMaxPayloadHeaderSize;
   static const uint64_t kSupportedMajorPayloadVersion;
   static const uint32_t kSupportedMinorPayloadVersion;
 
@@ -169,29 +158,8 @@ class DeltaPerformer : public FileWriter {
     public_key_path_ = public_key_path;
   }
 
-  // Set |*out_offset| to the byte offset where the size of the metadata
-  // signature is stored in a payload. Return true on success, if this field is
-  // not present in the payload, return false.
-  bool GetMetadataSignatureSizeOffset(uint64_t* out_offset) const;
-
-  // Set |*out_offset| to the byte offset at which the manifest protobuf begins
-  // in a payload. Return true on success, false if the offset is unknown.
-  bool GetManifestOffset(uint64_t* out_offset) const;
-
-  // Returns the size of the payload metadata, which includes the payload header
-  // and the manifest. If the header was not yet parsed, returns zero.
-  uint64_t GetMetadataSize() const;
-
-  // If the manifest was successfully parsed, copies it to |*out_manifest_p|.
-  // Returns true on success.
-  bool GetManifest(DeltaArchiveManifest* out_manifest_p) const;
-
   // Return true if header parsing is finished and no errors occurred.
   bool IsHeaderParsed() const;
-
-  // Returns the major payload version. If the version was not yet parsed,
-  // returns zero.
-  uint64_t GetMajorVersion() const;
 
   // Returns the delta minor version. If this value is defined in the manifest,
   // it returns that value, otherwise it returns the default value.
@@ -201,7 +169,7 @@ class DeltaPerformer : public FileWriter {
   friend class DeltaPerformerTest;
   friend class DeltaPerformerIntegrationTest;
   FRIEND_TEST(DeltaPerformerTest, BrilloMetadataSignatureSizeTest);
-  FRIEND_TEST(DeltaPerformerTest, BrilloVerifyMetadataSignatureTest);
+  FRIEND_TEST(DeltaPerformerTest, BrilloParsePayloadMetadataTest);
   FRIEND_TEST(DeltaPerformerTest, UsePublicKeyFromResponse);
 
   // Parse and move the update instructions of all partitions into our local
@@ -238,16 +206,6 @@ class DeltaPerformer : public FileWriter {
   // matches what's specified in the manifest in the payload.
   // Returns ErrorCode::kSuccess on match or a suitable error code otherwise.
   ErrorCode ValidateOperationHash(const InstallOperation& operation);
-
-  // Given the |payload|, verifies that the signed hash of its metadata matches
-  // what's specified in the install plan from Omaha (if present) or the
-  // metadata signature in payload itself (if present). Returns
-  // ErrorCode::kSuccess on match or a suitable error code otherwise. This
-  // method must be called before any part of the metadata is parsed so that a
-  // man-in-the-middle attack on the SSL connection to the payload server
-  // doesn't exploit any vulnerability in the code that parses the protocol
-  // buffer.
-  ErrorCode ValidateMetadataSignature(const brillo::Blob& payload);
 
   // Returns true on success.
   bool PerformInstallOperation(const InstallOperation& operation);
@@ -345,13 +303,14 @@ class DeltaPerformer : public FileWriter {
   std::string source_path_;
   std::string target_path_;
 
+  PayloadMetadata payload_metadata_;
+
   // Parsed manifest. Set after enough bytes to parse the manifest were
   // downloaded.
   DeltaArchiveManifest manifest_;
   bool manifest_parsed_{false};
   bool manifest_valid_{false};
   uint64_t metadata_size_{0};
-  uint64_t manifest_size_{0};
   uint32_t metadata_signature_size_{0};
   uint64_t major_payload_version_{0};
 
