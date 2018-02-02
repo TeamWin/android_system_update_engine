@@ -812,7 +812,7 @@ TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
 TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesBeforeOOBE) {
   OmahaResponse response;
 
-  // TODO set better default value for metrics::checkresult in
+  // TODO(senj): set better default value for metrics::checkresult in
   // OmahaRequestAction::ActionCompleted.
   fake_system_state_.fake_hardware()->UnsetIsOOBEComplete();
   ASSERT_FALSE(TestUpdateCheck(nullptr,  // request_params
@@ -2184,6 +2184,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   params.set_root(tempdir.GetPath().value());
   params.set_app_id("{22222222-2222-2222-2222-222222222222}");
   params.set_app_version("1.2.3.4");
+  params.set_product_components("o.bundle=1");
   params.set_current_channel("canary-channel");
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
@@ -2205,6 +2206,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
       "appid=\"{22222222-2222-2222-2222-222222222222}\" "
       "version=\"0.0.0.0\" from_version=\"1.2.3.4\" "
       "track=\"stable-channel\" from_track=\"canary-channel\" "));
+  EXPECT_EQ(string::npos, post_str.find("o.bundle"));
 }
 
 TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
@@ -2217,6 +2219,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   params.set_root(tempdir.GetPath().value());
   params.set_app_id("{11111111-1111-1111-1111-111111111111}");
   params.set_app_version("5.6.7.8");
+  params.set_product_components("o.bundle=1");
   params.set_current_channel("stable-channel");
   EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
   params.UpdateDownloadChannel();
@@ -2239,6 +2242,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
       "version=\"5.6.7.8\" "
       "track=\"canary-channel\" from_track=\"stable-channel\""));
   EXPECT_EQ(string::npos, post_str.find("from_version"));
+  EXPECT_NE(string::npos, post_str.find("o.bundle.version=\"1\""));
 }
 
 // Checks that the initial ping with a=-1 r=-1 is not send when the device

@@ -21,6 +21,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/bind.h>
@@ -235,10 +236,12 @@ string GetAppXml(const OmahaEvent* event,
                                system_state->prefs());
   string app_versions;
 
-  // If we are upgrading to a more stable channel and we are allowed to do
+  // If we are downgrading to a more stable channel and we are allowed to do
   // powerwash, then pass 0.0.0.0 as the version. This is needed to get the
   // highest-versioned payload on the destination channel.
-  if (params->to_more_stable_channel() && params->is_powerwash_allowed()) {
+  bool is_potential_downgrade =
+      params->to_more_stable_channel() && params->is_powerwash_allowed();
+  if (is_potential_downgrade) {
     LOG(INFO) << "Passing OS version as 0.0.0.0 as we are set to powerwash "
               << "on downgrading to the version in the more stable channel";
     app_versions = "version=\"0.0.0.0\" from_version=\"" +
@@ -276,8 +279,9 @@ string GetAppXml(const OmahaEvent* event,
 
   string fingerprint_arg;
   if (!params->os_build_fingerprint().empty()) {
-    fingerprint_arg =
-        "fingerprint=\"" + XmlEncodeWithDefault(params->os_build_fingerprint(), "") + "\" ";
+    fingerprint_arg = "fingerprint=\"" +
+                      XmlEncodeWithDefault(params->os_build_fingerprint(), "") +
+                      "\" ";
   }
 
   string buildtype_arg;
@@ -287,7 +291,7 @@ string GetAppXml(const OmahaEvent* event,
   }
 
   string product_components_args;
-  if (!app_data.product_components.empty()) {
+  if (!is_potential_downgrade && !app_data.product_components.empty()) {
     brillo::KeyValueStore store;
     if (store.LoadFromString(app_data.product_components)) {
       for (const string& key : store.GetKeys()) {
