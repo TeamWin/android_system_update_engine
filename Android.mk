@@ -141,6 +141,7 @@ ue_libpayload_consumer_src_files := \
     payload_consumer/file_writer.cc \
     payload_consumer/filesystem_verifier_action.cc \
     payload_consumer/install_plan.cc \
+    payload_consumer/mount_history.cc \
     payload_consumer/payload_constants.cc \
     payload_consumer/payload_verifier.cc \
     payload_consumer/postinstall_runner_action.cc \
