@@ -294,7 +294,7 @@ bool PreprocessParitionFiles(const PartitionConfig& part,
             file.name, ".zip", base::CompareCase::INSENSITIVE_ASCII) ||
         base::EndsWith(file.name, ".jar", base::CompareCase::INSENSITIVE_ASCII);
 
-    if (is_zip) {
+    if (is_zip && extract_deflates) {
       brillo::Blob data;
       TEST_AND_RETURN_FALSE(
           utils::ReadExtents(part.path,
