@@ -245,10 +245,6 @@ class DeltaPerformer : public FileWriter {
   // buffer.
   ErrorCode ValidateMetadataSignature(const brillo::Blob& payload);
 
-  // Calculates and validates the source hash of the operation |operation|.
-  bool CalculateAndValidateSourceHash(const InstallOperation& operation,
-                                      ErrorCode* error);
-
   // Returns true on success.
   bool PerformInstallOperation(const InstallOperation& operation);
 
