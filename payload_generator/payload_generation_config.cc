@@ -166,8 +166,10 @@ bool PayloadVersion::OperationAllowed(InstallOperation_Type operation) const {
       return minor >= kSourceMinorPayloadVersion;
 
     case InstallOperation::BROTLI_BSDIFF:
-    case InstallOperation::PUFFDIFF:
       return minor >= kPuffdiffMinorPayloadVersion;
+    // TODO(*) Revert the disablement of puffdiff after we fix b/72815313.
+    case InstallOperation::PUFFDIFF:
+      return false;
   }
   return false;
 }
