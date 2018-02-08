@@ -393,8 +393,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToMoreStableChannelTest) {
 #endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
-  EXPECT_TRUE(params.to_more_stable_channel());
-  EXPECT_TRUE(params.is_powerwash_allowed());
+  EXPECT_TRUE(params.ShouldPowerwash());
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
@@ -426,8 +425,7 @@ TEST_F(OmahaResponseHandlerActionTest, ChangeToLessStableChannelTest) {
 #endif  // __ANDROID__
   EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
   params.UpdateDownloadChannel();
-  EXPECT_FALSE(params.to_more_stable_channel());
-  EXPECT_FALSE(params.is_powerwash_allowed());
+  EXPECT_FALSE(params.ShouldPowerwash());
 
   fake_system_state_.set_request_params(&params);
   InstallPlan install_plan;
