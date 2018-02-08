@@ -897,8 +897,10 @@ class PayloadCheckerTest(mox.MoxTestBase):
     if op_type == common.OpType.REPLACE_XZ:
       payload_checker.minor_version = 2 if fail_bad_minor_version else 3
     elif op_type in (common.OpType.ZERO, common.OpType.DISCARD,
-                     common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF):
+                     common.OpType.BROTLI_BSDIFF):
       payload_checker.minor_version = 3 if fail_bad_minor_version else 4
+    elif op_type == common.OpType.PUFFDIFF:
+      payload_checker.minor_version = 4 if fail_bad_minor_version else 5
 
     if op_type not in (common.OpType.MOVE, common.OpType.SOURCE_COPY):
       if not fail_mismatched_data_offset_length:
@@ -1113,7 +1115,8 @@ class PayloadCheckerTest(mox.MoxTestBase):
         (minor_version == 1 and payload_type == checker._TYPE_DELTA) or
         (minor_version == 2 and payload_type == checker._TYPE_DELTA) or
         (minor_version == 3 and payload_type == checker._TYPE_DELTA) or
-        (minor_version == 4 and payload_type == checker._TYPE_DELTA))
+        (minor_version == 4 and payload_type == checker._TYPE_DELTA) or
+        (minor_version == 5 and payload_type == checker._TYPE_DELTA))
     args = (report,)
 
     if should_succeed:
@@ -1340,7 +1343,7 @@ def AddAllParametricTests():
 
   # Add all _CheckManifestMinorVersion() test cases.
   AddParametricTests('CheckManifestMinorVersion',
-                     {'minor_version': (None, 0, 1, 2, 3, 4, 555),
+                     {'minor_version': (None, 0, 1, 2, 3, 4, 5, 555),
                       'payload_type': (checker._TYPE_FULL,
                                        checker._TYPE_DELTA)})
 

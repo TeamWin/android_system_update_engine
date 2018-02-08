@@ -588,6 +588,7 @@ class PayloadApplier(object):
         shutil.copyfile(old_part_file_name, new_part_file_name)
       elif (self.minor_version == common.SOURCE_MINOR_PAYLOAD_VERSION or
             self.minor_version == common.OPSRCHASH_MINOR_PAYLOAD_VERSION or
+            self.minor_version == common.BROTLI_BSDIFF_MINOR_PAYLOAD_VERSION or
             self.minor_version == common.PUFFDIFF_MINOR_PAYLOAD_VERSION):
         # In minor version >= 2, we don't want to copy the partitions, so
         # instead just make the new partition file.

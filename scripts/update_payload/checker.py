@@ -69,6 +69,7 @@ _SUPPORTED_MINOR_VERSIONS = {
     2: (_TYPE_DELTA,),
     3: (_TYPE_DELTA,),
     4: (_TYPE_DELTA,),
+    5: (_TYPE_DELTA,),
 }
 
 _OLD_DELTA_USABLE_PART_SIZE = 2 * 1024 * 1024 * 1024
@@ -1029,8 +1030,10 @@ class PayloadChecker(object):
     elif op.type == common.OpType.SOURCE_BSDIFF and self.minor_version >= 2:
       self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
-    elif (op.type in (common.OpType.PUFFDIFF, common.OpType.BROTLI_BSDIFF) and
-          self.minor_version >= 4):
+    elif op.type == common.OpType.BROTLI_BSDIFF and self.minor_version >= 4:
+      self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
+      self._CheckAnySourceOperation(op, total_src_blocks, op_name)
+    elif op.type == common.OpType.PUFFDIFF and self.minor_version >= 5:
       self._CheckAnyDiffOperation(op, data_length, total_dst_blocks, op_name)
       self._CheckAnySourceOperation(op, total_src_blocks, op_name)
     else:
