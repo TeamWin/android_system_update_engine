@@ -37,8 +37,7 @@ const uint64_t kMaxCopyBufferSize = 1024 * 1024;
 
 bool CommonHashExtents(FileDescriptorPtr source,
                        const RepeatedPtrField<Extent>& src_extents,
-                       FileDescriptorPtr target,
-                       const RepeatedPtrField<Extent>& tgt_extents,
+                       DirectExtentWriter* writer,
                        uint64_t block_size,
                        brillo::Blob* hash_out) {
   auto total_blocks = utils::BlocksInExtents(src_extents);
@@ -50,11 +49,6 @@ bool CommonHashExtents(FileDescriptorPtr source,
 
   DirectExtentReader reader;
   TEST_AND_RETURN_FALSE(reader.Init(source, src_extents, block_size));
-  DirectExtentWriter writer;
-  if (target) {
-    TEST_AND_RETURN_FALSE(writer.Init(target, tgt_extents, block_size));
-    TEST_AND_RETURN_FALSE(total_blocks == utils::BlocksInExtents(tgt_extents));
-  }
 
   HashCalculator source_hasher;
   while (total_blocks > 0) {
@@ -64,13 +58,11 @@ bool CommonHashExtents(FileDescriptorPtr source,
       TEST_AND_RETURN_FALSE(
           source_hasher.Update(buf.data(), read_blocks * block_size));
     }
-    if (target) {
-      TEST_AND_RETURN_FALSE(writer.Write(buf.data(), read_blocks * block_size));
+    if (writer) {
+      TEST_AND_RETURN_FALSE(
+          writer->Write(buf.data(), read_blocks * block_size));
     }
     total_blocks -= read_blocks;
-  }
-  if (target) {
-    TEST_AND_RETURN_FALSE(writer.End());
   }
 
   if (hash_out != nullptr) {
@@ -90,9 +82,13 @@ bool CopyAndHashExtents(FileDescriptorPtr source,
                         const RepeatedPtrField<Extent>& tgt_extents,
                         uint64_t block_size,
                         brillo::Blob* hash_out) {
-  TEST_AND_RETURN_FALSE(target);
-  TEST_AND_RETURN_FALSE(CommonHashExtents(
-      source, src_extents, target, tgt_extents, block_size, hash_out));
+  DirectExtentWriter writer;
+  TEST_AND_RETURN_FALSE(writer.Init(target, tgt_extents, block_size));
+  TEST_AND_RETURN_FALSE(utils::BlocksInExtents(src_extents) ==
+                        utils::BlocksInExtents(tgt_extents));
+  TEST_AND_RETURN_FALSE(
+      CommonHashExtents(source, src_extents, &writer, block_size, hash_out));
+  TEST_AND_RETURN_FALSE(writer.End());
   return true;
 }
 
@@ -102,7 +98,7 @@ bool ReadAndHashExtents(FileDescriptorPtr source,
                         brillo::Blob* hash_out) {
   TEST_AND_RETURN_FALSE(hash_out != nullptr);
   TEST_AND_RETURN_FALSE(
-      CommonHashExtents(source, extents, nullptr, {}, block_size, hash_out));
+      CommonHashExtents(source, extents, nullptr, block_size, hash_out));
   return true;
 }
 
