@@ -139,7 +139,7 @@ void OmahaResponseHandlerAction::PerformAction() {
   system_state_->prefs()->SetString(current_channel_key,
                                     params->download_channel());
 
-  if (params->to_more_stable_channel() && params->is_powerwash_allowed())
+  if (params->ShouldPowerwash())
     install_plan_.powerwash_required = true;
 
   TEST_AND_RETURN(HasOutputPipe());

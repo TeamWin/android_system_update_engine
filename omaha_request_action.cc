@@ -239,9 +239,7 @@ string GetAppXml(const OmahaEvent* event,
   // If we are downgrading to a more stable channel and we are allowed to do
   // powerwash, then pass 0.0.0.0 as the version. This is needed to get the
   // highest-versioned payload on the destination channel.
-  bool is_potential_downgrade =
-      params->to_more_stable_channel() && params->is_powerwash_allowed();
-  if (is_potential_downgrade) {
+  if (params->ShouldPowerwash()) {
     LOG(INFO) << "Passing OS version as 0.0.0.0 as we are set to powerwash "
               << "on downgrading to the version in the more stable channel";
     app_versions = "version=\"0.0.0.0\" from_version=\"" +
@@ -291,7 +289,7 @@ string GetAppXml(const OmahaEvent* event,
   }
 
   string product_components_args;
-  if (!is_potential_downgrade && !app_data.product_components.empty()) {
+  if (!params->ShouldPowerwash() && !app_data.product_components.empty()) {
     brillo::KeyValueStore store;
     if (store.LoadFromString(app_data.product_components)) {
       for (const string& key : store.GetKeys()) {
