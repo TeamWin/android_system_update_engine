@@ -317,20 +317,20 @@ class DeltaPerformerTest : public ::testing::Test {
 
     install_plan_.hash_checks_mandatory = hash_checks_mandatory;
 
-    DeltaPerformer::MetadataParseResult expected_result, actual_result;
+    MetadataParseResult expected_result, actual_result;
     ErrorCode expected_error, actual_error;
 
     // Fill up the metadata signature in install plan according to the test.
     switch (metadata_signature_test) {
       case kEmptyMetadataSignature:
         payload_.metadata_signature.clear();
-        expected_result = DeltaPerformer::kMetadataParseError;
+        expected_result = MetadataParseResult::kError;
         expected_error = ErrorCode::kDownloadMetadataSignatureMissingError;
         break;
 
       case kInvalidMetadataSignature:
         payload_.metadata_signature = kBogusMetadataSignature1;
-        expected_result = DeltaPerformer::kMetadataParseError;
+        expected_result = MetadataParseResult::kError;
         expected_error = ErrorCode::kDownloadMetadataSignatureMismatch;
         break;
 
@@ -345,14 +345,14 @@ class DeltaPerformerTest : public ::testing::Test {
             GetBuildArtifactsPath(kUnittestPrivateKeyPath),
             &payload_.metadata_signature));
         EXPECT_FALSE(payload_.metadata_signature.empty());
-        expected_result = DeltaPerformer::kMetadataParseSuccess;
+        expected_result = MetadataParseResult::kSuccess;
         expected_error = ErrorCode::kSuccess;
         break;
     }
 
     // Ignore the expected result/error if hash checks are not mandatory.
     if (!hash_checks_mandatory) {
-      expected_result = DeltaPerformer::kMetadataParseSuccess;
+      expected_result = MetadataParseResult::kSuccess;
       expected_error = ErrorCode::kSuccess;
     }
 
@@ -372,7 +372,7 @@ class DeltaPerformerTest : public ::testing::Test {
 
     // Check that the parsed metadata size is what's expected. This test
     // implicitly confirms that the metadata signature is valid, if required.
-    EXPECT_EQ(payload_.metadata_size, performer_.GetMetadataSize());
+    EXPECT_EQ(payload_.metadata_size, performer_.metadata_size_);
   }
 
   void SetSupportedMajorVersion(uint64_t major_version) {
@@ -741,40 +741,32 @@ TEST_F(DeltaPerformerTest, BrilloMetadataSignatureSizeTest) {
   uint64_t major_version = htobe64(kBrilloMajorPayloadVersion);
   EXPECT_TRUE(performer_.Write(&major_version, 8));
 
-  uint64_t manifest_size = rand() % 256;
+  uint64_t manifest_size = 222;
   uint64_t manifest_size_be = htobe64(manifest_size);
   EXPECT_TRUE(performer_.Write(&manifest_size_be, 8));
 
-  uint32_t metadata_signature_size = rand() % 256;
+  uint32_t metadata_signature_size = 111;
   uint32_t metadata_signature_size_be = htobe32(metadata_signature_size);
   EXPECT_TRUE(performer_.Write(&metadata_signature_size_be, 4));
 
   EXPECT_LT(performer_.Close(), 0);
 
   EXPECT_TRUE(performer_.IsHeaderParsed());
-  EXPECT_EQ(kBrilloMajorPayloadVersion, performer_.GetMajorVersion());
-  uint64_t manifest_offset;
-  EXPECT_TRUE(performer_.GetManifestOffset(&manifest_offset));
-  EXPECT_EQ(24U, manifest_offset);  // 4 + 8 + 8 + 4
-  EXPECT_EQ(manifest_offset + manifest_size, performer_.GetMetadataSize());
+  EXPECT_EQ(kBrilloMajorPayloadVersion, performer_.major_payload_version_);
+  EXPECT_EQ(24 + manifest_size, performer_.metadata_size_);  // 4 + 8 + 8 + 4
   EXPECT_EQ(metadata_signature_size, performer_.metadata_signature_size_);
 }
 
-TEST_F(DeltaPerformerTest, BrilloVerifyMetadataSignatureTest) {
+TEST_F(DeltaPerformerTest, BrilloParsePayloadMetadataTest) {
   brillo::Blob payload_data = GeneratePayload({}, {}, true,
                                               kBrilloMajorPayloadVersion,
                                               kSourceMinorPayloadVersion);
   install_plan_.hash_checks_mandatory = true;
-  // Just set these value so that we can use ValidateMetadataSignature directly.
-  performer_.major_payload_version_ = kBrilloMajorPayloadVersion;
-  performer_.metadata_size_ = payload_.metadata_size;
-  uint64_t signature_length;
-  EXPECT_TRUE(PayloadSigner::SignatureBlobLength(
-      {GetBuildArtifactsPath(kUnittestPrivateKeyPath)}, &signature_length));
-  performer_.metadata_signature_size_ = signature_length;
   performer_.set_public_key_path(GetBuildArtifactsPath(kUnittestPublicKeyPath));
-  EXPECT_EQ(ErrorCode::kSuccess,
-            performer_.ValidateMetadataSignature(payload_data));
+  ErrorCode error;
+  EXPECT_EQ(MetadataParseResult::kSuccess,
+            performer_.ParsePayloadMetadata(payload_data, &error));
+  EXPECT_EQ(ErrorCode::kSuccess, error);
 }
 
 TEST_F(DeltaPerformerTest, BadDeltaMagicTest) {
@@ -855,7 +847,8 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   // Non-official build, non-existing public-key, key in response -> true
   fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = non_existing_file;
-  install_plan_.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
+  // result of 'echo "Test" | base64'
+  install_plan_.public_key_rsa = "VGVzdAo=";
   EXPECT_TRUE(performer_.GetPublicKeyFromResponse(&key_path));
   EXPECT_FALSE(key_path.empty());
   EXPECT_EQ(unlink(key_path.value().c_str()), 0);
@@ -866,7 +859,8 @@ TEST_F(DeltaPerformerTest, UsePublicKeyFromResponse) {
   // Non-official build, existing public-key, key in response -> false
   fake_hardware_.SetIsOfficialBuild(false);
   performer_.public_key_path_ = existing_file;
-  install_plan_.public_key_rsa = "VGVzdAo="; // result of 'echo "Test" | base64'
+  // result of 'echo "Test" | base64'
+  install_plan_.public_key_rsa = "VGVzdAo=";
   EXPECT_FALSE(performer_.GetPublicKeyFromResponse(&key_path));
   // Same with official build -> false
   fake_hardware_.SetIsOfficialBuild(true);

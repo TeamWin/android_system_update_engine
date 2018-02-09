@@ -46,6 +46,9 @@ extern const uint32_t kOpSrcHashMinorPayloadVersion;
 // The minor version that allows PUFFDIFF operation.
 extern const uint32_t kPuffdiffMinorPayloadVersion;
 
+// The maximum size of the payload header (anything before the protobuf).
+extern const uint64_t kMaxPayloadHeaderSize;
+
 // The kernel and rootfs partition names used by the BootControlInterface when
 // handling update payloads with a major version 1. The names of the updated
 // partitions are include in the payload itself for major version 2.
