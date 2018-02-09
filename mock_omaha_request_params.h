@@ -32,9 +32,6 @@ class MockOmahaRequestParams : public OmahaRequestParams {
     // Delegate all calls to the parent instance by default. This helps the
     // migration from tests using the real RequestParams when they should have
     // use a fake or mock.
-    ON_CALL(*this, to_more_stable_channel())
-        .WillByDefault(testing::Invoke(
-            this, &MockOmahaRequestParams::fake_to_more_stable_channel));
     ON_CALL(*this, GetAppId())
         .WillByDefault(testing::Invoke(
             this, &MockOmahaRequestParams::FakeGetAppId));
@@ -44,27 +41,22 @@ class MockOmahaRequestParams : public OmahaRequestParams {
     ON_CALL(*this, UpdateDownloadChannel())
         .WillByDefault(testing::Invoke(
             this, &MockOmahaRequestParams::FakeUpdateDownloadChannel));
-    ON_CALL(*this, is_powerwash_allowed())
+    ON_CALL(*this, ShouldPowerwash())
         .WillByDefault(testing::Invoke(
-            this, &MockOmahaRequestParams::fake_is_powerwash_allowed));
+            this, &MockOmahaRequestParams::FakeShouldPowerwash));
   }
 
-  MOCK_CONST_METHOD0(to_more_stable_channel, bool(void));
   MOCK_CONST_METHOD0(GetAppId, std::string(void));
   MOCK_METHOD3(SetTargetChannel, bool(const std::string& channel,
                                       bool is_powerwash_allowed,
                                       std::string* error));
   MOCK_METHOD0(UpdateDownloadChannel, void(void));
-  MOCK_CONST_METHOD0(is_powerwash_allowed, bool(void));
   MOCK_CONST_METHOD0(IsUpdateUrlOfficial, bool(void));
+  MOCK_CONST_METHOD0(ShouldPowerwash, bool(void));
 
  private:
   // Wrappers to call the parent class and behave like the real object by
   // default. See "Delegating Calls to a Parent Class" in gmock's documentation.
-  bool fake_to_more_stable_channel() const {
-    return OmahaRequestParams::to_more_stable_channel();
-  }
-
   std::string FakeGetAppId() const {
     return OmahaRequestParams::GetAppId();
   }
@@ -81,8 +73,8 @@ class MockOmahaRequestParams : public OmahaRequestParams {
     return OmahaRequestParams::UpdateDownloadChannel();
   }
 
-  bool fake_is_powerwash_allowed() const {
-    return OmahaRequestParams::is_powerwash_allowed();
+  bool FakeShouldPowerwash() const {
+    return OmahaRequestParams::ShouldPowerwash();
   }
 };
 
