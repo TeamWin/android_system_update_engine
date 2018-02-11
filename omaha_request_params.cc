@@ -222,16 +222,22 @@ int OmahaRequestParams::GetChannelIndex(const string& channel) const {
   return -1;
 }
 
-bool OmahaRequestParams::to_more_stable_channel() const {
+bool OmahaRequestParams::ToMoreStableChannel() const {
   int current_channel_index = GetChannelIndex(image_props_.current_channel);
   int download_channel_index = GetChannelIndex(download_channel_);
 
-  // If any of the two channels are arbitrary channels, stability is unknown, so
-  // always powerwash if allowed.
-  if (current_channel_index < 0 || download_channel_index < 0)
-    return true;
-
   return download_channel_index > current_channel_index;
+}
+
+bool OmahaRequestParams::ShouldPowerwash() const {
+  if (!mutable_image_props_.is_powerwash_allowed)
+    return false;
+  // If arbitrary channels are allowed, always powerwash on channel change.
+  if (image_props_.allow_arbitrary_channels)
+    return image_props_.current_channel != download_channel_;
+  // Otherwise only powerwash if we are moving from less stable (higher version)
+  // to more stable channel (lower version).
+  return ToMoreStableChannel();
 }
 
 string OmahaRequestParams::GetAppId() const {

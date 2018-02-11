@@ -198,10 +198,6 @@ class OmahaRequestParams {
     return max_update_checks_allowed_;
   }
 
-  // True if we're trying to update to a more stable channel.
-  // i.e. index(target_channel) > index(current_channel).
-  virtual bool to_more_stable_channel() const;
-
   // Returns the app id corresponding to the current value of the
   // download channel.
   virtual std::string GetAppId() const;
@@ -238,9 +234,8 @@ class OmahaRequestParams {
   // or Init is called again.
   virtual void UpdateDownloadChannel();
 
-  virtual bool is_powerwash_allowed() const {
-    return mutable_image_props_.is_powerwash_allowed;
-  }
+  // Returns whether we should powerwash for this update.
+  virtual bool ShouldPowerwash() const;
 
   // Check if the provided update URL is official, meaning either the default
   // autoupdate server or the autoupdate autotest server.
@@ -259,7 +254,10 @@ class OmahaRequestParams {
   FRIEND_TEST(OmahaRequestParamsTest, ChannelIndexTest);
   FRIEND_TEST(OmahaRequestParamsTest, CollectECFWVersionsTest);
   FRIEND_TEST(OmahaRequestParamsTest, IsValidChannelTest);
+  FRIEND_TEST(OmahaRequestParamsTest, SetIsPowerwashAllowedTest);
   FRIEND_TEST(OmahaRequestParamsTest, SetTargetChannelInvalidTest);
+  FRIEND_TEST(OmahaRequestParamsTest, SetTargetChannelTest);
+  FRIEND_TEST(OmahaRequestParamsTest, ShouldPowerwashTest);
   FRIEND_TEST(OmahaRequestParamsTest, ToMoreStableChannelFlagTest);
 
   // Returns true if |channel| is a valid channel, otherwise write error to
@@ -272,6 +270,10 @@ class OmahaRequestParams {
 
   // Returns the index of the given channel.
   int GetChannelIndex(const std::string& channel) const;
+
+  // True if we're trying to update to a more stable channel.
+  // i.e. index(target_channel) > index(current_channel).
+  bool ToMoreStableChannel() const;
 
   // Returns True if we should store the fw/ec versions based on our hwid_.
   // Compares hwid to a set of whitelisted prefixes.

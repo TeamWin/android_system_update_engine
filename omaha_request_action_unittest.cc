@@ -2188,8 +2188,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   params.set_current_channel("canary-channel");
   EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
   params.UpdateDownloadChannel();
-  EXPECT_TRUE(params.to_more_stable_channel());
-  EXPECT_TRUE(params.is_powerwash_allowed());
+  EXPECT_TRUE(params.ShouldPowerwash());
   ASSERT_FALSE(TestUpdateCheck(&params,
                                "invalid xml>",
                                -1,
@@ -2223,8 +2222,7 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   params.set_current_channel("stable-channel");
   EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
   params.UpdateDownloadChannel();
-  EXPECT_FALSE(params.to_more_stable_channel());
-  EXPECT_FALSE(params.is_powerwash_allowed());
+  EXPECT_FALSE(params.ShouldPowerwash());
   ASSERT_FALSE(TestUpdateCheck(&params,
                                "invalid xml>",
                                -1,
