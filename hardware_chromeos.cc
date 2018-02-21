@@ -16,6 +16,8 @@
 
 #include "update_engine/hardware_chromeos.h"
 
+#include <utility>
+
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
@@ -178,6 +180,15 @@ string HardwareChromeOS::GetECVersion() const {
   }
 
   return utils::ParseECVersion(input_line);
+}
+
+int HardwareChromeOS::GetMinKernelKeyVersion() const {
+  return VbGetSystemPropertyInt("tpm_kernver");
+}
+
+bool HardwareChromeOS::SetMaxKernelKeyRollforward(int max_kernel_rollforward) {
+  return VbSetSystemPropertyInt("max_kernel_rollforward",
+                                max_kernel_rollforward) == 0;
 }
 
 int HardwareChromeOS::GetPowerwashCount() const {

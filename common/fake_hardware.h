@@ -34,6 +34,15 @@ class FakeHardware : public HardwareInterface {
   // false.
   static const int kPowerwashCountNotSet = -1;
 
+  // Default value for crossystem tpm_kernver.
+  static const int kMinKernelKeyVersion = 3;
+
+  // Default value for crossystem max_kernel_rollforward. This value is the
+  // default for consumer devices and effectively means "unlimited rollforward
+  // is allowed", which is the same as the behavior prior to implementing
+  // roll forward prevention.
+  static const int kMaxKernelRollforward = 0xfffffffe;
+
   FakeHardware() = default;
 
   // HardwareInterface methods.
@@ -58,6 +67,15 @@ class FakeHardware : public HardwareInterface {
   std::string GetFirmwareVersion() const override { return firmware_version_; }
 
   std::string GetECVersion() const override { return ec_version_; }
+
+  int GetMinKernelKeyVersion() const override {
+    return min_kernel_key_version_;
+  }
+
+  bool SetMaxKernelKeyRollforward(int max_kernel_rollforward) override {
+    max_kernel_rollforward_ = max_kernel_rollforward;
+    return true;
+  }
 
   int GetPowerwashCount() const override { return powerwash_count_; }
 
@@ -129,9 +147,16 @@ class FakeHardware : public HardwareInterface {
     ec_version_ = ec_version;
   }
 
+  void SetMinKernelKeyVersion(int min_kernel_key_version) {
+    min_kernel_key_version_ = min_kernel_key_version;
+  }
+
   void SetPowerwashCount(int powerwash_count) {
     powerwash_count_ = powerwash_count;
   }
+
+  // Getters to verify state.
+  int GetMaxKernelKeyRollforward() const { return max_kernel_rollforward_; }
 
  private:
   bool is_official_build_{true};
@@ -139,10 +164,13 @@ class FakeHardware : public HardwareInterface {
   bool are_dev_features_enabled_{false};
   bool is_oobe_enabled_{true};
   bool is_oobe_complete_{true};
-  base::Time oobe_timestamp_{base::Time::FromTimeT(1169280000)}; // Jan 20, 2007
+  // Jan 20, 2007
+  base::Time oobe_timestamp_{base::Time::FromTimeT(1169280000)};
   std::string hardware_class_{"Fake HWID BLAH-1234"};
   std::string firmware_version_{"Fake Firmware v1.0.1"};
   std::string ec_version_{"Fake EC v1.0a"};
+  int min_kernel_key_version_{kMinKernelKeyVersion};
+  int max_kernel_rollforward_{kMaxKernelRollforward};
   int powerwash_count_{kPowerwashCountNotSet};
   bool powerwash_scheduled_{false};
   bool first_active_omaha_ping_sent_{false};

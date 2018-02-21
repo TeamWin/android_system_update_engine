@@ -165,6 +165,16 @@ string HardwareAndroid::GetECVersion() const {
   return GetProperty(kPropBootBaseband, "");
 }
 
+int HardwareAndroid::GetMinKernelKeyVersion() const {
+  LOG(WARNING) << "STUB: No Kernel key version is available.";
+  return -1;
+}
+
+bool HardwareAndroid::SetMaxKernelKeyRollforward(int max_kernel_rollforward) {
+  LOG(WARNING) << "STUB: Setting max_kernel_rollforward is not supported.";
+  return false;
+}
+
 int HardwareAndroid::GetPowerwashCount() const {
   LOG(WARNING) << "STUB: Assuming no factory reset was performed.";
   return 0;

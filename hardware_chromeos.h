@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_HARDWARE_CHROMEOS_H_
 #define UPDATE_ENGINE_HARDWARE_CHROMEOS_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -46,6 +47,8 @@ class HardwareChromeOS final : public HardwareInterface {
   std::string GetHardwareClass() const override;
   std::string GetFirmwareVersion() const override;
   std::string GetECVersion() const override;
+  int GetMinKernelKeyVersion() const override;
+  bool SetMaxKernelKeyRollforward(int max_kernel_rollforward) override;
   int GetPowerwashCount() const override;
   bool SchedulePowerwash() override;
   bool CancelPowerwash() override;

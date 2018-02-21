@@ -68,6 +68,16 @@ class HardwareInterface {
   // running a custom chrome os ec.
   virtual std::string GetECVersion() const = 0;
 
+  // Returns the minimum kernel key version that verified boot on Chrome OS
+  // will allow to boot. This is the value of crossystem tpm_kernver. Returns
+  // -1 on error, or if not running on Chrome OS.
+  virtual int GetMinKernelKeyVersion() const = 0;
+
+  // Sets the maximum kernel key version that verified boot should roll
+  // forward to. This is the value of crossystem max_kernel_rollforward.
+  // Returns false if the value cannot be set, or if not running on Chrome OS.
+  virtual bool SetMaxKernelKeyRollforward(int max_kernel_rollforward) = 0;
+
   // Returns the powerwash_count from the stateful. If the file is not found
   // or is invalid, returns -1. Brand new machines out of the factory or after
   // recovery don't have this value set.
