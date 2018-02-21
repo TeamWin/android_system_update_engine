@@ -26,6 +26,7 @@
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
 
+#include "update_engine/update_manager/rollback_prefs.h"
 #include "update_engine/update_manager/shill_provider.h"
 #include "update_engine/update_manager/umtest_utils.h"
 #include "update_engine/update_manager/updater_provider.h"
@@ -190,6 +191,21 @@ TEST(UmBoxedValueTest, ConnectionTetheringToString) {
   EXPECT_EQ("Unknown",
             BoxedValue(new ConnectionTethering(ConnectionTethering::kUnknown))
             .ToString());
+}
+
+TEST(UmBoxedValueTest, RollbackToTargetVersionToString) {
+  EXPECT_EQ("Unspecified",
+            BoxedValue(new RollbackToTargetVersion(
+                           RollbackToTargetVersion::kUnspecified))
+                .ToString());
+  EXPECT_EQ("Disabled",
+            BoxedValue(
+                new RollbackToTargetVersion(RollbackToTargetVersion::kDisabled))
+                .ToString());
+  EXPECT_EQ("Rollback with full powerwash",
+            BoxedValue(new RollbackToTargetVersion(
+                           RollbackToTargetVersion::kRollbackWithFullPowerwash))
+                .ToString());
 }
 
 TEST(UmBoxedValueTest, SetConnectionTypeToString) {

@@ -26,6 +26,7 @@
 
 #include "update_engine/common/utils.h"
 #include "update_engine/connection_utils.h"
+#include "update_engine/update_manager/rollback_prefs.h"
 #include "update_engine/update_manager/shill_provider.h"
 #include "update_engine/update_manager/updater_provider.h"
 
@@ -128,6 +129,25 @@ string BoxedValue::ValuePrinter<ConnectionTethering>(const void* value) {
       return "Confirmed";
     case ConnectionTethering::kUnknown:
       return "Unknown";
+  }
+  NOTREACHED();
+  return "Unknown";
+}
+
+template <>
+string BoxedValue::ValuePrinter<RollbackToTargetVersion>(const void* value) {
+  const RollbackToTargetVersion* val =
+      reinterpret_cast<const RollbackToTargetVersion*>(value);
+  switch (*val) {
+    case RollbackToTargetVersion::kUnspecified:
+      return "Unspecified";
+    case RollbackToTargetVersion::kDisabled:
+      return "Disabled";
+    case RollbackToTargetVersion::kRollbackWithFullPowerwash:
+      return "Rollback with full powerwash";
+    case RollbackToTargetVersion::kMaxValue:
+      NOTREACHED();
+      return "Max value";
   }
   NOTREACHED();
   return "Unknown";

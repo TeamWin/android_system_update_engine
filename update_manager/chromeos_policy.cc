@@ -199,6 +199,8 @@ EvalStatus ChromeOSPolicy::UpdateCheckAllowed(
   result->updates_enabled = true;
   result->target_channel.clear();
   result->target_version_prefix.clear();
+  result->rollback_to_target_version = RollbackToTargetVersion::kUnspecified;
+  result->rollback_allowed_milestones = -1;
   result->is_interactive = false;
 
   EnoughSlotsAbUpdatesPolicyImpl enough_slots_ab_updates_policy;

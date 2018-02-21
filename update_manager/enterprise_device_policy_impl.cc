@@ -71,13 +71,25 @@ EvalStatus EnterpriseDevicePolicyImpl::UpdateCheckAllowed(
                 << (kiosk_required_platform_version_p
                         ? *kiosk_required_platform_version_p
                         : std::string("latest"));
+      // TODO(hunyadym): Add support of rollback for kiosk apps.
     } else {
       // Determine whether a target version prefix is dictated by policy.
       const string* target_version_prefix_p =
           ec->GetValue(dp_provider->var_target_version_prefix());
       if (target_version_prefix_p)
         result->target_version_prefix = *target_version_prefix_p;
+
+      const RollbackToTargetVersion* rollback_to_target_version_p =
+          ec->GetValue(dp_provider->var_rollback_to_target_version());
+      if (rollback_to_target_version_p)
+        result->rollback_to_target_version = *rollback_to_target_version_p;
     }
+
+    // Determine allowed milestones for rollback
+    const int* rollback_allowed_milestones_p =
+        ec->GetValue(dp_provider->var_rollback_allowed_milestones());
+    if (rollback_allowed_milestones_p)
+      result->rollback_allowed_milestones = *rollback_allowed_milestones_p;
 
     // Determine whether a target channel is dictated by policy.
     const bool* release_channel_delegated_p =
