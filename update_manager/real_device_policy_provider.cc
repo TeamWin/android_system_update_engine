@@ -126,6 +126,23 @@ void RealDevicePolicyProvider::UpdateVariable(
   }
 }
 
+bool RealDevicePolicyProvider::ConvertRollbackToTargetVersion(
+    RollbackToTargetVersion* rollback_to_target_version) const {
+  int rollback_to_target_version_int;
+  if (!policy_provider_->GetDevicePolicy().GetRollbackToTargetVersion(
+          &rollback_to_target_version_int)) {
+    return false;
+  }
+  if (rollback_to_target_version_int < 0 ||
+      rollback_to_target_version_int >=
+          static_cast<int>(RollbackToTargetVersion::kMaxValue)) {
+    return false;
+  }
+  *rollback_to_target_version =
+      static_cast<RollbackToTargetVersion>(rollback_to_target_version_int);
+  return true;
+}
+
 bool RealDevicePolicyProvider::ConvertAllowedConnectionTypesForUpdate(
       set<ConnectionType>* allowed_types) const {
   set<string> allowed_types_str;
@@ -176,6 +193,10 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
   UpdateVariable(&var_update_disabled_, &DevicePolicy::GetUpdateDisabled);
   UpdateVariable(&var_target_version_prefix_,
                  &DevicePolicy::GetTargetVersionPrefix);
+  UpdateVariable(&var_rollback_to_target_version_,
+                 &RealDevicePolicyProvider::ConvertRollbackToTargetVersion);
+  UpdateVariable(&var_rollback_allowed_milestones_,
+                 &DevicePolicy::GetRollbackAllowedMilestones);
   UpdateVariable(&var_scatter_factor_,
                  &RealDevicePolicyProvider::ConvertScatterFactor);
   UpdateVariable(

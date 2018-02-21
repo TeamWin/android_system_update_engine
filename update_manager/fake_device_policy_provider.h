@@ -50,6 +50,15 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_target_version_prefix_;
   }
 
+  FakeVariable<RollbackToTargetVersion>* var_rollback_to_target_version()
+      override {
+    return &var_rollback_to_target_version_;
+  }
+
+  FakeVariable<int>* var_rollback_allowed_milestones() override {
+    return &var_rollback_allowed_milestones_;
+  }
+
   FakeVariable<base::TimeDelta>* var_scatter_factor() override {
     return &var_scatter_factor_;
   }
@@ -86,6 +95,10 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
       "update_disabled", kVariableModePoll};
   FakeVariable<std::string> var_target_version_prefix_{
       "target_version_prefix", kVariableModePoll};
+  FakeVariable<RollbackToTargetVersion> var_rollback_to_target_version_{
+      "rollback_to_target_version", kVariableModePoll};
+  FakeVariable<int> var_rollback_allowed_milestones_{
+      "rollback_allowed_milestones", kVariableModePoll};
   FakeVariable<base::TimeDelta> var_scatter_factor_{
       "scatter_factor", kVariableModePoll};
   FakeVariable<std::set<chromeos_update_engine::ConnectionType>>

@@ -20,6 +20,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 
 #include <brillo/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
@@ -69,6 +70,14 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
 
   Variable<std::string>* var_target_version_prefix() override {
     return &var_target_version_prefix_;
+  }
+
+  Variable<RollbackToTargetVersion>* var_rollback_to_target_version() override {
+    return &var_rollback_to_target_version_;
+  }
+
+  Variable<int>* var_rollback_allowed_milestones() override {
+    return &var_rollback_allowed_milestones_;
   }
 
   Variable<base::TimeDelta>* var_scatter_factor() override {
@@ -130,6 +139,11 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
       AsyncCopyVariable<T>* var,
       bool (RealDevicePolicyProvider::*getter_method)(T*) const);
 
+  // Wrapper for DevicePolicy::GetRollbackToTargetVersion() that converts the
+  // result to RollbackToTargetVersion.
+  bool ConvertRollbackToTargetVersion(
+      RollbackToTargetVersion* rollback_to_target_version) const;
+
   // Wrapper for DevicePolicy::GetScatterFactorInSeconds() that converts the
   // result to a base::TimeDelta. It returns the same value as
   // GetScatterFactorInSeconds().
@@ -164,6 +178,10 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<bool> var_update_disabled_{"update_disabled"};
   AsyncCopyVariable<std::string> var_target_version_prefix_{
       "target_version_prefix"};
+  AsyncCopyVariable<RollbackToTargetVersion> var_rollback_to_target_version_{
+      "rollback_to_target_version"};
+  AsyncCopyVariable<int> var_rollback_allowed_milestones_{
+      "rollback_allowed_milestones"};
   AsyncCopyVariable<base::TimeDelta> var_scatter_factor_{"scatter_factor"};
   AsyncCopyVariable<std::set<chromeos_update_engine::ConnectionType>>
       var_allowed_connection_types_for_update_{

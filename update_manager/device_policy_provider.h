@@ -24,6 +24,7 @@
 #include <policy/libpolicy.h>
 
 #include "update_engine/update_manager/provider.h"
+#include "update_engine/update_manager/rollback_prefs.h"
 #include "update_engine/update_manager/shill_provider.h"
 #include "update_engine/update_manager/variable.h"
 
@@ -45,6 +46,15 @@ class DevicePolicyProvider : public Provider {
   virtual Variable<bool>* var_update_disabled() = 0;
 
   virtual Variable<std::string>* var_target_version_prefix() = 0;
+
+  // Variable returning what should happen if the target_version_prefix is
+  // earlier than the current Chrome OS version.
+  virtual Variable<RollbackToTargetVersion>*
+      var_rollback_to_target_version() = 0;
+
+  // Variable returning the number of Chrome milestones rollback should be
+  // possible. Rollback protection will be postponed by this many versions.
+  virtual Variable<int>* var_rollback_allowed_milestones() = 0;
 
   // Returns a non-negative scatter interval used for updates.
   virtual Variable<base::TimeDelta>* var_scatter_factor() = 0;

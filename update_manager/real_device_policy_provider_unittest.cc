@@ -178,6 +178,10 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_release_channel_delegated());
   UmTestUtils::ExpectVariableNotSet(provider_->var_update_disabled());
   UmTestUtils::ExpectVariableNotSet(provider_->var_target_version_prefix());
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_rollback_allowed_milestones());
   UmTestUtils::ExpectVariableNotSet(provider_->var_scatter_factor());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_allowed_connection_types_for_update());
@@ -216,6 +220,23 @@ TEST_F(UmRealDevicePolicyProviderTest, ValuesUpdated) {
       provider_->var_allowed_connection_types_for_update());
   UmTestUtils::ExpectVariableHasValue(
       true, provider_->var_allow_kiosk_app_control_chrome_version());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, RollbackToTargetVersionConverted) {
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_device_policy_, GetRollbackToTargetVersion(_))
+#if USE_DBUS
+      .Times(2)
+#else
+      .Times(1)
+#endif  // USE_DBUS
+      .WillRepeatedly(DoAll(SetArgPointee<0>(2), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(
+      RollbackToTargetVersion::kRollbackWithFullPowerwash,
+      provider_->var_rollback_to_target_version());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {
